@@ -1,0 +1,246 @@
+---
+name: csm-bdd-tdd
+description: Mutate a saved CSM plan into a strict BDD+TDD execution package — formal spec, executable Gherkin scenarios, unit test designs, and a new mutated plan file stored alongside the original with a specs folder path recorded in it; use ONLY when explicitly asked to apply BDD/TDD to an existing CSM plan or generate behavior specs from one. Specification and planning only, never implementation.
+---
+
+# CSM BDD+TDD
+
+Take a plan produced by `csm-plan` and transform it into a strict BDD + TDD package: a formal spec, executable behavior scenarios (BDD, outside-in), unit test designs (TDD, inside-out), and a **new mutated CSM plan file** whose tasks are traceable to approved scenarios and drive red → green → refactor during a future `csm-build` run. This skill specifies and plans only — it never builds.
+
+## Activation Boundary
+
+- Activate only when the user's current message explicitly asks to apply BDD/TDD to an existing CSM plan, convert a plan to behavior-driven form, or generate executable specs from a plan.
+- This is a specification-and-planning skill. It never writes production or implementation code, never invokes `csm-build`, and never transitions a plan out of `NOT_STARTED`.
+- The only allowed writes are the specs folder (spec, features, harness stubs, test designs, validation reports), the new mutated plan file, and one appended pointer line at the end of the source plan directing readers to the mutated plan. The source plan is otherwise never modified.
+- `SAVED` is the terminal state. Display the mutated plan path, specs folder path, and validation results, then stop without asking whether to start work.
+
+## Inputs
+
+1. **Source plan**: path supplied by the user; otherwise locate under `.agents/plans/` at the repository root, considering only base plans (non-BDD `*-csm.md` files) — never mutate an existing BDD/TDD mutation. If a BDD/TDD mutation already exists for the selected base plan, ask whether to re-mutate (producing the next version). If multiple plausible base plans exist, ask; do not guess.
+2. **Specs folder**: path supplied in the prompt; otherwise `specs/<goal-slug>/` in the current working directory. All spec artifacts live under it. If the resolved folder already contains artifacts for a different plan, ask before proceeding. Record the resolved absolute or repo-relative path — the mutated plan must state it unambiguously.
+3. Read the complete source plan, applicable repository instructions, and referenced evidence before writing anything.
+
+## Non-Negotiable Rules
+
+- **No implementation code** in this phase — only specs, scenarios, harness stubs, test designs, and the plan.
+- **No scenario** unless it states one behavior, in business language, with concrete data.
+- **No task** unless it is traceable to an approved scenario.
+- **No approval** unless validation passes and strictness checks show the scenarios are not superficial.
+- **No broad context dumps**: every subagent receives only the minimum artifacts its step requires.
+- **BDD defines what** (outside-in; acceptance), **TDD defines how** (inside-out; unit-level design). Every unit test design must ultimately serve a scenario.
+- **No production code before a failing unit test exists for it** — the mutated plan must encode this red → green → refactor order into every task's actions for the build phase.
+- This phase ends at the mutated plan; build happens later in a separate, explicit `csm-build` invocation.
+
+## Safety And Isolation
+
+- The write allowlist is exactly: the specs folder, the new mutated plan file, and a single appended pointer line in the source plan. Never otherwise modify the source plan, project source, configuration, dependencies, or real data.
+- Scenario execution may run only specs-folder code (runner + step-definition stubs). Never build or execute project implementation code to validate scenarios.
+- Prefer the repository's existing BDD tooling if already installed. Do not install dependencies into the project or system. If no usable runner exists, write framework-agnostic feature files and stubs, mark executability as unverified in the validation report, and record it as an open question for the user.
+- Use only synthetic or copied read-only data in scenarios and stubs. Never point scenario execution at real databases, services, credentials, or persistent state.
+- Scale ceremony to plan size: small plans may be processed primarily by the primary agent; large plans use parallel subagents per feature or scenario group.
+
+## Pipeline
+
+`INTAKE -> SPEC -> SCENARIOS -> VALIDATE -> TEST_DESIGN -> MUTATE_PLAN -> VERIFY -> SAVED -> STOP`
+
+Transitions from `VALIDATE` or `VERIFY` may return to `SPEC`, `SCENARIOS`, or `TEST_DESIGN` when artifacts are wrong or superficial. Continue until the gate passes or a genuine user decision blocks progress.
+
+Record every pipeline transition in `specs/control.md` (state, timestamp, artifact status, next action) as it happens. On start, if `specs/control.md` already exists in the resolved specs folder, resume from its recorded state instead of restarting.
+
+### 1. INTAKE
+
+1. Read the source plan; extract the goal, acceptance criteria, design, tasks, and discovered requirements.
+2. Resolve and create the specs folder. Record its path for the plan.
+3. Classify size: small plans may run SPEC through TEST_DESIGN primarily in the primary agent; larger plans fan out to parallel subagents with narrow context.
+
+### 2. SPEC (Spec Agent)
+
+Produce `specs/spec.md` with: Objective, Scope, Out of scope, Glossary, Assumptions, Constraints, Acceptance criteria, Open questions, Risks.
+
+Rules: define terms before using them; state constraints in testable language; identify unresolved assumptions explicitly; no implementation details; keep it short enough for agents to process reliably.
+
+### 3. SCENARIOS (Scenario Agent)
+
+Produce `specs/features/*.feature` using Gherkin. Parallelize per feature or capability; each subagent receives only the spec and glossary.
+
+```gherkin
+Feature: <business capability>
+  As a <role>
+  I want <capability>
+  So that <benefit>
+
+  Background:
+    Given <shared precondition>
+
+  Scenario: <single behavior>
+    Given <concrete precondition>
+    When <single action>
+    Then <observable result>
+    And <additional observable result>
+```
+
+Rules: one behavior and one action per scenario; concrete examples, never placeholders; `Then` observable from the outside; `Scenario Outline` only for true permutations; business language only; include negative cases; assign each scenario a stable id (e.g., `auth-001`).
+
+### 4. VALIDATE (Validation Agent)
+
+1. Create `specs/test-harness/` with runner configuration and step-definition stubs — stubs only, no implementation.
+2. Execute every scenario. Each must run and **fail for the right reason**: a failing behavior assertion or unimplemented stub, never a broken harness. A scenario that passes before implementation means the spec is wrong — rewrite it.
+3. Strictness (mutation) check: where feasible, temporarily mutate a stub to exhibit the correct behavior and confirm the scenario goes green, then revert. This proves the scenario is wired correctly and capable of detecting behavior. A scenario no stub mutation can turn green is superficial or broken — reject or rewrite it.
+4. Record the report in `specs/validation/`: per-scenario execution result, failure reason, and mutation result.
+
+### 5. TEST_DESIGN (Test Design Agent)
+
+For each approved scenario, identify the units of code the build will need and write unit test designs under `specs/tests/design/*.md` or `*.yaml`. Parallelize per scenario; each subagent receives one scenario, the spec, and the template.
+
+Markdown template:
+
+```text
+Test: <test name, named by behavior not function>
+Scenario: <linked scenario id>
+Purpose: <what behavior this test validates>
+
+Given:
+  - <precondition>
+When:
+  - <action>
+Then:
+  - <expected result>
+
+TDD Approach:
+  1. Write test for this behavior (red)
+  2. Implement minimum code to pass (green)
+  3. Refactor while keeping test green
+  4. Repeat for next behavior
+```
+
+YAML template:
+
+```yaml
+test_id: <test-id>
+scenario_id: <scenario-id>
+purpose: <what behavior this test validates>
+given:
+  - <precondition>
+when:
+  - <action>
+then:
+  - <expected result>
+tdd_approach:
+  - Write test for this behavior (red)
+  - Implement minimum code to pass (green)
+  - Refactor while keeping test green
+  - Repeat for next behavior
+```
+
+Rules: one assertion focus per test; fast, isolated, deterministic by design; mock or stub external dependencies; document the red → green → refactor approach without implementing; do not over-test trivial code (no vanity coverage).
+
+### 6. MUTATE_PLAN (Primary Agent)
+
+1. Write a new plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-bdd-csm.md`. Never overwrite the source plan or an existing BDD plan; on re-runs insert a version marker before `-bdd` — `<yyyy-mm-dd>-<goal-slug>-v2-bdd-csm.md`, `-v3-`, and so on — keeping the `-bdd-csm.md` ending that `csm-build` looks for.
+2. Use the required `csm-plan` document structure — same sections, with the task block below extending the base template — so `csm-build` consumes it without new machinery, with these additions:
+   - Open the plan, immediately after the title, with a provenance line: `> This is a BDD/TDD plan based upon an earlier plan. See <source plan path>.` This is the plan's only reference to the source plan — do not repeat it in Control or elsewhere.
+   - **How To Execute** and **Control** must both state `Specs folder: <path>`; every task references scenario and test-design paths under it.
+   - Carry Control policy values forward from the source plan (e.g., `Commits: disabled`) unless the user directs otherwise; set a fresh Plan ID, `Current CSM state: NOT_STARTED`, and `Cycle: 0`.
+   - Tasks derive from approved scenarios only: one task per scenario unless scenarios are tightly coupled.
+   - A **Traceability** section mapping: scenario id + feature file → task id → unit test design ids + files.
+   - Keep the plan optimized for agentic execution: preserve the full cyclic state machine contract (Control with `Current CSM state: NOT_STARTED`, cycle counter, Progress Journal, and every csm-build-required task field) so a future `csm-build` session can run `RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT` cycles without improvisation; and maximize safe parallelism — an Execution Graph naming explicit dependencies, the critical path, and the largest genuinely independent parallel groups, with disjoint write scopes inside each group. Enforce BDD/TDD ordering within each task (failing tests first, scenario last) without inventing false dependencies between tasks; scenario tasks with disjoint scopes belong in the same parallel group even across features.
+3. Task block format (all csm-build fields preserved):
+
+```markdown
+1. [pending] <task title>
+   - Task ID: T001
+   - Scenario: <scenario id> (<feature file path under specs folder>)
+   - Depends on: none
+   - Parallel group: G1
+   - Risk: low | standard | high (flag security, data, destructive, or public-interface impact)
+   - Owned scope: <non-overlapping files/components>
+   - Not in scope: <explicit exclusions and do-not-touch items>
+   - Actions: TDD cycle — (1) write failing unit tests from designs <test ids/paths> (red); (2) implement the minimum code to pass them (green); (3) refactor while keeping tests green; (4) make scenario <id> pass end-to-end
+   - Unit test designs: <test ids and paths under specs folder>
+   - Acceptance signal: <exact command running scenario <id> plus its unit tests; expected: all pass>
+   - Validation: <supporting checks, cheapest first, with expected results>
+   - Acceptance evidence: <recorded runner output for the scenario and its unit tests>
+   - Repair attempts: 0
+   - Recovery note: <how to detect partial work and resume safely>
+```
+
+4. Append a final pointer line to the end of the source plan directing its readers to the mutated plan:
+
+```markdown
+---
+> **Superseded for BDD/TDD:** this is the original plan, now mutated to use strict BDD and TDD. Read the mutated plan here: <path to mutated plan> (specs live in <specs folder path>).
+```
+
+If a pointer line from an earlier run already exists in the source plan, replace it with the new target instead of appending a duplicate. Apart from this line, do not modify the source plan.
+
+### 7. VERIFY
+
+The primary agent personally verifies the whole package; do not delegate this gate:
+
+- every source-plan acceptance criterion is covered by at least one scenario;
+- every scenario maps to one or more tasks; every task maps back to exactly one scenario or a tightly bound group; every unit test design maps to a task; every artifact references its sources by id and path;
+- all scenarios execute and fail for the right reason; strictness (mutation) results are recorded and acceptable;
+- no implementation code exists anywhere in the specs folder or the mutated plan;
+- the mutated plan opens with the provenance line naming the source plan, the specs folder path is recorded and correct, and all csm-build-required task fields are present;
+- the Execution Graph names explicit dependencies, the critical path, and parallel groups whose member tasks have disjoint write scopes, so csm-build can dispatch maximum safe parallelism;
+- the source plan is unchanged except for the single appended pointer line, which names the correct mutated-plan path and specs folder.
+
+Hard rejects (validation gate):
+
+- scenario passes before implementation → the spec is wrong;
+- no stub mutation can turn a scenario green → the scenario is too weak;
+- scenario cannot be mapped to a task → planning is incomplete;
+- task with no scenario → reject it;
+- task with no unit test design → reject it;
+- unit test design not following the TDD approach → reject it.
+
+Address every issue; cycle back to `SCENARIOS` or `TEST_DESIGN` as needed.
+
+### 8. SAVED
+
+Unless the user explicitly requested no commit, commit the full output — the specs folder, the mutated plan, and the source plan's pointer line — in a single commit with a concise message referencing the source plan. Stage only files this skill created or modified, and never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
+
+Display: the mutated plan path, specs folder path, scenario and task counts, validation summary (execution + strictness), the commit hash or the reason the commit was skipped, `ready` or `blocked` status, and any user decisions required. State explicitly that no implementation was started and that execution requires a separate, explicit `csm-build` invocation naming the **new** plan. Then stop.
+
+## Specs Folder Contract
+
+```text
+specs/<goal-slug>/         (or prompt-specified location)
+  control.md               pipeline journal: state, progress, resume point
+  spec.md                  formal intent and constraints
+  features/*.feature       executable behavior specs (BDD)
+  test-harness/            runner config + step-definition stubs (no implementation)
+  tests/design/*.md|yaml   unit test designs (TDD)
+  validation/              scenario execution + strictness reports
+```
+
+File rules: one file type, one purpose; stable filenames; no mixed concerns; human-readable first, machine-parseable second; diff-friendly; no implementation code anywhere in this phase.
+
+## Context Budget Rules
+
+- Pass each subagent only the current artifact plus directly dependent artifacts.
+- Do not attach historical discussion unless it changes the result; do not pass the whole repository when one file is enough; summarize long inputs into bullet facts; prefer structured data over prose.
+- Budgets: Spec Agent ← source plan goal/criteria + glossary; Scenario Agent ← spec + glossary; Validation Agent ← feature files + harness; Test Design Agent ← one scenario + spec + template; Planning (primary) ← approved features + test designs + validation report + source plan.
+
+## Anti-Patterns
+
+- Large, vague spec files.
+- Scenarios describing internals instead of observable behavior.
+- Multiple behaviors in one scenario; placeholders instead of concrete data.
+- Tasks with no traceability; freeform subagent prompts with no output contract.
+- Mixed spec, plan, and code in one file.
+- Passing the entire plan or repository to every subagent.
+- Accepting scenarios that pass before code exists.
+- Skipping the strictness (mutation) check or accepting a scenario no stub can turn green.
+- Writing implementation code in this phase, or writing unit test designs that follow code instead of driving it.
+- Over-testing trivial code (vanity coverage).
+- Doing TDD while ignoring BDD (losing business alignment), or vice versa.
+- Tasks that describe build output without the red → green → refactor order.
+
+## Done Criteria
+
+- Formal spec complete; scenarios executable; all fail before implementation for the right reason; strictness checks recorded and acceptable.
+- Unit test designs complete for all scenarios, following the documented TDD approach, traceable to scenarios.
+- Tasks derived from approved scenarios only, each with attached test designs, TDD-ordered actions, and a runnable acceptance signal.
+- Traceability complete: intention → spec → scenarios → tasks → test designs.
+- New mutated plan saved (source plan unchanged except the appended pointer line), specs folder path recorded in it, full validation gate passed, and context minimized for the build phase.

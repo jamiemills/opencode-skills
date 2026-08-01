@@ -5,7 +5,7 @@ description: CSM planning only: research, critique, verify, save, and display a 
 
 # CSM Plan
 
-Turn the user's brief into an evidence-based, executable, and resumable implementation plan. Use a cyclic state machine and the maximum useful number of parallel subagents. Save and display the plan, then stop.
+Turn the user's brief into an evidence-based, executable, and resumable implementation plan. Use a cyclic state machine and the maximum useful number of parallel subagents. Save and display the plan, then stop. A saved plan may optionally be mutated by `csm-bdd-tdd` before execution; `csm-build` follows the mutation when one exists.
 
 ## Non-Negotiable Planning Boundary
 
@@ -22,12 +22,24 @@ Turn the user's brief into an evidence-based, executable, and resumable implemen
 - Use subagents for real work, not ceremonial restatement. Give each agent a focused question, relevant context, safe tool access, and a required evidence format.
 - Maximize useful parallelism: dispatch every independent research or remediation task concurrently, up to the available capacity. Use one parallel tool batch rather than serial subagent calls when the tooling supports it. Do not parallelize work with unresolved dependencies or overlapping write ownership.
 - Base conclusions on repository evidence, authoritative documentation, schemas, and safe experiments with real tools. Clearly distinguish observations from inferences.
+- Prefer simple, pragmatic plans. Design the smallest solution that satisfies the acceptance criteria; plan for the stated ask, not hypothetical futures; favor boring, proven approaches and existing repository patterns over novel abstractions; and use the fewest tasks that remain atomic and independently validatable. Reject speculative generality, unrequested configurability, and elaborate designs that a simpler one would satisfy.
 - Obey all repository instructions. Ask the user only when an ambiguity represents a product choice, changes scope materially, or cannot be resolved safely from evidence.
 - The only persistent project changes allowed during planning are the plan directory and saved plan document. Do not edit project source, configuration, dependencies, infrastructure, or real data.
 - Temporary writes are explicitly allowed for safe planning R&D. Use an isolated OS temporary directory such as a newly created directory under `/tmp`; verify the resolved path is outside the repository and is not linked to a real system or data location before writing.
 - Temporary R&D may create throwaway prototypes, synthetic fixtures, generated artifacts, local test databases, or copied code fragments needed to answer planning questions. Treat all such output as disposable evidence, never as implementation deliverables, and never move or copy it into the project working tree.
 - Keep R&D non-destructive and non-impactful. The write allowlist contains exactly the isolated temporary sandbox and the saved plan path. Do not install dependencies into the project or system, write anywhere else, invoke mutating APIs, contact production services, use live credentials, or alter persistent systems or real data.
 - Never claim an experiment was run unless its command or tool, inputs, and result are recorded.
+
+## Scale To The Ask
+
+Match planning depth to the brief; do not run full ceremony on every request.
+
+1. Classify the ask at INTAKE on two axes: size (one focused change vs. multi-component build) and prescriptiveness (open question vs. detailed architecture with prescribed ways of working).
+2. Small, simple, well-understood asks: produce a quick plan — minimal research beyond DISCOVER, primary-led critique is acceptable, short task list. Keep every required template field; proportionality reduces depth, never the required structure.
+3. Large or uncertain asks: full parallel research, dedicated uncertainty scout, independent critique and remediation cycles.
+4. A prescriptive brief — architecture, interfaces, or ways of working dictated by the user — is a set of decisions already made. Do not relitigate it or explore alternatives; research instead validates feasibility against the real repository, maps the prescribed architecture onto existing code, and fills implementation gaps. Record user prescriptions in Assumptions And Decisions as user-dictated.
+5. An open brief requires approach selection: research compares candidate approaches with evidence before DRAFT commits to one.
+6. When in doubt, reduce planning ceremony — never the plan's required fields or task-level acceptance signals.
 
 ## Mandatory R&D Safety Gate
 
@@ -40,7 +52,7 @@ Apply this gate before every R&D command or tool call, including work delegated 
 5. Use only synthetic or copied read-only input data. Never point experiments at real databases, queues, buckets, infrastructure, user data, credentials, or persistent local services.
 6. Permit network access only for a known read-only retrieval through a read-only tool. Never send mutating requests, authenticate to a real service, trigger jobs, publish artifacts, or rely on a dry-run flag whose behavior has not been verified.
 7. Do not start daemons, watchers, scheduled jobs, containers with host writes, or other processes that can outlive the experiment. Any isolated process must terminate within the R&D step and may write only inside the sandbox.
-8. Do not run mutating Git commands, including `add`, `commit`, `checkout`, `switch`, `reset`, `restore`, `clean`, `stash`, `merge`, `rebase`, or branch/tag creation. Use read-only Git inspection with optional locking disabled where possible.
+8. Do not run mutating Git commands, including `add`, `commit`, `checkout`, `switch`, `reset`, `restore`, `clean`, `stash`, `merge`, `rebase`, or branch/tag creation. Use read-only Git inspection with optional locking disabled where possible. The intentional plan-file commit at SAVED is exempt from this rule.
 9. Capture a protected-state baseline before R&D and compare it afterward. Verify that the repository and its metadata, excluding only the intended plan directory and document, plus every non-sandbox path, data store, or external system reachable by the tools were not changed. Record the verification evidence in the R&D record.
 10. If any protected state changes unexpectedly, stop planning work, do not attempt destructive recovery, preserve evidence, and report the incident to the user.
 
@@ -56,9 +68,10 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 
 ### 1. INTAKE
 
-1. Restate the goal, deliverables, constraints, exclusions, and measurable acceptance criteria from the brief.
-2. Identify unresolved product decisions separately from technical uncertainties.
-3. Ask concise numbered questions only for decisions that cannot be established safely through discovery or R&D.
+1. Classify the ask's size and prescriptiveness per Scale To The Ask, and set planning depth accordingly.
+2. Restate the goal, deliverables, constraints, exclusions, and measurable acceptance criteria from the brief.
+3. Identify unresolved product decisions separately from technical uncertainties.
+4. Ask concise numbered questions only for decisions that cannot be established safely through discovery or R&D.
 
 ### 2. DISCOVER
 
@@ -88,7 +101,7 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 
 ### 4. DRAFT
 
-Draft the implementation plan using the required document format below. Make tasks atomic enough to validate and resume, but avoid meaningless micro-steps. Explicitly model dependencies and parallel groups.
+Draft the implementation plan using the required document format below. Make tasks atomic enough to validate and resume, but avoid meaningless micro-steps. Keep the design and task list as simple as the acceptance criteria allow: fewer moving parts, fewer tasks, no speculative structure. Explicitly model dependencies and parallel groups. Every task must name a runnable acceptance signal — the exact command or test whose pass objectively proves the task done — a risk classification, and explicit anti-scope. Where uncertainty could not be resolved during planning, annotate the task with a concrete spike question and safe isolation expectations; never let unresolved uncertainty ship silently as a plain pending task — resolve it, annotate it, or record it as a blocker.
 
 The plan must define these states for a future, separately invoked `csm-build` session:
 
@@ -98,8 +111,8 @@ After `CHECKPOINT`, that future session transitions to `SELECT` for another cycl
 
 ### 5. CRITIQUE
 
-1. Give the full draft and research evidence to a critique subagent that did not author the draft.
-2. Require a hostile but constructive review for errors, omissions, infeasible steps, weak validation, dependency mistakes, unsafe actions, conflicts, ambiguities, hidden assumptions, insufficient rollback or recovery, and opportunities for safe parallelism.
+1. Give the full draft and research evidence to a critique subagent that did not author the draft. For small, low-risk plans the primary agent may perform this critique directly, per Scale To The Ask.
+2. Require a hostile but constructive review for errors, omissions, infeasible steps, weak validation, dependency mistakes, unsafe actions, conflicts, ambiguities, hidden assumptions, insufficient rollback or recovery, over-engineering or speculative structure, and opportunities for safe parallelism. Also audit build-consumption readiness: every task has a runnable acceptance signal, a risk classification, explicit anti-scope, genuinely non-overlapping write ownership within its parallel group, tiered validation, and a concrete spike question where uncertainty remains.
 3. Require every finding to cite the affected plan section, severity, reasoning, and a concrete correction or research question.
 
 ### 6. REMEDIATE
@@ -114,6 +127,7 @@ After `CHECKPOINT`, that future session transitions to `SELECT` for another cycl
 The primary agent must personally review the complete plan. Do not delegate this gate. Verify that:
 
 - the plan will achieve the stated goal and every acceptance criterion maps to numbered work and validation;
+- every task names a runnable acceptance signal, a risk classification, explicit anti-scope, and a spike question wherever uncertainty remains;
 - tasks are executable in dependency order and parallel groups are genuinely independent;
 - named files, interfaces, commands, and tooling match the observed repository;
 - implementation, integration, tests, migration, security, operability, documentation, and recovery are covered where relevant;
@@ -127,7 +141,9 @@ Address every issue found. Cycle back as needed; do not approve a plan merely be
 
 Save the final plan under `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md` at the repository root. Create only the plan directory and file. Do not overwrite an unrelated existing plan.
 
-In the final response, display the complete final plan, not only a summary or path. Also report the saved path, the plan's `ready` or `blocked` status, and any user decisions still required. Explicitly state that implementation was not started. Then stop; do not invoke another skill or execute the first transition.
+Unless the user explicitly requested no commit, commit the new plan file in a single commit with a concise message referencing the goal; stage only the plan file, and never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
+
+In the final response, display the complete final plan, not only a summary or path. Also report the saved path, the commit hash or the reason the commit was skipped, the plan's `ready` or `blocked` status, and any user decisions still required. Explicitly state that implementation was not started. Then stop; do not invoke another skill or execute the first transition.
 
 ## Required Plan Document
 
@@ -136,11 +152,17 @@ Use this structure:
 ```markdown
 # <Goal> CSM Plan
 
+## How To Execute
+- Start work only through a separate, explicit csm-build invocation naming this plan; the planning session must not begin execution.
+- Commit policy and live state are maintained in Control by csm-build.
+- Risk summary: <task counts by risk tier; tasks that always require independent review>
+
 ## Control
 - Plan ID: <stable slug>
 - Status: ready | in_progress | blocked | complete
 - Current CSM state: NOT_STARTED
 - Cycle: 0
+- Commits: allowed | disabled
 - Last checkpoint: <timestamp and summary>
 - Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
 - Active tasks: none
@@ -163,6 +185,9 @@ Use this structure:
 | ID | Question | Method/tool | Isolation and no-change evidence | Observation | Plan implication |
 |---|---|---|---|---|---|
 
+## Discovered Requirements
+<constraints discovered during planning — lint rules, style constraints, environment quirks, interface gotchas — with evidence; csm-build appends new discoveries each cycle and applies them to all remaining tasks>
+
 ## Design
 <target behavior, boundaries, interfaces, data flow, and key decisions>
 
@@ -174,14 +199,19 @@ Use this structure:
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
+   - Risk: low | standard | high (flag security, data, destructive, or public-interface impact)
    - Owned scope: <non-overlapping files/components>
+   - Not in scope: <explicit exclusions and do-not-touch items>
+   - Spike candidate: <concrete question to prove and isolation expectations, or none>
    - Actions: <specific implementation actions>
-   - Validation: <commands/checks and expected results>
+   - Acceptance signal: <the one runnable command/test whose pass objectively proves this task done, with expected result>
+   - Validation: <supporting checks, cheapest first, with expected results>
    - Acceptance evidence: <what must be recorded before completion>
+   - Repair attempts: 0
    - Recovery note: <how to detect partial work and resume safely>
 
 ## Verification Strategy
-<incremental, integration, and final verification>
+<incremental, integration, and final verification, ordered cheapest-first: lint/typecheck before unit, unit before integration, integration before repo-wide. Name which checks are fast per-task gates and which are expensive batch or final gates, which can run in parallel, and any known flaky or environment-sensitive checks>
 
 ## Risks And Recovery
 <risks, mitigations, rollback or forward-recovery strategy>
@@ -198,4 +228,4 @@ Use this structure:
 <filled by csm-build when all criteria are verified>
 ```
 
-Use stable task IDs even if numbering changes. Status values are `pending`, `in_progress`, `completed`, or `blocked`, but every implementation task must be `pending` in a newly created plan. Keep enough evidence in the document for another agent to resume without relying on chat history.
+Use stable task IDs even if numbering changes. Status values are `pending`, `in_progress`, `completed`, or `blocked`, but every implementation task must be `pending` in a newly created plan. Keep enough evidence in the document for another agent to resume without relying on chat history. `Repair attempts` starts at 0; csm-build increments it and maintains Control, Discovered Requirements, Progress Journal, and Completion Review during execution.

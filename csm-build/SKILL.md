@@ -1,6 +1,6 @@
 ---
 name: csm-build
-description: Implement an already saved CSM plan using parallel subagents and durable checkpoints; use ONLY when the user explicitly asks to start, execute, continue, or resume implementation, never while creating a plan.
+description: Implement an already saved CSM plan using parallel subagents and durable checkpoints, automatically preferring BDD/TDD-mutated plans when present; use ONLY when the user explicitly asks to start, execute, continue, or resume implementation, never while creating a plan.
 ---
 
 # CSM Build
@@ -22,17 +22,23 @@ Execute a saved CSM plan from its verified current state. Start a new plan or re
 - Obey repository instructions and preserve user or concurrent-agent changes. Never revert, overwrite, or include unrelated work.
 - Maximize useful parallelism. Dispatch all ready, independent work together in one parallel tool batch when supported, up to available capacity, but never assign overlapping write ownership or ignore dependencies merely to increase agent count.
 - Keep shared or high-conflict files under primary-agent ownership. When safe write isolation is impossible, parallelize investigation and review, then integrate edits serially.
+- Prefer the smallest change that satisfies each task's acceptance criteria. Reuse existing repository patterns, prefer deletion over addition, and reject unrequested abstractions, configurability, and speculative generality. Fixes must address root causes, not layer workarounds.
+- Scale ceremony to risk. Small, low-risk batches may use a lightweight path — primary-agent self-review instead of review subagents — but journaling and transition records are never reduced, and security, privacy, data integrity, destructive, or public-interface work always receives full independent review.
 - Do not mutate external services, production infrastructure, live data, or persistent environments unless the plan explicitly requires it and the user has explicitly approved it. Prefer local fixtures, mocks, dry runs, and disposable environments for validation.
-- Do not commit, push, deploy, publish, migrate real data, or perform destructive cleanup unless explicitly requested.
+- Do not push, deploy, publish, migrate real data, or perform destructive cleanup unless explicitly requested.
+- Commit at meaningful moments — at minimum each checkpoint with verified work and the completion gate — unless the plan or the user's prompt explicitly states no commits. The primary agent owns all commits; stage only files changed by this execution, use concise messages referencing the plan and cycle, and never push unless explicitly requested.
 - Update the plan after every state transition and completed dispatch group. It must always contain enough evidence and an exact next transition for a fresh agent to resume.
 - Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`.
 
 ## Locate The Plan
 
-1. Use the path supplied by the user or established in the conversation.
-2. Otherwise inspect `.agents/plans/` at the repository root.
-3. If exactly one active CSM plan matches, use it. If multiple plausible plans exist, ask the user to choose; do not guess.
-4. Read the complete plan, applicable repository instructions, and referenced evidence before changing state.
+Plans may come from `csm-plan` (base plans) or `csm-bdd-tdd` (BDD/TDD mutations, named `*-bdd-csm.md`). Resolve which to use as follows:
+
+1. A plan path explicitly supplied by the user, or established in the conversation, always wins.
+2. Otherwise inspect `.agents/plans/` at the repository root. When both a base plan and a BDD/TDD mutation exist for the same goal, prefer the BDD/TDD plan — it supersedes the base plan by default; when several BDD/TDD versions exist, prefer the highest version.
+3. Check the selected plan for a `Superseded for BDD/TDD` pointer line. If present, and the user has not explicitly asked to run that original plan, follow the pointer and use the referenced BDD/TDD plan instead.
+4. If multiple plausible plans remain, ask the user to choose; do not guess.
+5. Read the complete plan, applicable repository instructions, and referenced evidence before changing state. For a BDD/TDD plan, also absorb the specs folder path and Traceability section: scenario and unit-test-design paths under the specs folder are part of every task's evidence.
 
 ## Execution State Machine
 
@@ -66,10 +72,12 @@ Reconstruct reality before continuing:
 ### 3. SELECT
 
 1. Build the ready set from pending tasks whose dependencies are actually satisfied.
-2. Select the largest safe batch of ready tasks.
-3. Partition ownership by non-overlapping files or components. Identify shared integration points that the primary agent will handle.
-4. Mirror the current batch in the session task list when available, while keeping the saved plan authoritative.
-5. If no task is ready, resolve an unmet dependency, repair plan inconsistency, declare a specific blocker, or begin completion verification. Never silently stall.
+2. For complicated or uncertain tasks, consider — as an option, never a default or mandate — first dispatching an isolated R&D spike: throwaway evaluation work that explores candidate approaches and proves one solution option before the real task is committed to. Skip this for small, simple, or well-understood work. Spikes pursue learning, not deliverables: they must run in a scratch location outside the repository or be fully reverted afterward, leaving no leftover files, edits, dependencies, or changes; only their findings return, recorded in the plan as evidence for shaping the real task and its acceptance signal.
+3. Confirm each ready task names a runnable acceptance signal — a test, command, or script whose result objectively demonstrates the task is done. If a task lacks one, define one in the plan before dispatch; never dispatch on subjective criteria alone.
+4. Select the largest safe batch of ready tasks.
+5. Partition ownership by non-overlapping files or components. Identify shared integration points that the primary agent will handle.
+6. Mirror the current batch in the session task list when available, while keeping the saved plan authoritative.
+7. If no task is ready, resolve an unmet dependency, repair plan inconsistency, declare a specific blocker, or begin completion verification. Never silently stall.
 
 ### 4. DISPATCH
 
@@ -80,6 +88,10 @@ Launch all independent assignments concurrently. Each subagent prompt must inclu
 - relevant plan evidence and dependencies;
 - repository instructions;
 - required implementation and validation;
+- the task's runnable acceptance signal — the exact check VERIFY will run;
+- an instruction to implement the minimal change satisfying the acceptance criteria: no speculative features, abstractions, configurability, or cleanup beyond scope;
+- requirements discovered in earlier cycles that apply to this task;
+- for BDD/TDD plans: the task's scenario and unit-test-design paths under the specs folder, and the mandated TDD order — failing unit tests first (red), minimal implementation (green), refactor, then make the scenario pass end-to-end;
 - prohibition on unrelated edits, destructive actions, commits, deployments, and external-system mutation;
 - required return: files changed, checks run with results, acceptance evidence, remaining risks, and anything that may affect another task.
 
@@ -89,19 +101,21 @@ Use implementation subagents only when their write scopes do not overlap. Use ad
 
 1. Inspect every subagent result and actual diff; do not rely only on its summary.
 2. Reject or correct out-of-scope edits and reconcile interfaces at shared boundaries without reverting unrelated work.
-3. Apply primary-owned shared-file changes only after worker outputs are understood.
-4. Keep task status `in_progress` until integrated behavior passes its specified validation.
+3. When a subagent returns incomplete or incoherent results alongside a partially sound diff, choose deliberately: salvage and finish the work directly, re-dispatch with narrowed scope, or discard and redo. Do not default to full re-dispatch, and record the choice.
+4. Apply primary-owned shared-file changes only after worker outputs are understood.
+5. Keep task status `in_progress` until integrated behavior passes its specified validation.
 
 ### 6. VERIFY
 
-1. Run each task's narrow validation, then the relevant combined or integration checks for the batch.
-2. Use real repository tooling and record exact commands and meaningful results.
-3. Check acceptance behavior, not only compilation or test exit status.
-4. On failure, capture evidence and transition to `REPAIR`. Do not mark failed work complete.
+1. Order checks cheapest-first — lint and typecheck before unit tests, unit tests before integration — and stop the batch at the first failing layer instead of running expensive checks on already-failed work.
+2. Run each task's narrow validation, then the relevant combined or integration checks for the batch.
+3. Use real repository tooling and record exact commands and meaningful results.
+4. Check acceptance behavior against the task's runnable acceptance signal, not only compilation or test exit status.
+5. On failure, capture evidence and transition to `REPAIR`. Do not mark failed work complete.
 
 ### 7. REVIEW
 
-Delegate review to subagents that did not implement the reviewed work. Run independent review tracks concurrently where useful, including:
+Delegate review to subagents that did not implement the reviewed work. For small, low-risk batches the primary agent may perform this review directly, but security, privacy, data integrity, destructive, or public-interface changes always require independent review. Run independent review tracks concurrently where useful, including:
 
 - correctness and acceptance-criteria coverage;
 - regressions and edge cases;
@@ -114,10 +128,12 @@ Require findings to cite files and lines, severity, impact, evidence, and a conc
 
 ### 8. REPAIR
 
-1. Convert valid findings and failed checks into explicit repair tasks with dependencies and acceptance evidence.
-2. Dispatch independent repairs concurrently to agents with non-overlapping ownership. Prefer agents different from the original implementer when practical.
-3. Integrate and rerun the failed checks plus any newly relevant regression checks.
-4. Cycle through `VERIFY`, `REVIEW`, and `REPAIR` until no material issue remains.
+1. Classify each failure or finding before acting: plan or spec misunderstanding (re-scope the task; for BDD/TDD plans, correct the scenario or spec in the specs folder together with the plan's Traceability so they never drift), genuine defect (root-cause fix), environmental or flaky check (rerun or isolate; never patch product code to appease it), ownership or integration collision (adjust partitioning), or reviewer false positive (dismiss with recorded reasoning).
+2. Convert valid findings and failed checks into explicit repair tasks with dependencies and acceptance evidence. Every repair task must state the root cause it addresses; symptom suppression — skipping a test, catch-and-ignore, widening a type, inflating a timeout — requires explicit recorded justification.
+3. Dispatch independent repairs concurrently to agents with non-overlapping ownership. Prefer agents different from the original implementer when practical.
+4. Integrate and rerun the failed checks plus any newly relevant regression checks, cheapest-first.
+5. Track repair attempts per task. After two failed attempts on the same task, stop patching and choose deliberately: dispatch a fresh-eyes root-cause diagnosis, re-scope the task, or transition to `BLOCKED` with evidence. Never silently loop on a broken task.
+6. Cycle through `VERIFY`, `REVIEW`, and `REPAIR` until no material issue remains, subject to the attempt budget above.
 
 ### 9. CHECKPOINT
 
@@ -131,7 +147,17 @@ Update the saved plan in place:
 - exact next transition and ready tasks;
 - a timestamped progress-journal entry.
 
+Then learn from the cycle before moving on. Scan the cycle's failures and review findings for systemic patterns rather than one-offs, and propagate what was learned forward:
+
+- add newly discovered requirements (lint rules, style constraints, environment quirks, interface gotchas) to the prompts and acceptance criteria of all remaining tasks;
+- update remaining tasks' acceptance criteria when review exposed a whole class of gap;
+- split remaining tasks that proved too large and merge trivial ones;
+- adjust batch size after ownership collisions or integration failures;
+- tighten or add validation commands where checks were missing or misleading.
+
 Keep the working tree and plan recoverable. Do not use chat history as the only record of progress.
+
+Unless the plan or the user's prompt explicitly states no commits, commit the verified batch together with the updated plan before choosing the next transition. Stage only files changed by this execution, use a concise message referencing the plan, cycle, and batch, and never push unless explicitly requested.
 
 Then immediately choose:
 
@@ -150,6 +176,7 @@ The primary agent must personally perform the final gate; do not delegate it. Ve
 5. The implementation matches the user's goal rather than merely matching task wording.
 6. Documentation, migrations, configuration, and recovery steps are complete where relevant.
 7. Repository status contains no unexplained changes from this execution.
+8. All execution work is committed, unless the plan or the user's prompt explicitly stated no commits; nothing has been pushed without an explicit request.
 
 If any gate fails, create repair work and continue the cycle. If all pass, set `Status: complete`, set `Current CSM state: COMPLETE`, fill `Completion Review`, add the final journal entry, and report the result and verification evidence.
 
