@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { validateSid, sessionDir, containerSessionDir, loadState, saveState } from '../lib/session.mjs';
+import { sweep } from '../lib/sweep.mjs';
 import {
   isContainerRunning, containerExists, containerIP, execDetached,
   pgrepMatch, pkillMatch, pullImage
@@ -7,17 +8,14 @@ import {
 import { allocate } from '../lib/ports.mjs';
 import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
-  CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS,
-  PORT_POOL_START, PORT_POOL_END
+  CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS
 } from '../lib/constants.mjs';
-import { readFile, readdir, rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { SESSIONS_ROOT } from '../lib/constants.mjs';
-import { execInContainer } from '../lib/docker.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -25,15 +23,17 @@ const args = process.argv.slice(2);
 let sid = null;
 let dryRun = false;
 let cleanupStale = false;
+let ageMinutes = 10;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--session' && i + 1 < args.length) sid = args[++i];
   else if (args[i] === '--dry-run') dryRun = true;
   else if (args[i] === '--cleanup-stale') cleanupStale = true;
+  else if (args[i] === '--age' && i + 1 < args.length) ageMinutes = parseFloat(args[++i]) || 10;
 }
 
 if (!sid && !cleanupStale) {
-  console.error('Usage: node scripts/ensure-browser.mjs --session <sid> [--dry-run] [--cleanup-stale]');
+  console.error('Usage: node scripts/ensure-browser.mjs --session <sid> [--dry-run] [--cleanup-stale] [--age MINS]');
   process.exit(1);
 }
 
@@ -309,128 +309,26 @@ async function launchDaemon(sid) {
   return null;
 }
 
-async function cleanupStaleSessions(ip) {
-  const cleanedSids = new Set();
-  const pattern = '--user-data-dir=/config/csm-browse/';
-  const chromiumProcs = await pgrepMatch(CONTAINER_NAME, pattern);
-
-  const staleSids = new Set();
-
-  for (const proc of chromiumProcs) {
-    const match = proc.cmd.match(/--user-data-dir=\/config\/csm-browse\/sessions\/([^/]+)/);
-    if (!match) continue;
-
-    const procSid = match[1];
-
-    const hostStateExists = existsSync(join(SESSIONS_ROOT, procSid, 'state.json'));
-    let containerDirExists = false;
-    try {
-      await execInContainer(CONTAINER_NAME,
-        ['test', '-d', `/config/csm-browse/sessions/${procSid}`]);
-      containerDirExists = true;
-    } catch {}
-
-    if (hostStateExists && containerDirExists) continue;
-
-    staleSids.add(procSid);
-  }
-
-  for (const procSid of staleSids) {
-    console.log(`Cleaning stale session: ${procSid}`);
-
-    try {
-      await pkillMatch(CONTAINER_NAME, `--user-data-dir=/config/csm-browse/sessions/${procSid}/`);
-      await pkillMatch(CONTAINER_NAME, `--database=/config/csm-browse/sessions/${procSid}/crash`);
-
-      for (const proc of chromiumProcs) {
-        const m = proc.cmd.match(/--user-data-dir=\/config\/csm-browse\/sessions\/([^/]+)/);
-        if (!m || m[1] !== procSid) continue;
-        const portMatch = proc.cmd.match(/--remote-debugging-port=(\d+)/);
-        if (portMatch) {
-          const publicPort = parseInt(portMatch[1], 10) + 1;
-          try { await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${publicPort}`); } catch {}
-        }
-      }
-
-      try {
-        await execInContainer(CONTAINER_NAME,
-          ['rm', '-rf', `/config/csm-browse/sessions/${procSid}`]);
-      } catch {}
-
-      cleanedSids.add(procSid);
-    } catch (e) {
-      console.error(`Warning: failed to clean process for sid ${procSid}: ${e.message}`);
-    }
-  }
-
-  let hostEntries = [];
-  try {
-    hostEntries = await readdir(SESSIONS_ROOT);
-  } catch {}
-
-  for (const entry of hostEntries) {
-    const hostDir = join(SESSIONS_ROOT, entry);
-    const pidFile = join(hostDir, 'daemon.pid');
-
-    if (!existsSync(pidFile)) {
-      try {
-        await rm(hostDir, { recursive: true, force: true });
-        cleanedSids.add(entry);
-      } catch {}
-      continue;
-    }
-
-    let daemonPid;
-    try {
-      const raw = await readFile(pidFile, 'utf-8');
-      daemonPid = parseInt(raw.trim(), 10);
-    } catch {
-      await rm(hostDir, { recursive: true, force: true }).catch(() => {});
-      cleanedSids.add(entry);
-      continue;
-    }
-
-    try {
-      process.kill(daemonPid, 0);
-    } catch {
-      try { process.kill(daemonPid, 'SIGTERM'); } catch {}
-      await rm(hostDir, { recursive: true, force: true }).catch(() => {});
-      cleanedSids.add(entry);
-    }
-  }
-
-  const uniqueRemoved = [...cleanedSids];
-
-  const allSocats = await pgrepMatch(CONTAINER_NAME, 'TCP-LISTEN:92');
-  for (const socat of allSocats) {
-    const portMatch = socat.cmd.match(/TCP-LISTEN:(\d+)/);
-    if (!portMatch) continue;
-    const pubPort = parseInt(portMatch[1], 10);
-    if (pubPort < PORT_POOL_START + 1 || pubPort > PORT_POOL_END + 1) continue;
-    const internalPort = pubPort - 1;
-    const relatedChrome = await pgrepMatch(CONTAINER_NAME,
-      `--remote-debugging-port=${internalPort}`);
-    if (relatedChrome.length === 0) {
-      try {
-        await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${pubPort}`);
-      } catch {}
-    }
-  }
-
-  console.log(JSON.stringify({ cleaned: uniqueRemoved.length, removed: uniqueRemoved }));
-}
-
 async function main() {
   if (cleanupStale) {
     await ensureContainer(false);
     const ip = await containerIP(CONTAINER_NAME);
     console.log(`Container IP: ${ip}`);
-    await cleanupStaleSessions(ip);
+    const res = await sweep({ containerName: CONTAINER_NAME, ip, ageMinutes, dryRun });
+    console.log(JSON.stringify({ cleaned: res.swept.length, removed: res.swept }));
     return;
   }
 
   await ensureContainer(dryRun);
   if (dryRun) return;
+
+  try {
+    const ip = await containerIP(CONTAINER_NAME);
+    const res = await sweep({ containerName: CONTAINER_NAME, ip, skipSid: sid, dryRun: false });
+    if (res.swept.length > 0) console.log(`Sweep: ${res.swept.join(', ')}`);
+  } catch (e) {
+    console.error(`Sweep skipped: ${e.message}`);
+  }
 
   const ip = await containerIP(CONTAINER_NAME);
   console.log(`Container IP: ${ip}`);

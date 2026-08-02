@@ -93,3 +93,16 @@ The container exposes a VNC server on `localhost:5900`. Connect with any VNC cli
 ## Isolation note
 
 This skill launches a **second, isolated Chromium instance** inside the `chromium-vnc` container with its own `--user-data-dir`, XDG directories, and crashpad database. It uses a dedicated CDP port from the pool (9224+). **Never target port 9222** — that is the container's primary shared browser and must remain untouched.
+
+## Maintenance
+
+Sessions stood up by this skill are swept automatically: every `ensure-browser` run first removes sessions idle longer than 10 minutes (host daemons, container-side chromiums/socats, host and container session dirs, stale recorder locks, orphaned daemons). The session being ensured is never touched, and the primary shared browser is never affected.
+
+Manual deep-clean:
+
+```bash
+node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --cleanup-stale [--age N] [--dry-run]
+```
+
+- `--age N` — staleness threshold in minutes (default 10)
+- `--dry-run` — report only, remove nothing
