@@ -1,8 +1,9 @@
 export const SKILL_DIR = '/home/jamiemills/.config/opencode/skills/csm-browse';
 export const SESSIONS_ROOT = '/tmp/csm-browse';
 export const CONTAINER_NAME = 'chromium-vnc';
-export const IMAGE = 'maelp/docker-vnc-chromium:latest';
-export const DOCKER_RUN_CMD = 'docker run -d --name chromium-vnc -p 5900:5900 -p 9222:9222 maelp/docker-vnc-chromium:latest';
+export const IMAGE = 'jlesage/chromium:latest';
+export const DOCKER_RUN_CMD = 'docker run -d --name chromium-vnc --restart unless-stopped -e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1 -p 5900:5900 -p 9222:9222 jlesage/chromium:latest';
+export const CHROMIUM_BIN = '/usr/lib/chromium/chromium';
 export const PORT_POOL_START = 9224;
 export const PORT_POOL_END = 9234;
 export const SID_REGEX = '^[a-z0-9][a-z0-9_-]{0,40}$';

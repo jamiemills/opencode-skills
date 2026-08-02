@@ -148,8 +148,10 @@ async function runTests() {
         assert(step + ' - CDP responsive', !!(cdpJson && cdpJson.webSocketDebuggerUrl),
           cdpJson ? cdpJson.Browser || 'connected' : `no response: "${cdpOut.substring(0, 80)}"`);
 
-        const userdataExists = await checkContainerDir('/config/userdata');
-        assert(step + ' - /config/userdata exists', userdataExists);
+        const udMatch = pidOut.match(/--user-data-dir=(\S+)/);
+        const udPath = udMatch ? udMatch[1] : null;
+        const userdataExists = !!(udPath && await checkContainerDir(udPath));
+        assert(step + ` - primary user-data-dir exists (${udPath})`, userdataExists);
       } catch (e) {
         fail(step, e.message);
       }
@@ -183,9 +185,9 @@ async function runTests() {
         await startServer();
         await new Promise(r => setTimeout(r, 500));
 
-        const { stdout: curlCheck } = await run('docker', dockerArgs([
-          'curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', `${FIXTURE_BASE}/login.html`
-        ]));
+        const { stdout: curlCheck } = await run('curl', [
+          '-s', '-o', '/dev/null', '-w', '%{http_code}', `${FIXTURE_BASE}/login.html`
+        ]);
         assert(step, curlCheck.trim() === '200', `curl login.html → ${curlCheck.trim()}`);
       } catch (e) {
         fail(step, e.message);
