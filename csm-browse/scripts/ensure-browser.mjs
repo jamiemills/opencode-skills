@@ -234,45 +234,78 @@ async function createSession(ip, containerSessDir) {
   }
 }
 
+async function memAvailableMb() {
+  try {
+    const { stdout } = await execFileAsync('free', ['-m']);
+    const m = stdout.match(/^Mem:\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/m);
+    return m ? parseInt(m[1], 10) : -1;
+  } catch {
+    return -1;
+  }
+}
+
 async function launchDaemon(sid) {
   const sDir = sessionDir(sid);
   const readyMarker = join(sDir, 'daemon.ready');
   const pidFilePath = join(sDir, 'daemon.pid');
 
-  console.log('Starting session daemon...');
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    console.log(`Starting session daemon (attempt ${attempt})...`);
 
-  const daemonProc = spawn('node', [
-    join(SKILL_DIR, 'scripts', 'session-daemon.mjs'),
-    '--session', sid
-  ], {
-    detached: true,
-    stdio: ['ignore', 'ignore', 'ignore']
-  });
-  daemonProc.unref();
+    const daemonProc = spawn('node', [
+      join(SKILL_DIR, 'scripts', 'session-daemon.mjs'),
+      '--session', sid
+    ], {
+      detached: true,
+      stdio: ['ignore', 'ignore', 'ignore']
+    });
+    daemonProc.unref();
 
-  let daemonPid = null;
-  const start = Date.now();
+    let daemonPid = null;
+    const start = Date.now();
 
-  while (Date.now() - start < DAEMON_READY_TIMEOUT_MS) {
-    if (!daemonPid && existsSync(pidFilePath)) {
-      try {
-        const raw = await readFile(pidFilePath, 'utf-8');
-        daemonPid = parseInt(raw.trim(), 10);
-      } catch {}
+    while (Date.now() - start < DAEMON_READY_TIMEOUT_MS) {
+      if (!daemonPid && existsSync(pidFilePath)) {
+        try {
+          const raw = await readFile(pidFilePath, 'utf-8');
+          daemonPid = parseInt(raw.trim(), 10);
+        } catch {}
+      }
+
+      if (daemonPid && existsSync(readyMarker)) {
+        console.log(`Daemon ready (pid ${daemonPid})`);
+        return daemonPid;
+      }
+
+      await setTimeout(500);
     }
 
-    if (daemonPid && existsSync(readyMarker)) {
-      console.log(`Daemon ready (pid ${daemonPid})`);
-      return daemonPid;
+    let died = false;
+    if (daemonPid) {
+      try { process.kill(daemonPid, 0); } catch { died = true; }
     }
-
-    await setTimeout(500);
+    const mem = await memAvailableMb();
+    if (died) {
+      console.error(`Daemon (pid ${daemonPid}) died before becoming ready — possible OOM. Host available memory: ${mem} MB`);
+      try { await rm(pidFilePath, { force: true }); } catch {}
+      try { await rm(readyMarker, { force: true }); } catch {}
+      return null;
+    }
+    if (attempt < 2) {
+      console.error('Daemon did not become ready within timeout — retrying once...');
+      if (daemonPid) {
+        try { process.kill(daemonPid, 'SIGTERM'); } catch {}
+        for (let i = 0; i < 20; i++) {
+          try { process.kill(daemonPid, 0); } catch { break; }
+          await setTimeout(100);
+        }
+      }
+      try { await rm(pidFilePath, { force: true }); } catch {}
+      try { await rm(readyMarker, { force: true }); } catch {}
+    }
   }
 
-  console.error('Daemon did not become ready within timeout');
-  if (daemonPid) {
-    try { process.kill(daemonPid, 'SIGTERM'); } catch {}
-  }
+  console.error(`Daemon did not become ready after 2 attempts. Host available memory: ${await memAvailableMb()} MB`);
   return null;
 }
 
