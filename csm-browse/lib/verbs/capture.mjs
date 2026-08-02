@@ -1,6 +1,7 @@
 import { mkdir, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { dismissCookies } from '../cookies.mjs';
 
 const PRESETS = {
   small:  { format: 'jpeg', quality: 30, ext: 'jpg' },
@@ -94,6 +95,8 @@ export async function run({ args, state }) {
       flatten: true
     });
     sessionId = attachResult.sessionId;
+
+    await dismissCookies(client, sessionId);
 
     if (stitch && fullPage) {
       const stickyHeight = await getStickyHeight(client, sessionId);

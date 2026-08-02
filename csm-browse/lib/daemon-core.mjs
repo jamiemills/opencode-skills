@@ -2,6 +2,7 @@ import { readFile, writeFile, rename, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_POLL_INTERVAL_MS } from './constants.mjs';
+import { dismissCookies } from './cookies.mjs';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -91,6 +92,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
               if (recorderState && recorderState.running) {
                 result = { ok: false, error: 'already recording', ts: new Date().toISOString() };
               } else {
+                await dismissCookies(client, sessionId);
                 const name = cmd.params.name;
                 const fps = cmd.params.fps || 15;
                 const preset = cmd.params.preset || 'medium';
