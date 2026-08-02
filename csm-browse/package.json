@@ -1,0 +1,13 @@
+{
+  "name": "csm-browse",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "chrome-remote-interface": "^0.34.0",
+    "jimp": "^1.6.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

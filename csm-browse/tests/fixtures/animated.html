@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Animated Fixture</title>
+<style>
+#box { width: 100px; height: 100px; background: red; position: absolute; }
+</style>
+</head>
+<body>
+  <h1>Animated Page</h1>
+  <div id="box"></div>
+  <script>
+    console.log('animated-ready');
+    var x = 0;
+    function animate() {
+      x = (x + 2) % 400;
+      document.getElementById('box').style.left = x + 'px';
+      requestAnimationFrame(animate);
+    }
+    animate();
+  </script>
+</body>
+</html>
