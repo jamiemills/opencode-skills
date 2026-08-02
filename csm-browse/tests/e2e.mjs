@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile, exec } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SKILL_DIR = '/home/jamiemills/.config/opencode/skills/csm-browse';
@@ -573,6 +573,53 @@ async function runTests() {
 
         const csmForSession = await checkContainerProcesses(SESSION_ID);
         assert(step + ' - no csm-browse processes for this session', !csmForSession);
+      } catch (e) {
+        fail(step, e.message);
+      }
+    }
+
+    // ── Step 13: Session sweep ─────────────────────────────────────
+    {
+      const step = '13. Session sweep';
+      try {
+        const staleDir = join('/tmp', 'csm-browse', 'sweep-test-stale');
+        const freshDir = join('/tmp', 'csm-browse', 'sweep-test-fresh');
+        const autoDir = join('/tmp', 'csm-browse', 'sweep-test-auto');
+        const old = new Date(Date.now() - 5 * 3600 * 1000);
+
+        const mkStale = (dir) => {
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, 'state.json'), JSON.stringify({ sid: dir.split('/').pop() }), 'utf-8');
+          utimesSync(join(dir, 'state.json'), old, old);
+          utimesSync(dir, old, old);
+        };
+        mkStale(staleDir);
+        mkdirSync(freshDir, { recursive: true });
+        writeFileSync(join(freshDir, 'state.json'), JSON.stringify({ sid: 'sweep-test-fresh' }), 'utf-8');
+
+        const dry = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale', '--dry-run'], { timeout: 60000 });
+        assert(step + ' - dry-run lists stale', dry.stdout.includes('sweep-test-stale'), dry.stdout.substring(0, 160));
+        assert(step + ' - dry-run skips fresh', !dry.stdout.includes('sweep-test-fresh'), dry.stdout.substring(0, 160));
+        assert(step + ' - dry-run removes nothing', existsSync(staleDir));
+
+        const real = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale'], { timeout: 60000 });
+        assert(step + ' - sweep removes stale', !existsSync(staleDir), real.stdout.substring(0, 160));
+        assert(step + ' - sweep keeps fresh', existsSync(freshDir));
+
+        mkStale(autoDir);
+        const autoSid = `sweep-e2e-${Date.now()}`;
+        const auto = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--session', autoSid], { timeout: 120000 });
+        assert(step + ' - auto-sweep line printed', auto.stdout.includes('Sweep:'), auto.stdout.substring(0, 200));
+        assert(step + ' - auto-sweep removed stale', !existsSync(autoDir));
+        await run('node', [join(SKILL_DIR, 'scripts', 'browse.mjs'), 'close', '--session', autoSid]);
+
+        const { stdout: cdpOut } = await run('curl', ['-s', 'http://localhost:9222/json/version']);
+        const cdpJson = parseJson(cdpOut);
+        assert(step + ' - container CDP still up', !!(cdpJson && cdpJson.webSocketDebuggerUrl));
+
+        for (const d of [freshDir, autoDir]) {
+          try { rmSync(d, { recursive: true, force: true }); } catch {}
+        }
       } catch (e) {
         fail(step, e.message);
       }
