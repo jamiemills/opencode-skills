@@ -6,7 +6,7 @@ import {
 } from '../lib/docker.mjs';
 import { allocate } from '../lib/ports.mjs';
 import {
-  CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS,
+  CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
   CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS,
   PORT_POOL_START, PORT_POOL_END
 } from '../lib/constants.mjs';
@@ -97,6 +97,9 @@ async function ensureContainer(dryRun) {
     }
     console.log(`Running: ${DOCKER_RUN_CMD}`);
     const runArgs = ['run', '-d', '--name', CONTAINER_NAME,
+      '--restart', 'unless-stopped',
+      '-e', 'CHROMIUM_REMOTE_DEBUGGING=1',
+      '-e', 'KEEP_APP_RUNNING=1',
       '-p', '5900:5900', '-p', '9222:9222', IMAGE];
     await execFileAsync('docker', runArgs);
   }
@@ -166,7 +169,7 @@ function buildChromiumCmd(containerSessDir, internalPort) {
     '$SESS/crash',
     '$SESS/xdg/runtime',
     '&&',
-    '/usr/lib/chromium/chromium',
+    CHROMIUM_BIN,
     flagsStr,
     `--remote-debugging-port=${internalPort}`,
     '--user-data-dir=$SESS/profile',
