@@ -95,7 +95,7 @@ function topLevelDirs(repoPath) {
     .map((d) => d.replace(/^\.\//, ''));
 }
 
-export async function scanStructure(repoPath) {
+export async function scan(repoPath, overview) {
   const { counts, total } = countFiles(repoPath);
   const tree = buildTree(repoPath);
   const topDirs = topLevelDirs(repoPath);
@@ -107,11 +107,17 @@ export async function scanStructure(repoPath) {
     if (indent > depth) depth = indent;
   }
 
+  const signal = total > 100 ? 'high' : total > 20 ? 'medium' : 'low';
+
   return {
-    tree,
-    fileCounts: counts,
-    totalFiles: total,
-    topDirs,
-    depth,
+    dimension: 'structure',
+    signal,
+    findings: {
+      tree,
+      fileCounts: counts,
+      totalFiles: total,
+      topDirs,
+      depth,
+    },
   };
 }

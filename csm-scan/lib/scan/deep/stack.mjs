@@ -57,17 +57,17 @@ function detectRuntime(pkg, repoPath) {
   return 'unknown';
 }
 
-export async function scanStack(repoPath) {
+export async function scan(repoPath, overview) {
   const pkgPath = join(repoPath, 'package.json');
   const pkg = readJSON(pkgPath);
 
-  const language = existsSync(join(repoPath, 'tsconfig.json')) ? 'TypeScript' : 'JavaScript';
+  const language = overview?.languages?.[0] || (existsSync(join(repoPath, 'tsconfig.json')) ? 'TypeScript' : 'JavaScript');
   const packageManager = detectPackageManager(repoPath);
   const runtime = detectRuntime(pkg, repoPath);
   const framework = pkg ? detectFramework(pkg.dependencies || {}, pkg.devDependencies || {}) : 'N/A';
 
-  const keyDeps = pkg?.dependencies ? Object.keys(pkg.dependencies) : [];
-  const keyDevDeps = pkg?.devDependencies ? Object.keys(pkg.devDependencies) : [];
+  const keyDeps = pkg?.dependencies ? Object.keys(pkg.dependencies).slice(0, 30) : [];
+  const keyDevDeps = pkg?.devDependencies ? Object.keys(pkg.devDependencies).slice(0, 30) : [];
 
   const scripts = pkg?.scripts || {};
 
@@ -78,22 +78,32 @@ export async function scanStack(repoPath) {
 
   const hasCI = existsSync(join(repoPath, '.github', 'workflows'));
 
+  const totalDeps = Object.keys(pkg?.dependencies || {}).length +
+    Object.keys(pkg?.devDependencies || {}).length;
+  let signal = 'low';
+  if (pkg && totalDeps > 10) signal = 'high';
+  else if (pkg) signal = 'medium';
+
   return {
-    hasPackageJson: !!pkg,
-    name: pkg?.name || null,
-    version: pkg?.version || null,
-    type: pkg?.type || null,
-    main: pkg?.main || null,
-    language,
-    runtime,
-    framework,
-    packageManager,
-    keyDeps,
-    keyDevDeps,
-    deps: pkg?.dependencies || {},
-    devDeps: pkg?.devDependencies || {},
-    scripts,
-    docker: hasDocker,
-    ci: hasCI,
+    dimension: 'stack',
+    signal,
+    findings: {
+      hasPackageJson: !!pkg,
+      name: pkg?.name || null,
+      version: pkg?.version || null,
+      type: pkg?.type || null,
+      main: pkg?.main || null,
+      language,
+      runtime,
+      framework,
+      packageManager,
+      keyDeps,
+      keyDevDeps,
+      deps: pkg?.dependencies || {},
+      devDeps: pkg?.devDependencies || {},
+      scripts,
+      docker: hasDocker,
+      ci: hasCI,
+    },
   };
 }

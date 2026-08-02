@@ -422,6 +422,105 @@ function dirnameRelative(file) {
   return idx >= 0 ? file.slice(0, idx) : '';
 }
 
+function extractExports(repoPath, files, maxFiles = 5) {
+  const allExports = [];
+  for (const file of files.slice(0, maxFiles)) {
+    const ext = file.split('.').pop().toLowerCase();
+    if (!['js', 'mjs', 'cjs', 'jsx', 'ts', 'mts', 'cts', 'tsx'].includes(ext)) continue;
+
+    try {
+      const fullPath = join(repoPath, file);
+      const content = readFileSync(fullPath, 'utf-8');
+      const lines = content.split('\n');
+
+      const exports = [];
+      for (const line of lines) {
+        let m;
+
+        m = line.match(/export\s+(async\s+)?function\s+(\w+)/);
+        if (m) { exports.push({ kind: 'function', name: m[2] }); continue; }
+
+        m = line.match(/export\s+(async\s+)?class\s+(\w+)/);
+        if (m) { exports.push({ kind: 'class', name: m[2] }); continue; }
+
+        m = line.match(/export\s+(const|let|var)\s+(\w+)\s*=/);
+        if (m) { exports.push({ kind: 'variable', name: m[2] }); continue; }
+
+        m = line.match(/export\s+(type|interface)\s+(\w+)/);
+        if (m) { exports.push({ kind: 'type', name: m[2] }); continue; }
+
+        m = line.match(/export\s+enum\s+(\w+)/);
+        if (m) { exports.push({ kind: 'enum', name: m[2] }); continue; }
+
+        m = line.match(/export\s+default\s+(async\s+)?function\s+(\w+)/);
+        if (m) { exports.push({ kind: 'default-function', name: m[2] }); continue; }
+
+        m = line.match(/export\s+default\s+class\s+(\w+)/);
+        if (m) { exports.push({ kind: 'default-class', name: m[2] }); continue; }
+
+        m = line.match(/module\.exports\s*=\s*(\w+)/);
+        if (m) { exports.push({ kind: 'cjs-export', name: m[1] }); continue; }
+      }
+
+      if (exports.length > 0) {
+        allExports.push({ file, exports: exports.slice(0, 12) });
+      }
+    } catch {}
+  }
+
+  return allExports;
+}
+
+function generateC4Code(repoName, pkg, layers) {
+  const repoPath = layers._repoPath || '';
+  if (!repoPath) return '_(No source path available for code-level diagram)_';
+
+  const modules = [...layers.coreModules || layers.libModules || [], ...layers.shared || []].slice(0, 3);
+  if (modules.length === 0) return '_(No modules detected for code-level diagram)_';
+
+  const exports = extractExports(repoPath, modules, 3);
+  if (exports.length === 0 || exports.every((e) => e.exports.length === 0)) {
+    return '_(No exports detected for code-level diagram)_';
+  }
+
+  const lines = [];
+  lines.push('C4Code');
+
+  for (const mod of exports) {
+    const simpleName = mod.file.split('/').pop().replace(/\.[^.]+$/, '');
+    const cName = mod.file.replace(/[/.]/g, '_').replace(/^_+|_+$/g, '');
+
+    lines.push(`  title ${escapeMermaid(simpleName)} — ${repoName}`);
+    lines.push(`  Component(${cName}, "${escapeMermaid(simpleName)}", "${escapeMermaid(mod.file)}")`);
+
+    let funcCount = 0;
+    for (const exp of mod.exports.slice(0, 10)) {
+      const expId = `${cName}_${exp.name.replace(/[^a-zA-Z0-9_]/g, '')}`;
+      const iconMap = {
+        'function': 'F',
+        'class': 'C',
+        'variable': 'V',
+        'type': 'T',
+        'enum': 'E',
+        'default-function': 'DF',
+        'default-class': 'DC',
+        'cjs-export': 'X',
+      };
+      const icon = iconMap[exp.kind] || '?';
+      lines.push(`  ${exp.kind === 'class' || exp.kind === 'default-class' ? 'Class' : 'Func'}(${expId}, "${escapeMermaid(exp.name)}", "${icon}")`);
+      lines.push(`  BiRel(${cName}, ${expId}, "exports")`);
+      funcCount++;
+    }
+
+    if (mod.exports.length > funcCount) {
+      lines.push(`  Func(${cName}_more, "... ${mod.exports.length - funcCount} more", "…")`);
+      lines.push(`  BiRel(${cName}, ${cName}_more, "exports")`);
+    }
+  }
+
+  return '```mermaid\n' + lines.join('\n') + '\n```';
+}
+
 function detectDatabases(pkg) {
   const deps = { ...(pkg?.dependencies || {}), ...(pkg?.devDependencies || {}) };
   const dbs = [];
@@ -497,7 +596,7 @@ function detectFramework(pkg) {
   return null;
 }
 
-export async function scanArchitecture(repoPath) {
+export async function scan(repoPath, overview) {
   const pkg = readJSON(join(repoPath, 'package.json'));
   const { graph, reverseGraph, allFiles } = buildImportGraph(repoPath);
 
@@ -520,14 +619,26 @@ export async function scanArchitecture(repoPath) {
     pkg,
     layers,
   );
+  const c4Code = generateC4Code(
+    repoPath.split('/').filter(Boolean).pop() || 'repo',
+    pkg,
+    layers,
+  );
+
+  const signal = allFiles.length > 20 ? 'high' : allFiles.length > 5 ? 'medium' : 'low';
 
   return {
-    modules: allFiles,
-    layers,
-    asciiGraph,
-    c4Context,
-    c4Container,
-    c4Component,
-    importGraph: { graph, reverseGraph },
+    dimension: 'architecture',
+    signal,
+    findings: {
+      modules: allFiles,
+      layers,
+      asciiGraph,
+      c4Context,
+      c4Container,
+      c4Component,
+      c4Code,
+      importGraph: { graph, reverseGraph },
+    },
   };
 }

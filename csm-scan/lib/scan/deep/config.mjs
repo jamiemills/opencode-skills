@@ -105,7 +105,7 @@ function detectEnvVars(repoPath) {
   return found.length > 0 ? found : null;
 }
 
-export async function scanConfig(repoPath) {
+export async function scan(repoPath, overview) {
   const pkg = readJSON(join(repoPath, 'package.json'));
   const scripts = pkg?.scripts || {};
 
@@ -116,13 +116,20 @@ export async function scanConfig(repoPath) {
   const docker = detectDocker(repoPath);
   const envVars = detectEnvVars(repoPath);
 
+  const hasAny = lint || format || typescript || ci || docker || (envVars && envVars.length > 0);
+  const signal = hasAny ? 'high' : 'low';
+
   return {
-    lint: lint ? { config: lint.config, style: lint.style } : null,
-    format: format || null,
-    typescript: typescript || null,
-    scripts: Object.keys(scripts).length > 0 ? scripts : null,
-    ci,
-    docker,
-    envVars,
+    dimension: 'config',
+    signal,
+    findings: {
+      lint: lint ? { config: lint.config, style: lint.style } : null,
+      format: format || null,
+      typescript: typescript || null,
+      scripts: Object.keys(scripts).length > 0 ? scripts : null,
+      ci,
+      docker,
+      envVars,
+    },
   };
 }
