@@ -15,8 +15,8 @@ export const SCREENCAST_EVERY_NTH = 1;
 export const RECORDER_FRAME_BUFFER_CAP = 60;
 export const VIDEO_PRESETS = {
   small:  { codec: 'libvpx-vp9', crf: 35, cpuUsed: 8, deadline: 'realtime', bitrate: '200k', ext: 'webm' },
-  medium: { codec: 'libvpx-vp9', crf: 30, cpuUsed: 2, deadline: 'good',     bitrate: '0',    ext: 'webm' },
-  full:   { codec: 'libvpx-vp9', crf: 15, cpuUsed: 0, deadline: 'best',     bitrate: '0',    ext: 'webm' },
+  medium: { codec: 'libvpx-vp9', crf: 30, cpuUsed: 2, deadline: 'good',     bitrate: '1M',   ext: 'webm' },
+  full:   { codec: 'libvpx-vp9', crf: 15, cpuUsed: 0, deadline: 'good',     bitrate: '4M',   ext: 'webm' },
 };
 export const CMD_TIMEOUT_MS = 30000;
 export const CMD_POLL_INTERVAL_MS = 500;
