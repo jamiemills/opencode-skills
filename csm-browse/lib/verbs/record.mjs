@@ -25,15 +25,24 @@ export async function run({ args, state, verb }) {
       console.error('Usage: screencast-start <name> [--small|--medium|--full]');
       process.exit(1);
     }
-    const name = args.find(a => !a.startsWith('--'));
+    const speedValue = args.indexOf('--speed') !== -1 ? args[args.indexOf('--speed') + 1] : null;
+    const name = args.find(a => !a.startsWith('--') && a !== speedValue);
     let preset = 'medium';
     if (args.includes('--small')) preset = 'small';
     if (args.includes('--medium')) preset = 'medium';
     if (args.includes('--full')) preset = 'full';
+    let speed = 'medium';
+    if (args.includes('--speed')) {
+      const si = args.indexOf('--speed');
+      if (si !== -1 && args[si + 1]) {
+        const v = args[si + 1];
+        if (v === 'slow' || v === 'medium' || v === 'fast') speed = v;
+      }
+    }
 
     const cmd = {
       verb: 'screencast-start',
-      params: { name, fps: 15, preset },
+      params: { name, fps: 15, preset, speed },
       ts: new Date().toISOString()
     };
 

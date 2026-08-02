@@ -9,7 +9,8 @@ import {
   SCREENCAST_MAX_HEIGHT,
   SCREENCAST_EVERY_NTH,
   RECORDER_FRAME_BUFFER_CAP,
-  VIDEO_PRESETS
+  VIDEO_PRESETS,
+  SPEED_PRESETS
 } from './constants.mjs';
 
 const VALID_NAME_RE = /^[A-Za-z0-9._-]+\.(mp4|webm)$/;
@@ -22,7 +23,7 @@ function validateName(name) {
   }
 }
 
-export async function startRecorder(client, sessionId, sessionDir, outName, fps = 15, preset = 'medium') {
+export async function startRecorder(client, sessionId, sessionDir, outName, fps = 15, preset = 'medium', speed = 'medium') {
   validateName(outName);
 
   if (activeRecording) {
@@ -43,12 +44,13 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   const outPath = join(artifactsDir, outName);
 
   const p = VIDEO_PRESETS[preset] || VIDEO_PRESETS.medium;
+  const fpsOut = SPEED_PRESETS[speed] || SPEED_PRESETS.medium;
 
   const ffmpegArgs = [
     '-y',
     '-f', 'image2pipe',
     '-c:v', 'mjpeg',
-    '-framerate', String(fps),
+    '-framerate', String(fpsOut),
     '-i', '-',
     '-vf', "pad=ceil(iw/2)*2:ceil(ih/2)*2",
     '-c:v', p.codec,

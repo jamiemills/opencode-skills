@@ -94,7 +94,8 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
                 const name = cmd.params.name;
                 const fps = cmd.params.fps || 15;
                 const preset = cmd.params.preset || 'medium';
-                await recorder.startRecorder(client, sessionId, sessionDir, name, fps, preset);
+                const speed = cmd.params.speed || 'medium';
+                await recorder.startRecorder(client, sessionId, sessionDir, name, fps, preset, speed);
                 result = { ok: true, result: { started: true }, ts: new Date().toISOString() };
               }
             } else {

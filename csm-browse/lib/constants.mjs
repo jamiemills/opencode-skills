@@ -18,6 +18,8 @@ export const VIDEO_PRESETS = {
   medium: { codec: 'libvpx-vp9', crf: 30, cpuUsed: 2, deadline: 'good',     bitrate: '1M',   ext: 'webm' },
   full:   { codec: 'libvpx-vp9', crf: 15, cpuUsed: 0, deadline: 'good',     bitrate: '4M',   ext: 'webm' },
 };
+
+export const SPEED_PRESETS = { slow: 3, medium: 7, fast: 15 };
 export const CMD_TIMEOUT_MS = 30000;
 export const CMD_POLL_INTERVAL_MS = 500;
 export const DAEMON_READY_TIMEOUT_MS = 10000;

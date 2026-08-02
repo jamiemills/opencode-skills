@@ -67,7 +67,7 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --sessio
 | `performance` | Get live performance metrics (`Performance.getMetrics`). |
 | `cookies` | Get cookies for the current page. |
 | `status` | Print browser version, tab info, and daemon liveness. |
-| `screencast-start <name> [--small|--medium|--full]` | Start recording video (VP9/webm). `--small` = compact, `--medium` = balanced (default), `--full` = high quality. |
+| `screencast-start <name> [--small|--medium|--full] [--speed slow|medium|fast]` | Start recording video (VP9/webm). `--speed` controls output fps: slow=3, medium=7 (default), fast=15. |
 | `screencast-stop` | Stop the active video recording. |
 | `close` | Clean up the session: kill daemon, chromium, crashpad, socat, remove session dirs, release ports. |
 
