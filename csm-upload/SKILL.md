@@ -1,11 +1,11 @@
 ---
 name: csm-upload
-description: upload screenshots, videos, and evidence files to a github pages demo site with a unique dated page name
----
+description: upload screenshots, videos, and evidence files to a github pages demo site with a unique dated page name. requires gh cli and a github pages repo.
 
-## When to use this skill
+## Requirements
 
-Use `csm-upload` after capturing screenshots or recording videos with `csm-browse`. It uploads files to your GitHub Pages demo site at `jamiemills.github.io/csm-browse-pages/` under a unique dated directory.
+- **`gh` CLI** — must be installed and authenticated (`gh auth status`)
+- **GitHub Pages repo** — a public repo with Pages enabled (defaults to `csm-browse-pages`)
 
 ## Configuration
 
@@ -13,6 +13,9 @@ Reads `~/.agents/csm-upload.json`:
 ```json
 {"github": "jamiemills", "pagesRepo": "csm-browse-pages"}
 ```
+
+- `github` — your GitHub username (auto-detected from `gh auth status` on first run)
+- `pagesRepo` — the repo name to push to (must have GitHub Pages enabled on its default branch)
 
 On first run or missing config, auto-detects from `gh auth status` and writes the file. Override with `--github <user>` and `--repo <name>` CLI flags.
 
