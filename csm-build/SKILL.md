@@ -32,7 +32,7 @@ Execute a saved CSM plan from its verified current state. Start a new plan or re
 
 ## Repository Norms (NORMS.md)
 
-If a `NORMS.md` file produced by `csm-scan` exists in the repository, the agent must load and follow its conventions.
+**NORMS.md is entirely optional.** If a `NORMS.md` file produced by `csm-scan` exists in the repository, load it and apply its conventions. If not present or not authentic, ignore and continue — nothing is blocked.
 
 ### Detection
 During RECOVER, check for NORMS.md in this order:
