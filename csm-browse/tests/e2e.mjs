@@ -356,6 +356,38 @@ async function runTests() {
       }
     }
 
+    // ── Step 7c: Consent-wall dismissal ────────────────────────────
+    {
+      const step = '7c. Consent-wall dismissal';
+      try {
+        let r, data;
+
+        r = await browse('open', `${FIXTURE_BASE}/wall.html`);
+        data = parseJson(r.stdout);
+        assert(step + ' - open wall fixture', data && data.title, r.stdout);
+
+        r = await browse('eval', `!!document.querySelector('iframe[src*="cmpv2"]')`);
+        data = parseJson(r.stdout);
+        assert(step + ' - wall present before screenshot', data && data.result && data.result.value === true,
+          data ? JSON.stringify(data.result) : r.stdout);
+
+        r = await browse('screenshot', '--viewport', 'wall-check.jpg');
+        data = parseJson(r.stdout);
+        assert(step + ' - screenshot ok', data && data.bytes > 24, r.stdout);
+
+        r = await browse('eval', `JSON.stringify({wall:!!document.querySelector('iframe[src*="cmpv2"]'),ov:getComputedStyle(document.body).overflow})`);
+        data = parseJson(r.stdout);
+        let st = null;
+        try { st = data && data.result ? JSON.parse(data.result.value) : null; } catch {}
+        assert(step + ' - wall dismissed', st && st.wall === false,
+          st ? JSON.stringify(st) : r.stdout.substring(0, 120));
+        assert(step + ' - scroll unlocked', st && st.ov !== 'hidden',
+          st ? JSON.stringify(st) : r.stdout.substring(0, 120));
+      } catch (e) {
+        fail(step, e.message);
+      }
+    }
+
     // ── Step 8: Devtools capture ───────────────────────────────────
     {
       const step = '8. Devtools capture';
