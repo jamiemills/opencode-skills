@@ -116,7 +116,7 @@ function detectTestConfig(repoPath) {
   return configs.length > 0 ? configs : null;
 }
 
-export async function scanTesting(repoPath) {
+export async function scan(repoPath, overview) {
   const pkg = readJSON(join(repoPath, 'package.json'));
   const testFiles = findTestFiles(repoPath);
   const deps = pkg?.dependencies || {};
@@ -127,14 +127,20 @@ export async function scanTesting(repoPath) {
   const configFiles = detectTestConfig(repoPath);
   const testScript = (pkg?.scripts && (pkg.scripts.test || pkg.scripts['test:coverage'] || pkg.scripts['test:e2e'])) || null;
 
+  const signal = framework[0] !== 'unknown' ? 'high' : testFiles.count > 0 ? 'medium' : 'low';
+
   return {
-    framework,
-    testDirs: testFiles.testDirs,
-    fileCount: testFiles.count,
-    naming: testFiles.naming,
-    sampleFiles: testFiles.files.slice(0, 15),
-    coverage,
-    configFiles,
-    script: testScript ? (typeof testScript === 'string' ? testScript : JSON.stringify(testScript)) : null,
+    dimension: 'testing',
+    signal,
+    findings: {
+      framework,
+      testDirs: testFiles.testDirs,
+      fileCount: testFiles.count,
+      naming: testFiles.naming,
+      sampleFiles: testFiles.files.slice(0, 15),
+      coverage,
+      configFiles,
+      script: testScript ? (typeof testScript === 'string' ? testScript : JSON.stringify(testScript)) : null,
+    },
   };
 }

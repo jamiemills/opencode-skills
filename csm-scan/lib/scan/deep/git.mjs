@@ -98,21 +98,25 @@ function detectDefaultBranch(repoPath) {
   return branch || 'unknown';
 }
 
-export async function scanGit(repoPath) {
+export async function scan(repoPath, overview) {
   const isGit = existsSync(join(repoPath, '.git'));
   if (!isGit) {
     return {
-      isGit: false,
-      branchPattern: 'N/A',
-      overview: 'No git repository detected',
-      commitStyle: 'N/A',
-      branchStyle: 'N/A',
-      defaultBranch: 'N/A',
-      prTemplate: false,
-      hasIssueTemplates: false,
-      remote: 'N/A',
-      contributorCount: 0,
-      topContributors: [],
+      dimension: 'git',
+      signal: 'low',
+      findings: {
+        isGit: false,
+        branchPattern: 'N/A',
+        overview: 'No git repository detected',
+        commitStyle: 'N/A',
+        branchStyle: 'N/A',
+        defaultBranch: 'N/A',
+        prTemplate: false,
+        hasIssueTemplates: false,
+        remote: 'N/A',
+        contributorCount: 0,
+        topContributors: [],
+      },
     };
   }
 
@@ -154,27 +158,33 @@ export async function scanGit(repoPath) {
     .map(([name, count]) => ({ name, commits: count }));
   const totalContributors = Object.keys(contributorMap).length;
 
+  const signal = logLines.length > 0 ? 'high' : 'medium';
+
   return {
-    isGit: isGitRepo,
-    branchPattern: analyzeBranchPatterns(branchLines),
-    overview: generateOverview({
+    dimension: 'git',
+    signal,
+    findings: {
+      isGit: isGitRepo,
       branchPattern: analyzeBranchPatterns(branchLines),
+      overview: generateOverview({
+        branchPattern: analyzeBranchPatterns(branchLines),
+        commitStyle: analyzeCommitStyle(logLines),
+        defaultBranch,
+        prTemplate,
+        hasIssueTemplates,
+        remote: displayRemote,
+        contributorCount: totalContributors,
+      }),
       commitStyle: analyzeCommitStyle(logLines),
+      branchStyle: analyzeBranchPatterns(branchLines),
       defaultBranch,
       prTemplate,
       hasIssueTemplates,
       remote: displayRemote,
       contributorCount: totalContributors,
-    }),
-    commitStyle: analyzeCommitStyle(logLines),
-    branchStyle: analyzeBranchPatterns(branchLines),
-    defaultBranch,
-    prTemplate,
-    hasIssueTemplates,
-    remote: displayRemote,
-    contributorCount: totalContributors,
-    topContributors,
-    logCount: logLines.length,
+      topContributors,
+      logCount: logLines.length,
+    },
   };
 }
 
