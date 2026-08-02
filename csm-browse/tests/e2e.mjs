@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile, exec } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SKILL_DIR = '/home/jamiemills/.config/opencode/skills/csm-browse';
@@ -319,6 +319,38 @@ async function runTests() {
         assert(step + ' - full-page larger than viewport',
           data && data.height > vpHeight,
           data ? `full=${data.height} vs vp=${vpHeight}` : r.stdout);
+      } catch (e) {
+        fail(step, e.message);
+      }
+    }
+
+    // ── Step 7b: Tall-page full screenshot bounded + leak-free ─────
+    {
+      const step = '7b. Tall-page screenshot';
+      try {
+        let r, data;
+
+        r = await browse('eval', `(function(){var d=document.createElement('div');d.style.height='20000px';d.style.width='1px';document.body.appendChild(d);return d.offsetHeight})()`);
+        data = parseJson(r.stdout);
+        assert(step + ' - page made tall', data && data.result && data.result.value >= 20000,
+          data ? JSON.stringify(data.result).substring(0, 80) : r.stdout);
+
+        const t0 = Date.now();
+        r = await browse('screenshot', '--full', 'tall-regression.png');
+        const elapsed = Date.now() - t0;
+        data = parseJson(r.stdout);
+        assert(step + ` - completed in ${elapsed}ms (< 30000)`, elapsed < 30000);
+        assert(step + ' - truncated flag set', data && data.truncated === true,
+          data ? JSON.stringify(data).substring(0, 150) : r.stdout.substring(0, 80));
+        assert(step + ' - output non-empty', data && data.bytes > 24,
+          data ? `bytes=${data.bytes}` : 'no data');
+
+        let leftovers = [];
+        try {
+          leftovers = readdirSync(join('/tmp', 'csm-browse', SESSION_ID, 'artifacts')).filter(f => f.startsWith('.stitch-'));
+        } catch {}
+        assert(step + ' - no .stitch temps left', leftovers.length === 0,
+          leftovers.length ? `leftovers: ${leftovers.join(',')}` : 'clean');
       } catch (e) {
         fail(step, e.message);
       }

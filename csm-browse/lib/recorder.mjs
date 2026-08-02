@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { writeFile, readFile, mkdir, unlink } from 'node:fs/promises';
+import { writeFile, readFile, mkdir, unlink, stat } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -19,7 +19,17 @@ let activeRecording = null;
 
 function validateName(name) {
   if (!VALID_NAME_RE.test(name)) {
-    throw new Error(`Invalid recording name: "${name}". Must match ^[A-Za-z0-9._-]+\\.mp4$`);
+    throw new Error(`Invalid recording name: "${name}". Must match ^[A-Za-z0-9._-]+\\.(mp4|webm)$`);
+  }
+}
+
+export async function assertValidOutput(outPath, frames) {
+  let size = 0;
+  try {
+    size = (await stat(outPath)).size;
+  } catch {}
+  if (!size) {
+    throw new Error(`screencast produced empty/invalid output (${frames} frames captured); see ffmpeg-stderr.log`);
   }
 }
 
@@ -250,8 +260,6 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     ]);
   }
 
-  try { await unlink(join(sessionDir, 'ffmpeg-stderr.log')); } catch {}
-
   const duration = (Date.now() - new Date(rec.startedAt).getTime()) / 1000;
   const ffmpegErr = rec.ffmpegError();
   const stats = {
@@ -267,9 +275,21 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     error: ffmpegErr ? ffmpegErr.message : null
   };
 
+  let outputError = null;
+  try {
+    await assertValidOutput(rec.outPath, rec.frameCount());
+    try { await unlink(join(sessionDir, 'ffmpeg-stderr.log')); } catch {}
+  } catch (err) {
+    outputError = err.message;
+  }
+
+  stats.error = outputError || stats.error;
+
   try {
     await writeFile(rec.recorderJsonPath, JSON.stringify(stats, null, 2), 'utf-8');
   } catch {}
+
+  if (outputError) throw new Error(outputError);
 
   return {
     file: stats.file,
