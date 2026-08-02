@@ -13,6 +13,7 @@ export const SCREENCAST_QUALITY = 70;
 export const SCREENCAST_MAX_WIDTH = 1920;
 export const SCREENCAST_MAX_HEIGHT = 1080;
 export const SCREENCAST_EVERY_NTH = 1;
+export const MAX_STITCH_HEIGHT_PX = 16384;
 export const RECORDER_FRAME_BUFFER_CAP = 60;
 export const VIDEO_PRESETS = {
   small:  { codec: 'libvpx-vp9', crf: 35, cpuUsed: 8, deadline: 'realtime', bitrate: '200k', ext: 'webm' },

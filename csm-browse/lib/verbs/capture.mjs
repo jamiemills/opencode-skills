@@ -1,7 +1,8 @@
-import { mkdir, writeFile, unlink } from 'node:fs/promises';
+import { mkdir, writeFile, unlink, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { dismissCookies } from '../cookies.mjs';
+import { MAX_STITCH_HEIGHT_PX } from '../constants.mjs';
 
 const PRESETS = {
   small:  { format: 'jpeg', quality: 30, ext: 'jpg' },
@@ -108,50 +109,60 @@ export async function run({ args, state }) {
       const bodyH = body.h || 4096;
       const winH = body.wh || 875;
       const step = winH - stickyHeight;
-      const totalTiles = Math.ceil(bodyH / step);
+      const cappedH = Math.min(bodyH, MAX_STITCH_HEIGHT_PX);
+      const truncated = bodyH > cappedH;
+      const totalTiles = Math.ceil(cappedH / step);
       const MAX_TILES = 60;
 
       if (totalTiles > MAX_TILES) {
-        console.error(`Stitch requires ${totalTiles} tiles (max ${MAX_TILES}). Use --full-page without --stitch or reduce page height.`);
+        console.error(`Full page too large (${totalTiles} tiles). Re-run with --viewport for a single-viewport capture.`);
         process.exit(1);
       }
 
       const tmpFiles = [];
-      let y = 0;
-      while (y < bodyH) {
-        const tileNum = tmpFiles.length + 1;
-        process.stderr.write(JSON.stringify({tile: tileNum, total: totalTiles}) + '\n');
-        await scrollAndWait(client, sessionId, y);
-        const params = { format: 'png' };
-        const buf = await captureOne(client, sessionId, params);
-        const tmpPath = join(artifactsDir, `.stitch-${tileNum}.png`);
-        await writeFile(tmpPath, buf);
-
-        // Crop sticky header from tiles after the first
-        if (tileNum > 1 && stickyHeight > 0) {
-          const cropPath = join(artifactsDir, `.stitch-${tileNum}-crop.png`);
-          await new Promise((resolve, reject) => {
-            const proc = spawn('ffmpeg', [
-              '-i', tmpPath, '-vf', `crop=iw:ih-${stickyHeight}:0:${stickyHeight}`,
-              '-frames:v', '1', '-y', cropPath
-            ], { stdio: ['ignore', 'ignore', 'pipe'] });
-            proc.on('close', code => code === 0 ? resolve() : reject(new Error('crop failed')));
-            proc.on('error', reject);
-          });
-          await unlink(tmpPath);
-          tmpFiles.push(cropPath);
-        } else {
-          tmpFiles.push(tmpPath);
-        }
-        y += step;
-      }
-
       const outPath = join(artifactsDir, outName);
-      await ffmpegVstack(tmpFiles, outPath);
+      try {
+        let y = 0;
+        while (y < cappedH) {
+          const tileNum = tmpFiles.length + 1;
+          process.stderr.write(JSON.stringify({tile: tileNum, total: totalTiles}) + '\n');
+          await scrollAndWait(client, sessionId, y);
+          const params = { format: 'png' };
+          const buf = await captureOne(client, sessionId, params);
+          const tmpPath = join(artifactsDir, `.stitch-${tileNum}.png`);
+          await writeFile(tmpPath, buf);
 
-      // Clean up temp files
-      for (const f of tmpFiles) {
-        try { await unlink(f); } catch {}
+          // Crop sticky header from tiles after the first
+          if (tileNum > 1 && stickyHeight > 0) {
+            const cropPath = join(artifactsDir, `.stitch-${tileNum}-crop.png`);
+            await new Promise((resolve, reject) => {
+              const proc = spawn('ffmpeg', [
+                '-i', tmpPath, '-vf', `crop=iw:ih-${stickyHeight}:0:${stickyHeight}`,
+                '-frames:v', '1', '-y', cropPath
+              ], { stdio: ['ignore', 'ignore', 'pipe'] });
+              proc.on('close', code => code === 0 ? resolve() : reject(new Error('crop failed')));
+              proc.on('error', reject);
+            });
+            await unlink(tmpPath);
+            tmpFiles.push(cropPath);
+          } else {
+            tmpFiles.push(tmpPath);
+          }
+          y += step;
+        }
+
+        await ffmpegVstack(tmpFiles, outPath);
+      } finally {
+        for (const f of tmpFiles) {
+          try { await unlink(f); } catch {}
+        }
+        try {
+          for (const f of await readdir(artifactsDir)) {
+            if (f.startsWith('.stitch-')) {
+              try { await unlink(join(artifactsDir, f)); } catch {}
+            }
+          }
+        } catch {}
       }
 
       // Read output dimensions
@@ -165,6 +176,11 @@ export async function run({ args, state }) {
       } catch {}
 
       const output = { path: outPath, bytes: (await import('fs').then(m => m.promises.stat(outPath))).size, format: cfg.ext, preset, stitched: true, tiles: totalTiles, width, height };
+      if (truncated) {
+        output.truncated = true;
+        output.sourceHeight = bodyH;
+        output.cappedHeight = cappedH;
+      }
       process.stdout.write(JSON.stringify(output) + '\n');
 
     } else {
