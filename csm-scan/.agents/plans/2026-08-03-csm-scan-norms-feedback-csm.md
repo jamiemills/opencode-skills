@@ -7,13 +7,13 @@
 
 ## Control
 - Plan ID: csm-scan-norms-feedback
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: SELECT
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: plan saved 2026-08-03 (planning session only)
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-03 — cycle 1 complete: T001 baseline gate done (suite 1133/1133, gates 35+6 pass, probe artifact saved, spike answered)
+- Next transition: SELECT -> DISPATCH (T002 broker + enumeration, G2)
+- Active tasks: T001 completed; ready: T002
 - Blockers: none
 
 ## Goal
@@ -150,7 +150,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
 
 ## Numbered Plan
 
-1. [pending] Baseline gate: suite, probe, and baseline inventory
+1. [completed] Baseline gate: suite, probe, and baseline inventory
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -532,6 +532,10 @@ Ordered cheapest-first; parallel where independent:
 | 2026-08-03 | 0 | CRITIQUE | — | Independent hostile review: NEEDS-CORRECTION, 16 findings (6 critical, 7 major, 3 minor/nit) incl. unmapped c4, G3 baseline conflict, golden.test.mjs vs b14, claim-literal gaps, T209 allowlist, dependency overstatement | REMEDIATE |
 | 2026-08-03 | 0 | REMEDIATE | — | All 16 findings resolved: T015 added (c4), DR1 baseline ownership split, A011–A015, T007 owns golden, T004 owns constraint/activation tests + seam scan, T013 owns deep/stack.mjs, T209 allowance in T002, b9 anchor in T012, dependencies corrected, Exclusions/A007 rephrased | VERIFY |
 | 2026-08-03 | 0 | VERIFY | — | Primary-agent gate passed: all 63 shortfalls mapped (61 fixed + 2 declined sub-facts with rationale); every task has runnable acceptance signal, risk tier, anti-scope, recovery note, `[pending]`; G3 pairwise-disjoint source ownership + DR1 baseline split; named files match observed repo; AC1–AC6 map to numbered work; journal/Control enable fresh-agent recovery | SAVED |
+| 2026-08-03 | 1 | RECOVER | — | Skills monorepo clean at 7a2c965 (docs-only commits since plan save; no overlap with csm-scan source); node v20.20.2; no NORMS.md in working repo (per csm-build: continue, brief note); plan file present, all tasks pending | VALIDATE |
+| 2026-08-03 | 1 | VALIDATE | — | (in progress: run authoritative suite + per-gate suites + probe; T001 baseline gate executes here) | SELECT |
+| 2026-08-03 | 1 | SELECT/DISPATCH | T001 | T001 baseline gate executed by primary agent: full suite `node --test --test-concurrency=1` = 1133/1133 pass (80.8s); per-gate suites constraints/determinism/privacy-gate/voice-gate = 35 pass; golden gate = 6 pass; probe before-artifact = `/tmp/opencode/csm-scan-plan/before-NORMS.md` (93/93 expected claims, ratio 1.0, coverage 100% structure); baseline digests recorded: capabilities.json 11d70ec1…, fixture-behavior.json 489dae17…, inventory.json 3ec0bf11…, semantic.json 8751cb5d…, supersession.json af623d07…, test-integrity.json bed61bfc…, renderer.md cea60fa3… | CHECKPOINT |
+| 2026-08-03 | 1 | CHECKPOINT | T001 | SPIKE ANSWER (T001): NO automated `--update-baseline` helper exists anywhere in test/ or scripts/ (rg-verified). Regeneration is manual per baseline: (1) renderer.md + semantic.json — replicate `fixedInput()` (expansion-baseline.test.mjs:33-56, ten pre-baked dimensions, deep scanners NOT run) through enrich/validate/writeNORMS with generated='2026-01-15'; consequently renderer.md/semantic.json break ONLY for renderer/enrich/validate/write changes, NOT deep-scanner changes; (2) test-integrity.json — sha256 of the 8 reviewed files listed at expansion-baseline.test.mjs:139-148; (3) capabilities.json — sha256 `replacementTests` digests consumed by expansion-constraints.test.mjs:132-183; (4) fixture-behavior.json — per-ecosystem semanticSha256/markdownSha256 of the 5 fixture pipelines (fixtures-pipeline.test.mjs:36,128-131). Procedures will be executed at T014 via throwaway scripts in /tmp (documented diffs, independent review). T001 status: completed (no source writes; repo clean). | SELECT (T002) |
 
 ## Completion Review
 Filled by csm-build when all criteria are verified.
