@@ -48,6 +48,11 @@ import {
   PROVIDER_RESULT_LIMITS,
 } from './base.mjs';
 import {
+  computeCouplingAggregates,
+  computeSolidIndicators,
+  CRAFT_LIMITS,
+} from '../deep/architecture/craft.mjs';
+import {
   practicesObservations,
   practicesProviderResult,
 } from './practices.mjs';
@@ -124,6 +129,98 @@ function boundedObservations(observations) {
   const capped = sorted.length > PROVIDER_RESULT_LIMITS.observations;
   if (capped) sorted.length = PROVIDER_RESULT_LIMITS.observations;
   return { observations: sorted, capped };
+}
+
+// ---------------------------------------------------------------------------
+// Architecture craft — coupling aggregates and SOLID/pattern indicators
+// ---------------------------------------------------------------------------
+
+function pairingMap(pairs, fields) {
+  const map = {};
+  for (const pair of pairs) {
+    const key = fields.map((field) => pair[field]).join(':');
+    map[key] = pair.count;
+  }
+  return map;
+}
+
+function topRankMap(entries) {
+  const top = {};
+  for (const entry of entries) top[entry.path] = entry.count;
+  return top;
+}
+
+function couplingCraftObservations(aggregates) {
+  const observations = [];
+  observations.push(observation('coupling', null, 'coupling:fan-in-max', {
+    count: aggregates.fanIn.max.count,
+    files: aggregates.fanIn.max.files,
+    truncated: aggregates.fanIn.max.truncated,
+  }, 'repository_metadata'));
+  observations.push(observation('coupling', null, 'coupling:fan-in-top', {
+    limit: CRAFT_LIMITS.topN,
+    top: topRankMap(aggregates.fanIn.top),
+  }, 'repository_metadata'));
+  observations.push(observation('coupling', null, 'coupling:fan-in-threshold', {
+    threshold: aggregates.fanInThreshold.threshold,
+    count: aggregates.fanInThreshold.count,
+    files: aggregates.fanInThreshold.files,
+    truncated: aggregates.fanInThreshold.truncated,
+  }, 'repository_metadata'));
+  observations.push(observation('coupling', null, 'coupling:fan-out-max', {
+    count: aggregates.fanOut.max.count,
+    files: aggregates.fanOut.max.files,
+    truncated: aggregates.fanOut.max.truncated,
+  }, 'repository_metadata'));
+  observations.push(observation('coupling', null, 'coupling:fan-out-top', {
+    limit: CRAFT_LIMITS.topN,
+    top: topRankMap(aggregates.fanOut.top),
+  }, 'repository_metadata'));
+  observations.push(observation('coupling', null, 'coupling:cyclic-groups', {
+    count: aggregates.cyclicGroups.count,
+    sizes: aggregates.cyclicGroups.sizes,
+    largest: aggregates.cyclicGroups.largest,
+    truncated: aggregates.cyclicGroups.truncated,
+  }, 'repository_metadata'));
+  observations.push(observation('coupling', null, 'coupling:layer-boundaries', {
+    totalEdges: aggregates.layerBoundaries.totalEdges,
+    crossingCount: aggregates.layerBoundaries.crossingCount,
+    pairs: pairingMap(aggregates.layerBoundaries.pairs, ['sourceLayer', 'targetLayer']),
+  }, 'repository_metadata'));
+  if (Object.keys(aggregates.edgeKinds).length > 0) {
+    observations.push(observation('coupling', null, 'coupling:edge-kinds', {
+      kinds: aggregates.edgeKinds,
+    }, 'repository_metadata'));
+  }
+  return observations;
+}
+
+function solidCraftObservations(indicators) {
+  const observations = [];
+  observations.push(observation('design_pattern', null, 'design:interface-references', {
+    count: indicators.interfaceReferences.count,
+    usageCount: indicators.interfaceReferences.usageCount,
+    paths: indicators.interfaceReferences.paths,
+    truncated: indicators.interfaceReferences.truncated,
+  }, 'repository_metadata'));
+  observations.push(observation('design_pattern', null, 'design:dependency-direction', {
+    totalEdges: indicators.dependencyDirection.totalEdges,
+    downward: indicators.dependencyDirection.downward,
+    upward: indicators.dependencyDirection.upward,
+    same: indicators.dependencyDirection.same,
+    unknown: indicators.dependencyDirection.unknown,
+    pairs: pairingMap(indicators.dependencyDirection.pairs, ['sourceLayer', 'targetLayer', 'direction']),
+  }, 'repository_metadata'));
+  observations.push(observation('design_pattern', null, 'design:port-adapter-dirs', {
+    paths: indicators.portAdapterDirs.paths,
+    truncated: indicators.portAdapterDirs.truncated,
+  }, 'repository_metadata'));
+  observations.push(observation('design_pattern', null, 'design:pattern-suffixes', {
+    counts: indicators.patternSuffixes.counts,
+    files: indicators.patternSuffixes.files,
+    truncated: indicators.patternSuffixes.truncated,
+  }, 'repository_metadata'));
+  return observations;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,6 +403,11 @@ export function architectureObservations(input) {
       'source',
     ));
   }
+
+  const craftCoupling = computeCouplingAggregates({ findings: model, facts: factRecord });
+  const craftSolid = computeSolidIndicators({ findings: model });
+  observations.push(...couplingCraftObservations(craftCoupling));
+  observations.push(...solidCraftObservations(craftSolid));
 
   return deepFreeze([{ dimensionId: ANALYSIS_DIMENSION_IDS[0], observations }]);
 }

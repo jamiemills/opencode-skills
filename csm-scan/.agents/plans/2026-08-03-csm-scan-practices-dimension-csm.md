@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-practices-dimension
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 3
+- Cycle: 4
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — G2+G3 complete: T003-T010, T016 done (9 tasks); 187/187 post-repair; review repairs applied (statuses, encoder reuse, PRACTICE_TOOLS wiring); evidence.mjs category sort (primary fix) folded into this batch
-- Next transition: SELECT -> T017 (architecture craft, after T004) + T011 (activation cutover)
-- Active tasks: T017, T011
+- Last checkpoint: 2026-08-03 — T011 cutover + T017 architecture craft done; 104/104 gates green; CLI end-to-end verified (17 dims, 93 expected claims, practices section renders)
+- Next transition: SELECT -> T012 (suite reconciliation, independent review) + T013 (baseline verification) + T014 (SKILL.md)
+- Active tasks: T012, T013, T014
 - Blockers: none
 
 ## Goal
@@ -345,7 +345,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: bounded regex with explicit caps; oversized/block-scalar workflows must degrade to `unverified`, never crash.
 
-11. [pending] Activation cutover in the pipeline
+11. [completed] Activation cutover in the pipeline
+   - DONE (cycle 4, 2026-08-03): scanDimension practices case + fallbackDimension SCANNER_FAILURE model + PRIVACY_ENFORCED_DIMENSIONS + assertAllDimensionsPresent rename + analysisProviderResults practices wiring; activation 15/15, constraints 7/7, privacy-gate 6/6, voice-gate now green post-cutover; CLI smoke on practices-smoke fixture: 17 dims, practices 100%, {"expected":93,"eligible":91,"complete":91,"excluded":2,"ratio":1}, "## Development Practices" rendered.
     - Task ID: T011
     - Depends on: T003, T004, T005, T006 (G2 fully drains first — rendering without the T005 registration throws UNKNOWN_DIMENSION at `render/registry.mjs:634-636`)
     - Parallel group: G4
@@ -436,7 +437,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: if existing branch-point counts change, the tokenizer extension regressed — revert the scope-tracking change and re-run; partial model state is detectable by missing `searchSpace` or deadCode entries without diagnostics.
 
-17. [pending] Architecture craft: coupling aggregates + SOLID/pattern indicators (provider-derived)
+17. [completed] Architecture craft: coupling aggregates + SOLID/pattern indicators (provider-derived)
+   - DONE (cycle 4, 2026-08-03): deep/architecture/craft.mjs pure derivations (fan-in/out max+top-N, fan-in threshold >=10, cyclic groups via reused SCC, layer-boundary + edge-kind counts; SOLID indicators: interface refs, dependency direction, port/adapter dirs, pattern suffixes); analysis-catalog architecture observations (coupling/design_pattern, sourceKind repository_metadata); architecture-extension 31/31, architecture 14/14 (raw facts byte-identical), catalog 26/26; banned words + privacy clean; edge-kinds omitted when facts empty (disclosed).
     - Task ID: T017
     - Depends on: T002, T004 (analysis-catalog.mjs sequencing)
     - Parallel group: G3
@@ -544,6 +546,11 @@ Ordered cheapest-first:
 | 2026-08-03 | 3 | REPAIR | T003, T004 | Applied: practices.mjs statuses → [observed,inferred,unverified]; encodeMatchedKey imported from model (local copy deleted); model METHODOLOGY_DEPS/ENFORCEMENT_TOOLS now derive from PRACTICE_TOOLS by type (no dead duplicate vocabulary); header comments fixed; inferred-status parity test added. Dismissed with reasoning: git.mjs csm-scan:/csm-browse: prefixes are the actual monorepo conventions (disclosed + tested); evidence.mjs sort committed with this batch | VERIFY |
 | 2026-08-03 | 3 | VERIFY | T003-T010, T016 | Post-repair re-run: 187/187 across practices, catalog, detection, maintainability, render-registration, registration, parity, fixtures-pipeline | CHECKPOINT |
 | 2026-08-03 | 3 | CHECKPOINT | T003-T010, T016 | 9 tasks completed with evidence; next: SELECT -> T017 + T011 | SELECT |
+| 2026-08-03 | 4 | SELECT | T017, T011 | T017 (architecture craft, deps T002+T004 satisfied) + T011 (cutover, deps T003-T006 satisfied); disjoint files (T017: craft.mjs+analysis-catalog+architecture-extension test; T011: run.mjs+activation test) | DISPATCH |
+| 2026-08-03 | 4 | DISPATCH | T017, T011 | 2 parallel subagents | INTEGRATE |
+| 2026-08-03 | 4 | INTEGRATE | T017, T011 | run.mjs diff inspected: imports, switch cases, fallback model, PRIVACY_ENFORCED_DIMENSIONS, rename, provider wiring — all in scope (15 insertions/4 deletions); craft.mjs pure + catalog observations verified | VERIFY |
+| 2026-08-03 | 4 | VERIFY | T017, T011 | Voice/privacy/activation/architecture/catalog/constraints batch: 104/104 (voice-gate pre-cutover failures now resolved); CLI end-to-end smoke: `node scripts/scan.mjs --repos /tmp/opencode/practices-smoke --out /tmp/opencode/probe1.md` → 17 scanners, practices 100%, coverage {"expected":93,"eligible":91,"complete":91,"excluded":2,"ratio":1} (git N/A), "## Development Practices" renders Methodology/Quality Gates/Agent Workflow facts (fixture recreated after temp sweep) | CHECKPOINT |
+| 2026-08-03 | 4 | CHECKPOINT | T017, T011 | T011 + T017 completed with evidence; pipeline live for all 17 dimensions; next: SELECT -> T012 + T013 + T014 | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
