@@ -12,9 +12,11 @@
 // repository content never survive the model. Entries carry only structured
 // facts — a category, a deterministic matched key, a repo-relative path, a
 // status, and optional bounded counts, kinds, and paths arrays. Quality-gate
-// thresholds are parsed against a fixed key allowlist and only the allowlisted
-// key name is retained, never its value. Field names avoid the T206 sensitive
-// vocabulary (`token`, `owner`, `email`, ...).
+// thresholds are parsed against a fixed key allowlist; an allowlisted key may
+// retain a bounded numeric value in `count` and bounded slug tokens in `kinds`
+// (integers and float/grade slugs such as `0.3` or `B`), while raw `KEY=value`
+// strings never survive. Field names avoid the T206 sensitive vocabulary
+// (`token`, `owner`, `email`, ...).
 //
 // Scope discipline: this dimension inventories committed declarations and
 // lexical signals only. It never executes tools, queries remote services, or
@@ -64,7 +66,7 @@ export const PRACTICES_LIMITS = deepFreeze({
   maxDiagnostics: 256,
   maxEntries: 512,
   maxFiles: ARTIFACT_LIMITS.maxFiles,
-  maxKinds: 32,
+  maxKinds: 256,
   maxPaths: 64,
   maxPerDir: 128,
   maxRecords: PRACTICES_MAX_RECORDS,
@@ -459,6 +461,8 @@ const EXACT_PATHS = new Map([
   ['shell.nix', { category: 'automation', kind: 'nix' }],
   ['default.nix', { category: 'automation', kind: 'nix' }],
   ['nix/shell.nix', { category: 'automation', kind: 'nix' }],
+  ['makefile', { category: 'automation', kind: 'makefile' }],
+  ['gnumakefile', { category: 'automation', kind: 'makefile' }],
   // ritual
   ['.github/pull_request_template.md', { category: 'ritual', kind: 'pr-template' }],
   ['.github/pull_request_template.txt', { category: 'ritual', kind: 'pr-template' }],
@@ -499,6 +503,8 @@ const EXACT_PATHS = new Map([
   ['prettier.config.mjs', { category: 'style_guide', kind: 'prettier' }],
   ['rustfmt.toml', { category: 'style_guide', kind: 'rustfmt' }],
   ['.rustfmt.toml', { category: 'style_guide', kind: 'rustfmt' }],
+  ['contributing.md', { category: 'style_guide', kind: 'contributing' }],
+  ['.github/contributing.md', { category: 'style_guide', kind: 'contributing' }],
 ]);
 
 // Root hidden files that `rg --files` never emits; probed with `existsSync`.
@@ -933,7 +939,7 @@ export function extractRitual({ path, text = '' }) {
 }
 
 const QUALITY_GATE_KEY_PATTERN = /^\s*([A-Za-z0-9_.-]+)\s*=\s*\S+/gm;
-const QUALITY_GATE_ALLOWLIST = /^(?:mincoverage|minpassrate|mintests|maxcomplexity|maxlines|maxlinelength|maxskipped|maxtodos|maxbaseline|maxflaky|coveragethreshold|complexitythreshold|failthreshold)$/;
+const QUALITY_GATE_ALLOWLIST = /^(?:mincoverage|minpassrate|mintests|maxcomplexity|maxlines|maxlinelength|maxskipped|maxtodos|maxbaseline|maxflaky|coveragethreshold|complexitythreshold|failthreshold|maxflagged|distancethreshold|failunder|minconfidence|radonccgrade|radonmigrade|filesizecap|semgrepseverity|diffcoveragethreshold)$/;
 
 function parseQualityGateKeys(text) {
   const keys = [];

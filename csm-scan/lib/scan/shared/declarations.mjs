@@ -304,3 +304,119 @@ export async function extractDeclarations({ root, requests, options = ARTIFACT_L
   diagnostics.sort((left, right) => compareAscii(left.path, right.path) || compareAscii(left.status, right.status));
   return deepFreeze({ declarations, diagnostics, searchSpace: artifacts.searchSpace });
 }
+
+// ---------------------------------------------------------------------------
+// INI section-block reader (import-linter style)
+// ---------------------------------------------------------------------------
+
+// Bounds for the pure INI section-block parser. The hosting scanner's read
+// budget already caps raw bytes; these caps keep the structured output
+// deterministic and bounded for arbitrarily large inputs.
+export const INI_READER_LIMITS = deepFreeze({
+  maxSections: 512,
+  maxKeysPerSection: 512,
+  maxKeyLength: 128,
+  maxValueLength: 8192,
+  maxLines: 200_000,
+});
+
+function trimEnd(value) {
+  return value.replace(/[\t ]+$/g, '');
+}
+
+/**
+ * Parse a bounded INI section-block document (`.importlinter`, `.quality-gates`,
+ * and similar `key = value` files) into ordered section blocks. A section is
+ * introduced by a `[name]` header line; indented continuation lines following
+ * an empty-valued `key =` assignment extend that key's value (import-linter's
+ * `source_modules =\n    pkg.a` idiom). Full-line `#`/`;` comments and blank
+ * lines are ignored, and a blank line terminates a pending continuation.
+ * Content beyond the declared caps is dropped with `truncated` disclosed.
+ * Pure and deterministic; never throws on malformed content.
+ *
+ * @param {string} text - raw INI file content.
+ * @param {object} limits - `INI_READER_LIMITS` or a caller-provided override.
+ * @returns {object} deep-frozen `{ sections, truncated }` where each section is
+ *   `{ name, line, entries }` and each entry is `{ key, value, line }`.
+ */
+export function parseIniSections(text, limits = INI_READER_LIMITS) {
+  const source = text == null ? '' : String(text);
+  const lines = source.split(/\r?\n/);
+  const sections = [];
+  let current = null;
+  let pendingKey = null;
+  let pendingValue = null;
+  let pendingLine = null;
+  let truncated = false;
+
+  const flushPending = () => {
+    if (current !== null && pendingKey !== null) {
+      current.entries.push({ key: pendingKey, value: pendingValue, line: pendingLine });
+      pendingKey = null;
+      pendingValue = null;
+      pendingLine = null;
+    }
+  };
+
+  const appendContinuation = (addition) => {
+    const combined = pendingValue ? `${pendingValue}\n${addition}` : addition;
+    if (combined.length > limits.maxValueLength) truncated = true;
+    pendingValue = combined.slice(0, limits.maxValueLength);
+  };
+
+  let inspected = 0;
+  for (let i = 0; i < lines.length && inspected < limits.maxLines; i++) {
+    inspected++;
+    const raw = lines[i];
+    const lineNo = i + 1;
+    const header = /^\s*\[([^\]\r\n]+)\]\s*(?:[#;].*)?$/.exec(raw);
+    if (header) {
+      flushPending();
+      if (sections.length >= limits.maxSections) {
+        truncated = true;
+        current = null;
+        continue;
+      }
+      current = { name: header[1].trim(), line: lineNo, entries: [] };
+      sections.push(current);
+      continue;
+    }
+    if (current === null) continue;
+    if (/^\s*$/.test(raw) || /^\s*[#;]/.test(raw)) {
+      flushPending();
+      continue;
+    }
+    const assignment = /^\s*([A-Za-z0-9_.-]+)\s*=\s*(.*)$/.exec(raw);
+    if (assignment) {
+      flushPending();
+      const key = assignment[1];
+      if (key.length > limits.maxKeyLength) {
+        truncated = true;
+        continue;
+      }
+      if (current.entries.length >= limits.maxKeysPerSection) {
+        truncated = true;
+        continue;
+      }
+      const value = trimEnd(assignment[2]);
+      if (value.length === 0) {
+        pendingKey = key;
+        pendingValue = '';
+        pendingLine = lineNo;
+      } else {
+        if (value.length > limits.maxValueLength) truncated = true;
+        current.entries.push({ key, value: value.slice(0, limits.maxValueLength), line: lineNo });
+      }
+      continue;
+    }
+    if (/^\s+\S/.test(raw) && pendingKey !== null) {
+      appendContinuation(raw.trim());
+      continue;
+    }
+    flushPending();
+  }
+  flushPending();
+  if (inspected >= limits.maxLines) truncated = true;
+
+  return deepFreeze({ sections, truncated });
+}

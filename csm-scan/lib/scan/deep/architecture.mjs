@@ -35,6 +35,7 @@ import { enumerate } from '../shared/enum.mjs';
 import { DATABASE_INDICATORS, EXTERNAL_API_INDICATORS, matchDep } from '../shared/detection.mjs';
 import { parseToml } from '../shared/parse.mjs';
 import { expandRepositoryDirectoryPatterns } from '../shared/glob.mjs';
+import { readJsonc } from '../shared/jsonc.mjs';
 import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
 import {
   computeBounds,
@@ -76,70 +77,6 @@ function readJson(path) {
   try { return JSON.parse(readFileSync(path, 'utf-8')); } catch { return null; }
 }
 
-function stripJsonComments(content) {
-  let out = '';
-  let quote = null;
-  let escaped = false;
-  for (let i = 0; i < content.length; i++) {
-    const ch = content[i];
-    const next = content[i + 1];
-    if (quote) {
-      out += ch;
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"') { quote = ch; out += ch; continue; }
-    if (ch === '/' && next === '/') {
-      while (i < content.length && content[i] !== '\n') i++;
-      if (i < content.length) out += '\n';
-      continue;
-    }
-    if (ch === '/' && next === '*') {
-      i += 2;
-      while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) {
-        if (content[i] === '\n') out += '\n';
-        i++;
-      }
-      i++;
-      continue;
-    }
-    out += ch;
-  }
-  return out;
-}
-
-function removeJsonTrailingCommas(content) {
-  let out = '';
-  let quote = null;
-  let escaped = false;
-  for (let i = 0; i < content.length; i++) {
-    const ch = content[i];
-    if (quote) {
-      out += ch;
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"') { quote = ch; out += ch; continue; }
-    if (ch === ',') {
-      let j = i + 1;
-      while (/\s/.test(content[j] || '')) j++;
-      if (content[j] === '}' || content[j] === ']') continue;
-    }
-    out += ch;
-  }
-  return out;
-}
-
-function readJsonc(path) {
-  try {
-    const content = readFileSync(path, 'utf-8');
-    return JSON.parse(removeJsonTrailingCommas(stripJsonComments(content)));
-  } catch { return null; }
-}
 function readCargo(path) {
   try { return parseToml(readFileSync(path, 'utf-8')); } catch { return null; }
 }
