@@ -20,7 +20,29 @@ import { DATA_LIMITS, buildDataModel } from './model.mjs';
 import { classifyDataPath, extractDataArtifact, migrationKindOf } from './extractor.mjs';
 
 export const DATA_SCANNER_ID = 'DET-data-scan-v1';
-export const DATA_SOURCE_FILE_LIMIT = 96;
+export const DATA_SOURCE_FILE_LIMIT = 512;
+
+/**
+ * Map a bounded reader outcome to a distinct diagnostic reason. Mirrors the
+ * API scanner so capped, malformed, unreadable, and unsupported outcomes are
+ * reported separately instead of being collapsed into a single reason.
+ * @param {object} result - a `readArtifacts` outcome with a `status` field.
+ * @returns {object} `{ path, status: 'unverified', reason, line: null }`.
+ */
+export function diagnosticForOutcome(result) {
+  const reasons = {
+    capped: 'CAP',
+    malformed: 'MALFORMED',
+    unreadable: 'UNREADABLE',
+    unsupported: 'UNSUPPORTED',
+  };
+  return {
+    path: result.path,
+    status: 'unverified',
+    reason: reasons[result.status] ?? 'UNREADABLE',
+    line: null,
+  };
+}
 
 const READ_LIMITS = Object.freeze({
   maxBytes: DATA_LIMITS.maxBytes,
@@ -90,7 +112,7 @@ function extractionFor(result) {
     return {
       records: [],
       edges: [],
-      diagnostics: [{ path: result.path, status: 'unverified', reason: 'UNREADABLE' }],
+      diagnostics: [diagnosticForOutcome(result)],
       capped: {},
     };
   }
@@ -116,6 +138,43 @@ function modelFromResults(results, searchSpace) {
   return buildDataModel({ records, edges, diagnostics, searchSpace });
 }
 
+function sourceEligibleCount(files) {
+  let count = 0;
+  for (const path of files) {
+    const classification = classifyDataPath(path);
+    if (classification.kind === 'other') continue;
+    if (migrationKindOf(path) !== null) continue;
+    if (classification.kind === 'sql' || classification.kind === 'prisma') continue;
+    count++;
+  }
+  return count;
+}
+
+/**
+ * The scanner samples at most `DATA_SOURCE_FILE_LIMIT` data-source files by
+ * priority. `readArtifacts` only sees the requested subset, so its
+ * `searchSpace` would overclaim completeness whenever eligible source files
+ * were skipped. This mirrors the API scanner's sampling disclosure: the
+ * search space is marked incomplete, capped, and the omitted count includes
+ * every skipped eligible data-source file.
+ * @param {string[]} files - the enumerated repository-relative file list.
+ * @param {object} searchSpace - the deep-frozen read search space.
+ * @returns {object} A (possibly updated) search space with the sampling cap
+ *   surfaced; never claims completeness when files were skipped.
+ */
+function discloseSourceSampling(files, searchSpace) {
+  const eligibleSources = sourceEligibleCount(files);
+  const requestedSources = Math.min(eligibleSources, DATA_SOURCE_FILE_LIMIT);
+  const skipped = eligibleSources - requestedSources;
+  if (skipped <= 0) return searchSpace;
+  return {
+    ...searchSpace,
+    complete: false,
+    capped: true,
+    omittedCount: searchSpace.omittedCount + skipped,
+  };
+}
+
 /**
  * Scan a repository's declaration-backed data architecture.
  *
@@ -129,7 +188,8 @@ export async function scan(repoPath, _overview) {
   const { files } = await enumerate(repoPath);
   const requests = dataRequests(files);
   const { results, searchSpace } = await readArtifacts(repoPath, requests, READ_LIMITS);
-  const model = modelFromResults(results, searchSpace);
+  const disclosedSpace = discloseSourceSampling(files, searchSpace);
+  const model = modelFromResults(results, disclosedSpace);
   const recordCount = model.entities.length + model.fields.length + model.keys.length
     + model.relations.length + model.stores.length + model.schemas.length
     + model.migrations.length + model.caches.length + model.queues.length;

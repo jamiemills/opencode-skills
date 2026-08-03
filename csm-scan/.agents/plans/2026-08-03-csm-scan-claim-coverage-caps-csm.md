@@ -7,12 +7,12 @@
 
 ## Control
 - Plan ID: csm-scan-claim-coverage-caps
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: none
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-03 — T001-T005 complete; full suite 1010/1010 (1007 baseline + 3 new tests); pxcli probe 83/83 (79 observed + 4 not_detected, ratio 1); independent review: no critical/major findings, 1 minor + 3 nits resolved
+- Next transition: none (all work verified; completion gate passed)
 - Active tasks: none
 - Blockers: none
 
@@ -105,7 +105,7 @@ Data flow after fix:
 - Write ownership: within each parallel group every file is owned by exactly one task. T004 shares `data/scanner.mjs` and `test/expansion-data.test.mjs` with T001 but depends on T001, so no concurrent write can conflict.
 
 ## Numbered Plan
-1. [pending] Data scanner: typed, schema-valid outcome diagnostics (crash fix)
+1. [completed] Data scanner: typed, schema-valid outcome diagnostics (crash fix)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -124,7 +124,7 @@ Data flow after fix:
    - Repair attempts: 0
    - Recovery note: if `expansion-data.test.mjs` fails, diff against the api parity tests; the fix is localized to `scanner.mjs` — check `git diff lib/scan/deep/data/scanner.mjs` to confirm only the diagnostic branch changed.
 
-2. [pending] Recalibrate record budgets to byte-consistent values
+2. [completed] Recalibrate record budgets to byte-consistent values
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -142,7 +142,7 @@ Data flow after fix:
    - Repair attempts: 0
    - Recovery note: constants are centralized; a failed test means a fixture exercises a bound — read the failure before re-editing; do not lower any value below the pxcli R&D numbers without re-running RD-3.
 
-3. [pending] Raise API source sample and update the capped-search contract fixtures
+3. [completed] Raise API source sample and update the capped-search contract fixtures
    - Task ID: T003
    - Depends on: none
    - Parallel group: G1
@@ -161,7 +161,7 @@ Data flow after fix:
    - Repair attempts: 0
    - Recovery note: if AC16 fails, the fixture count is still below 512 or an assertion was altered — revert the assertion, not the fixture. Independent review required because this touches a contract test.
 
-4. [pending] Raise data source sample and add api-parity sampling disclosure
+4. [completed] Raise data source sample and add api-parity sampling disclosure
    - Task ID: T004
    - Depends on: T001 (shares `data/scanner.mjs` and `test/expansion-data.test.mjs`; strictly sequential to avoid write conflicts)
    - Parallel group: G2
@@ -180,7 +180,7 @@ Data flow after fix:
    - Repair attempts: 0
    - Recovery note: T001's diagnostic edit must be merged first; if `expansion-data.test.mjs` fails, diff against the api parity tests — the fix is localized to `scanner.mjs`.
 
-5. [pending] Full-suite and real-repo verification gate
+5. [completed] Full-suite and real-repo verification gate
    - Task ID: T005
    - Depends on: T001, T002, T003, T004
    - Parallel group: G3
@@ -220,6 +220,10 @@ Data flow after fix:
 | (self-critique) Could claims semantics instead be changed so caps don't force unverified? | medium | Rejected: violates T228 AC16 and the skill's documented contract; recalibration addresses the cause while preserving the contract | expansion-final-acceptance.test.mjs:904; AD-5 |
 | (self-critique) Is raising maxFiles to 512 a cost risk? | low | Reads stay bounded by 16 MB bytes / 500k records; pxcli = 2.78 MB / 77,892 records | RD-3 probe |
 | (self-critique) Does raising `maxRecords` loosen adversarial bounds? | low | maxNodes bound grows to ~12M counting iterations with no allocation; payloads still byte-capped | providers/api.mjs:58-60; RD-4 |
+| (review) M1: data sampling canary could not discriminate skipped files | minor | Canary content placed only in skipped files (index >= DATA_SOURCE_FILE_LIMIT); read files carry inert content; assertion now proves skipped-file exclusion | test/expansion-data.test.mjs sampling test; re-run green |
+| (review) N1: magic 560 in loop bounds | nit | Loop bounds now constant-derived (API_SOURCE_FILE_LIMIT + 47 + zz-route = 560; DATA_SOURCE_FILE_LIMIT + 48); AC16/t226 keep 560 (assertions are >0 only, fail loudly) | expansion-api/data tests; full suite green |
+| (review) N2: Control state/next-transition mismatch | nit | Control updated to CHECKPOINT with next transition COMPLETE | plan Control block |
+| (review) N3: journal lacked implementation rows | nit | Journal rows added for DISPATCH/INTEGRATE/VERIFY/REVIEW/REPAIR/CHECKPOINT; task statuses marked completed | Progress Journal |
 
 ## Progress Journal
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
@@ -232,6 +236,19 @@ Data flow after fix:
 | 2026-08-03 | 0 | REMEDIATE | — | No remediation agents needed; findings folded into Design/Notes/Risks | VERIFY |
 | 2026-08-03 | 0 | VERIFY | — | Primary gate: criteria map to T001-T005; acceptance signals runnable; file ownership non-overlapping; AC16 preserved | SAVED |
 | 2026-08-03 | 0 | SAVED | — | Plan saved and committed; implementation not started | STOP |
+| 2026-08-03 | 0 | RECOVER | — | Skill repo clean at 54c6ed0; plan tasks all pending; no partial edits; no NORMS.md in skill repo (perplexity-cli NORMS.md belongs to a different repo and is not authoritative here) | VALIDATE |
+| 2026-08-03 | 0 | VALIDATE | — | Baseline `node --test --test-concurrency=1`: 1007/1007 pass, 0 fail; plan references match repository (all file:line anchors verified during planning) | SELECT |
+| 2026-08-03 | 0 | SELECT | — | Ready set: T001, T002, T003 (G1); T004 (after T001); T005 (after all) | DISPATCH |
+| 2026-08-03 | 0 | DISPATCH | T001-T004 | Implemented directly (lightweight path; small mechanical validated patches): data diagnostics fix, cap recalibration, api/data samples 512, data disclosure | INTEGRATE |
+| 2026-08-03 | 0 | INTEGRATE | T001-T004 | Diffs inspected; one test-fixture assertion fixed (entity `label` -> `signature`); targeted suites 142/142 pass | VERIFY |
+| 2026-08-03 | 0 | VERIFY | T001-T004 | Full suite 1010/1010 (1007 + 3 new); pxcli probe: 83/83 claims, ratio 1, api/data/maintainability complete:true omitted:0, no SCANNER_FAILURE | REVIEW |
+| 2026-08-03 | 0 | REVIEW | — | Independent review subagent: no critical/major; AC16 assertions preserved, no double-count, out-of-scope clean; M1/N1-N3 actionable | REPAIR |
+| 2026-08-03 | 0 | REPAIR | — | M1: canary restricted to skipped files; N1: constant-derived loop bounds; api fixture total corrected to exactly 560 (LIMIT+47 + zz-route) after 49!==48 catch; re-run green | CHECKPOINT |
+| 2026-08-03 | 0 | CHECKPOINT | T001-T005 | All tasks verified; full suite 1010/1010; pxcli 83/83; review resolved; batch + plan committed | COMPLETE |
 
 ## Completion Review
-(filled by csm-build when all criteria are verified)
+- All 5 tasks completed with recorded evidence: full suite `node --test --test-concurrency=1` = 1010/1010 pass (1007 baseline + 3 new tests: diagnosticForOutcome mapping, scanner crash regression, data sampling disclosure).
+- All acceptance criteria verified: AC1 suite green; AC2 typed diagnostics + no crash (regression test exercises the exact pre-fix crash path via invalid UTF-8 -> MALFORMED); AC3 pxcli probe 83/83 eligible complete (79 observed + 4 not_detected), ratio 1, api/data/maintainability search spaces complete:true omittedCount:0, data diagnostics empty; AC4 T228 AC16 passes unchanged with 560-file fixture (capped -> unverified preserved); AC5 data disclosure test (omittedCount 48, skipped-file canary excluded).
+- Independent review: no critical/major findings; AC16 assertions byte-for-byte preserved; no double-count in omittedCount; no out-of-scope edits. Minor M1 + nits N1-N3 resolved in REPAIR.
+- Working tree contains only the 10 intended files plus this plan; no unexpected changes; no pushes.
+- Verified 2026-08-03 by primary agent before commit.
