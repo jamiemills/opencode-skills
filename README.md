@@ -24,10 +24,10 @@ flowchart LR
     plan --> bdd["csm-bdd-tdd<br/>optional: plan → BDD/TDD spec package"]
     bdd --> build["csm-build<br/>plan → verified implementation"]
     plan -->|"without mutation"| build
-    browse["csm-browse<br/>web automation via CDP"] --> upload["csm-upload<br/>evidence → GitHub Pages demo site"]
+    build -->|"delivery"| browse["csm-browse<br/>image/video evidence of delivery"] -->|"evidence"| upload["csm-upload<br/>evidence → GitHub Pages demo site"]
 ```
 
-The core loop: **grill** an idea into an agreed phased approach, **scan** a repository for its conventions, **plan** the work as a numbered, resumable state machine, optionally **mutate** the plan into strict BDD/TDD form, then **build** it with parallel subagents, checkpoints, and review cycles. Along the way, **browse** the web and **upload** the evidence.
+The core loop: **grill** an idea into an agreed phased approach, **scan** a repository for its conventions, **plan** the work as a numbered, resumable state machine, optionally **mutate** the plan into strict BDD/TDD form, then **build** it with parallel subagents, checkpoints, and review cycles. After delivery, **browse** captures image/video evidence of the build and **upload** makes it available to the user.
 
 Each stage is a separate, explicitly invoked skill — planning never silently becomes implementation, and execution always starts from a saved plan on disk.
 
@@ -80,7 +80,7 @@ Typical sequence:
 3. **Plan** the work — `csm-plan` → `.agents/plans/<date>-<goal>-csm.md`.
 4. **Mutate** to BDD/TDD (optional) — `csm-bdd-tdd`.
 5. **Build** it — `csm-build`, preferring any BDD/TDD-mutated plan.
-6. **Browse** the web and **upload** evidence — `csm-browse`, `csm-upload`.
+6. **Capture** image/video evidence of the delivery and **publish** it — `csm-browse` → `csm-upload`.
 
 Planning never silently becomes implementation, and execution always starts from a saved plan on disk.
 
