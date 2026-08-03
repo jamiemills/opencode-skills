@@ -147,10 +147,12 @@ function claimTopics(dimension) {
 // every category in the contract allowlist (asserted below).
 const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   accessibility: Object.freeze(['license-accessibility']),
+  agent_workflow: Object.freeze(['agent-workflow']),
   artifact: Object.freeze(['artifacts']),
   attestation: Object.freeze(['attestation']),
   authentication: Object.freeze(['authentication']),
   authorization: Object.freeze(['authorization']),
+  automation: Object.freeze(['automation']),
   branch_point: Object.freeze(['branch-complexity']),
   cache: Object.freeze(['cache-queue-relations']),
   cli_command: Object.freeze(['cli-commands']),
@@ -160,14 +162,18 @@ const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   contract: Object.freeze(['contracts']),
   contributing: Object.freeze(['contributing']),
   contribution: Object.freeze(['contribution']),
+  coupling: Object.freeze(['coupling']),
   coverage: Object.freeze(['coverage']),
+  dead_code: Object.freeze(['dead-code']),
   decision: Object.freeze(['decision']),
   dependency_lock: Object.freeze(['dependency-lock']),
   deployment_declaration: Object.freeze(['deployment-declarations']),
+  design_pattern: Object.freeze(['solid-indicators']),
   directory_structure: Object.freeze(['directory-tree']),
   duplicate_span: Object.freeze(['duplicate-spans']),
   dynamic_indicator: Object.freeze(['dynamic-indicators']),
   editor: Object.freeze(['editor']),
+  enforcement: Object.freeze(['enforcement']),
   entity: Object.freeze(['entities-fields']),
   entry_point: Object.freeze(['entry-points']),
   environment: Object.freeze(['environment']),
@@ -195,6 +201,7 @@ const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   lock: Object.freeze(['lockfiles']),
   manifest: Object.freeze(['manifest']),
   measurement_universe: Object.freeze(['universe']),
+  methodology: Object.freeze(['methodology']),
   migration: Object.freeze(['migrations']),
   module: Object.freeze(['module']),
   module_system: Object.freeze(['module-system']),
@@ -204,6 +211,7 @@ const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   pin: Object.freeze(['pin']),
   policy: Object.freeze(['policies']),
   public_export: Object.freeze(['public-exports']),
+  quality_gate: Object.freeze(['quality-gates']),
   queue: Object.freeze(['cache-queue-relations']),
   readme: Object.freeze(['readme']),
   reference: Object.freeze(['reference', 'reference-artifacts']),
@@ -212,6 +220,7 @@ const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   repository_metadata: Object.freeze(['repository-metadata']),
   resource: Object.freeze(['resources']),
   review: Object.freeze(['releases-reviews']),
+  ritual: Object.freeze(['rituals']),
   route: Object.freeze(['routes']),
   rpc: Object.freeze(['rpc']),
   runbook: Object.freeze(['runbook']),
@@ -225,6 +234,7 @@ const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   source: Object.freeze(['source']),
   standard: Object.freeze(['standards']),
   store: Object.freeze(['stores-schemas']),
+  style_guide: Object.freeze(['style-guide']),
   support: Object.freeze(['support']),
   template_indicator: Object.freeze(['template-indicator']),
   test_directory: Object.freeze(['layout']),
@@ -249,7 +259,7 @@ test('T222 dimensions: registry validates through the contract and holds every d
     DIMENSION_IDS.map((_, index) => index),
   );
   assert.equal(new Set(DIMENSION_REGISTRY.map(({ id }) => id)).size, DIMENSION_IDS.length);
-  assert.equal(DIMENSION_DEFINITIONS.length, 16);
+  assert.equal(DIMENSION_DEFINITIONS.length, 17);
   assert.deepEqual(validateDimensions(DIMENSION_DEFINITIONS), DIMENSION_REGISTRY);
 });
 
@@ -263,10 +273,10 @@ test('T222 dimensions: flags, renderer IDs, and applicability are deterministic 
     assert.equal(typeof dimension.applicability.mode, 'string');
     assert.ok(Array.isArray(dimension.applicability.rules) && dimension.applicability.rules.length > 0);
   }
-  assert.equal(new Set(DIMENSION_REGISTRY.map(({ rendererId }) => rendererId)).size, 16);
-  assert.equal(DIMENSION_RENDERER_IDS.length, 16);
+  assert.equal(new Set(DIMENSION_REGISTRY.map(({ rendererId }) => rendererId)).size, 17);
+  assert.equal(DIMENSION_RENDERER_IDS.length, 17);
   assert.deepEqual(DIMENSION_RENDERER_IDS, DIMENSION_REGISTRY.map(({ rendererId }) => rendererId).sort(compareAscii));
-  assert.equal(Object.keys(DIMENSION_RENDERER_MAP).length, 16);
+  assert.equal(Object.keys(DIMENSION_RENDERER_MAP).length, 17);
   for (const dimension of DIMENSION_REGISTRY) {
     assert.equal(DIMENSION_RENDERER_MAP[dimension.id], dimension.rendererId);
   }
@@ -558,7 +568,7 @@ test('T222 stage: the Cross-repo global stage descriptor is deterministic data-o
   assert.equal(CROSS_REPO_GLOBAL_STAGE.schemaVersion, 1);
   assert.equal(CROSS_REPO_GLOBAL_STAGE.name, 'cross-repo-global');
   assert.equal(CROSS_REPO_GLOBAL_STAGE.kind, 'global');
-  assert.equal(CROSS_REPO_GLOBAL_STAGE.order, 16);
+  assert.equal(CROSS_REPO_GLOBAL_STAGE.order, 17);
   assert.equal(CROSS_REPO_GLOBAL_STAGE.retryable, false);
   assert.equal(CROSS_REPO_GLOBAL_STAGE.providerCapability, false);
   assert.equal(CROSS_REPO_GLOBAL_STAGE.rendererId, 'RND-cross-repo-global-v1');
@@ -573,9 +583,9 @@ test('T222 stage: the Cross-repo global stage descriptor is deterministic data-o
   // Stable serialization.
   assert.equal(JSON.stringify(CROSS_REPO_GLOBAL_STAGE), JSON.stringify(structuredClone(CROSS_REPO_GLOBAL_STAGE)));
 
-  // The global stage renderer ID is distinct from all 16 dimension renderer IDs.
+  // The global stage renderer ID is distinct from all 17 dimension renderer IDs.
   assert.equal(DIMENSION_RENDERER_IDS.includes(CROSS_REPO_GLOBAL_STAGE.rendererId), false);
-  assert.equal(new Set([...DIMENSION_RENDERER_IDS, CROSS_REPO_GLOBAL_STAGE.rendererId]).size, 17);
+  assert.equal(new Set([...DIMENSION_RENDERER_IDS, CROSS_REPO_GLOBAL_STAGE.rendererId]).size, 18);
 
   // Data-only: every value is a plain scalar / array / object.
   const seen = new Set();

@@ -41,16 +41,17 @@ export const DIMENSION_EVIDENCE_CATEGORIES = deepFreeze({
   'DIM-testing-v1': ['configuration', 'coverage', 'fixture', 'framework', 'test_directory', 'test_file'],
   'DIM-conventions-v1': ['comment', 'error_handling', 'file_naming', 'import_style', 'module_system'],
   'DIM-git-v1': ['history', 'repository_metadata'],
-  'DIM-architecture-v1': ['dynamic_indicator', 'entry_point', 'graph', 'import_edge', 'module'],
+  'DIM-architecture-v1': ['coupling', 'design_pattern', 'dynamic_indicator', 'entry_point', 'graph', 'import_edge', 'module'],
   'DIM-documentation-v1': ['contributing', 'license', 'readme', 'reference'],
   'DIM-security-v1': ['authentication', 'authorization', 'dependency_lock', 'secret_pattern', 'security_tool', 'validation'],
   'DIM-operations-v1': ['container', 'deployment_declaration', 'health_check', 'monitoring', 'workflow'],
   'DIM-api-v1': ['cli_command', 'contract', 'event', 'public_export', 'route', 'rpc'],
   'DIM-data-v1': ['cache', 'entity', 'field', 'key', 'migration', 'queue', 'relation', 'schema', 'store'],
   'DIM-deployment-v1': ['image', 'resource', 'service', 'template_indicator', 'topology_edge'],
-  'DIM-maintainability-v1': ['branch_point', 'duplicate_span', 'file_metric', 'generated_boundary', 'measurement_universe', 'tool_result'],
+  'DIM-maintainability-v1': ['branch_point', 'dead_code', 'duplicate_span', 'file_metric', 'generated_boundary', 'measurement_universe', 'tool_result'],
   'DIM-governance-v1': ['contribution', 'decision', 'funding', 'ownership', 'policy', 'reference', 'release', 'review', 'runbook', 'support'],
   'DIM-assurance-v1': ['accessibility', 'attestation', 'configuration', 'license', 'lock', 'manifest', 'pin', 'sarif', 'sbom', 'source', 'standard', 'tool_result', 'vex'],
+  'DIM-practices-v1': ['methodology', 'enforcement', 'automation', 'ritual', 'quality_gate', 'agent_workflow', 'style_guide'],
 });
 
 export const EVIDENCE_CATEGORIES = Object.freeze([

@@ -1,7 +1,7 @@
-// Inert registration data — the ordered 16-dimension registry snapshot and the
+// Inert registration data — the ordered 17-dimension registry snapshot and the
 // Cross-repo global stage descriptor.
 //
-// T222 owns this module. It defines the canonical 16-dimension registry
+// T222 owns this module. It defines the canonical 17-dimension registry
 // snapshot that T224 will inject into the pipeline: exact canonical dimension
 // order, globally unique expected claim IDs (stable `CLM-<dimension>-<topic>-v1`
 // identifiers covering each dimension's factual topics), retryability flags,
@@ -10,12 +10,12 @@
 //
 // Guarantees:
 //   - DIMENSION_REGISTRY is validated through the T202 `validateDimensions`
-//     contract: exactly 16 entries, canonical order, boolean flags, allowlisted
+//     contract: exactly 17 entries, canonical order, boolean flags, allowlisted
 //     applicability, and globally unique expected claim IDs and renderer IDs.
 //   - Every expected claim ID is stable and globally unique, covering the
 //     factual topics of its owning dimension; the flat EXPECTED_CLAIM_IDS list
 //     is deterministically sorted.
-//   - Retryability is uniform (true) for all 16 dimensions, preserving the
+//   - Retryability is uniform (true) for all 17 dimensions, preserving the
 //     existing generic retry semantics (validate.mjs re-scans any dimension
 //     whose detection is incomplete); providerCapability mirrors the T202
 //     canonical mapping (all dimensions except DIM-structure-v1 and
@@ -147,6 +147,8 @@ const DIMENSION_SOURCES = Object.freeze([
       'CLM-architecture-entry-points-v1',
       'CLM-architecture-dynamic-indicators-v1',
       'CLM-architecture-module-v1',
+      'CLM-architecture-coupling-v1',
+      'CLM-architecture-solid-indicators-v1',
     ]),
   },
   {
@@ -231,6 +233,7 @@ const DIMENSION_SOURCES = Object.freeze([
       'CLM-maintainability-universe-v1',
       'CLM-maintainability-generated-boundary-v1',
       'CLM-maintainability-tool-result-v1',
+      'CLM-maintainability-dead-code-v1',
     ]),
   },
   {
@@ -267,6 +270,20 @@ const DIMENSION_SOURCES = Object.freeze([
       'CLM-assurance-vex-v1',
     ]),
   },
+  {
+    short: 'practices',
+    id: 'DIM-practices-v1',
+    applicability: DEFAULT_APPLICABILITY,
+    claims: Object.freeze([
+      'CLM-practices-methodology-v1',
+      'CLM-practices-enforcement-v1',
+      'CLM-practices-automation-v1',
+      'CLM-practices-rituals-v1',
+      'CLM-practices-quality-gates-v1',
+      'CLM-practices-agent-workflow-v1',
+      'CLM-practices-style-guide-v1',
+    ]),
+  },
 ]);
 
 // Raw, deep-frozen, pre-validation definitions. `order` is the canonical
@@ -284,7 +301,7 @@ export const DIMENSION_DEFINITIONS = deepFreeze(
 );
 
 /**
- * The validated, deep-frozen 16-dimension registry snapshot. Produced by the
+ * The validated, deep-frozen 17-dimension registry snapshot. Produced by the
  * T202 `validateDimensions` contract: canonical order, unique expected claim
  * IDs and renderer IDs, boolean flags, and allowlisted applicability.
  * Deterministic and immutable.
@@ -298,7 +315,7 @@ export const EXPECTED_CLAIM_IDS = deepFreeze(
     .sort(compareAscii),
 );
 
-// Deterministically sorted list of the 16 dimension renderer IDs.
+// Deterministically sorted list of the 17 dimension renderer IDs.
 export const DIMENSION_RENDERER_IDS = deepFreeze(
   DIMENSION_REGISTRY.map(({ rendererId }) => rendererId).sort(compareAscii),
 );
@@ -313,7 +330,7 @@ export const DIMENSION_RENDERER_MAP = deepFreeze(Object.fromEntries(
  * the T221 global synthesis stage and its inert renderer by module path and
  * export name so that activation (T224) can wire them, without importing the
  * cross-repo modules here (which the T221 inertness contract forbids). The
- * stage follows the 16 per-repo dimensions (order === TOTAL_DIMENSION_COUNT),
+ * stage follows the 17 per-repo dimensions (order === TOTAL_DIMENSION_COUNT),
  * is never retried, and is not a provider-capability dimension.
  */
 export const CROSS_REPO_GLOBAL_STAGE = deepFreeze({
