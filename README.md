@@ -1,6 +1,6 @@
 # opencode-skills
 
-A collection of [OpenCode](https://opencode.ai) agent skills built around the **CSM (cyclic state machine)** workflow: rigorous, evidence-based planning (`csm-plan`), optional BDD/TDD spec mutation (`csm-bdd-tdd`), and resumable plan execution (`csm-build`) — supported by repository analysis (`csm-scan`), Dockerized browser automation (`csm-browse`), and evidence publishing (`csm-upload`).
+A collection of [OpenCode](https://opencode.ai) agent skills built around the **CSM (cyclic state machine)** workflow: relentless idea grilling (`csm-grill`), rigorous, evidence-based planning (`csm-plan`), optional BDD/TDD spec mutation (`csm-bdd-tdd`), and resumable plan execution (`csm-build`) — supported by repository analysis (`csm-scan`), Dockerized browser automation (`csm-browse`), and evidence publishing (`csm-upload`).
 
 ## Table of contents
 
@@ -10,6 +10,7 @@ A collection of [OpenCode](https://opencode.ai) agent skills built around the **
 - [Installation](#installation)
 - [Usage](#usage)
   - [csm-scan](#csm-scan)
+  - [csm-grill](#csm-grill)
   - [csm-plan](#csm-plan)
   - [csm-bdd-tdd](#csm-bdd-tdd)
   - [csm-build](#csm-build)
@@ -23,7 +24,8 @@ A collection of [OpenCode](https://opencode.ai) agent skills built around the **
 
 ```mermaid
 flowchart LR
-    scan["csm-scan<br/>repo(s) → NORMS.md"] -.->|"optional conventions input"| plan["csm-plan<br/>brief → saved, verified plan"]
+    grill["csm-grill<br/>idea → agreed phased approach"] -.->|"phase briefs"| plan["csm-plan<br/>brief → saved, verified plan"]
+    scan["csm-scan<br/>repo(s) → NORMS.md"] -.->|"optional conventions input"| plan
     plan --> bdd["csm-bdd-tdd<br/>optional: plan → BDD/TDD spec package"]
     bdd --> build["csm-build<br/>plan → verified implementation"]
     plan -->|"without mutation"| build
@@ -44,6 +46,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-scan` | Read-only multi-repo analysis producing a single `NORMS.md`: 16 evidence dimensions (structure, stack, conventions, architecture, security, data, deployment, and more) with Mermaid C4 diagrams. | [csm-scan/SKILL.md](csm-scan/SKILL.md) |
 | `csm-browse` | Drive an isolated Chromium inside the `chromium-vnc` Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM, capture console/network/performance, record video. | [csm-browse/SKILL.md](csm-browse/SKILL.md) |
 | `csm-upload` | Upload screenshots, videos, and evidence files to a GitHub Pages demo site under a unique dated page name. | [csm-upload/SKILL.md](csm-upload/SKILL.md) |
+| `csm-grill` | Grill an idea into an agreed, phased approach — a relentless one-question-at-a-time interview backed by research subagents, cycling until you agree; each phase is a ready-made brief for a future csm-plan run. Never plans or implements. | [csm-grill/SKILL.md](csm-grill/SKILL.md) |
 
 ## Requirements
 
@@ -54,13 +57,13 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 
 ## Installation
 
-Clone this repository into your OpenCode skills directory (or copy the six skill folders into an existing one):
+Clone this repository into your OpenCode skills directory (or copy the seven skill folders into an existing one):
 
 ```bash
 git clone git@github.com:jamiemills/opencode-skills.git ~/.config/opencode/skills
 ```
 
-Restart OpenCode so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, and `csm-upload` need no further setup.
+Restart OpenCode so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-grill`, `csm-scan`, and `csm-upload` need no further setup.
 
 `csm-browse` has runtime dependencies — install and verify:
 
@@ -83,6 +86,10 @@ node scripts/scan.mjs --repos /path/to/repo [/path/to/another ...] --out NORMS.m
 ```
 
 Defaults: `--repos` is the current directory and `--out` is `./NORMS.md`. First-class depth for Python, JavaScript, TypeScript, Shell, and Rust; other ecosystems get generic artifact-only evidence, extendable via declarative JSON plugins. Read-only by design: target commands are never executed, and the only write is the single output file. Feed the result into `csm-plan`, or let `csm-build` pick up repo conventions automatically. Full dimension list, evidence model, and privacy guarantees: [csm-scan/SKILL.md](csm-scan/SKILL.md).
+
+### csm-grill
+
+An OpenCode skill — invoke it by name with an idea, e.g. *"use csm-grill to grill my idea for a plugin system"*. It runs a cyclic, research-backed interview — clarifying context, scouting clarification areas with research subagents, questioning you one at a time with recommended answers, and deep-diving your replies — until you explicitly agree on a phased approach, then saves a single approach document to `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md` with ASCII and Mermaid phasing diagrams. Each phase in that document is a ready-made brief for a future csm-plan invocation; the skill itself never plans or implements. Details: [csm-grill/SKILL.md](csm-grill/SKILL.md).
 
 ### csm-plan
 
@@ -127,6 +134,7 @@ Creates `demo-YYYY-MM-DD-my-demo/` on your Pages repo with an autogenerated `ind
 ├── csm-plan/          # SKILL.md — the planning state machine
 ├── csm-build/         # SKILL.md — the plan execution engine
 ├── csm-bdd-tdd/       # SKILL.md — BDD/TDD plan mutation
+├── csm-grill/         # SKILL.md — the idea-grilling interview
 ├── csm-scan/          # repository analyzer → NORMS.md
 │   ├── lib/scan/      # pipeline, dimension registry, scanners, providers, renderers
 │   ├── scripts/       # scan.mjs CLI

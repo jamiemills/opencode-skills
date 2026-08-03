@@ -7,12 +7,12 @@
 
 ## Control
 - Plan ID: csm-grill-skill
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — plan drafted, critiqued (12 findings), remediated, verified; not started
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-03 — cycle 1: G1 {T001, T002} verified and committed; T003 ready
+- Next transition: CHECKPOINT -> SELECT (cycle 2: T003 fresh-eyes review)
 - Active tasks: none
 - Blockers: none
 
@@ -140,7 +140,7 @@ README leading clause (exact; opens the T002 table-row purpose and is grepped in
 - Critical path: G1 → G2.
 
 ## Numbered Plan
-1. [pending] Author `csm-grill/SKILL.md`
+1. [completed] Author `csm-grill/SKILL.md`
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -154,7 +154,7 @@ README leading clause (exact; opens the T002 table-row purpose and is grepped in
    - Acceptance evidence: PASS output, wc -l count, fence-count parity, mapping-table check recorded in the plan journal.
    - Repair attempts: 0
    - Recovery note: the file either exists with full content or not; if partial, rewrite wholesale from the Design section — no incremental state to preserve.
-2. [pending] Update `README.md` for csm-grill
+2. [completed] Update `README.md` for csm-grill
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -221,6 +221,13 @@ Per-task fast gates (cheapest first, seconds to run): T001 and T002 grep-based s
 | 2026-08-03 | 0 | CRITIQUE -> REMEDIATE | — | All 12 findings resolved with surgical plan-text edits; no redesign needed; resolutions recorded in Critique Resolution | VERIFY |
 | 2026-08-03 | 0 | REMEDIATE -> VERIFY | — | Primary personally re-verified: template sections complete; every task has runnable signal/risk/anti-scope/spike note; G1 scopes disjoint post-fix; gates match brief's central requirements (cyclic, single-file output, temp rules, .agents location, ASCII+Mermaid, csm-plan briefs) | SAVED |
 | 2026-08-03 | 0 | VERIFY -> SAVED | — | Plan saved to `.agents/plans/2026-08-03-csm-grill-skill-csm.md`; committed as `plan: csm-grill skill (first cut)` staging only the plan file | STOP (planning terminal; execution awaits explicit csm-build invocation) |
+| 2026-08-03 | 1 | NOT_STARTED -> RECOVER | — | Explicit csm-build invocation. Working tree clean: concurrent csm-scan work was committed upstream (94112a5, fcb582d); no NORMS.md at git root or cwd (continuing without); `csm-grill/` absent — no partial work; all 3 tasks pending | VALIDATE |
+| 2026-08-03 | 1 | RECOVER -> VALIDATE | — | README touchpoints re-verified against plan citations: TOC line 13, "six skill folders" line 57, setup list line 63, `### csm-plan` line 87, table row line 46, 14 fences (even). Plan not stale | SELECT |
+| 2026-08-03 | 1 | VALIDATE -> SELECT | T001, T002 | Ready set = G1 {T001, T002}, disjoint write scopes (`csm-grill/SKILL.md` new vs `README.md`); both have runnable acceptance signals; T003 held for G2 | DISPATCH |
+| 2026-08-03 | 1 | DISPATCH -> INTEGRATE | T001, T002 | T001 subagent returned complete: SKILL.md written, gate PASS, wc 206, fences 6 even, mapping table verbatim-diff empty. T002 subagent returned an EMPTY result with an empty README diff — nothing to salvage; deliberate choice per INTEGRATE rule 3: primary completed the README edits directly (8 edits from Design → README changes, all pinned strings used verbatim). Actual files and diffs inspected, not summaries | VERIFY |
+| 2026-08-03 | 1 | INTEGRATE -> VERIFY | T001, T002 | T001 gate → T001-PASS; T002 gate → T002-PASS. Supporting checks: `wc -l csm-grill/SKILL.md` = 206 (budget 180–280); fence counts 6 (SKILL.md) and 14 (README.md), both even; skills table = 7 rows; setup list names csm-grill; all 8 README touchpoints confirmed by grep (lines 3, 13, 27, 49, 66, 90, 137) | REVIEW |
+| 2026-08-03 | 1 | VERIFY -> REVIEW | T001, T002 | Primary-led review (low-risk docs-only batch): SKILL.md read end-to-end — sibling skeleton parity, all 7 brief steps + cyclic rule encoded, cycle edges pinned verbatim, write discipline incl. sanctioned-commit clarification and best-effort temp cleanup, approach-doc template with ASCII + Mermaid phasing diagrams and phase-brief contract, anti-patterns, done criteria. README diff read — all 8 edits at correct touchpoints, tone consistent, Mermaid well-formed. No findings | CHECKPOINT |
+| 2026-08-03 | 1 | REVIEW -> CHECKPOINT | T001, T002 | Statuses set completed; batch committed staging only `csm-grill/SKILL.md`, `README.md`, and this plan file. Learning: subagent empty-result mode handled by primary completion — no plan change needed; T003 remains the mandated fresh-eyes gate for the whole goal | SELECT (cycle 2) |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
