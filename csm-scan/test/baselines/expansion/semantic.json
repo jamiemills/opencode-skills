@@ -1,0 +1,58 @@
+{
+  "dimensionOrder": [
+    "structure",
+    "stack",
+    "config",
+    "testing",
+    "conventions",
+    "git",
+    "architecture",
+    "documentation",
+    "security",
+    "operations"
+  ],
+  "findingKeys": {
+    "structure": ["fileCounts", "totalFiles", "tree"],
+    "stack": ["framework", "language", "name", "packageManager", "runtime", "version"],
+    "config": ["format", "lint", "markers"],
+    "testing": ["fileCount", "framework", "naming", "sampleFiles", "testDirs"],
+    "conventions": ["commentDensity", "errorHandling", "fileNaming", "importStyle", "moduleSystem"],
+    "git": ["isGit"],
+    "architecture": ["asciiGraph", "layers"],
+    "documentation": ["commentRatio", "contributing", "license", "readme", "todoCount"],
+    "security": ["dependabot", "envExample", "gitignoreEnvProtected", "hasLockfile", "secrets"],
+    "operations": ["ci", "dockerfiles", "hasJustfile", "hasMakefile", "healthChecks"]
+  },
+  "coverage": {
+    "structure": 100,
+    "stack": 100,
+    "config": 100,
+    "testing": 100,
+    "conventions": 100,
+    "git": 100,
+    "architecture": 100,
+    "documentation": 100,
+    "security": 100,
+    "operations": 100
+  },
+  "confidence": {
+    "structure": "observed",
+    "stack": "inferred",
+    "config": "observed",
+    "testing": "inferred",
+    "conventions": "inferred",
+    "git": "observed",
+    "architecture": "observed",
+    "documentation": "observed",
+    "security": "observed",
+    "operations": "observed"
+  },
+  "contradictions": [],
+  "gaps": [],
+  "inferredPatterns": [
+    { "dimension": "conventions", "pattern": "File naming: kebab-case (100% of sampled files)", "confidence": 1 },
+    { "dimension": "conventions", "pattern": "Import style: ESM (import/export)", "confidence": 0.8 },
+    { "dimension": "testing", "pattern": "Test framework: node:test", "confidence": 0.9 },
+    { "dimension": "stack", "pattern": "Primary ecosystem: javascript", "confidence": 0.85 }
+  ]
+}

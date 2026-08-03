@@ -1,24 +1,6 @@
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-
-function safeExec(cmd, cwd, fallback = '') {
-  try {
-    return execSync(cmd, {
-      cwd,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 10 * 1024 * 1024,
-    }).trim();
-  } catch {
-    return fallback;
-  }
-}
-
-function safeLines(cmd, cwd) {
-  const out = safeExec(cmd, cwd, '');
-  return out ? out.split('\n').filter(Boolean) : [];
-}
+import { commandBroker } from '../shared/command.mjs';
 
 function analyzeCommitStyle(logLines) {
   if (logLines.length === 0) return 'unknown';
@@ -88,17 +70,36 @@ function analyzeBranchPatterns(branches) {
   return sorted.map(([k, v]) => `${k}/*`).join(', ');
 }
 
-function detectDefaultBranch(repoPath) {
-  const remote = safeExec('git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null', repoPath, '');
+function sanitizeRemoteUrl(raw) {
+  if (typeof raw !== 'string') return '';
+  let value = raw.trim();
+  if (!value) return '';
+  if (value.startsWith('/') || value.startsWith('\\') || value.startsWith('.')
+      || value === '~' || value.startsWith('~/') || /^[A-Za-z]:[\\/]/.test(value)) {
+    return '';
+  }
+  value = value.replace(/^(?:https?|ssh|git|git\+ssh|file):\/\//i, '');
+  value = value.replace(/^git@/, '');
+  if (value.includes('@')) value = value.slice(value.lastIndexOf('@') + 1);
+  value = value.replace(/^([^/:]+):(\d+)\//, '$1/$2/');
+  value = value.replace(/^([^/:]+):/, '$1/');
+  value = value.replace(/\.git$/, '');
+  value = value.replace(/\/+$/, '');
+  if (!value || value.startsWith('/') || value.startsWith('\\') || value.startsWith('.')) return '';
+  return value;
+}
+
+async function detectDefaultBranch(safeGit) {
+  const remote = await safeGit('git:symbolic-ref-origin-head');
   if (remote) {
     const name = remote.split('/').pop();
     if (name) return name;
   }
-  const branch = safeExec('git rev-parse --abbrev-ref HEAD 2>/dev/null', repoPath, '');
+  const branch = await safeGit('git:rev-parse-abbrev-head');
   return branch || 'unknown';
 }
 
-export async function scan(repoPath, overview) {
+export async function scan(repoPath, overview, broker = commandBroker) {
   const isGit = existsSync(join(repoPath, '.git'));
   if (!isGit) {
     return {
@@ -120,9 +121,18 @@ export async function scan(repoPath, overview) {
     };
   }
 
-  const logLines = safeLines('git log --oneline -50 2>/dev/null', repoPath);
-  const branchLines = safeLines('git branch -a 2>/dev/null', repoPath);
-  const defaultBranch = detectDefaultBranch(repoPath);
+  const safeGit = async (id) => {
+    try {
+      const result = await broker.execute(id, { cwd: repoPath });
+      return result.ok ? result.stdout.trim() : '';
+    } catch {
+      return '';
+    }
+  };
+
+  const logLines = (await safeGit('git:log-oneline-50')).split('\n').filter(Boolean);
+  const branchLines = (await safeGit('git:branch-list')).split('\n').filter(Boolean);
+  const defaultBranch = await detectDefaultBranch(safeGit);
 
   const prTemplate =
     existsSync(join(repoPath, '.github/PULL_REQUEST_TEMPLATE.md')) ||
@@ -134,55 +144,40 @@ export async function scan(repoPath, overview) {
     existsSync(issueTemplateDir) ||
     existsSync(join(repoPath, '.github/ISSUE_TEMPLATE.md'));
 
-  const remote = safeExec('git config --get remote.origin.url 2>/dev/null', repoPath, '');
-  const displayRemote = remote ? remote.replace(/https?:\/\//, '').replace(/\.git$/, '').replace(/^git@/, '').replace(/:/g, '/') : 'N/A';
+  const remote = sanitizeRemoteUrl(await safeGit('git:config-remote-origin-url'));
+  const displayRemote = remote || 'N/A';
 
-  const authorLines = safeLines("git log --format='%an' 2>/dev/null | sort | uniq -c | sort -rn 2>/dev/null || true", repoPath);
-  let contributorCount = 0;
-  const contributorMap = {};
-  for (const line of authorLines) {
-    const parts = line.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      const count = parseInt(parts[0], 10);
-      const name = parts.slice(1).join(' ');
-      if (!isNaN(count) && name) {
-        contributorMap[name] = (contributorMap[name] || 0) + count;
-      }
-    }
-  }
+  const summary = await safeGit('git:shortlog-summary');
+  const contributorCount = summary ? summary.split('\n').filter(Boolean).length : 0;
 
   const isGitRepo = logLines.length > 0 || branchLines.length > 0;
-  const topContributors = Object.entries(contributorMap)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([name, count]) => ({ name, commits: count }));
-  const totalContributors = Object.keys(contributorMap).length;
-
   const signal = logLines.length > 0 ? 'high' : 'medium';
+  const commitStyle = analyzeCommitStyle(logLines);
+  const branchPattern = analyzeBranchPatterns(branchLines);
 
   return {
     dimension: 'git',
     signal,
     findings: {
       isGit: isGitRepo,
-      branchPattern: analyzeBranchPatterns(branchLines),
+      branchPattern,
       overview: generateOverview({
-        branchPattern: analyzeBranchPatterns(branchLines),
-        commitStyle: analyzeCommitStyle(logLines),
+        branchPattern,
+        commitStyle,
         defaultBranch,
         prTemplate,
         hasIssueTemplates,
         remote: displayRemote,
-        contributorCount: totalContributors,
+        contributorCount,
       }),
-      commitStyle: analyzeCommitStyle(logLines),
-      branchStyle: analyzeBranchPatterns(branchLines),
+      commitStyle,
+      branchStyle: branchPattern,
       defaultBranch,
       prTemplate,
       hasIssueTemplates,
       remote: displayRemote,
-      contributorCount: totalContributors,
-      topContributors,
+      contributorCount,
+      topContributors: [],
       logCount: logLines.length,
     },
   };

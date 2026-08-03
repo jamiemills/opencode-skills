@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "policy": "A legacy_locked entry requires every reviewed digest lock. A superseded entry retains those locks, requires at least one legacy lock no longer to apply, and names a digest-locked replacement test in the recurring acceptance inventory.",
+  "entries": [
+    {
+      "id": "host-runtime-probes",
+      "state": "superseded",
+      "replacementTask": "T209",
+      "legacyLocks": [
+        { "role": "production", "path": "lib/scan/deep/stack.mjs", "sha256": "1fc3f3ee1e144447b46e51ca862924008019777bd37b3f354740f7f67743ef12" },
+        { "role": "test", "path": "test/stack.test.mjs", "sha256": "1ec0e7cfe2aa0454108223e0bdd8d980f678412fe69bac872e0d7c9203a7c3f8" }
+      ],
+      "replacement": {
+        "testFile": "test/expansion-command-deep.test.mjs",
+        "testFileSha256": "08f2e7412f8d50a5bd218bb2be015ef77c7945106b6807d37e2a9a630d7821fe",
+        "testName": "T209 conflicting runtime declarations coexist with per-artifact provenance"
+      }
+    },
+    {
+      "id": "personal-identity-output",
+      "state": "superseded",
+      "replacementTask": "T208",
+      "legacyLocks": [
+        { "role": "production", "path": "lib/scan/deep/git.mjs", "sha256": "bf73675c4f253e50e04dce9b4d412db4886eefe47d15d389bc39581eef3a5230" },
+        { "role": "production", "path": "lib/scan/write.mjs", "sha256": "762824057fcc1f9151fe8fba36e149fd4517e0aa59b5cfb6a97cf586305fd7b4" },
+        { "role": "test", "path": "test/write.test.mjs", "sha256": "77319bc9513c666446138926d2b603c1f38f2abfa36c9677726ae328d411156d" }
+      ],
+      "replacement": {
+        "testFile": "test/expansion-command-core.test.mjs",
+        "testFileSha256": "d61f96634a6c2bbdda68a48b9146884dd5d79fa671e4c3cba31d764004e52b7a",
+        "testName": "T208 git scan issues only registered read-only commands through the broker"
+      }
+    },
+    {
+      "id": "free-form-na",
+      "state": "legacy_locked",
+      "replacementTask": "T202",
+      "legacyLocks": [
+        { "role": "production", "path": "lib/scan/enrich.mjs", "sha256": "1dd5b6c553f0dcde75d1d9ca164fe90820096b3a1515c5e05275e3ae4119ca4b" },
+        { "role": "test", "path": "test/enrich.test.mjs", "sha256": "587ed90636cbd74e91a1f48aa925841a5027b080da2865146dbee0a8c469a2e7" }
+      ],
+      "replacement": null
+    },
+    {
+      "id": "coverage-status-representation",
+      "state": "legacy_locked",
+      "replacementTask": "T202",
+      "legacyLocks": [
+        { "role": "production", "path": "lib/scan/enrich.mjs", "sha256": "1dd5b6c553f0dcde75d1d9ca164fe90820096b3a1515c5e05275e3ae4119ca4b" },
+        { "role": "production", "path": "lib/scan/validate.mjs", "sha256": "a2354a2f37b8ccf0538c14e3c595357074f611a72c626e2c50d38c3059b90b64" },
+        { "role": "test", "path": "test/enrich.test.mjs", "sha256": "587ed90636cbd74e91a1f48aa925841a5027b080da2865146dbee0a8c469a2e7" },
+        { "role": "test", "path": "test/validate.test.mjs", "sha256": "c8b0eeca7df21b20a83297e98b187390d45045a406881a260b07db9ff5da7a2d" }
+      ],
+      "replacement": null
+    },
+    {
+      "id": "deterministic-ordering-paths",
+      "state": "legacy_locked",
+      "replacementTask": "T224",
+      "legacyLocks": [
+        { "role": "production", "path": "lib/scan/write.mjs", "sha256": "762824057fcc1f9151fe8fba36e149fd4517e0aa59b5cfb6a97cf586305fd7b4" },
+        { "role": "source", "path": "test/baselines/expansion/renderer.md", "sha256": "cea60fa30e45f8ddfa91ac7e9173c277415517f12916ad7ecec25b542b8d0d3b" },
+        { "role": "test", "path": "test/fixtures-pipeline.test.mjs", "sha256": "f99e9c7d1b6fdd64ff2f47765eab036818adba0568a39ae1921a2963d60257b9" }
+      ],
+      "replacement": null
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "originalLegacyOwnerUniverse": [
+    "lib/scan/deep/conventions.mjs",
+    "lib/scan/deep/documentation.mjs",
+    "lib/scan/deep/git.mjs",
+    "lib/scan/deep/operations.mjs",
+    "lib/scan/deep/security.mjs",
+    "lib/scan/deep/stack.mjs",
+    "lib/scan/shared/enum.mjs",
+    "lib/scan/survey.mjs"
+  ],
+  "plannedBrokerPath": "lib/scan/shared/command.mjs",
+  "broker": {
+    "path": "lib/scan/shared/command.mjs",
+    "api": "execFile",
+    "import": "import { execFile } from 'node:child_process';",
+    "sha256": "3d8eb087e47ea422d4c78b275b47a7fc6fc1fb2dac46c457af53913f54457b5e",
+    "replacementTests": [
+      {
+        "testFile": "test/expansion-command-core.test.mjs",
+        "testFileSha256": "d61f96634a6c2bbdda68a48b9146884dd5d79fa671e4c3cba31d764004e52b7a",
+        "testName": "T208 git scan issues only registered read-only commands through the broker"
+      },
+      {
+        "testFile": "test/expansion-command-deep.test.mjs",
+        "testFileSha256": "08f2e7412f8d50a5bd218bb2be015ef77c7945106b6807d37e2a9a630d7821fe",
+        "testName": "T209 six owned files contain zero prohibited execution sites"
+      }
+    ]
+  },
+  "activeLegacyOwners": [],
+  "filesystem": {
+    "modules": ["node:fs", "node:fs/promises"],
+    "readApis": ["existsSync", "lstat", "readFile", "readFileSync", "readdir", "readdirSync", "realpath", "statSync"],
+    "specialReaders": [
+      {
+        "path": "lib/scan/plugins/loader.mjs",
+        "imports": ["import { lstat, opendir, readFile, realpath } from 'node:fs/promises';"],
+        "apis": ["lstat", "opendir", "readFile", "realpath"],
+        "sha256": "58787ad3406d948a3ee25ac73f344b0e884ff65d95c2691d3dd08ba6d1a2a54f",
+        "replacementTask": "T224"
+      },
+      {
+        "path": "lib/scan/shared/artifacts.mjs",
+        "imports": [
+          "import { constants } from 'node:fs';",
+          "import { lstat, open, realpath } from 'node:fs/promises';"
+        ],
+        "apis": ["constants", "lstat", "open", "realpath"],
+        "sha256": "bba86b351dec7e7e6b34bb7e95ad209dfe43da700817b18e9c774ab3becbda11",
+        "replacementTask": "T224"
+      }
+    ],
+    "writer": {
+      "path": "lib/scan/write.mjs",
+      "module": "node:fs/promises",
+      "api": "writeFile",
+      "import": "import { writeFile } from 'node:fs/promises';",
+      "call": "await writeFile(outPath, content, 'utf-8');"
+    },
+    "cli": {
+      "path": "scripts/scan.mjs",
+      "call": "await runExpandedPipeline({ repos, out, reporter });"
+    }
+  }
+}

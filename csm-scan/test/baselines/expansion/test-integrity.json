@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "files": {
+    "test/expansion-command-deep.test.mjs": "08f2e7412f8d50a5bd218bb2be015ef77c7945106b6807d37e2a9a630d7821fe",
+    "test/regression-parity.test.mjs": "82849e7fe99d0dcc3add0829de8633dd0676957b69ce09d43fb9dbeab24b7b66",
+    "test/fixtures-pipeline.test.mjs": "f99e9c7d1b6fdd64ff2f47765eab036818adba0568a39ae1921a2963d60257b9",
+    "test/fixtures/python.mjs": "bf0ef1824f44fc955eb94dbf30bceb62a251a518b21e2b9bdb586bf27e60f9d7",
+    "test/fixtures/javascript.mjs": "67d1c3b7c0171f561c78a747b42461ff8e81e6543e9dea658ae993dcd0d70827",
+    "test/fixtures/typescript.mjs": "ac72ebe0797219b3ae93f24a2020ee97463f1bfb764d74cee3f3fbe013d74d71",
+    "test/fixtures/rust.mjs": "fc33e99994be88becb73d768303da123feec35ad1c231d64606d465d6bdcdc9b",
+    "test/fixtures/shell.mjs": "47485d55703d8a0bd12112430b7d479f93790fdd442771319b1c2437d19d9169"
+  }
+}

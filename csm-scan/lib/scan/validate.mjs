@@ -1,22 +1,20 @@
-const SIGNAL_STRENGTH = { high: 90, medium: 50, low: 20 };
-
-function statusFor(score) {
-  if (score >= 70) return 'strong';
-  if (score >= 30) return 'moderate';
-  return 'weak';
-}
+import { isNullishFinding } from './enrich.mjs';
 
 export async function validate(enrichResult) {
-  const { enriched, contradictions, gaps, cohesiveness } = enrichResult;
+  const { enriched, contradictions, gaps, inferredPatterns = [] } = enrichResult;
+  const coverage = enrichResult.coverage || enrichResult.cohesiveness || {};
 
   const taggedDimensions = enriched.map((dim) => {
-    let confidence = 'unverified';
-    if (dim.signal === 'high') confidence = 'observed';
-    else if (dim.signal === 'medium') confidence = 'inferred';
+    const dimensionCoverage = coverage[dim.dimension] ?? 0;
+    const confidence = dimensionCoverage === 0
+      ? 'unverified'
+      : inferredPatterns.some((pattern) => pattern.dimension === dim.dimension)
+        ? 'inferred'
+        : 'observed';
 
     const tags = {};
     for (const key of Object.keys(dim.findings || {})) {
-      tags[key] = confidence;
+      tags[key] = isNullishFinding(dim.findings[key]) ? 'unverified' : confidence;
     }
 
     return {
@@ -24,8 +22,10 @@ export async function validate(enrichResult) {
       signal: dim.signal,
       findings: dim.findings || {},
       confidence,
+      coverage: dimensionCoverage,
+      quality: dimensionCoverage,
       tags,
-      cohesiveness: cohesiveness[dim.dimension] ?? 50,
+      cohesiveness: dimensionCoverage,
     };
   });
 
@@ -33,19 +33,16 @@ export async function validate(enrichResult) {
   const signalReport = {};
 
   for (const dim of taggedDimensions) {
-    const strength = SIGNAL_STRENGTH[dim.signal] || 20;
     signalReport[dim.dimension] = {
-      strength,
-      status: statusFor(strength),
-      confidence: dim.confidence,
+      coverage: dim.coverage,
+      basis: dim.confidence,
     };
 
-    if (strength < 30) {
+    if (dim.coverage < 40) {
       needsRetry.push(dim.dimension);
     }
   }
 
-  const hasContradictions = contradictions.length > 0;
   const validated = needsRetry.length === 0;
 
   return {
@@ -55,6 +52,7 @@ export async function validate(enrichResult) {
     signalReport,
     contradictions,
     gaps,
-    cohesiveness,
+    cohesiveness: { ...coverage },
+    coverage: { ...coverage },
   };
 }

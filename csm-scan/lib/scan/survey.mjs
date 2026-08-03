@@ -1,9 +1,10 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import { enumerate } from './shared/enum.mjs';
+import { readManifest } from './shared/manifest.mjs';
+import { detectEcosystems } from './shared/ecosystem.mjs';
+import { commandBroker } from './shared/command.mjs';
 
 const LANG_SIGNALS = {
   JavaScript: { exts: ['.js', '.jsx', '.mjs', '.cjs'], configs: ['package.json'], weight: 3 },
@@ -17,80 +18,95 @@ const LANG_SIGNALS = {
   Markdown: { exts: ['.md', '.mdx'], configs: [], weight: 1 },
 };
 
-async function langFromFiles(repoPath) {
-  let scores = {};
-  try {
-    const { stdout } = await execFileAsync('rg', ['--files', '--no-ignore-vcs'], { cwd: repoPath, maxBuffer: 10 * 1024 * 1024, timeout: 10000 });
-    const files = stdout.trim().split('\n').filter(Boolean);
-    
-    for (const f of files) {
-      const name = f.split('/').pop() || '';
-      const ext = name.includes('.') ? '.' + name.split('.').slice(1).join('.') : '';
-      const baseExt = name.includes('.') ? '.' + name.split('.').pop() : '';
-      
-      for (const [lang, sig] of Object.entries(LANG_SIGNALS)) {
-        if (sig.exts.includes(ext) || sig.exts.includes(baseExt)) {
-          scores[lang] = (scores[lang] || 0) + 1;
-        }
-        if (sig.configs.includes(name)) {
-          scores[lang] = (scores[lang] || 0) + 3;
-        }
+function scoreLanguages(files) {
+  const scores = {};
+  for (const f of files) {
+    const name = f.split('/').pop() || '';
+    const ext = name.includes('.') ? '.' + name.split('.').slice(1).join('.') : '';
+    const baseExt = name.includes('.') ? '.' + name.split('.').pop() : '';
+    for (const [lang, sig] of Object.entries(LANG_SIGNALS)) {
+      if (sig.exts.includes(ext) || sig.exts.includes(baseExt)) {
+        scores[lang] = (scores[lang] || 0) + 1;
+      }
+      if (sig.configs.includes(name)) {
+        scores[lang] = (scores[lang] || 0) + 3;
       }
     }
-  } catch {}
-
-  const detected = Object.entries(scores)
-    .sort((a, b) => b[1] - a[1])
-    .filter(([, s]) => s > 2)
-    .map(([lang]) => lang);
-
-  return { detected, scores };
-}
-
-async function repoStats(repoPath) {
-  try {
-    const { stdout } = await execFileAsync('rg', ['--files'], { cwd: repoPath, maxBuffer: 10 * 1024 * 1024, timeout: 10000 });
-    const files = stdout.trim().split('\n').filter(Boolean);
-    const totalFiles = files.length;
-    const totalBytes = files.length * 1000; // rough estimate
-    return { totalFiles, totalBytes };
-  } catch {
-    return { totalFiles: 0, totalBytes: 0 };
   }
+  return scores;
 }
 
-export async function survey(repoPath) {
+function detectFromScores(scores) {
+  const entries = Object.entries(scores);
+  const total = entries.reduce((sum, [, s]) => sum + s, 0);
+  const threshold = Math.max(3, 0.05 * total);
+  return entries
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, s]) => s >= threshold)
+    .map(([lang]) => lang);
+}
+
+function derivePackageManager(primary, repoPath) {
+  if (primary === 'python') {
+    if (existsSync(join(repoPath, 'uv.lock'))) return 'uv';
+    if (existsSync(join(repoPath, 'poetry.lock'))) return 'poetry';
+    if (existsSync(join(repoPath, 'Pipfile.lock'))) return 'pipenv';
+    if (existsSync(join(repoPath, 'pdm.lock'))) return 'pdm';
+    return 'pip';
+  }
+  if (primary === 'rust') return 'cargo';
+  if (primary === 'javascript' || primary === 'typescript') {
+    if (existsSync(join(repoPath, 'pnpm-lock.yaml'))) return 'pnpm';
+    if (existsSync(join(repoPath, 'yarn.lock'))) return 'yarn';
+    if (existsSync(join(repoPath, 'bun.lock')) || existsSync(join(repoPath, 'bun.lockb'))) return 'bun';
+    if (existsSync(join(repoPath, 'package-lock.json'))) return 'npm';
+    return 'unknown';
+  }
+  if (primary === 'shell') return 'none';
+  return 'unknown';
+}
+
+function basenameOf(repoPath) {
+  const norm = String(repoPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  return norm.split('/').pop() || String(repoPath);
+}
+
+export async function survey(repoPath, broker = commandBroker) {
   console.log(`  [SURVEY] Scanning ${repoPath}...`);
-  const langs = await langFromFiles(repoPath);
-  const stats = await repoStats(repoPath);
+
+  const { files, extCounts, totalFiles, totalBytes } = await enumerate(repoPath, broker);
+  const languageScores = scoreLanguages(files);
+  const languages = detectFromScores(languageScores);
+
+  const manifest = readManifest(repoPath);
+  const ecosystems = detectEcosystems(
+    { languages, languageScores },
+    manifest,
+  );
 
   let gitRoot = repoPath;
   let isGit = false;
   try {
-    const { stdout } = await execFileAsync('git', ['-C', repoPath, 'rev-parse', '--show-toplevel'], { timeout: 5000 });
-    gitRoot = stdout.trim();
-    isGit = true;
+    const result = await broker.execute('git:rev-parse-toplevel', { cwd: repoPath });
+    if (result.ok) {
+      gitRoot = result.stdout.trim();
+      isGit = true;
+    }
   } catch {}
 
-  let name = repoPath.split('/').pop();
+  let name = basenameOf(repoPath);
   let description = '';
-  try {
-    const pkg = JSON.parse(await readFile(join(repoPath, 'package.json'), 'utf-8'));
-    name = pkg.name || name;
-    description = pkg.description || '';
-  } catch {}
+  if (manifest.name) name = manifest.name;
+  if (manifest.description) description = manifest.description;
+  if (!manifest.name) {
+    try {
+      const pkg = JSON.parse(await readFile(join(repoPath, 'package.json'), 'utf-8'));
+      if (pkg.name) name = pkg.name;
+      if (!description && pkg.description) description = pkg.description;
+    } catch {}
+  }
 
-  let packageManager = 'unknown';
-  try {
-    await execFileAsync('test', ['-f', join(repoPath, 'package-lock.json')]);
-    packageManager = 'npm';
-  } catch { try {
-    await execFileAsync('test', ['-f', join(repoPath, 'yarn.lock')]);
-    packageManager = 'yarn';
-  } catch { try {
-    await execFileAsync('test', ['-f', join(repoPath, 'pnpm-lock.yaml')]);
-    packageManager = 'pnpm';
-  } catch {}}}
+  const packageManager = derivePackageManager(ecosystems.primary, repoPath);
 
   return {
     path: repoPath,
@@ -98,15 +114,19 @@ export async function survey(repoPath) {
     isGit,
     name,
     description,
-    languages: langs.detected,
-    languageScores: langs.scores,
+    languages,
+    languageScores,
     packageManager,
-    totalFiles: stats.totalFiles,
-    totalBytes: stats.totalBytes,
+    totalFiles,
+    totalBytes,
+    files,
+    extCounts,
+    ecosystems,
+    manifest,
   };
 }
 
-export async function detectLanguages(repoPath) {
-  const { detected } = await langFromFiles(repoPath);
-  return detected;
+export async function detectLanguages(repoPath, broker = commandBroker) {
+  const { files } = await enumerate(repoPath, broker);
+  return detectFromScores(scoreLanguages(files));
 }

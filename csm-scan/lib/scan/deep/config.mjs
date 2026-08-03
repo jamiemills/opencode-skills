@@ -1,5 +1,391 @@
+// Config dimension scanner.
+//
+// Detects lint/format/type-check/hook tooling in a repo, driven by the
+// ecosystem descriptor table (linters/formatters/typeCheckers/hookFiles).
+// Falls back gracefully when no survey overview is supplied by reading the
+// manifests and config files directly.
+//
+// Contract preserved for write.mjs: returns { dimension:'config', signal,
+// findings } where findings always carries lint/format/typescript/scripts/
+// ci/docker/envVars. New richness keys: linters, formatters, typeCheckers,
+// hooks (consumed by T019 rendering), plus buildTools, runtimes, markers.
+//
+// ESM only. Zero npm deps. node: builtins only.
+
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { DESCRIPTORS, descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
+import { parseToml, parseYamlShallow } from '../shared/parse.mjs';
+import { readManifest } from '../shared/manifest.mjs';
+
+// Hook config files are ecosystem-agnostic; mirror the shared constant so this
+// scanner does not need a descriptor to have been resolved first.
+const HOOK_FILES = ['lefthook.yml', 'lefthook.yaml', '.pre-commit-config.yaml', '.husky'];
+
+const ESLINT_FLAT_CONFIGS = new Set([
+  'eslint.config.js',
+  'eslint.config.mjs',
+  'eslint.config.cjs',
+  'eslint.config.ts',
+  'eslint.config.mts',
+  'eslint.config.cts',
+]);
+
+// ---------------------------------------------------------------------------
+// Context: caches parsed manifests/configs + optional pre-enumerated file set
+// ---------------------------------------------------------------------------
+
+function buildContext(repoPath, overview) {
+  const filesSet = new Set();
+  if (overview && Array.isArray(overview.files)) {
+    for (const f of overview.files) {
+      if (typeof f !== 'string') continue;
+      filesSet.add(f.replace(/^\.\//, ''));
+    }
+  }
+  return {
+    repoPath,
+    filesSet,
+    textCache: new Map(),
+    tomlCache: new Map(),
+    jsonCache: new Map(),
+  };
+}
+
+function fileExists(ctx, file) {
+  if (ctx.filesSet.size > 0 && ctx.filesSet.has(file)) return true;
+  try {
+    return existsSync(join(ctx.repoPath, file));
+  } catch {
+    return false;
+  }
+}
+
+function readTextCached(ctx, file) {
+  if (ctx.textCache.has(file)) return ctx.textCache.get(file);
+  let text = null;
+  try {
+    text = readFileSync(join(ctx.repoPath, file), 'utf-8');
+  } catch {
+    text = null;
+  }
+  ctx.textCache.set(file, text);
+  return text;
+}
+
+function readTomlCached(ctx, file) {
+  if (ctx.tomlCache.has(file)) return ctx.tomlCache.get(file);
+  const raw = readTextCached(ctx, file);
+  let parsed = null;
+  if (raw != null) {
+    try {
+      parsed = parseToml(raw);
+    } catch {
+      parsed = null;
+    }
+  }
+  const entry = { raw, parsed };
+  ctx.tomlCache.set(file, entry);
+  return entry;
+}
+
+function readJsonCached(ctx, file) {
+  if (ctx.jsonCache.has(file)) return ctx.jsonCache.get(file);
+  const raw = readTextCached(ctx, file);
+  let parsed = null;
+  if (raw != null) {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+  }
+  ctx.jsonCache.set(file, parsed);
+  return parsed;
+}
+
+// ---------------------------------------------------------------------------
+// Path/spec matching helpers
+// ---------------------------------------------------------------------------
+
+function walkPath(obj, segments) {
+  let cur = obj;
+  for (const seg of segments) {
+    if (cur && typeof cur === 'object' && Object.prototype.hasOwnProperty.call(cur, seg)) {
+      cur = cur[seg];
+    } else {
+      return undefined;
+    }
+  }
+  return cur;
+}
+
+// A TOML section is "present" if either (a) the parsed object contains the
+// dotted path, or (b) the raw text has an exact `[section]` / `[[section]]`
+// header line. The text fallback covers INI-ish files (e.g. setup.cfg) that
+// the strict TOML subset parser may reject.
+function tomlSectionPresent(parsed, raw, section) {
+  if (parsed && typeof parsed === 'object') {
+    if (walkPath(parsed, section.split('.')) !== undefined) return true;
+  }
+  if (raw == null) return false;
+  const escaped = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('^\\s*\\[+' + escaped + '\\]+\\s*(?:#.*)?$', 'm');
+  return re.test(raw);
+}
+
+// Resolve a single descriptor `files` entry to its matched config reference, or
+// null when absent. Entries are one of:
+//   - plain filename         -> existence check
+//   - 'path:[section]'       -> TOML section marker (split on ':[')
+//   - 'path#dotted.key'      -> JSON key marker (e.g. package.json#eslintConfig)
+function specMatches(ctx, entry) {
+  if (typeof entry !== 'string' || entry === '') return null;
+
+  const markerIdx = entry.indexOf(':[');
+  if (markerIdx !== -1) {
+    const file = entry.slice(0, markerIdx);
+    const section = entry.slice(markerIdx + 2).replace(/\]\s*$/, '');
+    if (!fileExists(ctx, file)) return null;
+    const { raw, parsed } = readTomlCached(ctx, file);
+    if (raw == null) return null;
+    return tomlSectionPresent(parsed, raw, section) ? entry : null;
+  }
+
+  const hashIdx = entry.indexOf('#');
+  if (hashIdx !== -1) {
+    const file = entry.slice(0, hashIdx);
+    const keyPath = entry.slice(hashIdx + 1);
+    if (!fileExists(ctx, file)) return null;
+    const json = readJsonCached(ctx, file);
+    if (!json || typeof json !== 'object') return null;
+    const val = walkPath(json, keyPath.split('.'));
+    return val != null ? entry : null;
+  }
+
+  return fileExists(ctx, entry) ? entry : null;
+}
+
+function firstMatchingFile(ctx, files) {
+  for (const f of files) {
+    const matched = specMatches(ctx, f);
+    if (matched != null) return matched;
+  }
+  return null;
+}
+
+// Collect tool specs across all detected ecosystem descriptors, de-duplicating
+// by tool name (e.g. eslint/biome appear in both js and ts descriptors).
+function collectTools(ctx, descriptors, field) {
+  const out = [];
+  const seen = new Set();
+  for (const desc of descriptors) {
+    const specs = (desc && Array.isArray(desc[field])) ? desc[field] : [];
+    for (const spec of specs) {
+      if (!spec || typeof spec.name !== 'string' || seen.has(spec.name)) continue;
+      const config = firstMatchingFile(ctx, spec.files || []);
+      if (config == null) continue;
+      // Honor marker specs: file existence alone is insufficient. The shfmt
+      // entry lists `.editorconfig` but should only be reported when the
+      // editorconfig declares a shell-relevant section (P0-12).
+      if (spec.marker === true && !validateMarker(ctx, spec, config)) continue;
+      seen.add(spec.name);
+      out.push({ name: spec.name, config });
+    }
+  }
+  return out;
+}
+
+// Marker specs require content-level validation beyond file existence.
+function validateMarker(ctx, spec, config) {
+  if (spec.name === 'shfmt' && config === '.editorconfig') {
+    return editorConfigHasShell(ctx);
+  }
+  return true;
+}
+
+// shfmt reads shell formatting options from .editorconfig. Only treat shfmt as
+// configured when the editorconfig declares a shell-relevant section header
+// (e.g. [*.sh], [*sh], [*.{sh,bash}]) or the shfmt-specific `shell_variant`
+// property. A generic .editorconfig must NOT imply shfmt (P0-12).
+function editorConfigHasShell(ctx) {
+  const text = readTextCached(ctx, '.editorconfig');
+  if (text == null) return false;
+  if (/^\s*shell_variant\s*=/m.test(text)) return true;
+  for (const m of text.matchAll(/^\s*\[([^\]]*)\]/gm)) {
+    if (/\b(?:sh|bash|zsh)\b/i.test(m[1])) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Ecosystem resolution (prefer overview, fall back to computing)
+// ---------------------------------------------------------------------------
+
+function resolveEcosystems(overview, repoPath) {
+  const ov = overview || {};
+  const eco = ov.ecosystems;
+  if (eco && Array.isArray(eco.all) && eco.all.length > 0) {
+    return [...eco.all];
+  }
+  let manifest = ov.manifest;
+  if (!manifest || !Array.isArray(manifest.ecosystems)) {
+    try {
+      manifest = readManifest(repoPath);
+    } catch {
+      manifest = { ecosystems: [] };
+    }
+  }
+  if (Array.isArray(manifest.ecosystems) && manifest.ecosystems.length > 0) {
+    return [...manifest.ecosystems];
+  }
+  try {
+    return detectEcosystems(ov, manifest || {}).all;
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Individual detectors
+// ---------------------------------------------------------------------------
+
+function classifyLintStyle(linters, primary) {
+  if (linters.length > 1) return 'multi';
+  if (primary.name === 'eslint') {
+    const cfgFile = primary.config.split(':[')[0].split('#')[0];
+    return ESLINT_FLAT_CONFIGS.has(cfgFile) ? 'flat' : 'legacy';
+  }
+  return 'flat';
+}
+
+function detectTsConfig(ctx) {
+  if (!fileExists(ctx, 'tsconfig.json')) return null;
+  const tsconfig = readJsonCached(ctx, 'tsconfig.json');
+  if (!tsconfig || typeof tsconfig !== 'object') {
+    return { config: 'tsconfig.json', strict: false, target: null, paths: false };
+  }
+  const co = tsconfig.compilerOptions || {};
+  // `paths` preserves the real alias map when available (e.g.
+  // {'@/*': ['src/*']}); falls back to a boolean for the legacy contract.
+  const paths = co.paths && typeof co.paths === 'object' ? co.paths : !!co.paths;
+  return {
+    config: 'tsconfig.json',
+    strict: co.strict === true,
+    target: co.target || null,
+    paths,
+    noImplicitAny: co.noImplicitAny === true,
+    moduleResolution: co.moduleResolution || null,
+    module: co.module || null,
+    baseUrl: co.baseUrl || null,
+    extends: tsconfig.extends || null,
+    references: Array.isArray(tsconfig.references) ? tsconfig.references : null,
+    composite: co.composite === true,
+    declaration: co.declaration === true,
+  };
+}
+
+function detectHooks(ctx) {
+  const hooks = [];
+  for (const file of HOOK_FILES) {
+    if (!fileExists(ctx, file)) continue;
+    const tool =
+      file.startsWith('lefthook') ? 'lefthook'
+        : file === '.pre-commit-config.yaml' ? 'pre-commit'
+          : file === '.husky' ? 'husky'
+            : file;
+    const entry = { tool, file };
+    // Attempt a shallow parse for richness. parseYamlShallow THROWS on block
+    // scalars and other unsupported constructs; on throw we treat the file as
+    // "exists but unparseable" and keep just the file name.
+    if (file.endsWith('.yml') || file.endsWith('.yaml')) {
+      const text = readTextCached(ctx, file);
+      if (text != null) {
+        try {
+          const parsed = parseYamlShallow(text);
+          if (parsed && typeof parsed === 'object') {
+            const keys = Object.keys(parsed).filter(
+              (k) => k !== 'repos' && k !== 'default_install_hook_types' && k !== 'remote',
+            );
+            if (keys.length > 0) entry.hooks = keys;
+          }
+        } catch {
+          // exists but unparseable — record file name only
+        }
+      }
+    }
+    hooks.push(entry);
+  }
+  return hooks;
+}
+
+// Bundlers / build orchestration tools (P1). Detected by canonical config file
+// presence, independent of ecosystem descriptors.
+const BUILD_TOOL_FILES = [
+  { name: 'webpack', files: ['webpack.config.js', 'webpack.config.ts', 'webpack.config.mjs', 'webpack.config.cjs'] },
+  { name: 'vite', files: ['vite.config.ts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cjs'] },
+  { name: 'rollup', files: ['rollup.config.js', 'rollup.config.ts', 'rollup.config.mjs', 'rollup.config.cjs'] },
+  { name: 'esbuild', files: ['esbuild.config.js', 'esbuild.config.mjs', 'esbuild.config.ts', 'esbuild.config.cjs'] },
+  { name: 'turbo', files: ['turbo.json'] },
+  { name: 'tsup', files: ['tsup.config.ts', 'tsup.config.js', 'tsup.config.mjs', 'tsup.config.cjs'] },
+];
+
+function detectBuildTools(ctx) {
+  const out = [];
+  const seen = new Set();
+  for (const spec of BUILD_TOOL_FILES) {
+    if (seen.has(spec.name)) continue;
+    for (const f of spec.files) {
+      if (!fileExists(ctx, f)) continue;
+      seen.add(spec.name);
+      out.push({ name: spec.name, config: f });
+      break;
+    }
+  }
+  return out;
+}
+
+// Alternative JS/TS runtimes and project manifests (P1).
+const RUNTIME_FILES = [
+  { name: 'deno', files: ['deno.json', 'deno.jsonc'] },
+  { name: 'bun', files: ['bunfig.toml'] },
+  { name: 'jsconfig', files: ['jsconfig.json'] },
+];
+
+function detectRuntimes(ctx) {
+  const out = [];
+  const seen = new Set();
+  for (const spec of RUNTIME_FILES) {
+    if (seen.has(spec.name)) continue;
+    for (const f of spec.files) {
+      if (!fileExists(ctx, f)) continue;
+      seen.add(spec.name);
+      out.push({ name: spec.name, config: f });
+      break;
+    }
+  }
+  return out;
+}
+
+// Ecosystem marker files surfaced from descriptor `markers` arrays (P1):
+// py.typed, MANIFEST.in, .python-version, .cargo/config.toml,
+// rust-toolchain.toml, etc. Returns the list of those present.
+function detectMarkers(ctx, descriptors) {
+  const out = [];
+  const seen = new Set();
+  for (const desc of descriptors) {
+    const markers = desc && Array.isArray(desc.markers) ? desc.markers : [];
+    for (const m of markers) {
+      if (typeof m !== 'string' || seen.has(m)) continue;
+      if (fileExists(ctx, m)) {
+        seen.add(m);
+        out.push(m);
+      }
+    }
+  }
+  return out;
+}
 
 function readJSON(path) {
   try {
@@ -9,74 +395,37 @@ function readJSON(path) {
   }
 }
 
-function detectEslint(repoPath) {
-  const flatConfigs = [
-    'eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs',
-    'eslint.config.ts', 'eslint.config.mts', 'eslint.config.cts',
-  ];
-  for (const f of flatConfigs) {
-    if (existsSync(join(repoPath, f))) return { config: f, style: 'flat' };
-  }
-  const legacyConfigs = ['.eslintrc', '.eslintrc.js', '.eslintrc.cjs', '.eslintrc.json', '.eslintrc.yaml', '.eslintrc.yml'];
-  for (const f of legacyConfigs) {
-    if (existsSync(join(repoPath, f))) return { config: f, style: 'legacy' };
-  }
-  return null;
-}
-
-function detectPrettier(repoPath) {
-  const configs = [
-    '.prettierrc', '.prettierrc.js', '.prettierrc.cjs', '.prettierrc.json',
-    '.prettierrc.yaml', '.prettierrc.yml', '.prettierrc.toml',
-    'prettier.config.js', 'prettier.config.mjs', 'prettier.config.cjs',
-  ];
-  for (const f of configs) {
-    if (existsSync(join(repoPath, f))) return f;
-  }
-  const pkg = readJSON(join(repoPath, 'package.json'));
-  if (pkg?.prettier) return 'package.json prettier key';
-  return null;
-}
-
-function detectTsConfig(repoPath) {
-  const base = readJSON(join(repoPath, 'tsconfig.json'));
-  if (!base) return null;
-  const result = { config: 'tsconfig.json', strict: false, target: null, paths: false };
-  if (base.compilerOptions) {
-    result.strict = base.compilerOptions.strict === true;
-    result.target = base.compilerOptions.target || null;
-    result.paths = !!base.compilerOptions.paths;
-  }
-  return result;
-}
-
 function detectCI(repoPath) {
   const workflowsDir = join(repoPath, '.github', 'workflows');
   if (!existsSync(workflowsDir)) return null;
+  let files;
   try {
-    const files = readdirSync(workflowsDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
-    if (files.length === 0) return null;
-    const jobs = new Set();
-    for (const f of files) {
-      const content = readFileSync(join(workflowsDir, f), 'utf-8');
-      const jobMatches = content.matchAll(/^  (\w[\w-]*):\s*$/gm);
-      for (const m of jobMatches) {
-        if (m[1] !== 'on' && m[1] !== 'jobs' && m[1] !== 'env' && !m[1].startsWith('runs')) {
-          jobs.add(m[1]);
-        }
-      }
-      const nameMatches = content.matchAll(/^\s*name:\s*(.+)$/gm);
-      for (const m of nameMatches) {
-        if (!m[1].includes('CI') && !m[1].includes('Build') && !m[1].includes('Test') && !m[1].includes('Deploy')) {
-          continue;
-        }
-        jobs.add(m[1].trim());
-      }
-    }
-    return { platform: 'GitHub Actions', workflowCount: files.length, jobs: [...jobs].slice(0, 10) };
+    files = readdirSync(workflowsDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
   } catch {
     return null;
   }
+  if (files.length === 0) return null;
+  const jobs = new Set();
+  for (const f of files) {
+    let content;
+    try {
+      content = readFileSync(join(workflowsDir, f), 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const m of content.matchAll(/^  (\w[\w-]*):\s*$/gm)) {
+      if (m[1] !== 'on' && m[1] !== 'jobs' && m[1] !== 'env' && !m[1].startsWith('runs')) {
+        jobs.add(m[1]);
+      }
+    }
+    for (const m of content.matchAll(/^\s*name:\s*(.+)$/gm)) {
+      if (!m[1].includes('CI') && !m[1].includes('Build') && !m[1].includes('Test') && !m[1].includes('Deploy')) {
+        continue;
+      }
+      jobs.add(m[1].trim());
+    }
+  }
+  return { platform: 'GitHub Actions', workflowCount: files.length, jobs: [...jobs].slice(0, 10) };
 }
 
 function detectDocker(repoPath) {
@@ -89,47 +438,88 @@ function detectEnvVars(repoPath) {
   const samples = ['.env.example', '.env.sample', '.env.template', '.env.development', '.env.development.example'];
   const found = [];
   for (const f of samples) {
-    if (existsSync(join(repoPath, f))) {
-      try {
-        const content = readFileSync(join(repoPath, f), 'utf-8');
-        const vars = content
-          .split('\n')
-          .filter((line) => /^[A-Z_]+=/.test(line))
-          .map((line) => line.split('=')[0]);
-        found.push({ file: f, varCount: vars.length, vars: vars.slice(0, 20) });
-      } catch {
-        found.push({ file: f, varCount: 0, vars: [] });
-      }
+    if (!existsSync(join(repoPath, f))) continue;
+    try {
+      const content = readFileSync(join(repoPath, f), 'utf-8');
+      const vars = content
+        .split('\n')
+        .filter((line) => /^[A-Z_]+=/.test(line))
+        .map((line) => line.split('=')[0]);
+      found.push({ file: f, varCount: vars.length, vars: vars.slice(0, 20) });
+    } catch {
+      found.push({ file: f, varCount: 0, vars: [] });
     }
   }
   return found.length > 0 ? found : null;
 }
 
-export async function scan(repoPath, overview) {
-  const pkg = readJSON(join(repoPath, 'package.json'));
-  const scripts = pkg?.scripts || {};
+// ---------------------------------------------------------------------------
+// Top-level scan
+// ---------------------------------------------------------------------------
 
-  const lint = detectEslint(repoPath);
-  const format = detectPrettier(repoPath);
-  const typescript = detectTsConfig(repoPath);
+export async function scan(repoPath, overview) {
+  const ctx = buildContext(repoPath, overview);
+  const ecosystems = resolveEcosystems(overview, repoPath);
+  const descriptors = ecosystems.map(descriptorFor).filter(Boolean);
+
+  const linters = collectTools(ctx, descriptors, 'linters');
+  const formatters = collectTools(ctx, descriptors, 'formatters');
+  const typeCheckers = collectTools(ctx, descriptors, 'typeCheckers');
+  const hooks = detectHooks(ctx);
+  const buildTools = detectBuildTools(ctx);
+  const runtimes = detectRuntimes(ctx);
+  const markers = detectMarkers(ctx, descriptors);
+
+  // Primary lint summary (preserved contract key).
+  let lint = null;
+  if (linters.length > 0) {
+    const primary = linters[0];
+    lint = {
+      config: `${primary.name}: ${primary.config}`,
+      style: classifyLintStyle(linters, primary),
+    };
+  }
+
+  // Format summary (preserved contract key): comma-joined formatter names.
+  const format = formatters.length > 0 ? formatters.map((f) => f.name).join(', ') : null;
+
+  // TypeScript summary (preserved contract key): TS only, via tsconfig.json.
+  // Python type-checkers surface in `typeCheckers[]` but leave this null.
+  const typescript = ecosystems.includes('typescript') ? detectTsConfig(ctx) : null;
+
+  const pkg = readJSON(join(repoPath, 'package.json'));
+  const scripts = pkg && pkg.scripts && Object.keys(pkg.scripts).length > 0 ? pkg.scripts : null;
   const ci = detectCI(repoPath);
   const docker = detectDocker(repoPath);
   const envVars = detectEnvVars(repoPath);
 
-  const hasAny = lint || format || typescript || ci || docker || (envVars && envVars.length > 0);
-  const signal = hasAny ? 'high' : 'low';
+  const hasSignal =
+    linters.length > 0 ||
+    formatters.length > 0 ||
+    typeCheckers.length > 0 ||
+    hooks.length > 0;
+  const signal = hasSignal ? 'high' : 'low';
 
   return {
     dimension: 'config',
     signal,
     findings: {
-      lint: lint ? { config: lint.config, style: lint.style } : null,
-      format: format || null,
-      typescript: typescript || null,
-      scripts: Object.keys(scripts).length > 0 ? scripts : null,
+      lint,
+      format,
+      typescript,
+      scripts,
       ci,
       docker,
       envVars,
+      linters,
+      formatters,
+      typeCheckers,
+      hooks,
+      buildTools,
+      runtimes,
+      markers,
     },
   };
 }
+
+export { DESCRIPTORS };
