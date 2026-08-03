@@ -29,6 +29,7 @@ import {
 } from '../../contracts/evidence.mjs';
 import { parseYamlShallow } from '../../shared/parse.mjs';
 import { PRACTICE_TOOLS } from '../../shared/detection.mjs';
+import { isIgnoredPath } from '../../shared/ignore.mjs';
 import { assertPrivacySafe, redactText } from '../../shared/privacy.mjs';
 import { ARTIFACT_LIMITS } from '../../shared/artifacts.mjs';
 
@@ -46,10 +47,17 @@ export const PRACTICES_CATEGORIES = Object.freeze([
 
 export const PRACTICES_STATUSES = Object.freeze(['observed', 'inferred', 'unverified']);
 
+// Practices scans read many small declaration files (plans, workflows, hook
+// configs, gate files), so the aggregate read budget is larger than the
+// governance default but still bounded at the tool's 16 MiB search-space
+// ceiling.
+const PRACTICES_MAX_BYTES = 16 * 1024 * 1024;
+const PRACTICES_MAX_RECORDS = 200_000;
+
 export const PRACTICES_LIMITS = deepFreeze({
   kind: 64,
   matchedKey: 512,
-  maxBytes: ARTIFACT_LIMITS.maxBytes,
+  maxBytes: PRACTICES_MAX_BYTES,
   maxCandidates: 4096,
   maxCount: 1_000_000,
   maxDepth: ARTIFACT_LIMITS.maxDepth,
@@ -58,7 +66,8 @@ export const PRACTICES_LIMITS = deepFreeze({
   maxFiles: ARTIFACT_LIMITS.maxFiles,
   maxKinds: 32,
   maxPaths: 64,
-  maxRecords: ARTIFACT_LIMITS.maxRecords,
+  maxPerDir: 128,
+  maxRecords: PRACTICES_MAX_RECORDS,
 });
 
 const ENTRY_REQUIRED_KEYS = Object.freeze(['category', 'matchedKey', 'path', 'status']);
@@ -610,13 +619,14 @@ function hasRelevantExtension(lower) {
 export function isCandidatePath(path) {
   if (typeof path !== 'string' || path.length === 0) return false;
   const lower = path.toLowerCase();
+  if (isGeneratedPracticePath(lower)) return false;
   if (classifyPracticePath(path) !== null) return true;
   if (isWorkflowPath(lower) || isTemplatePath(lower) || isManifestPath(lower)) return true;
   if (isQualityGatesPath(lower) || isPlanPath(lower) || isRatchetPath(lower)) return true;
   if (isDocPath(lower)) return true;
   if (lower.endsWith('.feature')) return true;
   if (lower === 'strategies.py' || lower.endsWith('/strategies.py')) return true;
-  return lower.split('/').includes('fuzz_corpus');
+  return lower.split('/').includes('fuzz_corpus') && hasRelevantExtension(lower);
 }
 
 /**
@@ -629,6 +639,7 @@ export function isCandidatePath(path) {
 export function isRelevantHiddenFile(path) {
   if (typeof path !== 'string' || path.length === 0) return false;
   const lower = path.toLowerCase();
+  if (isGeneratedPracticePath(lower)) return false;
   if (classifyPracticePath(path) !== null) return true;
   if (lower.startsWith('.github/')) return isWorkflowPath(lower) || isTemplatePath(lower);
   if (lower.startsWith('.agents/') || lower.startsWith('.opencode/')
@@ -639,23 +650,49 @@ export function isRelevantHiddenFile(path) {
 }
 
 /**
+ * Generated and vendor directories that never hold practice declarations,
+ * beyond the canonical ignore vocabulary (node_modules, .git, caches).
+ * @type {ReadonlyArray<string>}
+ */
+const GENERATED_DIRS = Object.freeze([
+  'coverage', 'htmlcov', 'dist', 'build', 'target', 'out', 'next', 'nuxt',
+]);
+
+/**
+ * True when the path passes through an ignored or generated directory
+ * segment. Mirrors the canonical ignore vocabulary so hidden-dir probing
+ * never consumes the read budget on vendored or generated content.
+ * @param {string} path - repository-relative path (lower-cased by caller).
+ * @returns {boolean} true when the path should be skipped.
+ */
+export function isGeneratedPracticePath(path) {
+  const posix = String(path).replace(/\\/g, '/');
+  const segments = posix.split('/').filter((segment) => segment.length > 0);
+  if (segments.some((segment) => GENERATED_DIRS.includes(segment))) return true;
+  return isIgnoredPath(posix);
+}
+
+/**
  * Classify a repository-relative path as a practice artifact using exact path
  * and pattern matches. Content-derived signals are handled by the category
  * extractors instead.
- * @param {string} path - a repository-relative path.
- * @returns {{ category: string, kind: string } | null} the practice category
- *   and kind for the path, or null when the path is not a static artifact.
+ * @param {string} path - repository-relative path.
+ * @returns {object|null} `{ category, kind }` or null when not a practice
+ *   artifact.
  */
 export function classifyPracticePath(path) {
   if (typeof path !== 'string' || path.length === 0) return null;
   const lower = path.toLowerCase();
+  if (isGeneratedPracticePath(lower)) return null;
   const exact = EXACT_PATHS.get(lower);
   if (exact !== undefined) return exact;
   if (lower.endsWith('.feature')) return { category: 'methodology', kind: 'bdd-feature' };
   if (lower === 'strategies.py' || lower.endsWith('/strategies.py')) {
     return { category: 'methodology', kind: 'hypothesis-strategies' };
   }
-  if (lower.split('/').includes('fuzz_corpus')) return { category: 'methodology', kind: 'fuzz-corpus' };
+  if (lower.split('/').includes('fuzz_corpus')) {
+    return hasRelevantExtension(lower) ? { category: 'methodology', kind: 'fuzz-corpus' } : null;
+  }
   if (lower.endsWith('.json') && lower.includes('baseline')) {
     return { category: 'quality_gate', kind: 'baseline' };
   }

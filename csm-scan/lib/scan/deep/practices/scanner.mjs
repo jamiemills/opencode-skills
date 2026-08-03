@@ -47,6 +47,7 @@ import {
   extractRitual,
   extractStyleGuide,
   isCandidatePath,
+  isGeneratedPracticePath,
   isRelevantHiddenFile,
 } from './model.mjs';
 
@@ -69,7 +70,7 @@ const CATEGORY_EXTRACTORS = Object.freeze([
   ['style_guide', extractStyleGuide],
 ]);
 
-function walkHiddenDir(repoPath, directory, target, depth) {
+function walkHiddenDir(repoPath, directory, target, depth, budget = { collected: 0 }) {
   if (depth > PRACTICES_LIMITS.maxDepth) return;
   let entries;
   try {
@@ -78,12 +79,14 @@ function walkHiddenDir(repoPath, directory, target, depth) {
     return;
   }
   for (const entry of entries) {
-    if (target.size >= PRACTICES_LIMITS.maxFiles) return;
+    if (target.size >= PRACTICES_LIMITS.maxFiles || budget.collected >= PRACTICES_LIMITS.maxPerDir) return;
     const relative = `${directory}/${entry.name}`;
     if (entry.isDirectory()) {
-      walkHiddenDir(repoPath, relative, target, depth + 1);
+      if (isGeneratedPracticePath(relative)) continue;
+      walkHiddenDir(repoPath, relative, target, depth + 1, budget);
     } else if (entry.isFile() && isRelevantHiddenFile(relative)) {
       target.add(relative);
+      budget.collected += 1;
     }
   }
 }

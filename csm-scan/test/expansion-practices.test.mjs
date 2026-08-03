@@ -461,3 +461,23 @@ test('T005 scanner: malformed artifacts degrade to unverified, never crash', asy
       'a valid peer artifact survives the malformed gate file');
   });
 });
+
+test('T003 negative: generated and vendored content under hidden dirs is never collected', async () => {
+  const { withFixture } = await import('./harness.mjs');
+  const { scan } = await import('../lib/scan/deep/practices/scanner.mjs');
+  await withFixture('t003-generated-junk', {
+    '.opencode/node_modules/pkg/index.js': 'x = 1\n',
+    '.opencode/node_modules/pkg/package.json': '{"name":"pkg"}\n',
+    '.opencode/coverage/index.html': '<html></html>\n',
+    '.opencode/coverage/favicon.png': 'not-png',
+    '.opencode/eslint.config.mjs': 'export default {};\n',
+    'quality/gates.conf': 'MIN_COVERAGE=85\n',
+  }, async (dir) => {
+    const { findings } = await scan(dir);
+    const paths = findings.entries.map((entry) => entry.path);
+    assert.ok(!paths.some((path) => path.includes('node_modules')), 'node_modules content is never collected');
+    assert.ok(!paths.some((path) => path.includes('/coverage/')), 'coverage artifacts are never collected');
+    assert.ok(paths.includes('.opencode/eslint.config.mjs'), 'real agent configs are still collected');
+    assert.ok(paths.some((path) => path === 'quality/gates.conf'), 'quality gate file still collected');
+  });
+});
