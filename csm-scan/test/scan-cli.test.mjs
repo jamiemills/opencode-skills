@@ -35,7 +35,7 @@ test('CLI reports factual cross-observations and detection coverage', async () =
     assert.match(stdout, /\[SCAN-NOTE\] security: dockerfiles present; security docker analysis not performed/);
     assert.match(stdout, /\[INFERRED\]/);
     assert.match(stdout, /Detection coverage:/);
-    assert.match(stdout, /(?:structure|stack|config|testing|conventions|git|architecture|documentation|security|operations): scanned/);
+    assert.match(stdout, /(?:structure|stack|config|testing|conventions|git|architecture|documentation|security|operations|api|data|deployment|maintainability|governance|assurance|practices): scanned/);
     assert.doesNotMatch(stdout, /Commit convention:\s*(?:N\/A|unknown|not applicable)/i);
     assert.doesNotMatch(stdout, /\[INFERRED\]\s+git:.*(?:N\/A|unknown|not applicable)/i);
 

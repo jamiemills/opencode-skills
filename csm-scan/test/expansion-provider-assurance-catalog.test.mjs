@@ -14,7 +14,7 @@
 // Guarantees verified here:
 //   1. Registry is versioned, sorted, deep-frozen, duplicate-free, and every
 //      dimension/category is allowlisted; duplicate/unknown rejection.
-//   2. Cross-catalog uniqueness: all 14 provider dimensions are represented
+//   2. Cross-catalog uniqueness: all 15 provider dimensions are represented
 //      exactly once across the runtime/analysis/assurance catalogs, provider
 //      ids are globally unique, and the generic provider is the single shared
 //      fallback with identical coverage.
@@ -243,11 +243,11 @@ test('T220 registry: duplicate provider ids and unknown/duplicate categories are
 // Cross-catalog uniqueness
 // ---------------------------------------------------------------------------
 
-test('T220 catalog set: all 14 provider dimensions are represented exactly once', () => {
+test('T220 catalog set: all 15 provider dimensions are represented exactly once', () => {
   const runtimeBuiltIn = new Set(RUNTIME_CATALOG_PROVIDERS
     .filter(({ id }) => id !== GENERIC_PROVIDER_ID)
     .flatMap(({ dimensions }) => dimensions.map(({ dimensionId }) => dimensionId)));
-  const analysisBuiltIn = new Set(['DIM-architecture-v1', 'DIM-conventions-v1', 'DIM-documentation-v1']);
+  const analysisBuiltIn = new Set(['DIM-architecture-v1', 'DIM-conventions-v1', 'DIM-documentation-v1', 'DIM-practices-v1']);
   const assuranceBuiltIn = new Set(ASSURANCE_CATALOG_PROVIDERS
     .filter(({ id }) => id !== GENERIC_PROVIDER_ID)
     .flatMap(({ dimensions }) => dimensions.map(({ dimensionId }) => dimensionId)));
@@ -258,7 +258,7 @@ test('T220 catalog set: all 14 provider dimensions are represented exactly once'
   const all = [...runtimeBuiltIn, ...analysisBuiltIn, ...assuranceBuiltIn];
   assert.equal(new Set(all).size, all.length, 'a provider dimension is covered by more than one catalog');
   assert.deepEqual([...new Set(all)].sort(), [...PROVIDER_DIMENSION_IDS].sort(),
-    'the three catalogs must cover all 14 provider dimensions exactly once');
+    'the three catalogs must cover all 15 provider dimensions exactly once');
 });
 
 test('T220 catalog set: provider ids are globally unique with a single shared generic fallback', () => {

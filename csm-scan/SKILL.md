@@ -5,7 +5,7 @@ description: comprehensively analyze repositories to identify architecture patte
 
 # csm-scan
 
-Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract structure, technology stack, configuration, testing patterns, code conventions, git history, architecture, and six additional evidence dimensions — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
+Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract structure, technology stack, configuration, testing patterns, code conventions, git history, architecture, and seven additional evidence dimensions — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
 
 ## When to use
 - Onboarding to a new codebase
@@ -15,7 +15,7 @@ Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositor
 
 ## Dimensions
 
-`csm-scan` reports **16 per-repository dimensions** (10 established plus 6 new) and one **global Cross-repository Architecture** section synthesized after per-repository validation:
+`csm-scan` reports **17 per-repository dimensions** (10 established plus 7 new) and one **global Cross-repository Architecture** section synthesized after per-repository validation:
 
 | # | Dimension | Scope |
 |---|-----------|-------|
@@ -25,16 +25,17 @@ Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositor
 | 4 | Testing | test framework, file locations, naming patterns |
 | 5 | Code Conventions | import style, naming rules, error handling patterns |
 | 6 | Git Practices | branch naming, commit conventions, templates |
-| 7 | Architecture | ASCII module diagram, C4 (context/container/component/code), dynamic indicators, raw fan-in/fan-out and Tarjan SCC facts |
+| 7 | Architecture | ASCII module diagram, C4 (context/container/component/code), dynamic indicators, raw fan-in/fan-out and Tarjan SCC facts, coupling aggregates and SOLID indicators |
 | 8 | Documentation | README, contribution, license, changelog, ADR, and comment findings |
 | 9 | Security | detected secret patterns, authentication, validation, security controls, and tooling |
 | 10 | Operations | container, CI/CD, environment, health-check, monitoring, and deployment findings |
 | 11 | API Surface | declared contracts, routes, RPC methods, events, CLI commands, public exports |
 | 12 | Data Architecture | declared stores, schemas, migrations, entities, keys, explicit relations, ER/data-flow edges |
 | 13 | Deployment Topology | bounded static Docker/Compose/Kubernetes/Helm/Terraform/CloudFormation/serverless declarations |
-| 14 | Maintainability | disclosed measurement universe, generated/vendor boundaries, lexical branch-point counts, exact duplicate spans |
+| 14 | Maintainability | disclosed measurement universe, generated/vendor boundaries, lexical branch-point counts, per-function cyclomatic-complexity distributions, exact duplicate spans, dead-code markers |
 | 15 | Governance & Ownership | CODEOWNERS, policy, ADR, runbook, support, release, review, contribution, funding declarations |
 | 16 | Assurance & Supply Chain | manifests, locks, pins, sources, licenses, SBOM/VEX/SARIF, tool results/configuration, accessibility, attestations, standards references |
+| 17 | Development Practices (`DIM-practices-v1`) | declared methodology (`CLM-practices-methodology-v1`), enforcement (`CLM-practices-enforcement-v1`), automation (`CLM-practices-automation-v1`), rituals (`CLM-practices-rituals-v1`), quality gates (`CLM-practices-quality-gates-v1`), agent workflow (`CLM-practices-agent-workflow-v1`), and style-guide (`CLM-practices-style-guide-v1`) practices |
 
 ## Supported ecosystems
 
@@ -65,14 +66,14 @@ Other ecosystems (Go, Java, Ruby, …) are **recognized as stubs**: survey still
 The canonical pipeline is exported once from `lib/scan/pipeline/run.mjs` and used by both the CLI and the test suite:
 
 ```text
-survey -> registry-driven deep scans (16 dimensions, parallel)
+survey -> registry-driven deep scans (17 dimensions, parallel)
        -> provider/plugin/generic evidence merge
        -> enrich + validate (expected-claim coverage, retry below threshold)
        -> global cross-repository synthesis
        -> deterministic render -> one write
 ```
 
-`lib/scan/registry/dimensions.mjs` owns the ordered 16-dimension registry: canonical order, expected claim IDs, applicability predicates, retryability, provider capability, and renderer IDs. `lib/scan/render/registry.mjs` registers all 16 per-repo renderers plus the Cross-repo global renderer in dimension order and fails typed on unknown, missing, or duplicate renderers.
+`lib/scan/registry/dimensions.mjs` owns the ordered 17-dimension registry: canonical order, expected claim IDs, applicability predicates, retryability, provider capability, and renderer IDs. `lib/scan/render/registry.mjs` registers all 17 per-repo renderers plus the Cross-repo global renderer in dimension order and fails typed on unknown, missing, or duplicate renderers.
 
 A shared foundation in `lib/scan/shared/` is the single source of truth that every scanner consumes — no scanner hardcodes its own language map:
 
@@ -122,7 +123,7 @@ Privacy filtering occurs **before** findings persistence, enrichment, console di
 
 ## Plugins
 
-Plugins are **strict declarative JSON data** loaded only from a trusted skill-local root: `<skill root>/plugins/<plugin-id>/plugin.json`. The loader enforces lexical/realpath containment, direct-child layout, symlink rejection, API-version and strict-schema validation, deterministic ordering, duplicate detection, and atomic publication. Plugin JSON may contain bounded declarative artifact rules and renderer-safe labels for the **14 provider dimensions** (all dimensions except Structure and Git). It cannot contain executable hooks, imports, commands, Markdown templates, or arbitrary paths; no plugin code is evaluated. Plugin and generic observations are merged into provider-dimension findings after the deep scans, appended after (never replacing) built-in findings, and rendered with provider provenance. Removing a plugin routes the same unknown-language repository through the **generic artifact-only fallback**, which never claims source syntax, import edges, effective runtime behavior, or first-class depth.
+Plugins are **strict declarative JSON data** loaded only from a trusted skill-local root: `<skill root>/plugins/<plugin-id>/plugin.json`. The loader enforces lexical/realpath containment, direct-child layout, symlink rejection, API-version and strict-schema validation, deterministic ordering, duplicate detection, and atomic publication. Plugin JSON may contain bounded declarative artifact rules and renderer-safe labels for the **15 provider dimensions** (all dimensions except Structure and Git). It cannot contain executable hooks, imports, commands, Markdown templates, or arbitrary paths; no plugin code is evaluated. Plugin and generic observations are merged into provider-dimension findings after the deep scans, appended after (never replacing) built-in findings, and rendered with provider provenance. Removing a plugin routes the same unknown-language repository through the **generic artifact-only fallback**, which never claims source syntax, import edges, effective runtime behavior, or first-class depth.
 
 ## Standards
 
@@ -146,7 +147,7 @@ Identical immutable inputs, a fixed clock, the same plugin set, and the same rep
 
 ## Output
 
-A single `NORMS.md` file containing one section per scanned repository with the 16 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** section when facts from its scanned dimensions coexist in a relationship reported by enrichment.
+A single `NORMS.md` file containing one section per scanned repository with the 17 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** section when facts from its scanned dimensions coexist in a relationship reported by enrichment.
 
 Enrichment metadata records factual detection coverage and the observed, inferred, unverified, unsupported, or not-applicable basis of findings. A `### Coverage Basis` table defines the basis vocabulary used across dimensions.
 
@@ -173,4 +174,4 @@ node --test --test-concurrency=1 test/voice-gate.test.mjs            # establish
 node --test --test-concurrency=1 test/golden.test.mjs                # five ecosystems + real-repo golden
 ```
 
-`node --test --test-concurrency=1` is authoritative because default parallel mode can race filesystem-heavy fixture tests. Fixtures live under `test/fixtures/` and `test/fixtures-expansion/`, each exporting a `files` map consumed by `test/harness.mjs`'s `withFixture`. The suite covers shared primitives, all 16 dimensions, enrich, validate, write, the 21-case P0 regression matrix, the voice gates, privacy gates, determinism gates, constraint gates (command boundary, one write, zero dependencies), plugin boundary tests, multi-repo cross-repository synthesis, and end-to-end pipeline behavior — no installs required.
+`node --test --test-concurrency=1` is authoritative because default parallel mode can race filesystem-heavy fixture tests. Fixtures live under `test/fixtures/` and `test/fixtures-expansion/`, each exporting a `files` map consumed by `test/harness.mjs`'s `withFixture`. The suite covers shared primitives, all 17 dimensions, enrich, validate, write, the 21-case P0 regression matrix, the voice gates, privacy gates, determinism gates, constraint gates (command boundary, one write, zero dependencies), plugin boundary tests, multi-repo cross-repository synthesis, and end-to-end pipeline behavior — no installs required.
