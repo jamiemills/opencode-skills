@@ -4,18 +4,18 @@
 // production-exported components and a temporary injected skill root (never the
 // production plugin root):
 //   - A temp skill root holds `plugins/fixturelang/plugin.json` whose declarative
-//     rules and provider capabilities cover ALL 14 provider dimensions (T222
+//     rules and provider capabilities cover ALL 15 provider dimensions (T222
 //     builtin index dimension set; T202 category allowlists). It is valid per
 //     the T203 schema and loads through the production `loadPlugins` loader.
 //   - The Fixturelang fixture repository map (inlined below) holds `.fixturelang`
 //     artifacts and manifests that the plugin rules match.
 //   - `evaluateRules` over the fixture artifacts produces matches for every one
-//     of the 14 provider dimensions; the production provider catalogs merge the
+//     of the 15 provider dimensions; the production provider catalogs merge the
 //     derived plugin observations into built-in results built-in-first, never
 //     replacing built-in findings.
 //   - The production exported pipeline `runExpandedPipeline` accepts the injected
 //     skill-root registry and, at the OUTPUT level, renders plugin-labeled
-//     evidence (rule ids + plugin provider id as provenance) for all 14 provider
+//     evidence (rule ids + plugin provider id as provenance) for all 15 provider
 //     dimensions in NORMS.md with byte-identical repeated runs.
 //   - Removing `plugin.json` yields an empty registry; the same fixture repo then
 //     renders generic artifact-only evidence through the generic fallback with
@@ -87,6 +87,7 @@ const FIXTURELANG_FILES = Object.freeze({
   'README.fixturelang': '# Fixturelang demo\n',
   'POLICY.fixturelang': 'policy: secure-by-default\n',
   'Fixtureworkflow': 'workflow: ci\n',
+  'src/practice.fixturelang': ';; fixturelang practice\npractice: bdd\n',
   '.fixturelangrc': 'strict = true\n',
 });
 
@@ -112,6 +113,7 @@ const RULE_BLUEPRINTS = Object.freeze([
   ['DIM-maintainability-v1', 'file_metric', { extensions: ['.fixturelang'] }],
   ['DIM-governance-v1', 'policy', { basenames: ['POLICY.fixturelang'] }],
   ['DIM-assurance-v1', 'manifest', { manifestNames: ['fixturelang.json'] }],
+  ['DIM-practices-v1', 'methodology', { extensions: ['.fixturelang'], literal: 'practice:' }],
 ]);
 
 function dimensionShort(dimensionId) {
@@ -187,6 +189,7 @@ function mergeCatalogs({ matches, deep, overview, repoPath }) {
     architecture: { findings: byDim.architecture, facts: {} },
     conventions: byDim.conventions,
     documentation: { repoPath, findings: byDim.documentation },
+    practices: byDim.practices,
     generic: null,
   });
   const analysis = mergeAnalysisResults({ builtin: analysisBuiltin.results, plugin: analysisPlugin });
@@ -222,7 +225,7 @@ function pluginContributed(observations) {
 // T203 validity and 14-dimension coverage of the injected skill root
 // ---------------------------------------------------------------------------
 
-test('T225 plugin fixture is valid per T203 and covers all 14 provider dimensions', async (t) => {
+test('T225 plugin fixture is valid per T203 and covers all 15 provider dimensions', async (t) => {
   const plugin = fixturelangPlugin();
   const validated = validatePlugin(plugin);
   assert.equal(validated.id, 'fixturelang');
@@ -257,10 +260,10 @@ test('T225 plugin fixture is valid per T203 and covers all 14 provider dimension
 });
 
 // ---------------------------------------------------------------------------
-// Rule evaluation over the fixture repo -> all 14 provider dimensions
+// Rule evaluation over the fixture repo -> all 15 provider dimensions
 // ---------------------------------------------------------------------------
 
-test('T225 Fixturelang rules match the fixture artifacts on all 14 provider dimensions', async (t) => {
+test('T225 Fixturelang rules match the fixture artifacts on all 15 provider dimensions', async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
@@ -290,7 +293,7 @@ test('T225 Fixturelang rules match the fixture artifacts on all 14 provider dime
 // Production catalogs merge plugin observations built-in-first
 // ---------------------------------------------------------------------------
 
-test('T225 plugin observations contribute to all 14 provider dimensions, built-in-first', async (t) => {
+test('T225 plugin observations contribute to all 15 provider dimensions, built-in-first', async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
@@ -312,7 +315,7 @@ test('T225 plugin observations contribute to all 14 provider dimensions, built-i
 
   const { runtime, analysis, assurance, byDim } = mergeCatalogs({ matches, deep, overview, repoPath });
 
-  // All 14 provider dimensions appear across the three merged catalogs, and
+  // All 15 provider dimensions appear across the three merged catalogs, and
   // every result carries at least one plugin-contributed observation.
   const merged = [...runtime.results, ...analysis, ...assurance.results];
   const mergedDimensions = new Set(merged.map((r) => r.dimensionId));
@@ -369,7 +372,7 @@ test('T225 plugin observations contribute to all 14 provider dimensions, built-i
 // Production pipeline with the injected plugin registry: output-level evidence
 // ---------------------------------------------------------------------------
 
-test('T225 runExpandedPipeline renders plugin-labeled evidence for all 14 provider dimensions and is byte-identical', async (t) => {
+test('T225 runExpandedPipeline renders plugin-labeled evidence for all 15 provider dimensions and is byte-identical', async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
@@ -388,7 +391,7 @@ test('T225 runExpandedPipeline renders plugin-labeled evidence for all 14 provid
   assert.equal(first.markdown, second.markdown, 'repeated runs are byte-identical');
   assert.equal(first.context.pluginRegistry.length, 1, 'the injected plugin registry is threaded through the scan context');
   assert.equal(first.context.pluginRegistry[0].id, 'fixturelang');
-  assert.equal(first.repos[0].deep.length, 16, 'all 16 dimensions scan the fixture repo');
+  assert.equal(first.repos[0].deep.length, 17, 'all 17 dimensions scan the fixture repo');
 
   // Output level: every provider dimension renders plugin-labeled evidence.
   for (const dimensionId of PROVIDER_DIMENSION_IDS) {

@@ -349,6 +349,8 @@ function positiveEvidence(dimension, findings) {
       return Number.isSafeInteger(findings.summary?.entries) && findings.summary.entries > 0;
     case 'assurance':
       return Number.isSafeInteger(findings.summary?.records) && findings.summary.records > 0;
+    case 'practices':
+      return Array.isArray(findings.entries) && findings.entries.length > 0;
     default:
       return Object.keys(findings).some((key) => !isNullishFinding(findings[key]));
   }

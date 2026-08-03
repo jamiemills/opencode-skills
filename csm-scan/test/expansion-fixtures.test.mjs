@@ -5,7 +5,7 @@
 // and inline fixture maps exclusively through the EXPORTED production pipeline
 // `runExpandedPipeline` — never a reconstructed dispatch. It proves:
 //   - The five built-in ecosystems preserve their established facts (language,
-//     ecosystem, stack, 16 dimensions, coverage) through the production
+//     ecosystem, stack, 17 dimensions, coverage) through the production
 //     pipeline, and the generic fallback does NOT fire for them.
 //   - The unknown-language fixture receives generic artifact-only evidence.
 //   - Every applicable new dimension has positive AND negative cases.
@@ -43,12 +43,13 @@ import { files as typescriptFiles } from './fixtures-expansion/typescript.mjs';
 import { files as shellFiles } from './fixtures-expansion/shell.mjs';
 import { files as rustFiles } from './fixtures-expansion/rust.mjs';
 import { files as unknownFiles } from './fixtures-expansion/unknown.mjs';
+import { files as practicesFiles } from './fixtures-expansion/practices.mjs';
 import { repoA, repoB, repoASingle, repoBSingle } from './fixtures-expansion/cross-repo.mjs';
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(TEST_ROOT, '..');
 
-const SIX_NEW_DIMENSIONS = ['api', 'data', 'deployment', 'maintainability', 'governance', 'assurance'];
+const SIX_NEW_DIMENSIONS = ['api', 'data', 'deployment', 'maintainability', 'governance', 'assurance', 'practices'];
 
 const SIX_NEW_HEADINGS = [
   '## API Surface',
@@ -57,6 +58,7 @@ const SIX_NEW_HEADINGS = [
   '## Maintainability',
   '## Governance & Ownership',
   '## Assurance & Supply Chain',
+  '## Development Practices',
 ];
 
 const REGISTRY_CLAIMS = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
@@ -123,6 +125,7 @@ const FIXTURES = Object.freeze([
   { name: 'shell', files: shellFiles },
   { name: 'rust', files: rustFiles },
   { name: 'unknown', files: unknownFiles },
+  { name: 'practices', files: practicesFiles },
 ]);
 
 // Expected per-dimension coverage status per fixture (T202 contract mapping).
@@ -130,26 +133,37 @@ const EXPECTED_STATUS = Object.freeze({
   python: {
     api: 'observed', data: 'observed', deployment: 'observed',
     maintainability: 'observed', governance: 'observed', assurance: 'observed',
+    practices: 'not_detected',
   },
   javascript: {
     api: 'observed', data: 'observed', deployment: 'observed',
     maintainability: 'observed', governance: 'not_detected', assurance: 'observed',
+    practices: 'not_detected',
   },
   typescript: {
     api: 'observed', data: 'observed', deployment: 'observed',
     maintainability: 'observed', governance: 'not_detected', assurance: 'observed',
+    practices: 'not_detected',
   },
   shell: {
     api: 'not_detected', data: 'not_detected', deployment: 'observed',
     maintainability: 'observed', governance: 'not_detected', assurance: 'not_detected',
+    practices: 'not_detected',
   },
   rust: {
     api: 'observed', data: 'observed', deployment: 'observed',
     maintainability: 'observed', governance: 'observed', assurance: 'observed',
+    practices: 'not_detected',
   },
   unknown: {
     api: 'not_detected', data: 'not_detected', deployment: 'not_detected',
     maintainability: 'not_detected', governance: 'not_detected', assurance: 'observed',
+    practices: 'not_detected',
+  },
+  practices: {
+    api: 'observed', data: 'not_detected', deployment: 'not_detected',
+    maintainability: 'observed', governance: 'observed', assurance: 'observed',
+    practices: 'observed',
   },
 });
 
@@ -170,7 +184,7 @@ test('T226 five built-ins preserve their established facts through the productio
     assert.equal(overview.ecosystems.primary, expected.ecosystem, `${name}: primary ecosystem must be ${expected.ecosystem}`);
     const stack = findingsFor(run.result, 'stack');
     assert.equal(stack.language, expected.stackLanguage, `${name}: stack language must be ${expected.stackLanguage}`);
-    assert.equal(run.result.repos[0].deep.length, 16, `${name}: all 16 dimensions must scan`);
+    assert.equal(run.result.repos[0].deep.length, 17, `${name}: all 17 dimensions must scan`);
     for (const heading of SIX_NEW_HEADINGS) {
       assert.ok(run.result.markdown.includes(heading), `${name}: ${heading} must render`);
     }
@@ -327,7 +341,7 @@ test('T226 shell fixture: built-in negative new dimensions with complete search,
   assert.equal(overview.ecosystems.primary, 'shell');
   assert.equal(result.markdown.includes('PRV-generic-artifacts-v1'), false, 'a built-in shell fixture never uses the generic fallback');
 
-  for (const dimension of ['api', 'data', 'governance', 'assurance']) {
+  for (const dimension of ['api', 'data', 'governance', 'assurance', 'practices']) {
     const findings = findingsFor(result, dimension);
     assert.equal(findings.searchSpace.complete, true, `${dimension}: complete search space is required for a factual absence`);
     assert.equal(newDimensionStatus(result)[dimension], 'not_detected', `${dimension}: no evidence after a complete search`);
@@ -339,6 +353,178 @@ test('T226 shell fixture: built-in negative new dimensions with complete search,
 
   const architecture = findingsFor(result, 'architecture');
   assert.deepEqual(architecture.importGraph.graph['scripts/build.sh'], ['scripts/lib.sh']);
+});
+
+// ---------------------------------------------------------------------------
+// Practices fixture: all seven categories, hidden dirs, and craft source facts
+// ---------------------------------------------------------------------------
+
+test('T226 practices fixture: all seven categories, hidden artifacts, style values, and privacy-safe gates', async (t) => {
+  const run = await runFixture('t226-practices', practicesFiles);
+  t.after(() => cleanupRun(run));
+  const { result } = run;
+
+  const practices = findingsFor(result, 'practices');
+  assert.equal(newDimensionStatus(result).practices, 'observed');
+  assert.equal(practices.searchSpace.complete, true);
+  assert.equal(practices.diagnostics.length, 0);
+
+  // Every one of the seven practices categories is observed in the positive fixture.
+  const byCategory = practices.summary.byCategory;
+  for (const category of Object.keys(byCategory)) {
+    assert.ok(byCategory[category] > 0, `practices fixture must produce ${category} evidence`);
+  }
+
+  // Hidden-directory artifacts that `rg --files` prunes are probed explicitly.
+  const paths = practices.entries.map(({ path }) => path);
+  for (const expected of [
+    '.agents/plans/feature-csm.md',
+    '.agents/docs/guide.md',
+    '.opencode/config.json',
+    'AGENTS.md',
+    'CLAUDE.md',
+    'opencode.jsonc',
+    '.devcontainer/devcontainer.json',
+    '.github/workflows/ci.yml',
+    '.github/PULL_REQUEST_TEMPLATE.md',
+    '.github/ISSUE_TEMPLATE/bug.md',
+    '.github/release-drafter.yml',
+    'quality/gates.conf',
+    'quality/remediation/notes.md',
+  ]) {
+    assert.ok(paths.includes(expected), `hidden practice artifact ${expected} must be probed`);
+  }
+
+  // Methodology signals: BDD feature, mutation config, hypothesis dependency.
+  assert.ok(paths.includes('features/login.feature'), 'a .feature file must be inventoried as methodology');
+  assert.ok(practices.entries.some((entry) => entry.matchedKey === 'methodology:mutation-config:pyproject.toml'),
+    'the [tool.mutmut] section must be detected');
+  const deps = practices.entries.find((entry) => entry.matchedKey === 'methodology:test-deps:pyproject.toml');
+  assert.ok(deps && deps.kinds.includes('hypothesis'), 'the hypothesis dependency must be detected');
+
+  // Quality gates: allowlisted threshold keys only, never raw values.
+  const gates = practices.entries.find((entry) => entry.matchedKey === 'quality_gate:gate-thresholds:quality/gates.conf');
+  assert.ok(gates, 'quality/gates.conf thresholds entry must be present');
+  assert.deepEqual(gates.kinds, ['maxcomplexity', 'maxlines', 'mincoverage']);
+  assert.equal(JSON.stringify(gates).includes('85'), false, 'gate values never survive into the model');
+
+  // Style guide: line-length values from ruff/black/prettier/rustfmt configs.
+  const styles = practices.entries.find((entry) => entry.matchedKey === 'style_guide:style-values:pyproject.toml');
+  assert.ok(styles && styles.kinds.includes('line-length'), 'ruff line-length value must be detected');
+  assert.ok(practices.entries.some((entry) => entry.matchedKey === 'style_guide:principles-doc:docs/principles.md'),
+    'a zen/principle document must be detected');
+
+  // Agent workflow: the plan document declares Control/Status headers.
+  const planState = practices.entries.find((entry) => entry.matchedKey === 'agent_workflow:plan-state:.agents/plans/feature-csm.md');
+  assert.ok(planState && planState.kinds.includes('control') && planState.kinds.includes('status'),
+    'plan Control/Status headers must be retained as kinds');
+
+  // Release-drafter + changelog coupling is an inferred ritual fact.
+  assert.ok(practices.entries.some((entry) => entry.matchedKey === 'ritual:release-notes:CHANGELOG.md'),
+    'the release-drafter + changelog coupling must be inferred');
+});
+
+// ---------------------------------------------------------------------------
+// Craft claims: dead-code, coupling, and design-pattern observed + not_detected
+// ---------------------------------------------------------------------------
+
+test('T226 craft claims: dead_code/coupling/design_pattern have observed and not_detected cases', async (t) => {
+  const positive = await runFixture('t226-craft-positive', practicesFiles);
+  t.after(() => cleanupRun(positive));
+  const { result } = positive;
+
+  // dead_code observed: the practices fixture carries unused-code markers
+  // (vulture config/whitelist, a no-unused-vars suppression, an allow(dead_code)
+  // attribute) in the maintainability findings.
+  const maintainability = findingsFor(result, 'maintainability');
+  assert.ok(maintainability.deadCode.length > 0, 'dead_code claim must be observed on the practices fixture');
+  const kinds = new Set(maintainability.deadCode.map(({ kind }) => kind));
+  for (const expected of ['allow_dead_code', 'unused_import', 'vulture_config', 'vulture_whitelist']) {
+    assert.ok(kinds.has(expected), `dead-code kind ${expected} must be observed`);
+  }
+
+  // coupling/design_pattern observed: the provider-derived aggregates build on
+  // the raw import graph, so the fixture must carry real internal edges.
+  const architecture = findingsFor(result, 'architecture');
+  const graph = architecture.importGraph.graph;
+  assert.ok(Object.keys(graph).length > 0, 'coupling source data (import graph) must exist on the practices fixture');
+  assert.deepEqual(graph['src/app.js'], ['src/lib.js'], 'an internal import edge feeds the coupling aggregates');
+
+  const negative = await runFixture('t226-craft-negative', shellFiles);
+  t.after(() => cleanupRun(negative));
+  const { result: negativeResult } = negative;
+
+  // dead_code not_detected: the shell fixture has no unused-code markers.
+  assert.equal(findingsFor(negativeResult, 'maintainability').deadCode.length, 0,
+    'dead_code claim must be absent on the shell fixture');
+
+  // coupling/design_pattern not_detected: the unknown fixture has no internal
+  // import edges, so no aggregate can be derived.
+  const unknown = await runFixture('t226-craft-unknown', unknownFiles);
+  t.after(() => cleanupRun(unknown));
+  const { result: unknownResult } = unknown;
+  const unknownGraph = findingsFor(unknownResult, 'architecture').importGraph.graph;
+  assert.equal(Object.keys(unknownGraph).length, 0,
+    'coupling/design_pattern source data must be absent on the unknown fixture');
+});
+
+// ---------------------------------------------------------------------------
+// Design boundary: no dimension re-asserts facts owned by another
+// ---------------------------------------------------------------------------
+
+test('T226 boundary: practices never re-asserts facts owned by git, config, or conventions', async (t) => {
+  const run = await runFixture('t226-boundary', practicesFiles);
+  t.after(() => cleanupRun(run));
+  const { result } = run;
+  const practices = findingsFor(result, 'practices');
+  const entries = practices.entries;
+
+  // git owns commit-style classification (branch naming, template presence,
+  // commit-style vocabulary). Practices enforcement entries record declaration
+  // and hook-command presence only and must never re-assert the classification.
+  for (const entry of entries) {
+    assert.ok(!/^git:|commit-style|commit_style/i.test(entry.matchedKey),
+      `practices entry ${entry.matchedKey} re-asserts the git commit-style fact`);
+  }
+  assert.equal(JSON.stringify(entries).includes('commitStyle'), false,
+    'practices must not carry the git commitStyle field');
+
+  // config owns lint/format/type tool presence; practices style_guide owns
+  // style VALUES (line-length, indent, quotes). For the same repository the
+  // config tool names and the practices style-guide facts must be disjoint.
+  const config = findingsFor(result, 'config');
+  const configToolNames = new Set([
+    ...(config.linters ?? []).map((tool) => tool.name),
+    ...(config.formatters ?? []).map((tool) => tool.name),
+    ...(config.typeCheckers ?? []).map((tool) => tool.name),
+  ]);
+  assert.ok(configToolNames.has('ruff') && configToolNames.has('prettier'),
+    'config must report lint/format tool presence');
+  const styleGuide = entries.filter((entry) => entry.category === 'style_guide');
+  assert.ok(styleGuide.length > 0, 'the practices fixture must produce style_guide entries');
+  for (const entry of styleGuide) {
+    for (const kind of entry.kinds ?? []) {
+      assert.ok(!configToolNames.has(kind),
+        `style_guide kind ${kind} duplicates a config tool-presence fact`);
+    }
+  }
+  const styleValues = styleGuide.filter((entry) => entry.matchedKey.includes(':style-values:'));
+  assert.ok(styleValues.length >= 3, 'style values are extracted from ruff/black/prettier/rustfmt configs');
+  for (const entry of styleValues) {
+    assert.ok(entry.kinds.length > 0, `style_values entry ${entry.matchedKey} carries concrete style values`);
+  }
+  assert.equal(JSON.stringify(config).match(/line-length|line_length|printWidth/), null,
+    'config must not re-assert practices style values');
+
+  // conventions owns standards presence (PEP 8 and per-language equivalents);
+  // practices style_guide owns principle documents. The vocabularies are disjoint.
+  const conventions = findingsFor(result, 'conventions');
+  assert.ok((conventions.languageStandards?.standards ?? []).includes('PEP 8 (style guide)'),
+    'conventions must own standards presence');
+  for (const entry of styleGuide) {
+    assert.ok(!/standard|pep[ -]?8/i.test(entry.matchedKey),
+      `style_guide entry ${entry.matchedKey} re-asserts a conventions standards fact`);
+  }
 });
 
 // ---------------------------------------------------------------------------

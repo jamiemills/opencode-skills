@@ -319,3 +319,36 @@ test('T201 recording runner snapshots functional outcomes', async () => {
   });
   assert.deepEqual(calls[0].argv, ['log', '-1']);
 });
+
+test('T202 replacement: free-form applicability rules yield not_applicable git claims excluded from coverage', async () => {
+  const { withFixture } = await import('./harness.mjs');
+  const { runExpandedPipeline } = await import('../lib/scan/pipeline/run.mjs');
+  await withFixture('t202-freeform-na', { 'app.py': 'value = 1\n' }, async (dir) => {
+    const coverage = (await runExpandedPipeline({ repos: [dir], out: join(dir, 'NORMS.md'), reporter: null })).expectedClaimCoverage;
+    assert.equal(coverage.excluded, 2, 'non-git fixture excludes the git dimension as not_applicable');
+    assert.equal(coverage.repos[0].perDimension.git.status, 'not_applicable');
+  });
+});
+
+test('T202 replacement: coverage status representation maps claim statuses to coverage states', async () => {
+  const { withFixture } = await import('./harness.mjs');
+  const { runExpandedPipeline } = await import('../lib/scan/pipeline/run.mjs');
+  await withFixture('t202-coverage-status', { 'app.py': 'value = 1\n' }, async (dir) => {
+    const coverage = (await runExpandedPipeline({ repos: [dir], out: join(dir, 'NORMS.md'), reporter: null })).expectedClaimCoverage;
+    assert.deepEqual(
+      Object.keys(coverage).sort(),
+      ['complete', 'eligible', 'excluded', 'expected', 'incomplete', 'ratio', 'repos', 'unsupported'],
+      'coverage aggregate carries the canonical representation fields',
+    );
+    assert.equal(coverage.expected, 93, 'every registry claim is counted');
+    assert.equal(
+      coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
+      coverage.expected,
+      'every claim is counted exactly once',
+    );
+    assert.equal(coverage.ratio, coverage.eligible === 0 ? null : coverage.complete / coverage.eligible);
+    const per = coverage.repos[0].perDimension;
+    assert.equal(per.git.status, 'not_applicable', 'non-git repo represents the git dimension as not_applicable');
+    assert.equal(per.practices.status, 'not_detected', 'empty practices signals are represented as not_detected');
+  });
+});

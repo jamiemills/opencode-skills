@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-practices-dimension
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 4
+- Cycle: 5
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — T011 cutover + T017 architecture craft done; 104/104 gates green; CLI end-to-end verified (17 dims, 93 expected claims, practices section renders)
-- Next transition: SELECT -> T012 (suite reconciliation, independent review) + T013 (baseline verification) + T014 (SKILL.md)
-- Active tasks: T012, T013, T014
+- Last checkpoint: 2026-08-03 — T012/T013/T014 done; suite reconciled 393/393 broad batch; AD6 amended (enrich.mjs practices case + policy-conformant supersession of free-form-na + coverage-status-representation); supersession.json is the single deliberate baseline change (16-line minimal diff)
+- Next transition: SELECT -> T015 (final gate: full suite + perplexity-cli probe)
+- Active tasks: T015
 - Blockers: none
 
 ## Goal
@@ -82,7 +82,7 @@ Exclusions:
 | AD3 | Output is a neutral declared-practices/measured-facts inventory, never a quality/culture verdict | Architecture-forced | Evidence model + voice gate (`render/registry.mjs:80-86`) reject evaluative prose; "assessment" = measured counts and indicator presence; banned words asserted in `expansion-architecture-extension.test.mjs:484` | Accepted |
 | AD4 | The new dimension is provider-capable and joins the analysis catalog | Architecture-forced | `PROVIDER_DIMENSION_IDS` derives by excluding structure/git; `validateDimension` enforces the flag; analysis catalog is the closest semantic cluster | Accepted |
 | AD5 | 7 practices claims + 3 craft claims, 10 new evidence categories, all 1:1 with claim topics; expected claims 83→93; practices registered LAST in canonical order | Design decision | `CATEGORY_TOPIC_COVERAGE` set-inclusion tests require every category to map to a claim topic; `ALL_SEVENTEEN = [...TEN, ...SIX, 'practices']` and the determinism test require last position; `CONTRACT_LIMITS.expectedClaims = 128` accommodates 93 | Accepted |
-| AD6 | No changes to enrich.mjs, validate.mjs, write.mjs; no new broker command IDs; no version-constant bumps; NO baseline regeneration at all (SHA-lock baselines AND fixture-behavior.json — the latter by ten-dimension freeze) | Design decision | All auto-adapt from registry; superseded locks already non-applying; craft facts routed so ten-dimension output never changes | Accepted |
+| AD6 | No changes to validate.mjs, write.mjs; no new broker command IDs; no version-constant bumps; NO baseline regeneration except the documented supersession of the two enrich-locking entries (see AMENDMENT); fixture-behavior.json untouched (ten-dimension freeze) | Design decision + cycle-5 amendment | All auto-adapt from registry EXCEPT enrich.mjs positiveEvidence (per-dimension switch; default branch is always-positive for the practices model shape — isNullishFinding treats any object as non-null). AMENDMENT (cycle 5, evidence-driven): enrich.mjs gained the practices case; supersession.json free-form-na + coverage-status-representation converted legacy_locked → superseded per policy with digest-locked replacement tests in expansion-constraints.test.mjs (recurring acceptance file) — the personal-identity-output precedent; capabilities.json/test-integrity.json/fixture-behavior.json untouched | Accepted (amended) |
 | AD7 | Boundary: practices owns methodology/enforcement/automation/ritual/quality-gate/agent-workflow/style-guide fact families; craft claims live in maintainability/architecture via non-ten-dimension paths; presence-level facts stay with existing dims (Design boundary table, enforced by T012 fixture assertions) | Design decision | Track-B delta analysis of all 16 claim sets; prevents duplicate claims and enrich contradictions | Accepted |
 | AD8 | Plan is saved in the csm-scan repo's `.agents/plans/` and committed to the skills monorepo (git root `~/.config/opencode/skills`) | Evidence | 4 prior plans live there and are tracked; monorepo branch `main` clean | Accepted |
 | AD9 | Acceptance fixture is perplexity-cli (rich: mutation/property/fuzz/gates/baselines/agent configs); csm-scan itself is a sparse negative case (no package.json, no .git at dir level) | Evidence | Track-C survey of both repos | Accepted |
@@ -118,6 +118,7 @@ Exclusions:
 - Ten-dimension output freeze: `architecture`, `conventions`, `config`, `testing`, `operations`, `git` scan() findings and renderers must stay byte-identical (fixture-behavior.json). Craft facts route: practices (expanded-only scanner), maintainability (expanded-only scanner), architecture (provider-derived observations merged only in the expanded pipeline, `run.mjs:869-884`).
 - Provider wiring: `RUNTIME_DIMENSION_IDS` (run.mjs:619-621) must NOT gain practices; plugin observations auto-wire once `DIM-practices-v1` joins `ANALYSIS_DIMENSION_IDS`; only the `analysisProviderResults` call site (run.mjs:848) needs the practices model passed. Category admission is automatic (`base.mjs:138`); no catalog allowlist edits exist.
 - CORRECTION (cycle 2, verified in source): `assurance-catalog.mjs:142-148` is a FULL hardcoded category list for maintainability (not a subset) — it must gain `dead_code` so the builtin mirror (by-reference `PROVIDER_CATEGORIES`) stays deepEqual; owned by T006. The subset claim applies only to the generic fallback entry (`:169`).
+- AMENDMENT (cycle 5): enrich.mjs positiveEvidence is a per-dimension switch, NOT auto-adapting — new dimensions need an explicit case; any future enrich.mjs change breaks the legacy_locked supersession entries (free-form-na, coverage-status-representation) and requires policy-conformant supersession (replacement test in a recurringAcceptanceTestFiles file, digest-locked).
 - csm-build appends new discoveries each cycle and applies them to all remaining tasks.
 
 ## Design
@@ -361,7 +362,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: a crash in the new scanner must degrade to the SCANNER_FAILURE model (claims `unverified`), never abort — verify by temporarily injecting a failure in the sandbox if needed; the cutover edits land as one atomic change.
 
-12. [pending] Suite reconciliation: fixtures, counts, plugin blueprints, headings (requires independent review)
+12. [completed] Suite reconciliation: fixtures, counts, plugin blueprints, headings (requires independent review)
+   - DONE (cycle 5, 2026-08-03): practices fixture + SIX_NEW_DIMENSIONS/newDimensionStatus/EXPECTED_STATUS/empty-repo loop; ALL_SEVENTEEN; registryClaims 93; deep.length 17 x4; provider counts 15; PLUGIN_BLUEPRINTS/RULE_BLUEPRINTS 15th practices entry + FXLANG/FIXTURELANG artifacts; assurance-catalog analysis set +15; renderProseLabel practices heading; scan-cli label; boundary assertions (practices↔git commit-style, style_guide↔config tool presence, style_guide↔conventions standards). ACCEPTANCE 79/79 + 393/393 broad batch. DEVIATION (amended, see AD6): enrich.mjs positiveEvidence gained the practices case — the default branch is always-positive for the practices model shape (isNullishFinding treats objects as non-null), so not_detected on empty repos was impossible without it; this is the designed extension point (six precedent cases).
     - Task ID: T012
     - Depends on: T011, T007, T008, T009, T010, T016, T017
     - Parallel group: G5
@@ -376,7 +378,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: fixtures failing only after this task means a production change (T003-T011, T016-T017) and a fixture expectation drifted apart; reconcile the fixture, not the production claim. If a fixture-behavior hash fails, a ten-dimension scanner changed — stop and identify the offending task.
 
-13. [pending] Baseline SHA-lock verification (verification only — NO regeneration)
+13. [completed] Baseline SHA-lock verification (verification only — NO regeneration)
+   - DONE (cycle 5, 2026-08-03): capabilities.json locks command.mjs (hash MATCH 3d8eb0...); test-integrity.json 8 locked files untouched; fixture-behavior.json byte-identity 5/5; git.mjs superseded lock non-applying (current 11871094... vs recorded bf73675c...) — policy satisfied. SCOPE CORRECTION: supersession.json WAS updated in cycle 5 — the T012 enrich.mjs change required superseding the free-form-na + coverage-status-representation legacy_locked entries per the documented policy (retained locks, ≥1 non-applying, digest-locked replacement tests added to expansion-constraints.test.mjs). This is the personal-identity-output precedent, not regeneration; capabilities/test-integrity/fixture-behavior remain untouched. Baseline tests 14/14.
     - Task ID: T013
     - Depends on: T007
     - Parallel group: G5
@@ -391,7 +394,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: if a lock test DOES fail, a production file outside the plan's scope was changed — stop and identify it; never regenerate or disable a lock to pass.
 
-14. [pending] SKILL.md documentation update
+14. [completed] SKILL.md documentation update
+   - DONE (cycle 5, 2026-08-03): dimension table 16→17 with Development Practices row (7 claim IDs) + craft claims noted in Maintainability/Architecture; pipeline/plugin/output sections updated; rg acceptances pass (no 16-dimension/14 provider phrasing remains).
     - Task ID: T014
     - Depends on: T011
     - Parallel group: G6
@@ -551,6 +555,13 @@ Ordered cheapest-first:
 | 2026-08-03 | 4 | INTEGRATE | T017, T011 | run.mjs diff inspected: imports, switch cases, fallback model, PRIVACY_ENFORCED_DIMENSIONS, rename, provider wiring — all in scope (15 insertions/4 deletions); craft.mjs pure + catalog observations verified | VERIFY |
 | 2026-08-03 | 4 | VERIFY | T017, T011 | Voice/privacy/activation/architecture/catalog/constraints batch: 104/104 (voice-gate pre-cutover failures now resolved); CLI end-to-end smoke: `node scripts/scan.mjs --repos /tmp/opencode/practices-smoke --out /tmp/opencode/probe1.md` → 17 scanners, practices 100%, coverage {"expected":93,"eligible":91,"complete":91,"excluded":2,"ratio":1} (git N/A), "## Development Practices" renders Methodology/Quality Gates/Agent Workflow facts (fixture recreated after temp sweep) | CHECKPOINT |
 | 2026-08-03 | 4 | CHECKPOINT | T017, T011 | T011 + T017 completed with evidence; pipeline live for all 17 dimensions; next: SELECT -> T012 + T013 + T014 | SELECT |
+| 2026-08-03 | 5 | SELECT | T012, T013, T014 | Parallel: T012 (reconciliation, independent review), T013 (verification-only), T014 (SKILL.md) | DISPATCH |
+| 2026-08-03 | 5 | DISPATCH | T012, T013, T014 | 3 parallel subagents | INTEGRATE |
+| 2026-08-03 | 5 | INTEGRATE | T012, T013, T014 | Diffs inspected. DEVIATION FOUND: T012 modified lib/scan/enrich.mjs (+2 lines: practices positiveEvidence case) — necessary because the default branch is always-positive for the practices model shape (isNullishFinding treats any object as non-null); without it practices can never be not_detected (violates F14/AC5). Root-cause verified in source. CONSEQUENCE: enrich.mjs is legacy-SHA-locked by supersession entries free-form-na AND coverage-status-representation (legacy_locked) → both require policy-conformant supersession | VERIFY |
+| 2026-08-03 | 5 | VERIFY | T012, T013, T014 | T012 acceptance 79/79 (6 files); broad batch 393/393 (all 21 expanded-suite files); T013: capabilities/test-integrity/fixture-behavior untouched, git.mjs superseded lock non-applying, baseline+constraints 12/12; T014: rg acceptances pass | REVIEW |
+| 2026-08-03 | 5 | REVIEW | T012 | Enrich.mjs deviation reviewed: the switch case mirrors the six precedent dimension cases (governance/assurance etc.); the alternative (model-side empty expression) is impossible per isNullishFinding; reverting would break T012's not_detected fixture rows. Supersession path verified against the policy text and the personal-identity-output precedent; replacement tests must live in recurringAcceptanceTestFiles (constraints file chosen — not in test-integrity.json) | REPAIR |
+| 2026-08-03 | 5 | REPAIR | T012, T013 | Applied: free-form applicability replacement test + coverage-representation replacement test added to test/expansion-constraints.test.mjs; supersession.json free-form-na + coverage-status-representation converted to superseded with digest-locked replacements (minimal 16-line diff, original compact format preserved); digest recomputed after the second test; baseline 14/14, constraints 9/9, fixtures-pipeline 5/5, parity 21/21 | CHECKPOINT |
+| 2026-08-03 | 5 | CHECKPOINT | T012, T013, T014 | T012/T013/T014 completed; AD6 amended (enrich.mjs + supersession, evidence-driven); Discovered Requirements amended; supersession.json is the single deliberate baseline change (policy-conformant); next: SELECT -> T015 final gate | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>

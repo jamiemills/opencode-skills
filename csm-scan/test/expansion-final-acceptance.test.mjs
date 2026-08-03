@@ -32,7 +32,7 @@
 //        never carries copied control text
 //   AC11 cross-repository edges require exact unambiguous evidence; ambiguity
 //        is retained as records, never edges
-//   AC12 a declarative plugin contributes bounded evidence to all 14 provider
+//   AC12 a declarative plugin contributes bounded evidence to all 15 provider
 //        dimensions; no plugin code is evaluated
 //   AC13 removing the plugin routes the same unknown-language fixture to
 //        generic artifact-only findings without core language knowledge
@@ -153,6 +153,8 @@ const TEN_DIMENSIONS = Object.freeze([
 ]);
 
 const ALL_SIXTEEN = Object.freeze([...TEN_DIMENSIONS, ...SIX_NEW_DIMENSIONS]);
+
+const ALL_SEVENTEEN = Object.freeze([...TEN_DIMENSIONS, ...SIX_NEW_DIMENSIONS, 'practices']);
 
 const FIVE_FIXTURES = Object.freeze([
   ['python', pythonFiles, 'Python', 'python'],
@@ -330,13 +332,13 @@ test('T228 AC1 command boundary: sole broker, registered rg/git argv, zero targe
 // dimension with evidence-tagged statuses and coverage
 // ---------------------------------------------------------------------------
 
-test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for all 16 dimensions with statuses and coverage', async (t) => {
+test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for all 17 dimensions with statuses and coverage', async (t) => {
   const { result } = await runFixture(t, 'evidence', pythonFiles);
 
-  assert.equal(result.repos[0].deep.length, 16, 'all 16 dimensions must scan');
+  assert.equal(result.repos[0].deep.length, 17, 'all 17 dimensions must scan');
   assert.deepEqual(
     result.repos[0].deep.map(({ dimension }) => dimension),
-    ALL_SIXTEEN,
+    ALL_SEVENTEEN,
     'dimensions render in canonical registry order',
   );
 
@@ -414,10 +416,20 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
   assert.doesNotMatch(JSON.stringify(assurance), /pass|fail|compliant|vulnerab/i,
     'assurance must not synthesize verdicts');
 
+  // Practices (17th dimension): the section renders and reports a complete
+  // search; the python fixture carries no practice artifacts, so the dimension
+  // is a factual absence.
+  assert.ok(result.markdown.includes('## Development Practices'),
+    'the Development Practices section must render');
+  const practices = findingsFor(result, 'practices');
+  assert.equal(practices.searchSpace.complete, true, 'practices absence rests on a complete search');
+  assert.equal(perDimensionStatus(result, 'practices'), 'not_detected',
+    'the python fixture carries no practice artifacts');
+
   // AC15 — coverage counts every registry claim with a status per dimension.
   const coverage = result.expectedClaimCoverage;
   const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-  assert.equal(registryClaims, 83);
+  assert.equal(registryClaims, 93);
   assert.equal(coverage.expected, registryClaims);
   assert.equal(
     coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
@@ -428,9 +440,9 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
   assert.equal(coverage.eligible, coverage.complete + coverage.incomplete);
   assert.equal(coverage.ratio, coverage.eligible === 0 ? null : coverage.complete / coverage.eligible);
   const per = coverage.repos[0].perDimension;
-  assert.deepEqual(Object.keys(per), ALL_SIXTEEN, 'per-dimension coverage follows canonical order');
+  assert.deepEqual(Object.keys(per), ALL_SEVENTEEN, 'per-dimension coverage follows canonical order');
   assert.equal(per.git.status, 'not_applicable', 'git is proven not applicable by the is_git fact');
-  for (const dimension of ALL_SIXTEEN) {
+  for (const dimension of ALL_SEVENTEEN) {
     assert.ok(CLAIM_STATUSES.includes(per[dimension].status), `${dimension}: ${per[dimension].status} is a registered status`);
   }
 
@@ -676,7 +688,7 @@ test('T228 AC11: a single unambiguous exact reference resolves to exactly one ed
 });
 
 // ---------------------------------------------------------------------------
-// AC12 — declarative plugin contributes to all 14 provider dimensions
+// AC12 — declarative plugin contributes to all 15 provider dimensions
 // ---------------------------------------------------------------------------
 
 const PLUGIN_BLUEPRINTS = Object.freeze([
@@ -694,6 +706,7 @@ const PLUGIN_BLUEPRINTS = Object.freeze([
   ['DIM-maintainability-v1', 'file_metric', { extensions: ['.fx'] }],
   ['DIM-governance-v1', 'policy', { basenames: ['POLICY.fx'] }],
   ['DIM-assurance-v1', 'manifest', { manifestNames: ['fx.json'] }],
+  ['DIM-practices-v1', 'methodology', { extensions: ['.fx'], literal: 'practice:' }],
 ]);
 
 function dimensionShort(dimensionId) {
@@ -736,6 +749,7 @@ const FXLANG_FILES = Object.freeze({
   'README.fx': '# Fx demo\n',
   'POLICY.fx': 'policy: secure-by-default\n',
   'Fxworkflow': 'workflow: ci\n',
+  'fx/practices.fx': ';; fxlang practice artifact\npractice: bdd\n',
   '.fxrc': 'strict = true\n',
 });
 
@@ -748,17 +762,17 @@ async function temporarySkillRoot(t, plugin) {
   return skillRoot;
 }
 
-test('T228 AC12: a declarative plugin contributes bounded evidence to all 14 provider dimensions with no evaluation', async (t) => {
+test('T228 AC12: a declarative plugin contributes bounded evidence to all 15 provider dimensions with no evaluation', async (t) => {
   const plugin = acceptancePlugin();
-  assert.equal(PROVIDER_DIMENSION_COUNT, 14);
-  assert.equal(PROVIDER_DIMENSION_IDS.length, 14);
-  assert.equal(TOTAL_DIMENSION_COUNT, 16);
+  assert.equal(PROVIDER_DIMENSION_COUNT, 15);
+  assert.equal(PROVIDER_DIMENSION_IDS.length, 15);
+  assert.equal(TOTAL_DIMENSION_COUNT, 17);
 
-  // Schema accepts the 14-dimension plugin; no executable hook may exist.
+  // Schema accepts the 15-dimension plugin; no executable hook may exist.
   const validated = validatePlugins([plugin]);
   assert.equal(validated.length, 1);
   assert.deepEqual(new Set(validated[0].providers[0].dimensions.map((d) => d.dimensionId)),
-    new Set(PROVIDER_DIMENSION_IDS), 'the plugin declares exactly the 14 provider dimensions');
+    new Set(PROVIDER_DIMENSION_IDS), 'the plugin declares exactly the 15 provider dimensions');
   assert.throws(() => validatePlugins([{ ...plugin, hooks: ['node:child_process'] }]),
     (error) => error instanceof PluginSchemaError, 'executable hooks are rejected by the schema');
 
@@ -777,7 +791,7 @@ test('T228 AC12: a declarative plugin contributes bounded evidence to all 14 pro
   const first = await runExpandedPipeline({ ...options, pluginRegistry: [loaded] });
   const second = await runExpandedPipeline({ ...options, pluginRegistry: [loaded] });
   assert.equal(first.markdown, second.markdown, 'plugin runs are byte-identical');
-  assert.equal(first.repos[0].deep.length, 16, 'all 16 dimensions scan the plugin fixture repo');
+  assert.equal(first.repos[0].deep.length, 17, 'all 17 dimensions scan the plugin fixture repo');
 
   for (const dimensionId of PROVIDER_DIMENSION_IDS) {
     const short = dimensionShort(dimensionId);
@@ -844,7 +858,7 @@ test('T228 AC14: the five built-in ecosystems preserve their established facts t
     assert.ok(overview.languages.includes(language), `${name}: detected language must include ${language}`);
     assert.equal(overview.ecosystems.primary, ecosystem, `${name}: primary ecosystem must be ${ecosystem}`);
     assert.equal(findingsFor(result, 'stack').language, language, `${name}: stack language must be ${language}`);
-    assert.equal(result.repos[0].deep.length, 16, `${name}: all 16 dimensions must scan`);
+    assert.equal(result.repos[0].deep.length, 17, `${name}: all 17 dimensions must scan`);
     assert.equal(result.markdown.includes(GENERIC_PROVIDER_ID), false,
       `${name}: the generic fallback must NOT fire for a built-in ecosystem`);
     assertNeutralText(`${name} rendered Markdown`, result.markdown);
@@ -1289,7 +1303,7 @@ test('T228 optional real-repo smoke: canonical pipeline to a /tmp output only, n
 
   assert.deepEqual(await readdir(outDir), ['NORMS.md'], 'the smoke writes exactly one output file');
   assert.equal(await readFile(outputPath, 'utf8'), result.markdown, 'the written Markdown equals the returned Markdown');
-  assert.ok(result.repos[0].deep.length === 16, 'all 16 dimensions scan the real repository');
+  assert.ok(result.repos[0].deep.length === 17, 'all 17 dimensions scan the real repository');
   assert.ok(result.markdown.length > 0, 'the smoke produces non-empty Markdown');
 
   // Never target commands: every command issued through the injected broker is

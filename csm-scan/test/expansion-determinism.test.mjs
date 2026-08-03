@@ -188,7 +188,7 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
 
     // Dimension order follows the T222 registry order in the deep findings.
     const deepDimensions = first.repos[0].deep.map(({ dimension }) => dimension);
-    assert.deepEqual(deepDimensions, SHORT_DIMENSIONS, 'the 16 dimensions must render in canonical registry order');
+    assert.deepEqual(deepDimensions, SHORT_DIMENSIONS, 'all 17 dimensions must render in canonical registry order');
 
     // Claim coverage order matches the registry dimension order.
     const perDimension = first.expectedClaimCoverage.repos[0].perDimension;
@@ -253,6 +253,7 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
       maintainability: 'Maintainability',
       governance: 'Governance & Ownership',
       assurance: 'Assurance & Supply Chain',
+      practices: 'Development Practices',
     };
     let cursor = 0;
     for (const dimension of SHORT_DIMENSIONS) {

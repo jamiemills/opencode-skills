@@ -33,17 +33,21 @@
     },
     {
       "id": "free-form-na",
-      "state": "legacy_locked",
+      "state": "superseded",
       "replacementTask": "T202",
       "legacyLocks": [
         { "role": "production", "path": "lib/scan/enrich.mjs", "sha256": "1dd5b6c553f0dcde75d1d9ca164fe90820096b3a1515c5e05275e3ae4119ca4b" },
         { "role": "test", "path": "test/enrich.test.mjs", "sha256": "587ed90636cbd74e91a1f48aa925841a5027b080da2865146dbee0a8c469a2e7" }
       ],
-      "replacement": null
+      "replacement": {
+        "testFile": "test/expansion-constraints.test.mjs",
+        "testFileSha256": "f68c2164c72e426c4543565f7c9470867bf0c207c50e575d209b8802c41ffbd1",
+        "testName": "T202 replacement: free-form applicability rules yield not_applicable git claims excluded from coverage"
+      }
     },
     {
       "id": "coverage-status-representation",
-      "state": "legacy_locked",
+      "state": "superseded",
       "replacementTask": "T202",
       "legacyLocks": [
         { "role": "production", "path": "lib/scan/enrich.mjs", "sha256": "1dd5b6c553f0dcde75d1d9ca164fe90820096b3a1515c5e05275e3ae4119ca4b" },
@@ -51,7 +55,11 @@
         { "role": "test", "path": "test/enrich.test.mjs", "sha256": "587ed90636cbd74e91a1f48aa925841a5027b080da2865146dbee0a8c469a2e7" },
         { "role": "test", "path": "test/validate.test.mjs", "sha256": "c8b0eeca7df21b20a83297e98b187390d45045a406881a260b07db9ff5da7a2d" }
       ],
-      "replacement": null
+      "replacement": {
+        "testFile": "test/expansion-constraints.test.mjs",
+        "testFileSha256": "f68c2164c72e426c4543565f7c9470867bf0c207c50e575d209b8802c41ffbd1",
+        "testName": "T202 replacement: coverage status representation maps claim statuses to coverage states"
+      }
     },
     {
       "id": "deterministic-ordering-paths",
