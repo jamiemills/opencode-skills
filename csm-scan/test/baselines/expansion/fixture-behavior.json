@@ -1,0 +1,16 @@
+{
+  "canonicalizationVersion": 1,
+  "normalizations": [
+    "fixture root to <FIXTURE_ROOT>",
+    "path separators to slash",
+    "YYYY-MM-DD dates to <DATE>",
+    "host Python, Node, rustc, Deno, and Bun versions to <HOST_VERSION>"
+  ],
+  "fixtures": {
+    "python": { "semanticSha256": "fceff553df0ca762fec5cd1e386357937784b1aaac02b1b4870dc78b2be18439", "markdownSha256": "9c0b2ca0c6304c42b44ae57a2cd02bf287a9d54acfb9d913a38c16506ad38381" },
+    "javascript": { "semanticSha256": "fc9cb9e09db8a31eebaa8c9c45c1cc40d55d9c37f73bc19501219ff72fc9ba5d", "markdownSha256": "7ad01157a65bc6340b21da3bede139d19c61424fa22ea7a59640e8c8630fd5a3" },
+    "typescript": { "semanticSha256": "303870c9898d1e77a5ef5a963b0a728e662e9845019e109d5a2f92adc1aed3c2", "markdownSha256": "8db9e8fb34834152981441e4698afcc5b5e9a469c898a5efac76d8aff252bb20" },
+    "rust": { "semanticSha256": "fc67a2c4817ee966be77c0038fcc5f0dfe16b85ad57e86f13cf11707c5ee3fe0", "markdownSha256": "7ff1e220cf92c504e808fbc381d77574c86a4b628bf1a970ddb1b750b040851c" },
+    "shell": { "semanticSha256": "e12e0f89a697ebca3c9bd420d1dad9608641269f40e3a665841249b9ab027961", "markdownSha256": "1aa1340967b3690e7a986a71d041723b811830fb9757ede55acee8301b080832" }
+  }
+}

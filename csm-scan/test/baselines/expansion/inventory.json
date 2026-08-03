@@ -1,0 +1,55 @@
+{
+  "acceptanceTestFiles": [
+    "test/expansion-baseline.test.mjs",
+    "test/expansion-constraints.test.mjs",
+    "test/fixtures-pipeline.test.mjs",
+    "test/regression-parity.test.mjs",
+    "test/expansion-command-core.test.mjs",
+    "test/expansion-command-deep.test.mjs"
+  ],
+  "recurringAcceptanceTestFiles": [
+    "test/expansion-baseline.test.mjs",
+    "test/expansion-constraints.test.mjs",
+    "test/fixtures-pipeline.test.mjs",
+    "test/regression-parity.test.mjs",
+    "test/expansion-command-core.test.mjs",
+    "test/expansion-command-deep.test.mjs"
+  ],
+  "fixtureModules": [
+    "javascript.mjs",
+    "python.mjs",
+    "rust.mjs",
+    "shell.mjs",
+    "typescript.mjs"
+  ],
+  "fixtureCases": [
+    "python",
+    "javascript",
+    "typescript",
+    "rust",
+    "shell"
+  ],
+  "p0TestNames": [
+    "P0-01 TS import type emits no runtime edge",
+    "P0-02 JS/TS path alias resolves",
+    "P0-03 Python multiline and PEP420 imports resolve",
+    "P0-04 Python docstring forward detection is positive",
+    "P0-05 Python relative import is classified relative",
+    "P0-06 PEP735 dependency-groups populate manifest devDependencies",
+    "P0-07 Cargo.toml alone does not imply rustfmt",
+    "P0-08 Rust nested mod resolves file-as-directory without sibling false edge",
+    "P0-09 Rust self and super resolve while external serde has no internal edge",
+    "P0-10 Rust unsafe is counted",
+    "P0-11 shellcheck is tooling and absent from shell testFrameworks",
+    "P0-12 generic editorconfig does not imply shfmt",
+    "P0-13 beautysh dead descriptor entry is absent",
+    "P0-14 shell moduleSystem is n/a sourced scripts",
+    "P0-15 Python and Rust comment metrics agree across scanners",
+    "P0-16 bun.lock selects bun and reports a lockfile",
+    "P0-17 node:test is detected",
+    "P0-18 eslint.config.ts is detected as flat config",
+    "P0-19 JavaScript spec file is counted",
+    "P0-20 Rust workspace root unions member dependencies",
+    "P0-21 language standards are detected rather than asserted"
+  ]
+}
