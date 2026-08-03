@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-practices-dimension
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 1
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — T001 baseline gate verified: `node --test --test-concurrency=1` → 1010/1010 pass (~73s), working tree clean apart from unrelated untracked `README.md` at skills root (preserved, not staged)
-- Next transition: SELECT -> T002 (contracts + registry)
-- Active tasks: T002
+- Last checkpoint: 2026-08-03 — T002 completed: contracts 19/19, registry 17 dims / 93 claims; registration file green outside the T006-owned builtin block; assurance-catalog correction recorded (T006 gains `dead_code` in the maintainability entry)
+- Next transition: SELECT -> G2 {T003,T004,T005,T006} + G3 {T007,T008,T009,T010,T016}
+- Active tasks: T003-T010, T016
 - Blockers: none
 
 ## Goal
@@ -117,6 +117,7 @@ Exclusions:
 - Canonical ordering: `DIM-practices-v1` is appended LAST (after `DIM-assurance-v1`) in `DIMENSION_SOURCES` (`registry/dimensions.mjs`) and `DIMENSION_RENDERER_ORDER` (`render/registry.mjs`); `ALL_SEVENTEEN = [...TEN_DIMENSIONS, ...SIX_NEW_DIMENSIONS, 'practices']` (`expansion-final-acceptance.test.mjs:146-155`); determinism asserts canonical heading order. The 3 craft claims slot into their EXISTING dimensions' claim lists in `DIMENSION_SOURCES`.
 - Ten-dimension output freeze: `architecture`, `conventions`, `config`, `testing`, `operations`, `git` scan() findings and renderers must stay byte-identical (fixture-behavior.json). Craft facts route: practices (expanded-only scanner), maintainability (expanded-only scanner), architecture (provider-derived observations merged only in the expanded pipeline, `run.mjs:869-884`).
 - Provider wiring: `RUNTIME_DIMENSION_IDS` (run.mjs:619-621) must NOT gain practices; plugin observations auto-wire once `DIM-practices-v1` joins `ANALYSIS_DIMENSION_IDS`; only the `analysisProviderResults` call site (run.mjs:848) needs the practices model passed. Category admission is automatic (`base.mjs:138`); no catalog allowlist edits exist.
+- CORRECTION (cycle 2, verified in source): `assurance-catalog.mjs:142-148` is a FULL hardcoded category list for maintainability (not a subset) — it must gain `dead_code` so the builtin mirror (by-reference `PROVIDER_CATEGORIES`) stays deepEqual; owned by T006. The subset claim applies only to the generic fallback entry (`:169`).
 - csm-build appends new discoveries each cycle and applies them to all remaining tasks.
 
 ## Design
@@ -200,7 +201,7 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Recovery note: If any test fails, the tree is dirty or the node version mismatches the previous baseline; stop and report rather than proceed.
    - DONE (cycle 1, 2026-08-03): `node --test --test-concurrency=1` → 1010 pass / 0 fail / ~72.6s; tree clean (only unrelated untracked README.md at skills root).
 
-2. [pending] Contracts and registry: 17th dimension + 3 craft claims
+2. [completed] Contracts and registry: 17th dimension + 3 craft claims
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G1
@@ -214,6 +215,7 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Acceptance evidence: targeted-run pass output + registry length/claim-count output recorded.
    - Repair attempts: 0
    - Recovery note: If registry validation fails, the dimension.mjs/evidence.mjs/registry edits must land together (they are one atomic change); detect partial application by the failed `validateDimensions` call and re-apply the missing piece.
+   - DONE (cycle 2, 2026-08-03): contracts test 19/19 pass; `DIMENSION_REGISTRY.length 17`, `EXPECTED_CLAIM_IDS.length 93`; registration test 13/13 pass outside the builtin block, 2 expected failures at :446 (coverage comparison vs PROVIDER_DIMENSION_IDS) and :466 (assurance mirror — maintainability entry needs `dead_code`, now owned by T006); stale 16-dimension header comments updated; CATEGORY_TOPIC_COVERAGE gained 10 rows.
 
 3. [pending] Practices scanner and model (7 claims incl. style-guide)
    - Task ID: T003
@@ -265,10 +267,10 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Depends on: T002
    - Parallel group: G2
    - Risk: low
-   - Owned scope: `lib/scan/providers/builtin/index.mjs`, the builtin-index block of `test/expansion-dimension-registration.test.mjs` (lines 436-495)
+   - Owned scope: `lib/scan/providers/builtin/index.mjs`, `lib/scan/providers/assurance-catalog.mjs` (maintainability entry only), the builtin-index block of `test/expansion-dimension-registration.test.mjs` (lines 436-495)
    - Not in scope: the registry/renderer/CATEGORY_TOPIC_COVERAGE blocks of the registration test (T002); analysis-catalog.mjs (T004); NO category-list edits — analysis provider categories are set by reference (`builtin/index.mjs:89-97`) and auto-adapt from `PROVIDER_CATEGORIES`
    - Spike candidate: none
-   - Actions: (a) production: add the practices mirror to `BUILTIN_DEFINITIONS` (categories by reference, auto-adapting) and bump `BUILTIN_DIMENSION_COUNT` 14→15; (b) tests: update the builtin block — `BUILTIN_DIMENSION_COUNT` 15, test title "all 14 provider dimensions" → 15, and the analysis mirror block (470-474) gains `[ANALYSIS_PROVIDER_IDS.practices, ANALYSIS_DIMENSION_IDS[3]]`; the coverage comparison (438-439) and full-list equality (481) auto-adapt once production and `PROVIDER_DIMENSION_IDS` both hold 15.
+   - Actions: (a) production: add the practices mirror to `BUILTIN_DEFINITIONS` (categories by reference, auto-adapting) and bump `BUILTIN_DIMENSION_COUNT` 14→15; (b) production: `assurance-catalog.mjs` maintainability entry (:142-148) gains `dead_code` in its category list — the entry is a FULL hardcoded list and must stay deepEqual with the by-reference builtin mirror (verified in cycle 2: the mirror test at registration :466 fails without it); (c) tests: update the builtin block — `BUILTIN_DIMENSION_COUNT` 15, test title "all 14 provider dimensions" → 15, and the analysis mirror block (470-474) gains `[ANALYSIS_PROVIDER_IDS.practices, ANALYSIS_DIMENSION_IDS[3]]`; the coverage comparison (438-439) and full-list equality (481) auto-adapt once production and `PROVIDER_DIMENSION_IDS` both hold 15.
    - Acceptance signal: `node --test --test-concurrency=1 test/expansion-dimension-registration.test.mjs` passes 100% (the whole file — T002's blocks plus this task's builtin block — green together).
    - Validation: `node -e "import('./lib/scan/providers/builtin/index.mjs').then(m => console.log(m.BUILTIN_DIMENSION_COUNT))"` prints `15`.
    - Acceptance evidence: targeted-run output + printed count.
@@ -520,6 +522,11 @@ Ordered cheapest-first:
 | 2026-08-03 | 1 | DISPATCH | T001 | Baseline run executed by primary agent (verification-only task) | VERIFY |
 | 2026-08-03 | 1 | VERIFY | T001 | `node --test --test-concurrency=1` → 1010 pass / 0 fail / 72.6s — acceptance signal satisfied | CHECKPOINT |
 | 2026-08-03 | 1 | CHECKPOINT | T001 | T001 completed with evidence; Control updated; next: SELECT -> T002 | SELECT |
+| 2026-08-03 | 2 | SELECT | T002 | Ready set: T002 (G1, high risk, atomic) | DISPATCH |
+| 2026-08-03 | 2 | DISPATCH | T002 | Subagent: contracts/evidence/dimension/registry + contracts test + registration test (non-builtin blocks) | INTEGRATE |
+| 2026-08-03 | 2 | INTEGRATE | T002 | Diff inspected: evidence categories (10 new, sorted), dimension counts 17/15 + literal, practices entry last with 7 claims, 3 craft claims appended, CATEGORY_TOPIC_COVERAGE +10 rows; no out-of-scope edits (header comment updates acceptable) | VERIFY |
+| 2026-08-03 | 2 | VERIFY | T002 | Contracts test 19/19 pass; node -e → `17 93`; registration test 13 pass / 2 fail confined to builtin block (:446 coverage-vs-PROVIDER_DIMENSION_IDS, :466 assurance mirror) — expected until T006. CORRECTION discovered: assurance-catalog maintainability entry (:142-148) is a FULL hardcoded list and must gain `dead_code`; T006 scope extended (file + action) | CHECKPOINT |
+| 2026-08-03 | 2 | CHECKPOINT | T002 | T002 completed with evidence; Discovered Requirements + T006 scope updated with the assurance-catalog correction; next: SELECT -> G2 + G3 | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>

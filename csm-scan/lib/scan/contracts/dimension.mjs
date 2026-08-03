@@ -29,8 +29,8 @@ export const PROVIDER_DIMENSION_IDS = Object.freeze(
   DIMENSION_IDS.filter((id) => id !== 'DIM-structure-v1' && id !== 'DIM-git-v1'),
 );
 
-export const TOTAL_DIMENSION_COUNT = 16;
-export const PROVIDER_DIMENSION_COUNT = 14;
+export const TOTAL_DIMENSION_COUNT = 17;
+export const PROVIDER_DIMENSION_COUNT = 15;
 export const APPLICABILITY_FIELDS = APPLICABILITY_FACT_FIELDS;
 export const APPLICABILITY_OPERATORS = Object.freeze(['equals', 'exists', 'in', 'not_equals']);
 
@@ -207,7 +207,7 @@ export function validateDimension(definition) {
 export function validateDimensions(definitions) {
   assertDataOnly(definitions, DimensionContractError);
   if (!Array.isArray(definitions) || definitions.length !== TOTAL_DIMENSION_COUNT) {
-    fail(DimensionContractError, 'INCOMPLETE_REGISTRY', 'dimension registry must contain exactly 16 entries');
+    fail(DimensionContractError, 'INCOMPLETE_REGISTRY', 'dimension registry must contain exactly 17 entries');
   }
   const result = definitions.map(validateDimension);
   if (result.some((entry, index) => entry.id !== DIMENSION_IDS[index])) {

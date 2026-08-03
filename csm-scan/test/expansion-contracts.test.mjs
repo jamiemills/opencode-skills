@@ -148,10 +148,10 @@ test('T202R1 exported schema snapshot is exact, complete, and inert', () => {
     'observed', 'inferred', 'not_detected', 'unsupported', 'unverified', 'not_applicable',
   ]);
   assert.deepEqual(COVERAGE_STATES, ['complete', 'incomplete', 'unsupported', 'excluded']);
-  assert.equal(TOTAL_DIMENSION_COUNT, 16);
-  assert.equal(PROVIDER_DIMENSION_COUNT, 14);
-  assert.equal(DIMENSION_IDS.length, 16);
-  assert.equal(PROVIDER_DIMENSION_IDS.length, 14);
+  assert.equal(TOTAL_DIMENSION_COUNT, 17);
+  assert.equal(PROVIDER_DIMENSION_COUNT, 15);
+  assert.equal(DIMENSION_IDS.length, 17);
+  assert.equal(PROVIDER_DIMENSION_IDS.length, 15);
   assert.deepEqual(DIMENSION_IDS.filter((id) => !PROVIDER_DIMENSION_IDS.includes(id)), [
     'DIM-structure-v1', 'DIM-git-v1',
   ]);
@@ -160,7 +160,7 @@ test('T202R1 exported schema snapshot is exact, complete, and inert', () => {
   ]);
   assert.equal(Object.isFrozen(CONTRACT_LIMITS), true);
   assert.equal(Object.isFrozen(EVIDENCE_LIMITS), true);
-  assert.equal(Object.keys(PROVIDER_CATEGORIES).length, 14);
+  assert.equal(Object.keys(PROVIDER_CATEGORIES).length, 15);
   for (const categories of Object.values(PROVIDER_CATEGORIES)) {
     for (const category of categories) assert.ok(EVIDENCE_CATEGORIES.includes(category), category);
   }
@@ -179,7 +179,7 @@ test('T202R1 complete registry owns exact dimensions, order, flags, claims, and 
 });
 
 test('T202R1 partial, unknown, reordered, mismatched, and duplicate registries fail closed', () => {
-  assert.throws(() => validateDimensions(registry().slice(0, 15)), /exactly 16/);
+  assert.throws(() => validateDimensions(registry().slice(0, 16)), /exactly 17/);
   const unknown = registry();
   unknown[0] = { ...unknown[0], id: 'DIM-unknown-v1' };
   assert.throws(() => validateDimensions(unknown), /not registered/);
@@ -447,13 +447,13 @@ test('T202R1 coverage requires registry, canonical claims, and registry-owned de
   ];
   const coverage = computeCoverage(claims, records, dimensions);
   assert.deepEqual(coverage, {
-    expected: 19,
-    eligible: 17,
+    expected: 20,
+    eligible: 18,
     complete: 1,
-    incomplete: 16,
+    incomplete: 17,
     unsupported: 1,
     excluded: 1,
-    ratio: 1 / 17,
+    ratio: 1 / 18,
   });
   assert.throws(() => computeCoverage(claims, records), /explicit dimension registry/);
   assert.throws(() => computeCoverage([
