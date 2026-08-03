@@ -239,7 +239,7 @@ export async function runExistingTenPipeline({
 }
 
 // ---------------------------------------------------------------------------
-// Expanded 16-dimension pipeline — the T224 production cutover.
+// Expanded 17-dimension pipeline — the T224 production cutover.
 // ---------------------------------------------------------------------------
 
 async function scanDimension(dimension, repoPath, overview, broker = null) {
@@ -929,7 +929,7 @@ function compositeRenderer(renderRegistry, globalRenderer) {
 }
 
 /**
- * Run the canonical expanded pipeline over all 16 dimensions in T222 registry
+ * Run the canonical expanded pipeline over all 17 dimensions in T222 registry
  * order for one or more repositories, followed by global cross-repository
  * synthesis and a single deterministic write.
  *
