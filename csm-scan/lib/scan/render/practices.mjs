@@ -1,18 +1,22 @@
 // Development Practices dimension — inert renderer.
 //
-// T005 owns this module. It renders the deep-frozen practices model as a
+// T004 owns this module. It renders the deep-frozen practices model as a
 // neutral Markdown section. It is deliberately INERT: it exports a factory
 // (`createPracticesRenderer`) and a render function, but it is never
 // registered in the existing-ten renderer map and nothing in the pipeline,
 // CLI, enrich, validate, or write path dispatches it. Activation happens at
-// the expanded-pipeline cutover (T011).
+// the expanded-pipeline cutover (T224).
 //
 // Voice and privacy discipline: practices are reported from committed
 // declarations and measured lexical signals only, never as verdicts on code
 // quality or team culture. Entries render as category-grouped lists of
-// repo-relative artifact paths with counts; no raw values, excerpts, or
-// evaluative vocabulary appear in the output. All user-derived strings pass
-// through the shared render context's `escapeField` privacy hook.
+// repo-relative artifact paths with counts, plus a Style Guide & Conventions
+// block carrying the bounded style facts (ruff rules, line length, dialect,
+// make targets, hook stages, gate thresholds, deny rules, plugins, declared
+// convention headings, exceptions hub). Values render backticked or in table
+// value cells so the neutral-voice gate never flags them, and all
+// user-derived strings pass through the shared render context's `escapeField`
+// privacy hook.
 //
 // ESM only. Zero npm deps. Pure DATA; no filesystem or side effects.
 
@@ -115,6 +119,132 @@ function renderCategoryGroup(group, escapeField) {
   return lines;
 }
 
+// Display cap for kind lists inside the Style Guide & Conventions block. The
+// model may hold up to 256 kinds per entry; the block shows the first few and
+// discloses the remainder numerically.
+const STYLE_KIND_DISPLAY_CAP = 64;
+
+// The value-carrying style facts rendered into the Style Guide & Conventions
+// block, in canonical order. Each fact selects entries whose matchedKey begins
+// with `<category>:<kind>:` and renders count and/or kinds. `valueOnly` facts
+// carry a kind token as the value (no count); `noun` facts pair a count with a
+// kind list; `across` joins the kinds with a neutral connective.
+const STYLE_FACTS = Object.freeze([
+  { category: 'style_guide', kind: 'ruff-rules', heading: 'Ruff rules', noun: 'code' },
+  { category: 'style_guide', kind: 'line-length', heading: 'Line length', noun: null },
+  { category: 'style_guide', kind: 'docstring-dialect', heading: 'Docstring dialect', valueOnly: true },
+  { category: 'style_guide', kind: 'quote-style', heading: 'Quote style', valueOnly: true },
+  { category: 'automation', kind: 'make-targets', heading: 'Make targets', noun: 'target' },
+  { category: 'enforcement', kind: 'hook-stages', heading: 'Hook stages', noun: 'entry', plural: 'entries', across: true },
+  { category: 'agent_workflow', kind: 'deny-rules', heading: 'Deny rules', noun: 'rule' },
+  { category: 'agent_workflow', kind: 'opencode-plugins', heading: 'Plugin inventory', noun: 'plugin' },
+  { category: 'style_guide', kind: 'declared-conventions', heading: 'Declared conventions', noun: 'heading' },
+  { category: 'style_guide', kind: 'exceptions-hub', heading: 'Exceptions hub', noun: null },
+]);
+
+const GATE_VALUE_PREFIX = 'quality_gate:gate-value:';
+
+function factEntries(model, category, kind) {
+  const prefix = `${category}:${kind}:`;
+  return (Array.isArray(model.entries) ? model.entries : [])
+    .filter((entry) => entry.category === category && entry.matchedKey.startsWith(prefix))
+    .sort((left, right) => compareAscii(left.path, right.path));
+}
+
+function hasFactValue(fact, entry) {
+  if (fact.valueOnly) return Array.isArray(entry.kinds) && entry.kinds.length > 0;
+  return Number.isSafeInteger(entry.count);
+}
+
+function gateKey(entry) {
+  const remainder = entry.matchedKey.slice(GATE_VALUE_PREFIX.length);
+  const colon = remainder.indexOf(':');
+  return colon === -1 ? remainder : remainder.slice(0, colon);
+}
+
+function gateValueEntries(model) {
+  return (Array.isArray(model.entries) ? model.entries : [])
+    .filter((entry) => entry.category === 'quality_gate' && entry.matchedKey.startsWith(GATE_VALUE_PREFIX))
+    .sort((left, right) => compareAscii(gateKey(left), gateKey(right))
+      || compareAscii(left.path, right.path));
+}
+
+function pluralize(count, noun, plural) {
+  return `${count} ${count === 1 ? noun : plural ?? `${noun}s`}`;
+}
+
+function kindTokenList(entry, escapeField) {
+  if (!Array.isArray(entry.kinds) || entry.kinds.length === 0) return '';
+  const shown = entry.kinds.slice(0, STYLE_KIND_DISPLAY_CAP);
+  const tokens = shown.map((token) => `\`${escapeField(token)}\``);
+  const remaining = entry.kinds.length - shown.length;
+  if (remaining > 0) tokens.push(`... (+${remaining} more)`);
+  return tokens.join(', ');
+}
+
+function renderFactSection(fact, entries, escapeField) {
+  const lines = [`#### ${fact.heading}`, ''];
+  for (const entry of entries) {
+    const path = `\`${escapeField(entry.path)}\``;
+    const kinds = kindTokenList(entry, escapeField);
+    if (fact.valueOnly) {
+      lines.push(`- ${path}: ${kinds}`);
+      continue;
+    }
+    if (fact.noun === null) {
+      lines.push(`- ${path}: ${entry.count}`);
+      continue;
+    }
+    const label = pluralize(entry.count, fact.noun, fact.plural);
+    if (kinds.length === 0) {
+      lines.push(`- ${path}: ${label}`);
+      continue;
+    }
+    lines.push(fact.across
+      ? `- ${path}: ${label} across ${kinds}`
+      : `- ${path}: ${label}: ${kinds}`);
+  }
+  lines.push('');
+  return lines;
+}
+
+function gateValueCell(entry, escapeField) {
+  if (Number.isSafeInteger(entry.count)) return String(entry.count);
+  if (Array.isArray(entry.kinds) && entry.kinds.length > 0) {
+    return entry.kinds.map((token) => `\`${escapeField(token, { inTable: true })}\``).join(', ');
+  }
+  return '`present`';
+}
+
+function renderGateSection(entries, escapeField) {
+  const lines = ['#### Gate thresholds', ''];
+  lines.push('| Key | Value |');
+  lines.push('|-----|-------|');
+  for (const entry of entries) {
+    const key = escapeField(gateKey(entry), { inTable: true });
+    lines.push(`| ${key} | ${gateValueCell(entry, escapeField)} |`);
+  }
+  lines.push('');
+  return lines;
+}
+
+// Render the Style Guide & Conventions block: bounded counts, kind slugs, and
+// threshold values on top of the category path inventory. The block is absent
+// when no value-carrying style fact exists.
+function renderStyleGuideBlock(model, escapeField) {
+  const sections = [];
+  for (const fact of STYLE_FACTS) {
+    const entries = factEntries(model, fact.category, fact.kind)
+      .filter((entry) => hasFactValue(fact, entry));
+    if (entries.length === 0) continue;
+    sections.push(...renderFactSection(fact, entries, escapeField));
+  }
+  const gates = gateValueEntries(model);
+  if (gates.length > 0) sections.push(...renderGateSection(gates, escapeField));
+  if (sections.length === 0) return [];
+  return ['### Style Guide & Conventions', '', ...sections];
+}
+
 function renderDiagnostics(model, context) {
   if (!Array.isArray(model.diagnostics) || model.diagnostics.length === 0) return [];
   const { escapeField } = context;
@@ -167,6 +297,7 @@ export function renderPractices(_repoName, model, context = DEFAULT_RENDER_CONTE
   for (const group of groups) {
     lines.push(...renderCategoryGroup(group, escapeField));
   }
+  lines.push(...renderStyleGuideBlock(model, escapeField));
   lines.push(...renderDiagnostics(model, context));
 
   return lines.join('\n');

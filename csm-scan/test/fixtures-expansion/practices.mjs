@@ -78,7 +78,7 @@ export const files = {
   '.github/PULL_REQUEST_TEMPLATE.md': '# PR\n## Summary\n## Checklist\n## Definition of Done\n',
   '.github/ISSUE_TEMPLATE/bug.md': '## Expected Behavior\n## Actual Behavior\n',
   // quality gate
-  'quality/gates.conf': 'MIN_COVERAGE=85\nMAX_COMPLEXITY=10\nMAX_LINES=500\n',
+  'quality/gates.conf': 'MIN_COVERAGE=85\nMAX_COMPLEXITY=10\nMAX_LINES=500\nRADON_CC_GRADE=B\n',
   'test/baselines/coverage.json': '{"coverage": 85}\n',
   'ratchet.sh': '#!/bin/sh\nratchet check\n',
   // agent workflow

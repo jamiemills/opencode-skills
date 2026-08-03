@@ -417,14 +417,15 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
     'assurance must not synthesize verdicts');
 
   // Practices (17th dimension): the section renders and reports a complete
-  // search; the python fixture carries no practice artifacts, so the dimension
-  // is a factual absence.
+  // search; the python fixture carries a CONTRIBUTING.md (declared-conventions
+  // signal since the style-guide wave), so the dimension is observed via the
+  // static style_guide:contributing entry.
   assert.ok(result.markdown.includes('## Development Practices'),
     'the Development Practices section must render');
   const practices = findingsFor(result, 'practices');
-  assert.equal(practices.searchSpace.complete, true, 'practices absence rests on a complete search');
-  assert.equal(perDimensionStatus(result, 'practices'), 'not_detected',
-    'the python fixture carries no practice artifacts');
+  assert.equal(practices.searchSpace.complete, true, 'practices presence rests on a complete search');
+  assert.equal(perDimensionStatus(result, 'practices'), 'observed',
+    'the python fixture carries CONTRIBUTING.md as a declared-conventions signal');
 
   // AC15 — coverage counts every registry claim with a status per dimension.
   const coverage = result.expectedClaimCoverage;

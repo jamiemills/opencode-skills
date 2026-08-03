@@ -133,7 +133,7 @@ const EXPECTED_STATUS = Object.freeze({
   python: {
     api: 'observed', data: 'observed', deployment: 'observed',
     maintainability: 'observed', governance: 'observed', assurance: 'observed',
-    practices: 'not_detected',
+    practices: 'observed',
   },
   javascript: {
     api: 'observed', data: 'observed', deployment: 'observed',
@@ -148,7 +148,7 @@ const EXPECTED_STATUS = Object.freeze({
   shell: {
     api: 'not_detected', data: 'not_detected', deployment: 'observed',
     maintainability: 'observed', governance: 'not_detected', assurance: 'not_detected',
-    practices: 'not_detected',
+    practices: 'observed',
   },
   rust: {
     api: 'observed', data: 'observed', deployment: 'observed',
@@ -253,6 +253,13 @@ test('T226 python fixture: API/data/deployment/governance/assurance facts, dynam
   const architecture = findingsFor(result, 'architecture');
   assert.deepEqual(architecture.importGraph.graph['src/api/app.py'], ['src/models.py', 'src/cli.py'],
     'python absolute imports resolve to real internal edges');
+
+  // CONTRIBUTING.md is a static style_guide practice artifact (T002).
+  assert.equal(newDimensionStatus(result).practices, 'observed',
+    'the python fixture carries CONTRIBUTING.md, so practices is observed');
+  const contributing = findingsFor(result, 'practices').entries
+    .find((entry) => entry.matchedKey === 'style_guide:contributing:CONTRIBUTING.md');
+  assert.ok(contributing, 'CONTRIBUTING.md must classify as a static style_guide:contributing kind');
 });
 
 test('T226 javascript fixture: route/event API, prisma ER edge, k8s deployment, dynamic import', async (t) => {
@@ -341,13 +348,21 @@ test('T226 shell fixture: built-in negative new dimensions with complete search,
   assert.equal(overview.ecosystems.primary, 'shell');
   assert.equal(result.markdown.includes('PRV-generic-artifacts-v1'), false, 'a built-in shell fixture never uses the generic fallback');
 
-  for (const dimension of ['api', 'data', 'governance', 'assurance', 'practices']) {
+  for (const dimension of ['api', 'data', 'governance', 'assurance']) {
     const findings = findingsFor(result, dimension);
     assert.equal(findings.searchSpace.complete, true, `${dimension}: complete search space is required for a factual absence`);
     assert.equal(newDimensionStatus(result)[dimension], 'not_detected', `${dimension}: no evidence after a complete search`);
   }
   assert.equal(newDimensionStatus(result).deployment, 'observed');
   assert.equal(newDimensionStatus(result).maintainability, 'observed');
+  assert.equal(newDimensionStatus(result).practices, 'observed',
+    'the Makefile makes practices observed');
+  const practices = findingsFor(result, 'practices');
+  assert.equal(practices.searchSpace.complete, true, 'practices observation rests on a complete search');
+  assert.ok(practices.entries.some((entry) => entry.matchedKey === 'automation:makefile:Makefile'),
+    'the static Makefile kind must be observed');
+  assert.ok(practices.entries.some((entry) => entry.matchedKey === 'automation:make-targets:Makefile'),
+    'make targets content must be observed');
   assert.deepEqual(findingsFor(result, 'deployment').resources.map(({ id }) => id), ['namespace@t226-sh']);
   assert.ok(findingsFor(result, 'maintainability').summary.filesMeasured >= 3);
 
@@ -402,11 +417,30 @@ test('T226 practices fixture: all seven categories, hidden artifacts, style valu
   const deps = practices.entries.find((entry) => entry.matchedKey === 'methodology:test-deps:pyproject.toml');
   assert.ok(deps && deps.kinds.includes('hypothesis'), 'the hypothesis dependency must be detected');
 
-  // Quality gates: allowlisted threshold keys only, never raw values.
-  const gates = practices.entries.find((entry) => entry.matchedKey === 'quality_gate:gate-thresholds:quality/gates.conf');
-  assert.ok(gates, 'quality/gates.conf thresholds entry must be present');
-  assert.deepEqual(gates.kinds, ['maxcomplexity', 'maxlines', 'mincoverage']);
-  assert.equal(JSON.stringify(gates).includes('85'), false, 'gate values never survive into the model');
+  // New style.fact kinds: lefthook stages and declared-conventions headings.
+  const hookStages = practices.entries.find((entry) => entry.matchedKey === 'enforcement:hook-stages:lefthook.yml');
+  assert.ok(hookStages && hookStages.kinds.includes('pre-commit'),
+    'lefthook hook stages must be extracted from the fixture');
+  const declaredConventions = practices.entries.find((entry) => entry.matchedKey === 'style_guide:declared-conventions:AGENTS.md');
+  assert.ok(declaredConventions && declaredConventions.kinds.includes('agents'),
+    'AGENTS.md headings must become declared-conventions kinds');
+
+  // Quality gates: allowlisted keys render as bounded per-key values (ints in
+  // count, grades as slug kinds); the aggregated gate-thresholds entry is
+  // replaced by the per-key gate-value structure.
+  const gateValues = practices.entries.filter((entry) => entry.matchedKey.startsWith('quality_gate:gate-value:'));
+  assert.ok(gateValues.length >= 4, 'quality/gates.conf per-key threshold entries must be present');
+  assert.equal(
+    practices.entries.some((entry) => entry.matchedKey === 'quality_gate:gate-thresholds:quality/gates.conf'),
+    false,
+    'the aggregated gate-thresholds entry is replaced by per-key entries',
+  );
+  const minCoverage = practices.entries.find((entry) => entry.matchedKey === 'quality_gate:gate-value:mincoverage:quality/gates.conf');
+  assert.ok(minCoverage, 'the MIN_COVERAGE per-key entry must be present');
+  assert.equal(minCoverage.count, 85, 'MIN_COVERAGE=85 renders as a bounded count');
+  const radonGrade = practices.entries.find((entry) => entry.matchedKey === 'quality_gate:gate-value:radonccgrade:quality/gates.conf');
+  assert.ok(radonGrade, 'the RADON_CC_GRADE per-key entry must be present');
+  assert.deepEqual(radonGrade.kinds, ['B'], 'RADON_CC_GRADE=B renders as a slug kind');
 
   // Style guide: line-length values from ruff/black/prettier/rustfmt configs.
   const styles = practices.entries.find((entry) => entry.matchedKey === 'style_guide:style-values:pyproject.toml');
@@ -525,6 +559,29 @@ test('T226 boundary: practices never re-asserts facts owned by git, config, or c
     assert.ok(!/standard|pep[ -]?8/i.test(entry.matchedKey),
       `style_guide entry ${entry.matchedKey} re-asserts a conventions standards fact`);
   }
+});
+
+test('T226 boundary: automation make-targets carry content, operations owns Makefile presence', async (t) => {
+  // The shell fixture carries a Makefile: operations records the presence
+  // boolean while practices records target content. The two vocabularies must
+  // never merge.
+  const run = await runFixture('t226-boundary-makefile', shellFiles);
+  t.after(() => cleanupRun(run));
+  const { result } = run;
+  const operations = findingsFor(result, 'operations');
+  assert.equal(operations.hasMakefile, true, 'operations owns Makefile presence');
+  assert.equal(JSON.stringify(operations).includes('make-targets'), false,
+    'operations must not re-assert make-target content');
+
+  const practices = findingsFor(result, 'practices');
+  const automation = practices.entries.filter((entry) => entry.category === 'automation');
+  assert.ok(automation.some((entry) => entry.matchedKey === 'automation:makefile:Makefile'),
+    'practices records the static Makefile kind');
+  const targets = automation.find((entry) => entry.matchedKey === 'automation:make-targets:Makefile');
+  assert.ok(targets, 'practices records make-target content');
+  assert.equal(JSON.stringify(automation).includes('hasMakefile'), false,
+    'practices must not re-assert the operations presence boolean');
+  assert.deepEqual([...targets.kinds].sort(), ['.PHONY', 'build', 'test']);
 });
 
 // ---------------------------------------------------------------------------
