@@ -18,6 +18,9 @@
 //                                      //   fail_under gate facts when declared)
 //     configFiles: string[]|null,     // detected test config (incl. markers)
 //     script:      string|null,       // package.json test script
+//     markers:     string[]|undefined,// declared pytest marker taxonomy (only
+//                                      //   when [tool.pytest.ini_options]
+//                                      //   carries a markers key)
 //   } }
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -534,6 +537,28 @@ function detectCoverage(ecosystems, depNames, repoPath, files) {
 // Bounded cap for the supplementary DIFF_COVERAGE_THRESHOLD config scan.
 const ENV_THRESHOLD_CAP = 12;
 
+// Bounded cap for the declared pytest marker taxonomy.
+const MARKER_CAP = 64;
+
+// Collect the declared `[tool.pytest.ini_options] markers` ("name: description"
+// strings) into a marker-name list. The fact is conditional-absent: repos
+// without a markers key keep byte-identical findings. Self-contained via
+// shared/parse.mjs parseToml (no practices style.mjs dependency).
+function detectPytestMarkers(repoPath) {
+  const parsed = readToml(repoPath, 'pyproject.toml');
+  if (!parsed || typeof parsed !== 'object') return null;
+  const ini = parsed['tool'] && parsed['tool'].pytest && parsed['tool'].pytest.ini_options;
+  if (!ini || !Array.isArray(ini.markers)) return null;
+  const names = [];
+  for (const entry of ini.markers) {
+    if (typeof entry !== 'string') continue;
+    const name = entry.split(':')[0].trim();
+    if (name && !names.includes(name)) names.push(name);
+    if (names.length >= MARKER_CAP) break;
+  }
+  return names.length > 0 ? names : null;
+}
+
 // First numeric `DIFF_COVERAGE_THRESHOLD` value in a config file:
 //   DIFF_COVERAGE_THRESHOLD: 80      (workflow YAML)
 //   DIFF_COVERAGE_THRESHOLD = "70"   (Makefile)
@@ -599,6 +624,17 @@ function scanDiffCoverEnv(repoPath) {
     }
   }
 
+  // quality/gates.conf declares DIFF_COVERAGE_THRESHOLD as a locked gate
+  // threshold; it is not among the build/CI files probed above, so it is added
+  // explicitly so a numeric declaration resolves instead of `unverified`.
+  if (examined < ENV_THRESHOLD_CAP) {
+    try {
+      probe(readFileSync(join(repoPath, 'quality', 'gates.conf'), 'utf-8'));
+    } catch {
+      // missing or unreadable gates.conf carries no diff-cover declaration
+    }
+  }
+
   const workflowsDir = join(repoPath, '.github', 'workflows');
   let entries;
   try {
@@ -615,6 +651,12 @@ function scanDiffCoverEnv(repoPath) {
       continue;
     }
   }
+
+  // A numeric declaration (e.g. from quality/gates.conf) supersedes a bare-use
+  // `unverified` placeholder found in build files (e.g. `--fail-under=
+  // $(DIFF_COVERAGE_THRESHOLD)`), so the gate value resolves where possible.
+  const hasNumeric = facts.some((fact) => /^diff-cover fail_under=\d+(?:\.\d+)?$/.test(fact));
+  if (hasNumeric) return facts.filter((fact) => fact !== 'diff-cover fail_under=unverified');
 
   return facts;
 }
@@ -705,6 +747,7 @@ export async function scan(repoPath, overview) {
   const configFiles = detectConfigFiles(ecosystems, files, repoPath);
   const coverage = detectCoverage(ecosystems, depNames, repoPath, files);
   const script = detectScript(repoPath);
+  const markers = detectPytestMarkers(repoPath);
 
   const fwDetected = frameworkResolved[0] !== 'unknown';
   const signal = (fwDetected && matchedSorted.length > 0)
@@ -723,6 +766,7 @@ export async function scan(repoPath, overview) {
       coverage,
       configFiles: configFiles.length > 0 ? configFiles : null,
       script,
+      ...(markers ? { markers } : {}),
     },
   };
 }

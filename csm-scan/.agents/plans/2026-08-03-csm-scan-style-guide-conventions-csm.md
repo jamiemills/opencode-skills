@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-style-guide-conventions
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 2
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — T002 completed: shared/jsonc + INI reader + model foundations (maxKinds 256, allowlist +10, EXACT_PATHS, privacy comment); 66/66 + 26/26 byte-identity
-- Next transition: SELECT -> G2 {T003,T005,T006}
-- Active tasks: T003, T005, T006
+- Last checkpoint: 2026-08-03 — G2 complete: T003 (style.mjs, policy flips green), T005 (byte-identity enrichments), T006 (aggregate line); combined 229/229; expected red: expansion-fixtures:406 (T007-owned)
+- Next transition: SELECT -> G3 {T004,T007}
+- Active tasks: T004, T007
 - Blockers: none
 
 ## Goal
@@ -197,7 +197,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Repair attempts: 0
    - Recovery note: architecture hash regressions surface in fixtures-pipeline/architecture tests — revert the scrubber lift if behavior changed; partial model edits detectable by limit/allowlist test failures.
 
-3. [pending] Style parsers module
+3. [completed] Style parsers module
+   - DONE (cycle 3, 2026-08-03): style.mjs (7 extractors + slug encoder); lefthookCommands .jobs fix; scanner wiring; policy flips landed green; 31/31; spike proven (2 stages, 53 jobs, slugs for 13 contracts); real-repo smoke 92 entries 0 diagnostics; samples: ruff count 92 + line-length 100 + google dialect; make-targets 95; hook-stages 55; gate-value mincoverage count 85, radonccgrade 'B', distancethreshold '0.3', semgrepseverity presence-only; deny-rules ['**/quality/gates.conf']; opencode-plugins 3; declared-conventions 9 headings; exceptions-hub 9.
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G2
@@ -227,7 +228,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Repair attempts: 0
    - Recovery note: voice-gate failures pinpoint the offending heading/term — backtick it or reword; privacy failures pinpoint a leaked raw value — move to count/kinds.
 
-5. [pending] Ten-dimension byte-identity enrichments
+5. [completed] Ten-dimension byte-identity enrichments
+   - DONE (cycle 3, 2026-08-03): conditional pyright strict label (render/config); markers fact + gates.conf diff-cover source (deep/testing, diff-cover now 90); conditional marker line (render/testing); importContracts fact via parseIniSections (deep/architecture, 13 contracts); Import Contracts subsection with backticked names (render/architecture-craft); 92/92 owned + 52/52 byte-identity batch + voice/privacy 11/11.
    - Task ID: T005
    - Depends on: T002 (architecture.mjs sequencing — M5)
    - Parallel group: G2
@@ -242,7 +244,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Repair attempts: 0
    - Recovery note: a fixture-hash failure means an unconditional change slipped in — identify the line, make it conditional, re-run; the stop-and-report rule forbids baseline regeneration.
 
-6. [pending] Maintainability aggregate complexity line
+6. [completed] Maintainability aggregate complexity line
+   - DONE (cycle 3, 2026-08-03): aggregate per-function line (total/median/p95/max, nearest-rank via complexityDistribution); 69/69 + voice/privacy 11/11.
    - Task ID: T006
    - Depends on: T001
    - Parallel group: G2
@@ -355,6 +358,11 @@ Ordered cheapest-first:
 | 2026-08-03 | 2 | INTEGRATE | T002 | Diff inspected: scrubber lifted (architecture -64 lines), INI reader added, maxKinds 256, allowlist +10 keys, lowercase EXACT_PATHS with distinct static kinds, privacy comment updated — all in scope | VERIFY |
 | 2026-08-03 | 2 | VERIFY | T002 | Acceptance 66/66 (practices+architecture+architecture-extension); validation 26/26 (parity+fixtures byte-identity); INI smoke on real .importlinter: 13 contracts, truncated false | CHECKPOINT |
 | 2026-08-03 | 2 | CHECKPOINT | T002 | T002 completed with evidence; next: SELECT -> G2 {T003,T005,T006} | SELECT |
+| 2026-08-03 | 3 | SELECT | T003, T005, T006 | Ready set: G2 (T003←T002, T005←T002, T006←T001 all satisfied); disjoint files | DISPATCH |
+| 2026-08-03 | 3 | DISPATCH | T003, T005, T006 | 3 parallel subagents | INTEGRATE |
+| 2026-08-03 | 3 | INTEGRATE | T003, T005, T006 | Diffs coherent; T003 policy flips landed green in its own file (expansion-fixtures:406 left red for T007 as planned); no cross-task file overlap | VERIFY |
+| 2026-08-03 | 3 | VERIFY | T003, T005, T006 | Combined batch 229/229 (practices 31, config 26, testing 20, arch-ext 32, maintainability 69, fixtures-pipeline 5, parity 21, voice 6, privacy 6 + detection); T005 byte-identity batch 52/52; diff-cover 90; 13 import contracts | CHECKPOINT |
+| 2026-08-03 | 3 | CHECKPOINT | T003, T005, T006 | G2 complete; expected red: expansion-fixtures:406 (T007-owned); next: SELECT -> G3 {T004,T007} | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>

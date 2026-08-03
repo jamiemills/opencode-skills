@@ -50,6 +50,15 @@ import {
   isGeneratedPracticePath,
   isRelevantHiddenFile,
 } from './model.mjs';
+import {
+  extractDeclaredConventions,
+  extractExceptionsHub,
+  extractGateValues,
+  extractLefthookStages,
+  extractMakeTargets,
+  extractOpencodeWorkflow,
+  extractRuffRules,
+} from './style.mjs';
 
 export const PRACTICES_SCANNER_ID = 'DET-practices-scan-v1';
 
@@ -63,11 +72,18 @@ const READ_LIMITS = Object.freeze({
 const CATEGORY_EXTRACTORS = Object.freeze([
   ['methodology', extractMethodology],
   ['enforcement', extractEnforcement],
+  ['enforcement', extractLefthookStages],
   ['automation', extractAutomation],
+  ['automation', extractMakeTargets],
   ['ritual', extractRitual],
   ['quality_gate', extractQualityGate],
+  ['quality_gate', extractGateValues],
   ['agent_workflow', extractAgentWorkflow],
+  ['agent_workflow', extractOpencodeWorkflow],
   ['style_guide', extractStyleGuide],
+  ['style_guide', extractRuffRules],
+  ['style_guide', extractDeclaredConventions],
+  ['style_guide', extractExceptionsHub],
 ]);
 
 function walkHiddenDir(repoPath, directory, target, depth, budget = { collected: 0 }) {

@@ -77,6 +77,27 @@ function renderSolid(indicators, escapeField) {
   return lines;
 }
 
+// Render the declared import-linter contracts as a table. Contract names are
+// backticked because they carry voice terms (for example "must") that the
+// neutral-voice gate would otherwise flag in a first cell.
+function renderImportContracts(contracts, escapeField) {
+  const lines = [];
+  lines.push('### Craft Assessment — Import Contracts');
+  lines.push('');
+  lines.push('| Contract | Type | Modules |');
+  lines.push('|----------|------|---------|');
+  for (const contract of contracts) {
+    const sourceCount = Array.isArray(contract.sourceModules) ? contract.sourceModules.length : 0;
+    const forbiddenCount = Array.isArray(contract.forbiddenModules) ? contract.forbiddenModules.length : 0;
+    const modules = contract.type === 'independence'
+      ? `${sourceCount} modules`
+      : `${sourceCount} source / ${forbiddenCount} forbidden`;
+    lines.push(`| \`${escapeField(contract.name)}\` | ${escapeField(contract.type)} | ${modules} |`);
+  }
+  lines.push('');
+  return lines;
+}
+
 /**
  * Render the neutral craft assessment subsection from architecture findings.
  * @param {object} findings - architecture scanner findings (importGraph,
@@ -98,6 +119,10 @@ export function renderArchitectureCraft(findings, context = DEFAULT_RENDER_CONTE
   if (coupling.length > 0) lines.push(...coupling);
   const solid = renderSolid(indicators, escapeField);
   if (solid.length > 0) lines.push(...solid);
+  if (Array.isArray(findings.importContracts) && findings.importContracts.length > 0) {
+    const contracts = renderImportContracts(findings.importContracts, escapeField);
+    if (contracts.length > 0) lines.push(...contracts);
+  }
   while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   return lines.length > 0 ? `${lines.join('\n')}\n` : '';
 }

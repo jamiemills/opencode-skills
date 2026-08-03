@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { withFixture, surveyOverview } from './harness.mjs';
 import { scan } from '../lib/scan/deep/testing.mjs';
+import { renderTesting } from '../lib/scan/render/testing.mjs';
 
 const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
 const hasPerplexity = existsSync(join(PERPLEXITY, 'pyproject.toml'));
@@ -591,6 +592,133 @@ test('T009 non-python repos are not scanned for python threshold gates', async (
       cov === null || !cov.some((entry) => entry.includes('fail_under')),
       `non-python repo must not emit python gate facts: ${JSON.stringify(cov)}`,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T005: DIFF_COVERAGE_THRESHOLD from quality/gates.conf. A numeric declaration
+// in the locked gates file resolves the diff-cover gate instead of the bare-use
+// `unverified` placeholder a Makefile produces from `$(DIFF_COVERAGE_THRESHOLD)`.
+// ---------------------------------------------------------------------------
+
+test('T005 DIFF_COVERAGE_THRESHOLD from quality/gates.conf resolves the diff-cover gate', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'Makefile': [
+      'check:',
+      '\tdiff-cover coverage.xml --fail-under=$(DIFF_COVERAGE_THRESHOLD)',
+      '',
+    ].join('\n'),
+    'quality/gates.conf': 'DIFF_COVERAGE_THRESHOLD = 90\n',
+  };
+  await withFixture('testing-t005-gates-conf', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('diff-cover fail_under=90'), `gates.conf threshold missing: ${JSON.stringify(cov)}`);
+    assert.ok(
+      !cov.some((entry) => entry.includes('unverified')),
+      `bare-use unverified placeholder must be superseded: ${JSON.stringify(cov)}`,
+    );
+  });
+});
+
+test('T005 DIFF_COVERAGE_THRESHOLD declared only in quality/gates.conf is a fact', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'quality/gates.conf': 'DIFF_COVERAGE_THRESHOLD = 90\n',
+  };
+  await withFixture('testing-t005-gates-only', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('diff-cover fail_under=90'), `gates-only threshold missing: ${JSON.stringify(cov)}`);
+  });
+});
+
+test('T005 non-numeric DIFF_COVERAGE_THRESHOLD in gates.conf degrades to unverified', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'quality/gates.conf': 'DIFF_COVERAGE_THRESHOLD = $(COV_MIN)\n',
+  };
+  await withFixture('testing-t005-gates-unverified', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(
+      cov && cov.includes('diff-cover fail_under=unverified'),
+      `non-numeric gates.conf threshold should be unverified: ${JSON.stringify(cov)}`,
+    );
+  });
+});
+
+test('T005 DIFF_COVERAGE_THRESHOLD from a Makefile still resolves without gates.conf', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'Makefile': 'DIFF_COVERAGE_THRESHOLD = 70\n',
+  };
+  await withFixture('testing-t005-make-only', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('diff-cover fail_under=70'), `Makefile threshold missing: ${JSON.stringify(cov)}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T005: declared pytest marker taxonomy. `[tool.pytest.ini_options] markers`
+// is parsed into a conditional-absent `markers` fact; the renderer shows a
+// marker-taxonomy line only when the fact is present.
+// ---------------------------------------------------------------------------
+
+const MARKER_GATE_BASE = {
+  ...COV_GATE_BASE,
+  'pyproject.toml': COV_GATE_BASE['pyproject.toml'].replace(
+    'testpaths = ["tests"]',
+    [
+      'testpaths = ["tests"]',
+      'markers = [',
+      '    "hermetic_integration: marks tests as hermetic integration tests",',
+      '    "integration: marks tests that exercise real integration paths",',
+      '    "slow: marks tests as slow-running",',
+      ']',
+    ].join('\n'),
+  ),
+};
+
+test('T005 pytest markers are parsed into a markers fact and render a taxonomy line', async () => {
+  await withFixture('testing-t005-markers', MARKER_GATE_BASE, async (dir) => {
+    const res = await scan(dir);
+    assert.deepEqual(res.findings.markers, ['hermetic_integration', 'integration', 'slow']);
+    const markdown = renderTesting('repo', res.findings);
+    assert.match(
+      markdown,
+      /- \*\*Marker taxonomy\*\*: 3 markers \(`hermetic_integration`, `integration`, `slow`\)/,
+      markdown,
+    );
+  });
+});
+
+test('T005 marker entries without a description still yield a name', async () => {
+  const files = {
+    ...MARKER_GATE_BASE,
+    'pyproject.toml': MARKER_GATE_BASE['pyproject.toml'].replace(
+      '"slow: marks tests as slow-running",',
+      '"slow",',
+    ),
+  };
+  await withFixture('testing-t005-marker-bare', files, async (dir) => {
+    const res = await scan(dir);
+    assert.deepEqual(res.findings.markers, ['hermetic_integration', 'integration', 'slow']);
+  });
+});
+
+test('T005 repos without a markers key keep the markers fact absent', async () => {
+  await withFixture('testing-t005-no-markers', COV_GATE_BASE, async (dir) => {
+    const res = await scan(dir);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(res.findings, 'markers'),
+      false,
+      `markers fact must be conditional-absent: ${JSON.stringify(Object.keys(res.findings))}`,
+    );
+    const markdown = renderTesting('repo', res.findings);
+    assert.doesNotMatch(markdown, /Marker taxonomy/, markdown);
   });
 });
 

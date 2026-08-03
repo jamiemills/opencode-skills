@@ -26,6 +26,16 @@ import {
   encodeMatchedKey,
   extractQualityGate,
 } from '../lib/scan/deep/practices/model.mjs';
+import {
+  extractDeclaredConventions,
+  extractExceptionsHub,
+  extractGateValues,
+  extractLefthookStages,
+  extractMakeTargets,
+  extractOpencodeWorkflow,
+  extractRuffRules,
+  slugToken,
+} from '../lib/scan/deep/practices/style.mjs';
 import { PRACTICE_TOOLS } from '../lib/scan/shared/detection.mjs';
 import {
   PRACTICES_PROVIDER_ID,
@@ -322,8 +332,8 @@ test('T002 foundations: static and content kinds coexist on the same path withou
   assert.deepEqual(content.kinds, ['build', 'test']);
 });
 
-test('T005 quality gate: only allowlisted threshold keys are retained, never values', () => {
-  const records = extractQualityGate({
+test('T003 policy: gate values render as bounded per-key counts and slugs, token keys never survive', () => {
+  const records = extractGateValues({
     path: 'quality/gates.conf',
     text: [
       'MIN_COVERAGE=85',
@@ -333,17 +343,20 @@ test('T005 quality gate: only allowlisted threshold keys are retained, never val
       'MAX_LINES = 500',
     ].join('\n'),
   });
-  assert.equal(records.length, 1);
-  assert.equal(records[0].kind, 'gate-thresholds');
-  assert.deepEqual(records[0].kinds, ['maxcomplexity', 'maxlines', 'mincoverage']);
-  assert.equal(records[0].count, 3);
-  assert.equal(JSON.stringify(records).includes('85'), false, 'raw values never survive');
-  assert.equal(JSON.stringify(records).includes('500'), false);
-  assert.equal(JSON.stringify(records).includes('sk-supersecret123'), false);
+  assert.equal(records.length, 3);
+  assert.deepEqual(records.map((record) => record.kind).sort(),
+    ['gate-value:maxcomplexity', 'gate-value:maxlines', 'gate-value:mincoverage']);
+  const minCoverage = records.find((record) => record.kind === 'gate-value:mincoverage');
+  assert.equal(minCoverage.count, 85, 'MIN_COVERAGE=85 renders as a bounded count');
+  const maxLines = records.find((record) => record.kind === 'gate-value:maxlines');
+  assert.equal(maxLines.count, 500);
+  assert.equal(JSON.stringify(records).includes('sk-supersecret123'), false,
+    'non-allowlisted token key still never survives');
+  assert.equal(JSON.stringify(records).includes('token='), false, 'raw KEY=value strings never survive');
 });
 
-test('T002 foundations: quality-gate allowlist accepts the extended gate keys', () => {
-  const records = extractQualityGate({
+test('T003 policy: extended gate vocabulary renders count 85, slug B, and key-presence', () => {
+  const records = extractGateValues({
     path: 'quality/gates.conf',
     text: [
       'MIN_COVERAGE=85',
@@ -359,17 +372,25 @@ test('T002 foundations: quality-gate allowlist accepts the extended gate keys', 
       'token=sk-supersecret123',
     ].join('\n'),
   });
-  assert.equal(records.length, 1);
-  assert.equal(records[0].kind, 'gate-thresholds');
-  assert.deepEqual(records[0].kinds, [
-    'diffcoveragethreshold', 'distancethreshold', 'failunder', 'filesizecap',
-    'maxflagged', 'minconfidence', 'mincoverage', 'radonccgrade', 'radonmigrade',
-    'semgrepseverity',
-  ]);
-  assert.equal(records[0].count, 10);
+  const byKind = new Map(records.map((record) => [record.kind, record]));
+  assert.equal(byKind.get('gate-value:mincoverage').count, 85);
+  assert.deepEqual(byKind.get('gate-value:distancethreshold').kinds, ['0.3'],
+    'floats render as slug kinds');
+  assert.deepEqual(byKind.get('gate-value:radonccgrade').kinds, ['B'],
+    'grades render as slug kinds');
+  assert.deepEqual(byKind.get('gate-value:radonmigrade').kinds, ['B']);
+  assert.equal(byKind.get('gate-value:filesizecap').count, 1000);
+  assert.equal(byKind.get('gate-value:diffcoveragethreshold').count, 90);
+  assert.ok(byKind.has('gate-value:semgrepseverity'));
+  assert.equal(byKind.get('gate-value:semgrepseverity').count, undefined,
+    'SEMGREP_SEVERITY records key presence only');
   assert.equal(JSON.stringify(records).includes('sk-supersecret123'), false,
     'non-allowlisted token key still never survives');
   assert.equal(JSON.stringify(records).includes('KEY='), false, 'raw KEY=value strings never survive');
+});
+
+test('T003 style: gate value extractor ignores non-gate files', () => {
+  assert.deepEqual(extractGateValues({ path: 'setup.cfg', text: 'MIN_COVERAGE=85\n' }), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -442,10 +463,11 @@ test('T005 scanner: positive fixture spans all seven categories', async () => {
     assert.ok(paths.includes('AGENTS.md'));
     assert.ok(paths.includes('opencode.jsonc'));
 
-    const gates = findings.entries.find((item) => item.matchedKey === 'quality_gate:gate-thresholds:quality/gates.conf');
-    assert.ok(gates, 'quality gates.conf thresholds entry present');
-    assert.ok(gates.kinds.includes('mincoverage'), 'MIN_COVERAGE retained as an allowlisted kind');
-    assert.equal(JSON.stringify(findings).includes('85'), false, 'gate value never retained');
+    const minCoverage = findings.entries.find((item) => item.matchedKey === 'quality_gate:gate-value:mincoverage:quality/gates.conf');
+    assert.ok(minCoverage, 'quality gates.conf per-key entry present');
+    assert.equal(minCoverage.count, 85, 'MIN_COVERAGE=85 renders as a bounded count');
+    assert.equal(findings.entries.some((item) => item.matchedKey === 'quality_gate:gate-thresholds:quality/gates.conf'),
+      false, 'the aggregated gate-thresholds entry is replaced by per-key entries');
 
     const mutmutConfig = findings.entries.find((item) => item.matchedKey === 'methodology:mutation-config:pyproject.toml');
     assert.ok(mutmutConfig, '[tool.mutmut] section detected');
@@ -552,5 +574,229 @@ test('T003 negative: generated and vendored content under hidden dirs is never c
     assert.ok(!paths.some((path) => path.includes('/coverage/')), 'coverage artifacts are never collected');
     assert.ok(paths.includes('.opencode/eslint.config.mjs'), 'real agent configs are still collected');
     assert.ok(paths.some((path) => path === 'quality/gates.conf'), 'quality gate file still collected');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// style.mjs — T003 style & convention extractors
+// ---------------------------------------------------------------------------
+
+const RUFF_PYPROJECT = [
+  '[tool.ruff]',
+  'target-version = "py312"',
+  'line-length = 100',
+  '',
+  '[tool.ruff.lint]',
+  'select = ["E", "W", "F", "S101", "UP035"]',
+  'ignore = ["E501", "D105"]',
+  '',
+  '[tool.ruff.lint.pydocstyle]',
+  'convention = "google"',
+  '',
+  '[tool.ruff.lint.per-file-ignores]',
+  '"tests/**/*.py" = ["D", "S101"]',
+].join('\n');
+
+test('T003 style: ruff extractor emits rules, line-length, and docstring dialect', () => {
+  const records = extractRuffRules({ path: 'pyproject.toml', text: RUFF_PYPROJECT });
+  const rules = records.find((record) => record.kind === 'ruff-rules');
+  assert.equal(rules.count, 8, 'unique codes across select/ignore/per-file-ignores');
+  assert.ok(rules.kinds.includes('E') && rules.kinds.includes('S') && rules.kinds.includes('UP'),
+    'rule families are slug kinds');
+  assert.ok(rules.kinds.includes('E501') && rules.kinds.includes('D105'),
+    'individual codes are slug kinds');
+  const lineLength = records.find((record) => record.kind === 'line-length');
+  assert.equal(lineLength.count, 100);
+  const dialect = records.find((record) => record.kind === 'docstring-dialect');
+  assert.deepEqual(dialect.kinds, ['google']);
+});
+
+test('T003 style: ruff extractor emits quote-style as a kind token', () => {
+  const records = extractRuffRules({
+    path: 'pyproject.toml',
+    text: '[tool.ruff]\nquote-style = "single"\n',
+  });
+  const quote = records.find((record) => record.kind === 'quote-style');
+  assert.deepEqual(quote.kinds, ['single']);
+});
+
+test('T003 style: ruff extractor handles dedicated ruff.toml root tables', () => {
+  const records = extractRuffRules({ path: 'ruff.toml', text: 'line-length = 100\n' });
+  const lineLength = records.find((record) => record.kind === 'line-length');
+  assert.equal(lineLength.count, 100);
+  assert.deepEqual(extractRuffRules({ path: 'pyproject.toml', text: '[tool.black]\nline-length = 100\n' }), [],
+    'a pyproject without a [tool.ruff] table yields no ruff facts');
+});
+
+const MAKEFILE_FIXTURE = [
+  'test:',
+  '\tmake test',
+  'lint: fmt',
+  '\tmake lint',
+  'define MESSAGE',
+  'hello',
+  'endef',
+  'format: \\',
+  '\tone',
+  'not-a-target = value',
+  'ci-lint:',
+  '\tmake ci-lint',
+].join('\n');
+
+test('T003 style: Makefile targets extract with count and slug kinds', () => {
+  const records = extractMakeTargets({ path: 'Makefile', text: MAKEFILE_FIXTURE });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, 'make-targets');
+  assert.equal(records[0].count, 4);
+  assert.deepEqual(records[0].kinds.sort(), ['ci-lint', 'format', 'lint', 'test']);
+  assert.equal(extractMakeTargets({ path: 'src/Makefile', text: 'x:\n' }).length, 1,
+    'the extractor is basename-gated; the scanner only reads root Makefiles as candidates');
+});
+
+const LEFTHOOK_REALISH = [
+  'pre-commit:',
+  '  piped: true',
+  '  jobs:',
+  '    - name: guard',
+  '      run: |',
+  '        git diff --quiet',
+  '    - name: read-only',
+  '      group:',
+  '        parallel: true',
+  '        jobs:',
+  '          - name: lint',
+  '            run: make lint',
+  '          - name: format-check',
+  '            run: make format-check',
+  '    - name: autofix',
+  '      group:',
+  '        piped: true',
+  '        jobs:',
+  '          - name: ruff-fix',
+  '            run: uv run ruff check --fix',
+  '            stage_fixed: true',
+  'pre-push:',
+  '  jobs:',
+  '    - name: coverage',
+  '      run: make test-coverage',
+].join('\n');
+
+test('T003 style: lefthook stages extract over block-scalar YAML with nested groups', () => {
+  const records = extractLefthookStages({ path: 'lefthook.yml', text: LEFTHOOK_REALISH });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, 'hook-stages');
+  assert.deepEqual(records[0].kinds.sort(), ['pre-commit', 'pre-push']);
+  assert.equal(records[0].count, 9, '2 stages + 7 nested/grouped jobs');
+  assert.deepEqual(extractLefthookStages({ path: '.github/workflows/ci.yml', text: 'jobs:\n  lint: {}\n' }), []);
+});
+
+const OPENCODE_JSONC = [
+  '{',
+  '  // Edit permission rules',
+  '  "permission": {',
+  '    "edit": {',
+  '      "*": "allow",',
+  '      "**/quality/gates.conf": "deny",',
+  '      "**/secrets/*.env": "deny"',
+  '    }',
+  '  },',
+  '  "plugin": [',
+  '    ".opencode/plugins/quality-gate.ts",',
+  '    ".opencode/plugins/pxcli-quality.ts",',
+  '  ],',
+  '}',
+].join('\n');
+
+test('T003 style: opencode deny rules and plugin inventory extract as kinds', () => {
+  const records = extractOpencodeWorkflow({ path: 'opencode.jsonc', text: OPENCODE_JSONC });
+  const deny = records.find((record) => record.kind === 'deny-rules');
+  assert.equal(deny.count, 2);
+  assert.deepEqual(deny.kinds.sort(), ['**/quality/gates.conf', '**/secrets/*.env']);
+  const plugins = records.find((record) => record.kind === 'opencode-plugins');
+  assert.equal(plugins.count, 2);
+  assert.ok(plugins.kinds.includes('.opencode/plugins/quality-gate.ts'));
+  assert.ok(plugins.kinds.includes('.opencode/plugins/pxcli-quality.ts'));
+  assert.deepEqual(extractOpencodeWorkflow({ path: 'opencode.jsonc', text: 'not json {' }), []);
+  assert.deepEqual(extractOpencodeWorkflow({ path: 'src/opencode.jsonc', text: OPENCODE_JSONC }), []);
+});
+
+const CONTRIBUTING_MD = [
+  '# Contributing',
+  '',
+  '## Development Setup',
+  'clone the repo',
+  '## Test Taxonomy',
+  'run the suite',
+  '## Python and Dependency Policy',
+  'pin floors',
+  '### Nested Section',
+  'details',
+].join('\n');
+
+test('T003 style: convention headings become hyphenated slug kinds', () => {
+  const records = extractDeclaredConventions({ path: 'CONTRIBUTING.md', text: CONTRIBUTING_MD });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, 'declared-conventions');
+  assert.equal(records[0].count, 5);
+  assert.deepEqual(records[0].kinds.sort(), [
+    'contributing', 'development-setup', 'nested-section',
+    'python-and-dependency-policy', 'test-taxonomy',
+  ]);
+  assert.deepEqual(extractDeclaredConventions({ path: 'README.md', text: CONTRIBUTING_MD }), []);
+});
+
+const EXIT_CODES_FIXTURE = [
+  'SUCCESS = 0',
+  'GENERAL_FAILURE = 1',
+  '_PRIVATE = 9',
+  '',
+  'class ApiError(Exception):',
+  '    pass',
+  '',
+  'class RateLimitError(ApiError):',
+  '    pass',
+].join('\n');
+
+test('T003 style: exceptions hub counts classes and bare uppercase constants', () => {
+  const records = extractExceptionsHub({ path: 'src/exit_codes.py', text: EXIT_CODES_FIXTURE });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, 'exceptions-hub');
+  assert.equal(records[0].count, 4, '2 exception classes + 2 bare constants');
+  assert.deepEqual(extractExceptionsHub({ path: 'src/util.py', text: 'SUCCESS = 0\n' }), []);
+});
+
+test('T003 style: multi-word names become bounded slugs, never space tokens', () => {
+  assert.equal(slugToken('adapter must not import non-allowed layers'),
+    'adapter-must-not-import-non-allowed-layers');
+  assert.equal(slugToken('CLI Failure Policy'), 'cli-failure-policy');
+  assert.equal(slugToken('**/quality/gates.conf'), '**/quality/gates.conf');
+  assert.equal(slugToken('0.3'), '0.3');
+  assert.equal(slugToken('B'), 'B');
+  assert.equal(slugToken(''), null);
+  assert.equal(slugToken('--- ---'), null);
+  assert.equal(slugToken('\u20ac'), null);
+});
+
+test('T003 style: style extractors feed the scanner without space-token throws', async () => {
+  const files = {
+    'CONTRIBUTING.md': '# Contributing\n## Code Quality\n',
+    'Makefile': 'test:\n\tmake\nlint:\n\tmake lint\n',
+    'src/exit_codes.py': 'SUCCESS = 0\nclass ApiError(Exception):\n    pass\n',
+    'src/app.js': 'x = 1\n',
+  };
+  await withFixture('t003-style-signals', files, async (dir) => {
+    const { findings } = await scan(dir, {}, inertGitBroker());
+    assert.equal(findings.diagnostics.length, 0, 'no unverified/parse-failure diagnostics');
+    const conventions = findings.entries.find((item) => (
+      item.matchedKey === 'style_guide:declared-conventions:CONTRIBUTING.md'
+    ));
+    assert.ok(conventions, 'declared-conventions entry present');
+    assert.deepEqual(conventions.kinds, ['code-quality', 'contributing']);
+    const targets = findings.entries.find((item) => item.matchedKey === 'automation:make-targets:Makefile');
+    assert.ok(targets, 'make-targets entry present alongside the static makefile kind');
+    assert.equal(targets.count, 2);
+    const hub = findings.entries.find((item) => item.matchedKey === 'style_guide:exceptions-hub:src/exit_codes.py');
+    assert.ok(hub, 'exceptions-hub entry present');
+    assert.equal(hub.count, 2);
   });
 });

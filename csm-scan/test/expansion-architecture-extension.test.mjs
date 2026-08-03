@@ -848,6 +848,149 @@ test('T017 repair: expanded architecture renderer appends a neutral craft assess
   assert.equal(renderArchitectureCraft(null), '');
 });
 
+// ---------------------------------------------------------------------------
+// T005: import-linter contracts — conditional-absent fact + craft render.
+// .importlinter is a root dotfile the enumeration never lists, so the scanner
+// probes it explicitly; the finding key is absent when the artifact is missing.
+// ---------------------------------------------------------------------------
+
+const IMPORTLINTER_FILES = {
+  '.importlinter': [
+    '[importlinter]',
+    'root_package = demo',
+    '',
+    '[importlinter:contract:1]',
+    'name = adapter must not import non-allowed layers',
+    'type = forbidden',
+    'source_modules =',
+    '    demo.api',
+    '    demo.auth',
+    'forbidden_modules =',
+    '    demo.cli',
+    '    demo.runners',
+    '',
+    '[importlinter:contract:2]',
+    'name = Independence (cycles): formatting',
+    'type = independence',
+    'modules =',
+    '    demo.formatting.json',
+    '    demo.formatting.markdown',
+    '',
+  ].join('\n'),
+};
+
+test('T005 .importlinter contracts are parsed into an importContracts fact', async () => {
+  const files = {
+    'package.json': JSON.stringify({ name: 'contracts', type: 'module' }),
+    'src/app.ts': 'import { v } from "./v";\nexport const app = v;\n',
+    'src/v.ts': 'export const v = 1;\n',
+    ...IMPORTLINTER_FILES,
+  };
+  const overview = overviewFor(['typescript'], Object.keys(files));
+  await withFixture('arch-importlinter-fact', files, async (dir) => {
+    const result = await scan(dir, overview);
+    assert.deepEqual(result.findings.importContracts, [
+      {
+        name: 'adapter must not import non-allowed layers',
+        type: 'forbidden',
+        sourceModules: ['demo.api', 'demo.auth'],
+        forbiddenModules: ['demo.cli', 'demo.runners'],
+        truncated: false,
+      },
+      {
+        name: 'Independence (cycles): formatting',
+        type: 'independence',
+        sourceModules: ['demo.formatting.json', 'demo.formatting.markdown'],
+        forbiddenModules: [],
+        truncated: false,
+      },
+    ]);
+  });
+});
+
+test('T005 importContracts is conditional-absent when .importlinter is missing', async () => {
+  const files = {
+    'package.json': JSON.stringify({ name: 'nocontracts', type: 'module' }),
+    'src/app.ts': 'export const app = 1;\n',
+  };
+  const overview = overviewFor(['typescript'], Object.keys(files));
+  await withFixture('arch-importlinter-absent', files, async (dir) => {
+    const result = await scan(dir, overview);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(result.findings, 'importContracts'),
+      false,
+      `importContracts must be conditional-absent: ${JSON.stringify(Object.keys(result.findings).sort())}`,
+    );
+  });
+});
+
+function maskLine(value) {
+  return value.replace(/[^\n]/g, ' ');
+}
+
+// Minimal stripNonProse mirror (backtick runs + table value cells) so the
+// backtick rule for voice-term contract names is verified without importing
+// the voice-gate test module.
+function stripCraftProse(markdown) {
+  return markdown
+    .replace(/^(?:```|~~~)[^\n]*\n[\s\S]*?^(?:```|~~~)[ \t]*$/gm, maskLine)
+    .replace(/(`+)[^\n]*?\1/g, maskLine)
+    .replace(/^[ \t]*\|([^|]*)\|(.*)\|[ \t]*$/gm, (row, firstCell, valueCells) => `|${firstCell}|${maskLine(valueCells)}|`);
+}
+
+const CRAFT_VOICE = /\b(?:should|must|ought|shall|poor|good|bad|weak|strong|better|worse|recommended|recommendation|ideally|unfortunately|concern|problem|anti-pattern|smell|suboptimal|inadequate|insufficient|contradiction|inconsistent|conflict|lacking)\b/i;
+
+test('T005 craft renderer emits an Import Contracts subsection with backticked names', () => {
+  const findings = {
+    ...syntheticCraftFindings(),
+    importContracts: [
+      {
+        name: 'adapter must not import non-allowed layers',
+        type: 'forbidden',
+        sourceModules: ['demo.api', 'demo.auth'],
+        forbiddenModules: ['demo.cli', 'demo.runners'],
+        truncated: false,
+      },
+      {
+        name: 'Independence (cycles): formatting',
+        type: 'independence',
+        sourceModules: ['demo.formatting.json'],
+        forbiddenModules: [],
+        truncated: false,
+      },
+    ],
+  };
+  const craft = renderArchitectureCraft(findings);
+  assert.match(craft, /### Craft Assessment — Import Contracts/);
+  assert.match(craft, /`adapter must not import non-allowed layers`/);
+  assert.match(craft, /2 source \/ 2 forbidden/);
+  assert.match(craft, /`Independence \(cycles\): formatting` \| independence \| 1 modules/);
+  // Backtick rule: voice-term names never appear bare in a first cell.
+  assert.doesNotMatch(craft, /^\| adapter must not import/im, craft);
+  assert.equal(CRAFT_VOICE.test(stripCraftProse(craft)), false, 'contract names must be masked by backticks');
+});
+
+test('T005 expanded architecture renderer surfaces the Import Contracts subsection when present', async () => {
+  const files = {
+    'package.json': JSON.stringify({ name: 'contracts', type: 'module' }),
+    'src/app.ts': 'export const app = 1;\n',
+    ...IMPORTLINTER_FILES,
+  };
+  const overview = overviewFor(['typescript'], Object.keys(files));
+  await withFixture('arch-importlinter-render', files, async (dir) => {
+    const result = await scan(dir, overview);
+    const section = renderArchitectureExpanded('repo', result.findings);
+    assert.ok(section.includes('### Craft Assessment — Import Contracts'), section);
+    assert.ok(section.includes('`adapter must not import non-allowed layers`'), section);
+  });
+});
+
+test('T005 .importlinter is not required for the craft assessment to render', () => {
+  const craft = renderArchitectureCraft(syntheticCraftFindings());
+  assert.ok(craft.includes('### Craft Assessment — Coupling'), 'coupling still renders');
+  assert.ok(!craft.includes('Import Contracts'), 'no import-contracts subsection without the fact');
+});
+
 import { renderArchitectureCraft, renderArchitectureExpanded } from '../lib/scan/render/architecture-craft.mjs';
 
 function awaitImportRenderers() {

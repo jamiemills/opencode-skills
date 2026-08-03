@@ -579,7 +579,7 @@ function isPlanPath(lower) {
   return (lower.includes('/plans/') || lower.startsWith('plans/')) && lower.endsWith('.md');
 }
 
-function isQualityGatesPath(lower) {
+export function isQualityGatesPath(lower) {
   const base = lower.slice(lower.lastIndexOf('/') + 1);
   return lower === 'quality/gates.conf'
     || lower === 'quality/gates.ini'
@@ -600,7 +600,7 @@ function isDocPath(lower) {
   return lower === 'readme.md' || lower.startsWith('docs/') || lower.startsWith('doc/');
 }
 
-function isLefthookPath(base) {
+export function isLefthookPath(base) {
   return base === 'lefthook.yml' || base === 'lefthook.yaml'
     || base === '.lefthook.yml' || base === '.lefthook.yaml';
 }
@@ -613,6 +613,14 @@ function hasRelevantExtension(lower) {
   const extensions = ['.md', '.yml', '.yaml', '.json', '.jsonc', '.mjs', '.cjs',
     '.js', '.toml', '.ini', '.cfg', '.conf', '.txt', '.feature'];
   return extensions.some((extension) => lower.endsWith(extension));
+}
+
+// Exceptions-hub modules are role-detected by basename (style.mjs counts their
+// exception classes and bare uppercase constants).
+const EXCEPTIONS_HUB_BASENAME = /^(?:exit_codes|exceptions|errors|error_handler)\.py$/;
+
+function basenameOfPath(lower) {
+  return lower.slice(lower.lastIndexOf('/') + 1);
 }
 
 /**
@@ -632,6 +640,7 @@ export function isCandidatePath(path) {
   if (isDocPath(lower)) return true;
   if (lower.endsWith('.feature')) return true;
   if (lower === 'strategies.py' || lower.endsWith('/strategies.py')) return true;
+  if (EXCEPTIONS_HUB_BASENAME.test(basenameOfPath(lower))) return true;
   return lower.split('/').includes('fuzz_corpus') && hasRelevantExtension(lower);
 }
 
@@ -801,24 +810,44 @@ function lefthookCommands(text) {
   if (parsed === null || typeof parsed !== 'object') return [];
   const commands = [];
   const seen = new Set();
-  for (const value of Object.values(parsed)) {
-    if (value === null || typeof value !== 'object') continue;
-    const commandList = value.commands;
-    if (commandList === null || typeof commandList !== 'object') continue;
-    const items = Array.isArray(commandList) ? commandList : Object.values(commandList);
-    for (const command of items) {
-      let raw = null;
-      if (typeof command === 'string') raw = command;
-      else if (command !== null && typeof command === 'object' && typeof command.run === 'string') raw = command.run;
-      if (raw === null) continue;
-      const first = raw.trim().split(/\s+/)[0] ?? '';
-      const cleaned = first.replace(/[^A-Za-z0-9._-]/g, '').slice(0, PRACTICES_LIMITS.kind);
-      if (cleaned.length > 0 && !seen.has(cleaned)) {
-        seen.add(cleaned);
-        commands.push(cleaned);
-      }
+
+  const collectCommandWord = (command) => {
+    let raw = null;
+    if (typeof command === 'string') raw = command;
+    else if (command !== null && typeof command === 'object' && typeof command.run === 'string') raw = command.run;
+    if (raw === null) return;
+    const first = raw.trim().split(/\s+/)[0] ?? '';
+    const cleaned = first.replace(/[^A-Za-z0-9._-]/g, '').slice(0, PRACTICES_LIMITS.kind);
+    if (cleaned.length > 0 && !seen.has(cleaned)) {
+      seen.add(cleaned);
+      commands.push(cleaned);
     }
-  }
+  };
+
+  // lefthook declares hooks under `.jobs` (v2+, with nested `group.jobs` and
+  // `stage_fixed` jobs); the legacy `.commands` shape is honoured for older
+  // configs. Grouped jobs recurse so nested job commands are counted too.
+  const collectHook = (hook) => {
+    if (hook === null || typeof hook !== 'object') return;
+    const jobList = Array.isArray(hook.jobs) ? hook.jobs : null;
+    if (jobList !== null) {
+      for (const job of jobList) {
+        if (job === null || typeof job !== 'object') continue;
+        if (job.group !== null && typeof job.group === 'object') {
+          collectHook(job.group);
+          continue;
+        }
+        collectCommandWord(job);
+      }
+      return;
+    }
+    const commandList = hook.commands;
+    if (commandList === null || typeof commandList !== 'object') return;
+    const items = Array.isArray(commandList) ? commandList : Object.values(commandList);
+    for (const command of items) collectCommandWord(command);
+  };
+
+  for (const value of Object.values(parsed)) collectHook(value);
   return commands.slice(0, PRACTICES_LIMITS.maxKinds);
 }
 
@@ -938,38 +967,22 @@ export function extractRitual({ path, text = '' }) {
   return records;
 }
 
-const QUALITY_GATE_KEY_PATTERN = /^\s*([A-Za-z0-9_.-]+)\s*=\s*\S+/gm;
-const QUALITY_GATE_ALLOWLIST = /^(?:mincoverage|minpassrate|mintests|maxcomplexity|maxlines|maxlinelength|maxskipped|maxtodos|maxbaseline|maxflaky|coveragethreshold|complexitythreshold|failthreshold|maxflagged|distancethreshold|failunder|minconfidence|radonccgrade|radonmigrade|filesizecap|semgrepseverity|diffcoveragethreshold)$/;
-
-function parseQualityGateKeys(text) {
-  const keys = [];
-  const seen = new Set();
-  const source = String(text ?? '');
-  for (const match of source.matchAll(QUALITY_GATE_KEY_PATTERN)) {
-    const normalized = match[1].toLowerCase().replace(/[_.-]/g, '');
-    if (!QUALITY_GATE_ALLOWLIST.test(normalized)) continue;
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-    keys.push(normalized);
-    if (keys.length >= PRACTICES_LIMITS.maxKinds) break;
-  }
-  return keys.sort(compareAscii);
-}
+// Gate-value allowlist consumed by the per-key gate extractor in style.mjs.
+// An allowlisted key may retain a bounded numeric value in `count` and bounded
+// slug tokens in `kinds` (floats/grades such as `0.3` or `B`); raw `KEY=value`
+// strings never survive.
+export const QUALITY_GATE_ALLOWLIST = /^(?:mincoverage|minpassrate|mintests|maxcomplexity|maxlines|maxlinelength|maxskipped|maxtodos|maxbaseline|maxflaky|coveragethreshold|complexitythreshold|failthreshold|maxflagged|distancethreshold|failunder|minconfidence|radonccgrade|radonmigrade|filesizecap|semgrepseverity|diffcoveragethreshold)$/;
 
 /**
- * Extract quality-gate signals from one artifact's content: allowlisted
- * threshold keys from `quality/gates.conf` and `.quality-gates*` files, and
- * ratchet script presence. Raw key values are never retained.
+ * Extract quality-gate signals from one artifact's content: ratchet script
+ * presence. Per-key threshold values are extracted by style.mjs
+ * (`extractGateValues`) which owns the gates.conf value policy.
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds?, status? }]` records.
  */
 export function extractQualityGate({ path, text = '' }) {
   const records = [];
   const lower = String(path).toLowerCase();
-  if (isQualityGatesPath(lower)) {
-    const keys = parseQualityGateKeys(text);
-    if (keys.length > 0) records.push({ kind: 'gate-thresholds', count: keys.length, kinds: keys });
-  }
   if (isRatchetPath(lower)) {
     records.push({ kind: 'ratchet-script', status: 'inferred' });
   }

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 
 import { withFixture } from './harness.mjs';
 import { scan } from '../lib/scan/deep/config.mjs';
+import { renderConfig } from '../lib/scan/render/config.mjs';
 
 const REAL_REPO = '/home/jamiemills/code/projects/perplexity-cli';
 
@@ -255,6 +256,82 @@ line-length = 100
           `unexpected typeCheckingMode fact on ${tool.name}: ${JSON.stringify(tool)}`,
         );
       }
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Conditional pyright strict rendering (T005): the Type checking row shows
+// `pyright (strict)` only when the pyright entry actually carries a declared
+// mode; repos without pyright keep the row absent of any suffix.
+// ---------------------------------------------------------------------------
+
+test('config render: pyright strict mode renders as "pyright (strict)"', async () => {
+  await withFixture(
+    'config-render-pyright-strict',
+    { 'pyproject.toml': PYPROJECT, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const markdown = renderConfig('demo', res.findings);
+      assert.match(markdown, /Type checking.*`pyright \(strict\)`/, markdown);
+      assert.doesNotMatch(markdown, /pyright \(basic\)/, markdown);
+    },
+  );
+});
+
+test('config render: pyright basic mode renders as "pyright (basic)"', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+`;
+  await withFixture(
+    'config-render-pyright-basic',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const markdown = renderConfig('demo', res.findings);
+      assert.match(markdown, /Type checking.*`pyright \(basic\)`/, markdown);
+    },
+  );
+});
+
+test('config render: pyright without a declared mode renders plain "pyright"', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.pyright]
+include = ["src/"]
+`;
+  await withFixture(
+    'config-render-pyright-nomode',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const markdown = renderConfig('demo', res.findings);
+      assert.match(markdown, /Type checking.*`pyright`/, markdown);
+      assert.doesNotMatch(markdown, /pyright \([a-z]+\)/, markdown);
+    },
+  );
+});
+
+test('config render: repos without pyright render no "(strict)" suffix', async () => {
+  await withFixture(
+    'config-render-nopyright',
+    {
+      'pyproject.toml': '[project]\nname = "demo-py"\nversion = "0.1.0"\n',
+      'src/demo/__init__.py': '',
+    },
+    async (dir) => {
+      const res = await scan(dir);
+      const markdown = renderConfig('demo', res.findings);
+      assert.equal(res.findings.typeCheckers.length, 0);
+      assert.doesNotMatch(markdown, /\(strict\)/, markdown);
     },
   );
 });
