@@ -7,12 +7,12 @@
 
 ## Control
 - Plan ID: csm-grill-brief-conformance
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — verification audit complete; plan drafted, self-critiqued, verified; not started
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-03 — cycle 1: T001 + T002 applied (primary-led, sequenced); all gates green
+- Next transition: none (terminal)
 - Active tasks: none
 - Blockers: none
 
@@ -106,7 +106,7 @@ Exact additions:
 - Critical path: T001 → T002.
 
 ## Numbered Plan
-1. [pending] Make subagent dispatch mandatory at SCOUT and DEEP_DIVE
+1. [completed] Make subagent dispatch mandatory at SCOUT and DEEP_DIVE
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -120,7 +120,7 @@ Exact additions:
    - Acceptance evidence: PASS output recorded.
    - Repair attempts: 0
    - Recovery note: three localized text replacements; detect partial work by grepping for the old/new phrases and re-apply missing ones.
-2. [pending] Operationalize "relentless" in GRILL and allow non-linear phasing in the template
+2. [completed] Operationalize "relentless" in GRILL and allow non-linear phasing in the template
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -163,6 +163,18 @@ Final gate: line count still 180–280 (`wc -l`); `git status --porcelain` shows
 | 2026-08-03 | 0 | DRAFT -> CRITIQUE | — | Primary self-critique (small plan): 4 findings, all resolved (see Critique Resolution); no redesign | REMEDIATE |
 | 2026-08-03 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | — | Surgical edits to plan text only; verified template sections complete; tasks have runnable signals + regression gate; G1→G2 dependency correct | SAVED |
 | 2026-08-03 | 0 | VERIFY -> SAVED | — | Plan saved to `.agents/plans/2026-08-03-csm-grill-brief-conformance-csm.md`; committed as `plan: csm-grill brief-conformance verification` staging only the plan file | STOP |
+| 2026-08-03 | 1 | NOT_STARTED -> RECOVER | — | Explicit csm-build invocation. Working tree clean; no NORMS.md; both gap phrases confirmed present (`SKILL.md:26` escape hatch, `SKILL.md:84` agent-parked questions); both tasks pending | VALIDATE |
+| 2026-08-03 | 1 | RECOVER -> VALIDATE | — | Exact text of the 5 edit lines confirmed; regression baseline re-run → REGRESSION-BASELINE-PASS (all contract strings intact before edits). Plan not stale | SELECT |
+| 2026-08-03 | 1 | VALIDATE -> SELECT | T001 | Ready set = {T001} (T002 depends on T001 — same file, serial). Both tasks are 3 trivial text replacements each; primary-led implementation chosen per csm-build lightweight path (small low-risk batch, shared-file ownership, and this session's subagent runtime has returned empty twice) | DISPATCH |
+| 2026-08-03 | 1 | DISPATCH -> INTEGRATE -> VERIFY | T001, T002 | T001 applied (L26 + SCOUT step 1 + DEEP_DIVE step 1) → T001-PASS; T002 applied (GRILL step 5 + new Exit + Phasing note) → T002-PASS. Regression gate → REGRESSION-PASS. `wc -l` = 207 (budget 180–280) | REVIEW |
+| 2026-08-03 | 1 | VERIFY -> REVIEW | T001, T002 | Primary self-review of own edits: read all 5 changed regions — prose consistent with surroundings, no broken markdown, contract strings untouched. No findings | CHECKPOINT |
+| 2026-08-03 | 1 | REVIEW -> CHECKPOINT -> COMPLETE | T001, T002 | Completion gate passed (all 8 checks). Committing `csm-grill/SKILL.md` + plan update; nothing pushed | COMPLETE (terminal) |
 
 ## Completion Review
-<filled by csm-build when remediation tasks are verified>
+- **Goal met**: Yes. Both brief-conformance gaps closed in `csm-grill/SKILL.md`.
+- **T001 (reqs 4 & 6)**: the L26 escape hatch ("primary-led scouting and deep dives") is gone; SCOUT and DEEP_DIVE now "always dispatch at least one research subagent." A small idea can no longer skip the subagents the brief mandates for steps (2) and (4); only the number/depth of subagents scales with idea size.
+- **T002 (req 18)**: GRILL gained step 5 ("Drill into vague or hand-wavy answers…") and the Exit line now requires the *user* to explicitly defer ("never parked on the user's behalf") — "relentless" is operationalized, not decorative. The Phasing template item now notes phases "may run in sequence, branch, or overlap."
+- **Acceptance evidence**: T001-PASS, T002-PASS, REGRESSION-PASS (build contract-string signal still green — frontmatter, state line, cycle edges, section headers, `.agents/approaches/`, `mktemp`, `cwd`, `never invoke`, `mermaid`, `ascii` all intact), `wc -l` = 207 (within 180–280).
+- **Conformance**: the verification plan's evidence map now has all 17 requirements at MET (reqs 4, 6, and 18 moved from PARTIAL to MET). The 5 defensible interpretations (D1–D5) stand unchanged.
+- **Commits**: this cycle stages only `csm-grill/SKILL.md` and this plan file; nothing pushed.
+- **Limitation**: primary self-review only (authorship + review by the same agent); acceptable for low-risk docs-only edits under csm-build's lightweight path, less independent than a fresh-eyes reviewer.

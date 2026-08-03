@@ -23,7 +23,7 @@ Grill a rough idea into an agreed, phased approach through a relentless, researc
 - Ask one question at a time, in decision-tree dependency order, and give every question a recommended answer.
 - Cycle, never single-pass: return to earlier states whenever answers, research, or synthesis expose new uncertainty, and keep cycling until the user explicitly agrees.
 - Follow Write Discipline And Temp Files: the only persistent write is the single approach document.
-- Scale ceremony to idea size: a small, well-understood idea uses primary-led scouting and deep dives; a large or uncertain idea fans out to parallel research subagents. Proportionality reduces depth, never the required structure.
+- Scale ceremony to idea size by varying the number and depth of research subagents — but always dispatch at least one research subagent at SCOUT and at DEEP_DIVE, never zero. Proportionality reduces depth, never the required structure.
 
 ## Write Discipline And Temp Files
 
@@ -69,7 +69,7 @@ Exit: idea restated, fact base gathered, unknowns listed.
 
 ### 2. SCOUT
 
-1. Dispatch a research subagent to investigate the idea's context; for big ideas, dispatch parallel scouts per domain.
+1. Always dispatch at least one research subagent to investigate the idea's context; for big ideas, dispatch parallel scouts per domain.
 2. Require each scout to return: assumptions, unknowns that could invalidate the idea, ambiguities and conflicts, and a ranked list of areas needing user clarification with suggested questions.
 
 Exit: ranked clarification-area list in hand.
@@ -80,12 +80,13 @@ Exit: ranked clarification-area list in hand.
 2. Give every question a recommended answer; the user confirms, corrects, or rejects it.
 3. Wait for each answer before asking the next question. Walk every branch of the decision tree.
 4. Route to DEEP_DIVE when an answer raises researchable uncertainty.
+5. Drill into vague or hand-wavy answers — re-ask with a sharper recommended answer until the reply is concrete enough to act on.
 
-Exit: every open decision either answered by the user or parked as an explicit open question.
+Exit: every open decision either answered concretely by the user or explicitly deferred by the user (never parked on the user's behalf).
 
 ### 4. DEEP_DIVE
 
-1. Dispatch parallel research subagents into the user's clarifications to deepen understanding of the ask and the direction.
+1. Always dispatch at least one research subagent into the user's clarifications to deepen understanding of the ask and the direction; for big ideas, dispatch parallel subagents per theme.
 2. Require each subagent to return further options with trade-offs, grounded in evidence.
 3. Return to GRILL with anything the user must decide.
 
@@ -127,7 +128,7 @@ The document contains, in order:
 2. Agreed idea statement.
 3. Decisions log: every user decision with question, answer, and rationale.
 4. Research synthesis: findings, options, and choices.
-5. Phasing: both an ASCII diagram and a Mermaid diagram of the phases and their dependencies.
+5. Phasing: both an ASCII diagram and a Mermaid diagram of the phases and their dependencies. Phases may run in sequence, branch, or overlap — depict the real shape, not a forced line.
 6. Phase briefs — each with title, goal, deliverables, scope and out-of-scope, constraints, acceptance-criteria hints, dependencies on other phases, and context pointers.
 7. How-to-execute note: each phase brief goes to its own explicit csm-plan invocation.
 8. Open questions and rejected options.
