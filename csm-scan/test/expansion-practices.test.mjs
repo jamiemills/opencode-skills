@@ -246,6 +246,15 @@ test('T005 model: caps truncate deterministically and are disclosed', () => {
   assert.equal(model.entries.length, PRACTICES_LIMITS.maxEntries);
 });
 
+test('T002 foundations: maxKinds accepts up to 256 deduplicated kind tokens', () => {
+  assert.equal(PRACTICES_LIMITS.maxKinds, 256);
+  const manyKinds = Array.from({ length: 256 }, (_, index) => `kind-${String(index).padStart(3, '0')}`);
+  const model = modelOf([entry('a.md', { kinds: manyKinds })]);
+  assert.equal(model.entries[0].kinds.length, 256);
+  assert.throws(() => modelOf([entry('a.md', { kinds: [...manyKinds, 'overflow'] })]),
+    (error) => error instanceof PracticesModelError && error.code === 'BOUND_EXCEEDED');
+});
+
 test('T005 model: encodeMatchedKey percent-encodes every non-token character', () => {
   assert.equal(encodeMatchedKey('methodology:property-based'), 'methodology:property-based');
   assert.equal(encodeMatchedKey('quality_gate:gate:quality/gates.conf'), 'quality_gate:gate:quality/gates.conf');
@@ -279,6 +288,40 @@ test('T005 classify: static practice paths across all seven categories', () => {
   assert.equal(classifyPracticePath('README.md'), null);
 });
 
+test('T002 foundations: static makefile and contributing paths classify with distinct kinds', () => {
+  assert.deepEqual(classifyPracticePath('Makefile'), { category: 'automation', kind: 'makefile' });
+  assert.deepEqual(classifyPracticePath('makefile'), { category: 'automation', kind: 'makefile' });
+  assert.deepEqual(classifyPracticePath('GNUmakefile'), { category: 'automation', kind: 'makefile' });
+  assert.deepEqual(classifyPracticePath('contributing.md'), { category: 'style_guide', kind: 'contributing' });
+  assert.deepEqual(classifyPracticePath('CONTRIBUTING.md'), { category: 'style_guide', kind: 'contributing' });
+  assert.deepEqual(classifyPracticePath('.github/contributing.md'), { category: 'style_guide', kind: 'contributing' });
+  assert.equal(classifyPracticePath('src/contributing.md'), null);
+});
+
+test('T002 foundations: static and content kinds coexist on the same path without dedup loss', () => {
+  const model = modelOf([
+    {
+      category: 'automation',
+      matchedKey: 'automation:makefile:Makefile',
+      path: 'Makefile',
+      status: 'observed',
+    },
+    {
+      category: 'automation',
+      matchedKey: 'automation:make-targets:Makefile',
+      path: 'Makefile',
+      status: 'observed',
+      count: 3,
+      kinds: ['build', 'test'],
+    },
+  ]);
+  assert.equal(model.entries.length, 2, 'static and content kinds must both survive first-wins dedup');
+  assert.deepEqual(model.entries.map((item) => item.matchedKey).sort(),
+    ['automation:make-targets:Makefile', 'automation:makefile:Makefile']);
+  const content = model.entries.find((item) => item.matchedKey === 'automation:make-targets:Makefile');
+  assert.deepEqual(content.kinds, ['build', 'test']);
+});
+
 test('T005 quality gate: only allowlisted threshold keys are retained, never values', () => {
   const records = extractQualityGate({
     path: 'quality/gates.conf',
@@ -297,6 +340,36 @@ test('T005 quality gate: only allowlisted threshold keys are retained, never val
   assert.equal(JSON.stringify(records).includes('85'), false, 'raw values never survive');
   assert.equal(JSON.stringify(records).includes('500'), false);
   assert.equal(JSON.stringify(records).includes('sk-supersecret123'), false);
+});
+
+test('T002 foundations: quality-gate allowlist accepts the extended gate keys', () => {
+  const records = extractQualityGate({
+    path: 'quality/gates.conf',
+    text: [
+      'MIN_COVERAGE=85',
+      'MAX_FLAGGED=30',
+      'DISTANCE_THRESHOLD=0.3',
+      'FAIL_UNDER=85',
+      'MIN_CONFIDENCE=80',
+      'RADON_CC_GRADE=B',
+      'RADON_MI_GRADE=B',
+      'FILE_SIZE_CAP=1000',
+      'SEMGREP_SEVERITY=--severity ERROR',
+      'DIFF_COVERAGE_THRESHOLD=90',
+      'token=sk-supersecret123',
+    ].join('\n'),
+  });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, 'gate-thresholds');
+  assert.deepEqual(records[0].kinds, [
+    'diffcoveragethreshold', 'distancethreshold', 'failunder', 'filesizecap',
+    'maxflagged', 'minconfidence', 'mincoverage', 'radonccgrade', 'radonmigrade',
+    'semgrepseverity',
+  ]);
+  assert.equal(records[0].count, 10);
+  assert.equal(JSON.stringify(records).includes('sk-supersecret123'), false,
+    'non-allowlisted token key still never survives');
+  assert.equal(JSON.stringify(records).includes('KEY='), false, 'raw KEY=value strings never survive');
 });
 
 // ---------------------------------------------------------------------------

@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-style-guide-conventions
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 1
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — T001 baseline gate verified: full suite 1100/1100 pass (~79s), tree clean
-- Next transition: SELECT -> T002 (style-engine foundations)
-- Active tasks: T002
+- Last checkpoint: 2026-08-03 — T002 completed: shared/jsonc + INI reader + model foundations (maxKinds 256, allowlist +10, EXACT_PATHS, privacy comment); 66/66 + 26/26 byte-identity
+- Next transition: SELECT -> G2 {T003,T005,T006}
+- Active tasks: T003, T005, T006
 - Blockers: none
 
 ## Goal
@@ -181,7 +181,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Recovery note: any failure or dirty tree stops the run — report rather than proceed.
    - DONE (cycle 1, 2026-08-03): `node --test --test-concurrency=1` → 1100 pass / 0 fail / ~78.6s; tree clean.
 
-2. [pending] Style-engine foundations
+2. [completed] Style-engine foundations
+   - DONE (cycle 2, 2026-08-03): shared/jsonc.mjs (lifted scrubber, architecture -64 lines), parseIniSections in shared/declarations.mjs (proven on real .importlinter: 13 contracts), maxKinds 256, allowlist +10 keys (maxflagged/distancethreshold/failunder/minconfidence/radonccgrade/radonmigrade/filesizecap/semgrepseverity/diffcoveragethreshold), lowercase EXACT_PATHS (makefile/gnumakefile → automation:makefile; contributing.md → style_guide:contributing), privacy-contract comment updated to values rule; acceptance 66/66, byte-identity 26/26.
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G1
@@ -349,6 +350,11 @@ Ordered cheapest-first:
 | 2026-08-03 | 1 | DISPATCH | T001 | Baseline run by primary agent (verification-only task) | VERIFY |
 | 2026-08-03 | 1 | VERIFY | T001 | `node --test --test-concurrency=1` → 1100 pass / 0 fail / 78.6s — acceptance satisfied | CHECKPOINT |
 | 2026-08-03 | 1 | CHECKPOINT | T001 | T001 completed; Control updated; next: SELECT -> T002 | SELECT |
+| 2026-08-03 | 2 | SELECT | T002 | Ready set: T002 (G1) | DISPATCH |
+| 2026-08-03 | 2 | DISPATCH | T002 | Subagent: shared/jsonc.mjs lift + architecture refactor + INI reader + model foundations | INTEGRATE |
+| 2026-08-03 | 2 | INTEGRATE | T002 | Diff inspected: scrubber lifted (architecture -64 lines), INI reader added, maxKinds 256, allowlist +10 keys, lowercase EXACT_PATHS with distinct static kinds, privacy comment updated — all in scope | VERIFY |
+| 2026-08-03 | 2 | VERIFY | T002 | Acceptance 66/66 (practices+architecture+architecture-extension); validation 26/26 (parity+fixtures byte-identity); INI smoke on real .importlinter: 13 contracts, truncated false | CHECKPOINT |
+| 2026-08-03 | 2 | CHECKPOINT | T002 | T002 completed with evidence; next: SELECT -> G2 {T003,T005,T006} | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
