@@ -32,7 +32,7 @@ flowchart LR
     browse["csm-browse<br/>web automation via CDP"] --> upload["csm-upload<br/>evidence → GitHub Pages demo site"]
 ```
 
-The core loop: **scan** a repository for its conventions, **plan** the work as a numbered, resumable state machine, optionally **mutate** the plan into strict BDD/TDD form, then **build** it with parallel subagents, checkpoints, and review cycles. Along the way, **browse** the web and **upload** the evidence.
+The core loop: **grill** an idea into an agreed phased approach, **scan** a repository for its conventions, **plan** the work as a numbered, resumable state machine, optionally **mutate** the plan into strict BDD/TDD form, then **build** it with parallel subagents, checkpoints, and review cycles. Along the way, **browse** the web and **upload** the evidence.
 
 Each stage is a separate, explicitly invoked skill — planning never silently becomes implementation, and execution always starts from a saved plan on disk.
 
