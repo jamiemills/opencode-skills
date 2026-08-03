@@ -903,7 +903,7 @@ test('T228 AC16: an empty repository with a complete search is a factual absence
 
 test('T228 AC16: a capped search is unverified, never not_detected', async (t) => {
   const capped = { 'package.json': JSON.stringify({ name: 't228-capped', type: 'module' }) };
-  for (let index = 0; index < 110; index++) capped[`src/mod${index}.js`] = `export const v${index} = ${index};\n`;
+  for (let index = 0; index < 560; index++) capped[`src/mod${index}.js`] = `export const v${index} = ${index};\n`;
   const { result } = await runFixture(t, 'capped', capped);
 
   const api = findingsFor(result, 'api');

@@ -30,7 +30,11 @@ import {
   extractDataArtifact,
   migrationKindOf,
 } from '../lib/scan/deep/data/extractor.mjs';
-import { scan } from '../lib/scan/deep/data/scanner.mjs';
+import {
+  DATA_SOURCE_FILE_LIMIT,
+  diagnosticForOutcome,
+  scan,
+} from '../lib/scan/deep/data/scanner.mjs';
 import {
   DATA_PROVIDER_ID,
   dataObservations,
@@ -1015,4 +1019,57 @@ test('T212 scanner: deterministic repeated runs are byte-identical and search sp
       'recordLimit', 'recordsInspected', 'supported',
     ]);
   });
+});
+
+test('T212 scanner: reader outcomes map to typed diagnostics with line null (crash regression)', async () => {
+  const files = {
+    'db/bad.sql': Buffer.from([0xff, 0xfe, 0xfd, 0x00]),
+    'app/models.py': [
+      'from sqlalchemy import Column, Integer',
+      'Base = declarative_base()',
+      'class User(Base):',
+      '    __tablename__ = "users"',
+      '    id = Column(Integer, primary_key=True)',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('data-outcomes', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    assert.deepEqual(findings.diagnostics.map(({ reason }) => reason), ['MALFORMED']);
+    assert.ok(findings.diagnostics.every(({ line }) => line === null));
+    assert.equal(findings.searchSpace.malformed, true);
+    assert.equal(findings.searchSpace.complete, false);
+    assert.ok(findings.entities.some(({ signature }) => signature === 'users'), 'valid peer records survive');
+  });
+});
+
+test('T212 scanner: data source sampling cap is disclosed and never overclaims completeness', async () => {
+  const files = {};
+  for (let index = 0; index < DATA_SOURCE_FILE_LIMIT; index++) {
+    files[`models/model${String(index).padStart(3, '0')}.py`] = 'x = 1\n';
+  }
+  for (let index = DATA_SOURCE_FILE_LIMIT; index < DATA_SOURCE_FILE_LIMIT + 48; index++) {
+    files[`models/model${String(index).padStart(3, '0')}.py`] = 'SKIPPED_CANARY = 1\n';
+  }
+  await withFixture('data-cap560', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    assert.equal(findings.searchSpace.complete, false, 'skipped eligible sources must never claim completeness');
+    assert.equal(findings.searchSpace.capped, true);
+    assert.equal(findings.searchSpace.omittedCount, 48);
+    const serialized = JSON.stringify(findings);
+    assert.equal(serialized.includes('SKIPPED_CANARY'), false, 'skipped file content must never be invented');
+  });
+});
+
+test('T212 scanner: diagnosticForOutcome maps every reader status to a typed reason', () => {
+  assert.deepEqual(diagnosticForOutcome({ path: 'a.sql', status: 'unreadable' }),
+    { path: 'a.sql', status: 'unverified', reason: 'UNREADABLE', line: null });
+  assert.deepEqual(diagnosticForOutcome({ path: 'b.sql', status: 'capped' }),
+    { path: 'b.sql', status: 'unverified', reason: 'CAP', line: null });
+  assert.deepEqual(diagnosticForOutcome({ path: 'c.sql', status: 'malformed' }),
+    { path: 'c.sql', status: 'unverified', reason: 'MALFORMED', line: null });
+  assert.deepEqual(diagnosticForOutcome({ path: 'd.sql', status: 'unsupported' }),
+    { path: 'd.sql', status: 'unverified', reason: 'UNSUPPORTED', line: null });
+  assert.deepEqual(diagnosticForOutcome({ path: 'e.sql', status: 'unknown-status' }),
+    { path: 'e.sql', status: 'unverified', reason: 'UNREADABLE', line: null });
 });

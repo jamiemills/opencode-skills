@@ -430,9 +430,9 @@ test('T226 not_detected requires a complete search; incomplete searches are unve
     }
   }
 
-  // >96 source files trip the API sampling cap -> incomplete search -> unverified.
+  // >512 source files trip the API sampling cap -> incomplete search -> unverified.
   const capped = { 'package.json': JSON.stringify({ name: 't226-capped', type: 'module' }) };
-  for (let index = 0; index < 110; index++) capped[`src/mod${index}.js`] = `export const v${index} = ${index};\n`;
+  for (let index = 0; index < 560; index++) capped[`src/mod${index}.js`] = `export const v${index} = ${index};\n`;
   const cappedRun = await runFixture('t226-capped', capped);
   t.after(() => cleanupRun(cappedRun));
   const api = findingsFor(cappedRun.result, 'api');

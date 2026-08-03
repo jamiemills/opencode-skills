@@ -1259,17 +1259,17 @@ test('T211 scanner: a malformed contract artifact yields MALFORMED and never era
 
 test('T211 scanner: source sampling cap is disclosed and never overclaims completeness', async () => {
   const files = {};
-  for (let index = 0; index < 109; index++) {
+  for (let index = 0; index < API_SOURCE_FILE_LIMIT + 47; index++) {
     files[`file-${String(index).padStart(3, '0')}.js`] = 'export const n = 1;\n';
   }
   files['zz-route.js'] = "app.get('/only-lowest-priority', h);\n";
-  await withFixture('api-cap110', files, async (dir) => {
+  await withFixture('api-cap560', files, async (dir) => {
     const { dimension, signal, findings } = await scan(dir, {});
     assert.equal(dimension, 'api');
     assert.equal(signal, 'low');
     assert.equal(findings.searchSpace.complete, false, 'skipped eligible sources must never claim completeness');
     assert.equal(findings.searchSpace.capped, true);
-    assert.equal(findings.searchSpace.omittedCount, 110 - API_SOURCE_FILE_LIMIT);
+    assert.equal(findings.searchSpace.omittedCount, 48);
     assert.equal(findings.operations.length, 0, 'the skipped lowest-priority route is not claimed as found');
     const serialized = JSON.stringify(findings);
     assert.equal(serialized.includes('/only-lowest-priority'), false, 'omitted content must not be invented');

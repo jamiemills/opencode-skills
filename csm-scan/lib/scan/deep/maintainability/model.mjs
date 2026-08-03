@@ -78,7 +78,7 @@ export const MAINTAINABILITY_LIMITS = deepFreeze({
   generatedBoundaries: 512,
   maxBytes: 4 * 1024 * 1024,
   maxDepth: 12,
-  maxRecords: 10_000,
+  maxRecords: 130_000,
   maxTokensPerFile: 16_000,
   maxWindows: 100_000,
   perFileDiagnostics: 32,

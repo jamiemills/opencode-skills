@@ -19,7 +19,7 @@ import { API_LIMITS, buildApiModel } from './model.mjs';
 import { classifyPath, detectContractKind, extractApiSurface } from './extractor.mjs';
 
 export const API_SCANNER_ID = 'DET-api-scan-v1';
-export const API_SOURCE_FILE_LIMIT = 96;
+export const API_SOURCE_FILE_LIMIT = 512;
 
 /**
  * Map a bounded reader outcome to a distinct diagnostic reason. Unreadable
