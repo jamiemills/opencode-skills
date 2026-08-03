@@ -5,8 +5,11 @@
 // rust, shell). It strips comments and string/heredoc/template regions, emits
 // deterministic normalized tokens (string literals become `STR`, numeric
 // literals `NUM`), and derives a disclosed lexical branch-point approximation
-// from keyword tokens. It never parses semantics and never emits literal
-// content, so it is privacy-safe by construction.
+// from keyword tokens. It also provides disclosed per-function scope tracking
+// (brace/indent nesting) and per-function cyclomatic counting for all five
+// dialects (`detectFunctionScopes`/`countFunctionComplexity`). It never parses
+// semantics and never emits literal content, so it is privacy-safe by
+// construction.
 //
 // Guarantees:
 //   - Deterministic: identical `text` + `dialect` produce identical tokens.
@@ -107,6 +110,401 @@ export const DIALECT_BRANCH_KEYWORDS = Object.freeze({
     guard: [],
   },
 });
+
+export const DIALECT_BOOLEAN_OPERATORS = Object.freeze({
+  python: Object.freeze(['and', 'or']),
+  javascript: Object.freeze(['&&', '||']),
+  typescript: Object.freeze(['&&', '||']),
+  rust: Object.freeze(['&&', '||']),
+  shell: Object.freeze(['&&', '||']),
+});
+
+// Control-structure keywords whose `(` ... `)` is a control guard rather than
+// a function parameter list, so the method heuristic never treats `if (x) {`,
+// `for (...) {`, `switch (...) {`, or `catch (...) {` as a function body.
+const CONTROL_KEYWORDS = new Set([
+  'if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'typeof',
+  'new', 'delete', 'void', 'in', 'of', 'instanceof', 'throw', 'do', 'else',
+  'case', 'default', 'await', 'yield', 'class', 'extends', 'export', 'import',
+]);
+
+const MAX_FUNCTION_NAME_LENGTH = 64;
+const ANONYMOUS_FUNCTION_LABEL = 'anonymous';
+
+// Identifier-ish pseudo-names that can never open a function body are rejected
+// by the method heuristic (a `(` is not a name; a digit cannot start a name).
+const NAME_TOKEN_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+// A bounded, disclosed function-name label: repository identifiers that exceed
+// the ASCII/width bounds are disclosed as the fixed `anonymous` sentinel so the
+// model gate can never abort on an unusual function name.
+function disclosedFunctionName(value) {
+  if (typeof value !== 'string' || value.length === 0
+      || value.length > MAX_FUNCTION_NAME_LENGTH || /[^\x20-\x7e]/.test(value)) {
+    return ANONYMOUS_FUNCTION_LABEL;
+  }
+  return value;
+}
+
+// ---------------------------------------------------------------------------
+// Per-function scope tracking and cyclomatic counting
+//
+// The existing file-level branch counts (`countBranchPoints`) stay byte
+// identical. These helpers add a disclosed per-function approximation on top:
+// a function scope is opened by `function`/arrows/methods (javascript,
+// typescript), `fn`/closures (rust), `def` blocks (python, by indentation),
+// and `name() {` / `function name {` (shell). Cyclomatic complexity for a
+// scope is the count of branch-keyword tokens plus boolean operators
+// (`&&`, `||`, `and`, `or`) inside it. Each token is assigned to the deepest
+// enclosing scope so nested functions never double-count.
+// ---------------------------------------------------------------------------
+
+function isBlankOrCommentLine(line) {
+  const stripped = line.trim();
+  return stripped.length === 0 || stripped.startsWith('#');
+}
+
+function leadingWhitespace(line) {
+  let index = 0;
+  while (index < line.length && (line[index] === ' ' || line[index] === '\t')) index++;
+  return index;
+}
+
+// Per-line indentation of code lines only (blank and comment-only lines never
+// terminate a python block, so they are omitted from the block-boundary scan).
+function pythonCodeIndents(text) {
+  const lines = String(text).split(/\r?\n/);
+  const indents = new Map();
+  for (let index = 0; index < lines.length; index++) {
+    if (isBlankOrCommentLine(lines[index])) continue;
+    indents.set(index + 1, leadingWhitespace(lines[index]));
+  }
+  return indents;
+}
+
+function previousTokenValue(tokens, index) {
+  return index > 0 ? tokens[index - 1].value : undefined;
+}
+
+// Detect function scopes from a token stream. Returns
+// `[{ functionName, startLine, endLine }]` sorted by `startLine`.
+export function detectFunctionScopes(tokens, text, dialect) {
+  const stream = Array.isArray(tokens) ? tokens : [];
+  const source = String(text ?? '');
+
+  // Python: `def` statements plus the following indented block.
+  if (dialect === 'python') {
+    const indents = pythonCodeIndents(source);
+    const definitions = new Map();
+    for (let index = 0; index < stream.length; index++) {
+      if (stream[index].value !== 'def') continue;
+      const nameToken = stream[index + 1];
+      const functionName = nameToken !== undefined && nameToken.line === stream[index].line
+        ? disclosedFunctionName(nameToken.value) : ANONYMOUS_FUNCTION_LABEL;
+      definitions.set(stream[index].line, functionName);
+    }
+    const lines = source.split(/\r?\n/);
+    const scopes = [];
+    const entries = [...definitions.entries()].sort((left, right) => left[0] - right[0]);
+    for (const [defLine, functionName] of entries) {
+      const defIndent = indents.get(defLine) ?? 0;
+      let endLine = defLine;
+      for (let line = defLine + 1; line <= lines.length; line++) {
+        if (!indents.has(line)) continue;
+        if (indents.get(line) > defIndent) endLine = line;
+        else break;
+      }
+      scopes.push({ functionName, startLine: defLine, endLine });
+    }
+    return scopes;
+  }
+
+  // Brace-based dialects (javascript, typescript, rust, shell).
+  const scopes = [];
+  const opens = [];
+  let braceDepth = 0;
+  let parenDepth = 0;
+  const parenStack = [];
+  let lastParenInfo = null;
+  let pendingFunction = false;
+  let pendingFunctionLine = 0;
+  let pendingFunctionName = undefined;
+  let pendingArrow = false;
+  let pendingArrowLine = 0;
+  let arrowDepth = 0;
+  let arrowParenDepth = 0;
+  let barOpen = false;
+  let barOpenLine = 0;
+  let pendingBarBody = false;
+  let pendingBarLine = 0;
+
+  const openScope = (functionName, headerLine, depth) => {
+    opens.push({
+      braceDepth: depth,
+      functionName,
+      startLine: headerLine,
+      endLine: headerLine,
+    });
+  };
+
+  const closeScopeAt = (tokenLine) => {
+    for (let index = opens.length - 1; index >= 0; index--) {
+      if (opens[index].braceDepth === braceDepth) {
+        scopes.push({ ...opens[index], endLine: tokenLine });
+        opens.splice(index, 1);
+        return;
+      }
+    }
+  };
+
+  // Look back from a `{` for the nearest `)` closing a parameter list, skipping
+  // return-type annotation tokens so `area(): number {` and `get value() {`
+  // are recognised as method bodies. Returns -1 when no parameter list precedes
+  // the brace.
+  const paramCloseBeforeBrace = (index) => {
+    for (let cursor = index - 1; cursor >= 0; cursor--) {
+      const value = stream[cursor].value;
+      if (value === ')') return cursor;
+      if (value === ';' || value === '{' || value === '}' || value === '\n') return -1;
+      if (value === ':' || value === '?' || value === ',' || value === '>' || value === '<'
+          || value === '[' || value === ']' || value === '&' || value === '|'
+          || value === '=>' || value === 'function') continue;
+      if (NAME_TOKEN_PATTERN.test(value) && !CONTROL_KEYWORDS.has(value)) continue;
+      return -1;
+    }
+    return -1;
+  };
+
+  for (let index = 0; index < stream.length; index++) {
+    const token = stream[index];
+    const value = token.value;
+
+    // Shell `name() {` or `function name {`.
+    if (dialect === 'shell' && value === ')') {
+      if (previousTokenValue(stream, index) === '(') {
+        let name = undefined;
+        for (let cursor = index - 1; cursor >= 0; cursor--) {
+          const candidate = stream[cursor].value;
+          if (candidate === '(' || candidate === ')' || candidate === ';') continue;
+          name = candidate;
+          break;
+        }
+        if (name !== undefined && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+          pendingFunction = true;
+          pendingFunctionLine = token.line;
+          pendingFunctionName = disclosedFunctionName(name);
+        }
+      }
+      continue;
+    }
+
+    if (value === '(') {
+      parenDepth++;
+      parenStack.push({ previous: previousTokenValue(stream, index) });
+      continue;
+    }
+    if (value === ')') {
+      parenDepth = Math.max(0, parenDepth - 1);
+      lastParenInfo = parenStack.pop() ?? { previous: undefined };
+      continue;
+    }
+    if (value === '{') {
+      braceDepth++;
+      if (dialect === 'shell' && pendingFunction) {
+        openScope(pendingFunctionName ?? ANONYMOUS_FUNCTION_LABEL, pendingFunctionLine, braceDepth);
+        pendingFunction = false;
+        pendingFunctionName = undefined;
+        continue;
+      }
+      if (dialect === 'javascript' || dialect === 'typescript') {
+        if (pendingFunction) {
+          openScope(pendingFunctionName ?? ANONYMOUS_FUNCTION_LABEL, pendingFunctionLine, braceDepth);
+          pendingFunction = false;
+          pendingFunctionName = undefined;
+          continue;
+        }
+        if (pendingArrow) {
+          // A `{` directly after `=>` is the arrow block body. A `{` after `(`
+          // is an object literal inside an expression-bodied arrow (kept); a
+          // JSX container after `>`/`=` is part of the arrow expression
+          // (kept). A `{` opening a fresh statement's control block clears the
+          // pending arrow so a semicolon-less arrow cannot leak a false scope.
+          const previous = previousTokenValue(stream, index);
+          if (previous === '=>') {
+            openScope(ANONYMOUS_FUNCTION_LABEL, pendingArrowLine, braceDepth);
+            pendingArrow = false;
+            continue;
+          }
+          if (previous === ')' || previous === 'else' || previous === 'do'
+              || previous === 'try' || previous === 'finally' || previous === ';') {
+            pendingArrow = false;
+          }
+          continue;
+        }
+        const closeIndex = paramCloseBeforeBrace(index);
+        if (closeIndex !== -1 && lastParenInfo !== null
+            && lastParenInfo.previous !== undefined
+            && NAME_TOKEN_PATTERN.test(lastParenInfo.previous)
+            && !CONTROL_KEYWORDS.has(lastParenInfo.previous)) {
+          openScope(
+            disclosedFunctionName(lastParenInfo.previous),
+            stream[closeIndex].line,
+            braceDepth,
+          );
+          continue;
+        }
+        continue;
+      }
+      if (dialect === 'rust') {
+        if (pendingFunction) {
+          openScope(pendingFunctionName ?? ANONYMOUS_FUNCTION_LABEL, pendingFunctionLine, braceDepth);
+          pendingFunction = false;
+          pendingFunctionName = undefined;
+          continue;
+        }
+        if (pendingBarBody) {
+          openScope(ANONYMOUS_FUNCTION_LABEL, pendingBarLine, braceDepth);
+          pendingBarBody = false;
+          continue;
+        }
+        continue;
+      }
+      continue;
+    }
+    if (value === '}') {
+      closeScopeAt(token.line);
+      braceDepth = Math.max(0, braceDepth - 1);
+      continue;
+    }
+
+    if (dialect === 'javascript' || dialect === 'typescript') {
+      if (value === 'function') {
+        pendingFunction = true;
+        pendingFunctionLine = token.line;
+        pendingFunctionName = undefined;
+        const nameToken = stream[index + 1];
+        if (nameToken !== undefined && nameToken.line === token.line
+            && nameToken.value !== '*' && nameToken.value !== '(') {
+          pendingFunctionName = disclosedFunctionName(nameToken.value);
+        }
+        continue;
+      }
+      if (value === '=>') {
+        pendingArrow = true;
+        pendingArrowLine = token.line;
+        arrowDepth = braceDepth;
+        arrowParenDepth = parenDepth;
+        continue;
+      }
+      if (pendingArrow && (value === ';' || value === ',')
+          && braceDepth <= arrowDepth && parenDepth <= arrowParenDepth) {
+        scopes.push({
+          functionName: ANONYMOUS_FUNCTION_LABEL,
+          startLine: pendingArrowLine,
+          endLine: token.line,
+        });
+        pendingArrow = false;
+      }
+      if (pendingFunction && value === ';') {
+        pendingFunction = false;
+        pendingFunctionName = undefined;
+      }
+      continue;
+    }
+
+    if (dialect === 'rust') {
+      if (value === 'fn') {
+        pendingFunction = true;
+        pendingFunctionLine = token.line;
+        const nameToken = stream[index + 1];
+        pendingFunctionName = nameToken !== undefined && nameToken.line === token.line
+          ? disclosedFunctionName(nameToken.value) : ANONYMOUS_FUNCTION_LABEL;
+        continue;
+      }
+      if (value === '|') {
+        if (barOpen) {
+          pendingBarBody = true;
+          pendingBarLine = barOpenLine;
+          barOpen = false;
+        } else {
+          barOpen = true;
+          barOpenLine = token.line;
+        }
+        continue;
+      }
+    }
+
+    if (dialect === 'shell' && value === 'function') {
+      pendingFunction = true;
+      pendingFunctionLine = token.line;
+      const nameToken = stream[index + 1];
+      pendingFunctionName = nameToken !== undefined && nameToken.line === token.line
+        ? disclosedFunctionName(nameToken.value) : ANONYMOUS_FUNCTION_LABEL;
+      continue;
+    }
+  }
+
+  // Flush any scopes left open by truncated or malformed input, bounded by the
+  // last emitted token so an unclosed brace cannot swallow the rest of a file.
+  const lastLine = stream.length > 0 ? stream[stream.length - 1].line : 0;
+  for (const open of opens) {
+    scopes.push({ ...open, endLine: open.endLine > lastLine ? lastLine : open.endLine });
+  }
+
+  return scopes.sort((left, right) => left.startLine - right.startLine
+    || left.endLine - right.endLine
+    || (left.functionName < right.functionName ? -1 : left.functionName > right.functionName ? 1 : 0));
+}
+
+// Index of the deepest scope (smallest line span) containing `line`, or -1.
+function deepestScopeIndex(line, scopes) {
+  let best = -1;
+  let bestSpan = Infinity;
+  for (let index = 0; index < scopes.length; index++) {
+    const scope = scopes[index];
+    if (line < scope.startLine || line > scope.endLine) continue;
+    const span = scope.endLine - scope.startLine;
+    if (span < bestSpan) {
+      best = index;
+      bestSpan = span;
+    }
+  }
+  return best;
+}
+
+/**
+ * Count per-function cyclomatic complexity for one source text.
+ *
+ * @param {string} text - source content.
+ * @param {string} dialect - one of `DIALECTS`.
+ * @param {object[]} [tokens] - optional pre-tokenized stream from `tokenize`
+ *   (used so the scanner counts the identical stream it tokenizes for branch
+ *   points); when omitted the text is tokenized internally.
+ * @returns {{ functions: object[] }} `{ functions }` where each function is
+ *   `{ functionName, startLine, endLine, complexity }` sorted by `startLine`.
+ *   Complexity is a disclosed lexical count of branch-keyword tokens plus
+ *   boolean operators inside the function scope.
+ */
+export function countFunctionComplexity(text, dialect, tokens = null) {
+  const stream = Array.isArray(tokens) ? tokens : tokenize(String(text ?? ''), dialect).tokens;
+  const scopes = detectFunctionScopes(stream, String(text ?? ''), dialect);
+  const branch = DIALECT_BRANCH_KEYWORDS[dialect] ?? {};
+  const branchWords = new Set(Object.values(branch).flat());
+  const booleanWords = new Set(DIALECT_BOOLEAN_OPERATORS[dialect] ?? []);
+  const counts = new Array(scopes.length).fill(0);
+  for (const token of stream) {
+    const scopeIndex = deepestScopeIndex(token.line, scopes);
+    if (scopeIndex === -1) continue;
+    if (branchWords.has(token.value) || booleanWords.has(token.value)) counts[scopeIndex]++;
+  }
+  const functions = scopes.map((scope, index) => ({
+    functionName: scope.functionName,
+    startLine: scope.startLine,
+    endLine: scope.endLine,
+    complexity: counts[index],
+  }));
+  return { functions };
+}
 
 const IDENT = Object.freeze({
   python: { start: /[A-Za-z_]/, cont: /[A-Za-z0-9_\u0080-\uFFFF]/ },

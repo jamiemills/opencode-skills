@@ -20,13 +20,17 @@ import {
   DIALECTS,
   DIALECT_EXTENSIONS,
   DIALECT_BRANCH_KEYWORDS,
+  DIALECT_BOOLEAN_OPERATORS,
   MAX_TOKENS_PER_FILE,
   countBranchPoints,
+  countFunctionComplexity,
+  detectFunctionScopes,
   dialectForPath,
   tokenize,
 } from '../lib/scan/deep/maintainability/tokenizer.mjs';
 import { DUPLICATE_WINDOW, findDuplicateGroups } from '../lib/scan/deep/maintainability/duplicates.mjs';
 import {
+  DEAD_CODE_KINDS,
   MAINTAINABILITY_DIMENSION_ID,
   MAINTAINABILITY_LIMITS,
   NO_EXTENSION_LABEL,
@@ -34,6 +38,9 @@ import {
   MaintainabilityModelError,
   SIZE_BUCKETS,
   buildMaintainabilityModel,
+  complexityDistribution,
+  detectDeadCodeConfigSignals,
+  detectDeadCodeSourceSignals,
   detectGeneratedBoundary,
   detectToolEvidence,
   isValidExcludedExtension,
@@ -239,6 +246,142 @@ test('T214 tokenizer: dialectForPath maps the five built-in extensions only', ()
   assert.equal(dialectForPath('Dockerfile'), null);
   assert.equal(dialectForPath('README.md'), null);
   assert.equal(dialectForPath('main.go'), null);
+});
+
+test('T214 tokenizer: per-function cyclomatic complexity is scoped per dialect', () => {
+  const cases = [
+    ['python',
+      'def outer(x):\n    if x > 0:\n        return x * 2\n    return x\n\n\ndef inner(y):\n    for i in range(y):\n        if i % 2 == 0 and y > 10:\n            print(i)\n    return y\n',
+      [['outer', 1, 4, 1], ['inner', 7, 11, 3]]],
+    ['javascript',
+      'function greet(name) {\n  if (name && name.length > 0) {\n    return "hi";\n  }\n  return "hi";\n}\nconst compute = (a, b) => {\n  if (a) { return a; }\n  if (b) { return b || 0; }\n  return 0;\n};\n',
+      [['greet', 1, 6, 2], ['anonymous', 7, 11, 3]]],
+    ['typescript',
+      'export function area(s: Shape): number {\n  if (s === null || s === undefined) {\n    return 0;\n  }\n  return s.area();\n}\nconst lambda = (x: number): number => {\n  if (x > 0) { return x; }\n  return -x;\n};\n',
+      [['area', 1, 6, 2], ['anonymous', 7, 10, 1]]],
+    ['rust',
+      'fn main() {\n    let values = vec![1, 2, 3];\n    for value in values {\n        if value > 1 && value < 3 {\n            println!("{}", value);\n        }\n    }\n}\n\nfn classify(x: i32) -> &\'static str {\n    match x {\n        0 => "zero",\n        _ => "other",\n    }\n}\n',
+      [['main', 1, 8, 3], ['classify', 10, 15, 1]]],
+    ['shell',
+      'greet() {\n  if [ -n "$1" ]; then\n    echo "hi"\n  else\n    echo "hi"\n  fi\n}\n\nfunction top() {\n  case "$1" in\n    start) echo start ;;\n    *) echo other ;;\n  esac\n}\n',
+      [['greet', 1, 7, 2], ['top', 9, 14, 1]]],
+  ];
+  for (const [dialect, source, expected] of cases) {
+    const { tokens } = tokenize(source, dialect);
+    const { functions } = countFunctionComplexity(source, dialect, tokens);
+    assert.deepEqual(
+      functions.map(({ functionName, startLine, endLine, complexity }) =>
+        [functionName, startLine, endLine, complexity]),
+      expected,
+      `${dialect}: ${source}`,
+    );
+  }
+});
+
+test('T214 tokenizer: per-function scoping has no brace/indent false positives', () => {
+  // Object literals, control blocks, regex/string braces, and class bodies
+  // never open a function scope; nested functions are assigned to the deepest
+  // scope only.
+  const jsSource = 'const config = { if: "x", a: { b: 1 } };\n'
+    + 'function f(x) {\n'
+    + '  if (x) {\n'
+    + '    return { ok: true };\n'
+    + '  }\n'
+    + '  for (const k of [1, 2]) {\n'
+    + '    if (k) { continue; }\n'
+    + '  }\n'
+    + '  return /if else { }/g.test(x);\n'
+    + '}\n';
+  const jsTokens = tokenize(jsSource, 'javascript').tokens;
+  assert.deepEqual(countFunctionComplexity(jsSource, 'javascript', jsTokens).functions,
+    [{ functionName: 'f', startLine: 2, endLine: 10, complexity: 3 }],
+    'regex/object-literal braces never count');
+
+  // Nested functions: inner `if` belongs to the inner function only.
+  const nested = 'function outer(a) {\n'
+    + '  if (a) {\n'
+    + '    function inner(b) {\n'
+    + '      if (b) { return 1; }\n'
+    + '      return 0;\n'
+    + '    }\n'
+    + '    return inner(a);\n'
+    + '  }\n'
+    + '  return 0;\n'
+    + '}\n';
+  const nestedTokens = tokenize(nested, 'javascript').tokens;
+  assert.deepEqual(countFunctionComplexity(nested, 'javascript', nestedTokens).functions,
+    [
+      { functionName: 'outer', startLine: 1, endLine: 10, complexity: 1 },
+      { functionName: 'inner', startLine: 3, endLine: 6, complexity: 1 },
+    ],
+    'the inner if counts only in inner');
+
+  // TSX containers never create scopes and inline arrows are scoped.
+  const tsx = 'export const List = ({ items }: { items: string[] }) => {\n'
+    + '  if (items.length === 0) {\n'
+    + '    return <p>empty</p>;\n'
+    + '  }\n'
+    + '  return <ul>{items.map((item) => (item.length > 3 ? "long" : "short"))}</ul>;\n'
+    + '};\n';
+  const tsxTokens = tokenize(tsx, 'typescript').tokens;
+  assert.deepEqual(countFunctionComplexity(tsx, 'typescript', tsxTokens).functions,
+    [
+      { functionName: 'anonymous', startLine: 1, endLine: 6, complexity: 1 },
+      { functionName: 'anonymous', startLine: 5, endLine: 5, complexity: 1 },
+    ],
+    'List if plus the inline map arrow ternary');
+
+  // Shell brace groups and expansions never open a function scope.
+  const shellSource = '{\n  if [ -f /tmp/x ]; then\n    echo hi\n  fi\n}\n\necho "$((1 + 2)) ${VAR:-x}"\n';
+  const shellTokens = tokenize(shellSource, 'shell').tokens;
+  assert.deepEqual(countFunctionComplexity(shellSource, 'shell', shellTokens).functions, [],
+    'a brace group is not a function');
+
+  // Semicolon-less arrows never leak a false scope into a later statement.
+  const asi = 'const f = () => 42\nif (x) {\n  y();\n}\nconst g = () => { if (z) { return 1; } return 0; }\n';
+  const asiTokens = tokenize(asi, 'javascript').tokens;
+  assert.deepEqual(countFunctionComplexity(asi, 'javascript', asiTokens).functions,
+    [{ functionName: 'anonymous', startLine: 5, endLine: 5, complexity: 1 }],
+    'only the g arrow block is scoped');
+
+  // Python class bodies are not functions; methods are.
+  const pySource = 'class Example:\n'
+    + '    field = {"key": "if else"}\n'
+    + '    def calculate(self, x):\n'
+    + '        if self.field and x:\n'
+    + '            return 1\n'
+    + '        return 0\n';
+  const pyTokens = tokenize(pySource, 'python').tokens;
+  assert.deepEqual(countFunctionComplexity(pySource, 'python', pyTokens).functions,
+    [{ functionName: 'calculate', startLine: 3, endLine: 6, complexity: 2 }],
+    'dict literals and docstring braces never count');
+});
+
+test('T214 tokenizer: boolean operators count toward per-function complexity', () => {
+  const cases = [
+    ['python', 'def f(x, y):\n    if x and y or not x:\n        return 1\n    return 0\n', 3],
+    ['javascript', 'function f(x, y) {\n  if (x && y) {\n    return 1;\n  }\n  if (x || y) { return 2; }\n  return 0;\n}\n', 4],
+    ['typescript', 'function f(x: boolean, y: boolean): number {\n  if (x && y) { return 1; }\n  if (x || y) { return 2; }\n  return 0;\n}\n', 4],
+    ['rust', 'fn f(x: bool, y: bool) -> u8 {\n    if x && y { return 1; }\n    if x || y { return 2; }\n    0\n}\n', 4],
+    ['shell', 'f() {\n  if [ -n "$1" ] && [ -n "$2" ]; then\n    echo hi\n  fi\n}\n', 2],
+  ];
+  for (const [dialect, source, expected] of cases) {
+    const { tokens } = tokenize(source, dialect);
+    const { functions } = countFunctionComplexity(source, dialect, tokens);
+    assert.equal(functions[0].complexity, expected, `${dialect}: ${source}`);
+  }
+});
+
+test('T214 tokenizer: countFunctionComplexity tokenizes internally and discloses stable names', () => {
+  const source = 'function greet() { return 1; }\n';
+  const direct = countFunctionComplexity(source, 'javascript', tokenize(source, 'javascript').tokens);
+  const internal = countFunctionComplexity(source, 'javascript');
+  assert.deepEqual(direct, internal, 'an omitted token stream produces the same result');
+  const nonAscii = 'def f\u30c0():\n    return 1\n';
+  const result = countFunctionComplexity(nonAscii, 'python');
+  assert.equal(result.functions[0].functionName, 'anonymous', 'non-ASCII names are disclosed as anonymous');
+  assert.equal(Object.isFrozen(DIALECT_BOOLEAN_OPERATORS), true);
+  assert.deepEqual(Object.keys(detectFunctionScopes([], '', 'python')), [], 'empty input yields no scopes');
 });
 
 // ---------------------------------------------------------------------------
@@ -517,6 +660,97 @@ test('T214 model: sizeBucketFor uses the fixed bounded buckets', () => {
     ['lt_1k', 'k1_10k', 'k10_100k', 'k100_1m', 'gt_1m']);
 });
 
+test('T214 model: complexityDistribution computes deterministic nearest-rank percentiles', () => {
+  assert.deepEqual(complexityDistribution([1, 3, 2]), { min: 1, median: 2, p95: 3, max: 3 });
+  assert.deepEqual(complexityDistribution([2, 2, 2]), { min: 2, median: 2, p95: 2, max: 2 });
+  assert.deepEqual(complexityDistribution([0, 1, 2, 3]), { min: 0, median: 1, p95: 3, max: 3 });
+  assert.deepEqual(complexityDistribution([3]), { min: 3, median: 3, p95: 3, max: 3 });
+  assert.deepEqual(complexityDistribution([]), null, 'no functions yields a null distribution');
+  assert.deepEqual(complexityDistribution('nope'), null);
+  assert.deepEqual(complexityDistribution([-1, 2]), { min: 2, median: 2, p95: 2, max: 2 },
+    'invalid values are filtered before the distribution is computed');
+});
+
+test('T214 model: complexity records are normalized, frozen, and orphan-checked', () => {
+  const record = {
+    path: 'src/a.js',
+    dialect: 'javascript',
+    functions: [{ functionName: 'greet', startLine: 1, endLine: 6, complexity: 2 }],
+    distribution: { min: 2, median: 2, p95: 2, max: 2 },
+    functionsCapped: false,
+  };
+  const model = buildMaintainabilityModel(modelInput({ complexityRecords: [record] }));
+  assert.deepEqual(model.complexityRecords, [record]);
+  assert.equal(Object.isFrozen(model.complexityRecords[0]), true);
+  assert.equal(Object.isFrozen(model.complexityRecords[0].functions[0]), true);
+
+  const emptyFunctions = buildMaintainabilityModel(modelInput({
+    complexityRecords: [{
+      ...record, functions: [], distribution: null,
+    }],
+  }));
+  assert.equal(emptyFunctions.complexityRecords[0].distribution, null);
+
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    complexityRecords: [{ ...record, path: 'src/other.js' }],
+  })), (e) => e instanceof MaintainabilityModelError && e.code === 'ORPHAN_RECORD');
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    complexityRecords: [{ ...record, distribution: { min: 1, median: 0, p95: 1, max: 1 } }],
+  })), (e) => e instanceof MaintainabilityModelError && e.code === 'INVALID_RECORD');
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    complexityRecords: [{ ...record, extra: true }],
+  })), (e) => e instanceof MaintainabilityModelError && e.code === 'UNKNOWN_FIELD');
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    complexityRecords: [{ ...record, functions: [{ ...record.functions[0], endLine: 0 }] }],
+  })), MaintainabilityModelError, 'non-positive lines stay invalid');
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    complexityRecords: [record, { ...record, functions: [] }],
+  })), (e) => e instanceof MaintainabilityModelError && e.code === 'BOUND_EXCEEDED',
+  'duplicate complexity records for one file are rejected');
+});
+
+test('T214 model: dead-code entries are normalized, frozen, and kind-allowlisted', () => {
+  assert.deepEqual(DEAD_CODE_KINDS, [
+    'allow_dead_code', 'no_unused_locals', 'no_unused_vars',
+    'unused_import', 'vulture_config', 'vulture_whitelist',
+  ]);
+  const model = buildMaintainabilityModel(modelInput({
+    deadCode: [
+      { kind: 'vulture_config', path: 'vulture.toml', count: 1 },
+      { kind: 'unused_import', path: 'src/a.js', count: 2 },
+    ],
+  }));
+  assert.deepEqual(model.deadCode, [
+    { kind: 'unused_import', path: 'src/a.js', count: 2 },
+    { kind: 'vulture_config', path: 'vulture.toml', count: 1 },
+  ]);
+  assert.equal(Object.isFrozen(model.deadCode[0]), true);
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    deadCode: [{ kind: 'unknown_kind', path: 'x', count: 1 }],
+  })), (e) => e instanceof MaintainabilityModelError && e.code === 'INVALID_RECORD');
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    deadCode: [{ kind: 'unused_import', path: 'x', count: 0 }],
+  })), MaintainabilityModelError, 'zero counts stay invalid outside the scanner');
+  assert.throws(() => buildMaintainabilityModel(modelInput({
+    deadCode: [{ kind: 'unused_import', path: 'x', count: 1, extra: 1 }],
+  })), (e) => e instanceof MaintainabilityModelError && e.code === 'UNKNOWN_FIELD');
+  const many = Array.from({ length: MAINTAINABILITY_LIMITS.deadCodeEntries + 1 }, (_, index) => ({
+    kind: 'unused_import', path: `f${String(index).padStart(4, '0')}.py`, count: 1,
+  }));
+  assert.throws(() => buildMaintainabilityModel(modelInput({ deadCode: many })),
+    (e) => e instanceof MaintainabilityModelError && e.code === 'BOUND_EXCEEDED',
+    'dead-code entries beyond the declared cap are rejected');
+});
+
+test('T214 model: privacy-violating craft records are downgraded to PRIVACY diagnostics', () => {
+  const model = buildMaintainabilityModel(modelInput({
+    deadCode: [{ kind: 'unused_import', path: 'alice@example.test', count: 1 }],
+  }));
+  assert.deepEqual(model.deadCode, []);
+  assert.ok(model.diagnostics.some(({ reason }) => reason === 'PRIVACY'));
+  assert.equal(JSON.stringify(model).includes('alice@example.test'), false);
+});
+
 // ---------------------------------------------------------------------------
 // generated/vendor boundaries — exact evidence only
 // ---------------------------------------------------------------------------
@@ -591,6 +825,66 @@ test('T214 tool evidence: config-file presence, manifest sections, and dependenc
   const rustfmt = detectToolEvidence({ path: 'rustfmt.toml', format: 'text', value: 'max_width = 100\n', text: 'max_width = 100\n' });
   assert.deepEqual(rustfmt.map(({ tool }) => tool), ['rustfmt']);
   assert.deepEqual(detectToolEvidence({ path: 'README.md', format: 'text', value: 'docs', text: 'docs' }), []);
+});
+
+// ---------------------------------------------------------------------------
+// dead-code signals — declarations and lexical markers, counts only
+// ---------------------------------------------------------------------------
+
+test('T214 dead-code source signals: per-dialect markers are counted without content', () => {
+  const rust = detectDeadCodeSourceSignals({
+    path: 'src/lib.rs', dialect: 'rust',
+    text: '#![allow(dead_code)]\n#[allow(dead_code, unused_variables)]\npub fn f() {}\n',
+  });
+  assert.deepEqual(rust, [{ kind: 'allow_dead_code', path: 'src/lib.rs', count: 2 }]);
+  const rustImports = detectDeadCodeSourceSignals({
+    path: 'src/lib.rs', dialect: 'rust',
+    text: 'use std::io;\n#![allow(unused_imports)]\n',
+  });
+  assert.deepEqual(rustImports, [{ kind: 'unused_import', path: 'src/lib.rs', count: 1 }]);
+  const python = detectDeadCodeSourceSignals({
+    path: 'app.py', dialect: 'python',
+    text: 'import os  # noqa: F401\nfrom x import y  # noqa\nimport sys\n',
+  });
+  assert.deepEqual(python, [{ kind: 'unused_import', path: 'app.py', count: 2 }]);
+  const js = detectDeadCodeSourceSignals({
+    path: 'src/a.js', dialect: 'javascript',
+    text: '// eslint-disable-next-line no-unused-vars\nimport x from "./x";\n// eslint-disable-line @typescript-eslint/no-unused-vars\nimport y from "./y";\n',
+  });
+  assert.deepEqual(js, [{ kind: 'unused_import', path: 'src/a.js', count: 2 }]);
+  assert.deepEqual(
+    detectDeadCodeSourceSignals({ path: 'run.sh', dialect: 'shell', text: 'if true; then echo hi; fi\n' }),
+    [],
+    'shell has no unused-import construct and so no marker',
+  );
+  assert.deepEqual(
+    detectDeadCodeSourceSignals({ path: 'app.py', dialect: 'python', text: 'x = 1\n' }),
+    [],
+    'no marker means no entry',
+  );
+});
+
+test('T214 dead-code config signals: declarations are counted once', () => {
+  const vulture = detectDeadCodeConfigSignals({ path: 'pyproject.toml', format: 'text', text: '[tool.vulture]\nmin-confidence = 90\n' });
+  assert.deepEqual(vulture, [{ kind: 'vulture_config', path: 'pyproject.toml', count: 1 }]);
+  assert.deepEqual(detectDeadCodeConfigSignals({ path: 'pyproject.toml', format: 'text', text: '[tool.ruff]\n' }), []);
+  const toml = detectDeadCodeConfigSignals({ path: 'vulture.toml', format: 'text', text: 'min-confidence = 90\n' });
+  assert.deepEqual(toml, [{ kind: 'vulture_config', path: 'vulture.toml', count: 1 }]);
+  const whitelist = detectDeadCodeConfigSignals({ path: '.vulture_whitelist.py', format: 'text', text: '# whitelist\nfoo\n' });
+  assert.deepEqual(whitelist, [{ kind: 'vulture_whitelist', path: '.vulture_whitelist.py', count: 1 }]);
+  const ts = detectDeadCodeConfigSignals({ path: 'tsconfig.json', format: 'json', value: { compilerOptions: { noUnusedLocals: true } }, text: '' });
+  assert.deepEqual(ts, [{ kind: 'no_unused_locals', path: 'tsconfig.json', count: 1 }]);
+  assert.deepEqual(
+    detectDeadCodeConfigSignals({ path: 'jsconfig.json', format: 'json', value: { compilerOptions: { noUnusedLocals: false } }, text: '' }),
+    [],
+    'a false flag is not a declaration',
+  );
+  const eslint = detectDeadCodeConfigSignals({ path: '.eslintrc.json', format: 'text', value: '{}', text: '{"rules": {"no-unused-vars": "error"}}' });
+  assert.deepEqual(eslint, [{ kind: 'no_unused_vars', path: '.eslintrc.json', count: 1 }]);
+  const eslintTs = detectDeadCodeConfigSignals({ path: 'eslint.config.js', format: 'text', value: '{}', text: 'export default [{ rules: { "@typescript-eslint/no-unused-vars": "warn" } }];' });
+  assert.deepEqual(eslintTs, [{ kind: 'no_unused_vars', path: 'eslint.config.js', count: 1 }]);
+  assert.deepEqual(detectDeadCodeConfigSignals({ path: 'README.md', format: 'text', text: 'docs\nno-unused-vars in prose\n' }), [],
+    'non-eslint config files never declare the rule');
 });
 
 // ---------------------------------------------------------------------------
@@ -705,6 +999,36 @@ test('T214 renderer: deterministic output, privacy hook, and inert factory', () 
   const output = renderMaintainability('x', model, context);
   assert.equal(output.includes('src/a.js'), false, 'paths pass through the privacy hook');
   assert.ok(output.includes('[safe]'));
+});
+
+test('T214 renderer: complexity distribution and unused-code markers render neutrally', async () => {
+  const files = {
+    'src/a.js': 'function one(x) {\n  if (x) { return x; }\n  return 0;\n}\n',
+    'src/lib.rs': '#[allow(dead_code)]\nfn value() -> u8 { 1 }\n',
+    'app.py': 'import os  # noqa: F401\n',
+    'README.md': 'docs',
+  };
+  await withFixture('maint-render-craft', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    const markdown = renderMaintainability('repo', findings);
+    assert.match(markdown, /### Complexity distribution \(per function, lexical\)/);
+    assert.match(markdown, /\| src\/a\.js \| javascript \| 1 \| 1 \| 1 \| 1 \| 1 \|/);
+    assert.match(markdown, /### Unused-code markers/);
+    assert.match(markdown, /unused-code allowance attribute/);
+    assert.match(markdown, /unused-import marker/);
+    assert.equal(markdown.includes('dead code'), false, 'the phrase "dead code" must never appear in prose');
+    assert.equal(markdown.includes('dead_code'), false, 'the attribute token is disclosed via its label only');
+    assert.deepEqual(findVoiceHits(markdown), []);
+    assert.equal(markdown.includes('\r'), false);
+  });
+});
+
+test('T214 renderer: craft sections are absent for models without craft data', () => {
+  const empty = buildMaintainabilityModel(modelInput());
+  const markdown = renderMaintainability('repo', empty);
+  assert.equal(markdown.includes('Complexity distribution'), false);
+  assert.equal(markdown.includes('Unused-code markers'), false);
+  assert.deepEqual(findVoiceHits(markdown), []);
 });
 
 test('T214 inertness: renderer is never registered in write or existing-ten renderers', async () => {
@@ -995,6 +1319,89 @@ test('T214 scanner: rust and shell dialects contribute measurements without extr
     assert.deepEqual(sh.counts, ZERO_COUNTS, 'heredoc body is not counted');
     assert.deepEqual(findings.measurementUniverse.excludedLanguages,
       [{ extension: '.go', count: 1 }], 'unsupported language is excluded with disclosure');
+  });
+});
+
+test('T214 scanner: complexity distributions and unused-code markers end to end', async () => {
+  const files = {
+    'src/a.js': 'function one(x) {\n  if (x) { return x; }\n  if (x > 1) { return x - 1; }\n  return 0;\n}\nfunction two(y) {\n  return y ? 1 : 0;\n}\n',
+    'src/lib.rs': '#![allow(dead_code)]\nfn value() -> u8 { 1 }\n',
+    'app.py': 'import os  # noqa: F401\ndef run(items):\n    if not items:\n        return []\n    return items\n',
+    'tsconfig.json': JSON.stringify({ compilerOptions: { noUnusedLocals: true } }),
+    'README.md': 'docs',
+  };
+  await withFixture('maint-craft', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    const byPath = Object.fromEntries(findings.complexityRecords.map((record) => [record.path, record]));
+    assert.deepEqual(byPath['src/a.js'].functions.map(({ functionName, complexity }) => [functionName, complexity]),
+      [['one', 2], ['two', 1]]);
+    assert.deepEqual(byPath['src/a.js'].distribution, { min: 1, median: 1, p95: 2, max: 2 });
+    assert.deepEqual(byPath['app.py'].functions.map(({ functionName, complexity }) => [functionName, complexity]),
+      [['run', 1]]);
+    assert.deepEqual(byPath['src/lib.rs'].functions.map(({ functionName, complexity }) => [functionName, complexity]),
+      [['value', 0]]);
+    assert.deepEqual(byPath['src/lib.rs'].distribution, { min: 0, median: 0, p95: 0, max: 0 });
+    assert.deepEqual(findings.deadCode, [
+      { kind: 'allow_dead_code', path: 'src/lib.rs', count: 1 },
+      { kind: 'no_unused_locals', path: 'tsconfig.json', count: 1 },
+      { kind: 'unused_import', path: 'app.py', count: 1 },
+    ]);
+    assert.equal(findings.summary.filesMeasured, 3);
+    assert.equal(findings.summary.partialCoverage, false);
+    const serialized = JSON.stringify(findings);
+    assert.equal(serialized.includes(dir), false);
+  });
+});
+
+test('T214 scanner: a token=... line in a dead-code artifact is never retained', async () => {
+  const files = {
+    'src/lib.rs': '#[allow(dead_code)]\nconst SECRET_TOKEN = "ghp_superSecretValue";\n',
+    'app.py': 'import os  # noqa: F401\ntoken=super-secret-value\n',
+    'README.md': 'docs',
+  };
+  await withFixture('maint-craft-privacy', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    const serialized = JSON.stringify(findings);
+    assert.equal(serialized.includes('super-secret-value'), false, 'the token= value must never be retained');
+    assert.equal(serialized.includes('ghp_superSecretValue'), false, 'the secret literal must never be retained');
+    assert.equal(serialized.includes(dir), false);
+    assert.ok(findings.deadCode.some(({ kind }) => kind === 'allow_dead_code'), 'allow attributes are still counted');
+    assert.ok(findings.deadCode.some(({ kind }) => kind === 'unused_import'), 'noqa markers are still counted');
+    assert.ok(findings.complexityRecords.length >= 1, 'complexity records survive privacy filtering');
+    assert.equal(findings.summary.partialCoverage, false);
+  });
+});
+
+test('T214 scanner: per-file function caps are disclosed as COMPLEXITY_CAP', async () => {
+  let body = '';
+  for (let index = 0; index < MAINTAINABILITY_LIMITS.complexityFunctions + 5; index++) {
+    body += `function fn${String(index).padStart(3, '0')}() { return ${index}; }\n`;
+  }
+  const files = { 'src/many.js': body };
+  await withFixture('maint-fncap', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    const record = findings.complexityRecords.find(({ path }) => path === 'src/many.js');
+    assert.equal(record.functionsCapped, true);
+    assert.equal(record.functions.length, MAINTAINABILITY_LIMITS.complexityFunctions);
+    assert.ok(findings.diagnostics.some(({ path, reason }) =>
+      path === 'src/many.js' && reason === 'COMPLEXITY_CAP'));
+    const markdown = renderMaintainability('repo', findings);
+    assert.match(markdown, /Function records were capped/);
+    assert.deepEqual(findVoiceHits(markdown), []);
+  });
+});
+
+test('T214 scanner: empty repo keeps complete search space and empty craft streams', async () => {
+  const files = { 'README.md': 'docs' };
+  await withFixture('maint-empty-craft', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    assert.equal(findings.searchSpace.complete, true);
+    assert.deepEqual(findings.complexityRecords, []);
+    assert.deepEqual(findings.deadCode, []);
+    const markdown = renderMaintainability('repo', findings);
+    assert.equal(markdown.includes('Complexity distribution'), false);
+    assert.equal(markdown.includes('Unused-code markers'), false);
+    assert.deepEqual(findVoiceHits(markdown), []);
   });
 });
 

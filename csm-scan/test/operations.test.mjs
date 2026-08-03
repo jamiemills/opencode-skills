@@ -54,6 +54,10 @@ test('operations: CI-only repo reaches signal high', async () => {
     assert.ok(gh.triggers.includes('push'));
     assert.ok(gh.triggers.includes('pull_request'));
     assert.ok(!gh.triggers.includes('NODE_VERSION'));
+
+    // step scan: echo-only steps carry no practice tools, and the scan is verified.
+    assert.equal(gh.stepToolScan, 'verified');
+    assert.deepEqual(gh.stepTools, []);
   });
 });
 
@@ -223,6 +227,162 @@ test('operations: JS-only monitoring still works (regression)', async () => {
   });
 });
 
+// A workflow exercising every step-scan tool across step names, `run:`
+// commands and `uses:` action names.
+const TOOL_RICH_WORKFLOW = `name: Quality
+on:
+  push:
+    branches: [main]
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Type-check with mypy and pyright
+        run: |
+          mypy src
+          pyright src
+      - name: Ruff lint
+        run: ruff check src
+      - name: Bandit and safety audit
+        run: |
+          bandit -r src
+          safety check
+      - uses: gitleaks/gitleaks-action@v2
+      - uses: ossf/scorecard-action@v2
+      - name: Actionlint
+        run: actionlint
+      - uses: returntocorp/semgrep-action@v1
+      - name: Coverage gate
+        run: |
+          pytest --cov=src --cov-report=xml
+          coverage report
+      - name: Mutation gate
+        run: mutmut run
+      - uses: stryker-mutator/mutation-testing-elements-action@v1
+      - name: Dependency audit
+        run: pip-audit
+      - name: Diff coverage
+        run: diff-cover coverage.xml
+`;
+
+test('operations: step scan detects practice tools across names, run and uses', async () => {
+  await withFixture('ops-tools', { '.github/workflows/quality.yml': TOOL_RICH_WORKFLOW }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.equal(gh.stepToolScan, 'verified');
+    assert.deepEqual(gh.stepTools, [
+      'actionlint', 'bandit', 'coverage', 'diff-cover', 'gitleaks',
+      'mutmut', 'mypy', 'pip-audit', 'pyright', 'ruff', 'safety',
+      'scorecard', 'semgrep', 'stryker',
+    ]);
+    // the existing job/trigger inventory is untouched by the step scan.
+    assert.deepEqual(gh.jobs, ['static']);
+    assert.deepEqual([...gh.triggers].sort(), ['push']);
+  });
+});
+
+test('operations: step scan finds nothing on a tool-free workflow', async () => {
+  const plain = `name: Deploy
+on:
+  push:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: make build
+      - name: Upload
+        uses: actions/upload-artifact@v4
+`;
+  await withFixture('ops-no-tools', { '.github/workflows/deploy.yml': plain }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.equal(gh.stepToolScan, 'verified');
+    assert.deepEqual(gh.stepTools, []);
+    assert.deepEqual(gh.jobs, ['deploy']);
+  });
+});
+
+test('operations: coverage detected via pytest-cov, --cov and coverage command', async () => {
+  const commands = [
+    'pytest --cov=src',
+    'pip install pytest-cov',
+    'coverage run -m pytest',
+    'coverage report --fail-under=80',
+  ];
+  for (const command of commands) {
+    const wf = `on: push\njobs:\n  cov:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${command}\n`;
+    await withFixture('ops-cov', { '.github/workflows/coverage.yml': wf }, async (dir) => {
+      const r = await runScanner(OPS, dir);
+      const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+      assert.ok(gh.stepTools.includes('coverage'), `coverage not detected for: ${command}`);
+      assert.equal(gh.stepToolScan, 'verified');
+    });
+  }
+});
+
+test('operations: mutation tools mutmut and stryker both detected', async () => {
+  const wf = `on: push\njobs:\n  mut:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Mutate\n        run: mutmut run\n      - name: Stryker\n        run: npx stryker run\n`;
+  await withFixture('ops-mutation', { '.github/workflows/mutation.yml': wf }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.equal(gh.stepToolScan, 'verified');
+    assert.ok(gh.stepTools.includes('mutmut'));
+    assert.ok(gh.stepTools.includes('stryker'));
+  });
+});
+
+test('operations: block-scalar run steps are scanned without crashing', async () => {
+  const wf = `name: Gate
+on:
+  push:
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Full gate
+        run: |
+          set -euo pipefail
+          mypy src
+          coverage report --fail-under=90
+          echo "gate complete"
+`;
+  await withFixture('ops-block-scalar', { '.github/workflows/gate.yml': wf }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.equal(gh.stepToolScan, 'verified');
+    assert.ok(gh.stepTools.includes('mypy'));
+    assert.ok(gh.stepTools.includes('coverage'));
+  });
+});
+
+test('operations: oversized workflows degrade to unverified, never crash', async () => {
+  const pad = 'x'.repeat(256 * 1024);
+  const wf = `on: push\njobs:\n  gate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: semgrep ci\n${pad}\n`;
+  await withFixture('ops-oversized', { '.github/workflows/big.yml': wf }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.equal(gh.stepToolScan, 'unverified');
+    assert.ok(!gh.stepTools.includes('semgrep'), 'oversized workflow must not report tools');
+  });
+});
+
+test('operations: line-capped workflows degrade to unverified', async () => {
+  const header = `on: push\njobs:\n  gate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: gitleaks detect\n`;
+  const filler = '# pad\n'.repeat(4200);
+  await withFixture('ops-lines', { '.github/workflows/long.yml': header + filler }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.equal(gh.stepToolScan, 'unverified');
+    assert.ok(!gh.stepTools.includes('gitleaks'));
+  });
+});
+
 test('operations: real perplexity-cli', async () => {
   if (!existsSync(REAL_REPO)) {
     return; // skip when repo absent
@@ -238,6 +398,8 @@ test('operations: real perplexity-cli', async () => {
   console.log('[perplexity-cli] jobs count  =', gh.jobs.length);
   console.log('[perplexity-cli] jobs sample =', JSON.stringify(gh.jobs.slice(0, 8)));
   console.log('[perplexity-cli] triggers    =', JSON.stringify(gh.triggers));
+  console.log('[perplexity-cli] stepTools   =', JSON.stringify(gh.stepTools));
+  console.log('[perplexity-cli] stepToolScan =', gh.stepToolScan);
   console.log('[perplexity-cli] hasMakefile =', r.findings.hasMakefile);
   console.log('[perplexity-cli] hasJustfile =', r.findings.hasJustfile);
   console.log('[perplexity-cli] monitoring  =', JSON.stringify(r.findings.monitoring.libraries));
@@ -251,6 +413,11 @@ test('operations: real perplexity-cli', async () => {
   // top-level-block children must not leak
   for (const bad of ['contents', 'group', 'cancel-in-progress', 'NODE_VERSION', 'permissions', 'concurrency']) {
     assert.ok(!gh.jobs.includes(bad), `real job leak: ${bad}`);
+  }
+  // step-level practice tools detected across the six workflows.
+  assert.equal(gh.stepToolScan, 'verified');
+  for (const tool of ['actionlint', 'coverage', 'gitleaks', 'mutmut', 'pip-audit', 'safety', 'scorecard', 'semgrep']) {
+    assert.ok(gh.stepTools.includes(tool), `real repo stepTools missing ${tool}`);
   }
   // monitoring shape always present; report (not assert) the python libs found.
   assert.ok(Array.isArray(r.findings.monitoring.libraries), 'monitoring.libraries is an array');

@@ -143,7 +143,7 @@ const CATALOG_DEFINITIONS = Object.freeze([
     apiVersion: ASSURANCE_CATALOG_VERSION,
     dimensions: [{
       dimensionId: MAINTAINABILITY_DIMENSION_ID,
-      categories: ['branch_point', 'duplicate_span', 'file_metric', 'generated_boundary', 'measurement_universe', 'tool_result'],
+      categories: ['branch_point', 'dead_code', 'duplicate_span', 'file_metric', 'generated_boundary', 'measurement_universe', 'tool_result'],
     }],
   },
   {

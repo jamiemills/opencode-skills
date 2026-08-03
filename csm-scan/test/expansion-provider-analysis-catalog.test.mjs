@@ -27,6 +27,12 @@ import {
 } from '../lib/scan/providers/analysis-catalog.mjs';
 import { createProviderResult, mergeProviderResults, PROVIDER_RESULT_LIMITS } from '../lib/scan/providers/base.mjs';
 import { genericProviderResults, GENERIC_PROVIDER_ID } from '../lib/scan/providers/generic.mjs';
+import {
+  PRACTICES_DIMENSION_ID,
+  PRACTICES_PROVIDER_ID,
+  practicesObservations,
+  practicesProviderResult,
+} from '../lib/scan/providers/practices.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
@@ -317,6 +323,148 @@ test('T219 parity: documentation adapter normalizes absolute paths and captures 
 });
 
 // ---------------------------------------------------------------------------
+// Practices — development practices across the seven claim categories
+// ---------------------------------------------------------------------------
+
+function syntheticPracticesModel(overrides = {}) {
+  return {
+    entries: [
+      {
+        category: 'methodology',
+        path: 'pyproject.toml',
+        matchedKey: 'methodology:property-based',
+        status: 'observed',
+        count: 3,
+        kinds: ['hypothesis', 'mutmut'],
+      },
+      {
+        category: 'enforcement',
+        path: '.github/workflows/ci.yml',
+        matchedKey: 'enforcement:ci-gate',
+        status: 'observed',
+        count: 2,
+        kinds: ['coverage', 'lint'],
+      },
+      {
+        category: 'quality_gate',
+        path: 'quality/gates.conf',
+        matchedKey: 'quality-gate:thresholds',
+        status: 'observed',
+        count: 4,
+        kinds: ['coverage', 'complexity'],
+        paths: ['test/baselines/coverage.json'],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function assertPracticesParity(practices) {
+  assert.equal(practices.providerId, ANALYSIS_PROVIDER_IDS.practices);
+  assert.equal(practices.dimensionId, 'DIM-practices-v1');
+  const byKey = keyed(practices.observations);
+  const methodology = byKey.get('methodology:property-based');
+  assert.equal(methodology.category, 'methodology');
+  assert.equal(methodology.path, 'pyproject.toml');
+  assert.equal(methodology.sourceKind, 'source');
+  assert.deepEqual(methodology.details, {
+    status: 'observed',
+    count: 3,
+    kinds: ['hypothesis', 'mutmut'],
+  });
+  const enforcement = byKey.get('enforcement:ci-gate');
+  assert.equal(enforcement.sourceKind, 'workflow');
+  assert.deepEqual(enforcement.details, {
+    status: 'observed',
+    count: 2,
+    kinds: ['coverage', 'lint'],
+  });
+  const gate = byKey.get('quality-gate:thresholds');
+  assert.equal(gate.sourceKind, 'config');
+  assert.deepEqual(gate.details, {
+    status: 'observed',
+    count: 4,
+    kinds: ['complexity', 'coverage'],
+    paths: ['test/baselines/coverage.json'],
+  });
+}
+
+test('T219 parity: practices adapter preserves the inferred status in observation details', () => {
+  const [{ observations }] = practicesObservations(syntheticPracticesModel({
+    entries: [{
+      category: 'automation',
+      path: 'renovate.json',
+      matchedKey: 'automation:dependency-updates',
+      status: 'inferred',
+    }],
+  }));
+  assert.equal(observations.length, 1);
+  assert.equal(observations[0].details.status, 'inferred');
+});
+
+test('T219 parity: practices adapter maps synthetic model entries to category-safe observations', () => {
+  const [{ dimensionId, observations }] = practicesObservations(syntheticPracticesModel());
+  assert.equal(dimensionId, 'DIM-practices-v1');
+  assert.deepEqual(
+    observations.map(({ category }) => category).sort(),
+    ['enforcement', 'methodology', 'quality_gate'],
+  );
+  assertPracticesParity({ providerId: PRACTICES_PROVIDER_ID, dimensionId, observations });
+});
+
+test('T219 parity: practices model flows through the combined catalog with a stable provider id', () => {
+  const { results, capped } = analysisProviderResults({
+    practices: syntheticPracticesModel(),
+  });
+  assert.equal(capped, false);
+  assert.equal(results.length, 1);
+  assertPracticesParity(providerFor(results, 'DIM-practices-v1'));
+  assert.equal(results[0].providerId, PRACTICES_PROVIDER_ID);
+});
+
+test('T219 practices: source kinds fit each of the seven categories', () => {
+  const cases = [
+    ['methodology', 'source'],
+    ['enforcement', 'workflow'],
+    ['automation', 'config'],
+    ['ritual', 'documentation'],
+    ['quality_gate', 'config'],
+    ['agent_workflow', 'documentation'],
+    ['style_guide', 'config'],
+  ];
+  for (const [category, sourceKind] of cases) {
+    const [{ observations }] = practicesObservations({
+      entries: [{
+        category,
+        path: null,
+        matchedKey: `probe:${category}`,
+        status: 'observed',
+        count: 1,
+        kinds: [],
+      }],
+    });
+    assert.equal(observations[0].sourceKind, sourceKind, category);
+    assert.equal(observations[0].category, category, category);
+  }
+});
+
+test('T219 practices: bounded matched keys stay within the foundation bound', () => {
+  const longKey = `quality-gate:${'t'.repeat(200)}`;
+  const [{ observations }] = practicesObservations({
+    entries: [{
+      category: 'quality_gate',
+      path: 'quality/gates.conf',
+      matchedKey: longKey,
+      status: 'observed',
+      count: 1,
+      kinds: [],
+    }],
+  });
+  assert.ok(observations[0].matchedKey.length <= 128, 'matched key is bounded');
+  assert.match(observations[0].matchedKey, /^[A-Za-z0-9][A-Za-z0-9._:/#@+%()[\],-]*$/, 'matched key token pattern');
+});
+
+// ---------------------------------------------------------------------------
 // Determinism and unique IDs
 // ---------------------------------------------------------------------------
 
@@ -359,8 +507,12 @@ test('T219 unique IDs: provider identifiers and catalog version are stable and d
   for (const id of ids) assert.match(id, /^PRV-[a-z0-9]+(?:-[a-z0-9]+)*-v[1-9]\d*$/);
   assert.match(ANALYSIS_PLUGIN_PROVIDER_ID, /^PRV-[a-z0-9]+(?:-[a-z0-9]+)*-v[1-9]\d*$/);
   assert.equal(new Set([...ids, ANALYSIS_PLUGIN_PROVIDER_ID]).size, ids.length + 1);
-  assert.equal(ANALYSIS_DIMENSION_IDS.length, 3);
-  assert.deepEqual(ANALYSIS_DIMENSION_IDS, ['DIM-architecture-v1', 'DIM-conventions-v1', 'DIM-documentation-v1']);
+  assert.equal(ANALYSIS_DIMENSION_IDS.length, 4);
+  assert.deepEqual(ANALYSIS_DIMENSION_IDS, [
+    'DIM-architecture-v1', 'DIM-conventions-v1', 'DIM-documentation-v1', 'DIM-practices-v1',
+  ]);
+  assert.equal(ANALYSIS_PROVIDER_IDS.practices, PRACTICES_PROVIDER_ID);
+  assert.equal(ANALYSIS_DIMENSION_IDS[3], PRACTICES_DIMENSION_ID);
 });
 
 test('T219 unique IDs: repeated catalog results carry unique, stable provider/dimension pairs', async () => {
@@ -651,9 +803,12 @@ test('T219 empty input: foreign and null models produce empty results without th
   assert.deepEqual(conventionsProviderResults({}), { results: [], capped: false });
   assert.deepEqual(documentationProviderResults(null), { results: [], capped: false });
   assert.deepEqual(documentationProviderResults({}), { results: [], capped: false });
+  assert.deepEqual(practicesProviderResult(null), []);
+  assert.deepEqual(practicesProviderResult({}), []);
   assert.deepEqual(architectureObservations(null), []);
   assert.deepEqual(conventionsObservations(null), []);
   assert.deepEqual(documentationObservations({ repoPath: null, findings: null }), []);
+  assert.deepEqual(practicesObservations(null), []);
   assert.deepEqual(mergeAnalysisResults(null), []);
   assert.deepEqual(mergeAnalysisResults({}), []);
 });
@@ -707,6 +862,7 @@ test('T219 inert: the catalog module is a pure data adapter with no execution su
     'architectureObservations', 'architectureProviderResults',
     'conventionsObservations', 'conventionsProviderResults',
     'documentationObservations', 'documentationProviderResults',
+    'practicesProviderResults',
     'analysisProviderResults', 'analysisPluginObservations',
     'analysisPluginProviderResults', 'mergeAnalysisResults',
   ]) {

@@ -1,10 +1,12 @@
-// Analysis provider catalog — Architecture, Conventions, and Documentation.
+// Analysis provider catalog — Architecture, Conventions, Documentation, and
+// Practices.
 //
 // T219 owns this module. It is an INERT, data-only provider catalog that adapts
 // the Architecture (static import graph plus T217 dynamic-indicator graph
-// facts), Conventions, and Documentation scanner models — together with T210
-// plugin declarative observations — to the T202 provider result contract
-// (DIM-architecture-v1 / DIM-conventions-v1 / DIM-documentation-v1 categories).
+// facts), Conventions, Documentation, and Practices scanner models — together
+// with T210 plugin declarative observations — to the T202 provider result
+// contract (DIM-architecture-v1 / DIM-conventions-v1 / DIM-documentation-v1 /
+// DIM-practices-v1 categories).
 //
 // Guarantees:
 //   - Built-in import/comment/convention/documentation behavior is preserved
@@ -45,6 +47,10 @@ import {
   mergeProviderResults,
   PROVIDER_RESULT_LIMITS,
 } from './base.mjs';
+import {
+  practicesObservations,
+  practicesProviderResult,
+} from './practices.mjs';
 
 export const ANALYSIS_CATALOG_VERSION = 1;
 
@@ -52,12 +58,14 @@ export const ANALYSIS_DIMENSION_IDS = deepFreeze([
   'DIM-architecture-v1',
   'DIM-conventions-v1',
   'DIM-documentation-v1',
+  'DIM-practices-v1',
 ]);
 
 export const ANALYSIS_PROVIDER_IDS = deepFreeze({
   architecture: 'PRV-analysis-architecture-v1',
   conventions: 'PRV-analysis-conventions-v1',
   documentation: 'PRV-analysis-documentation-v1',
+  practices: 'PRV-analysis-practices-v1',
 });
 
 export const ANALYSIS_PLUGIN_PROVIDER_ID = 'PRV-analysis-plugin-v1';
@@ -567,16 +575,44 @@ export function documentationProviderResults(input) {
 }
 
 // ---------------------------------------------------------------------------
+// Practices — development practices across the seven claim categories
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive DIM-practices-v1 provider observations from the practices model via
+ * the practices adapter. The adapter maps the model's entries (each carrying
+ * privacy-safe structured facts: counts, types and repo-relative paths) into
+ * observations; this catalog wrapper applies the shared bounded/`capped`
+ * envelope so truncation is disclosed exactly like the sibling dimensions.
+ * Pure and deterministic.
+ * @param {object} model - the practices model (`{ entries, ... }`).
+ * @returns {object} `{ results, capped }` (deep-frozen); empty envelope for
+ *   foreign input.
+ */
+export function practicesProviderResults(model) {
+  if (!plainObject(model)) return deepFreeze({ results: [], capped: false });
+  const [{ observations }] = practicesObservations(model);
+  const { observations: bounded, capped } = boundedObservations(observations);
+  const results = bounded.length > 0 ? [createProviderResult({
+    providerId: ANALYSIS_PROVIDER_IDS.practices,
+    dimensionId: ANALYSIS_DIMENSION_IDS[3],
+    observations: bounded,
+  })] : [];
+  return deepFreeze({ results, capped });
+}
+
+// ---------------------------------------------------------------------------
 // Combined catalog entry
 // ---------------------------------------------------------------------------
 
 /**
- * Assemble provider results for the three analysis dimensions plus the generic
+ * Assemble provider results for the four analysis dimensions plus the generic
  * documentation fallback for unknown-language repositories.
  *
  * @param {object} input - `{ architecture, conventions, documentation,
- *   generic }` where `architecture` is `{ findings, facts }`, `conventions` is
- *   the conventions findings, `documentation` is `{ repoPath, findings }`, and
+ *   practices, generic }` where `architecture` is `{ findings, facts }`,
+ *   `conventions` is the conventions findings, `documentation` is
+ *   `{ repoPath, findings }`, `practices` is the practices model, and
  *   `generic` is the T210 `genericProviderResults` envelope.
  * @returns {object} `{ results, capped }` (deep-frozen). `results` holds at
  *   most one result per analysis provider plus the generic documentation
@@ -587,6 +623,7 @@ export function analysisProviderResults(input) {
     architecture,
     conventions,
     documentation,
+    practices,
     generic,
   } = plainObject(input) ? input : {};
   const results = [];
@@ -604,6 +641,11 @@ export function analysisProviderResults(input) {
   }
   if (plainObject(documentation)) {
     const built = documentationProviderResults(documentation);
+    results.push(...built.results);
+    capped = capped || built.capped;
+  }
+  if (plainObject(practices)) {
+    const built = practicesProviderResults(practices);
     results.push(...built.results);
     capped = capped || built.capped;
   }
@@ -635,7 +677,7 @@ function validPluginMatch(match) {
 
 /**
  * Convert T210 `evaluateRules` matches into provider observations for the
- * three analysis dimensions. Matches for other dimensions are ignored.
+ * four analysis dimensions. Matches for other dimensions are ignored.
  * @param {object[]} matches - `{ ruleId, label, dimensionId, category, path }`.
  * @returns {object[]} `[{ dimensionId, observations }]` (frozen), grouped by
  *   dimension in canonical order.
@@ -663,7 +705,7 @@ export function analysisPluginObservations(matches) {
 }
 
 /**
- * Build immutable plugin provider results for the three analysis dimensions.
+ * Build immutable plugin provider results for the four analysis dimensions.
  * Category validation (and duplicate rejection) is enforced by the provider
  * foundation, so an unallowlisted plugin category fails with a typed error.
  * @param {object} input - `{ matches, providerId? }`.

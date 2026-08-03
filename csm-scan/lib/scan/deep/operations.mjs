@@ -8,6 +8,35 @@ import { MONITORING_LIBS, matchDep } from '../shared/detection.mjs';
 const SCAN_FILE_LIMIT = 400;
 const SCAN_BYTE_LIMIT = 1024 * 1024;
 
+// Step-level practice-tool scan bounds. The step scan is deliberately
+// shallower than the job/trigger inventory (which stays byte-identical): any
+// workflow above these caps degrades to `unverified` rather than reporting a
+// partial (and possibly misleadingly empty) tool set.
+const STEP_SCAN_BYTE_LIMIT = 256 * 1024;
+const STEP_SCAN_LINE_LIMIT = 4000;
+
+// Practice tools recognised at workflow-step level. Keys are canonical tool
+// ids; each regex is a bounded literal (word-boundary anchored) so step names,
+// `run:` commands and `uses:` action names are matched without backtracking
+// risk. Block scalars under `run:` are simply deeper-indented lines to the
+// line-based extraction below, so they never throw.
+const STEP_TOOL_PATTERNS = [
+  { tool: 'actionlint', re: /\bactionlint\b/ },
+  { tool: 'bandit', re: /\bbandit\b/ },
+  { tool: 'coverage', re: /(?:pytest-cov|\bcoverage\b|--cov)/ },
+  { tool: 'diff-cover', re: /\bdiff-cover\b/ },
+  { tool: 'gitleaks', re: /\bgitleaks\b/ },
+  { tool: 'mutmut', re: /\bmutmut\b/ },
+  { tool: 'mypy', re: /\bmypy\b/ },
+  { tool: 'pip-audit', re: /\bpip-audit\b/ },
+  { tool: 'pyright', re: /\bpyright\b/ },
+  { tool: 'ruff', re: /\bruff\b/ },
+  { tool: 'safety', re: /\bsafety\b/ },
+  { tool: 'scorecard', re: /\bscorecard\b/ },
+  { tool: 'semgrep', re: /\bsemgrep\b/ },
+  { tool: 'stryker', re: /\bstryker\b/ },
+];
+
 async function listFiles(repoPath, overview, broker) {
   const fromOverview = overview && Array.isArray(overview.files) && overview.files.length > 0
     ? overview.files
@@ -114,6 +143,57 @@ function extractOnTriggers(content) {
     if (t) triggers.add(t);
   }
   return triggers;
+}
+
+// Collect the `steps:` blocks of every GitHub Actions job as raw text. Job ids
+// are the 2-space-indented keys of the `jobs:` subtree; within each job block
+// a 4-space `steps:` key opens a block that closes at the next 4-space key.
+// Step list items (6-space `- ...`) and block-scalar bodies (8+ spaces) all
+// survive the extraction, so `run: |`-style commands stay scannable.
+function collectJobStepLines(jobBlock) {
+  const stepLines = [];
+  let inSteps = false;
+  for (const line of jobBlock) {
+    if (/^    steps:/.test(line)) {
+      inSteps = true;
+      continue;
+    }
+    if (!inSteps) continue;
+    if (/^    \S/.test(line)) break; // next 4-space key closes the steps block
+    stepLines.push(line);
+  }
+  return stepLines;
+}
+
+function extractStepsBlocks(content) {
+  const jobsSubtree = extractTopSubtree(content, 'jobs');
+  if (!jobsSubtree) return '';
+  const lines = jobsSubtree.split(/\r?\n/);
+  const jobBlocks = [];
+  let current = null;
+  for (const line of lines) {
+    if (/^  [\w-]+:/.test(line)) {
+      current = [line];
+      jobBlocks.push(current);
+    } else if (current) {
+      current.push(line);
+    }
+  }
+  const stepLines = [];
+  for (const jobBlock of jobBlocks) {
+    stepLines.push(...collectJobStepLines(jobBlock));
+  }
+  return stepLines.join('\n');
+}
+
+// Return the sorted unique tool ids detected across a workflow's steps.
+function scanWorkflowSteps(content) {
+  const steps = extractStepsBlocks(content);
+  const found = new Set();
+  for (const { tool, re } of STEP_TOOL_PATTERNS) {
+    if (re.test(steps)) found.add(tool);
+  }
+  return [...found].sort();
 }
 
 function analyzeDockerfile(repoPath) {
@@ -251,15 +331,24 @@ function analyzeCI(repoPath) {
 
       const jobs = new Set();
       const triggers = new Set();
+      const stepTools = new Set();
+      let stepScanVerified = true;
       for (const f of workflowFiles) {
         let content;
         try {
           content = readFileSync(join(ghWorkflows, f), 'utf-8');
         } catch {
+          stepScanVerified = false;
           continue;
         }
         for (const j of extractJobNames(content)) jobs.add(j);
         for (const t of extractOnTriggers(content)) triggers.add(t);
+        const lineCount = content.split(/\r?\n/).length;
+        if (content.length > STEP_SCAN_BYTE_LIMIT || lineCount > STEP_SCAN_LINE_LIMIT) {
+          stepScanVerified = false;
+          continue;
+        }
+        for (const tool of scanWorkflowSteps(content)) stepTools.add(tool);
       }
 
       ciSystems.push({
@@ -267,6 +356,8 @@ function analyzeCI(repoPath) {
         workflowCount: workflowFiles.length,
         jobs: [...jobs],
         triggers: [...triggers],
+        stepTools: [...stepTools].sort(),
+        stepToolScan: stepScanVerified ? 'verified' : 'unverified',
       });
     } catch {}
   }

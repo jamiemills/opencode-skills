@@ -454,6 +454,106 @@ function detectEnvVars(repoPath) {
 }
 
 // ---------------------------------------------------------------------------
+// Python strict-type-checking facts (pyright typeCheckingMode / mypy strict)
+// ---------------------------------------------------------------------------
+
+// Split a matched config spec into its file and (optional) TOML/INI section.
+// Mirrors the parsing in specMatches: 'file:[section]' markers and plain
+// filenames are both supported.
+function parseConfigSpec(config) {
+  const markerIdx = config.indexOf(':[');
+  if (markerIdx !== -1) {
+    return {
+      file: config.slice(0, markerIdx),
+      section: config.slice(markerIdx + 2).replace(/\]\s*$/, ''),
+    };
+  }
+  return { file: config, section: null };
+}
+
+// Coerce a mypy/INI-style boolean ('True', 'true', '1', 'yes', ...) to a
+// real boolean. Returns undefined for unrecognised values.
+function coerceBool(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const lower = value.trim().toLowerCase();
+    if (lower === 'true' || lower === 'yes' || lower === 'on' || lower === '1') return true;
+    if (lower === 'false' || lower === 'no' || lower === 'off' || lower === '0') return false;
+  }
+  return undefined;
+}
+
+// Read `key` from a TOML/INI `section` of `file`. Prefers the parsed TOML
+// object; falls back to a bounded raw-text scan of the section body for
+// INI-style files (mypy.ini, setup.cfg) that the strict TOML subset parser
+// may reject (e.g. `strict = True` with a capital T).
+function readSectionValue(ctx, file, section, key) {
+  const { raw, parsed } = readTomlCached(ctx, file);
+  if (parsed && typeof parsed === 'object') {
+    const node = walkPath(parsed, section.split('.'));
+    if (node && typeof node === 'object' && Object.prototype.hasOwnProperty.call(node, key)) {
+      return node[key];
+    }
+  }
+  if (raw == null) return undefined;
+  const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const headerRe = new RegExp('^\\s*\\[+' + escapedSection + '\\]+\\s*(?:#.*)?$', 'm');
+  const header = headerRe.exec(raw);
+  if (!header) return undefined;
+  const body = raw.slice(header.index + header[0].length).split(/\r?\n/);
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const keyRe = new RegExp('^\\s*' + escapedKey + '\\s*=\\s*(.*?)\\s*$');
+  for (const line of body) {
+    if (/^\s*\[/.test(line)) break;
+    const match = keyRe.exec(line);
+    if (match) {
+      return match[1]
+        .replace(/[#].*$/, '')
+        .trim()
+        .replace(/^['"]|['"]$/g, '');
+    }
+  }
+  return undefined;
+}
+
+// pyright strict facts: strict is true when typeCheckingMode is "strict";
+// the declared mode value is preserved for the fact model.
+function readPyrightFacts(ctx, tool) {
+  const { file, section } = parseConfigSpec(tool.config);
+  let mode = null;
+  if (section) {
+    const value = readSectionValue(ctx, file, section, 'typeCheckingMode');
+    if (typeof value === 'string') mode = value;
+  } else if (file === 'pyrightconfig.json') {
+    const json = readJsonCached(ctx, file);
+    if (json && typeof json.typeCheckingMode === 'string') mode = json.typeCheckingMode;
+  }
+  return { strict: mode === 'strict', typeCheckingMode: mode };
+}
+
+// mypy strict facts: strict reflects the declared `strict` flag (defaults to
+// false when absent, matching mypy's own default).
+function readMypyFacts(ctx, tool) {
+  const { file, section } = parseConfigSpec(tool.config);
+  const sectionName = section || 'mypy';
+  const value = readSectionValue(ctx, file, sectionName, 'strict');
+  return { strict: coerceBool(value) === true };
+}
+
+// Enrich typeChecker tool facts with pyright/mypy strict-mode values. Only
+// pyright/mypy entries gain the extra fields, and those tools are only
+// detected when their config file/section exists, so repos without these
+// sections keep byte-identical output.
+function enrichStrictFacts(ctx, typeCheckers) {
+  return typeCheckers.map((tool) => {
+    if (tool.name === 'pyright') return { ...tool, ...readPyrightFacts(ctx, tool) };
+    if (tool.name === 'mypy') return { ...tool, ...readMypyFacts(ctx, tool) };
+    return tool;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Top-level scan
 // ---------------------------------------------------------------------------
 
@@ -464,7 +564,7 @@ export async function scan(repoPath, overview) {
 
   const linters = collectTools(ctx, descriptors, 'linters');
   const formatters = collectTools(ctx, descriptors, 'formatters');
-  const typeCheckers = collectTools(ctx, descriptors, 'typeCheckers');
+  const typeCheckers = enrichStrictFacts(ctx, collectTools(ctx, descriptors, 'typeCheckers'));
   const hooks = detectHooks(ctx);
   const buildTools = detectBuildTools(ctx);
   const runtimes = detectRuntimes(ctx);

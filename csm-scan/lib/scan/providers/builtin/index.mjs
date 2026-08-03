@@ -4,16 +4,16 @@
 //
 // T222 owns this module. It aggregates the per-dimension built-in providers
 // (runtime stack/config/testing, analysis architecture/conventions/
-// documentation, assurance security/operations/api/data/deployment/
+// documentation/practices, assurance security/operations/api/data/deployment/
 // maintainability/governance/assurance) plus the generic fallback into a
-// single validated T202 provider registry with globally unique IDs and all 14
+// single validated T202 provider registry with globally unique IDs and all 15
 // provider dimensions represented.
 //
 // Guarantees:
 //   - BUILTIN_PROVIDER_INDEX is validated through the T202 `validateProviders`
 //     contract: deep-frozen, duplicate-free, and deterministically sorted by
 //     provider id.
-//   - Every one of the 14 provider dimensions is represented by exactly one
+//   - Every one of the 15 provider dimensions is represented by exactly one
 //     primary built-in provider (BUILTIN_DIMENSION_TO_PROVIDER); the generic
 //     fallback covers its three dimensions (maintainability/assurance/
 //     documentation) as artifact-only fallback.
@@ -62,12 +62,12 @@ const GENERIC_DIMENSIONS = Object.freeze([
 
 // Mirror provider definitions. IDs match the catalog constants exactly:
 //   runtime-catalog.mjs   STACK/CONFIG/TESTING_CATALOG_PROVIDER_ID
-//   analysis-catalog.mjs  ANALYSIS_PROVIDER_IDS.{architecture,conventions,documentation}
+//   analysis-catalog.mjs  ANALYSIS_PROVIDER_IDS.{architecture,conventions,documentation,practices}
 //   assurance-catalog.mjs SECURITY/OPERATIONS_CATALOG_PROVIDER_ID + per-dimension
 //                         provider ids (api/data/deployment/maintainability/
 //                         governance/assurance)
 //   generic.mjs           GENERIC_PROVIDER_ID
-// The 14 primary providers claim the full category allowlist of their
+// The 15 primary providers claim the full category allowlist of their
 // dimension (PROVIDER_CATEGORIES), exactly as each catalog declares.
 const BUILTIN_DEFINITIONS = Object.freeze([
   {
@@ -99,6 +99,11 @@ const BUILTIN_DEFINITIONS = Object.freeze([
     id: 'PRV-analysis-documentation-v1',
     apiVersion: BUILTIN_PROVIDER_VERSION,
     dimensions: [{ dimensionId: 'DIM-documentation-v1', categories: PROVIDER_CATEGORIES['DIM-documentation-v1'] }],
+  },
+  {
+    id: 'PRV-analysis-practices-v1',
+    apiVersion: BUILTIN_PROVIDER_VERSION,
+    dimensions: [{ dimensionId: 'DIM-practices-v1', categories: PROVIDER_CATEGORIES['DIM-practices-v1'] }],
   },
   {
     id: 'PRV-security-hardening-v1',
@@ -156,7 +161,7 @@ const BUILTIN_DEFINITIONS = Object.freeze([
 export const BUILTIN_PROVIDER_INDEX = validateProviders(BUILTIN_DEFINITIONS);
 
 export const BUILTIN_PROVIDER_COUNT = BUILTIN_PROVIDER_INDEX.length;
-export const BUILTIN_DIMENSION_COUNT = 14;
+export const BUILTIN_DIMENSION_COUNT = 15;
 
 // The generic fallback's validated, dimensionId-sorted capabilities (mirrors
 // the generic provider's artifact-only dimensions).
@@ -169,7 +174,7 @@ export const BUILTIN_PROVIDER_IDS = deepFreeze(
   BUILTIN_PROVIDER_INDEX.map(({ id }) => id).sort(compareAscii),
 );
 
-// Primary built-in provider per provider dimension: for each of the 14
+// Primary built-in provider per provider dimension: for each of the 15
 // provider dimensions, the first (alphabetically) non-generic provider that
 // claims it. The generic fallback is excluded so this map is the canonical
 // dimension -> builtin provider table (one entry per provider dimension).

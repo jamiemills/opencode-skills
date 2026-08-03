@@ -51,7 +51,7 @@ export const DIMENSION_EVIDENCE_CATEGORIES = deepFreeze({
   'DIM-maintainability-v1': ['branch_point', 'dead_code', 'duplicate_span', 'file_metric', 'generated_boundary', 'measurement_universe', 'tool_result'],
   'DIM-governance-v1': ['contribution', 'decision', 'funding', 'ownership', 'policy', 'reference', 'release', 'review', 'runbook', 'support'],
   'DIM-assurance-v1': ['accessibility', 'attestation', 'configuration', 'license', 'lock', 'manifest', 'pin', 'sarif', 'sbom', 'source', 'standard', 'tool_result', 'vex'],
-  'DIM-practices-v1': ['methodology', 'enforcement', 'automation', 'ritual', 'quality_gate', 'agent_workflow', 'style_guide'],
+  'DIM-practices-v1': ['agent_workflow', 'automation', 'enforcement', 'methodology', 'quality_gate', 'ritual', 'style_guide'],
 });
 
 export const EVIDENCE_CATEGORIES = Object.freeze([

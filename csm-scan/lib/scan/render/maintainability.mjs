@@ -20,6 +20,22 @@ import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
 import { BRANCH_CATEGORIES } from '../deep/maintainability/tokenizer.mjs';
 import { OTHER_EXTENSION_LABEL, SIZE_BUCKETS } from '../deep/maintainability/model.mjs';
 
+// Neutral display labels for unused-code marker kinds. The machine kind token
+// `allow_dead_code` names the literal rust attribute; the rendered label
+// avoids the phrase "dead code" entirely.
+const DEAD_CODE_KIND_LABELS = Object.freeze({
+  vulture_config: 'vulture config',
+  vulture_whitelist: 'vulture whitelist',
+  no_unused_locals: 'noUnusedLocals rule',
+  no_unused_vars: 'no-unused-vars rule',
+  allow_dead_code: 'unused-code allowance attribute',
+  unused_import: 'unused-import marker',
+});
+
+function deadCodeKindLabel(kind) {
+  return DEAD_CODE_KIND_LABELS[kind] ?? kind;
+}
+
 function renderTable(context, columns, rows) {
   const { escapeField } = context;
   const lines = [];
@@ -162,6 +178,41 @@ export function renderMaintainability(_repoName, model, context = DEFAULT_RENDER
     lines.push('');
   }
 
+  // Per-function complexity distribution ------------------------------------
+  const complexity = Array.isArray(model.complexityRecords) ? model.complexityRecords : [];
+  const complexityRows = complexity
+    .filter((record) => record.distribution !== null)
+    .map((record) => [
+      record.path,
+      record.dialect,
+      String(record.functions.length),
+      String(record.distribution.min),
+      String(record.distribution.median),
+      String(record.distribution.p95),
+      String(record.distribution.max),
+    ]);
+  if (complexityRows.length > 0) {
+    const totalFunctions = complexity.reduce(
+      (sum, record) => sum + record.functions.length,
+      0,
+    );
+    lines.push('### Complexity distribution (per function, lexical)');
+    lines.push('');
+    lines.push('Complexity is a lexical per-function count of branch-keyword tokens and boolean operators within each function scope. It is an approximation, not a semantic metric.');
+    lines.push('');
+    lines.push(`Distribution is reported for ${complexityRows.length} file(s) covering ${totalFunctions} function(s).`);
+    lines.push('');
+    lines.push(renderTable(context,
+      ['File', 'Dialect', 'Functions', 'Min', 'Median', 'P95', 'Max'],
+      complexityRows,
+    ));
+    lines.push('');
+    if (complexity.some((record) => record.functionsCapped)) {
+      lines.push('> Function records were capped at the per-file bound in one or more files.');
+      lines.push('');
+    }
+  }
+
   // Exact token duplicates ---------------------------------------------------
   if (model.duplicateGroups.length > 0) {
     lines.push(`### Exact token duplicates (${summary.duplicateGroups} group(s), ${summary.duplicateSpans} span(s))`);
@@ -206,6 +257,23 @@ export function renderMaintainability(_repoName, model, context = DEFAULT_RENDER
         entry.kind,
         entry.source ?? entry.file,
         String(entry.line),
+      ])));
+    lines.push('');
+  }
+
+  // Unused-code markers ----------------------------------------------------
+  const deadCode = Array.isArray(model.deadCode) ? model.deadCode : [];
+  if (deadCode.length > 0) {
+    lines.push(`### Unused-code markers (${deadCode.length})`);
+    lines.push('');
+    lines.push('Markers are declared lint/compiler directives and lexical marker counts from committed files. Counts and repository-relative paths only.');
+    lines.push('');
+    lines.push(renderTable(context,
+      ['Kind', 'Path', 'Count'],
+      deadCode.map((entry) => [
+        deadCodeKindLabel(entry.kind),
+        entry.path,
+        String(entry.count),
       ])));
     lines.push('');
   }

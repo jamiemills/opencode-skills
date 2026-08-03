@@ -61,6 +61,10 @@ test('python fixture: pytest detected, test_*.py matched, pyproject pytest marke
       f.coverage && f.coverage.includes('pytest-cov'),
       `coverage should include pytest-cov: ${JSON.stringify(f.coverage)}`,
     );
+    assert.ok(
+      f.coverage && !f.coverage.some((entry) => entry.includes('fail_under')),
+      `no threshold facts when no gate is declared: ${JSON.stringify(f.coverage)}`,
+    );
     assert.equal(f.script, null, 'python repo has no package.json test script');
     assert.equal(res.signal, 'high');
   });
@@ -369,6 +373,223 @@ test('rust coverage detected via CI workflow refs (P1)', async () => {
     assert.ok(
       cov && cov.includes('grcov'),
       `coverage should include grcov: ${JSON.stringify(cov)}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T009: coverage-threshold facts. `fail_under` from [tool.coverage.report],
+// diff-cover thresholds from [tool.diff_cover] / DIFF_COVERAGE_THRESHOLD.
+// Facts are emitted only when a gate is declared; unparseable values degrade
+// to `fail_under=unverified`; repos without a gate keep their existing
+// detection facts unchanged.
+// ---------------------------------------------------------------------------
+
+const COV_GATE_BASE = {
+  'pyproject.toml': [
+    '[project]',
+    'name = "covgate"',
+    'version = "0.1.0"',
+    '',
+    '[project.optional-dependencies]',
+    'dev = ["pytest>=7.0", "pytest-cov>=7.0"]',
+    '',
+    '[tool.pytest.ini_options]',
+    'testpaths = ["tests"]',
+    '',
+  ].join('\n'),
+  'tests/test_core.py': 'def test_core():\n    assert True\n',
+};
+
+test('T009 coverage fail_under from [tool.coverage.report] is a fact', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'pyproject.toml': COV_GATE_BASE['pyproject.toml'] + [
+      '[tool.coverage]',
+      'xml_output = "coverage.xml"',
+      '',
+      '[tool.coverage.report]',
+      'fail_under = 80',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-cov-under', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov, `coverage should be non-null: ${JSON.stringify(cov)}`);
+    assert.ok(cov.includes('coverage fail_under=80'), `threshold fact missing: ${JSON.stringify(cov)}`);
+    assert.ok(cov.includes('pytest-cov'), `existing detection facts must remain: ${JSON.stringify(cov)}`);
+    assert.ok(
+      cov.includes('pyproject.toml:[tool.coverage]'),
+      `coverage config fact must remain: ${JSON.stringify(cov)}`,
+    );
+  });
+});
+
+test('T009 fractional fail_under from [tool.coverage.report] is preserved', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'pyproject.toml': COV_GATE_BASE['pyproject.toml'] + [
+      '[tool.coverage]',
+      '',
+      '[tool.coverage.report]',
+      'fail_under = 90.5',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-cov-float', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('coverage fail_under=90.5'), `float threshold missing: ${JSON.stringify(cov)}`);
+  });
+});
+
+test('T009 diff-cover fail_under from [tool.diff_cover] is a fact', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'pyproject.toml': COV_GATE_BASE['pyproject.toml'] + [
+      '[tool.diff_cover]',
+      'fail_under = 75',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-diff-cover', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('diff-cover fail_under=75'), `diff-cover threshold missing: ${JSON.stringify(cov)}`);
+  });
+});
+
+test('T009 DIFF_COVERAGE_THRESHOLD from a workflow env block is a fact', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    '.github/workflows/ci.yml': [
+      'name: CI',
+      'jobs:',
+      '  coverage:',
+      '    env:',
+      '      DIFF_COVERAGE_THRESHOLD: 85',
+      '    steps:',
+      '      - run: diff-cover coverage.xml',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-diff-env-wf', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('diff-cover fail_under=85'), `workflow threshold missing: ${JSON.stringify(cov)}`);
+  });
+});
+
+test('T009 DIFF_COVERAGE_THRESHOLD from a Makefile is a fact', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'Makefile': [
+      'check:',
+      '\tdiff-cover coverage.xml',
+      '',
+      'DIFF_COVERAGE_THRESHOLD = 70',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-diff-env-make', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov && cov.includes('diff-cover fail_under=70'), `Makefile threshold missing: ${JSON.stringify(cov)}`);
+  });
+});
+
+test('T009 coverage tooling without a declared gate emits no threshold fact', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'pyproject.toml': COV_GATE_BASE['pyproject.toml'] + [
+      '[tool.coverage]',
+      'xml_output = "coverage.xml"',
+      '',
+      '[tool.coverage.report]',
+      'show_missing = true',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-no-gate', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(cov, `coverage should be non-null: ${JSON.stringify(cov)}`);
+    assert.ok(cov.includes('pyproject.toml:[tool.coverage]'), `coverage config fact missing: ${JSON.stringify(cov)}`);
+    assert.ok(
+      !cov.some((entry) => entry.includes('fail_under')),
+      `no threshold facts without a gate: ${JSON.stringify(cov)}`,
+    );
+  });
+});
+
+test('T009 unparseable fail_under degrades to unverified', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    'pyproject.toml': COV_GATE_BASE['pyproject.toml'] + [
+      '[tool.coverage]',
+      '',
+      '[tool.coverage.report]',
+      'fail_under = "strict"',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-unverified', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(
+      cov && cov.includes('coverage fail_under=unverified'),
+      `unparseable threshold should be unverified: ${JSON.stringify(cov)}`,
+    );
+    assert.ok(cov.includes('pyproject.toml:[tool.coverage]'), `coverage config fact must remain: ${JSON.stringify(cov)}`);
+  });
+});
+
+test('T009 non-numeric DIFF_COVERAGE_THRESHOLD degrades to unverified', async () => {
+  const files = {
+    ...COV_GATE_BASE,
+    '.github/workflows/ci.yml': [
+      'name: CI',
+      'jobs:',
+      '  coverage:',
+      '    env:',
+      '      DIFF_COVERAGE_THRESHOLD: ${{ secrets.COV_MIN }}',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-diff-env-unverified', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(
+      cov && cov.includes('diff-cover fail_under=unverified'),
+      `non-numeric workflow threshold should be unverified: ${JSON.stringify(cov)}`,
+    );
+  });
+});
+
+test('T009 non-python repos are not scanned for python threshold gates', async () => {
+  const files = {
+    'package.json': JSON.stringify({
+      name: 'jsgates',
+      version: '1.0.0',
+      devDependencies: { jest: '^29.0.0' },
+    }, null, 2),
+    'src/add.test.js': "import { test } from 'node:test';\ntest('x', () => {});\n",
+    '.github/workflows/ci.yml': [
+      'name: CI',
+      'jobs:',
+      '  coverage:',
+      '    env:',
+      '      DIFF_COVERAGE_THRESHOLD: 60',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('testing-t009-js-gate', files, async (dir) => {
+    const res = await scan(dir);
+    const cov = res.findings.coverage;
+    assert.ok(
+      cov === null || !cov.some((entry) => entry.includes('fail_under')),
+      `non-python repo must not emit python gate facts: ${JSON.stringify(cov)}`,
     );
   });
 });

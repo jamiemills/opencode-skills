@@ -2,12 +2,13 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
 
-function analyzeCommitStyle(logLines) {
+export function analyzeCommitStyle(logLines) {
   if (logLines.length === 0) return 'unknown';
-  const categories = { conventional: 0, emoji: 0, semantic: 0, plain: 0 };
+  const categories = { conventional: 0, emoji: 0, semantic: 0, 'task-identified': 0, plain: 0 };
   const conventionalRe = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]*\))?:/;
   const emojiRe = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}]/u;
   const semanticLabels = { feat: true, fix: true, chore: true, docs: true, refactor: true, perf: true, test: true, build: true, ci: true, revert: true, style: true };
+  const taskRe = /^(?:T\d{3}(?:-[a-z][a-z0-9-]*)?|P\d+C?|CSM(?: plan)?|REPAIR|plan|csm-scan|csm-browse):/i;
 
   for (const line of logLines) {
     const msg = line.replace(/^[a-f0-9]+\s/, '').trim();
@@ -18,6 +19,10 @@ function analyzeCommitStyle(logLines) {
     }
     if (emojiRe.test(msg)) {
       categories.emoji++;
+      continue;
+    }
+    if (taskRe.test(msg)) {
+      categories['task-identified']++;
       continue;
     }
     const colonIdx = msg.indexOf(':');
@@ -36,6 +41,7 @@ function analyzeCommitStyle(logLines) {
   if (categories.conventional / total > 0.6) return 'Conventional Commits';
   if (categories.emoji / total > 0.6) return 'Emoji-prefixed';
   if (categories.semantic / total > 0.5) return 'Semantic-like prefixes';
+  if (categories['task-identified'] / total > 0.5) return 'Task-identified';
   if (categories.plain / total > 0.5) return 'Unstructured / free-form';
 
   const maxCat = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];

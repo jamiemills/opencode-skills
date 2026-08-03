@@ -10,7 +10,7 @@
 //     renderer's static prose.
 //   - Unknown, missing, and duplicate renderer registrations fail typed and
 //     sanitized.
-//   - Injected 16-dimension rendering is deterministic, renders all 16
+//   - Injected 17-dimension rendering is deterministic, renders all 17
 //     dimensions, and performs exactly one write; injected missing/unknown
 //     renderers fail before any write.
 //   - The production default write path stays byte-identical (existing-ten
@@ -181,7 +181,7 @@ function tenDeep() {
   ];
 }
 
-// Minimal but renderable findings for all 16 dimensions in canonical order so
+// Minimal but renderable findings for all 17 dimensions in canonical order so
 // the injected registry renders every dimension deterministically.
 function sixteenDeep() {
   return [
@@ -238,6 +238,14 @@ function sixteenDeep() {
         searchSpace: { filesInspected: 1 }, diagnostics: [],
       },
     },
+    {
+      dimension: 'practices', signal: 'high',
+      findings: {
+        summary: { filesInspected: 0, isGit: false, defaultBranch: null, entries: 0, capped: {} },
+        searchSpace: { complete: true, supported: true, readable: true, capped: false, error: false, malformed: false, filesInspected: 0 },
+        entries: [], diagnostics: [],
+      },
+    },
   ];
 }
 
@@ -282,39 +290,39 @@ async function libScanFiles() {
 // Registry snapshot — all registered renderers in dimension order
 // ---------------------------------------------------------------------------
 
-test('T223 registry: snapshot registers all 16 dimensions in canonical order plus the global renderer', () => {
-  assert.equal(DIMENSION_RENDERER_COUNT, 16);
-  assert.equal(RENDERER_SNAPSHOT_COUNT, 17);
-  assert.equal(DIMENSION_RENDERER_ORDER.length, 16);
-  assert.equal(new Set(DIMENSION_RENDERER_ORDER).size, 16);
+test('T223 registry: snapshot registers all 17 dimensions in canonical order plus the global renderer', () => {
+  assert.equal(DIMENSION_RENDERER_COUNT, 17);
+  assert.equal(RENDERER_SNAPSHOT_COUNT, 18);
+  assert.equal(DIMENSION_RENDERER_ORDER.length, 17);
+  assert.equal(new Set(DIMENSION_RENDERER_ORDER).size, 17);
 
   assert.equal(RENDERER_SNAPSHOT.length, RENDERER_SNAPSHOT_COUNT);
-  assert.deepEqual(RENDERER_SNAPSHOT.slice(0, 16).map(({ dimension }) => dimension), DIMENSION_RENDERER_ORDER);
+  assert.deepEqual(RENDERER_SNAPSHOT.slice(0, 17).map(({ dimension }) => dimension), DIMENSION_RENDERER_ORDER);
 
   // Canonical T222 dimension order: the shorts must match the validated
   // DIMENSION_REGISTRY exactly.
   const canonicalShorts = DIMENSION_REGISTRY.map(({ id }) => id.replace(/^DIM-/, '').replace(/-v[1-9]\d*$/, ''));
-  assert.deepEqual(RENDERER_SNAPSHOT.slice(0, 16).map(({ dimension }) => dimension), canonicalShorts);
+  assert.deepEqual(RENDERER_SNAPSHOT.slice(0, 17).map(({ dimension }) => dimension), canonicalShorts);
 
   // Renderer IDs are stable RND-<short>-v1 identifiers matching the T222 map.
-  for (const entry of RENDERER_SNAPSHOT.slice(0, 16)) {
+  for (const entry of RENDERER_SNAPSHOT.slice(0, 17)) {
     assert.match(entry.rendererId, RENDERER_ID_PATTERN);
     assert.equal(entry.rendererId, DIMENSION_RENDERER_MAP[`DIM-${entry.dimension}-v1`]);
   }
   assert.deepEqual(
-    RENDERER_SNAPSHOT.slice(0, 16).map(({ rendererId }) => rendererId).slice().sort(compareAscii),
+    RENDERER_SNAPSHOT.slice(0, 17).map(({ rendererId }) => rendererId).slice().sort(compareAscii),
     DIMENSION_RENDERER_IDS,
   );
 
   // Every per-repo entry carries a render function, a label, and prose.
-  for (const entry of RENDERER_SNAPSHOT.slice(0, 16)) {
+  for (const entry of RENDERER_SNAPSHOT.slice(0, 17)) {
     assert.equal(typeof entry.render, 'function', `${entry.dimension} must register a render function`);
     assert.ok(typeof entry.label === 'string' && entry.label.length > 0, `${entry.dimension} needs a label`);
     assert.ok(Array.isArray(entry.prose) && entry.prose.length > 0, `${entry.dimension} needs prose`);
   }
 
-  // The global Cross-repo renderer is the 17th registration, data-only.
-  const global = RENDERER_SNAPSHOT[16];
+  // The global Cross-repo renderer is the 18th registration, data-only.
+  const global = RENDERER_SNAPSHOT[17];
   assert.equal(global.dimension, 'cross-repo-global');
   assert.equal(global.rendererId, 'RND-cross-repo-global-v1');
   assert.match(global.rendererId, RENDERER_ID_PATTERN);
@@ -338,7 +346,7 @@ test('T223 registry: verifyRenderRegistry is idempotent and byte-stable on the d
   assert.equal(verified.length, DIMENSION_RENDERER_COUNT);
   assert.deepEqual(verified.map(({ dimension }) => dimension), DIMENSION_RENDERER_ORDER);
   assert.equal(JSON.stringify(verifyRenderRegistry({ entries: DIMENSION_RENDERER_ENTRIES })), JSON.stringify(verified));
-  assert.deepEqual(DIMENSION_RENDERER_ENTRIES, RENDERER_SNAPSHOT.slice(0, 16));
+  assert.deepEqual(DIMENSION_RENDERER_ENTRIES, RENDERER_SNAPSHOT.slice(0, 17));
   assert.equal(createRenderRegistry().snapshot.length, RENDERER_SNAPSHOT_COUNT);
   assert.equal(Object.isFrozen(createRenderRegistry().snapshot), true);
 });
@@ -445,10 +453,10 @@ test('T223 registry: injected findings with an unknown dimension fail typed and 
 });
 
 // ---------------------------------------------------------------------------
-// Injected 16-dimension rendering — determinism and one write
+// Injected 17-dimension rendering — determinism and one write
 // ---------------------------------------------------------------------------
 
-test('T223 injected: 16-dimension rendering is deterministic, renders all 16 dimensions, and performs one write', async () => {
+test('T223 injected: 17-dimension rendering is deterministic, renders all 17 dimensions, and performs one write', async () => {
   const findings = sixteenFindings();
   const first = await mkdtemp(join(tmpdir(), 'csm-scan-t223-reg-a-'));
   const second = await mkdtemp(join(tmpdir(), 'csm-scan-t223-reg-b-'));
@@ -463,7 +471,7 @@ test('T223 injected: 16-dimension rendering is deterministic, renders all 16 dim
     assert.deepEqual(await readdir(first), ['NORMS.md'], 'exactly one write per invocation');
     assert.deepEqual(await readdir(second), ['NORMS.md'], 'exactly one write per invocation');
 
-    // All 16 dimensions render.
+    // All 17 dimensions render.
     for (const dimension of DIMENSION_RENDERER_ORDER) {
       const heading = dimension === 'structure' ? '## Repository Structure'
         : dimension === 'stack' ? '## Technology Stack'
@@ -480,7 +488,8 @@ test('T223 injected: 16-dimension rendering is deterministic, renders all 16 dim
         : dimension === 'deployment' ? '## Deployment Topology'
         : dimension === 'maintainability' ? '## Maintainability'
         : dimension === 'governance' ? '## Governance & Ownership'
-        : '## Assurance & Supply Chain';
+        : dimension === 'assurance' ? '## Assurance & Supply Chain'
+        : '## Development Practices';
       assert.ok(contentA.includes(heading), `${dimension} heading missing from injected rendering`);
     }
     assert.equal(contentA.includes('\r'), false);
@@ -600,7 +609,7 @@ test('T223 voice: every registered renderer label and static prose is neutral', 
 test('T223 voice: registered renderer prose stays clean under the established neutral prose masking', () => {
   // Representative prose should never trip the gate even when embedded in a
   // full document with tables and code fences.
-  for (const entry of RENDERER_SNAPSHOT.slice(0, 16)) {
+  for (const entry of RENDERER_SNAPSHOT.slice(0, 17)) {
     const markdown = [
       `# NORMS — synthetic`,
       '',
