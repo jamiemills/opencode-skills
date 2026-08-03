@@ -9,13 +9,13 @@
 
 ## Control
 - Plan ID: csm-scan-practices-dimension
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — plan authored, critiqued, remediated, amended (craft/style assessment), re-critiqued, re-validated at baseline 1010/1010
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-03 — T001 baseline gate verified: `node --test --test-concurrency=1` → 1010/1010 pass (~73s), working tree clean apart from unrelated untracked `README.md` at skills root (preserved, not staged)
+- Next transition: SELECT -> T002 (contracts + registry)
+- Active tasks: T002
 - Blockers: none
 
 ## Goal
@@ -184,7 +184,7 @@ Critical path: T001 → T002 → (T003/T004/T005/T006) → T011 → T012 → T01
 Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017} are pairwise disjoint file owners (T017 depends on T004 for `analysis-catalog.mjs` sequencing and starts after it); G2 and G3 may run concurrently. G2 must fully drain before G4. G5 {T012,T013} disjoint. Shared-file ownership: `analysis-catalog.mjs` → T004 (practices entry) then T017 (architecture craft observations, sequential); `builtin/index.mjs` → T006 only; `test/expansion-dimension-registration.test.mjs` → T002 (registry/renderer/CATEGORY_TOPIC_COVERAGE blocks) + T006 (builtin block, lines 436-495); T006's acceptance runs the whole file after both land, so T006 depends on T002. T016/T017 touch no ten-dimension scanner output.
 
 ## Numbered Plan
-1. [pending] Baseline gate
+1. [completed] Baseline gate
    - Task ID: T001
    - Depends on: none
    - Parallel group: G0
@@ -198,6 +198,7 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Acceptance evidence: journal entry with pass count, duration, and clean-tree confirmation.
    - Repair attempts: 0
    - Recovery note: If any test fails, the tree is dirty or the node version mismatches the previous baseline; stop and report rather than proceed.
+   - DONE (cycle 1, 2026-08-03): `node --test --test-concurrency=1` → 1010 pass / 0 fail / ~72.6s; tree clean (only unrelated untracked README.md at skills root).
 
 2. [pending] Contracts and registry: 17th dimension + 3 craft claims
    - Task ID: T002
@@ -513,6 +514,12 @@ Ordered cheapest-first:
 | 2026-08-03 | 1 | REMEDIATE | — | F18-F26 resolved: ten-dimension output freeze (AC5/R13); style-guide moved into practices scanner (T003, 7 claims); coupling/SOLID provider-derived (T017, `deep/architecture/craft.mjs` + analysis-catalog after T004); CATALOG_DEFINITIONS/builtin-list actions removed; T012 fixture-helper enumeration; banned vocabulary fixed; 17 tasks final | VERIFY |
 | 2026-08-03 | 1 | VERIFY | — | Primary-agent verification passed: 17 tasks, 2 high/11 standard/4 low, AC1-AC5 mapped, counts 93/17/15 consistent across T002/T011/T012/AC2, ten-dimension freeze verified against fixture-behavior consumers | SAVED |
 | 2026-08-03 | 1 | SAVED | — | Amended plan committed to skills monorepo; implementation NOT started | STOP |
+| 2026-08-03 | 1 | RECOVER | — | Repo inspected: skills monorepo main, tree clean except unrelated untracked README.md (preserved); node v20.20.2; no NORMS.md in csm-scan repo (norms integration skipped, optional); plan file present at .agents/plans/2026-08-03-csm-scan-practices-dimension-csm.md | VALIDATE |
+| 2026-08-03 | 1 | VALIDATE | T001 | Toolchain matches planning baseline; plan references verified against source during planning and unchanged since | SELECT |
+| 2026-08-03 | 1 | SELECT | T001 | Ready set: T001 (G0) | DISPATCH |
+| 2026-08-03 | 1 | DISPATCH | T001 | Baseline run executed by primary agent (verification-only task) | VERIFY |
+| 2026-08-03 | 1 | VERIFY | T001 | `node --test --test-concurrency=1` → 1010 pass / 0 fail / 72.6s — acceptance signal satisfied | CHECKPOINT |
+| 2026-08-03 | 1 | CHECKPOINT | T001 | T001 completed with evidence; Control updated; next: SELECT -> T002 | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
