@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-style-guide-conventions
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 3
+- Cycle: 4
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — G2 complete: T003 (style.mjs, policy flips green), T005 (byte-identity enrichments), T006 (aggregate line); combined 229/229; expected red: expansion-fixtures:406 (T007-owned)
-- Next transition: SELECT -> G3 {T004,T007}
-- Active tasks: T004, T007
+- Last checkpoint: 2026-08-03 — G3 complete: T004 (Style Guide renderer) + T007 (reconciliation, policy review approved) + D1 repair (python CONTRIBUTING.md flip); combined 123/123
+- Next transition: SELECT -> T008 (final gate)
+- Active tasks: T008
 - Blockers: none
 
 ## Goal
@@ -213,7 +213,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Repair attempts: 0
    - Recovery note: a space-containing kind throws `INVALID_DETAILS` — the slug encoder must cover every multi-word source; the lefthook fix must keep degrade-to-unverified for unparseable hook configs.
 
-4. [pending] Practices renderer: comprehensive Style Guide & Conventions
+4. [completed] Practices renderer: comprehensive Style Guide & Conventions
+   - DONE (cycle 4, 2026-08-03): STYLE_FACTS table + renderStyleGuideBlock (Ruff rules/Line length/Docstring dialect/Make targets/Hook stages/Deny rules & Plugin inventory/Declared conventions/Exceptions hub/Gate thresholds table with values); registry prose +12 headings; 22/22 acceptance + determinism 4/4; smoke rendered values (85, B, 0.3, google, line-length 100).
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G3
@@ -260,7 +261,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Repair attempts: 0
    - Recovery note: deterministic nearest-rank stats must be stable — if the determinism gate fails, the aggregation order is wrong.
 
-7. [pending] Suite reconciliation (requires independent review)
+7. [completed] Suite reconciliation (requires independent review)
+   - DONE (cycle 4, 2026-08-03): EXPECTED_STATUS flips (python + shell practices → observed), per-key gate-value assertions (replace aggregated), RADON_CC_GRADE=B added to the practices fixture, boundary test (operations hasMakefile vs practices make-targets), policy-flip REVIEW APPROVED (AD2/RD4 documented; canary retained); acceptance 56/56. D1 discovered: python CONTRIBUTING.md flip in expansion-final-acceptance — repaired by primary agent.
    - Task ID: T007
    - Depends on: T003, T005, T006
    - Parallel group: G3
@@ -363,6 +365,11 @@ Ordered cheapest-first:
 | 2026-08-03 | 3 | INTEGRATE | T003, T005, T006 | Diffs coherent; T003 policy flips landed green in its own file (expansion-fixtures:406 left red for T007 as planned); no cross-task file overlap | VERIFY |
 | 2026-08-03 | 3 | VERIFY | T003, T005, T006 | Combined batch 229/229 (practices 31, config 26, testing 20, arch-ext 32, maintainability 69, fixtures-pipeline 5, parity 21, voice 6, privacy 6 + detection); T005 byte-identity batch 52/52; diff-cover 90; 13 import contracts | CHECKPOINT |
 | 2026-08-03 | 3 | CHECKPOINT | T003, T005, T006 | G2 complete; expected red: expansion-fixtures:406 (T007-owned); next: SELECT -> G3 {T004,T007} | SELECT |
+| 2026-08-03 | 4 | SELECT | T004, T007 | Ready set: G3 (T004←T003, T007←T003/T005/T006 satisfied); disjoint files | DISPATCH |
+| 2026-08-03 | 4 | DISPATCH | T004, T007 | 2 parallel subagents | INTEGRATE |
+| 2026-08-03 | 4 | INTEGRATE | T004, T007 | T004 renderer clean (Style Guide block renders values; smoke proven); T007 reconciliation + fixture RADON_CC_GRADE addition; DISCOVERY (D1): T002's CONTRIBUTING.md EXACT_PATHS entry flips the fixtures-expansion PYTHON fixture practices to observed — expansion-final-acceptance:426 asserted not_detected and is outside T007's scope | VERIFY |
+| 2026-08-03 | 4 | VERIFY | T004, T007 | T004 acceptance 22/22 + determinism 4/4 + smoke; T007 acceptance 56/56; D1 repaired by primary agent (expansion-final-acceptance:426 not_detected → observed with comment — mechanical reconciliation of the T002 EXACT_PATHS consequence); combined batch 123/123 | CHECKPOINT |
+| 2026-08-03 | 4 | CHECKPOINT | T004, T007 | G3 complete incl. D1 repair; next: SELECT -> T008 (final gate) | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
