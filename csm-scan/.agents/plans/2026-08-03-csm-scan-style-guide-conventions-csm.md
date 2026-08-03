@@ -9,13 +9,13 @@
 
 ## Control
 - Plan ID: csm-scan-style-guide-conventions
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — planning research + hostile critique completed; both critique blockers (token rule, static/extractor dedup) and all majors resolved in this revision; baseline 1100/1100 at a387f69
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-03 — T001 baseline gate verified: full suite 1100/1100 pass (~79s), tree clean
+- Next transition: SELECT -> T002 (style-engine foundations)
+- Active tasks: T002
 - Blockers: none
 
 ## Goal
@@ -165,7 +165,7 @@ Critical path: T001 → T002 → T003 → T004 → T008.
 Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/scanner + expansion-practices.test.mjs; T005: render/config.mjs, deep/testing.mjs, deep/architecture.mjs, render/architecture-craft.mjs + their tests; T006: render/maintainability.mjs + expansion-maintainability.test.mjs). G3 {T004,T007} disjoint (T004: render/practices.mjs + render/registry.mjs; T007: expansion-fixtures.test.mjs + review). Shared-file ownership: `model.mjs`/`scanner.mjs` → T002 then T003 (sequential); `architecture.mjs` → T002 (scrubber lift) then T005 (importlinter fact) — T005 depends on T002; `expansion-practices.test.mjs` → T002 (foundations), T003 (extractors + policy flips), T007 (review only, no edits unless findings).
 
 ## Numbered Plan
-1. [pending] Baseline gate
+1. [completed] Baseline gate
    - Task ID: T001
    - Depends on: none
    - Parallel group: G0
@@ -179,6 +179,7 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Acceptance evidence: journal entry with pass count and clean-tree confirmation.
    - Repair attempts: 0
    - Recovery note: any failure or dirty tree stops the run — report rather than proceed.
+   - DONE (cycle 1, 2026-08-03): `node --test --test-concurrency=1` → 1100 pass / 0 fail / ~78.6s; tree clean.
 
 2. [pending] Style-engine foundations
    - Task ID: T002
@@ -342,6 +343,12 @@ Ordered cheapest-first:
 | 2026-08-03 | 0 | REMEDIATE | — | All findings resolved: token rule + distinct static kinds (AD11); single homes for markers/importlinter (M6/M7); T005←T002 (M5); T003 lands its policy flips (M4); floats→slugs (M3); gap traceability table (M8); byte-identity batch in T005 acceptance (M15); lowercase EXACT_PATHS (M18); plugin inventory action (M12); lefthook 2-stage expectation (M13); housekeeping in T008 (M17); factual slips corrected (M19) | VERIFY |
 | 2026-08-03 | 0 | VERIFY | — | Primary-agent verification: AC1-AC5 map to tasks; every task has runnable acceptance/risk/anti-scope; ownership sequencing declared (model.mjs T002→T003; architecture.mjs T002→T005); counts 93/17/15 unchanged; token rule enforced | SAVED |
 | 2026-08-03 | 0 | SAVED | — | Plan committed to skills monorepo; implementation NOT started | STOP |
+| 2026-08-03 | 1 | RECOVER | — | Repo inspected: skills monorepo main, clean tree; plan file present; node v20.20.2; no NORMS.md in csm-scan repo (norms integration skipped, optional) | VALIDATE |
+| 2026-08-03 | 1 | VALIDATE | T001 | Toolchain matches planning baseline (1100/1100 at a387f69); plan references verified during planning | SELECT |
+| 2026-08-03 | 1 | SELECT | T001 | Ready set: T001 (G0) | DISPATCH |
+| 2026-08-03 | 1 | DISPATCH | T001 | Baseline run by primary agent (verification-only task) | VERIFY |
+| 2026-08-03 | 1 | VERIFY | T001 | `node --test --test-concurrency=1` → 1100 pass / 0 fail / 78.6s — acceptance satisfied | CHECKPOINT |
+| 2026-08-03 | 1 | CHECKPOINT | T001 | T001 completed; Control updated; next: SELECT -> T002 | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
