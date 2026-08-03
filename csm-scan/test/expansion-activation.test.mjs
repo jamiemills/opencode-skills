@@ -368,7 +368,7 @@ test('T224 one write: the canonical pipeline performs a single sink call', async
     assert.equal(calls, 1);
     assert.equal(result.markdown, 'CAPTURED');
     assert.equal(captured.findings.repos.length, 1);
-    assert.equal(captured.findings.repos[0].deep.length, 16);
+    assert.equal(captured.findings.repos[0].deep.length, 17);
     assert.equal(captured.hasGlobal, true, 'the composite renderer exposes the global section');
     assert.equal(captured.out, undefined);
   });
@@ -513,8 +513,8 @@ test('T224 expected-claim coverage counts registry-owned claims with N/A exclude
     });
     const coverage = result.expectedClaimCoverage;
     const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-    assert.equal(registryClaims, 83);
-    assert.equal(coverage.expected, 83);
+    assert.equal(registryClaims, 93);
+    assert.equal(coverage.expected, 93);
     assert.equal(
       coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
       coverage.expected,

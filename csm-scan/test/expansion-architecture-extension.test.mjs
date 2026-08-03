@@ -12,6 +12,15 @@ import {
   tarjanStronglyConnectedComponents,
 } from '../lib/scan/deep/architecture/graph-facts.mjs';
 import { detectDynamicIndicators, INDICATOR_KINDS } from '../lib/scan/deep/architecture/indicators.mjs';
+import {
+  computeCouplingAggregates,
+  computeSolidIndicators,
+  CRAFT_LIMITS,
+} from '../lib/scan/deep/architecture/craft.mjs';
+import {
+  architectureObservations,
+  architectureProviderResults,
+} from '../lib/scan/providers/analysis-catalog.mjs';
 import { createArchitectureExtensionRenderer, DEFAULT_ARCHITECTURE_EXTENSION_RENDERER } from '../lib/scan/render/architecture-extension.mjs';
 import { assertPrivacySafe } from '../lib/scan/shared/privacy.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
@@ -508,4 +517,313 @@ test('T217 renderer extension renders self-loops and cyclic SCC rows when presen
 test('T217 renderer extension rejects an invalid context and exposes a default factory', () => {
   assert.throws(() => createArchitectureExtensionRenderer({ context: null }), TypeError);
   assert.equal(typeof DEFAULT_ARCHITECTURE_EXTENSION_RENDERER.render, 'function');
+});
+
+// ---------------------------------------------------------------------------
+// T017 architecture craft — coupling aggregates and SOLID/pattern indicators
+// ---------------------------------------------------------------------------
+
+function syntheticCraftFindings(overrides = {}) {
+  return {
+    modules: ['src/a.ts', 'src/b.ts', 'src/c.ts', 'src/d.ts', 'src/e.ts'],
+    layers: {
+      entryPoints: ['src/a.ts'],
+      coreModules: ['src/b.ts', 'src/c.ts'],
+      libModules: ['src/b.ts'],
+      shared: ['src/d.ts'],
+      rest: ['src/e.ts'],
+    },
+    importGraph: {
+      graph: {
+        'src/a.ts': ['src/b.ts', 'src/d.ts'],
+        'src/b.ts': ['src/c.ts'],
+        'src/c.ts': ['src/a.ts', 'src/d.ts'],
+        'src/d.ts': [],
+        'src/e.ts': [],
+      },
+    },
+    ...overrides,
+  };
+}
+
+function solidCraftFindings() {
+  return {
+    modules: [
+      'src/main.ts',
+      'src/services/UserService.ts',
+      'src/contracts/UserContract.ts',
+      'src/interfaces/user-interface.ts',
+      'src/adapters/StripeAdapter.ts',
+      'src/ports/repository.ts',
+    ],
+    layers: {
+      entryPoints: ['src/main.ts'],
+      coreModules: [
+        'src/services/UserService.ts',
+        'src/contracts/UserContract.ts',
+        'src/interfaces/user-interface.ts',
+        'src/adapters/StripeAdapter.ts',
+      ],
+      shared: ['src/ports/repository.ts'],
+      rest: [],
+    },
+    importGraph: {
+      graph: {
+        'src/main.ts': ['src/services/UserService.ts', 'src/contracts/UserContract.ts', 'src/ports/repository.ts'],
+        'src/services/UserService.ts': ['src/contracts/UserContract.ts'],
+        'src/adapters/StripeAdapter.ts': ['src/contracts/UserContract.ts', 'src/interfaces/user-interface.ts'],
+        'src/contracts/UserContract.ts': [],
+        'src/interfaces/user-interface.ts': [],
+        'src/ports/repository.ts': ['src/contracts/UserContract.ts'],
+      },
+    },
+  };
+}
+
+test('T017 craft: coupling aggregates are exact for a synthetic graph', () => {
+  const findings = syntheticCraftFindings();
+  const facts = { edgeKindCounts: { 'dynamic-import': 1, import: 4 } };
+  const coupling = computeCouplingAggregates({ findings, facts });
+  assert.deepEqual(coupling.fanIn.max, { count: 2, files: ['src/d.ts'], truncated: false });
+  assert.deepEqual(coupling.fanOut.max, { count: 2, files: ['src/a.ts', 'src/c.ts'], truncated: false });
+  assert.deepEqual(coupling.fanIn.top, [
+    { path: 'src/d.ts', count: 2 },
+    { path: 'src/a.ts', count: 1 },
+    { path: 'src/b.ts', count: 1 },
+    { path: 'src/c.ts', count: 1 },
+    { path: 'src/e.ts', count: 0 },
+  ]);
+  assert.deepEqual(coupling.fanOut.top.slice(0, 2), [
+    { path: 'src/a.ts', count: 2 },
+    { path: 'src/c.ts', count: 2 },
+  ]);
+  assert.equal(coupling.fanInThreshold.threshold, CRAFT_LIMITS.fanInThreshold);
+  assert.equal(coupling.fanInThreshold.count, 0);
+  assert.deepEqual(coupling.fanInThreshold.files, []);
+  assert.deepEqual(coupling.cyclicGroups, { count: 1, sizes: [3], largest: 3, truncated: false });
+  assert.equal(coupling.layerBoundaries.totalEdges, 5);
+  assert.equal(coupling.layerBoundaries.crossingCount, 4);
+  assert.deepEqual(coupling.layerBoundaries.pairs, [
+    { sourceLayer: 'core', targetLayer: 'core', count: 1 },
+    { sourceLayer: 'core', targetLayer: 'entry', count: 1 },
+    { sourceLayer: 'core', targetLayer: 'shared', count: 1 },
+    { sourceLayer: 'entry', targetLayer: 'core', count: 1 },
+    { sourceLayer: 'entry', targetLayer: 'shared', count: 1 },
+  ]);
+  assert.deepEqual(coupling.edgeKinds, { 'dynamic-import': 1, import: 4 });
+});
+
+test('T017 craft: files above the fan-in threshold are listed with the disclosed threshold', () => {
+  const graph = { 'src/shared.ts': [] };
+  for (let index = 0; index < 11; index++) {
+    graph[`src/mod-${index}.ts`] = ['src/shared.ts'];
+  }
+  const coupling = computeCouplingAggregates({
+    findings: { modules: [], layers: {}, importGraph: { graph } },
+  });
+  assert.equal(coupling.fanInThreshold.threshold, CRAFT_LIMITS.fanInThreshold);
+  assert.equal(coupling.fanInThreshold.count, 1);
+  assert.deepEqual(coupling.fanInThreshold.files, ['src/shared.ts']);
+  assert.equal(coupling.fanInThreshold.truncated, false);
+});
+
+test('T017 craft: SOLID/pattern indicators are exact for a synthetic model', () => {
+  const findings = solidCraftFindings();
+  const indicators = computeSolidIndicators({ findings });
+  assert.deepEqual(indicators.interfaceReferences, {
+    count: 5,
+    usageCount: 2,
+    paths: ['src/contracts/UserContract.ts', 'src/interfaces/user-interface.ts'],
+    truncated: false,
+  });
+  assert.deepEqual(indicators.dependencyDirection, {
+    totalEdges: 7,
+    downward: 3,
+    upward: 1,
+    same: 3,
+    unknown: 0,
+    pairs: [
+      { sourceLayer: 'core', targetLayer: 'core', direction: 'same', count: 3 },
+      { sourceLayer: 'entry', targetLayer: 'core', direction: 'downward', count: 2 },
+      { sourceLayer: 'entry', targetLayer: 'shared', direction: 'downward', count: 1 },
+      { sourceLayer: 'shared', targetLayer: 'core', direction: 'upward', count: 1 },
+    ],
+  });
+  assert.deepEqual(indicators.portAdapterDirs, {
+    paths: ['src/adapters', 'src/contracts', 'src/ports'],
+    truncated: false,
+  });
+  assert.deepEqual(indicators.patternSuffixes.counts, {
+    Adapter: 1, Factory: 0, Repository: 1, Service: 1,
+  });
+  assert.deepEqual(indicators.patternSuffixes.files, [
+    'src/adapters/StripeAdapter.ts',
+    'src/ports/repository.ts',
+    'src/services/UserService.ts',
+  ]);
+});
+
+test('T017 craft: path samples are bounded and truncation is disclosed', () => {
+  const graph = {};
+  for (let index = 0; index < CRAFT_LIMITS.pathSamples + 5; index++) {
+    const contract = `src/contracts/contract-${String(index).padStart(3, '0')}.ts`;
+    graph[contract] = [];
+    for (let j = 0; j < 12; j++) {
+      graph[`src/mod-${index}-${j}.ts`] = [contract];
+    }
+  }
+  const findings = { modules: [], layers: {}, importGraph: { graph } };
+  const coupling = computeCouplingAggregates({ findings });
+  assert.equal(coupling.fanInThreshold.truncated, true);
+  assert.equal(coupling.fanInThreshold.files.length, CRAFT_LIMITS.pathSamples);
+  assert.equal(coupling.fanInThreshold.count, CRAFT_LIMITS.pathSamples + 5);
+  const solid = computeSolidIndicators({ findings });
+  assert.equal(solid.interfaceReferences.usageCount, CRAFT_LIMITS.pathSamples + 5);
+  assert.equal(solid.interfaceReferences.truncated, true);
+  assert.equal(solid.interfaceReferences.paths.length, CRAFT_LIMITS.pathSamples);
+});
+
+test('T017 craft: results are deterministic, deep-frozen, and privacy-safe', () => {
+  const findings = syntheticCraftFindings();
+  const facts = { edgeKindCounts: { import: 5 } };
+  const first = computeCouplingAggregates({ findings, facts });
+  const second = computeCouplingAggregates({ findings, facts });
+  assert.deepEqual(first, second);
+  assert.equal(JSON.stringify(first), JSON.stringify(second));
+  assert.equal(Object.isFrozen(first), true);
+  assert.equal(Object.isFrozen(first.fanIn.top), true);
+  assert.throws(() => first.fanInThreshold.files.push('x'), TypeError);
+  assertPrivacySafe(first);
+  const solid = computeSolidIndicators({ findings });
+  assert.equal(Object.isFrozen(solid), true);
+  assert.throws(() => { solid.patternSuffixes.counts.Service = 9; }, TypeError);
+  assertPrivacySafe(solid);
+});
+
+test('T017 craft: insertion-order changes never alter the aggregate output', () => {
+  const left = {
+    layers: { entryPoints: ['m.js'], coreModules: ['a.js'] },
+    importGraph: {
+      graph: { 'z.js': ['a.js'], 'a.js': [], 'm.js': ['z.js', 'a.js'] },
+    },
+  };
+  const right = {
+    layers: { coreModules: ['a.js'], entryPoints: ['m.js'] },
+    importGraph: {
+      graph: { 'm.js': ['a.js', 'z.js'], 'a.js': [], 'z.js': ['a.js'] },
+    },
+  };
+  assert.deepEqual(
+    computeCouplingAggregates({ findings: left }),
+    computeCouplingAggregates({ findings: right }),
+  );
+  assert.deepEqual(
+    computeSolidIndicators({ findings: left }),
+    computeSolidIndicators({ findings: right }),
+  );
+});
+
+test('T017 craft: foreign and empty models produce empty aggregates without throwing', () => {
+  const emptyCoupling = computeCouplingAggregates(null);
+  assert.deepEqual(emptyCoupling.fanIn.max, { count: null, files: [], truncated: false });
+  assert.deepEqual(emptyCoupling.fanIn.top, []);
+  assert.equal(emptyCoupling.cyclicGroups.count, 0);
+  assert.equal(emptyCoupling.layerBoundaries.totalEdges, 0);
+  assert.deepEqual(computeCouplingAggregates({}), computeCouplingAggregates(null));
+  const emptySolid = computeSolidIndicators(null);
+  assert.equal(emptySolid.interfaceReferences.count, 0);
+  assert.equal(emptySolid.interfaceReferences.usageCount, 0);
+  assert.deepEqual(emptySolid.patternSuffixes.counts, {
+    Adapter: 0, Factory: 0, Repository: 0, Service: 0,
+  });
+  assert.deepEqual(emptySolid.portAdapterDirs, { paths: [], truncated: false });
+  assert.equal(Object.isFrozen(emptyCoupling), true);
+  assert.equal(Object.isFrozen(emptySolid), true);
+});
+
+test('T017 catalog: architecture observations carry coupling and design_pattern facts', () => {
+  const findings = solidCraftFindings();
+  const facts = { edgeKindCounts: { import: 7 } };
+  const [{ dimensionId, observations }] = architectureObservations({ findings, facts });
+  assert.equal(dimensionId, 'DIM-architecture-v1');
+  const coupling = observations.filter(({ category }) => category === 'coupling');
+  const solid = observations.filter(({ category }) => category === 'design_pattern');
+  assert.ok(coupling.length >= 7, 'coupling observations present');
+  assert.ok(solid.length >= 4, 'design_pattern observations present');
+  const byKey = new Map(observations.map((entry) => [entry.matchedKey, entry]));
+  assert.equal(byKey.get('coupling:fan-in-threshold').details.threshold, CRAFT_LIMITS.fanInThreshold);
+  assert.deepEqual(byKey.get('coupling:fan-in-max').details, {
+    count: 4, files: ['src/contracts/UserContract.ts'], truncated: false,
+  });
+  assert.deepEqual(byKey.get('coupling:fan-in-top').details, {
+    limit: CRAFT_LIMITS.topN,
+    top: {
+      'src/contracts/UserContract.ts': 4,
+      'src/interfaces/user-interface.ts': 1,
+      'src/ports/repository.ts': 1,
+      'src/services/UserService.ts': 1,
+      'src/adapters/StripeAdapter.ts': 0,
+    },
+  });
+  assert.deepEqual(byKey.get('coupling:edge-kinds').details, { kinds: { import: 7 } });
+  assert.deepEqual(byKey.get('design:dependency-direction').details, {
+    totalEdges: 7,
+    downward: 3,
+    upward: 1,
+    same: 3,
+    unknown: 0,
+    pairs: {
+      'core:core:same': 3,
+      'entry:core:downward': 2,
+      'entry:shared:downward': 1,
+      'shared:core:upward': 1,
+    },
+  });
+  assert.equal(byKey.get('design:interface-references').details.count, 5);
+  assert.equal(byKey.get('design:port-adapter-dirs').details.paths.length, 3);
+  for (const entry of [...coupling, ...solid]) {
+    assert.equal(entry.path, null, 'craft observations are aggregate records');
+    assert.equal(entry.sourceKind, 'repository_metadata', entry.matchedKey);
+    assert.equal(Object.isFrozen(entry), true);
+    assert.equal(Object.isFrozen(entry.details), true);
+  }
+  const { results, capped } = architectureProviderResults({ findings, facts });
+  assert.equal(capped, false);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].providerId, 'PRV-analysis-architecture-v1');
+});
+
+test('T017 catalog: observations avoid banned words and degrade gracefully', () => {
+  const banned = /\b(?:high coupling|hub|criticality|dead code)\b/i;
+  const findings = solidCraftFindings();
+  const [{ observations }] = architectureObservations({ findings, facts: {} });
+  assert.ok(!banned.test(JSON.stringify(observations)), 'no banned words in observation data');
+  assert.ok(!observations.some(({ matchedKey }) => matchedKey === 'coupling:edge-kinds'),
+    'edge-kind observation is omitted when facts carry none');
+  assert.deepEqual(architectureObservations(null), []);
+  assert.deepEqual(architectureObservations({ findings: null }), []);
+  assert.deepEqual(architectureProviderResults(null), { results: [], capped: false });
+  const snapshot = JSON.stringify(findings);
+  architectureObservations({ findings, facts: {} });
+  assert.equal(JSON.stringify(findings), snapshot, 'scan() findings are never mutated by the derivation');
+});
+
+test('T017 integration: real scan findings feed craft aggregates and keep their exact keys', async () => {
+  const files = {
+    'package.json': JSON.stringify({ name: 'craft-ts', type: 'module' }),
+    'src/main.ts': `import { run } from './core/service';\n`,
+    'src/core/service.ts': `import { contract } from './contracts/contract';\nexport const run = contract;\n`,
+    'src/core/contracts/contract.ts': `export interface Contract { id: number; }\n`,
+  };
+  const overview = overviewFor(['typescript'], Object.keys(files));
+  const { scan: scanResult, facts } = await scanFixture('archcraft-integration', files, overview);
+  assert.deepEqual(Object.keys(scanResult.findings).sort(),
+    ['asciiGraph', 'c4Code', 'c4Component', 'c4Container', 'c4Context', 'importGraph', 'layers', 'modules']);
+  const [{ observations }] = architectureObservations({ findings: scanResult.findings, facts });
+  const coupling = observations.filter(({ category }) => category === 'coupling');
+  assert.ok(coupling.some(({ matchedKey }) => matchedKey === 'coupling:fan-in-max'));
+  const solid = observations.filter(({ category }) => category === 'design_pattern');
+  const interfaces = solid.find(({ matchedKey }) => matchedKey === 'design:interface-references');
+  assert.ok(interfaces.details.usageCount >= 1, 'interface-marked file is found by name');
+  assert.equal(interfaces.details.count, 1, 'main.ts and service.ts edges target the contract');
 });

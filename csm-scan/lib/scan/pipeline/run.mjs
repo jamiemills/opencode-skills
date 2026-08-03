@@ -46,6 +46,8 @@ import { scan as scanGovernance } from '../deep/governance/scanner.mjs';
 import { buildGovernanceModel } from '../deep/governance/model.mjs';
 import { scan as scanAssurance } from '../deep/assurance/scanner.mjs';
 import { buildAssuranceModel } from '../deep/assurance/model.mjs';
+import { scan as scanPractices } from '../deep/practices/scanner.mjs';
+import { buildPracticesModel } from '../deep/practices/model.mjs';
 import {
   EXISTING_TEN_DIMENSIONS,
   deepScan,
@@ -272,6 +274,8 @@ async function scanDimension(dimension, repoPath, overview, broker = null) {
       return scanGovernance(repoPath, overview, broker ?? commandBroker);
     case 'assurance':
       return scanAssurance(repoPath, overview);
+    case 'practices':
+      return scanPractices(repoPath, overview);
     default:
       return null;
   }
@@ -380,6 +384,12 @@ function fallbackDimension(dimension) {
         diagnostics: [FAILURE_DIAGNOSTIC_NO_LINE],
         searchSpace: FAILURE_SEARCH_SPACE,
       });
+    case 'practices':
+      return buildPracticesModel({
+        entries: [],
+        diagnostics: [FAILURE_DIAGNOSTIC_LINE],
+        searchSpace: FAILURE_SEARCH_SPACE,
+      });
     default:
       return {};
   }
@@ -441,7 +451,7 @@ async function processExpandedRepo({
   return { repo, enriched, validated, trace };
 }
 
-function assertSixteenDimensionsPresent(deep) {
+function assertAllDimensionsPresent(deep) {
   const present = new Set(deep.map((entry) => entry.dimension));
   const missing = dimensionShorts(DIMENSION_REGISTRY).filter((dimension) => !present.has(dimension));
   if (missing.length > 0) {
@@ -450,7 +460,7 @@ function assertSixteenDimensionsPresent(deep) {
 }
 
 const PRIVACY_ENFORCED_DIMENSIONS = Object.freeze([
-  'api', 'data', 'deployment', 'maintainability', 'governance', 'assurance',
+  'api', 'data', 'deployment', 'maintainability', 'governance', 'assurance', 'practices',
 ]);
 
 /**
@@ -849,6 +859,7 @@ async function buildProviderEvidence({ repoPath, overview, deepResults, pluginRe
       architecture: { findings: byDimension.architecture, facts: {} },
       conventions: byDimension.conventions,
       documentation: { repoPath, findings: byDimension.documentation },
+      practices: byDimension.practices,
       generic,
     });
     catalogResults = [
@@ -1023,9 +1034,9 @@ export async function runExpandedPipeline({
     perRepoCoverage.push(computeExpectedClaimCoverage(processed.repo.deep, overview));
   }
 
-  // Fail-before-write: every repo must carry all 16 registered dimensions.
+  // Fail-before-write: every repo must carry all registered dimensions.
   for (const entry of scanEntries) {
-    assertSixteenDimensionsPresent(entry.deep);
+    assertAllDimensionsPresent(entry.deep);
   }
 
   const global = collectGlobalSnapshot(scanEntries);
