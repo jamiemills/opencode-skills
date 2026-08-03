@@ -7,12 +7,12 @@
 
 ## Control
 - Plan ID: csm-grill-skill
-- Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 1
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — cycle 1: G1 {T001, T002} verified and committed; T003 ready
-- Next transition: CHECKPOINT -> SELECT (cycle 2: T003 fresh-eyes review)
+- Last checkpoint: 2026-08-03 — cycle 2: T003 primary-led review (2 subagent empty-results), one consistency fix applied, completion gate passed
+- Next transition: none (terminal)
 - Active tasks: none
 - Blockers: none
 
@@ -168,7 +168,7 @@ README leading clause (exact; opens the T002 table-row purpose and is grepped in
    - Acceptance evidence: PASS output, fence count, 7-row table check recorded.
    - Repair attempts: 0
    - Recovery note: README edits are idempotent textual insertions; detect partial work by grepping for the added markers and re-apply only the missing ones.
-3. [pending] Fresh-eyes fidelity review and polish
+3. [completed] Fresh-eyes fidelity review and polish
    - Task ID: T003
    - Depends on: T001, T002
    - Parallel group: G2
@@ -228,6 +228,16 @@ Per-task fast gates (cheapest first, seconds to run): T001 and T002 grep-based s
 | 2026-08-03 | 1 | INTEGRATE -> VERIFY | T001, T002 | T001 gate → T001-PASS; T002 gate → T002-PASS. Supporting checks: `wc -l csm-grill/SKILL.md` = 206 (budget 180–280); fence counts 6 (SKILL.md) and 14 (README.md), both even; skills table = 7 rows; setup list names csm-grill; all 8 README touchpoints confirmed by grep (lines 3, 13, 27, 49, 66, 90, 137) | REVIEW |
 | 2026-08-03 | 1 | VERIFY -> REVIEW | T001, T002 | Primary-led review (low-risk docs-only batch): SKILL.md read end-to-end — sibling skeleton parity, all 7 brief steps + cyclic rule encoded, cycle edges pinned verbatim, write discipline incl. sanctioned-commit clarification and best-effort temp cleanup, approach-doc template with ASCII + Mermaid phasing diagrams and phase-brief contract, anti-patterns, done criteria. README diff read — all 8 edits at correct touchpoints, tone consistent, Mermaid well-formed. No findings | CHECKPOINT |
 | 2026-08-03 | 1 | REVIEW -> CHECKPOINT | T001, T002 | Statuses set completed; batch committed staging only `csm-grill/SKILL.md`, `README.md`, and this plan file. Learning: subagent empty-result mode handled by primary completion — no plan change needed; T003 remains the mandated fresh-eyes gate for the whole goal | SELECT (cycle 2) |
+| 2026-08-03 | 2 | CHECKPOINT -> SELECT | T003 | Cycle 2. Ready set = {T003} (deps T001+T002 completed with evidence); runnable signal = post-corrections re-run of T001+T002 gates | DISPATCH |
+| 2026-08-03 | 2 | DISPATCH -> INTEGRATE | T003 | T003 review subagent returned an EMPTY result (second empty-result subagent this session — tooling reliability issue, not a deliverable defect). Deliberate choice per csm-build REVIEW rule: primary-led review is permitted for small low-risk batches, and this batch is docs-only with no security/data/destructive/public-interface impact. Independence preserved for SKILL.md (authored by the T001 subagent, not the primary); README self-reviewed. A–G checklist run on a fresh full read of both files | VERIFY |
+| 2026-08-03 | 2 | INTEGRATE -> VERIFY -> REVIEW | T003 | Gates re-run: T001-PASS, T002-PASS. Checklist: A (7 behaviors + verbatim mapping table) PASS; B (state line + 3 pinned cycle edges + CONFIRM→SAVED-on-agreement) PASS; C (cwd fallback, mktemp+cleanup, never-invoke, sanctioned-commit clarification) PASS; D (ASCII + Mermaid phasing + phase-brief fields + big-part granularity) PASS; E (frontmatter, section headers, README leading clause + link) PASS; F (sibling style parity, no bloat/no-ops, valid 4-backtick fence wrapping inner fences) PASS; G — one minor finding: workflow narrative paragraph (README line 35) described "the core loop" starting at scan, omitting the grill step now featured in the intro (line 3) and Mermaid (line 27) | REPAIR |
+| 2026-08-03 | 2 | REVIEW -> REPAIR | T003 | Applied one-line consistency fix: added "**grill** an idea into an agreed phased approach," to the front of the core-loop enumeration (README line 35). Re-ran final gate: T001-PASS, T002-PASS, CLAUSE-PASS (leading clause in both files), all 7 referenced SKILL.md paths exist, `wc -l` = 206, `git status` shows only README.md and this plan file changed by this execution | CHECKPOINT |
+| 2026-08-03 | 2 | CHECKPOINT -> COMPLETE | T003 | Completion gate passed (all 8 checks). Statuses: T001/T002/T003 completed. Committing README.md + plan update; nothing pushed. Learning for future plans: this session's subagent runtime intermittently returns empty results — primary completion (for execution tasks) and primary-led review (for low-risk batches) are valid fallbacks under csm-build rules and were used deliberately with recorded justification | COMPLETE (terminal) |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+- **Goal met**: Yes. `csm-grill/SKILL.md` (206 lines) implements the Matt-Pocock-style grill as a CSM — the cyclic state machine `INTAKE -> SCOUT -> GRILL -> DEEP_DIVE -> SYNTHESIZE -> CONFIRM -> SAVED -> STOP` with all cycle-back transitions, the verbatim 9-row mapping of the user's seven prescribed steps, the strict write discipline (only the single approach document; temp dir only; never invokes csm-plan/csm-build), and the approach-document template carrying ASCII + Mermaid phasing diagrams and paste-ready per-phase csm-plan briefs at big-part granularity.
+- **Acceptance criteria — all evidenced**: AC1 (T001-PASS, all required sections/states/edges/strings present); AC2 (mapping table verbatim vs plan; review confirmed every row; T001 gate greps state line + 3 pinned cycle edges); AC3 (T002-PASS; workflow Mermaid has csm-grill node with dotted "phase briefs" edge; skills table = 7 rows with the pinned leading clause and link; TOC + usage subsection + "seven skill folders" + setup list + repo-layout entry all present); AC4 (`git status` at completion shows only README.md + plan file changed by this execution; cycle-1 commit 2458127 staged only `csm-grill/SKILL.md` + README.md + plan file; no pre-existing csm-scan dirt existed at RECOVER — it had been committed upstream); AC5 (`wc -l` = 206, within 180–280).
+- **Final-gate evidence**: T001-PASS, T002-PASS, CLAUSE-PASS (leading clause in both files), all 7 referenced SKILL.md paths exist, fence counts 6 (SKILL.md) and 14 (README.md) even, working tree clean of unexplained changes.
+- **Review**: primary-led after two consecutive empty-result review subagents; one minor consistency finding (README narrative line 35) applied; no material regression, security, data, or operational issue. Limitation noted: T003 was planned as an independent fresh-eyes subagent; two runtime empty-results forced primary-led review — acceptable under csm-build's low-risk-batch rule but less independent than prescribed.
+- **Commits**: cycle 1 — `2458127 csm-grill: SKILL.md + README coverage (plan csm-grill-skill, cycle 1)`; cycle 2 (this checkpoint) — completion commit for README narrative fix + plan completion update. Nothing pushed.
+- **Not started**: no csm-plan or csm-build was invoked by the skill; the csm-grill skill itself has never been run — it only becomes invocable after an OpenCode restart.
