@@ -9,13 +9,13 @@
 
 ## Control
 - Plan ID: csm-scan-practices-dimension
-- Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 5
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 6
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — T012/T013/T014 done; suite reconciled 393/393 broad batch; AD6 amended (enrich.mjs practices case + policy-conformant supersession of free-form-na + coverage-status-representation); supersession.json is the single deliberate baseline change (16-line minimal diff)
-- Next transition: SELECT -> T015 (final gate: full suite + perplexity-cli probe)
-- Active tasks: T015
+- Last checkpoint: 2026-08-03 — T015 final gate passed: full suite 1100/1100, perplexity-cli probe 93/93 complete ratio 1, all craft/style facts render, neutral voice, no secrets; probe defects repaired (hidden-dir junk, read budget, fuzz binaries, craft renderer fields, provider-evidence channel via expanded-only architecture-craft renderer)
+- Next transition: none (COMPLETE)
+- Active tasks: none
 - Blockers: none
 
 ## Goal
@@ -410,7 +410,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: doc-only task; partial application detectable by leftover "16-dimension" phrasing.
 
-15. [pending] Final gate and real-repo probe
+15. [completed] Final gate and real-repo probe
+   - DONE (cycle 6, 2026-08-03): full suite 1100/1100 (~80s); probe on perplexity-cli: 17 scanners, Expected claim coverage {"expected":93,"eligible":93,"complete":93,"incomplete":0,"unsupported":0,"excluded":0,"ratio":1}; practices section renders methodology/enforcement/automation/quality-gates/agent-workflow/style-guide; craft facts render (complexity distribution 145 files/571 functions, unused-code markers 6, fan-in max 29, fan-out max 15, 7 files above threshold, cyclic groups 1, layer-boundary 130, SOLID indicators, port/adapter dirs); neutral voice + no secrets (banned-word scan clean except file-path segments like github.com/hub.py fixture paths — not verdict prose).
     - Task ID: T015
     - Depends on: T012, T013, T014
     - Parallel group: G6
@@ -562,6 +563,20 @@ Ordered cheapest-first:
 | 2026-08-03 | 5 | REVIEW | T012 | Enrich.mjs deviation reviewed: the switch case mirrors the six precedent dimension cases (governance/assurance etc.); the alternative (model-side empty expression) is impossible per isNullishFinding; reverting would break T012's not_detected fixture rows. Supersession path verified against the policy text and the personal-identity-output precedent; replacement tests must live in recurringAcceptanceTestFiles (constraints file chosen — not in test-integrity.json) | REPAIR |
 | 2026-08-03 | 5 | REPAIR | T012, T013 | Applied: free-form applicability replacement test + coverage-representation replacement test added to test/expansion-constraints.test.mjs; supersession.json free-form-na + coverage-status-representation converted to superseded with digest-locked replacements (minimal 16-line diff, original compact format preserved); digest recomputed after the second test; baseline 14/14, constraints 9/9, fixtures-pipeline 5/5, parity 21/21 | CHECKPOINT |
 | 2026-08-03 | 5 | CHECKPOINT | T012, T013, T014 | T012/T013/T014 completed; AD6 amended (enrich.mjs + supersession, evidence-driven); Discovered Requirements amended; supersession.json is the single deliberate baseline change (policy-conformant); next: SELECT -> T015 final gate | SELECT |
+| 2026-08-03 | 6 | SELECT | T015 | Final gate: full suite + perplexity-cli probe (primary agent) | DISPATCH |
+| 2026-08-03 | 6 | DISPATCH | T015 | Full suite 1098/1098; probe revealed PRACTICES SCANNER DEFECTS: (1) hidden-dir walk collected .opencode/node_modules + coverage artifacts (read budget starved; quality/gates.conf CAP'd; missing quality-gate/ritual/style-guide categories), (2) record limit 10k exhausted by large plans before quality/* read, (3) fuzz_corpus binary files read as text → MALFORMED, (4) built-in provider observations are NEVER merged into output (only plugin/generic) — coupling/SOLID had no rendering channel, (5) craft renderer used wrong aggregate field names | REPAIR |
+| 2026-08-03 | 6 | REPAIR | T015 | Fixed: isGeneratedPracticePath guard (ignore vocabulary + generated dirs) in classifyPracticePath/isRelevantHiddenFile/isCandidatePath + walkHiddenDir skip + per-dir cap; maxBytes 16MiB + maxRecords 200k; fuzz_corpus text-only reads; new render/architecture-craft.mjs (expanded-only architecture renderer delegating to the shared render + neutral Craft Assessment via craft.mjs); registry architecture entry + prose; negative junk test + craft render test. 47/47 gates, then full suite 1100/1100 | VERIFY |
+| 2026-08-03 | 6 | VERIFY | T015 | FINAL GATE PASSED: full suite 1100/1100 (~80s); probe: 17 scanners, {"expected":93,"eligible":93,"complete":93,"ratio":1}; all 14 AC fact checks OK (mutation/property/fuzz/gates/baselines/plans/agent-configs/coverage-thresholds/CI-gates/style-guide/complexity/unused-code/coupling/SOLID); banned-words scan clean (only file-path segments github.com/hub.py — fixture filenames, not prose); no secrets; git tree contains only this execution's changes | COMPLETE |
+| 2026-08-03 | 6 | COMPLETE | T015 | Completion Review filled; all 17 tasks done; AC1-AC5 evidenced; plan committed | STOP |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+Filled by csm-build at COMPLETE (2026-08-03):
+- All 17 numbered tasks (T001-T017) completed with recorded acceptance evidence; T018 was removed during the craft-amendment (style-guide folded into T003).
+- AC1: full suite `node --test --test-concurrency=1` → 1100 pass / 0 fail (~80s), 17 dimension counts, 93 expected claims, 15 provider dimensions.
+- AC2: perplexity-cli probe → 17 scanners dispatched; `Expected claim coverage: {"expected":93,"eligible":93,"complete":93,"incomplete":0,"unsupported":0,"excluded":0,"ratio":1}`; Development Practices section with mutation/property/fuzz/quality-gates/baselines/plans/agent-configs/coverage-thresholds/CI-gates/style-guide facts.
+- AC3: craft facts render: complexity distribution (145 files/571 functions), unused-code markers (6), coupling aggregates (fan-in max 29, fan-out max 15, threshold 7, cyclic 1, layer-boundary 130), SOLID indicators, style-guide values; all neutral-voiced.
+- AC4: 10 new claims registered globally unique (7 practices + dead-code + coupling + solid-indicators); voice/privacy/determinism/constraint gates green.
+- AC5: ten-dimension freeze held (fixture-behavior.json byte-identity 5/5, parity 21/21, supersession/capabilities/test-integrity untouched except the documented policy-conformant supersession of free-form-na + coverage-status-representation); boundary assertions in fixture matrix green.
+- Review findings: cycle-3 (6 findings, 3 repaired + 3 dismissed with reasoning), cycle-5 (enrich supersession), cycle-6 probe defects (hidden-dir junk, read-budget starvation, fuzz-corpus binary reads, craft-renderer field names, built-in provider observation rendering channel) — all repaired with tests.
+- Deviation recorded: enrich.mjs positiveEvidence gained the practices case (AD6 amended, evidence-driven); supersession.json is the single deliberate baseline change (16-line minimal diff).
+- Repo status: no unexplained changes; all execution work committed (cycles 1-6), nothing pushed.

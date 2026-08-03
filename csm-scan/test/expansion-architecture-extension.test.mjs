@@ -827,3 +827,29 @@ test('T017 integration: real scan findings feed craft aggregates and keep their 
   assert.ok(interfaces.details.usageCount >= 1, 'interface-marked file is found by name');
   assert.equal(interfaces.details.count, 1, 'main.ts and service.ts edges target the contract');
 });
+
+test('T017 repair: expanded architecture renderer appends a neutral craft assessment', () => {
+  const { renderArchitectureExpanded, renderArchitectureCraft } = awaitImportRenderers();
+  const findings = {
+    importGraph: {
+      graph: { 'src/a.py': ['src/b.py'], 'src/b.py': [] },
+      reverseGraph: { 'src/a.py': [], 'src/b.py': ['src/a.py'] },
+    },
+    layers: { entryPoints: ['src/a.py'], libModules: ['src/b.py'], shared: [], rest: [], totalFiles: 2 },
+    modules: [],
+  };
+  const section = renderArchitectureExpanded('repo', findings);
+  assert.ok(section.includes('### Craft Assessment'), 'craft section appended');
+  assert.ok(section.includes('Maximum fan-in | 1'), 'fan-in aggregate rendered');
+  assert.ok(section.includes('Maximum fan-out | 1'), 'fan-out aggregate rendered');
+  const craft = renderArchitectureCraft(findings);
+  assert.ok(!/(high coupling|hub|criticality|dead code)/i.test(craft), 'banned words absent');
+  assert.ok(!/violation/i.test(craft), 'no verdict phrasing');
+  assert.equal(renderArchitectureCraft(null), '');
+});
+
+import { renderArchitectureCraft, renderArchitectureExpanded } from '../lib/scan/render/architecture-craft.mjs';
+
+function awaitImportRenderers() {
+  return { renderArchitectureCraft, renderArchitectureExpanded };
+}

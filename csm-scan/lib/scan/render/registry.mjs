@@ -34,6 +34,7 @@ import { deepFreeze } from '../contracts/evidence.mjs';
 import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
 
 import { renderArchitecture } from './architecture.mjs';
+import { renderArchitectureExpanded } from './architecture-craft.mjs';
 import { renderConfig } from './config.mjs';
 import { renderConventions } from './conventions.mjs';
 import { renderDocumentation } from './documentation.mjs';
@@ -258,7 +259,7 @@ const DIMENSION_RENDERER_SOURCES = Object.freeze([
     dimension: 'architecture',
     rendererId: 'RND-architecture-v1',
     label: 'Architecture',
-    render: renderArchitecture,
+    render: renderArchitectureExpanded,
     prose: prose(
       '## Architecture',
       '_No source files detected for architectural analysis._',
@@ -274,6 +275,13 @@ const DIMENSION_RENDERER_SOURCES = Object.freeze([
       '### C4 — Containers',
       '### C4 — Components',
       '### C4 — Code Level',
+      '### Craft Assessment',
+      '| Maximum fan-in |',
+      '| Maximum fan-out |',
+      '| Files above fan-in threshold',
+      '| Cyclic groups |',
+      '| Layer-boundary edges |',
+      '| Indicator | Count |',
     ),
   },
   {
