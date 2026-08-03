@@ -18,7 +18,11 @@
 import { compareAscii } from '../contracts/evidence.mjs';
 import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
 import { BRANCH_CATEGORIES } from '../deep/maintainability/tokenizer.mjs';
-import { OTHER_EXTENSION_LABEL, SIZE_BUCKETS } from '../deep/maintainability/model.mjs';
+import {
+  OTHER_EXTENSION_LABEL,
+  SIZE_BUCKETS,
+  complexityDistribution,
+} from '../deep/maintainability/model.mjs';
 
 // Neutral display labels for unused-code marker kinds. The machine kind token
 // `allow_dead_code` names the literal rust attribute; the rendered label
@@ -34,6 +38,24 @@ const DEAD_CODE_KIND_LABELS = Object.freeze({
 
 function deadCodeKindLabel(kind) {
   return DEAD_CODE_KIND_LABELS[kind] ?? kind;
+}
+
+/**
+ * Repo-wide aggregate complexity over the per-function values in every
+ * complexity record. Reuses the model's nearest-rank distribution helper so the
+ * statistics are deterministic and consistent with the per-file table.
+ * @param {object[]} records - the model's `complexityRecords`.
+ * @returns {object|null} `{ min, median, p95, max }` or null when no measured
+ *   function survived validation.
+ */
+function aggregateComplexity(records) {
+  const values = [];
+  for (const record of records) {
+    for (const func of record.functions) {
+      values.push(func.complexity);
+    }
+  }
+  return complexityDistribution(values);
 }
 
 function renderTable(context, columns, rows) {
@@ -202,6 +224,11 @@ export function renderMaintainability(_repoName, model, context = DEFAULT_RENDER
     lines.push('');
     lines.push(`Distribution is reported for ${complexityRows.length} file(s) covering ${totalFunctions} function(s).`);
     lines.push('');
+    const aggregate = aggregateComplexity(complexity);
+    if (aggregate !== null) {
+      lines.push(`Aggregate per-function complexity across the measured files: ${totalFunctions} function(s), median ${aggregate.median}, p95 ${aggregate.p95}, max ${aggregate.max}.`);
+      lines.push('');
+    }
     lines.push(renderTable(context,
       ['File', 'Dialect', 'Functions', 'Min', 'Median', 'P95', 'Max'],
       complexityRows,

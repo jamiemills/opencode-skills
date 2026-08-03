@@ -25,6 +25,14 @@ export function renderTesting(repoName, findings, context = DEFAULT_RENDER_CONTE
     lines.push(`- **Config files**: \`${escapeField(findings.configFiles.join('`, `'))}\``);
   }
 
+  // Declared pytest marker taxonomy — conditional on the deep scanner's
+  // markers fact, so repos without a markers declaration keep byte-identical
+  // output.
+  if (Array.isArray(findings.markers) && findings.markers.length > 0) {
+    const names = findings.markers.map((name) => `\`${escapeField(name)}\``).join(', ');
+    lines.push(`- **Marker taxonomy**: ${findings.markers.length} markers (${names})`);
+  }
+
   if (findings.script) {
     lines.push(`- **Test script**: \`${escapeField(findings.script)}\``);
   }

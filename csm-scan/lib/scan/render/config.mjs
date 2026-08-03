@@ -1,5 +1,19 @@
 import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
 
+// Render a type-checker tool's display label. A pyright entry that carries a
+// declared mode (deep/config.mjs enrichStrictFacts) is surfaced as
+// `pyright (strict)` so the Configuration section shows the strict-mode fact
+// only when pyright actually declares it.
+function typeCheckerLabel(tool) {
+  const name = (tool && tool.name) || String(tool);
+  if (tool && tool.name === 'pyright') {
+    if (tool.strict === true || tool.typeCheckingMode) {
+      return `${name} (${tool.strict === true ? 'strict' : tool.typeCheckingMode})`;
+    }
+  }
+  return name;
+}
+
 export function renderConfig(repoName, findings, context = DEFAULT_RENDER_CONTEXT) {
   if (!findings) return '';
   const { escapeField } = context;
@@ -38,7 +52,7 @@ export function renderConfig(repoName, findings, context = DEFAULT_RENDER_CONTEX
   }
 
   const typeCheckerNames = Array.isArray(findings.typeCheckers) && findings.typeCheckers.length
-    ? findings.typeCheckers.map((t) => (t && t.name) || String(t)).join(', ')
+    ? findings.typeCheckers.map(typeCheckerLabel).join(', ')
     : null;
   if (findings.typescript) {
     const ts = findings.typescript;

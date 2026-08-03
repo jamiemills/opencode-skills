@@ -36,6 +36,7 @@ import { DATABASE_INDICATORS, EXTERNAL_API_INDICATORS, matchDep } from '../share
 import { parseToml } from '../shared/parse.mjs';
 import { expandRepositoryDirectoryPatterns } from '../shared/glob.mjs';
 import { readJsonc } from '../shared/jsonc.mjs';
+import { parseIniSections } from '../shared/declarations.mjs';
 import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
 import {
   computeBounds,
@@ -1193,6 +1194,58 @@ async function prepareGraph(repoPath, overview) {
 }
 
 // ---------------------------------------------------------------------------
+// import-linter contracts
+// ---------------------------------------------------------------------------
+//
+// `.importlinter` is a root dotfile that `enumerate` (rg --files) does not
+// list, so it is probed explicitly. Each `[importlinter:contract:N]` section
+// declares `name`/`type` plus `source_modules`/`forbidden_modules` (or `modules`
+// for independence contracts). The fact is conditional-absent: repos without
+// the artifact keep byte-identical findings. Module lists are bounded with
+// truncation disclosed.
+
+const IMPORT_CONTRACT_MODULE_CAP = 32;
+
+function readImportContracts(repoPath) {
+  const file = join(repoPath, '.importlinter');
+  if (!existsSync(file)) return null;
+  let parsed;
+  try {
+    parsed = parseIniSections(readContent(file));
+  } catch {
+    return null;
+  }
+  const contracts = [];
+  for (const section of parsed.sections) {
+    if (!/^importlinter:contract:/i.test(section.name)) continue;
+    const entries = new Map(section.entries.map((entry) => [entry.key, entry.value]));
+    const name = entries.get('name');
+    const type = entries.get('type');
+    if (!name || !type) continue;
+    const modulesOf = (key) => {
+      const list = String(entries.get(key) || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return {
+        list: list.slice(0, IMPORT_CONTRACT_MODULE_CAP),
+        truncated: list.length > IMPORT_CONTRACT_MODULE_CAP,
+      };
+    };
+    const source = type === 'independence' ? modulesOf('modules') : modulesOf('source_modules');
+    const forbidden = modulesOf('forbidden_modules');
+    contracts.push({
+      name,
+      type,
+      sourceModules: source.list,
+      forbiddenModules: forbidden.list,
+      truncated: source.truncated || forbidden.truncated,
+    });
+  }
+  return contracts.length > 0 ? contracts : null;
+}
+
+// ---------------------------------------------------------------------------
 // Scan entry point
 // ---------------------------------------------------------------------------
 
@@ -1219,6 +1272,7 @@ export async function scan(repoPath, overview) {
   const c4Container = generateC4Container(repoName, layers, technology, nodes);
   const c4Component = generateC4Component(repoName, layers);
   const c4Code = generateC4Code(repoName, layers);
+  const importContracts = readImportContracts(repoPath);
 
   const totalEdges = Object.values(graph).reduce((sum, deps) => sum + deps.length, 0);
   const signal = totalEdges > 20 ? 'high' : totalEdges > 0 ? 'medium' : 'low';
@@ -1235,6 +1289,7 @@ export async function scan(repoPath, overview) {
       c4Component,
       c4Code,
       importGraph: { graph, reverseGraph },
+      ...(importContracts ? { importContracts } : {}),
     },
   };
 }

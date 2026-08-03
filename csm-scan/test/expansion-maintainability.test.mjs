@@ -1023,6 +1023,40 @@ test('T214 renderer: complexity distribution and unused-code markers render neut
   });
 });
 
+test('T214 renderer: repo-wide aggregate complexity line uses nearest-rank stats across files', () => {
+  const values = Array.from({ length: 21 }, (_, index) => index + 1);
+  const fileFor = (path, startIndex, count) => {
+    const slice = values.slice(startIndex, startIndex + count);
+    return {
+      path,
+      dialect: 'javascript',
+      functions: slice.map((value, index) => ({
+        functionName: `fn${String(startIndex + index + 1).padStart(2, '0')}`,
+        startLine: 1 + index,
+        endLine: 1 + index,
+        complexity: value,
+      })),
+      distribution: complexityDistribution(slice),
+      functionsCapped: false,
+    };
+  };
+  const model = buildMaintainabilityModel(modelInput({
+    measurement: { ...modelInput().measurement, eligibleFiles: 2, measuredFiles: 2 },
+    files: [
+      { path: 'src/a.js', dialect: 'javascript', bytes: 100, lines: 30, tokens: 50, sizeBucket: 'lt_1k' },
+      { path: 'src/b.js', dialect: 'javascript', bytes: 100, lines: 30, tokens: 50, sizeBucket: 'lt_1k' },
+    ],
+    complexityRecords: [
+      fileFor('src/a.js', 0, 11),
+      fileFor('src/b.js', 11, 10),
+    ],
+  }));
+  const markdown = renderMaintainability('repo', model);
+  assert.match(markdown, /Aggregate per-function complexity across the measured files: 21 function\(s\), median 11, p95 20, max 21\./);
+  assert.match(markdown, /\| src\/a\.js \| javascript \| 11 \| 1 \| 6 \| 11 \| 11 \|/);
+  assert.deepEqual(findVoiceHits(markdown), []);
+});
+
 test('T214 renderer: craft sections are absent for models without craft data', () => {
   const empty = buildMaintainabilityModel(modelInput());
   const markdown = renderMaintainability('repo', empty);
