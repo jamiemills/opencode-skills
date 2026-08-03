@@ -352,6 +352,41 @@ export const AUDIT_TOOLS = {
 };
 
 // ===========================================================================
+// PRACTICE_TOOLS  (development-practice tooling, tool-name keyed)
+// ===========================================================================
+// Consumed by the practices dimension scanner and its provider adapter
+// (`lib/scan/providers/practices.mjs`) when matching committed tool names in
+// manifests, workflow steps, and hook configs. Unlike the ecosystem-keyed
+// tables above, keys are tool names directly (a tool may appear in any
+// ecosystem), so this is a single flat map of `{ label, type }` entries.
+
+export const PRACTICE_TOOLS = Object.freeze({
+  mutmut: { label: 'Mutmut', type: 'Mutation testing' },
+  hypothesis: { label: 'Hypothesis', type: 'Property-based testing' },
+  atheris: { label: 'Atheris', type: 'Fuzz testing' },
+  'diff-cover': { label: 'diff-cover', type: 'Coverage gate' },
+  'import-linter': { label: 'import-linter', type: 'Dependency lint' },
+  deptry: { label: 'deptry', type: 'Dependency lint' },
+  vulture: { label: 'Vulture', type: 'Dead code' },
+  actionlint: { label: 'actionlint', type: 'Workflow lint' },
+  commitlint: { label: 'commitlint', type: 'Commit lint' },
+  gitlint: { label: 'gitlint', type: 'Commit lint' },
+  'semantic-release': { label: 'semantic-release', type: 'Release automation' },
+  'release-please': { label: 'release-please', type: 'Release automation' },
+  renovate: { label: 'Renovate', type: 'Dependency automation' },
+  sphinx: { label: 'Sphinx', type: 'Documentation' },
+  mkdocs: { label: 'MkDocs', type: 'Documentation' },
+  docusaurus: { label: 'Docusaurus', type: 'Documentation' },
+  'pre-commit': { label: 'pre-commit', type: 'Hook runner' },
+  lefthook: { label: 'Lefthook', type: 'Hook runner' },
+  bandit: { label: 'Bandit', type: 'Security lint' },
+  radon: { label: 'Radon', type: 'Complexity' },
+  'eslint-config-airbnb': { label: 'eslint-config-airbnb', type: 'Style guide' },
+  black: { label: 'Black', type: 'Formatter' },
+  prettier: { label: 'Prettier', type: 'Formatter' },
+});
+
+// ===========================================================================
 // Helpers
 // ===========================================================================
 

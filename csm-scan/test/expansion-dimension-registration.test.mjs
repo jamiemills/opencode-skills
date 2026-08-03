@@ -17,7 +17,7 @@
 //   1. Every dimension exactly once in canonical order; registry validates
 //      through the T202 contract.
 //   2. Every provider exactly once; index validates through the T202 contract.
-//   3. All 14 provider dimensions represented, each with one primary builtin
+//   3. All 15 provider dimensions represented, each with one primary builtin
 //      provider.
 //   4. Stable expected-claim IDs: bounded, pattern-valid, per-dimension prefix,
 //      and globally unique.
@@ -435,7 +435,7 @@ test('T222 dimensions: repeated evaluation is byte-identical and snapshots are d
 
 test('T222 providers: index validates through the contract and holds every provider exactly once', () => {
   assert.equal(BUILTIN_PROVIDER_VERSION, 1);
-  assert.equal(BUILTIN_PROVIDER_COUNT, 15);
+  assert.equal(BUILTIN_PROVIDER_COUNT, 16);
   assert.equal(new Set(BUILTIN_PROVIDER_INDEX.map(({ id }) => id)).size, BUILTIN_PROVIDER_COUNT);
   assert.deepEqual(BUILTIN_PROVIDER_INDEX.map(({ id }) => id).slice().sort(compareAscii), BUILTIN_PROVIDER_IDS);
   assert.deepEqual(validateProviders(BUILTIN_PROVIDER_INDEX), BUILTIN_PROVIDER_INDEX);
@@ -443,11 +443,11 @@ test('T222 providers: index validates through the contract and holds every provi
   assert.ok(BUILTIN_PROVIDER_IDS.includes(GENERIC_BUILTIN_PROVIDER_ID));
 });
 
-test('T222 providers: all 14 provider dimensions are represented, each with one primary builtin provider', () => {
-  assert.equal(BUILTIN_DIMENSION_COUNT, 14);
+test('T222 providers: all 15 provider dimensions are represented, each with one primary builtin provider', () => {
+  assert.equal(BUILTIN_DIMENSION_COUNT, 15);
   const covered = new Set(BUILTIN_PROVIDER_INDEX.flatMap(({ dimensions }) => dimensions.map(({ dimensionId }) => dimensionId)));
   assert.deepEqual([...covered].sort(compareAscii), [...PROVIDER_DIMENSION_IDS].sort(compareAscii));
-  assert.equal(Object.keys(BUILTIN_DIMENSION_TO_PROVIDER).length, 14);
+  assert.equal(Object.keys(BUILTIN_DIMENSION_TO_PROVIDER).length, 15);
   for (const dimensionId of PROVIDER_DIMENSION_IDS) {
     const providerId = BUILTIN_DIMENSION_TO_PROVIDER[dimensionId];
     assert.ok(typeof providerId === 'string' && providerId.length > 0, `${dimensionId} has a primary builtin provider`);
@@ -481,6 +481,7 @@ test('T222 providers: index mirrors the three catalogs and the generic fallback 
     [ANALYSIS_PROVIDER_IDS.architecture, ANALYSIS_DIMENSION_IDS[0]],
     [ANALYSIS_PROVIDER_IDS.conventions, ANALYSIS_DIMENSION_IDS[1]],
     [ANALYSIS_PROVIDER_IDS.documentation, ANALYSIS_DIMENSION_IDS[2]],
+    [ANALYSIS_PROVIDER_IDS.practices, ANALYSIS_DIMENSION_IDS[3]],
   ];
   for (const [id, dimensionId] of analysis) {
     const actual = indexById.get(id);

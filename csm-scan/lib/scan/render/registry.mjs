@@ -1,12 +1,13 @@
 // Inert renderer registry — T223.
 //
-// Owned by T223. Registers all 16 per-repo dimension renderers in canonical
+// Owned by T223. Registers all 17 per-repo dimension renderers in canonical
 // T222 dimension order (structure, stack, config, testing, conventions, git,
 // architecture, documentation, security, operations, api, data, deployment,
-// maintainability, governance, assurance) plus the Cross-repo global renderer.
+// maintainability, governance, assurance, practices) plus the Cross-repo
+// global renderer.
 //
 // The ten established renderers register their render functions directly. The
-// six new dimensions register through their inert factories (the deployment
+// seven new dimensions register through their inert factories (the deployment
 // dimension exposes only a render function, which is registered directly).
 // The Cross-repo global renderer is registered as a data-only descriptor
 // (module path, factory, and export name) exactly like the T222
@@ -15,11 +16,11 @@
 //
 // Guarantees:
 //   - RENDERER_SNAPSHOT lists every registered renderer in canonical dimension
-//     order (16 dimensions) followed by the Cross-repo global renderer (17).
+//     order (17 dimensions) followed by the Cross-repo global renderer (18).
 //   - verifyRenderRegistry and createRenderRegistry fail typed and sanitized
 //     (never echoing caller input) on unknown, missing, or duplicate renderer
 //     registrations and on invalid labels, prose, or prose privacy hazards.
-//   - createRenderRegistry produces a frozen 16-dimension renderer with an
+//   - createRenderRegistry produces a frozen 17-dimension renderer with an
 //     existing-ten-compatible render(deep) surface and a fixed render context,
 //     so injected rendering is deterministic.
 //   - The default write path (existing-ten) is untouched: nothing in
@@ -49,6 +50,7 @@ import { createDataRenderer } from './data.mjs';
 import { renderDeployment } from './deployment.mjs';
 import { createGovernanceRenderer } from './governance.mjs';
 import { createMaintainabilityRenderer } from './maintainability.mjs';
+import { createPracticesRenderer } from './practices.mjs';
 
 const RENDERER_ID_PATTERN = /^RND-[a-z0-9]+(?:-[a-z0-9]+)*-v[1-9]\d*$/;
 
@@ -110,12 +112,12 @@ const PROSE_PRIVACY_PATTERN = new RegExp(
 );
 
 /**
- * Canonical 16-dimension renderer order, in T222 dimension order.
+ * Canonical 17-dimension renderer order, in T222 dimension order.
  */
 export const DIMENSION_RENDERER_ORDER = Object.freeze([
   'structure', 'stack', 'config', 'testing', 'conventions', 'git',
   'architecture', 'documentation', 'security', 'operations', 'api', 'data',
-  'deployment', 'maintainability', 'governance', 'assurance',
+  'deployment', 'maintainability', 'governance', 'assurance', 'practices',
 ]);
 
 export const DIMENSION_RENDERER_COUNT = DIMENSION_RENDERER_ORDER.length;
@@ -126,8 +128,9 @@ function prose(...lines) {
 }
 
 // Registration sources: `render` for the ten established render functions,
-// `factory` for the six new dimensions registered through their inert factories
-// (deployment exposes no factory, so it registers its render function).
+// `factory` for the seven new dimensions registered through their inert
+// factories (deployment exposes no factory, so it registers its render
+// function).
 const DIMENSION_RENDERER_SOURCES = Object.freeze([
   {
     dimension: 'structure',
@@ -457,6 +460,24 @@ const DIMENSION_RENDERER_SOURCES = Object.freeze([
       '### Diagnostics',
     ),
   },
+  {
+    dimension: 'practices',
+    rendererId: 'RND-practices-v1',
+    label: 'Development Practices',
+    factory: 'practices',
+    prose: prose(
+      '## Development Practices',
+      'Declaration-backed inventory of committed development-practice declarations and measured signals across',
+      '### Methodology',
+      '### Enforcement',
+      '### Automation',
+      '### Ritual',
+      '### Quality Gates',
+      '### Agent Workflow',
+      '### Style Guide',
+      '### Diagnostics',
+    ),
+  },
 ]);
 
 /**
@@ -494,6 +515,7 @@ function factoryRenderers(context) {
     maintainability: createMaintainabilityRenderer({ context }),
     governance: createGovernanceRenderer({ context }),
     assurance: createAssuranceRenderer({ context }),
+    practices: createPracticesRenderer({ context }),
   });
 }
 
@@ -528,7 +550,7 @@ function checkProse(label, proseLines) {
 }
 
 /**
- * Validate a 16-dimension renderer registration set. Fails typed and sanitized
+ * Validate a 17-dimension renderer registration set. Fails typed and sanitized
  * on unknown, missing, or duplicate renderers and on invalid labels, prose, or
  * prose privacy hazards. Returns the frozen entries in the given order.
  */
@@ -602,9 +624,9 @@ function verifyGlobalRenderer(global) {
 }
 
 /**
- * Build a validated 16-dimension renderer registry with an existing-ten
+ * Build a validated 17-dimension renderer registry with an existing-ten
  * compatible render(deep) surface. Deterministic for a fixed context. The
- * returned snapshot holds all 17 registered renderers (16 dimensions plus the
+ * returned snapshot holds all 18 registered renderers (17 dimensions plus the
  * Cross-repo global descriptor) in dimension order.
  */
 export function createRenderRegistry({
@@ -653,12 +675,12 @@ export function createRenderRegistry({
 const DEFAULT_RENDERER_REGISTRY = createRenderRegistry();
 
 /**
- * The validated default 16-dimension renderer entries in canonical order.
+ * The validated default 17-dimension renderer entries in canonical order.
  */
 export const DIMENSION_RENDERER_ENTRIES = DEFAULT_RENDERER_REGISTRY.entries;
 
 /**
- * The validated default snapshot of all 17 registered renderers in dimension
- * order (16 dimensions followed by the Cross-repo global renderer).
+ * The validated default snapshot of all 18 registered renderers in dimension
+ * order (17 dimensions followed by the Cross-repo global renderer).
  */
 export const RENDERER_SNAPSHOT = DEFAULT_RENDERER_REGISTRY.snapshot;

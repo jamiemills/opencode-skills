@@ -90,6 +90,175 @@ test('config scan: python fixture detects ruff linter/formatter, pyright typeche
   );
 });
 
+test('config scan: pyright typeCheckingMode strict is reported on the typeChecker fact', async () => {
+  await withFixture(
+    'config-pyright-strict',
+    {
+      'pyproject.toml': PYPROJECT,
+      'src/demo/__init__.py': '',
+    },
+    async (dir) => {
+      const res = await scan(dir);
+      const pyright = res.findings.typeCheckers.find((tool) => tool.name === 'pyright');
+      assert.ok(pyright, 'pyright typeChecker should be present');
+      assert.equal(pyright.typeCheckingMode, 'strict', `pyright mode: ${JSON.stringify(pyright)}`);
+      assert.equal(pyright.strict, true, `pyright strict flag: ${JSON.stringify(pyright)}`);
+    },
+  );
+});
+
+test('config scan: pyright typeCheckingMode basic is reported as non-strict', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+`;
+  await withFixture(
+    'config-pyright-basic',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const pyright = res.findings.typeCheckers.find((tool) => tool.name === 'pyright');
+      assert.ok(pyright, 'pyright typeChecker should be present');
+      assert.equal(pyright.typeCheckingMode, 'basic', `pyright mode: ${JSON.stringify(pyright)}`);
+      assert.equal(pyright.strict, false, `pyright strict flag: ${JSON.stringify(pyright)}`);
+    },
+  );
+});
+
+test('config scan: pyrightconfig.json typeCheckingMode is read', async () => {
+  await withFixture(
+    'config-pyright-json',
+    {
+      'pyproject.toml': '[project]\nname = "demo-py"\nversion = "0.1.0"\n',
+      'pyrightconfig.json': '{ "typeCheckingMode": "strict" }\n',
+      'src/demo/__init__.py': '',
+    },
+    async (dir) => {
+      const res = await scan(dir);
+      const pyright = res.findings.typeCheckers.find((tool) => tool.name === 'pyright');
+      assert.ok(pyright, 'pyright typeChecker should be present via pyrightconfig.json');
+      assert.equal(pyright.typeCheckingMode, 'strict', `pyright mode: ${JSON.stringify(pyright)}`);
+      assert.equal(pyright.strict, true, `pyright strict flag: ${JSON.stringify(pyright)}`);
+    },
+  );
+});
+
+test('config scan: mypy strict=true in pyproject.toml is reported on the typeChecker fact', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.mypy]
+strict = true
+`;
+  await withFixture(
+    'config-mypy-strict',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const mypy = res.findings.typeCheckers.find((tool) => tool.name === 'mypy');
+      assert.ok(mypy, 'mypy typeChecker should be present');
+      assert.equal(mypy.strict, true, `mypy strict flag: ${JSON.stringify(mypy)}`);
+    },
+  );
+});
+
+test('config scan: mypy strict=False in pyproject.toml is reported as non-strict', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.mypy]
+strict = false
+`;
+  await withFixture(
+    'config-mypy-loose',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const mypy = res.findings.typeCheckers.find((tool) => tool.name === 'mypy');
+      assert.ok(mypy, 'mypy typeChecker should be present');
+      assert.equal(mypy.strict, false, `mypy strict flag: ${JSON.stringify(mypy)}`);
+    },
+  );
+});
+
+test('config scan: mypy.ini strict=True (INI style) is read', async () => {
+  await withFixture(
+    'config-mypy-ini',
+    {
+      'pyproject.toml': '[project]\nname = "demo-py"\nversion = "0.1.0"\n',
+      'mypy.ini': '[mypy]\nstrict = True\n',
+      'src/demo/__init__.py': '',
+    },
+    async (dir) => {
+      const res = await scan(dir);
+      const mypy = res.findings.typeCheckers.find((tool) => tool.name === 'mypy');
+      assert.ok(mypy, 'mypy typeChecker should be present via mypy.ini');
+      assert.equal(mypy.strict, true, `mypy strict flag: ${JSON.stringify(mypy)}`);
+    },
+  );
+});
+
+test('config scan: pyright section without typeCheckingMode yields strict false with null mode', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.pyright]
+include = ["src/"]
+`;
+  await withFixture(
+    'config-pyright-nomode',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const pyright = res.findings.typeCheckers.find((tool) => tool.name === 'pyright');
+      assert.ok(pyright, 'pyright typeChecker should be present');
+      assert.equal(pyright.strict, false, `pyright strict flag: ${JSON.stringify(pyright)}`);
+      assert.equal(pyright.typeCheckingMode, null, `pyright mode: ${JSON.stringify(pyright)}`);
+    },
+  );
+});
+
+test('config scan: repos without pyright/mypy sections keep typeCheckers entries free of strict facts', async () => {
+  const pyproject = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[tool.ruff]
+line-length = 100
+`;
+  await withFixture(
+    'config-nostrict',
+    { 'pyproject.toml': pyproject, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      assert.equal(res.findings.typeCheckers.length, 0, 'no pyright/mypy typeCheckers expected');
+      for (const tool of res.findings.typeCheckers) {
+        assert.equal(
+          Object.prototype.hasOwnProperty.call(tool, 'strict'),
+          false,
+          `unexpected strict fact on ${tool.name}: ${JSON.stringify(tool)}`,
+        );
+        assert.equal(
+          Object.prototype.hasOwnProperty.call(tool, 'typeCheckingMode'),
+          false,
+          `unexpected typeCheckingMode fact on ${tool.name}: ${JSON.stringify(tool)}`,
+        );
+      }
+    },
+  );
+});
+
 test('config scan: python fixture without lefthook has empty hooks and still high signal (ruff)', async () => {
   await withFixture(
     'config-py-nohook',

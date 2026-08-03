@@ -11,11 +11,11 @@
 - Plan ID: csm-scan-practices-dimension
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 2
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — T002 completed: contracts 19/19, registry 17 dims / 93 claims; registration file green outside the T006-owned builtin block; assurance-catalog correction recorded (T006 gains `dead_code` in the maintainability entry)
-- Next transition: SELECT -> G2 {T003,T004,T005,T006} + G3 {T007,T008,T009,T010,T016}
-- Active tasks: T003-T010, T016
+- Last checkpoint: 2026-08-03 — G2+G3 complete: T003-T010, T016 done (9 tasks); 187/187 post-repair; review repairs applied (statuses, encoder reuse, PRACTICE_TOOLS wiring); evidence.mjs category sort (primary fix) folded into this batch
+- Next transition: SELECT -> T017 (architecture craft, after T004) + T011 (activation cutover)
+- Active tasks: T017, T011
 - Blockers: none
 
 ## Goal
@@ -217,7 +217,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Recovery note: If registry validation fails, the dimension.mjs/evidence.mjs/registry edits must land together (they are one atomic change); detect partial application by the failed `validateDimensions` call and re-apply the missing piece.
    - DONE (cycle 2, 2026-08-03): contracts test 19/19 pass; `DIMENSION_REGISTRY.length 17`, `EXPECTED_CLAIM_IDS.length 93`; registration test 13/13 pass outside the builtin block, 2 expected failures at :446 (coverage comparison vs PROVIDER_DIMENSION_IDS) and :466 (assurance mirror — maintainability entry needs `dead_code`, now owned by T006); stale 16-dimension header comments updated; CATEGORY_TOPIC_COVERAGE gained 10 rows.
 
-3. [pending] Practices scanner and model (7 claims incl. style-guide)
+3. [completed] Practices scanner and model (7 claims incl. style-guide)
+   - DONE (cycle 3, 2026-08-03): scanner/model + PRACTICE_TOOLS table + tests landed (15/15); detection suite 26/26; privacy canary clean; 2 empty subagent returns led to third dispatch; adapter-contract reconciled (entries carry category/matchedKey/path/status). Review repairs applied: MODEL deps now derived from PRACTICE_TOOLS by type; header comments T005→T003.
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G2
@@ -232,7 +233,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: partial scanner state is detectable by missing `searchSpace` or missing categories in the model; the model must be deep-frozen and privacy-safe before acceptance.
 
-4. [pending] Provider adapter and analysis-catalog extension
+4. [completed] Provider adapter and analysis-catalog extension
+   - DONE (cycle 3, 2026-08-03): providers/practices.mjs + analysis-catalog practices entry; catalog test 25/25; foundation 44/44; full scanner→adapter→catalog chain smoke-verified (flat providerId/dimensionId/observations envelope matches run.mjs withProvenance). Review repairs: statuses allowlist aligned to model [observed,inferred,unverified]; encodeMatchedKey imported from model; inferred-status parity test added.
    - Task ID: T004
    - Depends on: T002
    - Parallel group: G2
@@ -247,7 +249,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: a missing adapter or dimension id surfaces as a typed unknown-dimension error in the catalog test; re-apply the entry and re-run.
 
-5. [pending] Practices renderer and render-registry registration
+5. [completed] Practices renderer and render-registry registration
+   - DONE (cycle 3, 2026-08-03): render/practices.mjs + registry registration (label "Development Practices", neutral prose, zero voice hits); render-registration 11/11; voice-gate 4 failures are pre-cutover MISSING_DIMENSION: practices (re-verify after T011).
    - Task ID: T005
    - Depends on: T002
    - Parallel group: G2
@@ -262,7 +265,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: `verifyRenderRegistry` fails typed on missing/duplicate/unknown entries — the four registration edits must land together; the `sixteenDeep()` entry and slice shifts must land with them or the injected-rendering tests fail.
 
-6. [pending] Builtin provider index mirror and registration-test builtin block
+6. [completed] Builtin provider index mirror and registration-test builtin block
+   - DONE (cycle 3, 2026-08-03): practices mirror + BUILTIN_DIMENSION_COUNT 15 (BUILTIN_PROVIDER_COUNT 16 incl. generic); assurance-catalog maintainability entry gained dead_code (cycle-2 correction); registration test 15/15 after primary fix sorting DIM-practices-v1 categories in contracts/evidence.mjs (validateProviders sorts categories; registry lists must be pre-sorted).
    - Task ID: T006
    - Depends on: T002
    - Parallel group: G2
@@ -277,7 +281,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: missing mirror surfaces as a mismatch between `BUILTIN_DIMENSION_COUNT` and the registry or as the coverage-comparison failure at 438-439; re-apply the definition and re-run. Do NOT append categories to the analysis definitions — that would trip `validateProviders` DUPLICATE_ID.
 
-7. [pending] Git commit-style vocabulary extension
+7. [completed] Git commit-style vocabulary extension
+   - DONE (cycle 3, 2026-08-03): task-identified label (T\d{3}, P\d+C?, CSM, REPAIR, plan, csm-scan:, csm-browse:); 12/12 new tests; parity 21/21; fixtures-pipeline green (no reclassification of legacy logs).
    - Task ID: T007
    - Depends on: T002
    - Parallel group: G3
@@ -292,7 +297,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: the supersession lock for `deep/git.mjs` is SUPERSEDED and already non-applying (current hash differs from the recorded lock), so no lock test can fail from this change — verified in T013. If a fixture git row reclassifies, reconcile in T012 (dep declared).
 
-8. [pending] Configuration strict-type-flag facts
+8. [completed] Configuration strict-type-flag facts
+   - DONE (cycle 3, 2026-08-03): pyright typeCheckingMode/strict + mypy strict facts; config tests 24/24; parity 21/21; fixture-behavior byte-identity confirmed.
    - Task ID: T008
    - Depends on: T002
    - Parallel group: G3
@@ -307,7 +313,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: facts must extend, never replace, existing config claims; detect regression by parity-matrix or fixture-hash failures.
 
-9. [pending] Testing coverage-threshold facts
+9. [completed] Testing coverage-threshold facts
+   - DONE (cycle 3, 2026-08-03): fail_under + diff-cover thresholds with graceful unverified degrade; testing tests 20/20; parity 21/21; fixture-behavior byte-identity confirmed.
    - Task ID: T009
    - Depends on: T002
    - Parallel group: G3
@@ -322,7 +329,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
    - Repair attempts: 0
    - Recovery note: parse failures must degrade to `unverified` search-space state, never absence or crash (T202 contract).
 
-10. [pending] Operations workflow step-level tool scan
+10. [completed] Operations workflow step-level tool scan
+   - DONE (cycle 3, 2026-08-03): STEP_TOOL_PATTERNS (14 tools) over workflow steps; operations tests 21/21; parity 21/21; fixture-behavior byte-identity confirmed. Deviation (recorded): block scalars are scanned natively (not marked unverified) — real repos use run: | blocks.
     - Task ID: T010
     - Depends on: T002
     - Parallel group: G3
@@ -412,7 +420,8 @@ Parallel groups: G2 {T003,T004,T005,T006} and G3 {T007,T008,T009,T010,T016,T017}
     - Repair attempts: 0
     - Recovery note: any failing test or missing probe fact loops back to the owning task (T002-T014, T016-T017); record the exact failing test in the journal before returning to SELECT.
 
-16. [pending] Maintainability craft: cyclomatic complexity + dead-code signals
+16. [completed] Maintainability craft: cyclomatic complexity + dead-code signals
+   - DONE (cycle 3, 2026-08-03): per-function cyclomatic via detectFunctionScopes (all 5 dialects proven in spike, none excluded); complexityRecords + deadCode as NEW model streams (branch records byte-identical); renderer uses "unused-code markers"; 68/68 tests; parity 21/21; privacy canary clean.
     - Task ID: T016
     - Depends on: T002
     - Parallel group: G3
@@ -527,6 +536,14 @@ Ordered cheapest-first:
 | 2026-08-03 | 2 | INTEGRATE | T002 | Diff inspected: evidence categories (10 new, sorted), dimension counts 17/15 + literal, practices entry last with 7 claims, 3 craft claims appended, CATEGORY_TOPIC_COVERAGE +10 rows; no out-of-scope edits (header comment updates acceptable) | VERIFY |
 | 2026-08-03 | 2 | VERIFY | T002 | Contracts test 19/19 pass; node -e → `17 93`; registration test 13 pass / 2 fail confined to builtin block (:446 coverage-vs-PROVIDER_DIMENSION_IDS, :466 assurance mirror) — expected until T006. CORRECTION discovered: assurance-catalog maintainability entry (:142-148) is a FULL hardcoded list and must gain `dead_code`; T006 scope extended (file + action) | CHECKPOINT |
 | 2026-08-03 | 2 | CHECKPOINT | T002 | T002 completed with evidence; Discovered Requirements + T006 scope updated with the assurance-catalog correction; next: SELECT -> G2 + G3 | SELECT |
+| 2026-08-03 | 3 | SELECT | T003-T010, T016 | Ready set: G2 {T003,T004,T005,T006} + G3 {T007,T008,T009,T010,T016}; T017 deferred (depends on T004) | DISPATCH |
+| 2026-08-03 | 3 | DISPATCH | T003-T010, T016 | 9 parallel subagents (disjoint ownership); T003 returned empty twice → third minimal-prompt dispatch landed | INTEGRATE |
+| 2026-08-03 | 3 | INTEGRATE | T003-T010, T016 | Diffs inspected per task; T003↔T004 contract reconciled (scanner→adapter→catalog smoke: flat providerId/dimensionId/observations envelope matches run.mjs withProvenance); primary fix: DIM-practices-v1 categories sorted in contracts/evidence.mjs (validateProviders sorts; registry lists must be pre-sorted — registration test :492 failed otherwise) | VERIFY |
+| 2026-08-03 | 3 | VERIFY | T003-T010, T016 | Batch run 327/331 — the 4 failures are pre-cutover MISSING_DIMENSION: practices in voice-gate full-pipeline subtests (expected until T011); every owned test file green (practices 15/15, catalog 25/25, render-registration 11/11, registration 15/15, git-vocab 12/12, config 24/24, testing 20/20, operations 21/21, maintainability 68/68, parity 21/21, fixtures-pipeline 5/5 byte-identity) | REVIEW |
+| 2026-08-03 | 3 | REVIEW | T003-T010, T016 | Independent review: 6 findings — 3 minor (provider status allowlist dropped `inferred`; duplicate encodeMatchedKey; PRACTICE_TOOLS table unused by scanner) + 3 observations (header comments T005→T003; evidence.mjs sort uncommitted; git.mjs repo-prefix vocab). Ten-dimension freeze, privacy canaries, banned words, and cross-task contract all verified clean | REPAIR |
+| 2026-08-03 | 3 | REPAIR | T003, T004 | Applied: practices.mjs statuses → [observed,inferred,unverified]; encodeMatchedKey imported from model (local copy deleted); model METHODOLOGY_DEPS/ENFORCEMENT_TOOLS now derive from PRACTICE_TOOLS by type (no dead duplicate vocabulary); header comments fixed; inferred-status parity test added. Dismissed with reasoning: git.mjs csm-scan:/csm-browse: prefixes are the actual monorepo conventions (disclosed + tested); evidence.mjs sort committed with this batch | VERIFY |
+| 2026-08-03 | 3 | VERIFY | T003-T010, T016 | Post-repair re-run: 187/187 across practices, catalog, detection, maintainability, render-registration, registration, parity, fixtures-pipeline | CHECKPOINT |
+| 2026-08-03 | 3 | CHECKPOINT | T003-T010, T016 | 9 tasks completed with evidence; next: SELECT -> T017 + T011 | SELECT |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>

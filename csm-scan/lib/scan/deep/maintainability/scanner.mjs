@@ -2,13 +2,15 @@
 //
 // T214 owns this module. It is an inert deep scanner: it enumerates the
 // repository, reads a bounded set of supported-language source files,
-// tokenizes them, computes the lexical branch-point approximation, detects
-// exact token duplicates, classifies generated/vendor boundaries from exact
-// evidence, probes committed tool-config declarations, and builds the
-// deterministic maintainability model. It is exported as a factory-friendly
-// `scan` function for tests and the future T224 pipeline cutover; nothing in
-// the current pipeline, CLI, enrich, validate, write, or existing-ten renderer
-// dispatches it yet.
+// tokenizes them, computes the lexical branch-point approximation, derives
+// per-file per-function cyclomatic-complexity distributions and unused-code
+// markers (declared tool-config signals plus per-dialect lexical marker
+// counts), detects exact token duplicates, classifies generated/vendor
+// boundaries from exact evidence, probes committed tool-config declarations,
+// and builds the deterministic maintainability model. It is exported as a
+// factory-friendly `scan` function for tests and the future T224 pipeline
+// cutover; nothing in the current pipeline, CLI, enrich, validate, write, or
+// existing-ten renderer dispatches it yet.
 //
 // Read-only: enumeration uses the shared `rg --files` broker; artifact content
 // is read through the bounded T206 reader. No target command is executed.
@@ -39,13 +41,16 @@ import {
   NO_EXTENSION_LABEL,
   OTHER_EXTENSION_LABEL,
   buildMaintainabilityModel,
+  complexityDistribution,
+  detectDeadCodeConfigSignals,
+  detectDeadCodeSourceSignals,
   detectGeneratedBoundary,
   detectToolEvidence,
   isValidExcludedExtension,
   sizeBucketFor,
   toolConfigCandidatePaths,
 } from './model.mjs';
-import { countBranchPoints, dialectForPath, tokenize } from './tokenizer.mjs';
+import { countBranchPoints, countFunctionComplexity, dialectForPath, tokenize } from './tokenizer.mjs';
 import { findDuplicateGroups } from './duplicates.mjs';
 
 export const MAINTAINABILITY_SCANNER_ID = 'DET-maintainability-scan-v1';
@@ -82,7 +87,8 @@ function sourceRequests(files) {
 function probeRequests() {
   return toolConfigCandidatePaths().slice(0, MAX_TOOL_CANDIDATES).map((path) => ({
     path,
-    format: path === 'package.json' ? 'json' : 'text',
+    format: path === 'package.json' || path === 'tsconfig.json' || path === 'jsconfig.json'
+      ? 'json' : 'text',
     sensitivity: 'internal',
   }));
 }
@@ -137,6 +143,8 @@ export async function scan(repoPath, _overview) {
 
   const fileRecords = [];
   const branchRecords = [];
+  const complexityRecords = [];
+  const deadCode = [];
   const boundaryRecords = [];
   const tokenFiles = [];
   const diagnostics = [];
@@ -160,6 +168,7 @@ export async function scan(repoPath, _overview) {
     const text = typeof result.value === 'string' ? result.value : '';
     const { tokens, truncated } = tokenize(text, dialect);
     const counts = countBranchPoints(tokens, dialect);
+    const { functions } = countFunctionComplexity(text, dialect, tokens);
     const lines = result.records > 0 ? result.records : 1;
     const bytes = result.bytes;
 
@@ -178,6 +187,19 @@ export async function scan(repoPath, _overview) {
       counts,
       capped: truncated,
     });
+    const maxFunctions = MAINTAINABILITY_LIMITS.complexityFunctions;
+    const functionsCapped = functions.length > maxFunctions;
+    complexityRecords.push({
+      path: result.path,
+      dialect,
+      functions: functionsCapped ? functions.slice(0, maxFunctions) : functions,
+      distribution: complexityDistribution(functions.map((entry) => entry.complexity)),
+      functionsCapped,
+    });
+    if (functionsCapped) {
+      diagnostics.push(diagnostic(result.path, 'unverified', 'COMPLEXITY_CAP'));
+    }
+    deadCode.push(...detectDeadCodeSourceSignals({ path: result.path, dialect, text }));
     tokenFiles.push({ path: result.path, tokens });
     measuredBytes.push(bytes);
     measuredFiles++;
@@ -211,6 +233,12 @@ export async function scan(repoPath, _overview) {
       value: result.value,
       text: typeof result.value === 'string' ? result.value : '',
     }));
+    deadCode.push(...detectDeadCodeConfigSignals({
+      path: result.path,
+      format: result.format,
+      value: result.value,
+      text: typeof result.value === 'string' ? result.value : '',
+    }));
   }
 
   const duplicateResult = findDuplicateGroups(tokenFiles, {
@@ -224,6 +252,8 @@ export async function scan(repoPath, _overview) {
   const model = buildMaintainabilityModel({
     files: fileRecords,
     branchPoints: branchRecords,
+    complexityRecords,
+    deadCode,
     duplicateGroups: duplicateResult.groups,
     duplicateCaps: duplicateResult.capped,
     generatedBoundaries: boundaryRecords,

@@ -15,6 +15,14 @@
 //     markers, filename markers, and header comments) — never guessing.
 //   - Branch points are a disclosed lexical keyword-token approximation, never
 //     semantic branch counts and never a quality score.
+//   - Per-function cyclomatic complexity (`complexityRecords`) is a disclosed
+//     lexical count of branch-keyword tokens plus boolean operators inside each
+//     function scope, with a per-file min/median/p95/max distribution. It is
+//     an enrichment of the branch-complexity claim, never a semantic metric.
+//   - Unused-code markers (`deadCode`) are declared tool-config signals and
+//     lexical marker counts only (vulture config/whitelist presence,
+//     `noUnusedLocals`/`no-unused-vars` rules, `#[allow(dead_code)]` counts,
+//     per-dialect unused-import markers); raw marker content is never retained.
 //   - Duplicate spans are exact 50-token windows that were hashed, verified
 //     and merged by `findDuplicateGroups`; no semantic clones are claimed.
 //   - Records are validated against DIM-maintainability categories, bounded,
@@ -71,6 +79,8 @@ export function isValidExcludedExtension(extension) {
 }
 
 export const MAINTAINABILITY_LIMITS = deepFreeze({
+  complexityFunctions: 256,
+  deadCodeEntries: 1024,
   diagnostics: 512,
   duplicateGroups: 256,
   excludedLanguages: 64,
@@ -271,6 +281,68 @@ function normalizeBranchPoint(value) {
   });
 }
 
+function normalizeComplexityFunction(value) {
+  plainObject(value, 'complexity function');
+  exactKeys(value, ['complexity', 'endLine', 'functionName', 'startLine'], 'complexity function');
+  const startLine = boundedInteger(value.startLine, 1_000_000, 'startLine', true);
+  const endLine = boundedInteger(value.endLine, 1_000_000, 'endLine', true);
+  if (endLine < startLine) fail('INVALID_RECORD', 'function end line precedes its start line');
+  return deepFreeze({
+    functionName: tokenLabel(value.functionName, 'functionName'),
+    startLine,
+    endLine,
+    complexity: boundedInteger(value.complexity, 1_000_000, 'complexity'),
+  });
+}
+
+function normalizeComplexityDistribution(value) {
+  plainObject(value, 'complexity distribution');
+  exactKeys(value, ['max', 'median', 'min', 'p95'], 'complexity distribution');
+  const min = boundedInteger(value.min, 1_000_000, 'min');
+  const median = boundedInteger(value.median, 1_000_000, 'median');
+  const p95 = boundedInteger(value.p95, 1_000_000, 'p95');
+  const max = boundedInteger(value.max, 1_000_000, 'max');
+  if (!(min <= median && median <= p95 && p95 <= max)) {
+    fail('INVALID_RECORD', 'complexity distribution must be non-decreasing');
+  }
+  return deepFreeze({ min, median, p95, max });
+}
+
+function normalizeComplexityRecord(value) {
+  plainObject(value, 'complexity record');
+  exactKeys(value, ['dialect', 'distribution', 'functions', 'functionsCapped', 'path'], 'complexity record');
+  if (!Array.isArray(value.functions)
+      || value.functions.length > MAINTAINABILITY_LIMITS.complexityFunctions) {
+    fail('BOUND_EXCEEDED', 'complexity functions exceed the declared cap');
+  }
+  const functions = value.functions.map(normalizeComplexityFunction)
+    .sort((left, right) => left.startLine - right.startLine
+      || left.endLine - right.endLine
+      || compareAscii(left.functionName, right.functionName));
+  return deepFreeze({
+    path: normalizePath(value.path),
+    dialect: dialect(value.dialect),
+    functions,
+    distribution: value.distribution === null
+      ? null
+      : normalizeComplexityDistribution(value.distribution),
+    functionsCapped: value.functionsCapped === true,
+  });
+}
+
+function normalizeDeadCodeEntry(value) {
+  plainObject(value, 'dead code entry');
+  exactKeys(value, ['count', 'kind', 'path'], 'dead code entry');
+  if (typeof value.kind !== 'string' || !DEAD_CODE_KINDS.includes(value.kind)) {
+    fail('INVALID_RECORD', 'dead code kind is not allowlisted');
+  }
+  return deepFreeze({
+    kind: value.kind,
+    path: normalizePath(value.path),
+    count: boundedInteger(value.count, 1_000_000, 'count', true),
+  });
+}
+
 function normalizeSpan(value) {
   plainObject(value, 'duplicate span');
   exactKeys(value, ['endLine', 'path', 'startLine', 'tokenCount'], 'duplicate span');
@@ -440,19 +512,21 @@ function totalBranchTokens(branchPoints) {
  * Build the deterministic deep-frozen maintainability model.
  *
  * @param {object} input - raw scanner output:
- *   `{ files, branchPoints, duplicateGroups, duplicateCaps,
- *   generatedBoundaries, toolEvidence, measurement, sizeDistribution,
- *   diagnostics, searchSpace }`.
+ *   `{ files, branchPoints, complexityRecords, deadCode, duplicateGroups,
+ *   duplicateCaps, generatedBoundaries, toolEvidence, measurement,
+ *   sizeDistribution, diagnostics, searchSpace }`.
  * @returns {object} The deep-frozen model:
- *   `{ summary, files, branchPoints, duplicateGroups, generatedBoundaries,
- *   toolEvidence, measurementUniverse, sizeDistribution, diagnostics,
- *   searchSpace }`.
+ *   `{ summary, files, branchPoints, complexityRecords, deadCode,
+ *   duplicateGroups, generatedBoundaries, toolEvidence, measurementUniverse,
+ *   sizeDistribution, diagnostics, searchSpace }`.
  * @throws {MaintainabilityModelError} on malformed records; privacy
  *   violations are downgraded to diagnostics and never abort.
  */
 export function buildMaintainabilityModel({
   files = [],
   branchPoints = [],
+  complexityRecords = [],
+  deadCode = [],
   duplicateGroups = [],
   duplicateCaps = {},
   generatedBoundaries = [],
@@ -464,12 +538,15 @@ export function buildMaintainabilityModel({
 } = {}) {
   if (!Array.isArray(files) || !Array.isArray(branchPoints) || !Array.isArray(duplicateGroups)
       || !Array.isArray(generatedBoundaries) || !Array.isArray(toolEvidence)
-      || !Array.isArray(sizeDistribution) || !Array.isArray(diagnostics)) {
+      || !Array.isArray(sizeDistribution) || !Array.isArray(diagnostics)
+      || !Array.isArray(complexityRecords) || !Array.isArray(deadCode)) {
     fail('INVALID_TYPE', 'model inputs must be arrays');
   }
 
   const fileRecords = files.map(normalizeFileMetric);
   const branchRecords = branchPoints.map(normalizeBranchPoint);
+  const complexityInput = complexityRecords.map(normalizeComplexityRecord);
+  const deadCodeInput = deadCode.map(normalizeDeadCodeEntry);
   const groupRecords = duplicateGroups.map(normalizeDuplicateGroup);
   const boundaryRecords = generatedBoundaries.map(normalizeGeneratedBoundary);
   const toolRecords = toolEvidence.map(normalizeToolEvidence);
@@ -482,9 +559,21 @@ export function buildMaintainabilityModel({
   for (const record of branchRecords) {
     if (!pathSet.has(record.path)) fail('ORPHAN_RECORD', 'branch point has no measured file');
   }
+  for (const record of complexityInput) {
+    if (!pathSet.has(record.path)) fail('ORPHAN_RECORD', 'complexity record has no measured file');
+  }
+  if (complexityInput.length > MAINTAINABILITY_LIMITS.files
+      || new Set(complexityInput.map((record) => record.path)).size !== complexityInput.length) {
+    fail('BOUND_EXCEEDED', 'complexity records exceed the per-file bound or are duplicated');
+  }
+  if (deadCodeInput.length > MAINTAINABILITY_LIMITS.deadCodeEntries) {
+    fail('BOUND_EXCEEDED', 'dead-code entries exceed the declared cap');
+  }
 
   const { records: safeFiles, diagnostics: filePrivacyDiags } = privacyFilter(fileRecords, diagnosticRecords);
   const { records: safeBranch, diagnostics: branchPrivacyDiags } = privacyFilter(branchRecords, []);
+  const { records: safeComplexity, diagnostics: complexityPrivacyDiags } = privacyFilter(complexityInput, []);
+  const { records: safeDeadCode, diagnostics: deadCodePrivacyDiags } = privacyFilter(deadCodeInput, []);
   const { records: safeGroups, diagnostics: groupPrivacyDiags } = privacyFilter(groupRecords, []);
   const { records: safeBoundaries, diagnostics: boundaryPrivacyDiags } = privacyFilter(boundaryRecords, []);
   const { records: safeTools, diagnostics: toolPrivacyDiags } = privacyFilter(toolRecords, []);
@@ -492,6 +581,8 @@ export function buildMaintainabilityModel({
   const allDiagnostics = [
     ...filePrivacyDiags,
     ...branchPrivacyDiags,
+    ...complexityPrivacyDiags,
+    ...deadCodePrivacyDiags,
     ...groupPrivacyDiags,
     ...boundaryPrivacyDiags,
     ...toolPrivacyDiags,
@@ -509,6 +600,9 @@ export function buildMaintainabilityModel({
 
   safeFiles.sort((left, right) => compareAscii(left.path, right.path));
   safeBranch.sort((left, right) => compareAscii(left.path, right.path));
+  safeComplexity.sort((left, right) => compareAscii(left.path, right.path));
+  safeDeadCode.sort((left, right) => compareAscii(left.kind, right.kind)
+    || compareAscii(left.path, right.path));
   safeGroups.sort((left, right) => compareAscii(left.id, right.id));
   safeBoundaries.sort((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.reason, right.reason) || (left.line ?? 0) - (right.line ?? 0));
@@ -629,6 +723,8 @@ export function buildMaintainabilityModel({
     summary,
     files: safeFiles,
     branchPoints: safeBranch,
+    complexityRecords: safeComplexity,
+    deadCode: safeDeadCode,
     duplicateGroups: safeGroups,
     generatedBoundaries: safeBoundaries,
     toolEvidence: safeTools,
@@ -792,7 +888,10 @@ export function detectToolEvidence({ path, format = 'text', value = null, text =
 }
 
 /**
- * Candidate tool-config paths that may be present in a repository.
+ * Candidate tool-config paths that may be present in a repository. Includes
+ * the dead-code-relevant candidates (TypeScript `noUnusedLocals` configs and
+ * vulture config/whitelist files, including the dotfiles `rg` does not
+ * enumerate).
  * @returns {string[]} sorted unique repository-relative candidate paths.
  */
 export function toolConfigCandidatePaths() {
@@ -806,5 +905,124 @@ export function toolConfigCandidatePaths() {
   for (const files of Object.values(TOOL_CONFIG_FILES)) {
     for (const file of files) paths.add(file);
   }
+  for (const file of VULTURE_CONFIG_PATHS) paths.add(file);
+  for (const file of VULTURE_WHITELIST_PATHS) paths.add(file);
+  for (const file of TS_CONFIG_PATHS) paths.add(file);
   return [...paths].sort(compareAscii);
+}
+
+// ---------------------------------------------------------------------------
+// Dead-code signals (unused-code markers) — declarations and lexical markers
+// ---------------------------------------------------------------------------
+
+export const DEAD_CODE_KINDS = Object.freeze([
+  'allow_dead_code',
+  'no_unused_locals',
+  'no_unused_vars',
+  'unused_import',
+  'vulture_config',
+  'vulture_whitelist',
+]);
+
+const VULTURE_CONFIG_PATHS = Object.freeze(['vulture.toml', '.vulture.toml']);
+const VULTURE_WHITELIST_PATHS = Object.freeze(['.vulture_whitelist.py', 'vulture_whitelist.py']);
+const TS_CONFIG_PATHS = Object.freeze(['tsconfig.json', 'jsconfig.json']);
+const ESLINT_CONFIG_PATHS = TOOL_CONFIG_FILES.eslint;
+
+// Declared `[tool.vulture]` / `[vulture]` section inside an INI-style manifest.
+const VULTURE_SECTION_PATTERN = /^\s*\[(?:tool\.)?vulture\]\s*$/m;
+
+// `no-unused-vars` rule presence/suppression inside an eslint-disable comment
+// (source-file unused-import marker).
+const NO_UNUSED_VARS_MARKER_PATTERN = /eslint-disable(?:-next-line|-line)?[^\n]*(?:@typescript-eslint\/)?no-unused-vars/g;
+
+// `no-unused-vars` / `@typescript-eslint/no-unused-vars` rule reference inside
+// an eslint config file (declaration presence).
+const NO_UNUSED_VARS_RULE_PATTERN = /(?:@typescript-eslint\/)?no-unused-vars/g;
+
+// `#[allow(dead_code)]` / `#![allow(dead_code)]` attribute counts (rust).
+const RUST_ALLOW_DEAD_CODE_PATTERN = /^\s*#!?\[[^\]]*\bdead_code\b[^\]]*\]/gm;
+
+// Unused-import lexical markers per dialect. Shell is intentionally absent:
+// shell has no import construct, so no unused-import marker exists for it.
+const UNUSED_IMPORT_MARKERS = Object.freeze({
+  python: /^\s*(?:import|from)\b[^\n]*#\s*noqa\b.*$/gm,
+  javascript: NO_UNUSED_VARS_MARKER_PATTERN,
+  typescript: NO_UNUSED_VARS_MARKER_PATTERN,
+  rust: /^\s*#!?\[[^\]]*\bunused_imports\b[^\]]*\]/gm,
+});
+
+/**
+ * Detect unused-code markers inside a measured source file. Counts only — raw
+ * marker content is never retained, so the output is privacy-safe.
+ * @param {object} input - `{ path, dialect, text }`.
+ * @returns {object[]} `[{ kind, path, count }]` entries for rust
+ *   `allow(dead_code)` attributes and per-dialect unused-import markers.
+ */
+export function detectDeadCodeSourceSignals({ path, dialect, text = '' }) {
+  const entries = [];
+  const source = String(text ?? '');
+  if (dialect === 'rust') {
+    const deadCount = (source.match(RUST_ALLOW_DEAD_CODE_PATTERN) ?? []).length;
+    if (deadCount > 0) entries.push({ kind: 'allow_dead_code', path, count: deadCount });
+  }
+  const unusedPattern = UNUSED_IMPORT_MARKERS[dialect];
+  if (unusedPattern !== undefined) {
+    const unusedCount = (source.match(unusedPattern) ?? []).length;
+    if (unusedCount > 0) entries.push({ kind: 'unused_import', path, count: unusedCount });
+  }
+  return entries;
+}
+
+/**
+ * Detect unused-code declarations in committed config/manifest files: vulture
+ * config/whitelist presence, the TypeScript `noUnusedLocals` flag, and the
+ * eslint `no-unused-vars` rule. Declarations only; counts are 1 per presence.
+ * @param {object} input - `{ path, format, value, text }`.
+ * @returns {object[]} `[{ kind, path, count }]` entries.
+ */
+export function detectDeadCodeConfigSignals({ path, format = 'text', value = null, text = '' }) {
+  const entries = [];
+  const source = String(text ?? '');
+  if (VULTURE_CONFIG_PATHS.includes(path) || VULTURE_SECTION_PATTERN.test(source)) {
+    entries.push({ kind: 'vulture_config', path, count: 1 });
+  }
+  if (VULTURE_WHITELIST_PATHS.includes(path)) {
+    entries.push({ kind: 'vulture_whitelist', path, count: 1 });
+  }
+  if (TS_CONFIG_PATHS.includes(path) && format === 'json'
+      && value !== null && typeof value === 'object'
+      && value.compilerOptions !== null && typeof value.compilerOptions === 'object'
+      && value.compilerOptions.noUnusedLocals === true) {
+    entries.push({ kind: 'no_unused_locals', path, count: 1 });
+  }
+  if (ESLINT_CONFIG_PATHS.includes(path)) {
+    const count = (source.match(NO_UNUSED_VARS_RULE_PATTERN) ?? []).length;
+    if (count > 0) entries.push({ kind: 'no_unused_vars', path, count });
+  }
+  return entries;
+}
+
+/**
+ * Per-file complexity distribution (nearest-rank percentiles) over a list of
+ * per-function complexity values.
+ * @param {number[]} values - per-function complexity counts.
+ * @returns {object|null} `{ min, median, p95, max }` or null for an empty list.
+ */
+export function complexityDistribution(values) {
+  const counts = Array.isArray(values)
+    ? values.filter((value) => Number.isSafeInteger(value) && value >= 0)
+    : [];
+  if (counts.length === 0) return null;
+  const sorted = [...counts].sort((left, right) => left - right);
+  const percentile = (percent) => {
+    const rank = Math.min(sorted.length, Math.max(1, Math.ceil((percent / 100) * sorted.length)));
+    return sorted[rank - 1];
+  };
+  return deepFreeze({
+    min: sorted[0],
+    median: percentile(50),
+    p95: percentile(95),
+    max: sorted[sorted.length - 1],
+  });
 }

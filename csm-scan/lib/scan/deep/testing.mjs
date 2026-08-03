@@ -14,7 +14,8 @@
 //     fileCount:   number,            // matched test files
 //     naming:      string[],          // descriptor globs that matched
 //     sampleFiles: string[],          // first 15 matched files
-//     coverage:    string[]|null,     // detected coverage signals
+//     coverage:    string[]|null,     // detected coverage signals (incl.
+//                                      //   fail_under gate facts when declared)
 //     configFiles: string[]|null,     // detected test config (incl. markers)
 //     script:      string|null,       // package.json test script
 //   } }
@@ -477,6 +478,9 @@ function detectCoverage(ecosystems, depNames, repoPath, files) {
     if (tomlSectionPresent(readToml(repoPath, 'pyproject.toml'), 'tool.coverage')) {
       add('pyproject.toml:[tool.coverage]');
     }
+    // Coverage-gate threshold facts (fail_under values). Emitted only when a
+    // threshold is actually declared, so detection facts stay unchanged.
+    for (const fact of detectCoverageThresholds(repoPath)) add(fact);
   }
 
   if (ecosystems.includes('javascript') || ecosystems.includes('typescript')) {
@@ -512,6 +516,122 @@ function detectCoverage(ecosystems, depNames, repoPath, files) {
   }
 
   return out.length > 0 ? out : null;
+}
+
+// ---------------------------------------------------------------------------
+// Coverage thresholds
+// ---------------------------------------------------------------------------
+//
+// A coverage *gate* is the percentage below which a coverage run (or diff-cover
+// report) fails. The threshold is declared as `fail_under` in a
+// `[tool.coverage.report]` / `[tool.diff_cover]` TOML section, or as a
+// `DIFF_COVERAGE_THRESHOLD` environment declaration inside CI/build config.
+// These are emitted as extra `coverage` facts (e.g. `coverage fail_under=80`)
+// only when a threshold is actually declared, so repos without a gate keep
+// their existing detection facts unchanged. A declared-but-unparseable value
+// degrades to `fail_under=unverified` rather than silently vanishing.
+
+// Bounded cap for the supplementary DIFF_COVERAGE_THRESHOLD config scan.
+const ENV_THRESHOLD_CAP = 12;
+
+// First numeric `DIFF_COVERAGE_THRESHOLD` value in a config file:
+//   DIFF_COVERAGE_THRESHOLD: 80      (workflow YAML)
+//   DIFF_COVERAGE_THRESHOLD = "70"   (Makefile)
+const DIFF_COVERAGE_THRESHOLD_VALUE_RE = /DIFF_COVERAGE_THRESHOLD\s*[:=]\s*["']?(\d+(?:\.\d+)?)/;
+// Any occurrence, used to report a non-numeric declaration as unverified.
+const DIFF_COVERAGE_THRESHOLD_PRESENT_RE = /DIFF_COVERAGE_THRESHOLD/;
+
+// Resolve a dotted TOML path (e.g. `tool.coverage.report.fail_under`) to its
+// value, or undefined when any segment is absent or not an object.
+function tomlValue(parsed, dotted) {
+  let node = parsed;
+  for (const part of String(dotted).split('.')) {
+    if (node == null || typeof node !== 'object') return undefined;
+    node = node[part];
+  }
+  return node;
+}
+
+// Convert a `fail_under` value (TOML number, or a numeric string) into a
+// non-negative finite number, or null when it is not a valid threshold.
+function parseThreshold(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^\d+(?:\.\d+)?$/);
+    return match ? parseFloat(match[0]) : null;
+  }
+  return null;
+}
+
+// Render a single threshold fact, degrading to `unverified` when the declared
+// value cannot be parsed.
+function thresholdFact(label, value) {
+  const parsed = parseThreshold(value);
+  const rendered = parsed === null ? 'unverified' : String(parsed);
+  return `${label} fail_under=${rendered}`;
+}
+
+// Scan bounded CI/build config files for an env-style `DIFF_COVERAGE_THRESHOLD`
+// declaration. The `.github/workflows` directory is hidden (rg --files skips
+// it), so it is read directly, mirroring scanCiRefs.
+function scanDiffCoverEnv(repoPath) {
+  const facts = [];
+  let examined = 0;
+  const probe = (content) => {
+    if (examined >= ENV_THRESHOLD_CAP) return;
+    examined++;
+    const match = content.match(DIFF_COVERAGE_THRESHOLD_VALUE_RE);
+    if (match) {
+      facts.push(`diff-cover fail_under=${match[1]}`);
+    } else if (DIFF_COVERAGE_THRESHOLD_PRESENT_RE.test(content)) {
+      facts.push('diff-cover fail_under=unverified');
+    }
+  };
+
+  for (const name of ['Makefile', 'makefile', 'GNUmakefile']) {
+    if (examined >= ENV_THRESHOLD_CAP) break;
+    try {
+      probe(readFileSync(join(repoPath, name), 'utf-8'));
+    } catch {
+      continue;
+    }
+  }
+
+  const workflowsDir = join(repoPath, '.github', 'workflows');
+  let entries;
+  try {
+    entries = readdirSync(workflowsDir);
+  } catch {
+    entries = [];
+  }
+  for (const name of entries) {
+    if (examined >= ENV_THRESHOLD_CAP) break;
+    if (!/\.ya?ml$/i.test(name)) continue;
+    try {
+      probe(readFileSync(join(workflowsDir, name), 'utf-8'));
+    } catch {
+      continue;
+    }
+  }
+
+  return facts;
+}
+
+// Collect coverage-gate threshold facts for a repo: `[tool.coverage.report]
+// fail_under`, `[tool.diff_cover] fail_under`, and any DIFF_COVERAGE_THRESHOLD
+// declarations in CI/build config. Returns an empty array for repos that
+// declare no threshold.
+function detectCoverageThresholds(repoPath) {
+  const out = [];
+  const pp = readToml(repoPath, 'pyproject.toml');
+  const coverageUnder = tomlValue(pp, 'tool.coverage.report.fail_under');
+  if (coverageUnder !== undefined) out.push(thresholdFact('coverage', coverageUnder));
+  const diffCoverUnder = tomlValue(pp, 'tool.diff_cover.fail_under');
+  if (diffCoverUnder !== undefined) out.push(thresholdFact('diff-cover', diffCoverUnder));
+  out.push(...scanDiffCoverEnv(repoPath));
+  return out;
 }
 
 // ---------------------------------------------------------------------------
