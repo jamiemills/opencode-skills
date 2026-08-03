@@ -9,13 +9,13 @@
 
 ## Control
 - Plan ID: csm-scan-style-guide-conventions
-- Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 4
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 5
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — G3 complete: T004 (Style Guide renderer) + T007 (reconciliation, policy review approved) + D1 repair (python CONTRIBUTING.md flip); combined 123/123
-- Next transition: SELECT -> T008 (final gate)
-- Active tasks: T008
+- Last checkpoint: 2026-08-03 — T008 final gate passed: full suite 1133/1133, perplexity-cli probe satisfies AC2 (Style Guide & Conventions block with all values), zero contract churn (93/17/15), freeze held
+- Next transition: none (COMPLETE)
+- Active tasks: none
 - Blockers: none
 
 ## Goal
@@ -277,7 +277,8 @@ Parallel groups: G2 {T003,T005,T006} disjoint (T003: practices style.mjs/model/s
    - Repair attempts: 0
    - Recovery note: a hash failure means a production change drifted — reconcile the fixture, not the production claim; the policy flips must be reviewed as deliberate changes, not test weakening.
 
-8. [pending] Final gate: full suite, SKILL.md, real-repo probe
+8. [completed] Final gate: full suite, SKILL.md, real-repo probe
+   - DONE (cycle 5, 2026-08-03): full suite 1133/1133 (~79s); SKILL.md dimension-17 row documents the Style Guide & Conventions output; stale-comment housekeeping (run.mjs 16→17, model.mjs/render/practices.mjs ownership); probe on perplexity-cli: 17 scanners, {"expected":93,"eligible":93,"complete":93,"ratio":1}, practices scanned; Style Guide block renders Ruff rules (92 codes), Line length 100, google dialect, Make targets (95), Hook stages (55, pre-commit/pre-push), Deny rules, Plugin inventory (3), Declared conventions (9 headings), Exceptions hub (9+8), Gate thresholds table (all 10 values incl. mincoverage 85, radonccgrade B, filesizecap 1000, diffcoveragethreshold 90, distancethreshold 0.3); Configuration pyright strict; Testing marker taxonomy + diff-cover 90; Maintainability aggregate complexity; Architecture Import Contracts (13); no banned words, no secrets.
    - Task ID: T008
    - Depends on: T004, T007
    - Parallel group: G4
@@ -370,6 +371,18 @@ Ordered cheapest-first:
 | 2026-08-03 | 4 | INTEGRATE | T004, T007 | T004 renderer clean (Style Guide block renders values; smoke proven); T007 reconciliation + fixture RADON_CC_GRADE addition; DISCOVERY (D1): T002's CONTRIBUTING.md EXACT_PATHS entry flips the fixtures-expansion PYTHON fixture practices to observed — expansion-final-acceptance:426 asserted not_detected and is outside T007's scope | VERIFY |
 | 2026-08-03 | 4 | VERIFY | T004, T007 | T004 acceptance 22/22 + determinism 4/4 + smoke; T007 acceptance 56/56; D1 repaired by primary agent (expansion-final-acceptance:426 not_detected → observed with comment — mechanical reconciliation of the T002 EXACT_PATHS consequence); combined batch 123/123 | CHECKPOINT |
 | 2026-08-03 | 4 | CHECKPOINT | T004, T007 | G3 complete incl. D1 repair; next: SELECT -> T008 (final gate) | SELECT |
+| 2026-08-03 | 5 | SELECT | T008 | Final gate (primary agent) | DISPATCH |
+| 2026-08-03 | 5 | DISPATCH | T008 | Full suite; SKILL.md update; stale-comment housekeeping; real-repo probe | VERIFY |
+| 2026-08-03 | 5 | VERIFY | T008 | FINAL GATE PASSED: full suite 1133/1133 (~79s); probe: 17 scanners, {"expected":93,"eligible":93,"complete":93,"ratio":1}; Style Guide block verified fact-by-fact (19/19 checks, 2 regex false-negatives re-verified from rendered output); gate thresholds table all 10 values; no banned words, no secrets | COMPLETE |
+| 2026-08-03 | 5 | COMPLETE | T008 | Completion Review filled; all 8 tasks done; AC1-AC5 evidenced; committed | STOP |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+Filled by csm-build at COMPLETE (2026-08-03):
+- All 8 numbered tasks (T001-T008) completed with recorded acceptance evidence.
+- AC1: full suite `node --test --test-concurrency=1` → 1133 pass / 0 fail (~79s); registry claims 93, dimensions 17, provider dimensions 15 — zero contract churn.
+- AC2: perplexity-cli probe renders the Style Guide & Conventions block with ruff families+counts, line-length 100, google dialect, 95 make targets, hook stages (pre-commit/pre-push, 55 entries), gate thresholds (mincoverage 85, radonccgrade B, radonmigrade B, filesizecap 1000, diffcoveragethreshold 90, distancethreshold 0.3, failunder 85, maxflagged 30, minconfidence 80, semgrepseverity present), deny rules + plugin inventory (3), declared-conventions headings (9), exceptions hub (9+8); Configuration shows pyright strict; Testing shows marker taxonomy + diff-cover 90; Maintainability shows the aggregate complexity line; Architecture Craft Assessment shows the 13 import contracts backticked; coverage line {"expected":93,"eligible":93,"complete":93,"ratio":1}; practices scanned (not SCANNER_FAILURE).
+- AC3: ten-dimension freeze held — fixture-behavior byte-identity in T005's acceptance (52/52 incl. fixtures-pipeline/regression-parity/production-pipeline/baseline), renderer.md untouched.
+- AC4: gate-value policy landed — per-key gate-value entries with bounded ints/slugs; model privacy comment states the rule; flips landed green by T003 and independently reviewed/approved in T007; assertPrivacySafe passes (privacy canary retained).
+- AC5: voice gate (6/6), privacy gate, determinism (4/4), constraints (9/9) green; contract names backticked; no term collisions.
+- Review: critique blockers B1/B2 (token rule, static/extractor dedup) prevented by AD11 and proven by the 92-entry smoke with 0 diagnostics; D1 (python CONTRIBUTING.md flip in expansion-final-acceptance) discovered in cycle 4 and repaired by the primary agent.
+- Repo status: no unexplained changes; all execution work committed (cycles 1-5), nothing pushed.

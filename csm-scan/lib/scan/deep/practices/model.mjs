@@ -1,6 +1,6 @@
 // Development Practices dimension — output model and pure parsing helpers.
 //
-// T003 owns this module. It defines the deterministic, privacy-safe,
+// T002/T003 own this module (style-guide wave). It defines the deterministic, privacy-safe,
 // deep-frozen practices model produced by the practices scanner
 // (`lib/scan/deep/practices/scanner.mjs`) and consumed by the inert practices
 // renderer (`lib/scan/render/practices.mjs`) and the T210-compatible provider
