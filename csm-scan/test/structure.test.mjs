@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { withFixture } from './harness.mjs';
 import { scan } from '../lib/scan/deep/structure.mjs';
+import { renderStructure } from '../lib/scan/render/structure.mjs';
 
 function buildHexFiles(count, dir) {
   const obj = {};
@@ -52,5 +53,82 @@ test('structure scan caps wide directories with ellipsis collapse', async () => 
       `tree too tall (${f.tree.split('\n').length} lines):\n${f.tree}`,
     );
     assert.equal(f.totalFiles, 31);
+  });
+});
+
+test('structure renderer falls back to single-scope when git data is absent', () => {
+  const out = renderStructure('demo', {
+    tree: '.\n└── mod.py',
+    fileCounts: { py: 1, md: 1 },
+    totalFiles: 2,
+  });
+
+  const expected = [
+    '## Repository Structure — `demo`',
+    '',
+    'Directory tree (max depth 4):',
+    '',
+    '```',
+    '.\n└── mod.py',
+    '```',
+    '',
+    '| Extension | Files |',
+    '|-----------|------:|',
+    '| .py | 1 |',
+    '| .md | 1 |',
+    '| **Total** | **2** |',
+    '',
+  ].join('\n');
+  assert.equal(out, expected, 'single-scope fallback must be byte-identical');
+  assert.ok(!out.includes('git-tracked'), 'no git caveat may appear without git data');
+});
+
+test('structure renderer reports dual-scope totals with a scope caveat', () => {
+  const out = renderStructure('demo', {
+    tree: '.\n└── mod.py',
+    fileCounts: { py: 2, md: 1 },
+    totalFiles: 3,
+    gitTrackedFileCounts: { py: 3, toml: 1, md: 1 },
+    gitTrackedTotalFiles: 5,
+  });
+
+  assert.match(
+    out,
+    /> Total Files: 5 git-tracked \(3 in rg-scoped enumeration, excluding hidden\/gitignored paths\)\./,
+    'scope caveat must disclose both totals and the rg-scoped exclusion rule',
+  );
+  assert.match(out, /\| Extension \| Files \(rg-scoped\) \| Files \(git-tracked\) \|/);
+  assert.match(out, /\| \*\*Total\*\* \| \*\*3\*\* \| \*\*5\*\* \|/);
+  assert.match(out, /\| \.toml \| 0 \| 1 \|/, 'extensions only in the git scope must render with a zero rg count');
+  assert.match(out, /\| \.py \| 2 \| 3 \|/);
+});
+
+test('structure renderer falls back to single-scope when only rg data exists in a git repo', () => {
+  const out = renderStructure('demo', {
+    tree: '.\n└── mod.py',
+    fileCounts: { py: 1 },
+    totalFiles: 1,
+    gitTrackedFileCounts: null,
+    gitTrackedTotalFiles: null,
+  });
+  assert.match(out, /\| Extension \| Files \|/);
+  assert.match(out, /\| \*\*Total\*\* \| \*\*1\*\* \|/);
+  assert.ok(!out.includes('git-tracked'));
+});
+
+test('structure scan omits gitTracked keys when git scope is unavailable (coverage stays 100%)', async () => {
+  const files = {
+    'src/pkg/mod.py': 'import mod\n',
+    'README.md': '# demo\n',
+  };
+
+  await withFixture('structnogit', files, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+
+    assert.equal(f.totalFiles, 2);
+    assert.ok(!('gitTrackedTotalFiles' in f), 'gitTracked keys must be omitted when git scope is absent');
+    assert.ok(!('gitTrackedFileCounts' in f), 'gitTracked keys must be omitted when git scope is absent');
+    assert.equal(Object.keys(f).length, 5, 'structure findings must keep the original five keys');
   });
 });

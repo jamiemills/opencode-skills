@@ -109,6 +109,8 @@ const COMMANDS = Object.freeze({
   'git:rev-parse-toplevel': gitCommand(['rev-parse', '--show-toplevel']),
   'git:rev-parse-abbrev-head': gitCommand(['rev-parse', '--abbrev-ref', 'HEAD']),
   'git:log-oneline-50': gitCommand(['log', '--oneline', '-50']),
+  'git:log-oneline-200': gitCommand(['log', '--oneline', '-200']),
+  'git:ls-files': gitCommand(['ls-files']),
   'git:branch-list': gitCommand(['branch', '-a']),
   'git:symbolic-ref-origin-head': gitCommand(['symbolic-ref', 'refs/remotes/origin/HEAD']),
   'git:config-remote-origin-url': gitCommand(['config', '--get', 'remote.origin.url']),

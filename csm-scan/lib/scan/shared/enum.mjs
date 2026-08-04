@@ -29,24 +29,55 @@ export function sumSizes(repoPath, files) {
   return total;
 }
 
+const TRUNCATED_CODE = 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
+
+function splitLines(stdout) {
+  return stdout
+    .split('\n')
+    .map((s) => s.trim().replace(/\\/g, '/'))
+    .filter(Boolean)
+    .sort();
+}
+
+async function gitTrackedScope(repoPath, broker) {
+  try {
+    const result = await broker.execute('git:ls-files', { cwd: repoPath });
+    if (!result.ok) return null;
+    const files = splitLines(result.stdout);
+    return Object.freeze({
+      available: true,
+      truncated: false,
+      files,
+      extCounts: byExtension(files),
+      totalFiles: files.length,
+    });
+  } catch (error) {
+    const truncated = error && error.code === TRUNCATED_CODE;
+    return Object.freeze({
+      available: false,
+      truncated,
+      files: [],
+      extCounts: {},
+      totalFiles: 0,
+    });
+  }
+}
+
 export async function enumerate(repoPath, broker = commandBroker) {
   const result = await broker.execute('rg:files', { cwd: repoPath });
   const raw = result.ok || result.noMatch ? result.stdout : '';
 
-  const files = raw
-    .split('\n')
-    .map((s) => s.trim().replace(/\\/g, '/'))
-    .filter(Boolean)
-    .filter((f) => !isIgnoredPath(f))
-    .sort();
+  const files = splitLines(raw).filter((f) => !isIgnoredPath(f));
 
   const extCounts = byExtension(files);
   const totalBytes = sumSizes(repoPath, files);
+  const gitTracked = await gitTrackedScope(repoPath, broker);
 
   return {
     files,
     extCounts,
     totalFiles: files.length,
     totalBytes,
+    gitTracked,
   };
 }

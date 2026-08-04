@@ -100,6 +100,8 @@ export async function scan(repoPath, overview) {
   let files;
   let extCounts;
   let totalFiles;
+  let gitTrackedTotalFiles = null;
+  let gitTrackedExtCounts = null;
 
   const hasOverview =
     overview &&
@@ -111,12 +113,20 @@ export async function scan(repoPath, overview) {
     files = overview.files;
     extCounts = overview.extCounts;
     totalFiles = overview.totalFiles != null ? overview.totalFiles : files.length;
+    if (overview.gitTrackedTotalFiles != null) {
+      gitTrackedTotalFiles = overview.gitTrackedTotalFiles;
+      gitTrackedExtCounts = overview.gitTrackedExtCounts || {};
+    }
   } else {
     try {
       const result = await enumerate(repoPath);
       files = result.files;
       extCounts = result.extCounts;
       totalFiles = result.totalFiles;
+      if (result.gitTracked && result.gitTracked.available) {
+        gitTrackedTotalFiles = result.gitTracked.totalFiles;
+        gitTrackedExtCounts = result.gitTracked.extCounts;
+      }
     } catch (err) {
       const msg = (err && err.message) || String(err);
       return {
@@ -141,15 +151,21 @@ export async function scan(repoPath, overview) {
   const topDirs = topDirectories(children);
   const signal = totalFiles > 100 ? 'high' : totalFiles > 20 ? 'medium' : 'low';
 
+  const findings = {
+    tree,
+    fileCounts: extCounts,
+    totalFiles,
+    topDirs,
+    depth,
+  };
+  if (gitTrackedTotalFiles != null) {
+    findings.gitTrackedTotalFiles = gitTrackedTotalFiles;
+    findings.gitTrackedFileCounts = gitTrackedExtCounts || {};
+  }
+
   return {
     dimension: 'structure',
     signal,
-    findings: {
-      tree,
-      fileCounts: extCounts,
-      totalFiles,
-      topDirs,
-      depth,
-    },
+    findings,
   };
 }

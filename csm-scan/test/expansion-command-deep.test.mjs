@@ -87,16 +87,70 @@ test('T209 six owned files contain zero prohibited execution sites', () => {
 // 2. Target runtimes are never executed; commands go through the broker only
 // ---------------------------------------------------------------------------
 
-test('T209 each deep scanner issues only the fixed rg:files broker command ID', async () => {
-  for (const [name, scan] of FIVE_SCANNERS) {
-    const { calls, run } = createRecordingRunner((call) => {
-      assert.equal(call.executable, 'rg', `${name} executed an unexpected binary`);
-      assert.deepEqual(
-        call.argv,
-        expectedRgFilesArgv(),
-        `${name} must use the exact fixed rg:files argv`,
+// T209 allowlist: per-scanner git command allowances beyond the fixed rg:files
+// enumeration. Every allowed argv form must be a registered read-only broker
+// command; an allowance referencing an unregistered argv fails the static
+// registration check below (mirroring how git.mjs's git allowance is pinned in
+// the command-core suite). The security allowance exists for the dependabot
+// branch-evidence fact (T009); the new git:ls-files / git:log-oneline-200 argv
+// forms are registered for enumerate and git.mjs consumers (T002/T011).
+const REGISTERED_GIT_ARGV_FORMS = Object.freeze([
+  ['ls-files'],
+  ['log', '--oneline', '-50'],
+  ['log', '--oneline', '-200'],
+  ['branch', '-a'],
+  ['symbolic-ref', 'refs/remotes/origin/HEAD'],
+  ['rev-parse', '--show-toplevel'],
+  ['rev-parse', '--abbrev-ref', 'HEAD'],
+  ['config', '--get', 'remote.origin.url'],
+  ['shortlog', '-s', '-n', 'HEAD'],
+]);
+
+const DEEP_SCANNER_GIT_ALLOWANCES = Object.freeze({
+  stack: Object.freeze([]),
+  conventions: Object.freeze([]),
+  documentation: Object.freeze([]),
+  security: Object.freeze([['branch', '-a']]),
+  operations: Object.freeze([]),
+});
+
+function sameArgv(left, right) {
+  return left.length === right.length && left.every((part, index) => part === right[index]);
+}
+
+function assertRegisteredAllowances() {
+  for (const [name, allowances] of Object.entries(DEEP_SCANNER_GIT_ALLOWANCES)) {
+    assert.ok(Array.isArray(allowances), `${name} must declare a git allowance list`);
+    for (const argv of allowances) {
+      assert.ok(
+        REGISTERED_GIT_ARGV_FORMS.some((form) => sameArgv(form, argv)),
+        `${name} allowance references an unregistered git argv: ${argv.join(' ')}`,
       );
+    }
+  }
+}
+
+test('T209 each deep scanner issues only broker-registered command IDs', async () => {
+  assertRegisteredAllowances();
+  for (const [name, scan] of FIVE_SCANNERS) {
+    const allowedGit = DEEP_SCANNER_GIT_ALLOWANCES[name];
+    const allowedGitSet = new Set(allowedGit.map((argv) => argv.join('\u0000')));
+    const { calls, run } = createRecordingRunner((call) => {
       assert.equal(call.shell, false, `${name} must never request shell mode`);
+      if (call.executable === 'rg') {
+        assert.deepEqual(
+          call.argv,
+          expectedRgFilesArgv(),
+          `${name} must use the exact fixed rg:files argv`,
+        );
+      } else if (call.executable === 'git') {
+        assert.ok(
+          allowedGitSet.has(call.argv.join('\u0000')),
+          `${name} issued a git command outside its T209 allowance: ${call.argv.join(' ')}`,
+        );
+      } else {
+        assert.fail(`${name} executed an unexpected binary: ${call.executable}`);
+      }
       return { status: 0, stdout: 'mod.py\nREADME.md\npyproject.toml\n', stderr: '' };
     });
     const broker = createCommandBroker({ runner: { run } });
@@ -108,8 +162,8 @@ test('T209 each deep scanner issues only the fixed rg:files broker command ID', 
 
     assert.ok(calls.length >= 1, `${name} must enumerate files through the broker`);
     assert.ok(
-      calls.every((call) => call.executable === 'rg'),
-      `${name} must only ever execute rg`,
+      calls.every((call) => call.executable === 'rg' || call.executable === 'git'),
+      `${name} must only ever execute rg or git`,
     );
     assert.ok(
       calls.every((call) => call.shell === false),
