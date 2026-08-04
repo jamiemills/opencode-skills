@@ -15,6 +15,12 @@ function overviewSection(overview) {
   lines.push(`- **Languages**: ${escapeField((overview.languages || []).join(', ') || 'none detected')}`);
   lines.push(`- **Package Manager**: ${escapeField(overview.packageManager || 'unknown')}`);
   lines.push(`- **Total Files**: ${overview.totalFiles || 0}`);
+  if (overview.gitTrackedTotalFiles != null) {
+    lines.push(
+      `- **Total Files (git-tracked)**: ${overview.gitTrackedTotalFiles} ` +
+        '(rg-scoped enumeration excludes hidden/gitignored paths)',
+    );
+  }
   if (overview.isGit) lines.push(`- **Git**: yes (${escapeField(overview.gitRoot || '')})`);
   if (overview.description) lines.push(`- **Description**: ${escapeField(overview.description)}`);
   lines.push('');

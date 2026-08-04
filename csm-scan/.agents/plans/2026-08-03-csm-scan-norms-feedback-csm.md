@@ -9,11 +9,11 @@
 - Plan ID: csm-scan-norms-feedback
 - Status: in_progress
 - Current CSM state: SELECT
-- Cycle: 2
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — cycle 1 complete: T001 baseline gate done (suite 1133/1133, gates 35+6 pass, probe artifact saved, spike answered)
-- Next transition: SELECT -> DISPATCH (T002 broker + enumeration, G2)
-- Active tasks: T001 completed; ready: T002
+- Last checkpoint: 2026-08-03 — cycle 2 complete: T002 done and independently reviewed (1140/1140 suite green, no baseline regeneration needed)
+- Next transition: SELECT -> DISPATCH (G3 wave: T003, T004, T005, T007, T008, T009, T010, T011, T012, T013, T015 in parallel)
+- Active tasks: T001, T002 completed; ready: T003, T004, T005, T007, T008, T009, T010, T011, T012, T013, T015
 - Blockers: none
 
 ## Goal
@@ -172,7 +172,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if the suite is already red, the plan is BLOCKED pending a pre-existing-failure investigation; do not start source tasks on a red baseline.
 
-2. [pending] Broker extensions, enumeration universe, and command baselines
+2. [completed] Broker extensions, enumeration universe, and command baselines
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -536,6 +536,11 @@ Ordered cheapest-first; parallel where independent:
 | 2026-08-03 | 1 | VALIDATE | — | (in progress: run authoritative suite + per-gate suites + probe; T001 baseline gate executes here) | SELECT |
 | 2026-08-03 | 1 | SELECT/DISPATCH | T001 | T001 baseline gate executed by primary agent: full suite `node --test --test-concurrency=1` = 1133/1133 pass (80.8s); per-gate suites constraints/determinism/privacy-gate/voice-gate = 35 pass; golden gate = 6 pass; probe before-artifact = `/tmp/opencode/csm-scan-plan/before-NORMS.md` (93/93 expected claims, ratio 1.0, coverage 100% structure); baseline digests recorded: capabilities.json 11d70ec1…, fixture-behavior.json 489dae17…, inventory.json 3ec0bf11…, semantic.json 8751cb5d…, supersession.json af623d07…, test-integrity.json bed61bfc…, renderer.md cea60fa3… | CHECKPOINT |
 | 2026-08-03 | 1 | CHECKPOINT | T001 | SPIKE ANSWER (T001): NO automated `--update-baseline` helper exists anywhere in test/ or scripts/ (rg-verified). Regeneration is manual per baseline: (1) renderer.md + semantic.json — replicate `fixedInput()` (expansion-baseline.test.mjs:33-56, ten pre-baked dimensions, deep scanners NOT run) through enrich/validate/writeNORMS with generated='2026-01-15'; consequently renderer.md/semantic.json break ONLY for renderer/enrich/validate/write changes, NOT deep-scanner changes; (2) test-integrity.json — sha256 of the 8 reviewed files listed at expansion-baseline.test.mjs:139-148; (3) capabilities.json — sha256 `replacementTests` digests consumed by expansion-constraints.test.mjs:132-183; (4) fixture-behavior.json — per-ecosystem semanticSha256/markdownSha256 of the 5 fixture pipelines (fixtures-pipeline.test.mjs:36,128-131). Procedures will be executed at T014 via throwaway scripts in /tmp (documented diffs, independent review). T001 status: completed (no source writes; repo clean). | SELECT (T002) |
+| 2026-08-03 | 2 | SELECT/DISPATCH | T002 | T002 dispatched to implementation subagent; integrated by primary agent incl. plan-scope corrections: wired gitTracked through lib/scan/survey.mjs + lib/scan/deep/structure.mjs + lib/scan/write.mjs (overview dual line) and updated GIT_ARGV_FORMS in test/expansion-final-acceptance.test.mjs + test/expansion-negative.test.mjs (recorded scope correction, DR10); supersession.json digests refreshed (host-runtime-probes, personal-identity-output, deterministic-ordering-paths write.mjs lock) | INTEGRATE/VERIFY |
+| 2026-08-03 | 2 | VERIFY | T002 | Acceptance suites 105/105; full suite 1140/1140 green (ALL baseline tests incl. fixtures-pipeline, expansion-baseline, render-existing-ten, final-acceptance); probe shows dual scope: overview "Total Files: 529" + "Total Files (git-tracked): 572", structure "> Total Files: 572 git-tracked (529 in rg-scoped enumeration, excluding hidden/gitignored paths)"; determinism (probe A/B byte-identical), privacy, voice, golden gates green | REVIEW |
+| 2026-08-03 | 2 | REVIEW | T002 | Independent review verdict APPROVE-WITH-CHANGES: broker contract exact (new IDs via gitCommand(), argv/shell:false/env/caps/GIT_OPTIONAL_LOCKS=0 verified); T209 per-scanner git allowance sound; ALL digests independently recomputed and matching (command.mjs 46f23bd0…, core-test 54993188…, deep-test af7d047f…, write.mjs 35eb40ab…); 3 findings: A [MAJOR] structure coverage regression 100%→71% on non-git repos (unconditional null gitTracked keys) — FIXED at root (conditional findings keys in deep/structure.mjs + conditional overview fields in survey.mjs + new regression test "structure scan omits gitTracked keys when git scope is unavailable"); B [MAJOR] T224/T020/T204 deltas were the coverage line not the dual-scope table — confirmed; after fix A all fixture baselines byte-identical to HEAD, NO fixture-behavior regeneration needed; C [MINOR] scope corrections recorded here | REPAIR (fix A) |
+| 2026-08-03 | 2 | REPAIR/VERIFY | T002 | Fix A applied (deep/structure.mjs conditional keys incl. error path; survey.mjs conditional overview fields; structure.test.mjs new regression test). Full suite re-run: 1140/1140 PASS, zero failures; fixture pipelines, render-existing-ten, final-acceptance, golden all green; probe dual-scope figures confirmed (572 git-tracked / 529 rg-scoped, .py 406/402) | CHECKPOINT |
+| 2026-08-03 | 2 | CHECKPOINT | T002 | T002 completed. Expected-delta notes for T014: NO fixture-behavior/renderer/semantic regeneration required for T002 (non-git fixtures byte-identical; renderer.md unchanged — write.mjs/survey.mjs/deep-structure.mjs do not feed fixedInput; the renderer.md digest cea60fa3… is still current). supersession.json write.mjs lock updated to 35eb40ab…. Commit b0f038b (cycle 1) + next commit (cycle 2). | SELECT (G3 wave) |
 
 ## Completion Review
 Filled by csm-build when all criteria are verified.

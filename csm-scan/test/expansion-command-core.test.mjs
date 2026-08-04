@@ -49,6 +49,8 @@ test('T208 registered commands record exact fixed argv arrays and controlled com
   const gitToplevel = await broker.execute('git:rev-parse-toplevel', { cwd: '/repo' });
   const gitAbbrev = await broker.execute('git:rev-parse-abbrev-head', { cwd: '/repo' });
   const gitLog = await broker.execute('git:log-oneline-50', { cwd: '/repo' });
+  const gitLog200 = await broker.execute('git:log-oneline-200', { cwd: '/repo' });
+  const gitLsFiles = await broker.execute('git:ls-files', { cwd: '/repo' });
   const gitBranch = await broker.execute('git:branch-list', { cwd: '/repo' });
   const gitHead = await broker.execute('git:symbolic-ref-origin-head', { cwd: '/repo' });
   const gitRemote = await broker.execute('git:config-remote-origin-url', { cwd: '/repo' });
@@ -64,6 +66,8 @@ test('T208 registered commands record exact fixed argv arrays and controlled com
     ['rev-parse', '--show-toplevel'],
     ['rev-parse', '--abbrev-ref', 'HEAD'],
     ['log', '--oneline', '-50'],
+    ['log', '--oneline', '-200'],
+    ['ls-files'],
     ['branch', '-a'],
     ['symbolic-ref', 'refs/remotes/origin/HEAD'],
     ['config', '--get', 'remote.origin.url'],
@@ -72,7 +76,7 @@ test('T208 registered commands record exact fixed argv arrays and controlled com
   ];
   assert.deepEqual(calls.map((call) => call.argv), expectedArgv);
   assert.deepEqual(calls.map((call) => call.executable), [
-    'rg', 'git', 'git', 'git', 'git', 'git', 'git', 'git', 'rg',
+    'rg', 'git', 'git', 'git', 'git', 'git', 'git', 'git', 'git', 'git', 'rg',
   ]);
   assert.ok(calls.every((call) => call.executable === 'rg' || call.executable === 'git'),
     'controlled PATH must record only the allowed command families');

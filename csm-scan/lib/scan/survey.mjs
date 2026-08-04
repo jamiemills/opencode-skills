@@ -74,7 +74,7 @@ function basenameOf(repoPath) {
 export async function survey(repoPath, broker = commandBroker) {
   console.log(`  [SURVEY] Scanning ${repoPath}...`);
 
-  const { files, extCounts, totalFiles, totalBytes } = await enumerate(repoPath, broker);
+  const { files, extCounts, totalFiles, totalBytes, gitTracked } = await enumerate(repoPath, broker);
   const languageScores = scoreLanguages(files);
   const languages = detectFromScores(languageScores);
 
@@ -108,7 +108,7 @@ export async function survey(repoPath, broker = commandBroker) {
 
   const packageManager = derivePackageManager(ecosystems.primary, repoPath);
 
-  return {
+  const overview = {
     path: repoPath,
     gitRoot,
     isGit,
@@ -124,6 +124,11 @@ export async function survey(repoPath, broker = commandBroker) {
     ecosystems,
     manifest,
   };
+  if (gitTracked && gitTracked.available) {
+    overview.gitTrackedTotalFiles = gitTracked.totalFiles;
+    overview.gitTrackedExtCounts = gitTracked.extCounts;
+  }
+  return overview;
 }
 
 export async function detectLanguages(repoPath, broker = commandBroker) {

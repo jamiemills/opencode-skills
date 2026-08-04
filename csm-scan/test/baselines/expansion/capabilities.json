@@ -15,16 +15,16 @@
     "path": "lib/scan/shared/command.mjs",
     "api": "execFile",
     "import": "import { execFile } from 'node:child_process';",
-    "sha256": "3d8eb087e47ea422d4c78b275b47a7fc6fc1fb2dac46c457af53913f54457b5e",
+    "sha256": "46f23bd05df00d55b9287da0736c8e1d5d0e76e247fadd078635831c5e35998f",
     "replacementTests": [
       {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "d61f96634a6c2bbdda68a48b9146884dd5d79fa671e4c3cba31d764004e52b7a",
+        "testFileSha256": "549931885a8c9012300f777c930fe0e2ec393d9f80ccd7faf1d91b2e6302e2ad",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       },
       {
         "testFile": "test/expansion-command-deep.test.mjs",
-        "testFileSha256": "08f2e7412f8d50a5bd218bb2be015ef77c7945106b6807d37e2a9a630d7821fe",
+        "testFileSha256": "af7d047f3b6c245cb81b29da7dbe3be5e47f6fde937e90dd605ad78ae2c2b96a",
         "testName": "T209 six owned files contain zero prohibited execution sites"
       }
     ]

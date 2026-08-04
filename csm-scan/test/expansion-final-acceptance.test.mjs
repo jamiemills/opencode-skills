@@ -241,6 +241,8 @@ const GIT_ARGV_FORMS = Object.freeze([
   ['rev-parse', '--show-toplevel'],
   ['rev-parse', '--abbrev-ref', 'HEAD'],
   ['log', '--oneline', '-50'],
+  ['log', '--oneline', '-200'],
+  ['ls-files'],
   ['branch', '-a'],
   ['symbolic-ref', 'refs/remotes/origin/HEAD'],
   ['config', '--get', 'remote.origin.url'],

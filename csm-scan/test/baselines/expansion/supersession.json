@@ -12,7 +12,7 @@
       ],
       "replacement": {
         "testFile": "test/expansion-command-deep.test.mjs",
-        "testFileSha256": "08f2e7412f8d50a5bd218bb2be015ef77c7945106b6807d37e2a9a630d7821fe",
+        "testFileSha256": "af7d047f3b6c245cb81b29da7dbe3be5e47f6fde937e90dd605ad78ae2c2b96a",
         "testName": "T209 conflicting runtime declarations coexist with per-artifact provenance"
       }
     },
@@ -22,12 +22,12 @@
       "replacementTask": "T208",
       "legacyLocks": [
         { "role": "production", "path": "lib/scan/deep/git.mjs", "sha256": "bf73675c4f253e50e04dce9b4d412db4886eefe47d15d389bc39581eef3a5230" },
-        { "role": "production", "path": "lib/scan/write.mjs", "sha256": "762824057fcc1f9151fe8fba36e149fd4517e0aa59b5cfb6a97cf586305fd7b4" },
+        { "role": "production", "path": "lib/scan/write.mjs", "sha256": "35eb40ab164fc2b84ebc72136ace7dd13a762f050364850f19dd5126c8bf0b18" },
         { "role": "test", "path": "test/write.test.mjs", "sha256": "77319bc9513c666446138926d2b603c1f38f2abfa36c9677726ae328d411156d" }
       ],
       "replacement": {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "d61f96634a6c2bbdda68a48b9146884dd5d79fa671e4c3cba31d764004e52b7a",
+        "testFileSha256": "549931885a8c9012300f777c930fe0e2ec393d9f80ccd7faf1d91b2e6302e2ad",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       }
     },
@@ -66,7 +66,7 @@
       "state": "legacy_locked",
       "replacementTask": "T224",
       "legacyLocks": [
-        { "role": "production", "path": "lib/scan/write.mjs", "sha256": "762824057fcc1f9151fe8fba36e149fd4517e0aa59b5cfb6a97cf586305fd7b4" },
+        { "role": "production", "path": "lib/scan/write.mjs", "sha256": "35eb40ab164fc2b84ebc72136ace7dd13a762f050364850f19dd5126c8bf0b18" },
         { "role": "source", "path": "test/baselines/expansion/renderer.md", "sha256": "cea60fa30e45f8ddfa91ac7e9173c277415517f12916ad7ecec25b542b8d0d3b" },
         { "role": "test", "path": "test/fixtures-pipeline.test.mjs", "sha256": "f99e9c7d1b6fdd64ff2f47765eab036818adba0568a39ae1921a2963d60257b9" }
       ],

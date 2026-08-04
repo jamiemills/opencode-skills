@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createCommandBroker } from '../lib/scan/shared/command.mjs';
+import { createRecordingRunner } from './helpers/recording-runner.mjs';
+import { makeGitRepo, cleanupGitRepo } from './helpers/git-fixture.mjs';
 import { enumerate, byExtension, sumSizes } from '../lib/scan/shared/enum.mjs';
 
 function writeRel(root, rel, content) {
@@ -75,4 +78,84 @@ test('enumerate throws on non-1 rg failure', async () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('enumerate reports both rg-scoped and git-tracked scopes on a real git repo', async () => {
+  const dir = makeGitRepo({
+    files: {
+      'app.py': 'x = 1\n',
+      '.github/workflows/ci.yml': 'name: ci\n',
+      'tracked-but-ignored.toml': '[x]\n',
+    },
+    commits: [
+      'feat: initial',
+      { message: 'chore: ignore', files: { '.gitignore': 'tracked-but-ignored.toml\n' } },
+    ],
+  });
+  try {
+    writeFileSync(join(dir, 'untracked.txt'), 'hi\n');
+
+    const result = await enumerate(dir);
+
+    assert.ok(result.gitTracked, 'git-tracked scope must be present');
+    assert.equal(result.gitTracked.available, true);
+    assert.equal(result.gitTracked.truncated, false);
+    assert.ok(result.gitTracked.files.includes('.github/workflows/ci.yml'),
+      'hidden dot-dir tracked files must be in the git-tracked scope');
+    assert.ok(result.gitTracked.files.includes('tracked-but-ignored.toml'),
+      'gitignored-but-tracked files must be in the git-tracked scope');
+    assert.ok(result.gitTracked.files.includes('.gitignore'),
+      'dot-file tracked files must be in the git-tracked scope');
+    assert.ok(!result.gitTracked.files.includes('untracked.txt'),
+      'untracked files must not be in the git-tracked scope');
+
+    assert.ok(result.files.includes('untracked.txt'),
+      'non-hidden non-ignored untracked files must be in the rg-scoped scope');
+    assert.ok(!result.files.includes('.github/workflows/ci.yml'),
+      'hidden paths must be excluded from the rg-scoped scope');
+    assert.ok(!result.files.includes('tracked-but-ignored.toml'),
+      'gitignored paths must be excluded from the rg-scoped scope');
+
+    assert.ok(
+      result.gitTracked.totalFiles > result.totalFiles,
+      `git-tracked (${result.gitTracked.totalFiles}) must exceed rg-scoped (${result.totalFiles}) when hidden tracked files exist`,
+    );
+    assert.equal(
+      result.gitTracked.extCounts['.yml'],
+      1,
+      'git-tracked extension counts must include hidden-file extensions',
+    );
+  } finally {
+    cleanupGitRepo(dir);
+  }
+});
+
+test('enumerate falls back to rg-scoped only outside a git work tree', async () => {
+  const { run } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') return { status: 0, stdout: 'mod.py\n', stderr: '' };
+    return { status: 128, stdout: '', stderr: 'fatal: not a git repository' };
+  });
+  const broker = createCommandBroker({ runner: { run } });
+  const result = await enumerate('/repo', broker);
+
+  assert.equal(result.gitTracked, null, 'non-git repos must report no git-tracked scope');
+  assert.equal(result.totalFiles, 1);
+  assert.deepEqual(result.files, ['mod.py']);
+});
+
+test('enumerate records git-tracked truncation without fabricating a count', async () => {
+  const { run } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') return { status: 0, stdout: 'mod.py\n', stderr: '' };
+    const error = new Error('git ls-files exceeded the output cap');
+    error.code = 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
+    return error;
+  });
+  const broker = createCommandBroker({ runner: { run } });
+  const result = await enumerate('/repo', broker);
+
+  assert.ok(result.gitTracked, 'a git-scope model must always be reported');
+  assert.equal(result.gitTracked.available, false);
+  assert.equal(result.gitTracked.truncated, true);
+  assert.equal(result.gitTracked.totalFiles, 0);
+  assert.equal(result.totalFiles, 1);
 });
