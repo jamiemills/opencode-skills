@@ -37,6 +37,7 @@ import {
   slugToken,
 } from '../lib/scan/deep/practices/style.mjs';
 import { PRACTICE_TOOLS } from '../lib/scan/shared/detection.mjs';
+import { renderPractices } from '../lib/scan/render/practices.mjs';
 import {
   PRACTICES_PROVIDER_ID,
   practicesObservations,
@@ -381,9 +382,10 @@ test('T003 policy: extended gate vocabulary renders count 85, slug B, and key-pr
   assert.deepEqual(byKind.get('gate-value:radonmigrade').kinds, ['B']);
   assert.equal(byKind.get('gate-value:filesizecap').count, 1000);
   assert.equal(byKind.get('gate-value:diffcoveragethreshold').count, 90);
-  assert.ok(byKind.has('gate-value:semgrepseverity'));
+  assert.deepEqual(byKind.get('gate-value:semgrepseverity').kinds, ['--severity%20ERROR'],
+    'SEMGREP_SEVERITY carries its real value through the value channel');
   assert.equal(byKind.get('gate-value:semgrepseverity').count, undefined,
-    'SEMGREP_SEVERITY records key presence only');
+    'the value channel records kinds, never a count');
   assert.equal(JSON.stringify(records).includes('sk-supersecret123'), false,
     'non-allowlisted token key still never survives');
   assert.equal(JSON.stringify(records).includes('KEY='), false, 'raw KEY=value strings never survive');
@@ -597,14 +599,20 @@ const RUFF_PYPROJECT = [
   '"tests/**/*.py" = ["D", "S101"]',
 ].join('\n');
 
-test('T003 style: ruff extractor emits rules, line-length, and docstring dialect', () => {
+test('T003 style: ruff select and ignore codes emit as separate facts', () => {
   const records = extractRuffRules({ path: 'pyproject.toml', text: RUFF_PYPROJECT });
-  const rules = records.find((record) => record.kind === 'ruff-rules');
-  assert.equal(rules.count, 8, 'unique codes across select/ignore/per-file-ignores');
-  assert.ok(rules.kinds.includes('E') && rules.kinds.includes('S') && rules.kinds.includes('UP'),
+  const select = records.find((record) => record.kind === 'ruff-select');
+  assert.equal(select.count, 5, 'live select codes');
+  assert.ok(select.kinds.includes('E') && select.kinds.includes('S') && select.kinds.includes('UP'),
     'rule families are slug kinds');
-  assert.ok(rules.kinds.includes('E501') && rules.kinds.includes('D105'),
-    'individual codes are slug kinds');
+  assert.ok(select.kinds.includes('S101') && select.kinds.includes('UP035'),
+    'individual select codes are slug kinds');
+  const ignored = records.find((record) => record.kind === 'ruff-ignore');
+  assert.equal(ignored.count, 4, 'ignore + per-file-ignores codes stay separate');
+  assert.ok(ignored.kinds.includes('E501') && ignored.kinds.includes('D105') && ignored.kinds.includes('D'),
+    'ignored codes render as slug kinds');
+  assert.equal(records.some((record) => record.kind === 'ruff-rules'), false,
+    'select and ignore are never summed into an aggregated ruff-rules fact');
   const lineLength = records.find((record) => record.kind === 'line-length');
   assert.equal(lineLength.count, 100);
   const dialect = records.find((record) => record.kind === 'docstring-dialect');
@@ -681,12 +689,20 @@ const LEFTHOOK_REALISH = [
   '      run: make test-coverage',
 ].join('\n');
 
-test('T003 style: lefthook stages extract over block-scalar YAML with nested groups', () => {
+test('T003 style: lefthook stages and jobs extract as separate records with pipeline semantics', () => {
   const records = extractLefthookStages({ path: 'lefthook.yml', text: LEFTHOOK_REALISH });
-  assert.equal(records.length, 1);
-  assert.equal(records[0].kind, 'hook-stages');
-  assert.deepEqual(records[0].kinds.sort(), ['pre-commit', 'pre-push']);
-  assert.equal(records[0].count, 9, '2 stages + 7 nested/grouped jobs');
+  const stages = records.find((record) => record.kind === 'hook-stages');
+  assert.equal(stages.count, 2, 'stage count is the number of declared hooks, never summed with jobs');
+  assert.deepEqual(stages.kinds.sort(), ['pre-commit', 'pre-push']);
+  const jobs = records.find((record) => record.kind === 'hook-jobs');
+  assert.equal(jobs.count, 7, 'every - name: job across top level and nested groups');
+  const preCommit = records.find((record) => record.kind === 'hook-stage:pre-commit');
+  assert.equal(preCommit.count, 3, 'three top-level pre-commit stages');
+  assert.ok(preCommit.kinds.includes('piped') && preCommit.kinds.includes('abort-on-failure'),
+    'piped sequencing implies abort-on-failure');
+  assert.ok(preCommit.kinds.includes('parallel'), 'parallel nested groups are disclosed');
+  const prePush = records.find((record) => record.kind === 'hook-stage:pre-push');
+  assert.equal(prePush.count, 1);
   assert.deepEqual(extractLefthookStages({ path: '.github/workflows/ci.yml', text: 'jobs:\n  lint: {}\n' }), []);
 });
 
@@ -757,11 +773,16 @@ const EXIT_CODES_FIXTURE = [
   '    pass',
 ].join('\n');
 
-test('T003 style: exceptions hub counts classes and bare uppercase constants', () => {
+test('T003 style: exceptions hub reports role count and exit-code taxonomy pairs', () => {
   const records = extractExceptionsHub({ path: 'src/exit_codes.py', text: EXIT_CODES_FIXTURE });
-  assert.equal(records.length, 1);
-  assert.equal(records[0].kind, 'exceptions-hub');
-  assert.equal(records[0].count, 4, '2 exception classes + 2 bare constants');
+  const hub = records.find((record) => record.kind === 'exceptions-hub');
+  assert.equal(hub.count, 4, '2 exception classes + 2 bare constants');
+  const constants = records.find((record) => record.kind === 'exit-code-constant');
+  assert.deepEqual(constants.kinds.sort(), ['general-failure-1', 'success-0'],
+    'ALL_CAPS = <int> assignments become tokenized name-value pairs');
+  assert.equal(constants.count, 2, '_PRIVATE is not an ALL_CAPS exit-code pair');
+  assert.equal(records.some((record) => record.kind === 'exit-code-exception'), false,
+    'no exception table in this fixture');
   assert.deepEqual(extractExceptionsHub({ path: 'src/util.py', text: 'SUCCESS = 0\n' }), []);
 });
 
@@ -799,4 +820,220 @@ test('T003 style: style extractors feed the scanner without space-token throws',
     assert.ok(hub, 'exceptions-hub entry present');
     assert.equal(hub.count, 2);
   });
+});
+
+// ---------------------------------------------------------------------------
+// T005 — style-engine depth: gates toggles, value fidelity, lefthook
+// pipelines, make pseudo-targets, and the exit-code taxonomy.
+// ---------------------------------------------------------------------------
+
+test('T005 policy: CHECK_* toggles emit as quality_gate:check-toggle facts', () => {
+  const records = extractGateValues({
+    path: 'quality/gates.conf',
+    text: [
+      'CHECK_FORMAT = true',
+      'CHECK_LINT = true',
+      'CHECK_SEMGREP = false',
+      'MIN_COVERAGE=85',
+    ].join('\n'),
+  });
+  const format = records.find((record) => record.kind === 'check-toggle:check-format');
+  assert.equal(format.count, 1, 'true toggles render as on');
+  const semgrep = records.find((record) => record.kind === 'check-toggle:check-semgrep');
+  assert.equal(semgrep.count, 0, 'false toggles render as off');
+  assert.equal(records.some((record) => record.kind === 'check-toggle:check-lint'), true);
+  assert.equal(records.some((record) => record.kind === 'check-toggle:min-coverage'), false,
+    'non-toggle gate keys never become toggles');
+});
+
+test('T005 policy: semgrepseverity carries its real value through the value channel', () => {
+  const records = extractGateValues({
+    path: 'quality/gates.conf',
+    text: 'SEMGREP_SEVERITY = --severity ERROR --severity WARNING\nMIN_COVERAGE=85\n',
+  });
+  const semgrep = records.find((record) => record.kind === 'gate-value:semgrepseverity');
+  assert.deepEqual(semgrep.kinds, ['--severity%20ERROR%20--severity%20WARNING'],
+    'the ordered string value survives as a single percent-encoded token');
+  assert.equal(semgrep.count, undefined);
+  assert.equal(JSON.stringify(records).includes('--severity ERROR'), false,
+    'raw value strings with spaces never reach the record model');
+});
+
+test('T005 policy: gates.conf header semantics become tokenized policy kinds', () => {
+  const records = extractGateValues({
+    path: 'quality/gates.conf',
+    text: [
+      '# This file is DENIED to coding agents. Values set the floor.',
+      '# To change as a human: remove the deny rule, edit, restore.',
+      'MIN_COVERAGE=85',
+    ].join('\n'),
+  });
+  const header = records.find((record) => record.kind === 'gates-header');
+  assert.ok(header, 'header policy fact present');
+  assert.ok(header.kinds.includes('denied-to-agents'), 'agent denial tokenized');
+  assert.ok(header.kinds.includes('locked-floors'), 'locked floors tokenized');
+  assert.ok(header.kinds.includes('deny-remove-restore'), 'remove/restore protocol tokenized');
+  assert.equal(JSON.stringify(header).includes('coding agents'), false,
+    'no verbatim prose survives the tokenization');
+});
+
+const LEFTHOOK_PIPED_FIXTURE = [
+  '# Pre-commit: 5-stage pipeline (piped = sequential stages, abort on failure)',
+  '#   Stage 1  Reject partial staging',
+  '#   Stage 2  Read-only linters (parallel)',
+  '#   Stage 3  Auto-fixers',
+  '#   Stage 4  Re-run read-only linters',
+  '#   Stage 5  Unit tests',
+  'pre-commit:',
+  '  piped: true',
+  '  jobs:',
+  '    - name: reject-partial-staging',
+  '      run: git diff --quiet',
+  '    - name: lint-and-validate',
+  '      group:',
+  '        parallel: true',
+  '        jobs:',
+  '          - name: ruff-check',
+  '            run: make lint',
+  '    - name: pytest-check',
+  '      run: make test',
+  '# Pre-push: staged sequence, gitleaks owns the stdin pipe',
+  '#   Stage 1  gitleaks (stdin) + static checks',
+  '#   Stage 2  pytest with coverage enforcement',
+  '#   Stage 3  property tests + sonar reports',
+  '#   Stage 4  mutation + safety + fuzz',
+  'pre-push:',
+  '  piped: true',
+  '  jobs:',
+  '    - name: gitleaks-detect',
+  '      run: scripts/gitleaks_check.sh pre-push "{1}" "{2}"',
+  '      use_stdin: true',
+  '    - name: static-checks',
+  '      group:',
+  '        parallel: true',
+  '        jobs:',
+  '          - name: arch-check',
+  '            run: make arch-check',
+  '    - name: pytest-coverage',
+  '      run: make test-coverage',
+].join('\n');
+
+test('T005 style: lefthook piped-stage facts report 5 pre-commit / 4 pre-push stages with stdin ownership', () => {
+  const records = extractLefthookStages({ path: 'lefthook.yml', text: LEFTHOOK_PIPED_FIXTURE });
+  const preCommit = records.find((record) => record.kind === 'hook-stage:pre-commit');
+  assert.equal(preCommit.count, 5, 'the authored 5-stage pre-commit pipeline');
+  assert.ok(preCommit.kinds.includes('piped') && preCommit.kinds.includes('abort-on-failure'),
+    'pre-commit stages are piped with abort-on-failure');
+  const prePush = records.find((record) => record.kind === 'hook-stage:pre-push');
+  assert.equal(prePush.count, 4, 'the authored 4-stage pre-push pipeline');
+  assert.ok(prePush.kinds.includes('stdin-owner:gitleaks-detect'),
+    'gitleaks is reported as the sole stdin consumer');
+  const jobs = records.find((record) => record.kind === 'hook-jobs');
+  assert.equal(jobs.count, 8, 'stage count and job count are never summed');
+});
+
+test('T005 style: .PHONY pseudo-targets are excluded from the make-target count', () => {
+  const records = extractMakeTargets({
+    path: 'Makefile',
+    text: [
+      '.PHONY: build test lint',
+      'build:',
+      '\tmake',
+      'lint:',
+      '\tmake lint',
+    ].join('\n'),
+  });
+  const targets = records.find((record) => record.kind === 'make-targets');
+  assert.equal(targets.count, 2, '.PHONY is not a buildable target');
+  assert.deepEqual(targets.kinds.sort(), ['.PHONY', 'build', 'lint'],
+    'the discovered declaration stays in the kinds list');
+});
+
+test('T005 style: make check toggles and ci-quality membership emit as automation facts', () => {
+  const records = extractMakeTargets({
+    path: 'Makefile',
+    text: [
+      'ifeq ($(CHECK_FORMAT),true)',
+      'CHECK_PREREQS += format-check',
+      'endif',
+      'ifeq ($(CHECK_LINT),true)',
+      'CHECK_PREREQS += lint',
+      'endif',
+      'ci-quality: format-check lint semgrep ratchets deptry',
+      'check: $(CHECK_PREREQS)',
+    ].join('\n'),
+  });
+  const toggles = records.find((record) => record.kind === 'make-check-toggles');
+  assert.equal(toggles.count, 2, 'CHECK_* toggles feed the check composition');
+  assert.deepEqual(toggles.kinds.sort(), ['check-format', 'check-lint']);
+  const membership = records.find((record) => record.kind === 'make-ci-quality');
+  assert.deepEqual(membership.kinds.sort(), ['deptry', 'format-check', 'lint', 'ratchets', 'semgrep']);
+  assert.equal(membership.count, 5);
+});
+
+const EXIT_CODES_TAXONOMY = [
+  'SUCCESS = 0',
+  'GENERAL_FAILURE = 1',
+  'AUTH_REQUIRED = 4',
+  'TRANSIENT = 6',
+  'INTERRUPTED = 130',
+  '_HTTP_STATUS_UNAUTHORISED: Final[int] = 401',
+  '_HTTP_STATUS_FORBIDDEN: Final[int] = 403',
+  '_HTTP_STATUS_TOO_MANY_REQUESTS: Final[int] = 429',
+  '_HTTP_STATUS_SERVER_ERROR_THRESHOLD: Final[int] = 500',
+  '',
+  '_EXCEPTION_EXIT_CODE_TABLE: list[tuple[type, int]] = [',
+  '    (ApiError, AUTH_REQUIRED),',
+  '    (KeyboardInterrupt, INTERRUPTED),',
+  ']',
+  '',
+  'def _exit_code_for_http_error(status):',
+  '    if status in {_HTTP_STATUS_UNAUTHORISED, _HTTP_STATUS_FORBIDDEN}:',
+  '        return AUTH_REQUIRED',
+  '    if status == _HTTP_STATUS_TOO_MANY_REQUESTS or status >= _HTTP_STATUS_SERVER_ERROR_THRESHOLD:',
+  '        return TRANSIENT',
+  '    return GENERAL_FAILURE',
+].join('\n');
+
+test('T005 style: exit-code taxonomy emits constants, exception table and HTTP special-casing', () => {
+  const records = extractExceptionsHub({ path: 'src/perplexity_cli/exit_codes.py', text: EXIT_CODES_TAXONOMY });
+  const constants = records.find((record) => record.kind === 'exit-code-constant');
+  assert.equal(constants.count, 5, 'ALL_CAPS = <int> assignments only');
+  assert.ok(constants.kinds.includes('auth-required-4') && constants.kinds.includes('interrupted-130'));
+  assert.ok(!constants.kinds.some((kind) => kind.includes('http')),
+    'HTTP status constants are never reported as exit codes');
+  const exceptions = records.find((record) => record.kind === 'exit-code-exception');
+  assert.deepEqual(exceptions.kinds.sort(), ['apierror-4', 'keyboardinterrupt-130'],
+    'exception-to-code rows resolve to tokenized pairs');
+  const http = records.find((record) => record.kind === 'exit-code-http');
+  assert.deepEqual(http.kinds.sort(), ['http-401-403-4', 'http-429-5xx-6'],
+    'HTTP special-casing is disclosed as bounded kinds');
+});
+
+test('T005 render: style-guide block renders value fidelity, toggles, stages and exit-code pairs', () => {
+  const entries = [
+    { category: 'quality_gate', matchedKey: 'quality_gate:gate-value:semgrepseverity:quality/gates.conf', path: 'quality/gates.conf', status: 'observed', kinds: ['--severity%20ERROR%20--severity%20WARNING'] },
+    { category: 'quality_gate', matchedKey: 'quality_gate:gate-value:mincoverage:quality/gates.conf', path: 'quality/gates.conf', status: 'observed', count: 85 },
+    { category: 'quality_gate', matchedKey: 'quality_gate:check-toggle:check-format:quality/gates.conf', path: 'quality/gates.conf', status: 'observed', count: 1 },
+    { category: 'quality_gate', matchedKey: 'quality_gate:check-toggle:check-semgrep:quality/gates.conf', path: 'quality/gates.conf', status: 'observed', count: 0 },
+    { category: 'quality_gate', matchedKey: 'quality_gate:gates-header:quality/gates.conf', path: 'quality/gates.conf', status: 'observed', kinds: ['denied-to-agents', 'human-change'] },
+    { category: 'enforcement', matchedKey: 'enforcement:hook-stages:lefthook.yml', path: 'lefthook.yml', status: 'observed', count: 2, kinds: ['pre-commit', 'pre-push'] },
+    { category: 'enforcement', matchedKey: 'enforcement:hook-jobs:lefthook.yml', path: 'lefthook.yml', status: 'observed', count: 53 },
+    { category: 'enforcement', matchedKey: 'enforcement:hook-stage:pre-commit:lefthook.yml', path: 'lefthook.yml', status: 'observed', count: 5, kinds: ['piped', 'abort-on-failure'] },
+    { category: 'enforcement', matchedKey: 'enforcement:hook-stage:pre-push:lefthook.yml', path: 'lefthook.yml', status: 'observed', count: 4, kinds: ['piped', 'abort-on-failure', 'stdin-owner:gitleaks-detect'] },
+    { category: 'style_guide', matchedKey: 'style_guide:exit-code-constant:src/exit_codes.py', path: 'src/exit_codes.py', status: 'observed', count: 9, kinds: ['success-0', 'interrupted-130'] },
+  ];
+  const model = modelOf(entries);
+  const markdown = renderPractices('repository', model);
+  assert.ok(markdown.includes('| semgrepseverity | `--severity ERROR --severity WARNING` |'),
+    'semgrepseverity renders its real value verbatim in the gate table');
+  assert.ok(markdown.includes('| check-format | on |') && markdown.includes('| check-semgrep | off |'),
+    'check toggles render as on/off states');
+  assert.ok(markdown.includes('pre-commit (5 stages: `abort-on-failure`, `piped`)'),
+    'per-hook stage counts render with pipeline semantics');
+  assert.ok(markdown.includes('pre-push (4 stages: `abort-on-failure`, `piped`, `stdin-owner:gitleaks-detect`)'),
+    'gitleaks stdin ownership renders in the stage pipeline');
+  assert.ok(markdown.includes('`denied-to-agents`, `human-change`'), 'gate policy kinds render');
+  assert.ok(markdown.includes('9 codes: `interrupted-130`, `success-0`'), 'exit-code pairs render');
+  assert.equal(markdown, renderPractices('repository', model), 'rendering stays deterministic');
 });

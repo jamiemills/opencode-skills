@@ -13,6 +13,28 @@ const SUPPORTED_COMMENT_ECOS = ['python', 'javascript', 'typescript', 'rust', 's
 const TODO_FILE_LIMIT = 400;
 const TODO_BYTE_LIMIT = 1024 * 1024;
 
+// Reference-artifact detection (T012): QUALITY_GATES.md-style reference docs
+// and SECURITY.md become part of the documentation inventory.
+const REFERENCE_DOC_NAMES = ['QUALITY_GATES.md', 'quality-gates.md', 'quality_gates.md', 'QUALITY_GATE.md', 'REFERENCE.md'];
+const REFERENCE_DOC_MIN_LINES = 100;
+const RFC2119_RE = /\bRFC\s*2119\b/i;
+const NORMATIVE_KEYWORD_RE = /\b(?:MUST|SHOULD)\b/;
+const GATE_ID_RE = /[a-z][a-z0-9-]*(\.[a-z0-9-]+)+/g;
+const GATE_ID_MIN_DISTINCT = 3;
+const REPLICATION_CARDS_RE = /agent\s+replication\s+cards?/i;
+
+// Doc-toolchain detection (T012): doc-validation scripts referenced in
+// Makefile / opencode config. Bounded pattern scan of small config files.
+const DOC_TOOLCHAIN_SOURCES = ['Makefile', 'makefile', 'opencode.json', 'opencode.jsonc'];
+const DOC_TOOLCHAIN_BYTE_LIMIT = 128 * 1024;
+const DOC_TOOLCHAIN_PATTERN = /\b(?:check-config|docs-check|docs_check|pre-push-docs|doc-toolchain|validate-docs)[a-z0-9_.-]*/gi;
+
+const SECURITY_PURPOSE_TOKENS = [
+  { re: /responsible disclosure/i, purpose: 'responsible disclosure' },
+  { re: /report/i, purpose: 'vulnerability reporting' },
+  { re: /token|cookie|secret/i, purpose: 'token handling' },
+];
+
 function readFile(path) {
   try {
     return readFileSync(path, 'utf-8');
@@ -320,6 +342,109 @@ function detectLicense(repoPath) {
 }
 
 // ---------------------------------------------------------------------------
+// Reference artifacts (T012) — QUALITY_GATES.md / equivalent large reference
+// docs plus SECURITY.md. Deterministic, bounded to root-level markdown files.
+// ---------------------------------------------------------------------------
+
+function countLines(content) {
+  if (!content) return 0;
+  let count = 0;
+  for (let i = 0; i < content.length; i++) {
+    if (content.charCodeAt(i) === 10) count++;
+  }
+  return content.length > 0 ? count + 1 : 0;
+}
+
+function referenceDocMarkers(content) {
+  const markers = [];
+  if (RFC2119_RE.test(content) && NORMATIVE_KEYWORD_RE.test(content)) {
+    markers.push('RFC 2119 vocabulary');
+  }
+  const ids = new Set();
+  for (const match of content.matchAll(GATE_ID_RE)) {
+    ids.add(match[0]);
+    if (ids.size >= GATE_ID_MIN_DISTINCT) break;
+  }
+  if (ids.size >= GATE_ID_MIN_DISTINCT) markers.push('stable gate IDs');
+  if (REPLICATION_CARDS_RE.test(content)) markers.push('agent replication cards');
+  return markers;
+}
+
+function detectReferenceDocs(repoPath, files) {
+  const normalized = (files || []).map((file) => file.replace(/\\/g, '/'));
+  const rootMarkdown = normalized
+    .filter((file) => !file.includes('/'))
+    .filter((file) => /\.md$/i.test(file));
+  const candidates = new Set([...REFERENCE_DOC_NAMES, ...rootMarkdown]);
+  const docs = [];
+  for (const rel of candidates) {
+    const isNamed = REFERENCE_DOC_NAMES.includes(rel);
+    if (!isNamed && !rootMarkdown.includes(rel)) continue;
+    const p = join(repoPath, rel);
+    if (!existsSync(p)) continue;
+    const content = readFile(p);
+    if (!content || countLines(content) < REFERENCE_DOC_MIN_LINES) continue;
+    const markers = referenceDocMarkers(content);
+    // A named candidate qualifies on its name; an "equivalent" doc must carry
+    // the full normative-reference marker set (RFC 2119, stable gate IDs, and
+    // replication cards) so quoted summaries (e.g. a scanned report) are not
+    // mistaken for a reference artifact.
+    if (isNamed || markers.length >= 3) {
+      docs.push({ path: rel, lines: countLines(content), markers });
+    }
+  }
+  return { present: docs.length > 0, docs };
+}
+
+function detectSecurity(repoPath) {
+  const secPath = findFile(repoPath, ['SECURITY.md', 'security.md', '.github/SECURITY.md', '.github/security.md']);
+  if (!secPath) return { present: false, path: null, purpose: null };
+  const content = readFile(secPath) || '';
+  let purpose = 'security policy';
+  for (const { re, purpose: token } of SECURITY_PURPOSE_TOKENS) {
+    if (re.test(content)) {
+      purpose = token;
+      break;
+    }
+  }
+  return { present: true, path: secPath, purpose };
+}
+
+function normalizeToolchainScripts(tokens) {
+  const list = [...tokens];
+  return list
+    .filter((token) => !list.some((other) => other.length > token.length && other.startsWith(token)))
+    .sort();
+}
+
+function detectDocToolchain(repoPath) {
+  const scripts = new Set();
+  const sources = [];
+  for (const rel of DOC_TOOLCHAIN_SOURCES) {
+    const p = join(repoPath, rel);
+    if (!existsSync(p)) continue;
+    let content = null;
+    try {
+      content = readFileSync(p, 'utf-8').slice(0, DOC_TOOLCHAIN_BYTE_LIMIT);
+    } catch {
+      continue;
+    }
+    if (!content) continue;
+    const matches = content.match(DOC_TOOLCHAIN_PATTERN) || [];
+    if (matches.length === 0) continue;
+    sources.push(rel);
+    for (const match of matches) {
+      scripts.add(match.toLowerCase().replace(/\.(ts|js)$/, ''));
+    }
+  }
+  return {
+    present: scripts.size > 0,
+    scripts: normalizeToolchainScripts(scripts),
+    sources: [...sources].sort(),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Scan
 // ---------------------------------------------------------------------------
 
@@ -341,6 +466,9 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const docstringDialect = detectPythonDocstringDialect(repoPath, overview, files);
   const docStyle = detectDocStyle(repoPath, overview, files);
   const license = detectLicense(repoPath);
+  const referenceDocs = detectReferenceDocs(repoPath, files);
+  const security = detectSecurity(repoPath);
+  const docToolchain = detectDocToolchain(repoPath);
 
   let todoCount = 0;
   for (const file of files.slice(0, TODO_FILE_LIMIT)) {
@@ -373,6 +501,9 @@ export async function scan(repoPath, overview, broker = commandBroker) {
       docstringDialect,
       docStyle,
       license,
+      referenceDocs,
+      security,
+      docToolchain,
       todoCount,
     },
   };

@@ -51,8 +51,8 @@ test('python fixture: pytest detected, test_*.py matched, pyproject pytest marke
       `sampleFiles should include test_core.py: ${JSON.stringify(f.sampleFiles)}`,
     );
     assert.ok(
-      f.naming.includes('test_*.py'),
-      `naming should include the matched glob 'test_*.py': ${JSON.stringify(f.naming)}`,
+      f.naming.includes('tests/test_*.py'),
+      `naming should include the matched glob 'tests/test_*.py': ${JSON.stringify(f.naming)}`,
     );
     assert.ok(
       f.configFiles && f.configFiles.includes('pyproject.toml:[tool.pytest.ini_options]'),
@@ -68,6 +68,251 @@ test('python fixture: pytest detected, test_*.py matched, pyproject pytest marke
     );
     assert.equal(f.script, null, 'python repo has no package.json test script');
     assert.equal(res.signal, 'high');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T007 b14: python test-file universe. The globs (tests/test_*.py,
+// tests/**/test_*.py, conftest.py) plus match-time exclusions must count real
+// test modules only: scripts/smoke_test.py (a *_test.py outside a test dir),
+// tests/fixtures/**, tests/support/**, harnesses and __init__.py are excluded.
+// ---------------------------------------------------------------------------
+
+test('T007 b14: python real-module counting excludes fixtures, support and scripts/smoke_test.py', async () => {
+  const files = {
+    'pyproject.toml': [
+      '[project]',
+      'name = "pyuniverse"',
+      'version = "0.1.0"',
+      '',
+      '[project.optional-dependencies]',
+      'dev = ["pytest>=7.0"]',
+      '',
+    ].join('\n'),
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+    'tests/test_aux.py': 'def test_aux():\n    assert True\n',
+    'tests/fixtures/test_fixture.py': 'def test_fixture():\n    assert True\n',
+    'tests/fixtures/sample.py': 'SAMPLE = 1\n',
+    'tests/support/helper.py': 'def helper():\n    return 1\n',
+    'tests/_fuzz_harnesses.py': 'def harness():\n    return 1\n',
+    'tests/strategies.py': 'def strategy():\n    return 1\n',
+    'tests/__init__.py': '',
+    'scripts/smoke_test.py': 'def smoke():\n    return 1\n',
+  };
+
+  await withFixture('testing-t007-universe', files, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+    assert.equal(f.fileCount, 2, `fileCount must count only real test modules: ${f.fileCount}`);
+    assert.ok(
+      f.sampleFiles.some((p) => p.endsWith('test_core.py')),
+      `test_core.py must be counted: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      f.sampleFiles.some((p) => p.endsWith('test_aux.py')),
+      `test_aux.py must be counted: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      !f.sampleFiles.some((p) => p.endsWith('smoke_test.py')),
+      `scripts/smoke_test.py must be excluded: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      !f.sampleFiles.some((p) => p.includes('/fixtures/')),
+      `tests/fixtures/** must be excluded: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      !f.sampleFiles.some((p) => p.includes('/support/')),
+      `tests/support/** must be excluded: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      !f.sampleFiles.some((p) => p.endsWith('_fuzz_harnesses.py')),
+      `_fuzz_harnesses.py must be excluded: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      !f.sampleFiles.some((p) => p.endsWith('strategies.py')),
+      `strategies.py must be excluded: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.ok(
+      !f.sampleFiles.some((p) => p.endsWith('__init__.py')),
+      `__init__.py must be excluded: ${JSON.stringify(f.sampleFiles)}`,
+    );
+    assert.equal(res.signal, 'high');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T007 a11: fail-closed network guard at tests/support/network_guard.py is
+// detected as a testing fact (socket + curl_cffi interception, loopback-only,
+// env scrubbing, real_api bypass marker).
+// ---------------------------------------------------------------------------
+
+test('T007 a11: network guard fact detected from tests/support/network_guard.py', async () => {
+  const files = {
+    'pyproject.toml': [
+      '[project]',
+      'name = "pyguard"',
+      'version = "0.1.0"',
+      '',
+      '[project.optional-dependencies]',
+      'dev = ["pytest>=7.0"]',
+      '',
+    ].join('\n'),
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+    'tests/support/network_guard.py': [
+      '"""Fail-closed network isolation for non-live lanes."""',
+      'import socket',
+      'import curl_cffi',
+      '',
+      '_LOOPBACK_NAMES = frozenset({"localhost", "127.0.0.1", "::1"})',
+      '',
+      'def is_loopback_host(host):',
+      '    return host in _LOOPBACK_NAMES',
+      '',
+      'class _GuardedSocket(socket.socket):',
+      '    def connect(self, address):',
+      '        if not is_loopback_host(address[0]):',
+      '            raise OSError("loopback-only test isolation is active")',
+      '        return super().connect(address)',
+      '',
+      'def _install_guard():',
+      '    for var in list(os.environ):',
+      '        if var in _SENSITIVE_VARS:',
+      '            _state.saved_env[var] = os.environ.pop(var)',
+      '    socket.socket = _GuardedSocket',
+      '',
+      '_REAL_API_VAR = "RUN_REAL_API_TESTS"',
+      '',
+    ].join('\n'),
+  };
+
+  await withFixture('testing-t007-guard', files, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+    assert.ok(
+      typeof f.networkGuard === 'string' && f.networkGuard.includes('socket interception'),
+      `networkGuard must mention socket interception: ${JSON.stringify(f.networkGuard)}`,
+    );
+    assert.ok(
+      typeof f.networkGuard === 'string' && f.networkGuard.includes('curl_cffi interception'),
+      `networkGuard must mention curl_cffi interception: ${JSON.stringify(f.networkGuard)}`,
+    );
+    assert.ok(
+      typeof f.networkGuard === 'string' && f.networkGuard.includes('loopback-only'),
+      `networkGuard must mention loopback-only: ${JSON.stringify(f.networkGuard)}`,
+    );
+    assert.ok(
+      typeof f.networkGuard === 'string' && f.networkGuard.includes('env scrub'),
+      `networkGuard must mention env scrub: ${JSON.stringify(f.networkGuard)}`,
+    );
+    assert.ok(
+      typeof f.networkGuard === 'string' && f.networkGuard.includes('real_api bypass'),
+      `networkGuard must mention real_api bypass: ${JSON.stringify(f.networkGuard)}`,
+    );
+    const markdown = renderTesting('repo', f);
+    assert.match(markdown, /- \*\*Network guard\*\*: loopback-only fail-closed guard/);
+  });
+});
+
+test('T007 a11: repos without a network guard keep the fact absent', async () => {
+  const files = {
+    'pyproject.toml': '[project]\nname = "pyplain"\nversion = "0.1.0"\n',
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+  };
+
+  await withFixture('testing-t007-no-guard', files, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(f, 'networkGuard'),
+      false,
+      `networkGuard fact must be conditional-absent: ${JSON.stringify(Object.keys(f))}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T007 a10/d4: policy/quality/architecture suites are classified as meta-tests.
+// ---------------------------------------------------------------------------
+
+test('T007 a10/d4: meta-test classification from policy/quality test naming', async () => {
+  const files = {
+    'pyproject.toml': [
+      '[project]',
+      'name = "pymeta"',
+      'version = "0.1.0"',
+      '',
+      '[project.optional-dependencies]',
+      'dev = ["pytest>=7.0"]',
+      '',
+    ].join('\n'),
+    'tests/test_quality_gates.py': 'def test_gate():\n    assert True\n',
+    'tests/test_workflow_policy.py': 'def test_policy():\n    assert True\n',
+    'tests/test_architecture.py': 'def test_arch():\n    assert True\n',
+    'tests/test_cyclomatic_complexity.py': 'def test_complexity():\n    assert True\n',
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+  };
+
+  await withFixture('testing-t007-meta', files, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+    assert.ok(f.metaTests, `metaTests fact must be present: ${JSON.stringify(f)}`);
+    assert.equal(f.metaTests.count, 4, `meta-test count must be 4: ${JSON.stringify(f.metaTests)}`);
+    assert.ok(
+      f.metaTests.naming.includes('test_quality_*.py'),
+      `meta-test naming must include test_quality_*.py: ${JSON.stringify(f.metaTests.naming)}`,
+    );
+    assert.ok(
+      f.metaTests.naming.includes('test_workflow_policy.py'),
+      `meta-test naming must include test_workflow_policy.py: ${JSON.stringify(f.metaTests.naming)}`,
+    );
+    assert.ok(
+      f.metaTests.naming.includes('test_architecture.py'),
+      `meta-test naming must include test_architecture.py: ${JSON.stringify(f.metaTests.naming)}`,
+    );
+    assert.ok(
+      f.metaTests.naming.includes('test_cyclomatic_complexity.py'),
+      `meta-test naming must include test_cyclomatic_complexity.py: ${JSON.stringify(f.metaTests.naming)}`,
+    );
+    const markdown = renderTesting('repo', f);
+    assert.match(markdown, /- \*\*Meta-tests\*\*: 4 file\(s\)/);
+  });
+});
+
+test('T007 a10/d4: repos without meta-test naming keep the fact absent', async () => {
+  const files = {
+    'pyproject.toml': '[project]\nname = "pymeta2"\nversion = "0.1.0"\n',
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+  };
+
+  await withFixture('testing-t007-no-meta', files, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(f, 'metaTests'),
+      false,
+      `metaTests fact must be conditional-absent: ${JSON.stringify(Object.keys(f))}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T007 b14: the counting rule is disclosed in the rendered Testing section.
+// ---------------------------------------------------------------------------
+
+test('T007 b14: python counting rule is disclosed in the renderer', async () => {
+  const files = {
+    'pyproject.toml': '[project]\nname = "pyrule"\nversion = "0.1.0"\n',
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+  };
+
+  await withFixture('testing-t007-rule', files, async (dir) => {
+    const res = await scan(dir);
+    const markdown = renderTesting('repo', res.findings);
+    assert.match(
+      markdown,
+      /- \*\*Test file universe\*\*: tests\/test_\*\.py \+ tests\/\*\*\/test_\*\.py \+ conftest\.py, excluding/,
+      markdown,
+    );
   });
 });
 
@@ -727,7 +972,7 @@ test('T005 repos without a markers key keep the markers fact absent', async () =
 // [dependency-groups] (parsed here directly), >=200 matched test files.
 // ---------------------------------------------------------------------------
 
-test('real perplexity-cli: pytest + hypothesis, fileCount >= 200', {
+test('real perplexity-cli: pytest + hypothesis, fileCount matches the b14 counting rule', {
   skip: hasPerplexity ? false : `perplexity-cli not present at ${PERPLEXITY}`,
 }, async () => {
   const overview = await surveyOverview(PERPLEXITY);
@@ -737,7 +982,10 @@ test('real perplexity-cli: pytest + hypothesis, fileCount >= 200', {
 
   assert.ok(fw.includes('pytest'), `framework should include pytest: ${JSON.stringify(f.framework)}`);
   assert.ok(fw.includes('hypothesis'), `framework should include hypothesis: ${JSON.stringify(f.framework)}`);
-  assert.ok(f.fileCount >= 200, `fileCount should be >= 200: ${f.fileCount}`);
+  // T007 b14 counting rule: python test files are tests/test_*.py +
+  // tests/**/test_*.py + conftest.py, with fixtures/support/harness files
+  // excluded. The real repo reports 146 test modules + conftest = 147.
+  assert.ok(f.fileCount >= 130 && f.fileCount <= 170, `fileCount should match the b14 counting rule: ${f.fileCount}`);
   assert.ok(
     f.configFiles && f.configFiles.includes('pyproject.toml:[tool.pytest.ini_options]'),
     `configFiles should include the pytest marker: ${JSON.stringify(f.configFiles)}`,

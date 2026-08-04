@@ -168,7 +168,7 @@ const CATEGORY_TOPIC_COVERAGE = Object.freeze({
   decision: Object.freeze(['decision']),
   dependency_lock: Object.freeze(['dependency-lock']),
   deployment_declaration: Object.freeze(['deployment-declarations']),
-  design_pattern: Object.freeze(['solid-indicators']),
+  design_pattern: Object.freeze(['solid-indicators', 'layer-model']),
   directory_structure: Object.freeze(['directory-tree']),
   duplicate_span: Object.freeze(['duplicate-spans']),
   dynamic_indicator: Object.freeze(['dynamic-indicators']),

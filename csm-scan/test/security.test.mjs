@@ -2,7 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { withFixture, surveyOverview } from './harness.mjs';
+import { createRecordingRunner } from './helpers/recording-runner.mjs';
+import { createCommandBroker } from '../lib/scan/shared/command.mjs';
 import { scan } from '../lib/scan/deep/security.mjs';
+import { renderSecurity } from '../lib/scan/render/security.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as jsFiles } from './fixtures/javascript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
@@ -253,6 +256,176 @@ test('security: lockfile extensions — yarn.lock / Cargo.lock / poetry.lock / b
       );
     });
   }
+});
+
+test('security: dependabot branch evidence — recording broker with dependabot/* branches reports inferred', async () => {
+  const branchList = [
+    '* master',
+    '  remotes/origin/master',
+    '  remotes/origin/dependabot/uv/httpx-1.0',
+    '  dependabot/uv/pydantic-2.0',
+    '  remotes/origin/dependabot/uv/pydantic-2.0',
+    '',
+  ].join('\n');
+  const { calls, run } = createRecordingRunner((call) => {
+    assert.equal(call.shell, false, 'broker calls must never request shell mode');
+    if (call.executable === 'rg') {
+      return { status: 0, stdout: 'pyproject.toml\n', stderr: '' };
+    }
+    if (call.executable === 'git' && call.argv.join(' ') === 'branch -a') {
+      return { status: 0, stdout: branchList, stderr: '' };
+    }
+    return { status: 1, stdout: '', stderr: 'unexpected' };
+  });
+  const broker = createCommandBroker({ runner: { run } });
+
+  await withFixture('sec-dep-branches', {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\n',
+  }, async (dir) => {
+    const overview = { files: ['pyproject.toml'] };
+    const res = await scan(dir, overview, broker);
+    const f = res.findings;
+
+    assert.equal(f.dependabot, false, 'dependabot must remain not configured');
+    assert.equal(f.dependabotEvidence.status, 'inferred');
+    assert.ok(
+      f.dependabotEvidence.branches.includes('dependabot/uv/httpx-1.0'),
+      `expected branch evidence: ${JSON.stringify(f.dependabotEvidence.branches)}`,
+    );
+    assert.ok(
+      f.dependabotEvidence.branches.includes('dependabot/uv/pydantic-2.0'),
+      'local and remote dependabot branches of the same name must collapse into one entry',
+    );
+    assert.equal(f.dependabotEvidence.branchCount, 2);
+
+    const rendered = renderSecurity('repo', f);
+    assert.match(rendered, /Dependabot.*not configured \(no \.github\/dependabot\.yml\); dependabot\/\* branches present/);
+    assert.ok(calls.some((call) => call.executable === 'git' && call.argv.join(' ') === 'branch -a'),
+      'security must issue git:branch-list via the broker');
+  });
+});
+
+test('security: dependabot — no dependabot/* branches keeps the current not-configured fact', async () => {
+  const { run } = createRecordingRunner((call) => {
+    if (call.executable === 'git' && call.argv.join(' ') === 'branch -a') {
+      return { status: 0, stdout: '* master\n  remotes/origin/main\n', stderr: '' };
+    }
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  const broker = createCommandBroker({ runner: { run } });
+
+  await withFixture('sec-dep-nobranches', {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\n',
+  }, async (dir) => {
+    const overview = { files: ['pyproject.toml'] };
+    const res = await scan(dir, overview, broker);
+    const f = res.findings;
+    assert.equal(f.dependabot, false);
+    assert.equal(f.dependabotEvidence.status, 'not-configured');
+    assert.equal(f.dependabotEvidence.branchCount, 0);
+    assert.match(renderSecurity('repo', f), /Dependabot.*not configured/);
+  });
+});
+
+test('security: dependabot — capped/truncated broker result emits unverified for the branch fact', async () => {
+  const { run } = createRecordingRunner((call) => {
+    if (call.executable === 'git' && call.argv.join(' ') === 'branch -a') {
+      return { status: 1, stdout: '', stderr: 'fatal: could not read refs' };
+    }
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  const broker = createCommandBroker({ runner: { run } });
+
+  await withFixture('sec-dep-unverified', {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\n',
+  }, async (dir) => {
+    const overview = { files: ['pyproject.toml'] };
+    const res = await scan(dir, overview, broker);
+    const f = res.findings;
+    assert.equal(f.dependabot, false);
+    assert.equal(f.dependabotEvidence.status, 'unverified');
+    assert.equal(f.dependabotEvidence.branchCount, 0);
+    assert.match(renderSecurity('repo', f), /Dependabot.*branch evidence unverified/);
+  });
+});
+
+test('security: first-party auth subsystem detected from auth/token/oauth module clusters', async () => {
+  const files = {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\ndependencies = ["click", "rich"]\n',
+    'src/demo/__init__.py': '',
+    'src/demo/auth/__init__.py': '',
+    'src/demo/auth/oauth_handler.py': 'def start():\n    return None\n',
+    'src/demo/auth/token_manager.py': 'def issue_token():\n    return None\n',
+    'src/demo/utils/session_factory.py': 'def create():\n    return None\n',
+    'src/demo/utils/encryption.py': 'def encrypt(data):\n    return data\n',
+    'src/demo/utils/cookies.py': 'def read():\n    return None\n',
+  };
+  await withFixture('sec-firstparty-auth', files, async (dir) => {
+    const overview = { files: Object.keys(files) };
+    const res = await scan(dir, overview);
+    const f = res.findings;
+
+    assert.equal(f.auth.detected, false, 'no third-party auth library in fixture');
+    assert.ok(
+      f.auth.firstParty.detected,
+      `expected first-party auth subsystem: ${JSON.stringify(f.auth.firstParty)}`,
+    );
+    assert.deepEqual(
+      f.auth.firstParty.clusters,
+      ['auth', 'cookies', 'encryption', 'oauth', 'session', 'token'],
+      `expected all cluster names: ${JSON.stringify(f.auth.firstParty.clusters)}`,
+    );
+
+    const rendered = renderSecurity('repo', f);
+    assert.match(
+      rendered,
+      /Authentication.*no third-party auth library; first-party auth subsystem present \(auth, cookies, encryption, oauth, session, token\)/,
+    );
+  });
+});
+
+test('security: gitleaks context — allowlist paths, stopwords, ignore count, fixture-allowlisted findings', async () => {
+  const files = {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\n',
+    '.gitleaks.toml': [
+      'title = "demo"',
+      '',
+      '[allowlist]',
+      'paths = [',
+      "  '''^tests/fixtures/gitleaks/secrets_test_data\\.txt$''',",
+      "  '''^tests/fixtures/gitleaks/secret-repo-setup\\.sh$''',",
+      ']',
+      'stopwords = [',
+      "  '''__mutmut_''',",
+      ']',
+      '',
+    ].join('\n'),
+    '.gitleaksignore': [
+      '# revoked historical token',
+      'b05b560e8816cb87513d96fb654934426db68dcc:.claudeCode/PHASE2_TEST_REPORT.md:generic-api-key:34',
+      '',
+    ].join('\n'),
+    'tests/fixtures/gitleaks/secrets_test_data.txt': '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----\n',
+  };
+  await withFixture('sec-gitleaks', files, async (dir) => {
+    const overview = { files: Object.keys(files) };
+    const res = await scan(dir, overview);
+    const f = res.findings;
+
+    assert.equal(f.gitleaks.configPresent, true);
+    assert.equal(f.gitleaks.allowlistPathCount, 2);
+    assert.equal(f.gitleaks.stopwordCount, 1);
+    assert.equal(f.gitleaks.ignorePresent, true);
+    assert.equal(f.gitleaks.ignoreEntryCount, 1);
+    assert.ok(
+      f.gitleaks.fixtureAllowlisted.includes('Private Key Header'),
+      `expected fixture-allowlisted Private Key Header: ${JSON.stringify(f.gitleaks.fixtureAllowlisted)}`,
+    );
+
+    const rendered = renderSecurity('repo', f);
+    assert.match(rendered, /Gitleaks context.*\.gitleaks\.toml present/);
+    assert.match(rendered, /Fixture-allowlisted pattern\(s\): Private Key Header/);
+  });
 });
 
 test('security: real perplexity-cli -> uv.lock + gitleaks + SECURITY.md, pydantic validation + bandit/pip-audit', {

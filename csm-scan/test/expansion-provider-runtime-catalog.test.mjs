@@ -216,18 +216,18 @@ const PARITY_SNAPSHOT = {
       {
         "category": "configuration",
         "path": null,
-        "matchedKey": "test-naming:e8d6ed2e",
+        "matchedKey": "test-naming:a3c36ad8",
         "details": {
-          "name": "test_*.py"
+          "name": "tests/test_*.py"
         },
         "sourceKind": "repository_metadata"
       },
       {
         "category": "configuration",
         "path": null,
-        "matchedKey": "test-naming:db7c089f",
+        "matchedKey": "test-naming:e78f40a6",
         "details": {
-          "name": "tests/**/*.py"
+          "name": "tests/**/test_*.py"
         },
         "sourceKind": "repository_metadata"
       },

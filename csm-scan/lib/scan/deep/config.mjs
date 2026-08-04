@@ -8,7 +8,8 @@
 // Contract preserved for write.mjs: returns { dimension:'config', signal,
 // findings } where findings always carries lint/format/typescript/scripts/
 // ci/docker/envVars. New richness keys: linters, formatters, typeCheckers,
-// hooks (consumed by T019 rendering), plus buildTools, runtimes, markers.
+// hooks (consumed by T019 rendering), plus buildTools, runtimes, markers,
+// declaredTools (supplementary declared-tool inventory, shortfall c4).
 //
 // ESM only. Zero npm deps. node: builtins only.
 
@@ -31,6 +32,26 @@ const ESLINT_FLAT_CONFIGS = new Set([
   'eslint.config.mts',
   'eslint.config.cts',
 ]);
+
+// Bounded vocabulary of declared QA/toolchain tools that the descriptor-driven
+// collectTools does not cover (shortfall c4). Used by the supplementary
+// declared-tool detector; kept deliberately small so the toolchain inventory
+// stays deterministic and free of generic dependency noise.
+const DECLARED_TOOL_VOCABULARY = Object.freeze([
+  'refurb',
+  'ty',
+  'radon',
+  'mutmut',
+  'hypothesis',
+  'import-linter',
+  'diff-cover',
+  'actionlint',
+]);
+
+const DECLARED_TOOL_PATTERNS = DECLARED_TOOL_VOCABULARY.map((name) => ({
+  name,
+  re: new RegExp(`\\b${name.replace(/-/g, '\\-')}\\b`),
+}));
 
 // ---------------------------------------------------------------------------
 // Context: caches parsed manifests/configs + optional pre-enumerated file set
@@ -387,6 +408,91 @@ function detectMarkers(ctx, descriptors) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Supplementary declared-tool detector (shortfall c4)
+// ---------------------------------------------------------------------------
+// Inventories declared tool configs/deps that the descriptor-driven
+// collectTools does not cover: the manifest's dependency groups (PEP 735),
+// optional-dependencies extras (PEP 621), and `[tool.<name>]` config sections,
+// plus Makefile-declared tools (e.g. actionlint via `uvx --from actionlint-py`).
+// Emits per-tool facts with provenance: declared-in-deps vs declared-config.
+
+// Parse a PEP 508 dependency spec's leading package name (e.g. "refurb>=2.0"
+// -> "refurb"; "mutmut>=3.0; python_version < '3.12'" -> "mutmut").
+function leadingDependencyName(spec) {
+  if (typeof spec !== 'string') return null;
+  const trimmed = spec.split(';')[0].trim();
+  const match = trimmed.match(/^([A-Za-z0-9_.-]+)/);
+  return match ? match[1] : null;
+}
+
+function detectDeclaredTools(ctx, ecosystems) {
+  const entries = new Map();
+  const addSource = (name, kind, ref) => {
+    let entry = entries.get(name);
+    if (!entry) {
+      entry = { name, sources: [] };
+      entries.set(name, entry);
+    }
+    if (!entry.sources.some((s) => s.kind === kind && s.ref === ref)) {
+      entry.sources.push({ kind, ref });
+    }
+  };
+
+  const { parsed } = readTomlCached(ctx, 'pyproject.toml');
+  if (parsed && typeof parsed === 'object') {
+    const extras = parsed.project && parsed.project['optional-dependencies'];
+    if (extras && typeof extras === 'object') {
+      for (const [group, list] of Object.entries(extras)) {
+        if (!Array.isArray(list)) continue;
+        for (const spec of list) {
+          const name = leadingDependencyName(spec);
+          if (name && DECLARED_TOOL_VOCABULARY.includes(name)) addSource(name, 'extra', group);
+        }
+      }
+    }
+    const depGroups = parsed['dependency-groups'];
+    if (depGroups && typeof depGroups === 'object') {
+      for (const [group, list] of Object.entries(depGroups)) {
+        if (!Array.isArray(list)) continue;
+        for (const spec of list) {
+          const name = leadingDependencyName(spec);
+          if (name && DECLARED_TOOL_VOCABULARY.includes(name)) addSource(name, 'dependency-group', group);
+        }
+      }
+    }
+    if (parsed.tool && typeof parsed.tool === 'object') {
+      for (const name of Object.keys(parsed.tool)) {
+        if (DECLARED_TOOL_VOCABULARY.includes(name)) addSource(name, 'tool-section', `tool.${name}`);
+      }
+    }
+  }
+
+  // Makefile-declared tools (e.g. actionlint) for Python repos. Word-boundary
+  // matched so hyphens and bare names are handled without false positives.
+  if (ecosystems.includes('python')) {
+    const makefile = readTextCached(ctx, 'Makefile');
+    if (makefile != null) {
+      for (const { name, re } of DECLARED_TOOL_PATTERNS) {
+        if (re.test(makefile) && !entries.has(name)) addSource(name, 'makefile', 'Makefile');
+      }
+    }
+  }
+
+  const out = [];
+  for (const entry of entries.values()) {
+    const hasDeps = entry.sources.some((s) => s.kind === 'extra' || s.kind === 'dependency-group');
+    const hasConfig = entry.sources.some((s) => s.kind === 'tool-section' || s.kind === 'makefile');
+    const provenance = [];
+    if (hasDeps) provenance.push('declared-in-deps');
+    if (hasConfig) provenance.push('declared-config');
+    entry.sources.sort((a, b) => (a.kind === b.kind ? (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0) : a.kind < b.kind ? -1 : 1));
+    out.push({ name: entry.name, provenance, sources: entry.sources });
+  }
+  out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return out;
+}
+
 function readJSON(path) {
   try {
     return JSON.parse(readFileSync(path, 'utf-8'));
@@ -570,6 +676,20 @@ export async function scan(repoPath, overview) {
   const runtimes = detectRuntimes(ctx);
   const markers = detectMarkers(ctx, descriptors);
 
+  // Supplementary declared-tool inventory (shortfall c4). Each entry carries
+  // merged provenance; tools also matched by the descriptor-driven collectTools
+  // are tagged descriptorDetected so the renderer can show one merged row.
+  const descriptorToolNames = new Set([
+    ...linters.map((tool) => tool.name),
+    ...formatters.map((tool) => tool.name),
+    ...typeCheckers.map((tool) => tool.name),
+    ...hooks.map((hook) => (hook && (hook.tool || hook.name)) || String(hook)),
+  ]);
+  const declaredTools = detectDeclaredTools(ctx, ecosystems).map((tool) => ({
+    ...tool,
+    descriptorDetected: descriptorToolNames.has(tool.name),
+  }));
+
   // Primary lint summary (preserved contract key).
   let lint = null;
   if (linters.length > 0) {
@@ -618,6 +738,7 @@ export async function scan(repoPath, overview) {
       buildTools,
       runtimes,
       markers,
+      declaredTools,
     },
   };
 }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { withFixture, runScanner } from './harness.mjs';
+import { renderOperations } from '../lib/scan/render/operations.mjs';
 
 const OPS = fileURLToPath(new URL('../lib/scan/deep/operations.mjs', import.meta.url));
 const REAL_REPO = '/home/jamiemills/code/projects/perplexity-cli';
@@ -421,4 +422,185 @@ test('operations: real perplexity-cli', async () => {
   }
   // monitoring shape always present; report (not assert) the python libs found.
   assert.ok(Array.isArray(r.findings.monitoring.libraries), 'monitoring.libraries is an array');
+});
+
+// A release workflow carrying SHA-pinned actions, escalated permissions, a
+// matrix job, per-job semantics and release-pipeline declarations.
+const PINNED_RELEASE_WORKFLOW = `name: Release
+'on':
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+  id-token: write
+concurrency:
+  group: release-\${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: make build
+  publish:
+    runs-on: [ubuntu-latest, macos-latest]
+    needs: [build]
+    if: github.event_name == 'push'
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+    permissions:
+      id-token: write
+    steps:
+      - name: Validate version matches tag and package
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG_VERSION="\${GITHUB_REF#refs/tags/}"
+          PY_VERSION=\$(python -c "import tomllib")
+          RUNTIME_VERSION=\$(python -c "from perplexity_cli import __version__")
+          if [ "\${TAG_VERSION}" != "\${PY_VERSION}" ]; then exit 1; fi
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
+        with:
+          skip-existing: true
+`;
+
+test('operations: workflow anatomy — SHA pins, escalated permissions and per-job semantics', async () => {
+  await withFixture('ops-pinned', { '.github/workflows/release.yml': PINNED_RELEASE_WORKFLOW }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
+    assert.ok(gh, 'GitHub Actions entry present');
+    assert.equal(gh.workflows.length, 1);
+    const workflow = gh.workflows[0];
+
+    assert.equal(workflow.name, 'Release');
+    assert.deepEqual(workflow.triggers, ['push']);
+    assert.deepEqual(workflow.permissions, { contents: 'write', 'id-token': 'write' });
+    assert.deepEqual(workflow.concurrency, { group: 'release-${{ github.ref }}', cancelInProgress: true });
+
+    // Pins project owner/repo + short sha + version token only (never the full
+    // declared SHA).
+    assert.deepEqual(workflow.pins, [
+      { action: 'actions/checkout', sha: '3d3c42e5', version: 'v7.0.1' },
+      { action: 'pypa/gh-action-pypi-publish', sha: 'ba38be9e', version: 'v1.14.1' },
+    ]);
+    const rawJson = JSON.stringify(workflow.pins);
+    assert.ok(!rawJson.includes('3d3c42e5aac5ba805825da76410c181273ba90b1'), 'full declared SHA must not reach the model');
+
+    // Permission asymmetry: write scopes at workflow and job level.
+    assert.deepEqual(workflow.escalatedScopes, ['contents: write', 'id-token: write']);
+
+    // Release pipeline declarations.
+    assert.deepEqual(workflow.releasePipeline, { declared: true, oidc: true, skipExisting: true, tripleMatch: true });
+
+    // Per-job semantics.
+    const build = workflow.jobs.find((job) => job.id === 'build');
+    assert.deepEqual(build.runsOn, ['ubuntu-latest']);
+    assert.deepEqual(build.needs, []);
+    assert.equal(build.if, null);
+
+    const publish = workflow.jobs.find((job) => job.id === 'publish');
+    assert.deepEqual(publish.runsOn, ['ubuntu-latest', 'macos-latest']);
+    assert.deepEqual(publish.needs, ['build']);
+    assert.equal(publish.if, "github.event_name == 'push'");
+    assert.equal(publish.continueOnError, false);
+    assert.equal(publish.failFast, false);
+    assert.deepEqual(publish.matrix, { 'python-version': ['3.12', '3.13'] });
+    assert.deepEqual(publish.permissions, { 'id-token': 'write' });
+  });
+});
+
+test('operations: tag-ref actions (non SHA) project a ref token without a sha', async () => {
+  const wf = `name: ci
+on: [push]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gitleaks/gitleaks-action@v2.3.6 # v2.3.6
+`;
+  await withFixture('ops-tag-ref', { '.github/workflows/ci.yml': wf }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const workflow = r.findings.ci.find((c) => c.platform === 'GitHub Actions').workflows[0];
+    assert.deepEqual(workflow.pins, [
+      { action: 'actions/checkout', ref: 'v4', version: null },
+      { action: 'gitleaks/gitleaks-action', ref: 'v2.3.6', version: 'v2.3.6' },
+    ]);
+    assert.deepEqual(workflow.escalatedScopes, []);
+    assert.equal(workflow.releasePipeline, null);
+  });
+});
+
+test('operations: inline write-all permissions escalate', async () => {
+  const wf = `name: Deploy
+on: push
+permissions: write-all
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo deploy
+`;
+  await withFixture('ops-write-all', { '.github/workflows/deploy.yml': wf }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const workflow = r.findings.ci.find((c) => c.platform === 'GitHub Actions').workflows[0];
+    assert.deepEqual(workflow.permissions, { all: 'write-all' });
+    assert.deepEqual(workflow.escalatedScopes, ['all: write-all']);
+  });
+});
+
+test('operations: block-sequence runs-on, needs and matrix rows parse', async () => {
+  const wf = `name: Matrix
+on: push
+jobs:
+  smoke:
+    runs-on:
+      - ubuntu-latest
+      - macos-latest
+    needs:
+      - build
+    strategy:
+      matrix:
+        python-version:
+          - '3.12'
+          - '3.13'
+    steps:
+      - run: echo smoke
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo build
+`;
+  await withFixture('ops-block-lists', { '.github/workflows/matrix.yml': wf }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const workflow = r.findings.ci.find((c) => c.platform === 'GitHub Actions').workflows[0];
+    const smoke = workflow.jobs.find((job) => job.id === 'smoke');
+    assert.deepEqual(smoke.runsOn, ['ubuntu-latest', 'macos-latest']);
+    assert.deepEqual(smoke.needs, ['build']);
+    assert.deepEqual(smoke.matrix, { 'python-version': ['3.12', '3.13'] });
+  });
+});
+
+test('operations: renderer emits pins, permissions and release-pipeline facts', async () => {
+  await withFixture('ops-render-pinned', { '.github/workflows/release.yml': PINNED_RELEASE_WORKFLOW }, async (dir) => {
+    const r = await runScanner(OPS, dir);
+    const markdown = renderOperations('demo', r.findings);
+    assert.ok(markdown.includes('Action pins'), 'pins section rendered');
+    assert.ok(markdown.includes('`actions/checkout` @ `3d3c42e5` (# v7.0.1)'), 'pin token rendered');
+    assert.ok(!markdown.includes('3d3c42e5aac5ba805825da76410c181273ba90b1'), 'full SHA not rendered');
+    assert.ok(markdown.includes('Escalated permissions: `contents: write`, `id-token: write`'), 'escalation rendered');
+    assert.ok(markdown.includes('Release pipeline: oidc: true; skip-existing: true; triple-match: true'), 'release pipeline rendered');
+    assert.ok(markdown.includes("if: `github.event_name == 'push'`"), 'job if rendered');
+    assert.ok(markdown.includes('matrix: python-version: `3.12`, `3.13`'), 'matrix rows rendered');
+    assert.ok(markdown.includes('needs: `build`'), 'needs rendered');
+    assert.ok(markdown.includes('cancel-in-progress: true'), 'concurrency rendered');
+  });
 });

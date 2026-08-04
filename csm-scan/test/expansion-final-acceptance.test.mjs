@@ -432,7 +432,7 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
   // AC15 — coverage counts every registry claim with a status per dimension.
   const coverage = result.expectedClaimCoverage;
   const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-  assert.equal(registryClaims, 93);
+  assert.equal(registryClaims, 94);
   assert.equal(coverage.expected, registryClaims);
   assert.equal(
     coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,

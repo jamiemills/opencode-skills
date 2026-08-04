@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { withFixture, surveyOverview } from './harness.mjs';
 import { scan } from '../lib/scan/deep/conventions.mjs';
+import { renderConventions } from '../lib/scan/render/conventions.mjs';
 import { countComments } from '../lib/scan/shared/comments.mjs';
 
 const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
@@ -388,5 +389,198 @@ test('T108/P1: symbol naming + async usage + custom exceptions surface for Pytho
       `custom exceptions: ${JSON.stringify(res.findings.errorHandling.counts)}`,
     );
     assert.ok(res.findings.pythonTypeHints != null, 'pythonTypeHints should be present');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T003 fixture tests: production-source-universe measurement (A011)
+// ---------------------------------------------------------------------------
+
+test('T003/A011: async counts cover the full production source tree and exclude tests', async () => {
+  const files = {
+    'pyproject.toml': [
+      '[build-system]',
+      'requires = ["hatchling"]',
+      'build-backend = "hatchling.build"',
+      '',
+      '[project]',
+      'name = "asyncdemo"',
+      'version = "0.1.0"',
+      '',
+    ].join('\n'),
+    'src/asyncdemo/core.py': [
+      'async def fetch_one(url):',
+      '    return await request(url)',
+      '',
+      'async def fetch_many(urls):',
+      '    first = await request(urls[0])',
+      '    return [await request(u) for u in urls]',
+      '',
+      'def request(url):',
+      '    return url',
+      '',
+    ].join('\n'),
+    'src/asyncdemo/util.py': [
+      'async def poll_once():',
+      '    return await tick()',
+      '',
+      'async def poll_until(limit):',
+      '    total = await tick(limit)',
+      '    return await tick(total)',
+      '',
+      'def tick(limit=1):',
+      '    return limit',
+      '',
+    ].join('\n'),
+    // Async code in the tests directory must NOT leak into the production
+    // source universe counts (b1 root cause: tests inflated the sample).
+    'tests/test_async.py': [
+      'async def test_a():',
+      '    await fake_await()',
+      '    await fake_await()',
+      '',
+      'async def test_b():',
+      '    await fake_await()',
+      '',
+    ].join('\n'),
+  };
+
+  await withFixture('conv-async-universe', files, async (dir) => {
+    const res = await scan(dir, { path: dir, languages: ['Python'] });
+    const au = res.findings.asyncUsage;
+    assert.equal(au.byEcosystem.python.async, 4, `async: ${JSON.stringify(au)}`);
+    assert.equal(au.byEcosystem.python.await, 6, `await: ${JSON.stringify(au)}`);
+    assert.equal(au.byEcosystem.python.files, 2, `source files: ${JSON.stringify(au)}`);
+    assert.equal(au.sourceFiles, 2, `total source files: ${JSON.stringify(au)}`);
+
+    const markdown = renderConventions('repo', res.findings);
+    assert.match(markdown, /4 async declaration\(s\), 6 await reference\(s\) across 2 production source files/);
+  });
+});
+
+test('T003/A011: docstring coverage is measured over src/ with the exemption disclosed', async () => {
+  const files = {
+    'pyproject.toml': [
+      '[build-system]',
+      'requires = ["hatchling"]',
+      'build-backend = "hatchling.build"',
+      '',
+      '[project]',
+      'name = "docdemo"',
+      'version = "0.1.0"',
+      '',
+    ].join('\n'),
+    'src/docdemo/core.py': [
+      '"""Module."""',
+      '',
+      'def documented_one():',
+      '    """Doc one."""',
+      '    return 1',
+      '',
+      'def documented_two(',
+      '    value: int,',
+      ') -> int:',
+      '    """Doc two (multi-line signature)."""',
+      '    return value',
+      '',
+      'def undocumented():',
+      '    return 2',
+      '',
+      'class Widget:',
+      '    """Widget docs."""',
+      '',
+      '    def __init__(self):',
+      '        self.x = 1',
+      '',
+      '    def act(self):',
+      '        """Act docs."""',
+      '        return 3',
+      '',
+    ].join('\n'),
+    // Undocumented test functions must not dilute the src/ coverage figure
+    // (b6 root cause: mixed test + src universe).
+    'tests/test_core.py': [
+      'def test_a():',
+      '    assert 1',
+      '',
+      'def test_b():',
+      '    assert 2',
+      '',
+    ].join('\n'),
+  };
+
+  await withFixture('conv-doc-universe', files, async (dir) => {
+    const res = await scan(dir, { path: dir, languages: ['Python'] });
+    const cov = res.findings.docstrings.coverage['Python'];
+    assert.ok(cov, 'expected Python docstring coverage');
+    // 4 of 5 production-source items documented; __init__ is exempt.
+    assert.match(cov, /4\/5/);
+    assert.match(cov, /production source/);
+    assert.match(cov, /tests, __init__ and magic methods exempt/);
+
+    const markdown = renderConventions('repo', res.findings);
+    assert.match(
+      markdown,
+      /Coverage: 80% \(4\/5 functions documented in production source; tests, __init__ and magic methods exempt\)/,
+    );
+  });
+});
+
+test('T003/A011: file naming classifies the full universe; mononyms are not camelCase', async () => {
+  const files = {
+    'package.json': JSON.stringify({ name: 'namedemo', type: 'module' }),
+    'src/util/myComponent.ts': 'export const a = 1;\n',
+    'src/util/helper.ts': 'export const b = 2;\n',
+    'src/util/component_handler.ts': 'export const c = 3;\n',
+    'src/util/another_handler.ts': 'export const d = 4;\n',
+    'src/util/ParseUtil.ts': 'export const e = 5;\n',
+    'src/util/api-client.ts': 'export const f = 6;\n',
+  };
+
+  await withFixture('conv-naming-universe', files, async (dir) => {
+    const res = await scan(dir, {
+      path: dir,
+      languages: ['TypeScript'],
+      ecosystems: { primary: 'typescript', all: ['typescript'] },
+      files: Object.keys(files),
+    });
+    const fn = res.findings.fileNaming;
+    assert.equal(fn.total, 6, `total: ${JSON.stringify(fn)}`);
+    assert.equal(fn.patterns.snake_case, 2, `snake_case: ${JSON.stringify(fn)}`);
+    assert.equal(fn.patterns.camelCase, 1, `true camelCase only: ${JSON.stringify(fn)}`);
+    assert.equal(fn.patterns.PascalCase, 1, `PascalCase: ${JSON.stringify(fn)}`);
+    assert.equal(fn.patterns['kebab-case'], 1, `kebab-case: ${JSON.stringify(fn)}`);
+    assert.equal(fn.patterns.other, 1, `mononym helper must classify as other: ${JSON.stringify(fn)}`);
+    assert.equal(fn.dominant, 'snake_case');
+    assert.ok(
+      !(fn.samples.camelCase || []).includes('helper'),
+      `mononym must not appear as a camelCase sample: ${JSON.stringify(fn.samples)}`,
+    );
+
+    const markdown = renderConventions('repo', res.findings);
+    assert.match(markdown, /snake_case across 6 source files \(full source-file enumeration\)/);
+    assert.match(markdown, /camelCase: 1/);
+  });
+});
+
+test('T003/A011: a mononym-only naming set yields zero camelCase', async () => {
+  const files = {
+    'package.json': JSON.stringify({ name: 'monodemo', type: 'module' }),
+    'src/cli.ts': 'export const a = 1;\n',
+    'src/auth.ts': 'export const b = 2;\n',
+    'src/models.ts': 'export const c = 3;\n',
+  };
+
+  await withFixture('conv-naming-mononyms', files, async (dir) => {
+    const res = await scan(dir, {
+      path: dir,
+      languages: ['TypeScript'],
+      ecosystems: { primary: 'typescript', all: ['typescript'] },
+      files: Object.keys(files),
+    });
+    const fn = res.findings.fileNaming;
+    assert.equal(fn.patterns.camelCase, 0, `mononyms must not be camelCase: ${JSON.stringify(fn)}`);
+    assert.equal(fn.patterns.other, 3, `mononyms classify as other: ${JSON.stringify(fn)}`);
+    assert.equal(fn.dominant, 'other');
   });
 });

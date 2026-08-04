@@ -414,6 +414,81 @@ test('T212 extractor: Django models, relation fields, caches, and queues', () =>
   assert.deepEqual(result.diagnostics, []);
 });
 
+test('T212 extractor: Pydantic self.models usage and Test* patch classes are never django entities', () => {
+  const result = extractSource('src/models.py', [
+    'from pydantic import BaseModel, Field',
+    'class ModelConfigResponse(BaseModel):',
+    '    models: dict = Field(default_factory=dict)',
+    '    def search(self):',
+    '        return {model for _, model in self.models.items() if model.mode == "search"}',
+    'class TestRunModelsListCommand:',
+    '    def run(self):',
+    '        with patch("pkg.runners.models.RestClient", autospec=True) as client:',
+    '            return client',
+    'class TestResolveAuth:',
+    '    def run(self):',
+    '        with patch("pkg.runners.models.TokenManager", autospec=True) as token_manager:',
+    '            return token_manager',
+    '',
+  ].join('\n'), 'python');
+  assert.deepEqual(result.records, []);
+  assert.deepEqual(result.edges, []);
+  assert.deepEqual(result.diagnostics, []);
+});
+
+test('T212 extractor: real django signals still classify models.Model subclasses and field assignments', () => {
+  const base = extractSource('blog/models.py', [
+    'from django.db import models',
+    'class Post(models.Model):',
+    '    title = models.CharField(max_length=200)',
+    'class Draft:',
+    '    text = models.TextField()',
+    '    parent = models.CharField(max_length=100)',
+    '',
+  ].join('\n'), 'python');
+  const keys = matchedKeys(base);
+  assert.ok(keys.includes('entity:Post'));
+  assert.ok(keys.includes('field:Post:title'));
+  assert.ok(keys.includes('entity:Draft'), 'a plain class with models.* assignments plus a django import is a django model');
+  assert.ok(keys.includes('field:Draft:text'));
+
+  const inherited = extractSource('audit/models.py', [
+    'import django',
+    'class AuditLog(django.db.models.Model):',
+    '    created = django.db.models.DateTimeField(auto_now_add=True)',
+    '',
+  ].join('\n'), 'python');
+  assert.ok(matchedKeys(inherited).includes('entity:AuditLog'));
+
+  const fieldOnlyNoImport = extractSource('plain/models.py', [
+    'class Widget:',
+    '    name = models.CharField(max_length=80)',
+    '',
+  ].join('\n'), 'python');
+  assert.deepEqual(fieldOnlyNoImport.records, []);
+});
+
+test('T212 extractor: tests and fixtures paths are excluded from data-source extraction', () => {
+  const django = [
+    'from django.db import models',
+    'class Thing(models.Model):',
+    '    id = models.AutoField(primary_key=True)',
+    '',
+  ].join('\n');
+  const testFile = extractSource('tests/test_models.py', django, 'python');
+  assert.deepEqual(testFile.records, []);
+  assert.deepEqual(testFile.edges, []);
+  assert.deepEqual(testFile.diagnostics, []);
+  const fixtureFile = extractSource('tests/fixtures/sample.py', django, 'python');
+  assert.deepEqual(fixtureFile.records, []);
+  assert.deepEqual(fixtureFile.diagnostics, []);
+  const sqlFixture = extractSource('fixtures/seed.sql', 'CREATE TABLE users (id INTEGER PRIMARY KEY);', null);
+  assert.deepEqual(sqlFixture.records, []);
+  assert.deepEqual(sqlFixture.diagnostics, []);
+  const migrationFixture = extractSource('tests/migrations/0001_init.py', 'class Migration(migrations.Migration):\n    initial = True\n', 'python');
+  assert.deepEqual(migrationFixture.records, []);
+});
+
 test('T212 extractor: Django caches and queues plus RQ queues are literal declarations', () => {
   const result = extractSource('shop/settings.py', [
     'CACHES = {',
@@ -863,6 +938,39 @@ test('T212 scanner: Django fixture resolves relations and migration predecessor 
     const kinds = findings.edges.map(({ kind }) => kind).sort();
     assert.deepEqual(kinds, ['foreign_key', 'migration_predecessor']);
     assert.equal(findings.migrations.length, 2);
+  });
+});
+
+test('T212 scanner: Pydantic self.models and Test* classes yield zero django entities while a real Model subclass is detected', async () => {
+  const files = {
+    'src/models.py': [
+      'from pydantic import BaseModel, Field',
+      'class ModelConfigResponse(BaseModel):',
+      '    models: dict = Field(default_factory=dict)',
+      '    def search(self):',
+      '        return {model for _, model in self.models.items() if model.mode == "search"}',
+      '',
+    ].join('\n'),
+    'tests/test_runner.py': [
+      'class TestRunModelsListCommand:',
+      '    def run(self):',
+      '        with patch("pkg.runners.models.RestClient", autospec=True) as client:',
+      '            return client',
+      '',
+    ].join('\n'),
+    'shop/models.py': [
+      'from django.db import models',
+      'class Customer(models.Model):',
+      '    id = models.AutoField(primary_key=True)',
+      '',
+    ].join('\n'),
+  };
+  await withFixture('data-pydantic', files, async (dir) => {
+    const { findings } = await scan(dir, {});
+    assert.equal(findings.entities.length, 1);
+    assert.deepEqual(findings.entities.map(({ signature }) => signature), ['Customer']);
+    assert.equal(findings.entities[0].dialect, 'django');
+    assert.deepEqual(findings.diagnostics, []);
   });
 });
 

@@ -24,7 +24,10 @@ export function renderConventions(repoName, findings, context = DEFAULT_RENDER_C
   }
 
   if (findings.fileNaming) {
-    lines.push(`- **File naming**: ${escapeField(findings.fileNaming.dominant)} (of ${findings.fileNaming.total} files sampled)`);
+    const universeNote = findings.fileNaming.universe ? ` (${findings.fileNaming.universe})` : '';
+    lines.push(
+      `- **File naming**: ${escapeField(findings.fileNaming.dominant)} across ${findings.fileNaming.total} source files${universeNote}`,
+    );
     const sorted = Object.entries(findings.fileNaming.patterns).sort((a, b) => b[1] - a[1]);
     const patternSummary = sorted.map(([k, v]) => `${k}: ${v}`).join(', ');
     lines.push(`  - Distribution: ${escapeField(patternSummary)}`);
@@ -54,7 +57,10 @@ export function renderConventions(repoName, findings, context = DEFAULT_RENDER_C
 
   if (findings.asyncUsage && (findings.asyncUsage.async > 0 || findings.asyncUsage.await > 0)) {
     const au = findings.asyncUsage;
-    lines.push(`- **Async/await usage**: ${au.async} async declaration(s), ${au.await} await reference(s)`);
+    const universeNote = typeof au.sourceFiles === 'number' && au.sourceFiles > 0
+      ? `across ${au.sourceFiles} production source files`
+      : 'across the production source tree';
+    lines.push(`- **Async/await usage**: ${au.async} async declaration(s), ${au.await} await reference(s) ${universeNote}`);
   }
 
   if (findings.unsafeCount && typeof findings.unsafeCount.count === 'number') {
@@ -83,8 +89,14 @@ export function renderConventions(repoName, findings, context = DEFAULT_RENDER_C
 
   if (findings.pythonTypeHints && typeof findings.pythonTypeHints.ratio === 'number') {
     const th = findings.pythonTypeHints;
-    lines.push(`- **Type hints**: ${th.ratio}% of defs annotated (${th.annotatedDefs}/${th.totalDefs})`);
+    const universeNote = typeof th.sourceFiles === 'number' && th.sourceFiles > 0
+      ? ` across ${th.sourceFiles} production source files`
+      : '';
+    lines.push(`- **Type hints**: ${th.ratio}% of defs annotated (${th.annotatedDefs}/${th.totalDefs})${universeNote}`);
     if (th.futureAnnotations) lines.push('  - `from __future__ import annotations` present');
+    if (th.pyrightTypeCheckingMode) {
+      lines.push(`  - pyright typeCheckingMode: \`${th.pyrightTypeCheckingMode}\``);
+    }
   }
 
   if (findings.tsAnnotations && typeof findings.tsAnnotations.annotationDensity === 'number') {

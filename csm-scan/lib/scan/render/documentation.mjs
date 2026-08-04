@@ -28,6 +28,15 @@ export function renderDocumentation(_repoName, findings, context = DEFAULT_RENDE
     lines.push('- **CODE_OF_CONDUCT.md**: present');
   }
 
+  if (findings.security) {
+    if (findings.security.present) {
+      lines.push(`- **SECURITY.md**: \`${escapeField(findings.security.path)}\``);
+      if (findings.security.purpose) {
+        lines.push(`  - Purpose: ${escapeField(findings.security.purpose)}`);
+      }
+    }
+  }
+
   if (findings.license) {
     lines.push(`- **License**: ${findings.license.present ? escapeField(findings.license.name) : 'not found'}`);
     if (findings.license.present && findings.license.path) {
@@ -49,8 +58,22 @@ export function renderDocumentation(_repoName, findings, context = DEFAULT_RENDE
     }
   }
 
+  if (findings.referenceDocs && findings.referenceDocs.present && Array.isArray(findings.referenceDocs.docs)) {
+    for (const doc of findings.referenceDocs.docs) {
+      const markerText = Array.isArray(doc.markers) && doc.markers.length > 0
+        ? `, ${escapeField(doc.markers.join(', '))}`
+        : '';
+      lines.push(`- **Reference docs**: \`${escapeField(doc.path)}\` (${doc.lines} lines${markerText})`);
+    }
+  }
+
+  if (findings.docToolchain && findings.docToolchain.present && findings.docToolchain.scripts.length > 0) {
+    lines.push(`- **Doc toolchain**: ${findings.docToolchain.scripts.map((script) => `\`${escapeField(script)}\``).join(', ')}`);
+  }
+
   if (findings.commentRatio && findings.commentRatio.codeLines > 0) {
-    lines.push(`- **Comment ratio**: ${findings.commentRatio.ratio}% (${findings.commentRatio.commentLines} comment / ${findings.commentRatio.codeLines} code lines)`);
+    const totalLines = findings.commentRatio.commentLines + findings.commentRatio.codeLines;
+    lines.push(`- **Comment ratio**: ${findings.commentRatio.ratio}% (${findings.commentRatio.commentLines} comment / ${totalLines} total lines)`);
   }
 
   if (findings.todoCount > 0) {

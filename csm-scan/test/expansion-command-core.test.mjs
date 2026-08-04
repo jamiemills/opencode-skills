@@ -241,7 +241,7 @@ test('T208 git scan issues only registered read-only commands through the broker
 
     assert.deepEqual(calls.map((call) => call.executable), ['git', 'git', 'git', 'git', 'git', 'git']);
     assert.deepEqual(calls.map((call) => call.argv.join(' ')), [
-      'log --oneline -50',
+      'log --oneline -200',
       'branch -a',
       'symbolic-ref refs/remotes/origin/HEAD',
       'rev-parse --abbrev-ref HEAD',

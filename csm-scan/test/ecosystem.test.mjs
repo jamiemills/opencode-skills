@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { withFixture } from './harness.mjs';
+import { scan as scanTesting } from '../lib/scan/deep/testing.mjs';
 import { DESCRIPTORS, detectEcosystems, descriptorFor } from '../lib/scan/shared/ecosystem.mjs';
 
 const ECOSYSTEM_IDS = ['python', 'javascript', 'typescript', 'shell', 'rust'];
@@ -335,4 +337,50 @@ test('T101: breadth spot-checks across ecosystems', () => {
     DESCRIPTORS.rust.typeCheckers.some((s) => s.name === 'rustc'),
     'rust typeCheckers must include rustc',
   );
+});
+
+// ---------------------------------------------------------------------------
+// T007 b14: python test-file universe is tightened to real test modules; the
+// other ecosystems' globs stay untouched.
+// ---------------------------------------------------------------------------
+
+test('T007 b14: python testFileGlobs are the disclosed real-module universe', () => {
+  assert.deepEqual(DESCRIPTORS.python.testFileGlobs, [
+    'tests/test_*.py',
+    'tests/**/test_*.py',
+    'conftest.py',
+  ]);
+});
+
+test('T007 b14: non-python testFileGlobs are unchanged', () => {
+  assert.deepEqual(DESCRIPTORS.javascript.testFileGlobs, ['**/*.test.{js,mjs,cjs,jsx}', '**/*.spec.{js,mjs,cjs,jsx}']);
+  assert.deepEqual(DESCRIPTORS.typescript.testFileGlobs, ['**/*.{test,spec}.{ts,tsx,mts,cts}']);
+  assert.deepEqual(DESCRIPTORS.shell.testFileGlobs, ['*.bats', 'tests/**/*.bats']);
+  assert.deepEqual(DESCRIPTORS.rust.testFileGlobs, ['*_test.rs', 'tests/**/*.rs']);
+});
+
+test('T007 b14: fixture counting excludes scripts/smoke_test.py and tests/support/** via the descriptor globs', async () => {
+  const files = {
+    'pyproject.toml': '[project]\nname = "pydesc"\nversion = "0.1.0"\n',
+    'tests/test_core.py': 'def test_core():\n    assert True\n',
+    'tests/support/helper.py': 'def helper():\n    return 1\n',
+    'scripts/smoke_test.py': 'def smoke():\n    return 1\n',
+  };
+
+  await withFixture('eco-t007-b14', files, async (dir) => {
+    const res = await scanTesting(dir);
+    assert.equal(res.findings.fileCount, 1, `fileCount must count only real test modules: ${res.findings.fileCount}`);
+    assert.ok(
+      res.findings.sampleFiles.some((p) => p.endsWith('test_core.py')),
+      `sampleFiles must include test_core.py: ${JSON.stringify(res.findings.sampleFiles)}`,
+    );
+    assert.ok(
+      !res.findings.sampleFiles.some((p) => p.includes('/support/')),
+      `tests/support/** must be excluded: ${JSON.stringify(res.findings.sampleFiles)}`,
+    );
+    assert.ok(
+      !res.findings.sampleFiles.some((p) => p.endsWith('smoke_test.py')),
+      `scripts/smoke_test.py must be excluded: ${JSON.stringify(res.findings.sampleFiles)}`,
+    );
+  });
 });

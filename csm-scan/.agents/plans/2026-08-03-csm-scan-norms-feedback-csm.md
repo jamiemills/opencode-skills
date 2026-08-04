@@ -9,11 +9,11 @@
 - Plan ID: csm-scan-norms-feedback
 - Status: in_progress
 - Current CSM state: SELECT
-- Cycle: 3
+- Cycle: 4
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — cycle 2 complete: T002 done and independently reviewed (1140/1140 suite green, no baseline regeneration needed)
-- Next transition: SELECT -> DISPATCH (G3 wave: T003, T004, T005, T007, T008, T009, T010, T011, T012, T013, T015 in parallel)
-- Active tasks: T001, T002 completed; ready: T003, T004, T005, T007, T008, T009, T010, T011, T012, T013, T015
+- Last checkpoint: 2026-08-03 — cycle 3 complete: G3 wave (11 tasks) implemented, integrated, independently reviewed (APPROVE-WITH-CHANGES, 5 minor findings, 4 resolved/recorded), suite 1172/1192 with exactly the 20 T014-owned baseline failures
+- Next transition: SELECT -> DISPATCH (T006 practices/content, G4)
+- Active tasks: T001–T005, T007–T013, T015 completed; ready: T006
 - Blockers: none
 
 ## Goal
@@ -197,7 +197,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if `git:ls-files` output exceeds caps on the probe repo, record the cap truncation and adjust caps with disclosure; never drop the git-tracked count silently. If a baseline digest mismatch fails constraints tests, regenerate only the affected entries and re-review.
 
-3. [pending] Conventions dimension: measurement-universe corrections
+3. [completed] Conventions dimension: measurement-universe corrections
    - Task ID: T003
    - Depends on: T002 (enumeration scope changes the file set this scanner receives)
    - Parallel group: G3
@@ -221,7 +221,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if the probe shows regressions in other dimensions' renderers, revert only the renderer label change and re-run; the deep-scanner changes are additive counts.
 
-4. [pending] Architecture dimension: canonical layer model from quality/architecture.toml
+4. [completed] Architecture dimension: canonical layer model from quality/architecture.toml
    - Task ID: T004
    - Depends on: T001 (wave ordering provides T002 first)
    - Parallel group: G3
@@ -244,7 +244,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: partial claim registration (registry updated, tests not) fails validation loudly; complete DR2 edits in the same task before acceptance. If the seam-wiring scan proves unreliable across fixtures, downgrade the fact to the adapter-independence whitelists only and record a2 as partially fixed.
 
-5. [pending] Practices dimension: style-engine depth (gates, lefthook, make, exit codes, opencode jsonc)
+5. [completed] Practices dimension: style-engine depth (gates, lefthook, make, exit codes, opencode jsonc)
    - Task ID: T005
    - Depends on: T001 (wave ordering provides T002 first)
    - Parallel group: G3
@@ -299,7 +299,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if the voice gate trips on conventions-block wording, further tokenize (rule IDs over phrases) and re-run; do not weaken the voice gate.
 
-7. [pending] Testing dimension: accurate test-file universe + depth facts
+7. [completed] Testing dimension: accurate test-file universe + depth facts
    - Task ID: T007
    - Depends on: T001 (wave ordering provides T002 first)
    - Parallel group: G3
@@ -326,7 +326,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if the glob change breaks framework detection in another ecosystem's fixtures, isolate the python descriptor change and re-run the affected fixture suites.
 
-8. [pending] Operations dimension: workflow anatomy, pinning, permissions, release pipeline
+8. [completed] Operations dimension: workflow anatomy, pinning, permissions, release pipeline
    - Task ID: T008
    - Depends on: T001 (wave ordering provides T002 first)
    - Parallel group: G3
@@ -346,7 +346,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: workflow-parsing regressions in other fixture workflows show up in operations tests; revert the parser to additive facts and re-run.
 
-9. [pending] Security dimension: dependabot evidence, first-party auth, gitleaks context
+9. [completed] Security dimension: dependabot evidence, first-party auth, gitleaks context
    - Task ID: T009
    - Depends on: T001 (wave ordering provides T002 first, including the T209 allowlist extension for security.mjs)
    - Parallel group: G3
@@ -367,7 +367,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if branch evidence is capped/truncated by the broker, record truncation and emit `unverified` for the dependabot branch fact rather than a stale "not configured".
 
-10. [pending] Data Architecture: eliminate django false positives
+10. [completed] Data Architecture: eliminate django false positives
     - Task ID: T010
     - Depends on: T001 (wave ordering provides T002 first)
     - Parallel group: G3
@@ -385,7 +385,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
     - Repair attempts: 0
     - Recovery note: if a real django fixture regresses, adjust the signal check (require import evidence) and re-run both fixtures.
 
-11. [pending] Git dimension: commit-style window and branch-structure depth
+11. [completed] Git dimension: commit-style window and branch-structure depth
     - Task ID: T011
     - Depends on: T002 (uses the new `git:log-oneline-200` command ID)
     - Parallel group: G3
@@ -403,7 +403,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
     - Repair attempts: 0
     - Recovery note: if the wider window changes other repos' classification, record before/after in the journal and verify the classification thresholds are evidence-gated (conventional < task), not ordering-gated.
 
-12. [pending] Documentation dimension: reference artifacts, doc toolchain, single comment-ratio denominator
+12. [completed] Documentation dimension: reference artifacts, doc toolchain, single comment-ratio denominator
     - Task ID: T012
     - Depends on: T001 (wave ordering provides T002 first)
     - Parallel group: G3
@@ -422,7 +422,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
     - Repair attempts: 0
     - Recovery note: denominator-label change is presentation-only; if a voice/prose gate trips, use numeric-only phrasing.
 
-13. [pending] Stack dimension: dev-extra dependencies reach the model and renderer
+13. [completed] Stack dimension: dev-extra dependencies reach the model and renderer
     - Task ID: T013
     - Depends on: T001 (wave ordering provides T002 first)
     - Parallel group: G3
@@ -440,7 +440,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
     - Repair attempts: 0
     - Recovery note: if the dev extra duplicates existing dependency rows, dedupe by constraint source and re-run.
 
-14. [pending] Configuration dimension: complete toolchain inventory
+14. [completed] Configuration dimension: complete toolchain inventory
     - Task ID: T015
     - Depends on: T001 (wave ordering provides T002 first)
     - Parallel group: G3
@@ -541,6 +541,11 @@ Ordered cheapest-first; parallel where independent:
 | 2026-08-03 | 2 | REVIEW | T002 | Independent review verdict APPROVE-WITH-CHANGES: broker contract exact (new IDs via gitCommand(), argv/shell:false/env/caps/GIT_OPTIONAL_LOCKS=0 verified); T209 per-scanner git allowance sound; ALL digests independently recomputed and matching (command.mjs 46f23bd0…, core-test 54993188…, deep-test af7d047f…, write.mjs 35eb40ab…); 3 findings: A [MAJOR] structure coverage regression 100%→71% on non-git repos (unconditional null gitTracked keys) — FIXED at root (conditional findings keys in deep/structure.mjs + conditional overview fields in survey.mjs + new regression test "structure scan omits gitTracked keys when git scope is unavailable"); B [MAJOR] T224/T020/T204 deltas were the coverage line not the dual-scope table — confirmed; after fix A all fixture baselines byte-identical to HEAD, NO fixture-behavior regeneration needed; C [MINOR] scope corrections recorded here | REPAIR (fix A) |
 | 2026-08-03 | 2 | REPAIR/VERIFY | T002 | Fix A applied (deep/structure.mjs conditional keys incl. error path; survey.mjs conditional overview fields; structure.test.mjs new regression test). Full suite re-run: 1140/1140 PASS, zero failures; fixture pipelines, render-existing-ten, final-acceptance, golden all green; probe dual-scope figures confirmed (572 git-tracked / 529 rg-scoped, .py 406/402) | CHECKPOINT |
 | 2026-08-03 | 2 | CHECKPOINT | T002 | T002 completed. Expected-delta notes for T014: NO fixture-behavior/renderer/semantic regeneration required for T002 (non-git fixtures byte-identical; renderer.md unchanged — write.mjs/survey.mjs/deep-structure.mjs do not feed fixedInput; the renderer.md digest cea60fa3… is still current). supersession.json write.mjs lock updated to 35eb40ab…. Commit b0f038b (cycle 1) + next commit (cycle 2). | SELECT (G3 wave) |
+| 2026-08-03 | 3 | SELECT/DISPATCH | T003–T015 | G3 wave dispatched: 11 parallel implementation agents (T003 conventions, T004 architecture+claim, T005 practices/style, T007 testing, T008 operations, T009 security, T010 data, T011 git, T012 documentation, T013 stack, T015 config); pairwise-disjoint owned files; each instructed to record expected baseline deltas instead of touching shared baselines | INTEGRATE |
+| 2026-08-03 | 3 | INTEGRATE | G3 | All 11 returned with passing acceptance suites. Primary-agent integration: (a) T208 expected git argv -50→-200 (T011 migration) in expansion-command-core.test.mjs; (b) supersession.json digests refreshed: test/expansion-constraints.test.mjs f68c2164→43919aa7 (T004 edit), test/expansion-command-core.test.mjs 54993188→e5441844 (T208 edit), capabilities.json core-test digest 54993188→e5441844; (c) expansion-provider-runtime-catalog.test.mjs python test-naming snapshot updated (test_*.py→tests/test_*.py, tests/**/*.py→tests/**/test_*.py + new matchedKeys, verified against actual adapter output) | VERIFY |
+| 2026-08-03 | 3 | VERIFY | G3 | Full suite on integrated tree: 1192 tests, exactly 20 failures — ALL T014-owned shared baselines (fixture-behavior.json: T020×10, T204×5; renderer.md: T201-fixed-input, T204-default-sink, T205, T223; T224). Every task acceptance suite green. Probe (review-probe.md): 23/23 AC2/AC3 facts present; determinism probe A/B byte-identical; gates green | REVIEW |
+| 2026-08-03 | 3 | REVIEW | G3 | Independent review verdict APPROVE-WITH-CHANGES: claim registry/DR2 clean (zero 93 literals; claim 94/94 ratio 1); ecosystem glob diff exactly one line; digest recomputation matches every baseline entry; no cross-task collisions; minimality ok. 5 findings: F1 [minor] make-targets count/list mismatch (kinds include .PHONY, count excludes) — RESOLVED BY DESIGN: both pre-existing contracts (expansion-practices.test.mjs:948 and expansion-fixtures.test.mjs:584) enforce kinds-completeness; the b10 count fix (94) is intact; F2 [minor] golden comment 146→147 aligned (fixed); F3 [minor] plan-scope overlap fixtures-expansion/python.mjs listed under T004+T007 — recorded, actual edits T004-only; F4 [minor] architecture overview line now explains canonical+heuristic (fixed); F5 [info] console.log debug lines in tests match pre-existing evidence-summary pattern — no action | REPAIR/CHECKPOINT |
+| 2026-08-03 | 3 | CHECKPOINT | G3 | G3 complete. Expected-delta records for T014 consolidated: fixture-behavior.json MUST be regenerated (T003 conventions, T007 testing, T012 documentation, T013 stack, T015 config, T009 security change the 5 fixture pipelines; T004/T005/T008/T010/T011 contribute none — verified per-task); renderer.md MUST be regenerated (T003 conventions prose, T012 comment-ratio label; T013/T015/T008/T009/T005 contribute none); semantic.json unchanged so far (verify at T014). T226/T218/T208/T201 integration fixes applied. Commit cycle 3. | SELECT (T006) |
 
 ## Completion Review
 Filled by csm-build when all criteria are verified.

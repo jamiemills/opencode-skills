@@ -186,6 +186,21 @@ function collectDepNames(manifest, repoPath) {
 // Test-file matching
 // ---------------------------------------------------------------------------
 
+// Python files that look like tests by glob but are not test modules: fixture
+// trees, support/harness code, Hypothesis strategy modules, and package
+// scaffolding. Excluded at match time (not only via globs) so the disclosed
+// counting rule holds even when a repo places `test_*.py` inside these dirs.
+function isPythonNonTestFile(relPath) {
+  const posix = String(relPath).replace(/\\/g, '/');
+  if (posix.startsWith('tests/fixtures/')) return true;
+  if (posix.startsWith('tests/support/')) return true;
+  const base = posix.split('/').pop() || '';
+  if (base === '_fuzz_harnesses.py') return true;
+  if (base === 'strategies.py') return true;
+  if (base === '__init__.py') return true;
+  return false;
+}
+
 function matchTestFiles(ecosystems, files) {
   const matched = new Set();
   const naming = [];
@@ -198,6 +213,7 @@ function matchTestFiles(ecosystems, files) {
     for (const c of compiled) {
       let hit = false;
       for (const f of files) {
+        if (eco === 'python' && isPythonNonTestFile(f)) continue;
         if (globMatchesFile(c, f)) {
           matched.add(f);
           if (!byEco.has(eco)) byEco.set(eco, new Set());
@@ -677,6 +693,184 @@ function detectCoverageThresholds(repoPath) {
 }
 
 // ---------------------------------------------------------------------------
+// Python testing-depth facts (b14 universe, a10/d4 meta-tests, a11 network
+// guard, a13 hypothesis profiles, a14/d6 coverage authority, c3 lanes +
+// isolation, a26 hypothesis cache hedging).
+//
+// All facts are conditional-absent: a repo that does not exhibit the pattern
+// keeps byte-identical findings. Reads are bounded by explicit caps so a
+// hostile repo cannot force unbounded IO.
+// ---------------------------------------------------------------------------
+
+// Bounded read of a single repository file; null when missing/unreadable.
+function readBounded(repoPath, relPath, cap) {
+  try {
+    const content = readFileSync(join(repoPath, relPath), 'utf-8');
+    return content.length > cap ? content.slice(0, cap) : content;
+  } catch {
+    return null;
+  }
+}
+
+// The disclosed python test-file counting rule (b14). Mirrors the python
+// `testFileGlobs` descriptor plus the match-time exclusions above, so the
+// rendered count is reproducible by a reader.
+const PYTHON_COUNTING_RULE =
+  'tests/test_*.py + tests/**/test_*.py + conftest.py, excluding tests/fixtures/**, tests/support/**, _fuzz_harnesses.py, strategies.py, __init__.py';
+
+// Meta-test filename patterns (a10/d4): policy/quality/architecture suites
+// that check the repo itself rather than product behaviour.
+const META_TEST_PATTERNS = [
+  { pattern: 'test_quality_*.py', re: /^test_quality_.*\.py$/ },
+  { pattern: 'test_workflow_policy.py', re: /^test_workflow_policy\.py$/ },
+  { pattern: 'test_make_policy.py', re: /^test_make_policy\.py$/ },
+  { pattern: 'test_removed_plan_gate.py', re: /^test_removed_plan_gate\.py$/ },
+  { pattern: 'test_analyser_contracts.py', re: /^test_analyser_contracts\.py$/ },
+  { pattern: 'test_repository_hygiene.py', re: /^test_repository_hygiene\.py$/ },
+  { pattern: 'test_suppressions*.py', re: /^test_suppressions.*\.py$/ },
+  { pattern: 'test_coverage_policy.py', re: /^test_coverage_policy\.py$/ },
+  { pattern: 'test_module_coverage.py', re: /^test_module_coverage\.py$/ },
+  { pattern: 'test_import_graph.py', re: /^test_import_graph\.py$/ },
+  { pattern: 'test_architecture.py', re: /^test_architecture\.py$/ },
+  { pattern: 'test_cyclomatic_complexity.py', re: /^test_cyclomatic_complexity\.py$/ },
+];
+
+const NETWORK_GUARD_REL = 'tests/support/network_guard.py';
+const NETWORK_GUARD_CAP = 100_000;
+const CONFTEST_REL = 'tests/conftest.py';
+const CONFTEST_CAP = 100_000;
+const INVENTORY_REL = 'quality/property-inventory.toml';
+const INVENTORY_CAP = 200_000;
+const AUTHORITY_CAP = 20_000;
+
+// Classify matched python test files into a `meta-test` naming fact (a10/d4):
+// the matched patterns plus the count of files they caught.
+function detectMetaTests(matchedFiles) {
+  const found = [];
+  const naming = [];
+  for (const file of matchedFiles) {
+    const base = String(file).replace(/\\/g, '/').split('/').pop() || '';
+    for (const entry of META_TEST_PATTERNS) {
+      if (entry.re.test(base)) {
+        found.push(file);
+        if (!naming.includes(entry.pattern)) naming.push(entry.pattern);
+        break;
+      }
+    }
+  }
+  if (found.length === 0) return undefined;
+  return { count: found.length, naming: naming.slice(0, 12) };
+}
+
+// Detect the fail-closed network guard at tests/support/network_guard.py
+// (a11): socket/curl_cffi interception, loopback-only policy, environment
+// scrubbing, and the explicit real_api bypass marker.
+function detectNetworkGuard(repoPath) {
+  const content = readBounded(repoPath, NETWORK_GUARD_REL, NETWORK_GUARD_CAP);
+  if (content === null) return undefined;
+  const signals = [];
+  if (/socket\.(?:create_connection|socket|\.connect|connect_ex|sendto|sendmsg)/.test(content)) {
+    signals.push('socket interception');
+  }
+  if (/curl_cffi/.test(content)) signals.push('curl_cffi interception');
+  if (/loopback|127\.0\.0\.0\/8|_LOOPBACK_NAMES|is_loopback_host/.test(content)) signals.push('loopback-only');
+  if (/os\.environ\.pop|saved_env/.test(content)) signals.push('env scrub');
+  if (/real_api|RUN_REAL_API_TESTS/.test(content)) signals.push('real_api bypass');
+  if (signals.length === 0) return undefined;
+  return `loopback-only fail-closed guard (${signals.join(', ')})`;
+}
+
+// Parse tests/conftest.py Hypothesis `settings(max_examples=…)` declarations,
+// one entry per registered profile (a13). Deterministic file order.
+function detectHypothesisProfiles(repoPath) {
+  const content = readBounded(repoPath, CONFTEST_REL, CONFTEST_CAP);
+  if (content === null) return undefined;
+  const profiles = [];
+  const re = /settings\.register_profile\(\s*["']([^"']+)["']\s*,[\s\S]{0,100}?max_examples\s*=\s*(\d+)/g;
+  let match;
+  while ((match = re.exec(content)) !== null) {
+    profiles.push({ name: match[1], maxExamples: Number(match[2]) });
+    if (profiles.length >= 16) break;
+  }
+  return profiles.length > 0 ? profiles : undefined;
+}
+
+// Property-test parity manifest (a13): quality/property-inventory.toml with the
+// number of declared [[property]] tables.
+function detectPropertyInventory(repoPath) {
+  const content = readBounded(repoPath, INVENTORY_REL, INVENTORY_CAP);
+  if (content === null) return undefined;
+  const tables = (content.match(/^\[\[property\]\]/gm) || []).length;
+  return { present: true, tables };
+}
+
+// Coverage authority chain (a14/d6): check_module_coverage.py as the sole
+// module-coverage authority, diff-cover as the sole changed-line authority, and
+// the pytest `-n auto --dist loadfile` determinism switch in the Makefile.
+function detectCoverageAuthority(repoPath) {
+  const facts = [];
+  const checker = readBounded(repoPath, 'scripts/check_module_coverage.py', AUTHORITY_CAP);
+  if (checker !== null) {
+    if (/sole[^\n]*authority/i.test(checker)) facts.push('check_module_coverage.py sole module-coverage authority');
+    if (/only changed-line|sole[^\n]*changed-line/i.test(checker)) facts.push('diff-cover sole changed-line authority');
+  }
+  const makefile = readBounded(repoPath, 'Makefile', AUTHORITY_CAP);
+  if (makefile !== null && /--dist\s+loadfile/.test(makefile) && /-n\s+auto/.test(makefile)) {
+    facts.push('pytest -n auto --dist loadfile determinism');
+  }
+  return facts.length > 0 ? facts : undefined;
+}
+
+// Marker-lane exclusions (c3): the pytest `-m "not property and not …"`
+// selector and the literal MUTATION_PROPERTY_FILES manifest from the Makefile.
+function detectTestLanes(repoPath) {
+  const makefile = readBounded(repoPath, 'Makefile', 200_000);
+  if (makefile === null) return undefined;
+  const result = {};
+  const marker = makefile.match(/-m\s+"((?:[^"\\]|\\.)*)"/);
+  if (marker) result.markerSelector = marker[1];
+  const manifest = makefile.match(/MUTATION_PROPERTY_FILES\s*:?=\s*\\\n((?:\s+[^\n]+\n?)+)/);
+  if (manifest) {
+    const files = manifest[1]
+      .split('\n')
+      .map((line) => line.trim().replace(/\\$/, ''))
+      .filter(Boolean);
+    result.mutationPropertyFiles = files.slice(0, 16);
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+// Autouse isolation fixtures from tests/conftest.py (c3): fixtures installed
+// with `@pytest.fixture(autouse=True)` that isolate state between tests.
+function detectIsolationFixtures(repoPath) {
+  const content = readBounded(repoPath, CONFTEST_REL, CONFTEST_CAP);
+  if (content === null) return undefined;
+  const fixtures = [];
+  const re = /@pytest\.fixture\(\s*autouse\s*=\s*True\s*\)\s*\n\s*(?:async\s+)?def\s+(\w+)/g;
+  let match;
+  while ((match = re.exec(content)) !== null) {
+    fixtures.push(match[1]);
+    if (fixtures.length >= 8) break;
+  }
+  return fixtures.length > 0 ? fixtures : undefined;
+}
+
+// Hypothesis cache gitignore state (a26, hedged per A006): reports only
+// `.gitignore`-absence (inferred when not listed or when no .gitignore exists)
+// and notes that the scanner's own ignore rules still cover the directory.
+// Never claims the cache is untracked or created at test time.
+function detectHypothesisCache(repoPath) {
+  if (!existsSync(join(repoPath, '.hypothesis'))) return undefined;
+  const gitignore = readBounded(repoPath, '.gitignore', 100_000);
+  const listed = gitignore !== null && /(^|\n)\s*\.hypothesis(\s|$|\/)/.test(gitignore);
+  return {
+    gitignored: listed,
+    inferred: !listed,
+    scannerIgnores: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Script
 // ---------------------------------------------------------------------------
 
@@ -749,6 +943,20 @@ export async function scan(repoPath, overview) {
   const script = detectScript(repoPath);
   const markers = detectPytestMarkers(repoPath);
 
+  // Python-only testing-depth facts (b14, a10/d4, a11, a13, a14/d6, c3, a26).
+  // Each is conditional-absent so non-python repos and python repos without
+  // the pattern keep byte-identical findings.
+  const isPython = ecosystems.includes('python');
+  const countingRule = isPython ? PYTHON_COUNTING_RULE : undefined;
+  const metaTests = isPython ? detectMetaTests(matchedSorted) : undefined;
+  const networkGuard = isPython ? detectNetworkGuard(repoPath) : undefined;
+  const hypothesisProfiles = isPython ? detectHypothesisProfiles(repoPath) : undefined;
+  const propertyInventory = isPython ? detectPropertyInventory(repoPath) : undefined;
+  const coverageAuthority = isPython ? detectCoverageAuthority(repoPath) : undefined;
+  const testLanes = isPython ? detectTestLanes(repoPath) : undefined;
+  const isolationFixtures = isPython ? detectIsolationFixtures(repoPath) : undefined;
+  const hypothesisCache = isPython ? detectHypothesisCache(repoPath) : undefined;
+
   const fwDetected = frameworkResolved[0] !== 'unknown';
   const signal = (fwDetected && matchedSorted.length > 0)
     ? 'high'
@@ -767,6 +975,15 @@ export async function scan(repoPath, overview) {
       configFiles: configFiles.length > 0 ? configFiles : null,
       script,
       ...(markers ? { markers } : {}),
+      ...(countingRule ? { countingRule } : {}),
+      ...(metaTests ? { metaTests } : {}),
+      ...(networkGuard ? { networkGuard } : {}),
+      ...(hypothesisProfiles ? { hypothesisProfiles } : {}),
+      ...(propertyInventory ? { propertyInventory } : {}),
+      ...(coverageAuthority ? { coverageAuthority } : {}),
+      ...(testLanes ? { testLanes } : {}),
+      ...(isolationFixtures ? { isolationFixtures } : {}),
+      ...(hypothesisCache ? { hypothesisCache } : {}),
     },
   };
 }

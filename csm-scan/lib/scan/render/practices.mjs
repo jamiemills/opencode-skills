@@ -128,21 +128,32 @@ const STYLE_KIND_DISPLAY_CAP = 64;
 // block, in canonical order. Each fact selects entries whose matchedKey begins
 // with `<category>:<kind>:` and renders count and/or kinds. `valueOnly` facts
 // carry a kind token as the value (no count); `noun` facts pair a count with a
-// kind list; `across` joins the kinds with a neutral connective.
+// kind list.
 const STYLE_FACTS = Object.freeze([
-  { category: 'style_guide', kind: 'ruff-rules', heading: 'Ruff rules', noun: 'code' },
+  { category: 'style_guide', kind: 'ruff-select', heading: 'Ruff rules', noun: 'code' },
+  { category: 'style_guide', kind: 'ruff-ignore', heading: 'Ignored rule codes', noun: 'code' },
   { category: 'style_guide', kind: 'line-length', heading: 'Line length', noun: null },
   { category: 'style_guide', kind: 'docstring-dialect', heading: 'Docstring dialect', valueOnly: true },
   { category: 'style_guide', kind: 'quote-style', heading: 'Quote style', valueOnly: true },
   { category: 'automation', kind: 'make-targets', heading: 'Make targets', noun: 'target' },
-  { category: 'enforcement', kind: 'hook-stages', heading: 'Hook stages', noun: 'entry', plural: 'entries', across: true },
+  { category: 'automation', kind: 'make-check-toggles', heading: 'Check toggles', noun: 'toggle' },
+  { category: 'automation', kind: 'make-ci-quality', heading: 'CI quality membership', noun: 'member' },
+  { category: 'enforcement', kind: 'hook-stages', heading: 'Hook stages', noun: 'stage', plural: 'stages' },
+  { category: 'enforcement', kind: 'hook-jobs', heading: 'Hook jobs', noun: 'job' },
   { category: 'agent_workflow', kind: 'deny-rules', heading: 'Deny rules', noun: 'rule' },
+  { category: 'agent_workflow', kind: 'deny-rule-semantics', heading: 'Deny rule semantics', valueOnly: true },
   { category: 'agent_workflow', kind: 'opencode-plugins', heading: 'Plugin inventory', noun: 'plugin' },
+  { category: 'quality_gate', kind: 'gates-header', heading: 'Gate policy', valueOnly: true },
   { category: 'style_guide', kind: 'declared-conventions', heading: 'Declared conventions', noun: 'heading' },
   { category: 'style_guide', kind: 'exceptions-hub', heading: 'Exceptions hub', noun: null },
+  { category: 'style_guide', kind: 'exit-code-constant', heading: 'Exit code constants', noun: 'code' },
+  { category: 'style_guide', kind: 'exit-code-exception', heading: 'Exception exit codes', noun: 'pair' },
+  { category: 'style_guide', kind: 'exit-code-http', heading: 'HTTP status mapping', valueOnly: true },
 ]);
 
 const GATE_VALUE_PREFIX = 'quality_gate:gate-value:';
+const CHECK_TOGGLE_PREFIX = 'quality_gate:check-toggle:';
+const HOOK_STAGE_PREFIX = 'enforcement:hook-stage:';
 
 function factEntries(model, category, kind) {
   const prefix = `${category}:${kind}:`;
@@ -156,16 +167,42 @@ function hasFactValue(fact, entry) {
   return Number.isSafeInteger(entry.count);
 }
 
-function gateKey(entry) {
-  const remainder = entry.matchedKey.slice(GATE_VALUE_PREFIX.length);
+function subkeyOf(matchedKey, prefix) {
+  const remainder = matchedKey.slice(prefix.length);
   const colon = remainder.indexOf(':');
   return colon === -1 ? remainder : remainder.slice(0, colon);
+}
+
+function gateKey(entry) {
+  return subkeyOf(entry.matchedKey, GATE_VALUE_PREFIX);
 }
 
 function gateValueEntries(model) {
   return (Array.isArray(model.entries) ? model.entries : [])
     .filter((entry) => entry.category === 'quality_gate' && entry.matchedKey.startsWith(GATE_VALUE_PREFIX))
     .sort((left, right) => compareAscii(gateKey(left), gateKey(right))
+      || compareAscii(left.path, right.path));
+}
+
+function checkToggleKey(entry) {
+  return subkeyOf(entry.matchedKey, CHECK_TOGGLE_PREFIX);
+}
+
+function checkToggleEntries(model) {
+  return (Array.isArray(model.entries) ? model.entries : [])
+    .filter((entry) => entry.category === 'quality_gate' && entry.matchedKey.startsWith(CHECK_TOGGLE_PREFIX))
+    .sort((left, right) => compareAscii(checkToggleKey(left), checkToggleKey(right))
+      || compareAscii(left.path, right.path));
+}
+
+function hookStageKey(entry) {
+  return subkeyOf(entry.matchedKey, HOOK_STAGE_PREFIX);
+}
+
+function hookStageEntries(model) {
+  return (Array.isArray(model.entries) ? model.entries : [])
+    .filter((entry) => entry.category === 'enforcement' && entry.matchedKey.startsWith(HOOK_STAGE_PREFIX))
+    .sort((left, right) => compareAscii(hookStageKey(left), hookStageKey(right))
       || compareAscii(left.path, right.path));
 }
 
@@ -200,18 +237,25 @@ function renderFactSection(fact, entries, escapeField) {
       lines.push(`- ${path}: ${label}`);
       continue;
     }
-    lines.push(fact.across
-      ? `- ${path}: ${label} across ${kinds}`
-      : `- ${path}: ${label}: ${kinds}`);
+    lines.push(`- ${path}: ${label}: ${kinds}`);
   }
   lines.push('');
   return lines;
 }
 
+function decodeValueToken(token) {
+  try {
+    return decodeURIComponent(token);
+  } catch {
+    return token;
+  }
+}
+
 function gateValueCell(entry, escapeField) {
   if (Number.isSafeInteger(entry.count)) return String(entry.count);
   if (Array.isArray(entry.kinds) && entry.kinds.length > 0) {
-    return entry.kinds.map((token) => `\`${escapeField(token, { inTable: true })}\``).join(', ');
+    const value = entry.kinds.map((token) => decodeValueToken(token)).join(' ');
+    return `\`${escapeField(value, { inTable: true })}\``;
   }
   return '`present`';
 }
@@ -228,9 +272,36 @@ function renderGateSection(entries, escapeField) {
   return lines;
 }
 
-// Render the Style Guide & Conventions block: bounded counts, kind slugs, and
-// threshold values on top of the category path inventory. The block is absent
-// when no value-carrying style fact exists.
+function renderCheckToggleSection(entries, escapeField) {
+  const lines = ['#### Gate check toggles', ''];
+  lines.push('| Toggle | State |');
+  lines.push('|--------|-------|');
+  for (const entry of entries) {
+    const key = escapeField(checkToggleKey(entry), { inTable: true });
+    lines.push(`| ${key} | ${entry.count === 1 ? 'on' : 'off'} |`);
+  }
+  lines.push('');
+  return lines;
+}
+
+function renderHookStageSection(entries, escapeField) {
+  const lines = ['#### Hook stage pipeline', ''];
+  for (const entry of entries) {
+    const hook = escapeField(hookStageKey(entry));
+    const kinds = kindTokenList(entry, escapeField);
+    const label = `${entry.count} ${entry.count === 1 ? 'stage' : 'stages'}`;
+    lines.push(kinds.length > 0
+      ? `- \`${escapeField(entry.path)}\`: ${hook} (${label}: ${kinds})`
+      : `- \`${escapeField(entry.path)}\`: ${hook} (${label})`);
+  }
+  lines.push('');
+  return lines;
+}
+
+// Render the Style Guide & Conventions block: bounded counts, kind slugs,
+// threshold values, check toggles and hook-stage pipelines on top of the
+// category path inventory. The block is absent when no value-carrying style
+// fact exists.
 function renderStyleGuideBlock(model, escapeField) {
   const sections = [];
   for (const fact of STYLE_FACTS) {
@@ -241,6 +312,10 @@ function renderStyleGuideBlock(model, escapeField) {
   }
   const gates = gateValueEntries(model);
   if (gates.length > 0) sections.push(...renderGateSection(gates, escapeField));
+  const toggles = checkToggleEntries(model);
+  if (toggles.length > 0) sections.push(...renderCheckToggleSection(toggles, escapeField));
+  const stages = hookStageEntries(model);
+  if (stages.length > 0) sections.push(...renderHookStageSection(stages, escapeField));
   if (sections.length === 0) return [];
   return ['### Style Guide & Conventions', '', ...sections];
 }
