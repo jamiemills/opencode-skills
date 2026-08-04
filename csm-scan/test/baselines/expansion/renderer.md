@@ -78,7 +78,7 @@ Directory tree (max depth 4):
 ## Code Conventions — `repository`
 
 - **Import style**: ESM (import/export)
-- **File naming**: kebab-case (of 2 files sampled)
+- **File naming**: kebab-case across 2 source files
   - Distribution: kebab-case: 2
 - **Error handling**: throw
 - **Module system**: ESM
@@ -122,7 +122,7 @@ src/index.js -> src/value.js
 - **CONTRIBUTING.md**: not found
 - **License**: MIT
   - File: `LICENSE`
-- **Comment ratio**: 10% (1 comment / 10 code lines)
+- **Comment ratio**: 10% (1 comment / 11 total lines)
 
 > Coverage: 100% of scanner fields reported · basis: observed
 

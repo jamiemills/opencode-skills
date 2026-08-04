@@ -7,10 +7,25 @@
     "host Python, Node, rustc, Deno, and Bun versions to <HOST_VERSION>"
   ],
   "fixtures": {
-    "python": { "semanticSha256": "fceff553df0ca762fec5cd1e386357937784b1aaac02b1b4870dc78b2be18439", "markdownSha256": "9c0b2ca0c6304c42b44ae57a2cd02bf287a9d54acfb9d913a38c16506ad38381" },
-    "javascript": { "semanticSha256": "fc9cb9e09db8a31eebaa8c9c45c1cc40d55d9c37f73bc19501219ff72fc9ba5d", "markdownSha256": "7ad01157a65bc6340b21da3bede139d19c61424fa22ea7a59640e8c8630fd5a3" },
-    "typescript": { "semanticSha256": "303870c9898d1e77a5ef5a963b0a728e662e9845019e109d5a2f92adc1aed3c2", "markdownSha256": "8db9e8fb34834152981441e4698afcc5b5e9a469c898a5efac76d8aff252bb20" },
-    "rust": { "semanticSha256": "fc67a2c4817ee966be77c0038fcc5f0dfe16b85ad57e86f13cf11707c5ee3fe0", "markdownSha256": "7ff1e220cf92c504e808fbc381d77574c86a4b628bf1a970ddb1b750b040851c" },
-    "shell": { "semanticSha256": "e12e0f89a697ebca3c9bd420d1dad9608641269f40e3a665841249b9ab027961", "markdownSha256": "1aa1340967b3690e7a986a71d041723b811830fb9757ede55acee8301b080832" }
+    "python": {
+      "semanticSha256": "1bacbc2093d568705f065f105ae6912afc1b184e4611a5df251c0b6c0725ad47",
+      "markdownSha256": "43c844070534e5cf0f76a52f86e95a46eb3551c1dabbdb201dd9651bfa705d35"
+    },
+    "javascript": {
+      "semanticSha256": "e777adaeb4244120f7a53898461bd2b8a8e562c9c2424c1ec536b7eaa84ea02e",
+      "markdownSha256": "8ca87ce6b0e9c9000ea3ab161345d82175b7163004c82675ccb4a23322b75940"
+    },
+    "typescript": {
+      "semanticSha256": "901185f1b20b29541f68266777a66a660d144cba1d29f7f9e79ccc4fd9ab8a1b",
+      "markdownSha256": "675a4e7219e0b2fc0059483ea23919c481f6f5500b097576ee5d3cc874ef8f1a"
+    },
+    "rust": {
+      "semanticSha256": "e3550830645df63c53f28a7adf67bba58ac0357a79b7a6c6324756ba796775b5",
+      "markdownSha256": "0bcec6e026dce2ebab22fd4dcd45c8050c4c7d2b3cf511051f36f359d40c5451"
+    },
+    "shell": {
+      "semanticSha256": "42ac516624f1ae27029c72945f805578e450042572601b118d3e2fd7b6faeacf",
+      "markdownSha256": "81cd5aea5250508c8e11921c07cc2cec88261b12d57dad89049fbbf1da51116f"
+    }
   }
 }
