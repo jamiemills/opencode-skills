@@ -718,6 +718,150 @@ test('config scan: empty fixture yields low signal and null lint/format', async 
 });
 
 // ---------------------------------------------------------------------------
+// Supplementary declared-tool inventory (T015, shortfall c4): a python fixture
+// declaring tools the descriptor-driven collectTools does not cover must list
+// them in the Configuration toolchain with provenance.
+// ---------------------------------------------------------------------------
+
+const DECLARED_TOOLS_PYPROJECT = `\
+[project]
+name = "demo-py"
+version = "0.1.0"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "refurb>=2.0",
+    "ty>=0.0.24",
+    "diff-cover>=9.0",
+]
+
+[dependency-groups]
+dev = [
+    "radon>=6.0.1",
+    "mutmut>=3.0",
+    "hypothesis>=6.0",
+    "import-linter>=2.0",
+]
+
+[tool.mutmut]
+paths_to_mutate = ["src/"]
+
+[tool.ruff]
+line-length = 100
+`;
+
+const DECLARED_TOOLS_MAKEFILE = `\
+actionlint:  ## Validate GitHub Actions workflows with actionlint
+	uvx --from actionlint-py actionlint
+`;
+
+test('config scan: python fixture declaring missing tools inventories them with provenance', async () => {
+  await withFixture(
+    'config-declared-tools',
+    { 'pyproject.toml': DECLARED_TOOLS_PYPROJECT, 'Makefile': DECLARED_TOOLS_MAKEFILE, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const f = res.findings;
+
+      assert.ok(Array.isArray(f.declaredTools), 'declaredTools should be an array');
+      const names = f.declaredTools.map((t) => t.name);
+      for (const expected of ['refurb', 'ty', 'radon', 'mutmut', 'hypothesis', 'import-linter', 'diff-cover', 'actionlint']) {
+        assert.ok(names.includes(expected), `declaredTools should include ${expected}: ${JSON.stringify(names)}`);
+      }
+
+      // mutmut is declared both as a dependency and via a [tool.mutmut] section:
+      // provenance is merged onto a single row.
+      const mutmut = f.declaredTools.find((t) => t.name === 'mutmut');
+      assert.ok(mutmut, 'mutmut should be present');
+      assert.ok(mutmut.provenance.includes('declared-in-deps'), `mutmut deps provenance: ${JSON.stringify(mutmut.provenance)}`);
+      assert.ok(mutmut.provenance.includes('declared-config'), `mutmut config provenance: ${JSON.stringify(mutmut.provenance)}`);
+      assert.ok(mutmut.sources.some((s) => s.kind === 'dependency-group'), 'mutmut declared in a dependency group');
+      assert.ok(mutmut.sources.some((s) => s.kind === 'tool-section'), 'mutmut declared via a tool section');
+
+      // actionlint is declared only via the Makefile (declared-config).
+      const actionlint = f.declaredTools.find((t) => t.name === 'actionlint');
+      assert.ok(actionlint, 'actionlint should be present');
+      assert.deepEqual(actionlint.provenance, ['declared-config'], `actionlint provenance: ${JSON.stringify(actionlint.provenance)}`);
+      assert.ok(actionlint.sources.some((s) => s.kind === 'makefile'), 'actionlint declared via the Makefile');
+
+      // The supplementary inventory is bounded to the declared vocabulary: a
+      // tool the descriptor already covers (ruff via [tool.ruff]) is NOT
+      // re-listed here — it stays in the descriptor-driven Lint row.
+      assert.ok(!names.includes('ruff'), `descriptor-only tools must not be re-listed: ${JSON.stringify(names)}`);
+    },
+  );
+});
+
+test('config render: declared toolchain lists the missing tools in the Configuration section', async () => {
+  await withFixture(
+    'config-render-declared-tools',
+    { 'pyproject.toml': DECLARED_TOOLS_PYPROJECT, 'Makefile': DECLARED_TOOLS_MAKEFILE, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      const markdown = renderConfig('demo', res.findings);
+
+      assert.match(markdown, /### Declared Toolchain/, 'toolchain block should be present');
+      for (const expected of ['refurb', 'ty', 'radon', 'mutmut', 'hypothesis', 'import-linter', 'diff-cover', 'actionlint']) {
+        assert.match(markdown, new RegExp(`\`${expected}\``), `toolchain should render ${expected}`);
+      }
+      // provenance distinctions are rendered.
+      assert.match(markdown, /declared-in-deps/, 'declared-in-deps provenance rendered');
+      assert.match(markdown, /declared-config/, 'declared-config provenance rendered');
+      // deterministic ordering: alphabetical by tool name.
+      const names = [...markdown.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]);
+      assert.deepEqual(names, [...names].sort(), `toolchain rows not sorted: ${JSON.stringify(names)}`);
+    },
+  );
+});
+
+test('config render: descriptor + declared overlap renders as one merged row', async () => {
+  // A tool detected by both the descriptor-driven collectTools and the
+  // supplementary declared scan is shown once with merged provenance
+  // (shortfall c4 requirement: dedupe into one row).
+  const findings = {
+    lint: { config: 'vulture: pyproject.toml:[tool.vulture]', style: 'flat' },
+    linters: [{ name: 'vulture', config: 'pyproject.toml:[tool.vulture]' }],
+    formatters: [],
+    typeCheckers: [],
+    hooks: [],
+    declaredTools: [
+      {
+        name: 'vulture',
+        provenance: ['declared-config', 'declared-in-deps'],
+        sources: [
+          { kind: 'tool-section', ref: 'tool.vulture' },
+          { kind: 'dependency-group', ref: 'dev' },
+        ],
+        descriptorDetected: true,
+      },
+    ],
+  };
+  const markdown = renderConfig('demo', findings);
+  assert.match(markdown, /### Declared Toolchain/, 'toolchain block should be present');
+  assert.match(
+    markdown,
+    /\| `vulture` \| descriptor-detected · declared-in-deps \(dependency-group: dev\) · declared-config \(\[tool\.vulture\]\) \|/,
+    markdown,
+  );
+  const rows = [...markdown.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]);
+  assert.deepEqual(rows, ['vulture'], 'vulture must appear exactly once');
+});
+
+test('config render: repos without declared tools keep the toolchain block absent', async () => {
+  await withFixture(
+    'config-render-nosupplementary',
+    { 'pyproject.toml': PYPROJECT, 'src/demo/__init__.py': '' },
+    async (dir) => {
+      const res = await scan(dir);
+      assert.deepEqual(res.findings.declaredTools, [], 'no declared tools expected');
+      const markdown = renderConfig('demo', res.findings);
+      assert.doesNotMatch(markdown, /Declared Toolchain/, 'toolchain block should be absent without declared tools');
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Real perplexity-cli integration
 // ---------------------------------------------------------------------------
 
@@ -755,7 +899,16 @@ test('config scan: real perplexity-cli -> ruff+pyright+bandit+vulture, ruff form
     `markers should include MANIFEST.in: ${JSON.stringify(f.markers)}`,
   );
 
+  // Supplementary declared-tool inventory: the full toolchain declared in
+  // pyproject [dependency-groups]/extras/tool sections and the Makefile
+  // (shortfall c4).
+  const declaredNames = f.declaredTools.map((t) => t.name);
+  for (const expected of ['refurb', 'ty', 'radon', 'mutmut', 'hypothesis', 'import-linter', 'diff-cover', 'actionlint']) {
+    assert.ok(declaredNames.includes(expected), `declaredTools should include ${expected}: ${JSON.stringify(declaredNames)}`);
+  }
+
   // Evidence summary for the human reader.
+  console.log('  [perplexity-cli config] declaredTools =', JSON.stringify(f.declaredTools.map((t) => ({ name: t.name, provenance: t.provenance, descriptorDetected: t.descriptorDetected }))));
   console.log('  [perplexity-cli config] linters   =', JSON.stringify(f.linters.map((l) => `${l.name}@${l.config}`)));
   console.log('  [perplexity-cli config] formatters=', JSON.stringify(f.formatters.map((x) => x.name)));
   console.log('  [perplexity-cli config] typeCheck=', JSON.stringify(tcNames));

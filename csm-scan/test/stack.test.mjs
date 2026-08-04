@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { withFixture } from './harness.mjs';
 import { scan } from '../lib/scan/deep/stack.mjs';
+import { renderStack } from '../lib/scan/render/stack.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
@@ -53,6 +54,75 @@ test('rust fixture: runtime indicates rust, pm=cargo', async () => {
     );
     assert.equal(f.packageManager, 'cargo');
     assert.equal(f.hasPackageJson, false);
+  });
+});
+
+test('python fixture: [project.optional-dependencies].dev tools appear in rendered stack', async () => {
+  const pyproject = pythonFiles['pyproject.toml'] + `
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-mock>=3",
+  "pytest-cov>=7",
+  "pytest-asyncio>=1.2.0",
+  "ruff>=0.1",
+  "refurb>=2.0",
+  "ty>=0.0.24",
+  "lefthook>=2.1.6",
+  "bandit>=1.7.7",
+  "diff-cover>=9.0",
+]
+`;
+  const files = { ...pythonFiles, 'pyproject.toml': pyproject };
+
+  await withFixture('stack-optional-deps', files, async (dir) => {
+    const res = await scan(dir, {});
+    const f = res.findings;
+
+    assert.ok(f.optionalDeps, 'findings should include optionalDeps');
+    assert.ok(f.optionalDeps.dev, 'optionalDeps should be keyed by group name');
+    const devExtra = ['pytest', 'pytest-mock', 'pytest-cov', 'pytest-asyncio', 'ruff', 'refurb', 'ty', 'lefthook', 'bandit', 'diff-cover'];
+    for (const tool of devExtra) {
+      assert.ok(tool in f.optionalDeps.dev, `dev extra should include ${tool}`);
+    }
+
+    const rendered = renderStack('demo', f);
+    assert.ok(rendered.includes('### Dev Dependencies'), 'rendered stack should include a Dev Dependencies section');
+    for (const tool of devExtra) {
+      assert.ok(rendered.includes(`\`${tool}\``), `rendered stack should list ${tool}`);
+    }
+    assert.ok(rendered.includes('(extra: dev)'), 'rendered stack should surface the dev extra provenance');
+  });
+});
+
+test('python fixture: optional deps dedupe against devDependencies with merged provenance', async () => {
+  const pyproject = pythonFiles['pyproject.toml'] + `
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.1",
+]
+`;
+  const files = {
+    ...pythonFiles,
+    'pyproject.toml': pyproject,
+    'requirements-dev.txt': 'pytest>=7\nhypothesis>=6\n',
+  };
+
+  await withFixture('stack-optional-dedupe', files, async (dir) => {
+    const res = await scan(dir, {});
+    const f = res.findings;
+
+    const byName = new Map(f.devTools.map((tool) => [tool.name, tool]));
+    assert.ok(byName.has('pytest'), 'devTools should include pytest exactly once');
+    assert.ok(byName.has('ruff'), 'devTools should include ruff');
+    assert.ok(byName.has('hypothesis'), 'devTools should include hypothesis from devDependencies');
+    assert.deepEqual(byName.get('pytest').sources, ['devDependencies', 'optionalDependencies:dev']);
+    assert.equal(byName.get('pytest').spec, '>=7', 'devDependencies spec should outrank the optional group');
+    assert.deepEqual(byName.get('ruff').sources, ['optionalDependencies:dev']);
+
+    const rendered = renderStack('demo', f);
+    assert.ok(rendered.includes('- `pytest` — \\>=7 (extra: dev)'), 'rendered pytest should show merged provenance');
   });
 });
 

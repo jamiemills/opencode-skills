@@ -340,7 +340,7 @@ test('T202 replacement: coverage status representation maps claim statuses to co
       ['complete', 'eligible', 'excluded', 'expected', 'incomplete', 'ratio', 'repos', 'unsupported'],
       'coverage aggregate carries the canonical representation fields',
     );
-    assert.equal(coverage.expected, 93, 'every registry claim is counted');
+    assert.equal(coverage.expected, 94, 'every registry claim is counted');
     assert.equal(
       coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
       coverage.expected,

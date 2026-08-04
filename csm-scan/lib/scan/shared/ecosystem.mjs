@@ -162,7 +162,7 @@ const PYTHON = {
     behave: 'Behave',
     robotframework: 'Robot Framework',
   },
-  testFileGlobs: ['test_*.py', '*_test.py', 'tests/**/*.py', 'conftest.py'],
+  testFileGlobs: ['tests/test_*.py', 'tests/**/test_*.py', 'conftest.py'],
   testConfigFiles: [
     'pytest.ini',
     'tox.ini',

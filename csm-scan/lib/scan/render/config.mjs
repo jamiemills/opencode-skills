@@ -14,6 +14,34 @@ function typeCheckerLabel(tool) {
   return name;
 }
 
+// Build deterministic provenance rows for the supplementary declared-tool
+// inventory (deep/config.mjs detectDeclaredTools). A tool detected by both the
+// descriptor-driven collectTools and the declared scan is shown once with a
+// merged descriptor-detected + declared provenance label. Returns null when
+// there are no declared tools so repos without them keep byte-identical output.
+function declaredToolchainRows(declaredTools) {
+  if (!Array.isArray(declaredTools) || declaredTools.length === 0) return null;
+  const rows = [...declaredTools].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return rows.map((tool) => {
+    const parts = [];
+    const sources = Array.isArray(tool.sources) ? tool.sources : [];
+    if (tool.descriptorDetected) parts.push('descriptor-detected');
+    if (tool.provenance && tool.provenance.includes('declared-in-deps')) {
+      const deps = sources
+        .filter((s) => s.kind === 'extra' || s.kind === 'dependency-group')
+        .map((s) => (s.kind === 'extra' ? `extra: ${s.ref}` : `dependency-group: ${s.ref}`));
+      parts.push(`declared-in-deps (${deps.join(', ')})`);
+    }
+    if (tool.provenance && tool.provenance.includes('declared-config')) {
+      const configs = sources
+        .filter((s) => s.kind === 'tool-section' || s.kind === 'makefile')
+        .map((s) => (s.kind === 'tool-section' ? `[${s.ref}]` : s.ref));
+      parts.push(`declared-config (${configs.join(', ')})`);
+    }
+    return { name: tool.name, detail: parts.join(' · ') };
+  });
+}
+
 export function renderConfig(repoName, findings, context = DEFAULT_RENDER_CONTEXT) {
   if (!findings) return '';
   const { escapeField } = context;
@@ -22,7 +50,8 @@ export function renderConfig(repoName, findings, context = DEFAULT_RENDER_CONTEX
   lines.push('');
 
   const hasAny =
-    findings.lint || findings.format || findings.typescript || findings.scripts || findings.ci || findings.docker || findings.envVars;
+    findings.lint || findings.format || findings.typescript || findings.scripts || findings.ci || findings.docker || findings.envVars ||
+    (Array.isArray(findings.declaredTools) && findings.declaredTools.length > 0);
 
   if (!hasAny) {
     lines.push('_No configuration files detected._');
@@ -78,6 +107,18 @@ export function renderConfig(repoName, findings, context = DEFAULT_RENDER_CONTEX
   }
 
   lines.push('');
+
+  const toolchainRows = declaredToolchainRows(findings.declaredTools);
+  if (toolchainRows) {
+    lines.push('### Declared Toolchain');
+    lines.push('');
+    lines.push('| Tool | Provenance |');
+    lines.push('|------|------------|');
+    for (const row of toolchainRows) {
+      lines.push(`| \`${escapeField(row.name, { inTable: true })}\` | ${escapeField(row.detail, { inTable: true })} |`);
+    }
+    lines.push('');
+  }
 
   if (Array.isArray(findings.buildTools) && findings.buildTools.length > 0) {
     const items = findings.buildTools.map((b) => `${escapeField(b.name)} (\`${escapeField(b.config)}\`)`).join(', ');

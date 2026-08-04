@@ -19,7 +19,7 @@
     "replacementTests": [
       {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "549931885a8c9012300f777c930fe0e2ec393d9f80ccd7faf1d91b2e6302e2ad",
+        "testFileSha256": "e544184447ba60a8207dfb0a024337eb332ffa5dfdfd9173a4859edffcfb45e0",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       },
       {

@@ -200,9 +200,13 @@ test('T021 golden: real perplexity-cli repo (skipped if path absent)', async () 
   assert.ok(/pytest/i.test(markdown), 'markdown must mention pytest');
   const testCount = markdown.match(/Test files\*\*: (\d+)/)?.[1];
   assert.ok(testCount, 'markdown must report the real repository test-file count');
+  // T007 b14 counting rule (disclosed in the rendered section): python test
+  // files are `tests/test_*.py` + `tests/**/test_*.py` + `conftest.py`, with
+  // tests/fixtures/**, tests/support/**, _fuzz_harnesses.py, strategies.py and
+  // __init__.py excluded. The real repo reports 147 = 146 test modules + conftest.
   assert.ok(
-    Number(testCount) >= 240 && Number(testCount) <= 320,
-    `test-file count must remain near the observed 269 (got ${testCount})`,
+    Number(testCount) >= 130 && Number(testCount) <= 170,
+    `test-file count must match the disclosed b14 counting rule (observed 147; got ${testCount})`,
   );
   assert.ok(
     /Lockfile[\s\S]{0,40}present/.test(markdown),

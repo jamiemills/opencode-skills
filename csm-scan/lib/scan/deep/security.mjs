@@ -29,6 +29,17 @@ const KNOWN_LOCKFILES = [
 const SCAN_FILE_LIMIT = 400;
 const SCAN_BYTE_LIMIT = 1024 * 1024;
 
+// Dependabot config file names checked for the configured fact.
+const DEPENDABOT_CONFIG_FILES = ['.github/dependabot.yml', '.github/dependabot.yaml'];
+
+// First-party auth subsystem cluster names matched against directory and
+// module basenames in the enumerated source tree (T009/b15).
+const FIRST_PARTY_AUTH_CLUSTERS = ['auth', 'token', 'oauth', 'session', 'encryption', 'cookies'];
+
+// Bounds for the branch-evidence fact (T009/b2): never claim dating/activity.
+const BRANCH_EVIDENCE_LIMIT = 20;
+const GITLEAKS_PATH_LIMIT = 200;
+
 function readJSON(path) {
   try {
     return JSON.parse(readFileSync(path, 'utf-8'));
@@ -148,9 +159,47 @@ function unionMatches(depNames, table, ecosystems) {
   return out;
 }
 
-function detectAuth(depNames, ecosystems) {
+// First-party auth subsystem detection (T009/b15): scan the enumerated source
+// tree for module clusters named auth/token/oauth/session/encryption/cookies
+// (directory or module basenames). A basename matches when it equals a cluster
+// name or starts with `<cluster>_` / `<cluster>-` (e.g. oauth_handler.py,
+// token_manager.py). Deterministic, sorted, privacy-safe.
+function detectFirstPartyAuth(files) {
+  const clusters = new Set();
+  const evidence = [];
+  const seen = new Set();
+  const isCluster = (candidate) => FIRST_PARTY_AUTH_CLUSTERS.find(
+    (name) => candidate === name || candidate.startsWith(`${name}_`) || candidate.startsWith(`${name}-`),
+  );
+  for (const rel of Array.isArray(files) ? files : []) {
+    const normalized = String(rel).replace(/\\/g, '/');
+    const segments = normalized.split('/');
+    const leaf = segments[segments.length - 1] || '';
+    const baseName = leaf.includes('.') ? leaf.slice(0, leaf.lastIndexOf('.')) : leaf;
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const candidate = i === segments.length - 1 ? baseName : segment;
+      const cluster = isCluster(candidate.toLowerCase());
+      if (cluster) {
+        clusters.add(cluster);
+        if (!seen.has(normalized) && evidence.length < 5) {
+          seen.add(normalized);
+          evidence.push(normalized);
+        }
+      }
+    }
+  }
+  return {
+    detected: clusters.size > 0,
+    clusters: [...clusters].sort(),
+    evidence: evidence.sort(),
+  };
+}
+
+function detectAuth(depNames, ecosystems, files) {
   const frameworks = unionMatches(depNames, AUTH_LIBS, ecosystems);
-  return { detected: frameworks.length > 0, frameworks };
+  const firstParty = detectFirstPartyAuth(files);
+  return { detected: frameworks.length > 0, frameworks, firstParty };
 }
 
 function detectInputValidation(depNames, ecosystems) {
@@ -380,6 +429,135 @@ function detectAuditEvidence(repoPath, overview, auditMatches) {
   return evidence;
 }
 
+// Dependabot branch-evidence (T009/b2): when no .github/dependabot.yml exists,
+// issue git:branch-list through the broker and cross-reference dependabot/*
+// branch prefixes. Never claims branch dating/activity (no for-each-ref). A
+// capped/truncated or failed broker result yields status 'unverified' rather
+// than a stale "not configured". A clean git repo with no dependabot branches
+// keeps the current not-configured fact.
+async function detectDependabot(repoPath, overview, broker) {
+  const configured = DEPENDABOT_CONFIG_FILES.some((rel) => hasFile(repoPath, overview, rel));
+  if (configured) {
+    return { configured: true, status: 'configured', branches: [], branchCount: 0 };
+  }
+  let branches = [];
+  let status = 'unverified';
+  try {
+    const result = await broker.execute('git:branch-list', { cwd: repoPath });
+    if (result.ok) {
+      branches = parseDependabotBranches(result.stdout);
+      status = branches.length > 0 ? 'inferred' : 'not-configured';
+    }
+  } catch {
+    status = 'unverified';
+  }
+  return { configured: false, status, branches, branchCount: branches.length };
+}
+
+// Parse `git branch -a` stdout and return matched dependabot/* branch names.
+// Normalises `* ` markers, leading whitespace, and `remotes/<remote>/`
+// prefixes; remote-tracking and local branches of the same name collapse into
+// one entry. Deterministic (sorted), bounded.
+function parseDependabotBranches(stdout) {
+  const seen = new Set();
+  for (const rawLine of String(stdout).split('\n')) {
+    const cleaned = rawLine.replace(/^\*\s*/, '').trim();
+    if (!cleaned) continue;
+    const withoutRemote = cleaned.replace(/^remotes\/[^/]+\//, '');
+    if (!withoutRemote.startsWith('dependabot/')) continue;
+    seen.add(withoutRemote);
+    if (seen.size >= BRANCH_EVIDENCE_LIMIT) break;
+  }
+  return [...seen].sort();
+}
+
+// Gitleaks context (T009/c6): read the .gitleaks.toml allowlist policy
+// (exact-file exception entries and stopwords) and the .gitleaksignore entry
+// count. Where the policy declares exact-file fixture exceptions, matching
+// secret-pattern findings are labelled fixture-allowlisted (inferred). Never
+// emits secret values; only counts and the allowlisted pattern names.
+function detectGitleaksContext(repoPath, overview, secrets) {
+  const context = {
+    configPresent: hasFile(repoPath, overview, '.gitleaks.toml'),
+    allowlistPathCount: 0,
+    stopwordCount: 0,
+    ignorePresent: hasFile(repoPath, overview, '.gitleaksignore'),
+    ignoreEntryCount: 0,
+    fixtureAllowlisted: [],
+  };
+
+  if (context.configPresent) {
+    const content = readContent(join(repoPath, '.gitleaks.toml'));
+    if (content) {
+      const { paths, stopwords } = parseGitleaksAllowlist(content);
+      context.allowlistPathCount = paths.length;
+      context.stopwordCount = stopwords.length;
+      const matchers = compileGitleaksPaths(paths);
+      for (const finding of Array.isArray(secrets) ? secrets : []) {
+        if (!finding || !Array.isArray(finding.files) || finding.files.length === 0) continue;
+        if (finding.files.some((file) => matchers.some((re) => re.test(file)))) {
+          finding.fixtureAllowlisted = true;
+          context.fixtureAllowlisted.push(finding.pattern);
+        }
+      }
+    }
+  }
+
+  if (context.ignorePresent) {
+    const content = readContent(join(repoPath, '.gitleaksignore'));
+    if (content) {
+      context.ignoreEntryCount = content
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith('#'))
+        .length;
+    }
+  }
+
+  context.fixtureAllowlisted = [...new Set(context.fixtureAllowlisted)].sort();
+  return context;
+}
+
+// Parse the `[allowlist]` section of a .gitleaks.toml for the `paths` and
+// `stopwords` arrays. Entries are single- or triple-quoted literal strings.
+// Bounded to the policy length so a pathological config cannot explode memory.
+function parseGitleaksAllowlist(content) {
+  const allowlistMatch = content.match(/\[allowlist\][\s\S]*?(?=\n\[|\n*$)/);
+  const block = allowlistMatch ? allowlistMatch[0] : '';
+  return {
+    paths: extractTomlArray(block, 'paths'),
+    stopwords: extractTomlArray(block, 'stopwords'),
+  };
+}
+
+function extractTomlArray(block, key) {
+  const re = new RegExp(`\\b${key}\\s*=\\s*\\[([\\s\\S]*?)\\]`);
+  const match = block.match(re);
+  if (!match) return [];
+  const entries = [];
+  for (const quoted of match[1].matchAll(/'''([\s\S]*?)'''|"([^"]*)"|'([^']*)'/g)) {
+    const value = quoted[1] ?? quoted[2] ?? quoted[3];
+    const trimmed = value.trim();
+    if (trimmed && entries.length < GITLEAKS_PATH_LIMIT) entries.push(trimmed);
+  }
+  return entries;
+}
+
+// Compile the allowlist path patterns to test secret finding file paths
+// against. Patterns are exact-file regexes declared by the repo; wrap each in
+// try/catch so a malformed pattern never aborts the scan.
+function compileGitleaksPaths(paths) {
+  const matchers = [];
+  for (const pattern of paths) {
+    try {
+      matchers.push(new RegExp(pattern));
+    } catch {
+      // Skip malformed patterns; they cannot label anything as allowlisted.
+    }
+  }
+  return matchers;
+}
+
 export async function scan(repoPath, overview, broker = commandBroker) {
   const manifest = resolveManifest(repoPath, overview);
   const depNames = collectDepNames(manifest);
@@ -387,7 +565,7 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const files = await listFiles(repoPath, overview, broker);
 
   const secrets = detectSecretPatterns(repoPath, files);
-  const auth = detectAuth(depNames, ecosystems);
+  const auth = detectAuth(depNames, ecosystems, files);
   const secHeaders = detectSecurityHeaders(repoPath, files);
   const validation = detectInputValidation(depNames, ecosystems);
   const rateLimit = detectRateLimiting(repoPath, depNames, ecosystems, files);
@@ -395,6 +573,9 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   // AUDIT_TOOLS is consulted once; securityTools and auditEvidence reuse it.
   const auditMatches = unionMatches(depNames, AUDIT_TOOLS, ecosystems);
   const securityTools = detectSecurityTools(repoPath, overview, auditMatches);
+
+  const dependabot = await detectDependabot(repoPath, overview, broker);
+  const gitleaks = detectGitleaksContext(repoPath, overview, secrets);
 
   const envExample = hasFile(repoPath, overview, '.env.example') ||
     hasFile(repoPath, overview, '.env.sample') ||
@@ -413,9 +594,6 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const auditEvidence = detectAuditEvidence(repoPath, overview, auditMatches);
   const hasAuditScript = auditEvidence.length > 0;
 
-  const dependabot = hasFile(repoPath, overview, '.github/dependabot.yml') ||
-    hasFile(repoPath, overview, '.github/dependabot.yaml');
-
   // Signal: 'high' when there is a lot to surface (secret hits, recognized
   // auth/validation frameworks, or audit evidence); 'medium' when
   // baseline hygiene exists (lockfile, rate limiting, security artifacts, env
@@ -425,7 +603,7 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const strongSignal =
     secrets.length > 0 || auth.detected || hasAuditScript || validation.detected;
   const mediumSignal =
-    hasLockfile || rateLimit.detected || securityTools.length > 0 || envExample || dependabot;
+    hasLockfile || rateLimit.detected || securityTools.length > 0 || envExample || dependabot.configured;
   const signal = strongSignal ? 'high' : mediumSignal ? 'medium' : 'low';
 
   return {
@@ -445,7 +623,9 @@ export async function scan(repoPath, overview, broker = commandBroker) {
       hasLockfile,
       auditEvidence,
       hasAuditScript,
-      dependabot,
+      dependabot: dependabot.configured,
+      dependabotEvidence: dependabot,
+      gitleaks,
       securityTools,
     },
   };

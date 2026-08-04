@@ -118,6 +118,44 @@ function sourceExtensionSet() {
 }
 
 // ---------------------------------------------------------------------------
+// Production source universe (A011)
+// ---------------------------------------------------------------------------
+// Convention counts (async, docstrings, type hints) are measured over the
+// "production source universe": the primary package source tree (`src/**` when
+// a `src/` directory exists, else the top-level package directory derived from
+// the manifest name), excluding tests/fixtures and known test harness files.
+// The universe rule is disclosed in every rendered count.
+
+function isTestHarnessPath(relPath) {
+  const segments = relPath.split('/');
+  const base = segments[segments.length - 1] || '';
+  if (segments.some((seg) => seg === 'test' || seg === 'tests' || seg === 'fixtures' || seg === '__pycache__')) {
+    return true;
+  }
+  if (base === 'conftest.py' || base === 'conftest.pyi') return true;
+  if (/^(?:test|tests)[_.]/i.test(base) || /[_.]test\./i.test(base)) return true;
+  return false;
+}
+
+function packageRootPrefix(overview) {
+  const manifest = overview && overview.manifest;
+  const name = manifest && typeof manifest.name === 'string' ? manifest.name : null;
+  if (!name || name.length === 0) return null;
+  const segment = name.includes('/') ? name.split('/').pop() : name;
+  const dir = segment.replace(/-/g, '_');
+  return dir ? `${dir}/` : null;
+}
+
+function productionSourceFiles(files, overview) {
+  const hasSrc = files.some((f) => f.startsWith('src/'));
+  const prefix = hasSrc ? 'src/' : packageRootPrefix(overview);
+  return files.filter((f) => {
+    if (prefix && !f.startsWith(prefix)) return false;
+    return !isTestHarnessPath(f);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Import style
 // ---------------------------------------------------------------------------
 
@@ -252,8 +290,13 @@ function detectImportStyle(repoPath, overview, files) {
 // ---------------------------------------------------------------------------
 
 function detectFileNaming(repoPath, overview, files) {
-  // P1: sample SOURCE extensions only (union of ecosystem descriptor
+  // P1: classify SOURCE extensions only (union of ecosystem descriptor
   // extensions) so .md / configs / lockfiles don't skew naming distribution.
+  // The FULL enumeration universe is classified (no sampling cap); the
+  // universe is disclosed in the rendered line. Checks run snake_case before
+  // camelCase so mononyms (lowercase, no underscore, no internal capital) do
+  // not fall through to camelCase: a camelCase name must contain an internal
+  // uppercase letter.
   const srcExts = sourceExtensionSet();
   const sampled = files
     .filter((f) => {
@@ -261,7 +304,6 @@ function detectFileNaming(repoPath, overview, files) {
       const dot = base.lastIndexOf('.');
       return dot > 0 && srcExts.has(base.slice(dot).toLowerCase());
     })
-    .slice(0, 200)
     .map((f) => {
       const parts = f.split('/').pop().split('.');
       return parts.length > 1 ? parts.slice(0, -1).join('.') : parts[0];
@@ -272,18 +314,18 @@ function detectFileNaming(repoPath, overview, files) {
 
   for (const name of sampled) {
     if (!name || name.startsWith('.') || name.length === 0) continue;
-    if (/^[a-z][a-zA-Z0-9]*$/.test(name)) {
-      patterns.camelCase++;
-      if (samples.camelCase.length < 3) samples.camelCase.push(name);
-    } else if (/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
+    if (/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(name)) {
+      patterns.snake_case++;
+      if (samples.snake_case.length < 3) samples.snake_case.push(name);
+    } else if (/^[a-z][a-z0-9]*(-[a-z0-9]+)+$/.test(name)) {
       patterns['kebab-case']++;
       if (samples['kebab-case'].length < 3) samples['kebab-case'].push(name);
     } else if (/^[A-Z][a-zA-Z0-9]*$/.test(name)) {
       patterns.PascalCase++;
       if (samples.PascalCase.length < 3) samples.PascalCase.push(name);
-    } else if (/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(name)) {
-      patterns.snake_case++;
-      if (samples.snake_case.length < 3) samples.snake_case.push(name);
+    } else if (/^[a-z][a-zA-Z0-9]*[A-Z]/.test(name)) {
+      patterns.camelCase++;
+      if (samples.camelCase.length < 3) samples.camelCase.push(name);
     } else {
       patterns.other++;
     }
@@ -293,7 +335,7 @@ function detectFileNaming(repoPath, overview, files) {
   if (total === 0) return { dominant: 'unknown', patterns: {}, samples: {}, total: 0 };
 
   const dominant = Object.entries(patterns).sort((a, b) => b[1] - a[1])[0][0];
-  return { dominant, patterns, samples, total };
+  return { dominant, patterns, samples, total, universe: 'full source-file enumeration' };
 }
 
 // ---------------------------------------------------------------------------
@@ -459,14 +501,17 @@ function detectErrorHandling(repoPath, overview, files) {
 
 function detectAsyncUsage(repoPath, overview, files) {
   const { all } = resolveEcosystems(repoPath, overview);
+  const production = productionSourceFiles(files, overview);
   const byEcosystem = {};
+  let sourceFiles = 0;
 
   for (const eco of all) {
     if (eco !== 'python' && eco !== 'javascript' && eco !== 'typescript' && eco !== 'rust') continue;
     const desc = descriptorFor(eco);
     if (!desc) continue;
-    const subset = filterByExt(files, desc.extensions).slice(0, 40);
+    const subset = filterByExt(production, desc.extensions);
     if (subset.length === 0) continue;
+    sourceFiles += subset.length;
 
     let asyncCount = 0;
     let awaitCount = 0;
@@ -484,12 +529,12 @@ function detectAsyncUsage(repoPath, overview, files) {
         awaitCount += (c.match(/\.await\b/g) || []).length;
       }
     }
-    byEcosystem[eco] = { async: asyncCount, await: awaitCount };
+    byEcosystem[eco] = { async: asyncCount, await: awaitCount, files: subset.length };
   }
 
   const asyncCount = Object.values(byEcosystem).reduce((a, e) => a + (e.async || 0), 0);
   const awaitCount = Object.values(byEcosystem).reduce((a, e) => a + (e.await || 0), 0);
-  return { async: asyncCount, await: awaitCount, byEcosystem };
+  return { async: asyncCount, await: awaitCount, sourceFiles, byEcosystem };
 }
 
 // ---------------------------------------------------------------------------
@@ -523,11 +568,35 @@ function detectUnsafe(repoPath, overview, files) {
 // Python type-hint posture (P1)
 // ---------------------------------------------------------------------------
 
+// Read the declared pyright `typeCheckingMode` from `[tool.pyright]` in
+// pyproject.toml or from pyrightconfig.json. Bounded raw-text scan; the value
+// is emitted as a token fact (never source text beyond the mode identifier).
+function readPyrightMode(repoPath) {
+  const pyprojectText = readContent(join(repoPath, 'pyproject.toml'));
+  if (pyprojectText != null) {
+    const header = pyprojectText.match(/^\s*\[tool\.pyright\]\s*$/m);
+    if (header) {
+      const body = pyprojectText.slice(header.index + header[0].length).split(/\r?\n/);
+      for (const line of body) {
+        if (/^\s*\[/.test(line)) break;
+        const kv = line.match(/^\s*typeCheckingMode\s*=\s*["']?([A-Za-z0-9_-]+)/);
+        if (kv) return kv[1];
+      }
+    }
+  }
+  const pyrightConfig = readJSON(join(repoPath, 'pyrightconfig.json'));
+  if (pyrightConfig && typeof pyrightConfig.typeCheckingMode === 'string') {
+    return pyrightConfig.typeCheckingMode;
+  }
+  return null;
+}
+
 function detectPythonTypeHints(repoPath, overview, files) {
   const { all } = resolveEcosystems(repoPath, overview);
   if (!all.includes('python')) return null;
   const desc = descriptorFor('python');
-  const subset = filterByExt(files, desc.extensions).slice(0, 60);
+  const production = productionSourceFiles(files, overview);
+  const subset = filterByExt(production, desc.extensions);
 
   let totalDefs = 0;
   let annotatedDefs = 0; // defs with a return annotation `-> T`
@@ -547,9 +616,30 @@ function detectPythonTypeHints(repoPath, overview, files) {
     }
   }
 
-  if (totalDefs === 0) return { totalDefs, annotatedDefs, paramAnnotated, ratio: 0, futureAnnotations };
+  const pyrightTypeCheckingMode = readPyrightMode(repoPath);
+  if (totalDefs === 0) {
+    return {
+      totalDefs,
+      annotatedDefs,
+      paramAnnotated,
+      ratio: 0,
+      futureAnnotations,
+      sourceFiles: subset.length,
+      pyrightTypeCheckingMode,
+      pyrightStrict: pyrightTypeCheckingMode === 'strict',
+    };
+  }
   const ratio = parseFloat(((annotatedDefs / totalDefs) * 100).toFixed(1));
-  return { totalDefs, annotatedDefs, paramAnnotated, ratio, futureAnnotations };
+  return {
+    totalDefs,
+    annotatedDefs,
+    paramAnnotated,
+    ratio,
+    futureAnnotations,
+    sourceFiles: subset.length,
+    pyrightTypeCheckingMode,
+    pyrightStrict: pyrightTypeCheckingMode === 'strict',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -728,16 +818,41 @@ function estimateCommentDensity(repoPath, overview, files) {
 
 // P0-4 (Python): a docstring is the FIRST statement of the function/class body,
 // i.e. it comes AFTER the declaration. Look FORWARD into the body for the first
-// deeper-indented line and check whether it is a string literal.
+// deeper-indented statement (skipping signature continuation lines, blank lines
+// and comments) and check whether it is a string literal. Signature
+// continuation is tracked via parenthesis depth so multi-line signatures are
+// handled like the AST (a docstring after a multi-line signature is counted).
+function parenDeltaOf(line) {
+  let delta = 0;
+  for (const ch of line) {
+    if (ch === '(' || ch === '[' || ch === '{') delta++;
+    else if (ch === ')' || ch === ']' || ch === '}') delta--;
+  }
+  return delta;
+}
+
 function pyHasDocstring(lines, i) {
   const indentOf = (s) => (s.match(/^[ \t]*/) || [''])[0].length;
   const defIndent = indentOf(lines[i]);
   const re = /^[rbuRBUf]{0,2}("""|''')/;
+  let depth = parenDeltaOf(lines[i]);
+  let awaitingBody = depth <= 0;
   for (let j = i + 1; j < lines.length; j++) {
     const line = lines[j];
     if (line.trim() === '') continue;
     const indent = indentOf(line);
-    if (indent <= defIndent) break; // body ended (dedent to same/outer level)
+    depth += parenDeltaOf(line);
+    if (depth < 0) depth = 0;
+    if (depth > 0) {
+      awaitingBody = false; // still inside a multi-line signature
+      continue;
+    }
+    if (indent <= defIndent && awaitingBody) return false; // body ended
+    if (!awaitingBody) {
+      awaitingBody = true; // signature closed on this line
+      continue;
+    }
+    if (/^\s*#/.test(line)) continue; // comments precede the first statement
     return re.test(line.trim());
   }
   return false;
@@ -770,10 +885,11 @@ function rustDocPreceding(lines, i) {
 
 function detectDocstrings(repoPath, overview, files) {
   const languages = overview?.languages || [];
+  const production = productionSourceFiles(files, overview);
   const result = { patterns: {}, coverage: {}, samples: [] };
 
   if (languages.includes('JavaScript') || languages.includes('TypeScript')) {
-    const jsFiles = filterByExt(files, ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.mts', '.cts']).slice(0, 30);
+    const jsFiles = filterByExt(production, ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.mts', '.cts']);
 
     let exportsTotal = 0;
     let exportsDocumented = 0;
@@ -803,13 +919,14 @@ function detectDocstrings(repoPath, overview, files) {
     if (exportsTotal > 0) {
       const pct = ((exportsDocumented / exportsTotal) * 100).toFixed(0);
       result.patterns['JavaScript/TypeScript'] = 'JSDoc (/** ... */)';
-      result.coverage['JavaScript/TypeScript'] = `${pct}% (${exportsDocumented}/${exportsTotal} exports documented)`;
+      result.coverage['JavaScript/TypeScript'] =
+        `${pct}% (${exportsDocumented}/${exportsTotal} exports documented in production source)`;
       result.samples = result.samples.concat(jsdocSamples.map((s) => ({ ...s, language: 'JS/TS' })));
     }
   }
 
   if (languages.includes('Python')) {
-    const pyFiles = filterByExt(files, ['.py', '.pyi']).slice(0, 30);
+    const pyFiles = filterByExt(production, ['.py', '.pyi']);
 
     let funcsTotal = 0;
     let funcsDocumented = 0;
@@ -821,6 +938,10 @@ function detectDocstrings(repoPath, overview, files) {
       const lines = content.split('\n');
       for (let i = 0; i < lines.length; i++) {
         if (/^\s*(?:async\s+)?def\s+\w+/.test(lines[i]) || /^\s*class\s+\w+/.test(lines[i])) {
+          // `__init__` constructors and magic (dunder) methods are deliberately
+          // exempt from the docstring requirement (P0-3 conventions).
+          const defName = lines[i].match(/(?:def|class)\s+(\w+)/)?.[1] || '';
+          if (defName === '__init__' || /^__\w+__$/.test(defName)) continue;
           funcsTotal++;
           if (pyHasDocstring(lines, i)) {
             funcsDocumented++;
@@ -838,13 +959,14 @@ function detectDocstrings(repoPath, overview, files) {
     if (funcsTotal > 0) {
       const pct = ((funcsDocumented / funcsTotal) * 100).toFixed(0);
       result.patterns['Python'] = 'Docstrings (PEP 257)';
-      result.coverage['Python'] = `${pct}% (${funcsDocumented}/${funcsTotal} functions documented)`;
+      result.coverage['Python'] =
+        `${pct}% (${funcsDocumented}/${funcsTotal} functions documented in production source; tests, __init__ and magic methods exempt)`;
       result.samples = result.samples.concat(pySamples.map((s) => ({ ...s, language: 'Python' })));
     }
   }
 
   if (languages.includes('Rust')) {
-    const rsFiles = filterByExt(files, ['.rs']).slice(0, 30);
+    const rsFiles = filterByExt(production, ['.rs']);
 
     let itemsTotal = 0;
     let itemsDocumented = 0;
@@ -873,13 +995,13 @@ function detectDocstrings(repoPath, overview, files) {
     if (itemsTotal > 0) {
       const pct = ((itemsDocumented / itemsTotal) * 100).toFixed(0);
       result.patterns['Rust'] = 'Rustdoc (/// ...)';
-      result.coverage['Rust'] = `${pct}% (${itemsDocumented}/${itemsTotal} items documented)`;
+      result.coverage['Rust'] = `${pct}% (${itemsDocumented}/${itemsTotal} items documented in production source)`;
       result.samples = result.samples.concat(rsSamples.map((s) => ({ ...s, language: 'Rust' })));
     }
   }
 
   if (languages.includes('Go')) {
-    const goFiles = filterByExt(files, ['.go']).slice(0, 30);
+    const goFiles = filterByExt(production, ['.go']);
 
     let exportsTotal = 0;
     let exportsDocumented = 0;
@@ -908,7 +1030,7 @@ function detectDocstrings(repoPath, overview, files) {
     if (exportsTotal > 0) {
       const pct = ((exportsDocumented / exportsTotal) * 100).toFixed(0);
       result.patterns['Go'] = 'GoDoc (// comment before declaration)';
-      result.coverage['Go'] = `${pct}% (${exportsDocumented}/${exportsTotal} exports documented)`;
+      result.coverage['Go'] = `${pct}% (${exportsDocumented}/${exportsTotal} exports documented in production source)`;
       result.samples = result.samples.concat(goSamples.map((s) => ({ ...s, language: 'Go' })));
     }
   }

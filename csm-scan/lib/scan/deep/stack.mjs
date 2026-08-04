@@ -17,6 +17,7 @@ import { commandBroker } from '../shared/command.mjs';
 import { DESCRIPTORS, detectEcosystems, descriptorFor } from '../shared/ecosystem.mjs';
 import { readManifest } from '../shared/manifest.mjs';
 import { extractDeclarations } from '../shared/declarations.mjs';
+import { parseToml } from '../shared/parse.mjs';
 
 // Lockfile basename -> package manager name. Cross-referenced against each
 // descriptor's `lockfiles` list so detection stays ecosystem-driven.
@@ -64,6 +65,77 @@ function readJSON(path) {
   } catch {
     return null;
   }
+}
+
+function readToml(repoPath, file) {
+  try {
+    return parseToml(readFileSync(join(repoPath, file), 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+// Parse a PEP 508 dependency spec like "pytest>=8.0" or
+// "atheris>=3.1.0; sys_platform == 'linux'". Returns {name, spec} or null.
+function parsePythonDependency(spec) {
+  if (typeof spec !== 'string') return null;
+  let s = spec;
+  const semi = s.indexOf(';');
+  if (semi !== -1) s = s.slice(0, semi); // drop environment marker
+  s = s.trim();
+  const m = s.match(/^([A-Za-z0-9_.-]+)/);
+  if (!m) return null;
+  const name = m[1];
+  const rest = s.slice(name.length).trim();
+  return { name, spec: rest };
+}
+
+// Optional-dependencies groups from pyproject.toml `[project.optional-dependencies]`.
+// Returns a group-keyed map in declaration order: { dev: { pytest: '>=8.0', ... } }.
+// The shared manifest flattens optional deps into `optionalDeps`, losing the
+// group names, so the raw TOML is read here to preserve them.
+function collectOptionalGroups(repoPath) {
+  const pp = readToml(repoPath, 'pyproject.toml');
+  const table = pp && pp.project && pp.project['optional-dependencies'];
+  if (!table || typeof table !== 'object') return {};
+  const groups = {};
+  for (const group of Object.keys(table)) {
+    const list = table[group];
+    if (!Array.isArray(list)) continue;
+    const entries = {};
+    for (const spec of list) {
+      const parsed = parsePythonDependency(spec);
+      if (parsed) entries[parsed.name] = parsed.spec;
+    }
+    groups[group] = entries;
+  }
+  return groups;
+}
+
+// Merge `devDependencies` and every optional group into a single list of dev
+// tools, deduped by package name with merged provenance. Declaration order is
+// preserved: devDependencies first, then optional groups in their own order.
+// The first-seen spec wins (devDependencies outranks optional groups).
+function mergeDevTools(devDeps, optionalGroups) {
+  const entries = [];
+  const byName = new Map();
+  const add = (name, spec, source) => {
+    let entry = byName.get(name);
+    if (!entry) {
+      entry = { name, spec: null, sources: [] };
+      byName.set(name, entry);
+      entries.push(entry);
+    }
+    if (entry.spec === null && spec !== null && spec !== undefined) entry.spec = spec;
+    if (!entry.sources.includes(source)) entry.sources.push(source);
+  };
+  for (const name of Object.keys(devDeps)) add(name, devDeps[name], 'devDependencies');
+  for (const group of Object.keys(optionalGroups)) {
+    for (const name of Object.keys(optionalGroups[group])) {
+      add(name, optionalGroups[group][name], `optionalDependencies:${group}`);
+    }
+  }
+  return entries;
 }
 
 function hasAnyFile(repoPath, names) {
@@ -308,6 +380,9 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const deps = (manifest && manifest.dependencies) || {};
   const devDeps = (manifest && manifest.devDependencies) || {};
 
+  const optionalGroups = collectOptionalGroups(repoPath);
+  const devTools = mergeDevTools(devDeps, optionalGroups);
+
   const language = deriveLanguage(ecosystems, manifest, ov.languages);
   const packageManager = derivePackageManager(ov, repoPath, ecosystems);
 
@@ -411,6 +486,8 @@ export async function scan(repoPath, overview, broker = commandBroker) {
       keyDevDeps,
       deps,
       devDeps,
+      optionalDeps: optionalGroups,
+      devTools,
       scripts,
       docker: hasDocker,
       ci: hasCI,

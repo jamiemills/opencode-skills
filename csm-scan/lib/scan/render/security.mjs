@@ -11,17 +11,29 @@ export function renderSecurity(_repoName, findings, context = DEFAULT_RENDER_CON
     lines.push(`- **Secret pattern matches**: ${findings.secrets.count} type(s) detected`);
     if (findings.secrets.count > 0) {
       for (const s of findings.secrets.findings) {
-        lines.push(`  - **${escapeField(s.pattern)}**: ${s.totalFiles} file(s) (e.g. \`${escapeField(s.files[0] || 'unknown')}\`)`);
+        const allowlisted = s && s.fixtureAllowlisted ? ' (fixture-allowlisted)' : '';
+        lines.push(`  - **${escapeField(s.pattern)}**: ${s.totalFiles} file(s) (e.g. \`${escapeField(s.files[0] || 'unknown')}\`)${allowlisted}`);
       }
     }
   }
 
   if (findings.auth) {
-    lines.push(`- **Authentication**: ${findings.auth.detected ? findings.auth.frameworks.map((f) => f.label).join(', ') : 'no framework detected'}`);
-    if (findings.auth.detected && findings.auth.frameworks.length > 0) {
-      for (const f of findings.auth.frameworks) {
-        lines.push(`  - \`${escapeField(f.package)}\` → ${escapeField(f.label)}`);
+    const firstParty = findings.auth.firstParty;
+    const firstPartyClusters = firstParty && firstParty.detected ? firstParty.clusters.join(', ') : '';
+    if (findings.auth.detected) {
+      lines.push(`- **Authentication**: ${findings.auth.frameworks.map((f) => f.label).join(', ')}`);
+      if (findings.auth.frameworks.length > 0) {
+        for (const f of findings.auth.frameworks) {
+          lines.push(`  - \`${escapeField(f.package)}\` → ${escapeField(f.label)}`);
+        }
       }
+      if (firstPartyClusters) {
+        lines.push(`  - First-party auth subsystem: ${escapeField(firstPartyClusters)}`);
+      }
+    } else if (firstPartyClusters) {
+      lines.push(`- **Authentication**: no third-party auth library; first-party auth subsystem present (${escapeField(firstPartyClusters)})`);
+    } else {
+      lines.push('- **Authentication**: no framework detected');
     }
   }
 
@@ -64,8 +76,41 @@ export function renderSecurity(_repoName, findings, context = DEFAULT_RENDER_CON
   if (findings.hasLockfile !== undefined) {
     lines.push(`- **Lockfile**: ${findings.hasLockfile ? 'present' : 'not found'}`);
   }
-  if (findings.dependabot !== undefined) {
+  if (findings.dependabotEvidence && typeof findings.dependabotEvidence === 'object') {
+    const evidence = findings.dependabotEvidence;
+    const status = evidence.status;
+    if (status === 'configured') {
+      lines.push('- **Dependabot**: configured');
+    } else if (status === 'inferred') {
+      lines.push('- **Dependabot**: not configured (no .github/dependabot.yml); dependabot/* branches present');
+      if (Array.isArray(evidence.branches) && evidence.branches.length > 0) {
+        const shown = evidence.branches.slice(0, 5).map((b) => `\`${escapeField(b)}\``).join(', ');
+        lines.push(`  - Branch evidence: ${shown}${evidence.branchCount > 5 ? ` (+${evidence.branchCount - 5} more)` : ''}`);
+      }
+    } else if (status === 'unverified') {
+      lines.push('- **Dependabot**: not configured (branch evidence unverified)');
+    } else {
+      lines.push('- **Dependabot**: not configured');
+    }
+  } else if (findings.dependabot !== undefined) {
     lines.push(`- **Dependabot**: ${findings.dependabot ? 'configured' : 'not configured'}`);
+  }
+
+  if (findings.gitleaks && typeof findings.gitleaks === 'object') {
+    const g = findings.gitleaks;
+    if (g.configPresent || g.ignorePresent) {
+      const parts = [];
+      if (g.configPresent) {
+        parts.push(`.gitleaks.toml present (${g.allowlistPathCount} allowlisted path(s), ${g.stopwordCount} stopword(s))`);
+      }
+      if (g.ignorePresent) {
+        parts.push(`.gitleaksignore present (${g.ignoreEntryCount} entr${g.ignoreEntryCount === 1 ? 'y' : 'ies'})`);
+      }
+      lines.push(`- **Gitleaks context**: ${parts.join('; ')}`);
+      if (Array.isArray(g.fixtureAllowlisted) && g.fixtureAllowlisted.length > 0) {
+        lines.push(`  - Fixture-allowlisted pattern(s): ${escapeField(g.fixtureAllowlisted.join(', '))} (inferred)`);
+      }
+    }
   }
   if (Array.isArray(findings.securityTools) && findings.securityTools.length) {
     lines.push(`- **Security tooling**: ${escapeField(findings.securityTools.join(', '))}`);

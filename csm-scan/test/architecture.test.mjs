@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { withFixture, surveyOverview } from './harness.mjs';
 import { scan } from '../lib/scan/deep/architecture.mjs';
+import { renderArchitecture } from '../lib/scan/render/architecture.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
@@ -260,5 +261,142 @@ test('architecture: negative case — no false edges mixing external + internal 
       ['src/internal.ts'],
       `only the internal runtime import should produce an edge; got ${JSON.stringify(fromApp)}`,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T004: canonical declared-layer model (quality/architecture.toml)
+// ---------------------------------------------------------------------------
+
+const CANONICAL_TOML = [
+  '[schema]',
+  'version = 1',
+  '',
+  '[[layers]]',
+  'name = "shared_pure"',
+  'allowed_deps = ["shared_pure"]',
+  'modules = ["utils.exceptions", "utils.version"]',
+  '',
+  '[[layers]]',
+  'name = "domain"',
+  'allowed_deps = ["shared_pure", "domain"]',
+  'modules = ["models"]',
+  '',
+  '[[layers]]',
+  'name = "ports"',
+  'allowed_deps = ["shared_pure", "domain", "ports"]',
+  'modules = ["contracts", "contracts.query", "ports"]',
+  '',
+  '[[layers]]',
+  'name = "application"',
+  'allowed_deps = ["shared_pure", "domain", "ports", "application"]',
+  'modules = ["loader"]',
+  '',
+  '[[layers]]',
+  'name = "adapter"',
+  'allowed_deps = ["shared_pure", "domain", "ports", "adapter"]',
+  'modules = ["api.app", "api.client"]',
+  '',
+  '[[layers]]',
+  'name = "presentation"',
+  'allowed_deps = ["shared_pure", "domain", "ports", "application", "presentation", "adapter"]',
+  'modules = ["commands", "formatting"]',
+  '',
+  '[[layers]]',
+  'name = "composition_root"',
+  'allowed_deps = ["shared_pure", "domain", "ports", "application", "adapter", "presentation", "composition_root"]',
+  'modules = ["cli"]',
+  '',
+  '[[adapter_independence]]',
+  'name = "api_adapter"',
+  'modules = ["api.app", "api.client"]',
+  'may_import_from = ["shared_pure", "domain", "ports"]',
+  '',
+  '[[composition_roots]]',
+  'modules = ["cli"]',
+  '',
+].join('\n');
+
+const CANONICAL_FILES = {
+  'pyproject.toml': `[project]\nname = "canonical-py"\nversion = "0.1.0"\nrequires-python = ">=3.10"\n`,
+  'src/models.py': 'class Model:\n    pass\n',
+  'src/loader.py': 'X = 1\n',
+  'src/cli.py': [
+    'def _wire_query_runner_seam(name, collaborator):',
+    '    if getattr(query_runner, name) is None:',
+    '        setattr(query_runner, name, collaborator)',
+    '',
+    '_wire_query_runner_seam("handle_error", handle_error)',
+    '_wire_query_runner_seam("get_logger", get_logger)',
+    '',
+  ].join('\n'),
+  'quality/architecture.toml': CANONICAL_TOML,
+};
+
+test('architecture: canonical layer model parsed from quality/architecture.toml with exact counts and seam wiring', async () => {
+  await withFixture('arch-canonical-scan', CANONICAL_FILES, async (dir) => {
+    const r = await scan(dir);
+    assert.ok(r.findings.canonical, 'canonical model must be present in findings');
+    assert.equal(r.findings.canonical.source, 'quality/architecture.toml');
+    assert.equal(r.findings.canonical.layers.length, 7);
+    const byName = Object.fromEntries(
+      r.findings.canonical.layers.map((layer) => [layer.name, layer]),
+    );
+    assert.equal(byName.shared_pure.moduleCount, 2);
+    assert.deepEqual(byName.shared_pure.allowedDeps, ['shared_pure']);
+    assert.deepEqual(byName.shared_pure.modules, ['utils.exceptions', 'utils.version']);
+    assert.equal(byName.domain.moduleCount, 1);
+    assert.equal(byName.ports.moduleCount, 3);
+    assert.equal(byName.application.moduleCount, 1);
+    assert.equal(byName.adapter.moduleCount, 2);
+    assert.equal(byName.presentation.moduleCount, 2);
+    assert.equal(byName.composition_root.moduleCount, 1);
+    assert.equal(r.findings.canonical.adapterIndependence.length, 1);
+    assert.deepEqual(r.findings.canonical.adapterIndependence[0].name, 'api_adapter');
+    assert.deepEqual(r.findings.canonical.compositionRoots.modules, ['cli']);
+    assert.ok(r.findings.canonical.seamWirings.length >= 2, 'seam wirings detected in the composition root');
+    const wiring = r.findings.canonical.seamWirings[0];
+    assert.equal(wiring.file, 'src/cli.py');
+    assert.equal(wiring.seam, 'query_runner');
+    assert.ok(wiring.attribute.length > 0);
+  });
+});
+
+test('architecture: canonical render is primary, shows exact counts, and labels the heuristic section', async () => {
+  await withFixture('arch-canonical-render', CANONICAL_FILES, async (dir) => {
+    const r = await scan(dir);
+    const markdown = renderArchitecture('repo', r.findings);
+    assert.ok(markdown.includes('### Canonical Layer Model — declared layer model'),
+      'the canonical section must render as primary');
+    assert.ok(markdown.includes('| shared_pure | shared_pure | 2 |'),
+      'the canonical table must carry the exact shared_pure count');
+    assert.ok(markdown.includes('| ports | shared_pure, domain, ports | 3 |'),
+      'the canonical table must carry the exact ports count');
+    assert.ok(markdown.includes('**Adapter independence groups** — 1 group(s):'),
+      'the adapter-independence groups must render');
+    assert.ok(markdown.includes('**Composition roots** — 1 declared module(s):'),
+      'the composition-root fact must render');
+    assert.ok(markdown.includes('**Seam wiring** — 2 assignment(s):'),
+      'the seam-wiring fact must render');
+    assert.ok(markdown.includes('### Module Graph (heuristic — import-derived)'),
+      'the heuristic module graph must be labelled heuristic');
+    assert.ok(markdown.includes('### Layer Breakdown (heuristic — import-derived)'),
+      'the heuristic layer breakdown must be labelled heuristic');
+    assert.ok(markdown.includes('### C4 — System Context (heuristic — import-derived)'),
+      'the heuristic C4 diagram must be labelled heuristic');
+  });
+});
+
+test('architecture: heuristic render is unchanged when no architecture.toml exists', async () => {
+  const files = { ...CANONICAL_FILES };
+  delete files['quality/architecture.toml'];
+  await withFixture('arch-heuristic-only', files, async (dir) => {
+    const r = await scan(dir);
+    assert.equal('canonical' in r.findings, false, 'no canonical key when the artifact is absent');
+    const markdown = renderArchitecture('repo', r.findings);
+    assert.ok(markdown.includes('### Module Graph'), 'the heuristic module graph must render');
+    assert.ok(markdown.includes('### Layer Breakdown'), 'the heuristic layer breakdown must render');
+    assert.ok(!markdown.includes('heuristic — import-derived'), 'the legacy render must not be relabelled');
+    assert.ok(!markdown.includes('Canonical Layer Model'), 'no canonical section when the artifact is absent');
   });
 });

@@ -59,6 +59,80 @@ export function renderOperations(_repoName, findings, context = DEFAULT_RENDER_C
         if (ci.triggers.length > 0) {
           lines.push(`  - Triggers: ${escapeField(ci.triggers.join(', '))}`);
         }
+        if (ci.workflows && ci.workflows.length > 0) {
+          lines.push('  - Workflows:');
+          for (const workflow of ci.workflows) {
+            const title = workflow.name ? `${workflow.file} (${workflow.name})` : workflow.file;
+            lines.push(`    - **\`${escapeField(title)}\`**`);
+            if (workflow.triggers && workflow.triggers.length > 0) {
+              lines.push(`      - Triggers: ${escapeField(workflow.triggers.join(', '))}`);
+            }
+            if (workflow.permissions && Object.keys(workflow.permissions).length > 0) {
+              const perms = Object.entries(workflow.permissions)
+                .map(([scope, value]) => `\`${escapeField(scope)}: ${escapeField(value)}\``)
+                .join(', ');
+              lines.push(`      - Permissions: ${perms}`);
+            }
+            if (workflow.concurrency) {
+              const conc = [];
+              if (workflow.concurrency.group) conc.push(`group \`${escapeField(workflow.concurrency.group)}\``);
+              if (workflow.concurrency.cancelInProgress !== null) {
+                conc.push(`cancel-in-progress: ${workflow.concurrency.cancelInProgress}`);
+              }
+              if (conc.length > 0) lines.push(`      - Concurrency: ${conc.join('; ')}`);
+            }
+            if (workflow.jobs && workflow.jobs.length > 0) {
+              lines.push('      - Jobs:');
+              for (const job of workflow.jobs) {
+                lines.push(`        - \`${escapeField(job.id)}\`:`);
+                if (job.name) lines.push(`          - name: ${escapeField(job.name)}`);
+                if (job.runsOn && job.runsOn.length > 0) {
+                  const labels = job.runsOn.map((label) => `\`${escapeField(label)}\``).join(', ');
+                  lines.push(`          - runs-on: ${labels}`);
+                }
+                if (job.needs && job.needs.length > 0) {
+                  const needs = job.needs.map((n) => `\`${escapeField(n)}\``).join(', ');
+                  lines.push(`          - needs: ${needs}`);
+                }
+                if (job.if) lines.push(`          - if: \`${escapeField(job.if)}\``);
+                if (job.continueOnError !== null) lines.push(`          - continue-on-error: ${job.continueOnError}`);
+                if (job.matrix) {
+                  const rows = Object.entries(job.matrix)
+                    .map(([dim, values]) => `${escapeField(dim)}: ${values.map((v) => `\`${escapeField(v)}\``).join(', ')}`)
+                    .join('; ');
+                  lines.push(`          - matrix: ${rows}`);
+                }
+                if (job.failFast !== null) lines.push(`          - fail-fast: ${job.failFast}`);
+                if (job.permissions && Object.keys(job.permissions).length > 0) {
+                  const perms = Object.entries(job.permissions)
+                    .map(([scope, value]) => `\`${escapeField(scope)}: ${escapeField(value)}\``)
+                    .join(', ');
+                  lines.push(`          - permissions: ${perms}`);
+                }
+              }
+            }
+            if (workflow.pins && workflow.pins.length > 0) {
+              lines.push('      - Action pins:');
+              for (const pin of workflow.pins) {
+                const ref = pin.sha ? `\`${escapeField(pin.sha)}\`` : `\`${escapeField(pin.ref)}\``;
+                const version = pin.version ? ` (# ${pin.version})` : '';
+                lines.push(`        - \`${escapeField(pin.action)}\` @ ${ref}${version}`);
+              }
+            }
+            if (workflow.escalatedScopes && workflow.escalatedScopes.length > 0) {
+              const scopes = workflow.escalatedScopes.map((token) => `\`${escapeField(token)}\``).join(', ');
+              lines.push(`      - Escalated permissions: ${scopes}`);
+            }
+            if (workflow.releasePipeline) {
+              const facts = [
+                `oidc: ${workflow.releasePipeline.oidc}`,
+                `skip-existing: ${workflow.releasePipeline.skipExisting}`,
+                `triple-match: ${workflow.releasePipeline.tripleMatch}`,
+              ];
+              lines.push(`      - Release pipeline: ${facts.join('; ')}`);
+            }
+          }
+        }
       } else if (ci.platform === 'GitLab CI') {
         lines.push(`- **${escapeField(ci.platform)}**: stages ${escapeField((ci.stages || []).join(', ') || 'unknown')}`);
       } else {

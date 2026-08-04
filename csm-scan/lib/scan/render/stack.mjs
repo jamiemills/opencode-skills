@@ -33,12 +33,21 @@ export function renderStack(repoName, findings, context = DEFAULT_RENDER_CONTEXT
     }
     lines.push('');
   }
-  if (findings.keyDevDeps && findings.keyDevDeps.length > 0) {
+  const devTools = findings.devTools && findings.devTools.length > 0
+    ? findings.devTools
+    : findings.keyDevDeps
+      ? findings.keyDevDeps.map((name) => ({ name, spec: findings.devDeps[name] || null, sources: ['devDependencies'] }))
+      : null;
+  if (devTools && devTools.length > 0) {
     lines.push('### Dev Dependencies');
     lines.push('');
-    for (const dep of findings.keyDevDeps) {
-      const ver = findings.devDeps[dep] || '—';
-      lines.push(`- \`${escapeField(dep)}\` — ${escapeField(ver)}`);
+    for (const tool of devTools) {
+      const spec = tool.spec || '—';
+      const extras = tool.sources
+        .filter((source) => source.startsWith('optionalDependencies:'))
+        .map((source) => source.slice('optionalDependencies:'.length));
+      const suffix = extras.length > 0 ? ` (extra: ${extras.join(', ')})` : '';
+      lines.push(`- \`${escapeField(tool.name)}\` — ${escapeField(spec)}${suffix}`);
     }
     lines.push('');
   }

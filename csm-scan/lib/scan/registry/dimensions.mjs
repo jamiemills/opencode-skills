@@ -149,6 +149,7 @@ const DIMENSION_SOURCES = Object.freeze([
       'CLM-architecture-module-v1',
       'CLM-architecture-coupling-v1',
       'CLM-architecture-solid-indicators-v1',
+      'CLM-architecture-layer-model-v1',
     ]),
   },
   {

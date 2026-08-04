@@ -74,6 +74,18 @@ function extensionOf(path) {
 }
 
 /**
+ * Whether a repository-relative path is excluded from data-source extraction
+ * because it lives under a test or fixture directory. Test and fixture trees
+ * hold assertions and sample data, never production data architecture.
+ * @param {string} path
+ * @returns {boolean} true for a `tests/` path segment or any `fixtures/` path
+ *   segment.
+ */
+function isExcludedDataPath(path) {
+  return /(?:^|\/)tests\//.test(path) || /(?:^|\/)fixtures\//.test(path);
+}
+
+/**
  * Classify a repository-relative path for data extraction.
  * @param {string} path
  * @returns {object} `{ kind, format, ecosystem }` where kind is one of
@@ -872,7 +884,7 @@ function pythonClassBlocks(text) {
   let index = 0;
   while (index < lines.length) {
     const line = lines[index];
-    const header = line.match(/^class\s+([A-Za-z_]\w*)\s*(?:\([^)]*\))?\s*:\s*(?:#.*)?$/);
+    const header = line.match(/^class\s+([A-Za-z_]\w*)\s*(?:\(([^)]*)\))?\s*:\s*(?:#.*)?$/);
     if (!header) { index++; continue; }
     const indent = line.match(/^ */)[0].length;
     const body = [];
@@ -890,12 +902,24 @@ function pythonClassBlocks(text) {
     }
     blocks.push({
       name: header[1],
+      base: (header[2] ?? '').trim(),
       startLine: index + 1,
       body: body.join('\n'),
     });
     index = cursor;
   }
   return blocks;
+}
+
+function hasDjangoImport(source) {
+  return /^\s*(?:from\s+django(?:\.[A-Za-z_]\w*)*\s+import\s+[\w., ]*\bmodels\b|import\s+django(?:\.[A-Za-z_]\w*)*)/m.test(source);
+}
+
+function djangoModelSignals(baseClasses, body, source) {
+  const inheritsModel = /(?:^|[\s,])(?:models\.Model|django\.db\.models\.Model)(?:\s*[,)]|$)/.test(baseClasses);
+  if (inheritsModel) return true;
+  const hasFieldAssignment = /^\s*[A-Za-z_]\w*\s*=\s*models\.[A-Za-z_]\w*(?:Field)?\s*\(/m.test(body);
+  return hasFieldAssignment && hasDjangoImport(source);
 }
 
 function findCallArgsFrom(text, tokenIndex) {
@@ -1017,7 +1041,7 @@ function extractPythonModels(text, path) {
   for (const block of pythonClassBlocks(source)) {
     const classLine = block.startLine;
     const tableMatch = block.body.match(/^\s*__tablename__\s*=\s*['"]([^'"]+)['"]/m);
-    const isDjango = /\bmodels\.[A-Za-z_]\w*(?:Field)?\b/.test(block.body);
+    const isDjango = djangoModelSignals(block.base, block.body, source);
     const isSqlAlchemy = tableMatch !== null || /\bColumn\s*\(/.test(block.body);
     if (!isDjango && !isSqlAlchemy) continue;
 
@@ -1510,6 +1534,10 @@ export function extractDataArtifact({ path, text, value, format, ecosystem }) {
   const migration = migrationKindOf(path);
   const source = String(text ?? '');
   const other = { records: [], edges: [], diagnostics: [diagnostic(path, 'unsupported', 'UNSUPPORTED')], capped: {} };
+
+  if (isExcludedDataPath(path)) {
+    return { records: [], edges: [], diagnostics: [], capped: {} };
+  }
 
   if (migration !== null) {
     if (migration === 'django') return boundedCollections(extractDjangoMigration(source, path), path);

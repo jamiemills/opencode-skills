@@ -513,8 +513,8 @@ test('T224 expected-claim coverage counts registry-owned claims with N/A exclude
     });
     const coverage = result.expectedClaimCoverage;
     const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-    assert.equal(registryClaims, 93);
-    assert.equal(coverage.expected, 93);
+    assert.equal(registryClaims, 94);
+    assert.equal(coverage.expected, 94);
     assert.equal(
       coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
       coverage.expected,

@@ -27,7 +27,7 @@
       ],
       "replacement": {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "549931885a8c9012300f777c930fe0e2ec393d9f80ccd7faf1d91b2e6302e2ad",
+        "testFileSha256": "e544184447ba60a8207dfb0a024337eb332ffa5dfdfd9173a4859edffcfb45e0",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       }
     },
@@ -41,7 +41,7 @@
       ],
       "replacement": {
         "testFile": "test/expansion-constraints.test.mjs",
-        "testFileSha256": "f68c2164c72e426c4543565f7c9470867bf0c207c50e575d209b8802c41ffbd1",
+        "testFileSha256": "43919aa71f2e94bdeb00a19f0a25d4606c13d2912968ffb7435c1a7a0448c234",
         "testName": "T202 replacement: free-form applicability rules yield not_applicable git claims excluded from coverage"
       }
     },
@@ -57,7 +57,7 @@
       ],
       "replacement": {
         "testFile": "test/expansion-constraints.test.mjs",
-        "testFileSha256": "f68c2164c72e426c4543565f7c9470867bf0c207c50e575d209b8802c41ffbd1",
+        "testFileSha256": "43919aa71f2e94bdeb00a19f0a25d4606c13d2912968ffb7435c1a7a0448c234",
         "testName": "T202 replacement: coverage status representation maps claim statuses to coverage states"
       }
     },

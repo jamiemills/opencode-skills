@@ -47,6 +47,7 @@ import {
   tarjanStronglyConnectedComponents,
 } from './architecture/graph-facts.mjs';
 import { detectDynamicIndicators } from './architecture/indicators.mjs';
+import { scanCanonicalLayerModel } from './architecture/canonical.mjs';
 
 // ---------------------------------------------------------------------------
 // Low-level helpers
@@ -1273,6 +1274,10 @@ export async function scan(repoPath, overview) {
   const c4Component = generateC4Component(repoName, layers);
   const c4Code = generateC4Code(repoName, layers);
   const importContracts = readImportContracts(repoPath);
+  const canonical = scanCanonicalLayerModel(repoPath, {
+    pkgRoot: ctx.pkgRoot,
+    entrypointFiles,
+  });
 
   const totalEdges = Object.values(graph).reduce((sum, deps) => sum + deps.length, 0);
   const signal = totalEdges > 20 ? 'high' : totalEdges > 0 ? 'medium' : 'low';
@@ -1290,6 +1295,7 @@ export async function scan(repoPath, overview) {
       c4Code,
       importGraph: { graph, reverseGraph },
       ...(importContracts ? { importContracts } : {}),
+      ...(canonical ? { canonical } : {}),
     },
   };
 }
