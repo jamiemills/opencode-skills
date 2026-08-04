@@ -9,11 +9,11 @@
 - Plan ID: csm-scan-norms-feedback
 - Status: in_progress
 - Current CSM state: SELECT
-- Cycle: 4
+- Cycle: 5
 - Commits: allowed
-- Last checkpoint: 2026-08-03 — cycle 3 complete: G3 wave (11 tasks) implemented, integrated, independently reviewed (APPROVE-WITH-CHANGES, 5 minor findings, 4 resolved/recorded), suite 1172/1192 with exactly the 20 T014-owned baseline failures
-- Next transition: SELECT -> DISPATCH (T006 practices/content, G4)
-- Active tasks: T001–T005, T007–T013, T015 completed; ready: T006
+- Last checkpoint: 2026-08-03 — cycle 4 complete: T006 practices/content done + integrated (67/67 acceptance; citation wired; over-escaping fixed; suite 1184/1204 = 20 T014-owned baseline failures)
+- Next transition: SELECT -> DISPATCH (T014 final gate, G5 — single owner)
+- Active tasks: T001–T013, T015 completed; ready: T014
 - Blockers: none
 
 ## Goal
@@ -270,7 +270,7 @@ Critical path: T001 → T002 → (G3 wave) → T006 → T014. Wave ordering (not
    - Repair attempts: 0
    - Recovery note: if the value-channel change breaks the token-safety contract for other gate keys, gate the value channel to allowlist keys and re-run.
 
-6. [pending] Practices dimension: policy-content and agent-workflow extractors
+6. [completed] Practices dimension: policy-content and agent-workflow extractors
    - Task ID: T006
    - Depends on: T003, T005 (merge order: must run after the G3 wave; shares render/practices.mjs and render/conventions.mjs)
    - Parallel group: G4
@@ -546,6 +546,9 @@ Ordered cheapest-first; parallel where independent:
 | 2026-08-03 | 3 | VERIFY | G3 | Full suite on integrated tree: 1192 tests, exactly 20 failures — ALL T014-owned shared baselines (fixture-behavior.json: T020×10, T204×5; renderer.md: T201-fixed-input, T204-default-sink, T205, T223; T224). Every task acceptance suite green. Probe (review-probe.md): 23/23 AC2/AC3 facts present; determinism probe A/B byte-identical; gates green | REVIEW |
 | 2026-08-03 | 3 | REVIEW | G3 | Independent review verdict APPROVE-WITH-CHANGES: claim registry/DR2 clean (zero 93 literals; claim 94/94 ratio 1); ecosystem glob diff exactly one line; digest recomputation matches every baseline entry; no cross-task collisions; minimality ok. 5 findings: F1 [minor] make-targets count/list mismatch (kinds include .PHONY, count excludes) — RESOLVED BY DESIGN: both pre-existing contracts (expansion-practices.test.mjs:948 and expansion-fixtures.test.mjs:584) enforce kinds-completeness; the b10 count fix (94) is intact; F2 [minor] golden comment 146→147 aligned (fixed); F3 [minor] plan-scope overlap fixtures-expansion/python.mjs listed under T004+T007 — recorded, actual edits T004-only; F4 [minor] architecture overview line now explains canonical+heuristic (fixed); F5 [info] console.log debug lines in tests match pre-existing evidence-summary pattern — no action | REPAIR/CHECKPOINT |
 | 2026-08-03 | 3 | CHECKPOINT | G3 | G3 complete. Expected-delta records for T014 consolidated: fixture-behavior.json MUST be regenerated (T003 conventions, T007 testing, T012 documentation, T013 stack, T015 config, T009 security change the 5 fixture pipelines; T004/T005/T008/T010/T011 contribute none — verified per-task); renderer.md MUST be regenerated (T003 conventions prose, T012 comment-ratio label; T013/T015/T008/T009/T005 contribute none); semantic.json unchanged so far (verify at T014). T226/T218/T208/T201 integration fixes applied. Commit cycle 3. | SELECT (T006) |
+| 2026-08-03 | 4 | SELECT/DISPATCH | T006 | T006 dispatched to implementation subagent (practices content extractors: suppression policy, ratchet, mutation policy, methodology, fuzz replay, policy validators, analyser contracts, plugin content/behaviours, npm/vitest toolchain; new lib/scan/deep/practices/content.mjs + model/scanner wiring + renderers + tests) | INTEGRATE |
+| 2026-08-03 | 4 | INTEGRATE/VERIFY | T006 | T006 returned 67/67 acceptance, voice/privacy/determinism green, ZERO baseline deltas. Primary-agent integration: (a) wired enforcedConventionsBlock into deep/conventions.mjs (bounded .opencode/plugins/*.ts probe incl. readdirSync fallback for hidden dirs, sorted for determinism) so the Code Conventions citation renders on the real repo; (b) fixed over-escaping regression from kindTokenList (escapeField escaped leading-dash tokens → `\--exclude` tripped the no-over-escaping gate; tokens now render raw inside backticks — bounded extractor tokens, privacy-safe); (c) citation path rendered unescaped per T006 pattern. Probe: Code Conventions line 319 "Enforced conventions block: 20 rules declared in .opencode/plugins/pxcli-quality.ts"; Development Practices behaviour facts present (CSM planning 7 plans, no-bdd, plan-gate removal, fuzz replay, suppression 91 identities, ratchet, mutation exit codes, analyser registry 25, plugin behaviours, 20-rule token block). Suite: 1184/1204, exactly the 20 T014-owned baseline failures | CHECKPOINT |
+| 2026-08-03 | 4 | CHECKPOINT | T006 | T006 completed. Expected-delta confirmation: T006 contributes NO deltas (practices dim 17 not in the ten-dim fixed input nor the 5 fixture pipelines; citation gated on the new field which fixtures lack). The 20 pending failures are entirely the G3-wave deltas (fixture-behavior.json + renderer.md). Commit cycle 4. | SELECT (T014) |
 
 ## Completion Review
 Filled by csm-build when all criteria are verified.

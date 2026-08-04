@@ -7,6 +7,19 @@ export function renderConventions(repoName, findings, context = DEFAULT_RENDER_C
   lines.push(`## Code Conventions — \`${escapeField(repoName)}\``);
   lines.push('');
 
+  if (findings.enforcedConventionsBlock) {
+    const block = findings.enforcedConventionsBlock;
+    const ruleCount = Number.isSafeInteger(block.ruleCount) ? block.ruleCount : null;
+    const sourcePath = typeof block.sourcePath === 'string' && block.sourcePath.length > 0
+      ? block.sourcePath
+      : null;
+    if (ruleCount !== null && sourcePath !== null) {
+      lines.push(
+        `- **Enforced conventions block**: ${ruleCount} rules declared in \`${sourcePath}\` (tokenized facts in Development Practices)`,
+      );
+    }
+  }
+
   if (findings.importStyle) {
     lines.push(`- **Import style**: ${escapeField(findings.importStyle.type)}`);
     if (findings.importStyle.hasTypeImports) {

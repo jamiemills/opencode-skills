@@ -11,7 +11,7 @@
 // ESM only. Zero npm deps. node: builtins only.
 // Read-only with respect to the scanned repo.
 
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
 import { descriptorFor, detectEcosystems, DESCRIPTORS } from '../shared/ecosystem.mjs';
@@ -1334,6 +1334,47 @@ function detectLanguageStandards(repoPath, overview, files) {
 }
 
 // ---------------------------------------------------------------------------
+// Enforced conventions block (T006 citation): bounded detection of an agent
+// conventions block (e.g. .opencode/plugins/*.ts) with a numbered rule list.
+// ---------------------------------------------------------------------------
+
+const CONVENTIONS_BLOCK_HEADINGS = [
+  /conventions\s*block/i,
+  /coding\s+conventions/i,
+  /##\s*.*conventions/i,
+];
+
+function detectEnforcedConventionsBlock(repoPath, overview, files) {
+  const candidates = files.filter((f) => /\.opencode\/plugins\/.*\.ts$/.test(f));
+  try {
+    const pluginsRoot = join(repoPath, '.opencode', 'plugins');
+    if (existsSync(pluginsRoot)) {
+      for (const entry of readdirSync(pluginsRoot)) {
+        if (entry.endsWith('.ts')) candidates.push(`.opencode/plugins/${entry}`);
+      }
+    }
+  } catch {
+    // plugin directory unreadable — rely on the enumerated candidates only
+  }
+  candidates.sort();
+  for (const rel of candidates) {
+    let text = '';
+    try {
+      text = readFileSync(join(repoPath, rel), 'utf8');
+    } catch {
+      continue;
+    }
+    if (text.length === 0 || text.length > 128 * 1024) continue;
+    const hasHeading = CONVENTIONS_BLOCK_HEADINGS.some((re) => re.test(text));
+    if (!hasHeading) continue;
+    const numbered = text.match(/^\s*\d+\.\s+/gm) || [];
+    if (numbered.length < 5) continue;
+    return { ruleCount: numbered.length, sourcePath: rel };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -1358,29 +1399,33 @@ export async function scan(repoPath, overview, broker = commandBroker) {
 
   const hasLanguages = (overview?.languages?.length || 0) > 0;
   const hasDocstrings = Object.keys(docstrings.coverage).length > 0;
+  const enforcedConventionsBlock = detectEnforcedConventionsBlock(repoPath, overview, files);
   let signal = 'low';
   if (hasLanguages && hasDocstrings) signal = 'high';
   else if (hasLanguages) signal = 'medium';
 
+  const findings = {
+    importStyle,
+    fileNaming,
+    errorHandling,
+    moduleSystem,
+    largestFiles,
+    commentDensity,
+    docstrings,
+    languageStandards,
+    // richness keys
+    symbolNaming,
+    asyncUsage,
+    unsafeCount,
+    shellHygiene,
+    pythonTypeHints,
+    tsAnnotations,
+  };
+  if (enforcedConventionsBlock) findings.enforcedConventionsBlock = enforcedConventionsBlock;
+
   return {
     dimension: 'conventions',
     signal,
-    findings: {
-      importStyle,
-      fileNaming,
-      errorHandling,
-      moduleSystem,
-      largestFiles,
-      commentDensity,
-      docstrings,
-      languageStandards,
-      // richness keys
-      symbolNaming,
-      asyncUsage,
-      unsafeCount,
-      shellHygiene,
-      pythonTypeHints,
-      tsAnnotations,
-    },
+    findings,
   };
 }

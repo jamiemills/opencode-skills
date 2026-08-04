@@ -595,6 +595,20 @@ function isRatchetPath(lower) {
   return ['sh', 'py', 'js', 'mjs', 'cjs', 'bash', 'zsh'].includes(extension);
 }
 
+// T006 policy-content candidates: suppression/mutation/validator scripts,
+// the shared ratchet helper, the analyser-contract registry and the fuzz and
+// plan-gate meta-test files. All read bounded by the shared artifact reader.
+const POLICY_SCRIPT_PATTERN = /^scripts\/(?:check_[a-z0-9_]+\.py|_ratchet\.py|mutation_policy\.py|validate_[a-z0-9_]+\.py)$/;
+const POLICY_FILE_PATHS = new Set([
+  'quality/analyser-contracts.toml',
+  'tests/test_fuzz.py',
+  'tests/test_removed_plan_gate.py',
+]);
+
+function isPolicyContentPath(lower) {
+  return POLICY_SCRIPT_PATTERN.test(lower) || POLICY_FILE_PATHS.has(lower);
+}
+
 function isDocPath(lower) {
   if (!lower.endsWith('.md')) return false;
   return lower === 'readme.md' || lower.startsWith('docs/') || lower.startsWith('doc/');
@@ -635,6 +649,7 @@ export function isCandidatePath(path) {
   const lower = path.toLowerCase();
   if (isGeneratedPracticePath(lower)) return false;
   if (classifyPracticePath(path) !== null) return true;
+  if (isPolicyContentPath(lower)) return true;
   if (isWorkflowPath(lower) || isTemplatePath(lower) || isManifestPath(lower)) return true;
   if (isQualityGatesPath(lower) || isPlanPath(lower) || isRatchetPath(lower)) return true;
   if (isDocPath(lower)) return true;
@@ -702,6 +717,10 @@ export function classifyPracticePath(path) {
   const exact = EXACT_PATHS.get(lower);
   if (exact !== undefined) return exact;
   if (lower.endsWith('.feature')) return { category: 'methodology', kind: 'bdd-feature' };
+  if (lower === 'tests/test_fuzz.py') return { category: 'methodology', kind: 'fuzz-test' };
+  if (lower === 'tests/test_removed_plan_gate.py') {
+    return { category: 'methodology', kind: 'plan-gate-meta-test' };
+  }
   if (lower === 'strategies.py' || lower.endsWith('/strategies.py')) {
     return { category: 'methodology', kind: 'hypothesis-strategies' };
   }
