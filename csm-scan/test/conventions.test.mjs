@@ -584,3 +584,40 @@ test('T003/A011: a mononym-only naming set yields zero camelCase', async () => {
     assert.equal(fn.dominant, 'other');
   });
 });
+
+// ---------------------------------------------------------------------------
+// T006 — enforced conventions-block citation line
+// ---------------------------------------------------------------------------
+
+test('T006: the enforced conventions-block citation line renders in Code Conventions', () => {
+  const findings = {
+    importStyle: { type: 'absolute (PEP 8)', hasTypeImports: false, hasDynamicImports: false, samples: [] },
+    fileNaming: { dominant: 'snake_case', total: 2, patterns: { snake_case: 2 } },
+    errorHandling: { patterns: ['try'] },
+    moduleSystem: { inferred: 'setuptools' },
+    commentDensity: '10.0% (1 comment / 10 code lines)',
+    enforcedConventionsBlock: { ruleCount: 20, sourcePath: '.opencode/plugins/pxcli-quality.ts' },
+  };
+  const markdown = renderConventions('repo', findings);
+  assert.ok(
+    markdown.includes(
+      '- **Enforced conventions block**: 20 rules declared in `.opencode/plugins/pxcli-quality.ts` (tokenized facts in Development Practices)',
+    ),
+    `citation line missing:\n${markdown}`,
+  );
+});
+
+test('T006: the citation line is gated on the enforced-conventions fact (baseline-safe)', () => {
+  const findings = {
+    importStyle: { type: 'absolute (PEP 8)', hasTypeImports: false, hasDynamicImports: false, samples: [] },
+    fileNaming: { dominant: 'snake_case', total: 2, patterns: { snake_case: 2 } },
+    errorHandling: { patterns: ['try'] },
+    moduleSystem: { inferred: 'setuptools' },
+    commentDensity: '10.0% (1 comment / 10 code lines)',
+  };
+  const markdown = renderConventions('repo', findings);
+  assert.equal(markdown.includes('Enforced conventions block'), false,
+    'findings without the enforced-conventions fact must not render the citation');
+  assert.match(markdown, /## Code Conventions/);
+  assert.match(markdown, /\*\*Import style\*\*/);
+});

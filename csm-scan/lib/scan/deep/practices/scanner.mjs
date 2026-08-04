@@ -59,6 +59,17 @@ import {
   extractOpencodeWorkflow,
   extractRuffRules,
 } from './style.mjs';
+import {
+  aggregateMethodology,
+  extractAnalyserContracts,
+  extractFuzzReplay,
+  extractMutationPolicy,
+  extractPluginContent,
+  extractPolicyValidators,
+  extractRatchet,
+  extractSuppressionBaseline,
+  extractSuppressionPolicy,
+} from './content.mjs';
 
 export const PRACTICES_SCANNER_ID = 'DET-practices-scan-v1';
 
@@ -71,15 +82,23 @@ const READ_LIMITS = Object.freeze({
 
 const CATEGORY_EXTRACTORS = Object.freeze([
   ['methodology', extractMethodology],
+  ['methodology', extractFuzzReplay],
   ['enforcement', extractEnforcement],
   ['enforcement', extractLefthookStages],
+  ['enforcement', extractPolicyValidators],
   ['automation', extractAutomation],
   ['automation', extractMakeTargets],
   ['ritual', extractRitual],
   ['quality_gate', extractQualityGate],
   ['quality_gate', extractGateValues],
+  ['quality_gate', extractSuppressionPolicy],
+  ['quality_gate', extractSuppressionBaseline],
+  ['quality_gate', extractRatchet],
+  ['quality_gate', extractMutationPolicy],
+  ['quality_gate', extractAnalyserContracts],
   ['agent_workflow', extractAgentWorkflow],
   ['agent_workflow', extractOpencodeWorkflow],
+  ['agent_workflow', extractPluginContent],
   ['style_guide', extractStyleGuide],
   ['style_guide', extractRuffRules],
   ['style_guide', extractDeclaredConventions],
@@ -240,6 +259,9 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
       continue;
     }
     rawEntries.push(...classifyResult(result));
+  }
+  for (const record of aggregateMethodology(rawEntries)) {
+    rawEntries.push(entryRecord(record.category, record.kind, record.path, record));
   }
   const coupling = releaseNotesCoupling(rawEntries);
   if (coupling !== null) rawEntries.push(coupling);

@@ -80,6 +80,49 @@ function entryPath(entry) {
   return null;
 }
 
+// T006 behaviour facts: the policy-content and agent-workflow facts rendered as
+// behaviour lines inside their category groups. `noun` facts pair a count with
+// a kind list; `noun: null` facts carry a bare count; `valueOnly` facts carry
+// only kind tokens.
+const BEHAVIOUR_FACTS = Object.freeze([
+  { category: 'methodology', kind: 'csm-planning', heading: 'CSM planning', noun: 'plan' },
+  { category: 'methodology', kind: 'no-bdd', heading: 'BDD', valueOnly: true },
+  { category: 'methodology', kind: 'plan-gate-removed', heading: 'Plan gate removal', valueOnly: true },
+  { category: 'methodology', kind: 'fuzz-replay-contract', heading: 'Fuzz replay contract', valueOnly: true },
+  { category: 'methodology', kind: 'fuzz-seeds', heading: 'Fuzz seeds', noun: 'seed' },
+  { category: 'methodology', kind: 'fuzz-decomposition', heading: 'Fuzz decomposition', noun: 'test' },
+  { category: 'methodology', kind: 'fuzz-iterations', heading: 'Fuzz iterations', noun: null },
+  { category: 'methodology', kind: 'fuzz-platform-gate', heading: 'Fuzz platform gate', valueOnly: true },
+  { category: 'methodology', kind: 'fuzz-ci-blocking', heading: 'Fuzz CI', valueOnly: true },
+  { category: 'enforcement', kind: 'policy-validator', heading: 'Policy validators', valueOnly: true },
+  { category: 'quality_gate', kind: 'suppression-policy', heading: 'Suppression policy', valueOnly: true },
+  { category: 'quality_gate', kind: 'suppression-exit-code', heading: 'Suppression exit codes', valueOnly: true },
+  { category: 'quality_gate', kind: 'suppression-baseline', heading: 'Suppression baseline', noun: 'identity', plural: 'identities' },
+  { category: 'quality_gate', kind: 'ratchet-engine', heading: 'Ratchet engine', valueOnly: true },
+  { category: 'quality_gate', kind: 'mutation-exit-code', heading: 'Mutation exit codes', valueOnly: true },
+  { category: 'quality_gate', kind: 'mutation-actionable', heading: 'Mutation actionable', valueOnly: true },
+  { category: 'quality_gate', kind: 'mutation-waivers', heading: 'Mutation waivers', valueOnly: true },
+  { category: 'quality_gate', kind: 'mutation-scope', heading: 'Mutation scope', valueOnly: true },
+  { category: 'quality_gate', kind: 'mutation-schedule', heading: 'Mutation schedule', valueOnly: true },
+  { category: 'quality_gate', kind: 'analyser-contract-registry', heading: 'Analyser contract registry', noun: 'analyser' },
+  { category: 'quality_gate', kind: 'analyser-contract-validate', heading: 'Analyser contract validation', valueOnly: true },
+  { category: 'agent_workflow', kind: 'conventions-block', heading: 'Enforced conventions block', noun: 'rule' },
+  { category: 'agent_workflow', kind: 'quality-check-tools', heading: 'Reactive quality checks', valueOnly: true },
+  { category: 'agent_workflow', kind: 'quality-gate-blocking', heading: 'Quality gate blocking', valueOnly: true },
+  { category: 'agent_workflow', kind: 'quality-gate-override', heading: 'Quality gate override', valueOnly: true },
+  { category: 'agent_workflow', kind: 'pre-push-docs-block', heading: 'Pre-push docs block', valueOnly: true },
+  { category: 'agent_workflow', kind: 'npm-check-script', heading: 'npm check', valueOnly: true },
+  { category: 'agent_workflow', kind: 'coverage-thresholds', heading: 'Coverage thresholds', valueOnly: true },
+]);
+
+const BEHAVIOUR_KINDS = new Set(BEHAVIOUR_FACTS.map((fact) => fact.kind));
+
+function entryKind(entry) {
+  const remainder = entry.matchedKey.slice(entry.matchedKey.indexOf(':') + 1);
+  const colon = remainder.indexOf(':');
+  return colon === -1 ? remainder : remainder.slice(0, colon);
+}
+
 // Group entries by category into a canonical-ordered list of category groups,
 // each holding the count of distinct repo-relative paths and that sorted path
 // list. Categories outside the canonical set follow in ASCII order so the
@@ -88,6 +131,7 @@ function categoryGroups(model) {
   const groups = new Map();
   for (const entry of Array.isArray(model.entries) ? model.entries : []) {
     if (entry === null || typeof entry !== 'object' || typeof entry.category !== 'string') continue;
+    if (BEHAVIOUR_KINDS.has(entryKind(entry))) continue;
     const path = entryPath(entry);
     if (path === null) continue;
     if (!groups.has(entry.category)) groups.set(entry.category, new Set());
@@ -116,6 +160,37 @@ function renderCategoryGroup(group, escapeField) {
     lines.push(`- \`${escapeField(path)}\``);
   }
   lines.push('');
+  return lines;
+}
+
+function behaviourFactEntries(model, fact) {
+  return factEntries(model, fact.category, fact.kind)
+    .filter((entry) => hasFactValue(fact, entry));
+}
+
+function renderBehaviourLines(model, category, escapeField) {
+  const lines = [];
+  for (const fact of BEHAVIOUR_FACTS) {
+    if (fact.category !== category) continue;
+    const entries = behaviourFactEntries(model, fact);
+    for (const entry of entries) {
+      const path = `\`${escapeField(entry.path)}\``;
+      const kinds = kindTokenList(entry, escapeField);
+      if (fact.valueOnly) {
+        lines.push(`- **${fact.heading}**: ${path}: ${kinds}`);
+        continue;
+      }
+      if (fact.noun === null) {
+        lines.push(`- **${fact.heading}**: ${path}: ${entry.count}`);
+        continue;
+      }
+      const label = pluralize(entry.count, fact.noun, fact.plural);
+      lines.push(kinds.length > 0
+        ? `- **${fact.heading}**: ${path}: ${label}: ${kinds}`
+        : `- **${fact.heading}**: ${path}: ${label}`);
+    }
+  }
+  if (lines.length > 0) lines.push('');
   return lines;
 }
 
@@ -213,7 +288,7 @@ function pluralize(count, noun, plural) {
 function kindTokenList(entry, escapeField) {
   if (!Array.isArray(entry.kinds) || entry.kinds.length === 0) return '';
   const shown = entry.kinds.slice(0, STYLE_KIND_DISPLAY_CAP);
-  const tokens = shown.map((token) => `\`${escapeField(token)}\``);
+  const tokens = shown.map((token) => `\`${token}\``);
   const remaining = entry.kinds.length - shown.length;
   if (remaining > 0) tokens.push(`... (+${remaining} more)`);
   return tokens.join(', ');
@@ -371,6 +446,7 @@ export function renderPractices(_repoName, model, context = DEFAULT_RENDER_CONTE
 
   for (const group of groups) {
     lines.push(...renderCategoryGroup(group, escapeField));
+    lines.push(...renderBehaviourLines(model, group.category, escapeField));
   }
   lines.push(...renderStyleGuideBlock(model, escapeField));
   lines.push(...renderDiagnostics(model, context));

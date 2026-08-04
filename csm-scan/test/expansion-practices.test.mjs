@@ -36,6 +36,17 @@ import {
   extractRuffRules,
   slugToken,
 } from '../lib/scan/deep/practices/style.mjs';
+import {
+  aggregateMethodology,
+  extractAnalyserContracts,
+  extractFuzzReplay,
+  extractMutationPolicy,
+  extractPluginContent,
+  extractPolicyValidators,
+  extractRatchet,
+  extractSuppressionBaseline,
+  extractSuppressionPolicy,
+} from '../lib/scan/deep/practices/content.mjs';
 import { PRACTICE_TOOLS } from '../lib/scan/shared/detection.mjs';
 import { renderPractices } from '../lib/scan/render/practices.mjs';
 import {
@@ -1036,4 +1047,532 @@ test('T005 render: style-guide block renders value fidelity, toggles, stages and
   assert.ok(markdown.includes('`denied-to-agents`, `human-change`'), 'gate policy kinds render');
   assert.ok(markdown.includes('9 codes: `interrupted-130`, `success-0`'), 'exit-code pairs render');
   assert.equal(markdown, renderPractices('repository', model), 'rendering stays deterministic');
+});
+
+// ---------------------------------------------------------------------------
+// T006 — policy-content and agent-workflow extractors
+// ---------------------------------------------------------------------------
+
+const CONVENTIONS_PLUGIN_BLOCK = [
+  'const CONVENTIONS_BLOCK = `## Python Coding Conventions (pxcli project)',
+  '',
+  '### Complexity & Structure',
+  '1. Keep cyclomatic complexity <= 5 per function. Extract helper functions for complex logic.',
+  '2. Maximum 4 parameters per function. For more, group into a `@dataclass(frozen=True, slots=True)`.',
+  '3. Google-style docstrings for all public functions, classes, and modules.',
+  '4. Type annotations on all function signatures (parameters and return types).',
+  '5. Use `TYPE_CHECKING` + `from __future__ import annotations` for import-only types.',
+  '',
+  '### Logging & Output',
+  '6. Use `%s`-style lazy formatting in logger calls — never f-strings.',
+  '7. Use `logger`, not `print()`, for all non-CLI output.',
+  '8. Never log tokens, cookies, or credentials.',
+  '',
+  '### Error Handling',
+  '9. Never bare `except:` or `except Exception: pass` — always log something meaningful.',
+  '10. Use `raise X from Y` in except blocks to preserve tracebacks.',
+  '',
+  '### Security',
+  '11. Never use `eval()` or `exec()`.',
+  '12. Never use `subprocess` with `shell=True`.',
+  '13. Never hardcode passwords, secrets, or API keys in source code.',
+  '14. Use `secrets` module for security-sensitive randomness, not `random`.',
+  '',
+  '### Style',
+  '15. No single-letter variables except `e`, `f`, `i`, `j`, `k`, `v`, `x`, `y`, `n`.',
+  '16. Never use `from x import *` (wildcard imports).',
+  '17. Use `is None` / `is not None`, not `== None` / `!= None`.',
+  '18. Delete commented-out code — git remembers.',
+  '19. British English in comments and docstrings.',
+  '',
+  '### Dependencies',
+  '20. When adding dependencies, pin minimum version floors (`>=`) to avoid known-vulnerable ranges.`;',
+].join('\n');
+
+const CONTENT_PLUGIN_FIXTURE = [
+  CONVENTIONS_PLUGIN_BLOCK,
+  'export async function checkRuff(filePath) { return []; }',
+  'export async function checkRadon(filePath) { return []; }',
+  'export async function checkBandit(filePath) { return []; }',
+  'export async function checkTy(filePath) { return []; }',
+  'export async function checkSafety(filePath) { return []; }',
+  'export async function checkSemgrep(filePath) { return []; }',
+  'export async function checkPyright(filePath) { return []; }',
+].join('\n');
+
+const CONTENT_QUALITY_GATE_FIXTURE = [
+  'const BYPASS_PATTERNS = [',
+  '  { re: /--exclude\\b/, label: "--exclude" },',
+  '  { re: /--exclude-rule\\b/, label: "--exclude-rule" },',
+  '  { re: /#\\s*nosec/i, label: "# nosec" },',
+  '  { re: /#\\s*pragma:\\s*no\\s*cover/i, label: "# pragma: no cover" },',
+  '  { re: /#\\s*type:\\s*ignore/i, label: "# type: ignore" },',
+  '];',
+  'const GATE_REFERENCES = [];',
+  'function loweredSeverity(oldStr, newStr) { return null; }',
+  'if (process.env.OPENCODE_DISABLE_QUALITY_GATE === "1") return;',
+  '"tool.execute.before": async (input, output) => { throw new Error("blocked"); }',
+].join('\n');
+
+const CONTENT_PRE_PUSH_FIXTURE = [
+  '// Intercepts git push commands. On the first recognised push attempt,',
+  '// the plugin blocks execution and requests a documentation review.',
+  'const GIT_PUSH_RE = /\\bgit\\s+push\\b/;',
+].join('\n');
+
+const CONTENT_FIXTURE_FILES = {
+  // suppression policy (a2, a9, d3, d9 block-gate)
+  'scripts/check_suppression_reasons.py': [
+    '"""Suppression-reason enforcement gate.',
+    'Blocks new inline suppressions (# noqa, # nosec) that lack owner: and',
+    'reason: justification fields. Suppressions are extracted with Python\'s',
+    'tokeniser. Existing un-annotated suppressions are grandfathered via a',
+    'fingerprint baseline in file:line:type format.',
+    'Exit codes: 0 = pass, 1 = unformatted suppression found, 2 = tool/config error.',
+    '"""',
+    'import re',
+    '_OWNER_RE = re.compile(r"(?:^|[;\\s,])owner\\s*:\\s*\\S", re.IGNORECASE)',
+    '_REASON_RE = re.compile(r"(?:^|[;\\s,])reason\\s*:\\s*\\S", re.IGNORECASE)',
+  ].join('\n'),
+  'scripts/check_suppressions.py': [
+    '"""Suppression ratchet gate — identity-fingerprint edition.',
+    'Each identity is a file:line:type[:detail] fingerprint.',
+    'Blocks new, moved, or broadened suppressions.',
+    'Exit codes: 0 = pass, 1 = regression, 2 = tool/configuration error.',
+    '"""',
+  ].join('\n'),
+  'quality/baselines/suppressions.json': JSON.stringify({
+    fingerprints: ['src/a.py:1:noqa', 'src/b.py:2:nosec'],
+  }),
+  // ratchet mechanics (a9, d3)
+  'scripts/_ratchet.py': [
+    'def diff_counts(current, baseline):',
+    '    ...',
+    'def diff_fingerprints(current, baseline):',
+    '    ...',
+    'add_update_flag(parser)',
+    '# shrinking is always allowed and becomes the new baseline via --update-baseline',
+  ].join('\n'),
+  // mutation policy (a15)
+  'scripts/mutation_policy.py': [
+    'EXIT_CLEAN: int = 0',
+    'EXIT_FINDINGS: int = 1',
+    'EXIT_TOOL_ERROR: int = 2',
+    'ACTIONABLE_CATEGORIES: frozenset[str] = frozenset({"survived", "timeout", "suspicious"})',
+    '"""Exit codes: 0 clean, 1 findings, 2 tool-error."""',
+  ].join('\n'),
+  '.github/workflows/mutation-scheduled.yml': [
+    'name: Scheduled Mutation Testing',
+    "'on':",
+    '  schedule:',
+    "    - cron: '0 2 * * 0'",
+    'jobs:',
+    '  mutation:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - name: Run full mutation testing with policy wrapper',
+    '        run: make mutate-full-policy',
+  ].join('\n'),
+  // fuzz replay (a12)
+  'tests/fuzz_corpus/README.md': [
+    '# Fuzz seed corpus',
+    '| File | Bytes | Purpose |',
+    '| --- | ---: | --- |',
+    '| `seed_01.bin` | 4 | Valid input |',
+    '| `seed_02.bin` | 8 | Second input |',
+    'Replay order is deterministic: lexicographic order of the .bin filenames.',
+    'A seed that raises an unexpected exception fails the harness authoritatively.',
+    'The harness reports in a machine-readable JSON state file.',
+  ].join('\n'),
+  'tests/test_fuzz.py': [
+    '_FUZZ_ITERATIONS = 5_000',
+    '@pytest.mark.fuzz',
+    'class TestFuzzSSEParser:',
+    '    def test_fuzz_decode_line(self):',
+    '        _run_harness("sse_decode_line")',
+    '@pytest.mark.fuzz',
+    'class TestFuzzFormatting:',
+    '    def test_fuzz_strip_citations(self):',
+    '        _run_harness("strip_citations")',
+    '"""fuzz lane is authoritative and must not silently skip"""',
+  ].join('\n'),
+  'pyproject.toml': [
+    '[project.dependencies]',
+    "atheris>=3.1.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  ].join('\n'),
+  // Makefile (mutation scope, fuzz CI, policy validators, analyser contracts)
+  'Makefile': [
+    'mutate-diff:',
+    '\tmake',
+    'mutate-full-policy:',
+    '\tmake',
+    'ci-fuzz-status: test-fuzz',
+    '\tmake',
+    'actionlint:',
+    '\t$(ACTIONLINT)',
+    'make-policy:',
+    '\tuv run python scripts/validate_make_policy.py',
+    'workflow-policy:',
+    '\tuv run python scripts/validate_workflow_policy.py --strict',
+    'analyser-contract-validate:',
+    '\tuv run python scripts/check_analyser_contracts.py --validate',
+    'analyser-contract-tests: analyser-contract-validate',
+    '\tmake',
+  ].join('\n'),
+  // policy validators (d7)
+  'scripts/validate_make_policy.py': [
+    '"""Make target ownership and dependency validator.',
+    'Exit codes: 0 pass, 1 fail, 2 usage.',
+    '"""',
+  ].join('\n'),
+  'scripts/validate_workflow_policy.py': [
+    '"""YAML 1.2-aware semantic validator for GitHub Actions workflows.',
+    'External action references are pinned to a full 40-character SHA.',
+    'No workflow uses the dangerous pull_request_target trigger.',
+    'Usage: validate_workflow_policy.py [--strict]',
+    'Exit codes: 0 pass, 1 fail, 2 usage.',
+    '"""',
+  ].join('\n'),
+  // analyser contracts (d8)
+  'quality/analyser-contracts.toml': [
+    '[schema]',
+    'version = 1',
+    '[[analysers]]',
+    'id = "lint"',
+    'status = "active"',
+    '[analysers.states.clean]',
+    'exit_min = 0',
+    'exit_max = 0',
+    '[[analysers]]',
+    'id = "mutation"',
+    'status = "pending"',
+    '[analysers.states.clean]',
+    'exit_min = 0',
+    'exit_max = 0',
+    '[analysers.states.regression]',
+    'exit_min = 1',
+    'exit_max = 1',
+  ].join('\n'),
+  'scripts/check_analyser_contracts.py': [
+    '"""Validate and run analyser contracts.',
+    'Usage: check_analyser_contracts.py --validate',
+    '"""',
+  ].join('\n'),
+  // methodology (a3, a25)
+  'tests/test_removed_plan_gate.py': [
+    '"""Structural gate asserting deleted plan-gate mechanisms stay gone."""',
+  ].join('\n'),
+  '.agents/plans/feature-csm.md': '# Plan\n## Control\n## Status\n',
+  // agent-workflow content (a1, a19, a20, c1, d2)
+  '.opencode/plugins/pxcli-quality.ts': CONTENT_PLUGIN_FIXTURE,
+  '.opencode/plugins/quality-gate.ts': CONTENT_QUALITY_GATE_FIXTURE,
+  '.opencode/plugins/pre-push-docs-check.ts': CONTENT_PRE_PUSH_FIXTURE,
+  '.opencode/package.json': JSON.stringify({
+    scripts: {
+      check: 'npm run lint && npm run test && npm run typecheck && npm run check:config && npm run test:coverage',
+      'check:config': 'tsx scripts/check-config.ts',
+    },
+  }),
+  '.opencode/vitest.config.ts': [
+    'export default defineConfig({',
+    '  test: {',
+    '    coverage: {',
+    '      provider: "v8",',
+    '      thresholds: {',
+    '        lines: 85,',
+    '        statements: 85,',
+    '        functions: 85,',
+    '        branches: 85,',
+    '        perFile: true,',
+    '      },',
+    '    },',
+    '  },',
+    '});',
+  ].join('\n'),
+};
+
+function contentEntry(model, matchedKey) {
+  return model.entries.find((entry) => entry.matchedKey === matchedKey);
+}
+
+test('T006 content: suppression-policy kinds emit from both gate scripts', () => {
+  const reasons = extractSuppressionPolicy({
+    path: 'scripts/check_suppression_reasons.py',
+    text: CONTENT_FIXTURE_FILES['scripts/check_suppression_reasons.py'],
+  });
+  const policy = reasons.find((record) => record.kind === 'suppression-policy');
+  assert.ok(policy, 'suppression-policy fact present');
+  for (const kind of ['owner-required', 'reason-required', 'block-new-unannotated', 'tokeniser-scan', 'file-line-type']) {
+    assert.ok(policy.kinds.includes(kind), `missing kind ${kind}`);
+  }
+  const exit = reasons.find((record) => record.kind === 'suppression-exit-code');
+  assert.deepEqual(exit.kinds, ['fail-1', 'pass-0', 'tool-error-2']);
+
+  const suppressions = extractSuppressionPolicy({
+    path: 'scripts/check_suppressions.py',
+    text: CONTENT_FIXTURE_FILES['scripts/check_suppressions.py'],
+  });
+  const suppPolicy = suppressions.find((record) => record.kind === 'suppression-policy');
+  assert.ok(suppPolicy.kinds.includes('file-line-type-detail'), 'file:line:type[:detail] identity tokenized');
+  assert.ok(suppPolicy.kinds.includes('block-new-moved-broadened'), 'block new/moved/broadened tokenized');
+  assert.deepEqual(extractSuppressionPolicy({ path: 'src/app.py', text: 'x' }), []);
+});
+
+test('T006 content: suppression-baseline reports the grandfathered identity count', () => {
+  const records = extractSuppressionBaseline({
+    path: 'quality/baselines/suppressions.json',
+    text: CONTENT_FIXTURE_FILES['quality/baselines/suppressions.json'],
+  });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, 'suppression-baseline');
+  assert.equal(records[0].count, 2, 'two grandfathered identities counted');
+  assert.deepEqual(extractSuppressionBaseline({ path: 'quality/baselines/other.json', text: '{}' }), []);
+});
+
+test('T006 content: ratchet engine emits fingerprint-diff and update-baseline kinds', () => {
+  const records = extractRatchet({
+    path: 'scripts/_ratchet.py',
+    text: CONTENT_FIXTURE_FILES['scripts/_ratchet.py'],
+  });
+  assert.equal(records.length, 1);
+  const engine = records[0];
+  assert.equal(engine.kind, 'ratchet-engine');
+  for (const kind of ['fingerprint-diff', 'counts-diff', 'shrink-allowed', 'update-baseline']) {
+    assert.ok(engine.kinds.includes(kind), `missing ratchet kind ${kind}`);
+  }
+  assert.deepEqual(extractRatchet({ path: 'scripts/other.py', text: 'x' }), []);
+});
+
+test('T006 content: mutation exit codes, actionable categories, scope and schedule', () => {
+  const policy = extractMutationPolicy({
+    path: 'scripts/mutation_policy.py',
+    text: CONTENT_FIXTURE_FILES['scripts/mutation_policy.py'],
+  });
+  const exit = policy.find((record) => record.kind === 'mutation-exit-code');
+  assert.deepEqual(exit.kinds, ['clean-0', 'findings-1', 'tool-error-2'], '0/1/2 exit taxonomy tokenized');
+  const actionable = policy.find((record) => record.kind === 'mutation-actionable');
+  assert.deepEqual(actionable.kinds, ['survived', 'suspicious', 'timeout']);
+  const waivers = policy.find((record) => record.kind === 'mutation-waivers');
+  assert.deepEqual(waivers.kinds, ['unsupported'], 'waivers-unsupported inferred when no waiver mechanism');
+  assert.equal(waivers.status, 'inferred');
+
+  const schedule = extractMutationPolicy({
+    path: '.github/workflows/mutation-scheduled.yml',
+    text: CONTENT_FIXTURE_FILES['.github/workflows/mutation-scheduled.yml'],
+  });
+  assert.deepEqual(schedule.find((record) => record.kind === 'mutation-schedule').kinds,
+    ['full-policy', 'weekly-sunday-0200-utc'], 'cron 0 2 * * 0 maps to weekly Sunday 02:00 UTC');
+
+  const scope = extractMutationPolicy({
+    path: 'Makefile',
+    text: CONTENT_FIXTURE_FILES.Makefile,
+  });
+  assert.deepEqual(scope.find((record) => record.kind === 'mutation-scope').kinds, ['diff', 'full']);
+});
+
+test('T006 content: fuzz replay contract, decomposition, platform gate and blocking CI', () => {
+  const replay = extractFuzzReplay({
+    path: 'tests/fuzz_corpus/README.md',
+    text: CONTENT_FIXTURE_FILES['tests/fuzz_corpus/README.md'],
+  });
+  assert.deepEqual(replay.find((record) => record.kind === 'fuzz-replay-contract').kinds,
+    ['authoritative-failure', 'json-state-file', 'lexicographic-seed-order']);
+  assert.equal(replay.find((record) => record.kind === 'fuzz-seeds').count, 2, 'seed rows counted from the inventory table');
+
+  const decomposition = extractFuzzReplay({
+    path: 'tests/test_fuzz.py',
+    text: CONTENT_FIXTURE_FILES['tests/test_fuzz.py'],
+  });
+  const fuzz = decomposition.find((record) => record.kind === 'fuzz-decomposition');
+  assert.equal(fuzz.count, 2, 'two fuzz-marked test methods');
+  assert.deepEqual(fuzz.kinds, ['formatting', 'sse-parser'], 'class decomposition slugged');
+  assert.equal(decomposition.find((record) => record.kind === 'fuzz-iterations').count, 5000,
+    'underscore-separated iteration budget parsed');
+
+  const platform = extractFuzzReplay({
+    path: 'pyproject.toml',
+    text: CONTENT_FIXTURE_FILES['pyproject.toml'],
+  });
+  assert.deepEqual(platform.find((record) => record.kind === 'fuzz-platform-gate').kinds,
+    ['atheris', 'linux-x86-64'], 'atheris linux/x86_64 gating detected');
+
+  const make = extractFuzzReplay({ path: 'Makefile', text: CONTENT_FIXTURE_FILES.Makefile });
+  assert.deepEqual(make.find((record) => record.kind === 'fuzz-ci-blocking').kinds,
+    ['blocking', 'ci-fuzz-status'], 'blocking fuzz CI detected from the ci-fuzz-status target');
+});
+
+test('T006 content: policy validators and analyser-contract registry', () => {
+  const makePolicy = extractPolicyValidators({
+    path: 'scripts/validate_make_policy.py',
+    text: CONTENT_FIXTURE_FILES['scripts/validate_make_policy.py'],
+  });
+  const mp = makePolicy.find((record) => record.kind === 'policy-validator');
+  assert.ok(mp.kinds.includes('make-policy') && mp.kinds.includes('target-ownership'));
+
+  const workflow = extractPolicyValidators({
+    path: 'scripts/validate_workflow_policy.py',
+    text: CONTENT_FIXTURE_FILES['scripts/validate_workflow_policy.py'],
+  });
+  const wf = workflow.find((record) => record.kind === 'policy-validator');
+  for (const kind of ['strict-mode', 'sha-pinning', 'pull-request-target-forbidden', 'yaml-1-2-semantic']) {
+    assert.ok(wf.kinds.includes(kind), `missing policy-validator kind ${kind}`);
+  }
+
+  const make = extractPolicyValidators({ path: 'Makefile', text: CONTENT_FIXTURE_FILES.Makefile });
+  const mf = make.find((record) => record.kind === 'policy-validator');
+  for (const kind of ['actionlint', 'make-policy', 'workflow-policy-strict']) {
+    assert.ok(mf.kinds.includes(kind), `missing Makefile-wired kind ${kind}`);
+  }
+
+  const registry = extractAnalyserContracts({
+    path: 'quality/analyser-contracts.toml',
+    text: CONTENT_FIXTURE_FILES['quality/analyser-contracts.toml'],
+  });
+  const reg = registry.find((record) => record.kind === 'analyser-contract-registry');
+  assert.equal(reg.count, 2, 'two declared analysers');
+  for (const kind of ['schema-v1', 'active', 'pending', 'clean-state', 'regression-state']) {
+    assert.ok(reg.kinds.includes(kind), `missing analyser-registry kind ${kind}`);
+  }
+
+  const checker = extractAnalyserContracts({
+    path: 'scripts/check_analyser_contracts.py',
+    text: CONTENT_FIXTURE_FILES['scripts/check_analyser_contracts.py'],
+  });
+  assert.deepEqual(checker.find((record) => record.kind === 'analyser-contract-validate').kinds,
+    ['validate-mode']);
+});
+
+test('T006 content: plugin behaviours and conventions block are tokenized', () => {
+  const plugin = extractPluginContent({
+    path: '.opencode/plugins/pxcli-quality.ts',
+    text: CONTENT_PLUGIN_FIXTURE,
+  });
+  const block = plugin.find((record) => record.kind === 'conventions-block');
+  assert.equal(block.count, 20, 'the 20-rule block is counted');
+  for (const id of ['complexity-le-5', 'max-4-params', 'percent-s-lazy-logging', 'logger-not-print',
+    'no-bare-except', 'raise-with-from', 'no-eval-exec', 'no-shell-true', 'no-hardcoded-secrets',
+    'secrets-module', 'single-letter-var-allowlist', 'no-wildcard-import', 'is-none-not-eq-none',
+    'no-commented-out-code', 'british-english', 'version-floors']) {
+    assert.ok(block.kinds.includes(id), `missing rule id ${id}`);
+  }
+  assert.equal(JSON.stringify(block).includes('cyclomatic complexity <= 5'), false,
+    'verbatim rule prose never survives (A008)');
+  const tools = plugin.find((record) => record.kind === 'quality-check-tools');
+  for (const tool of ['ruff', 'radon', 'bandit', 'ty']) {
+    assert.ok(tools.kinds.includes(tool), `missing reactive tool ${tool}`);
+  }
+
+  const gate = extractPluginContent({
+    path: '.opencode/plugins/quality-gate.ts',
+    text: CONTENT_QUALITY_GATE_FIXTURE,
+  });
+  const blocking = gate.find((record) => record.kind === 'quality-gate-blocking');
+  for (const kind of ['blocking', 'bypass-pattern', 'severity-lowering', 'gate-reference-removal', 'nosec']) {
+    assert.ok(blocking.kinds.includes(kind), `missing quality-gate-blocking kind ${kind}`);
+  }
+  assert.deepEqual(gate.find((record) => record.kind === 'quality-gate-override').kinds,
+    ['override-env:opencode-disable-quality-gate']);
+
+  const prePush = extractPluginContent({
+    path: '.opencode/plugins/pre-push-docs-check.ts',
+    text: CONTENT_PRE_PUSH_FIXTURE,
+  });
+  assert.deepEqual(prePush.find((record) => record.kind === 'pre-push-docs-block').kinds,
+    ['docs-review-reminder', 'first-push-block']);
+
+  const npm = extractPluginContent({
+    path: '.opencode/package.json',
+    text: CONTENT_FIXTURE_FILES['.opencode/package.json'],
+  });
+  const check = npm.find((record) => record.kind === 'npm-check-script');
+  for (const kind of ['lint', 'test', 'typecheck', 'check-config', 'test-coverage', 'config-validation']) {
+    assert.ok(check.kinds.includes(kind), `missing npm check kind ${kind}`);
+  }
+
+  const vitest = extractPluginContent({
+    path: '.opencode/vitest.config.ts',
+    text: CONTENT_FIXTURE_FILES['.opencode/vitest.config.ts'],
+  });
+  const thresholds = vitest.find((record) => record.kind === 'coverage-thresholds');
+  for (const kind of ['lines-85', 'statements-85', 'functions-85', 'branches-85', 'per-file']) {
+    assert.ok(thresholds.kinds.includes(kind), `missing threshold kind ${kind}`);
+  }
+});
+
+test('T006 content: methodology aggregator emits csm-planning, no-bdd and plan-gate-removed', () => {
+  const records = aggregateMethodology([
+    { category: 'agent_workflow', matchedKey: 'agent_workflow:csm-plan:.agents/plans/feature-csm.md', path: '.agents/plans/feature-csm.md' },
+    { category: 'methodology', matchedKey: 'methodology:plan-gate-meta-test:tests/test_removed_plan_gate.py', path: 'tests/test_removed_plan_gate.py' },
+  ]);
+  const csm = records.find((record) => record.kind === 'csm-planning');
+  assert.equal(csm.count, 1);
+  assert.equal(csm.status, 'inferred');
+  assert.ok(records.some((record) => record.kind === 'no-bdd'), 'zero .feature files in a CSM-planned repo yields no-bdd');
+  assert.ok(records.some((record) => record.kind === 'plan-gate-removed'), 'meta-test presence certifies plan-gate removal');
+
+  const noPlans = aggregateMethodology([
+    { category: 'agent_workflow', matchedKey: 'agent_workflow:agents:AGENTS.md', path: 'AGENTS.md' },
+  ]);
+  assert.equal(noPlans.length, 0, 'no-bdd is only claimed for CSM-planned repositories');
+});
+
+test('T006 scanner: content fixture emits suppression, ratchet, mutation, methodology and plugin facts', async () => {
+  await withFixture('t006-content', CONTENT_FIXTURE_FILES, async (dir) => {
+    const { findings } = await scan(dir, {}, inertGitBroker());
+    assert.equal(findings.diagnostics.length, 0, 'no parse failures on the content fixture');
+
+    const reasonsPolicy = contentEntry(findings, 'quality_gate:suppression-policy:scripts/check_suppression_reasons.py');
+    assert.ok(reasonsPolicy, 'suppression-policy entry for the reasons gate');
+    assert.ok(reasonsPolicy.kinds.includes('owner-required') && reasonsPolicy.kinds.includes('reason-required'));
+
+    const suppressionsPolicy = contentEntry(findings, 'quality_gate:suppression-policy:scripts/check_suppressions.py');
+    assert.ok(suppressionsPolicy.kinds.includes('file-line-type-detail'));
+
+    const baseline = contentEntry(findings, 'quality_gate:suppression-baseline:quality/baselines/suppressions.json');
+    assert.equal(baseline.count, 2);
+
+    const ratchet = contentEntry(findings, 'quality_gate:ratchet-engine:scripts/_ratchet.py');
+    assert.ok(ratchet.kinds.includes('fingerprint-diff') && ratchet.kinds.includes('update-baseline'));
+
+    const mutationExit = contentEntry(findings, 'quality_gate:mutation-exit-code:scripts/mutation_policy.py');
+    assert.deepEqual(mutationExit.kinds, ['clean-0', 'findings-1', 'tool-error-2']);
+
+    const csmPlanning = contentEntry(findings, 'methodology:csm-planning:.agents/plans');
+    assert.equal(csmPlanning.count, 1);
+    const noBdd = contentEntry(findings, 'methodology:no-bdd:.agents/plans');
+    assert.ok(noBdd, 'no-bdd aggregated');
+    const planGate = contentEntry(findings, 'methodology:plan-gate-removed:tests/test_removed_plan_gate.py');
+    assert.ok(planGate, 'plan-gate-removed aggregated');
+
+    const conventionsBlock = contentEntry(findings, 'agent_workflow:conventions-block:.opencode/plugins/pxcli-quality.ts');
+    assert.equal(conventionsBlock.count, 20);
+    assert.ok(conventionsBlock.kinds.includes('british-english') && conventionsBlock.kinds.includes('version-floors'));
+
+    const override = contentEntry(findings, 'agent_workflow:quality-gate-override:.opencode/plugins/quality-gate.ts');
+    assert.deepEqual(override.kinds, ['override-env:opencode-disable-quality-gate']);
+
+    const prePush = contentEntry(findings, 'agent_workflow:pre-push-docs-block:.opencode/plugins/pre-push-docs-check.ts');
+    assert.ok(prePush.kinds.includes('first-push-block'));
+
+    const schedule = contentEntry(findings, 'quality_gate:mutation-schedule:.github/workflows/mutation-scheduled.yml');
+    assert.ok(schedule.kinds.includes('weekly-sunday-0200-utc'));
+  });
+});
+
+test('T006 render: behaviour facts render inside their category groups', async () => {
+  await withFixture('t006-render', CONTENT_FIXTURE_FILES, async (dir) => {
+    const { findings } = await scan(dir, {}, inertGitBroker());
+    const markdown = renderPractices('repository', findings);
+    assert.ok(markdown.includes('- **CSM planning**: `.agents/plans`: 1 plan'), 'methodology behaviour line');
+    assert.ok(markdown.includes('- **BDD**: `.agents/plans`: `no-bdd`'), 'no-bdd behaviour line');
+    assert.ok(markdown.includes('- **Suppression baseline**: `quality/baselines/suppressions.json`: 2 identities'),
+      'suppression baseline renders with correct plural');
+    assert.ok(markdown.includes('- **Mutation exit codes**: `scripts/mutation_policy.py`: `clean-0`, `findings-1`, `tool-error-2`'),
+      'mutation exit codes render');
+    assert.ok(markdown.includes('- **Enforced conventions block**: `.opencode/plugins/pxcli-quality.ts`: 20 rules:'),
+      'enforced conventions block renders');
+    assert.ok(markdown.includes('`british-english`') && markdown.includes('`version-floors`'),
+      'tokenized rule facts render');
+    assert.equal(markdown, renderPractices('repository', findings), 'behaviour rendering stays deterministic');
+  });
 });
