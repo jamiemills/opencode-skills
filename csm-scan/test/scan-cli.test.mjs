@@ -129,3 +129,13 @@ test('CLI rejects a nonexistent --repos path with a friendly error and exits 2',
   assert.match(stderr, new RegExp(`no such directory: ${missing}`));
   assert.match(stderr, /scan\.mjs --help/);
 });
+
+test('CLI prints an absolute nonexistent --repos path verbatim (user-typed CLI args are exempt from redaction)', async () => {
+  const missing = join(tmpdir(), `csm-scan-cli-missing-abs-${process.pid}-${Date.now()}`);
+  const { code, stdout, stderr } = await runCli(['--repos', missing]);
+  assert.equal(code, 2);
+  assert.equal(stdout, '');
+  assert.ok(stderr.includes(`no such directory: ${missing}`), `stderr must name the user-typed path, got: ${stderr}`);
+  assert.ok(!stderr.includes('[redacted]'), 'the user-typed CLI path must not be redacted');
+  assert.match(stderr, /scan\.mjs --help/);
+});

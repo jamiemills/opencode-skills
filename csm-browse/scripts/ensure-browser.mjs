@@ -5,7 +5,7 @@ import {
   isContainerRunning, containerExists, containerIP, execDetached,
   pgrepMatch, pkillMatch, pullImage
 } from '../lib/docker.mjs';
-import { allocate } from '../lib/ports.mjs';
+import { allocate, acquirePortLock, releasePortLock } from '../lib/ports.mjs';
 import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
   CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS
@@ -184,53 +184,58 @@ function buildChromiumCmd(containerSessDir, internalPort) {
 async function createSession(ip, containerSessDir) {
   console.log('No existing session found — CREATING new instance...');
 
-  const { internal, public: pub } = await allocate(CONTAINER_NAME);
-  console.log(`Allocated ports: internal=${internal}, public=${pub}`);
-
+  await acquirePortLock();
   try {
-    const chromiumCmd = buildChromiumCmd(containerSessDir, internal);
+    const { internal, public: pub } = await allocate(CONTAINER_NAME);
+    console.log(`Allocated ports: internal=${internal}, public=${pub}`);
 
-    console.log('Launching chromium...');
-    await execDetached(CONTAINER_NAME, ['sh', '-c', chromiumCmd], {
-      user: '1000',
-      env: {
-        DISPLAY: ':0',
-        HOME: containerSessDir,
-        XDG_CONFIG_HOME: `${containerSessDir}/xdg/config`,
-        XDG_CACHE_HOME: `${containerSessDir}/xdg/cache`,
-        XDG_DATA_HOME: `${containerSessDir}/xdg/data`,
-        XDG_STATE_HOME: `${containerSessDir}/xdg/state`,
-        XDG_RUNTIME_DIR: `${containerSessDir}/xdg/runtime`,
-        SESS: containerSessDir
-      }
-    });
-    console.log('Chromium launched');
+    try {
+      const chromiumCmd = buildChromiumCmd(containerSessDir, internal);
 
-    console.log(`Launching socat on ${pub} -> ${internal}...`);
-    await execDetached(CONTAINER_NAME, [
-      'socat',
-      `TCP-LISTEN:${pub},fork,reuseaddr,bind=0.0.0.0`,
-      `TCP:127.0.0.1:${internal}`
-    ]);
-    console.log('Socat launched');
+      console.log('Launching chromium...');
+      await execDetached(CONTAINER_NAME, ['sh', '-c', chromiumCmd], {
+        user: '1000',
+        env: {
+          DISPLAY: ':0',
+          HOME: containerSessDir,
+          XDG_CONFIG_HOME: `${containerSessDir}/xdg/config`,
+          XDG_CACHE_HOME: `${containerSessDir}/xdg/cache`,
+          XDG_DATA_HOME: `${containerSessDir}/xdg/data`,
+          XDG_STATE_HOME: `${containerSessDir}/xdg/state`,
+          XDG_RUNTIME_DIR: `${containerSessDir}/xdg/runtime`,
+          SESS: containerSessDir
+        }
+      });
+      console.log('Chromium launched');
 
-    const cdpUrl = `http://${ip}:${pub}`;
-    console.log(`Waiting for CDP at ${cdpUrl}...`);
-    const ready = await curlRetry(`${cdpUrl}/json/version`);
-    if (!ready) throw new Error('CDP did not become ready within timeout');
-    console.log('CDP ready');
+      console.log(`Launching socat on ${pub} -> ${internal}...`);
+      await execDetached(CONTAINER_NAME, [
+        'socat',
+        `TCP-LISTEN:${pub},fork,reuseaddr,bind=0.0.0.0`,
+        `TCP:127.0.0.1:${internal}`
+      ]);
+      console.log('Socat launched');
 
-    const versionJson = await curlJson(`${cdpUrl}/json/version`);
-    const wsUrl = versionJson.webSocketDebuggerUrl.replace('localhost', ip);
+      const cdpUrl = `http://${ip}:${pub}`;
+      console.log(`Waiting for CDP at ${cdpUrl}...`);
+      const ready = await curlRetry(`${cdpUrl}/json/version`);
+      if (!ready) throw new Error('CDP did not become ready within timeout');
+      console.log('CDP ready');
 
-    return {
-      cdpUrl, wsUrl, internalPort: internal, publicPort: pub, adopted: false
-    };
-  } catch (err) {
-    console.error(`Create failed: ${err.message} — cleaning up`);
-    await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${pub}`);
-    await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
-    throw err;
+      const versionJson = await curlJson(`${cdpUrl}/json/version`);
+      const wsUrl = versionJson.webSocketDebuggerUrl.replace('localhost', ip);
+
+      return {
+        cdpUrl, wsUrl, internalPort: internal, publicPort: pub, adopted: false
+      };
+    } catch (err) {
+      console.error(`Create failed: ${err.message} — cleaning up`);
+      await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${pub}`);
+      await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
+      throw err;
+    }
+  } finally {
+    await releasePortLock();
   }
 }
 

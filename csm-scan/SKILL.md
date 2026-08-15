@@ -192,7 +192,9 @@ node scripts/scan.mjs [--repos <path>...] [--out <path>]
 - `--out <path>` — output file (default: `NORMS.md` in the current directory).
 - `--help` — print the full usage text and exit 0.
 - `--version` — print the version (package.json `version`, else the git commit hash, else `csm-scan`) and exit 0.
-- **Unknown flags** — any unrecognized option (or a `--repos`/`--out` argument that is missing, not a directory, or not a path) is reported on stderr with a usage hint and the process exits with status **2**.
+- **Errors (exit 2)** — an unknown flag, a missing `--out` value, or a `--repos` path that is not a directory or does not exist is reported on stderr with a usage hint and the process exits with status **2**.
+- `--repos` with no value is not an error — it defaults to the current working directory (exit 0).
+- An unwritable `--out` path is a pipeline error: the scan fails at the write step and the process exits with status **1**.
 - **Privacy** — output is privacy-safe by design: absolute paths, identities, and secrets are redacted before they reach stdout, stderr, or the report.
 
 ## Testing

@@ -9,7 +9,7 @@ csm-review judges what is wrong with a repository; csm-scan inventories what is 
 
 ## Tmux Session Bootstrap
 
-Run this bootstrap before anything else — before INTAKE, before any review tool use, and before any other section of this skill. It is not a review state.
+Run this bootstrap before anything else — before `INTAKE`, before any review tool use, and before any other section of this skill. It is not a review state.
 
 1. Check whether this invocation is already running inside tmux (the `TMUX` environment variable is set, or `tmux display-message -p '#session_name'` succeeds).
 2. Skip starting a new session and proceed directly with review in the current context when any of these is true:

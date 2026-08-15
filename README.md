@@ -32,7 +32,7 @@ flowchart LR
     build -->|"delivery"| browse["csm-browse<br/>image/video evidence of delivery"] -->|"evidence"| upload["csm-upload<br/>evidence → GitHub Pages demo site"]
 ```
 
-> **Edge semantics:** dashed edges are optional, human-invoked inputs (for example feeding the `NORMS.md` conventions from `csm-scan` into `csm-plan`, `csm-bdd-tdd`, or `csm-build`). `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — not an automatic edge; a review never writes a plan by itself.
+> **Edge semantics:** dashed edges are optional, human-invoked inputs (for example feeding the `NORMS.md` conventions from `csm-scan` into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review` — csm-review consumes `NORMS.md` via its `## NORMS.md` section, optionally like the others). `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — not an automatic edge; a review never writes a plan by itself.
 
 The core loop: **grill** an idea into an agreed phased approach, **scan** a repository for its conventions, **review** it adversarially for defects and security risks, **plan** the work as a numbered, resumable state machine, optionally **mutate** the plan into strict BDD/TDD form, then **build** it with parallel subagents, checkpoints, and review cycles. After delivery, **browse** captures image/video evidence of the build and **upload** makes it available to the user.
 
@@ -47,7 +47,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-bdd-tdd` | Mutate a saved plan into a strict BDD+TDD package: formal spec, executable Gherkin scenarios, unit test designs, and a traceable mutated plan. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-bdd-tdd-<goal-slug>`) and tells you how to attach. | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md) |
 | `csm-build` | Execute a saved CSM plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-build-<goal-slug>`) and tells you how to attach. | [csm-build/SKILL.md](csm-build/SKILL.md) |
 | `csm-scan` | Read-only multi-repo analysis producing a single `NORMS.md`: 17 evidence dimensions (structure, stack, conventions, architecture, security, data, deployment, and more) with Mermaid C4 diagrams. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-scan-<goal-slug>`) and tells you how to attach. | [csm-scan/SKILL.md](csm-scan/SKILL.md) |
-| `csm-review` | Adversarial repository review — a multi-agent defensive sweep that gathers evidence across a review-dimension spine (correctness, technical debt, security, secrets, dependencies, and more), challenges each finding, and saves a review report. Never fixes. | [csm-review/SKILL.md](csm-review/SKILL.md) |
+| `csm-review` | Adversarial repository review — a multi-agent defensive sweep that gathers evidence across a review-dimension spine (correctness, technical debt, security, secrets, dependencies, and more), challenges each finding, and saves a review report. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-review-<goal-slug>`) and tells you how to attach. Never fixes. | [csm-review/SKILL.md](csm-review/SKILL.md) |
 | `csm-browse` | Drive an isolated Chromium inside the `chromium-vnc` Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM, capture console/network/performance, record video. | [csm-browse/SKILL.md](csm-browse/SKILL.md) |
 | `csm-upload` | Upload screenshots, videos, and evidence files to a GitHub Pages demo site under a unique dated page name. | [csm-upload/SKILL.md](csm-upload/SKILL.md) |
 
@@ -88,7 +88,7 @@ The core loop is **grill → plan → build**:
 2. **Plan** — invoke `csm-plan` with a brief; it researches, critiques, verifies, and saves a numbered, resumable plan.
 3. **Build** — invoke `csm-build` with the saved plan; it executes with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.
 
-Each of these starts its orchestrating agent in a detached tmux session unless you're already inside tmux — say **"no tmux"** to keep the run in-session.
+The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.
 
 Optional gates around the loop: **`csm-scan`** to capture repository conventions into `NORMS.md` before planning, and **`csm-review`** to adversarially audit a repository (or a completed build) for defects and security risks before delivery.
 
@@ -160,7 +160,7 @@ Planning never silently becomes implementation, and execution always starts from
 ## Troubleshooting
 
 - **Lost tmux session** — a skill started a detached session but you lost track of it. List sessions with `tmux ls`, then reattach with `tmux attach-session -t <name>` (the name was printed when the session started, e.g. `csm-plan-<goal-slug>`).
-- **`chromium-vnc` container not starting** — `csm-browse` needs the container present and running. Check `docker ps -a` for the container, start it (`docker start <name>`), and rerun `node scripts/ensure-browser.mjs --session <sid>`. If it is absent, create it per `csm-browse`'s SKILL.md before using the skill.
+- **`chromium-vnc` container not starting** — `csm-browse` needs the container present and running. Check `docker ps -a` for the container, start it (`docker start <name>`), and rerun `node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --session <sid>`. If it is absent, create it per `csm-browse`'s SKILL.md before using the skill.
 - **`gh` not authenticated** — `csm-upload` reports authentication failures. Run `gh auth login` (and verify with `gh auth status`), then retry.
 - **ffmpeg missing** — full-page screenshots and screencasts fail without it. Install it with your package manager (e.g. `sudo apt install ffmpeg` or `brew install ffmpeg`). Until then `csm-browse` degrades to viewport-only screenshots and no video.
 

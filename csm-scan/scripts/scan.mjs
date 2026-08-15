@@ -1,6 +1,7 @@
 import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
 import { commandBroker } from '../lib/scan/shared/command.mjs';
@@ -29,12 +30,10 @@ const USAGE = [
 
 const USAGE_HINT = "Try 'scan.mjs --help' for usage.";
 
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+
 function printStdout(line) {
   process.stdout.write(`${line}\n`);
-}
-
-function printStderr(line) {
-  process.stderr.write(`${line}\n`);
 }
 
 function parseArgs(argv, cwd) {
@@ -111,7 +110,7 @@ async function packageVersion() {
 
 async function gitCommitHash() {
   try {
-    const result = await commandBroker.execute('git:log-oneline-50', { cwd: process.cwd() });
+    const result = await commandBroker.execute('git:log-oneline-50', { cwd: SCRIPT_DIR });
     const firstLine = String(result.stdout ?? '')
       .split('\n')
       .find((line) => line.trim().length > 0);
@@ -128,7 +127,11 @@ async function resolveVersion() {
 }
 
 async function main() {
+  const rawStderrWrite = process.stderr.write.bind(process.stderr);
   const guard = installSanitizedStdio();
+  const printCliError = (line) => {
+    rawStderrWrite(`${line}\n`);
+  };
   const { repos, out, help, version, errors } = parseArgs(process.argv.slice(2), process.cwd());
 
   if (help) {
@@ -140,15 +143,15 @@ async function main() {
     return;
   }
   if (errors.length > 0) {
-    for (const error of errors) printStderr(error);
-    printStderr(USAGE_HINT);
+    for (const error of errors) printCliError(error);
+    printCliError(USAGE_HINT);
     process.exitCode = 2;
     return;
   }
   const pathErrors = validateRepos(repos);
   if (pathErrors.length > 0) {
-    for (const error of pathErrors) printStderr(error);
-    printStderr(USAGE_HINT);
+    for (const error of pathErrors) printCliError(error);
+    printCliError(USAGE_HINT);
     process.exitCode = 2;
     return;
   }

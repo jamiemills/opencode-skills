@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile, spawn } from 'node:child_process';
 import { accessSync } from 'node:fs';
-import { writeFile, mkdir, copyFile, access, readFile, rm, mkdtemp, readdir, constants as fsc } from 'node:fs/promises';
+import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, constants as fsc } from 'node:fs/promises';
 import { join, basename, dirname } from 'node:path';
 import { promisify } from 'node:util';
 import { homedir, tmpdir } from 'node:os';
@@ -113,34 +113,13 @@ async function main() {
     const demoPath = join(pagesDir, demoDir);
 
     async function ensureRepo() {
-      let hasGit = false;
-      try {
-        await access(join(pagesDir, '.git'), fsc.F_OK);
-        hasGit = true;
-      } catch {}
-
-      if (hasGit) {
-        try {
-          await execFileAsync('git', ['-C', pagesDir, 'pull', '--rebase']);
-          console.log('Pages repo updated');
-        } catch (err) {
-          throw new Error(`git pull failed in ${pagesDir}: ${err.stderr || err.message}`);
-        }
-        return;
+      const entries = await readdir(pagesDir);
+      if (entries.length > 0) {
+        throw new Error(`Conflict: ${pagesDir} is not empty. Refusing to clone into it.`);
       }
-
-      let isEmpty = true;
-      try {
-        isEmpty = (await readdir(pagesDir)).length === 0;
-      } catch {}
-
-      if (isEmpty) {
-        console.log(`Cloning pages repo: ${PAGES_REPO}...`);
-        await execFileAsync('git', ['clone', PAGES_REPO, pagesDir]);
-        console.log('Cloned');
-      } else {
-        throw new Error(`Conflict: ${pagesDir} is not a git repo and is not empty. Refusing to clone into it.`);
-      }
+      console.log(`Cloning pages repo: ${PAGES_REPO}...`);
+      await execFileAsync('git', ['clone', PAGES_REPO, pagesDir]);
+      console.log('Cloned');
     }
 
     async function gitCommit() {
@@ -204,8 +183,8 @@ async function main() {
       console.log(url);
     } catch (err) {
       if (uploaded.length > 0) {
-        console.error(`Partial upload state: ${uploaded.map(u => u.name).join(', ')} already copied to ${demoPath}.`);
-        console.error('Retry by re-running the same command.');
+        console.error(`Partial upload state: ${uploaded.map(u => u.name).join(', ')} were copied into the temporary directory before the failure.`);
+        console.error('The temporary directory is removed now; re-running the same command retries the upload from scratch.');
       }
       throw err;
     }

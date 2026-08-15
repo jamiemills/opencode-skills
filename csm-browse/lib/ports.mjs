@@ -28,7 +28,7 @@ async function breakStaleLock() {
   } catch {}
 }
 
-async function acquirePortLock() {
+export async function acquirePortLock() {
   await mkdir(SESSIONS_ROOT, { recursive: true });
   const start = Date.now();
   for (;;) {
@@ -47,35 +47,30 @@ async function acquirePortLock() {
   }
 }
 
-async function releasePortLock() {
+export async function releasePortLock() {
   try { await unlink(LOCK_FILE); } catch {}
 }
 
 export async function allocate(container) {
-  await acquirePortLock();
-  try {
-    for (let p = PORT_POOL_START; p <= PORT_POOL_END; p++) {
-      const internal = p;
-      const pub = p + 1;
+  for (let p = PORT_POOL_START; p <= PORT_POOL_END; p++) {
+    const internal = p;
+    const pub = p + 1;
 
-      const internalFree = await isPortFree(container, internal);
-      if (!internalFree) continue;
+    const internalFree = await isPortFree(container, internal);
+    if (!internalFree) continue;
 
-      const publicFree = await isPortFree(container, pub);
-      if (!publicFree) continue;
+    const publicFree = await isPortFree(container, pub);
+    if (!publicFree) continue;
 
-      const socatMatches = await pgrepMatch(container, `TCP-LISTEN:${pub}`);
-      if (socatMatches.length > 0) continue;
+    const socatMatches = await pgrepMatch(container, `TCP-LISTEN:${pub}`);
+    if (socatMatches.length > 0) continue;
 
-      return { internal, public: pub };
-    }
-
-    throw new Error(
-      `No free port pair available in range ${PORT_POOL_START}-${PORT_POOL_END}`
-    );
-  } finally {
-    await releasePortLock();
+    return { internal, public: pub };
   }
+
+  throw new Error(
+    `No free port pair available in range ${PORT_POOL_START}-${PORT_POOL_END}`
+  );
 }
 
 export async function release(state) {

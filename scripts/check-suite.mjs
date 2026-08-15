@@ -190,20 +190,23 @@ check(readme !== null, `README.md not found at ${readmePath}`);
 if (readme !== null) {
   const skillSet = new Set(skillDirs);
   const seen = new Set();
-  const re = /csm-[a-z-]+\/[A-Za-z0-9_./-]+/g;
-  let m;
-  while ((m = re.exec(readme)) !== null) {
-    const full = m[0];
-    const seg = full.split('/')[0];
-    if (!skillSet.has(seg)) continue;
-    seen.add(seg);
-    check(fs.existsSync(path.join(root, full)), `README path not found: ${full}`);
+  for (const line of readme.split(/\r?\n/)) {
+    if (/:\/\//.test(line) || /github\.com/.test(line)) continue;
+    const re = /csm-[a-z-]+\/[A-Za-z0-9_./-]+/g;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      const full = m[0];
+      const seg = full.split('/')[0];
+      if (!/^csm-[a-z-]+$/.test(seg)) continue;
+      if (skillSet.has(seg)) seen.add(seg);
+      check(fs.existsSync(path.join(root, full)), `README path not found: ${full}`);
+    }
   }
   const missingSkills = [...skillSet].filter((s) => !seen.has(s));
   check(missingSkills.length === 0, `README references ${seen.size}/${skillSet.size} skills; missing ${missingSkills.join(', ')}`);
 
-  const hasTmuxBullet = readme.split(/\r?\n/).some((l) => /tmux/i.test(l) && l.includes('csm-review'));
-  check(hasTmuxBullet, 'README tmux bullet does not list the 5 bootstrap skills (csm-review near tmux)');
+  const hasTmuxBullet = readme.split(/\r?\n/).some((l) => /tmux/i.test(l) && TMUX_SKILLS.every((s) => l.includes(s)));
+  check(hasTmuxBullet, 'README tmux bullet does not list the 5 bootstrap skills (csm-plan, csm-build, csm-bdd-tdd, csm-scan, csm-review)');
 }
 
 if (failures.length === 0) {

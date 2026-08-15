@@ -245,6 +245,9 @@ test('T224 CLI: stdout/stderr are privacy-clean even when the repository contain
 });
 
 test('T224 CLI: an unreadable repository aborts with a sanitized error and no output file', async () => {
+  // Policy (plan csm-suite-improvements T003 + review R-A1): user-typed CLI args are
+  // exempt from redaction — the missing --repos path IS echoed. The output-file
+  // invariant (no write on failure) is unchanged.
   const missing = join(tmpdir(), `csm-scan-t224-missing-${process.pid}-${Date.now()}`);
   const outputDir = mkdtempSync(join(tmpdir(), 'csm-scan-t224-missing-out-'));
   const outputPath = join(outputDir, 'NORMS.md');
@@ -253,7 +256,7 @@ test('T224 CLI: an unreadable repository aborts with a sanitized error and no ou
       execFileAsync(process.execPath, [SCAN_SCRIPT, '--repos', missing, '--out', outputPath], { cwd: ROOT }),
       (error) => {
         const text = `${error.stdout ?? ''}\n${error.stderr ?? ''}`;
-        assert.equal(text.includes(missing), false, 'error output must not echo the missing path');
+        assert.equal(text.includes(missing), true, 'error output must echo the user-typed missing path (CLI-arg exemption)');
         assert.equal(existsSync(outputPath), false, 'no file may be written when the run fails');
         return true;
       },

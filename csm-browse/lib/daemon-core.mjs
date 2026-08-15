@@ -32,7 +32,7 @@ export async function ensureSingleTab(client) {
   return sessionId;
 }
 
-export async function startQueueLoop(client, sessionId, sessionDir) {
+export async function prepareQueueDirs(sessionDir) {
   const cmdDir = join(sessionDir, 'cmd');
   const runningDir = join(sessionDir, 'cmd', 'running');
   const outDir = join(sessionDir, 'cmd', 'out');
@@ -42,6 +42,14 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
   await mkdir(cmdDir, { recursive: true });
   await mkdir(runningDir, { recursive: true });
   await mkdir(outDir, { recursive: true });
+}
+
+export async function startQueueLoop(client, sessionId, sessionDir) {
+  const cmdDir = join(sessionDir, 'cmd');
+  const runningDir = join(sessionDir, 'cmd', 'running');
+  const outDir = join(sessionDir, 'cmd', 'out');
+
+  await prepareQueueDirs(sessionDir);
 
   while (true) {
     try {

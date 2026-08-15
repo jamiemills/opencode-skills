@@ -64,7 +64,6 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     const raw = await readFile(recorderJsonPath, 'utf-8');
     const state = JSON.parse(raw);
     if (state.running && activeRecording) throw new Error('already recording');
-    if (state.running && !activeRecording) await reconcileRecorder(sessionDir);
   } catch (err) {
     if (err.message === 'already recording') throw err;
   }

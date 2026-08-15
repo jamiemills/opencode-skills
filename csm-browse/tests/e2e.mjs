@@ -28,6 +28,13 @@ function fail(step, msg) {
   console.log(`FAIL: ${step} - ${msg}`);
 }
 
+function enforceWallCap() {
+  const elapsed = Date.now() - E2E_START;
+  if (elapsed > MAX_E2E_MS) {
+    fail('Wall cap', `suite exceeded MAX_E2E_MS=${MAX_E2E_MS}ms (${elapsed}ms)`);
+  }
+}
+
 function assert(step, condition, msg) {
   if (condition) pass(step, msg);
   else fail(step, msg || 'assertion failed');
@@ -182,6 +189,7 @@ async function runTests() {
     }
 
     if (!state) {
+      enforceWallCap();
       console.error('Cannot proceed without session state');
       process.exit(1);
     }
@@ -686,5 +694,6 @@ runTests().catch(err => {
   console.error(`FATAL: ${err.message}`);
   killServer();
   try { exec('fuser -k 8090/tcp 2>/dev/null', () => {}); } catch {}
+  enforceWallCap();
   process.exit(1);
 });

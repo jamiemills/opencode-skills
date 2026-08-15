@@ -238,15 +238,19 @@ test('T227 privacy: CLI stdout, stderr, and Markdown carry zero canaries over a 
   }
 });
 
-test('T227 privacy: CLI error output is sanitized and leaks no canaries', async () => {
-  const missing = join(tmpdir(), `csm-scan-missing-privacy-super-secret-token-77-${process.pid}-${Date.now()}`);
+test('T227 privacy: CLI error output echoes user-typed paths but leaks no canaries', async () => {
+  // Policy (plan csm-suite-improvements T003 + review R-A1): user-typed CLI args are
+  // exempt from redaction — they are what the user typed, so the missing --repos path
+  // IS echoed. Redaction still applies to scan-internal output (T224) and no canary
+  // may appear anywhere in the error surface unless the user literally typed it.
+  const missing = join(tmpdir(), `csm-scan-missing-path-${process.pid}-${Date.now()}`);
   const outDir = await mkdtemp(join(tmpdir(), 'csm-scan-t227-privacy-err-'));
   try {
     await assert.rejects(
       execFileAsync(process.execPath, [SCAN_SCRIPT, '--repos', missing, '--out', join(outDir, 'NORMS.md')], { cwd: ROOT }),
       (error) => {
         const blob = `${error.stdout ?? ''}\n${error.stderr ?? ''}`;
-        assert.equal(blob.includes(missing), false, 'the error surface must not echo the missing repository path');
+        assert.equal(blob.includes(missing), true, 'the error surface must echo the user-typed missing repository path (CLI-arg exemption)');
         assertZeroLeaks('CLI error surface', blob);
         return true;
       },

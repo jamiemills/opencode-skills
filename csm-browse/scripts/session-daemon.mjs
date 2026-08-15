@@ -3,7 +3,7 @@ import { readFile, writeFile, rm } from 'node:fs/promises';
 import { existsSync, createWriteStream } from 'node:fs';
 import { join } from 'node:path';
 import { loadState, sessionDir } from '../lib/session.mjs';
-import { connectDaemon, ensureSingleTab, startQueueLoop } from '../lib/daemon-core.mjs';
+import { connectDaemon, ensureSingleTab, startQueueLoop, prepareQueueDirs } from '../lib/daemon-core.mjs';
 
 const args = process.argv.slice(2);
 let sid = null;
@@ -75,6 +75,7 @@ try {
     console.log('Collectors not available');
   }
 
+  await prepareQueueDirs(sDir);
   await writeFile(pidFile, String(process.pid), 'utf-8');
   await writeFile(readyMarker, String(process.pid), 'utf-8');
 
