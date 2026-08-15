@@ -7,6 +7,28 @@ description: Mutate a saved CSM plan into a strict BDD+TDD execution package —
 
 Take a plan produced by `csm-plan` and transform it into a strict BDD + TDD package: a formal spec, executable behavior scenarios (BDD, outside-in), unit test designs (TDD, inside-out), and a **new mutated CSM plan file** whose tasks are traceable to approved scenarios and drive red → green → refactor during a future `csm-build` run. This skill specifies and plans only — it never builds.
 
+## Tmux Session Bootstrap
+
+Run this bootstrap before anything else — before `INTAKE`, before any pipeline tool use, and before any other section of this skill. It is not a pipeline state.
+
+1. Check whether this invocation is already running inside tmux (the `TMUX` environment variable is set, or `tmux display-message -p '#session_name'` succeeds).
+2. Skip starting a new session and proceed directly with the BDD/TDD mutation in the current context when any of these is true:
+   - the invocation is already inside tmux;
+   - the user or their prompt explicitly said not to use tmux or not to start a tmux session;
+   - the user explicitly asked for a different terminal multiplexer (for example `screen` or `zellij`) — honor that choice instead and never start tmux alongside it;
+   - tmux is not installed or cannot start a session — note this to the user and continue without tmux.
+
+   When skipping because this invocation is already inside tmux, state the current tmux session name (for example via `tmux display-message -p '#session_name'`) and continue in it, so the session in use is always named.
+3. Otherwise, start the orchestrating agent in a new detached tmux session before doing any BDD/TDD work:
+   - Derive a sensible, short, descriptive session name from the current session and the user's prompt, in the form `csm-bdd-tdd-<goal-slug>` (lowercase, hyphen-separated, tmux-safe characters, truncated to a reasonable length).
+   - If a tmux session with that name already exists, append a numeric suffix (`-2`, `-3`, ...).
+   - Launch the same agent invocation carrying the user's original BDD/TDD request inside the detached session, for example:
+     `tmux new-session -d -s csm-bdd-tdd-<goal-slug> 'opencode run "<original BDD/TDD request>"'`
+     adapting the exact command to the agent CLI actually in use so the BDD/TDD work continues inside tmux.
+4. Immediately print a clear notice naming the session so the user can attach later, for example:
+   `Started tmux session "csm-bdd-tdd-<goal-slug>". Attach to it later with: tmux attach-session -t csm-bdd-tdd-<goal-slug>`
+5. After printing the notice, end this invocation without performing any BDD/TDD work; the tmux session performs the actual mutation from the beginning of this skill. Only when the bootstrap was skipped under step 2 does this same invocation continue directly into the pipeline workflow below.
+
 ## Repository Norms
 
 **NORMS.md is entirely optional.** If a `NORMS.md` file produced by `csm-scan` exists in the repo, load its testing and convention norms before generating the BDD/TDD spec package. If not present or not authentic, skip — use standard BDD/TDD defaults, nothing is blocked.

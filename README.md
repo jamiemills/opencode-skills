@@ -38,9 +38,9 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 |---|---|---|
 | `csm-grill` | Grill an idea into an agreed, phased approach — a relentless one-question-at-a-time interview backed by research subagents, cycling until you agree; each phase is a ready-made brief for a future csm-plan run. Never plans or implements. | [csm-grill/SKILL.md](csm-grill/SKILL.md) |
 | `csm-plan` | Turn a brief into an evidence-based, executable, resumable implementation plan — research, critique, verify, save, stop. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-plan-<goal-slug>`) and tells you how to attach. Never implements. | [csm-plan/SKILL.md](csm-plan/SKILL.md) |
-| `csm-bdd-tdd` | Mutate a saved plan into a strict BDD+TDD package: formal spec, executable Gherkin scenarios, unit test designs, and a traceable mutated plan. | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md) |
-| `csm-build` | Execute a saved CSM plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete. | [csm-build/SKILL.md](csm-build/SKILL.md) |
-| `csm-scan` | Read-only multi-repo analysis producing a single `NORMS.md`: 17 evidence dimensions (structure, stack, conventions, architecture, security, data, deployment, and more) with Mermaid C4 diagrams. | [csm-scan/SKILL.md](csm-scan/SKILL.md) |
+| `csm-bdd-tdd` | Mutate a saved plan into a strict BDD+TDD package: formal spec, executable Gherkin scenarios, unit test designs, and a traceable mutated plan. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-bdd-tdd-<goal-slug>`) and tells you how to attach. | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md) |
+| `csm-build` | Execute a saved CSM plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-build-<goal-slug>`) and tells you how to attach. | [csm-build/SKILL.md](csm-build/SKILL.md) |
+| `csm-scan` | Read-only multi-repo analysis producing a single `NORMS.md`: 17 evidence dimensions (structure, stack, conventions, architecture, security, data, deployment, and more) with Mermaid C4 diagrams. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-scan-<goal-slug>`) and tells you how to attach. | [csm-scan/SKILL.md](csm-scan/SKILL.md) |
 | `csm-review` | Adversarial repository review — a multi-agent defensive sweep that gathers evidence across a review-dimension spine (correctness, technical debt, security, secrets, dependencies, and more), challenges each finding, and saves a review report. Never fixes. | [csm-review/SKILL.md](csm-review/SKILL.md) |
 | `csm-browse` | Drive an isolated Chromium inside the `chromium-vnc` Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM, capture console/network/performance, record video. | [csm-browse/SKILL.md](csm-browse/SKILL.md) |
 | `csm-upload` | Upload screenshots, videos, and evidence files to a GitHub Pages demo site under a unique dated page name. | [csm-upload/SKILL.md](csm-upload/SKILL.md) |
@@ -51,7 +51,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 - **Node.js >= 20** — for `csm-browse` (see `csm-browse/package.json`) and for running the `csm-scan` test suite (`node:test`). `csm-scan` itself is zero-dependency Node built-ins only.
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
-- **tmux** — optional, `csm-plan` only. When available and not already running under tmux (and not opted out of), `csm-plan` starts its orchestrating agent in a detached tmux session so planning survives a dropped terminal; without tmux it proceeds in the current session.
+- **tmux** — optional. When available and not already running under tmux (and not opted out of), the `csm-plan`, `csm-build`, `csm-bdd-tdd`, and `csm-scan` skills start their orchestrating agent in a detached tmux session so long-running work survives a dropped terminal; each prints its session name and how to attach; without tmux they proceed in the current session.
 
 ## Installation
 
@@ -79,11 +79,11 @@ The five orchestration skills (`csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-buil
 Typical sequence:
 
 1. **Grill** an idea into agreed phases — `csm-grill` (each phase becomes a brief for the next step).
-2. **Scan** a repo for conventions (optional) — `csm-scan` → `NORMS.md`.
+2. **Scan** a repo for conventions (optional) — `csm-scan` → `NORMS.md`; when run as a skill it starts in a detached tmux session (`csm-scan-<goal-slug>`) unless you're already inside one or declined.
 3. **Review** the repo adversarially (optional) — `csm-review` → `.agents/reviews/<date>-<repo>-review.md`.
 4. **Plan** the work — `csm-plan` → `.agents/plans/<date>-<goal>-csm.md`. Unless you're already in tmux or asked not to use it, this starts a detached tmux session (`csm-plan-<goal-slug>`) that prints its name and runs the planning there; attach with `tmux attach-session -t <name>` or say "no tmux" to keep it in-session.
-5. **Mutate** to BDD/TDD (optional) — `csm-bdd-tdd`.
-6. **Build** it — `csm-build`, preferring any BDD/TDD-mutated plan.
+5. **Mutate** to BDD/TDD (optional) — `csm-bdd-tdd`; starts in a detached tmux session (`csm-bdd-tdd-<goal-slug>`) unless you're already inside one or declined.
+6. **Build** it — `csm-build`, preferring any BDD/TDD-mutated plan; starts in a detached tmux session (`csm-build-<goal-slug>`) unless you're already inside one or declined.
 7. **Capture** image/video evidence of the delivery and **publish** it — `csm-browse` → `csm-upload`.
 
 Planning never silently becomes implementation, and execution always starts from a saved plan on disk.

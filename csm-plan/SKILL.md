@@ -17,6 +17,8 @@ Run this bootstrap before anything else — before `INTAKE`, before any planning
    - the user or their prompt explicitly said not to use tmux or not to start a tmux session;
    - the user explicitly asked for a different terminal multiplexer (for example `screen` or `zellij`) — honor that choice instead and never start tmux alongside it;
    - tmux is not installed or cannot start a session — note this to the user and continue without tmux.
+
+   When skipping because this invocation is already inside tmux, state the current tmux session name (for example via `tmux display-message -p '#session_name'`) and continue in it, so the session in use is always named.
 3. Otherwise, start the orchestrating agent in a new detached tmux session before doing any planning work:
    - Derive a sensible, short, descriptive session name from the current session and the user's prompt, in the form `csm-plan-<goal-slug>` (lowercase, hyphen-separated, tmux-safe characters, truncated to a reasonable length).
    - If a tmux session with that name already exists, append a numeric suffix (`-2`, `-3`, ...).

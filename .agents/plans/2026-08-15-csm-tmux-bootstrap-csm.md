@@ -7,14 +7,14 @@
 
 ## Control
 - Plan ID: csm-tmux-bootstrap
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-15 plan created and verified by primary agent
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-15 cycle 1 complete: T001-T005 all verified via grep acceptance signals and batch gates; zero repair attempts; lightweight primary self-review (docs-only, low risk)
+- Next transition: none (terminal)
 - Active tasks: none
-- Blockers: none (one optional user decision recorded in Assumptions, not blocking)
+- Blockers: none (A1 exclusion of grill/browse/upload remains a pending user decision; follow-up note: csm-review skill, added post-planning in 97378f6, has no bootstrap — out of this plan's scope)
 
 ## Goal
 Replicate the tmux session bootstrap from `csm-plan/SKILL.md:10-28` in every csm skill where it makes sense, so each such skill — before any other work — checks for tmux and starts its orchestrating agent in a new detached tmux session unless the invocation is already inside tmux, the user declined tmux, the user asked for an alternative multiplexer, or tmux is unavailable. Every skill states the tmux session name in use (both when starting a session and when continuing inside an existing one).
@@ -92,7 +92,7 @@ Boundaries: no code, script, config, or dependency changes; no changes to exclud
 - Parallel group G1: T001, T002, T003, T004, T005 (all disjoint write ownership).
 
 ## Numbered Plan
-1. [pending] Add Tmux Session Bootstrap to csm-build
+1. [completed] Add Tmux Session Bootstrap to csm-build
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -107,7 +107,7 @@ Boundaries: no code, script, config, or dependency changes; no changes to exclud
    - Repair attempts: 0
    - Recovery note: partial work is visible as a truncated or misplaced section in csm-build/SKILL.md; re-run grep signal and complete/fix the single section in place.
 
-2. [pending] Add Tmux Session Bootstrap to csm-bdd-tdd
+2. [completed] Add Tmux Session Bootstrap to csm-bdd-tdd
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -122,7 +122,7 @@ Boundaries: no code, script, config, or dependency changes; no changes to exclud
    - Repair attempts: 0
    - Recovery note: same as T001 — single self-contained section; grep signal locates gaps.
 
-3. [pending] Add Tmux Session Bootstrap to csm-scan
+3. [completed] Add Tmux Session Bootstrap to csm-scan
    - Task ID: T003
    - Depends on: none
    - Parallel group: G1
@@ -137,7 +137,7 @@ Boundaries: no code, script, config, or dependency changes; no changes to exclud
    - Repair attempts: 0
    - Recovery note: same single-section recovery as T001/T002.
 
-4. [pending] Amend csm-plan bootstrap to state session name when skipping
+4. [completed] Amend csm-plan bootstrap to state session name when skipping
    - Task ID: T004
    - Depends on: none
    - Parallel group: G1
@@ -152,7 +152,7 @@ Boundaries: no code, script, config, or dependency changes; no changes to exclud
    - Repair attempts: 0
    - Recovery note: single-line additive edit; any partial state is a missing sentence, completed in place.
 
-5. [pending] Update README for the extended tmux convention
+5. [completed] Update README for the extended tmux convention
    - Task ID: T005
    - Depends on: none (wording fully specified by this plan; lands in same batch)
    - Parallel group: G1
@@ -195,6 +195,8 @@ Boundaries: no code, script, config, or dependency changes; no changes to exclud
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
 |---|---|---|---|---|---|
 | 2026-08-15 | 0 | Plan created (INTAKE->DISCOVER->RESEARCH->DRAFT->CRITIQUE->REMEDIATE->VERIFY->SAVED) | none | Discovery greps, seven SKILL.md reads, git log evidence recorded above; primary-led critique per Scale To The Ask (small prescriptive docs-only brief) | NOT_STARTED; future csm-build begins at RECOVER |
+| 2026-08-15 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001-T005 selected (G1, disjoint files) | Repo status: clean except unrelated modified `.agents/plans/2026-08-15-csm-review-skill-csm.md` (preserved, never staged); NORMS.md absent; drift: csm-review skill added post-planning (97378f6), README lines shifted (tmux bullet now L54, table rows L40-43, usage steps renumbered — plan step refs remapped: mutate=step 5, build=step 6, scan=step 2); csm-review/csm-grill/csm-browse/csm-upload contain zero tmux refs; primary-agent direct implementation chosen over subagent dispatch (5 mechanical ~20-line insertions fully specified by plan; prompt content would exceed edit content; lightweight path per Scale ceremony to risk) | INTEGRATE |
+| 2026-08-15 | 1 | INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT -> COMPLETE | T001-T005 completed | Acceptance signals: T001 `1/3/2` (section/goal-slug/already-inside), T002 `1/3/2`, T003 `1/3/1` (incl. scripts/scan.mjs scope note), T004 display-message=2 + csm-plan diff purely additive (0 removed lines), T005 "csm-plan only"=0 + goal-slug greps 2/2/2 + 3 table rows match tmux. Batch gates: `## Tmux Session Bootstrap` present in exactly csm-plan/csm-build/csm-bdd-tdd/csm-scan; excluded skills (grill/browse/upload) 0 tmux refs, byte-identical; git status shows exactly the 5 target files + this plan + pre-existing unrelated review-plan modification (unstaged, preserved); diff stat: +22/-0 each new SKILL.md, +2/-0 csm-plan, README 3 areas edited, no excluded entries. Self-review of full diffs: wording mechanically mirrors csm-plan reference; placement confirmed before Activation Boundary / Repository Norms / When to use. 0 repair attempts. Follow-up flagged: csm-review (new post-planning skill) has no bootstrap — separate small plan if wanted | COMPLETE |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+All five acceptance criteria verified 2026-08-15 by primary agent: (1) three new bootstrap sections contain all four skip conditions, skill-prefixed session names with collision rule, detached launch carrying the original request, attach notice, and end-invocation rule — grep-verified per task; (2) session name stated in both paths in all four sections (attach notice + inside-tmux skip sentence); (3) README requirement bullet, skills table, and usage sequence reflect the four tmux-enabled skills with zero "csm-plan only" remnants; (4) execution touched exactly the five named files; (5) excluded skills byte-identical. No regressions possible (documentation-only). Residual: A1 exclusion (grill/browse/upload) awaits user confirmation; csm-review skill postdates the plan and has no bootstrap — candidate for a follow-up plan.
