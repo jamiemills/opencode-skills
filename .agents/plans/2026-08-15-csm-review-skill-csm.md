@@ -7,13 +7,13 @@
 
 ## Control
 - Plan ID: csm-review-skill
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: VERIFY (G1) -> REVIEW (T003 next)
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-15 planning session — research (5 tracks), hostile critique (28 findings), remediation complete; plan verified and saved
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-15 build cycle 1 — DISPATCH: T001 (SKILL.md) + T002 (README.md) in parallel; INTEGRATE: diffs inspected, in-scope only, tmux content preserved; VERIFY: both gates pass (GATE-PASS, README-GATE-PASS), SKILL.md 264 lines/12 sections
+- Next transition: SELECT -> REVIEW — T003 five parallel hostile review passes (a)-(e)
+- Active tasks: T001, T002 (verified complete); T003 next
 - Blockers: none
 
 ## Goal
@@ -361,6 +361,12 @@ Hostile critique of the draft (2026-08-15) returned 28 findings; verdict NOT REA
 | 2026-08-15 | 0 | REMEDIATE | none | All 28 findings resolved (see Critique Resolution); gates rewritten runnable; baseline re-set to cca5396; category list enumerated; cycle cap + egress mechanism + challenger view specified | VERIFY |
 | 2026-08-15 | 0 | VERIFY | none | Primary-personal gate: AC1–8 mapped to tasks + runnable evidence; dependency order G1→G2→G3 sound with disjoint ownership; all statuses pending, state NOT_STARTED; signals are literal runnable bash (checked `-e` hygiene, no placeholders); recovery notes present per task | SAVED |
 | 2026-08-15 | 0 | SAVED | none | Plan saved to .agents/plans/2026-08-15-csm-review-skill-csm.md; single commit staging only the plan file | STOP |
+| 2026-08-15 | 1 | RECOVER | none | HEAD f03fecd clean; no NORMS.md (optional, skipped); csm-review/ absent; tmux plan still ready/NOT_STARTED (README last touched at a69b625); plan control matches saved state | VALIDATE |
+| 2026-08-15 | 1 | VALIDATE | none | README targets verified present: seven skill folders x1, 16 evidence dimensions x1, csm-plan-goal-slug x2, four-core/three-tooling x1; plan commands/files match repo | SELECT |
+| 2026-08-15 | 1 | SELECT | none | Ready set: T001 (SKILL.md, owns csm-review/) + T002 (README.md) — deps satisfied (none), disjoint ownership; no spike needed (design fully specified) | DISPATCH |
+| 2026-08-15 | 1 | DISPATCH | T001, T002 | Both dispatched in parallel with full design spec + acceptance signals; both returned gate-passing results | INTEGRATE |
+| 2026-08-15 | 1 | INTEGRATE | T001, T002 | Diffs inspected directly: SKILL.md 264 lines, 9 state subsections w/ exits, 12 sections, 18 dims, all spec fields; README diff covers all 9 D9 touchpoints, tmux content intact, 16->17 fixed, counts seven->eight/four->five; T001 deviations (STOP subsection added, template headings indented) accepted — house-consistent and validation-compliant | VERIFY |
+| 2026-08-15 | 1 | VERIFY | T001, T002 | Both acceptance gates re-run by primary: GATE-PASS + README-GATE-PASS (exit 0); section count 12 (10-14 range) | REVIEW |
 
 ## Completion Review
 
