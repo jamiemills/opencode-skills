@@ -7,12 +7,12 @@
 
 ## Control
 - Plan ID: csm-review-write-discipline
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-15 planning — DISCOVER cataloged every write path in csm-review/SKILL.md; primary-led critique applied (small, low-risk ask)
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-15 build cycle 1 — T001+T002 complete; independent review PASS (6 wording findings, all repaired); all gates green; plan COMPLETE DISCOVER cataloged every write path in csm-review/SKILL.md; primary-led critique applied (small, low-risk ask)
+- Next transition: none (terminal)
 - Active tasks: none
 - Blockers: none
 
@@ -109,7 +109,7 @@ Add `'## Write Discipline And File Allowlist'` to the csm-review required-sectio
 
 ## Numbered Plan
 
-1. [pending] csm-review write-discipline edit
+1. [completed] csm-review write-discipline edit
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -124,7 +124,7 @@ Add `'## Write Discipline And File Allowlist'` to the csm-review required-sectio
    - Repair attempts: 0
    - Recovery note: the gate names the exact missing marker; add incrementally; never rewrite wholesale.
 
-2. [pending] Linter enforcement for the write-discipline section
+2. [completed] Linter enforcement for the write-discipline section
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -162,6 +162,17 @@ Primary-led critique (small, low-risk ask; per Scale To The Ask):
 | Linter planted-defect test might break | minor | T002 gate includes its own planted-defect test against the new section; original test unaffected (breaks csm-scan) | T002 signal |
 | Scope creep into README | nit | R2 verified README makes no commit claims — no README task | R&D R2 |
 
+Build review findings (independent pass, cycle 1): Verdict PASS; 6 wording findings, all repaired.
+
+| Finding | Severity | Resolution | Evidence |
+|---|---|---|---|
+| R-1 allowlist "exactly" enumeration self-contradicted by the commit exemption | minor | commit added as enumerated item (3), user-request-only | Write Discipline section |
+| R-2 read-only git ops list omitted clone (required by remote intake) | minor | bullet scoped to reviewed-repo state; clone (file://, temp target) permitted | Write Discipline section |
+| R-3 containment-check wording garbled vs VERIFY baseline diff | minor | reconciled: "diffed against the INTAKE baseline — only the report file may differ" | Execution Posture |
+| R-4 remote-target report location ambiguous (evaporable sandbox) | nit | invocation cwd .agents/reviews/ stated | Write Discipline section |
+| R-5 challenger file copies unstated location | nit | "(in the temp sandbox)" added to enumeration item 2 | Write Discipline section |
+| R-6 parent .agents/ creation not spelled out | nit | spelled out | Write Discipline section |
+
 ## Progress Journal
 
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
@@ -176,4 +187,4 @@ Primary-led critique (small, low-risk ask; per Scale To The Ask):
 
 ## Completion Review
 
-(filled by csm-build when all criteria are verified)
+Build complete (cycle 1). AC1-6 all verified: write-discipline section present with two-zone (+explicit-commit) allowlist (AC1); no auto-commit language (AC2); INTAKE baseline + VERIFY protected-state check with only-the-report-file rule (AC3); Anti-Patterns + Done Criteria entries (AC4); linter requires the section — 156 checks pass, planted defect caught (AC5); 324 lines <500 (AC6). Independent review PASS; 6 wording findings repaired; gates re-run green. Nothing pushed.

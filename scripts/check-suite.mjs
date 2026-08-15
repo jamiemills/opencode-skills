@@ -47,6 +47,7 @@ const REQUIRED_SECTIONS = {
   'csm-review': [
     '## Activation Boundary',
     '## Core Rules',
+    '## Write Discipline And File Allowlist',
     '## Review State Machine',
     '## Review Dimensions',
     '## Finding Record',
