@@ -58,7 +58,16 @@ export async function removeHostSession(sessionDir) {
 }
 
 export async function releasePorts(state) {
-  // ports are freed by killing processes; no-op for now
+  if (!state) return;
+  const containerName = state.container && state.container.name;
+  if (!containerName) return;
+
+  if (state.publicPort) {
+    await killSocat(containerName, state.publicPort);
+  }
+  if (state.profileDir) {
+    await killInstance(containerName, state.profileDir);
+  }
 }
 
 export async function truncateLogs(sessionDir, containerName, containerSessDir) {

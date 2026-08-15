@@ -25,6 +25,17 @@ Grill a rough idea into an agreed, phased approach through a relentless, researc
 - Follow Write Discipline And Temp Files: the only persistent write is the single approach document.
 - Scale ceremony to idea size by varying the number and depth of research subagents — but always dispatch at least one research subagent at SCOUT and at DEEP_DIVE, never zero. Proportionality reduces depth, never the required structure.
 
+## Subagent Resilience
+
+Fallback ladder — journal every incident, never silently:
+
+1. Minimal-prompt retry of the same agent.
+2. Re-dispatch with narrowed scope.
+3. Fresh agent.
+4. Primary completion of research and synthesis with a recorded independence caveat.
+
+SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only research for a large idea — when the ladder lands on step 4, record the independence caveat and surface it to the user as a parked open question.
+
 ## Write Discipline And Temp Files
 
 - The only persistent write is the single approach document at SAVED. Never write plans, specs, code, or docs.

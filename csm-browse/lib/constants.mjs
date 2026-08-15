@@ -1,4 +1,6 @@
-export const SKILL_DIR = '/home/jamiemills/.config/opencode/skills/csm-browse';
+import { fileURLToPath } from 'node:url';
+
+export const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 export const SESSIONS_ROOT = '/tmp/csm-browse';
 export const CONTAINER_NAME = 'chromium-vnc';
 export const IMAGE = 'jlesage/chromium:latest';

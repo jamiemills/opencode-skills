@@ -77,6 +77,14 @@ try {
 
   await writeFile(pidFile, String(process.pid), 'utf-8');
   await writeFile(readyMarker, String(process.pid), 'utf-8');
+
+  try {
+    const recorder = await import('../lib/recorder.mjs');
+    if (recorder.reconcileRecorder && await recorder.reconcileRecorder(sDir)) {
+      console.log('Recorder state reconciled: stale running flag reset');
+    }
+  } catch {}
+
   console.log(`Daemon ready (pid ${process.pid})`);
 
   let shuttingDown = false;

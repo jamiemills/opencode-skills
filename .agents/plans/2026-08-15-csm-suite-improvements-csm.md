@@ -7,13 +7,13 @@
 
 ## Control
 - Plan ID: csm-suite-improvements
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT (G1) -> SELECT (G2)
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-15 planning — 6 research tracks complete (doc-vs-code audit, csm-scan baseline, csm-browse robustness, drift matrix, usability, perf+quality infra)
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-15 build cycle 1 — G1 (T001..T008) dispatched in parallel, integrated (diffs inspected, all in-scope), all 8 gates re-run by primary and passing; plan-defect found: T003 acceptance signal's `; test $? -eq 2` aborts under set -e — fixed form `|| test $? -eq 2` verified, recorded in Discovered Requirements
+- Next transition: SELECT G2 — T009, T010, T011
+- Active tasks: T001..T008 (complete); T009, T010, T011 next
 - Blockers: none
 
 ## Goal
@@ -105,6 +105,7 @@ Exclusions (anti-scope):
 7. The tmux plan's session-name rule: `csm-review-<goal-slug>` lowercase hyphen-safe, numeric suffix on collision — copy the canonical block verbatim with the token swapped.
 8. Every doc change to a skill ships with its README row/claim updated in the same batch (README task T009 validates this).
 9. Recording discipline: every future csm-scan gate run records pass count + wall time (T011 adds this note to csm-scan/SKILL.md).
+10. Acceptance-signal hygiene (learned cycle 1): under `set -e`, an expected-nonzero command must use `cmd ... || test $? -eq N` — never `cmd ...; test $? -eq N` (the `;` form aborts the shell before the test runs). Applies to T009/T010/T012 signals where exit codes are asserted.
 
 ## Design
 
@@ -178,7 +179,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
 
 ## Numbered Plan
 
-1. [pending] csm-browse: portability + error handling + state hygiene
+1. [completed] csm-browse: portability + error handling + state hygiene
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -193,7 +194,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: partial fixes detectable via the gate (missing grep markers); complete remaining fixes only.
 
-2. [pending] csm-upload: resilience fixes
+2. [completed] csm-upload: resilience fixes
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -208,7 +209,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: partial changes detectable via gate greps; resume by completing missing fixes.
 
-3. [pending] csm-scan: CLI hygiene (--help, flag validation, path errors)
+3. [completed] csm-scan: CLI hygiene (--help, flag validation, path errors)
    - Task ID: T003
    - Depends on: none
    - Parallel group: G1
@@ -223,7 +224,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: CLI gate detects regressions immediately; full-suite failures pinpoint via failing test names.
 
-4. [pending] csm-plan: NORMS.md consumption + fallback ladder + boundary alignment
+4. [completed] csm-plan: NORMS.md consumption + fallback ladder + boundary alignment
    - Task ID: T004
    - Depends on: none
    - Parallel group: G1
@@ -238,7 +239,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: gate greps identify missing section; add incrementally.
 
-5. [pending] csm-bdd-tdd: NORMS.md gate alignment + fallback ladder
+5. [completed] csm-bdd-tdd: NORMS.md gate alignment + fallback ladder
    - Task ID: T005
    - Depends on: none
    - Parallel group: G1
@@ -253,7 +254,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: gate greps identify missing content.
 
-6. [pending] csm-grill: subagent fallback ladder
+6. [completed] csm-grill: subagent fallback ladder
    - Task ID: T006
    - Depends on: none
    - Parallel group: G1
@@ -268,7 +269,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: grep identifies missing content.
 
-7. [pending] csm-review: tmux session bootstrap
+7. [completed] csm-review: tmux session bootstrap
    - Task ID: T007
    - Depends on: none
    - Parallel group: G1
@@ -283,7 +284,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: block partially inserted → diff check reveals; complete it.
 
-8. [pending] Tooling-skill frontmatter + H1 normalization
+8. [completed] Tooling-skill frontmatter + H1 normalization
    - Task ID: T008
    - Depends on: none
    - Parallel group: G1
@@ -410,6 +411,15 @@ Planning critique of the draft (2026-08-15) returned 20 findings; verdict NOT RE
 | 2026-08-15 | 0 | DRAFT | none | Draft written to /tmp/opencode/csm-suite-plan/draft.md; 12 tasks, G1(8)+G2(3)+G3(1) | CRITIQUE |
 | 2026-08-15 | 0 | CRITIQUE | none | Hostile non-author critique: 20 findings (4 critical, 6 major, 10 minor); verdict NOT READY; every grep re-verified against real files | REMEDIATE |
 | 2026-08-15 | 0 | REMEDIATE | none | All 20 findings resolved (see Critique Resolution): per-skill linter map, T009 scope+gates, planted-defect rewrite, renumber to T001–T012, AC/DR/strategy ID sweep | VERIFY |
+| 2026-08-15 | 0 | VERIFY | none | Primary-personal gate: AC1-13 mapped to tasks; 12/12 task field sets complete; all 12 acceptance signals bash -n clean; G1 disjoint ownership verified against real paths; all pending/NOT_STARTED | SAVED |
+| 2026-08-15 | 0 | SAVED | none | Plan saved to .agents/plans/2026-08-15-csm-suite-improvements-csm.md; committed 07cb3ad; sandbox cleaned | STOP |
+| 2026-08-15 | 1 | RECOVER | none | HEAD 07cb3ad clean; no NORMS.md (optional, skipped); no scripts/; plan ready/12 pending; no partial work | VALIDATE |
+| 2026-08-15 | 1 | VALIDATE | none | All plan defect/drift claims re-verified: SKILL_DIR hardcoded (constants.mjs:1), close doc broken (SKILL.md:42), scan.mjs no help, review no tmux (0), plan boundary name present, grill/bdd-tdd no ladder (0), bdd-tdd no Code Conventions (0), upload no H1/trigger | SELECT |
+| 2026-08-15 | 1 | SELECT | none | Ready set: T001..T008 (G1) — all deps satisfied (none), disjoint ownership verified; no spike needed (fixes specified) | DISPATCH |
+| 2026-08-15 | 1 | DISPATCH | T001..T008 | 8 parallel subagents, all returned gate-passing results; T003 flagged a plan-gate flaw (set -e aborts on expected exit-2) | INTEGRATE |
+| 2026-08-15 | 1 | INTEGRATE | T001..T008 | All diffs inspected: 20 files, all within ownership map; browse.mjs try/catch + ports O_EXCL lock + upload mkdtemp/validation + scan CLI all verified in diff; no out-of-scope edits | VERIFY |
+| 2026-08-15 | 1 | VERIFY | T001..T008 | All 8 gates re-run by primary: BROWSE/UPLOAD/SCAN-CLI/PLAN-DOCS/BDD-DOCS/GRILL-DOCS/REVIEW-TMUX/DESCRIPTIONS all GATE-PASS; T003 gate fixed to `\|\| test $? -eq 2` form (plan-defect, not code-defect) | CHECKPOINT |
+| 2026-08-15 | 1 | CHECKPOINT | T001..T008 | G1 committed; learning: acceptance signals with expected-nonzero exits must use `\|\| test` not `; test` under set -e — applied to T009/T010/T012 signals at dispatch | SELECT |
 
 ## Completion Review
 

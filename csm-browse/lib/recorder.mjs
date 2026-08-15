@@ -23,6 +23,25 @@ function validateName(name) {
   }
 }
 
+export async function reconcileRecorder(sessionDir) {
+  const recorderJsonPath = join(sessionDir, 'recorder.json');
+  let state;
+  try {
+    state = JSON.parse(await readFile(recorderJsonPath, 'utf-8'));
+  } catch { return null; }
+  if (state.running === true && !activeRecording) {
+    const reset = {
+      ...state,
+      running: false,
+      reset: true,
+      note: 'stale running flag reset'
+    };
+    try { await writeFile(recorderJsonPath, JSON.stringify(reset, null, 2), 'utf-8'); } catch {}
+    return reset;
+  }
+  return null;
+}
+
 export async function assertValidOutput(outPath, frames) {
   let size = 0;
   try {
@@ -44,7 +63,8 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   try {
     const raw = await readFile(recorderJsonPath, 'utf-8');
     const state = JSON.parse(raw);
-    if (state.running) throw new Error('already recording');
+    if (state.running && activeRecording) throw new Error('already recording');
+    if (state.running && !activeRecording) await reconcileRecorder(sessionDir);
   } catch (err) {
     if (err.message === 'already recording') throw err;
   }

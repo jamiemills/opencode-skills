@@ -7,6 +7,28 @@ description: Review or audit a repository for issues, defects, technical debt, p
 
 csm-review judges what is wrong with a repository; csm-scan inventories what is there. Multi-agent adversarial review as a cyclic state machine producing a single dated findings report. Every finding is evidence-grounded at a pinned commit, independently challenged where its severity demands it, and recorded with severity and confidence kept strictly apart. The report is findings plus remediation sketches — never a plan and never patches.
 
+## Tmux Session Bootstrap
+
+Run this bootstrap before anything else — before INTAKE, before any review tool use, and before any other section of this skill. It is not a review state.
+
+1. Check whether this invocation is already running inside tmux (the `TMUX` environment variable is set, or `tmux display-message -p '#session_name'` succeeds).
+2. Skip starting a new session and proceed directly with review in the current context when any of these is true:
+   - the invocation is already inside tmux;
+   - the user or their prompt explicitly said not to use tmux or not to start a tmux session;
+   - the user explicitly asked for a different terminal multiplexer (for example `screen` or `zellij`) — honor that choice instead and never start tmux alongside it;
+   - tmux is not installed or cannot start a session — note this to the user and continue without tmux.
+
+   When skipping because this invocation is already inside tmux, state the current tmux session name (for example via `tmux display-message -p '#session_name'`) and continue in it, so the session in use is always named.
+3. Otherwise, start the orchestrating agent in a new detached tmux session before doing any review work:
+   - Derive a sensible, short, descriptive session name from the current session and the user's prompt, in the form `csm-review-<goal-slug>` (lowercase, hyphen-separated, tmux-safe characters, truncated to a reasonable length).
+   - If a tmux session with that name already exists, append a numeric suffix (`-2`, `-3`, ...).
+   - Launch the same agent invocation carrying the user's original review request inside the detached session, for example:
+     `tmux new-session -d -s csm-review-<goal-slug> 'opencode run "<original review request>"'`
+     adapting the exact command to the agent CLI actually in use so the review work continues inside tmux.
+4. Immediately print a clear notice naming the session so the user can attach later, for example:
+   `Started tmux session "csm-review-<goal-slug>". Attach to it later with: tmux attach-session -t csm-review-<goal-slug>`
+5. After printing the notice, end this invocation without performing any review work; the tmux session performs the actual review from the beginning of this skill. Only when the bootstrap was skipped under step 2 does this same invocation continue directly into the review workflow below.
+
 ## Activation Boundary
 
 - Activate when the user explicitly asks to review, audit, or assess a repository (or invokes csm-review by name).

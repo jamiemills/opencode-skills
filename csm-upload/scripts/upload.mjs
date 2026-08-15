@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import { execFile, spawn } from 'node:child_process';
-import { writeFile, mkdir, copyFile, access, readFile, constants as fsc } from 'node:fs/promises';
+import { accessSync } from 'node:fs';
+import { writeFile, mkdir, copyFile, access, readFile, rm, mkdtemp, readdir, constants as fsc } from 'node:fs/promises';
 import { join, basename, dirname } from 'node:path';
 import { promisify } from 'node:util';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 
 const execFileAsync = promisify(execFile);
 
 const CONFIG_PATH = join(homedir(), '.agents', 'csm-upload.json');
-const PAGES_DIR = '/tmp/csm-pages';
 
 const args = process.argv.slice(2);
 let label = '';
@@ -45,14 +45,28 @@ async function loadConfig() {
   if (!config.github) {
     try {
       const { stdout } = await execFileAsync('gh', ['auth', 'status']);
-      const match = stdout.match(/account\s+(\S+)/);
+      const match = stdout.match(/account\s+(\S+)/) || stdout.match(/as\s+(\S+)/);
       if (match) {
         config.github = match[1];
         console.log(`Detected GitHub account: ${config.github}`);
       }
-    } catch {
-      console.error('Could not detect GitHub account. Set it manually:');
-      console.error(`  echo '{"github":"YOUR_USER","pagesRepo":"csm-browse-pages"}' > ${CONFIG_PATH}`);
+    } catch {}
+
+    if (!config.github) {
+      try {
+        const { stdout } = await execFileAsync('gh', ['api', 'user', '--jq', '.login']);
+        const login = stdout.trim();
+        if (login) {
+          config.github = login;
+          console.log(`Detected GitHub account: ${config.github}`);
+        }
+      } catch {}
+    }
+
+    if (!config.github) {
+      console.error('GitHub username still unset — could not determine GitHub username from gh auth status.');
+      console.error('Run `gh auth status` manually or pass --github <user>.');
+      console.error(`Alternatively, set it manually: echo '{"github":"YOUR_USER","pagesRepo":"csm-browse-pages"}' > ${CONFIG_PATH}`);
       process.exit(1);
     }
   }
@@ -68,87 +82,136 @@ async function main() {
     process.exit(1);
   }
 
+  for (const f of files) {
+    try {
+      accessSync(f, fsc.R_OK);
+    } catch {
+      console.error(`File not found or not readable: ${f}`);
+      process.exit(1);
+    }
+  }
+
   const config = await loadConfig();
   const github = ghOverride || config.github;
   const pagesRepo = repoOverride || config.pagesRepo;
+
+  if (!github) {
+    console.error('GitHub username undefined — refusing to build the clone URL.');
+    console.error('Run `gh auth status` manually or pass --github <user>.');
+    process.exit(1);
+  }
 
   const PAGES_REPO = `https://github.com/${github}/${pagesRepo}.git`;
   const BASE_URL = `https://${github}.github.io/${pagesRepo}`;
 
   const date = new Date().toISOString().split('T')[0];
   const demoDir = `demo-${date}-${label.replace(/[^a-z0-9._-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
-  const demoPath = join(PAGES_DIR, demoDir);
 
-  async function ensureRepo() {
+  const pagesDir = await mkdtemp(join(tmpdir(), 'csm-pages-'));
+
+  try {
+    const demoPath = join(pagesDir, demoDir);
+
+    async function ensureRepo() {
+      let hasGit = false;
+      try {
+        await access(join(pagesDir, '.git'), fsc.F_OK);
+        hasGit = true;
+      } catch {}
+
+      if (hasGit) {
+        try {
+          await execFileAsync('git', ['-C', pagesDir, 'pull', '--rebase']);
+          console.log('Pages repo updated');
+        } catch (err) {
+          throw new Error(`git pull failed in ${pagesDir}: ${err.stderr || err.message}`);
+        }
+        return;
+      }
+
+      let isEmpty = true;
+      try {
+        isEmpty = (await readdir(pagesDir)).length === 0;
+      } catch {}
+
+      if (isEmpty) {
+        console.log(`Cloning pages repo: ${PAGES_REPO}...`);
+        await execFileAsync('git', ['clone', PAGES_REPO, pagesDir]);
+        console.log('Cloned');
+      } else {
+        throw new Error(`Conflict: ${pagesDir} is not a git repo and is not empty. Refusing to clone into it.`);
+      }
+    }
+
+    async function gitCommit() {
+      await execFileAsync('git', ['-C', pagesDir, 'add', '-A']);
+      const { stdout } = await execFileAsync('git', ['-C', pagesDir, 'status', '--porcelain']);
+      if (stdout.trim()) {
+        await execFileAsync('git', ['-C', pagesDir, 'commit', '-m', `upload ${demoDir}`]);
+        await execFileAsync('git', ['-C', pagesDir, 'push']);
+        console.log('Pushed');
+      } else {
+        console.log('No changes to push');
+      }
+    }
+
+    const uploaded = [];
     try {
-      await access(join(PAGES_DIR, '.git'), fsc.F_OK);
-      await execFileAsync('git', ['-C', PAGES_DIR, 'pull', '--rebase']);
-      console.log('Pages repo updated');
-    } catch {
-      console.log(`Cloning pages repo: ${PAGES_REPO}...`);
-      await execFileAsync('git', ['clone', PAGES_REPO, PAGES_DIR]);
-      console.log('Cloned');
-    }
-  }
+      await ensureRepo();
+      await mkdir(demoPath, { recursive: true });
 
-  async function gitCommit() {
-    await execFileAsync('git', ['-C', PAGES_DIR, 'add', '-A']);
-    const { stdout } = await execFileAsync('git', ['-C', PAGES_DIR, 'status', '--porcelain']);
-    if (stdout.trim()) {
-      await execFileAsync('git', ['-C', PAGES_DIR, 'commit', '-m', `upload ${demoDir}`]);
-      await execFileAsync('git', ['-C', PAGES_DIR, 'push']);
-      console.log('Pushed');
-    } else {
-      console.log('No changes to push');
-    }
-  }
+      for (const f of files) {
+        const name = basename(f);
+        const dest = join(demoPath, name);
+        await copyFile(f, dest);
+        uploaded.push({ name, path: `${BASE_URL}/${demoDir}/${name}`, ext: name.split('.').pop().toLowerCase() });
+        console.log(`Copied: ${name}`);
+      }
 
-  await ensureRepo();
-  await mkdir(demoPath, { recursive: true });
+      const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(f.ext));
+      const vids = uploaded.filter(f => ['webm', 'mp4', 'mov'].includes(f.ext));
+      const other = uploaded.filter(f => !imgs.includes(f) && !vids.includes(f));
 
-  const uploaded = [];
-  for (const f of files) {
-    const name = basename(f);
-    const dest = join(demoPath, name);
-    await copyFile(f, dest);
-    uploaded.push({ name, path: `${BASE_URL}/${demoDir}/${name}`, ext: name.split('.').pop().toLowerCase() });
-    console.log(`Copied: ${name}`);
-  }
-
-  const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(f.ext));
-  const vids = uploaded.filter(f => ['webm', 'mp4', 'mov'].includes(f.ext));
-  const other = uploaded.filter(f => !imgs.includes(f) && !vids.includes(f));
-
-  let html = `<!DOCTYPE html>
+      let html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>${demoDir}</title>
 <style>body{font-family:sans-serif;margin:40px;background:#111;color:#eee}img,video{max-width:100%;margin:20px 0;border:1px solid #333}.meta{color:#888;font-size:13px}a{color:#5af}</style></head>
 <body>
 <h1>${demoDir}</h1>`;
 
-  if (description) html += `<p>${description}</p>`;
-  html += `<p class="meta">${uploaded.length} file(s) — uploaded ${new Date().toISOString()}</p>\n`;
+      if (description) html += `<p>${description}</p>`;
+      html += `<p class="meta">${uploaded.length} file(s) — uploaded ${new Date().toISOString()}</p>\n`;
 
-  for (const f of imgs) {
-    html += `<h2>${f.name}</h2>\n<img src="${f.name}" alt="${f.name}">\n`;
+      for (const f of imgs) {
+        html += `<h2>${f.name}</h2>\n<img src="${f.name}" alt="${f.name}">\n`;
+      }
+      for (const f of vids) {
+        html += `<h2>${f.name}</h2>\n<video controls autoplay loop muted width="1920"><source src="${f.name}" type="video/${f.ext}"></video>\n`;
+      }
+      for (const f of other) {
+        html += `<p><a href="${f.name}">${f.name}</a></p>\n`;
+      }
+
+      html += `</body></html>\n`;
+
+      const indexPath = join(demoPath, 'index.html');
+      await writeFile(indexPath, html, 'utf-8');
+      console.log('Generated index.html');
+
+      await gitCommit();
+
+      const url = `${BASE_URL}/${demoDir}/`;
+      console.log(url);
+    } catch (err) {
+      if (uploaded.length > 0) {
+        console.error(`Partial upload state: ${uploaded.map(u => u.name).join(', ')} already copied to ${demoPath}.`);
+        console.error('Retry by re-running the same command.');
+      }
+      throw err;
+    }
+  } finally {
+    await rm(pagesDir, { recursive: true, force: true });
   }
-  for (const f of vids) {
-    html += `<h2>${f.name}</h2>\n<video controls autoplay loop muted width="1920"><source src="${f.name}" type="video/${f.ext}"></video>\n`;
-  }
-  for (const f of other) {
-    html += `<p><a href="${f.name}">${f.name}</a></p>\n`;
-  }
-
-  html += `</body></html>\n`;
-
-  const indexPath = join(demoPath, 'index.html');
-  await writeFile(indexPath, html, 'utf-8');
-  console.log('Generated index.html');
-
-  await gitCommit();
-
-  const url = `${BASE_URL}/${demoDir}/`;
-  console.log(url);
 }
 
 main().catch(err => {

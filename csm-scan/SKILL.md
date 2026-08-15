@@ -1,9 +1,9 @@
 ---
 name: csm-scan
-description: comprehensively analyze repositories to identify architecture patterns, code conventions, tooling, and operational norms — output a single NORMS.md with ASCII art and Mermaid C4 diagrams
+description: Comprehensively analyze repositories to identify architecture patterns, code conventions, tooling, and operational norms — output a single NORMS.md with ASCII art and Mermaid C4 diagrams — use when onboarding to a new codebase, preparing a CSM plan, or running cross-repo convention audits; never runs target commands, installs, or writes beyond the single NORMS.md — read-only.
 ---
 
-# csm-scan
+# CSM Scan
 
 Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract structure, technology stack, configuration, testing patterns, code conventions, git history, architecture, and seven additional evidence dimensions — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
 

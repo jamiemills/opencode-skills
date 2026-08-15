@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -13,6 +13,25 @@ import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
 import { sessionDir, containerSessionDir } from './session.mjs';
 
 const execFileAsync = promisify(execFile);
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function killHostFfmpeg(sDir) {
+  try { await execFileAsync('pkill', ['-f', `ffmpeg.*${escapeRegExp(sDir)}`]); } catch {}
+}
+
+async function cleanArtifactTemps(sDir) {
+  const artifacts = join(sDir, 'artifacts');
+  let names;
+  try { names = await readdir(artifacts); } catch { return; }
+  for (const n of names) {
+    if (n.startsWith('.stitch-') || n.endsWith('.webm')) {
+      try { await unlink(join(artifacts, n)); } catch {}
+    }
+  }
+}
 
 async function dirAgeMs(sDir) {
   let max = 0;
@@ -44,7 +63,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
   const ageMs = ageMinutes * 60 * 1000;
 
   let hostDirs = [];
-  try { hostDirs = await readdir(SESSIONS_ROOT); } catch {}
+  try { hostDirs = (await readdir(SESSIONS_ROOT)).filter(d => !d.startsWith('.')); } catch {}
 
   // Host-session pass: stale dirs (age or dead daemon) — kill daemon, container procs, remove dirs
   for (const sid of hostDirs) {
@@ -76,6 +95,8 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
     if (dryRun) { swept.push(`[dry] ${label}`); continue; }
 
     await stopDaemon(sDir);
+    await killHostFfmpeg(sDir);
+    try { await cleanArtifactTemps(sDir); } catch {}
     try { await killInstance(containerName, containerSessionDir(sid)); } catch {}
     if (publicPort) { try { await killSocat(containerName, publicPort); } catch {} }
     try { await removeContainerSession(containerName, containerSessionDir(sid)); } catch {}
@@ -97,6 +118,38 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       if (dryRun) { swept.push(`[dry] orphan daemon sid=${sid} pid=${pid}`); continue; }
       await killPidGracefully(pid);
       swept.push(`orphan daemon sid=${sid} pid=${pid}`);
+    }
+  } catch {}
+
+  // Orphaned host ffmpeg: recorder process whose session dir is gone or daemon dead
+  try {
+    const sessRe = new RegExp(`${escapeRegExp(SESSIONS_ROOT)}/([^/\\s]+)`);
+    const { stdout } = await execFileAsync('pgrep', ['-af', 'ffmpeg']);
+    for (const line of stdout.split('\n').filter(Boolean)) {
+      const m = line.match(sessRe);
+      if (!m) continue;
+      const sid = m[1];
+      if (skipSid && sid === skipSid) continue;
+      const sDir = sessionDir(sid);
+      let orphaned = !existsSync(sDir);
+      if (!orphaned) {
+        const pidFile = join(sDir, 'daemon.pid');
+        let alive = false;
+        if (existsSync(pidFile)) {
+          try {
+            const raw = await readFile(pidFile, 'utf-8');
+            const pid = parseInt(raw.trim(), 10);
+            alive = !isNaN(pid) && await daemonAlive(pid);
+          } catch {}
+        }
+        if (alive) continue;
+        const age = await dirAgeMs(sDir);
+        orphaned = age === null || age > ageMs;
+      }
+      if (!orphaned) continue;
+      if (dryRun) { swept.push(`[dry] orphan ffmpeg sid=${sid}`); continue; }
+      await killHostFfmpeg(sDir);
+      swept.push(`orphan ffmpeg sid=${sid}`);
     }
   } catch {}
 

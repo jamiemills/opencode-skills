@@ -12,6 +12,19 @@ const execFileAsync = promisify(execFile);
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCAN_SCRIPT = join(REPO_ROOT, 'scripts', 'scan.mjs');
 
+async function runCli(args) {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [SCAN_SCRIPT, ...args],
+      { cwd: REPO_ROOT },
+    );
+    return { code: 0, stdout, stderr };
+  } catch (error) {
+    return { code: error.code ?? 1, stdout: error.stdout ?? '', stderr: error.stderr ?? '' };
+  }
+}
+
 test('CLI reports factual cross-observations and detection coverage', async () => {
   const fixture = makeFixture('cli-cross-observation', {
     'package.json': JSON.stringify({ name: 'cli-fixture', type: 'module' }),
@@ -74,4 +87,45 @@ test('CLI reports factual cross-observations and detection coverage', async () =
     cleanupFixture(fixture);
     rmSync(outputDir, { recursive: true, force: true });
   }
+});
+
+test('CLI --help prints usage to stdout and exits 0 without scanning', async () => {
+  const { code, stdout, stderr } = await runCli(['--help']);
+  assert.equal(code, 0);
+  assert.equal(stderr, '');
+  assert.match(stdout, /Usage: scan\.mjs \[--repos <path>\.\.\.\] \[--out <path>\]/);
+  assert.match(stdout, /current working directory/);
+  assert.match(stdout, /privacy/);
+});
+
+test('CLI --version prints the version and exits 0', async () => {
+  const { code, stdout, stderr } = await runCli(['--version']);
+  assert.equal(code, 0);
+  assert.equal(stderr, '');
+  assert.match(stdout.trim(), /^csm-scan(?: \S+)?$/);
+});
+
+test('CLI unknown option prints "unknown option" to stderr and exits 2', async () => {
+  const { code, stdout, stderr } = await runCli(['--bogus']);
+  assert.equal(code, 2);
+  assert.equal(stdout, '');
+  assert.match(stderr, /unknown option: --bogus/);
+  assert.match(stderr, /scan\.mjs --help/);
+});
+
+test('CLI --out without a value prints an error and exits 2', async () => {
+  const { code, stdout, stderr } = await runCli(['--out']);
+  assert.equal(code, 2);
+  assert.equal(stdout, '');
+  assert.match(stderr, /--out requires a path argument/);
+  assert.match(stderr, /scan\.mjs --help/);
+});
+
+test('CLI rejects a nonexistent --repos path with a friendly error and exits 2', async () => {
+  const missing = `csm-scan-cli-missing-${process.pid}-${Date.now()}`;
+  const { code, stdout, stderr } = await runCli(['--repos', missing]);
+  assert.equal(code, 2);
+  assert.equal(stdout, '');
+  assert.match(stderr, new RegExp(`no such directory: ${missing}`));
+  assert.match(stderr, /scan\.mjs --help/);
 });

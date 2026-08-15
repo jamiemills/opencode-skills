@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 import { execFile, exec } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const SKILL_DIR = '/home/jamiemills/.config/opencode/skills/csm-browse';
+const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 const FIXTURE_BASE = 'http://172.17.0.1:8090';
 const QUICK = process.argv.includes('--quick');
 const SESSION_ID = `e2e-${Date.now()}`;
-const DOCS_DIR = '/home/jamiemills/.agents/docs';
+const DOCS_DIR = process.env.CSM_E2E_DOCS_DIR || join(homedir(), '.agents', 'docs');
 
 let passCount = 0;
 let failCount = 0;

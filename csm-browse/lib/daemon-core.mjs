@@ -1,4 +1,4 @@
-import { readFile, writeFile, rename, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_POLL_INTERVAL_MS } from './constants.mjs';
@@ -36,6 +36,8 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
   const cmdDir = join(sessionDir, 'cmd');
   const runningDir = join(sessionDir, 'cmd', 'running');
   const outDir = join(sessionDir, 'cmd', 'out');
+
+  try { await rm(cmdDir, { recursive: true, force: true }); } catch {}
 
   await mkdir(cmdDir, { recursive: true });
   await mkdir(runningDir, { recursive: true });

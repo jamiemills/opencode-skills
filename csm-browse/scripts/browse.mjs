@@ -63,9 +63,21 @@ if (VERB_MAP[verb] === 'log') {
 }
 
 const moduleName = VERB_MAP[verb] || verb;
-const mod = await import(join(SKILL_DIR, 'lib', 'verbs', `${moduleName}.mjs`));
 
-const state = await loadState(sid);
+let mod;
+let state;
+try {
+  mod = await import(join(SKILL_DIR, 'lib', 'verbs', `${moduleName}.mjs`));
+  state = await loadState(sid);
+} catch (err) {
+  if (err && err.code === 'ERR_MODULE_NOT_FOUND') {
+    console.error(`Unknown verb: ${verb} — see SKILL.md verb table`);
+  } else {
+    console.error(`Invalid session state for ${sid}: ${err.message}`);
+  }
+  process.exit(2);
+}
+
 if (!state && verb !== 'close') {
   console.error(`No session state for ${sid}`);
   process.exit(1);

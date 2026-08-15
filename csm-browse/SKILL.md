@@ -1,7 +1,9 @@
 ---
 name: csm-browse
-description: browse web pages in the chromium-vnc Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM/code, capture console/network/performance, record videos
+description: Browse web pages in the chromium-vnc Docker container via CDP — use when you need to drive a headful browser, log in to sites, capture screenshots or videos, or inspect pages. It never targets the container's primary browser on port 9222; drives its own isolated Chromium only.
 ---
+
+# CSM Browse
 
 ## When to use this skill
 
