@@ -41,7 +41,7 @@ node scripts/check-skill.mjs
 3. **Close** when done:
 
    ```bash
-   node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <sid> close
+   node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs close --session <sid>
    ```
 
 ## Verb reference
@@ -72,6 +72,8 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --sessio
 | `screencast-start <name> [--small|--medium|--full] [--speed slow|medium|fast]` | Start recording video (VP9/webm). `--speed` controls output fps: slow=3, medium=7 (default), fast=15. |
 | `screencast-stop` | Stop the active video recording. |
 | `close` | Clean up the session: kill daemon, chromium, crashpad, socat, remove session dirs, release ports. |
+
+An unrecognized verb prints `Unknown verb: <verb> — see SKILL.md verb table` to stderr and exits non-zero, so the verb table above is the authoritative reference for valid verbs.
 
 ## Login composition example
 

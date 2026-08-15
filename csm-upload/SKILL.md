@@ -39,7 +39,7 @@ node $HOME/.config/opencode/skills/csm-upload/scripts/upload.mjs --label nba-hom
 
 Upload a video and screenshot together:
 ```bash
-node .../upload.mjs --label guardian-browse --desc "Guardian browse demo" /tmp/demo.webm /tmp/cover.png
+node $HOME/.config/opencode/skills/csm-upload/scripts/upload.mjs --label guardian-browse --desc "Guardian browse demo" /tmp/demo.webm /tmp/cover.png
 ```
 
 The resulting page will be at:

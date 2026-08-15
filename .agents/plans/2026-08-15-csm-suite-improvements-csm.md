@@ -8,12 +8,12 @@
 ## Control
 - Plan ID: csm-suite-improvements
 - Status: in_progress
-- Current CSM state: CHECKPOINT (G1) -> SELECT (G2)
+- Current CSM state: CHECKPOINT (G2) -> SELECT (G3)
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-15 build cycle 1 — G1 (T001..T008) dispatched in parallel, integrated (diffs inspected, all in-scope), all 8 gates re-run by primary and passing; plan-defect found: T003 acceptance signal's `; test $? -eq 2` aborts under set -e — fixed form `|| test $? -eq 2` verified, recorded in Discovered Requirements
-- Next transition: SELECT G2 — T009, T010, T011
-- Active tasks: T001..T008 (complete); T009, T010, T011 next
+- Last checkpoint: 2026-08-15 build cycle 1 — G1 (T001..T008) + G2 (T009..T011) complete; all 11 gates verified by primary; linter 154 checks pass incl. planted-defect; baseline measured 1209/1209 @ 131.8s, CLI 7.05s/105KB, e2e unverified (Docker)
+- Next transition: SELECT G3 — T012 (final hostile review)
+- Active tasks: T001..T011 (complete); T012 next
 - Blockers: none
 
 ## Goal
@@ -299,7 +299,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: per-skill gate failures list which file needs work.
 
-9. [pending] README accuracy repair + Quickstart + Troubleshooting + csm-scan CLI docs + example fixes
+9. [completed] README accuracy repair + Quickstart + Troubleshooting + csm-scan CLI docs + example fixes
    - Task ID: T009
    - Depends on: T001, T002, T003, T004, T005, T006, T007, T008 (must reflect landed state)
    - Parallel group: G2
@@ -314,7 +314,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
    - Repair attempts: 0
    - Recovery note: gate greps identify missing sections; link loop finds broken paths.
 
-10. [pending] Suite conformance checker
+10. [completed] Suite conformance checker
     - Task ID: T010
     - Depends on: T009 (README must be final for link checks), T004, T005, T007 (section presence)
     - Parallel group: G2
@@ -329,7 +329,7 @@ Anti-scope: no token/context measurement (A2); no changes to csm-scan internals.
     - Repair attempts: 0
     - Recovery note: checker failure output lists exactly what's missing; fix suite or checker (checker must pass on final suite — never patch checker to appease it).
 
-11. [pending] Performance baselines + recording discipline
+11. [completed] Performance baselines + recording discipline
     - Task ID: T011
     - Depends on: T001 (e2e.mjs ownership — duration edit by content anchor, not line numbers), T003 (suite must be green before the full-suite baseline run)
     - Parallel group: G2

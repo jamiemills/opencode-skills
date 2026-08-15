@@ -179,6 +179,22 @@ Enrichment metadata records factual detection coverage and the observed, inferre
 2. Review `NORMS.md` for architecture, conventions, tooling, and the additional evidence dimensions
 3. Feed findings into `csm-plan` for a new CSM plan
 
+## CLI
+
+`scripts/scan.mjs` is a zero-dependency Node CLI wrapping the same canonical pipeline the test suite exercises:
+
+```bash
+node scripts/scan.mjs [--repos <path>...] [--out <path>]
+```
+
+- **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the report is written to `NORMS.md` in the current directory.
+- `--repos <path>...` — one or more repository paths to scan (default: current working directory).
+- `--out <path>` — output file (default: `NORMS.md` in the current directory).
+- `--help` — print the full usage text and exit 0.
+- `--version` — print the version (package.json `version`, else the git commit hash, else `csm-scan`) and exit 0.
+- **Unknown flags** — any unrecognized option (or a `--repos`/`--out` argument that is missing, not a directory, or not a path) is reported on stderr with a usage hint and the process exits with status **2**.
+- **Privacy** — output is privacy-safe by design: absolute paths, identities, and secrets are redacted before they reach stdout, stderr, or the report.
+
 ## Testing
 
 Zero-dependency test suite built on `node:test`:
@@ -197,3 +213,5 @@ node --test --test-concurrency=1 test/golden.test.mjs                # five ecos
 ```
 
 `node --test --test-concurrency=1` is authoritative because default parallel mode can race filesystem-heavy fixture tests. Fixtures live under `test/fixtures/` and `test/fixtures-expansion/`, each exporting a `files` map consumed by `test/harness.mjs`'s `withFixture`. The suite covers shared primitives, all 17 dimensions, enrich, validate, write, the 21-case P0 regression matrix, the voice gates, privacy gates, determinism gates, constraint gates (command boundary, one write, zero dependencies), plugin boundary tests, multi-repo cross-repository synthesis, and end-to-end pipeline behavior — no installs required.
+
+- Record pass count + wall time at every gate run.

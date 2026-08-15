@@ -10,10 +10,13 @@ const FIXTURE_BASE = 'http://172.17.0.1:8090';
 const QUICK = process.argv.includes('--quick');
 const SESSION_ID = `e2e-${Date.now()}`;
 const DOCS_DIR = process.env.CSM_E2E_DOCS_DIR || join(homedir(), '.agents', 'docs');
+const E2E_START = Date.now();
+const MAX_E2E_MS = 600000;
 
 let passCount = 0;
 let failCount = 0;
 let serverPid = null;
+const verbDurations = {};
 
 function pass(step, msg) {
   passCount++;
@@ -96,9 +99,12 @@ async function ensureSession() {
 }
 
 async function browse(verb, ...args) {
+  const started = Date.now();
   const allArgs = [join(SKILL_DIR, 'scripts', 'browse.mjs'), verb, '--session', SESSION_ID, ...args];
   const { error, stdout, stderr } = await run('node', allArgs, { timeout: 35000 });
-  return { ok: !error, stdout, stderr };
+  const durationMs = Date.now() - started;
+  verbDurations[verb] = (verbDurations[verb] || 0) + durationMs;
+  return { ok: !error, stdout, stderr, durationMs };
 }
 
 function parseJson(str) {
@@ -643,11 +649,17 @@ async function runTests() {
   // ── Step 13: Summary ────────────────────────────────────────────
   {
     const total = passCount + failCount;
+    const durationMs = Date.now() - E2E_START;
     console.log(`\n=== E2E Summary ===`);
     console.log(`${'='.repeat(40)}`);
     console.log(`PASS: ${passCount}`);
     console.log(`FAIL: ${failCount}`);
     console.log(`TOTAL: ${total}`);
+    console.log(`DURATION: ${durationMs}ms`);
+
+    if (durationMs > MAX_E2E_MS) {
+      fail('13. Total-suite wall cap', `suite took ${durationMs}ms, exceeding MAX_E2E_MS=${MAX_E2E_MS}ms`);
+    }
 
     const summary = {
       session: SESSION_ID,
@@ -655,7 +667,9 @@ async function runTests() {
       quick: QUICK,
       pass: passCount,
       fail: failCount,
-      total
+      total,
+      durationMs,
+      verbDurationMs: verbDurations
     };
 
     mkdirSync(DOCS_DIR, { recursive: true });
