@@ -7,13 +7,13 @@
 
 ## Control
 - Plan ID: csm-review-skill
-- Status: in_progress
-- Current CSM state: VERIFY (G1) -> REVIEW (T003 next)
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-15 build cycle 1 — DISPATCH: T001 (SKILL.md) + T002 (README.md) in parallel; INTEGRATE: diffs inspected, in-scope only, tmux content preserved; VERIFY: both gates pass (GATE-PASS, README-GATE-PASS), SKILL.md 264 lines/12 sections
-- Next transition: SELECT -> REVIEW — T003 five parallel hostile review passes (a)-(e)
-- Active tasks: T001, T002 (verified complete); T003 next
+- Last checkpoint: 2026-08-15 build cycle 1 — all 4 tasks complete; 45 review findings repaired and verified; T004 final gate FINAL-GATE-PASS; Completion Review filled
+- Next transition: none (terminal)
+- Active tasks: none
 - Blockers: none
 
 ## Goal
@@ -349,6 +349,25 @@ Hostile critique of the draft (2026-08-15) returned 28 findings; verdict NOT REA
 | R-c27 CVSS vectors on every security finding = pseudo-precision | nit | CVSS-B overlay scoped to dependency/CVE + tool-verified exploitation findings | A6; D5 |
 | R-c28 No rollback statement | nit | Rollback sentence added (new files only; revert = delete or git revert) | Risks And Recovery |
 
+Build review findings (T003, cycle 1): five hostile passes (a) conformance, (b) coverage, (c) CSM integrity, (d) safety, (e) executability; 45 findings across passes, numbered R-1…R-14 within each pass (unique ids R-1…R-14). All accepted and fixed; full per-pass disposition in `csm-review/.agents/docs/csm-review-skill-review-2026-08-15.md`.
+
+| Finding | Pass(es) | Resolution | Evidence |
+|---|---|---|---|
+| R-1 | a: boundary bullet; d: obey-repo-instructions (critical); e: evidence-pack slice (critical) | Activation Boundary enumerates all five skills (no "automatically"); Core Rules untrusted-hints clause; FIND step 2 defines the slice | csm-review/SKILL.md |
+| R-2 | a: dangling "researchers"; d: R3 no OS isolation (major); e: no resume path (critical) | Role removed; R3 best-effort-isolation disclosure + bubblewrap/landlock preference + non-execution fallback; INTAKE resume pre-step | csm-review/SKILL.md |
+| R-3 | a: QUICK challenge rule; b: rot-prone anchors (medium); c: CHALLENGE exit (minor); d: env scrub (major); e: challenge assignment (critical) | Challenge-assignment block in Scale To The Ask; anchor counts replaced with "current catalog"/"taxonomy"; CHALLENGE exit amended; Env scrub rule; identical assignment rule (combined) | csm-review/SKILL.md |
+| R-4 | a: containment vs scaffold; b: inconsistent editions (medium); c: no Entry conditions (minor); d: redaction after CHALLENGE (major); e: field matrix (major) | Scaffold exempted in monitored locations; uniform 25010:2023/ASVS v5.0.0 editions; Entry: lines ×9; FIND→CHALLENGE redaction gate; per-class field matrix in VERIFY | csm-review/SKILL.md |
+| R-5 | a: template headings; b: C9 non-vulnerable EOL (low); c: SAVED/STOP contradiction (minor); d: egress probe (minor); e: chunking (major) | `## ` headings; D15 extended (unmaintained/deprecated + EOL status); "SAVED is the final state" wording; connectivity probe; chunk rule (24-cap, ≈16k budget) | csm-review/SKILL.md |
+| R-6 | a: exclusion list; b: D18 licensing (low); c: cycle-back semantics (minor); d: time bounds R3-only (minor); e: QUICK finder count (major) | Exclusions inlined in snippet policy; SPDX license list in D18; cycle-back resume-semantics note; time bounds at all rungs; QUICK one-finder-per-named-dimension | csm-review/SKILL.md |
+| R-7 | c: exit enumeration (nit); d: only-file-committed (minor); e: sort_key circular (major) | Happy-path-exits note; "only file added and committed is the report"; ranked sort_key (verified=3…low=0; E1=3…E4=0) | csm-review/SKILL.md |
+| R-8 | c: cycle definition (nit); d: per-ecosystem guard (minor); e: researchers (minor) | Adversarial-cycle definition; per-ecosystem scripts-disabled guard; role removed | csm-review/SKILL.md |
+| R-9 | d: R2 collect-only executes code (minor); e: exclusion-list import (minor) | R3 protections apply at R2; exclusions inlined | csm-review/SKILL.md |
+| R-10 | d: confidence-cap caveat (minor); e: run-id undefined (minor) | Caveat in finding record + residual unknowns; run-id = %Y%m%d%H%M%S-repo-slug | csm-review/SKILL.md |
+| R-11 | d: sandbox perms (nit); e: template headings (minor) | umask 077 / mode 700; `## ` headings | csm-review/SKILL.md |
+| R-12 | e: rung-menu mechanic (minor) | Rung menu at INTAKE; silence = R0; remote clones R0 unless opted into R1+ | csm-review/SKILL.md |
+| R-13 | e: unknowns/artifacts have no section (minor) | Folded into Methodology Disclosure / Reproducibility | csm-review/SKILL.md |
+| R-14 | e: journal format (nit) | `[<timestamp>] <From> -> <To> :: cycle <n> :: trigger: <reason> :: rungs: <r>` | csm-review/SKILL.md |
+
 ## Progress Journal
 
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
@@ -367,7 +386,22 @@ Hostile critique of the draft (2026-08-15) returned 28 findings; verdict NOT REA
 | 2026-08-15 | 1 | DISPATCH | T001, T002 | Both dispatched in parallel with full design spec + acceptance signals; both returned gate-passing results | INTEGRATE |
 | 2026-08-15 | 1 | INTEGRATE | T001, T002 | Diffs inspected directly: SKILL.md 264 lines, 9 state subsections w/ exits, 12 sections, 18 dims, all spec fields; README diff covers all 9 D9 touchpoints, tmux content intact, 16->17 fixed, counts seven->eight/four->five; T001 deviations (STOP subsection added, template headings indented) accepted — house-consistent and validation-compliant | VERIFY |
 | 2026-08-15 | 1 | VERIFY | T001, T002 | Both acceptance gates re-run by primary: GATE-PASS + README-GATE-PASS (exit 0); section count 12 (10-14 range) | REVIEW |
+| 2026-08-15 | 1 | REVIEW | T003 | Five parallel hostile review passes dispatched; verdicts: conformance PASS (6 minor/nit), coverage PARTIAL (1 high/3 med/2 low), CSM integrity PARTIAL (2 major/4 minor/2 nit), safety FAIL (1 critical/3 major/6 minor/1 nit), executability FAIL (3 critical/4 major/7 minor/nit) — 45 findings total, all accepted | REPAIR |
+| 2026-08-15 | 1 | REPAIR | T004 | All 45 findings fixed in csm-review/SKILL.md: untrusted-hints clause (critical), env scrub, best-effort-isolation disclosure, FIND→CHALLENGE redaction gate, global adversarial cycle cap, VERIFY budget, Entry: lines ×9, evidence-pack slice, resume pre-step, challenge-assignment block, chunk caps, ranked sort_key, inlined exclusions, D14 literal 8 test types, uniform anchor editions, connectivity probe, run-id, journal format | VERIFY |
+| 2026-08-15 | 1 | VERIFY | T004 | T001 gate re-run post-repair: GATE-PASS (291 lines, 9 states, D14-OK); spot greps confirm every critical/major fix present; review doc aggregated at csm-review/.agents/docs/csm-review-skill-review-2026-08-15.md (verdict PASS after repair) | CHECKPOINT |
 
 ## Completion Review
 
+Build of the csm-review skill, plan `csm-review-skill`, cycle 1, is complete. Evidence:
+
+- AC1: `csm-review/SKILL.md` exists, 291 lines (200–340), T001 gate GATE-PASS (all markers, state line, boundary phrase, 18 dimensions).
+- AC2: cyclic review state machine with finder≠challenger challenge; Challenge-assignment block (critical/high always independent, medium per scale, low/info primary-led with caveat).
+- AC3: coverage matrix C1–C14 → dimensions 1–18 verified by T003 pass (b) reviewer (mapping complete; D14/D15/D18 strengthened); all 18 dimension names pass gate greps.
+- AC4: findings model complete — severity spine, CVSS-B overlay scoped, E1–E4 confidence, field list, two-stage dedup, redaction policy with inlined exclusions.
+- AC5: posture R0–R3 + X-forbidden, sandbox recipe (umask 077, --depth 1, no submodules, env scrub, time bounds), egress probe, containment check, per-ecosystem guard.
+- AC6: README gate README-GATE-PASS — csm-review in ≥8 lines incl. table row, `.agents/reviews` step, `review[` mermaid node; "16 evidence dimensions" → 17; tmux content preserved.
+- AC7: independent hostile review at `csm-review/.agents/docs/csm-review-skill-review-2026-08-15.md`; Verdict: PASS (after repair); 45 findings, all resolved — R-N ids referenced in this plan.
+- AC8: suite conformance verified by T003 pass (a) reviewer (frontmatter Never-X, Activation Boundary, SAVED display-and-stop, Scale To The Ask, Anti-Patterns, Done Criteria).
+
+Commits: `97378f6` (G1: SKILL.md + README + plan control), this checkpoint commit (T003/T004 evidence + repaired SKILL.md). Nothing pushed. Working tree clean.
 (filled by csm-build when all criteria are verified)
