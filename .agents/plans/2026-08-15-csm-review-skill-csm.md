@@ -240,7 +240,7 @@ Touchpoints (locate by content grep — the file moved at a69b625 and will move 
 
 ## Numbered Plan
 
-1. [pending] Author csm-review/SKILL.md
+1. [completed] Author csm-review/SKILL.md — 291 lines, T001 gate GATE-PASS (cycle 1, committed 97378f6 + repaired 08e04da)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -255,7 +255,7 @@ Touchpoints (locate by content grep — the file moved at a69b625 and will move 
    - Repair attempts: 0
    - Recovery note: partial SKILL.md is detectable via the acceptance gate (the MISSING marker names exactly what is absent); re-run the gate and complete missing sections only — never rewrite wholesale.
 
-2. [pending] Wire csm-review into README.md and fix 16-vs-17 staleness
+2. [completed] Wire csm-review into README.md and fix 16-vs-17 staleness — T002 gate README-GATE-PASS, 9 touchpoints, integrated with concurrent tmux plan
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -270,7 +270,7 @@ Touchpoints (locate by content grep — the file moved at a69b625 and will move 
    - Repair attempts: 0
    - Recovery note: partial wiring detected via `grep -n "csm-review" README.md` — check each D9 touchpoint area and complete missing ones only.
 
-3. [pending] Independent hostile review of the csm-review skill
+3. [completed] Independent hostile review of the csm-review skill — 5 passes, 45 findings, doc csm-review-skill-review-2026-08-15.md
    - Task ID: T003
    - Depends on: T001, T002
    - Parallel group: G2
@@ -285,7 +285,7 @@ Touchpoints (locate by content grep — the file moved at a69b625 and will move 
    - Repair attempts: 0
    - Recovery note: an empty/missing review doc means dispatch failure mid-flight — re-dispatch per the ladder; never fabricate review content.
 
-4. [pending] Remediate review findings, verify coverage, final gate
+4. [completed] Remediate review findings, verify coverage, final gate — 45/45 repaired, FINAL-GATE-PASS, Completion Review filled
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G3
