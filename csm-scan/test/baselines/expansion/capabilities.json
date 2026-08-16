@@ -19,7 +19,7 @@
     "replacementTests": [
       {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "e544184447ba60a8207dfb0a024337eb332ffa5dfdfd9173a4859edffcfb45e0",
+        "testFileSha256": "26312b47733898f5a30a80cfdb079ae9d782e8b718b61d1ca83b4475c3e9ad65",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       },
       {
@@ -50,6 +50,15 @@
         "apis": ["constants", "lstat", "open", "realpath"],
         "sha256": "bba86b351dec7e7e6b34bb7e95ad209dfe43da700817b18e9c774ab3becbda11",
         "replacementTask": "T224"
+      },
+      {
+        "path": "lib/scan/report/verbose-trace.mjs",
+        "imports": [
+          "import { createWriteStream, statSync } from 'node:fs';"
+        ],
+        "apis": ["createWriteStream", "statSync"],
+        "sha256": "478e264fd34c7d0670dfd21c3bd5dba282c40d3a6c6da82a022a6d87123506ec",
+        "replacementTask": "T012"
       }
     ],
     "writer": {

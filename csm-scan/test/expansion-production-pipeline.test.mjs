@@ -8,7 +8,10 @@ import { fileURLToPath } from 'node:url';
 
 import { createRecordingRunner } from './helpers/recording-runner.mjs';
 import { withFixture } from './harness.mjs';
-import { runPipeline } from './fixtures-pipeline.test.mjs';
+// T010 (F-026): the legacy ten-dimension oracle (parity target of
+// runExistingTenPipeline); the expanded production pipeline lives in
+// helpers/pipeline-mirror.mjs.
+import { runLegacyTenMirror } from './fixtures-pipeline.test.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
@@ -144,9 +147,9 @@ for (const c of FIXTURES) {
       const expected = FIXTURE_BEHAVIOR.fixtures[c.name];
       assert.ok(expected, `${c.name}: fixture behavior baseline must exist`);
 
-      const old = await runPipeline(repoPath);
-      assert.equal(old.semanticSha256, expected.semanticSha256, `${c.name}: reused runPipeline no longer matches the baseline`);
-      assert.equal(old.markdownSha256, expected.markdownSha256, `${c.name}: reused runPipeline no longer matches the baseline`);
+      const old = await runLegacyTenMirror(repoPath);
+      assert.equal(old.semanticSha256, expected.semanticSha256, `${c.name}: reused legacy mirror no longer matches the baseline`);
+      assert.equal(old.markdownSha256, expected.markdownSha256, `${c.name}: reused legacy mirror no longer matches the baseline`);
 
       const root = await mkdtemp(join(tmpdir(), 'csm-scan-t204-parity-'));
       try {

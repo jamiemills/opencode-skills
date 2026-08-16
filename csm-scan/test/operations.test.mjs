@@ -1,12 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { withFixture, runScanner } from './harness.mjs';
+import { resolveRealRepo, isPerplexityCli } from './helpers/real-repo.mjs';
 import { renderOperations } from '../lib/scan/render/operations.mjs';
 
 const OPS = fileURLToPath(new URL('../lib/scan/deep/operations.mjs', import.meta.url));
-const REAL_REPO = '/home/jamiemills/code/projects/perplexity-cli';
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (same workflow shapes: quoted 'on': with
+// workflow_dispatch, hyphenated + underscored job ids, top-level
+// permissions/concurrency/env blocks, actionlint/gitleaks step tools).
+const REAL_REPO = resolveRealRepo().repo;
+const REAL_REPO_MISSING = resolveRealRepo().missing;
 
 // Workflow with a `jobs:` block AND top-level `permissions:`/`concurrency:`/`env:`
 // keys (whose 2-space children used to leak into the unscoped job regex).
@@ -384,9 +389,10 @@ test('operations: line-capped workflows degrade to unverified', async () => {
   });
 });
 
-test('operations: real perplexity-cli', async () => {
-  if (!existsSync(REAL_REPO)) {
-    return; // skip when repo absent
+test('operations: real perplexity-cli', async (t) => {
+  if (REAL_REPO_MISSING !== null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${REAL_REPO_MISSING}`);
+    return;
   }
   const r = await runScanner(OPS, REAL_REPO);
   assert.equal(r.dimension, 'operations');
@@ -394,32 +400,36 @@ test('operations: real perplexity-cli', async () => {
 
   const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
   assert.ok(gh, 'GitHub Actions detected on real repo');
-  console.log('[perplexity-cli] signal      =', r.signal);
-  console.log('[perplexity-cli] workflowCount =', gh.workflowCount);
-  console.log('[perplexity-cli] jobs count  =', gh.jobs.length);
-  console.log('[perplexity-cli] jobs sample =', JSON.stringify(gh.jobs.slice(0, 8)));
-  console.log('[perplexity-cli] triggers    =', JSON.stringify(gh.triggers));
-  console.log('[perplexity-cli] stepTools   =', JSON.stringify(gh.stepTools));
-  console.log('[perplexity-cli] stepToolScan =', gh.stepToolScan);
-  console.log('[perplexity-cli] hasMakefile =', r.findings.hasMakefile);
-  console.log('[perplexity-cli] hasJustfile =', r.findings.hasJustfile);
-  console.log('[perplexity-cli] monitoring  =', JSON.stringify(r.findings.monitoring.libraries));
+  console.log('[pxcli] signal      =', r.signal);
+  console.log('[pxcli] workflowCount =', gh.workflowCount);
+  console.log('[pxcli] jobs count  =', gh.jobs.length);
+  console.log('[pxcli] jobs sample =', JSON.stringify(gh.jobs.slice(0, 8)));
+  console.log('[pxcli] triggers    =', JSON.stringify(gh.triggers));
+  console.log('[pxcli] stepTools   =', JSON.stringify(gh.stepTools));
+  console.log('[pxcli] stepToolScan =', gh.stepToolScan);
+  console.log('[pxcli] hasMakefile =', r.findings.hasMakefile);
+  console.log('[pxcli] hasJustfile =', r.findings.hasJustfile);
+  console.log('[pxcli] monitoring  =', JSON.stringify(r.findings.monitoring.libraries));
 
-  assert.ok(gh.workflowCount >= 5, 'multiple workflows present');
   // hyphenated and underscored job ids must be captured (requires [\w-]+)
   assert.ok(gh.jobs.includes('secret-scan'), 'hyphenated job captured');
   assert.ok(gh.jobs.includes('windows_packaging_smoke'), 'underscore job captured');
   // ci.yml quotes 'on': and includes workflow_dispatch
   assert.ok(gh.triggers.includes('workflow_dispatch'), 'workflow_dispatch captured from quoted on:');
   // top-level-block children must not leak
-  for (const bad of ['contents', 'group', 'cancel-in-progress', 'NODE_VERSION', 'permissions', 'concurrency']) {
+  for (const bad of ['contents', 'group', 'cancel-in-progress', 'NODE_VERSION', 'PY_VERSION', 'permissions', 'concurrency']) {
     assert.ok(!gh.jobs.includes(bad), `real job leak: ${bad}`);
   }
-  // step-level practice tools detected across the six workflows.
+  // step-level practice tools are verified against the workflows present.
   assert.equal(gh.stepToolScan, 'verified');
-  for (const tool of ['actionlint', 'coverage', 'gitleaks', 'mutmut', 'pip-audit', 'safety', 'scorecard', 'semgrep']) {
+  const expectedStepTools = isPerplexityCli(REAL_REPO)
+    ? ['actionlint', 'coverage', 'gitleaks', 'mutmut', 'pip-audit', 'safety', 'scorecard', 'semgrep']
+    : ['actionlint', 'gitleaks'];
+  for (const tool of expectedStepTools) {
     assert.ok(gh.stepTools.includes(tool), `real repo stepTools missing ${tool}`);
   }
+  const expectedWorkflows = isPerplexityCli(REAL_REPO) ? 5 : 2;
+  assert.ok(gh.workflowCount >= expectedWorkflows, `multiple workflows present (expected >= ${expectedWorkflows}, got ${gh.workflowCount})`);
   // monitoring shape always present; report (not assert) the python libs found.
   assert.ok(Array.isArray(r.findings.monitoring.libraries), 'monitoring.libraries is an array');
 });

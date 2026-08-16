@@ -301,8 +301,6 @@ function extractSql(text, path) {
   const edges = [];
   const diagnostics = [];
   const source = stripSqlComments(text);
-  const entities = new Map();
-  const pendingIndexKeys = [];
   let pendingEntity = null;
 
   const emitField = (entity, name, type, nullable) => {
@@ -431,7 +429,6 @@ function extractSql(text, path) {
       path,
       line,
     }));
-    entities.set(table, line);
 
     for (const raw of splitTopLevel(body, ',')) {
       const definition = raw.trim();
@@ -501,18 +498,6 @@ function extractSql(text, path) {
       }
     }
     pendingEntity = null;
-  }
-
-  for (const entry of pendingIndexKeys) {
-    if (!entities.has(entry.entity)) continue;
-    records.push(recordCandidate({
-      category: 'key',
-      dialect: 'sql',
-      signature: keySignature(entry.entity, entry.keyName, entry.kind),
-      details: { kind: entry.kind, columns: entry.columns },
-      path,
-      line: entry.line,
-    }));
   }
 
   return { records, edges, diagnostics, capped: {} };
@@ -639,7 +624,6 @@ function extractSequelizeMigration(text, path) {
   const edges = [];
   const diagnostics = [];
   const source = String(text ?? '');
-  const alias = `path:${basenameOf(path)}`;
   records.push(migrationRecord({ dialect: 'sequelize', path, alias: `path:${path}` }));
   const pattern = /\bqueryInterface\.createTable\s*\(/g;
   for (const match of source.matchAll(pattern)) {

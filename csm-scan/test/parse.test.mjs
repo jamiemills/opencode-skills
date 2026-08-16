@@ -5,9 +5,15 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { parseToml, parseYamlShallow } from '../lib/scan/shared/parse.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const REAL_PYPROJECT = '/home/jamiemills/code/projects/perplexity-cli/pyproject.toml';
+// T010 (F-007): the real pyproject.toml resolves from CSM_SCAN_REAL_REPO or
+// the checked-in pxcli-mini fallback fixture, whose pyproject.toml carries the
+// same declared sections under test (this used to be an unguarded read of a
+// hardcoded author path — a hard suite failure on any other machine).
+const RESOLVED_REAL = resolveRealRepo();
+const REAL_PYPROJECT = RESOLVED_REAL.repo === null ? null : join(RESOLVED_REAL.repo, 'pyproject.toml');
 
 // ---------------------------------------------------------------------------
 // TOML: synthetic pyproject-style document exercising every required construct
@@ -176,7 +182,11 @@ test('parseToml: throws on duplicate key via dotted path', () => {
 // TOML: parses the REAL perplexity-cli pyproject.toml
 // ---------------------------------------------------------------------------
 
-test('parseToml: real perplexity-cli pyproject.toml parses without throwing', () => {
+test('parseToml: real perplexity-cli pyproject.toml parses without throwing', (t) => {
+  if (REAL_PYPROJECT === null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${RESOLVED_REAL.missing}`);
+    return;
+  }
   const text = readFileSync(REAL_PYPROJECT, 'utf-8');
   const p = parseToml(text);
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { withFixture } from './harness.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 import { scan } from '../lib/scan/deep/stack.mjs';
 import { renderStack } from '../lib/scan/render/stack.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
@@ -240,11 +240,17 @@ test('pdm.lock Python fixture: packageManager is pdm', async () => {
   });
 });
 
-const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (Python runtime declared via requires-python,
+// uv.lock selecting the uv package manager).
+const RESOLVED_REAL_REPO = resolveRealRepo();
+const PERPLEXITY = RESOLVED_REAL_REPO.repo;
 
-test('real perplexity-cli: runtime Python, pm=uv (skipped if absent)', {
-  skip: existsSync(PERPLEXITY) ? false : `perplexity-cli not present at ${PERPLEXITY}`,
-}, async () => {
+test('real perplexity-cli: runtime Python, pm=uv (portable target: CSM_SCAN_REAL_REPO or the fallback fixture)', async (t) => {
+  if (PERPLEXITY === null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${RESOLVED_REAL_REPO.missing}`);
+    return;
+  }
   const res = await scan(PERPLEXITY, {});
   const f = res.findings;
   assert.ok(f.runtime.startsWith('Python'), `runtime should start with Python, got: ${f.runtime}`);

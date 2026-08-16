@@ -1,13 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { withFixture, surveyOverview } from './harness.mjs';
+import { resolveRealRepo, isPerplexityCli, FALLBACK_TEST_FILE_COUNT } from './helpers/real-repo.mjs';
+import { files as crlfBomFiles } from './fixtures/crlf-bom.mjs';
 import { scan } from '../lib/scan/deep/testing.mjs';
 import { renderTesting } from '../lib/scan/render/testing.mjs';
 
-const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
-const hasPerplexity = existsSync(join(PERPLEXITY, 'pyproject.toml'));
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (pytest in [dependency-groups].dev, hypothesis
+// alongside it, conftest.py + tests/test_*.py counted by the b14 rule).
+const RESOLVED_REAL_REPO = resolveRealRepo();
+const PERPLEXITY = RESOLVED_REAL_REPO.repo;
 
 // ---------------------------------------------------------------------------
 // Python fixture: pytest declared in [project.optional-dependencies], a test
@@ -972,9 +976,11 @@ test('T005 repos without a markers key keep the markers fact absent', async () =
 // [dependency-groups] (parsed here directly), >=200 matched test files.
 // ---------------------------------------------------------------------------
 
-test('real perplexity-cli: pytest + hypothesis, fileCount matches the b14 counting rule', {
-  skip: hasPerplexity ? false : `perplexity-cli not present at ${PERPLEXITY}`,
-}, async () => {
+test('real perplexity-cli: pytest + hypothesis, fileCount matches the b14 counting rule', async (t) => {
+  if (PERPLEXITY === null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${RESOLVED_REAL_REPO.missing}`);
+    return;
+  }
   const overview = await surveyOverview(PERPLEXITY);
   const res = await scan(PERPLEXITY, overview);
   const f = res.findings;
@@ -984,8 +990,13 @@ test('real perplexity-cli: pytest + hypothesis, fileCount matches the b14 counti
   assert.ok(fw.includes('hypothesis'), `framework should include hypothesis: ${JSON.stringify(f.framework)}`);
   // T007 b14 counting rule: python test files are tests/test_*.py +
   // tests/**/test_*.py + conftest.py, with fixtures/support/harness files
-  // excluded. The real repo reports 146 test modules + conftest = 147.
-  assert.ok(f.fileCount >= 130 && f.fileCount <= 170, `fileCount should match the b14 counting rule: ${f.fileCount}`);
+  // excluded. The real repo reports 146 test modules + conftest = 147; the
+  // fallback fixture reports 3 test modules + conftest = 4.
+  if (isPerplexityCli(PERPLEXITY)) {
+    assert.ok(f.fileCount >= 130 && f.fileCount <= 170, `fileCount should match the b14 counting rule: ${f.fileCount}`);
+  } else {
+    assert.equal(f.fileCount, FALLBACK_TEST_FILE_COUNT, `fallback fixture fileCount should match the b14 counting rule: ${f.fileCount}`);
+  }
   assert.ok(
     f.configFiles && f.configFiles.includes('pyproject.toml:[tool.pytest.ini_options]'),
     `configFiles should include the pytest marker: ${JSON.stringify(f.configFiles)}`,
@@ -999,4 +1010,18 @@ test('real perplexity-cli: pytest + hypothesis, fileCount matches the b14 counti
     coverage: f.coverage,
     naming: f.naming,
   }));
+});
+
+// Adversarial fixture (T010 gap FIX 2): a CRLF + UTF-8 BOM test file must
+// still be counted honestly — the encoding never hides the module.
+test('testing: CRLF + BOM source files keep test-file counting honest', async () => {
+  await withFixture('testing-crlfbom', crlfBomFiles, async (dir) => {
+    const overview = await surveyOverview(dir);
+    const res = await scan(dir, overview);
+    const f = res.findings;
+
+    assert.equal(f.fileCount, 1, `the BOM+CRLF test module must be counted: ${f.fileCount}`);
+    assert.deepEqual(f.sampleFiles, ['test/app.test.js']);
+    assert.deepEqual(f.testDirs, ['test']);
+  });
 });

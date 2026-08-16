@@ -1,0 +1,5 @@
+# Minimal gitleaks configuration (fixture stand-in for the real artifact).
+title = "pxcli gitleaks config"
+
+[extend]
+useDefault = true

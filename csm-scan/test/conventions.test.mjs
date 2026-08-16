@@ -1,14 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { withFixture, surveyOverview } from './harness.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 import { scan } from '../lib/scan/deep/conventions.mjs';
 import { renderConventions } from '../lib/scan/render/conventions.mjs';
 import { countComments } from '../lib/scan/shared/comments.mjs';
 
-const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
-const hasPerplexity = existsSync(`${PERPLEXITY}/pyproject.toml`);
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (same conventions: PEP 8, try/except/raise,
+// setuptools backend).
+const PERPLEXITY = resolveRealRepo().repo;
+const PERPLEXITY_MISSING = resolveRealRepo().missing;
 
 test('python fixture: PEP 8 absolute imports, try/except/raise, build backend', async () => {
   const files = {
@@ -145,8 +149,11 @@ test('rust fixture: use imports, Result/? error handling, cargo edition', async 
 
 test(
   'real perplexity-cli: PEP 8 absolute imports, try/except/raise, setuptools backend',
-  { skip: !hasPerplexity ? 'perplexity-cli not present' : false },
-  async () => {
+  async (t) => {
+    if (PERPLEXITY_MISSING !== null) {
+      t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${PERPLEXITY_MISSING}`);
+      return;
+    }
     const overview = await surveyOverview(PERPLEXITY);
     const res = await scan(PERPLEXITY, overview);
     const { importStyle, errorHandling, moduleSystem } = res.findings;

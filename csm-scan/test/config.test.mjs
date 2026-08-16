@@ -1,12 +1,15 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { existsSync } from 'node:fs';
 
 import { withFixture } from './harness.mjs';
+import { resolveRealRepo, isPerplexityCli } from './helpers/real-repo.mjs';
 import { scan } from '../lib/scan/deep/config.mjs';
 import { renderConfig } from '../lib/scan/render/config.mjs';
 
-const REAL_REPO = '/home/jamiemills/code/projects/perplexity-cli';
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture — the assertions below run on either target.
+const REAL_REPO = resolveRealRepo().repo;
+const REAL_REPO_MISSING = resolveRealRepo().missing;
 
 // ---------------------------------------------------------------------------
 // Python fixture
@@ -865,9 +868,9 @@ test('config render: repos without declared tools keep the toolchain block absen
 // Real perplexity-cli integration
 // ---------------------------------------------------------------------------
 
-test('config scan: real perplexity-cli -> ruff+pyright+bandit+vulture, ruff format, lefthook hook', async () => {
-  if (!existsSync(REAL_REPO)) {
-    // Skip when the real repo is not present in this environment.
+test('config scan: real perplexity-cli -> ruff+pyright+bandit+vulture, ruff format, lefthook hook', async (t) => {
+  if (REAL_REPO_MISSING !== null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${REAL_REPO_MISSING}`);
     return;
   }
 
@@ -878,7 +881,7 @@ test('config scan: real perplexity-cli -> ruff+pyright+bandit+vulture, ruff form
   assert.equal(res.signal, 'high');
 
   const linterNames = f.linters.map((l) => l.name);
-  for (const expected of ['ruff', 'pyright', 'bandit', 'vulture']) {
+  for (const expected of ['ruff']) {
     assert.ok(linterNames.includes(expected), `linters should include ${expected}: ${JSON.stringify(linterNames)}`);
   }
 
@@ -888,31 +891,43 @@ test('config scan: real perplexity-cli -> ruff+pyright+bandit+vulture, ruff form
   const hookTools = f.hooks.map((h) => h.tool);
   assert.ok(hookTools.includes('lefthook'), `hooks should include lefthook: ${JSON.stringify(hookTools)}`);
 
-  // Python repo: TS summary must be null even though typeCheckers is populated.
+  // Python repo: TS summary must be null.
   assert.equal(f.typescript, null);
-  const tcNames = f.typeCheckers.map((t) => t.name);
-  assert.ok(tcNames.includes('pyright'), `typeCheckers should include pyright: ${JSON.stringify(tcNames)}`);
 
-  // Ecosystem markers: perplexity-cli ships MANIFEST.in.
+  // Ecosystem markers: the pxcli layout ships MANIFEST.in.
   assert.ok(
     Array.isArray(f.markers) && f.markers.includes('MANIFEST.in'),
     `markers should include MANIFEST.in: ${JSON.stringify(f.markers)}`,
   );
 
-  // Supplementary declared-tool inventory: the full toolchain declared in
-  // pyproject [dependency-groups]/extras/tool sections and the Makefile
-  // (shortfall c4).
-  const declaredNames = f.declaredTools.map((t) => t.name);
-  for (const expected of ['refurb', 'ty', 'radon', 'mutmut', 'hypothesis', 'import-linter', 'diff-cover', 'actionlint']) {
-    assert.ok(declaredNames.includes(expected), `declaredTools should include ${expected}: ${JSON.stringify(declaredNames)}`);
+  if (isPerplexityCli(REAL_REPO)) {
+    // Repository-intrinsic expectations (full real-repo toolchain).
+    for (const expected of ['pyright', 'bandit', 'vulture']) {
+      assert.ok(linterNames.includes(expected), `linters should include ${expected}: ${JSON.stringify(linterNames)}`);
+    }
+    const tcNames = f.typeCheckers.map((tc) => tc.name);
+    assert.ok(tcNames.includes('pyright'), `typeCheckers should include pyright: ${JSON.stringify(tcNames)}`);
+
+    // Supplementary declared-tool inventory: the full toolchain declared in
+    // pyproject [dependency-groups]/extras/tool sections and the Makefile
+    // (shortfall c4).
+    const declaredNames = f.declaredTools.map((dt) => dt.name);
+    for (const expected of ['refurb', 'ty', 'radon', 'mutmut', 'hypothesis', 'import-linter', 'diff-cover', 'actionlint']) {
+      assert.ok(declaredNames.includes(expected), `declaredTools should include ${expected}: ${JSON.stringify(declaredNames)}`);
+    }
+  } else {
+    // Fallback-fixture-scaled expectations: the normalized manifest still
+    // surfaces dev-group tooling beyond the classified linters/formatters.
+    const declaredNames = f.declaredTools.map((dt) => dt.name);
+    assert.ok(declaredNames.includes('hypothesis'), `declaredTools should include hypothesis: ${JSON.stringify(declaredNames)}`);
   }
 
   // Evidence summary for the human reader.
-  console.log('  [perplexity-cli config] declaredTools =', JSON.stringify(f.declaredTools.map((t) => ({ name: t.name, provenance: t.provenance, descriptorDetected: t.descriptorDetected }))));
-  console.log('  [perplexity-cli config] linters   =', JSON.stringify(f.linters.map((l) => `${l.name}@${l.config}`)));
-  console.log('  [perplexity-cli config] formatters=', JSON.stringify(f.formatters.map((x) => x.name)));
-  console.log('  [perplexity-cli config] typeCheck=', JSON.stringify(tcNames));
-  console.log('  [perplexity-cli config] hooks     =', JSON.stringify(f.hooks.map((h) => h.file)));
-  console.log('  [perplexity-cli config] markers   =', JSON.stringify(f.markers));
-  console.log('  [perplexity-cli config] lint      =', JSON.stringify(f.lint));
+  console.log('  [pxcli config] declaredTools =', JSON.stringify(f.declaredTools.map((dt) => ({ name: dt.name, provenance: dt.provenance, descriptorDetected: dt.descriptorDetected }))));
+  console.log('  [pxcli config] linters   =', JSON.stringify(f.linters.map((l) => `${l.name}@${l.config}`)));
+  console.log('  [pxcli config] formatters=', JSON.stringify(f.formatters.map((x) => x.name)));
+  console.log('  [pxcli config] typeCheck=', JSON.stringify(f.typeCheckers.map((tc) => tc.name)));
+  console.log('  [pxcli config] hooks     =', JSON.stringify(f.hooks.map((h) => h.file)));
+  console.log('  [pxcli config] markers   =', JSON.stringify(f.markers));
+  console.log('  [pxcli config] lint      =', JSON.stringify(f.lint));
 });

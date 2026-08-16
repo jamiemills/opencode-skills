@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { withFixture } from './harness.mjs';
+import { files as binariesOnlyFiles } from './fixtures/binaries.mjs';
 import { scan } from '../lib/scan/deep/structure.mjs';
 import { renderStructure } from '../lib/scan/render/structure.mjs';
+import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
 
 function buildHexFiles(count, dir) {
   const obj = {};
@@ -130,5 +132,27 @@ test('structure scan omits gitTracked keys when git scope is unavailable (covera
     assert.ok(!('gitTrackedTotalFiles' in f), 'gitTracked keys must be omitted when git scope is absent');
     assert.ok(!('gitTrackedFileCounts' in f), 'gitTracked keys must be omitted when git scope is absent');
     assert.equal(Object.keys(f).length, 5, 'structure findings must keep the original five keys');
+  });
+});
+
+// Adversarial fixture (T010 gap FIX 2): a binaries-only repository must not
+// crash the scanner or the full pipeline, and the structure facts stay honest.
+test('structure scan is graceful and honest on a binaries-only repository', async () => {
+  await withFixture('struct-binaries', binariesOnlyFiles, async (dir) => {
+    const res = await scan(dir);
+    const f = res.findings;
+
+    assert.equal(f.totalFiles, 2, 'both binary artifacts are enumerated');
+    assert.equal(f.fileCounts['.png'], 1);
+    assert.equal(f.fileCounts['.woff'], 1);
+    assert.ok(f.tree.includes('logo.png'), `tree must list the png artifact:\n${f.tree}`);
+    assert.ok(f.tree.includes('font.woff'), `tree must list the woff artifact:\n${f.tree}`);
+
+    const result = await runExpandedPipeline({ repos: [dir], sink: () => '' });
+    assert.deepEqual(result.repos[0].overview.languages, [],
+      'a binaries-only repo detects no languages — none are fabricated');
+    assert.equal(result.repos[0].overview.totalFiles, 2);
+    assert.equal(result.expectedClaimCoverage.repos[0].perDimension.structure.status, 'observed',
+      'structure reports its facts honestly instead of failing');
   });
 });

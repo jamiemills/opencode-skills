@@ -1,31 +1,42 @@
 {
-  "canonicalizationVersion": 1,
+  "canonicalizationVersion": 2,
   "normalizations": [
     "fixture root to <FIXTURE_ROOT>",
     "path separators to slash",
     "YYYY-MM-DD dates to <DATE>",
-    "host Python, Node, rustc, Deno, and Bun versions to <HOST_VERSION>"
+    "host Python, Node, rustc, Deno, and Bun versions to <HOST_VERSION>",
+    "path-derived pipeline scan identities (sha256 of the repo path) to <SCAN_ID>"
   ],
   "fixtures": {
     "python": {
-      "semanticSha256": "fa1c027c6e0a741ea625f466a34d33fd9dbb76449ba1950bb502510d327e93c3",
-      "markdownSha256": "3d9ecfe496f01ca48b9c08a4da3ae64fed3732bfe3545fb45dd65f07268cfbf9"
+      "semanticSha256": "4e5c89828c2f685064d4e361504d68a888b95378333a09340908d42b9b851b74",
+      "markdownSha256": "5648d6316a775b0a6f9cf010feda78df5ff60fcbb9965e4bb4205dd111b46e90",
+      "expandedSemanticSha256": "49201b5e5be143b5593defba7456f82f1c09073d69df2c9c5cae600322f415ad",
+      "expandedMarkdownSha256": "723c4f25dfdfb9fd1c378dd08907846f9483645dc1a3ac69fe5a88bb8f4274dd"
     },
     "javascript": {
-      "semanticSha256": "593d9065639893aa3bb53be96ce6e08ca138a3222068f7471c3594aa303c56cc",
-      "markdownSha256": "8ae2602b337d1d6b09d9f40e6ee06b036adb0edef482c6485b0bd8a03f4f1473"
+      "semanticSha256": "2a32337d4cfe43172fbe35d2957fd80e8bee3f9351e5b42f5797f6e3942a6304",
+      "markdownSha256": "a4de67ef7d94c2b0e083b845b12024b43d8d916c0aa027a96ca76c40a87037bb",
+      "expandedSemanticSha256": "f58476efba4730bbfcbaf432f2ac002d640d4752e654853b61bb2db39a107165",
+      "expandedMarkdownSha256": "decaa911066f7da55b97c9b309d0c548b8a98d513a2cda82e63502c0c442cd18"
     },
     "typescript": {
-      "semanticSha256": "773edf7a12d6c61d8b151482fb631c45c91dd13fcf7c790c03841fd650e8c5da",
-      "markdownSha256": "3ca9c4e2ee392d3fec1f80c61b551d95339150418dd1e73c92b1a0a663628892"
+      "semanticSha256": "0ee8a7e482650fe409e5ef427f517b134cf440c4bcc5e9d9a024196f41a4056e",
+      "markdownSha256": "47a809a19b5736994256cd5ba7ed6ca28b39450dece96c1adf515589dda59e98",
+      "expandedSemanticSha256": "3cd6a923ceb9c81fd70ddf7843cf13c26437fe2358241293ecfb9ee0a1c9d31b",
+      "expandedMarkdownSha256": "1cd1b2fc7c6b01aa0246cb2a558df4f7f2dff9e3ef6edbd802624d194af63c18"
     },
     "rust": {
-      "semanticSha256": "93378b699220b9df31e1735e05a8a2aa41730c20317659d3e0a24c1025f2bdf5",
-      "markdownSha256": "1a43be2dd2de7497e87eb6780bda5ddb65da1d12a0f2d4008380daa48dc74026"
+      "semanticSha256": "7e0c69ec65c4dc80dc08951badb9d3fef9a7527052e903bc52dde3cae99140c6",
+      "markdownSha256": "bb4401dc15b8ff5751a7a634961d90cf6934c591f3074f68f2ecae51d3fc752c",
+      "expandedSemanticSha256": "899fd4564dfcc53f8fb5acd76a3e77cc5094d6dd1ab8f610c312796f7a857b7d",
+      "expandedMarkdownSha256": "150888f89ca0503b56afdd4de8a579b701df4751544b0756f1337738d0736488"
     },
     "shell": {
-      "semanticSha256": "5a4cb3a470e2525c6c39b6d42b73a0fb7e4590b13d9350acddc37a0c3eb37255",
-      "markdownSha256": "447d444e864648fd9c4c99441e97d00391d4074275b7bb0ae26d539f15443385"
+      "semanticSha256": "691e01ae9212739dd65358387883cc2b3382f76124950db1e880fc622151c428",
+      "markdownSha256": "2f9083efbfb854decbeadc463791ff272cc9e56267c47f90915983c0adc88b3f",
+      "expandedSemanticSha256": "90d08ec083cd2766f687dd92b4c359306c932ebf3fea7668fe4546f0ac56b539",
+      "expandedMarkdownSha256": "3878226755249c8bb42767d8a01ebc9a524900b96bb0c1a61073a53d720e7d0b"
     }
   }
 }

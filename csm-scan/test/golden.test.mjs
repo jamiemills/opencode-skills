@@ -1,69 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { withFixture } from './harness.mjs';
-import { survey } from '../lib/scan/survey.mjs';
-import { enrich } from '../lib/scan/enrich.mjs';
-import { validate } from '../lib/scan/validate.mjs';
-import { writeNORMS } from '../lib/scan/write.mjs';
-import * as structure from '../lib/scan/deep/structure.mjs';
-import * as stack from '../lib/scan/deep/stack.mjs';
-import * as config from '../lib/scan/deep/config.mjs';
-import * as testing from '../lib/scan/deep/testing.mjs';
-import * as conventions from '../lib/scan/deep/conventions.mjs';
-import * as git from '../lib/scan/deep/git.mjs';
-import * as architecture from '../lib/scan/deep/architecture.mjs';
-import * as documentation from '../lib/scan/deep/documentation.mjs';
-import * as security from '../lib/scan/deep/security.mjs';
-import * as operations from '../lib/scan/deep/operations.mjs';
+import {
+  resolveRealRepo,
+  isPerplexityCli,
+  FALLBACK_TEST_FILE_COUNT,
+  FALLBACK_REAL_REPO,
+} from './helpers/real-repo.mjs';
+import { runMirrorPipeline } from './helpers/pipeline-mirror.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { parityFiles as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
 import { files as shellFiles } from './fixtures/shell.mjs';
 
-// Mirrors scripts/scan.mjs: survey -> 10 deep scanners -> enrich -> validate
-// -> writeNORMS. Single-repo, no retry loop. Returns the written markdown.
-async function runPipeline(repoPath) {
-  const overview = await survey(repoPath);
-
-  const deepResults = (await Promise.all([
-    structure.scan(repoPath, overview),
-    stack.scan(repoPath, overview),
-    config.scan(repoPath, overview),
-    testing.scan(repoPath, overview),
-    conventions.scan(repoPath, overview),
-    git.scan(repoPath, overview),
-    architecture.scan(repoPath, overview),
-    documentation.scan(repoPath, overview),
-    security.scan(repoPath, overview),
-    operations.scan(repoPath, overview),
-  ])).filter(Boolean);
-
-  const enriched = await enrich(deepResults, overview);
-  const validated = await validate(enriched);
-
-  const out = join(
-    tmpdir(),
-    `norms-golden-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.md`,
-  );
-  try {
-    return await writeNORMS(
-      {
-        generated: '2026-01-01',
-        repos: [{ overview, deep: validated.findings, crossObservations: validated.contradictions }],
-      },
-      out,
-    );
-  } finally {
-    await unlink(out).catch((error) => {
-      if (error.code !== 'ENOENT') throw error;
-    });
-  }
-}
+// T010 (F-026): this suite drives the exported production pipeline
+// (runExpandedPipeline) through the shared mirror helper — the retired
+// ten-dimension hand-rolled orchestration no longer mirrors anything the CLI
+// runs. Legacy assertions are projected from the expanded result below.
 
 // Matches a backslash immediately followed by '.', '_', or '-' — the
 // over-escape pattern that was previously emitted for hyphens/dots/underscores.
@@ -87,7 +41,7 @@ test('T021 golden: python fixture pipeline produces Python, uv, ruff, pytest, an
     '.ruff_cache/content': 'noise\n',
   };
 
-  const markdown = await withFixture('golden-py', fixtureFiles, runPipeline);
+  const markdown = await withFixture('golden-py', fixtureFiles, runMirrorPipeline);
 
   assert.ok(markdown.includes('Python'), 'markdown must mention Python');
   assert.ok(markdown.includes('uv'), 'markdown must mention uv (package manager)');
@@ -113,7 +67,7 @@ test('T021 golden: python fixture pipeline produces Python, uv, ruff, pytest, an
 });
 
 test('T113 golden: JavaScript fixture renders Node, Bun, tests, workspace architecture, and neutral metadata', async () => {
-  const markdown = await withFixture('golden-js', javascriptFiles, runPipeline);
+  const markdown = await withFixture('golden-js', javascriptFiles, runMirrorPipeline);
 
   assert.match(markdown, /Languages.*JavaScript/);
   assert.match(markdown, /Runtime.*Bun/);
@@ -133,7 +87,7 @@ test('T113 golden: TypeScript fixture renders compiler depth, spec tests, cohere
     ...typescriptFiles,
     'tsconfig.json': `${JSON.stringify(tsconfig, null, 2)}\n`,
   };
-  const markdown = await withFixture('golden-ts', fixtureFiles, runPipeline);
+  const markdown = await withFixture('golden-ts', fixtureFiles, runMirrorPipeline);
 
   assert.match(markdown, /Languages.*TypeScript/);
   assert.match(markdown, /TypeScript.*tsconfig\.json.*moduleResolution: node16.*noImplicitAny.*path aliases/);
@@ -152,7 +106,7 @@ test('T113 golden: Rust fixture renders Cargo workspace, type checking, conventi
   const markdown = await withFixture(
     'golden-rust',
     { ...rustFiles, 'Cargo.toml': cargo },
-    runPipeline,
+    runMirrorPipeline,
   );
 
   assert.match(markdown, /Languages.*Rust/);
@@ -169,7 +123,7 @@ test('T113 golden: Rust fixture renders Cargo workspace, type checking, conventi
 });
 
 test('T113 golden: Shell fixture renders shellcheck roles, sourced modules, hygiene, and no shfmt false positive', async () => {
-  const markdown = await withFixture('golden-shell', shellFiles, runPipeline);
+  const markdown = await withFixture('golden-shell', shellFiles, runMirrorPipeline);
 
   assert.match(markdown, /Languages.*Shell/);
   assert.match(markdown, /Lint.*shellcheck/);
@@ -182,14 +136,21 @@ test('T113 golden: Shell fixture renders shellcheck roles, sourced modules, hygi
   assertNeutralMetadata(markdown, 'shell');
 });
 
-test('T021 golden: real perplexity-cli repo (skipped if path absent)', async () => {
-  const REPO = '/home/jamiemills/code/projects/perplexity-cli';
-  if (!existsSync(REPO)) {
-    console.warn(`[T021] skipping real-repo golden check — ${REPO} not present`);
-    return;
-  }
+// T010 (F-007): CSM_SCAN_REAL_REPO when set (the real repository, full-strength
+// expectations), otherwise the checked-in pxcli-mini fallback fixture with the
+// same assertions scaled to the fixture where they are intrinsically about the
+// real repository's scale. A configured-but-missing path falls back to the
+// fixture with a warning instead of skipping: this is a named AC20 gate file,
+// and the behavioral no-skip gate bans runtime t.skip() here.
+const RESOLVED_REAL_REPO = resolveRealRepo();
 
-  const markdown = await runPipeline(REPO);
+test('T021 golden: real perplexity-cli repo (CSM_SCAN_REAL_REPO or the fallback fixture)', async () => {
+  if (RESOLVED_REAL_REPO.repo === null) {
+    console.warn(`[T021] CSM_SCAN_REAL_REPO is set but does not exist (${RESOLVED_REAL_REPO.missing}); running against the pxcli-mini fallback fixture`);
+  }
+  const REPO = RESOLVED_REAL_REPO.repo ?? FALLBACK_REAL_REPO;
+
+  const markdown = await runMirrorPipeline(REPO);
 
   assert.ok(
     /Python \(declared:/.test(markdown),
@@ -203,11 +164,20 @@ test('T021 golden: real perplexity-cli repo (skipped if path absent)', async () 
   // T007 b14 counting rule (disclosed in the rendered section): python test
   // files are `tests/test_*.py` + `tests/**/test_*.py` + `conftest.py`, with
   // tests/fixtures/**, tests/support/**, _fuzz_harnesses.py, strategies.py and
-  // __init__.py excluded. The real repo reports 147 = 146 test modules + conftest.
-  assert.ok(
-    Number(testCount) >= 130 && Number(testCount) <= 170,
-    `test-file count must match the disclosed b14 counting rule (observed 147; got ${testCount})`,
-  );
+  // __init__.py excluded. The real repo reports 147 = 146 test modules +
+  // conftest; the fallback fixture reports 4 = 3 test modules + conftest.
+  if (isPerplexityCli(REPO)) {
+    assert.ok(
+      Number(testCount) >= 130 && Number(testCount) <= 170,
+      `test-file count must match the disclosed b14 counting rule (observed 147; got ${testCount})`,
+    );
+  } else {
+    assert.equal(
+      Number(testCount),
+      FALLBACK_TEST_FILE_COUNT,
+      `fallback fixture test-file count must match the disclosed b14 counting rule (got ${testCount})`,
+    );
+  }
   assert.ok(
     /Lockfile[\s\S]{0,40}present/.test(markdown),
     'markdown must report Lockfile ... present',

@@ -1,12 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { withFixture, surveyOverview } from './harness.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 import { scan } from '../lib/scan/deep/documentation.mjs';
 import { renderDocumentation } from '../lib/scan/render/documentation.mjs';
 import { scan as scanConventions } from '../lib/scan/deep/conventions.mjs';
 
-const PERPLEXITY_REPO = '/home/jamiemills/code/projects/perplexity-cli';
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (README carries a single PyPI badge with "npm"
+// appearing only in prose, exactly like the real repository).
+const PERPLEXITY_REPO = resolveRealRepo().repo;
+const PERPLEXITY_REPO_MISSING = resolveRealRepo().missing;
 
 test('detectBadges classifies each badge by its URL, not whole-document prose', async () => {
   // Exactly ONE shields.io badge with a PyPI URL; the token "npm" appears only
@@ -79,9 +83,9 @@ test('blank lines are excluded from the comment-ratio denominator', async () => 
   });
 });
 
-test('real perplexity-cli: badgeTypes exclude npm and commentRatio is numeric', async () => {
-  if (!existsSync(PERPLEXITY_REPO)) {
-    console.log(`[skip] ${PERPLEXITY_REPO} not present`);
+test('real perplexity-cli: badgeTypes exclude npm and commentRatio is numeric', async (t) => {
+  if (PERPLEXITY_REPO_MISSING !== null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${PERPLEXITY_REPO_MISSING}`);
     return;
   }
 

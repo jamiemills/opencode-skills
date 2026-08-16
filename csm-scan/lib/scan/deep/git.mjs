@@ -194,7 +194,6 @@ export async function scan(repoPath, overview, broker = commandBroker) {
         hasIssueTemplates: false,
         remote: 'N/A',
         contributorCount: 0,
-        topContributors: [],
       },
     };
   }
@@ -255,7 +254,6 @@ export async function scan(repoPath, overview, broker = commandBroker) {
       hasIssueTemplates,
       remote: displayRemote,
       contributorCount,
-      topContributors: [],
       logCount: logLines.length,
     },
   };

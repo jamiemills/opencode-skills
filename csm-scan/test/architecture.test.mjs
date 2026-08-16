@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { withFixture, surveyOverview } from './harness.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 import { scan } from '../lib/scan/deep/architecture.mjs';
 import { renderArchitecture } from '../lib/scan/render/architecture.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
@@ -10,8 +10,9 @@ import { files as typescriptFiles } from './fixtures/typescript.mjs';
 import { files as shellFiles } from './fixtures/shell.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
 
-const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
-const hasPerplexity = existsSync(`${PERPLEXITY}/pyproject.toml`);
+// T010 (F-007): the real-repo target resolves from CSM_SCAN_REAL_REPO, or the
+// checked-in pxcli-mini fallback fixture when unset (portable; never vacuous).
+const { repo: PERPLEXITY, missing: missingRealRepo } = resolveRealRepo();
 
 function edgeCount(r) {
   return Object.values(r.findings.importGraph.graph).reduce((a, b) => a + b.length, 0);
@@ -67,8 +68,11 @@ test('architecture: python fixture has cli.py -> core.py edge, no test entry poi
 
 test(
   'architecture: real perplexity-cli yields edges>0, Python tech, no test/scripts entry points',
-  { skip: !hasPerplexity ? 'perplexity-cli not present' : false },
-  async () => {
+  async (t) => {
+    if (missingRealRepo !== null) {
+      t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${missingRealRepo}`);
+      return;
+    }
     const overview = await surveyOverview(PERPLEXITY);
     const r = await scan(PERPLEXITY, overview);
     const edges = edgeCount(r);

@@ -25,17 +25,6 @@ export function renderGit(_repoName, findings, context = DEFAULT_RENDER_CONTEXT)
   lines.push(`- **Contributors**: ${findings.contributorCount || 0}`);
   lines.push('');
 
-  if (findings.topContributors && findings.topContributors.length > 0) {
-    lines.push('### Top Contributors');
-    lines.push('');
-    lines.push('| Contributor | Commits |');
-    lines.push('|-------------|--------:|');
-    for (const c of findings.topContributors) {
-      lines.push(`| ${escapeField(c.name, { inTable: true })} | ${c.commits} |`);
-    }
-    lines.push('');
-  }
-
   if (findings.prTemplate) {
     lines.push('- PR template found (`.github/PULL_REQUEST_TEMPLATE.md`)');
     lines.push('');

@@ -252,8 +252,9 @@ test('T208 git scan issues only registered read-only commands through the broker
     assert.equal(findings.isGit, true);
     assert.equal(typeof findings.contributorCount, 'number');
     assert.ok(findings.contributorCount >= 1, `contributorCount=${findings.contributorCount}`);
-    assert.ok(Array.isArray(findings.topContributors), 'topContributors key must remain present');
-    assert.equal(findings.topContributors.length, 0, 'top contributors must not carry identities');
+    // F-077: the vestigial topContributors field was removed entirely — git
+    // findings carry aggregate counts only, never identities.
+    assert.equal(findings.topContributors, undefined, 'topContributors must not exist: git findings carry no identities');
 
     const serialized = JSON.stringify(findings);
     assert.ok(!serialized.includes('Alice'), 'no contributor name may leak');

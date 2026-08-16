@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
 import { commandBroker } from '../lib/scan/shared/command.mjs';
+import { openVerboseTrace, createVerboseReporter } from '../lib/scan/report/verbose-trace.mjs';
 import {
   createReporter,
   formatError,
@@ -12,7 +13,7 @@ import {
 } from '../lib/scan/report/reporter.mjs';
 
 const USAGE = [
-  'Usage: scan.mjs [--repos <path>...] [--out <path>]',
+  'Usage: scan.mjs [--repos <path>...] [--out <path>] [--verbose]',
   '',
   'Scan one or more repositories and write a NORMS.md report.',
   'With no --repos, the current working directory is scanned.',
@@ -21,6 +22,9 @@ const USAGE = [
   'Options:',
   '  --repos <path>...  Repositories to scan (default: current working directory).',
   '  --out <path>       Output file (default: NORMS.md in the current directory).',
+  '  --verbose          Write an unredacted local diagnostic trace (reporter lines +',
+  '                     per-stage durations) to .csm-scan-debug.log next to --out —',
+  '                     never to stdout. Delete it after debugging.',
   '  --help             Print this usage information and exit.',
   '  --version          Print the version and exit.',
   '',
@@ -43,6 +47,7 @@ function parseArgs(argv, cwd) {
   let out = null;
   let help = false;
   let version = false;
+  let verbose = false;
   const errors = [];
   let i = 0;
   while (i < argv.length) {
@@ -52,6 +57,9 @@ function parseArgs(argv, cwd) {
       i++;
     } else if (arg === '--version') {
       version = true;
+      i++;
+    } else if (arg === '--verbose') {
+      verbose = true;
       i++;
     } else if (arg === '--repos') {
       i++;
@@ -77,6 +85,7 @@ function parseArgs(argv, cwd) {
     out: out ? resolve(cwd, out) : join(cwd, 'NORMS.md'),
     help,
     version,
+    verbose,
     errors,
   };
 }
@@ -128,13 +137,16 @@ async function resolveVersion() {
   return (await packageVersion()) ?? (await gitCommitHash()) ?? 'csm-scan';
 }
 
+// F-075: --verbose writes an UNREDACTED, local-only trace (never stdout —
+// the sanitized stdout/stderr guards stay installed) via the registered
+// special-reader module; per-stage durations come from the phase() fan-out.
 async function main() {
   const rawStderrWrite = process.stderr.write.bind(process.stderr);
   const guard = installSanitizedStdio();
   const printCliError = (line) => {
     rawStderrWrite(`${line}\n`);
   };
-  const { repos, out, help, version, errors } = parseArgs(process.argv.slice(2), process.cwd());
+  const { repos, out, help, version, verbose, errors } = parseArgs(process.argv.slice(2), process.cwd());
 
   if (help) {
     printStdout(USAGE);
@@ -158,7 +170,20 @@ async function main() {
     return;
   }
 
-  const reporter = createReporter();
+  let debug = null;
+  if (verbose) {
+    debug = openVerboseTrace(out);
+    if (debug === null) {
+      printCliError('--verbose: could not open a debug trace file; continuing without verbose tracing');
+    } else {
+      // CLI-arg carve-out: the trace path itself is a user-typed derivation,
+      // so raw stderr (not the sanitized reporter) announces it.
+      printCliError(`verbose trace (unredacted, local only): ${debug.path}`);
+    }
+  }
+
+  const baseReporter = createReporter();
+  const reporter = debug !== null ? createVerboseReporter(baseReporter, debug) : baseReporter;
   try {
     await runExpandedPipeline({ repos, out, reporter });
     reporter.progress(`NORMS.md written to ${out}`);
@@ -166,6 +191,10 @@ async function main() {
     reporter.error(formatError(error));
     process.exitCode = 1;
   } finally {
+    if (debug !== null) {
+      if (typeof reporter.traceEnd === 'function') reporter.traceEnd();
+      await new Promise((res) => debug.stream.end(res));
+    }
     guard.restore();
   }
 }

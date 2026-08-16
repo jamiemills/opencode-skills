@@ -205,7 +205,12 @@ export function createCommandBroker({ runner } = {}) {
       } catch (error) {
         throw sanitizeError(error, id);
       }
-      const env = buildCommandEnv(process.env);
+      // Extensible copy: Node's spawn injects NODE_V8_COVERAGE into the child
+      // env object when the parent runs under coverage instrumentation, which
+      // throws on the frozen whitelist object (F-025). The copy carries the
+      // same reduced deterministic content; only the coverage temp-dir
+      // variable may be added by Node itself.
+      const env = { ...buildCommandEnv(process.env) };
       let outcome;
       try {
         outcome = await run(definition.executable, argv, {

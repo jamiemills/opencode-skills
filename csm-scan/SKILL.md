@@ -184,18 +184,19 @@ Enrichment metadata records factual detection coverage and the observed, inferre
 `scripts/scan.mjs` is a zero-dependency Node CLI wrapping the same canonical pipeline the test suite exercises:
 
 ```bash
-node scripts/scan.mjs [--repos <path>...] [--out <path>]
+node scripts/scan.mjs [--repos <path>...] [--out <path>] [--verbose]
 ```
 
 - **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the report is written to `NORMS.md` in the current directory.
 - `--repos <path>...` — one or more repository paths to scan (default: current working directory).
 - `--out <path>` — output file (default: `NORMS.md` in the current directory).
+- `--verbose` — write an unredacted local diagnostic trace (reporter lines + per-stage durations) to `.csm-scan-debug.log` next to `--out` — never to stdout. Delete it after debugging.
 - `--help` — print the full usage text and exit 0.
 - `--version` — print the version (package.json `version`, else the git commit hash, else `csm-scan`) and exit 0.
 - **Errors (exit 2)** — an unknown flag, a missing `--out` value, or a `--repos` path that is not a directory or does not exist is reported on stderr with a usage hint and the process exits with status **2**.
 - `--repos` with no value is not an error — it defaults to the current working directory (exit 0).
 - An unwritable `--out` path is a pipeline error: the scan fails at the write step and the process exits with status **1**.
-- **Privacy** — output is privacy-safe by design: absolute paths, identities, and secrets are redacted before they reach stdout, stderr, or the report.
+- **Privacy** — report contents are privacy-safe: absolute paths, identities, and secrets are redacted before they reach the report and pipeline stdout/stderr. Exception: user-typed CLI arguments (for example a `--repos` path named in an error message) are echoed verbatim on stderr.
 
 ## Testing
 
@@ -215,5 +216,8 @@ node --test --test-concurrency=1 test/golden.test.mjs                # five ecos
 ```
 
 `node --test --test-concurrency=1` is authoritative because default parallel mode can race filesystem-heavy fixture tests. Fixtures live under `test/fixtures/` and `test/fixtures-expansion/`, each exporting a `files` map consumed by `test/harness.mjs`'s `withFixture`. The suite covers shared primitives, all 17 dimensions, enrich, validate, write, the 21-case P0 regression matrix, the voice gates, privacy gates, determinism gates, constraint gates (command boundary, one write, zero dependencies), plugin boundary tests, multi-repo cross-repository synthesis, and end-to-end pipeline behavior — no installs required.
+
+- `CSM_SCAN_REAL_REPO=<path>` — when set to an existing repository, the real-repo tests scan it instead of the checked-in fallback; full-strength scale expectations apply only when the repo is identified as pxcli, otherwise expectations are scaled to the fallback fixture. When unset (or empty), the same tests run against `test/fixtures-real/pxcli-mini` — the suite is green on any machine with no `$HOME`-path dependency.
+- `node test/scripts/coverage-gate.mjs` — coverage gate: runs the full suite under `--experimental-test-coverage` and enforces the ≥88% line-coverage floor (run on Node ≥22; not wired to CI).
 
 - Record pass count + wall time at every gate run.

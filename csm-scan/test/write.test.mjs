@@ -4,11 +4,16 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, mkdtempSync } from 'node:fs';
 import { writeNORMS } from '../lib/scan/write.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PERPLEXITY = '/home/jamiemills/code/projects/perplexity-cli';
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (richness findings render identically: symbol
+// naming, type hints, markers, version pins, pip-audit audit evidence).
+const RESOLVED_REAL_REPO = resolveRealRepo();
+const PERPLEXITY = RESOLVED_REAL_REPO.repo;
 
 function buildFindings() {
   return {
@@ -57,9 +62,8 @@ function buildFindings() {
               branchPattern: 'feature/.*',
               defaultBranch: 'main',
               commitStyle: 'Conventional Commits',
-              remote: 'origin',
+              remote: 'pull_request_user',
               contributorCount: 3,
-              topContributors: [{ name: 'pull_request_user', commits: 5 }],
             },
           },
         ],
@@ -338,9 +342,10 @@ test('renders a neutral fallback for legacy boolean-only audit findings', async 
   assert.ok(!content.includes('**Audit script**'));
 });
 
-test('perplexity-cli pipeline renders the new richness findings and the neutral coverage line', { timeout: 120000 }, () => {
-  if (!existsSync(PERPLEXITY)) {
-    return; // skip when the fixture repo is absent
+test('perplexity-cli pipeline renders the new richness findings and the neutral coverage line', { timeout: 120000 }, (t) => {
+  if (PERPLEXITY === null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${RESOLVED_REAL_REPO.missing}`);
+    return;
   }
   const dir = mkdtempSync(join(tmpdir(), 'norms-t115-'));
   const out = join(dir, 'NORMS.md');

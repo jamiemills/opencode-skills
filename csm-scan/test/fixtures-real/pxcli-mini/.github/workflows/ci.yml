@@ -1,0 +1,28 @@
+name: CI
+'on':
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci
+  cancel-in-progress: false
+env:
+  PY_VERSION: '3.12'
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: gitleaks
+        run: gitleaks detect --no-git --redact
+      - name: actionlint
+        run: actionlint
+  windows_packaging_smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        run: python -m build

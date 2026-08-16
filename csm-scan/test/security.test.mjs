@@ -5,16 +5,24 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { withFixture, surveyOverview, makeFixture, cleanupFixture } from './harness.mjs';
 import { createRecordingRunner } from './helpers/recording-runner.mjs';
+import { resolveRealRepo } from './helpers/real-repo.mjs';
 import { createCommandBroker } from '../lib/scan/shared/command.mjs';
 import { scan } from '../lib/scan/deep/security.mjs';
 import { renderSecurity } from '../lib/scan/render/security.mjs';
+import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as jsFiles } from './fixtures/javascript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
+import { files as binariesOnlyFiles } from './fixtures/binaries.mjs';
+import { files as crlfBomFiles } from './fixtures/crlf-bom.mjs';
 
 const execFileAsync = promisify(execFile);
 
-const PERPLEXITY_CLI = '/home/jamiemills/code/projects/perplexity-cli';
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture (uv.lock + .gitleaks.toml + SECURITY.md,
+// pydantic dependency, bandit + pip-audit dev tooling).
+const RESOLVED_REAL_REPO = resolveRealRepo();
+const PERPLEXITY_CLI = RESOLVED_REAL_REPO.repo;
 
 // Python fixture extended with the security artifacts the overhaul must recognize.
 function pythonFixtureWithSecurity() {
@@ -578,9 +586,11 @@ test('security: gitignored .env canary detected via the hidden/gitignored pass (
   }
 });
 
-test('security: real perplexity-cli -> uv.lock + gitleaks + SECURITY.md, pydantic validation + bandit/pip-audit', {
-  skip: !existsSync(PERPLEXITY_CLI) ? 'perplexity-cli repo not present' : undefined,
-}, async () => {
+test('security: real perplexity-cli -> uv.lock + gitleaks + SECURITY.md, pydantic validation + bandit/pip-audit', async (t) => {
+  if (PERPLEXITY_CLI === null) {
+    t.skip(`CSM_SCAN_REAL_REPO is set but does not exist: ${RESOLVED_REAL_REPO.missing}`);
+    return;
+  }
   const overview = await surveyOverview(PERPLEXITY_CLI);
   const res = await scan(PERPLEXITY_CLI, overview);
   const f = res.findings;
@@ -627,4 +637,43 @@ test('security: real perplexity-cli -> uv.lock + gitleaks + SECURITY.md, pydanti
   console.log('  perplexity-cli inputValidation:', JSON.stringify(f.inputValidation.libraries));
   console.log('  perplexity-cli hasAuditScript:', f.hasAuditScript);
   console.log('  perplexity-cli auditEvidence:', JSON.stringify(f.auditEvidence));
+});
+
+// Adversarial fixtures (T010 gap FIX 2): binary artifacts must never crash
+// the secret scan or fabricate matches, and CRLF + UTF-8 BOM encoding must
+// never conceal a secret that an LF file would expose.
+test('security: binaries-only repository scans clean with honest coverage', async () => {
+  await withFixture('sec-binaries', binariesOnlyFiles, async (dir) => {
+    const overview = await surveyOverview(dir);
+    const res = await scan(dir, overview);
+    const f = res.findings;
+
+    assert.equal(f.secrets.count, 0, 'binary artifacts must not produce secret matches');
+    assert.deepEqual(f.secrets.findings, []);
+    assert.equal(f.auth.detected, false, 'no auth framework is fabricated for binaries');
+    assert.equal(f.scanCoverage.scannedFiles, 2, 'the scan discloses the two enumerated files');
+    assert.equal(f.scanCoverage.filesSkipped, 0);
+  });
+});
+
+test('security: CRLF line endings and a UTF-8 BOM never conceal a secret', async () => {
+  const TOKEN = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
+  const files = {
+    ...crlfBomFiles,
+    'src/lf-secret.js': `export const a = 'ghp=${TOKEN}';\n`,
+    'src/crlf-secret.js': `\uFEFFexport const b = 'ghp=${TOKEN}';\r\n`,
+  };
+
+  await withFixture('sec-crlfbom', files, async (dir) => {
+    const result = await runExpandedPipeline({ repos: [dir], sink: () => '' });
+    const security = result.repos[0].deep.find((entry) => entry.dimension === 'security').findings;
+
+    assert.equal(security.secrets.count, 1, 'the GitHub-token pattern is reported once');
+    assert.deepEqual(
+      [...security.secrets.findings[0].files].sort(),
+      ['src/crlf-secret.js', 'src/lf-secret.js'],
+      'the CRLF+BOM file is detected exactly like the LF file — encoding never conceals',
+    );
+    assert.equal(security.scanCoverage.filesSkipped, 0, 'no source file is skipped');
+  });
 });

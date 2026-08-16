@@ -249,8 +249,6 @@ const DIMENSION_RENDERER_SOURCES = Object.freeze([
       '- **Issue templates**:',
       '- **Remote**:',
       '- **Contributors**:',
-      '### Top Contributors',
-      '| Contributor | Commits |',
       '- PR template found (`.github/PULL_REQUEST_TEMPLATE.md`)',
       '- Issue templates found (`.github/ISSUE_TEMPLATE/`)',
     ),

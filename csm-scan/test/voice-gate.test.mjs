@@ -1,22 +1,7 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { test } from 'node:test';
-import { enrich } from '../lib/scan/enrich.mjs';
-import { survey } from '../lib/scan/survey.mjs';
-import { validate } from '../lib/scan/validate.mjs';
-import { writeNORMS } from '../lib/scan/write.mjs';
-import * as architecture from '../lib/scan/deep/architecture.mjs';
-import * as config from '../lib/scan/deep/config.mjs';
-import * as conventions from '../lib/scan/deep/conventions.mjs';
-import * as documentation from '../lib/scan/deep/documentation.mjs';
-import * as git from '../lib/scan/deep/git.mjs';
-import * as operations from '../lib/scan/deep/operations.mjs';
-import * as security from '../lib/scan/deep/security.mjs';
-import * as stack from '../lib/scan/deep/stack.mjs';
-import * as structure from '../lib/scan/deep/structure.mjs';
-import * as testing from '../lib/scan/deep/testing.mjs';
+import { runMirrorPipeline } from './helpers/pipeline-mirror.mjs';
+import { resolveRealRepo, FALLBACK_REAL_REPO } from './helpers/real-repo.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
@@ -104,37 +89,9 @@ export function findVoiceHits(markdown) {
   return hits;
 }
 
-// Mirrors scripts/scan.mjs: survey -> 10 deep scanners -> enrich -> validate
-// -> writeNORMS. It runs in-process and returns the rendered Markdown.
-async function runPipeline(repoPath) {
-  const overview = await survey(repoPath);
-  const deepResults = (await Promise.all([
-    structure.scan(repoPath, overview),
-    stack.scan(repoPath, overview),
-    config.scan(repoPath, overview),
-    testing.scan(repoPath, overview),
-    conventions.scan(repoPath, overview),
-    git.scan(repoPath, overview),
-    architecture.scan(repoPath, overview),
-    documentation.scan(repoPath, overview),
-    security.scan(repoPath, overview),
-    operations.scan(repoPath, overview),
-  ])).filter(Boolean);
-  const enriched = await enrich(deepResults, overview);
-  const validated = await validate(enriched);
-  const out = join(
-    tmpdir(),
-    `norms-voice-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.md`,
-  );
-
-  return writeNORMS(
-    {
-      generated: '2026-01-01',
-      repos: [{ overview, deep: validated.findings, crossObservations: validated.contradictions }],
-    },
-    out,
-  );
-}
+// T010 (F-026): this suite drives the exported production pipeline
+// (runExpandedPipeline) through the shared mirror helper; the retired
+// ten-dimension hand-rolled orchestration was removed.
 
 test('T116 voice matcher catches prescriptive and evaluative prose', () => {
   assert.deepEqual(
@@ -211,17 +168,23 @@ function assertNeutralNORMS(name, markdown) {
 
 for (const [name, files] of FIXTURES) {
   test(`T116 ${name}: rendered NORMS uses neutral factual voice`, async () => {
-    const markdown = await withFixture(`voice-${name.replace(' fixture', '')}`, files, runPipeline);
+    const markdown = await withFixture(`voice-${name.replace(" fixture", "")}`, files, runMirrorPipeline);
     assertNeutralNORMS(name, markdown);
   });
 }
 
-test('T116 perplexity-cli: rendered NORMS uses neutral factual voice', async (t) => {
-  const repo = '/home/jamiemills/code/projects/perplexity-cli';
-  if (!existsSync(repo)) {
-    t.skip(`${repo} not present`);
-    return;
-  }
+// T010 (F-007): CSM_SCAN_REAL_REPO when set, otherwise the checked-in
+// pxcli-mini fallback fixture — the neutral-voice assertion runs on either.
+// A configured-but-missing path falls back to the fixture with a warning
+// instead of skipping: this is a named AC20 gate file, and the behavioral
+// no-skip gate bans runtime t.skip() here.
+const RESOLVED_REAL_REPO = resolveRealRepo();
 
-  assertNeutralNORMS('perplexity-cli', await runPipeline(repo));
+test('T116 perplexity-cli: rendered NORMS uses neutral factual voice', async () => {
+  if (RESOLVED_REAL_REPO.repo === null) {
+    console.warn(`[T116] CSM_SCAN_REAL_REPO is set but does not exist (${RESOLVED_REAL_REPO.missing}); running against the pxcli-mini fallback fixture`);
+  }
+  const repo = RESOLVED_REAL_REPO.repo ?? FALLBACK_REAL_REPO;
+
+  assertNeutralNORMS('perplexity-cli', await runMirrorPipeline(repo));
 });

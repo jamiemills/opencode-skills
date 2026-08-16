@@ -18,6 +18,8 @@
     "test/expansion-privacy-write.test.mjs"
   ],
   "fixtureModules": [
+    "binaries.mjs",
+    "crlf-bom.mjs",
     "javascript.mjs",
     "python.mjs",
     "rust.mjs",

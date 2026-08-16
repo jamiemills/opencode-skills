@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withFixture } from './harness.mjs';
+import { runMirrorPipelineDetailed, MIRROR_GENERATED_DATE } from './helpers/pipeline-mirror.mjs';
 import { survey } from '../lib/scan/survey.mjs';
 import { enrich } from '../lib/scan/enrich.mjs';
 import { validate } from '../lib/scan/validate.mjs';
@@ -27,10 +28,13 @@ import { files as typescriptFiles } from './fixtures/typescript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
 import { files as shellFiles } from './fixtures/shell.mjs';
 
-// Runs the full csm-scan pipeline in-process against `repoPath`, mirroring the
-// survey -> 10 deep scanners -> enrich -> validate -> writeNORMS sequence in
-// scripts/scan.mjs (single-repo, no retry loop). Returns the markdown string
-// written to a temp file under os.tmpdir().
+// T010 (F-026): `runPipeline` — the suite's own fixture cases — now drives the
+// exported production pipeline (`runExpandedPipeline`) through the shared
+// mirror helper. The legacy ten-dimension sequence below survives ONLY as
+// `runLegacyTenMirror`, the parity oracle consumed by
+// expansion-production-pipeline.test.mjs (T204) to prove
+// `runExistingTenPipeline` byte-equality; it retires together with
+// `runExistingTenPipeline` (F-055) and no longer claims to mirror scripts/scan.mjs.
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
 const BEHAVIOR_BASELINE = JSON.parse(await readFile(
   join(TEST_ROOT, 'baselines', 'expansion', 'fixture-behavior.json'),
@@ -54,10 +58,30 @@ function canonicalize(value, repoPath) {
     .replaceAll(normalizedRoot, '<FIXTURE_ROOT>')
     .replaceAll(fixtureName, '<FIXTURE_NAME>')
     .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '<DATE>')
-    .replace(/\b(Python|Node(?:\.js)?|rustc|Deno|Bun)\s+v?\d+(?:\.\d+)+(?:[-+][\w.-]+)?/g, '$1 <HOST_VERSION>');
+    .replace(/\b(Python|Node(?:\.js)?|rustc|Deno|Bun)\s+v?\d+(?:\.\d+)+(?:[-+][\w.-]+)?/g, '$1 <HOST_VERSION>')
+    // The expanded pipeline's cross-repository identity table renders
+    // scan:<scanId>, where scanId = sha256(repo path) (pipeline scanIdFor) —
+    // a one-way derivation of the random fixture tmpdir, so it must be
+    // normalized like the fixture root itself to keep the bytes portable.
+    .replace(/\bscan-[0-9a-f]{24}\b/g, '<SCAN_ID>');
 }
 
+// The production pipeline, single repo, semantic payload exposed.
 export async function runPipeline(repoPath) {
+  const detailed = await runMirrorPipelineDetailed(repoPath);
+  const semantic = canonicalize(detailed.semantic, repoPath);
+  return {
+    markdown: detailed.markdown,
+    semantic,
+    semanticSha256: digest(`${JSON.stringify(semantic)}\n`),
+    markdownSha256: digest(`${canonicalize(detailed.markdown, repoPath)}\n`),
+  };
+}
+
+// Legacy ten-dimension oracle (parity with runExistingTenPipeline only).
+// Runs the retired survey -> 10 deep scanners -> enrich -> validate sequence
+// in-process and hashes the same canonical shapes as the baseline file.
+export async function runLegacyTenMirror(repoPath) {
   const overview = await survey(repoPath);
 
   const deepResults = (await Promise.all([
@@ -81,7 +105,7 @@ export async function runPipeline(repoPath) {
     `norms-pipeline-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.md`,
   );
   const markdown = await writeNORMS(
-    { generated: '2026-01-01', repos: [{ overview, deep: validated.findings }] },
+    { generated: MIRROR_GENERATED_DATE, repos: [{ overview, deep: validated.findings }] },
     out,
   );
   const semantic = canonicalize({ overview, deepResults, enriched, validated }, repoPath);
@@ -98,10 +122,14 @@ function contains(markdown, needle) {
 }
 
 // (name, fixtureFiles, ecosystemStrings, cacheNoise)
+// Noise entries may be strings (substring) or RegExps. `dist` is pinned as a
+// whole token because the expanded pipeline legitimately renders the words
+// "distribution" and "distinct" (maintainability dimension); \bdist\b still
+// fails on any leaked dist path segment (dist/..., ./dist, `dist`).
 export const CASES = [
   { name: 'python', files: pythonFiles, ecosystem: ['Python'], noise: ['.hypothesis'] },
-  { name: 'javascript', files: javascriptFiles, ecosystem: [/JavaScript|TypeScript|Node/], noise: ['node_modules', 'dist'] },
-  { name: 'typescript', files: typescriptFiles, ecosystem: [/JavaScript|TypeScript|Node/], noise: ['node_modules', 'dist'] },
+  { name: 'javascript', files: javascriptFiles, ecosystem: [/JavaScript|TypeScript|Node/], noise: ['node_modules', /\bdist\b/] },
+  { name: 'typescript', files: typescriptFiles, ecosystem: [/JavaScript|TypeScript|Node/], noise: ['node_modules', /\bdist\b/] },
   { name: 'rust', files: rustFiles, ecosystem: ['Rust'], noise: ['target'] },
   { name: 'shell', files: shellFiles, ecosystem: ['Shell'], noise: ['.cache'] },
 ];
@@ -120,14 +148,17 @@ for (const c of CASES) {
 
     for (const noise of c.noise) {
       assert.ok(
-        !markdown.includes(noise),
+        !contains(markdown, noise),
         `${c.name}: NORMS.md must not leak cache-dir noise "${noise}"`,
       );
     }
 
+    // T010 (F-026): the fixture cases pin the EXPANDED production pipeline
+    // (runExpandedPipeline through the shared mirror); the legacy
+    // ten-dimension hashes remain recorded for the T204 parity oracle.
     const expected = BEHAVIOR_BASELINE.fixtures[c.name];
     assert.ok(expected, `${c.name}: fixture behavior baseline must exist`);
-    assert.equal(result.semanticSha256, expected.semanticSha256, `${c.name}: ordered deep semantics changed`);
-    assert.equal(result.markdownSha256, expected.markdownSha256, `${c.name}: canonical Markdown changed`);
+    assert.equal(result.semanticSha256, expected.expandedSemanticSha256, `${c.name}: expanded pipeline semantics changed`);
+    assert.equal(result.markdownSha256, expected.expandedMarkdownSha256, `${c.name}: expanded pipeline Markdown changed`);
   });
 }
