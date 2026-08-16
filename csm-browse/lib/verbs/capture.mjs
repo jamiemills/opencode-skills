@@ -1,5 +1,5 @@
 import { mkdir, writeFile, unlink, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { dismissCookies } from '../cookies.mjs';
 import { MAX_STITCH_HEIGHT_PX } from '../constants.mjs';
@@ -9,6 +9,12 @@ const PRESETS = {
   medium: { format: 'jpeg', quality: 80, ext: 'jpg' },
   full:   { format: 'png',  quality: 0,  ext: 'png' },
 };
+
+// F-063: same shape as recorder.mjs's VALID_NAME_RE (not exported there, so
+// replicated here): path separators, traversal, and absolute names are all
+// excluded by construction; the resolved-path containment check below is the
+// belt-and-braces second layer.
+const VALID_OUT_NAME_RE = /^[A-Za-z0-9._-]+$/;
 
 async function captureOne(client, sessionId, params) {
   const result = await client.send('Page.captureScreenshot', params, sessionId);
@@ -91,6 +97,16 @@ export async function run({ args, state }) {
 
   const sDir = state.sessionDir;
   const artifactsDir = join(sDir, 'artifacts');
+
+  if (!VALID_OUT_NAME_RE.test(outName) || outName === '.' || outName === '..') {
+    console.error(`Invalid output name: "${outName}". Must match ^[A-Za-z0-9._-]+$ — no path separators, no traversal.`);
+    process.exit(1);
+  }
+  if (!resolve(artifactsDir, outName).startsWith(resolve(artifactsDir) + sep)) {
+    console.error(`Invalid output name: "${outName}" — resolved path escapes the artifacts directory.`);
+    process.exit(1);
+  }
+
   await mkdir(artifactsDir, { recursive: true });
 
   const CRI = await import('chrome-remote-interface');

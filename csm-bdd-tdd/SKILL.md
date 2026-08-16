@@ -183,7 +183,7 @@ Rules: one assertion focus per test; fast, isolated, deterministic by design; mo
 ### 6. MUTATE_PLAN (Primary Agent)
 
 1. Write a new plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-bdd-csm.md`. Never overwrite the source plan or an existing BDD plan; on re-runs insert a version marker before `-bdd` — `<yyyy-mm-dd>-<goal-slug>-v2-bdd-csm.md`, `-v3-`, and so on — keeping the `-bdd-csm.md` ending that `csm-build` looks for.
-2. Use the required `csm-plan` document structure — same sections, with the task block below extending the base template — so `csm-build` consumes it without new machinery, with these additions:
+2. Use the required `csm-plan` document structure — same sections, with the task block below derived from the base template (Spike candidate intentionally dropped for BDD plans; Scenario and Unit test designs added) — so `csm-build` consumes it without new machinery, with these additions:
    - Open the plan, immediately after the title, with a provenance line: `> This is a BDD/TDD plan based upon an earlier plan. See <source plan path>.` This is the plan's only reference to the source plan — do not repeat it in Control or elsewhere.
    - **How To Execute** and **Control** must both state `Specs folder: <path>`; every task references scenario and test-design paths under it.
    - Carry Control policy values forward from the source plan (e.g., `Commits: disabled`) unless the user directs otherwise; set a fresh Plan ID, `Current CSM state: NOT_STARTED`, and `Cycle: 0`.

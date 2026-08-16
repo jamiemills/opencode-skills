@@ -73,44 +73,49 @@ export async function dismissCookies(client, sessionId) {
 
   // Pattern 6: try clicking an accept button inside the wall's own execution context
   let clicked = false;
+  const contexts = new Map();
+  const onCtx = (p) => {
+    const c = p.context;
+    if (c && c.auxData && c.auxData.frameId) contexts.set(c.auxData.frameId, c.id);
+  };
+  client.on('Runtime.executionContextCreated', onCtx);
+  // F-065: the off() must run even when any intermediate CDP call rejects,
+  // or the listener leaks on the daemon's long-lived client.
   try {
-    const contexts = new Map();
-    const onCtx = (p) => {
-      const c = p.context;
-      if (c && c.auxData && c.auxData.frameId) contexts.set(c.auxData.frameId, c.id);
-    };
-    client.on('Runtime.executionContextCreated', onCtx);
-    try { await client.send('Runtime.enable', {}, sessionId); } catch {}
-    try { await client.send('Page.enable', {}, sessionId); } catch {}
-    await new Promise(r => setTimeout(r, 300));
+    try {
+      try { await client.send('Runtime.enable', {}, sessionId); } catch {}
+      try { await client.send('Page.enable', {}, sessionId); } catch {}
+      await new Promise(r => setTimeout(r, 300));
 
-    const { frameTree } = await client.send('Page.getFrameTree', {}, sessionId);
-    const frames = [];
-    const walk = (n) => { frames.push(n.frame); (n.childFrames || []).forEach(walk); };
-    walk(frameTree);
-    const wallFrame = frames.find(f => WALL_SRC_RE.test(f.url));
-    const ctxId = wallFrame && contexts.get(wallFrame.id);
-    if (ctxId) {
-      const { result } = await client.send('Runtime.evaluate', {
-        expression: `(function(){
-          var texts=[${ACCEPT_TEXTS.map(t => `"${t}"`).join(',')}];
-          var all=document.querySelectorAll('button,a,[role="button"]');
-          for(var i=0;i<all.length;i++){
-            var b=all[i];
-            var t=(b.textContent||'').toLowerCase().trim();
-            var r=b.getBoundingClientRect();
-            if(r.width>0&&r.height>0&&texts.some(function(x){return t===x||t.includes(x)})){
-              b.click(); return 'clicked';
+      const { frameTree } = await client.send('Page.getFrameTree', {}, sessionId);
+      const frames = [];
+      const walk = (n) => { frames.push(n.frame); (n.childFrames || []).forEach(walk); };
+      walk(frameTree);
+      const wallFrame = frames.find(f => WALL_SRC_RE.test(f.url));
+      const ctxId = wallFrame && contexts.get(wallFrame.id);
+      if (ctxId) {
+        const { result } = await client.send('Runtime.evaluate', {
+          expression: `(function(){
+            var texts=[${ACCEPT_TEXTS.map(t => `"${t}"`).join(',')}];
+            var all=document.querySelectorAll('button,a,[role="button"]');
+            for(var i=0;i<all.length;i++){
+              var b=all[i];
+              var t=(b.textContent||'').toLowerCase().trim();
+              var r=b.getBoundingClientRect();
+              if(r.width>0&&r.height>0&&texts.some(function(x){return t===x||t.includes(x)})){
+                b.click(); return 'clicked';
+              }
             }
-          }
-          return 'no match';
-        })()`,
-        returnByValue: true,
-        contextId: ctxId
-      }, sessionId);
-      clicked = !!(result && result.value === 'clicked');
+            return 'no match';
+          })()`,
+          returnByValue: true,
+          contextId: ctxId
+        }, sessionId);
+        clicked = !!(result && result.value === 'clicked');
+      }
+    } finally {
+      client.off('Runtime.executionContextCreated', onCtx);
     }
-    client.off('Runtime.executionContextCreated', onCtx);
   } catch {}
   if (clicked) {
     await new Promise(r => setTimeout(r, 1000));

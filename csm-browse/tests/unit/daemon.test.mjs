@@ -94,11 +94,13 @@ test('queue: ts-ordered claims, malformed cmd -> error out-file, stale running/ 
   assert.equal(code, 0, `queue-runner failed: ${code} (${stderr})`);
   const r = JSON.parse(await readFile(resultFile, 'utf-8'));
 
-  // filename order is SECOND,FIRST; ts order must win
-  assert.deepEqual(r.navigateOrder, ['first://a', 'second://b']);
-  assert.equal(r.firstOut.ok, true);
-  assert.equal(r.firstOut.result.url, 'first://a');
-  assert.equal(r.secondOut.ok, true);
+  // filename order is SECOND,FIRST; ts order must win (observed via the
+  // out-file rename order recorded by the queue-runner's fs.watch)
+  assert.deepEqual(r.processedOrder, [r.first, r.second]);
+  assert.equal(r.firstOut.ok, false);
+  assert.equal(r.firstOut.error, 'not recording');
+  assert.equal(r.secondOut.ok, false);
+  assert.equal(r.secondOut.error, 'not recording');
   assert.equal(r.brokenOut.ok, false);
   assert.equal(r.brokenOut.error, 'malformed command file');
   assert.equal(r.staleOut.ok, false);

@@ -165,7 +165,33 @@ async function subPerformance(state) {
   }
 }
 
-async function subCookies(state) {
+// F-062: cookie values are session credentials — mask them by default so
+// agent transcripts/scrollback never capture full tokens. --values opts in.
+export function maskCookieValue(value) {
+  if (typeof value !== 'string' || value.length === 0) return '';
+  if (value.length <= 8) return '****';
+  return `${value.slice(0, 4)}…${value.slice(-4)}`;
+}
+
+// Output projection for `log cookies`: default masks every value; the
+// revealValues opt-in (--values) passes values through unchanged. Kept pure
+// (no CDP dependency) so the masking contract is unit-testable Docker-free.
+export function projectCookies(cookies, { revealValues = false } = {}) {
+  if (revealValues) return cookies;
+  return cookies.map((c) => ({
+    name: c.name,
+    domain: c.domain,
+    path: c.path,
+    value: maskCookieValue(c.value),
+    secure: !!c.secure,
+    httpOnly: !!c.httpOnly,
+    sameSite: c.sameSite,
+    session: !!c.session,
+    expires: c.expires,
+  }));
+}
+
+async function subCookies(args, state) {
   const CRI = await import('chrome-remote-interface');
   const client = await CRI.default({ target: state.wsUrl });
 
@@ -187,7 +213,11 @@ async function subCookies(state) {
       urls: currentUrl ? [currentUrl] : []
     }, sessionId);
 
-    process.stdout.write(JSON.stringify(result.cookies, null, 2) + '\n');
+    const revealValues = args.includes('--values');
+    if (revealValues) {
+      console.error('Warning: full cookie values (incl. HttpOnly session tokens) are being printed to stdout and will persist in transcripts/logs.');
+    }
+    process.stdout.write(JSON.stringify(projectCookies(result.cookies, { revealValues }), null, 2) + '\n');
   } catch (err) {
     console.error(err.message);
     process.exit(1);
@@ -216,7 +246,7 @@ export async function run({ args, state }) {
       await subPerformance(state);
       break;
     case 'cookies':
-      await subCookies(state);
+      await subCookies(rest, state);
       break;
     default:
       console.error(`Unknown sub-verb: ${subVerb}`);

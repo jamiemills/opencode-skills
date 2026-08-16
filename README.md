@@ -80,6 +80,8 @@ node -e "require('chrome-remote-interface'); console.log('ok')"
 node scripts/check-skill.mjs
 ```
 
+Dependency inventory: `csm-browse/package-lock.json` (integrity-hashed) is authoritative; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
+
 ## Quickstart
 
 The core loop is **grill → plan → build**:
@@ -131,7 +133,8 @@ Planning never silently becomes implementation, and execution always starts from
 │   └── tests/         # e2e + fixtures (requires Docker)
 ├── csm-upload/        # evidence upload to GitHub Pages
 │   └── scripts/       # upload.mjs
-└── .agents/           # plans/ and approaches/ saved by the skills
+├── scripts/           # check-suite.mjs — repo-wide conformance gate
+└── .agents/           # process artifacts: plans/, docs/, reviews/ (indexed in .agents/README.md)
 ```
 
 ## Development & testing

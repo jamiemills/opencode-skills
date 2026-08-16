@@ -68,7 +68,7 @@ Brief-step mapping:
 | (6) understand the answers and devise the final approach | final SYNTHESIZE step (draft the approach); presented at CONFIRM |
 | (7) confirm the user is happy with phasing and approach | CONFIRM |
 | cyclic, not linear, until the user agrees | cycle rules |
-| save the agreed approach to a single dated document in `.agents/` | SAVED |
+| save the agreed approach to a single dated document in `.agents/approaches/` | SAVED |
 
 ### 1. INTAKE
 

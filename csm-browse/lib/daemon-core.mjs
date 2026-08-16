@@ -130,14 +130,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
 
         let result = { ok: false, error: 'unknown verb', ts: new Date().toISOString() };
 
-        if (cmd.verb === 'goto') {
-          try {
-            await client.send('Page.navigate', { url: cmd.params.url }, sessionId);
-            result = { ok: true, result: { url: cmd.params.url }, ts: new Date().toISOString() };
-          } catch (err) {
-            result = { ok: false, error: err.message, ts: new Date().toISOString() };
-          }
-        } else if (cmd.verb === 'screencast-start' || cmd.verb === 'screencast-stop') {
+        if (cmd.verb === 'screencast-start' || cmd.verb === 'screencast-stop') {
           try {
             const recorder = await import('../lib/recorder.mjs');
 

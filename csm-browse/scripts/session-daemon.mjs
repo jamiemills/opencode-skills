@@ -65,9 +65,20 @@ await claimPidFile();
 try { await rm(readyMarker, { force: true }); } catch {}
 
 const logPath = join(sDir, 'daemon.log');
-const logStream = createWriteStream(logPath, { flags: 'w' });
-process.stdout.write = logStream.write.bind(logStream);
-process.stderr.write = logStream.write.bind(logStream);
+// F-074: append ('a') so a previous run's failure evidence survives restarts;
+// prefix every line with an ISO timestamp so ordering across restarts is
+// diagnosable. Same rebinding pattern as before — only the write wrapper grew.
+const logStream = createWriteStream(logPath, { flags: 'a' });
+const stampWrite = (chunk, encoding, cb) => {
+  const body = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
+  return logStream.write(
+    `${new Date().toISOString()} ${body}`,
+    typeof encoding === 'string' ? encoding : undefined,
+    typeof encoding === 'function' ? encoding : cb
+  );
+};
+process.stdout.write = stampWrite;
+process.stderr.write = stampWrite;
 
 const state = await loadState(sid);
 if (!state || !state.wsUrl) {

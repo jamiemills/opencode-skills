@@ -12,9 +12,9 @@
 - Current CSM state: CHECKPOINT
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 cycle 3 — Wave 3 complete: T007 protocol (marker/liveness-first sweep/lock narrowing+claimedPortSet/wx pid claim/disconnect cleanup/ts queue; 3-session concurrency smoke PASS); T008 unit layer (49 tests, 131 asserts, 1.8s Docker-free); T009 e2e de-hardened (probe+skip, ephemeral port, traversal 403, sweep-decoy steps). Independent review ACCEPT + 3 fixes applied by primary (socat-pass re-readdir, dead FIXTURE_BASE export removed, exit-2 winner-marker preservation) + skip-summary fix. FULL e2e 86/86. Next: SELECT Wave 4 (T010, T012 parallel; then T011)
-- Next transition: CHECKPOINT -> SELECT (Wave 4: T010 + T012 parallel, then T011)
-- Active tasks: none (next: T010, T012)
+- Last checkpoint: 2026-08-16 cycle 4 — Wave 4 complete: T010 (portability 0 machine-bindings, AC20 behavioral rewrite w/ negative-gate proof, mirrors re-pointed, F-025 fixed: frozen-env spread, adversarial fixtures binaries+CRLF/BOM, coverage-gate 96.89%) + T012 (upload escapeHtml+dry-run+timeouts+filename rejection, cookie masking+tests, dead-code deletions, IMAGE digest pin, --verbose, docs+.agents index). Two subagent summaries lost mid-flight → salvaged via direct verification + 2 repair passes (baseline regen for legit topContributors deletion; AC20/fixtures/masking/docs gaps). Independent review fix-first → all must-fixes repaired. Suite 1229/1229; browse 55/55; e2e 76/76; coverage gate exit 0. Next: SELECT T011 (final active task)
+- Next transition: CHECKPOINT -> SELECT (T011 linter v2, then completion gate)
+- Active tasks: none (next: T011)
 - Active tasks: none
 - Blockers: T013 (Wave 5: CI workflow + scheduled dependency audit) deferred to a future stage by user decision 2026-08-16 — not to be dispatched this build; plan completes without it.
 
@@ -231,7 +231,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: e2e changes don't affect unit layer.
 
-10. [pending] csm-scan test repair (portability + AC20 + coverage + mirrors + fixtures)
+10. [completed] csm-scan test repair (portability + AC20 + coverage + mirrors + fixtures)
    - Task ID: T010
    - Depends on: T004 (verify on Node 22); T005 (baseline state settled); T014 (detection fixes landed first, else the uppercase-AWS/.env fixtures turn the suite red)
    - Parallel group: G5
@@ -261,7 +261,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: each detection change is independently revertible; fixtures are additive.
 
-12. [pending] Small-fix sweep (docs + upload + daemon.log + low/info findings)
+12. [completed] Small-fix sweep (docs + upload + daemon.log + low/info findings)
    - Task ID: T012
    - Depends on: T001 (docker constants settled), T006 (session-daemon.mjs log lines), T009 (SKILL.md docs settled)
    - Parallel group: G5 (with T010; file-disjoint)
@@ -351,6 +351,12 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 | 2026-08-16 | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR(none) -> CHECKPOINT | T001-T004 | T001: loopback+socat-IP+VNC-pass, container recreated, independent review accept (medium finding: e2e smoke — satisfied: --quick 59/59 PASS 32s); T002: 4 SKILL.md edits, all gates green; T003: LICENSE+field+README; T004: Node 22 (nvm user-space), scan 1210/1210 + gates green on v22.23.2, F-025 confirmed Node-independent (263 cov failures on both). Reviewer hardening notes deferred to T007 | SELECT (Wave 2) |
 | 2026-08-16 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T005, T014, T006 | T005: privacy cutover + supersession flip (deterministic-ordering-paths→superseded w/ digest-locked replacement); T014: 4 detection fixes + scanCoverage disclosure (proofs: both AWS forms + gitignored .env detected, mixed-manifest unverified); T006: 10 lifecycle fixes w/ stub harnesses. Independent security review verdict fix-first (R1 high: render-context never reached deep renderers — 5 leak channels PoC'd; R2 hidden fail-open; R3 invisible disclosure) → repair agent landed context threading + scoped-name-aware sanitizeStructuredText + fail flag + caveat rendering → hostile fixture all-zero + deps render; primary fixed pattern-name over-redaction. Suite 1220/1220; e2e --quick 59/59; check-suite OK | SELECT (Wave 3: T007) |
 | 2026-08-16 | 3 | SELECT -> DISPATCH (T007; then T008+T009 parallel) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T007, T008, T009 | T007: full protocol + DI seams; live 3-session concurrency smoke PASS (distinct pairs, zero cross-kills, sweep preserved all). T008: 49 unit tests Docker-free 1.8s, all deps checked, node --check sweep. T009: e2e probe/skip + ephemeral-port fixture server (traversal 403) + Step14 sweep decoys + SKILL.md troubleshooting. Independent review ACCEPT w/ 3 fixes → primary applied (re-readdir socat pass; FIXTURE_BASE dead export removed; exit-2 marker preservation) + skip-summary. npm test 49/49; FULL e2e 86/86 (59s); check-suite OK | SELECT (Wave 4: T010+T012, then T011) |
+| 2026-08-16 | 4 | SELECT -> DISPATCH (T010+T012 parallel) -> INTEGRATE (summaries lost; salvaged via direct verification) -> VERIFY (suite red 18 fails) -> REPAIR (baseline regen + missing pieces) -> REVIEW (fix-first: AC20 rewrite absent, fixtures/masking/docs gaps) -> REPAIR -> CHECKPOINT | T010, T012 | Repairs: fixture-behavior.json regen (topContributors deletion forcing), existsSync import restore, missing:null fallback fix, scanId canonicalization, coverage-gate.mjs created, F-025 root cause = frozen buildCommandEnv under NODE_V8_COVERAGE. AC20 behavioral gate + negative proof (body-level t.skip caught, old regex form); binaries+CRLF/BOM fixtures; maskCookieValue unit tests; DOCKER_RUN_CMD<-IMAGE; SKILL.md discoverability. Deferred (recorded): mirror double-registration, tmpdir preview symlink (single-user model), upload signal-child kill, stampWrite per-write comment. Suite 1229/1229; browse 55/55; e2e --quick 76/76; coverage 96.89% | SELECT (T011) |
+### Cycle-4 Discovered Requirements (added)
+- Subagent result loss is recoverable via direct diff/gate verification — every dispatch henceforth verified by primary gate runs before CHECKPOINT regardless of returned summary.
+- Baseline regeneration after legitimate production deletions: fixture-behavior.json via canonical runPipeline+canonicalize (fixed clock), canonicalizationVersion bump when normalization changes; test-integrity pins only the 8 legacy files (new fixture modules stay unpinned; inventory.json fixtureModules must list them).
+- AC20 recursion guard: strip NODE_TEST_CONTEXT + set CSM_SCAN_AC20_GATE=1 in the gate's spawn (Node refuses recursive run() otherwise).
+- Known deferred items (non-blocking): fixtures-pipeline imported as module double-runs 5 tests in suite counts; upload preview tmp path symlink-overwrite (single-user); SIGTERM-during-push orphans git child; stampWrite stamps per-write not per-line.
 
 ### Cycle-3 Discovered Requirements (added)
 - e2e --quick skips Steps 9/10 — only FULL runs exercise the daemon-kill and recording steps; gate full runs after protocol changes (done this cycle: 86/86).

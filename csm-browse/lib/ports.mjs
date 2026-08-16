@@ -2,10 +2,7 @@ import { execLayer } from './docker.mjs';
 import { open, unlink, readFile, mkdir, stat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { SESSIONS_ROOT } from './constants.mjs';
-
-const PORT_POOL_START = 9224;
-const PORT_POOL_END = 9234;
+import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
 
 const LOCK_FILE = join(SESSIONS_ROOT, '.ports.lock');
 const LOCK_STALE_MS = 5000;
@@ -109,8 +106,4 @@ export async function allocate(container) {
   throw new Error(
     `No free port pair available in range ${PORT_POOL_START}-${PORT_POOL_END}`
   );
-}
-
-export async function release(state) {
-  // T007 handles full cleanup — ports freed when session is destroyed
 }

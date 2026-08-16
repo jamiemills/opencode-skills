@@ -81,10 +81,6 @@ export async function run({ args, state, verb }) {
 
   if (result.ok) {
     if (verb === 'screencast-start') {
-      if (result.result && result.result.already_recording) {
-        console.error('Already recording');
-        process.exit(1);
-      }
       console.log('Recording started');
     } else {
       if (!result.result) {

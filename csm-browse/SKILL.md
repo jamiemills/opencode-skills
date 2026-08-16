@@ -67,7 +67,7 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --sessio
 | `console` | Read all captured console events from `events.jsonl`. |
 | `network` | Read all captured network events from `events.jsonl`. |
 | `performance` | Get live performance metrics (`Performance.getMetrics`). |
-| `cookies` | Get cookies for the current page. |
+| `cookies [--values]` | Get cookies for the current page. Cookie **values are masked by default** (≤8 chars → `****`, longer → `first4…last4`) so session tokens never land in transcripts/scrollback. `--values` prints full values and warns first — HttpOnly session tokens will persist in logs; use only when strictly needed. |
 | `status` | Print browser version, tab info, and daemon liveness. |
 | `screencast-start <name> [--small|--medium|--full] [--speed slow|medium|fast]` | Start recording video (VP9/webm). `--speed` controls output fps: slow=3, medium=7 (default), fast=15. |
 | `screencast-stop` | Stop the active video recording. |

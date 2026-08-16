@@ -5,11 +5,19 @@ import { join } from 'node:path';
 export const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 export const SESSIONS_ROOT = process.env.CSM_BROWSE_SESSIONS_ROOT || '/tmp/csm-browse';
 export const CONTAINER_NAME = 'chromium-vnc';
-export const IMAGE = 'jlesage/chromium:latest';
+// F-050: digest-pinned so `docker pull` is immutable — the :latest tag can
+// never repoint underneath us. Refresh the digest quarterly (same cadence as
+// dependency updates) via:
+//   docker pull jlesage/chromium:latest && \
+//   docker image inspect --format '{{index .RepoDigests 0}}' jlesage/chromium:latest
+export const IMAGE = 'jlesage/chromium@sha256:7514667737463e4302d5b58bd07311790dd29c816d4a980143a96de85cf0210e';
 // VNC password is generated once by ensure-browser.mjs and stored here (0600,
 // parent dir 0700); it is passed to the container as VNC_PASSWORD.
 export const VNC_PASS_PATH = join(homedir(), '.config', 'csm-browse', 'vnc-pass');
-export const DOCKER_RUN_CMD = 'docker run -d --name chromium-vnc --restart unless-stopped -e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1 -e VNC_PASSWORD=$(cat ~/.config/csm-browse/vnc-pass) -p 127.0.0.1:5900:5900 -p 127.0.0.1:9222:9222 jlesage/chromium:latest';
+// Interpolates IMAGE so the printed command always matches the executed
+// argv (ensure-browser logs DOCKER_RUN_CMD and runs IMAGE) — the doc string
+// can never drift back to a floating :latest tag while IMAGE is digest-pinned.
+export const DOCKER_RUN_CMD = `docker run -d --name chromium-vnc --restart unless-stopped -e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1 -e VNC_PASSWORD=$(cat ~/.config/csm-browse/vnc-pass) -p 127.0.0.1:5900:5900 -p 127.0.0.1:9222:9222 ${IMAGE}`;
 export const CHROMIUM_BIN = '/usr/lib/chromium/chromium';
 export const PORT_POOL_START = 9224;
 export const PORT_POOL_END = 9234;
