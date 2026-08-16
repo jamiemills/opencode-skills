@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { createCommandBroker } from '../lib/scan/shared/command.mjs';
 import { createRecordingRunner } from './helpers/recording-runner.mjs';
 import { makeGitRepo, cleanupGitRepo } from './helpers/git-fixture.mjs';
-import { enumerate, byExtension, sumSizes } from '../lib/scan/shared/enum.mjs';
+import { enumerate, enumerateHiddenFiles, byExtension, sumSizes } from '../lib/scan/shared/enum.mjs';
 
 function writeRel(root, rel, content) {
   const full = join(root, ...rel.split('/'));
@@ -158,4 +158,34 @@ test('enumerate records git-tracked truncation without fabricating a count', asy
   assert.equal(result.gitTracked.truncated, true);
   assert.equal(result.gitTracked.totalFiles, 0);
   assert.equal(result.totalFiles, 1);
+});
+
+// R2: the hidden enumeration result carries a `failed` flag so a failed pass
+// (rg error) is distinguishable from an honestly empty hidden file list.
+test('enumerateHiddenFiles reports {files, failed} and never folds rg failure into an empty list', async () => {
+  const { run: okRun } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') return { status: 0, stdout: '.env\nsrc/mod.py\n', stderr: '' };
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  const okBroker = createCommandBroker({ runner: { run: okRun } });
+  const okResult = await enumerateHiddenFiles('/repo', okBroker);
+
+  assert.equal(okResult.failed, false, 'a healthy pass must not be flagged');
+  assert.deepEqual(okResult.files, ['.env', 'src/mod.py']);
+
+  const { run: noMatchRun } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') return { status: 1, stdout: '', stderr: '' };
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  const noMatchResult = await enumerateHiddenFiles('/repo', createCommandBroker({ runner: { run: noMatchRun } }));
+  assert.equal(noMatchResult.failed, false, 'rg exit 1 (no matches) is a healthy empty pass');
+  assert.deepEqual(noMatchResult.files, []);
+
+  const { run: failRun } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') return { status: 2, stdout: '', stderr: 'rg crashed' };
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  const failResult = await enumerateHiddenFiles('/repo', createCommandBroker({ runner: { run: failRun } }));
+  assert.equal(failResult.failed, true, 'an rg failure must be surfaced, never folded into files: []');
+  assert.deepEqual(failResult.files, []);
 });

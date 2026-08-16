@@ -260,8 +260,13 @@ function isRegisteredBrokerShape(call) {
   const argv = call.argv;
   if (call.executable === 'rg') {
     if (argv[0] === '--files') {
-      return argv.length === 1 + expectedRgGlobArgs().length
-        && JSON.stringify(argv.slice(1)) === JSON.stringify(expectedRgGlobArgs());
+      const globs = expectedRgGlobArgs();
+      const visibleForm = JSON.stringify(['--files', ...globs]);
+      // T014/F-018: the registered hidden/gitignored enumeration for the
+      // secret-scanning pass prepends --hidden --no-ignore to the same globs.
+      const hiddenForm = JSON.stringify(['--files', '--hidden', '--no-ignore', ...globs]);
+      const actual = JSON.stringify(argv);
+      return actual === visibleForm || actual === hiddenForm;
     }
     if (argv[0] === '--json') {
       const globs = expectedRgGlobArgs();
@@ -877,6 +882,7 @@ test('T228 AC14/AC20: the 21-case P0 matrix and five fixture pipelines are retai
     'test/regression-parity.test.mjs',
     'test/expansion-command-core.test.mjs',
     'test/expansion-command-deep.test.mjs',
+    'test/expansion-privacy-write.test.mjs',
   ]);
 
   const p0Source = await readFile(join(TEST_ROOT, 'regression-parity.test.mjs'), 'utf8');

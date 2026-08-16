@@ -1,8 +1,10 @@
 import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
+import { isSecretPatternName } from '../deep/security.mjs';
 
 export function renderSecurity(_repoName, findings, context = DEFAULT_RENDER_CONTEXT) {
   if (!findings) return '';
   const { escapeField } = context;
+  const { escapeField: escapeRaw } = DEFAULT_RENDER_CONTEXT;
   const lines = [];
   lines.push('## Security');
   lines.push('');
@@ -12,7 +14,10 @@ export function renderSecurity(_repoName, findings, context = DEFAULT_RENDER_CON
     if (findings.secrets.count > 0) {
       for (const s of findings.secrets.findings) {
         const allowlisted = s && s.fixtureAllowlisted ? ' (fixture-allowlisted)' : '';
-        lines.push(`  - **${escapeField(s.pattern)}**: ${s.totalFiles} file(s) (e.g. \`${escapeField(s.files[0] || 'unknown')}\`)${allowlisted}`);
+        // Pattern names come from the scanner's internal vocabulary, not repo
+        // content; render them markdown-escaped only so reports stay readable.
+        const patternLabel = isSecretPatternName(s.pattern) ? escapeRaw(s.pattern) : escapeField(s.pattern);
+        lines.push(`  - **${patternLabel}**: ${s.totalFiles} file(s) (e.g. \`${escapeField(s.files[0] || 'unknown')}\`)${allowlisted}`);
       }
     }
   }
@@ -143,6 +148,21 @@ export function renderSecurity(_repoName, findings, context = DEFAULT_RENDER_CON
     lines.push(...auditLines);
   } else if (findings.hasAuditScript) {
     lines.push('- **Audit evidence**: detected');
+  }
+
+  // F-002/F-018 disclosure: a truncated scan window or a failed hidden-file
+  // enumeration must be visible in the report, never silently dropped.
+  const coverage = findings.scanCoverage;
+  if (coverage && typeof coverage === 'object'
+      && ((typeof coverage.filesSkipped === 'number' && coverage.filesSkipped > 0)
+        || (typeof coverage.hiddenFilesSkipped === 'number' && coverage.hiddenFilesSkipped > 0)
+        || coverage.hiddenEnumerationFailed === true)) {
+    const visibleTotal = (coverage.scannedFiles || 0) + (coverage.filesSkipped || 0);
+    const hiddenStatus = coverage.hiddenEnumerationFailed === true ? 'FAILED' : 'OK';
+    lines.push(
+      `- **Scan coverage**: ${coverage.scannedFiles || 0} of ${visibleTotal} visible file(s) scanned; `
+        + `${coverage.hiddenScanned || 0} hidden file(s) scanned; hidden enumeration ${hiddenStatus}`,
+    );
   }
 
   lines.push('');

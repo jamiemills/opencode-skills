@@ -320,7 +320,11 @@ function searchCompleteness(searchSpace) {
   if (cleanUnsupported) return 'unsupported';
   if (incomplete) return 'incomplete';
   if (cleanComplete) return 'complete';
-  return 'complete';
+  // Partially-unsupported spaces (e.g. a deployment scan mixing parsed
+  // artifacts with NO_EXTRACTOR-unsupported peers yields supported=false with
+  // readable=true) are neither cleanly complete nor cleanly unsupported.
+  // Never overclaim completeness for them (F-020).
+  return 'incomplete';
 }
 
 function dataRecordCount(findings) {

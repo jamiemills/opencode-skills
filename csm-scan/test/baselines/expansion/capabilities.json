@@ -24,7 +24,7 @@
       },
       {
         "testFile": "test/expansion-command-deep.test.mjs",
-        "testFileSha256": "af7d047f3b6c245cb81b29da7dbe3be5e47f6fde937e90dd605ad78ae2c2b96a",
+        "testFileSha256": "2477e3b072657d6e005be3b686d63e12e7fec095199ce948b3bfd609a6b6b867",
         "testName": "T209 six owned files contain zero prohibited execution sites"
       }
     ]

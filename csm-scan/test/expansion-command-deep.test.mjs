@@ -42,6 +42,18 @@ function expectedRgFilesArgv() {
   })];
 }
 
+// T014/F-018: the security scanner additionally enumerates hidden/gitignored
+// files through the registered rg:files-hidden broker command (secret-pattern
+// pass only). Same fixed argv shape as rg:files plus the shared ignore globs,
+// with --hidden --no-ignore prepended so dotfiles and gitignored files are
+// listed while .git/node_modules stay excluded via the globs.
+function expectedRgHiddenArgv() {
+  return ['--files', '--hidden', '--no-ignore', ...rgIgnoreArgs().flatMap((entry) => {
+    const i = entry.indexOf(' ');
+    return [entry.slice(0, i), entry.slice(i + 1)];
+  })];
+}
+
 function assertNoProhibitedSites(source, rel) {
   const prohibited = [
     /\bnode:child_process\b/,
@@ -138,10 +150,11 @@ test('T209 each deep scanner issues only broker-registered command IDs', async (
     const { calls, run } = createRecordingRunner((call) => {
       assert.equal(call.shell, false, `${name} must never request shell mode`);
       if (call.executable === 'rg') {
-        assert.deepEqual(
-          call.argv,
-          expectedRgFilesArgv(),
-          `${name} must use the exact fixed rg:files argv`,
+        const allowedArgv = [expectedRgFilesArgv()];
+        if (name === 'security') allowedArgv.push(expectedRgHiddenArgv());
+        assert.ok(
+          allowedArgv.some((argv) => sameArgv(call.argv, argv)),
+          `${name} must use only its registered fixed rg argv forms: ${call.argv.join(' ')}`,
         );
       } else if (call.executable === 'git') {
         assert.ok(

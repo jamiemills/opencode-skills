@@ -105,6 +105,7 @@ test('T201 inventory binds the acceptance command to five fixture pipelines and 
     'test/regression-parity.test.mjs',
     'test/expansion-command-core.test.mjs',
     'test/expansion-command-deep.test.mjs',
+    'test/expansion-privacy-write.test.mjs',
   ]);
   assert.deepEqual(expected.recurringAcceptanceTestFiles, expected.acceptanceTestFiles);
   const fixtureUrl = new URL('./fixtures/', import.meta.url);

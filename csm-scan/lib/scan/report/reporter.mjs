@@ -65,6 +65,32 @@ export function sanitizeText(value) {
   }
 }
 
+// Scoped package references (`@scope/pkg`, `@scope/pkg@spec`, and bare scope
+// labels like `@typescript-eslint`) are legitimate structured content:
+// unqualified, the OWNER_IDENTITY redaction collapses them to `[redacted]`.
+// Structured-field sanitization masks those spans, runs the full free-text
+// sanitizer over the remainder, restores the spans, then re-runs the
+// secret-shaped redactions over the restored text so a token hidden inside a
+// masked span (e.g. `@evil/ghp_...`) is still redacted.
+const SCOPED_PACKAGE_NAME = /@[A-Za-z0-9][A-Za-z0-9._~-]*(?:\/[A-Za-z0-9][A-Za-z0-9._~-]*)?/g;
+const SCOPED_NAME_PLACEHOLDER = /\u0000(\d+)\u0000/g;
+
+export function sanitizeStructuredText(value) {
+  const text = String(value);
+  if (text.length === 0) return text;
+  const spans = [];
+  const masked = text.replace(SCOPED_PACKAGE_NAME, (match) => {
+    spans.push(match);
+    return `\u0000${spans.length - 1}\u0000`;
+  });
+  let result = sanitizeText(masked);
+  result = result.replace(SCOPED_NAME_PLACEHOLDER, (_match, index) => spans[Number(index)] ?? REDACTED);
+  return result
+    .replace(URL_CREDENTIAL, REDACTED)
+    .replace(EMAIL, REDACTED)
+    .replace(SECRET, REDACTED);
+}
+
 export function formatError(error) {
   if (error === null || error === undefined) return 'Scan failed: unknown error';
   const name = typeof error?.name === 'string' && error.name.length > 0 ? error.name : 'Error';

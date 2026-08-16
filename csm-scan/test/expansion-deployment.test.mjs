@@ -19,6 +19,7 @@ import {
   extractArtifact,
 } from '../lib/scan/deep/deployment/extractor.mjs';
 import { scanDeploymentTopology } from '../lib/scan/deep/deployment/scanner.mjs';
+import { computeExpectedClaimCoverage } from '../lib/scan/enrich.mjs';
 import {
   DEPLOYMENT_PROVIDER_ID,
   deploymentProviderResults,
@@ -900,6 +901,37 @@ test('T213 searchSpace: unsupported candidates fold supported=false and gate com
   assert.equal(byPath['notes.yaml'].status, 'unsupported');
   assert.equal(byPath['Dockerfile'].status, 'parsed', 'valid peer artifact survives');
   assert.deepEqual(result.topology.images.map(({ reference }) => reference), ['node:20']);
+});
+
+// F-020: a mixed supported/unsupported manifest set (parsed compose peer plus
+// a NO_EXTRACTOR yaml admitted from a deployment directory) emits
+// supported=false with readable=true. That shape is neither cleanly complete
+// nor cleanly unsupported, so the claim grader must keep the deployment claim
+// unverified — never upgrade it to observed off partial coverage.
+test('T213 mixed supported/unsupported manifests keep the deployment claim non-observed (F-020)', async (t) => {
+  const root = await fixture(t, {
+    'compose.yaml': 'services:\n  web:\n    image: nginx\n',
+    'k8s/notes.yaml': 'not a deployment file\n',
+  });
+  const result = await scanDeploymentTopology({ root, requests: requests(['compose.yaml', 'k8s/notes.yaml']) });
+
+  assert.equal(result.topology.searchSpace.supported, false, 'NO_EXTRACTOR peer folds supported=false');
+  assert.equal(result.topology.searchSpace.readable, true, 'both artifacts were read');
+  assert.equal(result.topology.searchSpace.complete, false);
+  const byPath = Object.fromEntries(result.artifacts.map((entry) => [entry.path, entry]));
+  assert.equal(byPath['compose.yaml'].status, 'parsed', 'valid peer artifact survives');
+  assert.equal(byPath['k8s/notes.yaml'].status, 'unsupported');
+
+  const coverage = computeExpectedClaimCoverage(
+    [{ dimension: 'deployment', signal: 'high', findings: result.topology }],
+    {},
+  );
+  assert.notEqual(
+    coverage.perDimension.deployment.status,
+    'observed',
+    'a partially-unsupported search must never upgrade the claim to observed',
+  );
+  assert.equal(coverage.perDimension.deployment.status, 'unverified');
 });
 
 test('T213 searchSpace: malformed and capped extraction outcomes fold while peers survive', async (t) => {

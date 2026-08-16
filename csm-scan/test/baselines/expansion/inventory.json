@@ -5,7 +5,8 @@
     "test/fixtures-pipeline.test.mjs",
     "test/regression-parity.test.mjs",
     "test/expansion-command-core.test.mjs",
-    "test/expansion-command-deep.test.mjs"
+    "test/expansion-command-deep.test.mjs",
+    "test/expansion-privacy-write.test.mjs"
   ],
   "recurringAcceptanceTestFiles": [
     "test/expansion-baseline.test.mjs",
@@ -13,7 +14,8 @@
     "test/fixtures-pipeline.test.mjs",
     "test/regression-parity.test.mjs",
     "test/expansion-command-core.test.mjs",
-    "test/expansion-command-deep.test.mjs"
+    "test/expansion-command-deep.test.mjs",
+    "test/expansion-privacy-write.test.mjs"
   ],
   "fixtureModules": [
     "javascript.mjs",

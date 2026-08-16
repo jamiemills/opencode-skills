@@ -467,8 +467,13 @@ function isRegisteredBrokerShape(call) {
   const argv = call.argv;
   if (call.executable === 'rg') {
     if (argv[0] === '--files') {
-      return argv.length === 1 + expectedRgGlobArgs().length
-        && JSON.stringify(argv.slice(1)) === JSON.stringify(expectedRgGlobArgs());
+      const globs = expectedRgGlobArgs();
+      const visibleForm = JSON.stringify(['--files', ...globs]);
+      // T014/F-018: the registered hidden/gitignored enumeration for the
+      // secret-scanning pass prepends --hidden --no-ignore to the same globs.
+      const hiddenForm = JSON.stringify(['--files', '--hidden', '--no-ignore', ...globs]);
+      const actual = JSON.stringify(argv);
+      return actual === visibleForm || actual === hiddenForm;
     }
     if (argv[0] === '--json') {
       const globs = expectedRgGlobArgs();

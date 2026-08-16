@@ -136,10 +136,13 @@ export function renderConfig(repoName, findings, context = DEFAULT_RENDER_CONTEX
   if (findings.scripts) {
     lines.push('### NPM Scripts');
     lines.push('');
-    lines.push('| Script | Command |');
-    lines.push('|--------|---------|');
+    // T005: script bodies can embed deploy tokens and registry credentials, so
+    // only the script name and a command count are rendered — never the body.
+    lines.push('| Script | Commands |');
+    lines.push('|--------|----------|');
     for (const [name, cmd] of Object.entries(findings.scripts)) {
-      lines.push(`| ${escapeField(name, { inTable: true })} | \`${escapeField(cmd, { inTable: true })}\` |`);
+      const count = Array.isArray(cmd) ? cmd.length : 1;
+      lines.push(`| ${escapeField(name, { inTable: true })} | ${count} command(s) |`);
     }
     lines.push('');
   }

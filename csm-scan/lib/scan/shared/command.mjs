@@ -99,6 +99,17 @@ const COMMANDS = Object.freeze({
     outputPolicy: { maxBytes: COMMAND_LIMITS.rgFilesMaxBytes, encoding: 'utf8' },
     timeoutMs: COMMAND_LIMITS.rgFilesTimeoutMs,
   },
+  // Bounded hidden/gitignored enumeration for the secret-scanning pass (F-018).
+  // `--hidden --no-ignore` surfaces dotfiles and gitignored files the survey
+  // enumeration prunes; the shared ignore globs (RG_GLOB_ARGS) still exclude
+  // .git, node_modules, and the other ignored directories.
+  'rg:files-hidden': {
+    executable: 'rg',
+    buildArgv: () => ['--files', '--hidden', '--no-ignore', ...RG_GLOB_ARGS],
+    exitPolicy: 'rg',
+    outputPolicy: { maxBytes: COMMAND_LIMITS.rgFilesMaxBytes, encoding: 'utf8' },
+    timeoutMs: COMMAND_LIMITS.rgFilesTimeoutMs,
+  },
   'rg:json': {
     executable: 'rg',
     buildArgv: (options) => ['--json', ...RG_GLOB_ARGS, '--', literalPattern(options.pattern)],

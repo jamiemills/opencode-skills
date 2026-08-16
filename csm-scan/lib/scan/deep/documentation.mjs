@@ -43,10 +43,12 @@ function readFile(path) {
   }
 }
 
+// Returns the repo-relative name of the first existing candidate (T005:
+// findings carry repo-relative paths so NORMS.md never embeds host absolute
+// paths). Callers that read the file join it with repoPath themselves.
 function findFile(repoPath, names) {
   for (const name of names) {
-    const p = join(repoPath, name);
-    if (existsSync(p)) return p;
+    if (existsSync(join(repoPath, name))) return name;
   }
   return null;
 }
@@ -113,7 +115,7 @@ function checkChangelog(repoPath) {
 
   let format = 'free-form';
   try {
-    const content = readFileSync(clPath, 'utf-8');
+    const content = readFileSync(join(repoPath, clPath), 'utf-8');
     const kep = /keep a changelog/i.test(content);
     const semver = /\b(added|changed|deprecated|removed|fixed|security)\b/i.test(content);
     const versions = /\d+\.\d+\.\d+/g;
@@ -325,7 +327,7 @@ function detectLicense(repoPath) {
 
   let name = 'unknown';
   try {
-    const content = readFileSync(found, 'utf-8').slice(0, 2000).toLowerCase();
+    const content = readFileSync(join(repoPath, found), 'utf-8').slice(0, 2000).toLowerCase();
     if (content.includes('mit license') || (content.includes('mit') && content.includes('permission'))) name = 'MIT';
     else if (content.includes('apache license') || content.includes('apache 2.0')) name = 'Apache-2.0';
     else if (content.includes('gnu general public license')) name = 'GPL';
@@ -399,7 +401,7 @@ function detectReferenceDocs(repoPath, files) {
 function detectSecurity(repoPath) {
   const secPath = findFile(repoPath, ['SECURITY.md', 'security.md', '.github/SECURITY.md', '.github/security.md']);
   if (!secPath) return { present: false, path: null, purpose: null };
-  const content = readFile(secPath) || '';
+  const content = readFile(join(repoPath, secPath)) || '';
   let purpose = 'security policy';
   for (const { re, purpose: token } of SECURITY_PURPOSE_TOKENS) {
     if (re.test(content)) {
@@ -451,7 +453,7 @@ function detectDocToolchain(repoPath) {
 export async function scan(repoPath, overview, broker = commandBroker) {
   const files = await listSourceFiles(repoPath, overview, broker);
   const readmePath = findFile(repoPath, ['README.md', 'readme.md', 'Readme.md', 'README.markdown', 'README.rst', 'README']);
-  const readmeContent = readmePath ? readFile(readmePath) : null;
+  const readmeContent = readmePath ? readFile(join(repoPath, readmePath)) : null;
 
   const badges = detectBadges(readmeContent);
   const readmeStructure = checkReadmeStructure(readmeContent);

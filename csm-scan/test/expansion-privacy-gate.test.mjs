@@ -15,9 +15,15 @@
 // credentials and tokens, raw commit subjects, CODEOWNERS identities, SARIF
 // messages/snippets, and SBOM contacts/serials/download-VCS URLs/hashes.
 //
-// The scanned repository's own root path is legitimately rendered in the
-// Markdown `- **Path**:` line (the established T226/T224 behavior), so canaries
-// are content-derived values inside the repository, never the fixture root.
+// Since T005 the Markdown report renders the repository root path relatively
+// (`- **Path**: `.` ` at the repo root, never the host absolute path), drops
+// package.json script bodies, and routes the overview description and
+// cross-observation free text through the T224 sanitizer. The fixture's own
+// root path and the scripts/description canaries are therefore asserted absent
+// from the rendered Markdown. The structured `findings` envelope intentionally
+// retains raw scan inputs (deep scanners keep script bodies internally), so the
+// scripts/description canaries are Markdown-level assertions, not members of
+// the shared CANARIES list.
 //
 // Scope (own-only): this test file. No production, baseline, or other test is
 // edited.
@@ -126,9 +132,26 @@ const SBOM = {
   }],
 };
 
+// T005 canaries planted in the repository manifest itself: a ghp_-shaped PAT
+// inside a package.json scripts value and inside the description. The script
+// body must never render (bodies are dropped); the description token must be
+// redacted by the sanitizer. Alphanumeric-only after the prefix so the token
+// matches the ghp_[A-Za-z0-9]{20,} redaction shape.
+const SCRIPTS_DESCRIPTION_CANARIES = Object.freeze([
+  'ghp_\x31privacyscripttoken99',
+  'echo deploy using ghp_\x31privacyscripttoken99',
+]);
+
 function canaryFiles() {
   return {
-    'package.json': JSON.stringify({ name: 'privacy-canary', type: 'module' }),
+    'package.json': JSON.stringify({
+      name: 'privacy-canary',
+      type: 'module',
+      description: 'Canary package description carrying ghp_\x31privacyscripttoken99 for the report redaction gate',
+      scripts: {
+        deploy: 'echo deploy using ghp_\x31privacyscripttoken99',
+      },
+    }),
     'README.md': 'Contact Alice Smith <alice.smith@example.test>\n',
     'src/config.js': [
       "export const cfg = {",
@@ -175,6 +198,33 @@ test('T227 privacy: structured findings, global snapshot, and rendered Markdown 
     const markdownBlob = markdown;
     assertZeroLeaks('structured findings/global', findingsBlob);
     assertZeroLeaks('rendered Markdown', markdownBlob);
+  } finally {
+    cleanupFixture(repo);
+    await rm(outDir, { recursive: true, force: true });
+  }
+});
+
+test('T227/T005 privacy: script bodies, description secrets, and the fixture root never reach the rendered Markdown', async () => {
+  const repo = makeFixture('t005-privacy-manifest', canaryFiles());
+  const outDir = await mkdtemp(join(tmpdir(), 'csm-scan-t005-privacy-manifest-'));
+  try {
+    await runExpandedPipeline({
+      repos: [repo],
+      out: join(outDir, 'NORMS.md'),
+      clock: FIXED_CLOCK,
+    });
+    const markdown = await readFile(join(outDir, 'NORMS.md'), 'utf8');
+    for (const canary of SCRIPTS_DESCRIPTION_CANARIES) {
+      assert.equal(
+        markdown.includes(canary),
+        false,
+        `rendered Markdown leaked manifest canary ${JSON.stringify(canary)}`,
+      );
+    }
+    assert.equal(markdown.includes(repo), false, 'rendered Markdown must not leak the fixture root absolute path');
+    assert.match(markdown, /- \*\*Path\*\*: `\.`/, 'the repository root must render as the relative path `.`');
+    assert.ok(markdown.includes('### Scripts'), 'script names must still render');
+    assert.match(markdown, /\| deploy \| 1 command\(s\) \|/, 'script rows render name + count, never the body');
   } finally {
     cleanupFixture(repo);
     await rm(outDir, { recursive: true, force: true });

@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
+import { enumerateHiddenFiles } from '../shared/enum.mjs';
 import { DESCRIPTORS, descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
 import { readManifest } from '../shared/manifest.mjs';
 import {
@@ -28,6 +29,44 @@ const KNOWN_LOCKFILES = [
 // Bounds for the direct-read replacements of the former rg pipelines.
 const SCAN_FILE_LIMIT = 400;
 const SCAN_BYTE_LIMIT = 1024 * 1024;
+
+// F-002: within the bounded scan window, likely-config files are read before
+// source files before everything else, so a secret in a config file deep in
+// the alphabetical listing still lands inside the cap. Dotfiles, env-style
+// basenames, and config extensions are tier 0; source extensions tier 1; the
+// rest tier 2. The sort is stable (index tiebreak), so alphabetical order is
+// preserved within each tier.
+const LIKELY_CONFIG_EXTENSIONS = new Set([
+  '.env', '.yml', '.yaml', '.toml', '.ini', '.conf', '.cfg', '.cnf',
+  '.properties', '.json', '.xml', '.tf', '.tfvars', '.config', '.secrets',
+]);
+const LIKELY_SOURCE_EXTENSIONS = new Set([
+  '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.rb', '.go', '.rs',
+  '.java', '.kt', '.php', '.pl', '.lua', '.sh', '.bash', '.zsh', '.fish',
+  '.ps1', '.bat', '.sql', '.c', '.h', '.cpp', '.hpp', '.cs', '.swift',
+  '.scala', '.dart', '.vue', '.svelte',
+]);
+
+function fileScanTier(rel) {
+  const base = String(rel).replace(/\\/g, '/').split('/').pop() || '';
+  const lower = base.toLowerCase();
+  if (lower.startsWith('.') || lower.startsWith('dockerfile') || lower.startsWith('compose.')
+      || lower.startsWith('docker-compose')) {
+    return 0;
+  }
+  const dot = base.lastIndexOf('.');
+  const ext = dot > 0 ? base.slice(dot).toLowerCase() : '';
+  if (LIKELY_CONFIG_EXTENSIONS.has(ext)) return 0;
+  if (LIKELY_SOURCE_EXTENSIONS.has(ext)) return 1;
+  return 2;
+}
+
+function prioritizeForScan(files) {
+  return files
+    .map((file, index) => ({ file, index, tier: fileScanTier(file) }))
+    .sort((a, b) => a.tier - b.tier || a.index - b.index)
+    .map(({ file }) => file);
+}
 
 // Dependabot config file names checked for the configured fact.
 const DEPENDABOT_CONFIG_FILES = ['.github/dependabot.yml', '.github/dependabot.yaml'];
@@ -64,6 +103,16 @@ async function listFiles(repoPath, overview, broker) {
   } catch {
     return [];
   }
+}
+
+// F-018: hidden/gitignored candidates for the secret pass only. The survey
+// enumeration prunes dotfiles and gitignored files, so they are enumerated
+// separately (bounded by the caller) and never feed the other detectors.
+// Everything the visible enumeration already listed is excluded, so this
+// list carries only files the main window could never see.
+async function listHiddenSecretCandidates(repoPath, broker, visibleSet) {
+  const { files, failed } = await enumerateHiddenFiles(repoPath, broker);
+  return { candidates: files.filter((f) => !visibleSet.has(f)), failed };
 }
 
 function readContent(absPath) {
@@ -224,10 +273,18 @@ function detectRateLimiting(repoPath, depNames, ecosystems, files) {
   };
 }
 
-function detectSecretPatterns(repoPath, files) {
-  const patterns = [
-    { name: 'AWS Access Key', re: /(?:AWS|aws)[_\-]?access[_\-]?key[_\-]?id?["'\s:=]+([A-Z0-9]{20})/ },
-    { name: 'AWS Secret Key', re: /(?:AWS|aws)[_\-]?secret[_\-]?(?:access[_\-]?)?key[_\-]?id?["'\s:=]+([A-Za-z0-9\/+=]{40})/ },
+export function isSecretPatternName(name) {
+  return secretPatterns().some((p) => p.name === name);
+}
+
+function secretPatterns() {
+  return [
+    // F-003: prefix tokens accept the common env-var casings (UPPER, lower,
+    // Mixed) via per-character classes while the VALUE groups stay
+    // exact-case (uppercase/digits for access keys, base64 for secrets), so
+    // prose like "aws access key id management" cannot match.
+    { name: 'AWS Access Key', re: /(?:AWS|aws)[_\-]?[Aa][Cc][Cc][Ee][Ss][Ss][_\-]?[Kk][Ee][Yy][_\-]?(?:[Ii][Dd])?["'\s:=]+([A-Z0-9]{20})/ },
+    { name: 'AWS Secret Key', re: /(?:AWS|aws)[_\-]?[Ss][Ee][Cc][Rr][Ee][Tt][_\-]?(?:[Aa][Cc][Cc][Ee][Ss][Ss][_\-]?)?[Kk][Ee][Yy][_\-]?(?:[Ii][Dd])?["'\s:=]+([A-Za-z0-9\/+=]{40})/ },
     { name: 'GitHub Token', re: /(?:ghp|gho|ghu|ghs|ghr|github[_\-]?pat)[_\-\w]*['"\s:=]+([A-Za-z0-9_]{36,})/ },
     { name: 'Generic API Key', re: /(?:api[_\-]?key|apikey|API_KEY)["'\s:=]+\s*['"]([A-Za-z0-9_\-]{20,})['"]/i },
     { name: 'Generic Token', re: /(?:token|secret|password|passwd)["'\s:=]+\s*['"]([^\s'"]{16,})['"]\s*$/im },
@@ -243,12 +300,14 @@ function detectSecretPatterns(repoPath, files) {
     { name: 'NPM Token', re: /npm_[A-Za-z0-9]{36}/ },
     { name: 'Docker Registry Password', re: /(?:docker|registry)[_\s-]*(?:password|pass|pwd)["'\s:=]+\s*['"]([^'"]{8,})['"]/i },
   ];
+}
 
-  const findings = [];
-  const bounded = files.slice(0, SCAN_FILE_LIMIT);
-  const tallies = patterns.map(({ name, re }) => ({ name, re, count: 0, samples: [] }));
-
-  for (const f of bounded) {
+// Tally pattern hits over a bounded file list. Returns one
+// `{ name, re, count, samples }` record per pattern (including zero-hit ones)
+// so two passes (visible + hidden) can be merged before findings are built.
+function tallySecretPatterns(repoPath, files) {
+  const tallies = secretPatterns().map(({ name, re }) => ({ name, re, count: 0, samples: [] }));
+  for (const f of files) {
     const content = readContent(join(repoPath, f));
     if (content == null) continue;
     for (const tally of tallies) {
@@ -258,14 +317,37 @@ function detectSecretPatterns(repoPath, files) {
       }
     }
   }
+  return tallies;
+}
 
+// Merge a second pass's tallies (e.g. the hidden/gitignored enumeration)
+// into an existing tally list, preserving pattern order and the 3-sample cap.
+function mergeSecretTallies(target, extra) {
+  for (const tally of target) {
+    const incoming = extra.find(({ name }) => name === tally.name);
+    if (!incoming || incoming.count === 0) continue;
+    tally.count += incoming.count;
+    for (const sample of incoming.samples) {
+      if (tally.samples.length >= 3) break;
+      if (!tally.samples.includes(sample)) tally.samples.push(sample);
+    }
+  }
+  return target;
+}
+
+function findingsFromTallies(tallies) {
+  const findings = [];
   for (const tally of tallies) {
     if (tally.count > 0) {
       findings.push({ pattern: tally.name, files: tally.samples, totalFiles: tally.count });
     }
   }
-
   return findings;
+}
+
+function detectSecretPatterns(repoPath, files) {
+  const bounded = files.slice(0, SCAN_FILE_LIMIT);
+  return findingsFromTallies(tallySecretPatterns(repoPath, bounded));
 }
 
 function detectSecurityHeaders(repoPath, files) {
@@ -564,11 +646,29 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const ecosystems = resolveEcosystems(overview, manifest);
   const files = await listFiles(repoPath, overview, broker);
 
-  const secrets = detectSecretPatterns(repoPath, files);
+  // F-002: prioritize likely-config/source files inside the cap and disclose
+  // the truncation so a bounded scan is never mistaken for full coverage.
+  const scanned = prioritizeForScan(files).slice(0, SCAN_FILE_LIMIT);
+  const filesSkipped = Math.max(0, files.length - scanned.length);
+
+  // F-018: bounded hidden/gitignored pass feeding only the secret patterns.
+  // A failed enumeration is disclosed so an empty hidden window is never
+  // mistaken for "no hidden files".
+  const {
+    candidates: hiddenCandidates,
+    failed: hiddenEnumerationFailed,
+  } = await listHiddenSecretCandidates(repoPath, broker, new Set(files));
+  const hiddenScanned = hiddenCandidates.slice(0, SCAN_FILE_LIMIT);
+  const hiddenFilesSkipped = Math.max(0, hiddenCandidates.length - hiddenScanned.length);
+
+  const tallies = tallySecretPatterns(repoPath, scanned);
+  mergeSecretTallies(tallies, tallySecretPatterns(repoPath, hiddenScanned));
+  const secrets = findingsFromTallies(tallies);
+
   const auth = detectAuth(depNames, ecosystems, files);
-  const secHeaders = detectSecurityHeaders(repoPath, files);
+  const secHeaders = detectSecurityHeaders(repoPath, scanned);
   const validation = detectInputValidation(depNames, ecosystems);
-  const rateLimit = detectRateLimiting(repoPath, depNames, ecosystems, files);
+  const rateLimit = detectRateLimiting(repoPath, depNames, ecosystems, scanned);
 
   // AUDIT_TOOLS is consulted once; securityTools and auditEvidence reuse it.
   const auditMatches = unionMatches(depNames, AUDIT_TOOLS, ecosystems);
@@ -627,6 +727,18 @@ export async function scan(repoPath, overview, broker = commandBroker) {
       dependabotEvidence: dependabot,
       gitleaks,
       securityTools,
+      // F-002/F-018 disclosure: what the bounded secret/header/rate-limit
+      // window actually read, including the separate hidden/gitignored pass
+      // that feeds only secret-pattern detection. `hiddenEnumerationFailed`
+      // marks a pass that could not enumerate at all (rg failure), so an
+      // empty hidden window is never misread as full hidden coverage.
+      scanCoverage: {
+        scannedFiles: scanned.length,
+        filesSkipped,
+        hiddenScanned: hiddenScanned.length,
+        hiddenFilesSkipped,
+        ...(hiddenEnumerationFailed ? { hiddenEnumerationFailed: true } : {}),
+      },
     },
   };
 }

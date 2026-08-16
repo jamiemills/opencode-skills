@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { withFixture, surveyOverview } from './harness.mjs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { withFixture, surveyOverview, makeFixture, cleanupFixture } from './harness.mjs';
 import { createRecordingRunner } from './helpers/recording-runner.mjs';
 import { createCommandBroker } from '../lib/scan/shared/command.mjs';
 import { scan } from '../lib/scan/deep/security.mjs';
@@ -9,6 +11,8 @@ import { renderSecurity } from '../lib/scan/render/security.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as jsFiles } from './fixtures/javascript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
+
+const execFileAsync = promisify(execFile);
 
 const PERPLEXITY_CLI = '/home/jamiemills/code/projects/perplexity-cli';
 
@@ -228,7 +232,7 @@ test('security: findings preserve the write.mjs contract keys and add securityTo
     const expected = [
       'secrets', 'auth', 'securityHeaders', 'inputValidation', 'rateLimiting',
       'envExample', 'gitignoreEnvProtected', 'hasLockfile', 'auditEvidence', 'hasAuditScript',
-      'dependabot', 'securityTools',
+      'dependabot', 'securityTools', 'scanCoverage',
     ];
     for (const k of expected) {
       assert.ok(k in res.findings, `missing finding key '${k}' in: ${JSON.stringify(Object.keys(res.findings))}`);
@@ -426,6 +430,152 @@ test('security: gitleaks context — allowlist paths, stopwords, ignore count, f
     assert.match(rendered, /Gitleaks context.*\.gitleaks\.toml present/);
     assert.match(rendered, /Fixture-allowlisted pattern\(s\): Private Key Header/);
   });
+});
+
+test('security: AWS key regex matches UPPER and lower env-var forms, never prose (F-003)', async () => {
+  const files = {
+    'ci.env': 'AWS_ACCESS_KEY_ID=AKIA\x49OSFODNN7EXAMPLE\n',
+    'conf.env': 'aws_access_key_id=AKIA\x49OSFODNN7EXAMPLE\n',
+    'secret.env': 'aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n',
+    'docs.md': 'The AWS access key ID management guide explains rotation policies in prose.\n',
+  };
+  await withFixture('sec-aws-case', files, async (dir) => {
+    const res = await scan(dir, { files: Object.keys(files) });
+    const f = res.findings;
+
+    const access = f.secrets.findings.find((s) => s.pattern === 'AWS Access Key');
+    assert.ok(access, `uppercase/lowercase access-key forms must both be detected: ${JSON.stringify(f.secrets)}`);
+    assert.equal(access.totalFiles, 2, 'ci.env and conf.env both match');
+
+    const secret = f.secrets.findings.find((s) => s.pattern === 'AWS Secret Key');
+    assert.ok(secret, `lowercase aws_secret_access_key must be detected: ${JSON.stringify(f.secrets)}`);
+    assert.deepEqual(secret.files, ['secret.env']);
+
+    // The exact-case value group keeps prose from matching.
+    for (const finding of f.secrets.findings) {
+      assert.ok(!finding.files.includes('docs.md'), `prose must never match: ${JSON.stringify(finding)}`);
+    }
+  });
+});
+
+test('security: >400-file window prioritizes config files and discloses the truncation (F-002)', async () => {
+  const files = {};
+  for (let i = 0; i < 410; i++) files[`filler-${String(i).padStart(3, '0')}.txt`] = 'placeholder content\n';
+  files['zzz-prod.env'] = 'AWS_ACCESS_KEY_ID=AKIA\x49OSFODNN7EXAMPLE\n';
+  await withFixture('sec-window', files, async (dir) => {
+    const overview = await surveyOverview(dir);
+    assert.equal(overview.files.length, 411);
+
+    const res = await scan(dir, overview);
+    const access = res.findings.secrets.findings.find((s) => s.pattern === 'AWS Access Key');
+    assert.ok(
+      access,
+      `the config file at the alphabetical end must land inside the prioritized window: ${JSON.stringify(res.findings.secrets)}`,
+    );
+    assert.deepEqual(access.files, ['zzz-prod.env']);
+
+    assert.equal(res.findings.scanCoverage.scannedFiles, 400, 'cap is kept for DoS protection');
+    assert.equal(res.findings.scanCoverage.filesSkipped, 11, 'truncation must be disclosed');
+
+    // R3: the truncation disclosure renders as the stable scan-coverage caveat.
+    assert.match(
+      renderSecurity('repo', res.findings),
+      /- \*\*Scan coverage\*\*: 400 of 411 visible file\(s\) scanned; \d+ hidden file\(s\) scanned; hidden enumeration OK/,
+    );
+  });
+});
+
+test('security: scan-coverage caveat renders exact wording and stays absent without truncation (R3)', () => {
+  const truncated = renderSecurity('repo', {
+    secrets: { count: 0, findings: [] },
+    scanCoverage: { scannedFiles: 400, filesSkipped: 5, hiddenScanned: 11, hiddenFilesSkipped: 0 },
+  });
+  assert.match(
+    truncated,
+    /^- \*\*Scan coverage\*\*: 400 of 405 visible file\(s\) scanned; 11 hidden file\(s\) scanned; hidden enumeration OK$/m,
+  );
+
+  const hiddenFailed = renderSecurity('repo', {
+    secrets: { count: 0, findings: [] },
+    scanCoverage: { scannedFiles: 10, filesSkipped: 0, hiddenScanned: 0, hiddenFilesSkipped: 0, hiddenEnumerationFailed: true },
+  });
+  assert.match(
+    hiddenFailed,
+    /^- \*\*Scan coverage\*\*: 10 of 10 visible file\(s\) scanned; 0 hidden file\(s\) scanned; hidden enumeration FAILED$/m,
+  );
+
+  const complete = renderSecurity('repo', {
+    secrets: { count: 0, findings: [] },
+    scanCoverage: { scannedFiles: 10, filesSkipped: 0, hiddenScanned: 0, hiddenFilesSkipped: 0 },
+  });
+  assert.doesNotMatch(complete, /Scan coverage/, 'a fully covered window must not render a caveat');
+});
+
+test('security: failed hidden enumeration sets scanCoverage.hiddenEnumerationFailed instead of a silent empty pass (R2/F-018)', async () => {
+  // Reuses the enum.test.mjs recording-runner pattern: the visible rg call
+  // succeeds while the hidden pass (rg --files --hidden) fails, which must be
+  // distinguishable from "no hidden files".
+  const { run } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') {
+      if (call.argv.includes('--hidden')) {
+        return { status: 2, stdout: '', stderr: 'rg crashed' };
+      }
+      return { status: 0, stdout: 'pyproject.toml\n', stderr: '' };
+    }
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  const broker = createCommandBroker({ runner: { run } });
+
+  await withFixture('sec-hidden-enum-fail', {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\n',
+  }, async (dir) => {
+    const res = await scan(dir, { files: ['pyproject.toml'] }, broker);
+    const coverage = res.findings.scanCoverage;
+
+    assert.equal(coverage.hiddenEnumerationFailed, true, 'a failed hidden pass must be flagged');
+    assert.equal(coverage.hiddenScanned, 0);
+    assert.match(renderSecurity('repo', res.findings), /hidden enumeration FAILED/);
+  });
+
+  // The success path keeps the flag absent: an empty hidden window with a
+  // healthy enumeration is "no hidden files", not a failure.
+  const { run: okRun } = createRecordingRunner((call) => {
+    if (call.executable === 'rg') {
+      return { status: 1, stdout: '', stderr: '' };
+    }
+    return { status: 0, stdout: '', stderr: '' };
+  });
+  await withFixture('sec-hidden-enum-ok', {
+    'pyproject.toml': '[project]\nname = "demo"\nversion = "0.1.0"\n',
+  }, async (dir) => {
+    const res = await scan(dir, { files: ['pyproject.toml'] }, createCommandBroker({ runner: { run: okRun } }));
+    assert.equal('hiddenEnumerationFailed' in res.findings.scanCoverage, false);
+  });
+});
+
+test('security: gitignored .env canary detected via the hidden/gitignored pass (F-018)', async () => {
+  const files = {
+    '.env': 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n',
+    '.gitignore': '.env\n',
+    'package.json': JSON.stringify({ name: 'hidden-env', version: '0.1.0' }),
+  };
+  const dir = makeFixture('sec-hidden-env', files);
+  try {
+    // Best-effort git init so .gitignore is honored by rg; the dotfile
+    // alone already keeps .env out of the visible enumeration.
+    await execFileAsync('git', ['init', '-q', dir]).catch(() => {});
+
+    const overview = await surveyOverview(dir);
+    assert.ok(!overview.files.includes('.env'), `.env must be invisible to the survey enumeration: ${JSON.stringify(overview.files)}`);
+
+    const res = await scan(dir, overview);
+    const secret = res.findings.secrets.findings.find((s) => s.pattern === 'AWS Secret Key');
+    assert.ok(secret, `gitignored .env canary must be detected by the hidden pass: ${JSON.stringify(res.findings.secrets)}`);
+    assert.deepEqual(secret.files, ['.env']);
+    assert.ok(res.findings.scanCoverage.hiddenScanned >= 1, 'the hidden pass must be disclosed');
+  } finally {
+    cleanupFixture(dir);
+  }
 });
 
 test('security: real perplexity-cli -> uv.lock + gitleaks + SECURITY.md, pydantic validation + bandit/pip-audit', {

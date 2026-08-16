@@ -8,24 +8,24 @@
   ],
   "fixtures": {
     "python": {
-      "semanticSha256": "1bacbc2093d568705f065f105ae6912afc1b184e4611a5df251c0b6c0725ad47",
-      "markdownSha256": "43c844070534e5cf0f76a52f86e95a46eb3551c1dabbdb201dd9651bfa705d35"
+      "semanticSha256": "fa1c027c6e0a741ea625f466a34d33fd9dbb76449ba1950bb502510d327e93c3",
+      "markdownSha256": "3d9ecfe496f01ca48b9c08a4da3ae64fed3732bfe3545fb45dd65f07268cfbf9"
     },
     "javascript": {
-      "semanticSha256": "e777adaeb4244120f7a53898461bd2b8a8e562c9c2424c1ec536b7eaa84ea02e",
-      "markdownSha256": "8ca87ce6b0e9c9000ea3ab161345d82175b7163004c82675ccb4a23322b75940"
+      "semanticSha256": "593d9065639893aa3bb53be96ce6e08ca138a3222068f7471c3594aa303c56cc",
+      "markdownSha256": "8ae2602b337d1d6b09d9f40e6ee06b036adb0edef482c6485b0bd8a03f4f1473"
     },
     "typescript": {
-      "semanticSha256": "901185f1b20b29541f68266777a66a660d144cba1d29f7f9e79ccc4fd9ab8a1b",
-      "markdownSha256": "675a4e7219e0b2fc0059483ea23919c481f6f5500b097576ee5d3cc874ef8f1a"
+      "semanticSha256": "773edf7a12d6c61d8b151482fb631c45c91dd13fcf7c790c03841fd650e8c5da",
+      "markdownSha256": "3ca9c4e2ee392d3fec1f80c61b551d95339150418dd1e73c92b1a0a663628892"
     },
     "rust": {
-      "semanticSha256": "e3550830645df63c53f28a7adf67bba58ac0357a79b7a6c6324756ba796775b5",
-      "markdownSha256": "0bcec6e026dce2ebab22fd4dcd45c8050c4c7d2b3cf511051f36f359d40c5451"
+      "semanticSha256": "93378b699220b9df31e1735e05a8a2aa41730c20317659d3e0a24c1025f2bdf5",
+      "markdownSha256": "1a43be2dd2de7497e87eb6780bda5ddb65da1d12a0f2d4008380daa48dc74026"
     },
     "shell": {
-      "semanticSha256": "42ac516624f1ae27029c72945f805578e450042572601b118d3e2fd7b6faeacf",
-      "markdownSha256": "81cd5aea5250508c8e11921c07cc2cec88261b12d57dad89049fbbf1da51116f"
+      "semanticSha256": "5a4cb3a470e2525c6c39b6d42b73a0fb7e4590b13d9350acddc37a0c3eb37255",
+      "markdownSha256": "447d444e864648fd9c4c99441e97d00391d4074275b7bb0ae26d539f15443385"
     }
   }
 }

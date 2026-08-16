@@ -38,6 +38,7 @@ import { expandRepositoryDirectoryPatterns } from '../shared/glob.mjs';
 import { readJsonc } from '../shared/jsonc.mjs';
 import { parseIniSections } from '../shared/declarations.mjs';
 import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
+import { sanitizeText, sanitizeStructuredText } from '../report/reporter.mjs';
 import {
   computeBounds,
   computeEdgeKindCounts,
@@ -988,8 +989,13 @@ function detectNodes(manifest, ecosystems) {
 }
 
 function generateC4Context(repoName, manifest, technology, nodes) {
-  const name = escapeMermaid(manifest && manifest.name || repoName);
-  const desc = escapeMermaid(manifest && manifest.description || 'Application');
+  // T005/R1: the manifest name is repo-controlled and npm's name grammar
+  // admits token-shaped names (ghp_...), so it passes the scoped-name-aware
+  // sanitizer before entering the diagram — same treatment as the description.
+  const name = escapeMermaid(sanitizeStructuredText(manifest && manifest.name || repoName));
+  // T005: the manifest description is repo-controlled free text and can carry
+  // secrets; it passes through the T224 sanitizer before entering the diagram.
+  const desc = escapeMermaid(sanitizeText(manifest && manifest.description || 'Application'));
   const { dbs, apis } = nodes;
   const lines = [
     'C4Context',

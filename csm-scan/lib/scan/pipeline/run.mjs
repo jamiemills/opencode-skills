@@ -9,7 +9,7 @@ import { assertPrivacySafe } from '../shared/privacy.mjs';
 import { enumerate } from '../shared/enum.mjs';
 import { survey } from '../survey.mjs';
 import { validate } from '../validate.mjs';
-import { writeNORMS } from '../write.mjs';
+import { writeNORMS, WRITE_RENDER_CONTEXT } from '../write.mjs';
 import { synthesizeCrossRepository } from '../cross-repo/edges.mjs';
 import { createCrossRepositoryRenderer } from '../cross-repo/render.mjs';
 import { DIMENSION_REGISTRY } from '../registry/dimensions.mjs';
@@ -963,7 +963,10 @@ export async function runExpandedPipeline({
   const broker = resolveBroker(commandRunner);
   const runner = runnerFlag(commandRunner);
   const plugins = pluginRegistry.length;
-  const renderRegistry = createRenderRegistry();
+  // T005 cutover: the production registry renders every dimension through the
+  // write-path privacy context so all escapeField surfaces (dep names+specs,
+  // import samples, workflow fields, package name/main) run the sanitizer.
+  const renderRegistry = createRenderRegistry({ context: WRITE_RENDER_CONTEXT });
   const globalRenderer = createCrossRepositoryRenderer();
 
   const repoResults = [];

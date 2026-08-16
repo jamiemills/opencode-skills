@@ -25,7 +25,9 @@ const USAGE = [
   '  --version          Print the version and exit.',
   '',
   'Report contents are privacy-safe: absolute paths, identities, and secrets',
-  'are redacted before they reach stdout, stderr, or the report.',
+  'are redacted before they reach the report and pipeline stdout/stderr.',
+  'Exception: user-typed CLI arguments (for example a --repos path named in',
+  'an error message) are echoed verbatim on stderr.',
 ].join('\n');
 
 const USAGE_HINT = "Try 'scan.mjs --help' for usage.";

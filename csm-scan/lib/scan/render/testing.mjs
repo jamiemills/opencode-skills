@@ -110,7 +110,9 @@ export function renderTesting(repoName, findings, context = DEFAULT_RENDER_CONTE
   }
 
   if (findings.script) {
-    lines.push(`- **Test script**: \`${escapeField(findings.script)}\``);
+    // T005: the detected package.json test script can embed secrets, so only
+    // its presence is rendered — never the body.
+    lines.push('- **Test script**: detected');
   }
 
   lines.push('');

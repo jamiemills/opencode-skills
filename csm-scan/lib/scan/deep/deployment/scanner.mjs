@@ -159,5 +159,15 @@ export async function scanDeploymentTopology({
     }
   }
   const topology = mergeTopology(artifacts, options);
-  return deepFreeze({ artifacts, topology, searchSpace: deploymentSearchSpace(artifacts, read.searchSpace) });
+  const searchSpace = deploymentSearchSpace(artifacts, read.searchSpace);
+  // The topology IS the pipeline's `findings` payload, so the search space is
+  // embedded in it: partially-unsupported scans (mixed supported/unsupported
+  // manifests) must reach the claim grader as incomplete, never as a fully
+  // complete search (F-020). The envelope-level `searchSpace` is retained for
+  // direct callers.
+  return deepFreeze({
+    artifacts,
+    topology: deepFreeze({ ...topology, searchSpace }),
+    searchSpace,
+  });
 }

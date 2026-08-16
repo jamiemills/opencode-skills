@@ -81,3 +81,21 @@ export async function enumerate(repoPath, broker = commandBroker) {
     gitTracked,
   };
 }
+
+// Bounded hidden/gitignored enumeration (F-018): `rg --files --hidden
+// --no-ignore` lists dotfiles and gitignored files the survey enumeration
+// prunes. The broker command's shared ignore globs exclude .git/node_modules
+// and the other ignored directories; isIgnoredPath double-guards the result.
+// Consumers apply their own file-count budget. Returns `{ files, failed }` so
+// a failed pass (rg error, timeout, spawn failure) is distinguishable from
+// "no hidden files" — never silently report an empty list as coverage.
+export async function enumerateHiddenFiles(repoPath, broker = commandBroker) {
+  try {
+    const result = await broker.execute('rg:files-hidden', { cwd: repoPath });
+    const raw = result.ok || result.noMatch ? result.stdout : '';
+    const files = splitLines(raw).filter((f) => !isIgnoredPath(f));
+    return Object.freeze({ files, failed: !(result.ok || result.noMatch) });
+  } catch {
+    return Object.freeze({ files: [], failed: true });
+  }
+}
