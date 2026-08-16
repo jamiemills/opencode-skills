@@ -1,10 +1,13 @@
-import { readFile, writeFile, rename, mkdir, readdir, rm, unlink } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, readdir, unlink, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { CMD_POLL_INTERVAL_MS } from './constants.mjs';
+import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from './constants.mjs';
 import { dismissCookies } from './cookies.mjs';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// Accepts both the ts-prefixed form (`<epoch-ms>-<uuid>.json`, written by the
+// record verb) and the legacy bare-UUID form so commands enqueued before an
+// upgrade are still claimed and processed.
+const CMD_NAME_RE = /^(?:[0-9]{13}-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export async function connectDaemon(wsUrl) {
   const CRI = await import('chrome-remote-interface');
@@ -37,11 +40,34 @@ export async function prepareQueueDirs(sessionDir) {
   const runningDir = join(sessionDir, 'cmd', 'running');
   const outDir = join(sessionDir, 'cmd', 'out');
 
-  try { await rm(cmdDir, { recursive: true, force: true }); } catch {}
-
+  // Claim-by-rename protocol: cmd/ and out/ are NEVER wiped — commands
+  // enqueued while the daemon was down, and their unconsumed results, must
+  // survive every restart.
   await mkdir(cmdDir, { recursive: true });
   await mkdir(runningDir, { recursive: true });
   await mkdir(outDir, { recursive: true });
+}
+
+// At startup, anything left in running/ was claimed by a daemon that died
+// mid-execution. Entries older than CMD_TIMEOUT_MS get an error result so
+// waiting clients unblock instead of timing out; the client has already
+// given up on anything that old.
+async function sweepStaleRunning(runningDir, outDir) {
+  let entries;
+  try { entries = await readdir(runningDir); } catch { return; }
+  const cutoff = Date.now() - CMD_TIMEOUT_MS;
+  for (const entry of entries) {
+    const runningPath = join(runningDir, entry);
+    const outPath = join(outDir, entry);
+    try {
+      const st = await stat(runningPath);
+      if (st.mtimeMs >= cutoff) continue;
+      const errResult = { ok: false, error: 'daemon restarted while command was running', ts: new Date().toISOString() };
+      await writeFile(outPath + '.tmp', JSON.stringify(errResult), 'utf-8');
+      await rename(outPath + '.tmp', outPath);
+      await unlink(runningPath);
+    } catch {}
+  }
 }
 
 export async function startQueueLoop(client, sessionId, sessionDir) {
@@ -50,16 +76,33 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
   const outDir = join(sessionDir, 'cmd', 'out');
 
   await prepareQueueDirs(sessionDir);
+  await sweepStaleRunning(runningDir, outDir);
 
   while (true) {
     try {
       const entries = await readdir(cmdDir);
       const jsonFiles = entries.filter(e => e.endsWith('.json'));
-      const candidates = jsonFiles
-        .filter(e => UUID_RE.test(e.slice(0, -5)))
-        .sort();
+      const candidates = jsonFiles.filter(e => CMD_NAME_RE.test(e.slice(0, -5)));
 
+      // Order by the command's own `ts` (ISO timestamps sort
+      // lexicographically) with the filename as tiebreaker, so commands
+      // enqueued within one poll window execute in submission order rather
+      // than random-UUID filename order.
+      const stamped = [];
       for (const entry of candidates) {
+        let ts = '';
+        try {
+          const cmd = JSON.parse(await readFile(join(cmdDir, entry), 'utf-8'));
+          if (typeof cmd.ts === 'string') ts = cmd.ts;
+        } catch {}
+        stamped.push({ entry, ts });
+      }
+      stamped.sort((a, b) => {
+        if (a.ts !== b.ts) return a.ts < b.ts ? -1 : 1;
+        return a.entry < b.entry ? -1 : (a.entry > b.entry ? 1 : 0);
+      });
+
+      for (const { entry } of stamped) {
         const srcPath = join(cmdDir, entry);
         const runningPath = join(runningDir, entry);
         const outPath = join(outDir, entry);
@@ -133,6 +176,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
         const tmpOutPath = outPath + '.tmp';
         await writeFile(tmpOutPath, JSON.stringify(result), 'utf-8');
         await rename(tmpOutPath, outPath);
+        try { await unlink(runningPath); } catch {}
       }
     } catch {
       // readdir can fail if cmd/ doesn't exist yet, continue polling

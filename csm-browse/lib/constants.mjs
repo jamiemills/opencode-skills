@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
-export const SESSIONS_ROOT = '/tmp/csm-browse';
+export const SESSIONS_ROOT = process.env.CSM_BROWSE_SESSIONS_ROOT || '/tmp/csm-browse';
 export const CONTAINER_NAME = 'chromium-vnc';
 export const IMAGE = 'jlesage/chromium:latest';
 // VNC password is generated once by ensure-browser.mjs and stored here (0600,
@@ -14,7 +14,9 @@ export const CHROMIUM_BIN = '/usr/lib/chromium/chromium';
 export const PORT_POOL_START = 9224;
 export const PORT_POOL_END = 9234;
 export const SID_REGEX = '^[a-z0-9][a-z0-9_-]{0,40}$';
-export const FIXTURE_BASE = 'http://172.17.0.1:8090';
+// Fixture-server base URL selection lives in tests/serve.mjs and tests/e2e.mjs
+// (env CSM_BROWSE_FIXTURE_BASE → docker0 gateway detection → 172.17.0.1 fallback);
+// kept OUT of this module so production entrypoints never fork `ip route` at import.
 export const FFMPEG_ARGS = ['-y', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', '15', '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart'];
 export const SCREENCAST_QUALITY = 70;
 export const SCREENCAST_MAX_WIDTH = 1920;

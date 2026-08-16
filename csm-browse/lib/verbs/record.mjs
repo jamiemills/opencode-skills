@@ -15,9 +15,11 @@ export async function run({ args, state, verb }) {
 
   await mkdir(outDir, { recursive: true });
 
-  const uuid = randomUUID();
-  const cmdPath = join(cmdDir, `${uuid}.json`);
-  const outPath = join(outDir, `${uuid}.json`);
+  // Sortable timestamp prefix makes even filename-order processing correct;
+  // the daemon additionally orders by the cmd payload's `ts` field.
+  const base = `${Date.now()}-${randomUUID()}`;
+  const cmdPath = join(cmdDir, `${base}.json`);
+  const outPath = join(outDir, `${base}.json`);
   const tmpCmdPath = cmdPath + '.tmp';
 
   if (verb === 'screencast-start') {

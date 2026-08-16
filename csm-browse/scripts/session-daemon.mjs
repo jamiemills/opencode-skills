@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFile, writeFile, rm } from 'node:fs/promises';
-import { existsSync, createWriteStream } from 'node:fs';
+import { readFile, writeFile, rm, open, utimes } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
 import { join } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { loadState, sessionDir } from '../lib/session.mjs';
 import { connectDaemon, ensureSingleTab, startQueueLoop, prepareQueueDirs } from '../lib/daemon-core.mjs';
 
@@ -21,26 +22,47 @@ const sDir = sessionDir(sid);
 const pidFile = join(sDir, 'daemon.pid');
 const readyMarker = join(sDir, 'daemon.ready');
 
-if (existsSync(pidFile)) {
-  let stale = false;
-  try {
-    const raw = await readFile(pidFile, 'utf-8');
-    const existingPid = parseInt(raw.trim(), 10);
+// Atomic single-instance claim BEFORE connecting to CDP: open(pidFile, 'wx')
+// closes the multi-second check-then-act window in which two spawns could
+// both proceed. Stale locks (dead pid) are broken like the ports lock, with
+// a content-matched unlink. The ready marker keeps its original position
+// (written after CDP connect + queue dirs are ready).
+async function claimPidFile() {
+  for (;;) {
     try {
-      process.kill(existingPid, 0);
-      console.error(`Daemon already running (pid ${existingPid})`);
-      process.exit(2);
-    } catch {
-      stale = true;
+      const fh = await open(pidFile, 'wx');
+      try { await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
+      return;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
     }
-  } catch {
-    stale = true;
-  }
-  if (stale) {
-    try { await rm(pidFile); } catch {}
-    try { await rm(readyMarker); } catch {}
+    let raw = null;
+    try { raw = await readFile(pidFile, 'utf-8'); } catch {}
+    if (raw !== null) {
+      const existingPid = parseInt(raw.trim(), 10);
+      let alive = false;
+      if (!isNaN(existingPid)) {
+        try { process.kill(existingPid, 0); alive = true; } catch {}
+      }
+      if (alive) {
+        console.error(`Daemon already running (pid ${existingPid})`);
+        process.exit(2);
+      }
+      // Dead holder: content-matched unlink so we never remove a fresh
+      // holder's claim that replaced the file between read and unlink.
+      try {
+        const current = await readFile(pidFile, 'utf-8');
+        if (current === raw) await rm(pidFile, { force: true });
+      } catch {}
+    }
+    await setTimeout(100);
   }
 }
+
+await claimPidFile();
+// We own the session now: drop any ready marker left by a previous daemon so
+// launchDaemon's wait loop can only ever adopt a marker written by us.
+try { await rm(readyMarker, { force: true }); } catch {}
 
 const logPath = join(sDir, 'daemon.log');
 const logStream = createWriteStream(logPath, { flags: 'w' });
@@ -76,7 +98,6 @@ try {
   }
 
   await prepareQueueDirs(sDir);
-  await writeFile(pidFile, String(process.pid), 'utf-8');
   await writeFile(readyMarker, String(process.pid), 'utf-8');
 
   try {
@@ -87,6 +108,14 @@ try {
   } catch {}
 
   console.log(`Daemon ready (pid ${process.pid})`);
+
+  // Keep the ready marker's mtime fresh while this daemon's event loop is
+  // alive, so launchDaemon can distinguish a live daemon from a stale-but-
+  // alive zombie (whose loop has stopped touching the marker).
+  const touchReady = globalThis.setInterval(() => {
+    utimes(readyMarker, new Date(), new Date()).catch(() => {});
+  }, 2000);
+  if (touchReady.unref) touchReady.unref();
 
   let shuttingDown = false;
 
@@ -139,6 +168,19 @@ try {
 
   process.on('SIGTERM', cleanup);
   process.on('SIGINT', cleanup);
+
+  // CDP disconnect/error = chromium is gone. Without this the daemon would
+  // poll forever as a zombie, holding pid+ready markers and blocking every
+  // relaunch. cleanup removes both markers so the next launchDaemon can
+  // start a fresh daemon cleanly.
+  client.on('disconnect', () => {
+    console.log('CDP connection lost — shutting down');
+    cleanup();
+  });
+  client.on('error', (err) => {
+    console.error(`CDP client error: ${err && err.message ? err.message : err}`);
+    cleanup();
+  });
 
   await startQueueLoop(client, tabSessionId, sDir);
 } catch (err) {

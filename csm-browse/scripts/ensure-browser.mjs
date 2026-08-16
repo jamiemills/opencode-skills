@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { validateSid, sessionDir, containerSessionDir, loadState, saveState } from '../lib/session.mjs';
 import { sweep } from '../lib/sweep.mjs';
+import { stopDaemon } from '../lib/cleanup.mjs';
 import {
   isContainerRunning, containerExists, containerIP, execDetached,
   pgrepMatch, pkillMatch, pullImage
@@ -10,7 +11,7 @@ import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
   CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH
 } from '../lib/constants.mjs';
-import { readFile, rm, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, rm, mkdir, writeFile, open, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -73,8 +74,20 @@ async function ensureVncPassword() {
   const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const password = Array.from(randomBytes(8), b => chars[b % chars.length]).join('');
   await mkdir(dirname(VNC_PASS_PATH), { recursive: true, mode: 0o700 });
-  await writeFile(VNC_PASS_PATH, password, { mode: 0o600 });
-  return password;
+  // First-writer-wins: concurrent creators race to create the file with 'wx';
+  // the loser re-reads and uses the winner's password so both derive the
+  // same VNC_PASSWORD for the shared container.
+  try {
+    const fh = await open(VNC_PASS_PATH, 'wx', 0o600);
+    try { await fh.write(password); } finally { await fh.close(); }
+    return password;
+  } catch (err) {
+    if (err.code === 'EEXIST') {
+      const existing = (await readFile(VNC_PASS_PATH, 'utf-8')).trim();
+      if (existing) return existing;
+    }
+    throw err;
+  }
 }
 
 async function ensureContainer(dryRun) {
@@ -205,61 +218,88 @@ function buildChromiumCmd(containerSessDir, internalPort) {
   ].join(' ');
 }
 
-async function createSession(ip, containerSessDir) {
+async function createSession(sid, ip, containerSessDir) {
   console.log('No existing session found — CREATING new instance...');
+  if (!ip) throw new Error('container IP unavailable');
+
+  const hostSessDir = sessionDir(sid);
+  const markerPath = join(hostSessDir, 'creating.marker');
+  let internal;
+  let pub;
+
+  const cleanupLaunch = async () => {
+    if (pub) { try { await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${pub}`); } catch {} }
+    try { await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`); } catch {}
+    try { await rm(markerPath, { force: true }); } catch {}
+  };
 
   await acquirePortLock();
   try {
-    const { internal, public: pub } = await allocate(CONTAINER_NAME);
+    ({ internal, public: pub } = await allocate(CONTAINER_NAME));
     console.log(`Allocated ports: internal=${internal}, public=${pub}`);
 
-    try {
-      const chromiumCmd = buildChromiumCmd(containerSessDir, internal);
+    // creating.marker INSIDE the lock critical section, BEFORE launching
+    // chromium: any concurrent sweep that runs while we hold/release the
+    // lock must treat this session as do-not-touch until state.json lands.
+    await mkdir(hostSessDir, { recursive: true });
+    await writeFile(markerPath, JSON.stringify({
+      pid: process.pid, internal, public: pub, ts: new Date().toISOString()
+    }), 'utf-8');
 
-      console.log('Launching chromium...');
-      await execDetached(CONTAINER_NAME, ['sh', '-c', chromiumCmd], {
-        user: '1000',
-        env: {
-          DISPLAY: ':0',
-          HOME: containerSessDir,
-          XDG_CONFIG_HOME: `${containerSessDir}/xdg/config`,
-          XDG_CACHE_HOME: `${containerSessDir}/xdg/cache`,
-          XDG_DATA_HOME: `${containerSessDir}/xdg/data`,
-          XDG_STATE_HOME: `${containerSessDir}/xdg/state`,
-          XDG_RUNTIME_DIR: `${containerSessDir}/xdg/runtime`,
-          SESS: containerSessDir
-        }
-      });
-      console.log('Chromium launched');
+    const chromiumCmd = buildChromiumCmd(containerSessDir, internal);
 
-      console.log(`Launching socat on ${pub} -> ${internal}...`);
-      await execDetached(CONTAINER_NAME, [
-        'socat',
-        `TCP-LISTEN:${pub},fork,reuseaddr,bind=${ip}`,
-        `TCP:127.0.0.1:${internal}`
-      ]);
-      console.log('Socat launched');
+    console.log('Launching chromium...');
+    await execDetached(CONTAINER_NAME, ['sh', '-c', chromiumCmd], {
+      user: '1000',
+      env: {
+        DISPLAY: ':0',
+        HOME: containerSessDir,
+        XDG_CONFIG_HOME: `${containerSessDir}/xdg/config`,
+        XDG_CACHE_HOME: `${containerSessDir}/xdg/cache`,
+        XDG_DATA_HOME: `${containerSessDir}/xdg/data`,
+        XDG_STATE_HOME: `${containerSessDir}/xdg/state`,
+        XDG_RUNTIME_DIR: `${containerSessDir}/xdg/runtime`,
+        SESS: containerSessDir
+      }
+    });
+    console.log('Chromium launched');
 
-      const cdpUrl = `http://${ip}:${pub}`;
-      console.log(`Waiting for CDP at ${cdpUrl}...`);
-      const ready = await curlRetry(`${cdpUrl}/json/version`);
-      if (!ready) throw new Error('CDP did not become ready within timeout');
-      console.log('CDP ready');
-
-      const versionJson = await curlJson(`${cdpUrl}/json/version`);
-      const wsUrl = versionJson.webSocketDebuggerUrl.replace('localhost', ip);
-
-      return {
-        cdpUrl, wsUrl, internalPort: internal, publicPort: pub, adopted: false
-      };
-    } catch (err) {
-      console.error(`Create failed: ${err.message} — cleaning up`);
-      await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${pub}`);
-      await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
-      throw err;
-    }
-  } finally {
+    console.log(`Launching socat on ${pub} -> ${internal}...`);
+    await execDetached(CONTAINER_NAME, [
+      'socat',
+      `TCP-LISTEN:${pub},fork,reuseaddr,bind=${ip}`,
+      `TCP:127.0.0.1:${internal}`
+    ]);
+    console.log('Socat launched');
+  } catch (err) {
     await releasePortLock();
+    console.error(`Create failed: ${err.message} — cleaning up`);
+    await cleanupLaunch();
+    throw err;
+  }
+
+  // Bind complete — release the lock BEFORE the CDP readiness wait so the
+  // hold covers only the allocation+bind critical section (LOCK_WAIT_MS in
+  // ports.mjs is sized to this, not to the 30s readiness window).
+  await releasePortLock();
+
+  const cdpUrl = `http://${ip}:${pub}`;
+  try {
+    console.log(`Waiting for CDP at ${cdpUrl}...`);
+    const ready = await curlRetry(`${cdpUrl}/json/version`);
+    if (!ready) throw new Error('CDP did not become ready within timeout');
+    console.log('CDP ready');
+
+    const versionJson = await curlJson(`${cdpUrl}/json/version`);
+    const wsUrl = versionJson.webSocketDebuggerUrl.replace('localhost', ip);
+
+    return {
+      cdpUrl, wsUrl, internalPort: internal, publicPort: pub, adopted: false
+    };
+  } catch (err) {
+    console.error(`Create failed: ${err.message} — cleaning up`);
+    await cleanupLaunch();
+    throw err;
   }
 }
 
@@ -273,10 +313,52 @@ async function memAvailableMb() {
   }
 }
 
+async function daemonCdpAlive(sid) {
+  try {
+    const state = await loadState(sid);
+    if (state && state.cdpUrl) {
+      return await curlRetry(`${state.cdpUrl}/json/version`, 3000);
+    }
+  } catch {}
+  return false;
+}
+
 async function launchDaemon(sid) {
   const sDir = sessionDir(sid);
   const readyMarker = join(sDir, 'daemon.ready');
   const pidFilePath = join(sDir, 'daemon.pid');
+
+  // Zombie pre-check: a stale-but-alive daemon from a previous session
+  // generation holds pid+ready markers, makes our fresh spawn exit 2
+  // (single-instance), and gets mis-adopted by the wait loop below. A daemon
+  // is a zombie when its ready marker is stale (a live daemon touches it
+  // every 2s) or its CDP endpoint is dead — stop it before relaunching.
+  try {
+    if (existsSync(pidFilePath)) {
+      let pid = null;
+      try { pid = parseInt((await readFile(pidFilePath, 'utf-8')).trim(), 10); } catch {}
+      if (!isNaN(pid)) {
+        let alive = true;
+        try { process.kill(pid, 0); } catch { alive = false; }
+        if (alive) {
+          let staleMarker = false;
+          try {
+            const st = await stat(readyMarker);
+            if (Date.now() - st.mtimeMs > DAEMON_READY_TIMEOUT_MS) staleMarker = true;
+          } catch {}
+          if (staleMarker || !(await daemonCdpAlive(sid))) {
+            console.log(`Daemon pid ${pid} alive but stale (zombie) — stopping before relaunch`);
+            await stopDaemon(sDir);
+            try { await rm(pidFilePath, { force: true }); } catch {}
+            try { await rm(readyMarker, { force: true }); } catch {}
+          } else {
+            console.log(`Healthy daemon already running (pid ${pid})`);
+            return pid;
+          }
+        }
+      }
+    }
+  } catch {}
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     console.log(`Starting session daemon (attempt ${attempt})...`);
@@ -289,43 +371,64 @@ async function launchDaemon(sid) {
       stdio: ['ignore', 'ignore', 'ignore']
     });
     daemonProc.unref();
+    // Capture the exit code: 2 = single-instance refusal, meaning a healthy
+    // winner daemon owns pidFile/readyMarker — those markers must survive.
+    let childExitCode = null;
+    daemonProc.on('exit', (code) => { childExitCode = code; });
 
-    let daemonPid = null;
+    const childPid = daemonProc.pid;
     const start = Date.now();
 
     while (Date.now() - start < DAEMON_READY_TIMEOUT_MS) {
-      if (!daemonPid && existsSync(pidFilePath)) {
-        try {
-          const raw = await readFile(pidFilePath, 'utf-8');
-          daemonPid = parseInt(raw.trim(), 10);
-        } catch {}
+      let childAlive = true;
+      if (childPid) {
+        try { process.kill(childPid, 0); } catch { childAlive = false; }
       }
+      if (!childAlive) break;
 
-      if (daemonPid && existsSync(readyMarker)) {
-        console.log(`Daemon ready (pid ${daemonPid})`);
-        return daemonPid;
+      // Accept only a ready marker written by OUR child since spawn: a
+      // pre-existing marker (mtime older than this attempt) belongs to a
+      // previous daemon and must never be adopted.
+      if (existsSync(readyMarker)) {
+        try {
+          const st = await stat(readyMarker);
+          if (st.mtimeMs >= start - 1000) {
+            console.log(`Daemon ready (pid ${childPid})`);
+            return childPid;
+          }
+        } catch {}
       }
 
       await setTimeout(500);
     }
 
     let died = false;
-    if (daemonPid) {
-      try { process.kill(daemonPid, 0); } catch { died = true; }
+    if (childPid) {
+      try { process.kill(childPid, 0); } catch { died = true; }
     }
     const mem = await memAvailableMb();
     if (died) {
-      console.error(`Daemon (pid ${daemonPid}) died before becoming ready — possible OOM. Host available memory: ${mem} MB`);
+      if (childExitCode === 2) {
+        // Refused because another healthy daemon owns the claim: adopt it
+        // instead of deleting the winner's markers and double-spawning.
+        console.log('Daemon claim refused (already running) — adopting existing daemon');
+        try {
+          const pid = parseInt((await readFile(pidFilePath, 'utf-8')).trim(), 10);
+          if (!isNaN(pid)) return pid;
+        } catch {}
+        return null;
+      }
+      console.error(`Daemon (pid ${childPid}) died before becoming ready — possible OOM. Host available memory: ${mem} MB`);
       try { await rm(pidFilePath, { force: true }); } catch {}
       try { await rm(readyMarker, { force: true }); } catch {}
       return null;
     }
     if (attempt < 2) {
       console.error('Daemon did not become ready within timeout — retrying once...');
-      if (daemonPid) {
-        try { process.kill(daemonPid, 'SIGTERM'); } catch {}
+      if (childPid) {
+        try { process.kill(childPid, 'SIGTERM'); } catch {}
         for (let i = 0; i < 20; i++) {
-          try { process.kill(daemonPid, 0); } catch { break; }
+          try { process.kill(childPid, 0); } catch { break; }
           await setTimeout(100);
         }
       }
@@ -360,6 +463,7 @@ async function main() {
   }
 
   const ip = await containerIP(CONTAINER_NAME);
+  if (!ip) throw new Error('container IP unavailable');
   console.log(`Container IP: ${ip}`);
 
   const hostSessDir = sessionDir(sid);
@@ -374,7 +478,24 @@ async function main() {
       if (existingState.daemonPid) {
         try {
           process.kill(existingState.daemonPid, 0);
-          console.log('CDP reachable, daemon alive — reusing existing session');
+          // Stale-but-alive zombie: pid responds but the ready marker's
+          // mtime is old (a live daemon touches it every 2s) — stop and
+          // relaunch instead of wiring the session to a dead queue loop.
+          let zombie = false;
+          try {
+            const st = await stat(join(hostSessDir, 'daemon.ready'));
+            if (Date.now() - st.mtimeMs > DAEMON_READY_TIMEOUT_MS) zombie = true;
+          } catch {}
+          if (!zombie) {
+            console.log('CDP reachable, daemon alive — reusing existing session');
+            console.log(JSON.stringify(existingState));
+            return;
+          }
+          console.log('CDP reachable but daemon is a stale zombie — restarting daemon...');
+          await stopDaemon(hostSessDir);
+          const daemonPid = await launchDaemon(sid);
+          existingState.daemonPid = daemonPid;
+          if (daemonPid) await saveState(sid, existingState);
           console.log(JSON.stringify(existingState));
           return;
         } catch {
@@ -421,7 +542,7 @@ async function main() {
     return;
   }
 
-  const created = await createSession(ip, containerSessDir);
+  const created = await createSession(sid, ip, containerSessDir);
   const state = {
     sid,
     cdpUrl: created.cdpUrl,
@@ -436,6 +557,9 @@ async function main() {
     adopted: false
   };
   await saveState(sid, state);
+  // Session is durable now — retire the creation marker so sweep's
+  // do-not-touch window closes and normal liveness/aging applies.
+  try { await rm(join(hostSessDir, 'creating.marker'), { force: true }); } catch {}
   const daemonPid2 = await launchDaemon(sid);
   state.daemonPid = daemonPid2;
   if (daemonPid2) await saveState(sid, state);

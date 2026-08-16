@@ -1,25 +1,40 @@
 import { readdir, readFile, writeFile, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { setTimeout } from 'node:timers/promises';
 import {
   stopDaemon, killInstance, killSocat,
   removeContainerSession, removeHostSession
 } from './cleanup.mjs';
-import { pgrepMatch, pkillMatch, execInContainer } from './docker.mjs';
-import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
+import { execLayer } from './docker.mjs';
+import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END, CDP_RETRY_TIMEOUT_MS } from './constants.mjs';
 import { sessionDir, containerSessionDir } from './session.mjs';
 
-const execFileAsync = promisify(execFile);
+// Session-creation marker protocol (F-010): createSession writes
+// `creating.marker` into the session dir inside the port lock, before
+// launching chromium, and removes it once state.json is saved. Both the
+// host-dir pass and the container-chromium/socat passes treat a fresh marker
+// as do-not-touch, so a concurrent sweep cannot kill a session mid-creation.
+const CREATING_MARKER = 'creating.marker';
+// Creation window (CDP_RETRY_TIMEOUT_MS) plus a grace period: a marker-only
+// dir younger than this is NOT stale, even with no state.json and no daemon.
+const CREATING_MARKER_MAX_MS = CDP_RETRY_TIMEOUT_MS + 60000;
 
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+async function hasFreshCreatingMarker(sDir) {
+  try {
+    const st = await stat(join(sDir, CREATING_MARKER));
+    return Date.now() - st.mtimeMs <= CREATING_MARKER_MAX_MS;
+  } catch {
+    return false;
+  }
+}
+
 async function killHostFfmpeg(sDir) {
-  try { await execFileAsync('pkill', ['-f', `ffmpeg.*${escapeRegExp(sDir)}`]); } catch {}
+  try { await execLayer.execFile('pkill', ['-f', `ffmpeg.*${escapeRegExp(sDir)}`]); } catch {}
 }
 
 async function cleanArtifactTemps(sDir) {
@@ -65,25 +80,34 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
   let hostDirs = [];
   try { hostDirs = (await readdir(SESSIONS_ROOT)).filter(d => !d.startsWith('.')); } catch {}
 
-  // Host-session pass: stale dirs (age or dead daemon) — kill daemon, container procs, remove dirs
+  // Host-session pass: a live daemon or a fresh creating.marker protects the
+  // session REGARDLESS of dir age; only when the daemon is dead/absent (and
+  // no fresh marker) does age make the dir stale.
   for (const sid of hostDirs) {
     if (skipSid && sid === skipSid) continue;
     const sDir = sessionDir(sid);
+
+    // Marker do-not-touch: session is being created right now.
+    if (await hasFreshCreatingMarker(sDir)) continue;
+
     const age = await dirAgeMs(sDir);
     if (age === null) continue;
 
-    let stale = age > ageMs;
-    if (!stale) {
-      const pidFile = join(sDir, 'daemon.pid');
-      if (existsSync(pidFile)) {
-        try {
-          const raw = await readFile(pidFile, 'utf-8');
-          const pid = parseInt(raw.trim(), 10);
-          if (!isNaN(pid) && !(await daemonAlive(pid))) stale = true;
-        } catch {}
-      }
+    // Liveness check first, regardless of dir age: a healthy-but-idle session
+    // (live daemon) must never be reaped.
+    let daemonLive = false;
+    const pidFile = join(sDir, 'daemon.pid');
+    if (existsSync(pidFile)) {
+      try {
+        const raw = await readFile(pidFile, 'utf-8');
+        const pid = parseInt(raw.trim(), 10);
+        if (!isNaN(pid) && (await daemonAlive(pid))) daemonLive = true;
+      } catch {}
     }
-    if (!stale) continue;
+    if (daemonLive) continue;
+
+    // Age only decides when the daemon is dead or absent.
+    if (age <= ageMs) continue;
 
     let publicPort = null;
     try {
@@ -106,7 +130,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
 
   // Orphaned-daemon pass: running host daemon whose session dir is gone
   try {
-    const { stdout } = await execFileAsync('pgrep', ['-af', 'session-daemon.mjs --session ']);
+    const { stdout } = await execLayer.execFile('pgrep', ['-af', 'session-daemon.mjs --session ']);
     for (const line of stdout.split('\n').filter(Boolean)) {
       const m = line.match(/session-daemon\.mjs --session (\S+)/);
       if (!m) continue;
@@ -124,7 +148,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
   // Orphaned host ffmpeg: recorder process whose session dir is gone or daemon dead
   try {
     const sessRe = new RegExp(`${escapeRegExp(SESSIONS_ROOT)}/([^/\\s]+)`);
-    const { stdout } = await execFileAsync('pgrep', ['-af', 'ffmpeg']);
+    const { stdout } = await execLayer.execFile('pgrep', ['-af', 'ffmpeg']);
     for (const line of stdout.split('\n').filter(Boolean)) {
       const m = line.match(sessRe);
       if (!m) continue;
@@ -133,6 +157,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       const sDir = sessionDir(sid);
       let orphaned = !existsSync(sDir);
       if (!orphaned) {
+        if (await hasFreshCreatingMarker(sDir)) continue;
         const pidFile = join(sDir, 'daemon.pid');
         let alive = false;
         if (existsSync(pidFile)) {
@@ -155,25 +180,27 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
 
   // Container-side orphan chromium: session profile without matching host state
   try {
-    const chromiumProcs = await pgrepMatch(containerName, '--user-data-dir=/config/csm-browse/sessions/');
+    const chromiumProcs = await execLayer.pgrepMatch(containerName, '--user-data-dir=/config/csm-browse/sessions/');
     for (const proc of chromiumProcs) {
       const m = proc.cmd.match(/--user-data-dir=\/config\/csm-browse\/sessions\/([^/]+)/);
       if (!m) continue;
       const psid = m[1];
       if (skipSid && psid === skipSid) continue;
+      // Marker do-not-touch: chromium for a session still being created.
+      if (await hasFreshCreatingMarker(join(SESSIONS_ROOT, psid))) continue;
       const hostStateExists = existsSync(join(SESSIONS_ROOT, psid, 'state.json'));
       let containerDirExists = false;
       try {
-        await execInContainer(containerName, ['test', '-d', `/config/csm-browse/sessions/${psid}`]);
+        await execLayer.execInContainer(containerName, ['test', '-d', `/config/csm-browse/sessions/${psid}`]);
         containerDirExists = true;
       } catch {}
       if (hostStateExists && containerDirExists) continue;
       if (dryRun) { swept.push(`[dry] orphan container chromium sid=${psid}`); continue; }
-      try { await pkillMatch(containerName, `--user-data-dir=/config/csm-browse/sessions/${psid}/`); } catch {}
-      try { await pkillMatch(containerName, `--database=/config/csm-browse/sessions/${psid}/crash`); } catch {}
+      try { await execLayer.pkillMatch(containerName, `--user-data-dir=/config/csm-browse/sessions/${psid}/`); } catch {}
+      try { await execLayer.pkillMatch(containerName, `--database=/config/csm-browse/sessions/${psid}/crash`); } catch {}
       const portMatch = proc.cmd.match(/--remote-debugging-port=(\d+)/);
       if (portMatch) {
-        try { await pkillMatch(containerName, `TCP-LISTEN:${parseInt(portMatch[1], 10) + 1}`); } catch {}
+        try { await execLayer.pkillMatch(containerName, `TCP-LISTEN:${parseInt(portMatch[1], 10) + 1}`); } catch {}
       }
       try { await removeContainerSession(containerName, `/config/csm-browse/sessions/${psid}`); } catch {}
       swept.push(`orphan container chromium sid=${psid}`);
@@ -205,19 +232,34 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
     } catch {}
   }
 
-  // Orphan socat pass: pool ports with no related chromium
+  // Orphan socat pass: pool ports with no related chromium. Skipped entirely
+  // while any session creation is in flight (marker do-not-touch): a creating
+  // session's chromium may not yet be visible to pgrep, so its socat cannot
+  // be safely distinguished from an orphan.
   try {
-    const allSocats = await pgrepMatch(containerName, 'TCP-LISTEN:92');
-    for (const socat of allSocats) {
-      const portMatch = socat.cmd.match(/TCP-LISTEN:(\d+)/);
-      if (!portMatch) continue;
-      const pubPort = parseInt(portMatch[1], 10);
-      if (pubPort < PORT_POOL_START + 1 || pubPort > PORT_POOL_END + 1) continue;
-      const relatedChrome = await pgrepMatch(containerName, `--remote-debugging-port=${pubPort - 1}`);
-      if (relatedChrome.length === 0) {
-        if (dryRun) { swept.push(`[dry] orphan socat port=${pubPort}`); continue; }
-        try { await pkillMatch(containerName, `TCP-LISTEN:${pubPort}`); } catch {}
-        swept.push(`orphan socat port=${pubPort}`);
+    let anyCreating = false;
+    // Re-scan the root rather than reusing the sweep-start snapshot: a session
+    // dir created after that readdir must still protect its in-flight socat.
+    const liveDirs = await readdir(SESSIONS_ROOT, { withFileTypes: true });
+    for (const ent of liveDirs) {
+      if (!ent.isDirectory()) continue;
+      const sid = ent.name;
+      if (skipSid && sid === skipSid) continue;
+      if (await hasFreshCreatingMarker(sessionDir(sid))) { anyCreating = true; break; }
+    }
+    if (!anyCreating) {
+      const allSocats = await execLayer.pgrepMatch(containerName, 'TCP-LISTEN:92');
+      for (const socat of allSocats) {
+        const portMatch = socat.cmd.match(/TCP-LISTEN:(\d+)/);
+        if (!portMatch) continue;
+        const pubPort = parseInt(portMatch[1], 10);
+        if (pubPort < PORT_POOL_START + 1 || pubPort > PORT_POOL_END + 1) continue;
+        const relatedChrome = await execLayer.pgrepMatch(containerName, `--remote-debugging-port=${pubPort - 1}`);
+        if (relatedChrome.length === 0) {
+          if (dryRun) { swept.push(`[dry] orphan socat port=${pubPort}`); continue; }
+          try { await execLayer.pkillMatch(containerName, `TCP-LISTEN:${pubPort}`); } catch {}
+          swept.push(`orphan socat port=${pubPort}`);
+        }
       }
     }
   } catch {}
