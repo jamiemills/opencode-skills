@@ -4,7 +4,7 @@
 - Start work only through a separate, explicit csm-build invocation naming this plan; the planning session must not begin execution.
 - Commit policy and live state are maintained in Control by csm-build.
 - Items in Numbered Plan are ordered by execution sequence where IDs diverge (item 11 = T012 lands before item 12 = T011); csm-build addresses tasks by Task ID, humans should cite IDs.
-- Risk summary: 14 tasks — 3 high-risk (T005, T007, T013), 5 security-flagged total (T001, T005, T008, T012, T014), 10 standard, 1 low (T003). T005 and T007 always require independent review before completion.
+- Risk summary: 14 tasks — 13 active (3 high-risk: T005, T007; plus T013 deferred, also high-risk) — 5 security-flagged total (T001, T005, T008, T012, T014), 10 standard, 1 low (T003). T005 and T007 always require independent review before completion.
 
 ## Control
 - Plan ID: skills-remediation-2026-08-16
@@ -15,7 +15,7 @@
 - Last checkpoint: 2026-08-16 plan drafted from review 75abed1 (77 findings, .agents/reviews/2026-08-15-skills-review.md)
 - Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
 - Active tasks: none
-- Blockers: none
+- Blockers: T013 (Wave 5: CI workflow + scheduled dependency audit) deferred to a future stage by user decision 2026-08-16 — not to be dispatched this build; plan completes without it.
 
 ## Goal
 Remediate the user-confirmed 10 phases of the 2026-08-15 full csm-review (77 findings, .agents/reviews/2026-08-15-skills-review.md). Phases 1-9 are fully covered by tasks T001-T014; phase 10 (small-fix sweep, T012) additionally sweeps the cheap low/info findings (F-055, F-056, F-058, F-061, F-062, F-063, F-065, F-066, F-068, F-075, F-076, F-077) where they reduce to small edits; any of those judged non-trivial at execution time are recorded as deferred with rationale rather than silently dropped. Every fix must keep the csm-scan suite green (or intentionally supersede baselines via the documented mechanism), keep check-suite green at each commit, and land with the tests/verification this review found missing.
@@ -31,7 +31,7 @@ Remediate the user-confirmed 10 phases of the 2026-08-15 full csm-review (77 fin
 6. `cd csm-browse && npm test` runs a Docker-free node:test unit layer covering cookies/cdp/session/ports/sweep decision logic (≥40 assertions incl. all 6 consent patterns + SID regex + stale-lock + sweep branch matrix); check-skill resolves both deps + `node --check`s all .mjs (F-012, F-043).
 7. csm-scan suite runs green on any machine with no `$HOME`-path dependencies: env-var + checked-in fallback fixture; zero bare-`return` skips; AC20 no-skip derived from node:test machine summary; `--experimental-test-coverage` run is green with ≥ current line coverage (F-007, F-008, F-025..F-029).
 8. check-suite v2: anchored fence-aware heading checks; full state-chain verification for all 5 state-machine skills; numeric self-claims (9 states/18 dimensions) verified; cross-skill contracts (plan path, `-bdd-csm.md`, `Superseded for BDD/TDD`) cross-file checked; 7-plan golden corpus validated as ordered subsequence; registry completeness both directions; frontmatter parser handles quoted/multi-line YAML (F-015..F-017, F-046..F-048, F-067, F-071).
-9. LICENSE (MIT) at root; GitHub Actions CI green on push running check-suite + csm-scan suite + browse unit layer + browse check-skill on Node 22; weekly scheduled dependency audit (F-006, F-049, F-072).
+9. ACTIVE: LICENSE (MIT) at root (F-006). FUTURE STAGE (T013, deferred): GitHub Actions CI green on push running check-suite + csm-scan suite + browse unit layer + browse check-skill on Node 22; weekly scheduled dependency audit (F-049, F-072) — plan completion does not require this criterion; it gates the future-stage task only.
 10. Small fixes landed: upload.mjs escapeHtml + timeouts + stderr + signal cleanup; docker image digest-pinned; daemon.log append + timestamps; `.agents/README.md` index; README tree corrected; csm-grill path canonicalized to `.agents/approaches/` (F-050, F-052, F-053, F-069, F-070, F-073, F-074).
 
 ## Current-State Evidence
@@ -83,7 +83,7 @@ Remediate the user-confirmed 10 phases of the 2026-08-15 full csm-review (77 fin
 - csm-build RECOVER consumes plan Control sections — corpus checks validate structure only, never rewrite historical plans (U-2).
 
 ## Design
-Ten phases map to 13 tasks in 5 waves. Wave 1 = independent quick wins + the Node migration (unblocks U-4). Wave 2 = the two deep code units (privacy cutover with its lock machinery; lifecycle batch A). Wave 3 = protocol changes + DI seams, then the browse test layer + e2e de-hardening. Wave 4 = csm-scan test repair, then doc small-fixes, then linter v2 (single owner of check-suite.mjs). Wave 5 = CI activation last, running everything. Browse session protocol additions: `creating.marker` written under the port lock before chromium launch; sweep consults marker in BOTH passes and daemon-liveness regardless of dir age; queue claims by rename-only with ts-ordered processing; daemon registers `client.on('disconnect', cleanup)`; state.json writes are tmp+rename. Privacy cutover: `writeNORMS` renders repo-relative path; scripts table drops bodies; a redacting privacyHook wraps the final markdown before sink; T227 gains scripts/description canaries. Linter v2: fence-length-aware parser → anchored heading set/state-chain extractor → contract/corpus/claims checks driven by one declarative data block; completeness assertions both directions. CI: one workflow, push + PR + weekly audit schedule, Node 22, jobs = check-suite, csm-scan suite, browse unit + check-skill; no Docker in CI (D11).
+Ten phases map to 14 tasks in 4 active waves + 1 future stage. Wave 1 = independent quick wins + the Node migration (unblocks U-4). Wave 2 = the two deep code units (privacy cutover with its lock machinery; detection fixes; lifecycle batch A). Wave 3 = protocol changes + DI seams, then the browse test layer + e2e de-hardening. Wave 4 = csm-scan test repair, then doc small-fixes, then linter v2 (single owner of check-suite.mjs). Future stage (Wave 5, deferred by user) = CI activation running everything — T013 stays in the plan with full task definition so a later build can dispatch it unchanged. Browse session protocol additions: `creating.marker` written under the port lock before chromium launch; sweep consults marker in BOTH passes and daemon-liveness regardless of dir age; queue claims by rename-only with ts-ordered processing; daemon registers `client.on('disconnect', cleanup)`; state.json writes are tmp+rename. Privacy cutover: `writeNORMS` renders repo-relative path; scripts table drops bodies; a redacting privacyHook wraps the final markdown before sink; T227 gains scripts/description canaries. Linter v2: fence-length-aware parser → anchored heading set/state-chain extractor → contract/corpus/claims checks driven by one declarative data block; completeness assertions both directions. CI: one workflow, push + PR + weekly audit schedule, Node 22, jobs = check-suite, csm-scan suite, browse unit + check-skill; no Docker in CI (D11).
 
 ## Execution Graph
 Wave barriers are hard sequencing; Depends-on fields are authoritative within/between waves for csm-build's SELECT step.
@@ -91,9 +91,9 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 - Wave 2 (parallel; T005 and T014 verify on Node 22 after T004): T005, T014. (T006 may also start — its files are disjoint from T005/T014; wave-equivalent G2.)
 - Wave 3: T007 (after T006, soft T005); then T008, T009 (parallel, file-disjoint: T008 owns tests/unit/** + package.json + check-skill; T009 owns tests/e2e.mjs + tests/serve.mjs + constants FIXTURE_BASE line + SKILL.md docs).
 - Wave 4: T010 (after T004/T005/T014) and T012 (after T001/T006/T009) run parallel, file-disjoint; T011 alone owns scripts/check-suite.mjs and starts only after T002 + T012 land (gate green when tightened).
-- Wave 5: T013 (after T005, T008, T010, T011, T012, T014).
-- Critical path: T006 → T007 → T009 → T012 → T011 → T013.
-- Non-overlapping write ownership within waves: W1 disjoint packages (browse-constants / review-doc / root / node-migration); W2 T005 (scan render/write/privacy+baselines) vs T014 (scan detection libs+fixtures+semantic.json findingKeys — semantic.json touched by both: T005 only if output-pinned, T014 for findingKeys; sequential commit rule: whoever lands second rebases on the first's documented update); W3 file-disjoint as above; W4 T010 (scan test files) vs T012 (upload/browse-log-lines/docs) disjoint; T011 solo; W5 T013 solo.
+- Wave 5 (FUTURE STAGE — deferred, do not dispatch this build): T013 (after T005, T008, T010, T011, T012, T014).
+- Critical path (active build): T006 → T007 → T009 → T012 → T011.
+- Non-overlapping write ownership within waves: W1 disjoint packages (browse-constants / review-doc / root / node-migration); W2 T005 (scan render/write/privacy+baselines) vs T014 (scan detection libs+fixtures+semantic.json findingKeys — semantic.json touched by both: T005 only if output-pinned, T014 for findingKeys; sequential commit rule: whoever lands second rebases on the first's documented update); W3 file-disjoint as above; W4 T010 (scan test files) vs T012 (upload/browse-log-lines/docs) disjoint; T011 solo; W5 T013 solo (future stage).
 
 ## Numbered Plan
 1. [pending] Browse security hotfix — loopback-bind CDP/VNC + socat bind-narrowing
@@ -290,9 +290,9 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: old checker recoverable via git; new checker additive checks first, strict mode default.
 
-14. [pending] CI workflow + scheduled dependency audit
+14. [blocked] CI workflow + scheduled dependency audit — FUTURE STAGE (deferred by user 2026-08-16; do not dispatch this build)
    - Task ID: T013
-   - Depends on: T005, T008, T010, T011, T012, T014 (all gates green first)
+   - Depends on: T005, T008, T010, T011, T012, T014 (all gates green first) — dependency edges remain valid for the future build that un-defers it
    - Parallel group: G7 (alone)
    - Risk: high (public-repo pipeline activation; secrets none required)
    - Owned scope: .github/workflows/ci.yml (new), .github/workflows/audit.yml (new)
@@ -307,8 +307,8 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 
 ## Verification Strategy
 - Per-task fast gates: `node --check` on touched files; `node scripts/check-suite.mjs` (<1s); csm-browse `npm test` (<10s, Docker-free) once T008 lands; targeted node:test files via `node --test test/<file>`.
-- Batch gates: csm-scan full suite `node --test --test-concurrency=1` (~92s) after any csm-scan-touching task (T004? no—T005, T010) and before T013; coverage run after T010.
-- Expensive/manual gates: browse e2e with Docker (T001 smoke, T009 full); concurrency smoke script (T007); mutation-sandbox validation of linter (T011); live CI run (T013).
+- Batch gates: csm-scan full suite `node --test --test-concurrency=1` (~92s) after any csm-scan-touching task (T005, T010, T014); coverage run after T010.
+- Expensive/manual gates: browse e2e with Docker (T001 smoke, T009 full); concurrency smoke script (T007); mutation-sandbox validation of linter (T011); live CI run (T013 — future stage only).
 - Parallel-safe: unit layers + check-suite + scan suite are mutually independent; e2e and concurrency smokes must not run simultaneously (shared container).
 - Known flaky/environment-sensitive: e2e (Docker-bound — skip probe), real-repo tests (env-gated after T010), coverage mode (green only after T010 fix; Node-version-coupled per U-4 — always run on Node 22 post-T004).
 
@@ -316,7 +316,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 - Supersession lock mishandled (T005): mitigation = atomic unit + documented flip; recovery = revert commit restores locks.
 - Protocol regression in browse (T007): mitigation = marker additive semantics + concurrency smoke; recovery = markers ignored by old sweep logic.
 - Linter v2 false-positives blocking edits (T011): mitigation = mutation-sandbox validation + per-check messages naming the fix; recovery = git revert restores old checker.
-- CI red on activation (T013): mitigation = all gates verified green locally pre-activation; recovery = workflows disableable without code impact.
+- CI red on activation (T013, future stage): mitigation = all gates verified green locally pre-activation; recovery = workflows disableable without code impact; deferral risk = until CI exists, gates rely on manual/local runs — mitigated by T008/T010 making every gate a single fast local command.
 - Node 22 unknown suite breaks (T004 spike): recorded as blockers if >0 failures; migration decision revisited before AC20 rewrite (U-4).
 - Baseline churn cascade (T005/T010): every baseline regeneration must cite the documented mechanism (supersession flip / integrity digest bump) in its commit message.
 
@@ -345,6 +345,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 | 2026-08-16 | 0 | CRITIQUE (independent subagent) | none | verdict: needs changes — 1 blocker, 5 major, 6 minor; all scout couplings confirmed honored | REMEDIATE |
 | 2026-08-16 | 0 | REMEDIATE (primary; corrections evidence-complete) | T001-T014 | T014 added; T012/T005/T007/T008/T010 scope+deps corrected; Goal/AC/graph/risk fixed; 13/13 critique findings resolved | VERIFY |
 | 2026-08-16 | 0 | VERIFY (primary gate) -> SAVED | T001-T014 | 14/14 tasks pending with full fields; phases 1-10 all owned (P1=T001 P2=T002 P3=T005 P4=T014 P5=T006+T007 P6=T008+T009 P7=T010 P8=T011 P9=T003+T004+T013 P10=T012); AC 1-10 mapped; deps consistent with graph; unique numbering; no artifacts | NOT_STARTED (awaits explicit csm-build) |
+| 2026-08-16 | 0 | SAVED -> SAVED (user-directed mutation) | T013 | Wave 5 deferred to future stage by user decision; T013 -> blocked; AC-9 split active/future; critical path now ends at T011; Control blockers updated | NOT_STARTED (awaits explicit csm-build; 13 active tasks) |
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)
