@@ -8,11 +8,12 @@ import {
 import { allocate, acquirePortLock, releasePortLock } from '../lib/ports.mjs';
 import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
-  CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS
+  CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH
 } from '../lib/constants.mjs';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -64,6 +65,18 @@ async function curlRetry(url, timeout = CDP_RETRY_TIMEOUT_MS) {
   return false;
 }
 
+async function ensureVncPassword() {
+  try {
+    const existing = (await readFile(VNC_PASS_PATH, 'utf-8')).trim();
+    if (existing) return existing;
+  } catch {}
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const password = Array.from(randomBytes(8), b => chars[b % chars.length]).join('');
+  await mkdir(dirname(VNC_PASS_PATH), { recursive: true, mode: 0o700 });
+  await writeFile(VNC_PASS_PATH, password, { mode: 0o600 });
+  return password;
+}
+
 async function ensureContainer(dryRun) {
   const running = await isContainerRunning(CONTAINER_NAME);
   const exists = running || await containerExists(CONTAINER_NAME);
@@ -100,7 +113,8 @@ async function ensureContainer(dryRun) {
       '--restart', 'unless-stopped',
       '-e', 'CHROMIUM_REMOTE_DEBUGGING=1',
       '-e', 'KEEP_APP_RUNNING=1',
-      '-p', '5900:5900', '-p', '9222:9222', IMAGE];
+      '-e', `VNC_PASSWORD=${await ensureVncPassword()}`,
+      '-p', '127.0.0.1:5900:5900', '-p', '127.0.0.1:9222:9222', IMAGE];
     await execFileAsync('docker', runArgs);
   }
 
@@ -134,7 +148,7 @@ async function adoptSession(ip, containerSessDir) {
     console.log(`Respawning socat on port ${publicPort} -> ${internalPort}`);
     await execDetached(CONTAINER_NAME, [
       'socat',
-      `TCP-LISTEN:${publicPort},fork,reuseaddr,bind=0.0.0.0`,
+      `TCP-LISTEN:${publicPort},fork,reuseaddr,bind=${ip}`,
       `TCP:127.0.0.1:${internalPort}`
     ]);
   } else {
@@ -211,7 +225,7 @@ async function createSession(ip, containerSessDir) {
       console.log(`Launching socat on ${pub} -> ${internal}...`);
       await execDetached(CONTAINER_NAME, [
         'socat',
-        `TCP-LISTEN:${pub},fork,reuseaddr,bind=0.0.0.0`,
+        `TCP-LISTEN:${pub},fork,reuseaddr,bind=${ip}`,
         `TCP:127.0.0.1:${internal}`
       ]);
       console.log('Socat launched');

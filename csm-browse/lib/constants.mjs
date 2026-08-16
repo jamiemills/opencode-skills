@@ -1,10 +1,15 @@
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 export const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 export const SESSIONS_ROOT = '/tmp/csm-browse';
 export const CONTAINER_NAME = 'chromium-vnc';
 export const IMAGE = 'jlesage/chromium:latest';
-export const DOCKER_RUN_CMD = 'docker run -d --name chromium-vnc --restart unless-stopped -e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1 -p 5900:5900 -p 9222:9222 jlesage/chromium:latest';
+// VNC password is generated once by ensure-browser.mjs and stored here (0600,
+// parent dir 0700); it is passed to the container as VNC_PASSWORD.
+export const VNC_PASS_PATH = join(homedir(), '.config', 'csm-browse', 'vnc-pass');
+export const DOCKER_RUN_CMD = 'docker run -d --name chromium-vnc --restart unless-stopped -e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1 -e VNC_PASSWORD=$(cat ~/.config/csm-browse/vnc-pass) -p 127.0.0.1:5900:5900 -p 127.0.0.1:9222:9222 jlesage/chromium:latest';
 export const CHROMIUM_BIN = '/usr/lib/chromium/chromium';
 export const PORT_POOL_START = 9224;
 export const PORT_POOL_END = 9234;
@@ -31,7 +36,6 @@ export const CDP_RETRY_TIMEOUT_MS = 30000;
 export const EVENTS_JSONL_ROTATION = 2000;
 export const CHROMIUM_FLAGS = [
   '--ozone-platform-hint=auto',
-  '--remote-debugging-address=0.0.0.0',
   '--no-first-run',
   '--password-store=basic',
   '--no-sandbox',
