@@ -48,7 +48,7 @@ if (sid) {
 }
 
 async function curlJson(url) {
-  const { stdout } = await execFileAsync('curl', ['-s', url]);
+  const { stdout } = await execFileAsync('curl', ['-s', '-m', '2', url]);
   return JSON.parse(stdout);
 }
 
@@ -82,7 +82,17 @@ async function ensureContainer(dryRun) {
   const exists = running || await containerExists(CONTAINER_NAME);
 
   if (running) {
-    console.log(`Container ${CONTAINER_NAME} already running (reusing)`);
+    console.log(`Container ${CONTAINER_NAME} already running (reusing) — probing CDP readiness...`);
+    let ready = await curlRetry('http://localhost:9222/json/version', 5000);
+    if (!ready) {
+      console.log('CDP not ready on reused container — restarting container...');
+      await execFileAsync('docker', ['restart', CONTAINER_NAME], { timeout: 60000 });
+      ready = await curlRetry('http://localhost:9222/json/version');
+      if (!ready) {
+        console.error('Shared browser CDP did not become ready after container restart');
+        process.exit(1);
+      }
+    }
     return;
   }
 
@@ -115,7 +125,7 @@ async function ensureContainer(dryRun) {
       '-e', 'KEEP_APP_RUNNING=1',
       '-e', `VNC_PASSWORD=${await ensureVncPassword()}`,
       '-p', '127.0.0.1:5900:5900', '-p', '127.0.0.1:9222:9222', IMAGE];
-    await execFileAsync('docker', runArgs);
+    await execFileAsync('docker', runArgs, { timeout: 60000 });
   }
 
   console.log('Waiting for shared browser CDP on localhost:9222...');
@@ -376,7 +386,10 @@ async function main() {
           return;
         }
       } else {
-        console.log('CDP reachable — reusing existing session');
+        console.log('CDP reachable but no daemon on record — launching daemon...');
+        const daemonPid = await launchDaemon(sid);
+        existingState.daemonPid = daemonPid;
+        if (daemonPid) await saveState(sid, existingState);
         console.log(JSON.stringify(existingState));
         return;
       }

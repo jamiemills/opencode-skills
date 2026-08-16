@@ -5,11 +5,20 @@ export async function run({ args, state, verb }) {
     const sel = args[0];
     const escaped = sel ? sel.replace(/\\/g, '\\\\').replace(/'/g, "\\'") : '';
     const expression = sel
-      ? `document.querySelector('${escaped}')?.innerText?.trim() || document.body?.innerText?.trim() || ''`
+      ? `document.querySelector('${escaped}')?.innerText?.trim() || ''`
       : `document.body?.innerText?.trim() || ''`;
 
     const client = await connect(state);
     const sessionId = await getSession(client);
+
+    if (sel) {
+      const match = await evalInPage(client, sessionId, `document.querySelector('${escaped}') !== null`);
+      if (!match || match.value !== true) {
+        await client.close();
+        console.error(`Element not found: "${sel}"`);
+        process.exit(1);
+      }
+    }
 
     const result = await evalInPage(client, sessionId, expression);
     const text = result && result.value ? String(result.value) : '';
@@ -23,11 +32,20 @@ export async function run({ args, state, verb }) {
     const sel = args[0];
     const escaped = sel ? sel.replace(/\\/g, '\\\\').replace(/'/g, "\\'") : '';
     const expression = sel
-      ? `document.querySelector('${escaped}')?.outerHTML || document.documentElement.outerHTML`
+      ? `document.querySelector('${escaped}')?.outerHTML || ''`
       : 'document.documentElement.outerHTML';
 
     const client = await connect(state);
     const sessionId = await getSession(client);
+
+    if (sel) {
+      const match = await evalInPage(client, sessionId, `document.querySelector('${escaped}') !== null`);
+      if (!match || match.value !== true) {
+        await client.close();
+        console.error(`Element not found: "${sel}"`);
+        process.exit(1);
+      }
+    }
 
     const result = await evalInPage(client, sessionId, expression);
     const html = result && result.value ? String(result.value) : '';

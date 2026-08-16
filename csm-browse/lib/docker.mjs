@@ -108,12 +108,22 @@ export async function execInContainer(container, args, env = {}) {
 }
 
 export async function pullImage(image) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('docker', ['pull', image], { stdio: 'inherit' });
-    proc.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`docker pull failed with code ${code}`));
-    });
-    proc.on('error', reject);
-  });
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await execFile('docker', ['pull', image], {
+        timeout: 300000,
+        maxBuffer: 10 * 1024 * 1024
+      });
+      return;
+    } catch (err) {
+      lastErr = err;
+      const reason = err.killed ? `timed out after 300s` : err.message;
+      if (attempt < 2) {
+        console.error(`docker pull failed (attempt 1 of 2: ${reason}) — retrying once...`);
+      }
+    }
+  }
+  const reason = lastErr && lastErr.killed ? 'timed out after 300s' : (lastErr && lastErr.message);
+  throw new Error(`docker pull failed after 2 attempts: ${reason}`);
 }

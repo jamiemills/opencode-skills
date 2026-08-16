@@ -90,11 +90,22 @@ export async function waitForSelector(client, sessionId, sel, timeoutMs = 5000) 
 }
 
 export async function evalInPage(client, sessionId, expression) {
-  const { result } = await client.send('Runtime.evaluate', {
+  const { result, exceptionDetails } = await client.send('Runtime.evaluate', {
     expression,
     returnByValue: true,
     awaitPromise: true
   }, sessionId);
+
+  if (exceptionDetails) {
+    let where = '';
+    if (typeof exceptionDetails.lineNumber === 'number' && typeof exceptionDetails.columnNumber === 'number') {
+      where = ` at line ${exceptionDetails.lineNumber + 1}, column ${exceptionDetails.columnNumber + 1}`;
+    }
+    const detail = exceptionDetails.exception &&
+      (exceptionDetails.exception.description || exceptionDetails.exception.value);
+    const suffix = detail ? `: ${String(detail).split('\n')[0]}` : '';
+    throw new Error(`Page evaluation threw${where}: ${exceptionDetails.text || 'exception'}${suffix}`);
+  }
 
   const json = JSON.stringify(result);
   if (json.length > 1024 * 1024) {

@@ -12,9 +12,9 @@
 - Current CSM state: CHECKPOINT
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 cycle 1 — Wave 1 complete (T001-T004 all verified): T001 loopback binds live-verified + independent review accept + e2e --quick 59/59; T002 OSV method fixed, check-suite green; T003 MIT LICENSE; T004 Node 22 verified (scan 1210/1210 on v22.23.2). Next: SELECT Wave 2 (T005, T014, T006)
-- Next transition: CHECKPOINT -> SELECT (Wave 2: T005, T014, T006 parallel)
-- Active tasks: none (next: T005, T014, T006)
+- Last checkpoint: 2026-08-16 cycle 2 — Wave 2 complete: T005+T004 privacy cutover (suite 1220/1220 incl. repair: R1 render-context threading closed 5 leak channels w/ hostile-fixture proof all-zero; R2 hidden-fail flag; R3 scan-coverage caveat; +primary fix: internal pattern-name vocabulary renders raw); T014 detection (both AWS forms+hidden pass proven); T006 lifecycle batch (10 fixes, e2e --quick 59/59). Independent security review: fix-first → repaired → re-verified. Next: SELECT Wave 3 (T007)
+- Next transition: CHECKPOINT -> SELECT (Wave 3: T007, then T008+T009)
+- Active tasks: none (next: T007)
 - Active tasks: none
 - Blockers: T013 (Wave 5: CI workflow + scheduled dependency audit) deferred to a future stage by user decision 2026-08-16 — not to be dispatched this build; plan completes without it.
 
@@ -157,7 +157,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: nvm is user-space; system node untouched; revert = use system node.
 
-5. [pending] csm-scan privacy cutover (one coherent unit)
+5. [completed] csm-scan privacy cutover (one coherent unit)
    - Task ID: T005
    - Depends on: none (soft: after T004 to verify on target Node)
    - Parallel group: G2
@@ -172,7 +172,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: if suite red mid-unit, the supersession flip is the last sub-step — commit code+tests+flip atomically; partial state detectable via expansion-baseline failure naming the lock entry.
 
-6. [pending] Browse lifecycle batch A (code-only, no protocol change)
+6. [completed] Browse lifecycle batch A (code-only, no protocol change)
    - Task ID: T006
    - Depends on: none
    - Parallel group: G2
@@ -246,7 +246,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: test-only changes; production untouched.
 
-11. [pending] csm-scan detection fixes (review phase 4)
+11. [completed] csm-scan detection fixes (review phase 4)
    - Task ID: T014
    - Depends on: none (soft: T004 for final verification on Node 22)
    - Parallel group: G2 (with T005 — file-disjoint: this task owns the detection libs, T005 owns render/write/privacy)
@@ -349,11 +349,19 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 | 2026-08-16 | 0 | SAVED -> SAVED (user-directed mutation) | T013 | Wave 5 deferred to future stage by user decision; T013 -> blocked; AC-9 split active/future; critical path now ends at T011; Control blockers updated | NOT_STARTED (awaits explicit csm-build; 13 active tasks) |
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT | none | explicit csm-build invocation; baseline verified green at a1615f0 (check-suite 156 OK; scan 1210/1210; check-skill PASS); no NORMS.md | DISPATCH (Wave 1) |
 | 2026-08-16 | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR(none) -> CHECKPOINT | T001-T004 | T001: loopback+socat-IP+VNC-pass, container recreated, independent review accept (medium finding: e2e smoke — satisfied: --quick 59/59 PASS 32s); T002: 4 SKILL.md edits, all gates green; T003: LICENSE+field+README; T004: Node 22 (nvm user-space), scan 1210/1210 + gates green on v22.23.2, F-025 confirmed Node-independent (263 cov failures on both). Reviewer hardening notes deferred to T007 | SELECT (Wave 2) |
+| 2026-08-16 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T005, T014, T006 | T005: privacy cutover + supersession flip (deterministic-ordering-paths→superseded w/ digest-locked replacement); T014: 4 detection fixes + scanCoverage disclosure (proofs: both AWS forms + gitignored .env detected, mixed-manifest unverified); T006: 10 lifecycle fixes w/ stub harnesses. Independent security review verdict fix-first (R1 high: render-context never reached deep renderers — 5 leak channels PoC'd; R2 hidden fail-open; R3 invisible disclosure) → repair agent landed context threading + scoped-name-aware sanitizeStructuredText + fail flag + caveat rendering → hostile fixture all-zero + deps render; primary fixed pattern-name over-redaction. Suite 1220/1220; e2e --quick 59/59; check-suite OK | SELECT (Wave 3: T007) |
 
 ### Cycle-1 Discovered Requirements (added)
 - Node 22 on this host: use `export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"` — `nvm use 22` fails due to ~/.npmrc prefix conflict (do NOT modify ~/.npmrc; not owned).
 - T007 absorbs (from T001 review): `if (!ip) throw` guard before socat create/adopt; optional `wx` write in ensureVncPassword.
 - e2e summary writes to ~/.agents/docs/csm-browse-e2e-summary.json (T009 moves to repo-local/env path).
+
+### Cycle-2 Discovered Requirements (added)
+- Fail-closed privacy hooks over-redact scanner-internal vocabularies (pattern names rendered [redacted]); fixed via isSecretPatternName raw-render — future render-context work must distinguish internal constants from repo-controlled strings.
+- T005 extended (reviewer-forced, unowned-by-others): render/testing.mjs, deep/architecture.mjs (System name), deep/documentation.mjs (relative findFile), pipeline/run.mjs (registry context) — all privacy-boundary completions.
+- SKILL.md:198 (csm-scan) still carries the old broad privacy sentence — T012 aligns with new USAGE wording.
+- T006 behavior change: unmatched selectors in dom text/html now exit 1 (was silent body fallback) — T009 e2e must confirm no step relies on lenient fallback (e2e --quick 59/59 passed post-change).
+- reuse-path `docker restart` destroys all in-container sessions when shared CDP is wedged — acceptable degraded-container semantics; T007 sweep must not fight it.
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

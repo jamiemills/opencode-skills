@@ -192,15 +192,7 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
 
   client.on('Page.screencastFrame', frameHandler);
 
-  try {
-    await client.send('Page.startScreencast', {
-      format: 'jpeg',
-      quality: SCREENCAST_QUALITY,
-      maxWidth: SCREENCAST_MAX_WIDTH,
-      maxHeight: SCREENCAST_MAX_HEIGHT,
-      everyNthFrame: SCREENCAST_EVERY_NTH
-    }, sessionId);
-  } catch (err) {
+  const failStart = async (err) => {
     stopRequested = true;
     ffmpeg.kill();
     client.off('Page.screencastFrame', frameHandler);
@@ -211,8 +203,7 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
         error: err.message
       }), 'utf-8');
     } catch {}
-    throw err;
-  }
+  };
 
   const recorderState = {
     running: true,
@@ -221,7 +212,25 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     outPath
   };
 
-  await writeFile(recorderJsonPath, JSON.stringify(recorderState), 'utf-8');
+  try {
+    await writeFile(recorderJsonPath, JSON.stringify(recorderState), 'utf-8');
+  } catch (err) {
+    await failStart(err);
+    throw err;
+  }
+
+  try {
+    await client.send('Page.startScreencast', {
+      format: 'jpeg',
+      quality: SCREENCAST_QUALITY,
+      maxWidth: SCREENCAST_MAX_WIDTH,
+      maxHeight: SCREENCAST_MAX_HEIGHT,
+      everyNthFrame: SCREENCAST_EVERY_NTH
+    }, sessionId);
+  } catch (err) {
+    await failStart(err);
+    throw err;
+  }
 
   activeRecording = {
     ffmpeg,

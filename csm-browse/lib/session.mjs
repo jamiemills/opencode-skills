@@ -1,4 +1,4 @@
-import { readFile, writeFile, rm, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, rename, rm, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { SID_REGEX, SESSIONS_ROOT } from './constants.mjs';
@@ -33,7 +33,9 @@ export async function saveState(sid, state) {
   const dir = sessionDir(sid);
   await mkdir(dir, { recursive: true });
   const statePath = join(dir, 'state.json');
-  await writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
+  const tmpPath = join(dir, 'state.json.tmp');
+  await writeFile(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
+  await rename(tmpPath, statePath);
 }
 
 export async function removeState(sid) {

@@ -1,4 +1,4 @@
-import { readFile, writeFile, rename, mkdir, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, readdir, rm, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_POLL_INTERVAL_MS } from './constants.mjs';
@@ -75,6 +75,13 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
           const raw = await readFile(runningPath, 'utf-8');
           cmd = JSON.parse(raw);
         } catch {
+          const malformed = { ok: false, error: 'malformed command file', ts: new Date().toISOString() };
+          try {
+            const tmpOutPath = outPath + '.tmp';
+            await writeFile(tmpOutPath, JSON.stringify(malformed), 'utf-8');
+            await rename(tmpOutPath, outPath);
+          } catch {}
+          try { await unlink(runningPath); } catch {}
           continue;
         }
 

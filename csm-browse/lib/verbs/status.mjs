@@ -1,5 +1,5 @@
 import { connect } from '../cdp.mjs';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionDir } from '../session.mjs';
@@ -39,7 +39,10 @@ export async function run({ args, state, verb }) {
       } catch {}
     }
 
-    const artifactCount = 0;
+    let artifactCount = 0;
+    try {
+      artifactCount = (await readdir(join(state.sessionDir, 'artifacts'))).length;
+    } catch {}
 
     console.log(JSON.stringify({
       version: versionResult && versionResult.product,

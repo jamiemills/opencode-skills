@@ -37,13 +37,20 @@ async function getStickyHeight(client, sessionId) {
   return (result && result.value) ? result.value : 0;
 }
 
-async function ffmpegVstack(inputFiles, outputPath) {
+function jpegQScale(quality) {
+  // Map quality 1-100 to ffmpeg mjpeg -q:v range (2 = best, 31 = worst)
+  return Math.max(2, Math.min(31, Math.round(31 - (quality * 29) / 100)));
+}
+
+async function ffmpegVstack(inputFiles, outputPath, quality = null) {
   return new Promise((resolve, reject) => {
     const args = [];
     for (const f of inputFiles) args.push('-i', f);
     const pads = inputFiles.map((_, i) => `[${i}]`).join('');
     const filter = `${pads}vstack=inputs=${inputFiles.length}`;
-    args.push('-filter_complex', filter, '-frames:v', '1', '-y', outputPath);
+    args.push('-filter_complex', filter, '-frames:v', '1');
+    if (quality !== null) args.push('-q:v', String(jpegQScale(quality)));
+    args.push('-y', outputPath);
     const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '';
     proc.stderr.on('data', d => stderr += d.toString());
@@ -68,7 +75,11 @@ export async function run({ args, state }) {
 
   let quality = cfg.quality;
   const qi = args.indexOf('--quality');
+  const qualityExplicit = qi !== -1;
   if (qi !== -1 && args[qi + 1]) quality = Math.min(100, Math.max(1, parseInt(args[qi + 1], 10) || 80));
+  if (qualityExplicit && cfg.format === 'png') {
+    console.error('Warning: --quality applies to JPEG output only; ignored for lossless PNG');
+  }
 
   const positional = args.filter(a => !a.startsWith('--') && !/^\d+$/.test(a)).filter((a, i, arr) => {
     const idx = args.indexOf(a);
@@ -151,7 +162,7 @@ export async function run({ args, state }) {
           y += step;
         }
 
-        await ffmpegVstack(tmpFiles, outPath);
+        await ffmpegVstack(tmpFiles, outPath, cfg.format === 'jpeg' ? quality : null);
       } finally {
         for (const f of tmpFiles) {
           try { await unlink(f); } catch {}

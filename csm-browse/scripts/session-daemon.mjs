@@ -114,7 +114,7 @@ try {
       if (recorder.stopRecorder) {
         console.log('Finalizing recorder...');
         await withTimeout(
-          recorder.stopRecorder(client, tabSessionId),
+          recorder.stopRecorder(client, tabSessionId, sDir),
           3000,
           'Recorder finalize'
         );
