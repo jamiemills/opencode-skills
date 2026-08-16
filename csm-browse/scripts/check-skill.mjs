@@ -1,7 +1,8 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname, basename } from 'node:path';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { resolve, dirname, basename, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = resolve(__dirname, '..');
@@ -59,25 +60,72 @@ function validateFrontmatter(content) {
   return true;
 }
 
-function validatePackageJson() {
+function loadPackageJson() {
   const pkgPath = resolve(SKILL_DIR, 'package.json');
   if (!existsSync(pkgPath)) {
     err('package.json not found');
-    return;
+    return null;
   }
   try {
-    JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    return JSON.parse(readFileSync(pkgPath, 'utf-8'));
   } catch (e) {
     err(`package.json invalid JSON: ${e.message}`);
+    return null;
   }
 }
 
-function validateDep() {
+// Resolve every declared dependency (chrome-remote-interface, jimp, ...).
+function validateDeps(pkg) {
+  if (!pkg) return;
   const require = createRequire(resolve(SKILL_DIR, 'package.json'));
-  try {
-    require.resolve('chrome-remote-interface');
-  } catch {
-    err('node_modules/chrome-remote-interface not resolvable (run npm install)');
+  for (const dep of Object.keys(pkg.dependencies ?? {})) {
+    try {
+      require.resolve(dep);
+    } catch {
+      err(`dependency "${dep}" not resolvable (run npm install)`);
+    }
+  }
+}
+
+function collectMjs(dir) {
+  const out = [];
+  if (!existsSync(dir)) return out;
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, ent.name);
+    if (ent.isDirectory()) out.push(...collectMjs(p));
+    else if (ent.isFile() && ent.name.endsWith('.mjs')) out.push(p);
+  }
+  return out;
+}
+
+// Syntax-check every lib/ and scripts/ module plus the unit test layer.
+// tests/e2e.mjs and tests/serve.mjs are intentionally NOT swept here (owned
+// and checked concurrently by a separate task).
+function validateSyntax() {
+  const files = [];
+  for (const sub of ['lib', 'scripts', join('tests', 'unit')]) {
+    files.push(...collectMjs(resolve(SKILL_DIR, sub)));
+  }
+  if (files.length === 0) {
+    err('no .mjs files found under lib/, scripts/, tests/unit/');
+    return;
+  }
+  for (const f of files) {
+    const res = spawnSync(process.execPath, ['--check', f], { encoding: 'utf-8' });
+    if (res.status !== 0) {
+      const detail = (res.stderr || '').split('\n').filter(Boolean)[0] ?? '';
+      err(`node --check failed: ${relative(SKILL_DIR, f)}: ${detail}`);
+    }
+  }
+}
+
+const REQUIRED_FIXTURES = ['animated.html', 'login.html', 'page1.html', 'page2.html', 'wall.html'];
+
+function validateFixtures() {
+  for (const name of REQUIRED_FIXTURES) {
+    if (!existsSync(resolve(SKILL_DIR, 'tests', 'fixtures', name))) {
+      err(`tests/fixtures/${name} missing`);
+    }
   }
 }
 
@@ -85,8 +133,10 @@ const content = loadSkillMd();
 if (content !== null) {
   validateFrontmatter(content);
 }
-validatePackageJson();
-validateDep();
+const pkg = loadPackageJson();
+validateDeps(pkg);
+validateSyntax();
+validateFixtures();
 
 if (errors.length > 0) {
   for (const e of errors) {

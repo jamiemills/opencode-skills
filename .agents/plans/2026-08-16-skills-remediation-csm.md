@@ -12,9 +12,9 @@
 - Current CSM state: CHECKPOINT
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 cycle 2 — Wave 2 complete: T005+T004 privacy cutover (suite 1220/1220 incl. repair: R1 render-context threading closed 5 leak channels w/ hostile-fixture proof all-zero; R2 hidden-fail flag; R3 scan-coverage caveat; +primary fix: internal pattern-name vocabulary renders raw); T014 detection (both AWS forms+hidden pass proven); T006 lifecycle batch (10 fixes, e2e --quick 59/59). Independent security review: fix-first → repaired → re-verified. Next: SELECT Wave 3 (T007)
-- Next transition: CHECKPOINT -> SELECT (Wave 3: T007, then T008+T009)
-- Active tasks: none (next: T007)
+- Last checkpoint: 2026-08-16 cycle 3 — Wave 3 complete: T007 protocol (marker/liveness-first sweep/lock narrowing+claimedPortSet/wx pid claim/disconnect cleanup/ts queue; 3-session concurrency smoke PASS); T008 unit layer (49 tests, 131 asserts, 1.8s Docker-free); T009 e2e de-hardened (probe+skip, ephemeral port, traversal 403, sweep-decoy steps). Independent review ACCEPT + 3 fixes applied by primary (socat-pass re-readdir, dead FIXTURE_BASE export removed, exit-2 winner-marker preservation) + skip-summary fix. FULL e2e 86/86. Next: SELECT Wave 4 (T010, T012 parallel; then T011)
+- Next transition: CHECKPOINT -> SELECT (Wave 4: T010 + T012 parallel, then T011)
+- Active tasks: none (next: T010, T012)
 - Active tasks: none
 - Blockers: T013 (Wave 5: CI workflow + scheduled dependency audit) deferred to a future stage by user decision 2026-08-16 — not to be dispatched this build; plan completes without it.
 
@@ -187,7 +187,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: independent small fixes — any single revert is safe.
 
-7. [pending] Browse lifecycle batch B (protocol + DI seams)
+7. [completed] Browse lifecycle batch B (protocol + DI seams)
    - Task ID: T007
    - Depends on: T006 (soft: T005 — wave barrier keeps it after the privacy cutover settles baselines)
    - Parallel group: G3
@@ -202,7 +202,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: marker files are additive; if sweep regresses, marker presence is a no-op for old logic.
 
-8. [pending] Browse unit-test layer + npm scripts + check-skill extension
+8. [completed] Browse unit-test layer + npm scripts + check-skill extension
    - Task ID: T008
    - Depends on: T007
    - Parallel group: G4 (with T009)
@@ -217,7 +217,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: additive test files; failing unit ≠ broken prod (triage individually).
 
-9. [pending] e2e de-hardening + safety fixes
+9. [completed] e2e de-hardening + safety fixes
    - Task ID: T009
    - Depends on: T007
    - Parallel group: G4 (with T008; file-disjoint: this task owns tests/e2e.mjs + tests/serve.mjs + constants FIXTURE_BASE line + SKILL.md docs)
@@ -350,6 +350,14 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT | none | explicit csm-build invocation; baseline verified green at a1615f0 (check-suite 156 OK; scan 1210/1210; check-skill PASS); no NORMS.md | DISPATCH (Wave 1) |
 | 2026-08-16 | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR(none) -> CHECKPOINT | T001-T004 | T001: loopback+socat-IP+VNC-pass, container recreated, independent review accept (medium finding: e2e smoke — satisfied: --quick 59/59 PASS 32s); T002: 4 SKILL.md edits, all gates green; T003: LICENSE+field+README; T004: Node 22 (nvm user-space), scan 1210/1210 + gates green on v22.23.2, F-025 confirmed Node-independent (263 cov failures on both). Reviewer hardening notes deferred to T007 | SELECT (Wave 2) |
 | 2026-08-16 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T005, T014, T006 | T005: privacy cutover + supersession flip (deterministic-ordering-paths→superseded w/ digest-locked replacement); T014: 4 detection fixes + scanCoverage disclosure (proofs: both AWS forms + gitignored .env detected, mixed-manifest unverified); T006: 10 lifecycle fixes w/ stub harnesses. Independent security review verdict fix-first (R1 high: render-context never reached deep renderers — 5 leak channels PoC'd; R2 hidden fail-open; R3 invisible disclosure) → repair agent landed context threading + scoped-name-aware sanitizeStructuredText + fail flag + caveat rendering → hostile fixture all-zero + deps render; primary fixed pattern-name over-redaction. Suite 1220/1220; e2e --quick 59/59; check-suite OK | SELECT (Wave 3: T007) |
+| 2026-08-16 | 3 | SELECT -> DISPATCH (T007; then T008+T009 parallel) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T007, T008, T009 | T007: full protocol + DI seams; live 3-session concurrency smoke PASS (distinct pairs, zero cross-kills, sweep preserved all). T008: 49 unit tests Docker-free 1.8s, all deps checked, node --check sweep. T009: e2e probe/skip + ephemeral-port fixture server (traversal 403) + Step14 sweep decoys + SKILL.md troubleshooting. Independent review ACCEPT w/ 3 fixes → primary applied (re-readdir socat pass; FIXTURE_BASE dead export removed; exit-2 marker preservation) + skip-summary. npm test 49/49; FULL e2e 86/86 (59s); check-suite OK | SELECT (Wave 4: T010+T012, then T011) |
+
+### Cycle-3 Discovered Requirements (added)
+- e2e --quick skips Steps 9/10 — only FULL runs exercise the daemon-kill and recording steps; gate full runs after protocol changes (done this cycle: 86/86).
+- execDetached/execInContainer have no timeout — a hung docker exec inside the port-lock critical section can exceed LOCK_WAIT (waiters fail cleanly; pre-existing, low).
+- tests/unit fake CDP imports `ws` as undeclared transitive dep of chrome-remote-interface — declare as devDependency if CRI bump ever breaks it (deferred).
+- e2e Step 14 exhaustive-emptiness assert is flake-prone on machines with stale /tmp/csm-browse artifacts (works here; pre-clean before running on shared hosts).
+- sweepStaleRunning only runs at daemon start — a daemon dying mid-command and relaunched <30s leaves its running/ claim until client timeout backstops (documented).
 
 ### Cycle-1 Discovered Requirements (added)
 - Node 22 on this host: use `export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"` — `nvm use 22` fails due to ~/.npmrc prefix conflict (do NOT modify ~/.npmrc; not owned).

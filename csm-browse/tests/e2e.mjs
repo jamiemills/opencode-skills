@@ -1,17 +1,63 @@
 #!/usr/bin/env node
-import { execFile, exec } from 'node:child_process';
+import { execFile, exec, spawn, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
-const FIXTURE_BASE = 'http://172.17.0.1:8090';
 const QUICK = process.argv.includes('--quick');
 const SESSION_ID = `e2e-${Date.now()}`;
-const DOCS_DIR = process.env.CSM_E2E_DOCS_DIR || join(homedir(), '.agents', 'docs');
+const SUMMARY_PATH = process.env.CSM_BROWSE_E2E_SUMMARY || join(SKILL_DIR, 'tests', '.e2e-summary.json');
 const E2E_START = Date.now();
 const MAX_E2E_MS = 600000;
+
+// ── Docker / environment probe ────────────────────────────────────
+// e2e is Docker-gated: skip cleanly (exit 0) when Docker or the
+// chromium-vnc container cannot be used. CSM_BROWSE_E2E_SKIP=1 forces it.
+
+function detectBridgeGateway() {
+  try {
+    const out = execFileSyncProbe('ip', ['route']);
+    const m = out.match(/dev\s+docker0\b.*\bsrc\s+(\d+\.\d+\.\d+\.\d+)/);
+    if (m) return m[1];
+  } catch {}
+  return '172.17.0.1';
+}
+
+function execFileSyncProbe(cmd, args) {
+  return execFileSync(cmd, args, { timeout: 2000, encoding: 'utf-8' });
+}
+
+// Env override wins; else docker bridge gateway (fixture port is appended
+// after the server reports it via the READY handshake).
+const FIXTURE_ORIGIN = process.env.CSM_BROWSE_FIXTURE_BASE || `http://${detectBridgeGateway()}`;
+let FIXTURE_BASE = FIXTURE_ORIGIN;
+
+async function dockerProbeOk() {
+  const info = await run('docker', ['info'], { timeout: 15000 });
+  if (info.error) return false;
+  // Container running? Then we are done. If absent entirely, ensure-browser
+  // can still create it offline only when the image is already local.
+  const ps = await run('docker', ['ps', '-a', '--filter', 'name=^chromium-vnc$', '--format', '{{.Names}}'], { timeout: 15000 });
+  if (ps.stdout.trim() === 'chromium-vnc') return true;
+  const img = await run('docker', ['inspect', '--type=image', 'jlesage/chromium:latest'], { timeout: 15000 });
+  return !img.error;
+}
+
+async function maybeSkip() {
+  if (process.env.CSM_BROWSE_E2E_SKIP === '1') {
+    console.log('SKIP: Docker/chromium-vnc unavailable (CSM_BROWSE_E2E_SKIP=1)');
+    mkdirSync(dirname(SUMMARY_PATH), { recursive: true });
+    writeFileSync(SUMMARY_PATH, JSON.stringify({ skipped: true, reason: 'CSM_BROWSE_E2E_SKIP=1', ts: new Date().toISOString() }, null, 2), 'utf-8');
+    process.exit(0);
+  }
+  if (!(await dockerProbeOk())) {
+    console.log('SKIP: Docker/chromium-vnc unavailable');
+    mkdirSync(dirname(SUMMARY_PATH), { recursive: true });
+    writeFileSync(SUMMARY_PATH, JSON.stringify({ skipped: true, reason: 'docker-unavailable', ts: new Date().toISOString() }, null, 2), 'utf-8');
+    process.exit(0);
+  }
+}
 
 let passCount = 0;
 let failCount = 0;
@@ -48,14 +94,6 @@ function run(cmd, args, opts = {}) {
   });
 }
 
-function shell(command, opts = {}) {
-  return new Promise((resolve) => {
-    exec(command, { timeout: opts.timeout || 60000, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
-      resolve({ error, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() });
-    });
-  });
-}
-
 function dockerArgs(args) {
   return ['exec', 'chromium-vnc', ...args];
 }
@@ -64,7 +102,7 @@ function startServer() {
   return new Promise((resolve, reject) => {
     const child = exec(
       `node '${join(SKILL_DIR, 'tests', 'serve.mjs')}'`,
-      { cwd: SKILL_DIR, timeout: 60000 },
+      { cwd: SKILL_DIR, timeout: 120000 },
       () => {}
     );
     let started = false;
@@ -72,8 +110,16 @@ function startServer() {
       if (!started) { try { child.kill('SIGTERM'); } catch {} reject(new Error('timeout waiting for server READY')); }
     }, 10000);
     child.stdout.on('data', (data) => {
-      if (!started && data.toString().includes('READY')) {
-        started = true; clearTimeout(timeout); serverPid = child.pid; resolve(true);
+      if (!started) {
+        const m = data.toString().match(/READY\s+(\d+)/);
+        if (m) {
+          started = true; clearTimeout(timeout); serverPid = child.pid;
+          // Env base may pin an explicit port; otherwise append the ephemeral
+          // port reported by the READY handshake.
+          const originHasPort = /:\d+(?:\/|$)/.test(FIXTURE_ORIGIN);
+          FIXTURE_BASE = originHasPort ? FIXTURE_ORIGIN : `${FIXTURE_ORIGIN}:${m[1]}`;
+          resolve(true);
+        }
       }
     });
     child.stderr.on('data', () => {});
@@ -91,9 +137,26 @@ function killServer() {
 }
 
 async function ensureSession() {
+  return ensureSid(SESSION_ID);
+}
+
+async function browse(verb, ...args) {
+  return browseAs(SESSION_ID, verb, ...args);
+}
+
+async function browseAs(sid, verb, ...args) {
+  const started = Date.now();
+  const allArgs = [join(SKILL_DIR, 'scripts', 'browse.mjs'), verb, '--session', sid, ...args];
+  const { error, stdout, stderr } = await run('node', allArgs, { timeout: 35000 });
+  const durationMs = Date.now() - started;
+  verbDurations[verb] = (verbDurations[verb] || 0) + durationMs;
+  return { ok: !error, stdout, stderr, durationMs };
+}
+
+async function ensureSid(sid) {
   const { error, stdout } = await run('node', [
     join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'),
-    '--session', SESSION_ID
+    '--session', sid
   ], { timeout: 120000 });
   if (error && !stdout) throw error;
   const lines = stdout.trim().split('\n');
@@ -103,15 +166,6 @@ async function ensureSession() {
     throw new Error(`ensure-browser did not output valid JSON state. Last line: ${lastLine}`);
   }
   return state;
-}
-
-async function browse(verb, ...args) {
-  const started = Date.now();
-  const allArgs = [join(SKILL_DIR, 'scripts', 'browse.mjs'), verb, '--session', SESSION_ID, ...args];
-  const { error, stdout, stderr } = await run('node', allArgs, { timeout: 35000 });
-  const durationMs = Date.now() - started;
-  verbDurations[verb] = (verbDurations[verb] || 0) + durationMs;
-  return { ok: !error, stdout, stderr, durationMs };
 }
 
 function parseJson(str) {
@@ -139,15 +193,6 @@ async function runTests() {
     console.log(`\n=== csm-browse E2E Suite ===`);
     console.log(`Session: ${SESSION_ID}`);
     console.log(`Quick mode: ${QUICK ? 'ON (skipping video & daemon restart)' : 'OFF'}\n`);
-
-    // ── Pre-cleanup ───────────────────────────────────────────────
-    try {
-      const { stdout } = await shell('fuser 8090/tcp 2>/dev/null');
-      if (stdout.trim()) {
-        await shell('fuser -k 8090/tcp 2>/dev/null');
-        await new Promise(r => setTimeout(r, 500));
-      }
-    } catch {}
 
     // ── Step 1: Baseline ──────────────────────────────────────────
     {
@@ -296,12 +341,13 @@ async function runTests() {
           data ? JSON.stringify(data.result).substring(0, 80) : r.stdout);
 
         r = await browse('eval', 'throw new Error("e2e-test-error")');
-        data = parseJson(r.stdout);
-        assert(step + ' - eval throwing → result present',
-          data && data.result !== undefined, r.stdout.substring(0, 100));
-        assert(step + ' - eval throwing → subtype error',
-          data && data.result && data.result.subtype === 'error',
-          data && data.result ? `subtype=${data.result.subtype}` : r.stdout.substring(0, 80));
+        // T006 strict-eval behavior: page exceptions surface as a verb error
+        // (non-zero exit + descriptive stderr), not a {result:{subtype:error}} payload.
+        assert(step + ' - eval throwing → verb fails', !r.ok,
+          `ok=${r.ok} stderr="${r.stderr.substring(0, 100)}"`);
+        assert(step + ' - eval throwing → error surfaced',
+          r.stderr.includes('Page evaluation threw') && r.stderr.includes('e2e-test-error'),
+          `stderr="${r.stderr.substring(0, 120)}"`);
       } catch (e) {
         fail(step, e.message);
       }
@@ -465,8 +511,16 @@ async function runTests() {
         }
         if (!dead && stateBefore.daemonPid) {
           try { process.kill(stateBefore.daemonPid, 'SIGKILL'); } catch {}
+          // SIGKILL fallback: poll until kill(pid,0) throws (reaped), bounded 5s.
+          const start2 = Date.now();
+          while (Date.now() - start2 < 5000) {
+            try {
+              process.kill(stateBefore.daemonPid, 0);
+              await new Promise(r => setTimeout(r, 100));
+            } catch { dead = true; break; }
+          }
         }
-        assert(step + ' - daemon killed', true);
+        assert(step + ' - daemon killed', dead === true);
 
         await new Promise(r => setTimeout(r, 1000));
 
@@ -641,12 +695,160 @@ async function runTests() {
       }
     }
 
+    // ── Step 14: Sweep decoys (orphan ffmpeg / orphan socat / stale
+    //    recorder lock / creating.marker protection) ────────────────
+    {
+      const step = '14. Sweep decoys';
+      const liveSid = `sweep-live-${Date.now()}`;
+      const ffmpegSid = `sweep-decoy-ffmpeg-${Date.now()}`;
+      const recSid = `sweep-decoy-rec-${Date.now()}`;
+      const markerSid = `sweep-decoy-creating-${Date.now()}`;
+      let decoySocatPort = null;
+      let decoyFfmpegProc = null;
+      try {
+        // Live session: must survive every sweep below untouched.
+        const liveState = await ensureSid(liveSid);
+        assert(step + ' - live session created', liveState && typeof liveState.daemonPid === 'number',
+          liveState ? `pid=${liveState.daemonPid}` : 'no state');
+
+        // Decoy 1 — orphan host ffmpeg: a recording process whose session dir
+        // has a dead/absent daemon and an old mtime. Spawn a real short
+        // ffmpeg (or an argv0-named sleep when ffmpeg is absent) that
+        // legitimately matches the sweep's pgrep pattern; the dir stays (the
+        // age-based orphan branch is what we exercise), backdated past the
+        // staleness threshold.
+        const ffmpegRoot = join('/tmp', 'csm-browse', ffmpegSid);
+        const ffmpegDir = join(ffmpegRoot, 'artifacts');
+        mkdirSync(ffmpegDir, { recursive: true });
+        const ffmpegProbe = await run('ffmpeg', ['-version'], { timeout: 10000 });
+        if (!ffmpegProbe.error) {
+          decoyFfmpegProc = spawn('ffmpeg', [
+            '-loglevel', 'error', '-y',
+            // -re: pace encoding at native framerate so the decoy stays alive
+            // in real time (without it, 300s of black encodes in under a second).
+            '-re', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:r=5',
+            '-t', '300', join(ffmpegDir, 'decoy.mp4')
+          ], { detached: true, stdio: 'ignore' });
+          decoyFfmpegProc.unref();
+        } else {
+          decoyFfmpegProc = spawn('sh', ['-c', `exec -a ffmpeg sleep 300 ${ffmpegRoot}`],
+            { detached: true, stdio: 'ignore' });
+          decoyFfmpegProc.unref();
+        }
+        let ffmpegUp = false;
+        for (let i = 0; i < 20 && !ffmpegUp; i++) {
+          const pg = await run('pgrep', ['-af', `ffmpeg.*${ffmpegSid}`]);
+          if (pg.stdout.trim()) ffmpegUp = true;
+          else await new Promise(r => setTimeout(r, 300));
+        }
+        assert(step + ' - decoy ffmpeg running', ffmpegUp);
+        // Orphan it: no daemon.pid, session age backdated past the threshold.
+        const oldTs = new Date(Date.now() - 5 * 3600 * 1000);
+        writeFileSync(join(ffmpegRoot, 'state.json'), JSON.stringify({ sid: ffmpegSid }), 'utf-8');
+        utimesSync(join(ffmpegRoot, 'state.json'), oldTs, oldTs);
+        utimesSync(ffmpegRoot, oldTs, oldTs);
+
+        // Decoy 2 — orphan container socat on a pool port with no chromium.
+        for (let port = 9235; port >= 9225 && decoySocatPort === null; port--) {
+          const occupied = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${port}`]));
+          if (!occupied.stdout.trim()) decoySocatPort = port;
+        }
+        assert(step + ' - free pool port found', decoySocatPort !== null);
+        if (decoySocatPort !== null) {
+          await run('docker', [
+            'exec', '-d', 'chromium-vnc',
+            'socat', `TCP-LISTEN:${decoySocatPort},fork,reuseaddr`, 'TCP:127.0.0.1:9223'
+          ], { timeout: 15000 });
+          let socatUp = false;
+          for (let i = 0; i < 20 && !socatUp; i++) {
+            const pg = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${decoySocatPort}`]));
+            if (pg.stdout.trim()) socatUp = true;
+            else await new Promise(r => setTimeout(r, 300));
+          }
+          assert(step + ' - decoy socat running', socatUp);
+        }
+
+        // Decoy 3 — stale recorder.json {running:true} with a dead daemon pid.
+        const recDir = join('/tmp', 'csm-browse', recSid);
+        mkdirSync(recDir, { recursive: true });
+        writeFileSync(join(recDir, 'state.json'), JSON.stringify({ sid: recSid }), 'utf-8');
+        const reaper = spawn('sleep', ['0.3'], { stdio: 'ignore' });
+        const reaperPid = reaper.pid;
+        await new Promise(r => setTimeout(r, 1500));
+        let reaperDead = false;
+        try { process.kill(reaperPid, 0); } catch { reaperDead = true; }
+        assert(step + ' - dead pid helper', reaperDead);
+        writeFileSync(join(recDir, 'daemon.pid'), String(reaperPid), 'utf-8');
+        writeFileSync(join(recDir, 'recorder.json'), JSON.stringify({ running: true, file: 'decoy.webm' }), 'utf-8');
+
+        // Dry-run: all three decoys listed, nothing else, live session absent.
+        const dry2 = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale', '--dry-run'], { timeout: 60000 });
+        let dryPayload = null;
+        try {
+          dryPayload = JSON.parse(dry2.stdout.trim().split('\n').pop());
+        } catch {}
+        const removed = (dryPayload && Array.isArray(dryPayload.removed)) ? dryPayload.removed : [];
+        assert(step + ' - dry-run lists orphan ffmpeg', removed.some(r => r.includes(`orphan ffmpeg sid=${ffmpegSid}`)),
+          JSON.stringify(removed));
+        assert(step + ' - dry-run lists orphan socat', removed.some(r => r.includes(`orphan socat port=${decoySocatPort}`)),
+          JSON.stringify(removed));
+        assert(step + ' - dry-run lists stale recorder lock', removed.some(r => r.includes(`stale recorder lock sid=${recSid}`)),
+          JSON.stringify(removed));
+        assert(step + ' - dry-run omits live session', !removed.some(r => r.includes(liveSid)),
+          JSON.stringify(removed));
+        const unexpected = removed.filter(r =>
+          !r.includes(ffmpegSid) && !r.includes(`orphan socat port=${decoySocatPort}`) && !r.includes(recSid));
+        assert(step + ' - dry-run lists nothing else', unexpected.length === 0,
+          JSON.stringify(unexpected));
+
+        // Real sweep: all three decoys gone, live session untouched.
+        const real2 = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale'], { timeout: 120000 });
+        const ffmpegAfter = await run('pgrep', ['-af', `ffmpeg.*${ffmpegSid}`]);
+        assert(step + ' - sweep killed orphan ffmpeg', !ffmpegAfter.stdout.trim(),
+          ffmpegAfter.stdout.substring(0, 120));
+        assert(step + ' - sweep removed orphan ffmpeg session dir', !existsSync(join('/tmp', 'csm-browse', ffmpegSid)));
+        if (decoySocatPort !== null) {
+          const socatAfter = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${decoySocatPort}`]));
+          assert(step + ' - sweep killed orphan socat', !socatAfter.stdout.trim(),
+            socatAfter.stdout.substring(0, 120));
+        }
+        let recAfter = null;
+        try { recAfter = JSON.parse(readFileSync(join(recDir, 'recorder.json'), 'utf-8')); } catch {}
+        assert(step + ' - sweep cleared stale recorder lock', recAfter && recAfter.running === false,
+          recAfter ? JSON.stringify(recAfter) : 'unreadable');
+        const liveStatus = parseJson((await browseAs(liveSid, 'status')).stdout);
+        assert(step + ' - live session untouched', liveStatus && liveStatus.daemonAlive === true,
+          liveStatus ? JSON.stringify(liveStatus).substring(0, 120) : 'no status');
+
+        // creating.marker protection: marker-only dir must survive a sweep.
+        const markerDir = join('/tmp', 'csm-browse', markerSid);
+        mkdirSync(markerDir, { recursive: true });
+        writeFileSync(join(markerDir, 'creating.marker'),
+          JSON.stringify({ pid: process.pid, ts: new Date().toISOString() }), 'utf-8');
+        const real3 = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale'], { timeout: 120000 });
+        assert(step + ' - marker dir untouched by sweep', existsSync(join(markerDir, 'creating.marker')),
+          real3.stdout.substring(0, 160));
+        const liveStatus2 = parseJson((await browseAs(liveSid, 'status')).stdout);
+        assert(step + ' - live session still alive after marker sweep', liveStatus2 && liveStatus2.daemonAlive === true,
+          liveStatus2 ? JSON.stringify(liveStatus2).substring(0, 120) : 'no status');
+      } catch (e) {
+        fail(step, e.message);
+      } finally {
+        // Decoy cleanup (best-effort): kill leftovers, drop dirs, close live.
+        try { if (decoyFfmpegProc && decoyFfmpegProc.pid) process.kill(decoyFfmpegProc.pid, 'SIGKILL'); } catch {}
+        try { await run('pkill', ['-f', `ffmpeg.*${ffmpegSid}`]); } catch {}
+        if (decoySocatPort !== null) {
+          try { await run('docker', dockerArgs(['pkill', '-f', '--', `TCP-LISTEN:${decoySocatPort}`])); } catch {}
+        }
+        for (const d of [join('/tmp', 'csm-browse', ffmpegSid), join('/tmp', 'csm-browse', recSid), join('/tmp', 'csm-browse', markerSid)]) {
+          try { rmSync(d, { recursive: true, force: true }); } catch {}
+        }
+        try { await browseAs(liveSid, 'close'); } catch {}
+      }
+    }
+
   } finally {
     killServer();
-    try {
-      const { stdout } = await shell('fuser 8090/tcp 2>/dev/null');
-      if (stdout.trim()) await shell('fuser -k 8090/tcp 2>/dev/null');
-    } catch {}
 
     const hostDir = join('/tmp', 'csm-browse', SESSION_ID);
     if (existsSync(hostDir)) {
@@ -680,9 +882,9 @@ async function runTests() {
       verbDurationMs: verbDurations
     };
 
-    mkdirSync(DOCS_DIR, { recursive: true });
-    writeFileSync(join(DOCS_DIR, 'csm-browse-e2e-summary.json'), JSON.stringify(summary, null, 2), 'utf-8');
-    console.log(`\nSummary written to ${join(DOCS_DIR, 'csm-browse-e2e-summary.json')}`);
+    mkdirSync(dirname(SUMMARY_PATH), { recursive: true });
+    writeFileSync(SUMMARY_PATH, JSON.stringify(summary, null, 2), 'utf-8');
+    console.log(`\nSummary written to ${SUMMARY_PATH}`);
 
     if (failCount > 0) {
       process.exit(1);
@@ -690,10 +892,9 @@ async function runTests() {
   }
 }
 
-runTests().catch(err => {
+maybeSkip().then(() => runTests()).catch(err => {
   console.error(`FATAL: ${err.message}`);
   killServer();
-  try { exec('fuser -k 8090/tcp 2>/dev/null', () => {}); } catch {}
   enforceWallCap();
   process.exit(1);
 });

@@ -77,10 +77,13 @@ An unrecognized verb prints `Unknown verb: <verb> — see SKILL.md verb table` t
 
 ## Login composition example
 
+The fixture server (`node tests/serve.mjs`) binds the docker bridge gateway on an ephemeral port and prints its base URL on the `READY <port>` line. The base is `CSM_BROWSE_FIXTURE_BASE` when set, else auto-detected from the docker0 route (fallback `http://172.17.0.1:8090`).
+
 ```bash
 SID=my-login-test
+node $HOME/.config/opencode/skills/csm-browse/tests/serve.mjs &   # prints: fixture server on http://<gateway>:<port>
 node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --session $SID
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs open --session $SID --url "http://172.17.0.1:8090/login.html"
+node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs open --session $SID --url "http://<gateway>:<port>/login.html"
 node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs wait-selector --session $SID "#username"
 node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs type --session $SID "#username" "alice"
 node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs type --session $SID "#password" "secret"
@@ -110,3 +113,28 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --clean
 
 - `--age N` — staleness threshold in minutes (default 10)
 - `--dry-run` — report only, remove nothing
+
+## Troubleshooting
+
+**Session-dir layout** (`/tmp/csm-browse/<sid>/`, override root with `CSM_BROWSE_SESSIONS_ROOT`):
+
+| Path | Meaning |
+|---|---|
+| `state.json` | Session state (cdpUrl, wsUrl, ports, daemonPid). Written atomically (tmp+rename). |
+| `daemon.pid` | PID of the session daemon. |
+| `daemon.ready` | Ready marker; a live daemon touches its mtime every ~2s. |
+| `creating.marker` | Transient: present only while a session is being created; both sweep passes treat it as do-not-touch. |
+| `cmd/` `cmd/running/` `cmd/out/` | Verb queue: commands land in `cmd/`, are claimed by rename into `cmd/running/`, results written to `cmd/out/` (processed oldest-ts first). |
+| `events.jsonl` | Captured console/network events (rotated). |
+| `artifacts/` | Screenshots and videos. |
+| `recorder.json` | Screencast recorder state (`running:true` while recording). |
+| `daemon.log` | Daemon stdout/stderr. Each daemon start re-creates this log, so copy it out before restarting if you need the history. |
+
+**"Daemon not ready" diagnosis flow** (ensure-browser prints this after 2 attempts):
+
+1. Check host memory — the daemon is the usual OOM victim (`free -m`); ensure-browser prints available MB.
+2. Read `<session-dir>/daemon.log` for the crash reason.
+3. `state.json` → `daemonPid`: does `kill -0 <pid>` respond? A responding pid with a stale `daemon.ready` (mtime older than ~10s) is a zombie daemon — ensure-browser detects and restarts these itself; a second failure means the log from step 2.
+4. Confirm the CDP endpoint in `state.json` answers: `curl -m 2 <cdpUrl>/json/version`. If it does not, the chromium died — re-run ensure-browser to recreate the session.
+
+**E2E suite**: `node tests/e2e.mjs [--quick]` requires Docker + the chromium-vnc container (it skips cleanly with `SKIP: Docker/chromium-vnc unavailable`, exit 0, when they are absent; `CSM_BROWSE_E2E_SKIP=1` forces the skip). Summary JSON goes to `CSM_BROWSE_E2E_SUMMARY` or `tests/.e2e-summary.json`.
