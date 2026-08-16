@@ -54,7 +54,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 ## Requirements
 
 - **[OpenCode](https://opencode.ai)** — these are OpenCode skills.
-- **Node.js >= 20** — for `csm-browse` (see `csm-browse/package.json`) and for running the `csm-scan` test suite (`node:test`). `csm-scan` itself is zero-dependency Node built-ins only.
+- **Node.js >= 22** — for `csm-browse` (see `csm-browse/package.json`) and for running the `csm-scan` test suite (`node:test`). `csm-scan` itself is zero-dependency Node built-ins only.
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
 - **tmux** — optional. When available and not already running under tmux (and not opted out of), the `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, and `csm-review` skills start their orchestrating agent in a detached tmux session so long-running work survives a dropped terminal; each prints its session name and how to attach; without tmux they proceed in the current session.
@@ -166,4 +166,4 @@ Planning never silently becomes implementation, and execution always starts from
 
 ## License
 
-No LICENSE file is currently present in this repository.
+MIT — see [LICENSE](LICENSE).

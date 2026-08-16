@@ -8,12 +8,13 @@
 
 ## Control
 - Plan ID: skills-remediation-2026-08-16
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 plan drafted from review 75abed1 (77 findings, .agents/reviews/2026-08-15-skills-review.md)
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-16 cycle 1 — Wave 1 complete (T001-T004 all verified): T001 loopback binds live-verified + independent review accept + e2e --quick 59/59; T002 OSV method fixed, check-suite green; T003 MIT LICENSE; T004 Node 22 verified (scan 1210/1210 on v22.23.2). Next: SELECT Wave 2 (T005, T014, T006)
+- Next transition: CHECKPOINT -> SELECT (Wave 2: T005, T014, T006 parallel)
+- Active tasks: none (next: T005, T014, T006)
 - Active tasks: none
 - Blockers: T013 (Wave 5: CI workflow + scheduled dependency audit) deferred to a future stage by user decision 2026-08-16 — not to be dispatched this build; plan completes without it.
 
@@ -96,7 +97,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 - Non-overlapping write ownership within waves: W1 disjoint packages (browse-constants / review-doc / root / node-migration); W2 T005 (scan render/write/privacy+baselines) vs T014 (scan detection libs+fixtures+semantic.json findingKeys — semantic.json touched by both: T005 only if output-pinned, T014 for findingKeys; sequential commit rule: whoever lands second rebases on the first's documented update); W3 file-disjoint as above; W4 T010 (scan test files) vs T012 (upload/browse-log-lines/docs) disjoint; T011 solo; W5 T013 solo (future stage).
 
 ## Numbered Plan
-1. [pending] Browse security hotfix — loopback-bind CDP/VNC + socat bind-narrowing
+1. [completed] Browse security hotfix — loopback-bind CDP/VNC + socat bind-narrowing
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -111,7 +112,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: if container won't recreate, `docker rm -f chromium-vnc` then re-run ensure-browser; state files unaffected.
 
-2. [pending] csm-review SKILL.md — OSV method fix
+2. [completed] csm-review SKILL.md — OSV method fix
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -126,7 +127,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: pure doc edit; git revert if wrong.
 
-3. [pending] LICENSE + package.json license field + README section
+3. [completed] LICENSE + package.json license field + README section
    - Task ID: T003
    - Depends on: none
    - Parallel group: G1
@@ -141,7 +142,7 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
    - Repair attempts: 0
    - Recovery note: additive files.
 
-4. [pending] Node 22 LTS migration + engines pin
+4. [completed] Node 22 LTS migration + engines pin
    - Task ID: T004
    - Depends on: none
    - Parallel group: G1
@@ -346,6 +347,13 @@ Wave barriers are hard sequencing; Depends-on fields are authoritative within/be
 | 2026-08-16 | 0 | REMEDIATE (primary; corrections evidence-complete) | T001-T014 | T014 added; T012/T005/T007/T008/T010 scope+deps corrected; Goal/AC/graph/risk fixed; 13/13 critique findings resolved | VERIFY |
 | 2026-08-16 | 0 | VERIFY (primary gate) -> SAVED | T001-T014 | 14/14 tasks pending with full fields; phases 1-10 all owned (P1=T001 P2=T002 P3=T005 P4=T014 P5=T006+T007 P6=T008+T009 P7=T010 P8=T011 P9=T003+T004+T013 P10=T012); AC 1-10 mapped; deps consistent with graph; unique numbering; no artifacts | NOT_STARTED (awaits explicit csm-build) |
 | 2026-08-16 | 0 | SAVED -> SAVED (user-directed mutation) | T013 | Wave 5 deferred to future stage by user decision; T013 -> blocked; AC-9 split active/future; critical path now ends at T011; Control blockers updated | NOT_STARTED (awaits explicit csm-build; 13 active tasks) |
+| 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT | none | explicit csm-build invocation; baseline verified green at a1615f0 (check-suite 156 OK; scan 1210/1210; check-skill PASS); no NORMS.md | DISPATCH (Wave 1) |
+| 2026-08-16 | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR(none) -> CHECKPOINT | T001-T004 | T001: loopback+socat-IP+VNC-pass, container recreated, independent review accept (medium finding: e2e smoke — satisfied: --quick 59/59 PASS 32s); T002: 4 SKILL.md edits, all gates green; T003: LICENSE+field+README; T004: Node 22 (nvm user-space), scan 1210/1210 + gates green on v22.23.2, F-025 confirmed Node-independent (263 cov failures on both). Reviewer hardening notes deferred to T007 | SELECT (Wave 2) |
+
+### Cycle-1 Discovered Requirements (added)
+- Node 22 on this host: use `export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"` — `nvm use 22` fails due to ~/.npmrc prefix conflict (do NOT modify ~/.npmrc; not owned).
+- T007 absorbs (from T001 review): `if (!ip) throw` guard before socat create/adopt; optional `wx` write in ensureVncPassword.
+- e2e summary writes to ~/.agents/docs/csm-browse-e2e-summary.json (T009 moves to repo-local/env path).
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

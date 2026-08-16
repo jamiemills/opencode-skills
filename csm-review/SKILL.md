@@ -66,7 +66,7 @@ Run this bootstrap before anything else — before `INTAKE`, before any review t
 
 Every finding and every verification records the rung it ran at. Posture is selected at INTAKE: R0 always; R1–R3 are offered when the repo is local and the user has not declined (remote clones run at R0 unless the user opts into sandboxed R1+ on the clone).
 
-- **R0 `static`** (default, always): read-only inspection at the pinned SHA; OSV querybatch + endoflife.date GET (auth-free).
+- **R0 `static`** (default, always): read-only inspection at the pinned SHA; per-package OSV `/v1/query` (version-pinned) + endoflife.date GET (auth-free). Every advisory hit MUST be confirmed against the authoritative affected ranges via `/v1/vulns/<id>` before it becomes a finding. OSV `/v1/querybatch` is known to return matches for versions outside affected ranges; treat its output as candidate signal requiring range confirmation, never as verified findings.
 - **R1 `sandbox-static-verified`**: fresh sandbox `/tmp/opencode/csm-review-<run-id>/` created with `umask 077` (mode 700), where run-id = `%Y%m%d%H%M%S-<repo-slug>` (recorded in the Control journal and Methodology). `git clone --depth 1` (file:// for local; never `--recurse-submodules`); redirect HOME/TMPDIR/XDG_* into the sandbox; scripts-disabled installs (`npm --ignore-scripts`, `pip --only-binary :all:`, prefer lockfile static resolution). A build failure caused by disabled scripts is a finding-input, not an error — degrade to R0 labels. R1–R3 apply per ecosystem: where no scripts-disabled/static equivalent exists (e.g. cargo build scripts, Maven lifecycle, make targets), do not run that step; degrade to R0 static analysis and label the finding.
 - **R2 `sandbox-collected`**: dependency audits (npm/pip-audit/cargo audit lockfile/no-fetch modes), test inventory (`--collect-only`), and go vet-class static checks inside the sandbox. R2 executes repository code at import/collection time, so the R3 protections (egress block, env scrub, time bounds) apply at R2 too. Every process at any rung is time-bounded and terminated within the step.
 - **R3 `sandbox-executed`**: bounded test run, coverage, `-race`/TSan where cheap, and mutation dry-run/mini-run (Stryker `--dry-run` first; hard caps on mutants and wall time). Egress rule: block network egress during execution where a mechanism exists (`unshare -rn`, or container `--network none`), and verify the mechanism engaged with a pre-run in-sandbox connectivity probe (assert no default route / a connect that must fail), recording its result; a failed probe counts as "no mechanism" — then select tests that avoid the network and disclose the residual egress risk in Methodology. R3 provides best-effort isolation only (fresh directory, env redirect, egress block); it does not confine host-filesystem reads by a malicious repository — prefer bubblewrap/landlock where available, choose a non-execution fallback (R0) for suspicious repositories, and disclose the residual risk in Methodology.
@@ -123,7 +123,7 @@ Exit: dimension×chunk assignment matrix + anti-coverage draft recorded.
 
 Entry: SCOPE exit; CHALLENGE -> EVIDENCE (verification needs a tool run or external query); ADJUDICATE -> EVIDENCE (missing evidence). Re-entry collects only the artifact that triggered the back-edge.
 
-1. Gather rung-appropriate shared evidence: R0 static facts (manifest/lockfile inventory, test inventory, CI inventory); OSV querybatch per pinned dependency and endoflife.date per declared runtime; optional R1–R3 sandbox runs.
+1. Gather rung-appropriate shared evidence: R0 static facts (manifest/lockfile inventory, test inventory, CI inventory); OSV `/v1/query` per pinned dependency (every hit range-confirmed via `/v1/vulns/<id>` before use; querybatch output is candidate signal only) and endoflife.date per declared runtime; optional R1–R3 sandbox runs.
 2. Verify the anchor editions and reachability of the dimension anchors assigned this run; record checked anchors in the evidence pack (anchors may drift — each finder re-verifies its assigned anchors at EVIDENCE time and records checked editions).
 3. Record every artifact with its command, inputs, result, and containment evidence.
 4. Label unavailable evidence with its degradation (e.g., a build that cannot complete under disabled scripts degrades to R0 labels).
@@ -219,7 +219,7 @@ Exit: terminal; nothing executes after STOP.
 | 12 | Test presence & coverage | what is tested, what is not | Fowler TestCoverage (coverage as heuristic, not target); per-module uncovered critical paths |
 | 13 | Test quality | test smells, flakiness, weak assertions | testsmells.github.io current catalog; Google flaky-tests post (2016) |
 | 14 | Test-type adequacy | right test types at right levels | unit (S-sized, Google Test Sizes S/M/L); integration; e2e; performance/load; property-based (hypothesis/fast-check); mutation (PIT/Stryker/mutmut); fuzz (via OSS-Fuzz advisories in OSV); security testing (SAST/DAST/penetration/security regression) per OWASP ASVS v5.0.0 testing guidance; ISTQB CTFL v4.0 levels/types |
-| 15 | Dependency vulnerabilities | known vulnerable deps | OSV.dev API (querybatch, incl. unmaintained/deprecated advisories); CISA KEV via CWE KEV list; library EOL/maintenance status |
+| 15 | Dependency vulnerabilities | known vulnerable deps | OSV.dev API `/v1/query` + `/v1/vulns/<id>` affected-range confirmation (incl. unmaintained/deprecated advisories; querybatch output = candidate signal only); CISA KEV via CWE KEV list; library EOL/maintenance status |
 | 16 | Toolchain & language currency | outdated runtimes/toolchains | endoflife.date API (current catalog); declared runtimes/toolchains vs EOL |
 | 17 | Observability & operability | monitoring, tracing, operations | ISO/IEC 25010:2023 operability; instrumentation inventory |
 | 18 | CI, build, docs & licensing | pipeline, build, docs hygiene, licenses | SonarSource quality-gate concepts; eng-practices Documentation; SPDX license list |
@@ -232,7 +232,7 @@ Dimension rows group for finder assignment: quality (1–4), security (5–7, 9,
 
 **Confidence** is anchored to evidence class, orthogonal to severity:
 
-- `verified` (E1): deterministic tool reproduces — analyzer output, failing test, live OSV match.
+- `verified` (E1): deterministic tool reproduces — analyzer output, failing test, range-verified OSV match.
 - `high` (E2): ≥1 independent challenger agreed.
 - `medium` (E3): cited static evidence at the pinned SHA, challenged only by the primary or unchallenged.
 - `low` (E4): reasoned judgment; labeled as such.
