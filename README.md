@@ -80,6 +80,12 @@ node -e "require('chrome-remote-interface'); console.log('ok')"
 node scripts/check-skill.mjs
 ```
 
+Optionally activate the local pre-commit gate (fast conformance + boilerplate-drift + syntax checks; bypass with `--no-verify`):
+
+```bash
+node scripts/install-hooks.mjs
+```
+
 Dependency inventory: `csm-browse/package-lock.json` (integrity-hashed) is authoritative; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
 
 ## Quickstart
@@ -89,6 +95,8 @@ The core loop is **grill → plan → build**:
 1. **Grill** an idea — invoke `csm-grill` to be interviewed one question at a time until the phased approach is agreed and each phase is a ready-made brief for the next step.
 2. **Plan** — invoke `csm-plan` with a brief; it researches, critiques, verifies, and saves a numbered, resumable plan.
 3. **Build** — invoke `csm-build` with the saved plan; it executes with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.
+
+Optional: `node scripts/install-hooks.mjs` enables the fast pre-commit gate.
 
 The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.
 
