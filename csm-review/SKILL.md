@@ -74,6 +74,13 @@ Every finding and every verification records the rung it ran at. Posture is sele
 - **X forbidden** (always): in-place runs against the reviewed repo; fix/upgrade/mutating package-manager commands; sudo/daemons; contacting production services; running anything from the reviewed repo outside the sandbox.
 - **Containment check** required after every R1–R3 step: post-run `git -C <sandbox-clone> status --short` must be clean-or-explained; no writes detected in monitored locations (reviewed-repo state diffed against the INTAKE baseline — only the report file may differ, sandbox parent, redirected env paths); env-scrub verified; results disclosed in Methodology.
 
+## Interface
+
+- Consumes: a target repository (local path or remote URL); optional NORMS.md artifact
+- Produces: one dated findings report at `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md`
+- Hands off: findings feed a future explicit csm-plan or csm-grill invocation (human-mediated)
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload
+
 ## Review State Machine
 
 `INTAKE -> SCOPE -> EVIDENCE -> FIND -> CHALLENGE -> ADJUDICATE -> VERIFY -> SAVED -> STOP`

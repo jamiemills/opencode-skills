@@ -44,6 +44,13 @@ SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only resea
 - Research subagents are read-only and receive the same rule: return findings as text, never write files.
 - The optional approach-document commit at SAVED (skipped when the user declines or the directory is not a git repo) is the only sanctioned git mutation and is not a write-discipline violation.
 
+## Interface
+
+- Consumes: a rough idea from the user, plus read-only research evidence gathered by subagents
+- Produces: one agreed phased approach document saved at `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md`
+- Hands off: phase briefs inside the approach document wait for future, separately invoked csm-plan runs (human-mediated)
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-plan, csm-review, csm-scan, csm-upload
+
 ## Grilling State Machine
 
 `INTAKE -> SCOUT -> GRILL -> DEEP_DIVE -> SYNTHESIZE -> CONFIRM -> SAVED -> STOP`

@@ -11,9 +11,9 @@
 - Current CSM state: DISPATCH
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 cycle 1 — T001 complete: contracts.mjs extraction verified (329 invariant held, mutation probes byte-identical, import keys OK); next: Wave 2 (T002 ∥ T004)
-- Next transition: CHECKPOINT -> SELECT (Wave 2: T002, T004)
-- Active tasks: none (next: T002, T004)
+- Last checkpoint: 2026-08-16 cycle 2 — T002 complete (salvaged: dispatches lost ×3, primary + late-flushed agent work merged): INTERFACES (5 fields × 8) + literal 8×8 NEVER_INVOKE in contracts.mjs; Interface sections in all 8 SKILL.md at plan anchors; cross-check live (labels ×4, row set-equality, unknown names); gate 401 green; 4/4 mutation probes. T004 NOT yet dispatched (dispatch losses) — next: T004
+- Next transition: SELECT -> DISPATCH (T004)
+- Active tasks: none (next: T004)
 - Blockers: none
 
 ## Goal
@@ -100,7 +100,7 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
    - Repair attempts: 0
    - Recovery note: pure refactor; revert restores prior state.
 
-2. [pending] Interfaces + never-invoke matrix + Interface sections (P2)
+2. [completed] Interfaces + never-invoke matrix + Interface sections (P2)
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -228,6 +228,7 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
 |---|---|---|---|---|---|
 | 2026-08-16 | 0 | INTAKE -> DISCOVER -> RESEARCH (scout) -> DRAFT | none | approach e4aa94d binding (8 decisions); implementation scout: slot census, line numbers, 20-digest correction, two regen clocks, hook budgets, 9 residual uncertainties resolved as D2-D10 | CRITIQUE |
 | 2026-08-16 | 0 | CRITIQUE (independent subagent) -> REMEDIATE (primary) -> VERIFY | none | verdict needs-changes: 1 blocker (self-corpus blind spot) + 3 major (328 baseline, INTERFACES schema, W3 contradiction) + 10 minor; all 15 remediated in plan text; no design rework needed | SAVED |
+| 2026-08-16 | 2 | SELECT -> DISPATCH (T002∥T004; both dispatches returned empty — T002 salvaged from late-flushed partial work + primary completion; T004 requeued) -> INTEGRATE -> VERIFY -> CHECKPOINT | T002 | contracts.mjs: INTERFACES+NEVER_INVOKE (computed matrix from agent replaced with literal per approach decision; MANIFEST sections[] + 'Interface' everywhere; stale error message already fixed by agent); 8 SKILL.md Interface sections (dedup: agent's improvised-placement duplicates removed, plan-anchor versions kept); check-suite cross-check verified line-by-line. Gate 401 (329+72). Probes A-D all fail correctly. Max SKILL.md 331 lines. Lesson: parallel dispatch unreliable this session — sequential primary-led implementation for remaining tasks | SELECT (T004) |
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW (primary self-review: pure data refactor, low risk) -> CHECKPOINT | T001 | contracts.mjs created (MANIFEST+CONTRACTS+UPLOAD_SCRIPT_REF verbatim); check-suite 329 OK exit 0 (invariant); import keys CONTRACTS,MANIFEST,UPLOAD_SCRIPT_REF; mutation probe spot-verified (contract rename fails correctly); subagent before/after probes byte-identical. Note: session detoured into unrelated installer research mid-cycle (parallel-session mixup) — zero writes from it, tree verified clean of it before resuming | SELECT (Wave 2) |
 
 ### Cycle-1 Discovered Requirements (added)

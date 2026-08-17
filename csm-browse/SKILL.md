@@ -9,6 +9,13 @@ description: Browse web pages in the chromium-vnc Docker container via CDP — u
 
 Use `csm-browse` whenever you need to drive a headful Chromium browser inside the `chromium-vnc` Docker container via Chrome DevTools Protocol (CDP). This covers navigating to URLs, clicking elements, typing text, pressing keys, logging into sites, taking screenshots (viewport or full-page), inspecting DOM or evaluating JavaScript, capturing console/network/performance events, and recording screencast videos.
 
+## Interface
+
+- Consumes: a browsing/evidence task and the `chromium-vnc` Docker container
+- Produces: screenshots, videos, and DOM/console/network/performance evidence in per-session artifact directories
+- Hands off: evidence file paths return to the human; publishing via the csm-upload CLI is a separate user action
+- Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload
+
 ## One-time setup
 
 ```bash

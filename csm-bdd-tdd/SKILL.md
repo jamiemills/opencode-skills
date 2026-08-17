@@ -85,6 +85,13 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 3. Fresh agent.
 4. Primary completion of the spec/validation work, with a recorded independence caveat when the primary agent fills in for an independent agent.
 
+## Interface
+
+- Consumes: a saved non-BDD CSM plan; optional repository conventions from a NORMS.md artifact
+- Produces: a formal spec, executable Gherkin scenarios, unit test designs, and the mutated `*-bdd-csm.md` plan with a `Superseded for BDD/TDD` pointer in the source plan
+- Hands off: the mutated plan and specs folder wait for an explicit csm-build invocation (human-mediated)
+- Never invokes: csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload
+
 ## Pipeline
 
 `INTAKE -> SPEC -> SCENARIOS -> VALIDATE -> TEST_DESIGN -> MUTATE_PLAN -> VERIFY -> SAVED -> STOP`

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF } from './lib/contracts.mjs';
+import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE } from './lib/contracts.mjs';
 
 const args = process.argv.slice(2);
 let root = process.cwd();
@@ -344,7 +344,7 @@ function main() {
 
   for (const skill of skillDirs) {
     check(Object.prototype.hasOwnProperty.call(MANIFEST, skill),
-      `skill dir ${skill} has no MANIFEST entry in scripts/check-suite.mjs (new skills must be registered, not silently skipped)`);
+      `skill dir ${skill} has no MANIFEST entry in scripts/lib/contracts.mjs (new skills must be registered, not silently skipped)`);
   }
   for (const key of Object.keys(MANIFEST)) {
     check(skillDirs.includes(key), `MANIFEST key "${key}" has no matching skill directory (dead registry key)`);
@@ -392,6 +392,28 @@ function main() {
 
     for (const sec of manifest.sections) {
       check(h2Set.includes(sec), `${skill}/SKILL.md missing section "## ${sec}" (as a real heading outside fences)`);
+    }
+
+    const interfaceRange = sectionRange(lines, inFence, 'Interface');
+    check(interfaceRange !== null, `${skill}/SKILL.md missing exact "## Interface" section`);
+    if (interfaceRange !== null) {
+      const interfaceLines = lines.slice(interfaceRange[0], interfaceRange[1]);
+      const labels = ['Consumes', 'Produces', 'Hands off', 'Never invokes'];
+      for (const label of labels) {
+        const matches = interfaceLines.filter((line) => new RegExp(`^- ${label}: `).test(line));
+        check(matches.length === 1, `${skill}/SKILL.md Interface label "${label}:" occurs ${matches.length} times (want exactly 1)`);
+      }
+      const labelLines = interfaceLines.filter((line) => /^- [A-Za-z][A-Za-z ]*: /.test(line));
+      check(labelLines.length === 4, `${skill}/SKILL.md Interface has ${labelLines.length} labeled bullets (want exactly 4)`);
+      const neverLine = interfaceLines.find((line) => /^- Never invokes: /.test(line));
+      if (neverLine) {
+        const names = neverLine.slice('- Never invokes: '.length).split(',').map((name) => name.trim()).filter(Boolean);
+        const unknown = names.filter((name) => !Object.prototype.hasOwnProperty.call(INTERFACES, name));
+        check(unknown.length === 0, `${skill}/SKILL.md Interface Never invokes has unknown skill names: ${unknown.join(', ')}`);
+        const expected = Object.keys(NEVER_INVOKE[skill] || {}).filter((name) => NEVER_INVOKE[skill][name]);
+        check(new Set(names).size === names.length && names.length === expected.length && names.every((name) => expected.includes(name)),
+          `${skill}/SKILL.md Interface Never invokes does not match contracts.mjs row (expected: ${expected.join(', ')})`);
+      }
     }
 
     if (manifest.tmux) {

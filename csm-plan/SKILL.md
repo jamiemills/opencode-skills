@@ -116,6 +116,13 @@ Apply this gate before every R&D command or tool call, including work delegated 
 
 Temporary sandbox mutation and the intentional creation or update of the plan document are the only allowed state changes. No experiment result may be promoted from the sandbox into the repository.
 
+## Interface
+
+- Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings
+- Produces: one saved, verified CSM plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md`
+- Hands off: the saved plan waits for a later, explicit csm-build invocation (human-mediated)
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload
+
 ## Planning State Machine
 
 Follow these states in order and record transitions in the plan's progress journal:

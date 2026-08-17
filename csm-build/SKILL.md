@@ -92,6 +92,13 @@ Plans may come from `csm-plan` (base plans) or `csm-bdd-tdd` (BDD/TDD mutations,
 4. If multiple plausible plans remain, ask the user to choose; do not guess.
 5. Read the complete plan, applicable repository instructions, and referenced evidence before changing state. For a BDD/TDD plan, also absorb the specs folder path and Traceability section: scenario and unit-test-design paths under the specs folder are part of every task's evidence.
 
+## Interface
+
+- Consumes: a saved CSM plan (explicit path or discovered in `.agents/plans/`, BDD/TDD mutation preferred); optional NORMS.md artifact
+- Produces: a verified implementation with commits, plus the updated plan document (Control, journal, Completion Review)
+- Hands off: terminal executor — delivery returns to the human; evidence capture via csm-browse is a separate user action
+- Never invokes: csm-bdd-tdd, csm-browse, csm-grill, csm-plan, csm-review, csm-scan, csm-upload
+
 ## Execution State Machine
 
 Use only these control states:

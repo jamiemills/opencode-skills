@@ -35,6 +35,13 @@ Run this bootstrap before anything else — before any scan, test, or analysis c
 - Documenting architecture for handoff
 - Auditing codebase conventions across multiple repos
 
+## Interface
+
+- Consumes: repository path(s), strictly read-only
+- Produces: a single NORMS.md capturing 17 evidence dimensions
+- Hands off: NORMS.md is consumed as a file by csm-plan, csm-bdd-tdd, csm-build, and csm-review — never via skill invocation
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-upload
+
 ## Dimensions
 
 `csm-scan` reports **17 per-repository dimensions** (10 established plus 7 new) and one **global Cross-repository Architecture** section synthesized after per-repository validation:
