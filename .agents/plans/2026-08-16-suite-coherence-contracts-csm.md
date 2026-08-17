@@ -164,7 +164,7 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
    - Repair attempts: 0
    - Recovery note: templates regenerate everything they own; partial states recoverable via --write.
 
-6. [pending] Pre-commit hook + installer (P4)
+6. [completed] Pre-commit hook + installer (P4)
    - Task ID: T006
    - Depends on: T003
    - Parallel group: G4 (with T005 — no check-suite ownership here; hook invokes check-suite, doesn't edit it; sync branch guarded by file-existence so intra-wave order is safe)
@@ -238,6 +238,7 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
 | 2026-08-16 | 3 (cont.) | SELECT -> DISPATCH (T003 primary-led) -> INTEGRATE -> VERIFY -> CHECKPOINT | T003 | 11 retrofits; formatMarkerOf helper; 3 corpus marker checks + approaches loop w/ runtime template extraction; FORMAT_VERSIONS data in contracts (D-layer honored); probes: stripped marker fails, /99 fails, unmarked new plan fails; .agents/README.md stale status fixed + approaches + this plan indexed; gate 415 | SELECT (Wave 4) |
 | 2026-08-16 | 4 | SELECT -> DISPATCH (T005 primary-led) -> INTEGRATE -> VERIFY -> CHECKPOINT | T005 | Templates byte-faithful (scratch-diff verification); standalone + gate mutation cycles green; --write idempotent (0 sections) on repo; NORMS_PHRASES data-only move; drift gate in check-suite. Gate 415 | SELECT (T006) |
 | 2026-08-16 | 4 | SELECT -> DISPATCH (T005 primary-led) -> INTEGRATE -> VERIFY -> CHECKPOINT | T005 | scripts/lib/boilerplate.mjs (tmux x5 params + resilience x4 params; byte-faithful — 'any of these' typo found+fixed via scratch-diff); sync-skill-boilerplate.mjs (--check/--write, fence+level-aware extractor, isMain guard, --root fixed after double-edit bug); check-suite drift gate wired (proven: tmux drift + resilience drift both fail); NORMS_PHRASES moved to contracts (any-of unchanged); initial --write = 0 changes (zero-diff pass); standalone roundtrip: drift->fail->write->byte-exact-restore | SELECT (T006) |
+| 2026-08-16 | 4 (cont.) | SELECT -> DISPATCH (T006 primary-led) -> VERIFY -> CHECKPOINT | T006 | scripts/hooks/pre-commit (node shebang; check-suite always, drift gate when present, --check on staged .mjs, conditional csm-browse check-skill) + install-hooks.mjs (core.hooksPath, chmod, verify) + README Installation+Quickstart lines. Acceptance: broken staged file BLOCKED (0.44s, nothing landed); --no-verify bypass proven+reverted; T006's own commit passed through the full hook (pass-path proof); uninstall documented | SELECT (T007) |
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW (primary self-review: pure data refactor, low risk) -> CHECKPOINT | T001 | contracts.mjs created (MANIFEST+CONTRACTS+UPLOAD_SCRIPT_REF verbatim); check-suite 329 OK exit 0 (invariant); import keys CONTRACTS,MANIFEST,UPLOAD_SCRIPT_REF; mutation probe spot-verified (contract rename fails correctly); subagent before/after probes byte-identical. Note: session detoured into unrelated installer research mid-cycle (parallel-session mixup) — zero writes from it, tree verified clean of it before resuming | SELECT (Wave 2) |
 
 ### Cycle-1 Discovered Requirements (added)
