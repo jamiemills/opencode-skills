@@ -1,6 +1,7 @@
-import { appendFile, rename, unlink, readdir, mkdir } from 'node:fs/promises';
+import { rename, unlink, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { EVENTS_JSONL_ROTATION } from './constants.mjs';
+import { ensurePrivateDir, redactTelemetry, secureAppend } from './security.mjs';
 
 const MAX_ROTATED = 3;
 
@@ -22,7 +23,7 @@ async function rotate(sessionDir, mainPath) {
 }
 
 export async function collectorsHook(client, sessionId, sessionDir) {
-  await mkdir(sessionDir, { recursive: true });
+  await ensurePrivateDir(sessionDir);
   const mainPath = join(sessionDir, 'events.jsonl');
   let count = 0;
   let writeQueue = Promise.resolve();
@@ -30,7 +31,7 @@ export async function collectorsHook(client, sessionId, sessionDir) {
   const enqueue = (entry) => {
     writeQueue = writeQueue.then(async () => {
       try {
-        await appendFile(mainPath, JSON.stringify(entry) + '\n');
+        await secureAppend(mainPath, JSON.stringify(redactTelemetry(entry)) + '\n');
         count++;
         if (count >= EVENTS_JSONL_ROTATION) {
           count = 0;
@@ -49,11 +50,11 @@ export async function collectorsHook(client, sessionId, sessionDir) {
     enqueue({
       ts: new Date().toISOString(),
       type: 'console',
-      payload: {
+        payload: redactTelemetry({
         type: params.type,
         args: params.args,
         stackTrace: params.stackTrace
-      }
+        })
     });
   });
 
@@ -61,7 +62,7 @@ export async function collectorsHook(client, sessionId, sessionDir) {
     enqueue({
       ts: new Date().toISOString(),
       type: 'exception',
-      payload: params
+      payload: redactTelemetry(params)
     });
   });
 
@@ -72,7 +73,7 @@ export async function collectorsHook(client, sessionId, sessionDir) {
       payload: {
         source: params.entry.source,
         level: params.entry.level,
-        text: params.entry.text
+        text: redactTelemetry(params.entry.text)
       }
     });
   });
@@ -84,7 +85,7 @@ export async function collectorsHook(client, sessionId, sessionDir) {
       payload: {
         phase: 'request',
         requestId: params.requestId,
-        url: params.request.url,
+        url: redactTelemetry(params.request.url),
         type: params.type
       }
     });
@@ -97,7 +98,7 @@ export async function collectorsHook(client, sessionId, sessionDir) {
       payload: {
         phase: 'response',
         requestId: params.requestId,
-        url: params.response.url,
+        url: redactTelemetry(params.response.url),
         status: params.response.status,
         mimeType: params.response.mimeType
       }

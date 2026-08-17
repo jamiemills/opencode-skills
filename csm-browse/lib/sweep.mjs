@@ -8,7 +8,8 @@ import {
 } from './cleanup.mjs';
 import { execLayer } from './docker.mjs';
 import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END, CDP_RETRY_TIMEOUT_MS } from './constants.mjs';
-import { sessionDir, containerSessionDir } from './session.mjs';
+import { sessionDir, containerSessionDir, validateSid } from './session.mjs';
+import { prepareRuntimeRoot, secureWrite, validateState } from './security.mjs';
 
 // Session-creation marker protocol (F-010): createSession writes
 // `creating.marker` into the session dir inside the port lock, before
@@ -74,11 +75,17 @@ async function killPidGracefully(pid) {
 }
 
 export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false, skipSid = null }) {
+  await prepareRuntimeRoot(SESSIONS_ROOT);
   const swept = [];
   const ageMs = ageMinutes * 60 * 1000;
 
   let hostDirs = [];
-  try { hostDirs = (await readdir(SESSIONS_ROOT)).filter(d => !d.startsWith('.')); } catch {}
+  try {
+    hostDirs = (await readdir(SESSIONS_ROOT)).filter(d => {
+      if (d.startsWith('.')) return false;
+      try { validateSid(d); return true; } catch { return false; }
+    });
+  } catch {}
 
   // Host-session pass: a live daemon or a fresh creating.marker protects the
   // session REGARDLESS of dir age; only when the daemon is dead/absent (and
@@ -111,9 +118,9 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
 
     let publicPort = null;
     try {
-      const state = JSON.parse(await readFile(join(sDir, 'state.json'), 'utf-8'));
+      const state = validateState(JSON.parse(await readFile(join(sDir, 'state.json'), 'utf-8')), sid);
       publicPort = state.publicPort || null;
-    } catch {}
+    } catch { continue; }
 
     const label = `sid=${sid} age=${Math.round(age / 60000)}m${publicPort ? ` port=${publicPort}` : ''}`;
     if (dryRun) { swept.push(`[dry] ${label}`); continue; }
@@ -185,6 +192,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       const m = proc.cmd.match(/--user-data-dir=\/config\/csm-browse\/sessions\/([^/]+)/);
       if (!m) continue;
       const psid = m[1];
+      try { validateSid(psid); } catch { continue; }
       if (skipSid && psid === skipSid) continue;
       // Marker do-not-touch: chromium for a session still being created.
       if (await hasFreshCreatingMarker(join(SESSIONS_ROOT, psid))) continue;
@@ -227,7 +235,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       if (alive) continue;
       if (dryRun) { swept.push(`[dry] stale recorder lock sid=${sid}`); continue; }
       rec.running = false;
-      await writeFile(recPath, JSON.stringify(rec, null, 2), 'utf-8');
+       await secureWrite(recPath, JSON.stringify(rec, null, 2), { encoding: 'utf-8' });
       swept.push(`stale recorder lock sid=${sid}`);
     } catch {}
   }

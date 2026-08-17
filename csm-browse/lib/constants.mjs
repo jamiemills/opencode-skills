@@ -1,9 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { defaultSessionsRoot, validateRuntimeRootSelection } from './security.mjs';
 
 export const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
-export const SESSIONS_ROOT = process.env.CSM_BROWSE_SESSIONS_ROOT || '/tmp/csm-browse';
+export const SESSIONS_ROOT = process.env.CSM_BROWSE_SESSIONS_ROOT || defaultSessionsRoot();
+validateRuntimeRootSelection(SESSIONS_ROOT);
 export const CONTAINER_NAME = 'chromium-vnc';
 // F-050: digest-pinned so `docker pull` is immutable — the :latest tag can
 // never repoint underneath us. Refresh the digest quarterly (same cadence as

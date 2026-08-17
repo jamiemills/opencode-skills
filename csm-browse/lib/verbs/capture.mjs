@@ -1,8 +1,9 @@
-import { mkdir, writeFile, unlink, readdir } from 'node:fs/promises';
+import { unlink, readdir } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { dismissCookies } from '../cookies.mjs';
 import { MAX_STITCH_HEIGHT_PX } from '../constants.mjs';
+import { ensurePrivateDir, ensurePrivateFile, secureWrite } from '../security.mjs';
 
 const PRESETS = {
   small:  { format: 'jpeg', quality: 30, ext: 'jpg' },
@@ -49,6 +50,7 @@ function jpegQScale(quality) {
 }
 
 async function ffmpegVstack(inputFiles, outputPath, quality = null) {
+  await secureWrite(outputPath, '');
   return new Promise((resolve, reject) => {
     const args = [];
     for (const f of inputFiles) args.push('-i', f);
@@ -61,7 +63,7 @@ async function ffmpegVstack(inputFiles, outputPath, quality = null) {
     let stderr = '';
     proc.stderr.on('data', d => stderr += d.toString());
     proc.on('close', code => {
-      if (code === 0) resolve();
+      if (code === 0) ensurePrivateFile(outputPath).then(resolve, reject);
       else reject(new Error(`ffmpeg vstack failed: ${stderr.slice(-200)}`));
     });
     proc.on('error', reject);
@@ -107,7 +109,7 @@ export async function run({ args, state }) {
     process.exit(1);
   }
 
-  await mkdir(artifactsDir, { recursive: true });
+  await ensurePrivateDir(artifactsDir);
 
   const CRI = await import('chrome-remote-interface');
   const client = await CRI.default({ target: state.wsUrl });
@@ -157,17 +159,21 @@ export async function run({ args, state }) {
           const params = { format: 'png' };
           const buf = await captureOne(client, sessionId, params);
           const tmpPath = join(artifactsDir, `.stitch-${tileNum}.png`);
-          await writeFile(tmpPath, buf);
+          await secureWrite(tmpPath, buf);
 
           // Crop sticky header from tiles after the first
           if (tileNum > 1 && stickyHeight > 0) {
             const cropPath = join(artifactsDir, `.stitch-${tileNum}-crop.png`);
+            await secureWrite(cropPath, '');
             await new Promise((resolve, reject) => {
               const proc = spawn('ffmpeg', [
                 '-i', tmpPath, '-vf', `crop=iw:ih-${stickyHeight}:0:${stickyHeight}`,
                 '-frames:v', '1', '-y', cropPath
               ], { stdio: ['ignore', 'ignore', 'pipe'] });
-              proc.on('close', code => code === 0 ? resolve() : reject(new Error('crop failed')));
+              proc.on('close', code => {
+                if (code === 0) ensurePrivateFile(cropPath).then(resolve, reject);
+                else reject(new Error('crop failed'));
+              });
               proc.on('error', reject);
             });
             await unlink(tmpPath);
@@ -217,7 +223,7 @@ export async function run({ args, state }) {
 
       const buf = await captureOne(client, sessionId, params);
       const outPath = join(artifactsDir, outName);
-      await writeFile(outPath, buf);
+      await secureWrite(outPath, buf);
 
       const output = { path: outPath, bytes: buf.length, format: cfg.ext, preset };
       if (buf.length > 24 && cfg.format === 'png') {

@@ -1,8 +1,10 @@
 import { execLayer } from './docker.mjs';
 import { open, unlink, readFile, mkdir, stat, readdir } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
+import { prepareRuntimeRoot, secureWrite, validateState } from './security.mjs';
 
 const LOCK_FILE = join(SESSIONS_ROOT, '.ports.lock');
 const LOCK_STALE_MS = 5000;
@@ -35,12 +37,12 @@ export async function breakStaleLock() {
 }
 
 export async function acquirePortLock() {
-  await mkdir(SESSIONS_ROOT, { recursive: true });
+  await prepareRuntimeRoot(SESSIONS_ROOT);
   const start = Date.now();
   for (;;) {
     try {
-      const fh = await open(LOCK_FILE, 'wx');
-      try { await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
+      const fh = await open(LOCK_FILE, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
+      try { await fh.chmod(0o600); await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
       return;
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
@@ -70,8 +72,9 @@ async function claimedPortSet() {
     if (d.startsWith('.')) continue;
     try {
       const state = JSON.parse(await readFile(join(SESSIONS_ROOT, d, 'state.json'), 'utf-8'));
-      if (state && typeof state.internalPort === 'number') claimed.add(state.internalPort);
-      if (state && typeof state.publicPort === 'number') claimed.add(state.publicPort);
+       validateState(state);
+       if (state && typeof state.internalPort === 'number') claimed.add(state.internalPort);
+       if (state && typeof state.publicPort === 'number') claimed.add(state.publicPort);
     } catch {}
     try {
       const marker = JSON.parse(await readFile(join(SESSIONS_ROOT, d, 'creating.marker'), 'utf-8'));

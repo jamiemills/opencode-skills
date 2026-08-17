@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { readFile, writeFile, rm, open, utimes } from 'node:fs/promises';
-import { createWriteStream } from 'node:fs';
+import { readFile, rm, open, utimes } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { loadState, sessionDir } from '../lib/session.mjs';
 import { connectDaemon, ensureSingleTab, startQueueLoop, prepareQueueDirs } from '../lib/daemon-core.mjs';
+import { redactTelemetry, secureAppend, secureWrite } from '../lib/security.mjs';
 
 const args = process.argv.slice(2);
 let sid = null;
@@ -30,14 +31,25 @@ const readyMarker = join(sDir, 'daemon.ready');
 async function claimPidFile() {
   for (;;) {
     try {
-      const fh = await open(pidFile, 'wx');
-      try { await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
+      const fh = await open(pidFile, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
+      try { await fh.chmod(0o600); await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
       return;
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
     }
     let raw = null;
-    try { raw = await readFile(pidFile, 'utf-8'); } catch {}
+    try {
+      const fh = await open(pidFile, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+      try {
+        const info = await fh.stat();
+        if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe daemon pid file: ${pidFile}`);
+        await fh.chmod(0o600);
+        raw = await fh.readFile('utf-8');
+      } finally { await fh.close(); }
+    } catch (err) {
+      if (err.code === 'ELOOP') throw new Error(`Refusing symlink daemon pid file: ${pidFile}`);
+      if (err.code !== 'ENOENT') throw err;
+    }
     if (raw !== null) {
       const existingPid = parseInt(raw.trim(), 10);
       let alive = false;
@@ -68,14 +80,13 @@ const logPath = join(sDir, 'daemon.log');
 // F-074: append ('a') so a previous run's failure evidence survives restarts;
 // prefix every line with an ISO timestamp so ordering across restarts is
 // diagnosable. Same rebinding pattern as before — only the write wrapper grew.
-const logStream = createWriteStream(logPath, { flags: 'a' });
+await secureAppend(logPath, '');
 const stampWrite = (chunk, encoding, cb) => {
   const body = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
-  return logStream.write(
-    `${new Date().toISOString()} ${body}`,
-    typeof encoding === 'string' ? encoding : undefined,
-    typeof encoding === 'function' ? encoding : cb
-  );
+  secureAppend(logPath, `${new Date().toISOString()} ${redactTelemetry(body)}`).catch(() => {});
+  if (typeof encoding === 'function') encoding();
+  else if (typeof cb === 'function') cb();
+  return true;
 };
 process.stdout.write = stampWrite;
 process.stderr.write = stampWrite;
@@ -109,7 +120,7 @@ try {
   }
 
   await prepareQueueDirs(sDir);
-  await writeFile(readyMarker, String(process.pid), 'utf-8');
+  await secureWrite(readyMarker, String(process.pid), { encoding: 'utf-8' });
 
   try {
     const recorder = await import('../lib/recorder.mjs');

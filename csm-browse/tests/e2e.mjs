@@ -3,13 +3,21 @@ import { execFile, exec, spawn, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SESSIONS_ROOT } from '../lib/constants.mjs';
+import { chmodSync, mkdirSync as mkdirSecureSync } from 'node:fs';
+import { ensurePrivateDir, secureWrite } from '../lib/security.mjs';
 
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 const QUICK = process.argv.includes('--quick');
 const SESSION_ID = `e2e-${Date.now()}`;
-const SUMMARY_PATH = process.env.CSM_BROWSE_E2E_SUMMARY || join(SKILL_DIR, 'tests', '.e2e-summary.json');
+const SUMMARY_PATH = process.env.CSM_BROWSE_E2E_SUMMARY || join(SESSIONS_ROOT, '.e2e-summary.json');
 const E2E_START = Date.now();
 const MAX_E2E_MS = 600000;
+
+async function writeSummary(summary) {
+  await ensurePrivateDir(dirname(SUMMARY_PATH));
+  await secureWrite(SUMMARY_PATH, JSON.stringify(summary, null, 2), { encoding: 'utf-8' });
+}
 
 // ── Docker / environment probe ────────────────────────────────────
 // e2e is Docker-gated: skip cleanly (exit 0) when Docker or the
@@ -47,14 +55,12 @@ async function dockerProbeOk() {
 async function maybeSkip() {
   if (process.env.CSM_BROWSE_E2E_SKIP === '1') {
     console.log('SKIP: Docker/chromium-vnc unavailable (CSM_BROWSE_E2E_SKIP=1)');
-    mkdirSync(dirname(SUMMARY_PATH), { recursive: true });
-    writeFileSync(SUMMARY_PATH, JSON.stringify({ skipped: true, reason: 'CSM_BROWSE_E2E_SKIP=1', ts: new Date().toISOString() }, null, 2), 'utf-8');
+    await writeSummary({ skipped: true, reason: 'CSM_BROWSE_E2E_SKIP=1', ts: new Date().toISOString() });
     process.exit(0);
   }
   if (!(await dockerProbeOk())) {
     console.log('SKIP: Docker/chromium-vnc unavailable');
-    mkdirSync(dirname(SUMMARY_PATH), { recursive: true });
-    writeFileSync(SUMMARY_PATH, JSON.stringify({ skipped: true, reason: 'docker-unavailable', ts: new Date().toISOString() }, null, 2), 'utf-8');
+    await writeSummary({ skipped: true, reason: 'docker-unavailable', ts: new Date().toISOString() });
     process.exit(0);
   }
 }
@@ -409,7 +415,7 @@ async function runTests() {
 
         let leftovers = [];
         try {
-          leftovers = readdirSync(join('/tmp', 'csm-browse', SESSION_ID, 'artifacts')).filter(f => f.startsWith('.stitch-'));
+          leftovers = readdirSync(join(SESSIONS_ROOT, SESSION_ID, 'artifacts')).filter(f => f.startsWith('.stitch-'));
         } catch {}
         assert(step + ' - no .stitch temps left', leftovers.length === 0,
           leftovers.length ? `leftovers: ${leftovers.join(',')}` : 'clean');
@@ -495,7 +501,7 @@ async function runTests() {
     if (!QUICK) {
       const step = '9. Daemon restart preservation';
       try {
-        const statePath = join('/tmp/csm-browse', SESSION_ID, 'state.json');
+        const statePath = join(SESSIONS_ROOT, SESSION_ID, 'state.json');
         const stateBefore = JSON.parse(readFileSync(statePath, 'utf-8'));
         if (stateBefore.daemonPid) {
           try { process.kill(stateBefore.daemonPid, 'SIGTERM'); } catch {}
@@ -618,7 +624,7 @@ async function runTests() {
 
         await new Promise(r => setTimeout(r, 500));
 
-        const hostDir = join('/tmp', 'csm-browse', SESSION_ID);
+        const hostDir = join(SESSIONS_ROOT, SESSION_ID);
         assert(step + ' - host dir removed', !existsSync(hostDir));
 
         const containerDirExists = await checkContainerDir(`/config/csm-browse/sessions/${SESSION_ID}`);
@@ -652,9 +658,9 @@ async function runTests() {
     {
       const step = '13. Session sweep';
       try {
-        const staleDir = join('/tmp', 'csm-browse', 'sweep-test-stale');
-        const freshDir = join('/tmp', 'csm-browse', 'sweep-test-fresh');
-        const autoDir = join('/tmp', 'csm-browse', 'sweep-test-auto');
+        const staleDir = join(SESSIONS_ROOT, 'sweep-test-stale');
+        const freshDir = join(SESSIONS_ROOT, 'sweep-test-fresh');
+        const autoDir = join(SESSIONS_ROOT, 'sweep-test-auto');
         const old = new Date(Date.now() - 5 * 3600 * 1000);
 
         const mkStale = (dir) => {
@@ -717,7 +723,7 @@ async function runTests() {
         // legitimately matches the sweep's pgrep pattern; the dir stays (the
         // age-based orphan branch is what we exercise), backdated past the
         // staleness threshold.
-        const ffmpegRoot = join('/tmp', 'csm-browse', ffmpegSid);
+        const ffmpegRoot = join(SESSIONS_ROOT, ffmpegSid);
         const ffmpegDir = join(ffmpegRoot, 'artifacts');
         mkdirSync(ffmpegDir, { recursive: true });
         const ffmpegProbe = await run('ffmpeg', ['-version'], { timeout: 10000 });
@@ -769,7 +775,7 @@ async function runTests() {
         }
 
         // Decoy 3 — stale recorder.json {running:true} with a dead daemon pid.
-        const recDir = join('/tmp', 'csm-browse', recSid);
+        const recDir = join(SESSIONS_ROOT, recSid);
         mkdirSync(recDir, { recursive: true });
         writeFileSync(join(recDir, 'state.json'), JSON.stringify({ sid: recSid }), 'utf-8');
         const reaper = spawn('sleep', ['0.3'], { stdio: 'ignore' });
@@ -806,7 +812,7 @@ async function runTests() {
         const ffmpegAfter = await run('pgrep', ['-af', `ffmpeg.*${ffmpegSid}`]);
         assert(step + ' - sweep killed orphan ffmpeg', !ffmpegAfter.stdout.trim(),
           ffmpegAfter.stdout.substring(0, 120));
-        assert(step + ' - sweep removed orphan ffmpeg session dir', !existsSync(join('/tmp', 'csm-browse', ffmpegSid)));
+        assert(step + ' - sweep removed orphan ffmpeg session dir', !existsSync(join(SESSIONS_ROOT, ffmpegSid)));
         if (decoySocatPort !== null) {
           const socatAfter = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${decoySocatPort}`]));
           assert(step + ' - sweep killed orphan socat', !socatAfter.stdout.trim(),
@@ -821,7 +827,7 @@ async function runTests() {
           liveStatus ? JSON.stringify(liveStatus).substring(0, 120) : 'no status');
 
         // creating.marker protection: marker-only dir must survive a sweep.
-        const markerDir = join('/tmp', 'csm-browse', markerSid);
+        const markerDir = join(SESSIONS_ROOT, markerSid);
         mkdirSync(markerDir, { recursive: true });
         writeFileSync(join(markerDir, 'creating.marker'),
           JSON.stringify({ pid: process.pid, ts: new Date().toISOString() }), 'utf-8');
@@ -840,7 +846,7 @@ async function runTests() {
         if (decoySocatPort !== null) {
           try { await run('docker', dockerArgs(['pkill', '-f', '--', `TCP-LISTEN:${decoySocatPort}`])); } catch {}
         }
-        for (const d of [join('/tmp', 'csm-browse', ffmpegSid), join('/tmp', 'csm-browse', recSid), join('/tmp', 'csm-browse', markerSid)]) {
+        for (const d of [join(SESSIONS_ROOT, ffmpegSid), join(SESSIONS_ROOT, recSid), join(SESSIONS_ROOT, markerSid)]) {
           try { rmSync(d, { recursive: true, force: true }); } catch {}
         }
         try { await browseAs(liveSid, 'close'); } catch {}
@@ -850,7 +856,7 @@ async function runTests() {
   } finally {
     killServer();
 
-    const hostDir = join('/tmp', 'csm-browse', SESSION_ID);
+    const hostDir = join(SESSIONS_ROOT, SESSION_ID);
     if (existsSync(hostDir)) {
       try { await browse('close'); } catch {}
     }
@@ -882,8 +888,7 @@ async function runTests() {
       verbDurationMs: verbDurations
     };
 
-    mkdirSync(dirname(SUMMARY_PATH), { recursive: true });
-    writeFileSync(SUMMARY_PATH, JSON.stringify(summary, null, 2), 'utf-8');
+    await writeSummary(summary);
     console.log(`\nSummary written to ${SUMMARY_PATH}`);
 
     if (failCount > 0) {

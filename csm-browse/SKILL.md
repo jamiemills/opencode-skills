@@ -123,7 +123,7 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --clean
 
 ## Troubleshooting
 
-**Session-dir layout** (`/tmp/csm-browse/<sid>/`, override root with `CSM_BROWSE_SESSIONS_ROOT`):
+**Session-dir layout** (`$XDG_RUNTIME_DIR/csm-browse/<sid>/`, falling back to `~/.local/state/csm-browse/<sid>/`; override root with `CSM_BROWSE_SESSIONS_ROOT`):
 
 | Path | Meaning |
 |---|---|

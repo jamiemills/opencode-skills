@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { writeFile, readFile, rename, mkdir } from 'node:fs/promises';
+import { readFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_TIMEOUT_MS } from '../constants.mjs';
+import { ensurePrivateDir, secureWrite } from '../security.mjs';
 
 export async function run({ args, state, verb }) {
   if (verb !== 'screencast-start' && verb !== 'screencast-stop') {
@@ -13,7 +14,7 @@ export async function run({ args, state, verb }) {
   const cmdDir = join(state.sessionDir, 'cmd');
   const outDir = join(cmdDir, 'out');
 
-  await mkdir(outDir, { recursive: true });
+  await ensurePrivateDir(outDir);
 
   // Sortable timestamp prefix makes even filename-order processing correct;
   // the daemon additionally orders by the cmd payload's `ts` field.
@@ -48,7 +49,7 @@ export async function run({ args, state, verb }) {
       ts: new Date().toISOString()
     };
 
-    await writeFile(tmpCmdPath, JSON.stringify(cmd), 'utf-8');
+    await secureWrite(tmpCmdPath, JSON.stringify(cmd), { encoding: 'utf-8' });
     await rename(tmpCmdPath, cmdPath);
   } else {
     const cmd = {
@@ -57,7 +58,7 @@ export async function run({ args, state, verb }) {
       ts: new Date().toISOString()
     };
 
-    await writeFile(tmpCmdPath, JSON.stringify(cmd), 'utf-8');
+    await secureWrite(tmpCmdPath, JSON.stringify(cmd), { encoding: 'utf-8' });
     await rename(tmpCmdPath, cmdPath);
   }
 

@@ -3,6 +3,9 @@ import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { pkillMatch, execInContainer } from './docker.mjs';
+import { validateContainerSessionDir, validateState } from './security.mjs';
+import { SESSIONS_ROOT } from './constants.mjs';
+import { assertContained, assertRuntimeRoot } from './security.mjs';
 
 export async function stopDaemon(sessionDir) {
   const pidFile = join(sessionDir, 'daemon.pid');
@@ -41,24 +44,30 @@ export async function stopDaemon(sessionDir) {
 }
 
 export async function killInstance(containerName, containerSessDir) {
+  validateContainerSessionDir(containerSessDir);
   await pkillMatch(containerName, `--user-data-dir=${containerSessDir}/`);
   await pkillMatch(containerName, `--database=${containerSessDir}/crash`);
 }
 
 export async function killSocat(containerName, publicPort) {
+  if (!Number.isInteger(publicPort) || publicPort < 1024 || publicPort > 65535) throw new Error(`Unsafe public port: ${publicPort}`);
   await pkillMatch(containerName, `TCP-LISTEN:${publicPort}`);
 }
 
 export async function removeContainerSession(containerName, containerSessDir) {
+  validateContainerSessionDir(containerSessDir);
   await execInContainer(containerName, ['rm', '-rf', containerSessDir]);
 }
 
 export async function removeHostSession(sessionDir) {
+  assertRuntimeRoot(SESSIONS_ROOT);
+  assertContained(sessionDir, SESSIONS_ROOT);
   rmSync(sessionDir, { recursive: true, force: true });
 }
 
 export async function releasePorts(state) {
   if (!state) return;
+  validateState(state);
   const containerName = state.container && state.container.name;
   if (!containerName) return;
 

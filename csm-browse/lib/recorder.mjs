@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
-import { writeFile, readFile, mkdir, unlink, stat } from 'node:fs/promises';
-import { createWriteStream } from 'node:fs';
+import { readFile, unlink, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import {
@@ -12,6 +11,7 @@ import {
   VIDEO_PRESETS,
   SPEED_PRESETS
 } from './constants.mjs';
+import { ensurePrivateDir, ensurePrivateFile, secureAppend, secureWrite } from './security.mjs';
 
 const VALID_NAME_RE = /^[A-Za-z0-9._-]+\.(mp4|webm)$/;
 
@@ -36,13 +36,14 @@ export async function reconcileRecorder(sessionDir) {
       reset: true,
       note: 'stale running flag reset'
     };
-    try { await writeFile(recorderJsonPath, JSON.stringify(reset, null, 2), 'utf-8'); } catch {}
+    try { await secureWrite(recorderJsonPath, JSON.stringify(reset, null, 2), { encoding: 'utf-8' }); } catch {}
     return reset;
   }
   return null;
 }
 
 export async function assertValidOutput(outPath, frames) {
+  await ensurePrivateFile(outPath);
   let size = 0;
   try {
     size = (await stat(outPath)).size;
@@ -69,8 +70,9 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   }
 
   const artifactsDir = join(sessionDir, 'artifacts');
-  await mkdir(artifactsDir, { recursive: true });
+  await ensurePrivateDir(artifactsDir);
   const outPath = join(artifactsDir, outName);
+  await secureWrite(outPath, '');
 
   const p = VIDEO_PRESETS[preset] || VIDEO_PRESETS.medium;
   const fpsOut = SPEED_PRESETS[speed] || SPEED_PRESETS.medium;
@@ -92,13 +94,16 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   ];
 
   const stderrPath = join(sessionDir, 'ffmpeg-stderr.log');
-  const stderrStream = createWriteStream(stderrPath, { flags: 'w' });
+  await secureWrite(stderrPath, '', { encoding: 'utf-8' });
 
   const ffmpeg = spawn('ffmpeg', ffmpegArgs, {
     stdio: ['pipe', 'ignore', 'pipe']
   });
 
-  ffmpeg.stderr.pipe(stderrStream);
+  let stderrWrite = Promise.resolve();
+  ffmpeg.stderr.on('data', chunk => {
+    stderrWrite = stderrWrite.then(() => secureAppend(stderrPath, chunk)).catch(() => {});
+  });
 
   const startedAt = new Date().toISOString();
   let frameCount = 0;
@@ -118,7 +123,6 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
       ffmpegError = new Error(`ffmpeg exited with code ${code}`);
     }
     exitResolve();
-    stderrStream.end();
   });
 
   ffmpeg.on('error', (err) => {
@@ -198,10 +202,10 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     client.off('Page.screencastFrame', frameHandler);
     ffmpeg.stdin.off('drain', onDrain);
     try {
-      await writeFile(recorderJsonPath, JSON.stringify({
+      await secureWrite(recorderJsonPath, JSON.stringify({
         running: false,
         error: err.message
-      }), 'utf-8');
+      }), { encoding: 'utf-8' });
     } catch {}
   };
 
@@ -213,7 +217,7 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   };
 
   try {
-    await writeFile(recorderJsonPath, JSON.stringify(recorderState), 'utf-8');
+    await secureWrite(recorderJsonPath, JSON.stringify(recorderState), { encoding: 'utf-8' });
   } catch (err) {
     await failStart(err);
     throw err;
@@ -314,7 +318,7 @@ export async function stopRecorder(client, sessionId, sessionDir) {
   stats.error = outputError || stats.error;
 
   try {
-    await writeFile(rec.recorderJsonPath, JSON.stringify(stats, null, 2), 'utf-8');
+    await secureWrite(rec.recorderJsonPath, JSON.stringify(stats, null, 2), { encoding: 'utf-8' });
   } catch {}
 
   if (outputError) throw new Error(outputError);

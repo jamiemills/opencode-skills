@@ -11,13 +11,15 @@ import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
   CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH
 } from '../lib/constants.mjs';
-import { readFile, rm, mkdir, writeFile, open, stat } from 'node:fs/promises';
+import { readFile, rm, writeFile, open, stat } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { ensurePrivateDir, secureWrite } from '../lib/security.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -67,24 +69,39 @@ async function curlRetry(url, timeout = CDP_RETRY_TIMEOUT_MS) {
 }
 
 async function ensureVncPassword() {
+  await ensurePrivateDir(dirname(VNC_PASS_PATH));
   try {
-    const existing = (await readFile(VNC_PASS_PATH, 'utf-8')).trim();
-    if (existing) return existing;
-  } catch {}
+    const fh = await open(VNC_PASS_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    try {
+      const info = await fh.stat();
+      if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`);
+      await fh.chmod(0o600);
+      const existing = (await fh.readFile('utf-8')).trim();
+      if (existing) return existing;
+    } finally { await fh.close(); }
+  } catch (err) {
+    if (!['ENOENT', 'ELOOP'].includes(err.code)) throw err;
+    if (err.code === 'ELOOP') throw new Error(`Refusing symlink VNC password file: ${VNC_PASS_PATH}`);
+  }
   const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const password = Array.from(randomBytes(8), b => chars[b % chars.length]).join('');
-  await mkdir(dirname(VNC_PASS_PATH), { recursive: true, mode: 0o700 });
   // First-writer-wins: concurrent creators race to create the file with 'wx';
   // the loser re-reads and uses the winner's password so both derive the
   // same VNC_PASSWORD for the shared container.
   try {
-    const fh = await open(VNC_PASS_PATH, 'wx', 0o600);
-    try { await fh.write(password); } finally { await fh.close(); }
+    const fh = await open(VNC_PASS_PATH, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
+    try { await fh.chmod(0o600); await fh.writeFile(password); } finally { await fh.close(); }
     return password;
   } catch (err) {
     if (err.code === 'EEXIST') {
-      const existing = (await readFile(VNC_PASS_PATH, 'utf-8')).trim();
-      if (existing) return existing;
+      const fh = await open(VNC_PASS_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+      try {
+        const info = await fh.stat();
+        if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`);
+        await fh.chmod(0o600);
+        const existing = (await fh.readFile('utf-8')).trim();
+        if (existing) return existing;
+      } finally { await fh.close(); }
     }
     throw err;
   }
@@ -241,10 +258,10 @@ async function createSession(sid, ip, containerSessDir) {
     // creating.marker INSIDE the lock critical section, BEFORE launching
     // chromium: any concurrent sweep that runs while we hold/release the
     // lock must treat this session as do-not-touch until state.json lands.
-    await mkdir(hostSessDir, { recursive: true });
-    await writeFile(markerPath, JSON.stringify({
+    await ensurePrivateDir(hostSessDir);
+    await secureWrite(markerPath, JSON.stringify({
       pid: process.pid, internal, public: pub, ts: new Date().toISOString()
-    }), 'utf-8');
+    }), { encoding: 'utf-8' });
 
     const chromiumCmd = buildChromiumCmd(containerSessDir, internal);
 

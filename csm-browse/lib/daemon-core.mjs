@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from './constants.mjs';
 import { dismissCookies } from './cookies.mjs';
+import { ensurePrivateDir, secureWrite } from './security.mjs';
 
 // Accepts both the ts-prefixed form (`<epoch-ms>-<uuid>.json`, written by the
 // record verb) and the legacy bare-UUID form so commands enqueued before an
@@ -43,9 +44,9 @@ export async function prepareQueueDirs(sessionDir) {
   // Claim-by-rename protocol: cmd/ and out/ are NEVER wiped — commands
   // enqueued while the daemon was down, and their unconsumed results, must
   // survive every restart.
-  await mkdir(cmdDir, { recursive: true });
-  await mkdir(runningDir, { recursive: true });
-  await mkdir(outDir, { recursive: true });
+  await ensurePrivateDir(cmdDir);
+  await ensurePrivateDir(runningDir);
+  await ensurePrivateDir(outDir);
 }
 
 // At startup, anything left in running/ was claimed by a daemon that died
@@ -63,7 +64,7 @@ async function sweepStaleRunning(runningDir, outDir) {
       const st = await stat(runningPath);
       if (st.mtimeMs >= cutoff) continue;
       const errResult = { ok: false, error: 'daemon restarted while command was running', ts: new Date().toISOString() };
-      await writeFile(outPath + '.tmp', JSON.stringify(errResult), 'utf-8');
+      await secureWrite(outPath + '.tmp', JSON.stringify(errResult), { encoding: 'utf-8' });
       await rename(outPath + '.tmp', outPath);
       await unlink(runningPath);
     } catch {}
@@ -121,7 +122,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
           const malformed = { ok: false, error: 'malformed command file', ts: new Date().toISOString() };
           try {
             const tmpOutPath = outPath + '.tmp';
-            await writeFile(tmpOutPath, JSON.stringify(malformed), 'utf-8');
+            await secureWrite(tmpOutPath, JSON.stringify(malformed), { encoding: 'utf-8' });
             await rename(tmpOutPath, outPath);
           } catch {}
           try { await unlink(runningPath); } catch {}
@@ -167,7 +168,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
         }
 
         const tmpOutPath = outPath + '.tmp';
-        await writeFile(tmpOutPath, JSON.stringify(result), 'utf-8');
+        await secureWrite(tmpOutPath, JSON.stringify(result), { encoding: 'utf-8' });
         await rename(tmpOutPath, outPath);
         try { await unlink(runningPath); } catch {}
       }

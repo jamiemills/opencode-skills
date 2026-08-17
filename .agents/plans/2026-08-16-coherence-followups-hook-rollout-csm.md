@@ -16,7 +16,7 @@ format: csm-plan/1
 - Current CSM state: CHECKPOINT
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-17 cycle 1 T001 verified — hook tests 4/4, check-suite 428, sync clean, syntax and diff checks clean; T005 blocked pending approved CSM-suite clone paths
+- Last checkpoint: 2026-08-17 cycle 1 T002 verified — browse unit tests 61/61, check-skill clean, syntax/diff checks clean, e2e quick 76/76; T005 blocked pending approved CSM-suite clone paths
 - Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: T005 requires explicit per-repository approval before external `.git/config` changes
@@ -91,7 +91,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
    - Completion evidence: `node --test scripts/hooks/test/pre-commit.test.mjs` (4/4, 2.43s); isolated temporary repositories proved clean, staged-only, staged deletion, untracked, unstaged-only, mixed-file, unstaged deletion, ordering, and `git commit --no-verify`; `node scripts/check-suite.mjs` (428 checks); `node scripts/sync-skill-boilerplate.mjs --check`; `node --check` for hook and test; `git diff --check`.
    - Recovery note: hook-only changes are isolated; unset `core.hooksPath` to disable locally.
 
-2. [pending] Harden csm-browse for multi-user local-state safety
+2. [completed] Harden csm-browse for multi-user local-state safety
    - Task ID: T002
    - Depends on: none
    - Parallel group: G2
@@ -103,7 +103,8 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
    - Acceptance signal: unit tests prove private modes, ownership/shape rejection, telemetry redaction, and safe cleanup; `cd csm-browse && npm test` and `node scripts/check-skill.mjs` pass.
    - Validation: e2e quick remains 76/76 or records an updated expected count; no host files outside isolated runtime roots are touched.
    - Acceptance evidence: mode/ownership assertions, redaction fixtures, and focused test output.
-   - Repair attempts: 0
+    - Repair attempts: 0
+    - Completion evidence: `cd csm-browse && npm test` (61/61); `node scripts/check-skill.mjs` (PASS); `node --check` for all touched modules; `node tests/e2e.mjs --quick` (76/76). Default runtime root now uses `$XDG_RUNTIME_DIR/csm-browse` or `~/.local/state/csm-browse`; `CSM_BROWSE_SESSIONS_ROOT` remains an explicit override. Existing `/tmp/csm-browse` sessions are not migrated or deleted.
    - Recovery note: preserve an environment override for the old root during migration; never delete existing user sessions automatically.
 
 3. [pending] Harden upload temporary files and child lifecycle
@@ -179,7 +180,9 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
 | 2026-08-16 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT | none | Completed read-only inventory and scout; hook active only in skills clone; external activation approval is a blocker | CRITIQUE |
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001 | Baseline check-suite 428; working tree clean; T005 remains approval-blocked | INTEGRATE |
 | 2026-08-16 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Critique found hook ordering ambiguity, browse ownership overlap, upload cleanup gap, and arbitrary-clone rollout blocker; revised to strict fail-closed hook policy, widened T002 ownership, narrowed T004, and restricted T005 to verified CSM-suite clones | SAVED |
+| 2026-08-16 | 2 | SELECT -> DISPATCH (T002) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR x3 -> CHECKPOINT | T002 | Security reviews found mode/symlink/redaction gaps; repairs added private runtime enforcement, 0600 pid/lock/password/marker/queue/event/summary/artifact writes, URL/fragment/structured redaction, capture+recorder mode tests. Final: npm test 66/66, check-skill PASS, syntax PASS. Residual external ffmpeg pathname TOCTOU documented; full CDP auth remains out of scope | SELECT (T003) |
 | 2026-08-17 | 1 | INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Added strict tracked-worktree preflight before check-suite/sync and Docker-free isolated hook harness; 4/4 focused tests pass in 2.43s, check-suite 428, sync clean, syntax and diff checks clean. No external repositories or Git config changed. | SELECT |
+| 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Added owned 0700 runtime roots, explicit 0600 state/log/event/summary writes, state/path/port validation before destructive use, telemetry redaction, selected-root e2e fixtures, and Docker-free security tests. Unit 61/61, check-skill clean, syntax clean, e2e quick 76/76. No external repositories or existing sessions changed. Existing-session migration remains intentionally undecided and is not required for this rollout because the override preserves deliberate access. | SELECT |
 
 ## Completion Review
 (filled by csm-build when all approved work is verified)
