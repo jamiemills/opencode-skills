@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
-import { accessSync, rmSync } from 'node:fs';
-import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, constants as fsc } from 'node:fs/promises';
+import { accessSync, constants as fsc } from 'node:fs';
+import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, open } from 'node:fs/promises';
+import { once } from 'node:events';
 import { join, basename, dirname } from 'node:path';
-import { promisify } from 'node:util';
 import { homedir, tmpdir } from 'node:os';
-
-const execFileAsync = promisify(execFile);
 
 const CONFIG_PATH = join(homedir(), '.agents', 'csm-upload.json');
 
@@ -72,7 +70,7 @@ async function loadConfig({ probe = true } = {}) {
     // text parse below is only a fallback (it can grab the wrong account on
     // multi-account setups).
     try {
-      const { stdout } = await execFileAsync('gh', ['api', 'user', '--jq', '.login'], { timeout: 60000 });
+      const { stdout } = await execFileTracked('gh', ['api', 'user', '--jq', '.login'], { timeout: 60000 });
       const login = stdout.trim();
       if (login) {
         config.github = login;
@@ -82,7 +80,7 @@ async function loadConfig({ probe = true } = {}) {
 
     if (!config.github) {
       try {
-        const { stdout } = await execFileAsync('gh', ['auth', 'status'], { timeout: 60000 });
+        const { stdout } = await execFileTracked('gh', ['auth', 'status'], { timeout: 60000 });
         const match = stdout.match(/account\s+(\S+)/) || stdout.match(/as\s+(\S+)/);
         if (match) {
           config.github = match[1];
@@ -140,13 +138,101 @@ function buildIndexHtml(demoDir, description, uploaded) {
 
 // F-053: SIGINT/SIGTERM must not leave the temp pages clone in /tmp.
 let pagesDir = null;
+let previewDir = null;
+let previewPath = null;
 let signalCleaning = false;
-function cleanupOnSignal(signal) {
+const activeChildren = new Set();
+const pendingSetups = new Set();
+let cleanupPromise = null;
+
+function execFileTracked(file, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = execFile(file, args, options, (error, stdout, stderr) => {
+        activeChildren.delete(child);
+        if (error) {
+          error.stdout = stdout;
+          error.stderr = stderr;
+          reject(error);
+        } else {
+          resolve({ stdout, stderr });
+        }
+      });
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    activeChildren.add(child);
+  });
+}
+
+async function terminateChildren() {
+  const children = [...activeChildren];
+  for (const child of children) {
+    try { child.kill('SIGTERM'); } catch {}
+  }
+  await Promise.all(children.map(async child => {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    await Promise.race([
+      once(child, 'close').catch(() => {}),
+      new Promise(resolve => setTimeout(resolve, 5000)),
+    ]);
+    if (child.exitCode === null && child.signalCode === null) {
+      try { child.kill('SIGKILL'); } catch {}
+      try { await once(child, 'close'); } catch {}
+    }
+  }));
+}
+
+async function cleanup() {
+  if (cleanupPromise) return cleanupPromise;
+  cleanupPromise = (async () => {
+    // A signal can arrive while mkdtemp is still resolving. Wait for setup so
+    // its result is tracked before removing temporary paths.
+    await Promise.allSettled([...pendingSetups]);
+    await terminateChildren();
+    for (const path of [pagesDir, previewDir]) {
+      if (path) {
+        try { await rm(path, { recursive: true, force: true }); } catch {}
+      }
+    }
+    pagesDir = null;
+    previewDir = null;
+    previewPath = null;
+  })();
+  return cleanupPromise;
+}
+
+async function createTrackedTempDir(prefix, assign) {
+  const setup = mkdtemp(join(tmpdir(), prefix));
+  pendingSetups.add(setup);
+  try {
+    const path = await setup;
+    assign(path);
+    return path;
+  } finally {
+    pendingSetups.delete(setup);
+  }
+}
+
+async function writePrivatePreview(html) {
+  await createTrackedTempDir('csm-upload-preview-', path => { previewDir = path; });
+  previewPath = join(previewDir, 'index.html');
+  const flags = fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL | (fsc.O_NOFOLLOW ?? 0);
+  const handle = await open(previewPath, flags, 0o600);
+  try {
+    await handle.writeFile(html, 'utf-8');
+  } finally {
+    await handle.close();
+  }
+  return previewPath;
+}
+
+async function cleanupOnSignal(signal) {
   if (signalCleaning) return;
   signalCleaning = true;
-  if (pagesDir) {
-    try { rmSync(pagesDir, { recursive: true, force: true }); } catch {}
-  }
+  await cleanup();
   process.exit(signal === 'SIGINT' ? 130 : 143);
 }
 process.on('SIGINT', () => cleanupOnSignal('SIGINT'));
@@ -203,8 +289,7 @@ async function main() {
     }
 
     const html = buildIndexHtml(demoDir, description, uploaded);
-    const previewPath = join(tmpdir(), `${demoDir}.preview.html`);
-    await writeFile(previewPath, html, 'utf-8');
+    const previewPath = await writePrivatePreview(html);
     console.log(`[dry-run] Local preview written to: ${previewPath}`);
     console.log(`[dry-run] Site URL would be: ${BASE_URL}/${demoDir}/`);
     return;
@@ -216,7 +301,7 @@ async function main() {
     process.exit(1);
   }
 
-  pagesDir = await mkdtemp(join(tmpdir(), 'csm-pages-'));
+  await createTrackedTempDir('csm-pages-', path => { pagesDir = path; });
 
   try {
     const demoPath = join(pagesDir, demoDir);
@@ -227,16 +312,16 @@ async function main() {
         throw new Error(`Conflict: ${pagesDir} is not empty. Refusing to clone into it.`);
       }
       console.log(`Cloning pages repo: ${PAGES_REPO}...`);
-      await execFileAsync('git', ['clone', PAGES_REPO, pagesDir], { timeout: 120000 });
+      await execFileTracked('git', ['clone', PAGES_REPO, pagesDir], { timeout: 120000 });
       console.log('Cloned');
     }
 
     async function gitCommit() {
-      await execFileAsync('git', ['-C', pagesDir, 'add', '-A'], { timeout: 60000 });
-      const { stdout } = await execFileAsync('git', ['-C', pagesDir, 'status', '--porcelain'], { timeout: 60000 });
+      await execFileTracked('git', ['-C', pagesDir, 'add', '-A'], { timeout: 60000 });
+      const { stdout } = await execFileTracked('git', ['-C', pagesDir, 'status', '--porcelain'], { timeout: 60000 });
       if (stdout.trim()) {
-        await execFileAsync('git', ['-C', pagesDir, 'commit', '-m', `upload ${demoDir}`], { timeout: 60000 });
-        await execFileAsync('git', ['-C', pagesDir, 'push'], { timeout: 60000 });
+        await execFileTracked('git', ['-C', pagesDir, 'commit', '-m', `upload ${demoDir}`], { timeout: 60000 });
+        await execFileTracked('git', ['-C', pagesDir, 'push'], { timeout: 60000 });
         console.log('Pushed');
       } else {
         console.log('No changes to push');
@@ -274,8 +359,7 @@ async function main() {
       throw err;
     }
   } finally {
-    await rm(pagesDir, { recursive: true, force: true });
-    pagesDir = null;
+    await cleanup();
   }
 }
 

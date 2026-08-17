@@ -16,7 +16,7 @@ format: csm-plan/1
 - Current CSM state: CHECKPOINT
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-17 cycle 1 T002 verified — browse unit tests 61/61, check-skill clean, syntax/diff checks clean, e2e quick 76/76; T005 blocked pending approved CSM-suite clone paths
+- Last checkpoint: 2026-08-17 cycle 1 T003 verified — focused upload tests 2/2, syntax/check-suite/diff checks clean; T005 blocked pending approved CSM-suite clone paths
 - Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: T005 requires explicit per-repository approval before external `.git/config` changes
@@ -107,7 +107,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
     - Completion evidence: `cd csm-browse && npm test` (61/61); `node scripts/check-skill.mjs` (PASS); `node --check` for all touched modules; `node tests/e2e.mjs --quick` (76/76). Default runtime root now uses `$XDG_RUNTIME_DIR/csm-browse` or `~/.local/state/csm-browse`; `CSM_BROWSE_SESSIONS_ROOT` remains an explicit override. Existing `/tmp/csm-browse` sessions are not migrated or deleted.
    - Recovery note: preserve an environment override for the old root during migration; never delete existing user sessions automatically.
 
-3. [pending] Harden upload temporary files and child lifecycle
+3. [completed] Harden upload temporary files and child lifecycle
    - Task ID: T003
    - Depends on: none
    - Parallel group: G2
@@ -118,9 +118,10 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
    - Actions: create previews in a private temporary directory or with exclusive no-follow creation; replace promise-only git execution with tracked child handles; terminate and await children on SIGINT/SIGTERM; make cleanup idempotent; preserve dry-run no-network behavior and existing filename/HTML escaping.
    - Acceptance signal: symlink redirection test cannot overwrite its target; SIGTERM harness leaves no child/temp clone; dry-run performs no git/gh/network operations.
    - Validation: `node --check csm-upload/scripts/upload.mjs` and existing dry-run tests.
-   - Acceptance evidence: isolated symlink and signal harness output.
-   - Repair attempts: 0
-   - Recovery note: no real Pages repository or credentials may be used.
+    - Acceptance evidence: isolated symlink and signal harness output.
+    - Repair attempts: 0
+    - Completion evidence: `node --test csm-upload/tests/upload.test.mjs` (2/2); symlink redirection preserved the target and verified private preview modes 0700/0600 with no git/gh stub operations; SIGTERM covered clone, commit, and push and verified exit 143, no temporary clone, and no child process; `node --check csm-upload/scripts/upload.mjs`; `node scripts/check-suite.mjs` (428 checks); `git diff --check`. No network, GitHub repository, credentials, or real upload was used.
+    - Recovery note: no real Pages repository or credentials may be used.
 
 4. [pending] Group low-priority test and tooling refinements
    - Task ID: T004
@@ -181,8 +182,11 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001 | Baseline check-suite 428; working tree clean; T005 remains approval-blocked | INTEGRATE |
 | 2026-08-16 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Critique found hook ordering ambiguity, browse ownership overlap, upload cleanup gap, and arbitrary-clone rollout blocker; revised to strict fail-closed hook policy, widened T002 ownership, narrowed T004, and restricted T005 to verified CSM-suite clones | SAVED |
 | 2026-08-16 | 2 | SELECT -> DISPATCH (T002) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR x3 -> CHECKPOINT | T002 | Security reviews found mode/symlink/redaction gaps; repairs added private runtime enforcement, 0600 pid/lock/password/marker/queue/event/summary/artifact writes, URL/fragment/structured redaction, capture+recorder mode tests. Final: npm test 66/66, check-skill PASS, syntax PASS. Residual external ffmpeg pathname TOCTOU documented; full CDP auth remains out of scope | SELECT (T003) |
+| 2026-08-16 | 3 | SELECT -> DISPATCH (T003) -> INTEGRATE -> VERIFY -> CHECKPOINT | T003 | Upload hardening: mkdtemp + O_EXCL/O_NOFOLLOW 0600 previews, tracked child processes, SIGINT/SIGTERM cleanup. Focused tests 2/2; node --check, check-suite 428, git diff --check pass; no network or real upload | SELECT (T004) |
 | 2026-08-17 | 1 | INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Added strict tracked-worktree preflight before check-suite/sync and Docker-free isolated hook harness; 4/4 focused tests pass in 2.43s, check-suite 428, sync clean, syntax and diff checks clean. No external repositories or Git config changed. | SELECT |
 | 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Added owned 0700 runtime roots, explicit 0600 state/log/event/summary writes, state/path/port validation before destructive use, telemetry redaction, selected-root e2e fixtures, and Docker-free security tests. Unit 61/61, check-skill clean, syntax clean, e2e quick 76/76. No external repositories or existing sessions changed. Existing-session migration remains intentionally undecided and is not required for this rollout because the override preserves deliberate access. | SELECT |
+
+| 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T003 | Added private exclusive/no-follow previews, tracked git/gh children, signal termination/await, and idempotent cleanup. Focused Docker/network-free harness 2/2; syntax, check-suite 428, and diff checks clean. No external repositories, credentials, network, or real upload used. | SELECT |
 
 ## Completion Review
 (filled by csm-build when all approved work is verified)
