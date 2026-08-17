@@ -7,13 +7,13 @@
 
 ## Control
 - Plan ID: suite-coherence-contracts
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: DISPATCH
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 plan drafted from agreed approach e4aa94d, critiqued (1 blocker + 3 major + 10 minor, all remediated), verified, saved
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-16 cycle 1 — T001 complete: contracts.mjs extraction verified (329 invariant held, mutation probes byte-identical, import keys OK); next: Wave 2 (T002 ∥ T004)
+- Next transition: CHECKPOINT -> SELECT (Wave 2: T002, T004)
+- Active tasks: none (next: T002, T004)
 - Blockers: none
 
 ## Goal
@@ -85,7 +85,7 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
 - Critical paths (wave spine W1→W5 is critical): T001 → T002 → T003 → T005 → T007 and T001 → T002 → T003 → T006 → T007 (equal length).
 
 ## Numbered Plan
-1. [pending] Contracts layer extraction (P1)
+1. [completed] Contracts layer extraction (P1)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -228,6 +228,11 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
 |---|---|---|---|---|---|
 | 2026-08-16 | 0 | INTAKE -> DISCOVER -> RESEARCH (scout) -> DRAFT | none | approach e4aa94d binding (8 decisions); implementation scout: slot census, line numbers, 20-digest correction, two regen clocks, hook budgets, 9 residual uncertainties resolved as D2-D10 | CRITIQUE |
 | 2026-08-16 | 0 | CRITIQUE (independent subagent) -> REMEDIATE (primary) -> VERIFY | none | verdict needs-changes: 1 blocker (self-corpus blind spot) + 3 major (328 baseline, INTERFACES schema, W3 contradiction) + 10 minor; all 15 remediated in plan text; no design rework needed | SAVED |
+| 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW (primary self-review: pure data refactor, low risk) -> CHECKPOINT | T001 | contracts.mjs created (MANIFEST+CONTRACTS+UPLOAD_SCRIPT_REF verbatim); check-suite 329 OK exit 0 (invariant); import keys CONTRACTS,MANIFEST,UPLOAD_SCRIPT_REF; mutation probe spot-verified (contract rename fails correctly); subagent before/after probes byte-identical. Note: session detoured into unrelated installer research mid-cycle (parallel-session mixup) — zero writes from it, tree verified clean of it before resuming | SELECT (Wave 2) |
+
+### Cycle-1 Discovered Requirements (added)
+- check-suite.mjs MANIFEST-error message still says 'no MANIFEST entry in scripts/check-suite.mjs' though data now lives in contracts.mjs — message text is behavior (byte-identical scope kept it); T002 may update it when adding Interface checks.
+- Node 22 via `export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"` (nvm use broken on this host).
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)
