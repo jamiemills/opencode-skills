@@ -12,12 +12,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: coherence-followups-hook-rollout
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-16 drafted from completed suite-coherence plan and follow-up scout
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-17 cycle 1 T001 verified — hook tests 4/4, check-suite 428, sync clean, syntax and diff checks clean; T005 blocked pending approved CSM-suite clone paths
+- Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: T005 requires explicit per-repository approval before external `.git/config` changes
 
@@ -75,7 +75,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
 - Critical path: T001 -> T005 for rollout; T002/T003 are independent hardening branches.
 
 ## Numbered Plan
-1. [pending] Make pre-commit validation snapshot-correct
+1. [completed] Make pre-commit validation snapshot-correct
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -88,6 +88,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
    - Validation: `node scripts/check-suite.mjs`, `node scripts/sync-skill-boilerplate.mjs --check`, `git diff --cached --check`, named hook test command.
    - Acceptance evidence: before/after staged snapshot transcripts and timing.
    - Repair attempts: 0
+   - Completion evidence: `node --test scripts/hooks/test/pre-commit.test.mjs` (4/4, 2.43s); isolated temporary repositories proved clean, staged-only, staged deletion, untracked, unstaged-only, mixed-file, unstaged deletion, ordering, and `git commit --no-verify`; `node scripts/check-suite.mjs` (428 checks); `node scripts/sync-skill-boilerplate.mjs --check`; `node --check` for hook and test; `git diff --check`.
    - Recovery note: hook-only changes are isolated; unset `core.hooksPath` to disable locally.
 
 2. [pending] Harden csm-browse for multi-user local-state safety
@@ -176,7 +177,9 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
 |---|---|---|---|---|---|
 | 2026-08-16 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT | none | Completed read-only inventory and scout; hook active only in skills clone; external activation approval is a blocker | CRITIQUE |
+| 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001 | Baseline check-suite 428; working tree clean; T005 remains approval-blocked | INTEGRATE |
 | 2026-08-16 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Critique found hook ordering ambiguity, browse ownership overlap, upload cleanup gap, and arbitrary-clone rollout blocker; revised to strict fail-closed hook policy, widened T002 ownership, narrowed T004, and restricted T005 to verified CSM-suite clones | SAVED |
+| 2026-08-17 | 1 | INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Added strict tracked-worktree preflight before check-suite/sync and Docker-free isolated hook harness; 4/4 focused tests pass in 2.43s, check-suite 428, sync clean, syntax and diff checks clean. No external repositories or Git config changed. | SELECT |
 
 ## Completion Review
 (filled by csm-build when all approved work is verified)

@@ -2,8 +2,7 @@
 'use strict';
 
 // Pre-commit gate (installed via scripts/install-hooks.mjs -> core.hooksPath).
-// Advisory fast feedback (~0.2-3s): validates the WORKING TREE, not the index
-// (partial staging may validate unstaged content — documented wart). Bypass
+// Tracked worktree changes must be staged before repo-wide gates run. Bypass
 // with `git commit --no-verify`; the authoritative gate remains the repo's
 // full check battery (CI when enabled).
 
@@ -13,6 +12,16 @@ import path from 'node:path';
 
 const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 const node = process.execPath;
+
+// Repo-wide gates inspect the working tree, so reject a mixed index/worktree
+// rather than allowing them to validate content different from the commit.
+const unstaged = execFileSync('git', ['diff', '--name-status', '--'], { encoding: 'utf8', cwd: root }).trim();
+if (unstaged) {
+  console.error('pre-commit: tracked working-tree changes must be staged before running commit gates:');
+  console.error(unstaged);
+  console.error('pre-commit: stage or discard those changes, or bypass with `git commit --no-verify`.');
+  process.exit(1);
+}
 
 function run(cmd, args, opts = {}) {
   try {
