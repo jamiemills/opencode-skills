@@ -7,6 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES } from './lib/contracts.mjs';
 import { checkDrift } from './sync-skill-boilerplate.mjs';
+import { checkDrift as checkMatrixDrift } from './gen-readme-matrix.mjs';
 
 const args = process.argv.slice(2);
 let root = process.cwd();
@@ -646,6 +647,9 @@ function main() {
   for (const d of boilerplateDrift) {
     check(false, `${d.skill}/SKILL.md "${d.section}": ${d.message}`);
   }
+
+  const matrixDrift = checkMatrixDrift(path.join(root, 'README.md'));
+  if (matrixDrift !== null) check(false, matrixDrift);
 
   if (failures.length === 0) {
     console.log(`check-suite: OK — ${skillDirs.length} skills, ${checks} checks`);

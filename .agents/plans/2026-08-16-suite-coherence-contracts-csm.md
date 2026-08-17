@@ -11,13 +11,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: suite-coherence-contracts
-- Status: in_progress
-- Current CSM state: DISPATCH
-- Cycle: 1
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 5
 - Commits: allowed
-- Last checkpoint: 2026-08-16 cycle 2 (cont.) — T004 complete (primary-led after dispatch losses): NORMS marker (4 static pushes), renderer.md regen (fixedInput+'2026-01-15', diff = exactly 4 marker lines), fixture-behavior 10 markdown digests regen ×2 runs deterministic, semantic digests + canonicalizationVersion untouched, Output doc line, version-policy prose ×3 consumers. Suite 1229/1229; canary 0-hit; marker head proven. Next: T003 (W3)
-- Next transition: CHECKPOINT -> SELECT (T003)
-- Active tasks: none (next: T003)
+- Last checkpoint: 2026-08-16 cycle 5 — T007 complete: README matrix generated and drift-checked, layout tree updated, Development & testing docs added; final battery green (check-suite 424, sync clean, matrix clean, csm-scan 1229/1229, csm-browse 55/55, check-skill PASS, e2e 76/76); completion gate passed.
+- Next transition: COMPLETE
+- Active tasks: none
 - Blockers: none
 
 ## Goal
@@ -179,7 +179,7 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
    - Repair attempts: 0
    - Recovery note: hook disable = `git config --unset core.hooksPath`.
 
-7. [pending] README composition matrix + final wiring (P4)
+7. [completed] README composition matrix + final wiring (P4)
    - Task ID: T007
    - Depends on: T005, T006
    - Parallel group: G5
@@ -240,10 +240,22 @@ Wave barriers are hard sequencing (check-suite single-owner discipline, D10); De
 | 2026-08-16 | 4 | SELECT -> DISPATCH (T005 primary-led) -> INTEGRATE -> VERIFY -> CHECKPOINT | T005 | scripts/lib/boilerplate.mjs (tmux x5 params + resilience x4 params; byte-faithful — 'any of these' typo found+fixed via scratch-diff); sync-skill-boilerplate.mjs (--check/--write, fence+level-aware extractor, isMain guard, --root fixed after double-edit bug); check-suite drift gate wired (proven: tmux drift + resilience drift both fail); NORMS_PHRASES moved to contracts (any-of unchanged); initial --write = 0 changes (zero-diff pass); standalone roundtrip: drift->fail->write->byte-exact-restore | SELECT (T006) |
 | 2026-08-16 | 4 (cont.) | SELECT -> DISPATCH (T006 primary-led) -> VERIFY -> CHECKPOINT | T006 | scripts/hooks/pre-commit (node shebang; check-suite always, drift gate when present, --check on staged .mjs, conditional csm-browse check-skill) + install-hooks.mjs (core.hooksPath, chmod, verify) + README Installation+Quickstart lines. Acceptance: broken staged file BLOCKED (0.44s, nothing landed); --no-verify bypass proven+reverted; T006's own commit passed through the full hook (pass-path proof); uninstall documented | SELECT (T007) |
 | 2026-08-16 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW (primary self-review: pure data refactor, low risk) -> CHECKPOINT | T001 | contracts.mjs created (MANIFEST+CONTRACTS+UPLOAD_SCRIPT_REF verbatim); check-suite 329 OK exit 0 (invariant); import keys CONTRACTS,MANIFEST,UPLOAD_SCRIPT_REF; mutation probe spot-verified (contract rename fails correctly); subagent before/after probes byte-identical. Note: session detoured into unrelated installer research mid-cycle (parallel-session mixup) — zero writes from it, tree verified clean of it before resuming | SELECT (Wave 2) |
+| 2026-08-16 | 5 | SELECT -> DISPATCH (T007 primary-led) -> INTEGRATE -> VERIFY -> CHECKPOINT -> COMPLETE | T007 | README matrix generator + marked region + check-suite matrix drift gate; layout tree includes all scripts/lib/hooks entries; Development & testing docs; matrix mutation failed check-suite; generator idempotent; final battery: check-suite 424, sync clean, matrix clean, csm-scan 1229/1229, browse 55/55, check-skill PASS, e2e 76/76 | COMPLETE |
 
 ### Cycle-1 Discovered Requirements (added)
 - check-suite.mjs MANIFEST-error message still says 'no MANIFEST entry in scripts/check-suite.mjs' though data now lives in contracts.mjs — message text is behavior (byte-identical scope kept it); T002 may update it when adding Interface checks.
 - Node 22 via `export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"` (nvm use broken on this host).
 
 ## Completion Review
-(filled by csm-build when all criteria are verified)
+
+Completed by csm-build on 2026-08-16. All 7 tasks are complete and all four approach phases are implemented.
+
+- T001: contracts extracted to `scripts/lib/contracts.mjs`; baseline conformance behavior preserved.
+- T002: five-field interfaces, literal 8x8 never-invoke matrix, and checked Interface sections added to all 8 skills.
+- T003: format markers added to 11 corpus artifacts, including plans, review, approach, and approaches corpus validation.
+- T004: `format: csm-norms/1` added to NORMS output; 10 markdown digests regenerated with zero semantic drift.
+- T005: canonical tmux/resilience templates, import-safe sync tool, and drift enforcement completed; initial write was idempotent.
+- T006: fast `core.hooksPath` pre-commit gate and installer completed; broken commits block, `--no-verify` bypasses, clean commits pass.
+- T007: generated README composition matrix, layout tree, development documentation, and matrix drift enforcement completed.
+
+Final verification: check-suite 424 checks; boilerplate sync clean; README matrix clean; csm-scan 1229/1229; csm-browse 55/55; csm-browse check-skill PASS; e2e quick 76/76. The working tree is clean after the completion commit. Nothing was pushed.

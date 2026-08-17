@@ -51,6 +51,23 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-browse` | Drive an isolated Chromium inside the `chromium-vnc` Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM, capture console/network/performance, record video. | [csm-browse/SKILL.md](csm-browse/SKILL.md) |
 | `csm-upload` | Upload screenshots, videos, and evidence files to a GitHub Pages demo site under a unique dated page name. | [csm-upload/SKILL.md](csm-upload/SKILL.md) |
 
+<!-- csm-matrix:start -->
+## Composition matrix
+
+How each skill composes — standalone entry conditions, what it consumes and produces, and how work hands off. Generated from `scripts/lib/contracts.mjs`; regenerate with `node scripts/gen-readme-matrix.mjs --write`.
+
+| Skill | Standalone entry | Consumes | Produces | Hands off |
+|---|---|---|---|---|
+| `csm-grill` | idea shared, explicit request to be grilled, interviewed, or stress-tested | rough idea, repository and research evidence | agreed phased approach document | phase briefs to a separately invoked csm-plan |
+| `csm-plan` | brief or phase brief, explicit planning request | idea or phase brief, repository conventions, review findings | saved, verified CSM plan | saved plan to csm-bdd-tdd or csm-build |
+| `csm-bdd-tdd` | saved CSM plan, explicit BDD/TDD mutation request | saved plan, repository conventions | formal spec, Gherkin scenarios, unit test designs, mutated CSM plan | mutated plan to csm-build |
+| `csm-build` | saved CSM plan, explicit implementation request | saved plan, optional NORMS.md, BDD/TDD package when present | verified implementation, delivery evidence | delivery to csm-browse |
+| `csm-review` | repository target, explicit review, audit, or assessment request | repository at a pinned commit, optional NORMS.md | dated findings report | review findings to a subsequent csm-plan run |
+| `csm-scan` | repository target, scan or conventions-analysis request | committed repository declarations | NORMS.md | optional conventions input to csm-plan, csm-bdd-tdd, csm-build, or csm-review |
+| `csm-browse` | need to drive a headful Chromium browser | browser session, CDP verbs, delivery target | screenshots, videos, DOM, console, network, or performance evidence | evidence files to csm-upload |
+| `csm-upload` | evidence files ready, configured GitHub Pages destination | screenshots, videos, or evidence files, GitHub configuration | dated GitHub Pages demo page | published evidence URL to the user |
+<!-- csm-matrix:end -->
+
 ## Requirements
 
 - **[OpenCode](https://opencode.ai)** — these are OpenCode skills.
@@ -141,13 +158,25 @@ Planning never silently becomes implementation, and execution always starts from
 │   └── tests/         # e2e + fixtures (requires Docker)
 ├── csm-upload/        # evidence upload to GitHub Pages
 │   └── scripts/       # upload.mjs
-├── scripts/           # check-suite.mjs — repo-wide conformance gate
-└── .agents/           # process artifacts: plans/, docs/, reviews/ (indexed in .agents/README.md)
+├── scripts/           # suite tooling
+│   ├── check-suite.mjs            # repo-wide conformance gate
+│   ├── sync-skill-boilerplate.mjs # regenerate/verify shared SKILL.md sections
+│   ├── gen-readme-matrix.mjs      # regenerate the composition matrix from contracts
+│   ├── install-hooks.mjs          # one-time pre-commit hook installer
+│   ├── hooks/                     # tracked git hooks (core.hooksPath target)
+│   │   └── pre-commit             # fast advisory gate (check-suite + drift + syntax)
+│   └── lib/                       # shared data + templates
+│       ├── contracts.mjs          # MANIFEST, CONTRACTS, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES
+│       └── boilerplate.mjs        # canonical tmux-bootstrap + resilience templates
+└── .agents/           # process artifacts: plans/, docs/, reviews/, approaches/ (indexed in .agents/README.md)
 ```
 
 ## Development & testing
 
-- `node scripts/check-suite.mjs`   # repo-wide conformance gate (frontmatter, sections, state lines, README integrity)
+- `node scripts/check-suite.mjs`   # repo-wide conformance gate (frontmatter, sections, state lines, README integrity, corpora, interfaces, boilerplate drift, matrix drift)
+- `node scripts/sync-skill-boilerplate.mjs --check`   # boilerplate drift (also gated by check-suite + pre-commit); `--write` regenerates
+- `node scripts/gen-readme-matrix.mjs --check`        # composition-matrix drift (also gated); `--write` regenerates
+- `node scripts/install-hooks.mjs`  # enable the local pre-commit gate (bypass: `git commit --no-verify`)
 - **csm-scan** — zero-dependency `node:test` suite, run from the skill directory:
 
   ```bash
