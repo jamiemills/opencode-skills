@@ -12,7 +12,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-15-csm-review-write-discipline-csm.md` — 2026-08-15 — harden csm-review report write discipline — status: complete
 - `2026-08-15-csm-suite-improvements-csm.md` — 2026-08-15 — suite-wide improvements (performance baseline + review follow-ups) — status: complete
 - `2026-08-15-csm-tmux-bootstrap-csm.md` — 2026-08-15 — detached-tmux bootstrap for the orchestration skills — status: complete
-- `2026-08-16-skills-remediation-csm.md` — 2026-08-16 — remediate the 77 findings of the 2026-08-15 skills review (10 phases, T001–T014) — status: in_progress
+- `2026-08-16-skills-remediation-csm.md` — 2026-08-16 — remediate the 77 findings of the 2026-08-15 skills review (10 phases, T001–T014) — status: complete
+- `2026-08-16-suite-coherence-contracts-csm.md` — 2026-08-16 — suite coherence via executable contracts (7 tasks, P1-P4) — status: in_progress
 
 ## docs/
 
@@ -28,3 +29,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 Completed plans are retained as process evidence; prune after 6 months or when
 superseded. Reviews and docs are retained while their findings/numbers are
 still cited (the remediation plan and baselines reference them).
+
+## approaches/
+
+- `2026-08-16-suite-coherence-contracts-approach.md` — 2026-08-16 — agreed approach behind the suite-coherence plan — status: complete

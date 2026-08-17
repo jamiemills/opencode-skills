@@ -131,6 +131,15 @@ const INTERFACES = {
   },
 };
 
+// Known artifact format versions (kind -> latest known major). Corpus checks
+// fail on markers with an unknown kind or a version newer than recorded here.
+const FORMAT_VERSIONS = {
+  'csm-plan': 1,
+  'csm-review': 1,
+  'csm-grill': 1,
+  'csm-norms': 1,
+};
+
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
 // skill is terminal at its final state; handoff happens only via artifacts
 // plus an explicit user invocation. Off-diagonal cells are true; diagonal false.
@@ -145,4 +154,4 @@ const NEVER_INVOKE = {
   'csm-upload':   { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': false },
 };
 
-export { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE };
+export { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS };

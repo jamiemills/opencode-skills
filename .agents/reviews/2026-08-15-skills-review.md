@@ -1,3 +1,7 @@
+---
+format: csm-review/1
+---
+
 # Repository Review — opencode-skills @ a650305 (2026-08-15)
 
 ## Control

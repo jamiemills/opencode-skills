@@ -1,3 +1,7 @@
+---
+format: csm-grill/1
+---
+
 # CSM Suite Coherence — Executable Contracts Approach
 
 - Idea slug: suite-coherence-contracts

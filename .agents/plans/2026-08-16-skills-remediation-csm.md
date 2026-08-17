@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # Skills Remediation (10 Phases) CSM Plan
 
 ## How To Execute

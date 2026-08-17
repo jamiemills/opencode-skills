@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE } from './lib/contracts.mjs';
+import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS } from './lib/contracts.mjs';
 
 const args = process.argv.slice(2);
 let root = process.cwd();
@@ -40,8 +40,17 @@ function readOrNull(p) {
   }
 }
 
-function splitLines(content) {
-  return content.split(/\r?\n/);
+// Parses a leading frontmatter block and returns { kind, version } from a
+// `format: <kind>/<version>` line, or null when absent/malformed.
+function formatMarkerOf(content) {
+  const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!m) return null;
+  const fm = m[1].match(/^format:\s*([A-Za-z][A-Za-z0-9-]*)\/(\d+)\s*$/m);
+  if (!fm) return null;
+  return { kind: fm[1], version: parseInt(fm[2], 10) };
+}
+
+function splitLines(content) {  return content.split(/\r?\n/);
 }
 
 function fenceMap(lines) {
@@ -470,6 +479,17 @@ function main() {
   }
   check(planTemplate.length > 0, 'could not extract the Required Plan Document template from csm-plan/SKILL.md');
 
+  const grillSkill = readOrNull(path.join(root, 'csm-grill', 'SKILL.md'));
+  let approachTemplate = [];
+  if (grillSkill !== null) {
+    const gl = splitLines(grillSkill);
+    const gf = fenceMap(gl);
+    const grange = sectionRange(gl, gf, 'Required Approach Document');
+    const gbody = grange ? fencedBlockAfter(gl, gf, grange[0]) : null;
+    if (gbody !== null) approachTemplate = gbody.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, '').trim());
+  }
+  check(approachTemplate.length > 0, 'could not extract the Required Approach Document template from csm-grill/SKILL.md');
+
   const reviewSkill = readOrNull(path.join(root, 'csm-review', 'SKILL.md'));
   let reviewTemplateH2 = [];
   let reviewH1Prefix = null;
@@ -501,6 +521,9 @@ function main() {
       check(false, `plan corpus .agents/plans/${f} unreadable`);
       continue;
     }
+    const marker = formatMarkerOf(content);
+    check(marker !== null && marker.kind === 'csm-plan' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-plan'] ?? 0),
+      `plan corpus .agents/plans/${f} missing/unknown format marker (want frontmatter "format: csm-plan/<n>")`);
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
     const titles = h2Titles(lines, inFence).map((x) => x.title);
@@ -522,6 +545,9 @@ function main() {
       check(false, `review corpus .agents/reviews/${f} unreadable`);
       continue;
     }
+    const marker = formatMarkerOf(content);
+    check(marker !== null && marker.kind === 'csm-review' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-review'] ?? 0),
+      `review corpus .agents/reviews/${f} missing/unknown format marker (want frontmatter "format: csm-review/<n>")`);
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
     const h1s = lines.filter((l, idx) => !inFence[idx] && /^#\s/.test(l));
@@ -533,6 +559,30 @@ function main() {
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, reviewTemplateH2);
     check(gap === null, `review corpus .agents/reviews/${f}: missing/out-of-order Report Format section "## ${gap}"`);
+  }
+
+  const approachesDir = path.join(root, '.agents', 'approaches');
+  let approachFiles = [];
+  try {
+    approachFiles = fs.readdirSync(approachesDir).filter((f) => f.endsWith('-approach.md')).sort();
+  } catch {
+    approachFiles = [];
+  }
+  check(approachFiles.length > 0, `no *-approach.md approach corpus found under ${path.join('.agents', 'approaches')}`);
+  for (const f of approachFiles) {
+    const content = readOrNull(path.join(approachesDir, f));
+    if (content === null) {
+      check(false, `approach corpus .agents/approaches/${f} unreadable`);
+      continue;
+    }
+    const marker = formatMarkerOf(content);
+    check(marker !== null && marker.kind === 'csm-grill' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-grill'] ?? 0),
+      `approach corpus .agents/approaches/${f} missing/unknown format marker (want frontmatter "format: csm-grill/<n>")`);
+    const lines = splitLines(content);
+    const inFence = fenceMap(lines);
+    const titles = h2Titles(lines, inFence).map((x) => x.title);
+    const gap = subsequenceGap(titles, approachTemplate);
+    check(gap === null, `approach corpus .agents/approaches/${f}: missing/out-of-order required section "## ${gap}"`);
   }
 
   const readmePath = path.join(root, 'README.md');

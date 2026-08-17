@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # Comprehensive README for opencode-skills CSM Plan
 
 ## How To Execute

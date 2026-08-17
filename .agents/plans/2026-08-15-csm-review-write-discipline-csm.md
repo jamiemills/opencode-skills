@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # csm-review Write Discipline CSM Plan
 
 ## How To Execute

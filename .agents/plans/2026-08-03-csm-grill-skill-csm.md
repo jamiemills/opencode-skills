@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # csm-grill Skill (First Cut) CSM Plan
 
 ## How To Execute

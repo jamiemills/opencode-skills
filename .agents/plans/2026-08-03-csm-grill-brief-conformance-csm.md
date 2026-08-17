@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # csm-grill Brief-Conformance Verification CSM Plan
 
 ## How To Execute

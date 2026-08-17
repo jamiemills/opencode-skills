@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # csm-suite Improvements CSM Plan
 
 ## How To Execute

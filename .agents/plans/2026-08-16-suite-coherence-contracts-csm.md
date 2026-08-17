@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # Suite Coherence — Executable Contracts CSM Plan
 
 ## How To Execute

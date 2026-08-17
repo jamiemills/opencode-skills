@@ -1,3 +1,7 @@
+---
+format: csm-plan/1
+---
+
 # Build csm-review Skill CSM Plan
 
 ## How To Execute
