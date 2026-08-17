@@ -12,12 +12,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: coherence-followups-hook-rollout
-- Status: in_progress
-- Current CSM state: CHECKPOINT
+- Status: blocked
+- Current CSM state: BLOCKED
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-17 cycle 1 T003 verified — focused upload tests 2/2, syntax/check-suite/diff checks clean; T005 blocked pending approved CSM-suite clone paths
-- Next transition: CHECKPOINT -> SELECT
+- Last checkpoint: 2026-08-17 cycle 1 T004 verified — duplicate fixture registration removed; csm-scan 1225/1225, coverage 96.88% lines, csm-browse 66/66, check-suite 428; T005 blocked pending approved CSM-suite clone paths
+- Next transition: After explicit approval of one or more verified CSM-suite clone paths, BLOCKED -> SELECT (T005)
 - Active tasks: none
 - Blockers: T005 requires explicit per-repository approval before external `.git/config` changes
 
@@ -123,7 +123,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
     - Completion evidence: `node --test csm-upload/tests/upload.test.mjs` (2/2); symlink redirection preserved the target and verified private preview modes 0700/0600 with no git/gh stub operations; SIGTERM covered clone, commit, and push and verified exit 143, no temporary clone, and no child process; `node --check csm-upload/scripts/upload.mjs`; `node scripts/check-suite.mjs` (428 checks); `git diff --check`. No network, GitHub repository, credentials, or real upload was used.
     - Recovery note: no real Pages repository or credentials may be used.
 
-4. [pending] Group low-priority test and tooling refinements
+4. [completed] Group low-priority test and tooling refinements
    - Task ID: T004
    - Depends on: none
    - Parallel group: G1
@@ -135,7 +135,9 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
    - Acceptance signal: `cd csm-scan && node --test --test-concurrency=1` remains green; test counts and coverage changes are explained; any deferred candidate is named in the checkpoint rather than silently omitted.
    - Validation: run focused tests before the full suites; no assertion weakening or silent skips.
    - Acceptance evidence: before/after test counts, runtime, and coverage report.
-   - Repair attempts: 0
+    - Repair attempts: 0
+    - Completion evidence: Moved `runLegacyTenMirror` into `test/helpers/legacy-pipeline-mirror.mjs` so `expansion-production-pipeline.test.mjs` no longer imports a `.test.mjs` helper; preserved the five fixture assertions and updated only the intentional integrity digest. Full `node --test --test-concurrency=1`: 1225/1225, 0 skipped, 0 todo, 2:30.95; coverage gate: 1225/1225, 96.88% line, 88.48% branch, 97.36% function, PASS, 2:46.68; `cd csm-browse && npm test`: 66/66, 4.08s; `node scripts/check-suite.mjs`: 428 checks, 0.165s; syntax and diff checks clean. No bounded Docker timeout test was added because the existing exec-layer seam does not expose real child timeout options without redesign. `ws` remains deferred: csm-browse has no devDependency/lockfile policy for direct test dependencies, and `ws` is already transitive; adding it would be speculative dependency churn.
+    - Deferred candidates: F-055 legacy pipeline deletion, CI/audit, CDP auth, log line semantics, broad test-size restructuring, Docker execution redesign, and explicit `ws` dependency.
    - Recovery note: each refinement must be independently revertible; defer any candidate that requires broad pipeline redesign.
 
 5. [blocked] Activate hooks in explicitly approved external clones
@@ -187,6 +189,8 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
 | 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Added owned 0700 runtime roots, explicit 0600 state/log/event/summary writes, state/path/port validation before destructive use, telemetry redaction, selected-root e2e fixtures, and Docker-free security tests. Unit 61/61, check-skill clean, syntax clean, e2e quick 76/76. No external repositories or existing sessions changed. Existing-session migration remains intentionally undecided and is not required for this rollout because the override preserves deliberate access. | SELECT |
 
 | 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T003 | Added private exclusive/no-follow previews, tracked git/gh children, signal termination/await, and idempotent cleanup. Focused Docker/network-free harness 2/2; syntax, check-suite 428, and diff checks clean. No external repositories, credentials, network, or real upload used. | SELECT |
+| 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T004 | Extracted the legacy parity helper from the `.test.mjs` fixture module, removing duplicate fixture registration without weakening assertions. Full csm-scan 1225/1225, coverage 96.88% lines, csm-browse 66/66, check-suite 428, syntax/diff clean. Timeout coverage, explicit `ws`, test-size splitting, and all out-of-scope candidates deferred for lack of a small safe seam or policy support. No commits or external repositories changed. | SELECT |
+| 2026-08-17 | 4 | CHECKPOINT -> BLOCKED | T005 | T001-T004 verified locally. T005 cannot run: no other repository was verified as a CSM-suite clone, and no external path has explicit approval for `.git/config` or hook-file mutation. | BLOCKED |
 
 ## Completion Review
 (filled by csm-build when all approved work is verified)

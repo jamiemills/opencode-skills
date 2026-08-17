@@ -11,7 +11,7 @@ import { withFixture } from './harness.mjs';
 // T010 (F-026): the legacy ten-dimension oracle (parity target of
 // runExistingTenPipeline); the expanded production pipeline lives in
 // helpers/pipeline-mirror.mjs.
-import { runLegacyTenMirror } from './fixtures-pipeline.test.mjs';
+import { runLegacyTenMirror } from './helpers/legacy-pipeline-mirror.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';

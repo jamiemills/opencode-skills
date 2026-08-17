@@ -3,7 +3,7 @@
   "files": {
     "test/expansion-command-deep.test.mjs": "2477e3b072657d6e005be3b686d63e12e7fec095199ce948b3bfd609a6b6b867",
     "test/regression-parity.test.mjs": "82849e7fe99d0dcc3add0829de8633dd0676957b69ce09d43fb9dbeab24b7b66",
-    "test/fixtures-pipeline.test.mjs": "d30da958994a398f453053be16b6ef69865a57285fbe7b1e9919f395e2a69b29",
+    "test/fixtures-pipeline.test.mjs": "7ee9c129ae6589566dc9ae8a03056696ba05125c30cfb27a6b22c60046a4a03c",
     "test/fixtures/python.mjs": "bf0ef1824f44fc955eb94dbf30bceb62a251a518b21e2b9bdb586bf27e60f9d7",
     "test/fixtures/javascript.mjs": "67d1c3b7c0171f561c78a747b42461ff8e81e6543e9dea658ae993dcd0d70827",
     "test/fixtures/typescript.mjs": "ac72ebe0797219b3ae93f24a2020ee97463f1bfb764d74cee3f3fbe013d74d71",
