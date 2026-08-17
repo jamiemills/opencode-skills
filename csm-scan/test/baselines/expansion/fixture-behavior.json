@@ -10,33 +10,33 @@
   "fixtures": {
     "python": {
       "semanticSha256": "4e5c89828c2f685064d4e361504d68a888b95378333a09340908d42b9b851b74",
-      "markdownSha256": "5648d6316a775b0a6f9cf010feda78df5ff60fcbb9965e4bb4205dd111b46e90",
+      "markdownSha256": "db885cc66df859ed638017cfef9e9a044a4f4bc6ee7e28771520e924632ab39f",
       "expandedSemanticSha256": "49201b5e5be143b5593defba7456f82f1c09073d69df2c9c5cae600322f415ad",
-      "expandedMarkdownSha256": "723c4f25dfdfb9fd1c378dd08907846f9483645dc1a3ac69fe5a88bb8f4274dd"
+      "expandedMarkdownSha256": "645b3e48914901c472a6691fbf43256a733bdc4f93f82dbfd5dd462d9b1555c0"
     },
     "javascript": {
       "semanticSha256": "2a32337d4cfe43172fbe35d2957fd80e8bee3f9351e5b42f5797f6e3942a6304",
-      "markdownSha256": "a4de67ef7d94c2b0e083b845b12024b43d8d916c0aa027a96ca76c40a87037bb",
+      "markdownSha256": "c8c8c2291988d3f49a12de54c5dba2237a864b1d952048ffb3ee1fc24e8da13e",
       "expandedSemanticSha256": "f58476efba4730bbfcbaf432f2ac002d640d4752e654853b61bb2db39a107165",
-      "expandedMarkdownSha256": "decaa911066f7da55b97c9b309d0c548b8a98d513a2cda82e63502c0c442cd18"
+      "expandedMarkdownSha256": "b9d9a29786c4957f621c72e9aa34780601b13e166675a93dc17ca8143eb29cd6"
     },
     "typescript": {
       "semanticSha256": "0ee8a7e482650fe409e5ef427f517b134cf440c4bcc5e9d9a024196f41a4056e",
-      "markdownSha256": "47a809a19b5736994256cd5ba7ed6ca28b39450dece96c1adf515589dda59e98",
+      "markdownSha256": "3177301fbf925f7881cfc54bc6d7875c057599ede4fc4fd02feb03eea4a4ab28",
       "expandedSemanticSha256": "3cd6a923ceb9c81fd70ddf7843cf13c26437fe2358241293ecfb9ee0a1c9d31b",
-      "expandedMarkdownSha256": "1cd1b2fc7c6b01aa0246cb2a558df4f7f2dff9e3ef6edbd802624d194af63c18"
+      "expandedMarkdownSha256": "9cfde04c5178e208372a4a4c3a029f7a3bcbc6b9844c497d28a0e40ac625f7ed"
     },
     "rust": {
       "semanticSha256": "7e0c69ec65c4dc80dc08951badb9d3fef9a7527052e903bc52dde3cae99140c6",
-      "markdownSha256": "bb4401dc15b8ff5751a7a634961d90cf6934c591f3074f68f2ecae51d3fc752c",
+      "markdownSha256": "7d9a1a3778e8530b5fdea42c02d4c345fe7198ba9f1d9e50e61b480142c7fa23",
       "expandedSemanticSha256": "899fd4564dfcc53f8fb5acd76a3e77cc5094d6dd1ab8f610c312796f7a857b7d",
-      "expandedMarkdownSha256": "150888f89ca0503b56afdd4de8a579b701df4751544b0756f1337738d0736488"
+      "expandedMarkdownSha256": "a7ca1cb588e750175ef4072e52380ac5f01193bf13cb18d800d74feb9c17d374"
     },
     "shell": {
       "semanticSha256": "691e01ae9212739dd65358387883cc2b3382f76124950db1e880fc622151c428",
-      "markdownSha256": "2f9083efbfb854decbeadc463791ff272cc9e56267c47f90915983c0adc88b3f",
+      "markdownSha256": "adf3577e089625b63f9ac18386e18f4b8ecb2098e8124b2e14f9289b98d0eb7e",
       "expandedSemanticSha256": "90d08ec083cd2766f687dd92b4c359306c932ebf3fea7668fe4546f0ac56b539",
-      "expandedMarkdownSha256": "3878226755249c8bb42767d8a01ebc9a524900b96bb0c1a61073a53d720e7d0b"
+      "expandedMarkdownSha256": "99514fa373f8fbea50ecffb49d0ebdf6a9fe377833b89e3c5c13742bdb87dd4d"
     }
   }
 }

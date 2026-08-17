@@ -133,7 +133,7 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 
 ### 1. INTAKE
 
-1. Classify the ask's size and prescriptiveness per Scale To The Ask, and set planning depth accordingly.
+1. Classify the ask's size and prescriptiveness per Scale To The Ask, and set planning depth accordingly. When consuming a csm-grill approach document, check its `format:` marker (e.g. `format: csm-grill/1`); on an unknown version, stop and report incompatibility rather than guessing.
 2. Restate the goal, deliverables, constraints, exclusions, and measurable acceptance criteria from the brief.
 3. Identify unresolved product decisions separately from technical uncertainties.
 4. Ask concise numbered questions only for decisions that cannot be established safely through discovery or R&D.

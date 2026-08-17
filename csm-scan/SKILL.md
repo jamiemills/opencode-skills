@@ -176,7 +176,7 @@ Identical immutable inputs, a fixed clock, the same plugin set, and the same rep
 
 ## Output
 
-A single `NORMS.md` file containing one section per scanned repository with the 17 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** section when facts from its scanned dimensions coexist in a relationship reported by enrichment.
+A single `NORMS.md` file beginning with a `format: csm-norms/1` frontmatter marker, containing one section per scanned repository with the 17 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** section when facts from its scanned dimensions coexist in a relationship reported by enrichment.
 
 Enrichment metadata records factual detection coverage and the observed, inferred, unverified, unsupported, or not-applicable basis of findings. A `### Coverage Basis` table defines the basis vocabulary used across dimensions.
 

@@ -96,6 +96,8 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 
 `INTAKE -> SPEC -> SCENARIOS -> VALIDATE -> TEST_DESIGN -> MUTATE_PLAN -> VERIFY -> SAVED -> STOP`
 
+At INTAKE, check the base plan's `format:` marker (e.g. `format: csm-plan/1`); on an unknown version, stop and report incompatibility rather than guessing.
+
 Transitions from `VALIDATE` or `VERIFY` may return to `SPEC`, `SCENARIOS`, or `TEST_DESIGN` when artifacts are wrong or superficial. Continue until the gate passes or a genuine user decision blocks progress.
 
 Record every pipeline transition in `specs/control.md` (state, timestamp, artifact status, next action) as it happens. On start, if `specs/control.md` already exists in the resolved specs folder, resume from its recorded state instead of restarting.

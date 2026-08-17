@@ -116,6 +116,7 @@ Record every transition in `Control` and `Progress Journal` before proceeding. I
 Reconstruct reality before continuing:
 
 1. Inspect repository status and current diffs without modifying them.
+2. Check the plan's `format:` marker (e.g. `format: csm-plan/1`); on an unknown version, stop and report incompatibility rather than guessing.
 2. Detect and validate NORMS.md (see Repository Norms section). Load conventions into plan context if present and authentic.
 3. Compare the plan's active and completed tasks with actual implementation and validation evidence.
 4. Identify partial edits, failed checks, generated artifacts, concurrent changes, and stale assumptions.
