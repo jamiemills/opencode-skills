@@ -14,11 +14,11 @@ format: csm-plan/1
 ## Control
 - Plan ID: universal-agent-skills-bootstrap
 - Status: in_progress
-- Current CSM state: RECOVER
+- Current CSM state: SELECT
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-18 — RECOVER baseline: no target implementation files exist; unrelated untracked plan preserved
-- Next transition: RECOVER -> VALIDATE
+- Next transition: SELECT -> DISPATCH (T001)
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -112,7 +112,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 - A task is `completed` only after its acceptance signal, evidence, and review gate pass. `T005` never marks the plan complete; the primary final gate updates Control and Completion Review.
 
 ## Numbered Plan
-1. [pending] Define the universal signed bootstrap envelope and guidance boundary
+1. [in_progress] Define the universal signed bootstrap envelope and guidance boundary
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -243,6 +243,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 1 | REMEDIATE -> VERIFY -> SAVED | none | Fixed package identity, local HTTPS fixture, exact owned paths, serial reviewed dependency chain, build execution contract, build-time/runtime boundary, and final-primary ownership; implementation not started | SAVED |
 | 2026-08-18 | 2 | CLOSE-SUPERSEDED-PLANS -> VERIFY | none | Closed T001-T006 in the 2026-08-17 plan and T001-T005 in the 2026-08-18 URL/npx plan without execution; retained implementation content and updated only closure metadata | SAVED |
 | 2026-08-18 | 3 | NOT_STARTED -> RECOVER | none | Explicit csm-build request received; target plan selected; no target implementation files or partial task commits found; unrelated `.agents/plans/2026-08-18-remaining-suite-work-csm.md` remains untracked and out of scope | VALIDATE |
+| 2026-08-18 | 3 | RECOVER -> VALIDATE -> SELECT | none | Baseline gates pass: check-suite 434, boilerplate sync clean, README matrix clean; ready set contains only T001 because all later tasks require prior implementation plus independent review | DISPATCH (T001) |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
