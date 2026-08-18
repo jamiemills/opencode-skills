@@ -13,12 +13,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: universal-agent-skills-bootstrap
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: RECOVER
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-18 — build-readiness review remediated; prior plans protected; baseline recorded below
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-18 — RECOVER baseline: no target implementation files exist; unrelated untracked plan preserved
+- Next transition: RECOVER -> VALIDATE
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -185,7 +185,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Not in scope: client adapters, agent-specific claims, prior-plan edits, CI/release hosting, external repositories, live credentials, `.agents/**`, or final Control/Completion Review updates
    - Spike candidate: run two online/offline cycles with synthetic agent capability profiles; if any test uses repository destination or real home, stop as safety failure
    - Actions: document one URL flow, trust-root prerequisite, agent capability discovery, user-question path, exact npx command, offline warm-cache/replay, payload verification, helper separation, and limits; add only cross-task integration tests under `tests/integration/**`; keep `.agents/**` and prior plans untouched; reserve final completion review for the primary planning/build orchestrator
-   - Acceptance signal: `node --test tests/integration/*.test.mjs` passes, then `node scripts/check-suite.mjs && node scripts/sync-skill-boilerplate.mjs --check && node scripts/gen-readme-matrix.mjs --check` exits 0; final protected-state assertion proves all prior plan hashes are unchanged
+   - Acceptance signal: `node --test tests/integration/*.test.mjs` passes, then `node scripts/check-suite.mjs && node scripts/sync-skill-boilerplate.mjs --check && node scripts/gen-readme-matrix.mjs --check` exits 0; final protected-state assertion proves prior plans match their recorded closure-only hashes and no other prior artifact changed
    - Validation: Agent Skills validator, packed artifact audit, scan/browse syntax/self-check, upload dry-run, protected Git status/hash, cheapest-first; T005 does not mark the plan complete
    - Acceptance evidence: final command matrix, envelope/package/payload hashes, synthetic-agent traces, offline transcripts, README diff limited to root `README.md`, and protected-state report
    - Repair attempts: 0
@@ -242,6 +242,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 1 | VERIFY -> CRITIQUE | none | Independent build-readiness audits found circular T001 package gate, placeholder identity, missing HTTPS fixture, contradictory T004 graph, overlapping ownership, and incomplete checkpoint/review rules | REMEDIATE |
 | 2026-08-18 | 1 | REMEDIATE -> VERIFY -> SAVED | none | Fixed package identity, local HTTPS fixture, exact owned paths, serial reviewed dependency chain, build execution contract, build-time/runtime boundary, and final-primary ownership; implementation not started | SAVED |
 | 2026-08-18 | 2 | CLOSE-SUPERSEDED-PLANS -> VERIFY | none | Closed T001-T006 in the 2026-08-17 plan and T001-T005 in the 2026-08-18 URL/npx plan without execution; retained implementation content and updated only closure metadata | SAVED |
+| 2026-08-18 | 3 | NOT_STARTED -> RECOVER | none | Explicit csm-build request received; target plan selected; no target implementation files or partial task commits found; unrelated `.agents/plans/2026-08-18-remaining-suite-work-csm.md` remains untracked and out of scope | VALIDATE |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
