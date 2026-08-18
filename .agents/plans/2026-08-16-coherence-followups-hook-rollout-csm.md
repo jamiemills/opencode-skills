@@ -12,14 +12,14 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: coherence-followups-hook-rollout
-- Status: blocked
-- Current CSM state: BLOCKED
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 1
 - Commits: allowed
 - Last checkpoint: 2026-08-17 cycle 1 T004 verified — duplicate fixture registration removed; csm-scan 1225/1225, coverage 96.88% lines, csm-browse 66/66, check-suite 428; T005 blocked pending approved CSM-suite clone paths
-- Next transition: After explicit approval of one or more verified CSM-suite clone paths, BLOCKED -> SELECT (T005)
+- Next transition: COMPLETE
 - Active tasks: none
-- Blockers: T005 requires explicit per-repository approval before external `.git/config` changes
+- Blockers: none; T005 explicitly excluded by user decision
 
 ## Goal
 Address the remaining minor follow-ups from the completed suite-coherence work and define a safe rollout for the pre-commit hook across other verified clones of this CSM suite. Improve staged-snapshot correctness, harden csm-browse for multi-user hosts, close upload/test-tooling hygiene gaps, and activate hooks only where the user explicitly authorizes it.
@@ -140,7 +140,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
     - Deferred candidates: F-055 legacy pipeline deletion, CI/audit, CDP auth, log line semantics, broad test-size restructuring, Docker execution redesign, and explicit `ws` dependency.
    - Recovery note: each refinement must be independently revertible; defer any candidate that requires broad pipeline redesign.
 
-5. [blocked] Activate hooks in explicitly approved external clones
+5. [blocked] EXCLUDED — activate hooks in other clones (not requested)
    - Task ID: T005
    - Depends on: T001
    - Parallel group: G3
@@ -153,7 +153,7 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
    - Validation: before/after `git config`, `git status`, hook existence/permissions, and rollback rehearsal only in an approved clone.
    - Acceptance evidence: target eligibility/approval matrix with prior value, hook source/path, verification, and rollback.
    - Repair attempts: 0
-   - Recovery note: remain blocked until the user supplies approved paths; do not guess based on filesystem discovery.
+   - Recovery note: do not execute. This task is out of scope unless the user explicitly requests a new rollout plan.
 
 ## Verification Strategy
 - Fast gates first: syntax checks, hook-specific tests, `git diff --cached --check`, and focused unit tests.
@@ -191,6 +191,9 @@ Use five bounded tasks. T001 fixes the hook's snapshot policy and adds regressio
 | 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T003 | Added private exclusive/no-follow previews, tracked git/gh children, signal termination/await, and idempotent cleanup. Focused Docker/network-free harness 2/2; syntax, check-suite 428, and diff checks clean. No external repositories, credentials, network, or real upload used. | SELECT |
 | 2026-08-17 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T004 | Extracted the legacy parity helper from the `.test.mjs` fixture module, removing duplicate fixture registration without weakening assertions. Full csm-scan 1225/1225, coverage 96.88% lines, csm-browse 66/66, check-suite 428, syntax/diff clean. Timeout coverage, explicit `ws`, test-size splitting, and all out-of-scope candidates deferred for lack of a small safe seam or policy support. No commits or external repositories changed. | SELECT |
 | 2026-08-17 | 4 | CHECKPOINT -> BLOCKED | T005 | T001-T004 verified locally. T005 cannot run: no other repository was verified as a CSM-suite clone, and no external path has explicit approval for `.git/config` or hook-file mutation. | BLOCKED |
+| 2026-08-17 | 5 | BLOCKED -> COMPLETE (user-directed exclusion) | T005 | User confirmed hook rollout to other clones was never requested; T005 excluded and no external repositories changed. T001-T004 remain complete and verified. | COMPLETE |
 
 ## Completion Review
-(filled by csm-build when all approved work is verified)
+Completed 2026-08-17. T001-T004 are implemented and verified. T005 is explicitly excluded by the user and was not executed.
+
+Final evidence: csm-scan 1225/1225, csm-browse 66/66, check-suite 428, check-skill PASS, upload tests 2/2, working tree clean, and no external repositories modified.
