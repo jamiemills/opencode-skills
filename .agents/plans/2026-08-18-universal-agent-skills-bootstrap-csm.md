@@ -9,7 +9,7 @@ format: csm-plan/1
 ## How To Execute
 - Start work only through a separate, explicit csm-build invocation naming this plan; this planning session must not begin execution.
 - Commit policy and live state are maintained in Control by csm-build.
-- Risk summary: 5 tasks — 2 high (T001 remote trust, T002 executable package/payload), 3 standard (T003 universal agent protocol, T004 npx/offline boundary, T005 conformance/docs). T001-T002 require independent review.
+- Risk summary: 5 tasks — 4 high (T001 remote trust, T002 executable package/payload, T003 universal agent protocol, T004 npx/offline boundary), 1 standard (T005 conformance/docs). T001-T004 require independent review before dependents can dispatch.
 
 ## Control
 - Plan ID: universal-agent-skills-bootstrap
@@ -17,7 +17,7 @@ format: csm-plan/1
 - Current CSM state: NOT_STARTED
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-18 — universal protocol design verified; prior plans protected
+- Last checkpoint: 2026-08-18 — build-readiness review remediated; prior plans protected; baseline recorded below
 - Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
@@ -28,11 +28,11 @@ Make the collection usable by any capable AI agent through one URL containing ag
 **Capability boundary:** an agent must be able to read HTTPS content, write skill files, and invoke exact `npx` commands. Agents lacking one of those capabilities receive a safe refusal or can use the URL as documentation manually; the plan does not claim universal runtime capability.
 
 ## Acceptance Criteria
-1. One HTTPS URL returns a signed canonical `csm-bootstrap/2` envelope containing a payload manifest and concise Markdown steps. The signature covers the structured policy and the exact steps digest; steps are guidance, never executable policy.
-2. The npm package is a reviewed, exact-version `npm pack` artifact with a fixed bin, no lifecycle scripts, no Git/URL/range dependencies, and a separate payload index for `SKILL.md` files, supporting files, helper bins, and hashes.
+1. The committed bootstrap fixture and release layout serve a signed canonical `csm-bootstrap/2` envelope over a local HTTPS test server; the envelope contains a payload manifest and concise Markdown steps. The signature covers the structured policy and exact steps digest; steps are guidance, never executable policy.
+2. The package is a reviewed `npm pack` artifact named `@jamiemills/csm-skills-bootstrap`, with fixed version `0.1.0` for the first build fixture, a fixed bin, no lifecycle scripts, no Git/URL/range dependencies, and a separate payload index for `SKILL.md` files, supporting files, helper bins, and hashes. Publication is a later explicit release action, not part of the build.
 3. Any capable agent can follow the protocol: discover npx, determine a supported Agent Skills location, ask the user if the location or trust root is ambiguous, use the fixed package command, place only verified payload files, and report destination, hashes, reload action, and rollback limitations.
-4. Machine checks reject unsigned/altered/expired/wrong-audience manifests, arbitrary shell or executable fields, traversal/links/special files/duplicates, floating package specs, missing or altered offline cache entries, and unverified payloads. Markdown is never executed.
-5. Online warm-cache and offline replay use identical exact package/payload bytes. Offline uses `npx --offline --no` and fails closed when the cache is incomplete; no network fallback occurs.
+4. Machine checks reject unsigned/altered/expired/wrong-audience/revoked-key manifests, arbitrary shell or executable fields, traversal/links/special files/duplicates, floating package specs, missing or altered offline cache entries, and unverified payloads. Markdown is never executed.
+5. Online warm-cache and offline replay use identical exact package/payload bytes. Offline uses `npx --offline --no` and fails closed when the cache is incomplete; no network fallback occurs. Node/npm/platform and every cache tarball integrity are recorded.
 6. The package never assumes an agent-specific destination, invocation syntax, reload mechanism, lock implementation, or transaction capability. Agent-dependent guarantees are reported as such; machine-verifiable payload hashes are always checked after placement.
 7. Existing repository gates pass, all prior plans and unrelated artifacts remain unchanged, and no implementation starts during planning.
 
@@ -42,7 +42,9 @@ Make the collection usable by any capable AI agent through one URL containing ag
 - OpenCode, Claude Code, and other clients may support the standard while differing in discovery and capabilities; no universal filesystem destination can be assumed.
 - `csm-browse/package.json:4,10-15` is private, ranged, and Node `>=22 <25`; `csm-scan/scripts/scan.mjs:6-13` has a production closure; `csm-upload/scripts/upload.mjs:219-277` has external mutation behavior.
 - npm npx docs state exact package execution and `--offline`; npm cache persistence is not guaranteed, and lifecycle scripts can execute unless suppressed.
+- Build-time repository checks may use the existing Node commands (`node scripts/check-suite.mjs`, `node --check`, and test runners); the npx-only rule applies to delivered bootstrap/runtime behavior, never to repository development gates.
 - Prior plans are committed and protected; this plan is the only allowed new persistent artifact for this planning cycle.
+- Protected-plan baseline hashes: `2026-08-17-agent-agnostic-installable-skills-csm.md` = `f9479f89d761305a81fdace7a9b7ce5bb66f15d1420f8f2d227281bfabe89dd3`; `2026-08-18-agent-agnostic-url-npx-bootstrap-csm.md` = `808d568d12c1ed7408cf5554231d8a67ca2630e22327dc48b4ae909e0da56f09`.
 
 ## Assumptions And Decisions
 | ID | Statement | Type | Evidence or rationale | Status |
@@ -54,6 +56,9 @@ Make the collection usable by any capable AI agent through one URL containing ag
 | D5 | Package contains neutral skills and helper bins as separate payload classes; helper execution is never implied by skill installation | supply-chain | keeps Markdown data distinct from executable code | decided |
 | D6 | Offline support is conditional on a verified warm npm cache and exact Node/npm/platform metadata | operational | npm cache is not durable or portable by default | decided |
 | D7 | Prior plans are superseded by this new file only; they are not edited, marked in place, or co-executed | concurrency | protects other sessions and historical evidence | decided |
+| D8 | First build fixture uses package `@jamiemills/csm-skills-bootstrap@0.1.0` and npm registry identity `https://registry.npmjs.org`; real publication requires a later explicit release action | planning decision | concrete acceptance commands need stable identities without performing external publication during build | decided |
+| D9 | Build-time tests may invoke repository Node tooling; user-facing delivered Node behavior must use exact npx package bins and offline `--no` mode | scope decision | existing repository gates are authoritative development checks | decided |
+| D10 | Universal protocol guarantees are divided into machine guarantees and agent-reported capabilities; no agent-specific adapter is promised | design decision | any agent may lack npx, writable skills path, staging, or reload semantics | decided |
 
 ## R&D Record
 | ID | Question | Method/tool | Isolation and no-change evidence | Observation | Plan implication |
@@ -64,6 +69,7 @@ Make the collection usable by any capable AI agent through one URL containing ag
 | R4 | What can be guaranteed when the agent writes files? | Critique of installer/agent ownership split | Read-only | Agent capabilities determine locking, staging, rollback, and reload; helper can verify payload but cannot promise host semantics | T003 separates machine guarantees from agent-reported guarantees |
 | R5 | How should payload be delivered without repository download? | Runtime closure/package census | Read-only | Single npm package can contain skills, supporting files, helper bins, and hashes | T002 defines separate payload index and pack audit |
 | R6 | Can this planning amendment affect other sessions? | Git status, prior-plan reads, tmux inspection | No writes/signals/config changes | Prior plans and active sessions exist outside this plan | Only this plan path may be created; all prior plan hashes remain protected |
+| R7 | Can acceptance run before package publication? | Plan audit and npm command semantics | No package install/publication | Local packed artifact and local HTTPS fixture can validate the build; registry publication is not required | T001/T002 use disposable packed fixture; T005 excludes real publication |
 
 ## Discovered Requirements
 - “Any agent” must be qualified as any agent that can read the URL, write files, and invoke npx; unsupported capabilities cause refusal, not guessed fallbacks.
@@ -74,6 +80,9 @@ Make the collection usable by any capable AI agent through one URL containing ag
 - Package release validation must reject lifecycle scripts, Git/URL/range dependencies, dynamic loading, undeclared files, ambiguous bins, and helper/payload mixing.
 - Offline tests must record Node/npm/platform, exact package tarball integrity, cache manifest, and failure for missing metadata, missing tarball, altered bytes, or cache/registry mismatch.
 - Skill Markdown and helper bins are distinct trust domains; installing Markdown never invokes a helper.
+- T001 must be independently reviewed before T002 dispatch; T002 must be independently reviewed before T003; T003 before T004; T004 before T005. Review evidence is recorded in each task checkpoint.
+- Every task has a single primary owner and exact file paths; cross-task tests are owned only by T005 under `tests/integration/`.
+- A build checkpoint records task ID, commit, changed paths, command outputs, protected-plan hashes, review verdict, and the exact next task ID.
 
 ## Design
 The URL returns an envelope with structured fields and a digest-bound `steps_markdown` field. The agent first confirms that it trusts the fixed bootstrap package/key, then reads the steps as guidance. The steps tell it to discover its own Agent Skills format support and destination, ask the user if uncertain, invoke the fixed npx package, and place verified files. The URL cannot select an executable, shell command, arbitrary destination, or fallback tool.
@@ -83,13 +92,24 @@ The package has four separate sections: neutral skill payload (`SKILL.md` plus d
 The protocol is capability-based rather than adapter-based. It does not name OpenCode, Claude, Pi, Codex, or any other client in the execution contract. It documents the Agent Skills standard and asks the invoking agent to apply its own host knowledge. Agents without npx or file access stop safely and report the missing capability. Offline invocation uses the same exact npx package and `--offline --no`; missing cache is an explicit failure, never a network fallback.
 
 ## Execution Graph
-- Wave 1: T001 universal envelope, signature, steps boundary, and trust root.
-- Wave 2: T002 package/payload closure and exact npx bin after T001.
-- Wave 3: T003 agent-owned discovery/materialization protocol after T001/T002.
-- Wave 4: T004 offline/helper boundary after T002 ∥ T003 protocol fixtures (separate scopes).
-- Wave 5: T005 generic conformance tests, docs, and final gates after T003/T004.
-- Critical path: T001 -> T002 -> T003 -> T005.
+- Wave 1: T001 universal envelope, signature, steps boundary, and trust root; independent review required.
+- Wave 2: T002 package/payload closure and exact npx bin after T001 review; independent review required.
+- Wave 3: T003 agent-owned discovery/materialization protocol after T002 review; independent review required.
+- Wave 4: T004 offline/helper boundary after T003 review; independent review required.
+- Wave 5: T005 generic conformance tests, docs, and final gates after T004 review; primary verification remains outside T005.
+- Critical path: T001 -> review -> T002 -> review -> T003 -> review -> T004 -> review -> T005 -> primary final verification.
+- No parallel implementation groups: each task owns a distinct path set and depends on the prior reviewed checkpoint. This deliberate serialization avoids shared package/protocol/test ownership collisions.
 - No task modifies any prior plan, `.agents/README.md`, active hooks, or other session artifacts.
+
+## Build Execution Contract
+- `RECOVER` reads Control, the latest checkpoint, Git status, protected-plan hashes, and task evidence; it selects the first pending task whose dependencies and review gate are satisfied.
+- `VALIDATE` runs the selected task's spike and fast acceptance prerequisites in disposable state; failure leaves the task `blocked` with evidence.
+- `SELECT` chooses only pending tasks with completed dependencies and recorded independent review; no parallel dispatch is permitted in this plan.
+- `DISPATCH` assigns one task to one worker with its owned paths and anti-scope; the task becomes `in_progress` only at dispatch.
+- `INTEGRATE` accepts only owned-path changes and records the commit, changed paths, and protected-state comparison.
+- `VERIFY` runs the task acceptance signal and supporting validation; `REVIEW` obtains the required independent review for T001-T004.
+- `REPAIR` increments only the affected task's repair count and returns it to `VERIFY`; `CHECKPOINT` records evidence and selects the next dependency-ready task.
+- A task is `completed` only after its acceptance signal, evidence, and review gate pass. `T005` never marks the plan complete; the primary final gate updates Control and Completion Review.
 
 ## Numbered Plan
 1. [pending] Define the universal signed bootstrap envelope and guidance boundary
@@ -97,73 +117,77 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Depends on: none
    - Parallel group: G1
    - Risk: high (remote trust and prompt injection)
-   - Owned scope: envelope schema, canonicalization/signature verifier, trust-root policy, steps digest/boundary fixtures
+   - Owned scope: `bootstrap/schema.json`, `bootstrap/keyring.json`, `bootstrap/fixtures/**`, `bootstrap/steps.md`, `tests/bootstrap-trust.test.mjs`
    - Not in scope: agent adapters, fixed destinations, package publication, arbitrary shell, Markdown execution, prior plans
    - Spike candidate: validate canonical JSON plus embedded Markdown fixtures with changed key order/whitespace, altered steps, unknown key, expired key, wrong audience, redirect, oversized response, and shell-bearing fields in a new mode-700 `/tmp` sandbox
-   - Actions: require bounded HTTPS retrieval; verify origin/redirect/content limits; define supported signature algorithm, key fingerprint source, expiry/rotation/revocation behavior; sign structured policy and exact steps digest; restrict command objects to fixed package/bin/version and structured argv schema; reject executable/path/package/shell fields from URL; preserve Markdown as guidance only
-   - Acceptance signal: `npx --offline --no --package=@scope/csm-skills-bootstrap@1.0.0 csm-skills-bootstrap validate-envelope <fixture>` accepts the valid fixture and rejects each malformed, altered, expired, wrong-audience, unsigned, redirect, oversized, and shell-bearing fixture
+   - Actions: require bounded HTTPS retrieval; verify origin/redirect/content limits; define supported signature algorithm, key fingerprint source, expiry/rotation/revocation behavior; sign structured policy and exact steps digest; restrict command objects to fixed package `@jamiemills/csm-skills-bootstrap@0.1.0`, fixed bin `csm-skills-bootstrap`, and structured argv schema; reject executable/path/package/shell fields from URL; preserve Markdown as guidance only; add a local HTTPS fixture server used only by the test harness
+   - Acceptance signal: `node --test tests/bootstrap-trust.test.mjs` accepts the committed valid local HTTPS fixture and rejects malformed, altered, expired, wrong-audience, unknown/revoked-key, unsigned, redirect, oversized, and shell-bearing fixtures; expected result is all tests pass
    - Validation: canonicalization idempotence, signature report, unknown-key rejection, no external mutation, original-plan hash comparison
-   - Acceptance evidence: schema, key policy, valid/invalid fixture transcript, and prompt-injection boundary report
+   - Acceptance evidence: schema, key policy, valid/invalid fixture transcript, local HTTPS retrieval transcript, and prompt-injection boundary report
    - Repair attempts: 0
    - Recovery note: discard only temporary fixtures; never make a prior plan or real home the fixture destination
+   - Review gate: independent reviewer signs off T001 before T002 is selectable
 
 2. [pending] Package the neutral skills and exact npx helper boundary
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
    - Risk: high (executable supply chain and payload integrity)
-   - Owned scope: npm package manifest/bin, skill payload index, helper separation, packed-artifact audit, provenance/integrity metadata
+   - Owned scope: `bootstrap/package.json`, `bootstrap/package/**`, `bootstrap/payload-index.json`, `scripts/pack-bootstrap.mjs`, `tests/package-audit.test.mjs`
    - Not in scope: agent-specific destinations, raw repository downloads, Git/URL/range dependencies, lifecycle scripts, direct Node execution, real publishing during tests
    - Spike candidate: `npm pack` in an isolated source copy; if runtime closure cannot be packaged without unsafe dependencies, split helper bins or bundle the complete closure and record the decision
-   - Actions: publish exact-version package with fixed bin; include neutral `SKILL.md` payload/supporting files separately from helper bins; record every path, mode, size, hash, license, and runtime requirement; reject lifecycle scripts, Git/URL/range/optional unknown dependencies, dynamic source loading, undeclared packed files, and ambiguous bins; test packed tarball, not source
-   - Acceptance signal: isolated `npm pack --json` plus package audit exits 0 only for the expected deterministic tarball, payload index, fixed bin, no lifecycle scripts, and exact dependency policy; two packs produce identical payload hashes
-   - Validation: unpack to disposable path; run fixed bin through exact npx; verify all eight skill names/frontmatter and no `.git`/`.agents`/tests/fixtures/raw checkout
-   - Acceptance evidence: tarball/integrity/provenance, payload index, dependency/license report, and reproducibility transcript
+   - Actions: build exact-version package `@jamiemills/csm-skills-bootstrap@0.1.0` with fixed bin; include neutral `SKILL.md` payload/supporting files separately from helper bins; record every path, mode, size, hash, license, and runtime requirement; reject lifecycle scripts, Git/URL/range/optional unknown dependencies, dynamic source loading, undeclared packed files, and ambiguous bins; test packed tarball, not source; do not publish during this task
+   - Acceptance signal: `node --test tests/package-audit.test.mjs` runs isolated `npm pack --json` twice and passes only when the tarballs/payload hashes match, the fixed bin is present, no lifecycle scripts or forbidden dependencies exist, and all eight skill payloads are declared
+   - Validation: unpack to disposable path; run `NPM_CONFIG_CACHE=<tmp-cache> npx --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version` against the packed fixture registry/cache; verify no `.git`/`.agents`/tests/fixtures/raw checkout
+   - Acceptance evidence: tarball/integrity/provenance fixture, payload index, dependency/license report, and reproducibility transcript
    - Repair attempts: 0
    - Recovery note: discard only temporary package outputs; no publication until all audits pass
+   - Review gate: independent reviewer signs off T002 before T003 is selectable
 
 3. [pending] Define the agent-owned discovery and materialization protocol
    - Task ID: T003
    - Depends on: T001, T002
    - Parallel group: G3
    - Risk: standard (host capability and user-file writes)
-   - Owned scope: agent-neutral steps, capability questionnaire, helper materialization interface, post-write verification/report schema
+   - Owned scope: `bootstrap/protocol.md`, `bootstrap/agent-report.schema.json`, `tests/protocol/**`
    - Not in scope: OpenCode/Claude/Pi/Codex adapters, hardcoded destinations, claimed universal reload/rollback, arbitrary URL paths, executing Markdown, or direct source download
    - Spike candidate: synthetic agents with combinations of npx/no-npx, standard/no-standard, writable/non-writable destination, and staging/no-staging capabilities; run only in mode-700 sandboxes
-   - Actions: define steps: establish trust; discover npx; discover Agent Skills support and destination; ask user if ambiguous; invoke fixed npx bin with agent-chosen path; verify hashes; place files using best available staging/lock/backup; report final path, skill hashes, reload action, rollback capability, and limitations; refuse safely when capabilities are absent
-   - Acceptance signal: generic protocol harness passes capable-agent, ambiguous-destination, no-npx, no-write, unsupported-format, malicious-steps, and post-write hash cases; no case invokes a URL-supplied executable or Markdown
+   - Actions: define exact protocol states `DISCOVER -> TRUST -> PLAN_DESTINATION -> CONFIRM_IF_NEEDED -> MATERIALIZE -> VERIFY -> REPORT`; define capability input, refusal codes, user-confirmation points, agent-chosen path rules, post-write hash report, reload field, and staging/lock/rollback availability fields; make helper materialize only verified relative payload into an agent-chosen staging path; prohibit URL-supplied executable/path/shell and Markdown execution
+   - Acceptance signal: `node --test tests/protocol/*.test.mjs` passes capable-agent, ambiguous-destination, no-npx, no-write, unsupported-format, malicious-steps, destination-symlink, interrupted-write, and post-write-hash cases; each refusal has a documented nonzero code and no payload mutation
    - Validation: path-with-spaces, destination symlink/traversal, duplicate names, existing modified files, interrupted agent write, and user-confirmation transcript
    - Acceptance evidence: protocol state traces, final reports, capability/refusal matrix, and payload tree hashes
    - Repair attempts: 0
    - Recovery note: agent reports incomplete transaction and preserves prior files when host staging is unavailable; helper never claims atomicity it did not perform
+   - Review gate: independent reviewer signs off T003 before T004 is selectable
 
 4. [pending] Enforce exact npx runtime and offline-cache behavior
    - Task ID: T004
    - Depends on: T002, T003
    - Parallel group: G4
    - Risk: standard (cache and runtime boundary)
-   - Owned scope: helper command grammar, cache manifest/verifier, runtime invocation docs and fixtures
-   - Not in scope: npm install, direct node/npm commands, floating specs, lifecycle dependencies, Docker/Git/gh setup, real external services
+   - Owned scope: `bootstrap/cache-manifest.schema.json`, `bootstrap/runtime-commands.json`, `tests/offline/**`
+   - Not in scope: runtime `npm install` or direct Node execution, floating specs, lifecycle dependencies, Docker/Git/gh setup, real external services; repository test runners used to validate this task are build-time gates under D9
    - Spike candidate: warm a fresh disposable cache, disable network, replay; remove metadata/tarball or alter bytes and confirm nonzero failure
-   - Actions: allow only exact package/version/bin/structured args; require `--ignore-scripts`; require `npx --offline --no` offline; record Node/npm/platform and all integrities; reject tags/ranges/Git/URL specs, missing bins, altered cache, and fallback commands; keep helpers optional and never auto-invoked by skill installation
-   - Acceptance signal: `NPM_CONFIG_CACHE=<cache> npx --offline --no --ignore-scripts --no-audit --no-fund --package=@scope/csm-skills-bootstrap@1.0.0 csm-skills-bootstrap offline-check <manifest>` succeeds only for a verified cache and fails for each missing/altered cache fixture without network access
-   - Validation: online/offline identical payload; cold-cache failure; exact-version negative controls; no project `node_modules`, shell, Git, Docker, or gh writes
+   - Actions: allow only exact package/version/bin/structured args; require `--ignore-scripts`; require `npx --offline --no` offline; record Node/npm/platform and every package tarball integrity; reject tags/ranges/Git/URL specs, missing bins, altered cache, and fallback commands; keep helpers optional and never auto-invoked by skill installation; define clean-cache warm-up and network-denial test harness
+   - Acceptance signal: `node --test tests/offline/*.test.mjs` passes warm-cache replay with `@jamiemills/csm-skills-bootstrap@0.1.0` and fails for missing metadata, missing tarball, altered bytes, changed npm/platform, and floating-version fixtures; expected result is all pass/fail assertions green with zero network fallback
+   - Validation: test harness records `npm cache verify`, compares online/offline payload/tree hashes, uses isolated `HOME/TMPDIR/NPM_CONFIG_CACHE`, and proves no project `node_modules`, shell, Git, Docker, or gh writes
    - Acceptance evidence: cache manifest, `npm cache verify`, replay/failure transcripts, and side-effect audit
    - Repair attempts: 0
    - Recovery note: remove only disposable caches and homes; never modify the user cache during tests
+   - Review gate: independent reviewer signs off T004 before T005 is selectable
 
 5. [pending] Add generic conformance tests, documentation, and final gates
    - Task ID: T005
    - Depends on: T003, T004
    - Parallel group: G5
    - Risk: standard (public protocol and regression coverage)
-   - Owned scope: protocol/package tests, README installation guidance, generic agent evidence template, final protected-state checks
-   - Not in scope: client adapters, agent-specific claims, prior-plan edits, CI/release hosting, external repositories, live credentials
+   - Owned scope: `tests/integration/**`, root `README.md` installation/requirements/development sections, `bootstrap/release-checklist.md`; `.agents/**` is protected
+   - Not in scope: client adapters, agent-specific claims, prior-plan edits, CI/release hosting, external repositories, live credentials, `.agents/**`, or final Control/Completion Review updates
    - Spike candidate: run two online/offline cycles with synthetic agent capability profiles; if any test uses repository destination or real home, stop as safety failure
-   - Actions: document one URL flow, trust-root prerequisite, agent capability discovery, user-question path, exact npx command, offline warm-cache/replay, payload verification, helper separation, and limits; add malicious envelope/steps/payload, unsupported capability, duplicate, profile ambiguity, and post-write hash fixtures; keep standard validation and existing suite gates
-   - Acceptance signal: `node scripts/check-suite.mjs && node scripts/sync-skill-boilerplate.mjs --check && node scripts/gen-readme-matrix.mjs --check` plus the generic protocol/package test command exits 0; all prior plans are byte-identical and the final report contains destination/hash/reload evidence or a safe refusal
-   - Validation: Agent Skills validator, packed artifact audit, scan/browse syntax/self-check, upload dry-run, protected Git status/hash, cheapest-first
-   - Acceptance evidence: final command matrix, envelope/package/payload hashes, synthetic-agent traces, offline transcripts, and protected-state report
+   - Actions: document one URL flow, trust-root prerequisite, agent capability discovery, user-question path, exact npx command, offline warm-cache/replay, payload verification, helper separation, and limits; add only cross-task integration tests under `tests/integration/**`; keep `.agents/**` and prior plans untouched; reserve final completion review for the primary planning/build orchestrator
+   - Acceptance signal: `node --test tests/integration/*.test.mjs` passes, then `node scripts/check-suite.mjs && node scripts/sync-skill-boilerplate.mjs --check && node scripts/gen-readme-matrix.mjs --check` exits 0; final protected-state assertion proves all prior plan hashes are unchanged
+   - Validation: Agent Skills validator, packed artifact audit, scan/browse syntax/self-check, upload dry-run, protected Git status/hash, cheapest-first; T005 does not mark the plan complete
+   - Acceptance evidence: final command matrix, envelope/package/payload hashes, synthetic-agent traces, offline transcripts, README diff limited to root `README.md`, and protected-state report
    - Repair attempts: 0
    - Recovery note: resume from the last package/cache/protocol checkpoint; remove only task-owned disposable outputs
 
@@ -197,6 +221,16 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | npx grammar was underspecified | major | Fixed package/bin/version plus structured argv; reject shell and URL-selected executables | T001/T004 |
 | Key lifecycle was missing | medium | Add fingerprint source, algorithm, expiry, rotation, revocation, and unknown-key refusal | T001 |
 | Prior plans could be modified/co-executed | medium | New superseding artifact explicitly protects prior files and prohibits co-execution | D7 |
+| T001 acceptance depended on a not-yet-created placeholder package | blocker | T001 now uses committed local HTTPS fixtures and repository build-time tests; package execution starts in T002 | T001 acceptance signal |
+| Package identity and publication were unresolved | blocker | Fixed first-build identity to `@jamiemills/csm-skills-bootstrap@0.1.0`; publication explicitly deferred | D8, T002 |
+| No HTTPS deliverable was testable | blocker | Added committed bootstrap fixture plus local HTTPS test server; real hosting remains outside build | AC1, T001 |
+| Task graph contradicted T004 dependencies | major | Graph is now fully serial: T001 review -> T002 review -> T003 review -> T004 review -> T005 | Execution Graph |
+| Test ownership overlapped across tasks | major | Exact paths assigned; T005 owns only `tests/integration/**`; prior task tests stay task-owned | task Owned scope |
+| Independent review had no dispatch gate | major | T001-T004 each have explicit review gates and dependency selection rule | Build Execution Contract |
+| Recovery/checkpoint semantics were vague | major | Added RECOVER through CHECKPOINT contract and required checkpoint contents | Build Execution Contract, Discovered Requirements |
+| Runtime npx rule conflicted with build-time Node tests | major | D9 explicitly separates repository development gates from delivered runtime behavior | D9, T004 Not in scope |
+| Final verification was ambiguously delegated to T005 | medium | T005 cannot mark completion; primary owns final Control and Completion Review | T005 scope and Build Execution Contract |
+| Root README versus `.agents/README.md` was ambiguous | medium | T005 names root `README.md`; `.agents/**` is protected | T005 Owned scope |
 
 ## Progress Journal
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
@@ -205,6 +239,8 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 0 | RESEARCH | none | Agent Skills standard, npm/npx behavior, URL trust, payload boundaries, and agent capability variance reviewed | DRAFT |
 | 2026-08-18 | 0 | DRAFT -> CRITIQUE | none | Universal protocol draft created with agent-owned destination/discovery and npx-only helper boundary | CRITIQUE |
 | 2026-08-18 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Removed fixed adapters, added trust root, signed JSON+steps, payload index, capability/refusal matrix, and honest rollback guarantees | SAVED |
+| 2026-08-18 | 1 | VERIFY -> CRITIQUE | none | Independent build-readiness audits found circular T001 package gate, placeholder identity, missing HTTPS fixture, contradictory T004 graph, overlapping ownership, and incomplete checkpoint/review rules | REMEDIATE |
+| 2026-08-18 | 1 | REMEDIATE -> VERIFY -> SAVED | none | Fixed package identity, local HTTPS fixture, exact owned paths, serial reviewed dependency chain, build execution contract, build-time/runtime boundary, and final-primary ownership; implementation not started | SAVED |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
