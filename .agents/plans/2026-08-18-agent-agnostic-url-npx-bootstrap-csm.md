@@ -7,20 +7,25 @@ format: csm-plan/1
 **Supersedes:** `.agents/plans/2026-08-17-agent-agnostic-installable-skills-csm.md` for this scope only. The two plans are mutually exclusive; do not execute both. The superseded plan is preserved unchanged.
 
 ## How To Execute
-- Start work only through a separate, explicit csm-build invocation naming this plan; this planning session must not begin execution.
+- This plan is closed as superseded without execution. Do not invoke csm-build with this plan; use `.agents/plans/2026-08-18-universal-agent-skills-bootstrap-csm.md` instead.
 - Commit policy and live state are maintained in Control by csm-build.
 - Risk summary: 5 tasks — 3 high (T001 bootstrap trust, T002 npm package supply chain, T003 atomic profile installation), 2 standard (T004 runtime boundaries, T005 integration/docs). T001-T003 require independent review.
 
 ## Control
 - Plan ID: url-driven-npx-skills-bootstrap
-- Status: ready
+- Status: complete
 - Current CSM state: NOT_STARTED
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-18 — amended URL/npx design verified; original plan protected
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Next transition: none; closed as superseded without execution
 - Active tasks: none
-- Blockers: none; public npm registry and one bundled package are the planning defaults
+- Blockers: none; closure is intentional and not an implementation result
+
+## Closure
+- Closure status: closed as superseded, no implementation started, no acceptance criteria claimed.
+- Replacement plan: `.agents/plans/2026-08-18-universal-agent-skills-bootstrap-csm.md`.
+- Task disposition: T001-T005 are closed without execution; their fixed-package/adapter design is replaced by the universal agent-owned protocol.
 
 ## Goal
 Let a user point an agent at one HTTPS URL and ask it to install this skills collection. The URL is a signed, canonical JSON bootstrap manifest, not an executable script. A fixed, exact-version npm package is the only Node distribution and execution boundary. The agent runs it through `npx`; it never clones the repository, downloads raw source, evaluates URL-provided shell, or executes arbitrary commands from the manifest. After an online warm-up, the same exact package and payload can be used with `npx --offline` from a verified npm cache.
@@ -103,7 +108,7 @@ Installed skills remain Agent Skills directories. Their Markdown is loaded by th
 - Tasks never modify the original plan, `.agents/README.md`, other plans, active hooks, or other session artifacts.
 
 ## Numbered Plan
-1. [pending] Define and validate the signed URL bootstrap contract
+1. [blocked] Define and validate the signed URL bootstrap contract (closed as superseded)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -118,7 +123,7 @@ Installed skills remain Agent Skills directories. Their Markdown is loaded by th
    - Repair attempts: 0
    - Recovery note: discard only disposable fixtures; do not alter the original plan or use it as a fixture destination
 
-2. [pending] Build and publish the exact npx package and skill payload
+2. [blocked] Build and publish the exact npx package and skill payload (closed as superseded)
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -133,7 +138,7 @@ Installed skills remain Agent Skills directories. Their Markdown is loaded by th
    - Repair attempts: 0
    - Recovery note: discard only disposable package outputs; do not publish a release until pack and integrity gates pass
 
-3. [pending] Implement npx-only atomic profile installation
+3. [blocked] Implement npx-only atomic profile installation (closed as superseded)
    - Task ID: T003
    - Depends on: T001, T002
    - Parallel group: G3
@@ -148,7 +153,7 @@ Installed skills remain Agent Skills directories. Their Markdown is loaded by th
    - Repair attempts: 0
    - Recovery note: resume through the journal under the same lock; never delete an unrecognized backup/staging directory
 
-4. [pending] Define npx runtime-helper and offline-cache boundaries
+4. [blocked] Define npx runtime-helper and offline-cache boundaries (closed as superseded)
    - Task ID: T004
    - Depends on: T002, T003
    - Parallel group: G4
@@ -163,7 +168,7 @@ Installed skills remain Agent Skills directories. Their Markdown is loaded by th
    - Repair attempts: 0
    - Recovery note: remove only disposable cache/home directories; never clean the user npm cache or real skill installation during tests
 
-5. [pending] Integrate agent discovery, documentation, and final verification
+5. [blocked] Integrate agent discovery, documentation, and final verification (closed as superseded)
    - Task ID: T005
    - Depends on: T003, T004
    - Parallel group: G5

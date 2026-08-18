@@ -5,20 +5,25 @@ format: csm-plan/1
 # Agent-Agnostic Installable Skills CSM Plan
 
 ## How To Execute
-- Start work only through a separate, explicit csm-build invocation naming this plan; this planning session must not begin execution.
+- This plan is closed as superseded without execution. Do not invoke csm-build with this plan; use `.agents/plans/2026-08-18-universal-agent-skills-bootstrap-csm.md` instead.
 - Commit policy and live state are maintained in Control by csm-build.
 - Risk summary: 6 tasks — 3 high (T001 portability boundary, T002 artifact trust, T003 installer filesystem/security transaction), 3 standard (T004 adapters, T005 runtime setup, T006 validation/docs). T001-T003 require independent review before completion.
 
 ## Control
 - Plan ID: agent-agnostic-installable-skills
-- Status: ready
+- Status: complete
 - Current CSM state: NOT_STARTED
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-17 — planning complete; existing unrelated untracked plan protected
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Next transition: none; closed as superseded without execution
 - Active tasks: none
-- Blockers: none; target scope is Agent Skills standard plus OpenCode and Claude Code adapters
+- Blockers: none; closure is intentional and not an implementation result
+
+## Closure
+- Closure status: closed as superseded, no implementation started, no acceptance criteria claimed.
+- Replacement plan: `.agents/plans/2026-08-18-universal-agent-skills-bootstrap-csm.md`.
+- Task disposition: T001-T006 are closed without execution; their pending work is replaced by the universal protocol and npx-only dependency chain in the replacement plan.
 
 ## Goal
 Make all eight skills distributable as Agent Skills-standard directories and installable without requiring users to clone this Git repository. Deliver a Git-free, versioned release archive and a safe installer that can install selected skills into explicit OpenCode or Claude Code destinations. Keep CSM behavior and repository governance intact while isolating agent-specific discovery, invocation, tmux, permissions, and reload behavior in adapters.
@@ -91,7 +96,7 @@ T004 supplies adapters as separate profile metadata and documentation, not as hi
 - No task may modify `.agents/README.md`, existing plans, existing hooks, or other active-session artifacts; T006 may add only the new release/install test surfaces and the intended README sections.
 
 ## Numbered Plan
-1. [pending] Establish the neutral Agent Skills contract and adapter boundary
+1. [blocked] Establish the neutral Agent Skills contract and adapter boundary (closed as superseded)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -106,7 +111,7 @@ T004 supplies adapters as separate profile metadata and documentation, not as hi
    - Repair attempts: 0
    - Recovery note: inspect the per-skill validation report; revert only the owned `SKILL.md`/validator files, never the unrelated untracked plan
 
-2. [pending] Define runtime closure and generate a trusted release archive
+2. [blocked] Define runtime closure and generate a trusted release archive (closed as superseded)
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -121,7 +126,7 @@ T004 supplies adapters as separate profile metadata and documentation, not as hi
    - Repair attempts: 0
    - Recovery note: delete only disposable release outputs; source remains read-only and no release is published by this task
 
-3. [pending] Implement the lock-protected atomic installer
+3. [blocked] Implement the lock-protected atomic installer (closed as superseded)
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G3
@@ -136,7 +141,7 @@ T004 supplies adapters as separate profile metadata and documentation, not as hi
    - Repair attempts: 0
    - Recovery note: run `--recover` under the same destination lock; never delete an unrecognized staging/backup directory; preserve prior tree until installed verification succeeds
 
-4. [pending] Add OpenCode and Claude Code installation adapters
+4. [blocked] Add OpenCode and Claude Code installation adapters (closed as superseded)
    - Task ID: T004
    - Depends on: T001
    - Parallel group: G4
@@ -151,7 +156,7 @@ T004 supplies adapters as separate profile metadata and documentation, not as hi
    - Repair attempts: 0
    - Recovery note: remove only disposable profile homes; profiles are data and can be regenerated without touching the archive
 
-5. [pending] Define explicit runtime setup and portability checks
+5. [blocked] Define explicit runtime setup and portability checks (closed as superseded)
    - Task ID: T005
    - Depends on: T002
    - Parallel group: G4
@@ -166,7 +171,7 @@ T004 supplies adapters as separate profile metadata and documentation, not as hi
    - Repair attempts: 0
    - Recovery note: remove only disposable installs and redirected environments; never clean real `/tmp/csm-browse`, home config, Docker, or GitHub state
 
-6. [pending] Add release/install tests, README flow, and final verification
+6. [blocked] Add release/install tests, README flow, and final verification (closed as superseded)
    - Task ID: T006
    - Depends on: T003, T004, T005
    - Parallel group: G5

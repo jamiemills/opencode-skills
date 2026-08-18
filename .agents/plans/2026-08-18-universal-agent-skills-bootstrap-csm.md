@@ -4,7 +4,7 @@ format: csm-plan/1
 
 # Universal Agent Skills Bootstrap CSM Plan
 
-**Supersedes:** `.agents/plans/2026-08-18-agent-agnostic-url-npx-bootstrap-csm.md` and, transitively, `.agents/plans/2026-08-17-agent-agnostic-installable-skills-csm.md` for this scope only. All prior plans remain unchanged historical artifacts. Execute at most one of these plans.
+**Supersedes:** `.agents/plans/2026-08-18-agent-agnostic-url-npx-bootstrap-csm.md` and, transitively, `.agents/plans/2026-08-17-agent-agnostic-installable-skills-csm.md` for this scope only. Prior plans retain their implementation content but are now explicitly closed as superseded without execution. Execute at most one of these plans.
 
 ## How To Execute
 - Start work only through a separate, explicit csm-build invocation naming this plan; this planning session must not begin execution.
@@ -34,7 +34,7 @@ Make the collection usable by any capable AI agent through one URL containing ag
 4. Machine checks reject unsigned/altered/expired/wrong-audience/revoked-key manifests, arbitrary shell or executable fields, traversal/links/special files/duplicates, floating package specs, missing or altered offline cache entries, and unverified payloads. Markdown is never executed.
 5. Online warm-cache and offline replay use identical exact package/payload bytes. Offline uses `npx --offline --no` and fails closed when the cache is incomplete; no network fallback occurs. Node/npm/platform and every cache tarball integrity are recorded.
 6. The package never assumes an agent-specific destination, invocation syntax, reload mechanism, lock implementation, or transaction capability. Agent-dependent guarantees are reported as such; machine-verifiable payload hashes are always checked after placement.
-7. Existing repository gates pass, all prior plans and unrelated artifacts remain unchanged, and no implementation starts during planning.
+7. Existing repository gates pass, prior plans retain their implementation content with only explicit closure metadata, unrelated artifacts remain unchanged, and no implementation starts during planning.
 
 ## Current-State Evidence
 - `README.md:81-106` currently requires cloning/copying into an OpenCode directory; no universal bootstrap or root package exists.
@@ -44,7 +44,7 @@ Make the collection usable by any capable AI agent through one URL containing ag
 - npm npx docs state exact package execution and `--offline`; npm cache persistence is not guaranteed, and lifecycle scripts can execute unless suppressed.
 - Build-time repository checks may use the existing Node commands (`node scripts/check-suite.mjs`, `node --check`, and test runners); the npx-only rule applies to delivered bootstrap/runtime behavior, never to repository development gates.
 - Prior plans are committed and protected; this plan is the only allowed new persistent artifact for this planning cycle.
-- Protected-plan baseline hashes: `2026-08-17-agent-agnostic-installable-skills-csm.md` = `f9479f89d761305a81fdace7a9b7ce5bb66f15d1420f8f2d227281bfabe89dd3`; `2026-08-18-agent-agnostic-url-npx-bootstrap-csm.md` = `808d568d12c1ed7408cf5554231d8a67ca2630e22327dc48b4ae909e0da56f09`.
+- Protected-plan pre-closure hashes: `2026-08-17-agent-agnostic-installable-skills-csm.md` = `f9479f89d761305a81fdace7a9b7ce5bb66f15d1420f8f2d227281bfabe89dd3`; `2026-08-18-agent-agnostic-url-npx-bootstrap-csm.md` = `808d568d12c1ed7408cf5554231d8a67ca2630e22327dc48b4ae909e0da56f09`. Closure-only hashes after the authorized metadata update: `29bae7bf6a890443b19927e57d7d728f98f117809ea565a5e004e4f11a09dcba` and `6068a74518cfba8c16d25755d07b5869fff76514ecaf5b2b844a5872dd5fb27d` respectively.
 
 ## Assumptions And Decisions
 | ID | Statement | Type | Evidence or rationale | Status |
@@ -55,7 +55,7 @@ Make the collection usable by any capable AI agent through one URL containing ag
 | D4 | The agent chooses the destination and owns discovery/reload; the helper accepts an agent-chosen explicit path but never selects one from the URL | design | avoids false universal adapter claims | decided |
 | D5 | Package contains neutral skills and helper bins as separate payload classes; helper execution is never implied by skill installation | supply-chain | keeps Markdown data distinct from executable code | decided |
 | D6 | Offline support is conditional on a verified warm npm cache and exact Node/npm/platform metadata | operational | npm cache is not durable or portable by default | decided |
-| D7 | Prior plans are superseded by this new file only; they are not edited, marked in place, or co-executed | concurrency | protects other sessions and historical evidence | decided |
+| D7 | Prior plans are closed with explicit supersession metadata only; their implementation content is not rewritten and they are not co-executed | concurrency | preserves historical evidence while preventing stale dispatch | decided |
 | D8 | First build fixture uses package `@jamiemills/csm-skills-bootstrap@0.1.0` and npm registry identity `https://registry.npmjs.org`; real publication requires a later explicit release action | planning decision | concrete acceptance commands need stable identities without performing external publication during build | decided |
 | D9 | Build-time tests may invoke repository Node tooling; user-facing delivered Node behavior must use exact npx package bins and offline `--no` mode | scope decision | existing repository gates are authoritative development checks | decided |
 | D10 | Universal protocol guarantees are divided into machine guarantees and agent-reported capabilities; no agent-specific adapter is promised | design decision | any agent may lack npx, writable skills path, staging, or reload semantics | decided |
@@ -68,7 +68,7 @@ Make the collection usable by any capable AI agent through one URL containing ag
 | R3 | Can npx remain the only Node boundary? | Official npm npx docs plus local `npx --version` | No installs/cache mutation; Node 20.20.2/npm 10.8.2 observed | Exact package and `--offline --no` work; absent cache fails; package bin remains trusted executable | T002/T004 enforce exact package/bin and offline tests |
 | R4 | What can be guaranteed when the agent writes files? | Critique of installer/agent ownership split | Read-only | Agent capabilities determine locking, staging, rollback, and reload; helper can verify payload but cannot promise host semantics | T003 separates machine guarantees from agent-reported guarantees |
 | R5 | How should payload be delivered without repository download? | Runtime closure/package census | Read-only | Single npm package can contain skills, supporting files, helper bins, and hashes | T002 defines separate payload index and pack audit |
-| R6 | Can this planning amendment affect other sessions? | Git status, prior-plan reads, tmux inspection | No writes/signals/config changes | Prior plans and active sessions exist outside this plan | Only this plan path may be created; all prior plan hashes remain protected |
+| R6 | Can this planning amendment affect other sessions? | Git status, prior-plan reads, tmux inspection | No signals/config changes; only explicit closure metadata is written to the two superseded plan files | Prior plans and active sessions exist outside this plan | Implementation tasks may not touch prior plans; closure metadata is the only authorized historical update |
 | R7 | Can acceptance run before package publication? | Plan audit and npm command semantics | No package install/publication | Local packed artifact and local HTTPS fixture can validate the build; registry publication is not required | T001/T002 use disposable packed fixture; T005 excludes real publication |
 
 ## Discovered Requirements
@@ -99,7 +99,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 - Wave 5: T005 generic conformance tests, docs, and final gates after T004 review; primary verification remains outside T005.
 - Critical path: T001 -> review -> T002 -> review -> T003 -> review -> T004 -> review -> T005 -> primary final verification.
 - No parallel implementation groups: each task owns a distinct path set and depends on the prior reviewed checkpoint. This deliberate serialization avoids shared package/protocol/test ownership collisions.
-- No task modifies any prior plan, `.agents/README.md`, active hooks, or other session artifacts.
+- No implementation task modifies any prior plan, `.agents/README.md`, active hooks, or other session artifacts; only this planning closure may update the two superseded plans' Control/Closure/task-status metadata.
 
 ## Build Execution Contract
 - `RECOVER` reads Control, the latest checkpoint, Git status, protected-plan hashes, and task evidence; it selects the first pending task whose dependencies and review gate are satisfied.
@@ -220,7 +220,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | Offline cache validation was weak | major | Add Node/npm/platform/cache manifest and missing metadata/tarball/altered bytes cases | T004 |
 | npx grammar was underspecified | major | Fixed package/bin/version plus structured argv; reject shell and URL-selected executables | T001/T004 |
 | Key lifecycle was missing | medium | Add fingerprint source, algorithm, expiry, rotation, revocation, and unknown-key refusal | T001 |
-| Prior plans could be modified/co-executed | medium | New superseding artifact explicitly protects prior files and prohibits co-execution | D7 |
+| Prior plans could be modified/co-executed | medium | Prior plans now carry explicit closure metadata only; implementation remains prohibited and the universal plan is the sole executable plan | D7, Closure sections |
 | T001 acceptance depended on a not-yet-created placeholder package | blocker | T001 now uses committed local HTTPS fixtures and repository build-time tests; package execution starts in T002 | T001 acceptance signal |
 | Package identity and publication were unresolved | blocker | Fixed first-build identity to `@jamiemills/csm-skills-bootstrap@0.1.0`; publication explicitly deferred | D8, T002 |
 | No HTTPS deliverable was testable | blocker | Added committed bootstrap fixture plus local HTTPS test server; real hosting remains outside build | AC1, T001 |
@@ -241,6 +241,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Removed fixed adapters, added trust root, signed JSON+steps, payload index, capability/refusal matrix, and honest rollback guarantees | SAVED |
 | 2026-08-18 | 1 | VERIFY -> CRITIQUE | none | Independent build-readiness audits found circular T001 package gate, placeholder identity, missing HTTPS fixture, contradictory T004 graph, overlapping ownership, and incomplete checkpoint/review rules | REMEDIATE |
 | 2026-08-18 | 1 | REMEDIATE -> VERIFY -> SAVED | none | Fixed package identity, local HTTPS fixture, exact owned paths, serial reviewed dependency chain, build execution contract, build-time/runtime boundary, and final-primary ownership; implementation not started | SAVED |
+| 2026-08-18 | 2 | CLOSE-SUPERSEDED-PLANS -> VERIFY | none | Closed T001-T006 in the 2026-08-17 plan and T001-T005 in the 2026-08-18 URL/npx plan without execution; retained implementation content and updated only closure metadata | SAVED |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
