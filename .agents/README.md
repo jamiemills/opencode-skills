@@ -5,7 +5,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 ## plans/
 
-- `2026-08-03-comprehensive-readme-csm.md` — 2026-08-03 — rewrite the repo README as a progressive-disclosure index — status: ready (saved, never dispatched)
+- `2026-08-03-comprehensive-readme-csm.md` — 2026-08-03 — rewrite the repo README as a progressive-disclosure index — status: complete (dispatched 2026-08-19 by user direction lifting the T007 deferral; deliverable already satisfied by later README rewrites, verified against this plan's criteria with zero corrective edits)
 - `2026-08-03-csm-grill-skill-csm.md` — 2026-08-03 — create the csm-grill skill — status: complete
 - `2026-08-03-csm-grill-brief-conformance-csm.md` — 2026-08-03 — align csm-grill brief output with csm-plan consumption — status: complete
 - `2026-08-15-csm-review-skill-csm.md` — 2026-08-15 — create the csm-review skill — status: complete

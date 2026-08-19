@@ -11,12 +11,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: comprehensive-readme
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-03T08:11Z — plan drafted, self-critiqued, verified; not started
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-19 cycle 1 — completion gate. User explicitly directed execution ("build T007 — ignore deferred status"), lifting the T007 deferral recorded in the consolidated-remaining-work-2026-08-19 plan. VALIDATE found the deliverable superseded: README.md already exists at repo root (rewritten by later builds; 8 skills vs this plan's six; Node >= 22 vs plan's >= 20; LICENSE now present so A3's "no LICENSE" note is stale; the pre-existing csm-scan/.agents modification from 2026-08-03 is gone). Goal unchanged -> deliverable re-scoped from "create" to "verify the existing README against this plan's acceptance criteria, corrected for current facts". All criteria verified with zero corrective edits needed: sections OK, 8/8 skill names, Mermaid, single H1, no node_modules refs, path-existence loop zero MISSING, SKILL.md links 18 (>= 8), scan flags match scan.mjs:16-24, browse install matches SKILL.md:22, engines ">=22 <25" matches README's "Node >= 22", check-skill PASS, check-suite 441 OK, tree clean
+- Next transition: COMPLETE
 - Active tasks: none
 - Blockers: none
 
@@ -96,7 +96,7 @@ Boundaries: single file, no other edits. Data flow: none. Key decisions in Assum
 - Critical path: T001 → T002. No parallel groups — one file, one owner; parallelizing would create overlapping write ownership for zero benefit.
 
 ## Numbered Plan
-1. [pending] Write README.md at repo root
+1. [completed] Write README.md at repo root
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1 (sole member)
@@ -110,7 +110,7 @@ Boundaries: single file, no other edits. Data flow: none. Key decisions in Assum
    - Acceptance evidence: the acceptance-signal output, the validation outputs, and `wc -l README.md` recorded in the plan journal
    - Repair attempts: 0
    - Recovery note: if interrupted, check for `README.md` at root; a partially written file is safe to overwrite wholesale — it is the sole owned file and has no other author
-2. [pending] Verify README accuracy against repository sources
+2. [completed] Verify README accuracy against repository sources
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2 (sole member; sequential after T001)
@@ -158,6 +158,16 @@ Primary-led critique (justified: small, low-risk, docs-only plan per Scale To Th
 | 2026-08-03T08:12Z | 0 | DRAFT -> CRITIQUE | — | Primary-led hostile critique (permitted for small low-risk plans): 8 findings | REMEDIATE |
 | 2026-08-03T08:13Z | 0 | CRITIQUE -> REMEDIATE | — | All 8 findings resolved in-place by primary (design caps, strengthened acceptance signals, explicit anti-scope); no design change, no new uncertainty; critique resolution table filled | VERIFY |
 | 2026-08-03T08:14Z | 0 | REMEDIATE -> VERIFY | — | Primary VERIFY gate: criteria 1–4 each map to T001/T002 signals; every task has runnable acceptance signal, risk tier, anti-scope; no spikes outstanding; named files/commands match R1–R7 evidence; resumable from Control + journal alone | SAVED |
+| 2026-08-19 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> VERIFY -> CHECKPOINT -> completion gate -> COMPLETE | T001, T002 | User-directed dispatch (deferral lifted; T007 of consolidated-remaining-work-2026-08-19). RECOVER: tree clean @ 71e96f1. VALIDATE staleness: README.md exists (243 lines, rewritten by later builds — suite-coherence + universal-bootstrap work), covers 8 skills with generated composition matrix gated by gen-readme-matrix --check; plan evidence pins superseded facts (6 skills, Node >= 20, no LICENSE, pre-existing csm-scan/.agents dirty file). Deliverable re-scoped to verify-and-correct (goal unchanged); no corrective edits were required. T001 signal: SECTIONS-OK (all 8 required sections incl. License), all 8 skill names present (superset of the plan's six), MERMAID-OK, NO-NODEMODULES-OK, SINGLE-H1-OK, LICENSE exists (MIT line accurate — A3 stale). T002: path-existence loop zero MISSING; SKILL.md references 18 (>= 8 skills linked); scan CLI flags --repos/--out match csm-scan/scripts/scan.mjs:16-24; csm-scan test command + tier runner match SKILL.md/README dev section; csm-browse install `npm install --no-audit --no-fund` matches SKILL.md:22; engines ">=22 <25" matches README "Node.js >= 22"; `cd csm-browse && node scripts/check-skill.mjs` PASS; check-suite 441 OK; `git status --porcelain` — only this plan + index line modified by this execution. Lightweight path (docs-only, primary self-review) per this plan's risk summary | COMPLETE |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+Completed 2026-08-19 by csm-build, cycle 1, 2/2 tasks, after a user-directed dispatch lifted the T007 deferral (consolidated-remaining-work-2026-08-19 plan).
+
+Outcome: the plan's deliverable was already satisfied by later work. Between this plan's drafting (2026-08-03, when no README existed and the repo held six skills) and dispatch, later builds created and rewrote `README.md` into a more comprehensive artifact than this plan's design: eight skills (adding csm-grill and csm-review), a generated composition matrix (`gen-readme-matrix.mjs`), universal-bootstrap documentation, tiered csm-scan test runners, troubleshooting, and an MIT LICENSE link (a LICENSE file now exists, superseding A3's "no LICENSE" note). The build therefore executed as verification against this plan's acceptance criteria, corrected for current facts (8 skills, Node >= 22):
+
+1. AC1 sections: all present (grep evidence recorded in the journal) — overview, CSM workflow with Mermaid, skills table naming all skills, installation, requirements, usage/quickstart, repository layout, development & testing, license.
+2. AC2 paths: scripted existence loop over every README-referenced `csm-*/...` path — zero MISSING.
+3. AC3 commands: scan CLI flags match `scan.mjs` argument parsing; csm-scan test commands match its SKILL.md; csm-browse install command matches its SKILL.md; engines match package.json (`>=22 <25`); `node scripts/check-skill.mjs` PASS; `check-suite` 441 OK (includes README matrix + boilerplate gates).
+4. AC4 tree: only this plan file and the `.agents/README.md` index line were modified by this execution; the 2026-08-03 pre-existing dirty file no longer exists.
+
+Zero corrective edits to README.md were needed. Rollback: none required (no product files touched).
