@@ -7,8 +7,8 @@ format: csm-plan/1
 ## How To Execute
 - Start work only through a separate, explicit csm-build invocation naming this plan.
 - The agent-agnostic/no-clone installer is explicitly excluded because another session owns it.
-- Deferred tasks remain in this plan for traceability but must not be dispatched in this build.
-- Risk summary: 4 active tasks; T001 full CDP authentication is high-risk and requires independent security review; 3 deferred tasks remain blocked by explicit scope decisions.
+- Deferred tasks (T005-T008) remain in this plan for traceability but must not be dispatched in this build.
+- Risk summary: 4 active tasks; T001 full CDP authentication is high-risk and requires independent security review; 4 deferred tasks (T005-T008) are blocked and never eligible for dispatch.
 
 ## Control
 - Plan ID: remaining-suite-work-2026-08-18
@@ -187,6 +187,34 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
+8. [blocked] DEFERRED — live-LLM behavioral evaluation harness (F-017 tier-b)
+   - Task ID: T008
+   - Depends on: none
+   - Parallel group: G4
+   - Risk: standard
+   - Owned scope: future deterministic-eval harness with canned transcripts and a stubbed model, asserting activation-boundary answers for the doc-only skills.
+   - Not in scope: current build; the deterministic corpus tier (F-017 tier-a) was completed by T011 of the skills-remediation build.
+   - Spike candidate: none; deferred by explicit user decision 2026-08-18.
+   - Actions: leave as a future-plan candidate only.
+   - Acceptance signal: not applicable in this build.
+   - Validation: deferred.
+   - Acceptance evidence: deferred record.
+   - Repair attempts: 0
+   - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
+
+## Resolved Elsewhere (not open work)
+The following review findings were completed by prior builds and are recorded here so this plan's coverage is accurate:
+- F-060 (multi-user csm-browse hardening) — done: follow-up plan T002 (XDG runtime root, 0700/0600 modes, ownership checks).
+- F-061 (telemetry redaction) — done: follow-up plan T002 (URL/fragment/structured redaction).
+- F-062 (cookie masking) — done: skills-remediation T012.
+- F-063 (capture filename validation) — done: skills-remediation T012.
+- F-065 (cookies listener leak) — done: skills-remediation T012.
+- F-066 (browse dead-code cluster) — done: skills-remediation T012.
+- F-073 (.agents index/retention) — done: skills-remediation T012 + suite-coherence T003.
+- F-075 (scan CLI --verbose) — done: skills-remediation T012.
+- Upload preview symlink + SIGTERM child orphan — done: follow-up plan T003.
+- fixtures-pipeline double-registration — done: follow-up plan T004.
+
 ## Verification Strategy
 - T001: cheapest syntax/unit checks, then isolated protocol/security tests, then independent security review.
 - T002/T003: focused tests first, then full csm-scan/csm-browse suites and coverage.
@@ -213,6 +241,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
 |---|---|---|---|---|---|
 | 2026-08-18 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT | none | User selected active CDP auth, legacy retirement, test restructuring, and minor fixes; CI/sandbox/README plan explicitly deferred; installer excluded | CRITIQUE |
 | 2026-08-18 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Independent critique found stale counts, missing mapping, CDP-auth ambiguity, overlapping ownership, and deferred-task dispatch risk; all corrected in the plan; check-suite 434 passes | SAVED |
+| 2026-08-18 | 0 (cont.) | SAVED -> SAVED (user-directed amendment) | T008 | User requested F-017 tier-b added as deferred; added T008 (deferred live-LLM behavioral eval harness) and a Resolved-Elsewhere section recording F-060/061/062/063/065/066/073/075 plus upload/tests fixes completed by prior builds | SAVED |
 
 ## Completion Review
 (filled by csm-build when active criteria are verified)
