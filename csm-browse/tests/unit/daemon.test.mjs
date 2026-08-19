@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { freshSessionsRoot, removeRoot } from './helpers/env.mjs';
 import { startFakeCdp } from './helpers/fake-cdp-server.mjs';
+import { generateToken, withToken } from '../../lib/session.mjs';
 
 const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..'); // csm-browse/
 const root = await freshSessionsRoot('csm-browse-daemon-');
@@ -60,6 +61,43 @@ test('daemon writes pid+ready markers, then removes them on CDP disconnect', { t
   assert.ok(!existsSync(join(sDir, 'daemon.ready')), 'daemon.ready not removed on disconnect');
   assert.ok(existsSync(join(sDir, 'cmd')) && existsSync(join(sDir, 'cmd', 'out')), 'queue dirs must survive');
   await server.stop();
+});
+
+test('daemon.log never contains the wsUrl token', { timeout: 30000 }, async () => {
+  const sid = 'dm-tok';
+  const token = generateToken();
+  const sDir = join(root, sid);
+  await mkdir(sDir, { recursive: true });
+
+  const server = await startFakeCdp({
+    token,
+    responses: {
+      'Target.getTargets': () => ({ targetInfos: [{ type: 'page', targetId: 't1', url: 'about:blank' }] }),
+      'Target.attachToTarget': () => ({ sessionId: 'TAB1' }),
+    },
+  });
+  const wsUrl = withToken(server.url, token);
+  await writeFile(join(sDir, 'state.json'), JSON.stringify({ wsUrl, internalPort: 9224, publicPort: 9225 }));
+
+  const child = spawnDaemon(sid);
+  let stderr = '';
+  child.stderr.on('data', (d) => { stderr += d; });
+
+  const deadline = Date.now() + 15000;
+  while (!existsSync(join(sDir, 'daemon.ready')) && Date.now() < deadline) await sleep(50);
+  assert.ok(existsSync(join(sDir, 'daemon.ready')), `daemon.ready never appeared (${stderr})`);
+
+  const log = await readFile(join(sDir, 'daemon.log'), 'utf-8');
+  assert.ok(!log.includes(token), `daemon.log leaked the token: ${log.split('\n').slice(0, 2).join(' | ')}`);
+  assert.match(log,
+    /Connecting to ws:\/\/127\.0\.0\.1:\d+\/devtools\/page\/fake-target-1\?token=\[REDACTED\]/,
+    `token must be redacted before interpolation: ${log.split('\n').slice(0, 2).join(' | ')}`);
+
+  server.closeAll();
+  const code = await waitExit(child, 15000);
+  assert.equal(code, 0, `daemon exit code ${code} (${stderr})`);
+  await server.stop();
+  await rm(sDir, { recursive: true, force: true });
 });
 
 test('a second daemon refuses to start while the pid-file holder is alive', { timeout: 20000 }, async () => {

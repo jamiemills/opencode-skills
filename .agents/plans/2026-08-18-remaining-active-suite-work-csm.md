@@ -12,13 +12,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: remaining-active-suite-work-2026-08-18
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: DISPATCH
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-18 drafted from scout build-readiness report on amended remaining-work plan
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-18 cycle 1 — T001 complete: host-side token gate + docker-exec stdio tunnel; spike decision recorded; security review fix-first (10 findings) all repaired; 96/96 units, 79/79 e2e live; latent T002-era root-path bug (XDG_RUNTIME_DIR /run ancestor) found+fixed in repair. Next: Wave 2 (T002, T003-scaffold)
+- Next transition: CHECKPOINT -> SELECT (T002 || T003-scaffold)
+- Active tasks: none (next: T002, T003)
 - Blockers: none
 
 ## Goal
@@ -85,7 +85,7 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
 - Critical path: T001 -> (T002 || T003-scaffold) -> (T003-manifest || T004).
 
 ## Numbered Plan
-1. [pending] Full per-session CDP authentication (spike + implementation)
+1. [completed] Full per-session CDP authentication (spike + implementation)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -174,6 +174,9 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
 |---|---|---|---|---|---|
 | 2026-08-18 | 0 | INTAKE -> DISCOVER (scout) -> DRAFT | none | Build-readiness scout returned seams/callers/tier-matrix; Aug18 plan amended (ce19f94) with T008 deferred + Resolved-Elsewhere | CRITIQUE |
 | 2026-08-18 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | 2 major + 4 moderate + 5 minor findings; all remediated (D7 renderer-default decision, scoped grep, tier-manifest sequencing, inert guards, baseline recording); plan re-verified | SAVED |
+| 2026-08-18 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001 | Baseline green (check-suite 439, browse 66/66, drift clean) @ a8ccba3; Wave 1 = T001 spike | INTEGRATE |
+| 2026-08-18 | 1 (cont.) | SPIKE (isolated /tmp) -> SELECT | T001 | SPIKE DECISION: no container-side candidate deployable (immutable Alpine image lacks any runtime; CRI 0.34.0 has zero pipe support; socat cannot inspect content). Chosen: HOST-SIDE token gate + `docker exec -i` stdio tunnel; container-side socat bridge listener removed; token rides `?token=` on cdpUrl+wsUrl; proven end-to-end against live chromium (403-before-command, rotation/revocation via execLayer DI). Files: new scripts/cdp-gate.mjs; ensure-browser (funnel/curl/socat-replace), security (validateState), session (token lifecycle), docker (execLayer DI), cleanup/sweep/ports (socat→gate re-key); consumers unchanged (token rides state.wsUrl); tests: fake-cdp-server token mode, security/daemon/status/ports/sweep updates, NEW auth.test.mjs, e2e, SKILL.md. Payload: only csm-browse/SKILL.md vendored -> D2 coordination note. Residuals: exec-per-connection latency, tunnel teardown, /json/protocol static schema unauthenticated (or CRI local:true x5), token hygiene in 0600 state.json (redactTelemetry covers token=), port pool host-side re-key | DISPATCH (T001 impl) |
+| 2026-08-18 | 1 | SPIKE -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW (independent, fix-first) -> REPAIR (10 findings) -> CHECKPOINT | T001 | cdp-gate.mjs (static protocol, timing-safe token, per-status deny, teardown) + fetch.mjs (curl argv eliminated) + token lifecycle + socat re-key; review findings 1-10 all repaired; new regression: pipelined-bypass closes with 0 tunnels; 96/96 units, 79/79 e2e; latent XDG_RUNTIME_DIR ancestor bug fixed; bootstrap untouched | SELECT (Wave 2) |
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

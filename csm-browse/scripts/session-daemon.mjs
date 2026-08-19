@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { loadState, sessionDir } from '../lib/session.mjs';
 import { connectDaemon, ensureSingleTab, startQueueLoop, prepareQueueDirs } from '../lib/daemon-core.mjs';
-import { redactTelemetry, secureAppend, secureWrite } from '../lib/security.mjs';
+import { redactTelemetry, redactUrl, secureAppend, secureWrite } from '../lib/security.mjs';
 
 const args = process.argv.slice(2);
 let sid = null;
@@ -97,7 +97,9 @@ if (!state || !state.wsUrl) {
   process.exit(1);
 }
 
-console.log(`Connecting to ${state.wsUrl}...`);
+// Redact BEFORE interpolation: redactTelemetry cannot parse a URL embedded in
+// prose, so the wsUrl value itself must be scrubbed first.
+console.log(`Connecting to ${redactUrl(state.wsUrl)}...`);
 let client;
 let tabSessionId;
 

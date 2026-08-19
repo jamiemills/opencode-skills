@@ -12,18 +12,38 @@ const PROTOCOL_JSON = readFileSync(require.resolve('chrome-remote-interface/lib/
 // (chrome-remote-interface fetches it from the wsUrl's host:port before
 // opening the WebSocket) plus a WebSocket that replies to every
 // {id, method, params} frame with a canned per-method result.
-export async function startFakeCdp({ responses = {} } = {}) {
+//
+// Token mode (`token`): when set, every request except the static
+// /json/protocol schema must carry ?token=<token> — mirroring the production
+// host-side gate so tests can prove tokens are enforced/relayed end-to-end.
+export async function startFakeCdp({ responses = {}, token = null } = {}) {
   const httpServer = createServer((req, res) => {
     if (req.url === '/json/protocol') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(PROTOCOL_JSON);
       return;
     }
+    if (token !== null) {
+      let queryToken = null;
+      try { queryToken = new URL(req.url, 'http://fake').searchParams.get('token'); } catch {}
+      if (queryToken !== token) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('forbidden');
+        return;
+      }
+    }
     res.writeHead(404);
     res.end();
   });
 
-  const wss = new WebSocketServer({ server: httpServer });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    verifyClient: token === null ? undefined : (info) => {
+      try {
+        return new URL(info.req.url, 'http://fake').searchParams.get('token') === token;
+      } catch { return false; }
+    },
+  });
   const connections = [];
   const messages = [];
 
@@ -51,6 +71,7 @@ export async function startFakeCdp({ responses = {} } = {}) {
   const port = httpServer.address().port;
 
   return {
+    port,
     url: `ws://127.0.0.1:${port}/devtools/page/fake-target-1`,
     messages,
     connections,

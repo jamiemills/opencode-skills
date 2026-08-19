@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SESSIONS_ROOT } from '../lib/constants.mjs';
 import { chmodSync, mkdirSync as mkdirSecureSync } from 'node:fs';
-import { ensurePrivateDir, secureWrite } from '../lib/security.mjs';
+import { ensurePrivateDir, secureWrite, redactUrl } from '../lib/security.mjs';
 
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 const QUICK = process.argv.includes('--quick');
@@ -171,7 +171,7 @@ async function ensureSid(sid) {
   try { state = JSON.parse(lastLine); } catch {
     throw new Error(`ensure-browser did not output valid JSON state. Last line: ${lastLine}`);
   }
-  return state;
+  return { state, stdout };
 }
 
 function parseJson(str) {
@@ -227,13 +227,27 @@ async function runTests() {
     {
       const step = '2. Ensure session';
       try {
-        state = await ensureSession();
+        const ensured = await ensureSession();
+        state = ensured.state;
         assert(step + ' - has sid', state.sid === SESSION_ID);
         assert(step + ' - has wsUrl', !!state.wsUrl);
         assert(step + ' - has cdpUrl', !!state.cdpUrl);
         assert(step + ' - has daemonPid', typeof state.daemonPid === 'number' && state.daemonPid > 0);
         assert(step + ' - has ports', typeof state.publicPort === 'number');
-        console.log(`      session: cdp=${state.cdpUrl}, daemonPid=${state.daemonPid}`);
+        // T001 fix: the ensure-browser transcript must never leak the raw
+        // token. The last stdout line (logState) must show the redacted form,
+        // and the real token (read from the 0600 state.json) must appear
+        // nowhere in the transcript.
+        const realToken = JSON.parse(readFileSync(join(SESSIONS_ROOT, SESSION_ID, 'state.json'), 'utf-8')).token;
+        assert(step + ' - transcript state is redacted', state.token === '[REDACTED]',
+          `logState token must be redacted: ${JSON.stringify(state.token)}`);
+        assert(step + ' - transcript does not leak the token',
+          !ensured.stdout.includes(realToken),
+          'ensure-browser stdout contained the raw session token');
+        assert(step + ' - transcript redacts the token',
+          ensured.stdout.includes('token=%5BREDACTED%5D') || ensured.stdout.includes('token=[REDACTED]'),
+          'ensure-browser stdout must show the redacted token form');
+        console.log(`      session: cdp=${redactUrl(state.cdpUrl)}, daemonPid=${state.daemonPid}`);
       } catch (e) {
         fail(step, e.message);
       }
@@ -530,7 +544,7 @@ async function runTests() {
 
         await new Promise(r => setTimeout(r, 1000));
 
-        const state2 = await ensureSession();
+        const state2 = (await ensureSession()).state;
         assert(step + ' - ensure restarted daemon',
           state2 && typeof state2.daemonPid === 'number' && state2.daemonPid > 0,
           state2 ? `newPid=${state2.daemonPid}` : 'no state');
@@ -701,7 +715,7 @@ async function runTests() {
       }
     }
 
-    // ── Step 14: Sweep decoys (orphan ffmpeg / orphan socat / stale
+    // ── Step 14: Sweep decoys (orphan ffmpeg / orphan gate / stale
     //    recorder lock / creating.marker protection) ────────────────
     {
       const step = '14. Sweep decoys';
@@ -709,11 +723,12 @@ async function runTests() {
       const ffmpegSid = `sweep-decoy-ffmpeg-${Date.now()}`;
       const recSid = `sweep-decoy-rec-${Date.now()}`;
       const markerSid = `sweep-decoy-creating-${Date.now()}`;
-      let decoySocatPort = null;
+      let decoyGatePort = null;
+      let decoyGateProc = null;
       let decoyFfmpegProc = null;
       try {
         // Live session: must survive every sweep below untouched.
-        const liveState = await ensureSid(liveSid);
+        const liveState = (await ensureSid(liveSid)).state;
         assert(step + ' - live session created', liveState && typeof liveState.daemonPid === 'number',
           liveState ? `pid=${liveState.daemonPid}` : 'no state');
 
@@ -754,24 +769,36 @@ async function runTests() {
         utimesSync(join(ffmpegRoot, 'state.json'), oldTs, oldTs);
         utimesSync(ffmpegRoot, oldTs, oldTs);
 
-        // Decoy 2 — orphan container socat on a pool port with no chromium.
-        for (let port = 9235; port >= 9225 && decoySocatPort === null; port--) {
-          const occupied = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${port}`]));
-          if (!occupied.stdout.trim()) decoySocatPort = port;
+        // Decoy 2 — orphan host-side CDP gate on a pool port with no related
+        // chromium. The gate is a host process (the container-side socat
+        // bridge is gone), so the decoy is spawned with the same CLI the
+        // skill uses; sweep's orphan-gate pass must reap it.
+        for (let port = 9235; port >= 9225 && decoyGatePort === null; port--) {
+          const gates = await run('pgrep', ['-af', 'cdp-gate.mjs']);
+          if (gates.stdout.includes(`--port ${port} `)) continue;
+          const related = await run('docker', dockerArgs(['pgrep', '-af', '--', `--remote-debugging-port=${port - 1}`]));
+          if (related.stdout.trim()) continue;
+          decoyGatePort = port;
         }
-        assert(step + ' - free pool port found', decoySocatPort !== null);
-        if (decoySocatPort !== null) {
-          await run('docker', [
-            'exec', '-d', 'chromium-vnc',
-            'socat', `TCP-LISTEN:${decoySocatPort},fork,reuseaddr`, 'TCP:127.0.0.1:9223'
-          ], { timeout: 15000 });
-          let socatUp = false;
-          for (let i = 0; i < 20 && !socatUp; i++) {
-            const pg = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${decoySocatPort}`]));
-            if (pg.stdout.trim()) socatUp = true;
+        assert(step + ' - free pool port found', decoyGatePort !== null);
+        if (decoyGatePort !== null) {
+          decoyGateProc = spawn('node', [
+            join(SKILL_DIR, 'scripts', 'cdp-gate.mjs'),
+            '--sid', `decoy-${Date.now()}`,
+            '--port', String(decoyGatePort),
+            '--internal', String(decoyGatePort - 1),
+            '--container', 'chromium-vnc'
+          ], { detached: true, stdio: 'ignore', env: { ...process.env, CSM_CDP_GATE_TOKEN: 'decoy-token' } });
+          decoyGateProc.unref();
+          let gateUp = false;
+          for (let i = 0; i < 20 && !gateUp; i++) {
+            // The gate's argv carries --sid between the script and --port, so
+            // match them as a regex, not as adjacent text.
+            const pg = await run('pgrep', ['-af', `cdp-gate\\.mjs.*--port ${decoyGatePort}\\b`]);
+            if (pg.stdout.trim()) gateUp = true;
             else await new Promise(r => setTimeout(r, 300));
           }
-          assert(step + ' - decoy socat running', socatUp);
+          assert(step + ' - decoy gate running', gateUp);
         }
 
         // Decoy 3 — stale recorder.json {running:true} with a dead daemon pid.
@@ -796,14 +823,14 @@ async function runTests() {
         const removed = (dryPayload && Array.isArray(dryPayload.removed)) ? dryPayload.removed : [];
         assert(step + ' - dry-run lists orphan ffmpeg', removed.some(r => r.includes(`orphan ffmpeg sid=${ffmpegSid}`)),
           JSON.stringify(removed));
-        assert(step + ' - dry-run lists orphan socat', removed.some(r => r.includes(`orphan socat port=${decoySocatPort}`)),
+        assert(step + ' - dry-run lists orphan gate', removed.some(r => r.includes(`orphan gate port=${decoyGatePort}`)),
           JSON.stringify(removed));
         assert(step + ' - dry-run lists stale recorder lock', removed.some(r => r.includes(`stale recorder lock sid=${recSid}`)),
           JSON.stringify(removed));
         assert(step + ' - dry-run omits live session', !removed.some(r => r.includes(liveSid)),
           JSON.stringify(removed));
         const unexpected = removed.filter(r =>
-          !r.includes(ffmpegSid) && !r.includes(`orphan socat port=${decoySocatPort}`) && !r.includes(recSid));
+          !r.includes(ffmpegSid) && !r.includes(`orphan gate port=${decoyGatePort}`) && !r.includes(recSid));
         assert(step + ' - dry-run lists nothing else', unexpected.length === 0,
           JSON.stringify(unexpected));
 
@@ -813,10 +840,10 @@ async function runTests() {
         assert(step + ' - sweep killed orphan ffmpeg', !ffmpegAfter.stdout.trim(),
           ffmpegAfter.stdout.substring(0, 120));
         assert(step + ' - sweep removed orphan ffmpeg session dir', !existsSync(join(SESSIONS_ROOT, ffmpegSid)));
-        if (decoySocatPort !== null) {
-          const socatAfter = await run('docker', dockerArgs(['pgrep', '-af', `TCP-LISTEN:${decoySocatPort}`]));
-          assert(step + ' - sweep killed orphan socat', !socatAfter.stdout.trim(),
-            socatAfter.stdout.substring(0, 120));
+        if (decoyGatePort !== null) {
+          const gateAfter = await run('pgrep', ['-af', `cdp-gate\\.mjs.*--port ${decoyGatePort}\\b`]);
+          assert(step + ' - sweep killed orphan gate', !gateAfter.stdout.trim(),
+            gateAfter.stdout.substring(0, 120));
         }
         let recAfter = null;
         try { recAfter = JSON.parse(readFileSync(join(recDir, 'recorder.json'), 'utf-8')); } catch {}
@@ -843,9 +870,10 @@ async function runTests() {
         // Decoy cleanup (best-effort): kill leftovers, drop dirs, close live.
         try { if (decoyFfmpegProc && decoyFfmpegProc.pid) process.kill(decoyFfmpegProc.pid, 'SIGKILL'); } catch {}
         try { await run('pkill', ['-f', `ffmpeg.*${ffmpegSid}`]); } catch {}
-        if (decoySocatPort !== null) {
-          try { await run('docker', dockerArgs(['pkill', '-f', '--', `TCP-LISTEN:${decoySocatPort}`])); } catch {}
+        if (decoyGatePort !== null) {
+          try { await run('pkill', ['-f', '--', `cdp-gate\\.mjs.*--port ${decoyGatePort}\\b`]); } catch {}
         }
+        if (decoyGateProc && decoyGateProc.pid) { try { process.kill(decoyGateProc.pid, 'SIGKILL'); } catch {} }
         for (const d of [join(SESSIONS_ROOT, ffmpegSid), join(SESSIONS_ROOT, recSid), join(SESSIONS_ROOT, markerSid)]) {
           try { rmSync(d, { recursive: true, force: true }); } catch {}
         }

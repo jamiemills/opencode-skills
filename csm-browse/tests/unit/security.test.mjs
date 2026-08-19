@@ -8,7 +8,7 @@ import { freshSessionsRoot, removeRoot } from './helpers/env.mjs';
 
 const root = await freshSessionsRoot('csm-browse-security-');
 const security = await import('../../lib/security.mjs');
-const { prepareRuntimeRoot, assertRuntimeRoot, validateState, redactUrl, redactTelemetry, ensurePrivateDir, ensurePrivateFile, secureWrite } = security;
+const { prepareRuntimeRoot, assertRuntimeRoot, validateState, validateRuntimeRootSelection, redactUrl, redactTelemetry, ensurePrivateDir, ensurePrivateFile, secureWrite } = security;
 const { removeContainerSession, removeHostSession } = await import('../../lib/cleanup.mjs');
 const { assertValidOutput } = await import('../../lib/recorder.mjs');
 const { collectorsHook } = await import('../../lib/collectors.mjs');
@@ -35,6 +35,26 @@ test('runtime root rejects a file and a symlink instead of using it', async () =
   await removeRoot(target);
 });
 
+test('validateRuntimeRootSelection applies the three-bucket rule of assertSafeAncestors', async () => {
+  // User-owned parents are accepted regardless of their mode (three-bucket).
+  const userOwned = await mkdtemp(join(tmpdir(), 'csm-root-uo-'));
+  await chmod(userOwned, 0o700);
+  assert.doesNotThrow(() => validateRuntimeRootSelection(join(userOwned, 'root')));
+  await chmod(userOwned, 0o777);
+  assert.doesNotThrow(() => validateRuntimeRootSelection(join(userOwned, 'root')),
+    'user-owned world-writable parents are accepted (same predicate as assertSafeAncestors)');
+  // Sticky-shared parents (e.g. /tmp) are accepted.
+  const sticky = await mkdtemp(join(tmpdir(), 'csm-root-st-'));
+  await chmod(sticky, 0o1777);
+  assert.doesNotThrow(() => validateRuntimeRootSelection(join(sticky, 'root')));
+  // A non-directory parent is rejected.
+  const fileParent = join(root, 'not-a-dir');
+  await writeFile(fileParent, 'x');
+  assert.throws(() => validateRuntimeRootSelection(join(fileParent, 'root')), /must be a directory|Unsafe/);
+  await removeRoot(userOwned);
+  await removeRoot(sticky);
+});
+
 test('persisted state rejects unsafe profile, port, websocket, and host paths', () => {
   assert.doesNotThrow(() => validateState({ sid: 'safe-1', profileDir: '/config/csm-browse/sessions/safe-1', publicPort: 9225, wsUrl: 'ws://127.0.0.1:9225/devtools/browser/x' }, 'safe-1'));
   for (const state of [
@@ -44,6 +64,36 @@ test('persisted state rejects unsafe profile, port, websocket, and host paths', 
     { sid: 'safe-1', wsUrl: 'http://127.0.0.1:9225' },
     { sid: 'safe-1', sessionDir: '/tmp/other/safe-1' },
   ]) assert.throws(() => validateState(state, 'safe-1'));
+});
+
+test('persisted state enforces the CDP auth token rules (T001)', () => {
+  const token = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2';
+  // Valid: token present, wsUrl/cdpUrl carry the SAME token, generation >= 1.
+  assert.doesNotThrow(() => validateState({
+    sid: 'tok-ok', token,
+    tokenGeneration: 2,
+    wsUrl: `ws://127.0.0.1:9225/devtools/browser/x?token=${token}`,
+    cdpUrl: `http://127.0.0.1:9225?token=${token}`,
+  }, 'tok-ok'));
+
+  // Malformed tokens, mismatched URL tokens, and invalid generations are all rejected.
+  for (const state of [
+    { sid: 'tok-1', token: 'short' },
+    { sid: 'tok-2', token: 'not a token value with spaces!!' },
+    { sid: 'tok-3', token: token, wsUrl: `ws://127.0.0.1:9225/x?token=${'Y'.repeat(32)}` },
+    { sid: 'tok-4', token: token, cdpUrl: `http://127.0.0.1:9225?token=${'Y'.repeat(32)}` },
+    { sid: 'tok-5', token: token, tokenGeneration: 0 },
+    { sid: 'tok-6', token: token, tokenGeneration: 1.5 },
+  ]) assert.throws(() => validateState(state), `expected reject: ${JSON.stringify(state)}`);
+
+  // The token must not weaken the existing userinfo rejection.
+  assert.throws(() => validateState({ sid: 'tok-7', token, wsUrl: `ws://user:pass@127.0.0.1:9225/x?token=${token}` }));
+  assert.throws(() => validateState({ sid: 'tok-8', token, cdpUrl: `http://user:pass@127.0.0.1:9225?token=${token}` }));
+
+  // Fail closed: a persisted token WITHOUT a matching embedded token is
+  // rejected (a URL that silently dropped its token must never be accepted).
+  assert.throws(() => validateState({ sid: 'tok-9', token, wsUrl: 'ws://127.0.0.1:9225/devtools/browser/x' }), /token mismatch/);
+  assert.throws(() => validateState({ sid: 'tok-10', token, cdpUrl: 'http://127.0.0.1:9225' }), /token mismatch/);
 });
 
 test('redacts credential query values and sensitive console fields but preserves diagnostics', () => {
@@ -56,6 +106,22 @@ test('redacts credential query values and sensitive console fields but preserves
   assert.equal(redactTelemetry('token: secret'), 'token:[REDACTED]');
   assert.equal(redactTelemetry('{"token":"secret","message":"ordinary diagnostic"}'), '{"token":"[REDACTED]","message":"ordinary diagnostic"}');
   assert.equal(redactTelemetry({ token: 'secret', message: 'ordinary diagnostic' }).token, '[REDACTED]');
+});
+
+test('redaction handles ?token= and prose-embedded tokenized URLs', () => {
+  // A LONE ?token= (no preceding &) inside a URL fragment...
+  assert.equal(redactTelemetry('?token=SECRET&x=1'), '?token=[REDACTED]&x=1');
+  // ...and inside prose, where the whole string is not a parseable URL (so
+  // redactUrl alone cannot help and redactPairs must catch the pair).
+  assert.equal(
+    redactTelemetry('Connecting to ws://127.0.0.1:9225/devtools/browser/x?token=LeakyToken123'),
+    'Connecting to ws://127.0.0.1:9225/devtools/browser/x?token=[REDACTED]'
+  );
+  assert.ok(!redactTelemetry('Connecting to ws://127.0.0.1:9225/x?token=LeakyToken123').includes('LeakyToken123'));
+  // Full parseable URLs still round-trip through redactUrl after the pair pass.
+  assert.ok(!redactTelemetry('ws://h/x?token=SECRET&a=1').includes('SECRET'));
+  // Non-sensitive keys are untouched even when followed by a ?token= pair.
+  assert.equal(redactTelemetry('a=1?token=SECRET'), 'a=1?token=[REDACTED]');
 });
 
 test('all sensitive persisted classes are private and existing files are repaired', async () => {
@@ -92,6 +158,22 @@ test('secure persistence rejects symlinked ancestors and final symlinks', async 
   await symlink(target, link);
   await assert.rejects(secureWrite(link, 'must not follow'), /ELOOP|symlink/);
   assert.equal(await readFile(target, 'utf-8'), 'outside');
+  await removeRoot(outside);
+});
+
+test('ensurePrivateDir refuses a leaf that is a symlink (no-follow leaf hardening)', async () => {
+  const outside = await mkdtemp(join(tmpdir(), 'csm-browse-leaf-outside-'));
+  const leaf = join(root, 'leaf-link');
+  await symlink(outside, leaf);
+  // The lstat walk rejects the symlinked leaf outright.
+  await assert.rejects(ensurePrivateDir(leaf), /symlink|ELOOP/);
+  // The O_NOFOLLOW re-open path also refuses (the leaf's parent stays a dir).
+  const parentDir = join(root, 'leaf-parent');
+  await ensurePrivateDir(parentDir);
+  const leaf2 = join(parentDir, 'leaf-link');
+  await symlink(outside, leaf2);
+  await assert.rejects(ensurePrivateDir(leaf2), /symlink|ELOOP/);
+  assert.equal((await stat(parentDir)).mode & 0o777, 0o700);
   await removeRoot(outside);
 });
 

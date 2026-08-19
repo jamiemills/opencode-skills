@@ -3,18 +3,18 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import {
-  stopDaemon, killInstance, killSocat,
+  stopDaemon, killInstance, killGate,
   removeContainerSession, removeHostSession
 } from './cleanup.mjs';
 import { execLayer } from './docker.mjs';
 import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END, CDP_RETRY_TIMEOUT_MS } from './constants.mjs';
-import { sessionDir, containerSessionDir, validateSid } from './session.mjs';
+import { sessionDir, containerSessionDir, validateSid, revokeToken } from './session.mjs';
 import { prepareRuntimeRoot, secureWrite, validateState } from './security.mjs';
 
 // Session-creation marker protocol (F-010): createSession writes
 // `creating.marker` into the session dir inside the port lock, before
 // launching chromium, and removes it once state.json is saved. Both the
-// host-dir pass and the container-chromium/socat passes treat a fresh marker
+// host-dir pass and the container-chromium/gate passes treat a fresh marker
 // as do-not-touch, so a concurrent sweep cannot kill a session mid-creation.
 const CREATING_MARKER = 'creating.marker';
 // Creation window (CDP_RETRY_TIMEOUT_MS) plus a grace period: a marker-only
@@ -117,8 +117,9 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
     if (age <= ageMs) continue;
 
     let publicPort = null;
+    let state = null;
     try {
-      const state = validateState(JSON.parse(await readFile(join(sDir, 'state.json'), 'utf-8')), sid);
+      state = validateState(JSON.parse(await readFile(join(sDir, 'state.json'), 'utf-8')), sid);
       publicPort = state.publicPort || null;
     } catch { continue; }
 
@@ -129,7 +130,13 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
     await killHostFfmpeg(sDir);
     try { await cleanArtifactTemps(sDir); } catch {}
     try { await killInstance(containerName, containerSessionDir(sid)); } catch {}
-    if (publicPort) { try { await killSocat(containerName, publicPort); } catch {} }
+    if (publicPort) { try { await killGate(publicPort); } catch {} }
+    // Fail-closed revocation BEFORE the dir is removed: if removeHostSession
+    // fails, the persisted state must not retain a usable credential.
+    try {
+      revokeToken(state);
+      await secureWrite(join(sDir, 'state.json'), JSON.stringify(state, null, 2), { encoding: 'utf-8' });
+    } catch {}
     try { await removeContainerSession(containerName, containerSessionDir(sid)); } catch {}
     try { await removeHostSession(sDir); } catch {}
     swept.push(label);
@@ -208,7 +215,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       try { await execLayer.pkillMatch(containerName, `--database=/config/csm-browse/sessions/${psid}/crash`); } catch {}
       const portMatch = proc.cmd.match(/--remote-debugging-port=(\d+)/);
       if (portMatch) {
-        try { await execLayer.pkillMatch(containerName, `TCP-LISTEN:${parseInt(portMatch[1], 10) + 1}`); } catch {}
+        try { await killGate(parseInt(portMatch[1], 10) + 1); } catch {}
       }
       try { await removeContainerSession(containerName, `/config/csm-browse/sessions/${psid}`); } catch {}
       swept.push(`orphan container chromium sid=${psid}`);
@@ -240,14 +247,20 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
     } catch {}
   }
 
-  // Orphan socat pass: pool ports with no related chromium. Skipped entirely
-  // while any session creation is in flight (marker do-not-touch): a creating
-  // session's chromium may not yet be visible to pgrep, so its socat cannot
-  // be safely distinguished from an orphan.
+  // Orphan-gate + legacy-socat pass: host-side CDP gates on pool ports with
+  // no related chromium, and pre-T001 container-side TCP-LISTEN socats on
+  // pool ports. A stale socat forwards its pub port to the OLD session's
+  // internal port, which a NEW session may now own — so it would relay to the
+  // new chromium with no token. No current session runs container socats (the
+  // host gate is the only listener), so ANY pool-port TCP-LISTEN socat is
+  // stale and safe to reap. Both sub-passes are skipped entirely while any
+  // session creation is in flight (marker do-not-touch): a creating session's
+  // chromium may not yet be visible to pgrep, so its gate/socat cannot be
+  // safely distinguished from an orphan.
+  let anyCreating = false;
   try {
-    let anyCreating = false;
     // Re-scan the root rather than reusing the sweep-start snapshot: a session
-    // dir created after that readdir must still protect its in-flight socat.
+    // dir created after that readdir must still protect its in-flight gate.
     const liveDirs = await readdir(SESSIONS_ROOT, { withFileTypes: true });
     for (const ent of liveDirs) {
       if (!ent.isDirectory()) continue;
@@ -255,22 +268,38 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       if (skipSid && sid === skipSid) continue;
       if (await hasFreshCreatingMarker(sessionDir(sid))) { anyCreating = true; break; }
     }
-    if (!anyCreating) {
-      const allSocats = await execLayer.pgrepMatch(containerName, 'TCP-LISTEN:92');
-      for (const socat of allSocats) {
-        const portMatch = socat.cmd.match(/TCP-LISTEN:(\d+)/);
+  } catch {}
+
+  if (!anyCreating) {
+    try {
+      const allGates = await execLayer.hostPgrep('cdp-gate.mjs');
+      for (const gate of allGates) {
+        const portMatch = gate.cmd.match(/--port\s+(\d+)/);
         if (!portMatch) continue;
         const pubPort = parseInt(portMatch[1], 10);
         if (pubPort < PORT_POOL_START + 1 || pubPort > PORT_POOL_END + 1) continue;
         const relatedChrome = await execLayer.pgrepMatch(containerName, `--remote-debugging-port=${pubPort - 1}`);
         if (relatedChrome.length === 0) {
-          if (dryRun) { swept.push(`[dry] orphan socat port=${pubPort}`); continue; }
-          try { await execLayer.pkillMatch(containerName, `TCP-LISTEN:${pubPort}`); } catch {}
-          swept.push(`orphan socat port=${pubPort}`);
+          if (dryRun) { swept.push(`[dry] orphan gate port=${pubPort}`); continue; }
+          try { execLayer.killPid(gate.pid, 'SIGTERM'); } catch {}
+          swept.push(`orphan gate port=${pubPort}`);
         }
       }
-    }
-  } catch {}
+    } catch {}
+
+    try {
+      const socats = await execLayer.pgrepMatch(containerName, 'TCP-LISTEN:92');
+      for (const socat of socats) {
+        const portMatch = socat.cmd.match(/TCP-LISTEN:(\d+)/);
+        if (!portMatch) continue;
+        const pubPort = parseInt(portMatch[1], 10);
+        if (pubPort < PORT_POOL_START + 1 || pubPort > PORT_POOL_END + 1) continue;
+        if (dryRun) { swept.push(`[dry] orphan container socat port=${pubPort}`); continue; }
+        try { await execLayer.pkillMatch(containerName, `TCP-LISTEN:${pubPort},`); } catch {}
+        swept.push(`orphan container socat port=${pubPort}`);
+      }
+    } catch {}
+  }
 
   return { swept, skipped: hostDirs.length };
 }

@@ -5,6 +5,7 @@ import { writeFile, readFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { createServer as netServer } from 'node:net';
 import { freshSessionsRoot, removeRoot, backage, patchKill } from './helpers/env.mjs';
 
 const root = await freshSessionsRoot('csm-browse-ports-');
@@ -147,15 +148,36 @@ test('allocate skips pairs whose internal port is busy in the container', async 
   assert.equal(pair.public, 9227);
 });
 
-test('allocate skips pairs with a lingering socat listener', async () => {
-  // socat still holding the public port 9225 (also busy per netstat)
-  stubLayer({
-    isPortFree: (p) => p !== 9225,
-    pgrep: (pattern) => (pattern === 'TCP-LISTEN:9225' ? [{ pid: 1, cmd: 'socat TCP-LISTEN:9225' }] : []),
+test('allocate skips pairs whose public port is busy on the host', async () => {
+  // The CDP gate binds 127.0.0.1:<public> on the HOST, so a live listener
+  // there (a real bind — no Docker) must be skipped. Busying 9225 skips the
+  // (9224, 9225) pair; the next free pair is (9225, 9226).
+  stubLayer();
+  const busy = netServer();
+  await new Promise((res) => busy.listen(9225, '127.0.0.1', res));
+  try {
+    const pair = await allocate('chromium-vnc');
+    assert.equal(pair.internal, 9225);
+    assert.equal(pair.public, 9226);
+  } finally {
+    await new Promise((res) => busy.close(res));
+  }
+});
+
+test('allocate skips pairs whose public port is held by a stale container TCP-LISTEN socat', async () => {
+  const calls = { isPortFree: [], pgrep: [] };
+  setExecLayerForTests({
+    isPortFree: async (c, p) => { calls.isPortFree.push(p); return true; },
+    pgrepMatch: async (c, pattern) => {
+      calls.pgrep.push(pattern);
+      if (pattern === 'TCP-LISTEN:9225,') return [{ pid: 1, cmd: `socat ${pattern}fork,reuseaddr TCP:127.0.0.1:9224` }];
+      return [];
+    },
   });
   const pair = await allocate('chromium-vnc');
-  assert.equal(pair.internal, 9226);
-  assert.equal(pair.public, 9227);
+  assert.ok(calls.pgrep.includes('TCP-LISTEN:9225,'), 'allocate must probe the container for stale socats');
+  assert.equal(pair.internal, 9225, 'pair with a stale socat on its public port must be skipped');
+  assert.equal(pair.public, 9226);
 });
 
 test('allocate throws when the whole pool is claimed', async () => {

@@ -2,7 +2,7 @@ import { readFile, rm } from 'node:fs/promises';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { pkillMatch, execInContainer } from './docker.mjs';
+import { pkillMatch, execInContainer, hostPgrep, killPid } from './docker.mjs';
 import { validateContainerSessionDir, validateState } from './security.mjs';
 import { SESSIONS_ROOT } from './constants.mjs';
 import { assertContained, assertRuntimeRoot } from './security.mjs';
@@ -49,9 +49,20 @@ export async function killInstance(containerName, containerSessDir) {
   await pkillMatch(containerName, `--database=${containerSessDir}/crash`);
 }
 
-export async function killSocat(containerName, publicPort) {
+// Terminate the host-side CDP gate for a public port. The gate is a host
+// process (127.0.0.1:<publicPort>), matched by its exact --port argument —
+// never by a regex that could straddle another port.
+export async function killGate(publicPort) {
   if (!Number.isInteger(publicPort) || publicPort < 1024 || publicPort > 65535) throw new Error(`Unsafe public port: ${publicPort}`);
-  await pkillMatch(containerName, `TCP-LISTEN:${publicPort}`);
+  try {
+    const gates = await hostPgrep('cdp-gate.mjs');
+    for (const gate of gates) {
+      const m = gate.cmd.match(/cdp-gate\.mjs\s+--sid\s+\S+\s+--port\s+(\d+)/);
+      if (m && parseInt(m[1], 10) === publicPort) {
+        try { killPid(gate.pid, 'SIGTERM'); } catch {}
+      }
+    }
+  } catch {}
 }
 
 export async function removeContainerSession(containerName, containerSessDir) {
@@ -72,7 +83,7 @@ export async function releasePorts(state) {
   if (!containerName) return;
 
   if (state.publicPort) {
-    await killSocat(containerName, state.publicPort);
+    await killGate(state.publicPort);
   }
   if (state.profileDir) {
     await killInstance(containerName, state.profileDir);

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-import { validateSid, sessionDir, containerSessionDir, loadState, saveState } from '../lib/session.mjs';
+import { validateSid, sessionDir, containerSessionDir, loadState, saveState, generateToken, rotateToken, cdpEndpoint } from '../lib/session.mjs';
 import { sweep } from '../lib/sweep.mjs';
-import { stopDaemon } from '../lib/cleanup.mjs';
+import { stopDaemon, killGate } from '../lib/cleanup.mjs';
 import {
   isContainerRunning, containerExists, containerIP, execDetached,
-  pgrepMatch, pkillMatch, pullImage
+  pgrepMatch, pkillMatch, pullImage, spawnGate
 } from '../lib/docker.mjs';
 import { allocate, acquirePortLock, releasePortLock } from '../lib/ports.mjs';
 import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
-  CDP_RETRY_TIMEOUT_MS, SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH
+  SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH
 } from '../lib/constants.mjs';
 import { readFile, rm, writeFile, open, stat } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
@@ -19,7 +19,8 @@ import { randomBytes } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ensurePrivateDir, secureWrite } from '../lib/security.mjs';
+import { ensurePrivateDir, secureWrite, redactTelemetry, redactUrl } from '../lib/security.mjs';
+import { cdpFetchJson, cdpProbe } from '../lib/fetch.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -50,22 +51,32 @@ if (sid) {
   }
 }
 
-async function curlJson(url) {
-  const { stdout } = await execFileAsync('curl', ['-s', '-m', '2', url]);
-  return JSON.parse(stdout);
+// CDP discovery goes through cdpFetchJson/cdpProbe (lib/fetch.mjs), which use
+// Node's fetch: the tokenized URL never appears in a curl argv that other
+// local users could read from /proc.
+
+// CDP URLs point at the HOST-side token gate (127.0.0.1:<publicPort>) — the
+// container-side socat bridge is gone. Both URLs carry ?token= so the funnel
+// is the single place that knows about auth and every consumer keeps using
+// the stored URLs unchanged.
+function gateCdpUrl(publicPort, token) {
+  const url = new URL(`http://127.0.0.1:${publicPort}`);
+  url.searchParams.set('token', token);
+  return url.toString();
 }
 
-async function curlRetry(url, timeout = CDP_RETRY_TIMEOUT_MS) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    try {
-      await curlJson(url);
-      return true;
-    } catch {
-      await setTimeout(1000);
-    }
-  }
-  return false;
+function gateWsUrl(versionJson, publicPort, token) {
+  const url = new URL(versionJson.webSocketDebuggerUrl);
+  url.hostname = '127.0.0.1';
+  url.port = String(publicPort);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
+// Token hygiene: state carries the raw token in .token and inside wsUrl/
+// cdpUrl; the transcript only ever sees redacted copies.
+function logState(state) {
+  console.log(JSON.stringify(redactTelemetry(state)));
 }
 
 async function ensureVncPassword() {
@@ -113,11 +124,11 @@ async function ensureContainer(dryRun) {
 
   if (running) {
     console.log(`Container ${CONTAINER_NAME} already running (reusing) — probing CDP readiness...`);
-    let ready = await curlRetry('http://localhost:9222/json/version', 5000);
+    let ready = await cdpProbe('http://localhost:9222/json/version', { timeoutMs: 5000 });
     if (!ready) {
       console.log('CDP not ready on reused container — restarting container...');
       await execFileAsync('docker', ['restart', CONTAINER_NAME], { timeout: 60000 });
-      ready = await curlRetry('http://localhost:9222/json/version');
+      ready = await cdpProbe('http://localhost:9222/json/version');
       if (!ready) {
         console.error('Shared browser CDP did not become ready after container restart');
         process.exit(1);
@@ -159,7 +170,7 @@ async function ensureContainer(dryRun) {
   }
 
   console.log('Waiting for shared browser CDP on localhost:9222...');
-  const ready = await curlRetry('http://localhost:9222/json/version');
+  const ready = await cdpProbe('http://localhost:9222/json/version');
   if (!ready) {
     console.error('Shared browser CDP did not become ready within timeout');
     process.exit(1);
@@ -167,7 +178,7 @@ async function ensureContainer(dryRun) {
   console.log('Shared browser CDP ready');
 }
 
-async function adoptSession(ip, containerSessDir) {
+async function adoptSession(sid, containerSessDir) {
   const matches = await pgrepMatch(CONTAINER_NAME,
     `--user-data-dir=${containerSessDir}/`);
   if (matches.length === 0) return null;
@@ -183,34 +194,32 @@ async function adoptSession(ip, containerSessDir) {
   const internalPort = parseInt(portMatch[1], 10);
   const publicPort = internalPort + 1;
 
-  const socatMatches = await pgrepMatch(CONTAINER_NAME, `TCP-LISTEN:${publicPort}`);
-  if (socatMatches.length === 0) {
-    console.log(`Respawning socat on port ${publicPort} -> ${internalPort}`);
-    await execDetached(CONTAINER_NAME, [
-      'socat',
-      `TCP-LISTEN:${publicPort},fork,reuseaddr,bind=${ip}`,
-      `TCP:127.0.0.1:${internalPort}`
-    ]);
-  } else {
-    console.log(`Socat already running (pid ${socatMatches[0].pid})`);
-  }
+  // Always respawn the gate with a fresh token: an old gate (if any) holds an
+  // unknown token we cannot recover, and adoption must never inherit a stale
+  // credential.
+  const token = generateToken();
+  await killGate(publicPort);
+  await spawnGate({
+    sid, publicPort, internalPort, containerName: CONTAINER_NAME, token
+  });
+  console.log(`CDP gate up on 127.0.0.1:${publicPort} -> ${internalPort}`);
 
-  const cdpUrl = `http://${ip}:${publicPort}`;
-  console.log(`Waiting for CDP after adopt at ${cdpUrl}...`);
-  const ready = await curlRetry(`${cdpUrl}/json/version`);
+  const cdpUrl = gateCdpUrl(publicPort, token);
+  console.log(`Waiting for CDP after adopt at ${redactUrl(cdpUrl)}...`);
+  const ready = await cdpProbe(cdpEndpoint(cdpUrl, '/json/version'));
   if (!ready) {
     console.error('CDP did not become ready after adopt — killing stale instance');
     await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
-    await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${publicPort}`);
+    await killGate(publicPort);
     return null;
   }
   console.log('CDP ready after adopt');
 
-  const versionJson = await curlJson(`${cdpUrl}/json/version`);
-  const wsUrl = versionJson.webSocketDebuggerUrl.replace('localhost', ip);
+  const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, '/json/version'));
+  const wsUrl = gateWsUrl(versionJson, publicPort, token);
 
   return {
-    cdpUrl, wsUrl, internalPort, publicPort, adopted: true
+    cdpUrl, wsUrl, token, internalPort, publicPort, adopted: true
   };
 }
 
@@ -235,17 +244,17 @@ function buildChromiumCmd(containerSessDir, internalPort) {
   ].join(' ');
 }
 
-async function createSession(sid, ip, containerSessDir) {
+async function createSession(sid, containerSessDir) {
   console.log('No existing session found — CREATING new instance...');
-  if (!ip) throw new Error('container IP unavailable');
 
   const hostSessDir = sessionDir(sid);
   const markerPath = join(hostSessDir, 'creating.marker');
   let internal;
   let pub;
+  let token;
 
   const cleanupLaunch = async () => {
-    if (pub) { try { await pkillMatch(CONTAINER_NAME, `TCP-LISTEN:${pub}`); } catch {} }
+    if (pub) { try { await killGate(pub); } catch {} }
     try { await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`); } catch {}
     try { await rm(markerPath, { force: true }); } catch {}
   };
@@ -281,13 +290,16 @@ async function createSession(sid, ip, containerSessDir) {
     });
     console.log('Chromium launched');
 
-    console.log(`Launching socat on ${pub} -> ${internal}...`);
-    await execDetached(CONTAINER_NAME, [
-      'socat',
-      `TCP-LISTEN:${pub},fork,reuseaddr,bind=${ip}`,
-      `TCP:127.0.0.1:${internal}`
-    ]);
-    console.log('Socat launched');
+    // Host-side token gate replaces the container socat bridge. The gate
+    // spawns a `docker exec -i ... socat -` tunnel per authenticated
+    // connection, so chromium binds only its internal port.
+    token = generateToken();
+    console.log(`Launching CDP gate on 127.0.0.1:${pub} -> ${internal}...`);
+    await spawnGate({
+      sid, publicPort: pub, internalPort: internal,
+      containerName: CONTAINER_NAME, token
+    });
+    console.log('CDP gate launched');
   } catch (err) {
     await releasePortLock();
     console.error(`Create failed: ${err.message} — cleaning up`);
@@ -300,18 +312,18 @@ async function createSession(sid, ip, containerSessDir) {
   // ports.mjs is sized to this, not to the 30s readiness window).
   await releasePortLock();
 
-  const cdpUrl = `http://${ip}:${pub}`;
+  const cdpUrl = gateCdpUrl(pub, token);
   try {
-    console.log(`Waiting for CDP at ${cdpUrl}...`);
-    const ready = await curlRetry(`${cdpUrl}/json/version`);
+    console.log(`Waiting for CDP at ${redactUrl(cdpUrl)}...`);
+    const ready = await cdpProbe(cdpEndpoint(cdpUrl, '/json/version'));
     if (!ready) throw new Error('CDP did not become ready within timeout');
     console.log('CDP ready');
 
-    const versionJson = await curlJson(`${cdpUrl}/json/version`);
-    const wsUrl = versionJson.webSocketDebuggerUrl.replace('localhost', ip);
+    const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, '/json/version'));
+    const wsUrl = gateWsUrl(versionJson, pub, token);
 
     return {
-      cdpUrl, wsUrl, internalPort: internal, publicPort: pub, adopted: false
+      cdpUrl, wsUrl, token, internalPort: internal, publicPort: pub, adopted: false
     };
   } catch (err) {
     console.error(`Create failed: ${err.message} — cleaning up`);
@@ -334,7 +346,7 @@ async function daemonCdpAlive(sid) {
   try {
     const state = await loadState(sid);
     if (state && state.cdpUrl) {
-      return await curlRetry(`${state.cdpUrl}/json/version`, 3000);
+      return await cdpProbe(cdpEndpoint(state.cdpUrl, '/json/version'), { timeoutMs: 3000 });
     }
   } catch {}
   return false;
@@ -458,6 +470,28 @@ async function launchDaemon(sid) {
   return null;
 }
 
+// Rotate the session token and bring the gate up on the new credential.
+// Used whenever the daemon reconnects to CDP on an existing session: the old
+// token is invalidated (any client still holding it is rejected), the old
+// gate is torn down, and the new gate validates only the fresh token. The
+// rotated state is persisted FIRST so a reconnecting daemon (which reads
+// state.json from disk) connects with the new token, not the old one.
+async function respawnSession(sid, state) {
+  if (!state.publicPort || !state.internalPort) {
+    throw new Error(`Session ${sid} missing ports for gate respawn`);
+  }
+  rotateToken(state);
+  await saveState(sid, state);
+  await killGate(state.publicPort);
+  await spawnGate({
+    sid,
+    publicPort: state.publicPort,
+    internalPort: state.internalPort,
+    containerName: CONTAINER_NAME,
+    token: state.token
+  });
+}
+
 async function main() {
   if (cleanupStale) {
     await ensureContainer(false);
@@ -489,7 +523,7 @@ async function main() {
 
   if (existingState) {
     console.log('Found existing state.json');
-    const cdpReachable = await curlRetry(`${existingState.cdpUrl}/json/version`, 5000);
+    const cdpReachable = await cdpProbe(cdpEndpoint(existingState.cdpUrl, '/json/version'), { timeoutMs: 5000 });
 
     if (cdpReachable) {
       if (existingState.daemonPid) {
@@ -504,31 +538,47 @@ async function main() {
             if (Date.now() - st.mtimeMs > DAEMON_READY_TIMEOUT_MS) zombie = true;
           } catch {}
           if (!zombie) {
+            if (!existingState.token) {
+              // Pre-auth session state (upgrade): never reuse a session
+              // without a token — rotate to mint one, bring the gate up, and
+              // reconnect the daemon through it (fail closed).
+              console.log('Existing session has no auth token — rotating...');
+              await stopDaemon(hostSessDir);
+              await respawnSession(sid, existingState);
+              const daemonPid = await launchDaemon(sid);
+              existingState.daemonPid = daemonPid;
+              if (daemonPid) await saveState(sid, existingState);
+              logState(existingState);
+              return;
+            }
             console.log('CDP reachable, daemon alive — reusing existing session');
-            console.log(JSON.stringify(existingState));
+            logState(existingState);
             return;
           }
           console.log('CDP reachable but daemon is a stale zombie — restarting daemon...');
           await stopDaemon(hostSessDir);
+          await respawnSession(sid, existingState);
           const daemonPid = await launchDaemon(sid);
           existingState.daemonPid = daemonPid;
           if (daemonPid) await saveState(sid, existingState);
-          console.log(JSON.stringify(existingState));
+          logState(existingState);
           return;
         } catch {
           console.log('CDP reachable but daemon dead — restarting daemon...');
+          await respawnSession(sid, existingState);
           const daemonPid = await launchDaemon(sid);
           existingState.daemonPid = daemonPid;
           if (daemonPid) await saveState(sid, existingState);
-          console.log(JSON.stringify(existingState));
+          logState(existingState);
           return;
         }
       } else {
         console.log('CDP reachable but no daemon on record — launching daemon...');
+        await respawnSession(sid, existingState);
         const daemonPid = await launchDaemon(sid);
         existingState.daemonPid = daemonPid;
         if (daemonPid) await saveState(sid, existingState);
-        console.log(JSON.stringify(existingState));
+        logState(existingState);
         return;
       }
     } else {
@@ -536,12 +586,14 @@ async function main() {
     }
   }
 
-  const adopted = await adoptSession(ip, containerSessDir);
+  const adopted = await adoptSession(sid, containerSessDir);
   if (adopted) {
     const state = {
       sid,
       cdpUrl: adopted.cdpUrl,
       wsUrl: adopted.wsUrl,
+      token: adopted.token,
+      tokenGeneration: 1,
       internalPort: adopted.internalPort,
       publicPort: adopted.publicPort,
       sessionDir: hostSessDir,
@@ -555,15 +607,17 @@ async function main() {
     const daemonPid = await launchDaemon(sid);
     state.daemonPid = daemonPid;
     if (daemonPid) await saveState(sid, state);
-    console.log(JSON.stringify(state));
+    logState(state);
     return;
   }
 
-  const created = await createSession(sid, ip, containerSessDir);
+  const created = await createSession(sid, containerSessDir);
   const state = {
     sid,
     cdpUrl: created.cdpUrl,
     wsUrl: created.wsUrl,
+    token: created.token,
+    tokenGeneration: 1,
     internalPort: created.internalPort,
     publicPort: created.publicPort,
     sessionDir: hostSessDir,
@@ -580,7 +634,7 @@ async function main() {
   const daemonPid2 = await launchDaemon(sid);
   state.daemonPid = daemonPid2;
   if (daemonPid2) await saveState(sid, state);
-  console.log(JSON.stringify(state));
+  logState(state);
 }
 
 main().catch(err => {

@@ -16,16 +16,19 @@ after(async () => { setExecLayerForTests(); await removeRoot(root); });
 const cfg = {
   pgrepHost: {},        // pgrep -af <pattern> -> stdout
   chromiumProcs: [],    // pgrepMatch user-data-dir pattern
-  socatProcs: [],       // pgrepMatch TCP-LISTEN:92
+  gateProcs: [],        // hostPgrep cdp-gate.mjs
+  socatProcs: [],       // pgrepMatch TCP-LISTEN pattern (legacy container socats)
   chromeByPort: () => [],
   containerHasDir: false,
 };
 const pkillCalls = [];
+const killCalls = [];
 const containerCalls = [];
 const execCalls = [];
 
 function installStubs() {
   pkillCalls.length = 0;
+  killCalls.length = 0;
   containerCalls.length = 0;
   execCalls.length = 0;
   setExecLayerForTests({
@@ -34,10 +37,12 @@ function installStubs() {
       if (cmd === 'pgrep') return { stdout: cfg.pgrepHost[args[1]] ?? '' };
       return { stdout: '' };
     },
+    hostPgrep: async (pattern) => (pattern === 'cdp-gate.mjs' ? cfg.gateProcs : []),
+    killPid: (pid, sig) => { killCalls.push([pid, sig]); },
     pgrepMatch: async (container, pattern) => {
       if (pattern === '--user-data-dir=/config/csm-browse/sessions/') return cfg.chromiumProcs;
-      if (pattern === 'TCP-LISTEN:92') return cfg.socatProcs;
       if (pattern.startsWith('--remote-debugging-port=')) return cfg.chromeByPort(pattern);
+      if (pattern.startsWith('TCP-LISTEN:')) return cfg.socatProcs;
       return [];
     },
     pkillMatch: async (container, pattern) => { pkillCalls.push(pattern); },
@@ -52,6 +57,7 @@ function installStubs() {
 function resetCfg() {
   cfg.pgrepHost = {};
   cfg.chromiumProcs = [];
+  cfg.gateProcs = [];
   cfg.socatProcs = [];
   cfg.chromeByPort = () => [];
   cfg.containerHasDir = false;
@@ -79,6 +85,7 @@ const opts = { containerName: 'chromium-vnc', ip: '172.17.0.1', ageMinutes: 10 }
 test('host pass reaps a stale session with a dead daemon (container cleanup included)', async () => {
   installStubs(); resetCfg();
   const dir = await makeSession('sw-a1', { ageMs: 30 * 60 * 1000, state: { publicPort: 9225 } });
+  cfg.gateProcs = [{ pid: 100, cmd: 'node scripts/cdp-gate.mjs --sid sw-a1 --port 9225 --internal 9224 --container chromium-vnc' }];
   const restore = patchKill(ME);
   let result;
   try { result = await sweep({ ...opts }); } finally { restore(); }
@@ -86,7 +93,7 @@ test('host pass reaps a stale session with a dead daemon (container cleanup incl
   assert.ok(!existsSync(dir), 'stale host dir must be removed');
   assert.ok(pkillCalls.includes('--user-data-dir=/config/csm-browse/sessions/sw-a1/'));
   assert.ok(pkillCalls.includes('--database=/config/csm-browse/sessions/sw-a1/crash'));
-  assert.ok(pkillCalls.includes('TCP-LISTEN:9225'));
+  assert.ok(killCalls.some(([pid, sig]) => sig === 'SIGTERM'), `gate not killed: ${JSON.stringify(killCalls)}`);
   assert.ok(containerCalls.some((a) => a[0] === 'rm' && a.includes('-rf') && a.includes('/config/csm-browse/sessions/sw-a1')));
 });
 
@@ -99,7 +106,7 @@ test('fresh creating.marker protects a session dir from both passes', async () =
   assert.ok(!result.swept.some((e) => e.includes('sw-b1')), `marker session swept: ${result.swept}`);
   assert.ok(existsSync(dir));
   assert.ok(!pkillCalls.some((p) => p.includes('sw-b1')));
-  await rm(dir, { recursive: true, force: true }); // its fresh marker would suppress the socat pass below
+  await rm(dir, { recursive: true, force: true }); // its fresh marker would suppress the gate pass below
 });
 
 test('a live daemon beats dir age (liveness-first)', async () => {
@@ -169,13 +176,14 @@ test('orphaned host ffmpeg is pkilled with the escaped session path', async () =
 test('container chromium without host state is killed and its dir removed', async () => {
   installStubs(); resetCfg();
   cfg.chromiumProcs = [{ pid: 1, cmd: 'chromium --user-data-dir=/config/csm-browse/sessions/cc-x/ --remote-debugging-port=9224' }];
+  cfg.gateProcs = [{ pid: 101, cmd: 'node scripts/cdp-gate.mjs --sid cc-x --port 9225 --internal 9224 --container chromium-vnc' }];
   const restore = patchKill(ME);
   let result;
   try { result = await sweep({ ...opts }); } finally { restore(); }
   assert.ok(result.swept.some((e) => e === 'orphan container chromium sid=cc-x'), `not reaped: ${result.swept}`);
   assert.ok(pkillCalls.includes('--user-data-dir=/config/csm-browse/sessions/cc-x/'));
   assert.ok(pkillCalls.includes('--database=/config/csm-browse/sessions/cc-x/crash'));
-  assert.ok(pkillCalls.includes('TCP-LISTEN:9225'));
+  assert.ok(killCalls.some(([pid, sig]) => sig === 'SIGTERM'), `gate not killed: ${JSON.stringify(killCalls)}`);
   assert.ok(containerCalls.some((a) => a.includes('rm') && a.includes('-rf') && a.includes('/config/csm-browse/sessions/cc-x')));
 });
 
@@ -205,22 +213,52 @@ test('stale recorder.json running:true is flipped when the daemon is dead; live 
   assert.equal(kept.running, true);
 });
 
-test('orphan socat without a related chromium is killed; pass skipped while a creating marker exists', async () => {
+test('orphan gate without a related chromium is killed; pass skipped while a creating marker exists', async () => {
   installStubs(); resetCfg();
-  cfg.socatProcs = [{ pid: 2, cmd: 'socat TCP-LISTEN:9225,fork,reuseaddr' }];
+  cfg.gateProcs = [{ pid: 2, cmd: 'node scripts/cdp-gate.mjs --sid sw-g1 --port 9225 --internal 9224 --container chromium-vnc' }];
   const restore = patchKill(ME);
   let result;
   try { result = await sweep({ ...opts }); } finally { restore(); }
-  assert.ok(result.swept.includes('orphan socat port=9225'), `socat not reaped: ${result.swept}`);
-  assert.ok(pkillCalls.includes('TCP-LISTEN:9225'));
+  assert.ok(result.swept.includes('orphan gate port=9225'), `gate not reaped: ${result.swept}`);
+  assert.ok(killCalls.some(([pid, sig]) => pid === 2 && sig === 'SIGTERM'), `gate pid not killed: ${JSON.stringify(killCalls)}`);
 
-  // now with an in-flight creation the whole socat pass must be skipped
+  // now with an in-flight creation the whole gate pass must be skipped
   installStubs(); resetCfg();
-  cfg.socatProcs = [{ pid: 3, cmd: 'socat TCP-LISTEN:9227,fork,reuseaddr' }];
+  cfg.gateProcs = [{ pid: 3, cmd: 'node scripts/cdp-gate.mjs --sid sw-g2 --port 9227 --internal 9226 --container chromium-vnc' }];
   await makeSession('cm-x', { marker: true });
   const restore2 = patchKill(ME);
   let result2;
   try { result2 = await sweep({ ...opts }); } finally { restore2(); }
-  assert.ok(!result2.swept.some((e) => e.includes('orphan socat')), `socat pass not skipped: ${result2.swept}`);
-  assert.ok(!pkillCalls.includes('TCP-LISTEN:9227'));
+  assert.ok(!result2.swept.some((e) => e.includes('orphan gate')), `gate pass not skipped: ${result2.swept}`);
+  assert.ok(!killCalls.some(([pid, sig]) => pid === 3), `gate killed during creation: ${JSON.stringify(killCalls)}`);
+  await rm(join(root, 'cm-x'), { recursive: true, force: true }); // its fresh marker would suppress later passes
+});
+
+test('legacy container-side TCP-LISTEN socats on pool ports are reaped', async () => {
+  installStubs(); resetCfg();
+  cfg.socatProcs = [
+    { pid: 1, cmd: 'socat TCP-LISTEN:9225,fork,reuseaddr,bind=172.17.0.2 TCP:127.0.0.1:9224' },
+    { pid: 2, cmd: 'socat TCP-LISTEN:9999,fork,reuseaddr TCP:127.0.0.1:9998' }, // out of pool -> ignored
+  ];
+  const restore = patchKill(ME);
+  let result;
+  try { result = await sweep({ ...opts }); } finally { restore(); }
+  assert.ok(result.swept.includes('orphan container socat port=9225'), `socat not reaped: ${result.swept}`);
+  assert.ok(!result.swept.some((e) => e.includes('9999')), `out-of-pool socat must be ignored: ${result.swept}`);
+  assert.ok(pkillCalls.includes('TCP-LISTEN:9225,'), `legacy socat not pkilled: ${JSON.stringify(pkillCalls)}`);
+  assert.ok(!pkillCalls.some((p) => p.includes('9999')), `out-of-pool socat must not be pkilled: ${JSON.stringify(pkillCalls)}`);
+});
+
+test('legacy socat pass is skipped while a creating marker exists', async () => {
+  installStubs(); resetCfg();
+  cfg.socatProcs = [
+    { pid: 1, cmd: 'socat TCP-LISTEN:9225,fork,reuseaddr,bind=172.17.0.2 TCP:127.0.0.1:9224' },
+  ];
+  await makeSession('cm-y', { marker: true });
+  const restore = patchKill(ME);
+  let result;
+  try { result = await sweep({ ...opts }); } finally { restore(); }
+  assert.ok(!result.swept.some((e) => e.includes('socat')), `socat pass not skipped: ${result.swept}`);
+  assert.ok(!pkillCalls.some((p) => p.includes('TCP-LISTEN')), `socat killed during creation: ${JSON.stringify(pkillCalls)}`);
+  await rm(join(root, 'cm-y'), { recursive: true, force: true });
 });

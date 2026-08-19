@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
-import { sessionDir } from '../session.mjs';
+import { sessionDir, revokeToken, saveState } from '../session.mjs';
 import {
-  stopDaemon, killInstance, killSocat,
+  stopDaemon, killInstance, killGate,
   removeContainerSession, removeHostSession,
   releasePorts, truncateLogs
 } from '../cleanup.mjs';
@@ -39,11 +39,11 @@ export async function run({ args, state, verb, sid }) {
 
   try {
     if (publicPort) {
-      await killSocat(CONTAINER_NAME, publicPort);
-      removed.push('socat');
+      await killGate(publicPort);
+      removed.push('gate');
     }
   } catch (e) {
-    warnings.push(`killSocat: ${e.message}`);
+    warnings.push(`killGate: ${e.message}`);
   }
 
   try {
@@ -62,6 +62,16 @@ export async function run({ args, state, verb, sid }) {
     }
   } catch (e) {
     warnings.push(`removeContainerSession: ${e.message}`);
+  }
+
+  try {
+    // Fail-closed revocation before the dir is removed: if removeHostSession
+    // fails, the persisted state must not retain a usable credential (the
+    // gate's env token dies with killGate above; this strips the on-disk one).
+    revokeToken(state);
+    await saveState(sid, state);
+  } catch (e) {
+    warnings.push(`revokeToken: ${e.message}`);
   }
 
   try {

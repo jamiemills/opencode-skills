@@ -1,7 +1,11 @@
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 const realExecFile = promisify(execFileCb);
+const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
+const GATE_SCRIPT = join(SKILL_DIR, 'scripts', 'cdp-gate.mjs');
 
 async function realIsContainerRunning(name) {
   try {
@@ -128,6 +132,59 @@ async function realPullImage(image) {
   throw new Error(`docker pull failed after 2 attempts: ${reason}`);
 }
 
+// Host-side CDP token gate (T001): spawn cdp-gate.mjs detached, bound to the
+// host loopback public port, tunneling authenticated connections to the
+// session's chromium via `docker exec -i ... socat - TCP:127.0.0.1:<internal>`.
+// The token travels in the child's env, never in argv (argv is ps-visible).
+function realSpawnGate({ sid, publicPort, internalPort, containerName, token }) {
+  const proc = spawn(process.execPath, [
+    GATE_SCRIPT,
+    '--sid', String(sid),
+    '--port', String(publicPort),
+    '--internal', String(internalPort),
+    '--container', String(containerName)
+  ], {
+    detached: true,
+    stdio: 'ignore',
+    env: { ...process.env, CSM_CDP_GATE_TOKEN: token }
+  });
+  proc.on('error', () => {});
+  proc.unref();
+  return proc.pid;
+}
+
+// One authenticated connection's byte tunnel: docker exec -i keeps stdin
+// open (no -t), socat bridges the gate's stdio to chromium's CDP port inside
+// the container. Returns the child so the gate can relay + tear it down.
+function realSpawnExecTunnel(containerName, internalPort) {
+  return spawn('docker', [
+    'exec', '-i', String(containerName),
+    'socat', '-', `TCP:127.0.0.1:${internalPort}`
+  ], { stdio: ['pipe', 'pipe', 'pipe'] });
+}
+
+// Host-side process search (the gate lives on the host, not in the container).
+async function realHostPgrep(pattern) {
+  try {
+    const { stdout } = await realExecFile('pgrep', ['-af', '--', pattern]);
+    return stdout.trim().split('\n').filter(Boolean).map(line => {
+      const spaceIdx = line.indexOf(' ');
+      if (spaceIdx === -1) return { pid: parseInt(line, 10), cmd: '' };
+      return {
+        pid: parseInt(line.substring(0, spaceIdx), 10),
+        cmd: line.substring(spaceIdx + 1)
+      };
+    });
+  } catch (err) {
+    if (err.code === 1) return [];  // pgrep exit 1 = no process matched
+    throw err;                       // real failure
+  }
+}
+
+function realKillPid(pid, signal = 'SIGTERM') {
+  process.kill(pid, signal);
+}
+
 // Injectable exec layer (DI seam): all exported helpers dispatch through this
 // object, so tests can substitute any of them via setExecLayerForTests().
 const realLayer = Object.freeze({
@@ -140,7 +197,11 @@ const realLayer = Object.freeze({
   pgrepMatch: realPgrepMatch,
   pkillMatch: realPkillMatch,
   execInContainer: realExecInContainer,
-  pullImage: realPullImage
+  pullImage: realPullImage,
+  spawnGate: realSpawnGate,
+  spawnExecTunnel: realSpawnExecTunnel,
+  hostPgrep: realHostPgrep,
+  killPid: realKillPid
 });
 
 export const execLayer = { ...realLayer };
@@ -183,4 +244,20 @@ export async function execInContainer(container, args, env) {
 
 export async function pullImage(image) {
   return execLayer.pullImage(image);
+}
+
+export function spawnGate(opts) {
+  return execLayer.spawnGate(opts);
+}
+
+export function spawnExecTunnel(containerName, internalPort) {
+  return execLayer.spawnExecTunnel(containerName, internalPort);
+}
+
+export async function hostPgrep(pattern) {
+  return execLayer.hostPgrep(pattern);
+}
+
+export function killPid(pid, signal) {
+  return execLayer.killPid(pid, signal);
 }

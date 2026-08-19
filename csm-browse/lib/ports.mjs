@@ -3,13 +3,14 @@ import { open, unlink, readFile, mkdir, stat, readdir } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
+import { createServer as netServer } from 'node:net';
 import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
 import { prepareRuntimeRoot, secureWrite, validateState } from './security.mjs';
 
 const LOCK_FILE = join(SESSIONS_ROOT, '.ports.lock');
 const LOCK_STALE_MS = 5000;
 // Must exceed the maximum time any creator holds the lock (allocation +
-// chromium/socat launch). The 30s CDP readiness wait happens OUTSIDE the lock.
+// chromium/gate launch). The 30s CDP readiness wait happens OUTSIDE the lock.
 const LOCK_WAIT_MS = 35000;
 
 export async function breakStaleLock() {
@@ -85,6 +86,27 @@ async function claimedPortSet() {
   return claimed;
 }
 
+// Host-side liveness probe for a pool public port: the CDP gate listens on
+// 127.0.0.1:<pub> on the HOST (container-side socat is gone), so availability
+// is decided here, not inside the container.
+function hostPortFree(port) {
+  return new Promise((resolve) => {
+    const srv = netServer();
+    srv.once('error', () => resolve(false));
+    srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)));
+  });
+}
+
+// Pre-T001 sessions left container-side TCP-LISTEN socats that forward their
+// pub port to the OLD session's internal port. A NEW session can own that
+// same internal port, so a stale socat would relay to the new chromium
+// without a token. During the upgrade window, skip any pair whose pub port is
+// still held by such a listener; sweep() reaps the stale socats.
+async function containerHasStaleSocat(container, pub) {
+  const matches = await execLayer.pgrepMatch(container, `TCP-LISTEN:${pub},`);
+  return matches.length > 0;
+}
+
 export async function allocate(container) {
   const claimed = await claimedPortSet();
 
@@ -97,11 +119,10 @@ export async function allocate(container) {
     const internalFree = await execLayer.isPortFree(container, internal);
     if (!internalFree) continue;
 
-    const publicFree = await execLayer.isPortFree(container, pub);
+    const publicFree = await hostPortFree(pub);
     if (!publicFree) continue;
 
-    const socatMatches = await execLayer.pgrepMatch(container, `TCP-LISTEN:${pub}`);
-    if (socatMatches.length > 0) continue;
+    if (await containerHasStaleSocat(container, pub)) continue;
 
     return { internal, public: pub };
   }
