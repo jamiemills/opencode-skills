@@ -14,11 +14,11 @@ format: csm-plan/1
 - Plan ID: remaining-active-suite-work-2026-08-18
 - Status: in_progress
 - Current CSM state: DISPATCH
-- Cycle: 1
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-18 cycle 1 — T001 complete: host-side token gate + docker-exec stdio tunnel; spike decision recorded; security review fix-first (10 findings) all repaired; 96/96 units, 79/79 e2e live; latent T002-era root-path bug (XDG_RUNTIME_DIR /run ancestor) found+fixed in repair. Next: Wave 2 (T002, T003-scaffold)
-- Next transition: CHECKPOINT -> SELECT (T002 || T003-scaffold)
-- Active tasks: none (next: T002, T003)
+- Last checkpoint: 2026-08-18 cycle 2 — T002 complete (legacy retired, 1227/1227, coverage 96.79%, zero refs, baselines unchanged except 1 digest) + T003-scaffold complete (runner + placeholder manifest, inert guard, docs; fails loudly until frozen). Next: Wave 3 (T003-manifest + T004)
+- Next transition: CHECKPOINT -> SELECT (T003-manifest || T004)
+- Active tasks: none (next: T003-manifest, T004)
 - Blockers: none
 
 ## Goal
@@ -99,7 +99,7 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
    - Acceptance evidence: spike decision record, token lifecycle design, negative/positive traces, review sign-off artifact, final test counts.
    - Repair attempts: 0
    - Recovery note: if interrupted mid-spike, resume from the recorded spike decision; token changes are additive to session state (new field), old sessions without tokens fail closed.
-2. [pending] Retire legacy ten-dimension pipeline with baseline migration
+2. [completed] Retire legacy ten-dimension pipeline with baseline migration
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -177,6 +177,9 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
 | 2026-08-18 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001 | Baseline green (check-suite 439, browse 66/66, drift clean) @ a8ccba3; Wave 1 = T001 spike | INTEGRATE |
 | 2026-08-18 | 1 (cont.) | SPIKE (isolated /tmp) -> SELECT | T001 | SPIKE DECISION: no container-side candidate deployable (immutable Alpine image lacks any runtime; CRI 0.34.0 has zero pipe support; socat cannot inspect content). Chosen: HOST-SIDE token gate + `docker exec -i` stdio tunnel; container-side socat bridge listener removed; token rides `?token=` on cdpUrl+wsUrl; proven end-to-end against live chromium (403-before-command, rotation/revocation via execLayer DI). Files: new scripts/cdp-gate.mjs; ensure-browser (funnel/curl/socat-replace), security (validateState), session (token lifecycle), docker (execLayer DI), cleanup/sweep/ports (socat→gate re-key); consumers unchanged (token rides state.wsUrl); tests: fake-cdp-server token mode, security/daemon/status/ports/sweep updates, NEW auth.test.mjs, e2e, SKILL.md. Payload: only csm-browse/SKILL.md vendored -> D2 coordination note. Residuals: exec-per-connection latency, tunnel teardown, /json/protocol static schema unauthenticated (or CRI local:true x5), token hygiene in 0600 state.json (redactTelemetry covers token=), port pool host-side re-key | DISPATCH (T001 impl) |
 | 2026-08-18 | 1 | SPIKE -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW (independent, fix-first) -> REPAIR (10 findings) -> CHECKPOINT | T001 | cdp-gate.mjs (static protocol, timing-safe token, per-status deny, teardown) + fetch.mjs (curl argv eliminated) + token lifecycle + socat re-key; review findings 1-10 all repaired; new regression: pipelined-bypass closes with 0 tunnels; 96/96 units, 79/79 e2e; latent XDG_RUNTIME_DIR ancestor bug fixed; bootstrap untouched | SELECT (Wave 2) |
+| 2026-08-18 | 2 | CHECKPOINT -> SELECT -> DISPATCH | T002, T003-scaffold | Wave 2 ready: T002 legacy retirement + T003 runner scaffolding (manifest deferred to Wave 3 post-T002) | INTEGRATE |
+| 2026-08-18 | 2 | DISPATCH -> INTEGRATE | T002 | Legacy ten-dimension pipeline entry points retired (run.mjs runExistingTenPipeline + processExistingTenRepo + sole internal caller; existing-ten.mjs scanExistingTen batch helper; zero production callers). D7 honored: DEFAULT_EXISTING_TEN_RENDERER unchanged, renderer.md unchanged. Parity projected onto expanded pipeline: T204 fixture loop projects ten legacy dimensions from runExpandedPipeline (byte-identical to legacy mirror, verified); T224 five-fixture test uses runLegacyTenMirror as parity oracle; retry tests re-pointed to exported enrichValidateRetry (shared production retry seam); source-text pins rewritten to assert new state; fixtures-pipeline comments updated. Baselines: ONLY test-integrity.json regenerated (fixtures-pipeline.test.mjs digest) — documented; all others (fixture-behavior.json, semantic.json, renderer.md, inventory.json, supersession.json, capabilities.json) verified unchanged. Suite 1227/1227, coverage 96.80% (≥ re-measured baseline 96.76%), check-suite 439. COORDINATION NOTE for bootstrap payload owner: vendored copies become stale on retirement — bootstrap/payload-index.json:344 (run.mjs), :338 (existing-ten.mjs), :518 (render/existing-ten.mjs, unchanged); run.mjs + existing-ten.mjs in payload retain the retired symbols as an expected, recorded residual; DO NOT edit bootstrap/** here | INTEGRATE |
+| 2026-08-18 | 2 | INTEGRATE -> VERIFY -> CHECKPOINT | T002, T003-scaffold | T002: runExistingTenPipeline/processExistingTenRepo removed (zero prod callers), T204/T224 migrated to expanded projections, source pins rewritten, test-integrity regenerated once, baselines otherwise unchanged (D7 held); coordination note for bootstrap payload. T003-scaffold: run-tier.mjs + tiers.mjs (placeholder, NODE_TEST_CONTEXT inert), README+SKILL docs; placeholder fails loudly. Suite 1227/1227, coverage 96.79% PASS, zero legacy refs, gate 439 | SELECT (Wave 3) |
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

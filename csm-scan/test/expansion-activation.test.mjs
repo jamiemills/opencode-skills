@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { withFixture, makeFixture, cleanupFixture } from './harness.mjs';
+import { runLegacyTenMirror } from './helpers/legacy-pipeline-mirror.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
@@ -37,9 +38,8 @@ import { files as rustFiles } from './fixtures/rust.mjs';
 import { files as shellFiles } from './fixtures/shell.mjs';
 import {
   assertFindingsPrivacy,
-  processExistingTenRepo,
+  enrichValidateRetry,
   runExpandedPipeline,
-  runExistingTenPipeline,
   MAX_RETRIES,
 } from '../lib/scan/pipeline/run.mjs';
 import {
@@ -380,7 +380,8 @@ test('T224 one write: the canonical pipeline performs a single sink call', async
 test('T224 semantic baseline: the original ten dimensions reproduce the T201 semantics unchanged', async () => {
   const expected = JSON.parse(await readFile(join(BASELINE_ROOT, 'semantic.json'), 'utf8'));
   const { overview, deep } = fixedInput();
-  const { enriched, validated } = await processExistingTenRepo({ overview, deepResults: deep });
+  const enriched = await enrich(deep, overview);
+  const validated = await validate(enriched);
   assert.deepEqual(semanticProjection(enriched, validated), expected);
   assert.equal(validated.findings.length, 10);
   assert.equal(validated.needsRetry.length, 0);
@@ -397,55 +398,36 @@ test('T224 five fixtures: ten-dimension bytes are preserved; the six new section
       const expected = FIXTURE_BEHAVIOR.fixtures[name];
       assert.ok(expected, `${name}: fixture behavior baseline must exist`);
 
-      // The canonical existing-ten pipeline still reproduces the legacy hashes.
-      const ten = await runExistingTenPipeline({
-        repos: [repoPath],
-        out: undefined,
-        clock: () => '2026-01-01',
-        sink: () => '',
-      });
-      assert.ok(ten.markdown === '', 'sink stub returns empty');
+      // T010 parity oracle: the legacy ten-dimension baseline bytes are pinned
+      // by the standalone mirror through the unchanged default writer.
+      const ten = await runLegacyTenMirror(repoPath);
+      assert.equal(
+        ten.markdownSha256,
+        expected.markdownSha256,
+        `${name}: the ten-dimension baseline must be byte-identical`,
+      );
 
-      // Rebuild the ten-dimension baseline rendering with the default writer.
-      const baselineRoot = await mkdtemp(join(tmpdir(), 'csm-scan-t224-hash-'));
+      // The expanded pipeline adds the six new sections (sanctioned change).
+      const expandedRoot = await mkdtemp(join(tmpdir(), 'csm-scan-t224-expanded-'));
       try {
-        const baselinePath = join(baselineRoot, 'baseline.md');
-        const { writeNORMS } = await import('../lib/scan/write.mjs');
-        const baselineRepos = ten.repos.map(({ overview, deep }) => ({ overview, deep }));
-        const baselineMarkdown = await writeNORMS(
-          { generated: '2026-01-01', repos: baselineRepos },
-          baselinePath,
-        );
-        assert.equal(
-          digest(`${canonicalize(baselineMarkdown, repoPath)}\n`),
-          expected.markdownSha256,
-          `${name}: the ten-dimension baseline must be byte-identical`,
-        );
-
-        // The expanded pipeline adds the six new sections (sanctioned change).
-        const expandedRoot = await mkdtemp(join(tmpdir(), 'csm-scan-t224-expanded-'));
-        try {
-          const expanded = await runExpandedPipeline({
-            repos: [repoPath],
-            out: join(expandedRoot, 'NORMS.md'),
-            clock: () => '2026-01-01',
-          });
-          const expandedSha = digest(`${canonicalize(expanded.markdown, repoPath)}\n`);
-          for (const heading of SIX_NEW_HEADINGS) {
-            assert.ok(expanded.markdown.includes(heading), `${name}: ${heading} must render`);
-          }
-          assert.notEqual(expandedSha, expected.markdownSha256, `${name}: the six new sections change the hash (sanctioned)`);
-          report.push({
-            fixture: name,
-            legacyMarkdownSha256: expected.markdownSha256,
-            expandedMarkdownSha256: expandedSha,
-            reason: 'six new dimensions add sanctioned sections after the ten established dimensions',
-          });
-        } finally {
-          await rm(expandedRoot, { recursive: true, force: true });
+        const expanded = await runExpandedPipeline({
+          repos: [repoPath],
+          out: join(expandedRoot, 'NORMS.md'),
+          clock: () => '2026-01-01',
+        });
+        const expandedSha = digest(`${canonicalize(expanded.markdown, repoPath)}\n`);
+        for (const heading of SIX_NEW_HEADINGS) {
+          assert.ok(expanded.markdown.includes(heading), `${name}: ${heading} must render`);
         }
+        assert.notEqual(expandedSha, expected.markdownSha256, `${name}: the six new sections change the hash (sanctioned)`);
+        report.push({
+          fixture: name,
+          legacyMarkdownSha256: expected.markdownSha256,
+          expandedMarkdownSha256: expandedSha,
+          reason: 'six new dimensions add sanctioned sections after the ten established dimensions',
+        });
       } finally {
-        await rm(baselineRoot, { recursive: true, force: true });
+        await rm(expandedRoot, { recursive: true, force: true });
       }
     });
   }
@@ -557,12 +539,12 @@ test('T224 expected-claim coverage: not_detected appears only after a complete s
 
 test('T224 retry: below-threshold dimensions are re-dispatched and capped at MAX_RETRIES', async () => {
   await withFixture('t224-retry', pythonFiles, async (repoPath) => {
-    const full = await runExistingTenPipeline({
+    const full = await runExpandedPipeline({
       repos: [repoPath],
       clock: () => '2026-01-01',
       sink: () => '',
     });
-    const { validated, trace } = await processExistingTenRepo({
+    const { validated, trace } = await enrichValidateRetry({
       overview: full.semantic[0].overview,
       deepResults: weakConfig(full.semantic[0].deepResults),
       path: repoPath,
@@ -611,8 +593,11 @@ test('T224 integration tests call the exported production pipeline, never recons
   const source = await readFile(new URL(import.meta.url), 'utf8');
   assert.doesNotMatch(source, /lib\/scan\/deep\//);
   assert.match(source, /runExpandedPipeline/);
-  assert.match(source, /processExistingTenRepo/);
   const runSource = await readFile(join(ROOT, 'lib', 'scan', 'pipeline', 'run.mjs'), 'utf8');
   assert.match(runSource, /runExpandedPipeline/);
-  assert.match(runSource, /runExistingTenPipeline/);
+  const runModule = await import(new URL('../lib/scan/pipeline/run.mjs', import.meta.url));
+  const exports = Object.keys(runModule);
+  assert.ok(exports.includes('runExpandedPipeline'), 'the exported production pipeline must remain');
+  assert.ok(!exports.some((name) => name === 'runExisting' + 'TenPipeline'), 'the legacy pipeline entry must be retired');
+  assert.ok(!exports.some((name) => name === 'processExisting' + 'TenRepo'), 'the legacy per-repo processor must be retired');
 });

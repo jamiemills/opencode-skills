@@ -211,10 +211,14 @@ Planning never silently becomes implementation, and execution always starts from
 
   ```bash
   cd csm-scan
-  node --test --test-concurrency=1
+  node --test --test-concurrency=1              # authoritative full suite
+  node test/scripts/run-tier.mjs s             # S tier (parallel concurrency)
+  node test/scripts/run-tier.mjs m             # M tier (serial)
+  node test/scripts/run-tier.mjs l             # L tier (serial)
+  node test/scripts/run-tier.mjs all           # whole suite (serial)
   ```
 
-  Serial mode (`--test-concurrency=1`) is authoritative; default parallel mode can race the filesystem-heavy fixture tests. See [csm-scan/SKILL.md](csm-scan/SKILL.md) for focused gate commands (determinism, privacy, constraints, golden, and more).
+  Serial mode (`--test-concurrency=1`) is authoritative; default parallel mode can race the filesystem-heavy fixture tests. The tier runner (`test/scripts/run-tier.mjs`) and its manifest (`test/scripts/tiers.mjs`) are inert under `node --test` discovery via the `NODE_TEST_CONTEXT` guard; the manifest is a complete, non-overlapping partition of every `test/*.test.mjs` file, frozen from the POST-T002 file set — until then every `run-tier` invocation fails loudly instead of running nothing. See [csm-scan/SKILL.md](csm-scan/SKILL.md) for focused gate commands (determinism, privacy, constraints, golden, and more).
 
 - **csm-browse** — lightweight self-check, then the Docker-dependent end-to-end suite:
 

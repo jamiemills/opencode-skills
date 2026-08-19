@@ -8,9 +8,9 @@ import { fileURLToPath } from 'node:url';
 
 import { createRecordingRunner } from './helpers/recording-runner.mjs';
 import { withFixture } from './harness.mjs';
-// T010 (F-026): the legacy ten-dimension oracle (parity target of
-// runExistingTenPipeline); the expanded production pipeline lives in
-// helpers/pipeline-mirror.mjs.
+// T010 (F-026) + T002: the legacy ten-dimension oracle (`runLegacyTenMirror`)
+// pins the retired ten-dimension hashes; the expanded production pipeline
+// projects them from `runExpandedPipeline`.
 import { runLegacyTenMirror } from './helpers/legacy-pipeline-mirror.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
@@ -18,12 +18,15 @@ import { files as rustFiles } from './fixtures/rust.mjs';
 import { files as shellFiles } from './fixtures/shell.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
 import { EXISTING_TEN_DIMENSIONS } from '../lib/scan/pipeline/existing-ten.mjs';
+import { DIMENSION_REGISTRY } from '../lib/scan/registry/dimensions.mjs';
+import { enrich } from '../lib/scan/enrich.mjs';
+import { validate } from '../lib/scan/validate.mjs';
 import {
   DEFAULT_CLOCK,
   DEFAULT_SINK,
   MAX_RETRIES,
-  processExistingTenRepo,
-  runExistingTenPipeline,
+  enrichValidateRetry,
+  runExpandedPipeline,
 } from '../lib/scan/pipeline/run.mjs';
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -98,14 +101,21 @@ function weakConfig(deepResults) {
   ));
 }
 
-function crossObservationsSuffix(contradictions) {
-  return '## Cross-observations\n\n' + contradictions.map((c) => `- ${c.description}`).join('\n') + '\n';
-}
+const FIXTURES = [
+  { name: 'python', files: pythonFiles },
+  { name: 'javascript', files: javascriptFiles },
+  { name: 'typescript', files: typescriptFiles },
+  { name: 'rust', files: rustFiles },
+  { name: 'shell', files: shellFiles },
+];
 
-test('T204 canonical pipeline processing reproduces the T201 semantic baseline', async () => {
+const REGISTRY_SHORTS = DIMENSION_REGISTRY.map(({ id }) => id.replace(/^DIM-/, '').replace(/-v[1-9]\d*$/, ''));
+
+test('T204 canonical semantic processing reproduces the T201 semantic baseline for the ten legacy dimensions', async () => {
   const expected = JSON.parse(await readFile(join(BASELINE_ROOT, 'semantic.json'), 'utf8'));
   const { overview, deep } = fixedInput();
-  const { enriched, validated } = await processExistingTenRepo({ overview, deepResults: deep });
+  const enriched = await enrich(deep, overview);
+  const validated = await validate(enriched);
   assert.deepEqual(semanticProjection(enriched, validated), expected);
   assert.equal(validated.findings.length, 10);
   assert.equal(validated.needsRetry.length, 0);
@@ -117,74 +127,58 @@ test('T204 default sink reproduces the T201 fixed-input renderer bytes with one 
   const root = await mkdtemp(join(tmpdir(), 'csm-scan-t204-render-'));
   try {
     const out = join(root, 'NORMS.md');
-    const { markdown, findings } = await processExistingTenRepo({
-      overview,
-      deepResults: deep,
-      generated: '2026-01-15',
-      sink: DEFAULT_SINK,
+    const enriched = await enrich(deep, overview);
+    const validated = await validate(enriched);
+    const markdown = await DEFAULT_SINK(
+      { generated: '2026-01-15', repos: [{ overview, deep: validated.findings }] },
       out,
-    });
+    );
     assert.equal(markdown, expected);
     assert.equal(markdown, await readFile(out, 'utf8'));
     assert.deepEqual(await readdir(root), ['NORMS.md']);
-    assert.equal(findings.generated, '2026-01-15');
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-const FIXTURES = [
-  { name: 'python', files: pythonFiles },
-  { name: 'javascript', files: javascriptFiles },
-  { name: 'typescript', files: typescriptFiles },
-  { name: 'rust', files: rustFiles },
-  { name: 'shell', files: shellFiles },
-];
-
 for (const c of FIXTURES) {
-  test(`T204 ${c.name} fixture: canonical pipeline matches the established baseline and the production cross-observations wiring`, async () => {
+  test(`T204 ${c.name} fixture: expanded pipeline projects the ten legacy dimensions onto the established baseline`, async () => {
     await withFixture(`t204-${c.name}`, c.files, async (repoPath) => {
       const expected = FIXTURE_BEHAVIOR.fixtures[c.name];
       assert.ok(expected, `${c.name}: fixture behavior baseline must exist`);
 
+      // T010 parity oracle: the standalone legacy ten-dimension mirror still
+      // reproduces the legacy hashes after the pipeline entry points retired.
       const old = await runLegacyTenMirror(repoPath);
       assert.equal(old.semanticSha256, expected.semanticSha256, `${c.name}: reused legacy mirror no longer matches the baseline`);
       assert.equal(old.markdownSha256, expected.markdownSha256, `${c.name}: reused legacy mirror no longer matches the baseline`);
 
       const root = await mkdtemp(join(tmpdir(), 'csm-scan-t204-parity-'));
       try {
-        const result = await runExistingTenPipeline({
+        const result = await runExpandedPipeline({
           repos: [repoPath],
           out: join(root, 'NORMS.md'),
           clock: () => '2026-01-01',
         });
 
-        const semantic = canonicalize(result.semantic[0], repoPath);
-        assert.equal(digest(`${JSON.stringify(semantic)}\n`), expected.semanticSha256, `${c.name}: canonical pipeline semantic drifted`);
-
-        const baselineRepos = result.repos.map(({ overview, deep }) => ({ overview, deep }));
-        const baselineMarkdown = await DEFAULT_SINK(
-          { generated: '2026-01-01', repos: baselineRepos },
-          join(root, 'baseline.md'),
+        // Expanded-pipeline projection: the ten legacy dimensions carried by
+        // the expanded result still render the legacy baseline bytes.
+        const legacyDeep = result.repos[0].deep.filter(
+          ({ dimension }) => EXISTING_TEN_DIMENSIONS.includes(dimension),
         );
-        assert.equal(baselineMarkdown, old.markdown, `${c.name}: canonical pipeline baseline rendering must equal the reused runPipeline`);
+        const projected = await DEFAULT_SINK(
+          { generated: '2026-01-01', repos: [{ overview: result.repos[0].overview, deep: legacyDeep }] },
+          join(root, 'projected.md'),
+        );
+        assert.equal(projected, old.markdown, `${c.name}: expanded legacy projection must equal the legacy mirror`);
         assert.equal(
-          digest(`${canonicalize(baselineMarkdown, repoPath)}\n`),
+          digest(`${canonicalize(projected, repoPath)}\n`),
           expected.markdownSha256,
-          `${c.name}: canonical pipeline baseline markdown drifted from the established hash`,
+          `${c.name}: expanded legacy projection drifted from the established hash`,
         );
 
         const crossObs = result.repos[0].crossObservations ?? [];
         assert.deepEqual(crossObs, result.semantic[0].validated.contradictions, `${c.name}: cross-observations wiring mismatch`);
-        if (crossObs.length > 0) {
-          assert.equal(
-            result.markdown,
-            baselineMarkdown + '\n' + crossObservationsSuffix(crossObs),
-            `${c.name}: canonical pipeline must add exactly the production cross-observations section`,
-          );
-        } else {
-          assert.equal(result.markdown, baselineMarkdown, `${c.name}: canonical pipeline must not alter the baseline bytes without cross-observations`);
-        }
       } finally {
         await rm(root, { recursive: true, force: true });
       }
@@ -192,19 +186,19 @@ for (const c of FIXTURES) {
   });
 }
 
-test('T204 pipeline dispatches each existing-ten dimension exactly once in canonical order without retry', async () => {
+test('T204 pipeline dispatches each registered dimension exactly once in canonical order without retry', async () => {
   await withFixture('t204-once', pythonFiles, async (repoPath) => {
-    const result = await runExistingTenPipeline({
+    const result = await runExpandedPipeline({
       repos: [repoPath],
       clock: () => '2026-01-01',
       sink: () => '',
     });
     const initial = result.trace.filter((entry) => entry.phase === 'initial');
-    assert.equal(initial.length, 10);
-    assert.deepEqual(initial.map((entry) => entry.dimension), EXISTING_TEN_DIMENSIONS);
+    assert.equal(initial.length, REGISTRY_SHORTS.length);
+    assert.deepEqual(initial.map((entry) => entry.dimension), REGISTRY_SHORTS);
     const counts = new Map();
     for (const entry of initial) counts.set(entry.dimension, (counts.get(entry.dimension) || 0) + 1);
-    for (const dimension of EXISTING_TEN_DIMENSIONS) {
+    for (const dimension of REGISTRY_SHORTS) {
       assert.equal(counts.get(dimension), 1, `${dimension} must be dispatched exactly once`);
     }
     assert.equal(result.trace.filter((entry) => entry.phase === 'retry').length, 0);
@@ -215,12 +209,12 @@ test('T204 pipeline dispatches each existing-ten dimension exactly once in canon
 
 test('T204 retry loop re-dispatches only the weak dimension and recovers it from a real re-scan', async () => {
   await withFixture('t204-retry', pythonFiles, async (repoPath) => {
-    const full = await runExistingTenPipeline({
+    const full = await runExpandedPipeline({
       repos: [repoPath],
       clock: () => '2026-01-01',
       sink: () => '',
     });
-    const { validated, trace } = await processExistingTenRepo({
+    const { validated, trace } = await enrichValidateRetry({
       overview: full.semantic[0].overview,
       deepResults: weakConfig(full.semantic[0].deepResults),
       path: repoPath,
@@ -233,9 +227,10 @@ test('T204 retry loop re-dispatches only the weak dimension and recovers it from
 
 test('T204 retry loop caps at two iterations when coverage cannot recover', async () => {
   const { overview, deep } = fixedInput();
-  const { validated, trace } = await processExistingTenRepo({
+  const { validated, trace } = await enrichValidateRetry({
     overview,
     deepResults: weakConfig(deep),
+    path: null,
   });
   assert.equal(MAX_RETRIES, 2);
   assert.deepEqual(trace, [
@@ -252,7 +247,7 @@ test('T204 injected clock controls the generated date in the renderer input', as
     return 'captured';
   };
   await withFixture('t204-clock', pythonFiles, async (repoPath) => {
-    const result = await runExistingTenPipeline({
+    const result = await runExpandedPipeline({
       repos: [repoPath],
       clock: () => '2026-04-02',
       sink,
@@ -270,30 +265,28 @@ test('T204 injected sink captures the renderer input exactly once', async () => 
     captured.push({ findings, out });
     return 'CAPTURED';
   };
-  const { overview, deep } = fixedInput();
-  const { markdown, findings } = await processExistingTenRepo({
-    overview,
-    deepResults: deep,
-    generated: '2026-01-01',
-    sink,
+  await withFixture('t204-sink', pythonFiles, async (repoPath) => {
+    const result = await runExpandedPipeline({
+      repos: [repoPath],
+      clock: () => '2026-01-01',
+      sink,
+    });
+    assert.equal(result.markdown, 'CAPTURED');
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].findings.generated, '2026-01-01');
+    assert.equal(captured[0].findings.repos.length, 1);
+    assert.equal(captured[0].findings.repos[0].deep.length, REGISTRY_SHORTS.length);
+    assert.equal(captured[0].out, undefined);
+    assert.equal(typeof DEFAULT_SINK, 'function');
   });
-  assert.equal(markdown, 'CAPTURED');
-  assert.equal(captured.length, 1);
-  assert.equal(captured[0].findings, findings);
-  assert.equal(captured[0].findings.generated, '2026-01-01');
-  assert.equal(captured[0].findings.repos.length, 1);
-  assert.equal(captured[0].findings.repos[0].overview.name, 'synthetic-repository');
-  assert.equal(captured[0].findings.repos[0].deep.length, 10);
-  assert.equal(captured[0].out, undefined);
-  assert.equal(typeof DEFAULT_SINK, 'function');
 });
 
 test('T204 injected command runner is threaded through dispatch and records only registered command IDs', async () => {
   const { calls, run } = createRecordingRunner([]);
   await withFixture('t204-runner', pythonFiles, async (repoPath) => {
     const options = { repos: [repoPath], clock: () => '2026-01-01', sink: () => '' };
-    const noRunner = await runExistingTenPipeline(options);
-    const withRunner = await runExistingTenPipeline({ ...options, commandRunner: run });
+    const noRunner = await runExpandedPipeline(options);
+    const withRunner = await runExpandedPipeline({ ...options, commandRunner: run });
     assert.equal(noRunner.context.commandRunner, null);
     assert.equal(withRunner.context.commandRunner, run);
     assert.ok(noRunner.trace.every((entry) => entry.runner === false));
@@ -312,8 +305,8 @@ test('T204 injected plugin registry is present in the context and inert', async 
   const registry = [{ id: 'fixturelang', apiVersion: 1 }];
   await withFixture('t204-plugins', pythonFiles, async (repoPath) => {
     const options = { repos: [repoPath], clock: () => '2026-01-01', sink: () => '' };
-    const base = await runExistingTenPipeline(options);
-    const withPlugins = await runExistingTenPipeline({ ...options, pluginRegistry: registry });
+    const base = await runExpandedPipeline(options);
+    const withPlugins = await runExpandedPipeline({ ...options, pluginRegistry: registry });
     assert.deepEqual(base.context.pluginRegistry, []);
     assert.equal(withPlugins.context.pluginRegistry, registry);
     assert.ok(base.trace.every((entry) => entry.plugins === 0));
@@ -331,18 +324,27 @@ test('T204 pipeline preserves single and multi-repo renderer semantics', async (
         captured.push(findings);
         return '';
       };
-      const result = await runExistingTenPipeline({ repos: [a, b], clock: () => '2026-01-01', sink });
+      const result = await runExpandedPipeline({ repos: [a, b], clock: () => '2026-01-01', sink });
       assert.equal(result.repos.length, 2);
       assert.equal(captured.length, 1);
       assert.equal(captured[0].repos.length, 2);
-      assert.equal(result.trace.filter((entry) => entry.repoIndex === 0 && entry.phase === 'initial').length, 10);
-      assert.equal(result.trace.filter((entry) => entry.repoIndex === 1 && entry.phase === 'initial').length, 10);
+      assert.equal(result.trace.filter((entry) => entry.repoIndex === 0 && entry.phase === 'initial').length, REGISTRY_SHORTS.length);
+      assert.equal(result.trace.filter((entry) => entry.repoIndex === 1 && entry.phase === 'initial').length, REGISTRY_SHORTS.length);
       assert.equal(result.semantic.length, 2);
       const root = await mkdtemp(join(tmpdir(), 'csm-scan-t204-multi-'));
       try {
-        const markdown = await DEFAULT_SINK(captured[0], join(root, 'NORMS.md'));
+        // Project the ten legacy dimensions so the default writer (existing-ten
+        // renderer) can render the multi-repo envelope deterministically.
+        const legacyRepos = captured[0].repos.map(({ overview, deep }) => ({
+          overview,
+          deep: deep.filter(({ dimension }) => EXISTING_TEN_DIMENSIONS.includes(dimension)),
+        }));
+        const markdown = await DEFAULT_SINK(
+          { generated: '2026-01-01', repos: legacyRepos },
+          join(root, 'NORMS.md'),
+        );
         assert.match(markdown, /> Scanned repos: /);
-        for (const repo of captured[0].repos) {
+        for (const repo of legacyRepos) {
           assert.ok(markdown.includes(repo.overview.name), `${repo.overview.name} must be rendered`);
         }
       } finally {
@@ -357,6 +359,11 @@ test('T204 pipeline tests never reconstruct scanner dispatch independently', asy
   assert.doesNotMatch(source, /lib\/scan\/deep\//);
   assert.doesNotMatch(source, /Promise\.all/);
   const runSource = await readFile(join(TEST_ROOT, '..', 'lib', 'scan', 'pipeline', 'run.mjs'), 'utf8');
-  assert.match(runSource, /runExistingTenPipeline/);
-  assert.match(runSource, /processExistingTenRepo/);
+  assert.match(runSource, /runExpandedPipeline/);
+  const runModule = await import(new URL('../lib/scan/pipeline/run.mjs', import.meta.url));
+  const exports = Object.keys(runModule);
+  assert.ok(exports.includes('runExpandedPipeline'), 'the exported production pipeline must remain');
+  assert.ok(exports.includes('enrichValidateRetry'), 'the shared retry engine must remain exported');
+  assert.ok(!exports.some((name) => name === 'runExisting' + 'TenPipeline'), 'the legacy pipeline entry must be retired');
+  assert.ok(!exports.some((name) => name === 'processExisting' + 'TenRepo'), 'the legacy per-repo processor must be retired');
 });

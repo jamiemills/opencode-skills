@@ -12,13 +12,13 @@ import { files as typescriptFiles } from './fixtures/typescript.mjs';
 import { files as rustFiles } from './fixtures/rust.mjs';
 import { files as shellFiles } from './fixtures/shell.mjs';
 
-// T010 (F-026): `runPipeline` — the suite's own fixture cases — now drives the
+// T010 (F-026) + T002: `runPipeline` — the suite's own fixture cases — now drives the
 // exported production pipeline (`runExpandedPipeline`) through the shared
-// mirror helper. The legacy ten-dimension sequence below survives ONLY as
+// mirror helper. The legacy ten-dimension sequence survives ONLY as
 // `runLegacyTenMirror`, the parity oracle consumed by
-// expansion-production-pipeline.test.mjs (T204) to prove
-// `runExistingTenPipeline` byte-equality; it retires together with
-// `runExistingTenPipeline` (F-055) and no longer claims to mirror scripts/scan.mjs.
+// expansion-production-pipeline.test.mjs (T204) and expansion-activation.test.mjs
+// (T224) to pin the ten-dimension baseline bytes after the legacy entry points
+// were retired (T002); it no longer claims to mirror scripts/scan.mjs.
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
 const BEHAVIOR_BASELINE = JSON.parse(await readFile(
   join(TEST_ROOT, 'baselines', 'expansion', 'fixture-behavior.json'),
@@ -98,7 +98,7 @@ for (const c of CASES) {
       );
     }
 
-    // T010 (F-026): the fixture cases pin the EXPANDED production pipeline
+    // T010 (F-026) + T002: the fixture cases pin the EXPANDED production pipeline
     // (runExpandedPipeline through the shared mirror); the legacy
     // ten-dimension hashes remain recorded for the T204 parity oracle.
     const expected = BEHAVIOR_BASELINE.fixtures[c.name];

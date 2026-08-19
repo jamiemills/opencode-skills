@@ -222,6 +222,17 @@ node --test --test-concurrency=1 test/voice-gate.test.mjs            # establish
 node --test --test-concurrency=1 test/golden.test.mjs                # five ecosystems + real-repo golden
 ```
 
+Tiered runs (S/M/L) are driven by `test/scripts/run-tier.mjs` with the partition declared in `test/scripts/tiers.mjs`:
+
+```bash
+node test/scripts/run-tier.mjs s      # S tier — default (parallel) concurrency
+node test/scripts/run-tier.mjs m      # M tier — serial
+node test/scripts/run-tier.mjs l      # L tier — serial
+node test/scripts/run-tier.mjs all    # whole suite — serial (authoritative)
+```
+
+The tier manifest is a complete, non-overlapping partition of every `test/*.test.mjs` file, frozen from the POST-T002 file set. While it is still the placeholder, every `run-tier` invocation fails loudly (exit 1) instead of silently running nothing. Both `tiers.mjs` and `run-tier.mjs` carry the `NODE_TEST_CONTEXT` inert guard (same pattern as `coverage-gate.mjs`), so `node --test` discovery does not add phantom tests or distort coverage instrumentation.
+
 `node --test --test-concurrency=1` is authoritative because default parallel mode can race filesystem-heavy fixture tests. Fixtures live under `test/fixtures/` and `test/fixtures-expansion/`, each exporting a `files` map consumed by `test/harness.mjs`'s `withFixture`. The suite covers shared primitives, all 17 dimensions, enrich, validate, write, the 21-case P0 regression matrix, the voice gates, privacy gates, determinism gates, constraint gates (command boundary, one write, zero dependencies), plugin boundary tests, multi-repo cross-repository synthesis, and end-to-end pipeline behavior — no installs required.
 
 - `CSM_SCAN_REAL_REPO=<path>` — when set to an existing repository, the real-repo tests scan it instead of the checked-in fallback; full-strength scale expectations apply only when the repo is identified as pxcli, otherwise expectations are scaled to the fallback fixture. When unset (or empty), the same tests run against `test/fixtures-real/pxcli-mini` — the suite is green on any machine with no `$HOME`-path dependency.

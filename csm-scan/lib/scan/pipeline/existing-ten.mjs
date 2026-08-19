@@ -48,10 +48,3 @@ export async function deepScan(dimension, repoPath, overview, broker = null) {
     : await scanner.scan(repoPath, overview, broker);
   return result && typeof result === 'object' && result.dimension ? result : null;
 }
-
-export async function scanExistingTen(repoPath, overview, broker = null) {
-  const results = await Promise.all(
-    EXISTING_TEN_DIMENSIONS.map((dimension) => deepScan(dimension, repoPath, overview, broker)),
-  );
-  return results.filter(Boolean);
-}
