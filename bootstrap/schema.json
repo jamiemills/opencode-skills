@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentskills.io/schemas/csm-bootstrap-2.json",
+  "title": "Signed universal Agent Skills bootstrap envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "audience", "expires_at", "key", "policy", "steps_markdown", "steps_sha256", "signature"],
+  "properties": {
+    "schema": { "const": "csm-bootstrap/2" },
+    "audience": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "key": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "fingerprint", "algorithm"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "algorithm": { "const": "Ed25519" }
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["package", "payload_release", "limits"],
+      "properties": {
+        "package": {
+          "type": "object", "additionalProperties": false,
+          "required": ["name", "version", "bin", "registry"],
+          "properties": {
+            "name": { "const": "@jamiemills/csm-skills-bootstrap" },
+            "version": { "const": "0.1.0" },
+            "bin": { "const": "csm-skills-bootstrap" },
+            "registry": { "const": "https://registry.npmjs.org" }
+          }
+        },
+        "payload_release": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+        "limits": {
+          "type": "object", "additionalProperties": false,
+          "required": ["max_bytes", "max_redirects", "allowed_origin"],
+          "properties": {
+            "max_bytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+            "max_redirects": { "type": "integer", "minimum": 0, "maximum": 3 },
+            "allowed_origin": { "type": "string", "pattern": "^https://[^/]+$" }
+          }
+        }
+      }
+    },
+    "steps_markdown": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "steps_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": { "algorithm": { "const": "Ed25519" }, "value": { "type": "string", "contentEncoding": "base64" } }
+    }
+  }
+}

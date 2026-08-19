@@ -1,0 +1,14 @@
+{
+  "schema": "csm-bootstrap/2",
+  "audience": "agent-skills",
+  "expires_at": "2026-12-31T23:59:59.000Z",
+  "key": { "id": "fixture-2026", "fingerprint": "9becc4df9427fd431d39a09d82e98d43625c1b57dcd12c9dc29bd8283d3b55cf", "algorithm": "Ed25519" },
+  "policy": {
+    "package": { "name": "@jamiemills/csm-skills-bootstrap", "version": "0.1.0", "bin": "csm-skills-bootstrap", "registry": "https://registry.npmjs.org" },
+    "payload_release": "fixture-2026-08",
+    "limits": { "max_bytes": 65536, "max_redirects": 0, "allowed_origin": "https://localhost" }
+  },
+  "steps_markdown": "# Bootstrap guidance\n\n1. Confirm that this envelope and its fixed trust root are trusted before using it.\n2. Discover whether your Agent Skills host supports the standard and ask the user for a destination when it is ambiguous.\n3. Use only the fixed package, version, and bin in the signed policy; verify every payload hash after placement.\n4. Report the destination, hashes, reload action, and any staging, locking, or rollback limits your host actually provides.\n\nThis document is guidance only. It cannot add commands, paths, package names, permissions, or shell policy to the signed structured policy. Markdown, links, and code examples are never executable.\n",
+  "steps_sha256": "03d6069f5314f42d73ed8844c1e988dda1ffe52447cbfd053b39b86e32b6a73e",
+  "signature": { "algorithm": "Ed25519", "value": "NmrkLr5of3HmI6xZ5eAxUT+shgvSeA24VzbkjW2IniGUyPVVuHk30sEdnPxDX4YQ61aUXVH16OBbXCm6UVoOAw==" }
+}

@@ -14,11 +14,11 @@ format: csm-plan/1
 ## Control
 - Plan ID: universal-agent-skills-bootstrap
 - Status: in_progress
-- Current CSM state: SELECT
-- Cycle: 0
+- Current CSM state: CHECKPOINT
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-18 — RECOVER baseline: no target implementation files exist; unrelated untracked plan preserved
-- Next transition: SELECT -> DISPATCH (T001)
+- Last checkpoint: 2026-08-18 cycle 3 — T001 complete: trust envelope implemented, verified 2/2, independently reviewed APPROVED after 1 repair cycle; check-suite 434 green; next task T002
+- Next transition: CHECKPOINT -> SELECT (T002)
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -83,6 +83,7 @@ Make the collection usable by any capable AI agent through one URL containing ag
 - T001 must be independently reviewed before T002 dispatch; T002 must be independently reviewed before T003; T003 before T004; T004 before T005. Review evidence is recorded in each task checkpoint.
 - Every task has a single primary owner and exact file paths; cross-task tests are owned only by T005 under `tests/integration/`.
 - A build checkpoint records task ID, commit, changed paths, command outputs, protected-plan hashes, review verdict, and the exact next task ID.
+- T001 learnings for all remaining tasks: the trust validator currently lives only inside `tests/bootstrap-trust.test.mjs` with a frozen clock — T003/T005 must not assume an importable validator exists; the fixture Ed25519 private key is deliberately not committed, so signed fixture bytes are immutable (repairs must target validator/tests/unsigned files only); origin binding is hostname-only (port-insensitive) and `payload_release` is schema-declared but validator-unenforced — both accepted residuals, mitigated because every security-relevant field is signature-bound or rejected; pre-signature policy checks are deliberately ordered before signature verification to keep negative paths testable without a private key (fail-closed either way).
 
 ## Design
 The URL returns an envelope with structured fields and a digest-bound `steps_markdown` field. The agent first confirms that it trusts the fixed bootstrap package/key, then reads the steps as guidance. The steps tell it to discover its own Agent Skills format support and destination, ask the user if uncertain, invoke the fixed npx package, and place verified files. The URL cannot select an executable, shell command, arbitrary destination, or fallback tool.
@@ -112,7 +113,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 - A task is `completed` only after its acceptance signal, evidence, and review gate pass. `T005` never marks the plan complete; the primary final gate updates Control and Completion Review.
 
 ## Numbered Plan
-1. [in_progress] Define the universal signed bootstrap envelope and guidance boundary
+1. [completed] Define the universal signed bootstrap envelope and guidance boundary
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -123,8 +124,8 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Actions: require bounded HTTPS retrieval; verify origin/redirect/content limits; define supported signature algorithm, key fingerprint source, expiry/rotation/revocation behavior; sign structured policy and exact steps digest; restrict command objects to fixed package `@jamiemills/csm-skills-bootstrap@0.1.0`, fixed bin `csm-skills-bootstrap`, and structured argv schema; reject executable/path/package/shell fields from URL; preserve Markdown as guidance only; add a local HTTPS fixture server used only by the test harness
    - Acceptance signal: `node --test tests/bootstrap-trust.test.mjs` accepts the committed valid local HTTPS fixture and rejects malformed, altered, expired, wrong-audience, unknown/revoked-key, unsigned, redirect, oversized, and shell-bearing fixtures; expected result is all tests pass
    - Validation: canonicalization idempotence, signature report, unknown-key rejection, no external mutation, original-plan hash comparison
-   - Acceptance evidence: schema, key policy, valid/invalid fixture transcript, local HTTPS retrieval transcript, and prompt-injection boundary report
-   - Repair attempts: 0
+   - Acceptance evidence: schema, key policy, valid/invalid fixture transcript, local HTTPS retrieval transcript, and prompt-injection boundary report; recorded 2026-08-18 — `node --test tests/bootstrap-trust.test.mjs` 2/2 pass covering 21 rejection cases across 19 codes (SCHEMA, UNEXPECTED_FIELD, CONTENT_TOO_LARGE, WRONG_AUDIENCE, EXPIRED, ORIGIN, UNKNOWN_KEY, REVOKED_KEY, ALGORITHM, FINGERPRINT, KEY_EXPIRED, STEPS_DIGEST, PACKAGE_POLICY, SHELL_POLICY, UNSIGNED, BAD_SIGNATURE, REDIRECT, MALFORMED, HTTP_STATUS); check-suite 434 green; independent review APPROVED (fresh reviewer; first dispatch returned empty — journalled, re-dispatched narrowed)
+   - Repair attempts: 1
    - Recovery note: discard only temporary fixtures; never make a prior plan or real home the fixture destination
    - Review gate: independent reviewer signs off T001 before T002 is selectable
 
@@ -244,6 +245,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 2 | CLOSE-SUPERSEDED-PLANS -> VERIFY | none | Closed T001-T006 in the 2026-08-17 plan and T001-T005 in the 2026-08-18 URL/npx plan without execution; retained implementation content and updated only closure metadata | SAVED |
 | 2026-08-18 | 3 | NOT_STARTED -> RECOVER | none | Explicit csm-build request received; target plan selected; no target implementation files or partial task commits found; unrelated `.agents/plans/2026-08-18-remaining-suite-work-csm.md` remains untracked and out of scope | VALIDATE |
 | 2026-08-18 | 3 | RECOVER -> VALIDATE -> SELECT | none | Baseline gates pass: check-suite 434, boilerplate sync clean, README matrix clean; ready set contains only T001 because all later tasks require prior implementation plus independent review | DISPATCH (T001) |
+| 2026-08-18 | 3 | DISPATCH (T001) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Implemented schema/keyring/fixtures/steps + trust test; acceptance 2/2 pass. First review dispatch returned EMPTY (journalled; re-dispatched fresh+narrowed per resilience ladder). Review verdict changes-required: 1 blocker (unsigned extra top-level fields), 2 majors (bypassable shell regex; 7 untested codes), minors (non-2xx, unenforced limits, steps.md drift). Repaired primary-led: exact key-set enforcement (UNEXPECTED_FIELD), whole-string denylist + fence rejection, all 19 codes tested, HTTP_STATUS/MALFORMED routes, signed limits enforced (origin hostname binding, max_bytes, max_redirects bounds), steps.md byte-binding test (drift finding disproved — already byte-identical). Re-review APPROVED; reviewer's optional hardening (tilde fences, suffixed tool names, max_redirects case) applied and re-verified 2/2. check-suite 434 green | SELECT (T002 after this checkpoint) |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
