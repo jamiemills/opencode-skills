@@ -17,8 +17,8 @@ format: csm-plan/1
 - Current CSM state: CHECKPOINT
 - Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-18 cycle 3 — T001 complete: trust envelope implemented, verified 2/2, independently reviewed APPROVED after 1 repair cycle; check-suite 434 green; next task T002
-- Next transition: CHECKPOINT -> SELECT (T002)
+- Last checkpoint: 2026-08-19 cycle 4 — recovered from concurrent-agent interference: another session built a duplicate branch `push-my-work` (cherry-picked history + its own plan) while this session was between T001 and T002; main retained the complete original line and was re-verified (T001 2/2, check-suite 434, sync/matrix clean); T002 partial owned files survived untracked and remain salvageable; `push-my-work` left untouched for the user to delete
+- Next transition: SELECT -> DISPATCH (T002)
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -129,7 +129,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Recovery note: discard only temporary fixtures; never make a prior plan or real home the fixture destination
    - Review gate: independent reviewer signs off T001 before T002 is selectable
 
-2. [pending] Package the neutral skills and exact npx helper boundary
+2. [in_progress] Package the neutral skills and exact npx helper boundary
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -246,6 +246,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 3 | NOT_STARTED -> RECOVER | none | Explicit csm-build request received; target plan selected; no target implementation files or partial task commits found; unrelated `.agents/plans/2026-08-18-remaining-suite-work-csm.md` remains untracked and out of scope | VALIDATE |
 | 2026-08-18 | 3 | RECOVER -> VALIDATE -> SELECT | none | Baseline gates pass: check-suite 434, boilerplate sync clean, README matrix clean; ready set contains only T001 because all later tasks require prior implementation plus independent review | DISPATCH (T001) |
 | 2026-08-18 | 3 | DISPATCH (T001) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Implemented schema/keyring/fixtures/steps + trust test; acceptance 2/2 pass. First review dispatch returned EMPTY (journalled; re-dispatched fresh+narrowed per resilience ladder). Review verdict changes-required: 1 blocker (unsigned extra top-level fields), 2 majors (bypassable shell regex; 7 untested codes), minors (non-2xx, unenforced limits, steps.md drift). Repaired primary-led: exact key-set enforcement (UNEXPECTED_FIELD), whole-string denylist + fence rejection, all 19 codes tested, HTTP_STATUS/MALFORMED routes, signed limits enforced (origin hostname binding, max_bytes, max_redirects bounds), steps.md byte-binding test (drift finding disproved — already byte-identical). Re-review APPROVED; reviewer's optional hardening (tilde fences, suffixed tool names, max_redirects case) applied and re-verified 2/2. check-suite 434 green | SELECT (T002 after this checkpoint) |
+| 2026-08-19 | 4 | SELECT -> DISPATCH (T002) -> [INTERRUPTED] -> RECOVER -> CHECKPOINT | none | Concurrent parallel agent interfered: created duplicate branch `push-my-work` via cherry-picked rebuild (dropping this plan, superseded closures, and T001 from that line) and committed its own plan (identical content to its earlier 9775ef1 on main). T002 dispatch aborted mid-flight; its partial owned files survived untracked. User stopped the interfering session. Regroup: verified main@6f056d2 intact with all work (T001 2/2, check-suite 434, sync/matrix clean); briefly restored files onto the duplicate branch (fbad3d9) before identifying main as authoritative; returned to main; `push-my-work` and origin/main untouched | SELECT (T002 with salvage) |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
