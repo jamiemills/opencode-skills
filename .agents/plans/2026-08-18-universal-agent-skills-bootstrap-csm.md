@@ -15,10 +15,10 @@ format: csm-plan/1
 - Plan ID: universal-agent-skills-bootstrap
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 3
+- Cycle: 5
 - Commits: allowed
-- Last checkpoint: 2026-08-19 cycle 4 — recovered from concurrent-agent interference: another session built a duplicate branch `push-my-work` (cherry-picked history + its own plan) while this session was between T001 and T002; main retained the complete original line and was re-verified (T001 2/2, check-suite 434, sync/matrix clean); T002 partial owned files survived untracked and remain salvageable; `push-my-work` left untouched for the user to delete
-- Next transition: SELECT -> DISPATCH (T002)
+- Last checkpoint: 2026-08-19 cycle 5 — T002 complete: package/payload/pack-tool/audit-test implemented (dispatched work salvaged after interference, finished primary-led), deterministic tarballs proven byte-identical, independently reviewed APPROVED with 2 hardening minors applied; next task T003
+- Next transition: CHECKPOINT -> SELECT (T003)
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -129,7 +129,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Recovery note: discard only temporary fixtures; never make a prior plan or real home the fixture destination
    - Review gate: independent reviewer signs off T001 before T002 is selectable
 
-2. [in_progress] Package the neutral skills and exact npx helper boundary
+2. [completed] Package the neutral skills and exact npx helper boundary
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -140,9 +140,10 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Actions: build exact-version package `@jamiemills/csm-skills-bootstrap@0.1.0` with fixed bin; include neutral `SKILL.md` payload/supporting files separately from helper bins; record every path, mode, size, hash, license, and runtime requirement; reject lifecycle scripts, Git/URL/range/optional unknown dependencies, dynamic source loading, undeclared packed files, and ambiguous bins; test packed tarball, not source; do not publish during this task
    - Acceptance signal: `node --test tests/package-audit.test.mjs` runs isolated `npm pack --json` twice and passes only when the tarballs/payload hashes match, the fixed bin is present, no lifecycle scripts or forbidden dependencies exist, and all eight skill payloads are declared
    - Validation: unpack to disposable path; run `NPM_CONFIG_CACHE=<tmp-cache> npx --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version` against the packed fixture registry/cache; verify no `.git`/`.agents`/tests/fixtures/raw checkout
-   - Acceptance evidence: tarball/integrity/provenance fixture, payload index, dependency/license report, and reproducibility transcript
+   - Acceptance evidence: tarball/integrity/provenance fixture, payload index, dependency/license report, and reproducibility transcript; recorded 2026-08-19 — `node --test tests/package-audit.test.mjs` 1/1 pass: two isolated packs byte-identical (tarball shasum ec0ae9034c3f5496f9e9b5e240000a41dfd0adf853b2fcb3ef2d78ff475a2a96, 120 files, 458186 bytes), package audit green (license MIT, files whitelist, zero scripts/dependencies, single 0o755 bin), 118 index entries hash/size verified bidirectionally, 8/8 skill frontmatter validated, npx file: execution prints 0.1.0, `payload-index` verifies ok:true, tampered-index tarball exits nonzero; independent review APPROVED (2 minors applied: license/files assertions, end-to-end payload-index verification + tamper case)
    - Repair attempts: 0
    - Recovery note: discard only temporary package outputs; no publication until all audits pass
+   - Spike decision recorded: csm-browse excluded (external deps chrome-remote-interface/jimp — ships as SKILL.md guidance only, dependency setup stays a separate documented step); csm-scan scripts+lib/scan closure and csm-upload scripts bundled (dependency-free); helperBins empty in 0.1.0; package.json+payload-index.json deliberately not self-indexed (bound by recorded tarball shasum)
    - Review gate: independent reviewer signs off T002 before T003 is selectable
 
 3. [pending] Define the agent-owned discovery and materialization protocol
@@ -247,6 +248,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 3 | RECOVER -> VALIDATE -> SELECT | none | Baseline gates pass: check-suite 434, boilerplate sync clean, README matrix clean; ready set contains only T001 because all later tasks require prior implementation plus independent review | DISPATCH (T001) |
 | 2026-08-18 | 3 | DISPATCH (T001) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Implemented schema/keyring/fixtures/steps + trust test; acceptance 2/2 pass. First review dispatch returned EMPTY (journalled; re-dispatched fresh+narrowed per resilience ladder). Review verdict changes-required: 1 blocker (unsigned extra top-level fields), 2 majors (bypassable shell regex; 7 untested codes), minors (non-2xx, unenforced limits, steps.md drift). Repaired primary-led: exact key-set enforcement (UNEXPECTED_FIELD), whole-string denylist + fence rejection, all 19 codes tested, HTTP_STATUS/MALFORMED routes, signed limits enforced (origin hostname binding, max_bytes, max_redirects bounds), steps.md byte-binding test (drift finding disproved — already byte-identical). Re-review APPROVED; reviewer's optional hardening (tilde fences, suffixed tool names, max_redirects case) applied and re-verified 2/2. check-suite 434 green | SELECT (T002 after this checkpoint) |
 | 2026-08-19 | 4 | SELECT -> DISPATCH (T002) -> [INTERRUPTED] -> RECOVER -> CHECKPOINT | none | Concurrent parallel agent interfered: created duplicate branch `push-my-work` via cherry-picked rebuild (dropping this plan, superseded closures, and T001 from that line) and committed its own plan (identical content to its earlier 9775ef1 on main). T002 dispatch aborted mid-flight; its partial owned files survived untracked. User stopped the interfering session. Regroup: verified main@6f056d2 intact with all work (T001 2/2, check-suite 434, sync/matrix clean); briefly restored files onto the duplicate branch (fbad3d9) before identifying main as authoritative; returned to main; `push-my-work` and origin/main untouched | SELECT (T002 with salvage) |
+| 2026-08-19 | 5 | SELECT -> DISPATCH (T002 salvage) -> INTEGRATE (primary-led finish: package-audit test authored against salvaged pack tool/package/bin) -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Salvaged partial dispatch (package.json, package/** payload, payload-index.json, pack-bootstrap.mjs) intact and conformant; authored tests/package-audit.test.mjs primary-led. Acceptance 1/1: byte-identical deterministic tarballs (ec0ae903…), zero lifecycle scripts/deps, single 0o755 bin, 118 index entries verified bidirectionally, 8/8 frontmatter, npx file: --version + payload-index ok + tampered-index nonzero. Independent review APPROVED; minors applied (license/files asserts, e2e payload-index verification + tamper case). Spike decisions recorded (browse excluded, scan/upload bundled, helperBins empty). check-suite 434; T001 regression 2/2 | SELECT (T003) |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.

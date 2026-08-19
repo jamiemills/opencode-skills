@@ -1,0 +1,19 @@
+{
+  "name": "@jamiemills/csm-skills-bootstrap",
+  "version": "0.1.0",
+  "description": "Neutral agent-skills payload with a hash-verifying bootstrap bin",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "csm-skills-bootstrap": "bin/csm-skills-bootstrap.js"
+  },
+  "files": [
+    "bin",
+    "payload",
+    "payload-index.json",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
