@@ -15,10 +15,10 @@ format: csm-plan/1
 - Plan ID: universal-agent-skills-bootstrap
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 5
+- Cycle: 6
 - Commits: allowed
-- Last checkpoint: 2026-08-19 cycle 5 — T002 complete: package/payload/pack-tool/audit-test implemented (dispatched work salvaged after interference, finished primary-led), deterministic tarballs proven byte-identical, independently reviewed APPROVED with 2 hardening minors applied; next task T003
-- Next transition: CHECKPOINT -> SELECT (T003)
+- Last checkpoint: 2026-08-19 cycle 6 — T003 complete: protocol spec + report schema + reference engine, 18/18 acceptance tests, independently reviewed APPROVED after 2 repair cycles; next task T004
+- Next transition: CHECKPOINT -> SELECT (T004)
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -146,7 +146,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Spike decision recorded: csm-browse excluded (external deps chrome-remote-interface/jimp — ships as SKILL.md guidance only, dependency setup stays a separate documented step); csm-scan scripts+lib/scan closure and csm-upload scripts bundled (dependency-free); helperBins empty in 0.1.0; package.json+payload-index.json deliberately not self-indexed (bound by recorded tarball shasum)
    - Review gate: independent reviewer signs off T002 before T003 is selectable
 
-3. [pending] Define the agent-owned discovery and materialization protocol
+3. [completed] Define the agent-owned discovery and materialization protocol
    - Task ID: T003
    - Depends on: T001, T002
    - Parallel group: G3
@@ -157,8 +157,8 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Actions: define exact protocol states `DISCOVER -> TRUST -> PLAN_DESTINATION -> CONFIRM_IF_NEEDED -> MATERIALIZE -> VERIFY -> REPORT`; define capability input, refusal codes, user-confirmation points, agent-chosen path rules, post-write hash report, reload field, and staging/lock/rollback availability fields; make helper materialize only verified relative payload into an agent-chosen staging path; prohibit URL-supplied executable/path/shell and Markdown execution
    - Acceptance signal: `node --test tests/protocol/*.test.mjs` passes capable-agent, ambiguous-destination, no-npx, no-write, unsupported-format, malicious-steps, destination-symlink, interrupted-write, and post-write-hash cases; each refusal has a documented nonzero code and no payload mutation
    - Validation: path-with-spaces, destination symlink/traversal, duplicate names, existing modified files, interrupted agent write, and user-confirmation transcript
-   - Acceptance evidence: protocol state traces, final reports, capability/refusal matrix, and payload tree hashes
-   - Repair attempts: 0
+   - Acceptance evidence: protocol state traces, final reports, capability/refusal matrix, and payload tree hashes; recorded 2026-08-19 — `node --test tests/protocol/*.test.mjs` 18/18 pass covering all 13 refusal codes across 18 tests incl. path-with-spaces happy path, managed replace with backup restore, unmanaged finalize-failure cleanup (newly-written files removed, identical pre-existing preserved, empty dirs pruned), E_NO_DESTINATION/TRUST sub-branches; independent review APPROVED after 2 repair cycles (round 1: untested exit 3, untested managed restore, partial-write defect, dead restore-failed flag, corrupted table — all repaired; round 2 confirmed; round 3 approved)
+   - Repair attempts: 2
    - Recovery note: agent reports incomplete transaction and preserves prior files when host staging is unavailable; helper never claims atomicity it did not perform
    - Review gate: independent reviewer signs off T003 before T004 is selectable
 
@@ -249,6 +249,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-18 | 3 | DISPATCH (T001) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> VERIFY -> REVIEW -> CHECKPOINT | T001 | Implemented schema/keyring/fixtures/steps + trust test; acceptance 2/2 pass. First review dispatch returned EMPTY (journalled; re-dispatched fresh+narrowed per resilience ladder). Review verdict changes-required: 1 blocker (unsigned extra top-level fields), 2 majors (bypassable shell regex; 7 untested codes), minors (non-2xx, unenforced limits, steps.md drift). Repaired primary-led: exact key-set enforcement (UNEXPECTED_FIELD), whole-string denylist + fence rejection, all 19 codes tested, HTTP_STATUS/MALFORMED routes, signed limits enforced (origin hostname binding, max_bytes, max_redirects bounds), steps.md byte-binding test (drift finding disproved — already byte-identical). Re-review APPROVED; reviewer's optional hardening (tilde fences, suffixed tool names, max_redirects case) applied and re-verified 2/2. check-suite 434 green | SELECT (T002 after this checkpoint) |
 | 2026-08-19 | 4 | SELECT -> DISPATCH (T002) -> [INTERRUPTED] -> RECOVER -> CHECKPOINT | none | Concurrent parallel agent interfered: created duplicate branch `push-my-work` via cherry-picked rebuild (dropping this plan, superseded closures, and T001 from that line) and committed its own plan (identical content to its earlier 9775ef1 on main). T002 dispatch aborted mid-flight; its partial owned files survived untracked. User stopped the interfering session. Regroup: verified main@6f056d2 intact with all work (T001 2/2, check-suite 434, sync/matrix clean); briefly restored files onto the duplicate branch (fbad3d9) before identifying main as authoritative; returned to main; `push-my-work` and origin/main untouched | SELECT (T002 with salvage) |
 | 2026-08-19 | 5 | SELECT -> DISPATCH (T002 salvage) -> INTEGRATE (primary-led finish: package-audit test authored against salvaged pack tool/package/bin) -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Salvaged partial dispatch (package.json, package/** payload, payload-index.json, pack-bootstrap.mjs) intact and conformant; authored tests/package-audit.test.mjs primary-led. Acceptance 1/1: byte-identical deterministic tarballs (ec0ae903…), zero lifecycle scripts/deps, single 0o755 bin, 118 index entries verified bidirectionally, 8/8 frontmatter, npx file: --version + payload-index ok + tampered-index nonzero. Independent review APPROVED; minors applied (license/files asserts, e2e payload-index verification + tamper case). Spike decisions recorded (browse excluded, scan/upload bundled, helperBins empty). check-suite 434; T001 regression 2/2 | SELECT (T003) |
+| 2026-08-19 | 6 | SELECT -> DISPATCH (T003) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> REVIEW -> REPAIR -> REVIEW -> CHECKPOINT | T003 | Dispatched implementation returned 11/11 green; personally re-verified. Review round 1 changes-required (untested E_NO_DESTINATION; untested managed placed-hash restore; real defect: unmanaged placed-mismatch left partial writes; undocumented MATERIALIZE refusals; loose schema conditionals; dead restore-failed flag later). Repairs: existingBefore tracking + finalizeTransport seam + partial-write cleanup/pruning + error classification (E_HASH_MISMATCH vs E_INTERRUPTED) + schema conditionals tightened + new tests. Round 2 changes-required (corrupted refusal table from bad patch, restoreFailed lost through refuse(), missing preservation test, unwrapped backup/teardown crash). Repairs: table restored, outer-scope restoreFailed propagated to limitations, backup/teardown wrapped into E_INTERRUPTED refusal, preservation test added, cleanup semantics + restore-failed token documented. Round 3 APPROVED. Final: 18/18 pass, check-suite 434, T001/T002 regressions green | SELECT (T004) |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
