@@ -12,12 +12,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: remaining-active-suite-work-2026-08-18
-- Status: in_progress
-- Current CSM state: DISPATCH
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 3
 - Commits: allowed
 - Last checkpoint: 2026-08-18 cycle 3 — T003 complete (manifest frozen: S=19/M=6/L=40=65 files, mechanical classification, S parallel-stable x2 [244/244 @ ~8s], M 108/108, L 851/851, all=full 1227/1227, coverage 96.79% PASS) + T004 complete (execLayer timeout option + consumers, line-buffered daemon-log stamps, ws devDep clean-land; browse 106/106). All 4 tasks complete — completion gate next
-- Next transition: CHECKPOINT -> completion gate
+- Next transition: COMPLETE
 - Active tasks: none
 - Blockers: none
 
@@ -182,6 +182,14 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
 | 2026-08-18 | 2 | INTEGRATE -> VERIFY -> CHECKPOINT | T002, T003-scaffold | T002: runExistingTenPipeline/processExistingTenRepo removed (zero prod callers), T204/T224 migrated to expanded projections, source pins rewritten, test-integrity regenerated once, baselines otherwise unchanged (D7 held); coordination note for bootstrap payload. T003-scaffold: run-tier.mjs + tiers.mjs (placeholder, NODE_TEST_CONTEXT inert), README+SKILL docs; placeholder fails loudly. Suite 1227/1227, coverage 96.79% PASS, zero legacy refs, gate 439 | SELECT (Wave 3) |
 | 2026-08-18 | 3 | CHECKPOINT -> SELECT -> DISPATCH | T003-manifest, T004 | Wave 3: freeze tier manifest post-T002 + low-risk refinements (exec timeouts, daemon-log stamps, ws dep) | INTEGRATE |
 | 2026-08-18 | 3 | INTEGRATE (T003-manifest dispatch lost — primary salvage via mechanical classification) -> VERIFY -> CHECKPOINT | T003, T004 | T003: frozen manifest S19/M6/L40 (runner-enforced partition), S parallel 244/244 x2 stable, M 108/108, L 851/851, all = 1227/1227, coverage 96.79% PASS. T004 (agent): execDetached/execInContainer timeout opts + 4 consumer timeouts + fake-docker test; daemon-log line-buffered writer + ISO per-line + split-write tests; ws devDep 7.5.13 clean hoist-add; browse 106/106 | completion gate |
+| 2026-08-18 | 3 | CHECKPOINT -> completion gate -> COMPLETE | none | All 4 AC evidenced: CDP auth (review 10/10 fixed, e2e 79/79), legacy retired (zero refs), tiers frozen (S stable x2), refinements landed (106/106). Full battery green | COMPLETE |
 
 ## Completion Review
-(filled by csm-build when all criteria are verified)
+Completed 2026-08-18 by csm-build, cycles 1-3, 4/4 tasks complete.
+
+1. T001 per-session CDP authentication: spike chose host-side token gate + docker-exec stdio tunnel (container bridge socat removed); token bound to SID+generation, rotated on reconnect, revoked on close; independent security review returned fix-first with 10 findings — ALL repaired (static /json/protocol kills the pipelined-bypass relay, timing-safe compare, transcript/daemon.log/argv token leaks eliminated via redactUrl/redactProse/Node-fetch, stale container-socat reap restored, validateState fail-closed, three-bucket root validation); pipelined-bypass regression test proves 0 tunnels/0 backend sockets. Includes the latent XDG_RUNTIME_DIR root-path fix. Browse 96→106 tests green; e2e 79/79 live.
+2. T002 legacy retirement: runExistingTenPipeline/processExistingTenRepo removed (zero production callers), T204/T224 migrated to expanded projections, source pins rewritten, D7 held (renderer default unchanged; baselines verified except one documented digest), bootstrap payload untouched with coordination note. Suite 1227/1227; zero legacy refs outside .agents history.
+3. T003 test tiers: manifest frozen S=19/M=6/L=40 (65 files, complete non-overlap, runner-enforced); S parallel-stable across 2 runs (244/244, ~8s); M 108/108; L 851/851; all = 1227/1227; coverage 96.79% PASS.
+4. T004 refinements: execLayer timeout options + 4 consumer timeouts + fake-docker regression test; daemon-log line-buffered per-line ISO stamps with split-write tests; ws 7.5.13 devDependency clean-landed. Browse 106/106.
+
+Final gate (primary, personal): check-suite 439, sync/matrix drift clean, csm-scan 1227/1227, coverage 96.79% PASS, browse 106/106, check-skill PASS, upload 2/2, e2e quick 79/79 live. bootstrap/** untouched throughout. Deferred records (CI, sandbox, README plan, eval harness) remain blocked in the sibling plan. Nothing pushed.
