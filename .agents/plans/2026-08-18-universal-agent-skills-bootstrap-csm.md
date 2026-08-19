@@ -15,10 +15,10 @@ format: csm-plan/1
 - Plan ID: universal-agent-skills-bootstrap
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 6
+- Cycle: 7
 - Commits: allowed
-- Last checkpoint: 2026-08-19 cycle 6 — T003 complete: protocol spec + report schema + reference engine, 18/18 acceptance tests, independently reviewed APPROVED after 2 repair cycles; next task T004
-- Next transition: CHECKPOINT -> SELECT (T004)
+- Last checkpoint: 2026-08-19 cycle 7 — T004 complete: runtime-command grammar + cache-manifest schema/verifier + offline harness, 8/8 acceptance tests with byte-level warm/offline identity, independently reviewed APPROVED after 1 repair cycle; next task T005
+- Next transition: CHECKPOINT -> SELECT (T005)
 - Active tasks: none
 - Blockers: none; support means protocol compatibility, not capabilities every agent lacks
 
@@ -162,7 +162,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Recovery note: agent reports incomplete transaction and preserves prior files when host staging is unavailable; helper never claims atomicity it did not perform
    - Review gate: independent reviewer signs off T003 before T004 is selectable
 
-4. [pending] Enforce exact npx runtime and offline-cache behavior
+4. [completed] Enforce exact npx runtime and offline-cache behavior
    - Task ID: T004
    - Depends on: T002, T003
    - Parallel group: G4
@@ -173,8 +173,9 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
    - Actions: allow only exact package/version/bin/structured args; require `--ignore-scripts`; require `npx --offline --no` offline; record Node/npm/platform and every package tarball integrity; reject tags/ranges/Git/URL specs, missing bins, altered cache, and fallback commands; keep helpers optional and never auto-invoked by skill installation; define clean-cache warm-up and network-denial test harness
    - Acceptance signal: `node --test tests/offline/*.test.mjs` passes warm-cache replay with `@jamiemills/csm-skills-bootstrap@0.1.0` and fails for missing metadata, missing tarball, altered bytes, changed npm/platform, and floating-version fixtures; expected result is all pass/fail assertions green with zero network fallback
    - Validation: test harness records `npm cache verify`, compares online/offline payload/tree hashes, uses isolated `HOME/TMPDIR/NPM_CONFIG_CACHE`, and proves no project `node_modules`, shell, Git, Docker, or gh writes
-   - Acceptance evidence: cache manifest, `npm cache verify`, replay/failure transcripts, and side-effect audit
-   - Repair attempts: 0
+   - Acceptance evidence: cache manifest, `npm cache verify`, replay/failure transcripts, and side-effect audit; recorded 2026-08-19 — `node --test tests/offline/*.test.mjs` 8/8 pass: warm+replay against dead registry (127.0.0.1:9) with `npm cache verify` exit 0 and byte-identical `_npx/**` installed-tree hashes (≥100 files), cold-cache/missing-tarball nonzero exits, 19-case spec grammar + adversarial probes (whitespace/npm-alias/prerelease/git-ssh), 12-case checkArgv invocation matrix, 13-case manifest verifier matrix incl. changed-toolchain failures; independent review APPROVED after 1 repair cycle (toolchain comparison + cache-verify/byte-identity + checkArgv were added)
+   - Repair attempts: 1
+   - Discovered requirement recorded: npm 10.8.2 npx resolves `file:` specs from the local path without consulting cache (cold cache + `--offline --no` + present artifact succeeds; absent artifact exits 254) — `file:` is build-time-only; the offline runtime deliverable is the registry literal after publication (D8), so first-release offline validation runs at the packed-artifact + manifest layer
    - Recovery note: remove only disposable caches and homes; never modify the user cache during tests
    - Review gate: independent reviewer signs off T004 before T005 is selectable
 
@@ -250,6 +251,7 @@ The protocol is capability-based rather than adapter-based. It does not name Ope
 | 2026-08-19 | 4 | SELECT -> DISPATCH (T002) -> [INTERRUPTED] -> RECOVER -> CHECKPOINT | none | Concurrent parallel agent interfered: created duplicate branch `push-my-work` via cherry-picked rebuild (dropping this plan, superseded closures, and T001 from that line) and committed its own plan (identical content to its earlier 9775ef1 on main). T002 dispatch aborted mid-flight; its partial owned files survived untracked. User stopped the interfering session. Regroup: verified main@6f056d2 intact with all work (T001 2/2, check-suite 434, sync/matrix clean); briefly restored files onto the duplicate branch (fbad3d9) before identifying main as authoritative; returned to main; `push-my-work` and origin/main untouched | SELECT (T002 with salvage) |
 | 2026-08-19 | 5 | SELECT -> DISPATCH (T002 salvage) -> INTEGRATE (primary-led finish: package-audit test authored against salvaged pack tool/package/bin) -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Salvaged partial dispatch (package.json, package/** payload, payload-index.json, pack-bootstrap.mjs) intact and conformant; authored tests/package-audit.test.mjs primary-led. Acceptance 1/1: byte-identical deterministic tarballs (ec0ae903…), zero lifecycle scripts/deps, single 0o755 bin, 118 index entries verified bidirectionally, 8/8 frontmatter, npx file: --version + payload-index ok + tampered-index nonzero. Independent review APPROVED; minors applied (license/files asserts, e2e payload-index verification + tamper case). Spike decisions recorded (browse excluded, scan/upload bundled, helperBins empty). check-suite 434; T001 regression 2/2 | SELECT (T003) |
 | 2026-08-19 | 6 | SELECT -> DISPATCH (T003) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> REVIEW -> REPAIR -> REVIEW -> CHECKPOINT | T003 | Dispatched implementation returned 11/11 green; personally re-verified. Review round 1 changes-required (untested E_NO_DESTINATION; untested managed placed-hash restore; real defect: unmanaged placed-mismatch left partial writes; undocumented MATERIALIZE refusals; loose schema conditionals; dead restore-failed flag later). Repairs: existingBefore tracking + finalizeTransport seam + partial-write cleanup/pruning + error classification (E_HASH_MISMATCH vs E_INTERRUPTED) + schema conditionals tightened + new tests. Round 2 changes-required (corrupted refusal table from bad patch, restoreFailed lost through refuse(), missing preservation test, unwrapped backup/teardown crash). Repairs: table restored, outer-scope restoreFailed propagated to limitations, backup/teardown wrapped into E_INTERRUPTED refusal, preservation test added, cleanup semantics + restore-failed token documented. Round 3 APPROVED. Final: 18/18 pass, check-suite 434, T001/T002 regressions green | SELECT (T004) |
+| 2026-08-19 | 7 | SELECT -> DISPATCH (T004) -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> VERIFY -> REVIEW -> CHECKPOINT | T004 | Dispatched implementation returned 7/7 green with a discovered requirement (npx file: spec bypasses cache; offline deliverable is registry-form post-publication). Review changes-required: toolchain comparison + npm-cache-verify/byte-identity + checkArgv unimplemented (acceptance commitments). Repaired primary-led: expectedToolchain comparison with changed-value matrix, npm cache verify + byte-identical _npx/** tree hashes between warm and offline replay, checkArgv with 12-case matrix + spec-type/argv-type rules recorded, adversarial grammar probes (19 rejections), nested/malformed manifest cases, reviewer-nit matrix rows (duplicate package/bin, non-npx executor) + --help grammar alignment. Re-review APPROVED. Final: 8/8 pass, check-suite 434, protocol/trust/package regressions green (21/21) | SELECT (T005) |
 
 ## Completion Review
 Filled by csm-build only after all acceptance criteria have observed evidence.
