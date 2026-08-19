@@ -247,16 +247,17 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
     } catch {}
   }
 
-  // Orphan-gate + legacy-socat pass: host-side CDP gates on pool ports with
-  // no related chromium, and pre-T001 container-side TCP-LISTEN socats on
-  // pool ports. A stale socat forwards its pub port to the OLD session's
-  // internal port, which a NEW session may now own — so it would relay to the
-  // new chromium with no token. No current session runs container socats (the
-  // host gate is the only listener), so ANY pool-port TCP-LISTEN socat is
-  // stale and safe to reap. Both sub-passes are skipped entirely while any
-  // session creation is in flight (marker do-not-touch): a creating session's
-  // chromium may not yet be visible to pgrep, so its gate/socat cannot be
-  // safely distinguished from an orphan.
+  // Orphan-gate + orphan-exec + legacy-socat pass: host-side CDP gates on
+  // pool ports with no related chromium, host-side `docker exec ... socat -`
+  // tunnel CLIs with no related chromium, and pre-T001 container-side
+  // TCP-LISTEN socats on pool ports. A stale socat forwards its pub port to
+  // the OLD session's internal port, which a NEW session may now own — so it
+  // would relay to the new chromium with no token. No current session runs
+  // container socats (the host gate is the only listener), so ANY pool-port
+  // TCP-LISTEN socat is stale and safe to reap. These sub-passes are skipped
+  // entirely while any session creation is in flight (marker do-not-touch):
+  // a creating session's chromium may not yet be visible to pgrep, so its
+  // gate/socat cannot be safely distinguished from an orphan.
   let anyCreating = false;
   try {
     // Re-scan the root rather than reusing the sweep-start snapshot: a session
@@ -284,6 +285,40 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
           try { execLayer.killPid(gate.pid, 'SIGTERM'); } catch {}
           swept.push(`orphan gate port=${pubPort}`);
         }
+      }
+    } catch {}
+
+    // Host-side orphan exec tunnels: `docker exec -i <container> socat -
+    // TCP:127.0.0.1:<internal>` CLI children left behind when a gate died
+    // without tearing a relay down (e.g. SIGKILL skips the 2s kill grace).
+    // Live-argv-verified conservative POSITIONAL match: the command line
+    // must lead with a docker binary, carry `exec`, name THIS container as
+    // an exact argv token immediately followed by `socat`, and END with the
+    // exact `socat - TCP:127.0.0.1:<pool internal port>` argv tail. The
+    // positional guards exclude diagnostic probes whose own argv merely
+    // carries the same words (e.g. `docker exec <c> pgrep -af socat - TCP:
+    // …`). The bare `socat - TCP:...` container-side peers also show up in
+    // host pgrep output but never match (no docker/exec tokens), and
+    // neither do other containers' execs (token compare, not substring). A
+    // tunnel with a live chromium on its internal port belongs to a live
+    // session's connection and is left alone.
+    try {
+      const execTunnels = await execLayer.hostPgrep('socat - TCP:127\\.0\\.0\\.1:');
+      for (const tun of execTunnels) {
+        const portMatch = tun.cmd.match(/socat - TCP:127\.0\.0\.1:(\d+)(?!\d)/);
+        if (!portMatch) continue;
+        const internalPort = parseInt(portMatch[1], 10);
+        if (internalPort < PORT_POOL_START || internalPort > PORT_POOL_END) continue;
+        const tokens = tun.cmd.trim().split(/\s+/);
+        if (tokens.slice(-3).join(' ') !== `socat - TCP:127.0.0.1:${internalPort}`) continue;
+        if (!/^(?:\S*\/)?docker$/.test(tokens[0]) || !tokens.includes('exec')) continue;
+        const containerIdx = tokens.indexOf(containerName);
+        if (containerIdx === -1 || tokens[containerIdx + 1] !== 'socat') continue;
+        const relatedChrome = await execLayer.pgrepMatch(containerName, `--remote-debugging-port=${internalPort}`);
+        if (relatedChrome.length > 0) continue;
+        if (dryRun) { swept.push(`[dry] orphan exec tunnel port=${internalPort}`); continue; }
+        try { execLayer.killPid(tun.pid, 'SIGTERM'); } catch {}
+        swept.push(`orphan exec tunnel port=${internalPort}`);
       }
     } catch {}
 

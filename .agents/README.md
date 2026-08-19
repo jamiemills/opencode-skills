@@ -12,8 +12,15 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-15-csm-review-write-discipline-csm.md` — 2026-08-15 — harden csm-review report write discipline — status: complete
 - `2026-08-15-csm-suite-improvements-csm.md` — 2026-08-15 — suite-wide improvements (performance baseline + review follow-ups) — status: complete
 - `2026-08-15-csm-tmux-bootstrap-csm.md` — 2026-08-15 — detached-tmux bootstrap for the orchestration skills — status: complete
+- `2026-08-16-coherence-followups-hook-rollout-csm.md` — 2026-08-16 — suite-coherence follow-ups (staged snapshots, multi-user hardening, hygiene) plus authorized pre-commit hook rollout — status: complete
 - `2026-08-16-skills-remediation-csm.md` — 2026-08-16 — remediate the 77 findings of the 2026-08-15 skills review (10 phases, T001–T014) — status: complete
-- `2026-08-16-suite-coherence-contracts-csm.md` — 2026-08-16 — suite coherence via executable contracts (7 tasks, P1-P4) — status: in_progress
+- `2026-08-16-suite-coherence-contracts-csm.md` — 2026-08-16 — suite coherence via executable contracts (7 tasks, P1-P4) — status: complete
+- `2026-08-17-agent-agnostic-installable-skills-csm.md` — 2026-08-17 — make the eight skills installable without cloning this repository — status: complete (closed as superseded; superseded-by `2026-08-18-universal-agent-skills-bootstrap-csm.md`)
+- `2026-08-18-agent-agnostic-url-npx-bootstrap-csm.md` — 2026-08-18 — one-URL npx-driven bootstrap for the skills collection — status: complete (closed as superseded; superseded-by `2026-08-18-universal-agent-skills-bootstrap-csm.md`)
+- `2026-08-18-remaining-active-suite-work-csm.md` — 2026-08-18 — execute the four active remaining-suite-work tasks (CDP auth, legacy retirement, test tiers, refinements) — status: complete
+- `2026-08-18-remaining-suite-work-csm.md` — 2026-08-18 — remaining non-installer suite work (CDP auth, legacy retirement, test tiers, refinements) — status: complete (closed as superseded; superseded-by `2026-08-19-consolidated-remaining-work-csm.md`; deferred records moved to the consolidated plan)
+- `2026-08-18-universal-agent-skills-bootstrap-csm.md` — 2026-08-18 — any-agent skills bootstrap via one URL with a signed payload manifest — status: complete
+- `2026-08-19-consolidated-remaining-work-csm.md` — 2026-08-19 — consolidate remaining work (payload refresh, CDP-auth residuals, pre-release readiness, stale-plan closure) — status: in_progress
 
 ## docs/
 

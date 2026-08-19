@@ -5,21 +5,26 @@ format: csm-plan/1
 # Remaining CSM Suite Work CSM Plan
 
 ## How To Execute
-- Start work only through a separate, explicit csm-build invocation naming this plan.
+- This plan is closed as superseded. Do not invoke csm-build with this plan; its active tasks T001-T004 were completed by the sibling build `.agents/plans/2026-08-18-remaining-active-suite-work-csm.md` (attribution only), and the deferred records T005-T008 were moved to `.agents/plans/2026-08-19-consolidated-remaining-work-csm.md`.
 - The agent-agnostic/no-clone installer is explicitly excluded because another session owns it.
 - Deferred tasks (T005-T008) remain in this plan for traceability but must not be dispatched in this build.
-- Risk summary: 4 active tasks; T001 full CDP authentication is high-risk and requires independent security review; 4 deferred tasks (T005-T008) are blocked and never eligible for dispatch.
+- Risk summary: none — this plan is closed; T001-T004 were completed by the sibling build `2026-08-18-remaining-active-suite-work-csm.md`; the 4 deferred tasks (T005-T008) are blocked records moved to `.agents/plans/2026-08-19-consolidated-remaining-work-csm.md` and are never dispatched from this plan.
 
 ## Control
 - Plan ID: remaining-suite-work-2026-08-18
-- Status: ready
+- Status: complete
 - Current CSM state: NOT_STARTED
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-18 drafted from completed reviews, remediation plans, and follow-up plan
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-19 closed by consolidated-remaining-work-2026-08-19 plan, T001
+- Next transition: none; closed as superseded — active tasks completed by sibling plan
 - Active tasks: none
-- Blockers: deferred tasks are excluded from the active build; no active blockers
+- Blockers: none; closure is intentional and not an implementation result
+
+## Closure
+- Closure status: closed as superseded; T001-T004 were completed and evidenced by the sibling build `.agents/plans/2026-08-18-remaining-active-suite-work-csm.md`; no acceptance criteria are claimed by this plan.
+- Replacement plan: `.agents/plans/2026-08-19-consolidated-remaining-work-csm.md`.
+- Task disposition: T001-T004 were completed by the sibling build; T005-T008 DEFERRED records were moved to the replacement plan; T007's target `.agents/plans/2026-08-03-comprehensive-readme-csm.md` remains ready/never-dispatched, referenced from the replacement plan.
 
 ## Goal
 Address the remaining non-installer work identified after the CSM suite review and coherence build: design and implement full per-session CDP authentication, retire the legacy ten-dimension pipeline safely, improve test-suite structure, and close remaining low-risk technical refinements. Preserve the completed suite behavior and keep CI, Chromium sandbox redesign, and the old README plan explicitly deferred rather than silently forgotten.
@@ -82,7 +87,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
 - Critical path: T001 -> (T002 || T003) -> T004.
 
 ## Numbered Plan
-1. [pending] Full per-session CDP authentication
+1. [blocked] Full per-session CDP authentication (completed by remaining-active-suite-work-2026-08-18)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -97,7 +102,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: if migration is interrupted, preserve the existing loopback-only behavior without introducing a network-reachable unauthenticated fallback; resume from the recorded protocol decision.
 
-2. [pending] Retire or formally isolate the legacy ten-dimension pipeline
+2. [blocked] Retire or formally isolate the legacy ten-dimension pipeline (completed by remaining-active-suite-work-2026-08-18)
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -112,7 +117,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: preserve the old baseline in a supersession artifact until replacement tests are committed.
 
-3. [pending] Restructure csm-scan test sizes and concurrency safely
+3. [blocked] Restructure csm-scan test sizes and concurrency safely (completed by remaining-active-suite-work-2026-08-18)
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
@@ -127,7 +132,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: if parallelism produces flakes, revert category assignment and retain serial execution with the evidence recorded.
 
-4. [pending] Close remaining low-risk technical refinements
+4. [blocked] Close remaining low-risk technical refinements (completed by remaining-active-suite-work-2026-08-18)
    - Task ID: T004
    - Depends on: T002, T003
    - Parallel group: G3
@@ -142,7 +147,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: each refinement is independently revertible.
 
-5. [blocked] DEFERRED — CI and scheduled dependency audits
+5. [blocked] DEFERRED — CI and scheduled dependency audits (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T005
    - Depends on: T004
    - Parallel group: G4
@@ -157,7 +162,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-6. [blocked] DEFERRED — Chromium sandbox redesign
+6. [blocked] DEFERRED — Chromium sandbox redesign (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T006
    - Depends on: T001
    - Parallel group: G4
@@ -172,7 +177,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-7. [blocked] DEFERRED — old comprehensive README plan
+7. [blocked] DEFERRED — old comprehensive README plan (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T007
    - Depends on: none
    - Parallel group: G4
@@ -187,7 +192,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-8. [blocked] DEFERRED — live-LLM behavioral evaluation harness (F-017 tier-b)
+8. [blocked] DEFERRED — live-LLM behavioral evaluation harness (F-017 tier-b) (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T008
    - Depends on: none
    - Parallel group: G4
@@ -242,6 +247,7 @@ The following review findings were completed by prior builds and are recorded he
 | 2026-08-18 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT | none | User selected active CDP auth, legacy retirement, test restructuring, and minor fixes; CI/sandbox/README plan explicitly deferred; installer excluded | CRITIQUE |
 | 2026-08-18 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Independent critique found stale counts, missing mapping, CDP-auth ambiguity, overlapping ownership, and deferred-task dispatch risk; all corrected in the plan; check-suite 434 passes | SAVED |
 | 2026-08-18 | 0 (cont.) | SAVED -> SAVED (user-directed amendment) | T008 | User requested F-017 tier-b added as deferred; added T008 (deferred live-LLM behavioral eval harness) and a Resolved-Elsewhere section recording F-060/061/062/063/065/066/073/075 plus upload/tests fixes completed by prior builds | SAVED |
+| 2026-08-19 | 0 | SAVED -> closed (user-directed) | none | Closed as superseded by the consolidated-remaining-work-2026-08-19 plan: T001-T004 were completed by the sibling build 2026-08-18-remaining-active-suite-work; T005-T008 deferred records moved to the replacement plan | closed |
 
 ## Completion Review
 (filled by csm-build when active criteria are verified)

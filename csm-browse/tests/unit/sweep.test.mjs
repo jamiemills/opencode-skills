@@ -17,6 +17,7 @@ const cfg = {
   pgrepHost: {},        // pgrep -af <pattern> -> stdout
   chromiumProcs: [],    // pgrepMatch user-data-dir pattern
   gateProcs: [],        // hostPgrep cdp-gate.mjs
+  execProcs: [],        // hostPgrep socat-tunnel pattern (docker exec CLIs)
   socatProcs: [],       // pgrepMatch TCP-LISTEN pattern (legacy container socats)
   chromeByPort: () => [],
   containerHasDir: false,
@@ -37,7 +38,11 @@ function installStubs() {
       if (cmd === 'pgrep') return { stdout: cfg.pgrepHost[args[1]] ?? '' };
       return { stdout: '' };
     },
-    hostPgrep: async (pattern) => (pattern === 'cdp-gate.mjs' ? cfg.gateProcs : []),
+    hostPgrep: async (pattern) => {
+      if (pattern === 'cdp-gate.mjs') return cfg.gateProcs;
+      if (pattern === 'socat - TCP:127\\.0\\.0\\.1:') return cfg.execProcs;
+      return [];
+    },
     killPid: (pid, sig) => { killCalls.push([pid, sig]); },
     pgrepMatch: async (container, pattern) => {
       if (pattern === '--user-data-dir=/config/csm-browse/sessions/') return cfg.chromiumProcs;
@@ -58,6 +63,7 @@ function resetCfg() {
   cfg.pgrepHost = {};
   cfg.chromiumProcs = [];
   cfg.gateProcs = [];
+  cfg.execProcs = [];
   cfg.socatProcs = [];
   cfg.chromeByPort = () => [];
   cfg.containerHasDir = false;
@@ -261,4 +267,66 @@ test('legacy socat pass is skipped while a creating marker exists', async () => 
   assert.ok(!result.swept.some((e) => e.includes('socat')), `socat pass not skipped: ${result.swept}`);
   assert.ok(!pkillCalls.some((p) => p.includes('TCP-LISTEN')), `socat killed during creation: ${JSON.stringify(pkillCalls)}`);
   await rm(join(root, 'cm-y'), { recursive: true, force: true });
+});
+
+test('orphan host docker-exec tunnel with no related chromium is killed; unrelated exec shapes are ignored', async () => {
+  installStubs(); resetCfg();
+  // Shapes captured live on the host (pgrep -af verbatim): the docker CLI
+  // carries the full argv; the container-side peer socat also shows up in
+  // host pgrep output WITHOUT a docker prefix and must never match.
+  cfg.execProcs = [
+    { pid: 11, cmd: 'docker exec -i chromium-vnc socat - TCP:127.0.0.1:9224' },                    // orphan: reap
+    { pid: 12, cmd: 'docker exec -i chromium-vnc socat - TCP:127.0.0.1:9223' },                    // out-of-pool port: ignore
+    { pid: 13, cmd: 'docker exec -i other-box socat - TCP:127.0.0.1:9224' },                        // other container: ignore
+    { pid: 14, cmd: 'socat - TCP:127.0.0.1:9224' },                                                 // bare container-side peer: ignore
+    { pid: 15, cmd: '/usr/bin/docker exec -i -e SPIKE=1 chromium-vnc socat - TCP:127.0.0.1:9225' }, // path form + flag order: reap
+    { pid: 16, cmd: 'docker exec chromium-vnc pgrep -af socat - TCP:127.0.0.1:9224' },               // diagnostic probe: same tail words, container+1 is pgrep — ignore
+    { pid: 17, cmd: 'docker-compose exec -i chromium-vnc socat - TCP:127.0.0.1:9224' },              // argv[0] anchor: ignore
+    { pid: 18, cmd: 'sudo docker exec -i chromium-vnc socat - TCP:127.0.0.1:9224' },                 // argv[0] is sudo: ignore
+    { pid: 19, cmd: 'docker exec -i chromium-vnc socat - TCP:127.0.0.1:9224 --extra-arg' },          // tail not exact: ignore
+  ];
+  const restore = patchKill(ME);
+  let result;
+  try { result = await sweep({ ...opts }); } finally { restore(); }
+  assert.ok(result.swept.includes('orphan exec tunnel port=9224'), `tunnel not reaped: ${result.swept}`);
+  assert.ok(result.swept.includes('orphan exec tunnel port=9225'), `path-form tunnel not reaped: ${result.swept}`);
+  assert.ok(!result.swept.some((e) => e.includes('9223')), `out-of-pool tunnel must be ignored: ${result.swept}`);
+  assert.ok(killCalls.some(([pid, sig]) => pid === 11 && sig === 'SIGTERM'), `pid 11 not killed: ${JSON.stringify(killCalls)}`);
+  assert.ok(killCalls.some(([pid, sig]) => pid === 15 && sig === 'SIGTERM'), `pid 15 not killed: ${JSON.stringify(killCalls)}`);
+  assert.ok(!killCalls.some(([pid]) => [12, 13, 14, 16, 17, 18, 19].includes(pid)), `unrelated exec killed: ${JSON.stringify(killCalls)}`);
+});
+
+test('exec tunnel of a live session is protected by its related chromium', async () => {
+  installStubs(); resetCfg();
+  cfg.execProcs = [{ pid: 21, cmd: 'docker exec -i chromium-vnc socat - TCP:127.0.0.1:9224' }];
+  cfg.chromeByPort = (pattern) => pattern === '--remote-debugging-port=9224'
+    ? [{ pid: 1, cmd: 'chromium --user-data-dir=/config/csm-browse/sessions/live-x/ --remote-debugging-port=9224' }]
+    : [];
+  const restore = patchKill(ME);
+  let result;
+  try { result = await sweep({ ...opts }); } finally { restore(); }
+  assert.ok(!result.swept.some((e) => e.includes('orphan exec tunnel')), `live tunnel reaped: ${result.swept}`);
+  assert.ok(!killCalls.some(([pid]) => pid === 21), `live tunnel killed: ${JSON.stringify(killCalls)}`);
+});
+
+test('orphan exec pass is skipped while a creating marker exists', async () => {
+  installStubs(); resetCfg();
+  cfg.execProcs = [{ pid: 31, cmd: 'docker exec -i chromium-vnc socat - TCP:127.0.0.1:9224' }];
+  await makeSession('cm-z', { marker: true });
+  const restore = patchKill(ME);
+  let result;
+  try { result = await sweep({ ...opts }); } finally { restore(); }
+  assert.ok(!result.swept.some((e) => e.includes('orphan exec tunnel')), `exec pass not skipped: ${result.swept}`);
+  assert.ok(!killCalls.some(([pid]) => pid === 31), `tunnel killed during creation: ${JSON.stringify(killCalls)}`);
+  await rm(join(root, 'cm-z'), { recursive: true, force: true });
+});
+
+test('dryRun reports the orphan exec tunnel without killing it', async () => {
+  installStubs(); resetCfg();
+  cfg.execProcs = [{ pid: 41, cmd: 'docker exec -i chromium-vnc socat - TCP:127.0.0.1:9224' }];
+  const restore = patchKill(ME);
+  let result;
+  try { result = await sweep({ ...opts, dryRun: true }); } finally { restore(); }
+  assert.ok(result.swept.includes('[dry] orphan exec tunnel port=9224'), `no dry entry: ${result.swept}`);
+  assert.ok(!killCalls.some(([pid]) => pid === 41), `dryRun must not kill: ${JSON.stringify(killCalls)}`);
 });

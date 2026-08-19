@@ -12,12 +12,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: consolidated-remaining-work-2026-08-19
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: SELECT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-19 drafted from three parallel research tracks (payload staleness hash-audit, CDP-residual code audit, plan-inventory/closure conventions); independently critiqued (15 findings, all remediated)
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-19 cycle 1 — Wave 1 complete: T001 (stale plan closed per D9; index invariant restored, 6 backfilled + status fix) + T003 (redactTelemetry wraps x3 in browse.mjs; SKILL.md:148 rewritten around trailing-/ cdpUrl shape; host-side orphan-exec sweep pass, live-argv spiked with Docker up, kills enabled; 113/113 units, check-skill PASS). Independent review FIX-FIRST -> 3 findings repaired (positional argv match, SKILL.md //json/version bug, negative tests incl. probe/wrapper shapes), 1 dismissed with reasoning (pid TOCTOU: pre-existing pattern twin at sweep.mjs:285, SIGTERM-only, out-of-scope file). check-suite 441 OK
+- Next transition: SELECT (Wave 2: T002 payload refresh)
 - Active tasks: none
 - Blockers: none
 
@@ -86,7 +86,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
 - Deferred T005-T009 never selected.
 
 ## Numbered Plan
-1. [pending] Close the stale remaining-suite-work plan and restore the artifacts index invariant
+1. [completed] Close the stale remaining-suite-work plan and restore the artifacts index invariant
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -101,7 +101,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: two-file, metadata-only, idempotently re-runnable; partial edits detectable by the `[pending]` grep.
 
-2. [pending] Close the five CDP-auth residuals (implement 2, accept 2, record 1 resolved)
+2. [completed] Close the five CDP-auth residuals (implement 2, accept 2, record 1 resolved)
    - Task ID: T003
    - Depends on: none
    - Parallel group: G1
@@ -260,6 +260,8 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
 |---|---|---|---|---|---|
 | 2026-08-19 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT | none | 3 parallel research tracks: payload hash-audit (4 stale files, canonical regen), CDP-residual code audit (106/106 units sandboxed; triage table), plan-inventory + closure conventions (edit list) | CRITIQUE |
 | 2026-08-19 | 0 | CRITIQUE -> REMEDIATE -> VERIFY | none | Independent critic re-verified citations (hash audit, check-suite, 106/106 npm test on Node 22) and returned 15 findings (3 major, 6 moderate, 6 minor); all remediated (scoped git signal, npm-test fix, journal ownership, serial suites, D7/D8/D9/D10, pinned comparison command, sweep spike, verbatim step-1, delta language, path/query fixes); primary personally verified constraints, dependencies, and runnable signals | SAVED |
+| 2026-08-19 | 1 | NOT_STARTED -> RECOVER -> VALIDATE -> SELECT | T001, T003 | Baseline: tree clean @ 23f1501, check-suite 441 OK, no NORMS.md; plan assumptions verified live (browse.mjs:99, SKILL.md:148, stale plan ready/4x[pending], .agents/README.md present). Wave 1 selected: T001 || T003 (disjoint file writes; journal csm-build-only) | DISPATCH |
+| 2026-08-19 | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001, T003 | T001 done: closure edits per D9 (Status complete, Closure block, 4x[pending]->[blocked], journal row; attribution-only sibling naming); .agents/README.md 6 lines backfilled + consolidated plan added + stale in_progress fixed; signals: check-suite 441 OK, zero [pending], scoped porcelain = 2 owned files. T003 done: redactTelemetry wraps (browse.mjs :75/:87/:102 — deviation: redactProse unexported, used stronger exported redactTelemetry); SKILL.md diagnosis step 4 rewritten (verbatim-copy + splice-before-query, mechanical node -e form keeps token out of history); orphan-exec sweep pass (sweep.mjs:291-320) live-spiked with Docker: argv shapes captured, container-side peers host-visible (docker+exec token requirement proven mandatory), pool bound 9224-9234 verified, kills ENABLED (no dry-run fallback needed); +7 tests (4 sweep incl. live-captured shapes, 3 residuals incl. source pin). VERIFY: 113/113 npm test Node 22, check-skill PASS. REVIEW (independent, sweep = host process-kill): FIX-FIRST — F1 moderate positional argv (probe `docker exec <c> pgrep -af socat - …` could be SIGTERMed) REPAIRED (exact 3-token tail + container+1=socat + negatives pid16-19); F2 moderate SKILL.md manual form made //json/version (trailing / in cdpUrl) REPAIRED (replace-lone-slash wording, mechanical form first); F4 minor test gaps REPAIRED (docker-compose/sudo anchors, probe shape, tail-exactness, stub pattern tightened to escaped literal); F3 minor pid-reuse TOCTOU DISMISSED: pre-existing pattern shared with sibling orphan-gate pass (sweep.mjs:285), requires pid wrap in a sub-second window, SIGTERM-only, fix would touch out-of-scope docker.mjs. Re-VERIFY: 113/113, check-skill PASS, check-suite 441 OK. Residual evidence recorded: (a) ACCEPTED perf-only exec-per-connection — daemon amortizes one persistent WS (session-daemon.mjs:129), per-verb exec ~tens of ms vs multi-second page ops, sharing needs WS-aware mux redesign; (e) ACCEPTED tokenless static /json/protocol — public schema, no tunnel ever opened, Connection:close + forced destroy kills pipelined relay (regression auth.test.mjs:233-280), token would break stock CRI; (d) RESOLVED port-pool re-key fully implemented — ports.mjs:92-125 host bind-probe + stale-socat skip, sweep.mjs:273-302 both strata reaped, cleanup.mjs:55-91 exact --port killGate, ensure-browser.mjs:480-494 rotate-persist-kill-respawn; tests ports.test.mjs:151-191, auth.test.mjs:308-337 | SELECT (Wave 2: T002) |
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

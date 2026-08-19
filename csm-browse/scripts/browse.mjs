@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { loadState, validateSid } from '../lib/session.mjs';
+import { redactTelemetry } from '../lib/security.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,7 +72,7 @@ try {
   if (err && err.code === 'ERR_MODULE_NOT_FOUND') {
     console.error(`Unknown verb: ${verb} — see SKILL.md verb table`);
   } else {
-    console.error(`Failed to load verb module ${verb}: ${err.message}`);
+    console.error(`Failed to load verb module ${verb}: ${redactTelemetry(err.message)}`);
   }
   process.exit(2);
 }
@@ -83,7 +84,7 @@ try {
   if (verb === 'close') {
     state = null;
   } else {
-    console.error(`Invalid session state for ${sid}: ${err.message}`);
+    console.error(`Invalid session state for ${sid}: ${redactTelemetry(err.message)}`);
     process.exit(2);
   }
 }
@@ -96,6 +97,8 @@ if (!state && verb !== 'close') {
 try {
   await mod.run({ args: verbArgs, state, verb, sid });
 } catch (err) {
-  console.error(err.message);
+  // A verb failure can quote state URLs (wsUrl/cdpUrl carry ?token=) — the
+  // message must be redacted before it reaches stderr/transcripts.
+  console.error(redactTelemetry(err.message));
   process.exit(err.exitCode || 2);
 }
