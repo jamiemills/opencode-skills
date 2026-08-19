@@ -48,11 +48,7 @@ import { scan as scanAssurance } from '../deep/assurance/scanner.mjs';
 import { buildAssuranceModel } from '../deep/assurance/model.mjs';
 import { scan as scanPractices } from '../deep/practices/scanner.mjs';
 import { buildPracticesModel } from '../deep/practices/model.mjs';
-import {
-  EXISTING_TEN_DIMENSIONS,
-  deepScan,
-  scanExistingTen,
-} from './existing-ten.mjs';
+import { deepScan } from './existing-ten.mjs';
 
 export const MAX_RETRIES = 2;
 
@@ -96,7 +92,14 @@ function dimensionShorts(registry) {
   return registry.map(({ id }) => shortName(id));
 }
 
-async function enrichValidateRetry({
+/**
+ * Shared enrich → validate → retry engine used by the expanded production
+ * path (and formerly by the retired ten-dimension entry points). Exported so
+ * the retry-loop contract (re-dispatch below-threshold dimensions, cap at
+ * `MAX_RETRIES`) stays testable through the same production seam the pipeline
+ * itself uses.
+ */
+export async function enrichValidateRetry({
   overview,
   deepResults,
   path,
@@ -148,98 +151,10 @@ async function enrichValidateRetry({
   return { enriched: firstEnriched, validated, trace };
 }
 
-export async function processExistingTenRepo({
-  overview,
-  deepResults,
-  path = null,
-  broker = null,
-  generated = null,
-  sink = null,
-  out = undefined,
-} = {}) {
-  const { enriched, validated, trace } = await enrichValidateRetry({
-    overview,
-    deepResults,
-    path,
-    broker,
-  });
-  const repo = { overview, deep: validated.findings };
-  if (validated.contradictions.length > 0) {
-    repo.crossObservations = validated.contradictions;
-  }
-  const findings = { generated, repos: [repo] };
-  const markdown = typeof sink === 'function' ? await sink(findings, out) : null;
-  return {
-    repo,
-    findings,
-    markdown,
-    enriched,
-    validated,
-    trace,
-    crossObservations: validated.contradictions,
-  };
-}
-
-export async function runExistingTenPipeline({
-  repos,
-  out = undefined,
-  clock = DEFAULT_CLOCK,
-  commandRunner = null,
-  pluginRegistry = [],
-  sink = DEFAULT_SINK,
-} = {}) {
-  if (!Array.isArray(repos) || repos.length === 0) {
-    throw new TypeError('runExistingTenPipeline requires a non-empty repos array');
-  }
-  const generated = clock();
-  const context = createScanContext({ commandRunner, clock, pluginRegistry });
-  const broker = resolveBroker(commandRunner);
-  const runner = runnerFlag(commandRunner);
-  const plugins = pluginRegistry.length;
-  const repoResults = [];
-  const trace = [];
-  const semantic = [];
-
-  for (const [index, rawPath] of repos.entries()) {
-    const resolvedPath = resolve(rawPath);
-    for (const dimension of EXISTING_TEN_DIMENSIONS) {
-      trace.push({ repoIndex: index, dimension, phase: 'initial', runner, plugins });
-    }
-
-    const overview = await survey(resolvedPath, broker);
-    const deepResults = await scanExistingTen(resolvedPath, overview, broker);
-    const processed = await processExistingTenRepo({
-      overview,
-      deepResults,
-      path: resolvedPath,
-      broker,
-    });
-    for (const entry of processed.trace) {
-      trace.push({
-        repoIndex: index,
-        dimension: entry.dimension,
-        phase: entry.phase,
-        runner,
-        plugins,
-      });
-    }
-
-    repoResults.push(processed.repo);
-    semantic.push({
-      overview,
-      deepResults,
-      enriched: processed.enriched,
-      validated: processed.validated,
-    });
-  }
-
-  const findings = { generated, repos: repoResults };
-  const markdown = await sink(findings, out);
-  return { generated, repos: repoResults, markdown, trace, semantic, context };
-}
-
 // ---------------------------------------------------------------------------
-// Expanded 17-dimension pipeline — the T224 production cutover.
+// Expanded 17-dimension pipeline — the T224 production cutover. The legacy
+// ten-dimension entry points were retired in T002; `enrichValidateRetry` below
+// is the shared retry engine used by the expanded path.
 // ---------------------------------------------------------------------------
 
 async function scanDimension(dimension, repoPath, overview, broker = null) {

@@ -78,7 +78,7 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --sessio
 | `status` | Print browser version, tab info, and daemon liveness. |
 | `screencast-start <name> [--small|--medium|--full] [--speed slow|medium|fast]` | Start recording video (VP9/webm). `--speed` controls output fps: slow=3, medium=7 (default), fast=15. |
 | `screencast-stop` | Stop the active video recording. |
-| `close` | Clean up the session: kill daemon, chromium, crashpad, socat, remove session dirs, release ports. |
+| `close` | Clean up the session: kill daemon, chromium, crashpad, the CDP gate, remove session dirs, release ports. |
 
 An unrecognized verb prints `Unknown verb: <verb> — see SKILL.md verb table` to stderr and exits non-zero, so the verb table above is the authoritative reference for valid verbs.
 
@@ -110,7 +110,7 @@ This skill launches a **second, isolated Chromium instance** inside the `chromiu
 
 ## Maintenance
 
-Sessions stood up by this skill are swept automatically: every `ensure-browser` run first removes sessions idle longer than 10 minutes (host daemons, container-side chromiums/socats, host and container session dirs, stale recorder locks, orphaned daemons). The session being ensured is never touched, and the primary shared browser is never affected.
+Sessions stood up by this skill are swept automatically: every `ensure-browser` run first removes sessions idle longer than 10 minutes (host daemons, container-side chromiums, host CDP gates, host and container session dirs, stale recorder locks, orphaned daemons). The session being ensured is never touched, and the primary shared browser is never affected.
 
 Manual deep-clean:
 
@@ -127,21 +127,24 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --clean
 
 | Path | Meaning |
 |---|---|
-| `state.json` | Session state (cdpUrl, wsUrl, ports, daemonPid). Written atomically (tmp+rename). |
+| `state.json` | Session state (cdpUrl, wsUrl, token, ports, daemonPid). Written atomically (tmp+rename) at 0600. |
 | `daemon.pid` | PID of the session daemon. |
 | `daemon.ready` | Ready marker; a live daemon touches its mtime every ~2s. |
 | `creating.marker` | Transient: present only while a session is being created; both sweep passes treat it as do-not-touch. |
+| `gate.log` | CDP gate diagnostics (tunnel spawn/exit failures). The gate itself is a host process (`scripts/cdp-gate.mjs`) listening on `127.0.0.1:<publicPort>`. |
 | `cmd/` `cmd/running/` `cmd/out/` | Verb queue: commands land in `cmd/`, are claimed by rename into `cmd/running/`, results written to `cmd/out/` (processed oldest-ts first). |
 | `events.jsonl` | Captured console/network events (rotated). |
 | `artifacts/` | Screenshots and videos. |
 | `recorder.json` | Screencast recorder state (`running:true` while recording). |
 | `daemon.log` | Daemon stdout/stderr. Each daemon start re-creates this log, so copy it out before restarting if you need the history. |
 
+**CDP authentication**: every session's CDP endpoint is protected by a per-session token. `cdpUrl` and `wsUrl` in `state.json` already carry `?token=<value>` (the raw token also lives in the `token` field); the value is redacted from transcripts and logs. Connections without the token are answered `403` by the host-side gate before any byte reaches Chromium. `ensure-browser` rotates the token (new generation) whenever it has to reconnect the daemon to an existing session, and `close`/sweep revokes it by removing the gate and `state.json`.
+
 **"Daemon not ready" diagnosis flow** (ensure-browser prints this after 2 attempts):
 
 1. Check host memory — the daemon is the usual OOM victim (`free -m`); ensure-browser prints available MB.
 2. Read `<session-dir>/daemon.log` for the crash reason.
 3. `state.json` → `daemonPid`: does `kill -0 <pid>` respond? A responding pid with a stale `daemon.ready` (mtime older than ~10s) is a zombie daemon — ensure-browser detects and restarts these itself; a second failure means the log from step 2.
-4. Confirm the CDP endpoint in `state.json` answers: `curl -m 2 <cdpUrl>/json/version`. If it does not, the chromium died — re-run ensure-browser to recreate the session.
+4. Confirm the CDP endpoint answers. Prefer the mechanical form (reads `state.json`, keeps the token out of shell history): `curl -m 2 "$(node -e 'const u=new URL(JSON.parse(require("fs").readFileSync("<session-dir>/state.json","utf8")).cdpUrl);u.pathname="/json/version";console.log(u.toString())')"`. Manual form: copy the full tokenized `cdpUrl` from `state.json` VERBATIM — it ends with `/?token=<value>` (an empty `/` path) — and replace that lone `/` immediately before `?token=` with the discovery path (`curl -m 2 "http://127.0.0.1:<publicPort>/json/version?token=<value-pasted-verbatim-from-cdpUrl>"`). Never append a path after the query and never retype or hand-construct the token. If it does not answer, the chromium or the gate died — re-run ensure-browser to recreate the session.
 
 **E2E suite**: `node tests/e2e.mjs [--quick]` requires Docker + the chromium-vnc container (it skips cleanly with `SKIP: Docker/chromium-vnc unavailable`, exit 0, when they are absent; `CSM_BROWSE_E2E_SKIP=1` forces the skip). Summary JSON goes to `CSM_BROWSE_E2E_SUMMARY` or `tests/.e2e-summary.json`.
