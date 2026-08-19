@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { readFile, rm, open, utimes } from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
+import { constants as fsConstants, openSync, writeSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { loadState, sessionDir } from '../lib/session.mjs';
 import { connectDaemon, ensureSingleTab, startQueueLoop, prepareQueueDirs } from '../lib/daemon-core.mjs';
 import { redactTelemetry, redactUrl, secureAppend, secureWrite } from '../lib/security.mjs';
+import { createLineWriter } from '../lib/daemon-log.mjs';
 
 const args = process.argv.slice(2);
 let sid = null;
@@ -77,19 +78,40 @@ await claimPidFile();
 try { await rm(readyMarker, { force: true }); } catch {}
 
 const logPath = join(sDir, 'daemon.log');
-// F-074: append ('a') so a previous run's failure evidence survives restarts;
-// prefix every line with an ISO timestamp so ordering across restarts is
-// diagnosable. Same rebinding pattern as before — only the write wrapper grew.
+// F-074: append ('a') so a previous run's failure evidence survives restarts.
+// Per-LINE ISO timestamps (not per write-call) so ordering across restarts is
+// diagnosable and multi-line/split writes each get exactly one stamp. A line-
+// buffered transform accumulates chunk bytes and stamps complete lines; the
+// trailing partial line is flushed synchronously on process exit so no bytes
+// are lost. Appends are serialized through a promise chain so stamped lines
+// land in the log in the order they were written.
 await secureAppend(logPath, '');
+let appendQueue = Promise.resolve();
+const lineWriter = createLineWriter({
+  write: (line) => {
+    appendQueue = appendQueue.then(() => secureAppend(logPath, line)).catch(() => {});
+  },
+  transform: (text) => `${new Date().toISOString()} ${redactTelemetry(text)}`,
+});
 const stampWrite = (chunk, encoding, cb) => {
-  const body = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
-  secureAppend(logPath, `${new Date().toISOString()} ${redactTelemetry(body)}`).catch(() => {});
+  lineWriter.append(chunk);
   if (typeof encoding === 'function') encoding();
   else if (typeof cb === 'function') cb();
   return true;
 };
 process.stdout.write = stampWrite;
 process.stderr.write = stampWrite;
+// process.exit() bypasses the event loop, so an async secureAppend cannot
+// flush a trailing partial line; write it synchronously (the file was already
+// created + validated by secureAppend above).
+process.on('exit', () => {
+  const tail = lineWriter.flush();
+  if (!tail) return;
+  try {
+    const fd = openSync(logPath, 'a');
+    try { writeSync(fd, tail); } finally { closeSync(fd); }
+  } catch {}
+});
 
 const state = await loadState(sid);
 if (!state || !state.wsUrl) {

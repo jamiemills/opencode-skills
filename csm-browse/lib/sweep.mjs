@@ -206,7 +206,7 @@ export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false
       const hostStateExists = existsSync(join(SESSIONS_ROOT, psid, 'state.json'));
       let containerDirExists = false;
       try {
-        await execLayer.execInContainer(containerName, ['test', '-d', `/config/csm-browse/sessions/${psid}`]);
+        await execLayer.execInContainer(containerName, ['test', '-d', `/config/csm-browse/sessions/${psid}`], {}, { timeout: 15000 });
         containerDirExists = true;
       } catch {}
       if (hostStateExists && containerDirExists) continue;

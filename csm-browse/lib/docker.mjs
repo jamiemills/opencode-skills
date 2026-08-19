@@ -50,15 +50,28 @@ function realExecDetached(container, args, opts = {}) {
     execArgs.push(container, ...args);
 
     const proc = spawn('docker', execArgs, { stdio: 'inherit' });
+    let timer = null;
+    let timedOut = false;
+    if (opts.timeout) {
+      // Default = current behavior (no timeout); opts.timeout (ms) arms a
+      // watchdog that kills a wedged docker CLI so callers cannot hang forever.
+      timer = setTimeout(() => {
+        timedOut = true;
+        try { proc.kill('SIGTERM'); } catch {}
+      }, opts.timeout);
+      if (timer.unref) timer.unref();
+    }
+    const settle = (fn, arg) => { if (timer) clearTimeout(timer); fn(arg); };
     proc.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`docker exec -d failed with code ${code}`));
+      if (timedOut) settle(reject, new Error(`docker exec -d timed out after ${opts.timeout}ms`));
+      else if (code === 0) settle(resolve);
+      else settle(reject, new Error(`docker exec -d failed with code ${code}`));
     });
-    proc.on('error', reject);
+    proc.on('error', (err) => { if (!timedOut) settle(reject, err); });
   });
 }
 
-async function realExecInContainer(container, args, env = {}) {
+async function realExecInContainer(container, args, env = {}, opts = {}) {
   const execArgs = ['exec'];
   for (const [k, v] of Object.entries(env)) {
     execArgs.push('-e', `${k}=${v}`);
@@ -66,7 +79,8 @@ async function realExecInContainer(container, args, env = {}) {
   execArgs.push(container, ...args);
 
   const { stdout } = await realExecFile('docker', execArgs, {
-    maxBuffer: 10 * 1024 * 1024
+    maxBuffer: 10 * 1024 * 1024,
+    ...(opts.timeout ? { timeout: opts.timeout } : {})
   });
   return stdout;
 }
@@ -238,8 +252,8 @@ export async function pkillMatch(container, pattern) {
   return execLayer.pkillMatch(container, pattern);
 }
 
-export async function execInContainer(container, args, env) {
-  return execLayer.execInContainer(container, args, env);
+export async function execInContainer(container, args, env, opts) {
+  return execLayer.execInContainer(container, args, env, opts);
 }
 
 export async function pullImage(image) {

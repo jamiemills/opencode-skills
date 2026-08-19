@@ -92,6 +92,12 @@ test('daemon.log never contains the wsUrl token', { timeout: 30000 }, async () =
   assert.match(log,
     /Connecting to ws:\/\/127\.0\.0\.1:\d+\/devtools\/page\/fake-target-1\?token=\[REDACTED\]/,
     `token must be redacted before interpolation: ${log.split('\n').slice(0, 2).join(' | ')}`);
+  for (const line of log.split('\n')) {
+    if (line.trim()) {
+      assert.match(line, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z /,
+        `every daemon.log line must carry its own ISO timestamp (per-line, not per-write): ${line}`);
+    }
+  }
 
   server.closeAll();
   const code = await waitExit(child, 15000);

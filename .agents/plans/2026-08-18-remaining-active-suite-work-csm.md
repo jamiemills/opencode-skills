@@ -14,11 +14,11 @@ format: csm-plan/1
 - Plan ID: remaining-active-suite-work-2026-08-18
 - Status: in_progress
 - Current CSM state: DISPATCH
-- Cycle: 2
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-18 cycle 2 — T002 complete (legacy retired, 1227/1227, coverage 96.79%, zero refs, baselines unchanged except 1 digest) + T003-scaffold complete (runner + placeholder manifest, inert guard, docs; fails loudly until frozen). Next: Wave 3 (T003-manifest + T004)
-- Next transition: CHECKPOINT -> SELECT (T003-manifest || T004)
-- Active tasks: none (next: T003-manifest, T004)
+- Last checkpoint: 2026-08-18 cycle 3 — T003 complete (manifest frozen: S=19/M=6/L=40=65 files, mechanical classification, S parallel-stable x2 [244/244 @ ~8s], M 108/108, L 851/851, all=full 1227/1227, coverage 96.79% PASS) + T004 complete (execLayer timeout option + consumers, line-buffered daemon-log stamps, ws devDep clean-land; browse 106/106). All 4 tasks complete — completion gate next
+- Next transition: CHECKPOINT -> completion gate
+- Active tasks: none
 - Blockers: none
 
 ## Goal
@@ -113,7 +113,7 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
    - Acceptance evidence: caller inventory (pre/post), baseline migration rationale, digest lists, suite output.
    - Repair attempts: 0
    - Recovery note: preserve old baselines in supersession artifacts until replacement tests commit; revert path = restore prior baselines + re-add gated legacy entry (git revert of the task commit).
-3. [pending] Restructure csm-scan tests into S/M/L tiers with measured evidence
+3. [completed] Restructure csm-scan tests into S/M/L tiers with measured evidence
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
@@ -127,7 +127,7 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
    - Acceptance evidence: tier manifest, before/after timings, 2x S-run logs, coverage comparison.
    - Repair attempts: 0
    - Recovery note: if parallel S-tier flakes, revert tier assignments to serial-only and record evidence; runner additions are additive files.
-4. [pending] Close remaining low-risk technical refinements
+4. [completed] Close remaining low-risk technical refinements
    - Task ID: T004
    - Depends on: T002, T003
    - Parallel group: G3
@@ -180,6 +180,8 @@ T004: (a) execLayer gains `timeout` option defaulting to current behavior, plus 
 | 2026-08-18 | 2 | CHECKPOINT -> SELECT -> DISPATCH | T002, T003-scaffold | Wave 2 ready: T002 legacy retirement + T003 runner scaffolding (manifest deferred to Wave 3 post-T002) | INTEGRATE |
 | 2026-08-18 | 2 | DISPATCH -> INTEGRATE | T002 | Legacy ten-dimension pipeline entry points retired (run.mjs runExistingTenPipeline + processExistingTenRepo + sole internal caller; existing-ten.mjs scanExistingTen batch helper; zero production callers). D7 honored: DEFAULT_EXISTING_TEN_RENDERER unchanged, renderer.md unchanged. Parity projected onto expanded pipeline: T204 fixture loop projects ten legacy dimensions from runExpandedPipeline (byte-identical to legacy mirror, verified); T224 five-fixture test uses runLegacyTenMirror as parity oracle; retry tests re-pointed to exported enrichValidateRetry (shared production retry seam); source-text pins rewritten to assert new state; fixtures-pipeline comments updated. Baselines: ONLY test-integrity.json regenerated (fixtures-pipeline.test.mjs digest) — documented; all others (fixture-behavior.json, semantic.json, renderer.md, inventory.json, supersession.json, capabilities.json) verified unchanged. Suite 1227/1227, coverage 96.80% (≥ re-measured baseline 96.76%), check-suite 439. COORDINATION NOTE for bootstrap payload owner: vendored copies become stale on retirement — bootstrap/payload-index.json:344 (run.mjs), :338 (existing-ten.mjs), :518 (render/existing-ten.mjs, unchanged); run.mjs + existing-ten.mjs in payload retain the retired symbols as an expected, recorded residual; DO NOT edit bootstrap/** here | INTEGRATE |
 | 2026-08-18 | 2 | INTEGRATE -> VERIFY -> CHECKPOINT | T002, T003-scaffold | T002: runExistingTenPipeline/processExistingTenRepo removed (zero prod callers), T204/T224 migrated to expanded projections, source pins rewritten, test-integrity regenerated once, baselines otherwise unchanged (D7 held); coordination note for bootstrap payload. T003-scaffold: run-tier.mjs + tiers.mjs (placeholder, NODE_TEST_CONTEXT inert), README+SKILL docs; placeholder fails loudly. Suite 1227/1227, coverage 96.79% PASS, zero legacy refs, gate 439 | SELECT (Wave 3) |
+| 2026-08-18 | 3 | CHECKPOINT -> SELECT -> DISPATCH | T003-manifest, T004 | Wave 3: freeze tier manifest post-T002 + low-risk refinements (exec timeouts, daemon-log stamps, ws dep) | INTEGRATE |
+| 2026-08-18 | 3 | INTEGRATE (T003-manifest dispatch lost — primary salvage via mechanical classification) -> VERIFY -> CHECKPOINT | T003, T004 | T003: frozen manifest S19/M6/L40 (runner-enforced partition), S parallel 244/244 x2 stable, M 108/108, L 851/851, all = 1227/1227, coverage 96.79% PASS. T004 (agent): execDetached/execInContainer timeout opts + 4 consumer timeouts + fake-docker test; daemon-log line-buffered writer + ISO per-line + split-write tests; ws devDep 7.5.13 clean hoist-add; browse 106/106 | completion gate |
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

@@ -14,5 +14,8 @@
   "engines": {
     "node": ">=22 <25"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "ws": "^7.5.13"
+  }
 }

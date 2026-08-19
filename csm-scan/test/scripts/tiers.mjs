@@ -1,27 +1,21 @@
-// csm-scan test tier manifest (T003).
+// csm-scan test tier manifest (T003) — FROZEN POST-T002.
 //
 // Complete, non-overlapping partition of every test/*.test.mjs file into
 // three named tiers:
 //   - S (small): pure-unit, parallel-stable — runs with default concurrency
-//   - M (medium): needs serial execution (`--test-concurrency=1`)
-//   - L (large): filesystem-heavy fixture/integration suites — serial too
+//   - M (medium): subprocess-dependent (git/rg/node), needs serial execution
+//   - L (large): pipeline/fixture-heavy integration suites — serial too
 //
-// This manifest is intentionally FROZEN POST-T002: the legacy ten-dimension
-// pipeline is being retired by a parallel agent in the same plan cycle, and
-// legacy test files may be renamed or removed before it lands. Do not fill
-// this in from the pre-migration file set — the Wave-3 manifest step
-// regenerates it from the POST-T002 `test/*.test.mjs` file list and then
-// verifies the partition via `node test/scripts/run-tier.mjs <s|m|l|all>`.
-//
-// PLACEHOLDER: empty arrays below until that freeze happens. run-tier.mjs
-// refuses to run anything while the manifest is empty, so a placeholder can
-// never silently execute a partial/no tier.
+// Classification is mechanical: files importing child_process/execFile/spawn
+// or driving the pipelines/fixtures go to serial tiers (M/L); everything else
+// is parallel-safe S. run-tier.mjs enforces completeness and non-overlap at
+// runtime, so a stale or partial manifest fails loudly on its own.
 
 if (process.env.NODE_TEST_CONTEXT !== undefined && process.env.NODE_TEST_CONTEXT !== '') {
   process.exit(0);
 }
 
 // Relative to the csm-scan skill root, e.g. 'test/expansion-final-acceptance.test.mjs'.
-export const S = [];
-export const M = [];
-export const L = [];
+export const S = ['test/_smoke.test.mjs', 'test/comments.test.mjs', 'test/detection.test.mjs', 'test/enrich.test.mjs', 'test/enum.test.mjs', 'test/expansion-artifact-privacy.test.mjs', 'test/expansion-baseline.test.mjs', 'test/expansion-contracts.test.mjs', 'test/expansion-declarations.test.mjs', 'test/expansion-plugin-loader.test.mjs', 'test/expansion-provider-foundation.test.mjs', 'test/expansion-render-existing-ten.test.mjs', 'test/expansion-render-registration.test.mjs', 'test/expansion-standards-policy.test.mjs', 'test/git-commit-vocab.test.mjs', 'test/ignore.test.mjs', 'test/manifest.test.mjs', 'test/parse.test.mjs', 'test/validate.test.mjs'];
+export const M = ['test/expansion-command-core.test.mjs', 'test/expansion-cross-repo.test.mjs', 'test/expansion-deployment.test.mjs', 'test/expansion-dimension-registration.test.mjs', 'test/scan-cli.test.mjs', 'test/write.test.mjs'];
+export const L = ['test/architecture-repair.test.mjs', 'test/architecture.test.mjs', 'test/config.test.mjs', 'test/conventions-rust-standards.test.mjs', 'test/conventions.test.mjs', 'test/documentation.test.mjs', 'test/ecosystem.test.mjs', 'test/expansion-activation.test.mjs', 'test/expansion-api.test.mjs', 'test/expansion-architecture-extension.test.mjs', 'test/expansion-assurance.test.mjs', 'test/expansion-command-deep.test.mjs', 'test/expansion-constraints.test.mjs', 'test/expansion-data.test.mjs', 'test/expansion-determinism.test.mjs', 'test/expansion-final-acceptance.test.mjs', 'test/expansion-fixtures.test.mjs', 'test/expansion-governance.test.mjs', 'test/expansion-maintainability.test.mjs', 'test/expansion-negative.test.mjs', 'test/expansion-practices.test.mjs', 'test/expansion-privacy-gate.test.mjs', 'test/expansion-privacy-write.test.mjs', 'test/expansion-production-pipeline.test.mjs', 'test/expansion-provider-analysis-catalog.test.mjs', 'test/expansion-provider-assurance-catalog.test.mjs', 'test/expansion-provider-runtime-catalog.test.mjs', 'test/expansion-synthetic-plugin.test.mjs', 'test/expansion-voice-gate.test.mjs', 'test/fixtures-pipeline.test.mjs', 'test/golden.test.mjs', 'test/manifest-survey-repair.test.mjs', 'test/operations.test.mjs', 'test/regression-parity.test.mjs', 'test/security.test.mjs', 'test/stack.test.mjs', 'test/structure.test.mjs', 'test/survey.test.mjs', 'test/testing.test.mjs', 'test/voice-gate.test.mjs'];

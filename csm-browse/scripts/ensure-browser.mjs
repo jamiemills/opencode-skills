@@ -286,7 +286,8 @@ async function createSession(sid, containerSessDir) {
         XDG_STATE_HOME: `${containerSessDir}/xdg/state`,
         XDG_RUNTIME_DIR: `${containerSessDir}/xdg/runtime`,
         SESS: containerSessDir
-      }
+      },
+      timeout: 60000
     });
     console.log('Chromium launched');
 

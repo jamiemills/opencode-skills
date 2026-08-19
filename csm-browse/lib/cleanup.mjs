@@ -67,7 +67,7 @@ export async function killGate(publicPort) {
 
 export async function removeContainerSession(containerName, containerSessDir) {
   validateContainerSessionDir(containerSessDir);
-  await execInContainer(containerName, ['rm', '-rf', containerSessDir]);
+  await execInContainer(containerName, ['rm', '-rf', containerSessDir], {}, { timeout: 120000 });
 }
 
 export async function removeHostSession(sessionDir) {
@@ -92,7 +92,7 @@ export async function releasePorts(state) {
 
 export async function truncateLogs(sessionDir, containerName, containerSessDir) {
   try {
-    await execInContainer(containerName, ['rm', '-f', `${containerSessDir}/chromium.log`]);
+    await execInContainer(containerName, ['rm', '-f', `${containerSessDir}/chromium.log`], {}, { timeout: 30000 });
   } catch { }
   try {
     await rm(join(sessionDir, 'daemon.log'), { force: true });
