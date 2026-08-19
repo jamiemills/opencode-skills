@@ -72,6 +72,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 
 - **[OpenCode](https://opencode.ai)** — these are OpenCode skills.
 - **Node.js >= 22** — for `csm-browse` (see `csm-browse/package.json`) and for running the `csm-scan` test suite (`node:test`). `csm-scan` itself is zero-dependency Node built-ins only.
+- **Universal bootstrap runtime** — the delivered bootstrap flow needs only `node` and `npx`; Node >= 22 is recommended for the development gates (see [Development & testing](#development--testing)).
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
 - **tmux** — optional. When available and not already running under tmux (and not opted out of), the `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, and `csm-review` skills start their orchestrating agent in a detached tmux session so long-running work survives a dropped terminal; each prints its session name and how to attach; without tmux they proceed in the current session.
@@ -104,6 +105,21 @@ node scripts/install-hooks.mjs
 ```
 
 Dependency inventory: `csm-browse/package-lock.json` (integrity-hashed) is authoritative; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
+
+### Universal agent bootstrap (no clone)
+
+Any capable AI agent can install this skill collection from a single URL, without cloning the repository, once the envelope is hosted — envelope hosting and npm publication are future release steps (`bootstrap/release-checklist.md`); until then the committed fixture and the deterministic packed artifact from `node scripts/pack-bootstrap.mjs` validate the flow. The URL serves a signed canonical envelope (schema `csm-bootstrap`, version 2): structured, signature-bound policy — fixed package, bin, payload manifest, limits — plus a digest-bound `steps_markdown` field whose Markdown steps are guidance only and can never add commands, paths, package names, or shell policy (`bootstrap/schema.json`, `bootstrap/steps.md`).
+
+- **Trust root first** — a URL cannot choose its own executable. Approve the fixed package `@jamiemills/csm-skills-bootstrap@0.1.0` and bin `csm-skills-bootstrap` (plus its signing key) before use. Publication to npm is a future release step (`bootstrap/release-checklist.md`); until then the deterministic packed artifact from `node scripts/pack-bootstrap.mjs` validates the flow.
+- **Agent-owned protocol** — the agent discovers its own Agent Skills location, asks the user when ambiguous, places only hash-verified payload files, and reports destination, hashes, reload action, and rollback limits. States (`DISCOVER -> TRUST -> PLAN_DESTINATION -> CONFIRM_IF_NEEDED -> MATERIALIZE -> VERIFY -> REPORT`) and refusal codes are specified in `bootstrap/protocol.md`.
+- **Exact npx invocation** — `--ignore-scripts` always; offline is cache-warmed only — it replays a previously verified warm cache and fails closed with no network fallback:
+
+  ```bash
+  npx --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
+  npx --offline --no --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
+  ```
+
+- **Capability boundary** — the flow needs exactly three capabilities: read an HTTPS URL, write files, and invoke exact `npx`. Agents lacking one receive a safe refusal, not a guessed fallback.
 
 ## Quickstart
 
@@ -143,6 +159,7 @@ Planning never silently becomes implementation, and execution always starts from
 
 ```
 .
+├── bootstrap/         # universal agent bootstrap: signed envelope, payload package, protocol, steps
 ├── csm-grill/         # SKILL.md — the idea-grilling interview
 ├── csm-plan/          # SKILL.md — the planning state machine
 ├── csm-build/         # SKILL.md — the plan execution engine
@@ -158,11 +175,13 @@ Planning never silently becomes implementation, and execution always starts from
 │   └── tests/         # e2e + fixtures (requires Docker)
 ├── csm-upload/        # evidence upload to GitHub Pages
 │   └── scripts/       # upload.mjs
+├── tests/             # bootstrap conformance: trust, package audit, protocol, offline, integration
 ├── scripts/           # suite tooling
 │   ├── check-suite.mjs            # repo-wide conformance gate
 │   ├── sync-skill-boilerplate.mjs # regenerate/verify shared SKILL.md sections
 │   ├── gen-readme-matrix.mjs      # regenerate the composition matrix from contracts
 │   ├── install-hooks.mjs          # one-time pre-commit hook installer
+│   ├── pack-bootstrap.mjs         # deterministic npm pack of the bootstrap package
 │   ├── hooks/                     # tracked git hooks (core.hooksPath target)
 │   │   └── pre-commit             # fast advisory gate (check-suite + drift + syntax)
 │   └── lib/                       # shared data + templates
@@ -177,6 +196,17 @@ Planning never silently becomes implementation, and execution always starts from
 - `node scripts/sync-skill-boilerplate.mjs --check`   # boilerplate drift (also gated by check-suite + pre-commit); `--write` regenerates
 - `node scripts/gen-readme-matrix.mjs --check`        # composition-matrix drift (also gated); `--write` regenerates
 - `node scripts/install-hooks.mjs`  # enable the local pre-commit gate (bypass: `git commit --no-verify`)
+- **Universal bootstrap suites** — envelope trust, package audit, protocol conformance, offline boundary, and the cross-task integration flow; `node scripts/pack-bootstrap.mjs` prints the deterministic tarball digest:
+
+  ```bash
+  node --test tests/bootstrap-trust.test.mjs
+  node --test tests/package-audit.test.mjs
+  node --test tests/protocol/*.test.mjs
+  node --test tests/offline/*.test.mjs
+  node --test tests/integration/*.test.mjs
+  node scripts/pack-bootstrap.mjs
+  ```
+
 - **csm-scan** — zero-dependency `node:test` suite, run from the skill directory:
 
   ```bash
