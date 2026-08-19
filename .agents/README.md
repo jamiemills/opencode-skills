@@ -20,7 +20,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-18-remaining-active-suite-work-csm.md` — 2026-08-18 — execute the four active remaining-suite-work tasks (CDP auth, legacy retirement, test tiers, refinements) — status: complete
 - `2026-08-18-remaining-suite-work-csm.md` — 2026-08-18 — remaining non-installer suite work (CDP auth, legacy retirement, test tiers, refinements) — status: complete (closed as superseded; superseded-by `2026-08-19-consolidated-remaining-work-csm.md`; deferred records moved to the consolidated plan)
 - `2026-08-18-universal-agent-skills-bootstrap-csm.md` — 2026-08-18 — any-agent skills bootstrap via one URL with a signed payload manifest — status: complete
-- `2026-08-19-consolidated-remaining-work-csm.md` — 2026-08-19 — consolidate remaining work (payload refresh, CDP-auth residuals, pre-release readiness, stale-plan closure) — status: in_progress
+- `2026-08-19-consolidated-remaining-work-csm.md` — 2026-08-19 — consolidate remaining work (payload refresh, CDP-auth residuals, pre-release readiness, stale-plan closure) — status: complete
 
 ## docs/
 
