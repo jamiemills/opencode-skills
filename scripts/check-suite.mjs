@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES } from './lib/contracts.mjs';
 import { checkDrift } from './sync-skill-boilerplate.mjs';
@@ -650,6 +651,23 @@ function main() {
 
   const matrixDrift = checkMatrixDrift(path.join(root, 'README.md'));
   if (matrixDrift !== null) check(false, matrixDrift);
+
+  // Lint gate — repo-wide oxlint against the committed quality bar
+  // (.oxlintrc.json). Conditional: skipped with a notice when oxlint is not
+  // installed so the gate stays runnable on fresh clones without node_modules.
+  const oxlintBin = path.join(root, 'node_modules', '.bin', 'oxlint');
+  if (fs.existsSync(oxlintBin)) {
+    const lint = spawnSync(oxlintBin, ['--deny-warnings'], { cwd: root, encoding: 'utf8' });
+    if (lint.status === 0) {
+      check(true, 'lint gate: clean');
+    } else {
+      const findings = (lint.stdout + lint.stderr).split('\n').filter((l) => /warning|error/.test(l));
+      const first = findings[0] ? ` (e.g. ${findings[0].trim()})` : '';
+      check(false, `lint gate: oxlint reported ${findings.length} finding(s)${first}`);
+    }
+  } else {
+    console.log('lint gate skipped — oxlint not installed (run: pnpm install)');
+  }
 
   if (failures.length === 0) {
     console.log(`check-suite: OK — ${skillDirs.length} skills, ${checks} checks`);

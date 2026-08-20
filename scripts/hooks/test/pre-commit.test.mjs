@@ -69,6 +69,7 @@ function setup() {
   write(root, 'tracked.txt', 'tracked\n');
   fs.mkdirSync(path.join(root, 'scripts/hooks'), { recursive: true });
   write(root, 'scripts/check-suite.mjs', 'console.log("CHECK_SUITE");\n');
+  write(root, '.oxlintrc.json', '{\n  "categories": { "correctness": "warn", "suspicious": "warn" }\n}\n');
   fs.copyFileSync(SHIM, path.join(root, 'scripts/hooks/pre-commit'));
   fs.chmodSync(path.join(root, 'scripts/hooks/pre-commit'), 0o755);
   write(root, '.lefthook.yml', FIXTURE_CONFIG);
@@ -267,6 +268,34 @@ test('(e) an oxlint warning blocks under --deny-warnings', { skip: SKIP }, (t) =
   assert.match(combined(r), /oxlint|unusedVar/, 'blocked by oxlint');
   git(root, 'reset', '-q', '--hard', 'HEAD');
   t.diagnostic('--deny-warnings escalates staged warnings to failures');
+});
+
+test('(e2) a suspicious-category warning (no-shadow) blocks via the committed .oxlintrc.json', { skip: SKIP }, (t) => {
+  const root = setup();
+  t.after(() => cleanup(root));
+
+  const shadowPath = path.join(root, 'shadow.mjs');
+  write(root, 'shadow.mjs', 'function outer() {\n  const x = 1;\n  function inner() {\n    const x = 2;\n    return x;\n  }\n  return inner() + x;\n}\nexport { outer };\n');
+
+  const plain = spawnSync(OXL_BIN, ['--no-error-on-unmatched-pattern', shadowPath], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(plain.status, 0, `plain oxlint must pass the fixture without config: ${combined(plain)}`);
+  const withCfg = spawnSync(OXL_BIN, ['--deny-warnings', '--no-error-on-unmatched-pattern', shadowPath], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.notEqual(withCfg.status, 0, `oxlint with fixture .oxlintrc.json (suspicious) must flag the shadow: ${combined(withCfg)}`);
+  assert.match(combined(withCfg), /no-shadow/, 'flagged by the suspicious-category no-shadow rule');
+  t.diagnostic('no-shadow fixture: default oxlint exit 0; with suspicious config exit non-zero');
+
+  git(root, 'add', 'shadow.mjs');
+  const r = commit(root, 'e2:shadow');
+  assert.notEqual(r.status, 0, 'staged no-shadow warning must block the commit via config discovery');
+  assert.match(combined(r), /no-shadow/, 'blocked by the suspicious no-shadow rule');
+  git(root, 'reset', '-q', '--hard', 'HEAD');
+  t.diagnostic('committed .oxlintrc.json categories apply to the hook via config discovery');
 });
 
 test('(f) git commit --no-verify bypasses the hook', { skip: SKIP }, (t) => {
