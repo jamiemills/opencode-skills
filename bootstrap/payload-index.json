@@ -558,8 +558,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/registry.mjs",
-        "sha256": "793a506822a03ebd8b1738cdd0e2e925a6ff9fdd0ae4795bf0c6504dc8d488ce",
-        "bytes": 24898,
+        "sha256": "3201e7586cc9c019f8846e535d1d9204e67f5c49b445c08c6b04f0f4f6719c27",
+        "bytes": 24901,
         "mode": "0644"
       },
       {
@@ -588,8 +588,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/report/reporter.mjs",
-        "sha256": "6455e1ea40bd2e8cf94f61c8fa02e7fb0516f486c59cf91db4a327861690b778",
-        "bytes": 7893,
+        "sha256": "828240c7c98750fead0bda68d444f212148f86bfb6976251bce2c7bf400e0250",
+        "bytes": 7897,
         "mode": "0644"
       },
       {
@@ -672,8 +672,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/privacy.mjs",
-        "sha256": "2a15f4ddb8c8d2d2de518f1a9458f95999c5fe59e03a1223cb69059375794270",
-        "bytes": 15003,
+        "sha256": "109da496691333a92cce9e0082cd773dd14717c13f48a085efc0498b5cc2be0c",
+        "bytes": 15007,
         "mode": "0644"
       },
       {
@@ -684,8 +684,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/token-families.mjs",
-        "sha256": "a0d9d742bdf5df93cf0c2253886cf4378dbddd5ccb908575a5bf121fd3151008",
-        "bytes": 3057,
+        "sha256": "bb8ad02b634908a6576d58f9a54f984b28ec41b190327ca2cbeb0483398a1184",
+        "bytes": 3061,
         "mode": "0644"
       },
       {

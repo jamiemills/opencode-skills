@@ -100,7 +100,7 @@ const VOICE_PATTERN = new RegExp(
 // private keys, known token shapes, secret assignments, and absolute paths.
 const PROSE_PRIVACY_PATTERN = new RegExp(
   '(?:'
-  + '-----BEGIN[ ](?:RSA |EC |OPENSSH )?PRIVATE[ ]KEY-----'
+  + '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE\x20KEY-----'
   + '|\\b(?:gh[opusr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b'
   + '|\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b'
   + '|\\bhttps?:\\/\\/[^\\s/@:]+:[^\\s/@]+@'
