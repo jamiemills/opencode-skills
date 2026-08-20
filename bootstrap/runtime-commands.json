@@ -9,10 +9,10 @@
     "bin": "csm-skills-bootstrap"
   },
   "requiredFlags": ["--yes", "--ignore-scripts", "--no-audit", "--no-fund"],
-  "offlineFlags": ["--offline", "--no"],
+  "offlineFlags": ["--offline", "--no-install"],
   "argvTemplates": {
     "online": ["npx", "--yes", "--ignore-scripts", "--no-audit", "--no-fund", "--package=<spec>", "<bin>"],
-    "offline": ["npx", "--offline", "--no", "--yes", "--ignore-scripts", "--no-audit", "--no-fund", "--package=<spec>", "<bin>"]
+    "offline": ["npx", "--offline", "--no-install", "--yes", "--ignore-scripts", "--no-audit", "--no-fund", "--package=<spec>", "<bin>"]
   },
   "subcommands": {
     "--version": { "argv": ["--version"], "expectStdout": "0.1.0" },
@@ -40,7 +40,7 @@
     }
   },
   "notes": [
-    "offline is cache-warmed only: npx --offline --no replays a previously verified warm invocation and fails closed when the required bytes are absent, with no network fallback",
+    "offline is cache-warmed only: npx --offline --no-install replays a previously verified warm invocation and fails closed when the required bytes are absent, with no network fallback",
     "the npx cache is not durable or portable (D6): offline support is conditional on a verified warm cache plus recorded node/npm/platform metadata in the cache manifest",
     "real-registry offline replay is deferred to the release stage because publication is deferred (D8): first-release offline validation runs at the packed-artifact plus manifest layer against an isolated cache"
   ]

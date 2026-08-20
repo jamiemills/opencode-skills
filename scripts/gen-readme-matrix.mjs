@@ -12,6 +12,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { INTERFACES } from './lib/contracts.mjs';
+import { splitLines, fenceMap } from './lib/plan-validation.mjs';
 
 const START = '<!-- csm-matrix:start -->';
 const END = '<!-- csm-matrix:end -->';
@@ -40,25 +41,46 @@ export function renderRegion() {
   return `${START}\n${renderMatrix()}\n${END}`;
 }
 
+// Line-based region location (F-054): the region markers must sit outside any
+// code fence — a marker accidentally placed inside a fenced block must not
+// count as the real region.
+function locateRegion(lines, inFence) {
+  let start = -1;
+  let end = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (inFence[i]) continue;
+    if (lines[i].trim() === START && start === -1) start = i;
+    else if (lines[i].trim() === END) {
+      end = i;
+      break;
+    }
+  }
+  if (start === -1 || end === -1 || end < start) return null;
+  return [start, end];
+}
+
 export function checkDrift(readmePath) {
   const content = fs.readFileSync(readmePath, 'utf8');
-  const expected = renderRegion();
-  const m = content.match(new RegExp(`${START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n([\\s\\S]*?)\\n${END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
-  if (!m) return 'composition-matrix region missing from README';
-  if (`${START}\n${m[1]}\n${END}` !== expected) return 'composition-matrix region drifted from contracts.mjs (run: node scripts/gen-readme-matrix.mjs --write)';
+  const lines = splitLines(content);
+  const region = locateRegion(lines, fenceMap(lines));
+  if (region === null) return 'composition-matrix region missing from README';
+  const actual = lines.slice(region[0], region[1] + 1).join('\n');
+  if (actual !== renderRegion()) return 'composition-matrix region drifted from contracts.mjs (run: node scripts/gen-readme-matrix.mjs --write)';
   return null;
 }
 
 function writeRegion(readmePath) {
   const content = fs.readFileSync(readmePath, 'utf8');
-  const re = new RegExp(`${START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n[\\s\\S]*?\\n${END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
-  if (!re.test(content)) {
+  const lines = splitLines(content);
+  const region = locateRegion(lines, fenceMap(lines));
+  const expected = splitLines(renderRegion());
+  if (region === null) {
     // First insertion: after the Skills table section, before Requirements
-    const anchor = '## Requirements';
-    if (!content.includes(anchor)) throw new Error('README ## Requirements anchor not found');
-    return content.replace(anchor, `${renderRegion()}\n\n${anchor}`, 1);
+    const anchorIdx = lines.findIndex((l) => l === '## Requirements');
+    if (anchorIdx === -1) throw new Error('README ## Requirements anchor not found');
+    return [...lines.slice(0, anchorIdx), ...expected, '', ...lines.slice(anchorIdx)].join('\n');
   }
-  return content.replace(re, renderRegion());
+  return [...lines.slice(0, region[0]), ...expected, ...lines.slice(region[1] + 1)].join('\n');
 }
 
 let isMain = false;

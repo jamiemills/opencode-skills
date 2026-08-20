@@ -8,6 +8,7 @@ A collection of [OpenCode](https://opencode.ai) agent skills built around the **
 
 - [The CSM workflow](#the-csm-workflow)
 - [Skills](#skills)
+- [Composition matrix](#composition-matrix)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
@@ -115,13 +116,13 @@ Dependency inventory: the root `pnpm-lock.yaml` (integrity-hashed) is authoritat
 
 Any capable AI agent can install this skill collection from a single URL, without cloning the repository, once the envelope is hosted — envelope hosting and npm publication are future release steps (`bootstrap/release-checklist.md`); until then the committed fixture and the deterministic packed artifact from `node scripts/pack-bootstrap.mjs` validate the flow. The URL serves a signed canonical envelope (schema `csm-bootstrap`, version 2): structured, signature-bound policy — fixed package, bin, payload manifest, limits — plus a digest-bound `steps_markdown` field whose Markdown steps are guidance only and can never add commands, paths, package names, or shell policy (`bootstrap/schema.json`, `bootstrap/steps.md`).
 
-- **Trust root first** — a URL cannot choose its own executable. Approve the fixed package `@jamiemills/csm-skills-bootstrap@0.1.0` and bin `csm-skills-bootstrap` (plus its signing key) before use. Publication to npm is a future release step (`bootstrap/release-checklist.md`); until then the deterministic packed artifact from `node scripts/pack-bootstrap.mjs` validates the flow.
+- **Trust root first** — a URL cannot choose its own executable. Approve the fixed package `@jamiemills/csm-skills-bootstrap@0.1.0` and bin `csm-skills-bootstrap` (plus its signing key) before use.
 - **Agent-owned protocol** — the agent discovers its own Agent Skills location, asks the user when ambiguous, places only hash-verified payload files, and reports destination, hashes, reload action, and rollback limits. States (`DISCOVER -> TRUST -> PLAN_DESTINATION -> CONFIRM_IF_NEEDED -> MATERIALIZE -> VERIFY -> REPORT`) and refusal codes are specified in `bootstrap/protocol.md`.
 - **Exact npx invocation** — `--ignore-scripts` always; offline is cache-warmed only — it replays a previously verified warm cache and fails closed with no network fallback:
 
   ```bash
   npx --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
-  npx --offline --no --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
+  npx --offline --no-install --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
   ```
 
 - **Capability boundary** — the flow needs exactly three capabilities: read an HTTPS URL, write files, and invoke exact `npx`. Agents lacking one receive a safe refusal, not a guessed fallback.

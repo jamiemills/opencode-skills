@@ -7,9 +7,6 @@
 // requires the full structural repo). Also the shared home for the fenceMap /
 // splitLines helpers formerly duplicated in check-suite.mjs (F-054).
 
-import fs from 'node:fs';
-import path from 'node:path';
-
 // ---------------------------------------------------------------------------
 // Shared markdown helpers (unified here, F-054)
 // ---------------------------------------------------------------------------
@@ -85,22 +82,6 @@ export const ARTIFACT_PATTERNS = {
   'csm-browse': [],
   'csm-deep-research': [/\.agents\/research\/<yyyy-mm-dd>-<slug>-research\.md/],
 };
-
-// Documented in-flight work that the repo-wide gate tolerates as "expected"
-// findings while the owning plan task is still pending. Each entry names the
-// check type, the affected skill, the plan task (T002/T003/T004) that owns the
-// fix, and the plan FILE that declares that task. The check-suite hook only
-// softens a failure while that exact plan still lists the task as
-// [pending]/[in_progress] and its Owned scope names the skill's SKILL.md; once
-// the task completes without fixing the defect, the check hard-fails. Binding
-// to the owning plan file prevents a sibling plan with the same task ID from
-// holding this plan's debt (independent-review finding 1).
-export const PENDING_DEBT = [
-  { check: 'ordinal', skill: 'csm-build', task: 'T003', plan: '2026-08-20-skill-suite-efficiency-resilience-csm.md', note: 'RECOVER duplicate 2. ordinal (csm-build/SKILL.md:119-120) renumbered by T003' },
-  { check: 'template-format-marker', skill: 'csm-plan', task: 'T002', plan: '2026-08-20-skill-suite-efficiency-resilience-csm.md', note: 'Required Plan Document fence must start with format: csm-plan/1 (F-050, T002)' },
-  { check: 'template-format-marker', skill: 'csm-grill', task: 'T004', plan: '2026-08-20-skill-suite-efficiency-resilience-csm.md', note: 'Required Approach Document fence must start with format: csm-grill/1 (F-050, T004)' },
-  { check: 'template-format-marker', skill: 'csm-review', task: 'T004', plan: '2026-08-20-skill-suite-efficiency-resilience-csm.md', note: 'Report Format fence must start with format: csm-review/1 (F-050, T004)' },
-];
 
 // ---------------------------------------------------------------------------
 // Small parsers shared by the checks below
@@ -423,71 +404,4 @@ export function validateJournalControlConsistency(content) {
   return failures;
 }
 
-// ---------------------------------------------------------------------------
-// Gate-wiring helpers: PENDING_DEBT awareness (T006)
-// ---------------------------------------------------------------------------
 
-// True when plan `planFile` in plansDir is not complete and has task `taskId`
-// in [pending] or [in_progress] AND the task's Owned scope names
-// `<skill>/SKILL.md`. Used by check-suite to hold the documented in-flight
-// failures of PENDING_DEBT as expected findings instead of gate failures until
-// T002/T003/T004 land. When `planFile` is given, only that file is inspected —
-// the debt is bound to the plan that owns the fix, so a sibling plan with the
-// same task ID cannot hold it (independent-review finding 1).
-export function pendingTaskInCorpus(plansDir, taskId, skill, planFile = null) {
-  let files = [];
-  try {
-    files = planFile ? [planFile] : fs.readdirSync(plansDir).filter((f) => f.endsWith('-csm.md')).toSorted();
-  } catch {
-    return false;
-  }
-  for (const file of files) {
-    const content = readOrNull(path.join(plansDir, file));
-    if (content === null) continue;
-    const control = parsePlanControl(content);
-    if (control !== null && control.status === 'complete') continue;
-    const lines = splitLines(content);
-    const inFence = fenceMap(lines);
-    let curId = null;
-    let curState = null;
-    let curScope = '';
-    const flush = () => {
-      if (curId === taskId && (curState === 'pending' || curState === 'in_progress') && curScope.includes(`${skill}/SKILL.md`)) return true;
-      curId = null;
-      curState = null;
-      curScope = '';
-      return false;
-    };
-    let hit = false;
-    for (let i = 0; i < lines.length && !hit; i += 1) {
-      if (inFence[i]) continue;
-      const sm = lines[i].match(/^\s*(\d+)\.\s+\[(pending|in_progress|completed|blocked|active)\]\s/);
-      if (sm) {
-        hit = flush();
-        curState = sm[2];
-        continue;
-      }
-      if (/^#{1,3}\s/.test(lines[i])) {
-        hit = flush();
-        continue;
-      }
-      const tm = lines[i].match(/^\s*-\s*Task ID:\s*(\S+)/);
-      if (tm) {
-        curId = tm[1];
-        continue;
-      }
-      const om = lines[i].match(/^\s*-\s*Owned scope:\s*(.*)$/);
-      if (om && curState !== null) curScope += ` ${om[1]}`;
-    }
-    if (hit || flush()) return true;
-  }
-  return false;
-}
-
-function readOrNull(p) {
-  try {
-    return fs.readFileSync(p, 'utf8');
-  } catch {
-    return null;
-  }
-}

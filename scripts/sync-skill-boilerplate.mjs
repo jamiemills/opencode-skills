@@ -10,34 +10,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { SYNC_SECTIONS } from './lib/boilerplate.mjs';
-
-function splitLines(content) {
-  return content.split(/\r?\n/);
-}
-
-// Fence-aware map: true when the line is inside a code fence. Tracks opening
-// fence run length (``` or ~~~) and closes only on an equal-or-longer run.
-function fenceMap(lines) {
-  const inFence = Array.from({ length: lines.length }).fill(false);
-  let openRun = 0;
-  let fenceChar = null;
-  for (let i = 0; i < lines.length; i += 1) {
-    const m = lines[i].match(/^\s{0,3}(`{3,}|~{3,})/);
-    if (openRun > 0) {
-      if (m && m[1][0] === fenceChar && m[1].length >= openRun) {
-        openRun = 0;
-        fenceChar = null;
-      } else {
-        inFence[i] = true;
-      }
-    } else if (m) {
-      fenceChar = m[1][0];
-      openRun = m[1].length;
-      // The opening line itself is the boundary; following lines are fenced.
-    }
-  }
-  return inFence;
-}
+import { splitLines, fenceMap } from './lib/plan-validation.mjs';
 
 // Locate a heading ("## Title" or "### Title") outside fences. Returns
 // { headingLine, level, bodyStart, bodyEnd } where the body runs from the
@@ -108,7 +81,12 @@ function syncWrite(root = process.cwd()) {
     let mutated = false;
     for (const [title, def] of Object.entries(sections)) {
       const located = findSection(lines, inFence, title, def.level);
-      if (!located) continue;
+      if (!located) {
+        // F-069-1: fail loudly instead of silently reporting "rewrote 0
+        // section(s)" with exit 0 — --write must not pretend it repaired drift
+        // it cannot even locate.
+        throw new Error(`sync-skill-boilerplate: ${skill}/SKILL.md is missing the synced section "${'#'.repeat(def.level)} ${title}" — cannot write (run --check to see all drift)`);
+      }
       const expectedLines = splitLines(def.render());
       const current = extractBody(lines, located);
       if (current !== def.render()) {

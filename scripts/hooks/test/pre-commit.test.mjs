@@ -50,7 +50,7 @@ pre-commit:
       fail_text: "conformance gate failed (node scripts/check-suite.mjs)"
     - name: mjs-syntax
       glob: "*.mjs"
-      run: for f in {staged_files}; do node --check "$f" || exit 1; done
+      run: printf '%s\\n' {staged_files} | xargs -n1 -P8 node --check
       fail_text: "staged .mjs syntax check failed"
     - name: oxlint
       glob: "*.{js,mjs,cjs,ts,tsx,mts,cts}"
@@ -69,19 +69,55 @@ function combined(result) {
   return `${result.stdout}${result.stderr}`;
 }
 
+// F-003 un-stub: the temp repo is a complete corpus copy (repo minus
+// .git/node_modules) so the hook's check-suite job runs the REAL gate against
+// the same corpus the live gate validates. `.oxlintrc.json` stays as copied
+// (the real config keeps the full staged set lint-clean). The heavy test/lib
+// trees check-suite never reads are dropped (the README layout tree needs the
+// dirs to exist, so empty placeholders are recreated) — this keeps the baseline
+// commit's staged-mjs syntax pass fast without changing what the gate validates.
+function copyRepo(dest) {
+  const tracked = new Set(
+    spawnSync('git', ['ls-files'], { cwd: REPO, encoding: 'utf8' }).stdout.split('\n').filter(Boolean)
+  );
+  fs.cpSync(REPO, dest, {
+    recursive: true,
+    filter: (src) => {
+      const rel = path.relative(REPO, src);
+      if (rel === '.git' || rel === 'node_modules') return false;
+      if (rel.startsWith(`.git${path.sep}`) || rel.startsWith(`node_modules${path.sep}`)) return false;
+      if (rel === '') return true; // keep the root itself
+      const relPosix = rel.split(path.sep).join('/');
+      if (tracked.has(relPosix)) return true;
+      for (const t of tracked) {
+        if (t.startsWith(`${relPosix}/`)) return true;
+      }
+      return false;
+    },
+  });
+  for (const rel of ['tests', 'csm-browse/lib', 'csm-browse/tests', 'csm-scan/test', 'csm-upload/tests']) {
+    fs.rmSync(path.join(dest, rel), { recursive: true, force: true });
+  }
+  for (const rel of ['tests', 'csm-browse/lib', 'csm-browse/tests', 'csm-scan/test']) {
+    fs.mkdirSync(path.join(dest, rel), { recursive: true });
+  }
+}
+
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-commit-lh-'));
-  git(root, 'init', '-q');
-  git(root, 'config', 'user.name', 'Hook Test');
-  git(root, 'config', 'user.email', 'hook-test@example.invalid');
+  copyRepo(root);
+  // The gate-baseline job compares the sandbox's check-suite count against
+  // .agents/docs/gate-baselines.json, which records the LIVE repo's count;
+  // drop it so the guarded job skips instead of deviating on sandbox count.
+  fs.rmSync(path.join(root, '.agents', 'docs', 'gate-baselines.json'), { force: true });
   write(root, 'good.mjs', 'export const base = 1;\n');
   write(root, 'tracked.txt', 'tracked\n');
-  fs.mkdirSync(path.join(root, 'scripts/hooks'), { recursive: true });
-  write(root, 'scripts/check-suite.mjs', 'console.log("CHECK_SUITE");\n');
-  write(root, '.oxlintrc.json', '{\n  "categories": { "correctness": "warn", "suspicious": "warn" }\n}\n');
   fs.copyFileSync(SHIM, path.join(root, 'scripts/hooks/pre-commit'));
   fs.chmodSync(path.join(root, 'scripts/hooks/pre-commit'), 0o755);
   write(root, '.lefthook.yml', FIXTURE_CONFIG);
+  git(root, 'init', '-q');
+  git(root, 'config', 'user.name', 'Hook Test');
+  git(root, 'config', 'user.email', 'hook-test@example.invalid');
   git(root, 'config', 'core.hooksPath', 'scripts/hooks');
   git(root, 'add', '.');
   const baseline = commit(root, 'baseline');
@@ -175,7 +211,7 @@ test('(b) clean / staged-only / staged-deletion / untracked commits pass', { ski
     assert.doesNotMatch(out, /🥊/, `${c.name}: no job failures`);
     assert.doesNotMatch(out, new RegExp(LEGACY), `${c.name}: no legacy hook output`);
     if (c.expectGate) {
-      assert.match(out, /CHECK_SUITE/, `${c.name}: gate ran`);
+      assert.match(out, /check-suite: OK/, `${c.name}: real gate ran`);
     }
     git(root, 'reset', '-q', '--hard', 'HEAD');
   }
@@ -235,7 +271,7 @@ test('(c) unstaged or mixed tracked changes are blocked before any gate', { skip
     assert.notEqual(r.status, 0, `${c.name}: commit must fail`);
     const out = combined(r);
     assert.match(out, guardRe, `${c.name}: guard message`);
-    assert.doesNotMatch(out, /CHECK_SUITE/, `${c.name}: no gate output (piped guard-first)`);
+    assert.doesNotMatch(out, /check-suite: OK/, `${c.name}: no gate output (piped guard-first)`);
     git(root, 'reset', '-q', '--hard', 'HEAD');
   }
 
@@ -244,7 +280,7 @@ test('(c) unstaged or mixed tracked changes are blocked before any gate', { skip
   assert.notEqual(unstaged.status, 0, 'unstaged-only commit must fail');
   const out = combined(unstaged);
   assert.match(out, /no changes added to commit|nothing to commit/, 'git refuses the empty index');
-  assert.doesNotMatch(out, /CHECK_SUITE/, 'unstaged-only: no gate output');
+  assert.doesNotMatch(out, /check-suite: OK/, 'unstaged-only: no gate output');
   git(root, 'reset', '-q', '--hard', 'HEAD');
   t.diagnostic('guard blocks mixed/unstaged before gates');
 });
@@ -272,7 +308,7 @@ test('(d) staged oxlint-error .mjs blocks; the same UNTRACKED error does not', {
   git(root, 'add', 'good.mjs');
   const passed = commit(root, 'd:untracked-bad');
   assert.equal(passed.status, 0, `untracked bad.mjs must not block: ${combined(passed)}`);
-  assert.match(combined(passed), /CHECK_SUITE/);
+  assert.match(combined(passed), /check-suite: OK/);
   assert.match(git(root, 'status', '--short'), /\?\? bad\.mjs/, 'bad.mjs stays untracked');
   t.diagnostic('staged error blocks; untracked error ignored by {staged_files} globs');
 });
@@ -339,7 +375,7 @@ test('(f) git commit --no-verify bypasses the hook', { skip: SKIP }, (t) => {
   const r = commit(root, 'f:bypass', '--no-verify');
   assert.equal(r.status, 0, combined(r));
   const out = combined(r);
-  assert.doesNotMatch(out, /CHECK_SUITE/, 'no gate output on bypass');
+  assert.doesNotMatch(out, /check-suite: OK/, 'no gate output on bypass');
   assert.doesNotMatch(out, /tracked working-tree changes must be staged/, 'no guard on bypass');
   t.diagnostic('--no-verify skips the lefthook shim entirely');
 });
@@ -354,7 +390,7 @@ test('(g) a clean commit leaves git status clean and the commit exists', { skip:
 
   const r = commit(root, 'g:clean');
   assert.equal(r.status, 0, combined(r));
-  assert.match(combined(r), /CHECK_SUITE/);
+  assert.match(combined(r), /check-suite: OK/);
   assert.equal(git(root, 'status', '--short'), '', 'status clean after commit');
   const after = git(root, 'rev-parse', 'HEAD').trim();
   assert.notEqual(after, before, 'a new commit was created');

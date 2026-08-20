@@ -23,8 +23,6 @@ import {
   validateOrdinalSequencing,
   validateTemplateFormatMarkers,
   validateInterfaceArtifactPatterns,
-  pendingTaskInCorpus,
-  PENDING_DEBT,
 } from './lib/plan-validation.mjs';
 
 const args = process.argv.slice(2);
@@ -51,6 +49,9 @@ const NORMS_PHRASE_RE = new RegExp(NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}
 const CHAIN_RE = /`([A-Z][A-Z_]*(?:\s*->\s*[A-Z][A-Z_]+)+)`/;
 const STATE_HEADING_RE = /^###\s+(\d+)\.\s+(.*)$/;
 const STATE_TOKEN_RE = /^[A-Z][A-Z_]*/;
+// README path scan (F-052): `csm-<skill>/<path...>` where the path ends in an
+// alphanumeric/underscore/hyphen — never a sentence-ending period or slash.
+const README_PATH_RE = /csm-[a-z-]+\/[A-Za-z0-9_./-]*[A-Za-z0-9_-]/g;
 
 const failures = [];
 let checks = 0;
@@ -65,6 +66,89 @@ function readOrNull(p) {
     return fs.readFileSync(p, 'utf8');
   } catch {
     return null;
+  }
+}
+
+// F-052: true when `needle` occurs on at least one NON-fenced line. Contract
+// declarations must live in prose — a needle that only appears inside a fenced
+// code example does not satisfy a producer/consumer contract.
+function containsOutsideFences(content, needle) {
+  if (content === null) return false;
+  const lines = splitLines(content);
+  const inFence = fenceMap(lines);
+  return lines.some((l, i) => !inFence[i] && l.includes(needle));
+}
+
+// F-053 (corpus half, D15): returns the set of git-tracked files (repo-relative
+// posix paths) when a `.git` entry exists at the corpus root, else null. When
+// null (no git), corpus loops validate every file — planted-defect corpora stay
+// visible. When non-null, untracked in-progress corpus drafts are ignored so
+// they cannot block the gate (the F-053 defect).
+function loadTrackedFiles(rootDir) {
+  if (!fs.existsSync(path.join(rootDir, '.git'))) return null;
+  const r = spawnSync('git', ['ls-files'], { cwd: rootDir, encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  const set = new Set();
+  for (const line of r.stdout.split('\n')) {
+    const t = line.trim();
+    if (t) set.add(t);
+  }
+  return set;
+}
+
+// GitHub-style heading anchor for README TOC correspondence (F-061): lowercase,
+// drop punctuation (spaces and hyphens retained), then each whitespace run
+// becomes a hyphen (GitHub does NOT collapse — "Development & testing" anchors
+// to "development--testing", one hyphen per removed-char space).
+function githubAnchor(title) {
+  return title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s/g, '-');
+}
+
+// F-061: every H2 below the README TOC must have a TOC entry (and, dually,
+// every TOC entry must resolve to an H2 or H3 below the TOC). The generator
+// maintains the Composition matrix section but nothing kept the index in sync.
+function checkReadmeToc(readme) {
+  const lines = splitLines(readme);
+  const inFence = fenceMap(lines);
+  const tocIdx = lines.findIndex((l, i) => !inFence[i] && /^##\s+Table of contents/i.test(l));
+  if (tocIdx < 0) {
+    check(false, 'README.md missing "## Table of contents" (TOC/H2 conformance requires it)');
+    return;
+  }
+  let tocEnd = lines.length;
+  for (let i = tocIdx + 1; i < lines.length; i += 1) {
+    if (!inFence[i] && /^##\s/.test(lines[i])) {
+      tocEnd = i;
+      break;
+    }
+  }
+  const tocEntries = [];
+  for (let i = tocIdx + 1; i < tocEnd; i += 1) {
+    if (inFence[i]) continue;
+    const m = lines[i].match(/^\s*-\s+\[(.*?)\]\(#([^)]+)\)/);
+    if (m) tocEntries.push({ text: m[1], anchor: m[2] });
+  }
+  const h2s = [];
+  const h3s = [];
+  for (let i = tocEnd; i < lines.length; i += 1) {
+    if (inFence[i]) continue;
+    const h2 = lines[i].match(/^##\s+(.*)$/);
+    if (h2) {
+      h2s.push(h2[1].trim());
+      continue;
+    }
+    const h3 = lines[i].match(/^###\s+(.*)$/);
+    if (h3) h3s.push(githubAnchor(h3[1].trim()));
+  }
+  const tocAnchors = new Set(tocEntries.map((e) => e.anchor));
+  const headingAnchors = new Set([...h2s.map(githubAnchor), ...h3s]);
+  for (const title of h2s) {
+    const a = githubAnchor(title);
+    check(tocAnchors.has(a), `README.md TOC has no entry for "## ${title}" (want "- [${title}](#${a})")`);
+  }
+  for (const entry of tocEntries) {
+    check(headingAnchors.has(entry.anchor),
+      `README.md TOC entry "[${entry.text}](#${entry.anchor})" has no matching heading below the TOC`);
   }
 }
 
@@ -89,23 +173,14 @@ function formatMarkerOf(content) {
 }
 
 // Runs a new plan-validation check through the gate. Passes count one check;
-// failures on a PENDING_DEBT skill whose owning plan task is still pending are
-// reported as expected in-progress findings (still counted, still green) until
-// T002/T003/T004 land; anything else is a hard failure.
-function runGatedCheck(skill, checkType, findings, label, plansDir) {
+// any finding is a hard failure. The F-050 template-format-marker and ordinal
+// checks hard-enforce here (the inert PENDING_DEBT softening was pruned).
+function runGatedCheck(skill, checkType, findings, label) {
   if (findings.length === 0) {
     check(true, `${label} OK`);
     return;
   }
-  const debt = PENDING_DEBT.find((d) => d.check === checkType && d.skill === skill);
-  if (debt && pendingTaskInCorpus(plansDir, debt.task, skill, debt.plan)) {
-    for (const f of findings) {
-      check(true, `expected (${debt.task} pending: ${debt.note}): ${f}`);
-      console.log(`  note: held (${debt.task} pending): ${f}`);
-    }
-  } else {
-    for (const f of findings) check(false, `${label}: ${f}`);
-  }
+  for (const f of findings) check(false, `${label}: ${f}`);
 }
 
 function countH1(lines, inFence) {
@@ -538,6 +613,12 @@ function main() {
   const skillDirs = discoverSkillDirs();
   const plansDir = path.join(root, '.agents', 'plans');
 
+  // F-053 (corpus half, D15): when a `.git` exists at the corpus root, the
+  // corpus loops below skip untracked files (in-progress drafts cannot block
+  // the gate). No git -> null -> no filtering, so planted-defect corpora stay
+  // visible to the corpus checks.
+  const tracked = loadTrackedFiles(root);
+
   // Repo-local efficiency toggle: OFF by default (absent/malformed =
   // disabled); only an explicit {"enabled": true} runs the two additive
   // efficiency checks below. A malformed toggle surfaces a visible warning.
@@ -653,7 +734,7 @@ function main() {
     }
 
     const ordinalFailures = validateOrdinalSequencing(content);
-    runGatedCheck(skill, 'ordinal', ordinalFailures, `${skill}/SKILL.md state-section ordinal sequencing`, plansDir);
+    runGatedCheck(skill, 'ordinal', ordinalFailures, `${skill}/SKILL.md state-section ordinal sequencing`);
   }
 
   if (eff.enabled) {
@@ -663,8 +744,8 @@ function main() {
 
   for (const contract of CONTRACTS) {
     const srcContent = readOrNull(path.join(root, contract.source.skill, 'SKILL.md'));
-    check(srcContent !== null && srcContent.includes(contract.source.needle),
-      `contract ${contract.id}: producer ${contract.source.skill}/SKILL.md lacks "${contract.source.needle}"`);
+    check(containsOutsideFences(srcContent, contract.source.needle),
+      `contract ${contract.id}: producer ${contract.source.skill}/SKILL.md lacks "${contract.source.needle}" (outside fences)`);
     for (const consumer of contract.consumers) {
       const consContent = readOrNull(path.join(root, consumer.skill, 'SKILL.md'));
       if (contract.rule === 'prefix') {
@@ -674,17 +755,36 @@ function main() {
         check(consumer.needle === contract.source.needle,
           `contract ${contract.id}: consumer needle "${consumer.needle}" != producer needle "${contract.source.needle}"`);
       }
-      check(consContent !== null && consContent.includes(consumer.needle),
-        `contract ${contract.id}: consumer ${consumer.skill}/SKILL.md lacks "${consumer.needle}"`);
+      check(containsOutsideFences(consContent, consumer.needle),
+        `contract ${contract.id}: consumer ${consumer.skill}/SKILL.md lacks "${consumer.needle}" (outside fences)`);
     }
   }
 
+  // UPLOAD_SCRIPT_REF (F-052): route the reference scan through the canonical
+  // splitLines/fenceMap. Existence is fence-independent (a doc pointing users
+  // at a missing script is a defect wherever the reference sits); a fenced-only
+  // reference is surfaced as a note (F-052 residual — a hard non-fenced
+  // presence rule would require a prose reference in csm-upload/SKILL.md).
   const uploadSkillFile = path.join(root, UPLOAD_SCRIPT_REF.skill, 'SKILL.md');
   const uploadContent = readOrNull(uploadSkillFile);
-  const refs = uploadContent === null ? [] : [...new Set(uploadContent.match(UPLOAD_SCRIPT_REF.pattern) || [])];
-  check(refs.length > 0, `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references no csm-*/scripts/*.mjs script paths`);
-  for (const ref of refs) {
+  const uploadLines = uploadContent === null ? [] : splitLines(uploadContent);
+  const uploadFence = fenceMap(uploadLines);
+  const collectScriptRefs = (pred) => {
+    const out = new Set();
+    for (let i = 0; i < uploadLines.length; i += 1) {
+      if (!pred(i)) continue;
+      for (const m of uploadLines[i].matchAll(UPLOAD_SCRIPT_REF.pattern)) out.add(m[0]);
+    }
+    return [...out];
+  };
+  const allRefs = collectScriptRefs(() => true);
+  const proseRefs = collectScriptRefs((i) => !uploadFence[i]);
+  check(allRefs.length > 0, `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references no csm-*/scripts/*.mjs script paths`);
+  for (const ref of allRefs) {
     check(fs.existsSync(path.join(root, ref)), `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references ${ref} which does not exist`);
+  }
+  if (allRefs.length > 0 && proseRefs.length === 0) {
+    console.log(`  note: ${UPLOAD_SCRIPT_REF.skill}/SKILL.md references its script path(s) only inside code fences (F-052 residual — no non-fenced declaration)`);
   }
 
   const planSkill = readOrNull(path.join(root, 'csm-plan', 'SKILL.md'));
@@ -738,21 +838,20 @@ function main() {
   check(reviewH1Prefix !== null, 'Report Format template has no H1 line — review-corpus H1 check would silently skip');
 
   // Template format-marker validation (F-050): the first line inside each
-  // producer template fence must be `format: <skill>/<n>`. Currently held as
-  // expected findings by PENDING_DEBT until T002 (csm-plan) and T004
-  // (csm-grill/csm-review) add the markers.
+  // producer template fence must be `format: <skill>/<n>`. Hard-enforced
+  // (the old PENDING_DEBT softening was pruned as inert).
   runGatedCheck('csm-plan', 'template-format-marker',
     validateTemplateFormatMarkers(planSkill ?? '', 'csm-plan', 'Required Plan Document'),
-    'csm-plan/SKILL.md template format marker', plansDir);
+    'csm-plan/SKILL.md template format marker');
   runGatedCheck('csm-grill', 'template-format-marker',
     validateTemplateFormatMarkers(grillSkill ?? '', 'csm-grill', 'Required Approach Document'),
-    'csm-grill/SKILL.md template format marker', plansDir);
+    'csm-grill/SKILL.md template format marker');
   runGatedCheck('csm-review', 'template-format-marker',
     validateTemplateFormatMarkers(reviewSkill ?? '', 'csm-review', 'Report Format'),
-    'csm-review/SKILL.md template format marker', plansDir);
+    'csm-review/SKILL.md template format marker');
   runGatedCheck('csm-deep-research', 'template-format-marker',
     validateTemplateFormatMarkers(researchSkill ?? '', 'csm-deep-research', 'Required Research Document'),
-    'csm-deep-research/SKILL.md template format marker', plansDir);
+    'csm-deep-research/SKILL.md template format marker');
 
   const deferredLedgerPath = path.join(root, '.agents', 'docs', 'deferred.md');
   const deferredLedgerIds = readDeferredLedgerIds(deferredLedgerPath);
@@ -767,6 +866,7 @@ function main() {
   }
   check(planFiles.length > 0, `no *-csm.md plan corpus found under ${path.join('.agents', 'plans')}`);
   for (const f of planFiles) {
+    if (tracked !== null && !tracked.has(`.agents/plans/${f}`)) continue;
     const content = readOrNull(path.join(plansDir, f));
     if (content === null) {
       check(false, `plan corpus .agents/plans/${f} unreadable`);
@@ -830,6 +930,7 @@ function main() {
   }
   check(reviewFiles.length > 0, `no *-review.md review corpus found under ${path.join('.agents', 'reviews')}`);
   for (const f of reviewFiles) {
+    if (tracked !== null && !tracked.has(`.agents/reviews/${f}`)) continue;
     const content = readOrNull(path.join(reviewsDir, f));
     if (content === null) {
       check(false, `review corpus .agents/reviews/${f} unreadable`);
@@ -860,6 +961,7 @@ function main() {
   }
   check(approachFiles.length > 0, `no *-approach.md approach corpus found under ${path.join('.agents', 'approaches')}`);
   for (const f of approachFiles) {
+    if (tracked !== null && !tracked.has(`.agents/approaches/${f}`)) continue;
     const content = readOrNull(path.join(approachesDir, f));
     if (content === null) {
       check(false, `approach corpus .agents/approaches/${f} unreadable`);
@@ -884,6 +986,7 @@ function main() {
   }
   check(researchFiles.length > 0, `no *-research.md research corpus found under ${path.join('.agents', 'research')}`);
   for (const f of researchFiles) {
+    if (tracked !== null && !tracked.has(`.agents/research/${f}`)) continue;
     const content = readOrNull(path.join(researchDir, f));
     if (content === null) {
       check(false, `research corpus .agents/research/${f} unreadable`);
@@ -906,11 +1009,14 @@ function main() {
   check(readme !== null, `README.md not found at ${readmePath}`);
   if (readme !== null) {
     const skillSet = new Set(skillDirs);
+    const readmeLines = splitLines(readme);
+    const readmeFence = fenceMap(readmeLines);
     const seen = new Set();
-    for (const line of readme.split(/\r?\n/)) {
-      const re = /csm-[a-z-]+\/[A-Za-z0-9_./-]+/g;
+    for (let i = 0; i < readmeLines.length; i += 1) {
+      if (readmeFence[i]) continue;
+      const line = readmeLines[i];
       let m;
-      while ((m = re.exec(line)) !== null) {
+      while ((m = README_PATH_RE.exec(line)) !== null) {
         const full = m[0];
         const seg = full.split('/')[0];
         check(fs.existsSync(path.join(root, full)), `README path not found: ${full}`);
@@ -921,8 +1027,13 @@ function main() {
     check(missingSkills.length === 0, `README references ${seen.size}/${skillSet.size} skills; missing ${missingSkills.join(', ')}`);
 
     const tmuxSkills = Object.keys(MANIFEST).filter((s) => MANIFEST[s].tmux);
-    const hasTmuxBullet = readme.split(/\r?\n/).some((l) => /tmux/i.test(l) && tmuxSkills.every((s) => l.includes(s)));
+    const hasTmuxBullet = readmeLines.some((l, i) => !readmeFence[i] && /tmux/i.test(l) && tmuxSkills.every((s) => l.includes(s)));
     check(hasTmuxBullet, `README tmux bullet does not list the ${tmuxSkills.length} bootstrap skills (${tmuxSkills.join(', ')})`);
+
+    // F-061: every H2 below the TOC must have a TOC entry (and every TOC entry
+    // must resolve to a heading below it). The composition-matrix section is
+    // generator-maintained, so the index must not silently drift.
+    checkReadmeToc(readme);
 
     const stack = [];
     for (const line of readme.split(/\r?\n/)) {
@@ -1011,4 +1122,4 @@ if (process.argv[1]) {
 }
 if (isMain) main();
 
-export { fenceMap, countH1, parseFrontmatter, subsequenceGap };
+export { fenceMap, countH1, parseFrontmatter, subsequenceGap, githubAnchor, containsOutsideFences, README_PATH_RE };
