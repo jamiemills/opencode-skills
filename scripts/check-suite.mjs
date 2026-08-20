@@ -55,13 +55,19 @@ function readOrNull(p) {
 }
 
 // Parses a leading frontmatter block and returns { kind, version } from a
-// `format: <kind>/<version>` line, or null when absent/malformed.
+// `format: <kind>/<version>` line, or null when absent/malformed. Accepts two
+// forms: YAML frontmatter delimiters (`---\nformat: ...\n---`) and the bare
+// top-of-file marker the producer templates emit (F-050 template contract,
+// e.g. the first line inside the Required Plan/Approach Document fences).
 function formatMarkerOf(content) {
   const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
-  if (!m) return null;
-  const fm = m[1].match(/^format:\s*([A-Za-z][A-Za-z0-9-]*)\/(\d+)\s*$/m);
-  if (!fm) return null;
-  return { kind: fm[1], version: parseInt(fm[2], 10) };
+  if (m) {
+    const fm = m[1].match(/^format:\s*([A-Za-z][A-Za-z0-9-]*)\/(\d+)\s*$/m);
+    if (fm) return { kind: fm[1], version: parseInt(fm[2], 10) };
+  }
+  const bm = content.match(/^format:\s*([A-Za-z][A-Za-z0-9-]*)\/(\d+)\s*(?:\r?\n|$)/);
+  if (bm) return { kind: bm[1], version: parseInt(bm[2], 10) };
+  return null;
 }
 
 // Runs a new plan-validation check through the gate. Passes count one check;
