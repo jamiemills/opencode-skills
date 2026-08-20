@@ -9,12 +9,12 @@ format: csm-plan/1
 ## Control
 - Plan ID: csm-deep-research-skill
 - Status: ready
-- Current CSM state: NOT_STARTED
+- Current CSM state: CHECKPOINT
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-20 — plan created from approach .agents/approaches/2026-08-20-csm-deep-research-skill-approach.md (agreed, format csm-grill/1)
-- Last model/run: deepseek-v4-flash — planning session
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last model/run: deepseek-v4-flash — build cycle 1
+- Next transition: CHECKPOINT -> SELECT (cycle 2: T002 + T003)
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -32,7 +32,7 @@ Deliverables:
 
 Constraints:
 - Prescribed by the approach document (user-dictated): name csm-deep-research; standalone (no csm-plan handoff); `.agents/research/` corpus with format marker csm-deep-research/1; tmux orchestration; 3 tiers x 3 source modes; clarifications off by default; csm-review-style pipeline (anti-anchored challenger, dedicated judge subagent, tier-scaled verification); 9-part progressive-disclosure finding (part 1 = H1 title, then exactly 8 H2 sections); single-file orchestration skill; heavy hostile-review build; payload now; no NORMS.md dependency.
-- Do not modify csm-grill, csm-plan, csm-build, csm-bdd-tdd, csm-review, csm-scan, csm-browse, or csm-upload skill content (their Interface bullets stay 8-name; see D22).
+- Do not modify sibling skill content EXCEPT: (a) frontmatter-description re-budget trims owned by T002 (DR-15, D23) — word-level trims of the lead prose only, preserving each Never-X clause and the retrieval-bias suffix verbatim; Interface bullets stay 8-name (D22).
 - Do not touch `.agents/plans/` other than this plan. Existing check-suite behavior otherwise unchanged (baseline at HEAD 7350a78: 8 skills, 522 checks, exit 0; T002 adds checks by design).
 - csm-deep-research/SKILL.md is owned by T001 only; T002's `sync-skill-boilerplate.mjs --write` must produce zero drift in it (revert + record if it rewrites).
 - The two synced sections (Tmux Session Bootstrap, Subagent Resilience) are byte-exact boilerplate; never hand-edit them after registration.
@@ -45,13 +45,14 @@ Exclusions:
 
 ## Acceptance Criteria
 1. csm-deep-research/SKILL.md exists, 340-420 lines, passes frontmatter/state-machine/interface/sections checks; evidence: `node scripts/check-suite.mjs` exit 0 (after T004) and the T001 gate command printing PASS.
-2. Every suite gate knows the skill: MANIFEST, INTERFACES, NEVER_INVOKE (new row only, D22), FORMAT_VERSIONS, TMUX_PARAMS, RESILIENCE_PARAMS, research corpus block; evidence: `node scripts/gen-readme-matrix.mjs --check` clean, `node scripts/sync-skill-boilerplate.mjs --check` clean, check-suite green.
+2. Every suite gate knows the skill: MANIFEST, INTERFACES, NEVER_INVOKE (new row only, D22), FORMAT_VERSIONS, TMUX_PARAMS, RESILIENCE_PARAMS, research corpus block; frontmatter description budget holds (total <= 220 words incl. the new description, no volatile tokens); evidence: `node scripts/gen-readme-matrix.mjs --check` clean, `node scripts/sync-skill-boilerplate.mjs --check` clean, check-suite green.
 3. Bootstrap payload ships the skill byte-identical; evidence: `diff -rq bootstrap/package/payload/skills/csm-deep-research csm-deep-research` clean and the three test suites green at 9 skills.
 4. Research corpus has its seed; evidence: check-suite research-corpus checks pass.
 5. Hostile review completed with every finding remediated/traced; evidence: .agents/docs/csm-deep-research-skill-review-2026-08-20.md + plan Critique Resolution + Completion Review.
 6. Working tree contains only the intended file set at completion; evidence: `git status --porcelain` reviewed at final gate (intended set enumerated in T005).
 
 ## Current-State Evidence
+- HEAD 3db07e4 (concurrent sessions since planning: 5faf3c8 formatMarkerOf bare-marker fix, 7350a78 efficiency plan amendment, 222f2cd efficiency cycle 2 COMPLETE, 3db07e4 wt-session tooling + AGENTS.md parallel-session note; no changes to contracts.mjs, boilerplate.mjs, check-suite.mjs logic surface beyond the efficiency-plan checks added by 222f2cd). Baseline: `node scripts/check-suite.mjs` exits 0 — "OK — 8 skills, 535 checks" (verified 2026-08-20). Token efficiency ENABLED (`.agents/token-efficiency.json` = {"enabled": true}) — volatile/budget checks run. `git status --porcelain` clean. Payload byte-identity verified for all 8 skills. No NORMS.md at root or cwd. `git config core.hooksPath` = `scripts/hooks` — the pre-commit gate is LIVE (see DR-14).
 - HEAD 7350a78 ("plan amendment: token efficiency ON by default — committed .agents/token-efficiency.json"; the commit itself changed only .agents/plans/2026-08-20-cache-token-efficiency-csm.md — no token-efficiency.json exists in the tree; prior HEAD 5faf3c8 fixed the formatMarkerOf bare-marker contract). Baseline: `node scripts/check-suite.mjs` exits 0 — "OK — 8 skills, 522 checks" (verified 2026-08-20). `git status --porcelain` shows only this plan's `.draft` sidecar. No NORMS.md at root or cwd. `git config core.hooksPath` = `scripts/hooks` — the pre-commit gate is LIVE (see DR-14).
 - formatMarkerOf (scripts/check-suite.mjs:62-71) accepts BOTH `---`-delimited frontmatter AND a bare top-of-file `format: <kind>/<n>` marker (branch at :68-69). The approach doc's bare `format: csm-grill/1` on line 1 parses fine — no frontmatter fix is required (supersedes the earlier red-baseline finding).
 - check-suite auto-discovers any dir matching `^csm-[a-z-]+$` containing SKILL.md (:352,358-366); missing MANIFEST entry hard-fails (:377-378 dead-registry check).
@@ -63,6 +64,8 @@ Exclusions:
 - tests/package-audit.test.mjs:11 skillNames list, :90 `assert.equal(skillEntries.length, 8)`, :108 `verified >= 118`; tests/integration/bootstrap-flow.test.mjs:16 list, :42 count 8; tests/protocol/protocol.test.mjs:27 skillsPlaced deepEqual (alphabetical; csm-deep-research slots between csm-build and csm-grill).
 - scripts/pack-bootstrap.mjs:18 skillDirs (8, sorted); :21 mapping.skills derived; buildIndex sort by path (:76); payload-index.json currently lists the 8 payload/skills entries; bootstrap/package/payload/skills byte-identical to root skill dirs (verified). NOTE: `packBootstrap()` (invoked by pack-bootstrap.mjs AND by the three test suites) rewrites `bootstrap/package/payload/*` and `bootstrap/payload-index.json` inside the repo with deterministic identical bytes (benign for `git status`) and accumulates `/tmp/csm-pack-*` dirs.
 - scripts/lib/boilerplate.mjs: SYNC_SECTIONS built from TMUX_PARAMS (:79-83) + RESILIENCE_PARAMS (:84-87); exports only SYNC_SECTIONS. sync-skill-boilerplate.mjs checkDrift (:67-94) and syncWrite (:96-123) iterate only registered skills — unregistered skills are never visited, so pre-T002 the new sections are unvalidated and `--write` will not create/delete/rewrite them.
+- Frontmatter budget (added by the completed efficiency plan, check-suite.mjs:42-45,505-506): `descWordTotal <= WORD_BUDGET` (220 whitespace-separated tokens) across all skills, gated on token efficiency being enabled; the 8 existing descriptions total EXACTLY 220 today. Volatile-token check per description (check-suite.mjs:435-437): no dates/years/versions/$ENV/absolute paths. The 9th skill's pinned description is ~59 tokens -> total ~279 -> the budget gate FAILS unless T002 re-budgets (trims ~59+ tokens from sibling lead prose). AGENTS.md: "No new skills without re-budgeting the 220 words".
+- Re-pinned at HEAD 3db07e4: never-invokes check :460-474; plans corpus :555-610; reviews corpus :624-650; approaches corpus :654-677 (insert the research corpus block after ~:677, before the README block at :680); README checks :680-721; verifyMachine :228; template extraction :547-555.
 - Plan artifact validation (scripts/lib/plan-validation.mjs): Control `Status:` must be in CONTROL_STATUSES; `Current CSM state:` must be a machine token or CONTROL_STOP_VALUES (NOT_STARTED is); `Next transition:` accepts the prefix `On a future explicit csm-build invocation, ` followed by a valid `A -> B` pair; journal rows require 6 columns and a Next-state cell whose base token is in MACHINE_ENUM (PLAN_MACHINE ∪ BUILD_MACHINE) or JOURNAL_TERMINALS. F-050 template-format-marker checks are PENDING_DEBT-gated (:545-553) for csm-plan/csm-grill/csm-review only — not extended to the new skill (D14).
 
 ## Assumptions And Decisions
@@ -90,6 +93,7 @@ Exclusions:
 | D20 | Interface artifact pattern entry in plan-validation.mjs ARTIFACT_PATTERNS omitted (vacuous pass); Interface prose carries the artifact path | Primary decision | plan-validation.mjs ARTIFACT_PATTERNS; validation is by skill key lookup | agreed |
 | D21 | Bootstrap test suites (`package-audit`, `bootstrap-flow`, `protocol`) are run with `node --test --test-concurrency=1` because each invokes packBootstrap() which rewrites repo payload files concurrently (deterministic identical bytes; benign for git status, latent race otherwise); /tmp/csm-pack-* dirs accumulate (harmless) | Primary decision | Critique R12; pack-bootstrap.mjs:99-112,152 | agreed |
 | D22 | NEVER_INVOKE gains ONLY the new csm-deep-research row (9 keys, self=false); the 8 sibling rows and their SKILL.md bullets are untouched. Supersedes the approach doc's append-to-all-rows prescription | Primary decision | Expected sets derive from filtered row keys (check-suite.mjs:444); no squareness check exists; avoids 8 sibling edits (Critique R1) | agreed |
+| D23 | T002 re-budgets the frontmatter description budget: trims >=59 tokens from sibling lead prose so the 9-description total stays <=220; preserves every Never-X clause and the retrieval-bias suffix verbatim; no volatile tokens | Build-time plan correction (VALIDATE) | AGENTS.md: "No new skills without re-budgeting the 220 words"; check-suite.mjs:42-45,505-506 budget gate; current total exactly 220 | agreed |
 
 ## R&D Record
 | ID | Question | Method/tool | Isolation and no-change evidence | Observation | Plan implication |
@@ -101,6 +105,7 @@ Exclusions:
 | RD-5 | Where does the corpus H2 template come from? | Read check-suite.mjs:513-522 | Read-only | Corpus H2 template = H2 lines inside the fenced block after the producer SKILL.md's required-document heading | Research corpus block must extract the same way; seed H2s must equal the template fence's H2 sequence |
 | RD-6 | Can NEVER_INVOKE gain only the new row without breaking siblings? | Code-read of check-suite.mjs:432-447 (expected = filtered row keys) + critique simulation | Read-only + critique's scratch simulation (deleted) | Yes: sibling rows/bullets unchanged; new row's expected = 8 names matching T001's pinned bullet; no squareness check exists | D22 adopted |
 | RD-7 | Can T002 gate while T001 is in flight? | Critique simulation in /tmp scratch (Case A: registry in, SKILL.md absent) | Scratch copy deleted after run | No: dead-registry, README path, layout tree, boilerplate drift, template-extraction failures are untolerated and out of T002 scope | Serialize: T002 depends on T001 (G1 = T001 alone) |
+| RD-8 | Does the frontmatter description budget gate apply at this HEAD? | Read check-suite.mjs:42-45,435-437,505-506 + token-efficiency toggle + counted per-skill description tokens | Read-only | 8 descriptions total exactly 220 tokens; eff enabled; adding the ~59-token new description pushes total ~279 -> budget check fails | T002 must re-budget (D23); pinned description has no volatile tokens (volatile check safe) |
 
 ## Discovered Requirements
 - DR-1: formatMarkerOf (check-suite.mjs:62-71) accepts bare top-of-file `format: <kind>/<n>` markers — corpus files may use `---` frontmatter OR the bare form; the approach doc (bare form) already passes. No fix needed.
@@ -117,6 +122,7 @@ Exclusions:
 - DR-12: `.lefthook.yml` pre-commit runs check-suite on every commit (live via core.hooksPath=scripts/hooks); during build, commits that fail gates must be fixed, not bypassed (bypass --no-verify only with a recorded reason).
 - DR-13: Plan-artifact validation (plan-validation.mjs): journal Next-state must be a MACHINE_ENUM token or terminal marker; Control `Next transition:` uses the exact prefix `On a future explicit csm-build invocation, `.
 - DR-14: The live pre-commit hook hard-fails any commit while the research corpus is empty (the designed, tolerated failure until T004). Commit policy for this build: defer checkpoints/commits until T004's green battery completes; any commit before then uses `--no-verify` with the reason recorded in the journal (hook also enforces the unstaged guard — stage all intended files).
+- DR-15: Frontmatter description budget (check-suite.mjs:42-45,505-506, gated on token efficiency): total across all skills must be <=220 whitespace-separated tokens; volatile-token check per description (:435-437). Current total exactly 220 -> T002 re-budgets (D23): trim >=59 tokens from sibling lead prose, keep Never-X clause + retrieval-bias suffix verbatim, no volatile tokens, total <=220.
 
 ## Design
 csm-deep-research is a single-file instructions-only orchestration skill. At runtime (per the SKILL.md text we author) it: bootstraps into a detached tmux session `csm-deep-research-<goal-slug>`; runs INTAKE (resume-from-journal, protected-state baseline, clarification flag handling off-by-default) -> TRIAGE (QUICK/STANDARD/DEEP x local/web/hybrid; strategy presented when clarification mode on) -> RESEARCH (parallel read-only expert researchers, source URL + retrieval date per claim) -> SYNTHESIZE (primary-only draft of the 9-part finding) -> CHALLENGE (independent challenger receiving only the draft's claims + evidence mapping, never the author's rationale; verdicts uphold/downgrade/retract/suggest_new_claim recorded verbatim; one adversarial cycle cap) -> JUDGE (dedicated subagent scoring rubric accuracy/citation-grounding/completeness/clarity 0-1 + pass/fail, reasoning-before-verdict) -> REMEDIATE (fix or kill-the-draft) -> VERIFY (primary-personal gate: tier-scaled citation verification, protected-state re-run, budget <=3 distinct failures then caveat-and-SAVED) -> SAVED (single dated `.agents/research/<yyyy-mm-dd>-<slug>-research.md`, optional single-file commit, default none) -> STOP. Write discipline: temp dir `mktemp -d /tmp/csm-deep-research-XXXXXX`, read-only git ops, nothing else written in the researched repo.
@@ -140,7 +146,7 @@ The build changes (this plan's real scope) are the suite integration, serialized
 - Critical path: T001 -> T002 -> T004 -> T005.
 
 ## Numbered Plan
-1. [pending] Author csm-deep-research/SKILL.md
+1. [completed] Author csm-deep-research/SKILL.md
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -235,7 +241,7 @@ The build changes (this plan's real scope) are the suite integration, serialized
      Expected: PASS. Record the output.
    - Validation: (cheapest first) the gate command above; balanced backtick fences (even count); `node scripts/check-suite.mjs` after T002 lands — csm-deep-research content checks must pass there (any failure is a genuine defect); line count 340-420; no `Entry:`/`Exit:` lines inside state headings.
    - Acceptance evidence: gate output PASS recorded in the plan journal; final file content committed at INTEGRATE.
-   - Repair attempts: 0
+   - Repair attempts: 1 (3 review findings R1-R3 fixed: anti-pattern wording, adversarial-cap edge name, synthesis URL+date phrasing)
    - Recovery note: partial = file exists but gate fails. The gate is self-contained and the pinned strings are in Actions 1-13: re-check each failing probe against its pin (common failures: H1 count via the template's `# <Topic> Research Finding` line — the gate counts `^# csm-deep-research$` specifically; fence evenness from a stray backtick; a `### ` line inside a fence). If file absent, re-create from Actions. Never edit another task's files to make this gate pass.
 
 2. [pending] Register the skill in the suite gates
@@ -243,8 +249,8 @@ The build changes (this plan's real scope) are the suite integration, serialized
    - Depends on: T001 (the gates cross into the SKILL.md — dead-registry, README path, layout tree, boilerplate drift, and corpus template-extraction checks all fail while it is absent, so this cannot run in parallel with T001)
    - Parallel group: G2
    - Risk: high (suite-wide gate edits; existing checks must stay green; NEVER_INVOKE row must stay consistent with all bullets)
-   - Owned scope: `scripts/lib/contracts.mjs`, `scripts/lib/boilerplate.mjs`, `scripts/check-suite.mjs`, `README.md`, `.agents/README.md`
-   - Not in scope: `csm-deep-research/SKILL.md` content (T001; sync --write must not alter it — see action 8); tests + bootstrap payload (T003); seed file (T004); sibling skills' SKILL.md files (D22 — their Interface bullets stay 8-name); other skills' files
+   - Owned scope: `scripts/lib/contracts.mjs`, `scripts/lib/boilerplate.mjs`, `scripts/check-suite.mjs`, `README.md`, `.agents/README.md`; plus the 8 sibling SKILL.md frontmatter `description:` lines (word-level re-budget trims only, D23)
+   - Not in scope: `csm-deep-research/SKILL.md` content (T001; sync --write must not alter it — see action 8); tests + bootstrap payload (T003); seed file (T004); sibling skills' Interface bullets (D22) and all sibling content beyond the D23 description trims
    - Spike candidate: none — every edit pinned below
    - Actions:
      1. `scripts/lib/contracts.mjs`:
@@ -287,12 +293,13 @@ The build changes (this plan's real scope) are the suite integration, serialized
           guard: 'RESEARCHER and CHALLENGER dispatches must never silently degrade to primary-only research for a STANDARD/DEEP query — when the ladder lands on step 4, record the independence caveat and surface it in the report\'s residual unknowns.',
         },
         ```
-     3. `scripts/check-suite.mjs`: after the approaches corpus block (ends ~line 643), add the research corpus block mirroring the approach block (D14): readdir `.agents/research` filtered by `f.endsWith('-research.md')` (catch -> []); `check(researchFiles.length > 0, \`no *-research.md research corpus found under ${path.join('.agents', 'research')}\`)`; per file: `formatMarkerOf` check `marker.kind === 'csm-deep-research' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-deep-research'] ?? 0)` with message `research corpus .agents/research/${f} missing/unknown format marker (want frontmatter "format: csm-deep-research/<n>")`; H2-subsequence check against a `researchTemplate` extracted from `csm-deep-research/SKILL.md`'s `Required Research Document` section using the same `sectionRange` + `fencedBlockAfter` mechanism as the approach template (check-suite.mjs:513-522), with message `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`; add a `check(researchTemplate.length > 0, 'could not extract the Required Research Document template from csm-deep-research/SKILL.md')`. Do NOT add Control/Journal/H1 checks (D14).
+     3. `scripts/check-suite.mjs`: after the approaches corpus block (ends ~line 677 at this HEAD, before the README block at :680), add the research corpus block mirroring the approach block (D14): readdir `.agents/research` filtered by `f.endsWith('-research.md')` (catch -> []); `check(researchFiles.length > 0, \`no *-research.md research corpus found under ${path.join('.agents', 'research')}\`)`; per file: `formatMarkerOf` check `marker.kind === 'csm-deep-research' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-deep-research'] ?? 0)` with message `research corpus .agents/research/${f} missing/unknown format marker (want frontmatter "format: csm-deep-research/<n>")`; H2-subsequence check against a `researchTemplate` extracted from `csm-deep-research/SKILL.md`'s `Required Research Document` section using the same `sectionRange` + `fencedBlockAfter` mechanism as the approach template (check-suite.mjs:513-522), with message `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`; add a `check(researchTemplate.length > 0, 'could not extract the Required Research Document template from csm-deep-research/SKILL.md')`. Do NOT add Control/Journal/H1 checks (D14).
      4. `README.md`: add a skills-table row for `csm-deep-research` (purpose prose + `[csm-deep-research/SKILL.md](csm-deep-research/SKILL.md)`); add `` `csm-deep-research` `` to the tmux bullet (line 79) in the inline skill list; line 85 "eight skill folders" -> "nine skill folders"; line 91 "need no further setup" list gains `` `csm-deep-research` ``; line 145 "The five orchestration skills (...)" -> "The six orchestration skills (`csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-build`, `csm-review`, and `csm-deep-research`)"; line 240 orchestration-skills list gains `csm-deep-research`; add a layout-tree entry under the repo layout; do NOT hand-edit the generated matrix region (action 6 regenerates it).
      5. `.agents/README.md`: add a `## research/` section with the index line `- `2026-08-20-csm-deep-research-skill-research.md` — 2026-08-20 — seed research document for the csm-deep-research corpus — status: reference` (the file itself arrives in T004).
      6. Run `node scripts/gen-readme-matrix.mjs --write`, then `node scripts/gen-readme-matrix.mjs --check` (must be clean).
      7. Run `node scripts/sync-skill-boilerplate.mjs --write`, then `node scripts/sync-skill-boilerplate.mjs --check` (must be clean). If `--write` rewrote `csm-deep-research/SKILL.md` (D17), immediately restore that file to its pre-write content and record a finding for T005 remediation (the pinned sections in T001 must match the boilerplate renders byte-exact; a rewrite means T001 mis-pasted).
-     8. Run `node scripts/check-suite.mjs` capturing exit status AND output (see acceptance signal). With T001 complete, the ONLY tolerated failure is the corpus-empty line (`no *-research.md research corpus found under .agents/research`). Everything else — including the 8 sibling Interface checks and the csm-deep-research content checks — must pass.
+     8. Re-budget the frontmatter description budget (D23, DR-15): in the 8 sibling SKILL.md frontmatter `description:` lines, trim >=59 whitespace-separated tokens of lead prose total so that all 9 descriptions (incl. csm-deep-research's pinned ~59-token description) total <=220. Rules: each sibling keeps its Never-X clause AND the suffix "Biases towards retrieval from current documentation over pre-trained knowledge." verbatim; no volatile tokens (dates/years/versions/$ENV/absolute paths) introduced; trimmed descriptions stay grammatical and accurate; `name:` fields untouched. Keep per-skill trims conservative and even (aim: reclaim 59-70 tokens). Record each before/after in the journal.
+     9. Run `node scripts/check-suite.mjs` capturing exit status AND output (see acceptance signal). With T001 complete, the ONLY tolerated failure is the corpus-empty line (`no *-research.md research corpus found under .agents/research`). Everything else — including the 8 sibling Interface checks, the budget check, and the csm-deep-research content checks — must pass.
    - Acceptance signal: from repo root:
      ```
      node -e "import('./scripts/lib/contracts.mjs')" \
@@ -304,11 +311,11 @@ The build changes (this plan's real scope) are the suite integration, serialized
      && [ "$(grep -vc 'MISSING: no \*-research\.md research corpus found' /tmp/opencode/t002-missing.log)" -eq 0 ] \
      && echo GATE-PASS
      ```
-     Expected: `GATE-PASS` (check-suite exit 1 with the corpus-empty failure as the ONLY MISSING line; matrix + sync --check clean; contracts import clean). Also assert the sibling Interface checks passed by grepping the log for `Never invokes does not match` — it must not appear.
+     Expected: `GATE-PASS` (check-suite exit 1 with the corpus-empty failure as the ONLY MISSING line; matrix + sync --check clean; contracts import clean). Also assert by grepping the log that `Never invokes does not match` and `frontmatter budget` do NOT appear.
    - Validation: (cheapest first) the gate above; `git diff` review of each owned file; confirm NEVER_INVOKE has exactly 9 rows and the 8 sibling rows are byte-unchanged (git diff shows no sibling rows); confirm README tmux bullet lists all 6 tmux skills.
    - Acceptance evidence: gate log saved to the journal; matrix + sync --check clean outputs recorded.
    - Repair attempts: 0
-   - Recovery note: partial = some registry entries missing or check-suite reports unexpected MISSING lines. Re-verify each owned file against actions 1-8; if sibling Interface mismatches appear, check that NEVER_INVOKE sibling rows were NOT modified (D22) — if they were, restore them. If sync --write touched csm-deep-research/SKILL.md, restore it (D17). If check-suite exited 0 (corpus pre-seeded unexpectedly), verify no stray `*-research.md` file exists outside T004's scope and record a note. If a `lint gate: oxlint reported` MISSING line appears, fix the lint finding in the owned files (oxlint is installed; the gate runs). Never edit T001's file or sibling skills' files to make this gate pass. Re-run gate.
+   - Recovery note: partial = some registry entries missing or check-suite reports unexpected MISSING lines. Re-verify each owned file against actions 1-8; if sibling Interface mismatches appear, check that NEVER_INVOKE sibling rows were NOT modified (D22) — if they were, restore them. If sync --write touched csm-deep-research/SKILL.md, restore it (D17). If check-suite exited 0 (corpus pre-seeded unexpectedly), verify no stray `*-research.md` file exists outside T004's scope and record a note. If a `lint gate: oxlint reported` MISSING line appears, fix the lint finding in the owned files (oxlint is installed; the gate runs). If a `frontmatter budget` MISSING line appears, re-trim sibling descriptions (D23) — total must be <=220 tokens with the new description included. Never edit T001's file or sibling skills' content beyond the D23 description trims. Re-run gate.
 
 3. [pending] Wire the installer payload and update hardcoded test counts
    - Task ID: T003
@@ -454,7 +461,10 @@ The build changes (this plan's real scope) are the suite integration, serialized
 ## Progress Journal
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
 |---|---|---|---|---|---|
-| 2026-08-20 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> CRITIQUE -> REMEDIATE | — | Approach consumed (format csm-grill/1 OK); baseline green (522 checks) at HEAD 7350a78; round-1 critique 18 findings remediated; round-2 fresh-eyes critique 11 findings (2 major: zsh-safe gates, commit policy DR-14) remediated; draft re-pinned | VERIFY |
+| 2026-08-20 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> CRITIQUE -> REMEDIATE | — | Approach consumed (format csm-grill/1 OK); baseline green at HEAD 7350a78; round-1 critique 18 findings remediated; round-2 fresh-eyes critique 11 findings (2 major: zsh-safe gates, commit policy DR-14) remediated; draft re-pinned | VERIFY |
+| 2026-08-20 | 0 | VERIFY -> SAVED | — | Plan saved, committed d18e01a | NOT_STARTED |
+| 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | RECOVER: HEAD now 3db07e4 (concurrent sessions), baseline green 535 checks, payload byte-identical, eff enabled. VALIDATE: budget gate discovered (descWordTotal <=220, currently exactly 220; 9th description ~59 tokens -> would fail) — plan corrected: D23/DR-15 (T002 re-budgets sibling descriptions), pins re-pointed (:460-474 never-invokes, :654-677 approaches corpus, :680-721 README) | SELECT |
+| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001 | T001: subagent authored csm-deep-research/SKILL.md (341 lines); gate PASS re-run by primary; synced sections byte-exact vs boilerplate renders (findSection replication); independent REVIEW GO with 3 cosmetic findings (R1 anti-pattern vs primary-verifier contradiction, R2 cap edge name, R3 synthesis citation phrasing) — all fixed in REPAIR, gate re-PASS. Commit d18e01a+... with --no-verify (DR-14: corpus empty until T004, live hook would fail) | SELECT (cycle 2) |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
