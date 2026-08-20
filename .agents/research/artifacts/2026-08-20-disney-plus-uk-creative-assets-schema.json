@@ -1,0 +1,283 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://disney.creative-specs.example/schemas/disneyplus-uk-creative-asset.schema.json",
+  "title": "Disney+ UK Creative Asset",
+  "description": "Creative assets accepted by Disney+ Standard with Ads in the UK. Source: Disney Advertising 'Disney+ Video Commercial EMEA' spec (English PDF, updated 2025-11-19) and Disney Advertising EMEA newsroom statements, retrieved 2026-08-20. Only linear video commercials (pre-roll/mid-roll) are supported in the UK; interactive/pause/shoppable formats are unverified for the UK and intentionally not accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assetType",
+    "fileFormat",
+    "durationSeconds",
+    "aspectRatio",
+    "resolution",
+    "video",
+    "audio",
+    "fileWeightGB",
+    "placement",
+    "serving"
+  ],
+  "$defs": {
+    "video": {
+      "type": "object",
+      "title": "Video track",
+      "description": "Exactly one video track is permitted and must match the audio duration.",
+      "additionalProperties": false,
+      "required": [
+        "trackCount",
+        "codec",
+        "bitrateKbps",
+        "frameRate",
+        "frameRateMode",
+        "scanType",
+        "colorSpace"
+      ],
+      "properties": {
+        "trackCount": {
+          "const": 1,
+          "description": "Must have exactly 1 video track."
+        },
+        "codec": {
+          "enum": [
+            "Apple ProRes",
+            "H.264"
+          ],
+          "description": "Apple ProRes or H.264. When H.264, profile High is required."
+        },
+        "h264Profile": {
+          "const": "High",
+          "description": "Required only for H.264 files; the EMEA spec fixes profile to High."
+        },
+        "bitrateKbps": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 40000,
+          "description": "10,000-40,000 Kbps."
+        },
+        "frameRate": {
+          "enum": [
+            23.98,
+            24,
+            25,
+            29.97,
+            30
+          ],
+          "type": "number",
+          "description": "Native frame rate only; duplicate frames not allowed; remove any pull-down added for broadcast."
+        },
+        "frameRateMode": {
+          "const": "CFR",
+          "description": "Constant frame rate."
+        },
+        "scanType": {
+          "const": "Progressive",
+          "description": "Adaptive deinterlace with no frame blending."
+        },
+        "colorSpace": {
+          "const": "YUV",
+          "description": "Video color space cannot be 'unknown' or None."
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "Audio track",
+      "description": "Audio is required: exactly one track, 2-channel stereo, must match the video duration.",
+      "additionalProperties": false,
+      "required": [
+        "trackCount",
+        "codec",
+        "bitrateKbpsMin",
+        "sampleRateHz",
+        "channels",
+        "matchesVideoDuration"
+      ],
+      "properties": {
+        "trackCount": {
+          "const": 1,
+          "description": "Must have exactly 1 audio track."
+        },
+        "codec": {
+          "enum": [
+            "PCM",
+            "AAC"
+          ],
+          "description": "PCM or AAC."
+        },
+        "bitrateKbpsMin": {
+          "const": 192,
+          "description": "192 Kbps minimum."
+        },
+        "sampleRateHz": {
+          "const": 48000,
+          "description": "48 kHz."
+        },
+        "channels": {
+          "const": 2,
+          "description": "2-channel stereo mix."
+        },
+        "matchesVideoDuration": {
+          "const": true,
+          "description": "Audio must match video duration."
+        }
+      }
+    },
+    "serving": {
+      "type": "object",
+      "title": "Ad serving constraints",
+      "additionalProperties": false,
+      "required": [
+        "vastVersions",
+        "skippable",
+        "javascriptAllowed",
+        "wrapperTagsAllowed",
+        "vpaid",
+        "siteServed",
+        "verificationPixels",
+        "approvedVendorsOnly"
+      ],
+      "properties": {
+        "vastVersions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "2.0",
+              "3.0"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Disney+ accepts standard creative, VAST 2.0 & 3.0."
+        },
+        "skippable": {
+          "const": false,
+          "description": "Disney+ video ads are non-skippable."
+        },
+        "javascriptAllowed": {
+          "const": false,
+          "description": "VAST tags cannot contain JavaScript elements."
+        },
+        "wrapperTagsAllowed": {
+          "const": false,
+          "description": "VAST tags cannot contain <VASTAdTagURI> wrappers."
+        },
+        "vpaid": {
+          "const": false,
+          "description": "VPAID not supported."
+        },
+        "siteServed": {
+          "const": true,
+          "description": "Site-served creatives are accepted (availability table: Site-Served = Yes on Desktop/Mobile/Apps/OTT; the EMEA spec references a 'VAST & Site-served Video Spec' companion document)."
+        },
+        "verificationPixels": {
+          "const": "1x1",
+          "description": "1x1 verification pixels from Disney+ approved vendors."
+        },
+        "approvedVendorsOnly": {
+          "const": true,
+          "description": "VAST served from Disney+ approved vendors only."
+        }
+      }
+    }
+  },
+  "properties": {
+    "assetType": {
+      "const": "video-commercial",
+      "description": "The only creative asset type with an official Disney+ EMEA/UK spec."
+    },
+    "fileFormat": {
+      "enum": [
+        ".mov",
+        ".mp4"
+      ],
+      "description": "QuickTime .mov or MPEG-4 .mp4."
+    },
+    "durationSeconds": {
+      "enum": [
+        15,
+        20,
+        30,
+        60
+      ],
+      "description": "15, 20, 30, or 60 seconds."
+    },
+    "aspectRatio": {
+      "const": "16:9",
+      "description": "Required aspect ratio for the UK/EMEA market."
+    },
+    "resolution": {
+      "enum": [
+        "1920x1080",
+        "1280x720"
+      ],
+      "description": "1920x1080 preferred; 1280x720 accepted."
+    },
+    "video": {
+      "$ref": "#/$defs/video"
+    },
+    "audio": {
+      "$ref": "#/$defs/audio"
+    },
+    "fileWeightGB": {
+      "type": "number",
+      "maximum": 1.9,
+      "description": "Maximum file weight 1.9 GB."
+    },
+    "placement": {
+      "enum": [
+        "pre-roll",
+        "mid-roll"
+      ],
+      "description": "Pre-roll and mid-roll positions only per the EMEA spec."
+    },
+    "serving": {
+      "$ref": "#/$defs/serving"
+    },
+    "creativeRules": {
+      "type": "object",
+      "title": "Creative content rules",
+      "additionalProperties": false,
+      "required": [
+        "clickableCTAStylingAllowed",
+        "audienceLevel",
+        "safetyZoneTopRightPx",
+        "leadersAllowed",
+        "letterboxing",
+        "turnaroundBusinessDays"
+      ],
+      "properties": {
+        "clickableCTAStylingAllowed": {
+          "const": false,
+          "description": "CTA buttons that look clickable (e.g. 'Learn More', 'Buy Now') are not allowed."
+        },
+        "audienceLevel": {
+          "enum": [
+            "18+",
+            "17-and-under"
+          ],
+          "description": "URLs/hashtags/QR codes/social handles accepted for 18+ profiles only; not accepted for 17 & under."
+        },
+        "safetyZoneTopRightPx": {
+          "const": "220x135",
+          "description": "Keep the top-right 220x135 px of 1920x1080 clear; the player overlays an 'Ad' logo and countdown there."
+        },
+        "leadersAllowed": {
+          "const": false,
+          "description": "No leaders such as slates or countdowns."
+        },
+        "letterboxing": {
+          "const": "case-by-case",
+          "description": "Letterboxing/pillarboxing permitted on a case-by-case basis."
+        },
+        "turnaroundBusinessDays": {
+          "const": 5,
+          "description": "Up to 5 business days lead time from receipt of final assets."
+        },
+        "thirdPartyTrackingMayBeRestricted": {
+          "const": true,
+          "description": "User privacy data restrictions may limit where third-party hosted and tracked creatives can serve (GDPR-relevant in UK/EU)."
+        }
+      }
+    }
+  }
+}
