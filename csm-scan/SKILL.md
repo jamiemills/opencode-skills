@@ -1,6 +1,6 @@
 ---
 name: csm-scan
-description: Comprehensively analyze repositories to identify architecture patterns, code conventions, tooling, and operational norms — output a single NORMS.md with ASCII art and Mermaid C4 diagrams — use when onboarding to a new codebase, preparing a CSM plan, or running cross-repo convention audits; never runs target commands, installs, or writes beyond the single NORMS.md — read-only.
+description: Analyze repos for patterns, conventions, tooling, and norms — output NORMS.md; use when onboarding, planning, or auditing. Never runs commands, installs, or writes beyond NORMS.md — read-only.
 ---
 
 # CSM Scan
@@ -195,35 +195,13 @@ node scripts/scan.mjs [--repos <path>...] [--out <path>] [--verbose]
 
 ## Testing
 
-Zero-dependency test suite built on `node:test`:
+Zero-dependency suite on `node:test`; the authoritative full run is serial because parallel mode can race filesystem-heavy fixture tests:
 
 ```bash
 node --test --test-concurrency=1                                    # authoritative full suite
-node --test --test-concurrency=1 test/expansion-final-acceptance.test.mjs  # T228 acceptance matrix
-node --test --test-concurrency=1 test/expansion-baseline.test.mjs   # T201 executable baseline (five fixture pipelines + 21 P0 cases)
-node --test --test-concurrency=1 test/expansion-constraints.test.mjs # command / one-write / zero-dependency gates
-node --test --test-concurrency=1 test/expansion-fixtures.test.mjs   # five-ecosystem + generic fixtures on the canonical pipeline
-node --test --test-concurrency=1 test/expansion-determinism.test.mjs # byte determinism gates
-node --test --test-concurrency=1 test/expansion-privacy-gate.test.mjs # privacy canary gates across every sink
-node --test --test-concurrency=1 test/expansion-voice-gate.test.mjs  # neutral factual voice gate for expanded prose
-node --test --test-concurrency=1 test/voice-gate.test.mjs            # established neutral voice gate
-node --test --test-concurrency=1 test/golden.test.mjs                # five ecosystems + real-repo golden
+node --test --test-concurrency=1 test/expansion-final-acceptance.test.mjs  # T228 acceptance matrix (focused gate)
+node test/scripts/run-tier.mjs s|m|l|all                           # tiered runs — partition in test/scripts/tiers.mjs
+node test/scripts/coverage-gate.mjs                                # ≥88% line-coverage gate (Node ≥22)
 ```
 
-Tiered runs (S/M/L) are driven by `test/scripts/run-tier.mjs` with the partition declared in `test/scripts/tiers.mjs`:
-
-```bash
-node test/scripts/run-tier.mjs s      # S tier — default (parallel) concurrency
-node test/scripts/run-tier.mjs m      # M tier — serial
-node test/scripts/run-tier.mjs l      # L tier — serial
-node test/scripts/run-tier.mjs all    # whole suite — serial (authoritative)
-```
-
-The tier manifest is a complete, non-overlapping partition of every `test/*.test.mjs` file, frozen from the POST-T002 file set. While it is still the placeholder, every `run-tier` invocation fails loudly (exit 1) instead of silently running nothing. Both `tiers.mjs` and `run-tier.mjs` carry the `NODE_TEST_CONTEXT` inert guard (same pattern as `coverage-gate.mjs`), so `node --test` discovery does not add phantom tests or distort coverage instrumentation.
-
-`node --test --test-concurrency=1` is authoritative because default parallel mode can race filesystem-heavy fixture tests. Fixtures live under `test/fixtures/` and `test/fixtures-expansion/`, each exporting a `files` map consumed by `test/harness.mjs`'s `withFixture`. The suite covers shared primitives, all 17 dimensions, enrich, validate, write, the 21-case P0 regression matrix, the voice gates, privacy gates, determinism gates, constraint gates (command boundary, one write, zero dependencies), plugin boundary tests, multi-repo cross-repository synthesis, and end-to-end pipeline behavior — no installs required.
-
-- `CSM_SCAN_REAL_REPO=<path>` — when set to an existing repository, the real-repo tests scan it instead of the checked-in fallback; full-strength scale expectations apply only when the repo is identified as pxcli, otherwise expectations are scaled to the fallback fixture. When unset (or empty), the same tests run against `test/fixtures-real/pxcli-mini` — the suite is green on any machine with no `$HOME`-path dependency.
-- `node test/scripts/coverage-gate.mjs` — coverage gate: runs the full suite under `--experimental-test-coverage` and enforces the ≥88% line-coverage floor (run on Node ≥22; not wired to CI).
-
-- Record pass count + wall time at every gate run.
+While `test/scripts/tiers.mjs` is the placeholder, every `run-tier` invocation fails loudly instead of silently running nothing. Record pass count + wall time at every gate run.

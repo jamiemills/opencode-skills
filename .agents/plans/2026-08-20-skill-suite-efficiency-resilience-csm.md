@@ -13,11 +13,12 @@ format: csm-plan/1
 - Plan ID: skill-suite-efficiency-resilience
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 0
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 0 — G1 batch (T001 + T006) completed, reviewed (independent review GO conditional; 4 findings repaired), battery green: check-suite 516, sync --check clean, matrix --check clean, hook test 8/8, 5 negative pairs re-proven, PAUSED golden passes, pack digest pending T008. NORMS condensation (T001 a2) re-scoped to G2 owners (blocks are non-synced prose).
+- Last checkpoint: 2026-08-20 cycle 1 — G2 batch (T002, T003, T004, T005) completed; self-reviewed (standard risk); battery green: check-suite 516 with ZERO held notes (F-050 markers + F-069 ordinal all fixed), sync --check clean, matrix --check clean, descriptions total exactly 220 (AC1). AC1 gap closed by primary: bdd-tdd/scan frontmatter trims were unassigned in the plan — trimmed to 30/26 (total 220). All 6 production skills now carry bias/retrieval protocol; Pause On Quota + resume contract landed.
 - Next transition: CHECKPOINT -> SELECT
 - Active tasks: none (batch complete)
+- Blockers: none
 - Blockers: none
 
 ## Goal
@@ -178,7 +179,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
    - Repair attempts: 0
    - Recovery note: if sync --write or check-suite fails, the boilerplate.mjs edit is the only changed source; revert boilerplate.mjs and re-sync, or fix the render and re-run both commands. Verify no SKILL.md was hand-edited (all changes must come from the sync tool). The hook and its test are out of scope (lefthook shim, owned by the completed oxlint-lefthook-precommit plan) — if they fail, report rather than hand-edit.
 
-2. [pending] csm-plan: resume contract, draft sidecar, retrieval protocol, format marker, frontmatter
+2. [completed] csm-plan: resume contract, draft sidecar, retrieval protocol, format marker, frontmatter
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -199,7 +200,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
    - Repair attempts: 0
    - Recovery note: if check-suite fails after the template change, the corpus may need the same `format:` marker — but this task must NOT retrofit corpus plans unless the H2 sequence changed (it must not, per the Resume-bullet rule); if the gate names a corpus artifact, first re-check the fence for an accidental H2 addition, then only if no H2 changed and the gate still fails, record the artifact and add the marker with journal evidence.
 
-3. [pending] csm-build: quota-pause protocol, resilience ladder, resume contract, ordinal fix, frontmatter
+3. [completed] csm-build: quota-pause protocol, resilience ladder, resume contract, ordinal fix, frontmatter
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
@@ -221,7 +222,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
    - Repair attempts: 0
    - Recovery note: if check-suite chain validation fails, the edit likely touched the backticked chain or a numbered heading — restore the exact original chain and headings, then re-apply prose-only changes.
 
-4. [pending] csm-grill and csm-review: retrieval protocol, bias, format markers, anchor drift, display scaling
+4. [completed] csm-grill and csm-review: retrieval protocol, bias, format markers, anchor drift, display scaling
    - Task ID: T004
    - Depends on: T001
    - Parallel group: G2
@@ -239,7 +240,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
    - Repair attempts: 0
    - Recovery note: if the corpus check fails on format markers, the existing artifacts were retrofitted — the gate error names the artifact; if a committed artifact lacks the marker, add it in this task's scope with journal evidence.
 
-5. [pending] csm-bdd-tdd, csm-scan, csm-browse, csm-upload: resume parity, Testing trim, frontmatter trims
+5. [completed] csm-bdd-tdd, csm-scan, csm-browse, csm-upload: resume parity, Testing trim, frontmatter trims
    - Task ID: T005
    - Depends on: T001
    - Parallel group: G2
@@ -370,7 +371,10 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | REMEDIATE | — | All 15 findings resolved: format marker added; Resume bullet; ladder quota rung to T001; browse/upload trims to T005; scoped Control checks + plan-validation module; hook test; A4/grill fix; G4 sequential; spike default; strengthened signals; facts corrected | VERIFY |
 | 2026-08-20 | 0 | VERIFY | — | Post-planning re-validation against the repo: sibling plans lint-strictness-enforcement and oxlint-lefthook-precommit COMPLETEd meanwhile — gate count 441→457 (2026-08-20); F-069 component 2 (doubled pre-commit drift check) already resolved (hook is a lefthook shim, .lefthook.yml jobs have no sync step, hook-test SYNC assertions dropped); check-suite.mjs:375→376 citation corrected; stale claims updated in Goal d6, Constraints, AC2, Current-State Evidence, R&D R2, Design token-efficiency, Execution Graph, T001 scope/actions/recovery, Risks, Critique C7; tree clean, payload in sync (pack digest a2ba3f39) | SAVED |
 | 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | csm-build dispatched by explicit user request. RECOVER: git status clean except the plan file (stale-fix edits above, committed with this row); no NORMS.md at root (skip norms); format: csm-plan/1 verified at line 2; all 8 tasks [pending]; no partial build artifacts. VALIDATE: check-suite 457/457 OK; sync-skill-boilerplate --check "OK — no drift"; gen-readme-matrix --check "OK — region matches contracts" | SELECT |
-| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001, T006 | G1 batch parallel-dispatched. T001: tmux body 362→135-148 words across 5 skills (plan 135 / build 137 / bdd-tdd 137 / scan 148 / review 135), quota rung added to 4 laddered skills, sync --write regenerated all sections (two-pass convergence quirk noted), .lefthook.yml grep 0, hook test 8/8. T006: new scripts/lib/plan-validation.mjs (5 pure check classes + unified fenceMap/splitLines, F-054), check-suite 457→516 (+59: 20 Control, 20 journal, 8 ordinal, 3 template markers, 8 interface). PENDING_DEBT holds F-050/F-069 as expected findings while T002/T003/T004 pending (self-escalates on completion). Negative evidence: 5 violation→failure pairs re-proven independently (bad Status, SCOPE transition, duplicate ordinal, missing template marker, missing artifact pattern). VERIFY battery green: check-suite 516, sync --check, matrix --check, node --check, PAUSED golden 0 failures, FROBULATE journal rejected. REVIEW (independent): GO conditional — 1 medium (cross-plan task-ID collision in PENDING_DEBT), 2 low, 1 nit. REPAIR all 4: debt bound to owning plan file (plan field + planFile param), currentState check exempted for complete/terminal plans, artifact patterns tightened to path shapes (regex), held findings now printed as notes. Re-verified: gate 516 green, F1 attack cases (sibling T002 cannot hold debt, completed can't), F2 exemption, F3 negative fixture, full battery. DEVIATION (T001 a2): NORMS blocks are non-synced per-skill prose (SYNC_SECTIONS = tmux + resilience only) — condensation re-scoped to each skill's owner (T002 plan / T003 build / T004 grill+review / T005 bdd-tdd), AC2 unchanged | SELECT |
+| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001, T006 | G1 batch parallel-dispatched. T001: tmux body 362→135-148 words across 5 skills (plan 135 / build 137 / bdd-tdd 137 / scan 148 / review 135), quota rung added to 4 laddered skills, sync --write regenerated all sections (two-pass convergence quirk noted), .lefthook.yml grep 0, hook test 8/8. T006: new scripts/lib/plan-validation.mjs (5 pure check classes + unified fenceMap/splitLines, F-054), check-suite 457→516 (+59: 20 Control, 20 journal, 8 ordinal, 3 template markers, 8 interface). PENDING_DEBT holds F-050/F-069 as expected findings while T002/T003/T004 pending (self-escalates on completion). Negative evidence: 5 violation→failure pairs re-proven independently (bad Status, SCOPE transition, duplicate ordinal, missing template marker, missing artifact pattern). VERIFY battery green: check-suite 516, sync --check, matrix --check, node --check, PAUSED golden 0 failures, FROBULATE journal rejected. REVIEW (independent): GO conditional — 1 medium (cross-plan task-ID collision in PENDING_DEBT), 2 low, 1 nit. REPAIR all 4: debt bound to owning plan file (plan field + planFile param), currentState check exempted for complete/terminal plans, artifact patterns tightened to path shapes (regex), held findings now printed as notes. Re-verified: gate 516 green, F1 attack cases (sibling T002 cannot hold debt, completed can't), F2 exemption, F3 negative fixture, full battery. DEVIATION (T001 a2): NORMS blocks are non-synced per-skill prose (SYNC_SECTIONS = tmux + resilience only) — condensation re-scoped to each skill's owner (T002 plan / T003 build / T004 grill+review / T005 bdd-tdd), AC2 unchanged | CHECKPOINT |
+| 2026-08-20 | 1 | CHECKPOINT -> SELECT | — | Cycle 1: G2 ready set = T002 (csm-plan), T003 (csm-build), T004 (csm-grill+csm-review), T005 (csm-bdd-tdd+csm-scan+csm-browse+csm-upload) — all depend on T001 (done), disjoint SKILL.md ownership. Cycle-0 learnings propagated: NORMS condensation owned per skill (non-synced prose, hand-editable); frontmatter word budgets recomputed so 8-skill total ≤220 (plan 28 / build 28 / review 30 / grill 27 / bdd-tdd 27 / scan 26 / browse 26 / upload 25 = 217, each incl. bias sentence where required); PENDING_DEBT self-escalation means each G2 task must fix its defect BEFORE the plan marks it completed | DISPATCH |
+| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T002, T003, T004, T005 | G2 batch parallel-dispatched, all completed. T002: csm-plan — format: csm-plan/1 first line in Required Plan Document fence (marker check flips to pass), Control template + paused + Last model/run + - Resume: bullet (no ## Resume H2), .draft sidecar rule + allowlist, RESEARCH current-knowledge check (named tools webfetch/docs-search MCP, source URL + retrieval date, 30-day staleness), scale-gated SAVED, NORMS 188→122, description 28w. T003: csm-build — ## Pause On Quota (6-signal set, journal evidence → safe integration → full CHECKPOINT incl. commit → Status: paused/PAUSED/PAUSED -> RECOVER → clean stop; single sanctioned exception; transient one-backoff), From-CHECKPOINT + Completion Gate + choose-list reference PAUSED, non-synced Subagent Resilience ladder with quota rule, SELECT pre-flight probe, RECOVER ordinals 1..7 (F-069 fixed, ordinal check flips to pass) + Resume block (re-read checkpoint/journal/recovery notes/DR/tree diff; re-verify prior-model evidence when Last model/run differs), Last model/run at CHECKPOINT, NORMS 163→110, description 28w. T004: grill — named retrieval tools + source URL/retrieval-date citations, quota note (not mid-session resumable), format: csm-grill/1, scale-gated display, description 27w; review — anchor edition-drift check (webfetch each anchor, superseded → low/info findings), quota note (journal-resume), format: csm-review/1, scale-gated, NORMS 80→50, description 30w. T005: bdd-tdd paused parity sentence + NORMS 81→52, scan Testing 34→12 lines (wc 207 ≤ 220, heading kept), browse description 26w, upload 25w. GATE GAP CLOSED BY PRIMARY: AC1 ≤220 total required bdd-tdd+scan trims which no task owned — primary trimmed bdd-tdd 63→30 (em-dash tokens counted; "strict" dropped) and scan 55→26 ("target commands"→"commands"), total exactly 220 (grill 26 after further trim / plan 28 / bdd-tdd 30 / build 28 / review 30 / scan 26 / browse 26 / upload 25). REVIEW (self, standard risk; gate itself independently reviewed in cycle 0): diffs inspected in full, chain/headings/synced sections byte-identical, no out-of-scope edits. VERIFY: check-suite 516 OK with ZERO held notes (all PENDING_DEBT resolved by their owners — self-escalation design confirmed working), sync --check clean, matrix --check clean | CHECKPOINT |
+| 2026-08-20 | 1 | CHECKPOINT -> SELECT | — | Cycle 2: G3 ready set = T007 (resume-semantics tests; depends T002+T003+T006 — all complete). T007 is high-risk (new test harness) — independent review required per plan | SELECT |
 
 ## Completion Review
 
