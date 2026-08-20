@@ -9,10 +9,7 @@ install: ## install all deps (pnpm frozen, no lifecycle scripts)
 	pnpm install --frozen-lockfile --ignore-scripts
 	cd csm-browse && pnpm install --frozen-lockfile --ignore-scripts
 
-lint: ## oxlint whole repo (errors fail; pre-existing warnings shown, ~271 incl. payload mirror)
-	pnpm exec oxlint
-
-lint-strict: ## oxlint with warnings as errors (pre-commit hook enforces this on staged files)
+lint: ## oxlint repo-wide, warnings fail (quality bar: .oxlintrc.json correctness+suspicious)
 	pnpm exec oxlint --deny-warnings
 
 check: ## repo conformance gate

@@ -11,23 +11,23 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: lint-strictness-enforcement
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: VALIDATE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: none
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-20 cycle 0 — RECOVER: tree clean at b0c5c5a; format csm-plan/1 OK; no NORMS.md; parity baseline 1,001 (-D suspicious). VALIDATE: check-suite 456 OK; hook suite 7/7.
+- Next transition: SELECT -> DISPATCH (T001)
+- Active tasks: T001
 - Blockers: none
 - Cross-plan coordination: three other pending plans share files with this one — skill-suite plan T006/T008 (`scripts/check-suite.mjs`, `bootstrap/package/payload/**`), journal-learnings plan T001/T004/T007 (`scripts/check-suite.mjs`, `scripts/hooks/pre-commit`), skill-suite T001 (`scripts/sync-skill-boilerplate.mjs`). This plan's edits are additive and idempotent (pack-bootstrap regen is last-writer-wins with identical output when sources match); RECOVER in any build must reconcile against the latest HEAD. See `## Cross-Plan Coordination`.
 
 ## Goal
 
-Make `make lint` (and the repo's commit gates) return ZERO warnings, permanently. Fix all **1,001** oxlint findings that a `correctness + suspicious` ruleset produces across the repo today (measured; user decision: full suspicious category), commit a `.oxlintrc.json` that pins that ruleset as the quality bar, and enforce the bar at three layers: the pre-commit hook (staged files, `--deny-warnings`, config discovered from repo root), `make lint` (repo-wide `--deny-warnings`), and a new conditional repo-wide lint gate inside `scripts/check-suite.mjs` (skips with a loud warning when oxlint is unavailable, keeping the gate runnable on fresh clones without node_modules). The check-suite gate lands in T006 — after the fixes — so the build's own commits are never blocked mid-migration.
+Make `make lint` (and the repo's commit gates) return ZERO warnings, permanently. Fix all **979** fixable oxlint findings (1,001 total minus 22 config-resolved: 6 no-control-regex + 16 no-underscore-dangle) that a `correctness + suspicious` ruleset produces across the repo today (measured; user decision: full suspicious category), commit a `.oxlintrc.json` that pins that ruleset as the quality bar, and enforce the bar at three layers: the pre-commit hook (staged files, `--deny-warnings`, config discovered from repo root), `make lint` (repo-wide `--deny-warnings`), and a new conditional repo-wide lint gate inside `scripts/check-suite.mjs` (skips with a loud warning when oxlint is unavailable, keeping the gate runnable on fresh clones without node_modules). The check-suite gate lands in T006 — after the fixes — so the build's own commits are never blocked mid-migration.
 
 Deliverables:
 1. Committed `.oxlintrc.json`: `$schema`, `categories: { correctness: warn, suspicious: warn }`, plus justified per-rule overrides — expected: `eslint/no-control-regex: off` (intentional control-char detectors; escapes still flag, verified) and `eslint/no-underscore-dangle` with `allow` for data-key identifiers (`_meta`, etc. — property-key reads, not renamable; verified). Nothing else without journal evidence.
-2. All 1,001 findings eliminated from source files: csm-scan lib (~289), csm-scan test (~297), csm-browse lib/tests/scripts, csm-upload, root scripts/tests. Every fix behavior-preserving (fix contract in Design).
+2. All 979 fixable findings eliminated from source files (the 22 config-resolved sites need no code edits): csm-scan lib (~289), csm-scan test (~297), csm-browse lib/tests/scripts, csm-upload, root scripts/tests. Every fix behavior-preserving (fix contract in Design).
 3. `bootstrap/package/payload/skills/**` regenerated via the canonical `node scripts/pack-bootstrap.mjs` so the payload mirror is lint-clean and matches sources (no hand-edits).
 4. Enforcement: `make lint` = `pnpm exec oxlint --deny-warnings` (config-driven); the lefthook oxlint job picks up `.oxlintrc.json` automatically (config discovery — verified pattern); `scripts/check-suite.mjs` gains the conditional lint gate (T006).
 5. README updated (lint/strictness docs), plan index line added.
@@ -99,7 +99,7 @@ Exclusions:
 | R5 | Do escaped control-char regexes still flag? | Temp file + oxlint 1.79.0 | /tmp only | `\u0000`/`\x00` forms still flagged | no-control-regex -> config off (A5) |
 | R6 | no-underscore-dangle site nature? | Enumerate the 16 findings; read parsers.mjs:574-576 | Read-only | Property-key reads (`_meta` Pipfile.lock key), `__dirname` | Config allow-list (A6) |
 | R7 | toSorted/toReversed available on baseline node? | `node -e "typeof [].toSorted"` | Read-only | Function on v20.20.2; stable | Fix contract valid |
-| R8 | Config-driven count == CLI count? | `.oxlintrc.json` temp + `oxlint --deny-warnings` vs `-D suspicious` | /tmp only | Both 1,001 | Parity check in T001 |
+| R8 | Config-driven count vs raw CLI count? | `.oxlintrc.json` + `oxlint --deny-warnings` vs `-D suspicious` | /tmp only | Raw 1,001; config-resolved 979 (22 overrides applied) | Parity check in T001 = 979 |
 
 ## Discovered Requirements
 
@@ -176,10 +176,10 @@ Critical path: T001 -> T002 -> T005 -> T006.
    - Spike candidate: none — schema (R4) and counts (R8) verified in planning
    - Actions:
      1. Write `.oxlintrc.json` per Design. Enumerate all 16 `no-underscore-dangle` and 6 `no-control-regex` sites; classify each; finalize the `allow` list and confirm the no-control-regex `off` (record per-site evidence in the journal). Add `__dirname` handling (allow-list — Node convention).
-     2. Parity check: `pnpm exec oxlint --deny-warnings 2>&1 | grep -c "warning"` must equal 1,001 (config-driven == `-D suspicious` count).
+     2. Parity check: `pnpm exec oxlint --deny-warnings 2>&1 | grep -c warning` must equal 979 (1,001 raw minus 22 config-resolved: 6 no-control-regex + 16 no-underscore-dangle overrides).
      3. `Makefile`: `lint` → `pnpm exec oxlint --deny-warnings`; remove `lint-strict` (now identical); update help text. NOTE: `make lint` FAILS until T005 lands — that is expected and acceptable (dev tool; fixes are in flight). Do NOT add the check-suite gate.
      4. README.md: document the committed config as the quality bar, the strict `make lint`, the future check-suite gate (T006), and that `make lint` requires `pnpm install` first (A9).
-   - Acceptance signal: `.oxlintrc.json` committed with categories + the two justified rules overrides AND the parity count = 1,001 AND `make lint` help shows `--deny-warnings` AND `node scripts/check-suite.mjs` still exits 0 (untouched).
+   - Acceptance signal: `.oxlintrc.json` committed with categories + the two justified rules overrides AND the parity count = 979 (1,001 raw minus the 22 config-resolved findings) AND `make lint` help shows `--deny-warnings` AND `node scripts/check-suite.mjs` still exits 0 (untouched).
    - Validation: `grep -c warning` parity; `node --check` nothing (no JS touched); check-suite OK; README diff.
    - Acceptance evidence: config file; parity output; Makefile diff; per-site enumeration table in the journal.
    - Repair attempts: 0
@@ -303,7 +303,7 @@ Ordered cheapest-first:
 - Golden-test ordering drift (medium): toSorted is stable; if a golden still fails, the site relied on mutation — rebind per the contract, never reorder output.
 - Fresh-clone gate behavior (low): skip-with-warning keeps check-suite runnable without node_modules; hook + make lint remain strict enforcement in dev.
 - Cross-plan build races (medium, A10): check-suite.mjs/payload/sync-tooling are shared with pending plans — RECOVER reconciliation against HEAD, additive edits, idempotent pack; recorded in Cross-Plan Coordination.
-- Incomplete fix list (low): T001 parity (1,001) + T006 repo-wide clean proof close the loop; stragglers route back to the owning task.
+- Incomplete fix list (low): T001 parity (979) + T006 repo-wide clean proof close the loop; stragglers route back to the owning task.
 
 ## Critique Resolution
 

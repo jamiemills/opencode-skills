@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "warn",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "eslint/no-control-regex": "off",
+    "eslint/no-underscore-dangle": ["warn", { "allow": ["_meta", "_repoPath", "__dirname"] }]
+  }
+}

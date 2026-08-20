@@ -203,6 +203,7 @@ Planning never silently becomes implementation, and execution always starts from
 - `node scripts/gen-readme-matrix.mjs --check`        # composition-matrix drift (also gated); `--write` regenerates
 - `pnpm install --frozen-lockfile --ignore-scripts && pnpm exec lefthook install --force`  # install root devDeps and enable the local lefthook pre-commit gate (bypass: `git commit --no-verify`)
 - `node --test scripts/hooks/test/pre-commit.test.mjs`  # hook test suite (lefthook shim + `.lefthook.yml` validation + staged-only oxlint)
+- `make lint`   # repo-wide oxlint with the committed quality bar (`.oxlintrc.json`: correctness + suspicious categories, warnings-as-errors); the pre-commit hook enforces the same bar on staged files, and `scripts/check-suite.mjs` includes a conditional repo-wide lint gate (skipped with a notice when oxlint is not installed)
 - **Universal bootstrap suites** — envelope trust, package audit, protocol conformance, offline boundary, and the cross-task integration flow; `node scripts/pack-bootstrap.mjs` prints the deterministic tarball digest:
 
   ```bash
