@@ -13,7 +13,7 @@ format: csm-plan/1
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-20 — plan created from approach .agents/approaches/2026-08-20-csm-deep-research-skill-approach.md (agreed, format csm-grill/1)
-- Last model/run: deepseek-v4-flash — build cycle 2
+- Last model/run: deepseek-v4-flash — build cycle 3
 - Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: none
@@ -346,7 +346,7 @@ The build changes (this plan's real scope) are the suite integration, serialized
    - Repair attempts: 0
    - Recovery note: partial = payload regenerated but tests fail. Re-check list insertions at the pinned lines (alphabetical order); re-run pack only after skillDirs is correct; do not hand-edit payload-index.json (always regenerate via pack-bootstrap.mjs).
 
-4. [pending] Seed the research corpus and run the full verification battery
+4. [completed] Seed the research corpus and run the full verification battery
    - Task ID: T004
    - Depends on: T001, T002, T003 (bootstrap suites in the battery read the refreshed payload, which only exists after T003)
    - Parallel group: G3
@@ -465,7 +465,8 @@ The build changes (this plan's real scope) are the suite integration, serialized
 | 2026-08-20 | 0 | VERIFY -> SAVED | — | Plan saved, committed d18e01a | NOT_STARTED |
 | 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | RECOVER: HEAD now 3db07e4 (concurrent sessions), baseline green 535 checks, payload byte-identical, eff enabled. VALIDATE: budget gate discovered (descWordTotal <=220, currently exactly 220; 9th description ~59 tokens -> would fail) — plan corrected: D23/DR-15 (T002 re-budgets sibling descriptions), pins re-pointed (:460-474 never-invokes, :654-677 approaches corpus, :680-721 README) | SELECT |
 | 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001 | T001: subagent authored csm-deep-research/SKILL.md (341 lines); gate PASS re-run by primary; synced sections byte-exact vs boilerplate renders (findSection replication); independent REVIEW GO with 3 cosmetic findings (R1 anti-pattern vs primary-verifier contradiction, R2 cap edge name, R3 synthesis citation phrasing) — all fixed in REPAIR, gate re-PASS. Committed 375ea4f with --no-verify (DR-14) | SELECT (cycle 2) |
-| 2026-08-20 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T002, T003 | T002: registry (contracts MANIFEST/INTERFACES/NEVER_INVOKE 9 rows/FORMAT_VERSIONS, boilerplate params, research corpus block, README, .agents/README, D23 description re-budget 218->220). T003: pack-bootstrap skillDirs + payload refresh + 3 test files 8->9. Primary INTEGRATE re-ran all gates: matrix --check OK, sync --check OK (zero drift), contracts import OK, budget 218, payload sha match, 5/5+5/5 suites green. Plan Next-transition line bug (non-TOKEN pair) fixed. REVIEW: GO/GO with 3 low findings — R1 corpus-empty expected until T004; R2 token-efficiency toggle flipped true->false by USER DIRECTIVE (volatile/budget checks skipped with notice; budget verified independently 220/220 after R3 repair); R3 csm-browse lost invocation hook -> REPAIR restored hook, re-cut upload/scan/bdd-tdd/grill/plan, budget back to exactly 220, payload re-packed, 10/10 tests green, check-suite failures = corpus-empty only. Commit --no-verify (DR-14) | SELECT (cycle 3: T004) |
+| 2026-08-20 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T002, T003 | T002: registry (contracts MANIFEST/INTERFACES/NEVER_INVOKE 9 rows/FORMAT_VERSIONS, boilerplate params, research corpus block, README, .agents/README, D23 description re-budget 218->220). T003: pack-bootstrap skillDirs + payload refresh + 3 test files 8->9. Primary INTEGRATE re-ran all gates: matrix --check OK, sync --check OK (zero drift), contracts import OK, budget 218, payload sha match, 5/5+5/5 suites green. Plan Next-transition line bug (non-TOKEN pair) fixed. REVIEW: GO/GO with 3 low findings — R1 corpus-empty expected until T004; R2 token-efficiency toggle flipped true->false by USER DIRECTIVE (volatile/budget checks skipped with notice; budget verified independently 220/220 after R3 repair); R3 csm-browse lost invocation hook -> REPAIR restored hook, re-cut upload/scan/bdd-tdd/grill/plan, budget back to exactly 220, payload re-packed, 10/10 tests green, check-suite failures = corpus-empty only. Commit 39d5d7d --no-verify (DR-14) | SELECT (cycle 3: T004) |
+| 2026-08-20 | 3 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T004 | T004: seed authored (.agents/research/2026-08-20-csm-deep-research-skill-research.md, 186 lines, 8-H2 sequence, diagrams in fences, pinned URLs retrieved 2026-08-20). Primary re-ran battery: check-suite EXIT 0 "OK — 9 skills, 583 checks" (first fully-green), sync --check OK, matrix --check OK, 10/10 tests, make lint exit 0. Tree clean except seed. Commit WITHOUT --no-verify (corpus seeded; DR-14 policy exercised) | SELECT (cycle 4: T005) |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>
