@@ -11,13 +11,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: oxlint-lefthook-precommit
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: SELECT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: none
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-20 cycle 0 — T001 complete (package.json + pnpm-lock.yaml committed with plan; check-suite 451 OK). Next batch: G2 = T002 (hook replacement, high risk) || T004 (README/plans) || T006 (csm-browse pnpm).
+- Next transition: SELECT -> DISPATCH (T002, T004, T006)
+- Active tasks: T002, T004, T006
 - Blockers: none
 
 ## Goal
@@ -133,7 +133,7 @@ Critical path: T001 -> T002 -> T003 -> T005.
 
 ## Numbered Plan
 
-1. [pending] Root tooling manifest: package.json + committed pnpm lockfile
+1. [completed] Root tooling manifest: package.json + committed pnpm lockfile
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -282,6 +282,11 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | REMEDIATE | — | Both fixed: Design/T002 mjs-syntax job loops per staged file; T004 gains .agents/README.md scope (index line for this plan, backfill journal-learnings + skill-suite lines, refresh consolidated status) | VERIFY |
 | 2026-08-20 | 0 | VERIFY | — | Personal review: goal/AC map to T001-T006; every task has runnable acceptance signal, risk tier, anti-scope, recovery note; dependencies G1->G2/G2->G3->G4 correct; commands/files verified against repo (lefthook 2.1.10/oxlint 1.79.0, install-hooks.mjs:22, check-suite green 451) | SAVED |
 | 2026-08-20 | 0 | AMEND | — | User direction: packages install ONLY via pnpm. Plan updated: root tooling + csm-browse convert to pnpm (frozen-lockfile, packageManager field, pnpm-lock.yaml, `pnpm exec lefthook`); new T006 (csm-browse conversion, G2); README/SKILL install docs pnpm; npm retained only for `npm pack` (packaging) + npx cyclonedx-npm (SBOM); trust-test fixture untouched; risk summary 6 tasks | SAVED |
+| 2026-08-20 | 0 | RECOVER | — | Build start (csm-build): tree clean at 897b6ba; plan format csm-plan/1 OK; no NORMS.md; env pnpm 10.33.0 / node v20.20.2 / core.hooksPath=scripts/hooks (legacy gate live); all 6 tasks pending; no stale statuses | VALIDATE |
+| 2026-08-20 | 0 | VALIDATE | — | Baseline: `node scripts/check-suite.mjs` = OK 8 skills 451 checks; `node --test tests/package-audit.test.mjs` = 1/1 pass; plan references verified against repo (install-hooks.mjs:22, README npm sites, csm-browse/package-lock.json present) | SELECT |
+| 2026-08-20 | 0 | SELECT | — | Ready set: T001 (G1, no deps). T002/T004/T006 wait on T001; T003 waits on T002; T005 waits on all. T001 has runnable acceptance signal; no spike needed | DISPATCH |
+| 2026-08-20 | 0 | DISPATCH+INTEGRATE+VERIFY | T001 | T001 implemented by primary (single small mechanical task): root package.json written (exact pins, packageManager pnpm@10.33.0); `pnpm install --ignore-scripts` generated pnpm-lock.yaml (resolved 31, added 4); frozen-lockfile repro in /tmp/opencode/t001-check OK; versions lefthook 2.1.10 / oxlint 1.79.0; no package-lock.json; check-suite 451 OK. Acceptance signal fully met | CHECKPOINT |
+| 2026-08-20 | 0 | CHECKPOINT | T001 | T001 [completed], evidence recorded; commit T001 + plan; next: SELECT G2 (T002/T004/T006) | SELECT |
 
 ## Completion Review
 

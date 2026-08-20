@@ -1,0 +1,13 @@
+{
+  "name": "csm-skills-suite",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "devDependencies": {
+    "lefthook": "2.1.10",
+    "oxlint": "1.79.0"
+  }
+}
