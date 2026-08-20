@@ -16,9 +16,9 @@ format: csm-plan/1
 - Current CSM state: NOT_STARTED
 - Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-19 cycle 3 — completion gate. T004 complete: step 1 verbatim (check-suite 441 OK; sync-skill-boilerplate --check OK no drift; gen-readme-matrix --check OK; five bootstrap suites serial 30/30; browse 113/113 Node 22; e2e quick 79/79 LIVE Docker; scan serial 1227/1227; upload 2/2 explicit-file form); step 2 deterministic double-pack identical sha256 a3c735f4c5d300decb25a008d2b009fefdef2927633d67753b612e83ef10f208 (matches T002 pack; earlier journal transcription typo corrected in place); step 3 toolchain Linux 6.8.0-107-generic x86_64 / node v22.23.2 / npm 10.9.8 + payload-index sha256 ce6672bf03699070d77f502d27d22587d9053537d0af0c383c267ba1a6b3f5cd + warm/verify evidence via offline suite 8/8 (isolated cache); AC4 cumulative diff (23f1501..HEAD) = expected files only, zero COMPLETE-plan files, 2026-08-03/universal/remaining-active untouched, deferred records intact
+- Last checkpoint: 2026-08-20 — plan hygiene after user-directed reopen (T010-T012 amendment). T012 verified complete by sibling build: `2026-08-20-skill-suite-efficiency-resilience-csm.md` Status: complete / Current CSM state: COMPLETE (cycles 1-3; resume-semantics tests, quota-pause contracts, payload digest e19a0d12/912219df shipped). Active work = T010 (68 review findings) + T011 (journal-learnings plan), being executed via the separately drafted combined plan `2026-08-20-t010-t011-*` (user direction: one plan). T001-T004 completion evidence unchanged (cycle-3 row).
 - Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: T010, T011, T012
+- Active tasks: T010, T011
 - Blockers: none
 
 ## Goal
@@ -251,7 +251,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: resume via the journal-learnings plan's own journal.
 
-12. [pending] Follow the skill-suite efficiency and quota resilience plan in full
+12. [completed] Follow the skill-suite efficiency and quota resilience plan in full — completed by sibling build `2026-08-20-skill-suite-efficiency-resilience-csm.md` (Status: complete; Current CSM state: COMPLETE; cycles 1-3: token-efficiency cuts, quota-pause/resume, model-switch resume contract, draft sidecar, retrieval-first protocol, gate hardening, resume-semantics tests, payload refresh digest e19a0d12)
    - Task ID: T012
    - Depends on: none
    - Parallel group: G3
@@ -317,5 +317,7 @@ Completed 2026-08-19 by csm-build, cycles 1-3, 4/4 active tasks complete; T005-T
 2. T003 CDP residuals: (b) host-side orphan-exec sweep pass implemented with live-argv spike (Docker up), conservative positional matching, marker suppression, dryRun support, kills enabled; independent review's FIX-FIRST findings repaired (positional argv match incl. diagnostic-probe exclusion, negative tests for wrapper/probe/tail shapes); pid-TOCTOU finding dismissed with recorded reasoning. (c) redactTelemetry wraps on all three browse.mjs error prints + SKILL.md:148 guidance rewritten (verbatim-copy, token never retyped, mechanical form keeps it out of shell history; trailing-/ cdpUrl shape handled). (a)/(e) formally accepted with rationale, (d) recorded resolved — all in the cycle-1 journal row. Browse 106→113 tests green; check-skill PASS.
 3. T002 payload refresh: canonical pack synced exactly the 4 stale files + regenerated payload-index.json; retired legacy symbols absent; pinned hash comparison {compared:116, issues:[]}; check-suite 441 OK; five bootstrap suites serial 30/30; new tarball sha256 a3c735f4c5d300decb25a008d2b009fefdef2927633d67753b612e83ef10f208 (459015 B, 120 files) recorded.
 4. T004 pre-release readiness (checklist steps 1-3 verbatim): all gates green — check-suite 441, boilerplate/matrix checks, bootstrap 30/30, browse 113/113, e2e quick 79/79 live, scan 1227/1227, upload 2/2; deterministic double-pack identical to the recorded digest; toolchain + payload-index digest (ce6672bf…) + warm/verify transcript evidence recorded. AC4 cumulative diff contains no COMPLETE-plan file; deferred records intact.
+
+Reopened 2026-08-20 (user directive, T010-T012 amendment, recorded in the Progress Journal cycle-4 row): T010 (68 review findings) and T011 (journal-learnings plan) remain pending and are executed via the separately drafted combined plan; T012 completed by sibling build `2026-08-20-skill-suite-efficiency-resilience-csm.md` (Status: complete). Plan hygiene: Control + index refreshed; deferred T005-T009 records unchanged.
 
 Final gate (primary, personal): every acceptance criterion has current recorded evidence; deferred work (CI T005, sandbox T006, README plan T007, eval harness T008, publication T009) stays blocked and was never dispatched; working tree clean after final commit; nothing pushed. Publication/hosting/key-rotation remain future user-approved actions per T009.
