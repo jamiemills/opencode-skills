@@ -5,25 +5,25 @@ import path from 'node:path';
 
 const TOGGLE_FILE = path.join('.agents', 'token-efficiency.json');
 
-// Parses the toggle file text. Contract (A9): ON by default, fail-closed —
-// anything other than a valid `{"enabled": false}` resolves to ENABLED. Only
+// Parses the toggle file text. Contract: OFF by default (fail-open) —
+// anything other than a valid `{"enabled": true}` resolves to DISABLED. Only
 // `{"enabled": <boolean>}` yields ok:true; absent key, non-object JSON (e.g.
 // the literal `true`), a non-boolean value, and unparseable text all yield
-// enabled:true with ok:false (the caller surfaces a warning).
+// enabled:false with ok:false (the caller surfaces a warning).
 export function parseToggle(text) {
   let data;
   try {
     data = JSON.parse(text);
   } catch {
-    return { enabled: true, ok: false };
+    return { enabled: false, ok: false };
   }
   if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-    return { enabled: true, ok: false };
+    return { enabled: false, ok: false };
   }
   if (Object.prototype.hasOwnProperty.call(data, 'enabled') && typeof data.enabled === 'boolean') {
     return { enabled: data.enabled, ok: true };
   }
-  return { enabled: true, ok: false };
+  return { enabled: false, ok: false };
 }
 
 // Walks up from startDir to the nearest git root (a dir containing `.git`,
@@ -48,22 +48,21 @@ export function findToggleFile(startDir) {
   return null;
 }
 
-// Resolves the effective toggle for startDir. Absent file -> enabled with no
-// source. Malformed/unreadable/non-boolean content -> enabled (fail-closed,
-// A9) with a warning naming the file. Only an explicit {"enabled": false}
-// disables.
+// Resolves the effective toggle for startDir. Absent file -> disabled with no
+// source. Malformed/unreadable/non-boolean content -> disabled with a warning
+// naming the file. Only an explicit {"enabled": true} enables.
 export function isEnabled(startDir) {
   const file = findToggleFile(startDir);
-  if (file === null) return { enabled: true, source: null, warning: null };
+  if (file === null) return { enabled: false, source: null, warning: null };
   let text;
   try {
     text = fs.readFileSync(file, 'utf8');
   } catch (err) {
-    return { enabled: true, source: file, warning: `cannot read ${file} (${err.code}) — treated as enabled (fail-closed)` };
+    return { enabled: false, source: file, warning: `cannot read ${file} (${err.code}) — treated as disabled (default off)` };
   }
   const parsed = parseToggle(text);
   if (!parsed.ok) {
-    return { enabled: true, source: file, warning: `${file} malformed or non-boolean — treated as enabled (fail-closed)` };
+    return { enabled: false, source: file, warning: `${file} malformed or non-boolean — treated as disabled (default off)` };
   }
   return { enabled: parsed.enabled, source: file, warning: null };
 }

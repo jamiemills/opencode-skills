@@ -383,12 +383,12 @@ function main() {
   const skillDirs = discoverSkillDirs();
   const plansDir = path.join(root, '.agents', 'plans');
 
-  // Repo-local efficiency toggle (A9): ON by default (absent/malformed =
-  // enabled, fail-closed); only an explicit {"enabled": false} skips the two
-  // additive efficiency checks below with a visible notice.
+  // Repo-local efficiency toggle: OFF by default (absent/malformed =
+  // disabled); only an explicit {"enabled": true} runs the two additive
+  // efficiency checks below. A malformed toggle surfaces a visible warning.
   const eff = isEnabled(root);
   if (!eff.enabled) {
-    console.log(`note: token efficiency disabled (${eff.source}) — volatile/budget checks skipped`);
+    console.log(`note: token efficiency disabled (${eff.source})${eff.warning !== null ? ` — ${eff.warning}` : ''} — volatile/budget checks skipped`);
   } else if (eff.warning !== null) {
     console.log(`note: ${eff.warning}`);
   }

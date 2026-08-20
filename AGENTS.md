@@ -1,9 +1,10 @@
 # AGENTS.md — cache/token efficiency rules
 
-Applies only while token efficiency is enabled for the working directory
-(`.agents/token-efficiency.json`; ON by default in this repo — see
-`.agents/docs/cache-token-efficiency-2026-08-20.md`). Disabled directories
-follow default behavior.
+Applies only while token efficiency is enabled for the working directory —
+OFF by default everywhere (see
+`.agents/docs/cache-token-efficiency-2026-08-20.md`). Only an explicit
+`.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for
+that repo or directory; disabled directories follow default behavior.
 
 ## Stable-prefix discipline
 
@@ -42,8 +43,9 @@ follow default behavior.
 ## Toggle
 
 - The rules above apply only while `.agents/token-efficiency.json` resolves to
-  enabled for the directory being worked in — ON by default in this repo
-  (`{"enabled": true}`); disabled directories follow default behavior.
+  enabled for the directory being worked in — OFF by default everywhere; only
+  an explicit `{"enabled": true}` in that file enables the rules for the repo
+  or directory. This repo commits `{"enabled": false}`.
 
 ## Parallel sessions (worktrees)
 

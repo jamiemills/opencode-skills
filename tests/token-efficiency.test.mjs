@@ -14,29 +14,29 @@ test('parseToggle: valid {"enabled": true} and {"enabled": false} are ok', () =>
   assert.deepEqual(parseToggle('{"enabled": false}\n'), { enabled: false, ok: true });
 });
 
-test('parseToggle: malformed text, non-object JSON, and non-boolean values all fail closed to enabled', () => {
-  assert.deepEqual(parseToggle('{ this is not json'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('true'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('{"enabled": "yes"}'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('{"enabled": 1}'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('{}'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('null'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('[1, 2]'), { enabled: true, ok: false });
+test('parseToggle: malformed text, non-object JSON, and non-boolean values all default to disabled', () => {
+  assert.deepEqual(parseToggle('{ this is not json'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('true'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('{"enabled": "yes"}'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('{"enabled": 1}'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('{}'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('null'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('[1, 2]'), { enabled: false, ok: false });
 });
 
-test('parseToggle: empty, whitespace, uppercase, JSONC, trailing-comma, and BOM forms all fail closed to enabled (strict JSON, documented)', () => {
-  assert.deepEqual(parseToggle(''), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('   \n\t '), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('TRUE'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('// comment\n{"enabled": false}'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('{"enabled": false,}'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('\uFEFF{"enabled": false}'), { enabled: true, ok: false });
-  assert.deepEqual(parseToggle('{"enabled": true} extra'), { enabled: true, ok: false });
+test('parseToggle: empty, whitespace, uppercase, JSONC, trailing-comma, and BOM forms all default to disabled (strict JSON, documented)', () => {
+  assert.deepEqual(parseToggle(''), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('   \n\t '), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('TRUE'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('// comment\n{"enabled": false}'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('{"enabled": false,}'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('\uFEFF{"enabled": false}'), { enabled: false, ok: false });
+  assert.deepEqual(parseToggle('{"enabled": true} extra'), { enabled: false, ok: false });
 });
 
-test('absent toggle file -> enabled with no source and no warning', () => {
+test('absent toggle file -> disabled with no source and no warning (default off)', () => {
   const eff = isEnabled(fx('absent', 'work'));
-  assert.equal(eff.enabled, true);
+  assert.equal(eff.enabled, false);
   assert.equal(eff.source, null);
   assert.equal(eff.warning, null);
   assert.equal(findToggleFile(fx('absent', 'work')), null);
@@ -55,10 +55,10 @@ test('{"enabled": false} -> disabled with source and no warning', () => {
   assert.equal(eff.warning, null);
 });
 
-test('malformed JSON -> enabled (fail-closed) with a warning', () => {
+test('malformed JSON -> disabled (default off) with a warning', () => {
   const eff = isEnabled(fx('malformed', 'work'));
-  assert.equal(eff.enabled, true);
-  assert.match(eff.warning, /malformed|non-boolean|fail-closed/);
+  assert.equal(eff.enabled, false);
+  assert.match(eff.warning, /malformed|non-boolean|default off/);
   assert.match(eff.warning, /token-efficiency\.json/);
 });
 
@@ -83,7 +83,7 @@ test('the .git-as-DIRECTORY boundary stops the walk (no leakage past it)', () =>
     fs.writeFileSync(join(base, '.agents', 'token-efficiency.json'), '{"enabled": false}');
     fs.writeFileSync(join(base, 'sub', 'work', '.keep'), '');
     const eff = isEnabled(join(base, 'sub', 'work'));
-    assert.equal(eff.enabled, true, 'a toggle ABOVE a .git-dir boundary must not be seen');
+    assert.equal(eff.enabled, false, 'a toggle ABOVE a .git-dir boundary must not be seen (default off)');
     assert.equal(eff.source, null);
     fs.mkdirSync(join(base, 'sub', '.agents'), { recursive: true });
     fs.writeFileSync(join(base, 'sub', '.agents', 'token-efficiency.json'), '{"enabled": false}');

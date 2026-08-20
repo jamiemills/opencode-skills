@@ -115,11 +115,11 @@ repo or per directory (decision A9).
 
 - **File format.** A single JSON object, e.g. `{"enabled": false}` disables;
   `{"enabled": true}` enables.
-- **ON by default (fail-closed).** Absent file, `{"enabled": true}`, or a
-  malformed/non-boolean file all resolve to ENABLED — protections never
-  silently disappear on a corrupt file. A malformed file surfaces a visible
-  warning. This repo commits a default toggle `{"enabled": true}` so the
-  default is explicit, discoverable, and easy to flip to false.
+- **OFF by default (fail-open).** Absent file, `{"enabled": false}`, or a
+  malformed/non-boolean file all resolve to DISABLED — the efficiency layer
+  never silently engages. Only an explicit `{"enabled": true}` enables. A
+  malformed file surfaces a visible warning. This repo commits
+  `{"enabled": false}` so the choice is explicit and discoverable.
 - **Nearest-wins walk-up.** Resolution walks up from the working directory to
   the nearest git root (a `.git` ancestor; falls back to the filesystem root
   outside any repo), checking `<dir>/.agents/token-efficiency.json` at each
