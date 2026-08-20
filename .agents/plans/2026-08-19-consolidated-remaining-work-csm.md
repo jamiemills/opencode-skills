@@ -12,13 +12,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: consolidated-remaining-work-2026-08-19
-- Status: complete
-- Current CSM state: COMPLETE
+- Status: ready
+- Current CSM state: NOT_STARTED
 - Cycle: 3
 - Commits: allowed
 - Last checkpoint: 2026-08-19 cycle 3 — completion gate. T004 complete: step 1 verbatim (check-suite 441 OK; sync-skill-boilerplate --check OK no drift; gen-readme-matrix --check OK; five bootstrap suites serial 30/30; browse 113/113 Node 22; e2e quick 79/79 LIVE Docker; scan serial 1227/1227; upload 2/2 explicit-file form); step 2 deterministic double-pack identical sha256 a3c735f4c5d300decb25a008d2b009fefdef2927633d67753b612e83ef10f208 (matches T002 pack; earlier journal transcription typo corrected in place); step 3 toolchain Linux 6.8.0-107-generic x86_64 / node v22.23.2 / npm 10.9.8 + payload-index sha256 ce6672bf03699070d77f502d27d22587d9053537d0af0c383c267ba1a6b3f5cd + warm/verify evidence via offline suite 8/8 (isolated cache); AC4 cumulative diff (23f1501..HEAD) = expected files only, zero COMPLETE-plan files, 2026-08-03/universal/remaining-active untouched, deferred records intact
-- Next transition: COMPLETE
-- Active tasks: none
+- Next transition: SCOPE
+- Active tasks: T010, T011
 - Blockers: none
 
 ## Goal
@@ -220,6 +220,36 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Acceptance evidence: deferred record new in this plan (from release-checklist steps :13-15, :19-20).
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
+
+10. [pending] Build the fixes identified by `2026-08-19-skills-review.md`
+   - Task ID: T010
+   - Depends on: none
+   - Parallel group: G1
+   - Risk: standard
+   - Owned scope: all 68 upheld findings in `2026-08-19-skills-review.md` (F-001..F-069, excl. retracted F-066) — implemented per their remediation sketches.
+   - Not in scope: deferred T005-T009; any fix not listed in `2026-08-19-skills-review.md`.
+   - Spike candidate: none.
+   - Actions: implement each fix with focused tests per `.agents/reviews/2026-08-19-skills-review.md` remediation sketches; record evidence in the journal.
+   - Acceptance signal: all listed fixes implemented and verified; check-suite + affected suites green.
+   - Validation: cheapest first — node --check, focused tests, then affected suites, then check-suite.
+   - Acceptance evidence: per-fix diff + test output recorded in the journal.
+   - Repair attempts: 0
+   - Recovery note: independently revertible per fix.
+
+11. [pending] Complete the journal-learnings plan in full
+   - Task ID: T011
+   - Depends on: none
+   - Parallel group: G2
+   - Risk: standard
+   - Owned scope: every task (T001-T007) of `2026-08-20-embrace-journal-learnings-csm.md`, executed in full per that plan.
+   - Not in scope: review findings (T010); deferred T005-T009.
+   - Spike candidate: none.
+   - Actions: run csm-build on `.agents/plans/2026-08-20-embrace-journal-learnings-csm.md` to completion; record evidence in the journal.
+   - Acceptance signal: all 7 tasks of the journal-learnings plan complete with their acceptance evidence recorded.
+   - Validation: cheapest first — per-task gates, then check-suite.
+   - Acceptance evidence: journal-learnings plan Completion Review + check-suite output.
+   - Repair attempts: 0
+   - Recovery note: resume via the journal-learnings plan's own journal.
 
 ## Verification Strategy
 - Fast per-task gates: `node --check` on touched files; `cd csm-browse && node scripts/check-skill.mjs`; `node scripts/check-suite.mjs` (<1s); scoped greps for T001.
