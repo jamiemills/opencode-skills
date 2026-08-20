@@ -203,8 +203,10 @@ test('README family (F-052): a fenced-only skill reference does not satisfy the 
   const dir = clonePristine();
   try {
     const content = read(dir, 'README.md');
-    const withoutRow = content.replace(/^\| `csm-upload` \|.*\|\n/m, '');
-    write(dir, 'README.md', `${withoutRow}\n\`\`\`bash\n# fenced-only reference, must not count as a prose declaration\ncsm-upload/SKILL.md\n\`\`\`\n`);
+    // Strip every prose reference to the skill (table row and any deep-dive
+    // cross-links), then append a fenced-only one that must not count.
+    const withoutRefs = content.split('\n').filter((l) => !l.includes('csm-upload/SKILL.md')).join('\n');
+    write(dir, 'README.md', `${withoutRefs}\n\`\`\`bash\n# fenced-only reference, must not count as a prose declaration\ncsm-upload/SKILL.md\n\`\`\`\n`);
     assertGateFails(dir, /README references 8\/9 skills; missing csm-upload/, 'readme-fence');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
