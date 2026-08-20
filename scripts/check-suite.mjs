@@ -657,8 +657,10 @@ function main() {
   // installed so the gate stays runnable on fresh clones without node_modules.
   const oxlintBin = path.join(root, 'node_modules', '.bin', 'oxlint');
   if (fs.existsSync(oxlintBin)) {
-    const lint = spawnSync(oxlintBin, ['--deny-warnings'], { cwd: root, encoding: 'utf8' });
-    if (lint.status === 0) {
+    const lint = spawnSync(oxlintBin, ['--deny-warnings', '--no-error-on-unmatched-pattern'], { cwd: root, encoding: 'utf8' });
+    if (lint.status === null) {
+      check(false, `lint gate: oxlint could not be executed (${lint.error ? lint.error.message : 'unknown spawn error'})`);
+    } else if (lint.status === 0) {
       check(true, 'lint gate: clean');
     } else {
       const findings = (lint.stdout + lint.stderr).split('\n').filter((l) => /warning|error/.test(l));
