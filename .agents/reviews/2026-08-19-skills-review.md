@@ -463,7 +463,7 @@ Key: F-### = finding id; clean = dimension walked, nothing found; n/a = not appl
 - severity: medium | confidence: high | evidence_class: E2
 - locations: csm-scan/lib/scan/report/reporter.mjs:34; lib/scan/shared/privacy.mjs:23; lib/scan/deep/security.mjs:280-303
 - quoted_snippets:
-  - `const SECRET = /(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\\b(?:bearer|password|...)\\s*[:=]\\s*\\S+|...|gh[opusr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b)/i;`
+  - `const SECRET = /(?:\-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\\b(?:bearer|password|...)\\s*[:=]\\s*\\S+|...|gh[opusr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b)/i;`
   - `lines.push(\`  - **${patternLabel}**: ${s.totalFiles} file(s) (e.g. \\\`${escapeField(s.files[0] || 'unknown')}\\\`)\${allowlisted}\`);`
 - explanation: Challenger empirically verified that `sk_live_…`, `xoxb-…`, `eyJ…` JWTs, and `npm_…` pass through sanitizeText/sanitizeStructuredText unredacted, while AKIA/ghp_ redact correctly — the redaction vocabulary lags the scanner's own detection vocabulary (security.mjs:288-301 detects exactly these families). The legacy security dimension is not subject to the fail-before-write gate, so this denylist is the only defense for those fields.
 - impact: Secret-shaped strings in repo-controlled report fields survive into the generated report.
@@ -1050,7 +1050,7 @@ Key: F-### = finding id; clean = dimension walked, nothing found; n/a = not appl
 - quoted_snippets:
   - `await mkdir(dirname(CONFIG_PATH), { recursive: true }); await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');`
   - `const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(f.ext));`
-  - `-----BEGIN PRIVATE KEY-----`
+  - `\-----BEGIN PRIVATE KEY-----` (literal PEM header as cited by the finding)
 - explanation: Four merged lows: (1) upload.mjs creates ~/.agents/csm-upload.json with default modes (0644 in 0755 dir) — today stores only public info, but inconsistent with the repo's own 0600 norms; (2) csm-upload publishes unscreened files including script-capable .svg to a public github.io origin (challenger agreed: <img> context doesn't execute SVG scripts, but direct-URL navigation within the origin does — stored-XSS gadget); (3) an RSA test TLS key (self-signed localhost, valid to 2036) is committed at bootstrap/fixtures/tls/key.pem — conventional test-cert pattern, excluded from the npm artifact, but gitleaks-flagged on every clone; (4) package-audit's tamper test asserts only `error.code !== 0` — any incidental failure masks the property.
 - impact: Local disclosure of future config credentials; stored-XSS gadget on the pages origin from attacker-supplied SVG; key-hygiene smell; tamper-evidence property regressible without detection.
 - remediation_sketch: mkdir mode 0700 + writeFile mode 0600; drop 'svg' from accepted images or sanitize; generate ephemeral TLS keys at test runtime and purge key.pem from history; assert verification.ok === false in the tamper test.
