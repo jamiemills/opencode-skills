@@ -11,14 +11,19 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: embrace-journal-learnings-2026-08-20
-- Status: ready
+- Status: complete
 - Current CSM state: NOT_STARTED
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-20T00:33Z — research complete (5 tracks: older journals, newer journals, docs/approaches/reviews, git history, current-state map); 43 mined themes deduped to 7 tasks; review-owned findings scoped out to T010
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-20T17:39:13Z closed as superseded by 2026-08-20-t010-t011-csm (see Closure block)
+- Next transition: none; closed as superseded — active tasks completed by sibling plan
 - Active tasks: none
-- Blockers: none
+- Blockers: none; closure is intentional and not an implementation result
+
+## Closure
+- Closure status: closed as superseded; active tasks completed by 2026-08-20-t010-t011-csm; no acceptance criteria are claimed by this plan.
+- Replacement plan: /home/jamiemills/.config/opencode/skills/.agents/plans/2026-08-20-t010-t011-csm.md.
+- Task disposition: T001, T002, T003, T004, T005, T006, T007 superseded — active tasks completed by sibling plan 2026-08-20-t010-t011-csm; blocked/DEFERRED records retained as blocked.
 
 ## Goal
 Embrace the recurring findings, learnings, mistakes, adaptations, lessons, and workarounds mined from this repo's plan journals, review docs, and git history (2026-08-03..2026-08-19) by encoding them as automated gates, tooling, and a single cross-plan reference: payload-drift detection, gate-baseline recording, a Node 22 toolchain helper, a deferred-work ledger, plan acceptance-signal linting, plan closure automation, and a consolidated journal-lessons doc. Review-owned fixes (F-001..F-069) are explicitly out of scope — they are already owned by T010 of the consolidated plan.
@@ -101,7 +106,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
 - No task invokes `scripts/pack-bootstrap.mjs` (serial pack rule preserved); no task touches review-owned files (T010 scope).
 
 ## Numbered Plan
-1. [pending] Payload-drift gate in check-suite.mjs
+1. [blocked] Payload-drift gate in check-suite.mjs (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1 (Wave 1)
@@ -116,7 +121,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - Repair attempts: 0
    - Recovery note: the rule is additive; if it false-positives on the live payload, fix the mapping (never the payload) per the "checker must pass on final suite — never patch checker to appease" lesson; the planted test re-proves the rule.
 
-2. [pending] Gate-baseline recorder (evidence artifact for journal numbers)
+2. [blocked] Gate-baseline recorder (evidence artifact for journal numbers) (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T002
    - Depends on: none
    - Parallel group: G2 (Wave 1)
@@ -133,7 +138,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - (A8) Deviations warn at pre-commit via exit code, but the script's own exit is the signal — the hook logs and continues for the first cycle only if a baseline exists; policy hardens in a later plan.
    - (Superseded pointer: plan 2026-08-20-oxlint-lefthook-precommit-csm.md T002/T003) The `record-gate-baseline.mjs` invocation is retargeted to a `.lefthook.yml` pre-commit job — a check-suite-preceding job running `node scripts/record-gate-baseline.mjs` when the file exists; `scripts/hooks/pre-commit` is now a generated lefthook shim, so it must not be hand-edited. Baseline-recording intent unchanged.
 
-3. [pending] Node 22 toolchain helper (ends the PATH-prepend workaround)
+3. [blocked] Node 22 toolchain helper (ends the PATH-prepend workaround) (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T003
    - Depends on: none
    - Parallel group: G3 (Wave 1)
@@ -149,7 +154,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - Recovery note: helper is additive; if the nvm path is absent on another host, --print falls back to current node with the version guard — no hardcoded host assumption beyond the documented fallback.
    - (A7) The helper enforces ≥22 <25, it does not pin a single line.
 
-4. [pending] Deferred-work ledger + DEFERRED-citation rule
+4. [blocked] Deferred-work ledger + DEFERRED-citation rule (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T004
    - Depends on: T001
    - Parallel group: G4 (Wave 2)
@@ -165,7 +170,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - Recovery note: rule is additive and never fails COMPLETE plans; if a non-COMPLETE plan's DEFERRED text doesn't match, fix that plan's citation (not the rule); ledger doc is disposable prose.
    - (A6) Single-writer: this task is the only check-suite.mjs editor in Wave 2.
 
-5. [pending] Plan acceptance-signal lint (check-plan-signals.mjs)
+5. [blocked] Plan acceptance-signal lint (check-plan-signals.mjs) (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T005
    - Depends on: T004
    - Parallel group: G5 (Wave 3)
@@ -181,7 +186,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - Recovery note: lint is additive; a false positive on a legitimate signal fixes the lint rule (never the plan content to appease it — journal lesson); each corrected plan is revertible.
    - (A6) Single-writer: this task is the only check-suite.mjs editor in Wave 3. If T010's check-suite test harness (F-003) has landed by dispatch, add direct unit tests here instead of temp-dir plants (coordinate at RECOVER).
 
-6. [pending] Plan closure automation (close-plan.mjs)
+6. [blocked] Plan closure automation (close-plan.mjs) (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T006
    - Depends on: none
    - Parallel group: G6 (Wave 1)
@@ -197,7 +202,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - Recovery note: script is additive; dry-run guarantees no live-corpus write; if the temp-corpus gate fails, fix the script (never the temp fixtures to appease).
    - (A3/A4) Closure automation replaces the hand-edit path that produced transcription errors; protected-hash registry remains rejected.
 
-7. [pending] Journal-lessons reference doc
+7. [blocked] Journal-lessons reference doc (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T007
    - Depends on: none
    - Parallel group: G7 (Wave 1)
@@ -251,6 +256,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
 | 2026-08-20T00:45Z | 0 | DRAFT -> CRITIQUE | — | Draft written (7 tasks); independent critic returned 11 findings (2 critical: missing format marker on the draft itself — live proof of the F-050 lesson; AC4 false against real corpus) + verdicts on 8 questions | REMEDIATE |
 | 2026-08-20T01:05Z | 0 | REMEDIATE -> VERIFY | — | All 11 findings remediated in the draft (frontmatter added; DEFERRED rule scoped to non-COMPLETE plans; lint scope inline+fenced non-COMPLETE; planted tests corpus-complete with specific-message assertions; T002 count source + guards; README single-owner; deliverables count fixed); resolutions recorded in Critique Resolution | VERIFY |
 | (filled by csm-build) | | | | | |
+| 2026-08-20T17:39:13Z | 0 | SAVED -> closed (superseded by 2026-08-20-t010-t011-csm) | T001, T002, T003, T004, T005, T006, T007 | closed as superseded — active tasks completed by sibling plan 2026-08-20-t010-t011-csm; no acceptance criteria claimed by this plan | closed |
 
 ## Completion Review
 (filled by csm-build when all criteria are verified)

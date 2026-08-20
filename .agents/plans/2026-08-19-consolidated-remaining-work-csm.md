@@ -12,14 +12,19 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: consolidated-remaining-work-2026-08-19
-- Status: ready
+- Status: complete
 - Current CSM state: NOT_STARTED
 - Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-20 — plan hygiene after user-directed reopen (T010-T012 amendment). T012 verified complete by sibling build: `2026-08-20-skill-suite-efficiency-resilience-csm.md` Status: complete / Current CSM state: COMPLETE (cycles 1-3; resume-semantics tests, quota-pause contracts, payload digest e19a0d12/912219df shipped). Active work = T010 (68 review findings) + T011 (journal-learnings plan), being executed via the separately drafted combined plan `2026-08-20-t010-t011-*` (user direction: one plan). T001-T004 completion evidence unchanged (cycle-3 row).
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: T010, T011
-- Blockers: none
+- Last checkpoint: 2026-08-20T17:39:02Z closed as superseded by 2026-08-20-t010-t011-csm (see Closure block)
+- Next transition: none; closed as superseded — active tasks completed by sibling plan
+- Active tasks: none
+- Blockers: none; closure is intentional and not an implementation result
+
+## Closure
+- Closure status: closed as superseded; active tasks completed by 2026-08-20-t010-t011-csm; no acceptance criteria are claimed by this plan.
+- Replacement plan: /home/jamiemills/.config/opencode/skills/.agents/plans/2026-08-20-t010-t011-csm.md.
+- Task disposition: T010, T011 superseded — active tasks completed by sibling plan 2026-08-20-t010-t011-csm; blocked/DEFERRED records retained as blocked.
 
 ## Goal
 Consolidate every remaining outstanding work item into one executable plan and close off stale outstanding-work references: (1) refresh the stale vendored bootstrap payload; (2) close the five accepted CDP-auth residuals (implement the two mechanically small ones, formally accept the two redesign-scale ones, record the already-resolved one); (3) complete the local pre-release readiness steps for the bootstrap package; (4) close the stale `2026-08-18-remaining-suite-work-csm.md` plan so completed work cannot be redispatched and its deferred records live here. Publication/hosting/key-rotation remain deferred user-approved actions. Superseded plans are ignored; COMPLETE plan files are neither edited nor used as work sources (attribution-only naming is permitted where a closure disposition requires it).
@@ -221,7 +226,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-10. [pending] Build the fixes identified by `2026-08-19-skills-review.md`
+10. [blocked] Build the fixes identified by `2026-08-19-skills-review.md` (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T010
    - Depends on: none
    - Parallel group: G1
@@ -236,7 +241,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: independently revertible per fix.
 
-11. [pending] Complete the journal-learnings plan in full
+11. [blocked] Complete the journal-learnings plan in full (completed by 2026-08-20-t010-t011-csm — superseded)
    - Task ID: T011
    - Depends on: none
    - Parallel group: G2
@@ -309,6 +314,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
 | 2026-08-19 | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001, T003 | T001 done: closure edits per D9 (Status complete, Closure block, 4x[pending]->[blocked], journal row; attribution-only sibling naming); .agents/README.md 6 lines backfilled + consolidated plan added + stale in_progress fixed; signals: check-suite 441 OK, zero [pending], scoped porcelain = 2 owned files. T003 done: redactTelemetry wraps (browse.mjs :75/:87/:102 — deviation: redactProse unexported, used stronger exported redactTelemetry); SKILL.md diagnosis step 4 rewritten (verbatim-copy + splice-before-query, mechanical node -e form keeps token out of history); orphan-exec sweep pass (sweep.mjs:291-320) live-spiked with Docker: argv shapes captured, container-side peers host-visible (docker+exec token requirement proven mandatory), pool bound 9224-9234 verified, kills ENABLED (no dry-run fallback needed); +7 tests (4 sweep incl. live-captured shapes, 3 residuals incl. source pin). VERIFY: 113/113 npm test Node 22, check-skill PASS. REVIEW (independent, sweep = host process-kill): FIX-FIRST — F1 moderate positional argv (probe `docker exec <c> pgrep -af socat - …` could be SIGTERMed) REPAIRED (exact 3-token tail + container+1=socat + negatives pid16-19); F2 moderate SKILL.md manual form made //json/version (trailing / in cdpUrl) REPAIRED (replace-lone-slash wording, mechanical form first); F4 minor test gaps REPAIRED (docker-compose/sudo anchors, probe shape, tail-exactness, stub pattern tightened to escaped literal); F3 minor pid-reuse TOCTOU DISMISSED: pre-existing pattern shared with sibling orphan-gate pass (sweep.mjs:285), requires pid wrap in a sub-second window, SIGTERM-only, fix would touch out-of-scope docker.mjs. Re-VERIFY: 113/113, check-skill PASS, check-suite 441 OK. Residual evidence recorded: (a) ACCEPTED perf-only exec-per-connection — daemon amortizes one persistent WS (session-daemon.mjs:129), per-verb exec ~tens of ms vs multi-second page ops, sharing needs WS-aware mux redesign; (e) ACCEPTED tokenless static /json/protocol — public schema, no tunnel ever opened, Connection:close + forced destroy kills pipelined relay (regression auth.test.mjs:233-280), token would break stock CRI; (d) RESOLVED port-pool re-key fully implemented — ports.mjs:92-125 host bind-probe + stale-socat skip, sweep.mjs:273-302 both strata reaped, cleanup.mjs:55-91 exact --port killGate, ensure-browser.mjs:480-494 rotate-persist-kill-respawn; tests ports.test.mjs:151-191, auth.test.mjs:308-337. Committed 0131fe9 | SELECT (Wave 2: T002) |
 | 2026-08-19 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T002 | Primary-executed (shared-state, serial): `node scripts/pack-bootstrap.mjs` under node v22.23.2/npm 10.9.8 -> tarball sha256 a3c735f4c5d300decb25a008d2b009fefdef2927633d67753b612e83ef10f208 (459015 B, 120 files); bootstrap diff bounded to the 4 expected payload files + payload-index.json; retired symbols (runExistingTenPipeline/processExistingTenRepo/scanExistingTen) absent from payload (rg exit 1); pinned comparison {compared:116, issues:[]} exit 0 (plan said 113 — researcher count discrepancy explained; material signal zero issues); check-suite 441 OK; five suites SERIAL: trust 2/2, package-audit 1/1, protocol 18/18, offline 8/8, integration 1/1 = 30/30; suite re-packs idempotent (diff unchanged after). Committed 1d739b4 | SELECT (Wave 3: T004) |
 | 2026-08-19 | 3 | SELECT -> DISPATCH -> VERIFY -> CHECKPOINT -> completion gate -> COMPLETE | T004 | Step 1 verbatim: check-suite 441 OK; `sync-skill-boilerplate.mjs --check` OK no drift; `gen-readme-matrix.mjs --check` OK region matches contracts; five bootstrap suites serial 30/30 (2/1/18/8/1); browse `npm test` 113/113 Node 22; e2e quick 79/79 LIVE (FAIL:0, TOTAL:79, 49.3s, Docker up); csm-scan serial 1227/1227; csm-upload 2/2 (explicit-file form `node --test csm-upload/tests/upload.test.mjs` — no package.json; directory form hits the known Node 22 quirk). Step 2: double-pack deterministic — pack1==pack2==a3c735f4c5d300decb25a008d2b009fefdef2927633d67753b612e83ef10f208, equal to the T002 pack; cycle-2 journal digest transcription typo corrected in place (pack output authoritative). Step 3: toolchain Linux 6.8.0-107-generic x86_64 / node v22.23.2 / npm 10.9.8; payload-index.json sha256 ce6672bf03699070d77f502d27d22587d9053537d0af0c383c267ba1a6b3f5cd; warm-cache + dead-registry replay + npm-cache-verify evidence = offline suite 8/8 against the pack-isolated cache. (a)/(e)/(d) rationales recorded cycle 1. AC4: cumulative diff 23f1501..HEAD = the 13 expected files only; zero COMPLETE-plan files; 2026-08-03 comprehensive-readme, universal-bootstrap, remaining-active plans untouched; T005-T009 blocked DEFERRED records intact; SELECT never dispatched deferred work. bootstrap/ clean after double-pack (idempotent) | COMPLETE |
+| 2026-08-20T17:39:02Z | 3 | SAVED -> closed (superseded by 2026-08-20-t010-t011-csm) | T010, T011 | closed as superseded — active tasks completed by sibling plan 2026-08-20-t010-t011-csm; no acceptance criteria claimed by this plan | closed |
 
 ## Completion Review
 Completed 2026-08-19 by csm-build, cycles 1-3, 4/4 active tasks complete; T005-T009 remain blocked DEFERRED records (user-directed).

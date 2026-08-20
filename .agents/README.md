@@ -20,10 +20,12 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-18-remaining-active-suite-work-csm.md` — 2026-08-18 — execute the four active remaining-suite-work tasks (CDP auth, legacy retirement, test tiers, refinements) — status: complete
 - `2026-08-18-remaining-suite-work-csm.md` — 2026-08-18 — remaining non-installer suite work (CDP auth, legacy retirement, test tiers, refinements) — status: complete (closed as superseded; superseded-by `2026-08-19-consolidated-remaining-work-csm.md`; deferred records moved to the consolidated plan)
 - `2026-08-18-universal-agent-skills-bootstrap-csm.md` — 2026-08-18 — any-agent skills bootstrap via one URL with a signed payload manifest — status: complete
-- `2026-08-19-consolidated-remaining-work-csm.md` — 2026-08-19 — consolidate remaining work (payload refresh, CDP-auth residuals, pre-release readiness, stale-plan closure) — status: ready (reopened 2026-08-20; T010/T011 pending — executed via combined plan; T012 completed by sibling build)
-- `2026-08-20-embrace-journal-learnings-csm.md` — 2026-08-20 — embrace journal learnings — status: ready
+- `2026-08-19-consolidated-remaining-work-csm.md` — 2026-08-19 — consolidate remaining work (payload refresh, CDP-auth residuals, pre-release readiness, stale-plan closure) — status: complete (closed as superseded 2026-08-20; superseded-by `2026-08-20-t010-t011-csm.md`; T001-T004/T012 done in-suite, T010/T011 completed by the combined plan; T005-T009 deferred records live in `.agents/docs/deferred.md`)
+- `2026-08-20-embrace-journal-learnings-csm.md` — 2026-08-20 — embrace journal learnings — status: complete (closed as superseded 2026-08-20; superseded-by `2026-08-20-t010-t011-csm.md`; T001-T007 executed as J1-J7 by the combined plan)
+- `2026-08-20-t010-t011-csm.md` — 2026-08-20 — execute the consolidated plan's T010 (68 review findings) + T011 (7 journal-learnings tasks) in one build — status: complete (16/16 tasks; check-suite 621 -> 618 checks; deferred records in `.agents/docs/deferred.md`)
 - `2026-08-20-skill-suite-efficiency-resilience-csm.md` — 2026-08-20 — skill-suite efficiency and quota resilience — status: complete
-- `2026-08-20-cache-token-efficiency-csm.md` — 2026-08-20 — cache maximization and token efficiency (research operationalized) — status: ready
+- `2026-08-20-cache-token-efficiency-csm.md` — 2026-08-20 — cache maximization and token efficiency (research operationalized) — status: complete
+- `2026-08-20-csm-deep-research-skill-csm.md` — 2026-08-20 — build the csm-deep-research skill (grill->plan->build, 5 phases, hostile review) — status: complete
 - `2026-08-20-oxlint-lefthook-precommit-csm.md` — 2026-08-20 — oxlint + lefthook pre-commit gate + pnpm-only installs — status: complete
 - `2026-08-20-lint-strictness-enforcement-csm.md` — 2026-08-20 — lint strictness: fix 979 warnings, .oxlintrc.json quality bar, three-layer enforcement — status: in_progress (executing)
 
