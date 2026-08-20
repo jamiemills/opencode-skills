@@ -27,7 +27,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-20-cache-token-efficiency-csm.md` — 2026-08-20 — cache maximization and token efficiency (research operationalized) — status: complete
 - `2026-08-20-csm-deep-research-skill-csm.md` — 2026-08-20 — build the csm-deep-research skill (grill->plan->build, 5 phases, hostile review) — status: complete
 - `2026-08-20-oxlint-lefthook-precommit-csm.md` — 2026-08-20 — oxlint + lefthook pre-commit gate + pnpm-only installs — status: complete
-- `2026-08-20-lint-strictness-enforcement-csm.md` — 2026-08-20 — lint strictness: fix 979 warnings, .oxlintrc.json quality bar, three-layer enforcement — status: in_progress (executing)
+- `2026-08-20-lint-strictness-enforcement-csm.md` — 2026-08-20 — lint strictness: fix 979 warnings, .oxlintrc.json quality bar, three-layer enforcement — status: complete
 
 ## docs/
 

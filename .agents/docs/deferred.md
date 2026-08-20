@@ -31,9 +31,8 @@ never edited by this rule.
 - Item: 2026-08-03 comprehensive README plan
 - Rationale: the dated repo-README rewrite plan (`2026-08-03-comprehensive-readme-csm.md`, ready, never dispatched in its own build). Deferral lifted 2026-08-19 by user direction; the target plan was completed with zero corrective edits because later README rewrites already satisfied its criteria. Record retained for traceability.
 - Owning plans: `2026-08-19-consolidated-remaining-work-csm.md` T007 (target `2026-08-03-comprehensive-readme-csm.md`)
-- Status: resolved (deferral lifted 2026-08-19; target plan completed with zero corrective edits)
+- Status: resolved (deferral lifted 2026-08-19; target plan completed with zero corrective edits; record retained for traceability)
 - User decision: deferred 2026-08-16; lifted 2026-08-19 (user direction)
-- Status: open (record retained; deferral lifted, target plan complete)
 
 ## DEF-EVAL
 
