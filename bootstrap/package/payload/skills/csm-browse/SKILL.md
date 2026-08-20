@@ -19,7 +19,7 @@ Use `csm-browse` whenever you need to drive a headful Chromium browser inside th
 ## One-time setup
 
 ```bash
-cd $HOME/.config/opencode/skills/csm-browse && npm install --no-audit --no-fund
+cd $HOME/.config/opencode/skills/csm-browse && pnpm install
 ```
 
 Verify the install:

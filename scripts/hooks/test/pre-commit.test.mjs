@@ -6,7 +6,47 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const hook = fileURLToPath(new URL('../pre-commit', import.meta.url));
+const REPO = fileURLToPath(new URL('../../..', import.meta.url));
+const SHIM = path.join(REPO, 'scripts/hooks/pre-commit');
+const REAL_CONFIG = path.join(REPO, '.lefthook.yml');
+const LFK_BIN = path.join(REPO, 'node_modules/.bin/lefthook');
+const OXL_BIN = path.join(REPO, 'node_modules/.bin/oxlint');
+
+const LEGACY = ['S', 'Y', 'N', 'C'].join('');
+
+const MISSING = ![LFK_BIN, OXL_BIN, SHIM].every((p) => fs.existsSync(p));
+if (MISSING) {
+  console.warn('WARNING: lefthook/oxlint not installed under repo node_modules — skipping pre-commit integration tests');
+}
+const SKIP = MISSING ? 'repo node_modules missing lefthook/oxlint; cannot run lefthook integration tests' : false;
+
+const FIXTURE_CONFIG = `assert_lefthook_installed: true
+output: [execution, failure, summary]
+
+pre-commit:
+  piped: true
+  jobs:
+    - name: unstaged-guard
+      run: |
+        unstaged=$(git diff --name-status --)
+        if [ -n "$unstaged" ]; then
+          echo "pre-commit: tracked working-tree changes must be staged before running commit gates:"
+          echo "$unstaged"
+          echo "pre-commit: stage or discard those changes, or bypass with git commit --no-verify."
+          exit 1
+        fi
+      fail_text: "tracked working-tree changes must be staged (bypass: git commit --no-verify)"
+    - name: check-suite
+      run: node scripts/check-suite.mjs
+      fail_text: "conformance gate failed (node scripts/check-suite.mjs)"
+    - name: mjs-syntax
+      glob: "*.mjs"
+      run: for f in {staged_files}; do node --check "$f" || exit 1; done
+      fail_text: "staged .mjs syntax check failed"
+    - name: oxlint
+      glob: "*.{js,mjs,cjs,ts,tsx,mts,cts}"
+      run: ${OXL_BIN} --deny-warnings --no-error-on-unmatched-pattern {staged_files}
+      fail_text: "oxlint found problems in staged files (errors and warnings both fail)"`;
 
 function git(root, ...args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
@@ -16,108 +56,248 @@ function write(root, name, content) {
   fs.writeFileSync(path.join(root, name), content);
 }
 
+function combined(result) {
+  return `${result.stdout}${result.stderr}`;
+}
+
 function setup() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-commit-hook-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-commit-lh-'));
   git(root, 'init', '-q');
   git(root, 'config', 'user.name', 'Hook Test');
   git(root, 'config', 'user.email', 'hook-test@example.invalid');
-  write(root, 'tracked.txt', 'base\n');
-  write(root, 'tracked.mjs', 'export const value = 1;\n');
-  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
-  write(root, 'scripts/check-suite.mjs', "console.log('CHECK_SUITE');\n");
-  write(root, 'scripts/sync-skill-boilerplate.mjs', "console.log('SYNC');\n");
+  write(root, 'good.mjs', 'export const base = 1;\n');
+  write(root, 'tracked.txt', 'tracked\n');
   fs.mkdirSync(path.join(root, 'scripts/hooks'), { recursive: true });
-  fs.copyFileSync(hook, path.join(root, 'scripts/hooks/pre-commit'));
+  write(root, 'scripts/check-suite.mjs', 'console.log("CHECK_SUITE");\n');
+  fs.copyFileSync(SHIM, path.join(root, 'scripts/hooks/pre-commit'));
   fs.chmodSync(path.join(root, 'scripts/hooks/pre-commit'), 0o755);
-  git(root, 'add', '.');
-  git(root, 'commit', '-qm', 'baseline');
+  write(root, '.lefthook.yml', FIXTURE_CONFIG);
   git(root, 'config', 'core.hooksPath', 'scripts/hooks');
+  git(root, 'add', '.');
+  const baseline = commit(root, 'baseline');
+  assert.equal(baseline.status, 0, `baseline commit failed: ${combined(baseline)}`);
   return root;
 }
 
-function runHook(root, ...args) {
-  return spawnSync(process.execPath, [path.join(root, 'scripts/hooks/pre-commit'), ...args], {
+function commit(root, message, ...args) {
+  return spawnSync('git', ['commit', '-m', message, ...args], {
     cwd: root,
     encoding: 'utf8',
+    env: hookEnv(),
   });
 }
 
-function commit(root, message, ...args) {
-  return spawnSync('git', ['commit', '-m', message, ...args], { cwd: root, encoding: 'utf8' });
+function hookEnv() {
+  const env = { ...process.env, LEFTHOOK_BIN: LFK_BIN };
+  delete env.LEFTHOOK;
+  return env;
 }
 
 function cleanup(root) {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-test('clean, staged-only, staged deletion, and untracked files pass', () => {
+test('(a) repo .lefthook.yml validates and the hook shim is in place', { skip: SKIP }, (t) => {
+  const real = fs.readFileSync(REAL_CONFIG, 'utf8');
+  assert.ok(fs.existsSync(REAL_CONFIG), 'repo .lefthook.yml exists');
+  assert.match(real, /piped:\s*true/);
+  for (const job of ['unstaged-guard', 'check-suite', 'mjs-syntax', 'oxlint', 'csm-browse-check']) {
+    assert.match(real, new RegExp(`name: ${job}`), `repo config has job ${job}`);
+  }
+  assert.match(real, /--deny-warnings/, 'repo oxlint job uses --deny-warnings');
+
+  const validated = spawnSync(LFK_BIN, ['validate'], { cwd: REPO, encoding: 'utf8' });
+  assert.equal(validated.status, 0, `lefthook validate failed: ${combined(validated)}`);
+
+  const st = fs.statSync(SHIM);
+  assert.ok(st.isFile(), 'shim is a file');
+  assert.ok(st.mode & 0o111, 'shim is executable');
+  const content = fs.readFileSync(SHIM, 'utf8');
+  assert.ok(content.startsWith('#!/bin/sh\n'), 'shim starts with #!/bin/sh');
+  assert.match(content, /LEFTHOOK/, 'shim contains the LEFTHOOK fingerprint');
+  assert.match(content, /LEFTHOOK_BIN/, 'shim honors LEFTHOOK_BIN env');
+  assert.match(content, /LEFTHOOK=0/, 'shim honors LEFTHOOK=0 to skip');
+  t.diagnostic('repo config + shim OK');
+});
+
+test('(b) clean / staged-only / staged-deletion / untracked commits pass', { skip: SKIP }, (t) => {
   const root = setup();
-  try {
-    for (const [name, mutate] of [
-      ['clean', () => {}],
-      ['staged-only', () => { write(root, 'tracked.txt', 'staged\n'); git(root, 'add', 'tracked.txt'); }],
-      ['staged-deletion', () => { fs.unlinkSync(path.join(root, 'tracked.txt')); git(root, 'add', '-u'); }],
-      ['untracked', () => { write(root, 'untracked.txt', 'ignored by preflight\n'); }],
-    ]) {
-      const result = runHook(root);
-      assert.equal(result.status, 0, `${name}: ${result.stderr}`);
-      assert.match(result.stdout, /CHECK_SUITE/);
-      assert.match(result.stdout, /SYNC/);
-      if (name === 'staged-only') git(root, 'reset', '-q', '--hard', 'HEAD');
-      if (name === 'staged-deletion') {
-        git(root, 'reset', '-q', '--hard', 'HEAD');
-        fs.rmSync(path.join(root, 'untracked.txt'), { force: true });
-      }
+  t.after(() => cleanup(root));
+
+  const cases = [
+    {
+      name: 'clean',
+      mutate: () => {},
+      args: ['--allow-empty'],
+      expectGate: false,
+    },
+    {
+      name: 'staged-only',
+      mutate: () => {
+        write(root, 'good.mjs', 'export const base = 2;\n');
+        git(root, 'add', 'good.mjs');
+      },
+      expectGate: true,
+    },
+    {
+      name: 'untracked-file',
+      mutate: () => {
+        write(root, 'untracked.mjs', 'export const stray = true;\n');
+        write(root, 'good.mjs', 'export const base = 3;\n');
+        git(root, 'add', 'good.mjs');
+      },
+      expectGate: true,
+    },
+    {
+      name: 'staged-deletion',
+      mutate: () => {
+        git(root, 'rm', '-q', 'good.mjs');
+      },
+      expectGate: true,
+    },
+  ];
+
+  for (const c of cases) {
+    c.mutate();
+    const r = commit(root, `b:${c.name}`, ...(c.args || []));
+    assert.equal(r.status, 0, `${c.name} commit failed: ${combined(r)}`);
+    const out = combined(r);
+    assert.doesNotMatch(out, /🥊/, `${c.name}: no job failures`);
+    assert.doesNotMatch(out, new RegExp(LEGACY), `${c.name}: no legacy hook output`);
+    if (c.expectGate) {
+      assert.match(out, /CHECK_SUITE/, `${c.name}: gate ran`);
     }
-  } finally {
-    cleanup(root);
+    git(root, 'reset', '-q', '--hard', 'HEAD');
   }
+  fs.rmSync(path.join(root, 'untracked.mjs'), { force: true });
+  t.diagnostic('clean/staged/deletion/untracked all committed');
 });
 
-test('unstaged-only, mixed-file, and unstaged deletion fail before gates', () => {
-  for (const [name, mutate] of [
-    ['unstaged-only', (root) => write(root, 'tracked.txt', 'unstaged\n')],
-    ['mixed-file', (root) => { write(root, 'tracked.txt', 'staged\n'); git(root, 'add', 'tracked.txt'); write(root, 'tracked.txt', 'unstaged\n'); }],
-    ['unstaged-deletion', (root) => fs.unlinkSync(path.join(root, 'tracked.txt'))],
-  ]) {
-    const root = setup();
-    try {
-      mutate(root);
-      const result = runHook(root);
-      assert.notEqual(result.status, 0, name);
-      assert.match(result.stderr, /tracked working-tree changes must be staged/);
-      assert.doesNotMatch(result.stdout, /CHECK_SUITE|SYNC/);
-    } finally {
-      cleanup(root);
-    }
-  }
-});
-
-test('git commit --no-verify bypasses the hook', () => {
+test('(c) unstaged or mixed tracked changes are blocked before any gate', { skip: SKIP }, (t) => {
   const root = setup();
-  try {
-    write(root, 'tracked.txt', 'staged but bypassed\n');
-    git(root, 'add', 'tracked.txt');
-    write(root, 'tracked.txt', 'unstaged but bypassed\n');
-    const result = commit(root, 'bypass', '--no-verify');
-    assert.equal(result.status, 0, result.stderr);
-    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /tracked working-tree changes must be staged|CHECK_SUITE|SYNC/);
-  } finally {
-    cleanup(root);
+  t.after(() => cleanup(root));
+
+  const guardRe = /tracked working-tree changes must be staged/;
+
+  const mixed = [
+    {
+      name: 'staged file + unstaged tracked modification',
+      mutate: () => {
+        write(root, 'good.mjs', 'export const base = 20;\n');
+        git(root, 'add', 'good.mjs');
+        write(root, 'tracked.txt', 'dirty\n');
+      },
+    },
+    {
+      name: 'staged file + unstaged tracked deletion',
+      mutate: () => {
+        write(root, 'good.mjs', 'export const base = 21;\n');
+        git(root, 'add', 'good.mjs');
+        fs.unlinkSync(path.join(root, 'tracked.txt'));
+      },
+    },
+  ];
+
+  for (const c of mixed) {
+    c.mutate();
+    const r = commit(root, `c:${c.name}`);
+    assert.notEqual(r.status, 0, `${c.name}: commit must fail`);
+    const out = combined(r);
+    assert.match(out, guardRe, `${c.name}: guard message`);
+    assert.doesNotMatch(out, /CHECK_SUITE/, `${c.name}: no gate output (piped guard-first)`);
+    git(root, 'reset', '-q', '--hard', 'HEAD');
   }
+
+  write(root, 'tracked.txt', 'only unstaged\n');
+  const unstaged = commit(root, 'c:unstaged-only');
+  assert.notEqual(unstaged.status, 0, 'unstaged-only commit must fail');
+  const out = combined(unstaged);
+  assert.match(out, /no changes added to commit|nothing to commit/, 'git refuses the empty index');
+  assert.doesNotMatch(out, /CHECK_SUITE/, 'unstaged-only: no gate output');
+  git(root, 'reset', '-q', '--hard', 'HEAD');
+  t.diagnostic('guard blocks mixed/unstaged before gates');
 });
 
-test('clean staged commit invokes gates before staged syntax checks', () => {
+test('(d) staged oxlint-error .mjs blocks; the same UNTRACKED error does not', { skip: SKIP }, (t) => {
   const root = setup();
-  try {
-    write(root, 'tracked.mjs', 'export const value = 2;\n');
-    git(root, 'add', 'tracked.mjs');
-    const result = commit(root, 'gated commit');
-    assert.equal(result.status, 0, result.stderr);
-    const output = `${result.stdout}${result.stderr}`;
-    assert.ok(output.indexOf('CHECK_SUITE') < output.indexOf('SYNC'), output);
-    assert.equal(git(root, 'status', '--short'), '');
-  } finally {
-    cleanup(root);
-  }
+  t.after(() => cleanup(root));
+
+  const badPath = path.join(root, 'bad.mjs');
+  write(root, 'bad.mjs', 'const x = ;\n');
+
+  const oxl = spawnSync(OXL_BIN, ['--deny-warnings', '--no-error-on-unmatched-pattern', badPath], {
+    encoding: 'utf8',
+  });
+  assert.notEqual(oxl.status, 0, `fixture must fail a real oxlint invocation: ${combined(oxl)}`);
+  t.diagnostic(`fixture oxlint: exit ${oxl.status} (${combined(oxl).trim()})`);
+
+  git(root, 'add', 'bad.mjs');
+  const blocked = commit(root, 'd:staged-bad');
+  assert.notEqual(blocked.status, 0, 'staged oxlint-error .mjs must block the commit');
+  assert.match(combined(blocked), /Unexpected token|SyntaxError|syntax check failed/);
+  git(root, 'reset', '-q', 'HEAD');
+
+  write(root, 'good.mjs', 'export const base = 30;\n');
+  git(root, 'add', 'good.mjs');
+  const passed = commit(root, 'd:untracked-bad');
+  assert.equal(passed.status, 0, `untracked bad.mjs must not block: ${combined(passed)}`);
+  assert.match(combined(passed), /CHECK_SUITE/);
+  assert.match(git(root, 'status', '--short'), /\?\? bad\.mjs/, 'bad.mjs stays untracked');
+  t.diagnostic('staged error blocks; untracked error ignored by {staged_files} globs');
+});
+
+test('(e) an oxlint warning blocks under --deny-warnings', { skip: SKIP }, (t) => {
+  const root = setup();
+  t.after(() => cleanup(root));
+
+  const warnPath = path.join(root, 'warn.mjs');
+  write(root, 'warn.mjs', 'const unusedVar = 1;\n');
+
+  const plain = spawnSync(OXL_BIN, ['--no-error-on-unmatched-pattern', warnPath], { encoding: 'utf8' });
+  assert.equal(plain.status, 0, `plain oxlint must pass the fixture: ${combined(plain)}`);
+  const deny = spawnSync(OXL_BIN, ['--deny-warnings', '--no-error-on-unmatched-pattern', warnPath], {
+    encoding: 'utf8',
+  });
+  assert.notEqual(deny.status, 0, `oxlint --deny-warnings must fail the fixture: ${combined(deny)}`);
+  t.diagnostic('warning fixture: plain oxlint exit 0, --deny-warnings exit non-zero');
+
+  git(root, 'add', 'warn.mjs');
+  const r = commit(root, 'e:warn');
+  assert.notEqual(r.status, 0, 'staged warning must block the commit');
+  assert.match(combined(r), /oxlint|unusedVar/, 'blocked by oxlint');
+  git(root, 'reset', '-q', '--hard', 'HEAD');
+  t.diagnostic('--deny-warnings escalates staged warnings to failures');
+});
+
+test('(f) git commit --no-verify bypasses the hook', { skip: SKIP }, (t) => {
+  const root = setup();
+  t.after(() => cleanup(root));
+
+  write(root, 'good.mjs', 'export const base = 40;\n');
+  git(root, 'add', 'good.mjs');
+  write(root, 'tracked.txt', 'dirty\n');
+
+  const r = commit(root, 'f:bypass', '--no-verify');
+  assert.equal(r.status, 0, combined(r));
+  const out = combined(r);
+  assert.doesNotMatch(out, /CHECK_SUITE/, 'no gate output on bypass');
+  assert.doesNotMatch(out, /tracked working-tree changes must be staged/, 'no guard on bypass');
+  t.diagnostic('--no-verify skips the lefthook shim entirely');
+});
+
+test('(g) a clean commit leaves git status clean and the commit exists', { skip: SKIP }, (t) => {
+  const root = setup();
+  t.after(() => cleanup(root));
+
+  const before = git(root, 'rev-parse', 'HEAD').trim();
+  write(root, 'good.mjs', 'export const base = 50;\n');
+  git(root, 'add', 'good.mjs');
+
+  const r = commit(root, 'g:clean');
+  assert.equal(r.status, 0, combined(r));
+  assert.match(combined(r), /CHECK_SUITE/);
+  assert.equal(git(root, 'status', '--short'), '', 'status clean after commit');
+  const after = git(root, 'rev-parse', 'HEAD').trim();
+  assert.notEqual(after, before, 'a new commit was created');
+  t.diagnostic('clean commit created with clean status');
 });

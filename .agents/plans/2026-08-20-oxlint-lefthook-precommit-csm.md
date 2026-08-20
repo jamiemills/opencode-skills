@@ -13,11 +13,11 @@ format: csm-plan/1
 - Plan ID: oxlint-lefthook-precommit
 - Status: in_progress
 - Current CSM state: SELECT
-- Cycle: 1
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 0 — T001 complete (package.json + pnpm-lock.yaml committed with plan; check-suite 451 OK). Next batch: G2 = T002 (hook replacement, high risk) || T004 (README/plans) || T006 (csm-browse pnpm).
-- Next transition: SELECT -> DISPATCH (T002, T004, T006)
-- Active tasks: T002, T004, T006
+- Last checkpoint: 2026-08-20 cycle 1 — G2 complete: T002 (lefthook gate live, live-commit proof 61736b9), T004 (docs/plan amendments), T006 (csm-browse pnpm). Next: T003 (hook test rewrite, depends T002) then T005.
+- Next transition: SELECT -> DISPATCH (T003)
+- Active tasks: T003
 - Blockers: none
 
 ## Goal
@@ -56,7 +56,7 @@ Exclusions:
 4. `node --test scripts/hooks/test/pre-commit.test.mjs` passes (rewritten suite; no `/SYNC/` assertions).
 5. README.md hook/lockfile/tree references updated (csm-browse install + dependency-inventory lines use pnpm) and `node scripts/check-suite.mjs` exits 0; skill-suite plan T001 and journal-learnings plan T002 amended so their hook sub-items target `.lefthook.yml` and no future csm-build conflicts.
 6. csm-browse converted: `csm-browse/package-lock.json` deleted, `csm-browse/pnpm-lock.yaml` committed, `pnpm install --frozen-lockfile --ignore-scripts` in csm-browse from a scratch clone works, and `cd csm-browse && node scripts/check-skill.mjs` passes.
-7. Full battery green: check-suite 449 checks, hook test suite, `cd csm-browse && node scripts/check-skill.mjs`, and a live `git commit` of a clean staged change passes the new hook with all jobs observed; `rg -n "npm install|npm ci" README.md csm-browse/ scripts/ .agents/plans/2026-08-20-oxlint-lefthook-precommit-csm.md` returns no matches (pack-bootstrap.mjs `npm pack` and the trust-test fixture excepted).
+7. Full battery green: check-suite 449 checks, hook test suite, `cd csm-browse && node scripts/check-skill.mjs`, and a live `git commit` of a clean staged change passes the new hook with all jobs observed; word-boundary sweep `rg -n "\bnpm (install|ci)\b" README.md csm-browse/ scripts/ package.json .lefthook.yml` returns no matches except the documented pack-bootstrap.mjs `npm pack` (packaging, retained) and the trust-test fixture (excluded paths).
 
 ## Current-State Evidence
 
@@ -239,7 +239,7 @@ Critical path: T001 -> T002 -> T003 -> T005.
    - Actions:
      1. Scratch-clone proof: `git clone --depth 1 file://<repo> /tmp/opencode/lefthook-proof-<rand>` (sandboxed HOME/TMPDIR/XDG_* per repo convention), run `node scripts/install-hooks.mjs` there (root pnpm install + lefthook install), assert `core.hooksPath` set, `lefthook validate` OK, `scripts/hooks/pre-commit` shim present, no `.old`; run the uninstall path and assert core.hooksPath is unset; reinstall. Also `pnpm install --frozen-lockfile --ignore-scripts` in the scratch csm-browse directory.
      2. Live commit proof in the repo: stage a trivial safe change, `git commit` (recorded transcript showing the five jobs in order and pass), then restore the working tree to HEAD if the commit was only for proof (or commit the plan-file batch per the normal checkpoint flow).
-     3. Full battery: `node scripts/check-suite.mjs` (449 baseline); `node --test scripts/hooks/test/pre-commit.test.mjs`; `cd csm-browse && node scripts/check-skill.mjs`; `node --test tests/package-audit.test.mjs` spot; pnpm-only sweep: `rg -n "npm install|npm ci" README.md csm-browse/ scripts/ package.json .lefthook.yml` returns no matches (pack-bootstrap.mjs `npm pack` and the trust-test fixture excepted); record pass counts + wall times per repo recording discipline.
+     3. Full battery: `node scripts/check-suite.mjs` (449 baseline); `node --test scripts/hooks/test/pre-commit.test.mjs`; `cd csm-browse && node scripts/check-skill.mjs`; `node --test tests/package-audit.test.mjs` spot; pnpm-only sweep: `rg -n "\bnpm (install|ci)\b" README.md csm-browse/ scripts/ package.json .lefthook.yml` returns no matches (word-boundary form — the literal pattern false-positives on `pnpm install`; pack-bootstrap.mjs `npm pack` and the trust-test fixture excepted); record pass counts + wall times per repo recording discipline.
    - Acceptance signal: scratch-clone installer + uninstall + reinstall all succeed AND the live commit transcript shows all five jobs AND check-suite exits 0 AND the hook test suite passes AND the pnpm-only sweep is clean.
    - Validation: cheapest first — check-suite, hook tests, then scratch-clone installs; all sandboxed under /tmp/opencode; no writes to real user state beyond the repo's own git config.
    - Acceptance evidence: scratch-clone transcripts, commit transcript, battery outputs, sandbox path + isolation note.
@@ -287,6 +287,9 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | SELECT | — | Ready set: T001 (G1, no deps). T002/T004/T006 wait on T001; T003 waits on T002; T005 waits on all. T001 has runnable acceptance signal; no spike needed | DISPATCH |
 | 2026-08-20 | 0 | DISPATCH+INTEGRATE+VERIFY | T001 | T001 implemented by primary (single small mechanical task): root package.json written (exact pins, packageManager pnpm@10.33.0); `pnpm install --ignore-scripts` generated pnpm-lock.yaml (resolved 31, added 4); frozen-lockfile repro in /tmp/opencode/t001-check OK; versions lefthook 2.1.10 / oxlint 1.79.0; no package-lock.json; check-suite 451 OK. Acceptance signal fully met | CHECKPOINT |
 | 2026-08-20 | 0 | CHECKPOINT | T001 | T001 [completed], evidence recorded; commit T001 + plan; next: SELECT G2 (T002/T004/T006) | SELECT |
+| 2026-08-20 | 1 | SELECT | — | G2 ready: T002 (high) || T004 || T006, disjoint files; T002 implemented by primary (gate change = shared/high-conflict ownership), T004/T006 dispatched to parallel subagents | DISPATCH |
+| 2026-08-20 | 1 | DISPATCH+INTEGRATE+VERIFY | T002, T004, T006 | T004 subagent: README (20+/7-), .agents/README.md index (3 new lines + consolidated status refresh), skill-suite T001 retargeted (acceptance -> .lefthook.yml grep + pnpm exec lefthook validate), journal-learnings T002 pointer; gate 453. T006 subagent: csm-browse packageManager field, package-lock.json deleted, pnpm-lock.yaml (lockfileVersion 9), SKILL.md:22 -> pnpm install, frozen repro OK, check-skill PASS. T002 (primary): .lefthook.yml written (schema fix: `output` moved to root — hook-level rejected by validate), `pnpm exec lefthook install --force` generated shim (legacy renamed .old, removed), install-hooks.mjs rewritten (pnpm frozen install + install --force + .old cleanup + --uninstall path; fixed fresh-clone crash on config --get), README .lefthook.yml tree line re-added; validate OK, gate 454 | CHECKPOINT |
+| 2026-08-20 | 1 | CHECKPOINT | T002, T004, T006 | Live proof: commit 61736b9 ran through the NEW lefthook hook — all 5 jobs passed (unstaged-guard caught the unstaged package-lock.json deletion on first attempt = guard works; then clean run: check-suite 454, mjs-syntax, oxlint, csm-browse-check PASS). T002 acceptance met; independent review scheduled after T003 per plan | SELECT |
 
 ## Completion Review
 

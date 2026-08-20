@@ -20,8 +20,13 @@ function run(cmd, args, opts = {}) {
 
 function uninstall() {
   run('pnpm', ['exec', 'lefthook', 'uninstall'], { stdio: 'inherit' });
-  execFileSync('git', ['config', '--unset', 'core.hooksPath'], { cwd: root });
-  console.log('install-hooks: core.hooksPath unset; lefthook hooks removed');
+  try {
+    execFileSync('git', ['config', '--unset', 'core.hooksPath'], { cwd: root });
+  } catch {
+    // core.hooksPath already absent — nothing to unset
+  }
+  execFileSync('git', ['checkout', '--', 'scripts/hooks/pre-commit'], { cwd: root });
+  console.log('install-hooks: core.hooksPath unset; lefthook hooks removed; tracked shim restored');
 }
 
 if (process.argv.includes('--uninstall')) {

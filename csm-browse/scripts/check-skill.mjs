@@ -82,7 +82,7 @@ function validateDeps(pkg) {
     try {
       require.resolve(dep);
     } catch {
-      err(`dependency "${dep}" not resolvable (run npm install)`);
+      err(`dependency "${dep}" not resolvable (run pnpm install)`);
     }
   }
 }
