@@ -44,3 +44,17 @@ follow default behavior.
 - The rules above apply only while `.agents/token-efficiency.json` resolves to
   enabled for the directory being worked in — ON by default in this repo
   (`{"enabled": true}`); disabled directories follow default behavior.
+
+## Parallel sessions (worktrees)
+
+- One goal per worktree when running parallel csm-grill/plan/build/research
+  sessions: from the main checkout run
+  `node scripts/wt-session.mjs create <goal-slug>`, run the session inside the
+  worktree, then `merge` (rebase + ff-only to main) and `nuke` when done.
+- Each worktree has its own index and staging area — sibling sessions cannot
+  sweep each other's files into commits (`git add -A` is safe again), the gate
+  runs against the worktree's own corpus, and hook races disappear.
+- The main checkout stays on `main` (it is the live skills dir); merge
+  worktree branches serially and re-run the gate after merging. The only
+  expected merge conflict is the `.agents/README.md` index line — resolve by
+  keeping both lines.
