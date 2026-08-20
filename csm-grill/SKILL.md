@@ -5,7 +5,7 @@ description: Grill an idea into an approach. Never plans or implements. Biases t
 
 # CSM Grill
 
-Grill a rough idea into an agreed, phased approach through a relentless, research-backed interview. Ask one question at a time, back every answer with research, and cycle until the user explicitly agrees. The output is a single approach document whose phases are ready-made briefs for future, separately invoked csm-plan sessions. This skill never plans, never implements, and never invokes csm-plan or csm-build.
+Grill a rough idea into an agreed, phased approach through a relentless, research-backed interview. Ask one question at a time, back every answer with research, and cycle until the user explicitly agrees. The output is a single approach document whose phases are ready-made briefs for future, separately invoked csm-plan sessions. This skill never plans, never implements, and never invokes csm-plan or csm-build. It is csm-deep-research-aware: when a question's answer hinges on an external spec, standard, or factual claim that needs an exhaustively cited finding, it may dispatch a csm-deep-research run and cite the finding.
 
 ## Activation Boundary
 
@@ -13,6 +13,7 @@ Grill a rough idea into an agreed, phased approach through a relentless, researc
 - The approach document is not a plan: it contains no task list, authorizes no work, and starts nothing.
 - Words such as "build" or "implement" in the idea describe future phases. They do not authorize that work during this invocation.
 - Never invoke csm-plan or csm-build. Each phase brief waits for its own future, explicit csm-plan invocation.
+- csm-deep-research dispatch: allowed and warranted when a grill question turns on a fact, spec, or standard that must be verifiable by citation (e.g. "which format does X require?", "what does the standard say?"). Dispatch it by name with the specific question; consume only its research document and declared artifacts from `.agents/research/`; never dispatch it for questions the grill's own SCOUT/DEEP_DIVE subagents can settle with inline evidence. The approach document cites any research finding it relies on.
 - SAVED is the terminal state. After reaching it, display the approach document scale-gated (summary + path for small/quick runs; the complete document for large runs) and end the response without asking whether to start work.
 
 ## Core Rules
@@ -24,6 +25,7 @@ Grill a rough idea into an agreed, phased approach through a relentless, researc
 - Cycle, never single-pass: return to earlier states whenever answers, research, or synthesis expose new uncertainty, and keep cycling until the user explicitly agrees.
 - Follow Write Discipline And Temp Files: the only persistent write is the single approach document.
 - Scale ceremony to idea size by varying the number and depth of research subagents — but always dispatch at least one research subagent at SCOUT and at DEEP_DIVE, never zero. Proportionality reduces depth, never the required structure.
+- csm-deep-research is the escalation path for cited external facts, not a substitute for SCOUT/DEEP_DIVE: dispatch it only when the grill's own research would leave a load-bearing answer uncited, and cite the finding in the approach document.
 
 ## Subagent Resilience
 
@@ -47,7 +49,7 @@ SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only resea
 
 ## Interface
 
-- Consumes: a rough idea from the user, plus read-only research evidence gathered by subagents
+- Consumes: a rough idea from the user, plus read-only research evidence gathered by subagents; optional csm-deep-research findings when dispatched
 - Produces: one agreed phased approach document saved at `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md`
 - Hands off: phase briefs inside the approach document wait for future, separately invoked csm-plan runs (human-mediated)
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-plan, csm-review, csm-scan, csm-upload

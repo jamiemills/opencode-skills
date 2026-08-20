@@ -21,7 +21,7 @@ The corpus location is part of the contract. Findings land under `.agents/resear
 
 - Consumes: a research question or topic; retrievable sources (repository, docs, web)
 - Produces: one dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md; optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a .json schema the run was asked to emit)
-- Hands off: the research document and any declared run artifacts to the user; a future csm-plan may cite them as context (human-mediated)
+- Hands off: the research document and any declared run artifacts to the user; csm-grill and csm-plan may dispatch deep-research runs for cited external findings and cite them (invocation-mediated; this skill never invokes them)
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload
 
 ## Tmux Session Bootstrap

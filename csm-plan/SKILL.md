@@ -102,7 +102,7 @@ Temporary sandbox mutation and the intentional creation or update of the plan do
 
 ## Interface
 
-- Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings
+- Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched
 - Produces: one saved, verified CSM plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md`
 - Hands off: the saved plan waits for a later, explicit csm-build invocation (human-mediated)
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload
@@ -137,8 +137,9 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 
 1. Convert the uncertainty report into independent research tracks.
 2. Run a current-knowledge check first: each track must retrieve current, authoritative sources for every technology the plan touches, using named read-only tools available in the environment (e.g. `webfetch`, or an installed docs-search MCP such as `cloudflare-docs search`). The Mandatory R&D Safety Gate already permits read-only retrieval (item 6) — reference it rather than restating it. Flag any source older than 30 days (staleness rule at Repository Norms) instead of relying on it.
-3. Launch as many independent tracks in parallel as safely possible. Use different subagents when tracks can proceed independently.
-4. Require each research agent to use real tools and return:
+3. csm-deep-research dispatch: when a track turns on an external spec, standard, or factual claim whose answer must be verifiable by citation (or the brief already carries a research question), dispatch a csm-deep-research run by name instead of a plain track — the skill is standalone, writes only to `.agents/research/`, and returns an exhaustively cited finding (plus declared run artifacts such as schemas). Consume its research document and artifacts, and cite them in the plan. Dispatch it only when the plan's own read-only retrieval cannot settle the question with evidence; never for questions answerable from the repository, docs, or a single source.
+4. Launch as many independent tracks in parallel as safely possible. Use different subagents when tracks can proceed independently.
+5. Require each research agent to use real tools and return:
    - question or hypothesis;
    - method, command, tool, or authoritative source;
    - source URL + retrieval date;
@@ -147,9 +148,8 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
    - implications for the implementation plan;
    - remaining uncertainty;
    - predicted side effects, sandbox path, isolation controls, and protected-state before/after verification.
-5. Include the complete mandatory R&D safety gate in every research subagent assignment. Run experiments only in a verified read-only mode or isolated temporary sandbox. If safety cannot be established, do not run the experiment; record it as an unresolved item and ask the user if it blocks planning.
-6. Synthesize the evidence, resolve conflicting findings, and record decisions with their rationale.
-
+6. Include the complete mandatory R&D safety gate in every research subagent assignment. Run experiments only in a verified read-only mode or isolated temporary sandbox. If safety cannot be established, do not run the experiment; record it as an unresolved item and ask the user if it blocks planning.
+7. Synthesize the evidence, resolve conflicting findings, and record decisions with their rationale.
 ### 4. DRAFT
 
 Draft the implementation plan using the required document format below. Make tasks atomic enough to validate and resume, but avoid meaningless micro-steps. Keep the design and task list as simple as the acceptance criteria allow: fewer moving parts, fewer tasks, no speculative structure. Explicitly model dependencies and parallel groups. Every task must name a runnable acceptance signal — the exact command or test whose pass objectively proves the task done — a risk classification, and explicit anti-scope. Where uncertainty could not be resolved during planning, annotate the task with a concrete spike question and safe isolation expectations; never let unresolved uncertainty ship silently as a plain pending task — resolve it, annotate it, or record it as a blocker.

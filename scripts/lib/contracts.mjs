@@ -81,14 +81,14 @@ const UPLOAD_SCRIPT_REF = { skill: 'csm-upload', pattern: /csm-[a-z-]+\/scripts\
 const INTERFACES = {
   'csm-grill': {
     entryConditions: ['idea shared', 'explicit request to be grilled, interviewed, or stress-tested'],
-    consumes: ['rough idea', 'repository and research evidence'],
+    consumes: ['rough idea', 'repository and research evidence', 'optional csm-deep-research findings when dispatched'],
     produces: ['agreed phased approach document'],
     handoff: ['phase briefs to a separately invoked csm-plan'],
     midPipeline: ['user decisions', 'research findings', 'explicit agreement'],
   },
   'csm-plan': {
     entryConditions: ['brief or phase brief', 'explicit planning request'],
-    consumes: ['idea or phase brief', 'repository conventions', 'review findings'],
+    consumes: ['idea or phase brief', 'repository conventions', 'review findings', 'optional csm-deep-research findings when dispatched'],
     produces: ['saved, verified CSM plan'],
     handoff: ['saved plan to csm-bdd-tdd or csm-build'],
     midPipeline: ['research evidence', 'critique findings', 'verified plan state'],
@@ -136,10 +136,10 @@ const INTERFACES = {
     midPipeline: ['clone or pull', 'copy files', 'generate index', 'commit and push'],
   },
   'csm-deep-research': {
-    entryConditions: ['research question or topic', 'explicit deep-research request'],
+    entryConditions: ['research question or topic', 'explicit deep-research request', 'dispatch from csm-grill or csm-plan'],
     consumes: ['research question', 'retrievable sources (web, docs, repositories)'],
     produces: ['dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md', 'optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a JSON schema)'],
-    handoff: ['research document and any declared run artifacts to the user'],
+    handoff: ['research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan'],
     midPipeline: ['subagent dispatches', 'findings ledger', 'synthesis'],
   },
 };
@@ -165,15 +165,17 @@ const FORMAT_VERSIONS = {
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
 // skill is terminal at its final state; handoff happens only via artifacts
 // plus an explicit user invocation. Off-diagonal cells are true; diagonal false.
-// Asymmetric by design (D22): the 8 original rows carry 8 columns; only the
-// csm-deep-research row adds the self column (expected sets derive from
-// filtered row keys, so sibling bullets stay 8-name).
+// Asymmetric by design (D22): the 6 other rows carry 8 columns; the
+// csm-grill and csm-plan rows add the csm-deep-research column as false —
+// they may dispatch csm-deep-research runs for cited external findings —
+// and only the csm-deep-research row adds the self column (expected sets
+// derive from filtered row keys, so sibling bullets stay 7- or 8-name).
 const NEVER_INVOKE = {
   'csm-bdd-tdd':  { 'csm-bdd-tdd': false, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },
   'csm-browse':   { 'csm-bdd-tdd': true, 'csm-browse': false, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },
   'csm-build':    { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': false, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },
-  'csm-grill':    { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': false, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },
-  'csm-plan':     { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': false, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },
+  'csm-grill':    { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': false, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true, 'csm-deep-research': false },
+  'csm-plan':     { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': false, 'csm-review': true, 'csm-scan': true, 'csm-upload': true, 'csm-deep-research': false },
   'csm-review':   { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': false, 'csm-scan': true, 'csm-upload': true },
   'csm-scan':     { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': false, 'csm-upload': true },
   'csm-upload':   { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': false },
