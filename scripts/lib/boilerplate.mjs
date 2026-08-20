@@ -8,45 +8,33 @@ function tmuxBootstrap(p) {
   return `
 ${p.prelude}
 
-1. Check whether this invocation is already running inside tmux (the \`TMUX\` environment variable is set, or \`tmux display-message -p '#session_name'\` succeeds).
-2. Skip starting a new session and proceed directly with ${p.step2} in the current context when any of these is true:
-   - the invocation is already inside tmux;
-   - the user or their prompt explicitly said not to use tmux or not to start a tmux session;
-   - the user explicitly asked for a different terminal multiplexer (for example \`screen\` or \`zellij\`) — honor that choice instead and never start tmux alongside it;
-   - tmux is not installed or cannot start a session — note this to the user and continue without tmux.
-
-   When skipping because this invocation is already inside tmux, state the current tmux session name (for example via \`tmux display-message -p '#session_name'\`) and continue in it, so the session in use is always named.
-3. Otherwise, start the orchestrating agent in a new detached tmux session before doing any ${p.work} work:
-   - Derive a sensible, short, descriptive session name from the current session and the user's prompt, in the form \`${p.skill}-<goal-slug>\` (lowercase, hyphen-separated, tmux-safe characters, truncated to a reasonable length).
-   - If a tmux session with that name already exists, append a numeric suffix (\`-2\`, \`-3\`, ...).
-   - Launch the same agent invocation carrying the user's original ${p.request} request inside the detached session, for example:
-     \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\`
-     adapting the exact command to the agent CLI actually in use so the ${p.work} work continues inside tmux.
-4. Immediately print a clear notice naming the session so the user can attach later, for example:
-   \`Started tmux session "${p.skill}-<goal-slug>". Attach to it later with: tmux attach-session -t ${p.skill}-<goal-slug>\`
-5. After printing the notice, end this invocation without performing any ${p.work} work; the tmux session performs the actual ${p.activity} from the beginning of this skill. Only when the bootstrap was skipped under step 2 does this same invocation continue directly into the ${p.workflow} workflow below.
+1. In tmux (\`TMUX\` env set, or \`tmux display-message -p '#session_name'\` succeeds)? Skip — continue with ${p.step2}.
+2. Skip too when the user/prompt forbade tmux, chose another multiplexer (never start tmux alongside), or tmux is missing (note it, continue without).
+3. Else, before any ${p.work} work, launch this same agent invocation in a new detached session named \`${p.skill}-<goal-slug>\` (from session + prompt; lowercase, hyphen-separated, tmux-safe; \`-2\`/\`-3\` on collision): \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\` (adapt to the agent CLI).
+4. Print \`Started tmux session "${p.skill}-<goal-slug>". Attach: tmux attach-session -t ${p.skill}-<goal-slug>\`, then end the invocation — tmux does the ${p.activity} from the start.
+5. Only when skipped (step 2) continue into the ${p.workflow} workflow below.
 `;
 }
 
 const TMUX_PARAMS = {
   'csm-plan': {
-    prelude: 'Run this bootstrap before anything else — before `INTAKE`, before any planning tool use, and before any other section of this skill. It is not a planning state.',
+    prelude: 'Run first — before `INTAKE`, any planning tool use, or any other section. Not a planning state.',
     step2: 'planning', work: 'planning', request: 'planning', activity: 'planning', workflow: 'planning',
   },
   'csm-build': {
-    prelude: 'Run this bootstrap before anything else — before `Activation Boundary` work, before locating the plan, and before any execution state. It is not an execution state.',
+    prelude: 'Run first — before `Activation Boundary` work, locating the plan, or any execution state. Not an execution state.',
     step2: 'the build', work: 'build', request: 'build', activity: 'build', workflow: 'execution',
   },
   'csm-bdd-tdd': {
-    prelude: 'Run this bootstrap before anything else — before `INTAKE`, before any pipeline tool use, and before any other section of this skill. It is not a pipeline state.',
+    prelude: 'Run first — before `INTAKE`, any pipeline tool use, or any other section. Not a pipeline state.',
     step2: 'the BDD/TDD mutation', work: 'BDD/TDD', request: 'BDD/TDD', activity: 'mutation', workflow: 'pipeline',
   },
   'csm-scan': {
-    prelude: 'Run this bootstrap before anything else — before any scan, test, or analysis command, and before any other section of this skill. It is not a scan step. It governs agent-driven skill sessions; direct human CLI runs of `scripts/scan.mjs` from a shell are outside its scope.',
+    prelude: 'Run first — before any scan, test, or analysis command or other sections. Not a scan step. Governs agent-driven skill sessions; direct human CLI runs of `scripts/scan.mjs` are out-of-scope.',
     step2: 'the scan', work: 'scan', request: 'scan', activity: 'scan', workflow: 'scan',
   },
   'csm-review': {
-    prelude: 'Run this bootstrap before anything else — before `INTAKE`, before any review tool use, and before any other section of this skill. It is not a review state.',
+    prelude: 'Run first — before `INTAKE`, any review tool use, or any other section. Not a review state.',
     step2: 'review', work: 'review', request: 'review', activity: 'review', workflow: 'review',
   },
 };
@@ -59,6 +47,7 @@ ${p.intro}
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. ${p.step4}
+5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
 `;
   return p.guard ? `${body}\n${p.guard}\n` : body;
 }

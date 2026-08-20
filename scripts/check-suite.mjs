@@ -9,6 +9,18 @@ import { fileURLToPath } from 'node:url';
 import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES } from './lib/contracts.mjs';
 import { checkDrift } from './sync-skill-boilerplate.mjs';
 import { checkDrift as checkMatrixDrift } from './gen-readme-matrix.mjs';
+import {
+  FENCE_OPEN_RE,
+  splitLines,
+  fenceMap,
+  validatePlanControl,
+  validatePlanJournal,
+  validateOrdinalSequencing,
+  validateTemplateFormatMarkers,
+  validateInterfaceArtifactPatterns,
+  pendingTaskInCorpus,
+  PENDING_DEBT,
+} from './lib/plan-validation.mjs';
 
 const args = process.argv.slice(2);
 let root = process.cwd();
@@ -22,7 +34,6 @@ for (let i = 0; i < args.length; i += 1) {
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NEVER_CLAUSE_RE = /\bnever\b[^.]{0,120}\b(only|beyond|elsewhere|writes?|runs?|invok\w*|starts?|plans?|planning|implement\w*|fix\w*|patch\w*|review\w*|execut\w*|push\w*|targets?)\b/i;
 const NORMS_PHRASE_RE = new RegExp(NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
-const FENCE_OPEN_RE = /^\s{0,3}(`{3,}|~{3,})(.*)$/;
 const CHAIN_RE = /`([A-Z][A-Z_]*(?:\s*->\s*[A-Z][A-Z_]+)+)`/;
 const STATE_HEADING_RE = /^###\s+(\d+)\.\s+(.*)$/;
 const STATE_TOKEN_RE = /^[A-Z][A-Z_]*/;
@@ -53,23 +64,24 @@ function formatMarkerOf(content) {
   return { kind: fm[1], version: parseInt(fm[2], 10) };
 }
 
-function splitLines(content) {  return content.split(/\r?\n/);
-}
-
-function fenceMap(lines) {
-  const inFence = Array.from({ length: lines.length }).fill(false);
-  let open = null;
-  for (let i = 0; i < lines.length; i += 1) {
-    const m = lines[i].match(FENCE_OPEN_RE);
-    if (open) {
-      inFence[i] = true;
-      if (m && m[1][0] === open.char && m[1].length >= open.len && m[2].trim() === '') open = null;
-    } else if (m && !(m[1][0] === '`' && m[2].includes('`'))) {
-      open = { char: m[1][0], len: m[1].length };
-      inFence[i] = true;
-    }
+// Runs a new plan-validation check through the gate. Passes count one check;
+// failures on a PENDING_DEBT skill whose owning plan task is still pending are
+// reported as expected in-progress findings (still counted, still green) until
+// T002/T003/T004 land; anything else is a hard failure.
+function runGatedCheck(skill, checkType, findings, label, plansDir) {
+  if (findings.length === 0) {
+    check(true, `${label} OK`);
+    return;
   }
-  return inFence;
+  const debt = PENDING_DEBT.find((d) => d.check === checkType && d.skill === skill);
+  if (debt && pendingTaskInCorpus(plansDir, debt.task, skill, debt.plan)) {
+    for (const f of findings) {
+      check(true, `expected (${debt.task} pending: ${debt.note}): ${f}`);
+      console.log(`  note: held (${debt.task} pending): ${f}`);
+    }
+  } else {
+    for (const f of findings) check(false, `${label}: ${f}`);
+  }
 }
 
 function countH1(lines, inFence) {
@@ -353,6 +365,7 @@ function discoverSkillDirs() {
 
 function main() {
   const skillDirs = discoverSkillDirs();
+  const plansDir = path.join(root, '.agents', 'plans');
 
   for (const skill of skillDirs) {
     check(Object.prototype.hasOwnProperty.call(MANIFEST, skill),
@@ -426,6 +439,12 @@ function main() {
         check(new Set(names).size === names.length && names.length === expected.length && names.every((nm) => expected.includes(nm)),
           `${skill}/SKILL.md Interface Never invokes does not match contracts.mjs row (expected: ${expected.join(', ')})`);
       }
+      const artifactFailures = validateInterfaceArtifactPatterns(skill, interfaceLines.join('\n'));
+      if (artifactFailures.length === 0) {
+        check(true, `${skill}/SKILL.md Interface artifact patterns OK`);
+      } else {
+        for (const f of artifactFailures) check(false, `${skill}/SKILL.md ${f}`);
+      }
     }
 
     if (manifest.tmux) {
@@ -443,6 +462,9 @@ function main() {
       const machineResult = verifyMachine(skill, lines, inFence, manifest.machine);
       if (skill === 'csm-review' && machineResult) verifyReviewClaims(skill, lines, inFence, machineResult);
     }
+
+    const ordinalFailures = validateOrdinalSequencing(content);
+    runGatedCheck(skill, 'ordinal', ordinalFailures, `${skill}/SKILL.md state-section ordinal sequencing`, plansDir);
   }
 
   for (const contract of CONTRACTS) {
@@ -510,7 +532,20 @@ function main() {
   check(reviewTemplateH2.length > 0, 'could not extract the Report Format template from csm-review/SKILL.md');
   check(reviewH1Prefix !== null, 'Report Format template has no H1 line — review-corpus H1 check would silently skip');
 
-  const plansDir = path.join(root, '.agents', 'plans');
+  // Template format-marker validation (F-050): the first line inside each
+  // producer template fence must be `format: <skill>/<n>`. Currently held as
+  // expected findings by PENDING_DEBT until T002 (csm-plan) and T004
+  // (csm-grill/csm-review) add the markers.
+  runGatedCheck('csm-plan', 'template-format-marker',
+    validateTemplateFormatMarkers(planSkill ?? '', 'csm-plan', 'Required Plan Document'),
+    'csm-plan/SKILL.md template format marker', plansDir);
+  runGatedCheck('csm-grill', 'template-format-marker',
+    validateTemplateFormatMarkers(grillSkill ?? '', 'csm-grill', 'Required Approach Document'),
+    'csm-grill/SKILL.md template format marker', plansDir);
+  runGatedCheck('csm-review', 'template-format-marker',
+    validateTemplateFormatMarkers(reviewSkill ?? '', 'csm-review', 'Report Format'),
+    'csm-review/SKILL.md template format marker', plansDir);
+
   let planFiles = [];
   try {
     planFiles = fs.readdirSync(plansDir).filter((f) => f.endsWith('-csm.md')).toSorted();
@@ -532,6 +567,19 @@ function main() {
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, planTemplate);
     check(gap === null, `plan corpus .agents/plans/${f}: missing/out-of-order required section "## ${gap}"`);
+
+    const controlFailures = validatePlanControl(content);
+    if (controlFailures.length === 0) {
+      check(true, `plan corpus .agents/plans/${f} Control OK`);
+    } else {
+      for (const msg of controlFailures) check(false, `plan corpus .agents/plans/${f}: ${msg}`);
+    }
+    const journalFailures = validatePlanJournal(content);
+    if (journalFailures.length === 0) {
+      check(true, `plan corpus .agents/plans/${f} journal OK`);
+    } else {
+      for (const msg of journalFailures) check(false, `plan corpus .agents/plans/${f}: ${msg}`);
+    }
   }
 
   const reviewsDir = path.join(root, '.agents', 'reviews');

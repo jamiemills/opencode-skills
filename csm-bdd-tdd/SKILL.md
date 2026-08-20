@@ -9,25 +9,13 @@ Take a plan produced by `csm-plan` and transform it into a strict BDD + TDD pack
 
 ## Tmux Session Bootstrap
 
-Run this bootstrap before anything else — before `INTAKE`, before any pipeline tool use, and before any other section of this skill. It is not a pipeline state.
+Run first — before `INTAKE`, any pipeline tool use, or any other section. Not a pipeline state.
 
-1. Check whether this invocation is already running inside tmux (the `TMUX` environment variable is set, or `tmux display-message -p '#session_name'` succeeds).
-2. Skip starting a new session and proceed directly with the BDD/TDD mutation in the current context when any of these is true:
-   - the invocation is already inside tmux;
-   - the user or their prompt explicitly said not to use tmux or not to start a tmux session;
-   - the user explicitly asked for a different terminal multiplexer (for example `screen` or `zellij`) — honor that choice instead and never start tmux alongside it;
-   - tmux is not installed or cannot start a session — note this to the user and continue without tmux.
-
-   When skipping because this invocation is already inside tmux, state the current tmux session name (for example via `tmux display-message -p '#session_name'`) and continue in it, so the session in use is always named.
-3. Otherwise, start the orchestrating agent in a new detached tmux session before doing any BDD/TDD work:
-   - Derive a sensible, short, descriptive session name from the current session and the user's prompt, in the form `csm-bdd-tdd-<goal-slug>` (lowercase, hyphen-separated, tmux-safe characters, truncated to a reasonable length).
-   - If a tmux session with that name already exists, append a numeric suffix (`-2`, `-3`, ...).
-   - Launch the same agent invocation carrying the user's original BDD/TDD request inside the detached session, for example:
-     `tmux new-session -d -s csm-bdd-tdd-<goal-slug> 'opencode run "<original BDD/TDD request>"'`
-     adapting the exact command to the agent CLI actually in use so the BDD/TDD work continues inside tmux.
-4. Immediately print a clear notice naming the session so the user can attach later, for example:
-   `Started tmux session "csm-bdd-tdd-<goal-slug>". Attach to it later with: tmux attach-session -t csm-bdd-tdd-<goal-slug>`
-5. After printing the notice, end this invocation without performing any BDD/TDD work; the tmux session performs the actual mutation from the beginning of this skill. Only when the bootstrap was skipped under step 2 does this same invocation continue directly into the pipeline workflow below.
+1. In tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds)? Skip — continue with the BDD/TDD mutation.
+2. Skip too when the user/prompt forbade tmux, chose another multiplexer (never start tmux alongside), or tmux is missing (note it, continue without).
+3. Else, before any BDD/TDD work, launch this same agent invocation in a new detached session named `csm-bdd-tdd-<goal-slug>` (from session + prompt; lowercase, hyphen-separated, tmux-safe; `-2`/`-3` on collision): `tmux new-session -d -s csm-bdd-tdd-<goal-slug> 'opencode run "<original BDD/TDD request>"'` (adapt to the agent CLI).
+4. Print `Started tmux session "csm-bdd-tdd-<goal-slug>". Attach: tmux attach-session -t csm-bdd-tdd-<goal-slug>`, then end the invocation — tmux does the mutation from the start.
+5. Only when skipped (step 2) continue into the pipeline workflow below.
 
 ## Repository Norms
 
@@ -84,6 +72,7 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion of the spec/validation work, with a recorded independence caveat when the primary agent fills in for an independent agent.
+5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
 
 ## Interface
 

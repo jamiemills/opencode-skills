@@ -12,12 +12,12 @@ format: csm-plan/1
 ## Control
 - Plan ID: skill-suite-efficiency-resilience
 - Status: in_progress
-- Current CSM state: VALIDATE
+- Current CSM state: CHECKPOINT
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 0 start — build dispatched by explicit user request ("use csm-build and build it"); RECOVER: tree clean except plan-file stale-fix edits (committed below), no NORMS.md, format marker csm-plan/1 present, all 8 tasks pending; VALIDATE: check-suite 457 OK, sync-skill-boilerplate --check OK, gen-readme-matrix --check OK
-- Next transition: VALIDATE -> SELECT
-- Active tasks: none
+- Last checkpoint: 2026-08-20 cycle 0 — G1 batch (T001 + T006) completed, reviewed (independent review GO conditional; 4 findings repaired), battery green: check-suite 516, sync --check clean, matrix --check clean, hook test 8/8, 5 negative pairs re-proven, PAUSED golden passes, pack digest pending T008. NORMS condensation (T001 a2) re-scoped to G2 owners (blocks are non-synced prose).
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none (batch complete)
 - Blockers: none
 
 ## Goal
@@ -157,7 +157,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
 
 ## Numbered Plan
 
-1. [pending] Condense shared boilerplate and add the ladder quota rung (pre-commit drift dedup already resolved by the lefthook plan)
+1. [completed] Condense shared boilerplate and add the ladder quota rung (pre-commit drift dedup already resolved by the lefthook plan)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -174,7 +174,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
      6. RESOLVED externally — no action: the lefthook plan already updated scripts/hooks/test/pre-commit.test.mjs (hook suite 7/7, no SYNC assertions, unstaged-changes rejection retained).
    - Acceptance signal: `node scripts/sync-skill-boilerplate.mjs --check` exits 0 AND `node scripts/check-suite.mjs` exits 0 AND `grep -c "sync-skill-boilerplate" .lefthook.yml` shows exactly 0 occurrences AND `node scripts/hooks/test/pre-commit.test.mjs` passes (its own node:test run).
    - Validation: `wc -w` of the tmux section body in each of the 5 skills <= 150 words; phrase checklist present in each tmux body (TMUX check, skip conditions, `-2`/`-3` suffix, notice, end-invocation rule); quota rung text present in the 4 laddered skills; `pnpm exec lefthook validate`; a dry `git diff --stat` shows no changes outside the synced sections, the hook, and its test.
-   - Acceptance evidence: recorded outputs of the acceptance command; word-count table per skill; phrase-checklist grep results; diff stat.
+   - Acceptance evidence: recorded outputs of the acceptance command; word-count table per skill (plan 135 / build 137 / bdd-tdd 137 / scan 148 / review 135); phrase-checklist grep results; diff stat. Deviation a2: NORMS blocks are non-synced per-skill prose (SYNC_SECTIONS = tmux + resilience only) — condensation re-scoped to each skill's owner in G2 (journal row cycle 0).
    - Repair attempts: 0
    - Recovery note: if sync --write or check-suite fails, the boilerplate.mjs edit is the only changed source; revert boilerplate.mjs and re-sync, or fix the render and re-run both commands. Verify no SKILL.md was hand-edited (all changes must come from the sync tool). The hook and its test are out of scope (lefthook shim, owned by the completed oxlint-lefthook-precommit plan) — if they fail, report rather than hand-edit.
 
@@ -258,7 +258,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
    - Repair attempts: 0
    - Recovery note: if check-suite fails on the scan Testing section, the MANIFEST heading check (contracts.mjs:33) is the likely cause — keep the heading and only shrink the body. If a browse/upload description fails the Never-X check, restore a never-clause phrasing within the 35-word budget.
 
-6. [pending] check-suite and plan-validation module: Control/journal/ordinal/template/interface validation and corpus repair
+6. [completed] check-suite and plan-validation module: Control/journal/ordinal/template/interface validation and corpus repair
    - Task ID: T006
    - Depends on: none
    - Parallel group: G1
@@ -370,6 +370,7 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | REMEDIATE | — | All 15 findings resolved: format marker added; Resume bullet; ladder quota rung to T001; browse/upload trims to T005; scoped Control checks + plan-validation module; hook test; A4/grill fix; G4 sequential; spike default; strengthened signals; facts corrected | VERIFY |
 | 2026-08-20 | 0 | VERIFY | — | Post-planning re-validation against the repo: sibling plans lint-strictness-enforcement and oxlint-lefthook-precommit COMPLETEd meanwhile — gate count 441→457 (2026-08-20); F-069 component 2 (doubled pre-commit drift check) already resolved (hook is a lefthook shim, .lefthook.yml jobs have no sync step, hook-test SYNC assertions dropped); check-suite.mjs:375→376 citation corrected; stale claims updated in Goal d6, Constraints, AC2, Current-State Evidence, R&D R2, Design token-efficiency, Execution Graph, T001 scope/actions/recovery, Risks, Critique C7; tree clean, payload in sync (pack digest a2ba3f39) | SAVED |
 | 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | csm-build dispatched by explicit user request. RECOVER: git status clean except the plan file (stale-fix edits above, committed with this row); no NORMS.md at root (skip norms); format: csm-plan/1 verified at line 2; all 8 tasks [pending]; no partial build artifacts. VALIDATE: check-suite 457/457 OK; sync-skill-boilerplate --check "OK — no drift"; gen-readme-matrix --check "OK — region matches contracts" | SELECT |
+| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001, T006 | G1 batch parallel-dispatched. T001: tmux body 362→135-148 words across 5 skills (plan 135 / build 137 / bdd-tdd 137 / scan 148 / review 135), quota rung added to 4 laddered skills, sync --write regenerated all sections (two-pass convergence quirk noted), .lefthook.yml grep 0, hook test 8/8. T006: new scripts/lib/plan-validation.mjs (5 pure check classes + unified fenceMap/splitLines, F-054), check-suite 457→516 (+59: 20 Control, 20 journal, 8 ordinal, 3 template markers, 8 interface). PENDING_DEBT holds F-050/F-069 as expected findings while T002/T003/T004 pending (self-escalates on completion). Negative evidence: 5 violation→failure pairs re-proven independently (bad Status, SCOPE transition, duplicate ordinal, missing template marker, missing artifact pattern). VERIFY battery green: check-suite 516, sync --check, matrix --check, node --check, PAUSED golden 0 failures, FROBULATE journal rejected. REVIEW (independent): GO conditional — 1 medium (cross-plan task-ID collision in PENDING_DEBT), 2 low, 1 nit. REPAIR all 4: debt bound to owning plan file (plan field + planFile param), currentState check exempted for complete/terminal plans, artifact patterns tightened to path shapes (regex), held findings now printed as notes. Re-verified: gate 516 green, F1 attack cases (sibling T002 cannot hold debt, completed can't), F2 exemption, F3 negative fixture, full battery. DEVIATION (T001 a2): NORMS blocks are non-synced per-skill prose (SYNC_SECTIONS = tmux + resilience only) — condensation re-scoped to each skill's owner (T002 plan / T003 build / T004 grill+review / T005 bdd-tdd), AC2 unchanged | SELECT |
 
 ## Completion Review
 
