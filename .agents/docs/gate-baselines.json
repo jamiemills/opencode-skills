@@ -54,5 +54,12 @@
     "wallMs": 1234,
     "nodeVersion": "v22.23.2",
     "ts": "2026-08-20T18:08:45.532Z"
+  },
+  {
+    "gate": "check-suite",
+    "passCount": 649,
+    "wallMs": 2784,
+    "nodeVersion": "v20.20.2",
+    "ts": "2026-08-20T21:00:21.081Z"
   }
 ]
