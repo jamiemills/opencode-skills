@@ -1,8 +1,9 @@
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
 import { readManifest } from '../shared/manifest.mjs';
 import { MONITORING_LIBS, matchDep } from '../shared/detection.mjs';
+import { readBoundedFile } from '../shared/reads.mjs';
 
 // Bounds for the direct-read replacements of the former rg pipelines.
 const SCAN_FILE_LIMIT = 400;
@@ -55,13 +56,11 @@ async function listFiles(repoPath, overview, broker) {
   }
 }
 
-function readContent(absPath) {
-  try {
-    const content = readFileSync(absPath, 'utf-8');
-    return content.length > SCAN_BYTE_LIMIT ? null : content;
-  } catch {
-    return null;
-  }
+// F-022/F-062: bounded whole-file read shared across the deep scanners. A file
+// above the byte bound is never allocated; `containmentRoot` optionally
+// enforces realpath containment for well-known-file reads (F-023).
+function readContent(absPath, containmentRoot = null) {
+  return readBoundedFile(absPath, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot });
 }
 
 // ---------------------------------------------------------------------------
@@ -538,55 +537,54 @@ function analyzeDockerfile(repoPath) {
 
   for (const name of dockerfilePaths) {
     const path = join(repoPath, name);
-    if (!existsSync(path)) continue;
+    // F-022/F-023: bounded, contained read of the well-known Dockerfile names.
+    const content = readBoundedFile(path, { containmentRoot: repoPath });
+    if (content == null) continue;
 
-    try {
-      const content = readFileSync(path, 'utf-8');
-      const lines = content.split('\n');
+    const lines = content.split('\n');
 
-      const baseImages = [];
-      const exposedPorts = [];
-      let isMultiStage = false;
+    const baseImages = [];
+    const exposedPorts = [];
+    let isMultiStage = false;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (/^FROM\s/i.test(trimmed)) {
-          const parts = trimmed.split(/\s+/);
-          if (parts.length >= 2) {
-            const img = parts[1];
-            if (img.toLowerCase() !== 'scratch') {
-              baseImages.push(img);
-            }
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^FROM\s/i.test(trimmed)) {
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 2) {
+          const img = parts[1];
+          if (img.toLowerCase() !== 'scratch') {
+            baseImages.push(img);
           }
-          if (baseImages.length > 1) isMultiStage = true;
         }
-        const portMatch = trimmed.match(/^EXPOSE\s+(\d+)/i);
-        if (portMatch) {
-          exposedPorts.push(parseInt(portMatch[1], 10));
-        }
+        if (baseImages.length > 1) isMultiStage = true;
       }
+      const portMatch = trimmed.match(/^EXPOSE\s+(\d+)/i);
+      if (portMatch) {
+        exposedPorts.push(parseInt(portMatch[1], 10));
+      }
+    }
 
-      const hasHealthcheck = /HEALTHCHECK/i.test(content);
-      const hasUser = /^USER\s/i.test(content);
-      const isAlpine = baseImages.some((img) => /alpine/i.test(img));
-      const isSlim = baseImages.some((img) => /slim/i.test(img));
-      const hasEntrypoint = /ENTRYPOINT/i.test(content);
-      const hasCmd = /CMD/i.test(content);
+    const hasHealthcheck = /HEALTHCHECK/i.test(content);
+    const hasUser = /^USER\s/i.test(content);
+    const isAlpine = baseImages.some((img) => /alpine/i.test(img));
+    const isSlim = baseImages.some((img) => /slim/i.test(img));
+    const hasEntrypoint = /ENTRYPOINT/i.test(content);
+    const hasCmd = /CMD/i.test(content);
 
-      dockerfiles.push({
-        name,
-        baseImages,
-        exposedPorts,
-        isMultiStage,
-        hasHealthcheck,
-        hasUser,
-        isAlpine,
-        isSlim,
-        hasEntrypoint,
-        hasCmd,
-        lineCount: lines.length,
-      });
-    } catch {}
+    dockerfiles.push({
+      name,
+      baseImages,
+      exposedPorts,
+      isMultiStage,
+      hasHealthcheck,
+      hasUser,
+      isAlpine,
+      isSlim,
+      hasEntrypoint,
+      hasCmd,
+      lineCount: lines.length,
+    });
   }
 
   return dockerfiles;
@@ -600,12 +598,11 @@ function analyzeDockerCompose(repoPath) {
 
   for (const name of composeFiles) {
     const path = join(repoPath, name);
-    if (!existsSync(path)) continue;
+    // F-022/F-023: bounded, contained read of the well-known compose names.
+    const content = readBoundedFile(path, { containmentRoot: repoPath });
+    if (content == null) continue;
 
-    try {
-      const content = readFileSync(path, 'utf-8');
-
-      const serviceMatch = content.match(/^  (\w+):/gm);
+    const serviceMatch = content.match(/^  (\w+):/gm);
       const serviceSet = new Set();
       if (serviceMatch) {
         for (const m of serviceMatch) {
@@ -648,7 +645,6 @@ function analyzeDockerCompose(repoPath) {
         const volNames = volMatch[1].match(/^  (\w+):/gm) || [];
         volumes = volNames.map((v) => v.replace(/^  /, '').replace(/:$/, ''));
       }
-    } catch {}
   }
 
   return { present: services.length > 0, services, networks, volumes };
@@ -673,10 +669,8 @@ function analyzeCI(repoPath) {
       const workflows = [];
       let stepScanVerified = true;
       for (const f of workflowFiles) {
-        let content;
-        try {
-          content = readFileSync(join(ghWorkflows, f), 'utf-8');
-        } catch {
+        const content = readBoundedFile(join(ghWorkflows, f), { containmentRoot: repoPath });
+        if (content == null) {
           stepScanVerified = false;
           continue;
         }
@@ -704,20 +698,18 @@ function analyzeCI(repoPath) {
   }
 
   const gitlabCI = join(repoPath, '.gitlab-ci.yml');
-  if (existsSync(gitlabCI)) {
-    try {
-      const content = readFileSync(gitlabCI, 'utf-8');
-      const stages = content.match(/^stages:\n([\s\S]*?)(?=\n\S|Z)/m);
-      let stageList = [];
-      if (stages) {
-        stageList = stages[1].match(/^\s+-\s+(.+)/gm)?.map((s) => s.replace(/^\s+-\s+/, '')) || [];
-      }
-      ciSystems.push({
-        platform: 'GitLab CI',
-        stages: stageList,
-        present: true,
-      });
-    } catch {}
+  const gitlabContent = readBoundedFile(gitlabCI, { containmentRoot: repoPath });
+  if (gitlabContent != null) {
+    const stages = gitlabContent.match(/^stages:\n([\s\S]*?)(?=\n\S|Z)/m);
+    let stageList = [];
+    if (stages) {
+      stageList = stages[1].match(/^\s+-\s+(.+)/gm)?.map((s) => s.replace(/^\s+-\s+/, '')) || [];
+    }
+    ciSystems.push({
+      platform: 'GitLab CI',
+      stages: stageList,
+      present: true,
+    });
   }
 
   const jenkinsfile = join(repoPath, 'Jenkinsfile');
@@ -762,12 +754,12 @@ function detectEnvConfig(repoPath, overview) {
   // SCREAMING_SNAKE_CASE. Comments and blank lines are ignored.
   for (const name of ENV_FILE_NAMES) {
     const path = join(repoPath, name);
-    if (existsSync(path)) {
-      try {
-        const content = readFileSync(path, 'utf-8');
-        const varCount = content.split('\n').filter((l) => /^\s*[A-Za-z_][A-Za-z0-9_]*\s*=/.test(l)).length;
-        envFiles.push({ file: name, varCount });
-      } catch {}
+    // F-022/F-023: bounded, contained read — a symlinked `.env` resolving
+    // outside the repo (e.g. `.env -> /dev/zero`) is never read.
+    const content = readBoundedFile(path, { containmentRoot: repoPath });
+    if (content != null) {
+      const varCount = content.split('\n').filter((l) => /^\s*[A-Za-z_][A-Za-z0-9_]*\s*=/.test(l)).length;
+      envFiles.push({ file: name, varCount });
     }
   }
 
@@ -911,9 +903,8 @@ export async function scan(repoPath, overview, broker = commandBroker) {
 
   let procfileContent = null;
   if (hasProcfile) {
-    try {
-      procfileContent = readFileSync(procfile, 'utf-8');
-    } catch {}
+    // F-022/F-023: bounded, contained read of the well-known Procfile name.
+    procfileContent = readBoundedFile(procfile, { containmentRoot: repoPath });
   }
 
   const ciWorkflowCount = ci.reduce(

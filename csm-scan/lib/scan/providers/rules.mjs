@@ -290,8 +290,10 @@ function canonicalMatch(rule, artifact) {
  *
  * @param {object} input - `{ rules, artifacts }`.
  * @returns {{ matches: object[], capped: boolean, rulesInspected: number, artifactsInspected: number }}
- *   A deep-frozen result; `capped` is true when the total or per-rule match
- *   bound was reached and evaluation stopped early.
+ *   A deep-frozen result. `capped` is a disclosure flag set when the total OR
+ *   a per-rule match bound was reached. Evaluation stops early ONLY on the
+ *   total bound: a per-rule cap breaks just that rule's inner loop (F-031) so
+ *   the remaining rules are still evaluated.
  */
 export function evaluateRules({ rules, artifacts }) {
   try {
@@ -324,6 +326,10 @@ export function evaluateRules({ rules, artifacts }) {
         break;
       }
       if ((perRuleCounts.get(rule.id) ?? 0) >= RULE_EVALUATION_LIMITS.maxMatchesPerRule) {
+        // F-031: a per-rule cap stops only THIS rule's loop — it is disclosed
+        // via `capped` but never breaks the outer loop, so one chatty rule
+        // cannot suppress every later rule's detections. The total maxMatches
+        // bound is the sole outer-break condition (below).
         capped = true;
         break;
       }
@@ -332,7 +338,7 @@ export function evaluateRules({ rules, artifacts }) {
         perRuleCounts.set(rule.id, (perRuleCounts.get(rule.id) ?? 0) + 1);
       }
     }
-    if (capped) break;
+    if (matches.length >= RULE_EVALUATION_LIMITS.maxMatches) break;
   }
   matches.sort((left, right) => compareAscii(
     `${left.dimensionId}\0${left.category}\0${left.ruleId}\0${left.path}`,

@@ -9,6 +9,8 @@ import { test } from 'node:test';
 import { enrich } from '../lib/scan/enrich.mjs';
 import { validate } from '../lib/scan/validate.mjs';
 import { writeNORMS } from '../lib/scan/write.mjs';
+import { fixedInput, semanticProjection } from './helpers/expansion-shared.mjs';
+import { collectTestNames } from './helpers/collect-test-names.mjs';
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
 const BASELINE_ROOT = join(TEST_ROOT, 'baselines', 'expansion');
@@ -28,43 +30,6 @@ async function lockApplies(lock) {
     if (error.code === 'ENOENT') return false;
     throw error;
   }
-}
-
-function fixedInput() {
-  const overview = {
-    name: 'synthetic-repository',
-    path: '.',
-    languages: ['JavaScript'],
-    ecosystems: { primary: 'javascript', all: ['javascript'] },
-    packageManager: 'npm',
-    totalFiles: 2,
-    isGit: false,
-  };
-  const deep = [
-    { dimension: 'structure', signal: 'high', findings: { tree: '.\n├── package.json\n└── src/', fileCounts: { js: 1, json: 1 }, totalFiles: 2 } },
-    { dimension: 'stack', signal: 'high', findings: { runtime: 'Node.js (declared)', language: 'JavaScript', framework: '(none)', packageManager: 'npm', name: 'synthetic-package', version: '1.0.0' } },
-    { dimension: 'config', signal: 'high', findings: { lint: { config: 'eslint.config.mjs' }, format: 'prettier', markers: ['.editorconfig'] } },
-    { dimension: 'testing', signal: 'high', findings: { framework: ['node:test'], fileCount: 1, naming: ['*.test.mjs'], sampleFiles: ['test/example.test.mjs'], testDirs: ['test'] } },
-    { dimension: 'conventions', signal: 'high', findings: { importStyle: { type: 'ESM (import/export)', hasTypeImports: false, hasDynamicImports: false, samples: [] }, fileNaming: { dominant: 'kebab-case', total: 2, patterns: { 'kebab-case': 2 } }, errorHandling: { patterns: ['throw'] }, moduleSystem: { inferred: 'ESM' }, commentDensity: '10.0% (1 comment / 10 code lines)' } },
-    { dimension: 'git', signal: 'high', findings: { isGit: false } },
-    { dimension: 'architecture', signal: 'high', findings: { layers: { totalFiles: 2, totalEdges: 1, entryPoints: ['src/index.js'], libModules: ['src/value.js'], shared: [], rest: [] }, asciiGraph: 'src/index.js -> src/value.js' } },
-    { dimension: 'documentation', signal: 'high', findings: { readme: { present: true, path: 'README.md', sections: 2, hasSetup: true }, contributing: { present: false }, license: { present: true, name: 'MIT', path: 'LICENSE' }, commentRatio: { ratio: 10, commentLines: 1, codeLines: 10 }, todoCount: 0 } },
-    { dimension: 'security', signal: 'high', findings: { secrets: { count: 0, findings: [] }, envExample: true, gitignoreEnvProtected: true, hasLockfile: true, dependabot: false } },
-    { dimension: 'operations', signal: 'high', findings: { dockerfiles: [], ci: [], healthChecks: { detected: false, references: [] }, hasMakefile: true, hasJustfile: false } },
-  ];
-  return { overview, deep };
-}
-
-function semanticProjection(enriched, validated) {
-  return {
-    dimensionOrder: validated.findings.map(({ dimension }) => dimension),
-    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).toSorted()])),
-    coverage: validated.coverage,
-    confidence: Object.fromEntries(validated.findings.map(({ dimension, confidence }) => [dimension, confidence])),
-    contradictions: enriched.contradictions,
-    gaps: enriched.gaps,
-    inferredPatterns: enriched.inferredPatterns,
-  };
 }
 
 async function currentResult() {
@@ -117,39 +82,49 @@ test('T201 inventory binds the acceptance command to five fixture pipelines and 
     assert.equal(typeof module.files, 'object', `${moduleName} must export files`);
   }
   assert.deepEqual([...fixtureModules].toSorted(), expected.fixtureModules);
-  const fixtureSource = await readFile(join(TEST_ROOT, 'fixtures-pipeline.test.mjs'), 'utf8');
-  const fixtureCases = [...fixtureSource.matchAll(/\{ name: '([^']+)', files: \w+Files,/g)].map((match) => match[1]);
-  assert.deepEqual(fixtureCases, expected.fixtureCases);
-  assert.equal(fixtureCases.length, 5);
-  assert.match(fixtureSource, /for \(const c of CASES\) \{\s*test\(`/);
-  assert.doesNotMatch(fixtureSource, /\b(?:test|it)\.(?:skip|todo)\b|\bskip\s*:/);
 
-  const p0Source = await readFile(join(TEST_ROOT, 'regression-parity.test.mjs'), 'utf8');
-  const p0TestNames = [...p0Source.matchAll(/\bname:\s*'([^']+)'/g)]
-    .map((match) => match[1])
-    .filter((name) => name.startsWith('P0-'));
-  assert.deepEqual(p0TestNames, expected.p0TestNames);
-  assert.equal(p0TestNames.length, 21);
-  assert.match(p0Source, /for \(const \{ name, run \} of P0_CASES\) test\(name, run\);/);
-  assert.doesNotMatch(p0Source, /\b(?:test|it)\.(?:skip|todo)\b|\bskip\s*:/);
+  // T010 (F-038): registered test names are collected through the real runner,
+  // never by regexing the test files' source text.
+  const collected = await collectTestNames([
+    join(TEST_ROOT, 'fixtures-pipeline.test.mjs'),
+    join(TEST_ROOT, 'regression-parity.test.mjs'),
+  ]);
+  assert.equal(collected.code, 0, `runner exited ${collected.code}\n${collected.stderr}`);
+  assert.deepEqual(collected.failures, [], `registered gate tests failed: ${collected.failures.join(', ')}`);
+  assert.deepEqual(collected.skips, [], `registered gate tests skipped: ${collected.skips.join(', ')}`);
+  const fixtureCases = collected.names
+    .filter((name) => /^T020 \w+ fixture:/.test(name))
+    .map((name) => name.match(/^T020 (\w+) fixture:/)[1]);
+  assert.deepEqual(fixtureCases, expected.fixtureCases);
+  assert.deepEqual(
+    collected.names.filter((name) => name.startsWith('P0-')),
+    expected.p0TestNames,
+    'every P0 parity case must be registered by name',
+  );
 });
 
-test('T201 reviewed test and fixture inputs cannot be weakened without digest updates', async () => {
-  const integrity = await readJson('test-integrity.json');
-  assert.equal(integrity.version, 1);
-  assert.deepEqual(Object.keys(integrity.files).toSorted(), [
-    'test/expansion-command-deep.test.mjs',
-    'test/fixtures-pipeline.test.mjs',
-    'test/fixtures/javascript.mjs',
-    'test/fixtures/python.mjs',
-    'test/fixtures/rust.mjs',
-    'test/fixtures/shell.mjs',
-    'test/fixtures/typescript.mjs',
-    'test/regression-parity.test.mjs',
-  ]);
-  for (const [path, sha256] of Object.entries(integrity.files)) {
-    assert.equal(digest(await readFile(join(TEST_ROOT, '..', path))), sha256, `${path} integrity changed`);
+test('T201 reviewed test and fixture inputs stay registered and non-skipped', async () => {
+  // T010 (F-034): the byte-hash lock (test-integrity.json) was replaced with
+  // behavioral constraints — the reviewed fixture modules must still export
+  // non-empty file sets, and the reviewed test inputs must still register
+  // executable tests with zero failures and zero skips.
+  const fixtureUrl = new URL('./fixtures/', import.meta.url);
+  for (const moduleName of [
+    'javascript.mjs', 'python.mjs', 'rust.mjs', 'shell.mjs', 'typescript.mjs',
+  ]) {
+    const module = await import(new URL(moduleName, fixtureUrl));
+    assert.ok(module.files && Object.keys(module.files).length > 0,
+      `${moduleName} must export non-empty files`);
   }
+  const collected = await collectTestNames([
+    join(TEST_ROOT, 'expansion-command-deep.test.mjs'),
+    join(TEST_ROOT, 'fixtures-pipeline.test.mjs'),
+    join(TEST_ROOT, 'regression-parity.test.mjs'),
+  ]);
+  assert.equal(collected.code, 0, `runner exited ${collected.code}\n${collected.stderr}`);
+  assert.deepEqual(collected.failures, [], `reviewed tests failed: ${collected.failures.join(', ')}`);
+  assert.deepEqual(collected.skips, [], `reviewed tests skipped: ${collected.skips.join(', ')}`);
+  assert.ok(collected.names.length > 0, 'reviewed test inputs must register executable tests');
 });
 
 test('T201 supersession records are legacy locks or live recurring replacements', async () => {
@@ -180,11 +155,19 @@ test('T201 supersession records are legacy locks or live recurring replacements'
     }
     assert.ok(lockResults.some((applies) => !applies), `${entry.id} cannot be superseded while every legacy lock applies`);
     assert.ok(inventory.recurringAcceptanceTestFiles.includes(entry.replacement.testFile));
-    const replacementSource = await readFile(join(TEST_ROOT, '..', entry.replacement.testFile), 'utf8');
-    assert.equal(digest(replacementSource), entry.replacement.testFileSha256);
-    assert.ok(
-      replacementSource.includes(`test('${entry.replacement.testName}'`) || replacementSource.includes(`test("${entry.replacement.testName}"`),
-      `${entry.id} replacement test is not registered under its exact name`,
-    );
+    // T010 (F-034): the replacement-test byte-hash lock was replaced with a
+    // behavioral constraint — the exact replacement test name must be
+    // REGISTERED by the real runner (and pass), never merely present in source.
+    const collected = await collectTestNames([
+      join(TEST_ROOT, '..', entry.replacement.testFile),
+    ]);
+    assert.equal(collected.code, 0,
+      `${entry.id}: replacement test file exited ${collected.code}\n${collected.stderr}`);
+    assert.ok(collected.names.includes(entry.replacement.testName),
+      `${entry.id} replacement test is not registered under its exact name`);
+    assert.ok(!collected.failures.includes(entry.replacement.testName),
+      `${entry.id} replacement test failed to pass`);
+    assert.ok(!collected.skips.includes(entry.replacement.testName),
+      `${entry.id} replacement test must not be skipped`);
   }
 });

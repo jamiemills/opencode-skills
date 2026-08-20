@@ -226,12 +226,21 @@ function stripSqlComments(text) {
 }
 
 function splitTopLevel(text, sep, openers = '([{', closers = ')]}') {
+  return splitTopLevelWithOffsets(text, sep, openers, closers).map(({ text: part }) => part);
+}
+
+// F-055: splitTopLevel variant that also records each part's start offset in
+// the ORIGINAL text, so callers that resolve evidence lines (SQL DDL) can
+// search the full source instead of statement-relative offsets.
+function splitTopLevelWithOffsets(text, sep, openers = '([{', closers = ')]}') {
   const parts = [];
   const stack = [];
   let cur = '';
+  let curStart = 0;
   let inQuote = null;
   let escaped = false;
-  for (const c of text) {
+  for (let index = 0; index < text.length; index++) {
+    const c = text[index];
     if (inQuote) {
       cur += c;
       if (escaped) { escaped = false; continue; }
@@ -247,10 +256,10 @@ function splitTopLevel(text, sep, openers = '([{', closers = ')]}') {
       cur += c;
       continue;
     }
-    if (c === sep) { parts.push(cur); cur = ''; continue; }
+    if (c === sep) { parts.push({ text: cur, start: curStart }); cur = ''; curStart = index + 1; continue; }
     cur += c;
   }
-  parts.push(cur);
+  parts.push({ text: cur, start: curStart });
   return parts;
 }
 
@@ -276,10 +285,24 @@ function findMatching(text, open, close, startIndex) {
   return -1;
 }
 
+// F-055: SQL statements carry their trimmed text plus the source offset of the
+// trimmed start, so evidence line resolution searches the FULL source instead
+// of statement-relative offsets (which previously reported nearly every SQL
+// DDL record on line 1).
 function sqlStatements(text) {
-  return splitTopLevel(text, ';')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  return splitTopLevelWithOffsets(text, ';')
+    .map(({ text: entry, start }) => {
+      const trimmed = entry.trim();
+      const leading = entry.length - entry.trimStart().length;
+      return { text: trimmed, start: start + leading };
+    })
+    .filter(({ text: entry }) => entry.length > 0);
+}
+
+// Absolute offset (in the full `source`) of a match found inside a trimmed
+// statement: statement.start + the match's offset within the trimmed text.
+function statementOffset(statement, matchIndex) {
+  return statement.start + matchIndex;
 }
 
 function parseColumnList(inner) {
@@ -352,8 +375,10 @@ function extractSql(text, path) {
   };
 
   for (const statement of sqlStatements(source)) {
-    if (/^CREATE\s+DATABASE\b/i.test(statement)) {
-      const match = statement.match(/^CREATE\s+DATABASE\s+(["'`]?)([A-Za-z0-9_.-]+)\1/i);
+    const statementText = statement.text;
+    const sourceOffset = (matchIndex) => statementOffset(statement, matchIndex);
+    if (/^CREATE\s+DATABASE\b/i.test(statementText)) {
+      const match = statementText.match(/^CREATE\s+DATABASE\s+(["'`]?)([A-Za-z0-9_.-]+)\1/i);
       if (match) {
         const store = safeLabel(match[2]);
         if (store !== null) {
@@ -363,14 +388,14 @@ function extractSql(text, path) {
             signature: store,
             details: { kind: 'database', label: store },
             path,
-            line: lineIndexOf(source, statement.indexOf(match[0])),
+            line: lineIndexOf(source, sourceOffset(statementText.indexOf(match[0]))),
           }));
         }
       }
       continue;
     }
-    if (/^CREATE\s+SCHEMA\b/i.test(statement)) {
-      const match = statement.match(/^CREATE\s+SCHEMA\s+(["'`]?)([A-Za-z0-9_.-]+)\1/i);
+    if (/^CREATE\s+SCHEMA\b/i.test(statementText)) {
+      const match = statementText.match(/^CREATE\s+SCHEMA\s+(["'`]?)([A-Za-z0-9_.-]+)\1/i);
       if (match) {
         const schema = safeLabel(match[2]);
         if (schema !== null) {
@@ -380,45 +405,45 @@ function extractSql(text, path) {
             signature: schema,
             details: { label: schema },
             path,
-            line: lineIndexOf(source, statement.indexOf(match[0])),
+            line: lineIndexOf(source, sourceOffset(statementText.indexOf(match[0]))),
           }));
         }
       }
       continue;
     }
-    const indexMatch = statement.match(/^CREATE(?:\s+UNIQUE)?\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z0-9_.-]+)\s+ON\s+(["'`]?)([A-Za-z0-9_.-]+)\2\s*\(([^)]*)\)/i);
+    const indexMatch = statementText.match(/^CREATE(?:\s+UNIQUE)?\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z0-9_.-]+)\s+ON\s+(["'`]?)([A-Za-z0-9_.-]+)\2\s*\(([^)]*)\)/i);
     if (indexMatch) {
-      const uniqueIndex = /^CREATE\s+UNIQUE/i.test(statement);
+      const uniqueIndex = /^CREATE\s+UNIQUE/i.test(statementText);
       records.push(recordCandidate({
         category: 'key',
         dialect: 'sql',
         signature: keySignature(indexMatch[3], indexMatch[1], uniqueIndex ? 'unique' : 'index'),
         details: { kind: uniqueIndex ? 'unique' : 'index', columns: parseColumnList(indexMatch[4]) },
         path,
-        line: lineIndexOf(source, statement.indexOf(indexMatch[0])),
+        line: lineIndexOf(source, sourceOffset(statementText.indexOf(indexMatch[0]))),
       }));
       continue;
     }
-    const tableMatch = statement.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(["'`[]?)([A-Za-z0-9_.-]+)\1\s*\(/i);
+    const tableMatch = statementText.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(["'`[]?)([A-Za-z0-9_.-]+)\1\s*\(/i);
     if (!tableMatch) {
-      if (/^CREATE\s+TABLE\b/i.test(statement)) {
-        diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, statement.indexOf('CREATE'))));
+      if (/^CREATE\s+TABLE\b/i.test(statementText)) {
+        diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, sourceOffset(statementText.indexOf('CREATE')))));
       }
       continue;
     }
     const table = safeLabel(tableMatch[2]);
     if (table === null) {
-      diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, statement.indexOf(tableMatch[0]))));
+      diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, sourceOffset(statementText.indexOf(tableMatch[0])))));
       continue;
     }
-    const openIndex = statement.indexOf('(', tableMatch.index + tableMatch[0].length - 1);
-    const closeIndex = findMatching(statement, '(', ')', openIndex);
+    const openIndex = statementText.indexOf('(', tableMatch.index + tableMatch[0].length - 1);
+    const closeIndex = findMatching(statementText, '(', ')', openIndex);
     if (closeIndex === -1) {
-      diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, statement.indexOf(tableMatch[0]))));
+      diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, sourceOffset(statementText.indexOf(tableMatch[0])))));
       continue;
     }
-    const body = statement.slice(openIndex + 1, closeIndex);
-    const line = lineIndexOf(source, statement.indexOf(tableMatch[0]));
+    const body = statementText.slice(openIndex + 1, closeIndex);
+    const line = lineIndexOf(source, sourceOffset(statementText.indexOf(tableMatch[0])));
     pendingEntity = { entity: table, line };
     records.push(recordCandidate({
       category: 'entity',

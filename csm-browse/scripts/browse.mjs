@@ -2,6 +2,7 @@
 import { loadState, validateSid } from '../lib/session.mjs';
 import { redactTelemetry } from '../lib/security.mjs';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -65,15 +66,21 @@ if (VERB_MAP[verb] === 'log') {
 
 const moduleName = VERB_MAP[verb] || verb;
 
+// F-067-2: check the verb module EXISTS before importing. A dynamic import
+// that throws ERR_MODULE_NOT_FOUND must be a genuine missing verb — a broken
+// install (module present but a transitive import missing) was previously
+// misreported as "Unknown verb", masking the real module path.
+const modPath = join(SKILL_DIR, 'lib', 'verbs', `${moduleName}.mjs`);
+if (!existsSync(modPath)) {
+  console.error(`Unknown verb: ${verb} — see SKILL.md verb table`);
+  process.exit(2);
+}
+
 let mod;
 try {
-  mod = await import(join(SKILL_DIR, 'lib', 'verbs', `${moduleName}.mjs`));
+  mod = await import(modPath);
 } catch (err) {
-  if (err && err.code === 'ERR_MODULE_NOT_FOUND') {
-    console.error(`Unknown verb: ${verb} — see SKILL.md verb table`);
-  } else {
-    console.error(`Failed to load verb module ${verb}: ${redactTelemetry(err.message)}`);
-  }
+  console.error(`Failed to load verb module ${verb}: ${redactTelemetry(err.message)}`);
   process.exit(2);
 }
 

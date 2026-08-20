@@ -23,8 +23,9 @@ const USAGE = [
   '  --repos <path>...  Repositories to scan (default: current working directory).',
   '  --out <path>       Output file (default: NORMS.md in the current directory).',
   '  --verbose          Write an unredacted local diagnostic trace (reporter lines +',
-  '                     per-stage durations) to .csm-scan-debug.log next to --out —',
-  '                     never to stdout. Delete it after debugging.',
+  '                     per-stage durations) to a per-run-unique .csm-scan-debug-*.log',
+  '                     next to --out (or the OS temp dir) — never to stdout. Delete it',
+  '                     after debugging; it is gitignored, not a report artifact.',
   '  --help             Print this usage information and exit.',
   '  --version          Print the version and exit.',
   '',
@@ -137,9 +138,12 @@ async function resolveVersion() {
   return (await packageVersion()) ?? (await gitCommitHash()) ?? 'csm-scan';
 }
 
-// F-075: --verbose writes an UNREDACTED, local-only trace (never stdout —
+// F-075/F-051: --verbose writes an UNREDACTED, local-only trace (never stdout —
 // the sanitized stdout/stderr guards stay installed) via the registered
 // special-reader module; per-stage durations come from the phase() fan-out.
+// The trace file name is per-run unique (`.csm-scan-debug-<pid>-<time>.log`)
+// and gitignored so a concurrent run cannot clobber it and `git add .` cannot
+// sweep an unredacted trace into a commit.
 async function main() {
   const rawStderrWrite = process.stderr.write.bind(process.stderr);
   const guard = installSanitizedStdio();

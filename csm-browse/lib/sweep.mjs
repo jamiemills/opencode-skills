@@ -1,10 +1,10 @@
-import { readdir, readFile, stat, unlink } from 'node:fs/promises';
+import { readdir, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import {
   stopDaemon, killInstance, killGate,
-  removeContainerSession, removeHostSession
+  removeContainerSession, removeHostSession, isSessionDaemon
 } from './cleanup.mjs';
 import { execLayer } from './docker.mjs';
 import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END, CDP_RETRY_TIMEOUT_MS } from './constants.mjs';
@@ -65,13 +65,22 @@ async function daemonAlive(pid) {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
-async function killPidGracefully(pid) {
+async function killPidGracefully(pid, sid) {
+  // F-021: verify process identity BEFORE signaling. The pid came from a
+  // pgrep argv match, but it may have been recycled since; never signal a pid
+  // that does not still belong to THIS session's daemon. The whole kill is
+  // identity-gated (signal, poll, and final SIGKILL) so a pid freed and
+  // reused mid-grace can never be SIGKILL'd.
+  if (!(await isSessionDaemon(pid, sid))) return;
   try { process.kill(pid, 'SIGTERM'); } catch { return; }
   const start = Date.now();
   while (Date.now() - start < 5000) {
-    try { process.kill(pid, 0); await setTimeout(200); } catch { return; }
+    if (!(await isSessionDaemon(pid, sid))) return;
+    await setTimeout(200);
   }
-  try { process.kill(pid, 'SIGKILL'); } catch {}
+  if (await isSessionDaemon(pid, sid)) {
+    try { process.kill(pid, 'SIGKILL'); } catch {}
+  }
 }
 
 export async function sweep({ containerName, ip: _ip, ageMinutes = 10, dryRun = false, skipSid = null }) {
@@ -113,49 +122,80 @@ export async function sweep({ containerName, ip: _ip, ageMinutes = 10, dryRun = 
     }
     if (daemonLive) continue;
 
-    // Age only decides when the daemon is dead or absent.
-    if (age <= ageMs) continue;
+    // F-009/F-015: stale-state recovery. A session with NO state.json (crash
+    // between creating.marker and saveState) or CORRUPT state.json must still
+    // be sweepable — otherwise its ports stay permanently claimed and the
+    // pool leaks. Read-missing is distinguished from parse/validate failure
+    // so the sweep never revokes/rewrites a state it could not read. A
+    // marker-only dir is stranded once its marker outlives the creation
+    // window (CREATING_MARKER_MAX_MS) and is reaped regardless of the
+    // ageMinutes gate; a dir with no marker and no state (pure orphan) keeps
+    // the normal age gate.
+    const statePath = join(sDir, 'state.json');
+    const markerPath = join(sDir, CREATING_MARKER);
+    let stale;
+    if (existsSync(statePath)) {
+      stale = age > ageMs;
+    } else if (existsSync(markerPath)) {
+      let markerAge = Infinity;
+      try { markerAge = Date.now() - (await stat(markerPath)).mtimeMs; } catch {}
+      stale = markerAge > CREATING_MARKER_MAX_MS;
+    } else {
+      stale = age > ageMs;
+    }
+    if (!stale) continue;
 
     let publicPort = null;
     let state = null;
     try {
-      state = validateState(JSON.parse(await readFile(join(sDir, 'state.json'), 'utf-8')), sid);
+      state = validateState(JSON.parse(await readFile(statePath, 'utf-8')), sid);
       publicPort = state.publicPort || null;
-    } catch { continue; }
+    } catch {
+      // Read-missing or unparseable/invalid: nothing trusted to revoke or to
+      // free — the orphan gate/socat passes recover pool ports later.
+    }
 
     const label = `sid=${sid} age=${Math.round(age / 60000)}m${publicPort ? ` port=${publicPort}` : ''}`;
     if (dryRun) { swept.push(`[dry] ${label}`); continue; }
 
-    await stopDaemon(sDir);
+    await stopDaemon(sDir, sid);
     await killHostFfmpeg(sDir);
     try { await cleanArtifactTemps(sDir); } catch {}
     try { await killInstance(containerName, containerSessionDir(sid)); } catch {}
     if (publicPort) { try { await killGate(publicPort); } catch {} }
     // Fail-closed revocation BEFORE the dir is removed: if removeHostSession
     // fails, the persisted state must not retain a usable credential.
-    try {
-      revokeToken(state);
-      await secureWrite(join(sDir, 'state.json'), JSON.stringify(state, null, 2), { encoding: 'utf-8' });
-    } catch {}
+    if (state) {
+      try {
+        revokeToken(state);
+        await secureWrite(statePath, JSON.stringify(state, null, 2), { encoding: 'utf-8' });
+      } catch {}
+    }
     try { await removeContainerSession(containerName, containerSessionDir(sid)); } catch {}
     try { await removeHostSession(sDir); } catch {}
     swept.push(label);
   }
 
-  // Orphaned-daemon pass: running host daemon whose session dir is gone
+  // Orphaned-daemon pass: running host daemon whose session dir is gone.
+  // F-067-4: sids are revalidated per line inside the loop (mirroring the
+  // container pass) so one malformed pgrep line cannot abort the rest of the
+  // pass.
   try {
     const { stdout } = await execLayer.execFile('pgrep', ['-af', 'session-daemon.mjs --session ']);
     for (const line of stdout.split('\n').filter(Boolean)) {
-      const m = line.match(/session-daemon\.mjs --session (\S+)/);
-      if (!m) continue;
-      const sid = m[1];
-      if (skipSid && sid === skipSid) continue;
-      if (existsSync(sessionDir(sid))) continue;
-      const pid = parseInt(line, 10);
-      if (isNaN(pid)) continue;
-      if (dryRun) { swept.push(`[dry] orphan daemon sid=${sid} pid=${pid}`); continue; }
-      await killPidGracefully(pid);
-      swept.push(`orphan daemon sid=${sid} pid=${pid}`);
+      try {
+        const m = line.match(/session-daemon\.mjs --session (\S+)/);
+        if (!m) continue;
+        const sid = m[1];
+        validateSid(sid);
+        if (skipSid && sid === skipSid) continue;
+        if (existsSync(sessionDir(sid))) continue;
+        const pid = parseInt(line, 10);
+        if (isNaN(pid)) continue;
+        if (dryRun) { swept.push(`[dry] orphan daemon sid=${sid} pid=${pid}`); continue; }
+        await killPidGracefully(pid, sid);
+        swept.push(`orphan daemon sid=${sid} pid=${pid}`);
+      } catch {}
     }
   } catch {}
 
@@ -164,31 +204,34 @@ export async function sweep({ containerName, ip: _ip, ageMinutes = 10, dryRun = 
     const sessRe = new RegExp(`${escapeRegExp(SESSIONS_ROOT)}/([^/\\s]+)`);
     const { stdout } = await execLayer.execFile('pgrep', ['-af', 'ffmpeg']);
     for (const line of stdout.split('\n').filter(Boolean)) {
-      const m = line.match(sessRe);
-      if (!m) continue;
-      const sid = m[1];
-      if (skipSid && sid === skipSid) continue;
-      const sDir = sessionDir(sid);
-      let orphaned = !existsSync(sDir);
-      if (!orphaned) {
-        if (await hasFreshCreatingMarker(sDir)) continue;
-        const pidFile = join(sDir, 'daemon.pid');
-        let alive = false;
-        if (existsSync(pidFile)) {
-          try {
-            const raw = await readFile(pidFile, 'utf-8');
-            const pid = parseInt(raw.trim(), 10);
-            alive = !isNaN(pid) && await daemonAlive(pid);
-          } catch {}
+      try {
+        const m = line.match(sessRe);
+        if (!m) continue;
+        const sid = m[1];
+        validateSid(sid);
+        if (skipSid && sid === skipSid) continue;
+        const sDir = sessionDir(sid);
+        let orphaned = !existsSync(sDir);
+        if (!orphaned) {
+          if (await hasFreshCreatingMarker(sDir)) continue;
+          const pidFile = join(sDir, 'daemon.pid');
+          let alive = false;
+          if (existsSync(pidFile)) {
+            try {
+              const raw = await readFile(pidFile, 'utf-8');
+              const pid = parseInt(raw.trim(), 10);
+              alive = !isNaN(pid) && await daemonAlive(pid);
+            } catch {}
+          }
+          if (alive) continue;
+          const age = await dirAgeMs(sDir);
+          orphaned = age === null || age > ageMs;
         }
-        if (alive) continue;
-        const age = await dirAgeMs(sDir);
-        orphaned = age === null || age > ageMs;
-      }
-      if (!orphaned) continue;
-      if (dryRun) { swept.push(`[dry] orphan ffmpeg sid=${sid}`); continue; }
-      await killHostFfmpeg(sDir);
-      swept.push(`orphan ffmpeg sid=${sid}`);
+        if (!orphaned) continue;
+        if (dryRun) { swept.push(`[dry] orphan ffmpeg sid=${sid}`); continue; }
+        await killHostFfmpeg(sDir);
+        swept.push(`orphan ffmpeg sid=${sid}`);
+      } catch {}
     }
   } catch {}
 
@@ -242,7 +285,16 @@ export async function sweep({ containerName, ip: _ip, ageMinutes = 10, dryRun = 
       if (alive) continue;
       if (dryRun) { swept.push(`[dry] stale recorder lock sid=${sid}`); continue; }
       rec.running = false;
-       await secureWrite(recPath, JSON.stringify(rec, null, 2), { encoding: 'utf-8' });
+      // F-067-14: atomic read-modify-write via temp+rename so a concurrent
+      // reader never observes a torn recorder.json and the flip lands whole.
+      const tmpPath = `${recPath}.tmp`;
+      try {
+        await secureWrite(tmpPath, JSON.stringify(rec, null, 2), { encoding: 'utf-8' });
+        await rename(tmpPath, recPath);
+      } catch {
+        try { await unlink(tmpPath); } catch {}
+        continue;
+      }
       swept.push(`stale recorder lock sid=${sid}`);
     } catch {}
   }

@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { compareAscii } from '../lib/scan/contracts/evidence.mjs';
 import { enrich } from '../lib/scan/enrich.mjs';
 import { DEFAULT_SINK } from '../lib/scan/pipeline/run.mjs';
+import { findVoiceHits } from './helpers/voice-gate.mjs';
 import {
   CROSS_REPO_GLOBAL_STAGE,
   DIMENSION_RENDERER_IDS,
@@ -70,82 +71,10 @@ const SIX_NEW_HEADINGS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Voice matcher (inline copy of the authoritative voice gate so the registry
-// prose is checked with the same neutral-voice rules without importing the
-// gate's test module).
+// Voice matcher — the shared helper (test/helpers/voice-gate.mjs). The third
+// verbatim voice-gate copy was removed here for F-037; registry prose is
+// checked with the same neutral-voice rules as every other voice gate.
 // ---------------------------------------------------------------------------
-
-export const BANNED_VOICE = Object.freeze([
-  'should',
-  'must',
-  'ought',
-  'shall',
-  'poor',
-  'good',
-  'bad',
-  'weak',
-  'strong',
-  'better',
-  'worse',
-  'best',
-  'worst',
-  'recommended',
-  'recommendation',
-  'ideally',
-  'unfortunately',
-  'concern',
-  'concerning',
-  'problem',
-  'anti-pattern',
-  'smell',
-  'suboptimal',
-  'inadequate',
-  'insufficient',
-  'contradiction',
-  'contradictions',
-  'inconsistent',
-  'inconsistency',
-  'conflict',
-  'conflicts',
-  'lacking',
-]);
-
-const BANNED_PATTERN = new RegExp(
-  `\\b(?:${BANNED_VOICE.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
-  'gi',
-);
-
-function mask(value) {
-  return value.replace(/[^\n]/g, ' ');
-}
-
-function stripNonProse(markdown) {
-  return markdown
-    .replace(/^(?:```|~~~)[^\n]*\n[\s\S]*?^(?:```|~~~)[ \t]*$/gm, mask)
-    .replace(/(`+)[^\n]*?\1/g, mask)
-    .replace(/\b(?:https?:\/\/|www\.)[^\s<>)]+/gi, mask)
-    .replace(/^[ \t]*\|([^|]*)\|(.*)\|[ \t]*$/gm, (row, firstCell, valueCells, offset, source) => {
-      const nextLine = source.slice(offset + row.length).match(/^\r?\n([^\r\n]*)/)?.[1] || '';
-      const separator = /^[ \t]*\|(?:[ \t]*:?-{3,}:?[ \t]*\|)+[ \t]*$/.test(nextLine);
-      if (separator) return row;
-      return `|${firstCell}|${mask(valueCells)}|`;
-    })
-    .replace(/(?:~\/|\.{0,2}\/|\/)(?:[^\s`<>|()[\]{}]+\/)*[^\s`<>|()[\]{}]*/g, mask)
-    .replace(/(?:[\w@+.-]+\/)+[\w@+,=~.-]+/g, mask)
-    .replace(/(?<![\w@.-])[\w@+-]*[\w@+-]\.[A-Za-z0-9][\w.-]*/g, mask);
-}
-
-function findVoiceHits(markdown) {
-  const prose = stripNonProse(markdown);
-  const hits = [];
-  for (const [index, line] of prose.split('\n').entries()) {
-    BANNED_PATTERN.lastIndex = 0;
-    for (const match of line.matchAll(BANNED_PATTERN)) {
-      hits.push({ term: match[0].toLowerCase(), line: index + 1, text: line.trim() });
-    }
-  }
-  return hits;
-}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -584,8 +513,17 @@ test('T223 inert: no production module imports the renderer registry and the wri
   assert.equal(writeSource.includes('registry.mjs'), false, 'write must not import the registry');
   assert.equal(writeSource.includes('registry/dimensions'), false, 'write must not reference the dimension registry');
   assert.equal(writeSource.includes('cross-repo'), false, 'write must not reference cross-repo');
-  assert.equal(writeSource.split("import { writeFile } from 'node:fs/promises';").length - 1, 1);
-  assert.equal(writeSource.split("await writeFile(outPath, content, 'utf-8');").length - 1, 1);
+  // T010 (F-065-b reconciliation): the write seam is the atomic tmp+rename
+  // writer (exactly one temp write and one rename), not the old direct write.
+  assert.equal(
+    writeSource.split("import { rename, unlink, writeFile } from 'node:fs/promises';").length - 1,
+    1,
+    'the write seam must import exactly the atomic writer statement',
+  );
+  assert.equal(writeSource.split("await writeFile(tmpPath, content, 'utf-8');").length - 1, 1,
+    'the write seam must perform exactly one temp write');
+  assert.equal(writeSource.split("await rename(tmpPath, outPath);").length - 1, 1,
+    'the write seam must rename the temp file over the target exactly once');
 
   const existingTen = await readFile(join(ROOT, 'lib', 'scan', 'render', 'existing-ten.mjs'), 'utf8');
   assert.equal(existingTen.includes('registry'), false, 'existing-ten must not reference the registry');

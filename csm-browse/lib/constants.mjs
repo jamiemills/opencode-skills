@@ -13,13 +13,65 @@ export const CONTAINER_NAME = 'chromium-vnc';
 //   docker pull jlesage/chromium:latest && \
 //   docker image inspect --format '{{index .RepoDigests 0}}' jlesage/chromium:latest
 export const IMAGE = 'jlesage/chromium@sha256:7514667737463e4302d5b58bd07311790dd29c816d4a980143a96de85cf0210e';
+// F-059: digest-age staleness check. The pinned digest is refreshed on this
+// date; after IMAGE_MAX_AGE_MS (90 days, ~quarterly) imageStaleMs() reports
+// how overdue the pin is so ensure-browser can surface it loudly instead of
+// letting browser CVEs age silently behind the digest.
+export const IMAGE_PINNED_AT = new Date('2026-08-20T00:00:00Z');
+export const IMAGE_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+export function imageStaleMs(now = new Date()) {
+  return Math.max(0, now.getTime() - IMAGE_PINNED_AT.getTime() - IMAGE_MAX_AGE_MS);
+}
+export function assertImageFresh(now = new Date()) {
+  const staleMs = imageStaleMs(now);
+  if (staleMs > 0) {
+    throw new Error(
+      `Pinned browser image is ${Math.round(staleMs / 86400000)} days stale — refresh the digest per the IMAGE comment cadence`
+    );
+  }
+}
 // VNC password is generated once by ensure-browser.mjs and stored here (0600,
-// parent dir 0700); it is passed to the container as VNC_PASSWORD.
+// parent dir 0700); it is passed to the container via CONTAINER_ENV_FILE, so
+// the value never appears in a docker run argv (ps-visible).
 export const VNC_PASS_PATH = join(homedir(), '.config', 'csm-browse', 'vnc-pass');
-// Interpolates IMAGE so the printed command always matches the executed
-// argv (ensure-browser logs DOCKER_RUN_CMD and runs IMAGE) — the doc string
-// can never drift back to a floating :latest tag while IMAGE is digest-pinned.
-export const DOCKER_RUN_CMD = `docker run -d --name chromium-vnc --restart unless-stopped -e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1 -e VNC_PASSWORD=$(cat ~/.config/csm-browse/vnc-pass) -p 127.0.0.1:5900:5900 -p 127.0.0.1:9222:9222 ${IMAGE}`;
+// Single source for every path the shared container needs: the F-067-5 rule
+// is that the printed/executed command can never hardcode a second copy.
+export const CONTAINER_CONFIG_DIR = join(homedir(), '.config', 'csm-browse');
+export const CONTAINER_CONFIG_HOST_DIR = join(CONTAINER_CONFIG_DIR, 'container-config');
+export const CONTAINER_ENV_FILE = join(CONTAINER_CONFIG_DIR, 'container.env');
+export const CONTAINER_TOKEN_PATH = join(CONTAINER_CONFIG_DIR, 'container-token');
+export const CONTAINER_GATE_LOG = join(CONTAINER_CONFIG_DIR, 'shared-gate.log');
+export const CONTAINER_GATE_SID = 'container-9222';
+// F-001 / F-016 / F-067-10: the shared container runs on a dedicated bridge
+// (off the default bridge, so sibling default-bridge containers cannot reach
+// its CDP relay), drops the dangerous caps the image does not need, disables
+// new privileges, mounts a read-only rootfs with writable tmpfs, and carries
+// cgroup limits. Chromium's debug server binds loopback via CHROMIUM_CUSTOM_ARGS.
+export const CONTAINER_NETWORK = 'csm-browse-net';
+export const CONTAINER_CAP_DROP = ['NET_RAW', 'SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'MKNOD', 'SETFCAP', 'AUDIT_WRITE'];
+export const CONTAINER_MEMORY = '4g';
+export const CONTAINER_CPUS = '4';
+export const CONTAINER_PIDS_LIMIT = 1024;
+export const CONTAINER_SHM_SIZE = '1g';
+export const CHROMIUM_CUSTOM_ARGS = '--remote-debugging-address=127.0.0.1';
+// The primary shared browser's CDP port. It is NOT published to the host
+// anymore: host access goes only through the token-gated funnel (a host-side
+// cdp-gate on 127.0.0.1:9222), and the container is off the default bridge.
+export const SHARED_CDP_PORT = 9222;
+export const DOCKER_RUN_CMD = [
+  'docker run -d --name chromium-vnc --restart unless-stopped',
+  `--network ${CONTAINER_NETWORK}`,
+  CONTAINER_CAP_DROP.map((c) => `--cap-drop ${c}`).join(' '),
+  '--security-opt no-new-privileges --read-only',
+  '--tmpfs /tmp --tmpfs /run --tmpfs /dev/shm',
+  `--memory ${CONTAINER_MEMORY} --memory-swap ${CONTAINER_MEMORY} --cpus ${CONTAINER_CPUS} --pids-limit ${CONTAINER_PIDS_LIMIT} --shm-size ${CONTAINER_SHM_SIZE}`,
+  '-e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1',
+  `--env-file ${CONTAINER_ENV_FILE}`,
+  `-e CHROMIUM_CUSTOM_ARGS=${CHROMIUM_CUSTOM_ARGS}`,
+  `-v ${CONTAINER_CONFIG_HOST_DIR}:/config`,
+  '-p 127.0.0.1:5900:5900',
+  IMAGE,
+].join(' ');
 export const CHROMIUM_BIN = '/usr/lib/chromium/chromium';
 export const PORT_POOL_START = 9224;
 export const PORT_POOL_END = 9234;

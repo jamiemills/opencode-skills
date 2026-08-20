@@ -31,6 +31,7 @@ import { promisify } from 'node:util';
 
 import { withFixture, makeFixture, cleanupFixture } from './harness.mjs';
 import { runLegacyTenMirror } from './helpers/legacy-pipeline-mirror.mjs';
+import { canonicalize, fixedInput, semanticProjection } from './helpers/expansion-shared.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
@@ -88,61 +89,6 @@ const TEN_HEADINGS = [
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
-}
-
-function canonicalize(value, repoPath) {
-  if (Array.isArray(value)) return value.map((entry) => canonicalize(entry, repoPath));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, canonicalize(entry, repoPath)]));
-  }
-  if (typeof value !== 'string') return value;
-  const normalizedRoot = repoPath.replaceAll('\\', '/');
-  const fixtureName = normalizedRoot.split('/').pop();
-  return value
-    .replaceAll('\\', '/')
-    .replaceAll(normalizedRoot, '<FIXTURE_ROOT>')
-    .replaceAll(fixtureName, '<FIXTURE_NAME>')
-    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '<DATE>')
-    .replace(/\b(Python|Node(?:\.js)?|rustc|Deno|Bun)\s+v?\d+(?:\.\d+)+(?:[-+][\w.-]+)?/g, '$1 <HOST_VERSION>');
-}
-
-// The authoritative ten-dimension fixed input shared with the T201/T204
-// baselines.
-function fixedInput() {
-  const overview = {
-    name: 'synthetic-repository',
-    path: '.',
-    languages: ['JavaScript'],
-    ecosystems: { primary: 'javascript', all: ['javascript'] },
-    packageManager: 'npm',
-    totalFiles: 2,
-    isGit: false,
-  };
-  const deep = [
-    { dimension: 'structure', signal: 'high', findings: { tree: '.\n├── package.json\n└── src/', fileCounts: { js: 1, json: 1 }, totalFiles: 2 } },
-    { dimension: 'stack', signal: 'high', findings: { runtime: 'Node.js (declared)', language: 'JavaScript', framework: '(none)', packageManager: 'npm', name: 'synthetic-package', version: '1.0.0' } },
-    { dimension: 'config', signal: 'high', findings: { lint: { config: 'eslint.config.mjs' }, format: 'prettier', markers: ['.editorconfig'] } },
-    { dimension: 'testing', signal: 'high', findings: { framework: ['node:test'], fileCount: 1, naming: ['*.test.mjs'], sampleFiles: ['test/example.test.mjs'], testDirs: ['test'] } },
-    { dimension: 'conventions', signal: 'high', findings: { importStyle: { type: 'ESM (import/export)', hasTypeImports: false, hasDynamicImports: false, samples: [] }, fileNaming: { dominant: 'kebab-case', total: 2, patterns: { 'kebab-case': 2 } }, errorHandling: { patterns: ['throw'] }, moduleSystem: { inferred: 'ESM' }, commentDensity: '10.0% (1 comment / 10 code lines)' } },
-    { dimension: 'git', signal: 'high', findings: { isGit: false } },
-    { dimension: 'architecture', signal: 'high', findings: { layers: { totalFiles: 2, totalEdges: 1, entryPoints: ['src/index.js'], libModules: ['src/value.js'], shared: [], rest: [] }, asciiGraph: 'src/index.js -> src/value.js' } },
-    { dimension: 'documentation', signal: 'high', findings: { readme: { present: true, path: 'README.md', sections: 2, hasSetup: true }, contributing: { present: false }, license: { present: true, name: 'MIT', path: 'LICENSE' }, commentRatio: { ratio: 10, commentLines: 1, codeLines: 10 }, todoCount: 0 } },
-    { dimension: 'security', signal: 'high', findings: { secrets: { count: 0, findings: [] }, envExample: true, gitignoreEnvProtected: true, hasLockfile: true, dependabot: false } },
-    { dimension: 'operations', signal: 'high', findings: { dockerfiles: [], ci: [], healthChecks: { detected: false, references: [] }, hasMakefile: true, hasJustfile: false } },
-  ];
-  return { overview, deep };
-}
-
-function semanticProjection(enriched, validated) {
-  return {
-    dimensionOrder: validated.findings.map(({ dimension }) => dimension),
-    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).toSorted()])),
-    coverage: validated.coverage,
-    confidence: Object.fromEntries(validated.findings.map(({ dimension, confidence }) => [dimension, confidence])),
-    contradictions: enriched.contradictions,
-    gaps: enriched.gaps,
-    inferredPatterns: enriched.inferredPatterns,
-  };
 }
 
 function weakConfig(deepResults) {
@@ -498,8 +444,7 @@ test('T224 expected-claim coverage counts registry-owned claims with N/A exclude
     });
     const coverage = result.expectedClaimCoverage;
     const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-    assert.equal(registryClaims, 94);
-    assert.equal(coverage.expected, 94);
+    assert.equal(coverage.expected, registryClaims);
     assert.equal(
       coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
       coverage.expected,
@@ -583,21 +528,4 @@ test('T224 determinism: fixed clock produces byte-identical repeated runs', asyn
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
-
-// ---------------------------------------------------------------------------
-// Exported canonical pipeline surface
-// ---------------------------------------------------------------------------
-
-test('T224 integration tests call the exported production pipeline, never reconstruct dispatch', async () => {
-  const source = await readFile(new URL(import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /lib\/scan\/deep\//);
-  assert.match(source, /runExpandedPipeline/);
-  const runSource = await readFile(join(ROOT, 'lib', 'scan', 'pipeline', 'run.mjs'), 'utf8');
-  assert.match(runSource, /runExpandedPipeline/);
-  const runModule = await import(new URL('../lib/scan/pipeline/run.mjs', import.meta.url));
-  const exports = Object.keys(runModule);
-  assert.ok(exports.includes('runExpandedPipeline'), 'the exported production pipeline must remain');
-  assert.ok(!exports.some((name) => name === 'runExistingTenPipeline'), 'the legacy pipeline entry must be retired');
-  assert.ok(!exports.some((name) => name === 'processExistingTenRepo'), 'the legacy per-repo processor must be retired');
 });

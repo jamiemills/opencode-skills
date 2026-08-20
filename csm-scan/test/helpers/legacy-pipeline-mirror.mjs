@@ -16,6 +16,7 @@ import * as architecture from '../../lib/scan/deep/architecture.mjs';
 import * as documentation from '../../lib/scan/deep/documentation.mjs';
 import * as security from '../../lib/scan/deep/security.mjs';
 import * as operations from '../../lib/scan/deep/operations.mjs';
+import { canonicalize } from './expansion-shared.mjs';
 import { MIRROR_GENERATED_DATE } from './pipeline-mirror.mjs';
 
 // Legacy ten-dimension oracle retained for the parity test, without importing
@@ -60,18 +61,3 @@ function digest(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function canonicalize(value, repoPath) {
-  if (Array.isArray(value)) return value.map((entry) => canonicalize(entry, repoPath));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, canonicalize(entry, repoPath)]));
-  }
-  if (typeof value !== 'string') return value;
-  const normalizedRoot = repoPath.replaceAll('\\', '/');
-  const fixtureName = normalizedRoot.split('/').pop();
-  return value
-    .replaceAll('\\', '/')
-    .replaceAll(normalizedRoot, '<FIXTURE_ROOT>')
-    .replaceAll(fixtureName, '<FIXTURE_NAME>')
-    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '<DATE>')
-    .replace(/\b(Python|Node(?:\.js)?|rustc|Deno|Bun)\s+v?\d+(?:\.\d+)+(?:[-+][\w.-]+)?/g, '$1 <HOST_VERSION>');
-}

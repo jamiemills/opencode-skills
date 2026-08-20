@@ -1,9 +1,13 @@
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
+import { dirname, join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
 import { enumerateHiddenFiles } from '../shared/enum.mjs';
 import { DESCRIPTORS, descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
 import { readManifest } from '../shared/manifest.mjs';
+import { readBoundedFile } from '../shared/reads.mjs';
+import { SECRET_TOKEN_FAMILIES } from '../shared/token-families.mjs';
+import { validatePluginRegexSource } from '../plugins/schema.mjs';
 import {
   AUTH_LIBS,
   INPUT_VALIDATION_LIBS,
@@ -82,7 +86,7 @@ const GITLEAKS_PATH_LIMIT = 200;
 
 function readJSON(path) {
   try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
+    return JSON.parse(readBoundedFile(path, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot: dirname(path) }) ?? 'null');
   } catch {
     return null;
   }
@@ -116,13 +120,11 @@ async function listHiddenSecretCandidates(repoPath, broker, visibleSet) {
   return { candidates: files.filter((f) => !visibleSet.has(f)), failed };
 }
 
-function readContent(absPath) {
-  try {
-    const content = readFileSync(absPath, 'utf-8');
-    return content.length > SCAN_BYTE_LIMIT ? null : content;
-  } catch {
-    return null;
-  }
+// F-022/F-062: bounded whole-file read with a statSync size gate. A file
+// above the bound is never allocated; unreadable or oversize files read as
+// null so a bounded scan is never mistaken for full coverage.
+function readContent(absPath, byteLimit = SCAN_BYTE_LIMIT, containmentRoot = null) {
+  return readBoundedFile(absPath, { byteLimit, containmentRoot });
 }
 
 // Prefer the survey's normalized manifest; fall back to reading it ourselves.
@@ -246,15 +248,22 @@ function detectFirstPartyAuth(files) {
   };
 }
 
+// F-030: framework-level detection entries (e.g. `django`, `fastapi`) carry a
+// distinct `Capability` type — depending on Django does not prove contrib.auth
+// is used. Only specific auth/validation subsystems count toward `detected`;
+// capability entries still surface in the inventory but never lift the signal.
+const CAPABILITY_TYPE = 'Capability';
+
 function detectAuth(depNames, ecosystems, files) {
   const frameworks = unionMatches(depNames, AUTH_LIBS, ecosystems);
+  const verified = frameworks.filter((f) => f.type !== CAPABILITY_TYPE);
   const firstParty = detectFirstPartyAuth(files);
-  return { detected: frameworks.length > 0, frameworks, firstParty };
+  return { detected: verified.length > 0, frameworks, firstParty };
 }
 
 function detectInputValidation(depNames, ecosystems) {
   const libraries = unionMatches(depNames, INPUT_VALIDATION_LIBS, ecosystems);
-  return { detected: libraries.length > 0, libraries };
+  return { detected: libraries.some((l) => l.type !== CAPABILITY_TYPE), libraries };
 }
 
 function detectRateLimiting(repoPath, depNames, ecosystems, files) {
@@ -278,29 +287,11 @@ export function isSecretPatternName(name) {
   return secretPatterns().some((p) => p.name === name);
 }
 
+// F-025: the detection vocabulary is the single source for the report
+// redactors too (shared/token-families.mjs) so a family the scanner flags can
+// never pass through the sanitizer unredacted.
 function secretPatterns() {
-  return [
-    // F-003: prefix tokens accept the common env-var casings (UPPER, lower,
-    // Mixed) via per-character classes while the VALUE groups stay
-    // exact-case (uppercase/digits for access keys, base64 for secrets), so
-    // prose like "aws access key id management" cannot match.
-    { name: 'AWS Access Key', re: /(?:AWS|aws)[_-]?[Aa][Cc][Cc][Ee][Ss][Ss][_-]?[Kk][Ee][Yy][_-]?(?:[Ii][Dd])?["'\s:=]+([A-Z0-9]{20})/ },
-    { name: 'AWS Secret Key', re: /(?:AWS|aws)[_-]?[Ss][Ee][Cc][Rr][Ee][Tt][_-]?(?:[Aa][Cc][Cc][Ee][Ss][Ss][_-]?)?[Kk][Ee][Yy][_-]?(?:[Ii][Dd])?["'\s:=]+([A-Za-z0-9/+=]{40})/ },
-    { name: 'GitHub Token', re: /(?:ghp|gho|ghu|ghs|ghr|github[_-]?pat)[_-\w]*["'\s:=]+([A-Za-z0-9_]{36,})/ },
-    { name: 'Generic API Key', re: /(?:api[_-]?key|apikey|API_KEY)["'\s:=]+\s*['"]([A-Za-z0-9_-]{20,})['"]/i },
-    { name: 'Generic Token', re: /(?:token|secret|password|passwd)["'\s:=]+\s*['"]([^\s'"]{16,})['"]\s*$/im },
-    { name: 'Private Key Header', re: /-----BEGIN[ ](?:RSA |EC |DSA |OPENSSH )?PRIVATE[ ]KEY-----/ },
-    { name: 'JWT Token', re: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/ },
-    { name: 'Slack Token', re: /xox[abpos]-[\d]+-[\d]+-[\d]+-[A-Za-z0-9]+/ },
-    { name: 'Stripe Key', re: /(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{24,}/ },
-    { name: 'Heroku API Key', re: /[Hh][Ee][Rr][Oo][Kk][Uu][_\s-]*[Aa][Pp][Ii][_\s-]*[Kk][Ee][Yy]["'\s:=]+\s*['"]([A-Za-z0-9_-]{16,})['"]/ },
-    { name: 'MongoDB URI', re: /mongodb(?:\+srv)?:\/\/[^'"\s]+/i },
-    { name: 'Postgres URI', re: /postgres(?:ql)?:\/\/[^:]+:[^@]+@[^'"\s]+/i },
-    { name: 'Redis URI', re: /redis:\/\/[^'"\s]+/i },
-    { name: 'Basic Auth URL', re: /https?:\/\/[^:]+:[^@]+@[^'"\s]+/i },
-    { name: 'NPM Token', re: /npm_[A-Za-z0-9]{36}/ },
-    { name: 'Docker Registry Password', re: /(?:docker|registry)[_\s-]*(?:password|pass|pwd)["'\s:=]+\s*['"]([^'"]{8,})['"]/i },
-  ];
+  return SECRET_TOKEN_FAMILIES;
 }
 
 // Tally pattern hits over a bounded file list. Returns one
@@ -400,13 +391,12 @@ function detectSecurityTools(repoPath, overview, auditMatches) {
     banditConfig = true;
   }
   if (!banditConfig && hasFile(repoPath, overview, 'pyproject.toml')) {
-    try {
-      const txt = readFileSync(join(repoPath, 'pyproject.toml'), 'utf-8');
-      if (/^\s*\[tool\.bandit\]/m.test(txt)) {
-        pushUnique('bandit config');
-        banditConfig = true;
-      }
-    } catch {}
+    // F-022/F-023: bounded, contained read of the well-known config name.
+    const txt = readBoundedFile(join(repoPath, 'pyproject.toml'), { containmentRoot: repoPath });
+    if (txt != null && /^\s*\[tool\.bandit\]/m.test(txt)) {
+      pushUnique('bandit config');
+      banditConfig = true;
+    }
   }
 
   for (const m of auditMatches) {
@@ -457,12 +447,12 @@ function scanAuditReferences(repoPath, overview) {
 
   const evidence = [];
   for (const target of targets) {
-    try {
-      const txt = readFileSync(join(repoPath, target.location), 'utf-8');
-      for (const match of txt.matchAll(FILE_AUDIT_PATTERN)) {
-        evidence.push({ ...target, tool: match[0] });
-      }
-    } catch {}
+    // F-022/F-023: bounded, contained read of well-known audit-reference files.
+    const txt = readBoundedFile(join(repoPath, target.location), { containmentRoot: repoPath });
+    if (txt == null) continue;
+    for (const match of txt.matchAll(FILE_AUDIT_PATTERN)) {
+      evidence.push({ ...target, tool: match[0] });
+    }
   }
   return evidence;
 }
@@ -565,24 +555,38 @@ function detectGitleaksContext(repoPath, overview, secrets) {
   };
 
   if (context.configPresent) {
-    const content = readContent(join(repoPath, '.gitleaks.toml'));
+    // F-023: the well-known config name is attacker-controlled as a symlink;
+    // only read it when it resolves inside the repository.
+    const content = readContent(join(repoPath, '.gitleaks.toml'), SCAN_BYTE_LIMIT, repoPath);
     if (content) {
       const { paths, stopwords } = parseGitleaksAllowlist(content);
       context.allowlistPathCount = paths.length;
       context.stopwordCount = stopwords.length;
       const matchers = compileGitleaksPaths(paths);
+      // F-002: scan-level watchdog over the allowlist matching loop. Every
+      // matcher is now bounded (validated regex or literal glob), so this is a
+      // defense-in-depth guard: if evaluation ever exceeds the budget, labeling
+      // stops and the truncation is disclosed instead of hanging the scanner.
+      let watchdogTripped = false;
       for (const finding of Array.isArray(secrets) ? secrets : []) {
         if (!finding || !Array.isArray(finding.files) || finding.files.length === 0) continue;
-        if (finding.files.some((file) => matchers.some((re) => re.test(file)))) {
+        const verdict = matchGitleaksPaths(matchers, finding.files, GITLEAKS_MATCH_BUDGET_MS);
+        if (verdict.watchdogTripped) {
+          watchdogTripped = true;
+          break;
+        }
+        if (verdict.matched) {
           finding.fixtureAllowlisted = true;
           context.fixtureAllowlisted.push(finding.pattern);
         }
       }
+      if (watchdogTripped) context.watchdogTripped = true;
     }
   }
 
   if (context.ignorePresent) {
-    const content = readContent(join(repoPath, '.gitleaksignore'));
+    // F-023: containment before the well-known ignore file read.
+    const content = readContent(join(repoPath, '.gitleaksignore'), SCAN_BYTE_LIMIT, repoPath);
     if (content) {
       context.ignoreEntryCount = content
         .split('\n')
@@ -600,7 +604,9 @@ function detectGitleaksContext(repoPath, overview, secrets) {
 // `stopwords` arrays. Entries are single- or triple-quoted literal strings.
 // Bounded to the policy length so a pathological config cannot explode memory.
 function parseGitleaksAllowlist(content) {
-  const allowlistMatch = content.match(/\[allowlist\][\s\S]*?(?=\n\[|\n*$)/);
+  // F-002: a bounded non-greedy lookahead; the old `\n*$` alternative enabled
+  // needless backtracking over the whole (up-to-1MB) block.
+  const allowlistMatch = content.match(/\[allowlist\][\s\S]*?(?=\n\[|$)/);
   const block = allowlistMatch ? allowlistMatch[0] : '';
   return {
     paths: extractTomlArray(block, 'paths'),
@@ -621,19 +627,71 @@ function extractTomlArray(block, key) {
   return entries;
 }
 
+// Length cap for a single allowlist path entry; the shared regex-complexity
+// policy also caps sources at 128 chars, so the entry is rejected up front.
+const GITLEAKS_PATH_PATTERN_LIMIT = 128;
+
+// Match budget for the gitleaks allowlist labeling loop (F-002 watchdog).
+const GITLEAKS_MATCH_BUDGET_MS = 1000;
+
 // Compile the allowlist path patterns to test secret finding file paths
-// against. Patterns are exact-file regexes declared by the repo; wrap each in
-// try/catch so a malformed pattern never aborts the scan.
+// against. F-002: a repo-controlled allowlist `paths` entry is NEVER compiled
+// as a raw regex — a catastrophic pattern like `(a+)+$` would hang the
+// single-threaded scanner. Each entry is routed through the shared T203
+// regex-complexity policy (validatePluginRegexSource, the same validator the
+// plugin rules use); sources that pass compile from the validated source and
+// sources the policy rejects fall back to literal-glob matching, which is
+// linear and cannot backtrack. Entries above the length cap are skipped.
 function compileGitleaksPaths(paths) {
   const matchers = [];
   for (const pattern of paths) {
+    const source = typeof pattern === 'string' ? pattern.trim() : '';
+    if (source.length === 0 || source.length > GITLEAKS_PATH_PATTERN_LIMIT) continue;
+    let validated;
     try {
-      matchers.push(new RegExp(pattern));
+      validated = validatePluginRegexSource(source);
     } catch {
-      // Skip malformed patterns; they cannot label anything as allowlisted.
+      matchers.push(literalGlobMatcher(source));
+      continue;
+    }
+    try {
+      matchers.push(new RegExp(validated, 'u'));
+    } catch {
+      matchers.push(literalGlobMatcher(source));
     }
   }
   return matchers;
+}
+
+function escapeRegexLiteral(source) {
+  return source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Literal-glob matcher for allowlist entries the complexity policy rejects:
+// `*` matches any run of characters, everything else is literal. Bounded and
+// linear — no regex engine, no backtracking. A policy-rejected entry cannot
+// label a finding as allowlisted unless it matches as a literal glob.
+function literalGlobMatcher(source) {
+  if (!source.includes('*')) {
+    const needle = source;
+    return { test: (file) => file === needle };
+  }
+  const re = new RegExp(`^${source.split('*').map(escapeRegexLiteral).join('.*')}$`);
+  return { test: (file) => re.test(file) };
+}
+
+// Test a finding's file list against the compiled matchers under a wall-clock
+// budget. Returns `{ matched, watchdogTripped }`; the loop stops as soon as a
+// file matches (the allowlist labels the whole finding).
+function matchGitleaksPaths(matchers, files, budgetMs) {
+  const deadline = performance.now() + budgetMs;
+  for (const file of files) {
+    for (const matcher of matchers) {
+      if (performance.now() > deadline) return { matched: false, watchdogTripped: true };
+      if (matcher.test(file)) return { matched: true, watchdogTripped: false };
+    }
+  }
+  return { matched: false, watchdogTripped: false };
 }
 
 export async function scan(repoPath, overview, broker = commandBroker) {
@@ -680,10 +738,8 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const gitignore = hasFile(repoPath, overview, '.gitignore');
   let gitignoreCoversEnv = false;
   if (gitignore) {
-    try {
-      const content = readFileSync(join(repoPath, '.gitignore'), 'utf-8');
-      gitignoreCoversEnv = /\.env/.test(content);
-    } catch {}
+    const content = readBoundedFile(join(repoPath, '.gitignore'), { containmentRoot: repoPath });
+    if (content != null) gitignoreCoversEnv = /\.env/.test(content);
   }
 
   const hasLockfile = detectHasLockfile(repoPath, overview, ecosystems);

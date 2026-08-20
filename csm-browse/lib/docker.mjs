@@ -7,9 +7,18 @@ const realExecFile = promisify(execFileCb);
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
 const GATE_SCRIPT = join(SKILL_DIR, 'scripts', 'cdp-gate.mjs');
 
+// F-012: every docker CLI subprocess gets a default timeout so a wedged
+// docker daemon can never hang ensure-browser/sweep/close indefinitely.
+// Callers may override with an explicit `timeout` (e.g. pull = 300s).
+const DOCKER_CLI_TIMEOUT_MS = 30000;
+
+async function execFile(file, args, opts = {}) {
+  return realExecFile(file, args, { ...opts, timeout: opts.timeout ?? DOCKER_CLI_TIMEOUT_MS });
+}
+
 async function realIsContainerRunning(name) {
   try {
-    const { stdout } = await realExecFile('docker', [
+    const { stdout } = await execFile('docker', [
       'ps', '--filter', `name=^${name}$`, '--format', '{{.Names}}'
     ]);
     return stdout.trim() === name;
@@ -20,7 +29,7 @@ async function realIsContainerRunning(name) {
 
 async function realContainerExists(name) {
   try {
-    const { stdout } = await realExecFile('docker', [
+    const { stdout } = await execFile('docker', [
       'ps', '-a', '--filter', `name=^${name}$`, '--format', '{{.Names}}'
     ]);
     return stdout.trim() === name;
@@ -30,12 +39,19 @@ async function realContainerExists(name) {
 }
 
 async function realContainerIP(name) {
-  const { stdout } = await realExecFile('docker', [
+  const { stdout } = await execFile('docker', [
     'inspect', '-f',
     '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
     name
   ]);
   return stdout.trim();
+}
+
+// F-001/F-012: general docker CLI helper for callers that need raw `docker
+// <args>` (network inspect/create, container start/restart, inspect). Applies
+// the centralized default timeout unless overridden.
+export async function dockerCli(args, opts = {}) {
+  return execFile('docker', args, opts);
 }
 
 function realExecDetached(container, args, opts = {}) {
@@ -52,18 +68,17 @@ function realExecDetached(container, args, opts = {}) {
     const proc = spawn('docker', execArgs, { stdio: 'inherit' });
     let timer = null;
     let timedOut = false;
-    if (opts.timeout) {
-      // Default = current behavior (no timeout); opts.timeout (ms) arms a
-      // watchdog that kills a wedged docker CLI so callers cannot hang forever.
-      timer = setTimeout(() => {
-        timedOut = true;
-        try { proc.kill('SIGTERM'); } catch {}
-      }, opts.timeout);
-      if (timer.unref) timer.unref();
-    }
+    // F-012: a wedged docker CLI is killed after the centralized default
+    // timeout (opts.timeout overrides) so callers cannot hang forever.
+    const timeout = opts.timeout ?? DOCKER_CLI_TIMEOUT_MS;
+    timer = setTimeout(() => {
+      timedOut = true;
+      try { proc.kill('SIGTERM'); } catch {}
+    }, timeout);
+    if (timer.unref) timer.unref();
     const settle = (fn, arg) => { if (timer) clearTimeout(timer); fn(arg); };
     proc.on('close', (code) => {
-      if (timedOut) settle(reject, new Error(`docker exec -d timed out after ${opts.timeout}ms`));
+      if (timedOut) settle(reject, new Error(`docker exec -d timed out after ${timeout}ms`));
       else if (code === 0) settle(resolve);
       else settle(reject, new Error(`docker exec -d failed with code ${code}`));
     });
@@ -78,7 +93,7 @@ async function realExecInContainer(container, args, env = {}, opts = {}) {
   }
   execArgs.push(container, ...args);
 
-  const { stdout } = await realExecFile('docker', execArgs, {
+  const { stdout } = await execFile('docker', execArgs, {
     maxBuffer: 10 * 1024 * 1024,
     ...(opts.timeout ? { timeout: opts.timeout } : {})
   });
@@ -129,7 +144,7 @@ async function realPullImage(image) {
   let lastErr = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      await realExecFile('docker', ['pull', image], {
+      await execFile('docker', ['pull', image], {
         timeout: 300000,
         maxBuffer: 10 * 1024 * 1024
       });
@@ -150,19 +165,30 @@ async function realPullImage(image) {
 // host loopback public port, tunneling authenticated connections to the
 // session's chromium via `docker exec -i ... socat - TCP:127.0.0.1:<internal>`.
 // The token travels in the child's env, never in argv (argv is ps-visible).
-function realSpawnGate({ sid, publicPort, internalPort, containerName, token }) {
-  const proc = spawn(process.execPath, [
+async function realSpawnGate({ sid, publicPort, internalPort, containerName, token, log }) {
+  const gateArgs = [
     GATE_SCRIPT,
     '--sid', String(sid),
     '--port', String(publicPort),
     '--internal', String(internalPort),
     '--container', String(containerName)
-  ], {
+  ];
+  if (log) gateArgs.push('--log', String(log));
+  const proc = spawn(process.execPath, gateArgs, {
     detached: true,
     stdio: 'ignore',
     env: { ...process.env, CSM_CDP_GATE_TOKEN: token }
   });
-  proc.on('error', () => {});
+  // F-065-a: never return a pid for a child that failed to spawn — await the
+  // 'spawn'/'error' events first so a missing script/broken node is reported
+  // at the call site instead of misdirecting diagnosis to "CDP not ready".
+  await new Promise((resolve, reject) => {
+    const cleanup = () => { proc.off('error', onError); proc.off('spawn', onSpawn); };
+    const onError = (err) => { cleanup(); reject(err); };
+    const onSpawn = () => { cleanup(); resolve(); };
+    proc.once('error', onError);
+    proc.once('spawn', onSpawn);
+  });
   proc.unref();
   return proc.pid;
 }
@@ -180,7 +206,7 @@ function realSpawnExecTunnel(containerName, internalPort) {
 // Host-side process search (the gate lives on the host, not in the container).
 async function realHostPgrep(pattern) {
   try {
-    const { stdout } = await realExecFile('pgrep', ['-af', '--', pattern]);
+    const { stdout } = await execFile('pgrep', ['-af', '--', pattern]);
     return stdout.trim().split('\n').filter(Boolean).map(line => {
       const spaceIdx = line.indexOf(' ');
       if (spaceIdx === -1) return { pid: parseInt(line, 10), cmd: '' };
@@ -200,9 +226,14 @@ function realKillPid(pid, signal = 'SIGTERM') {
 }
 
 // Injectable exec layer (DI seam): all exported helpers dispatch through this
-// object, so tests can substitute any of them via setExecLayerForTests().
+// object, so tests can substitute any of them. Production modules (sweep.mjs,
+// ports.mjs) read execLayer for internal DI. The MUTATION API
+// (setExecLayerForTests) lives in tests/unit/helpers/exec-layer.mjs — the
+// test-only seam module (F-068-2) — and is re-exported here as a transitional
+// alias until R9 re-points the existing suites to the helper; a forgotten
+// reset there is what order-contaminates the next test file.
 const realLayer = Object.freeze({
-  execFile: realExecFile,
+  execFile,
   isContainerRunning: realIsContainerRunning,
   containerExists: realContainerExists,
   containerIP: realContainerIP,
@@ -219,6 +250,7 @@ const realLayer = Object.freeze({
 });
 
 export const execLayer = { ...realLayer };
+export const realExecLayer = realLayer;
 
 export function setExecLayerForTests(layer) {
   Object.assign(execLayer, layer ?? realLayer);

@@ -5,7 +5,7 @@ description: Analyze repos for patterns, conventions, and norms. Never runs comm
 
 # CSM Scan
 
-Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract structure, technology stack, configuration, testing patterns, code conventions, git history, architecture, and seven additional evidence dimensions — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
+Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract evidence across all 17 dimensions — Repository Structure, Technology Stack, Configuration, Testing, Code Conventions, Git Practices, Architecture, Documentation, Security, Operations, API Surface, Data Architecture, Deployment Topology, Maintainability, Governance & Ownership, Assurance & Supply Chain, and Development Practices — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
 
 ## Tmux Session Bootstrap
 
@@ -185,7 +185,7 @@ node scripts/scan.mjs [--repos <path>...] [--out <path>] [--verbose]
 - **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the report is written to `NORMS.md` in the current directory.
 - `--repos <path>...` — one or more repository paths to scan (default: current working directory).
 - `--out <path>` — output file (default: `NORMS.md` in the current directory).
-- `--verbose` — write an unredacted local diagnostic trace (reporter lines + per-stage durations) to `.csm-scan-debug.log` next to `--out` — never to stdout. Delete it after debugging.
+- `--verbose` — write an unredacted local diagnostic trace (reporter lines + per-stage durations) to a per-run-unique `.csm-scan-debug-<pid>-<time>.log` next to `--out` (or the OS temp dir) — never to stdout. The trace is gitignored and never part of the report; delete it after debugging.
 - `--help` — print the full usage text and exit 0.
 - `--version` — print the version (package.json `version`, else the git commit hash, else `csm-scan`) and exit 0.
 - **Errors (exit 2)** — an unknown flag, a missing `--out` value, or a `--repos` path that is not a directory or does not exist is reported on stderr with a usage hint and the process exits with status **2**.

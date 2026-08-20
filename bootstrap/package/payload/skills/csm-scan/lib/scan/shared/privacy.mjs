@@ -7,6 +7,7 @@ import {
   EVIDENCE_LIMITS,
   validateEvidenceList,
 } from '../contracts/evidence.mjs';
+import { SECRET_TOKEN_FAMILIES } from './token-families.mjs';
 
 export const PRIVACY_LIMITS = deepFreeze({
   maxDepth: 16,
@@ -60,13 +61,18 @@ function boundedData(value, overrides = {}) {
 function sensitiveText(value) {
   return EMAIL.test(value) || POSIX_ABSOLUTE.test(value) || POSIX_DOUBLE_SLASH.test(value)
     || WINDOWS_ABSOLUTE.test(value) || UNC_PATH.test(value) || SECRET.test(value) || URL_CREDENTIAL.test(value)
-    || OWNER_IDENTITY.test(value) || PERSONAL_NAME.test(value) || COMMIT_SUBJECT.test(value);
+    || OWNER_IDENTITY.test(value) || PERSONAL_NAME.test(value) || COMMIT_SUBJECT.test(value)
+    // F-025: the redactor vocabulary is unified with the deep scanner's token
+    // families (JWT, Slack, Stripe, NPM, GitHub, AWS, ...) — a family the
+    // scanner detects must never pass through the sanitizer unredacted.
+    || SECRET_TOKEN_FAMILIES.some(({ re }) => re.test(value));
 }
 
 function sensitiveNonPathText(value) {
   return EMAIL.test(value) || POSIX_DOUBLE_SLASH.test(value) || WINDOWS_ABSOLUTE.test(value)
     || UNC_PATH.test(value) || SECRET.test(value) || URL_CREDENTIAL.test(value) || OWNER_IDENTITY.test(value)
-    || PERSONAL_NAME.test(value) || COMMIT_SUBJECT.test(value);
+    || PERSONAL_NAME.test(value) || COMMIT_SUBJECT.test(value)
+    || SECRET_TOKEN_FAMILIES.some(({ re }) => re.test(value));
 }
 
 function walkStrings(value, visit) {
@@ -87,6 +93,54 @@ export function assertPrivacySafe(value, limits) {
   boundedData(value, limits);
   walkStrings(value, (text) => {
     if (sensitiveText(text)) fail('SENSITIVE_VALUE', 'input contains prohibited sensitive data');
+  });
+  return value;
+}
+
+// F-026: value-level privacy policy for the ten legacy dimension models.
+//
+// Legacy models legitimately carry keys that trip the full field policy
+// (`name`, `path`, `message`, `owner`, ...), label strings that look like
+// personal names ("Basic Auth URL"), bare scopes and scoped package names
+// (`@typescript-eslint`, `@scope/pkg`), emails embedded in repo-relative paths
+// (`docs/alice@example.test.md`), and pre-render secret shapes that the
+// write-path sanitizer redacts at render time — so the full assertPrivacySafe
+// gate cannot run over them. This structural gate enforces the ONE invariant
+// every legacy model documents: repository-relative paths only. Absolute host
+// paths (POSIX/Windows/UNC/double-slash) are rejected; underscore-prefixed
+// keys are internal scanner state, never report content; everything else is
+// the F-025-unified render redactor's job. Keys are never inspected; object
+// shape, depth, and size still pass the node budget.
+function legacySensitiveValue(text) {
+  return POSIX_ABSOLUTE.test(text) || POSIX_DOUBLE_SLASH.test(text)
+    || WINDOWS_ABSOLUTE.test(text) || UNC_PATH.test(text);
+}
+
+function walkLegacyValues(value, visit) {
+  const stack = [value];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (typeof current === 'string') visit(current);
+    else if (current !== null && typeof current === 'object') {
+      for (const [key, child] of Object.entries(current)) {
+        // F-026 allowlist: underscore-prefixed keys are internal scanner
+        // working state (e.g. architecture `layers._repoPath`), never report
+        // content — they are skipped so host paths stored there are not
+        // treated as a report leak.
+        if (key.startsWith('_')) continue;
+        stack.push(child);
+      }
+    }
+  }
+}
+
+export function assertLegacyPrivacySafe(value) {
+  // NOTE: no boundedData here — legacy models can be large by design (e.g. a
+  // 560-module architecture inventory with a C4 diagram), and the node budget
+  // would false-positive. The value walk itself is the F-026 check; legacy
+  // models are internally bounded by their scanners.
+  walkLegacyValues(value, (text) => {
+    if (legacySensitiveValue(text)) fail('SENSITIVE_VALUE', 'input contains prohibited sensitive data');
   });
   return value;
 }

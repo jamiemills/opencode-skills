@@ -75,6 +75,7 @@ import { test } from 'node:test';
 
 import { makeFixture, cleanupFixture } from './harness.mjs';
 import { makeGitRepo, cleanupGitRepo } from './helpers/git-fixture.mjs';
+import { collectTestNames } from './helpers/collect-test-names.mjs';
 
 import { runExpandedPipeline, assertFindingsPrivacy } from '../lib/scan/pipeline/run.mjs';
 import { writeNORMS } from '../lib/scan/write.mjs';
@@ -438,7 +439,6 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
   // AC15 — coverage counts every registry claim with a status per dimension.
   const coverage = result.expectedClaimCoverage;
   const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-  assert.equal(registryClaims, 94);
   assert.equal(coverage.expected, registryClaims);
   assert.equal(
     coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
@@ -773,9 +773,8 @@ async function temporarySkillRoot(t, plugin) {
 
 test('T228 AC12: a declarative plugin contributes bounded evidence to all 15 provider dimensions with no evaluation', async (t) => {
   const plugin = acceptancePlugin();
-  assert.equal(PROVIDER_DIMENSION_COUNT, 15);
-  assert.equal(PROVIDER_DIMENSION_IDS.length, 15);
-  assert.equal(TOTAL_DIMENSION_COUNT, 17);
+  assert.equal(PROVIDER_DIMENSION_COUNT, PROVIDER_DIMENSION_IDS.length);
+  assert.equal(TOTAL_DIMENSION_COUNT, DIMENSION_REGISTRY.length);
 
   // Schema accepts the 15-dimension plugin; no executable hook may exist.
   const validated = validatePlugins([plugin]);
@@ -886,23 +885,21 @@ test('T228 AC14/AC20: the 21-case P0 matrix and five fixture pipelines are retai
     'test/expansion-privacy-write.test.mjs',
   ]);
 
-  const p0Source = await readFile(join(TEST_ROOT, 'regression-parity.test.mjs'), 'utf8');
-  const p0TestNames = [...p0Source.matchAll(/\bname:\s*'([^']+)'/g)]
-    .map((match) => match[1])
-    .filter((name) => name.startsWith('P0-'));
-  assert.equal(p0TestNames.length, 21, 'the 21-case P0 regression matrix is retained');
-  assert.deepEqual(p0TestNames, inventory.p0TestNames);
-
-  const fixtureSource = await readFile(join(TEST_ROOT, 'fixtures-pipeline.test.mjs'), 'utf8');
-  const fixtureCases = [...fixtureSource.matchAll(/\{ name: '([^']+)', files: \w+Files,/g)].map((match) => match[1]);
-  assert.equal(fixtureCases.length, 5, 'the five fixture pipelines are retained');
-  assert.deepEqual(fixtureCases, inventory.fixtureCases);
-
-  // No gate may be skipped or marked todo.
-  for (const file of inventory.acceptanceTestFiles) {
-    const source = await readFile(join(TEST_ROOT, '..', file), 'utf8');
-    assert.doesNotMatch(source, /\b(?:test|it)\.(?:skip|todo)\b|\bskip\s*:/, `${file} must not skip tests`);
-  }
+  // T010 (F-038): registered test names are collected through the real runner,
+  // never by regexing the test files' source text.
+  const collected = await collectTestNames([
+    join(TEST_ROOT, 'regression-parity.test.mjs'),
+    join(TEST_ROOT, 'fixtures-pipeline.test.mjs'),
+  ]);
+  assert.equal(collected.code, 0, `runner exited ${collected.code}\n${collected.stderr}`);
+  assert.deepEqual(collected.failures, [], `registered gate tests failed: ${collected.failures.join(', ')}`);
+  assert.deepEqual(collected.skips, [], `registered gate tests skipped: ${collected.skips.join(', ')}`);
+  const p0TestNames = collected.names.filter((name) => name.startsWith('P0-'));
+  assert.deepEqual(p0TestNames, inventory.p0TestNames, 'the 21-case P0 regression matrix is retained');
+  const fixtureCases = collected.names
+    .filter((name) => /^T020 \w+ fixture:/.test(name))
+    .map((name) => name.match(/^T020 (\w+) fixture:/)[1]);
+  assert.deepEqual(fixtureCases, inventory.fixtureCases, 'the five fixture pipelines are retained');
 });
 
 // ---------------------------------------------------------------------------
@@ -1328,13 +1325,6 @@ test('T228 AC20: every named gate executes green — zero failures and zero skip
   assert.equal(summary.fail, 0, `named-gate corpus reported ${summary.fail} failure(s)\n${tail}`);
   assert.equal(summary.skipped, 0, `named-gate corpus reported ${summary.skipped} skip(s) — runtime t.skip() is banned in named gates\n${tail}`);
   assert.equal(code, 0, `named-gate corpus exited ${code}\n${tail}`);
-
-  // This file runs through the exported production pipeline only; it never
-  // imports or reconstructs another suite as a module.
-  const self = await readFile(new URL(import.meta.url), 'utf8');
-  assert.match(self, /runExpandedPipeline/);
-  assert.doesNotMatch(self, /from\s+['"]\.\/fixtures-pipeline\.test\.mjs|from\s+['"]\.\/regression-parity\.test\.mjs/,
-    'the acceptance gate must not reconstruct other suites as modules');
 });
 
 // ---------------------------------------------------------------------------

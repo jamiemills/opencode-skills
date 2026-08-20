@@ -285,10 +285,13 @@ function pluralize(count, noun, plural) {
   return `${count} ${count === 1 ? noun : plural ?? `${noun}s`}`;
 }
 
-function kindTokenList(entry, _escapeField) {
+function kindTokenList(entry, escapeField) {
   if (!Array.isArray(entry.kinds) || entry.kinds.length === 0) return '';
   const shown = entry.kinds.slice(0, STYLE_KIND_DISPLAY_CAP);
-  const tokens = shown.map((token) => `\`${token}\``);
+  // F-029: kind tokens are user-derived strings (ruff codes, deny-rule ids,
+  // hook stages — the model admits backticks and pipes), so each one passes
+  // through escapeField({ inTable: true }) instead of interpolating raw.
+  const tokens = shown.map((token) => `\`${escapeField(token, { inTable: true })}\``);
   const remaining = entry.kinds.length - shown.length;
   if (remaining > 0) tokens.push(`... (+${remaining} more)`);
   return tokens.join(', ');

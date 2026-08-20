@@ -78,7 +78,7 @@ test('reported fields use inferred basis when the dimension has an inferred patt
   assert.deepEqual(stack.tags, { runtime: 'inferred', count: 'inferred' });
 });
 
-test('validate result exposes a coverage field mirroring cohesiveness values', async () => {
+test('validate result exposes a hand-verified coverage oracle per dimension', async () => {
   const overview = {
     languages: ['TypeScript'],
     ecosystems: { primary: 'typescript' },
@@ -98,10 +98,12 @@ test('validate result exposes a coverage field mirroring cohesiveness values', a
 
   assert.equal(typeof result.coverage, 'object', 'validate result must have a coverage object');
   assert.ok(result.coverage !== null, 'coverage must not be null');
-  for (const key of Object.keys(enriched.cohesiveness)) {
-    assert.equal(result.coverage[key], enriched.cohesiveness[key], `coverage.${key} must equal cohesiveness.${key}`);
-  }
-  assert.equal(result.cohesiveness.stack, result.coverage.stack, 'cohesiveness kept for backward compat');
+  assert.equal(typeof result.coverage.stack, 'number', 'stack coverage must be a number');
+  // T010 (F-056): the SUT-to-SUT equality (coverage[key] === cohesiveness[key],
+  // which aliases the same number) was dropped. The oracle is hand-computed:
+  // all five reported stack keys (runtime, language, packageManager, type,
+  // keyDeps) are recognized, so stack coverage is 100%.
+  assert.equal(result.coverage.stack, 100, '5/5 reported stack keys are recognized → 100%');
 });
 
 test('unknown keys lower coverage by their top-level key fraction', async () => {

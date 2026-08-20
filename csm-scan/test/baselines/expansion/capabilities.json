@@ -19,12 +19,10 @@
     "replacementTests": [
       {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "069b33c6379067dc3a0be0a12b69479c9cda907b7a7defea9ca15230e8592b83",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       },
       {
         "testFile": "test/expansion-command-deep.test.mjs",
-        "testFileSha256": "67cd13701ba50363739f698af9a58eafbe84f9709e984d008d9139011311822c",
         "testName": "T209 six owned files contain zero prohibited execution sites"
       }
     ]
@@ -43,6 +41,7 @@
       "readdir",
       "readdirSync",
       "realpath",
+      "realpathSync",
       "statSync"
     ],
     "specialReaders": [
@@ -57,7 +56,6 @@
           "readFile",
           "realpath"
         ],
-        "sha256": "18d584efe55ebeafcf3e7ce5b1eb05cfa7bbfd2fff6afb14db8f4dd1edc5f707",
         "replacementTask": "T224"
       },
       {
@@ -72,7 +70,6 @@
           "open",
           "realpath"
         ],
-        "sha256": "f0b6489f74efacf07c15307a2bcf1ef25e664fb81c2e8146745685a9536ce39f",
         "replacementTask": "T224"
       },
       {
@@ -84,16 +81,19 @@
           "createWriteStream",
           "statSync"
         ],
-        "sha256": "478e264fd34c7d0670dfd21c3bd5dba282c40d3a6c6da82a022a6d87123506ec",
         "replacementTask": "T012"
       }
     ],
     "writer": {
       "path": "lib/scan/write.mjs",
       "module": "node:fs/promises",
-      "api": "writeFile",
-      "import": "import { writeFile } from 'node:fs/promises';",
-      "call": "await writeFile(outPath, content, 'utf-8');"
+      "apis": [
+        "rename",
+        "unlink",
+        "writeFile"
+      ],
+      "import": "import { rename, unlink, writeFile } from 'node:fs/promises';",
+      "call": "await writeFile(tmpPath, content, 'utf-8');"
     },
     "cli": {
       "path": "scripts/scan.mjs",

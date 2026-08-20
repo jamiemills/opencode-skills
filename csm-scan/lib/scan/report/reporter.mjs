@@ -23,6 +23,7 @@
 // filesystem, network, or child-process access itself.
 
 import { assertPrivacySafe } from '../shared/privacy.mjs';
+import { SECRET_TOKEN_FAMILIES, spanMatcher } from '../shared/token-families.mjs';
 
 export const REDACTED = '[redacted]';
 
@@ -42,6 +43,10 @@ const REDACTIONS = Object.freeze([
   (text) => text.replace(URL_CREDENTIAL, REDACTED),
   (text) => text.replace(EMAIL, REDACTED),
   (text) => text.replace(SECRET, REDACTED),
+  // F-025: span redaction for the deep scanner's token families (JWT, Slack,
+  // Stripe, NPM, GitHub, AWS, ...) — a family the scanner detects must never
+  // survive into the report. Each family's full token span is replaced.
+  ...SECRET_TOKEN_FAMILIES.map(({ re }) => (text) => text.replace(spanMatcher(re), REDACTED)),
   (text) => text.replace(COMMIT_SUBJECT, REDACTED),
   (text) => text.replace(POSIX_DOUBLE_SLASH, (_match, boundary) => `${boundary}${REDACTED}`),
   (text) => text.replace(UNC_PATH, (_match, boundary) => `${boundary}${REDACTED}`),
@@ -85,10 +90,14 @@ export function sanitizeStructuredText(value) {
   });
   let result = sanitizeText(masked);
   result = result.replace(SCOPED_NAME_PLACEHOLDER, (_match, index) => spans[Number(index)] ?? REDACTED);
-  return result
+  let secretCleaned = result
     .replace(URL_CREDENTIAL, REDACTED)
     .replace(EMAIL, REDACTED)
     .replace(SECRET, REDACTED);
+  for (const { re } of SECRET_TOKEN_FAMILIES) {
+    secretCleaned = secretCleaned.replace(spanMatcher(re), REDACTED);
+  }
+  return secretCleaned;
 }
 
 export function formatError(error) {

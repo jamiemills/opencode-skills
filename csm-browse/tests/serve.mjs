@@ -8,6 +8,10 @@ const FIXTURES_DIR = resolve(join(fileURLToPath(import.meta.url), '../fixtures')
 
 // Bind host: the docker bridge gateway, so the in-container browser can reach
 // the fixtures. Env base (CSM_BROWSE_FIXTURE_BASE) may pin host and port.
+// F-068: the gateway is derived at runtime — the network the chromium-vnc
+// container is actually on (the hardened config puts it on a dedicated
+// bridge), else docker0, else engine inspect, else the host IPv4 — never a
+// hardcoded bridge literal; 127.0.0.1 is the terminal host-local fallback.
 function bridgeHost() {
   const envBase = process.env.CSM_BROWSE_FIXTURE_BASE;
   if (envBase) {
@@ -15,11 +19,24 @@ function bridgeHost() {
     if (m) return m[1];
   }
   try {
+    const gw = execFileSync('docker', ['inspect', 'chromium-vnc', '--format', '{{range $k,$v := .NetworkSettings.Networks}}{{$v.Gateway}} {{end}}'], { timeout: 2000, encoding: 'utf-8' }).trim();
+    const first = gw.split(/\s+/)[0];
+    if (first && /^\d+\.\d+\.\d+\.\d+$/.test(first)) return first;
+  } catch {}
+  try {
     const routes = execFileSync('ip', ['route'], { timeout: 2000, encoding: 'utf-8' });
     const m = routes.match(/dev\s+docker0\b.*\bsrc\s+(\d+\.\d+\.\d+\.\d+)/);
     if (m) return m[1];
   } catch {}
-  return '172.17.0.1';
+  try {
+    const gw = execFileSync('docker', ['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}'], { timeout: 2000, encoding: 'utf-8' }).trim();
+    if (gw && /^\d+\.\d+\.\d+\.\d+$/.test(gw)) return gw;
+  } catch {}
+  try {
+    const hostIp = execFileSync('hostname', ['-I'], { timeout: 2000, encoding: 'utf-8' }).trim().split(/\s+/)[0];
+    if (hostIp && /^\d+\.\d+\.\d+\.\d+$/.test(hostIp)) return hostIp;
+  } catch {}
+  return '127.0.0.1';
 }
 
 // Port: explicit in the env base, else ephemeral (0).

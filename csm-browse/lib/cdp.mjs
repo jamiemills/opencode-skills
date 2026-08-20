@@ -10,8 +10,10 @@ export async function getSession(client) {
   const pages = targetInfos.filter(t => t.type === 'page');
 
   if (pages.length === 0) {
-    console.error('No page target exists. Hint: run ensure-browser first');
-    process.exit(2);
+    // F-067-3: a typed error, not process.exit(2) — a library function must
+    // let the caller run its own cleanup (WS close, redaction wrapper) and
+    // decide the exit code.
+    throw new Error('No page target exists. Hint: run ensure-browser first');
   }
 
   const target = pages[0];

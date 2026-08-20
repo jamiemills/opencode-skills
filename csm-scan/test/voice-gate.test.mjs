@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { BANNED_VOICE, findVoiceHits } from './helpers/voice-gate.mjs';
 import { runMirrorPipeline } from './helpers/pipeline-mirror.mjs';
 import { resolveRealRepo, FALLBACK_REAL_REPO } from './helpers/real-repo.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
@@ -9,85 +10,46 @@ import { files as shellFiles } from './fixtures/shell.mjs';
 import { files as typescriptFiles } from './fixtures/typescript.mjs';
 import { withFixture } from './harness.mjs';
 
-// Renderer-authored NORMS prose is descriptive, not prescriptive or evaluative.
-// Keep this list explicit so additions receive deliberate review. Matching is
-// case-insensitive and uses word boundaries rather than substring matching.
-export const BANNED_VOICE = Object.freeze([
-  'should',
-  'must',
-  'ought',
-  'shall',
-  'poor',
-  'good',
-  'bad',
-  'weak',
-  'strong',
-  'better',
-  'worse',
-  'best',
-  'worst',
-  'recommended',
-  'recommendation',
-  'ideally',
-  'unfortunately',
-  'concern',
-  'concerning',
-  'problem',
-  'anti-pattern',
-  'smell',
-  'suboptimal',
-  'inadequate',
-  'insufficient',
-  'contradiction',
-  'contradictions',
-  'inconsistent',
-  'inconsistency',
-  'conflict',
-  'conflicts',
-  'lacking',
-]);
-
-const BANNED_PATTERN = new RegExp(
-  `\\b(?:${BANNED_VOICE.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
-  'gi',
-);
-
-function mask(value) {
-  return value.replace(/[^\n]/g, ' ');
-}
-
-// The renderer places repository-originated code and identifiers in these
-// Markdown forms. Masking (rather than deleting) preserves source line numbers.
-// No judgmental phrase is allowlisted: all remaining prose is checked.
-export function stripNonProse(markdown) {
-  return markdown
-    .replace(/^(?:```|~~~)[^\n]*\n[\s\S]*?^(?:```|~~~)[ \t]*$/gm, mask)
-    .replace(/(`+)[^\n]*?\1/g, mask)
-    .replace(/\b(?:https?:\/\/|www\.)[^\s<>)]+/gi, mask)
-    .replace(/^[ \t]*\|([^|]*)\|(.*)\|[ \t]*$/gm, (row, firstCell, valueCells, offset, source) => {
-      const nextLine = source.slice(offset + row.length).match(/^\r?\n([^\r\n]*)/)?.[1] || '';
-      const separator = /^[ \t]*\|(?:[ \t]*:?-{3,}:?[ \t]*\|)+[ \t]*$/.test(nextLine);
-      if (separator) return row;
-      return `|${firstCell}|${mask(valueCells)}|`;
-    })
-    .replace(/(?:~\/|\.{0,2}\/|\/)(?:[^\s`<>|()[\]{}]+\/)*[^\s`<>|()[\]{}]*/g, mask)
-    .replace(/(?:[\w@+.-]+\/)+[\w@+,=~.-]+/g, mask)
-    .replace(/(?<![\w@.-])[\w@+-]*[\w@+-]\.[A-Za-z0-9][\w.-]*/g, mask);
-}
-
-export function findVoiceHits(markdown) {
-  const prose = stripNonProse(markdown);
-  const hits = [];
-
-  for (const [index, line] of prose.split('\n').entries()) {
-    BANNED_PATTERN.lastIndex = 0;
-    for (const match of line.matchAll(BANNED_PATTERN)) {
-      hits.push({ term: match[0].toLowerCase(), line: index + 1, text: line.trim() });
-    }
-  }
-
-  return hits;
-}
+// T010 (F-037): the banned vocabulary is shared with every voice gate via
+// test/helpers/voice-gate.mjs and pinned here in one equality test so
+// additions receive deliberate review.
+test('T116 the shared banned-voice vocabulary is exactly the reviewed list', () => {
+  assert.deepEqual([...BANNED_VOICE], [
+    'should',
+    'must',
+    'ought',
+    'shall',
+    'poor',
+    'good',
+    'bad',
+    'weak',
+    'strong',
+    'better',
+    'worse',
+    'best',
+    'worst',
+    'recommended',
+    'recommendation',
+    'ideally',
+    'unfortunately',
+    'concern',
+    'concerning',
+    'problem',
+    'anti-pattern',
+    'smell',
+    'suboptimal',
+    'inadequate',
+    'insufficient',
+    'contradiction',
+    'contradictions',
+    'inconsistent',
+    'inconsistency',
+    'conflict',
+    'conflicts',
+    'lacking',
+  ]);
+  assert.equal(Object.isFrozen(BANNED_VOICE), true, 'the shared vocabulary must stay frozen');
+});
 
 // T010 (F-026): this suite drives the exported production pipeline
 // (runExpandedPipeline) through the shared mirror helper; the retired

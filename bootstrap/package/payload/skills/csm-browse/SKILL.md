@@ -106,7 +106,9 @@ The container exposes a VNC server on `localhost:5900`. Connect with any VNC cli
 
 ## Isolation note
 
-This skill launches a **second, isolated Chromium instance** inside the `chromium-vnc` container with its own `--user-data-dir`, XDG directories, and crashpad database. It uses a dedicated CDP port from the pool (9224+). **Never target port 9222** — that is the container's primary shared browser and must remain untouched.
+This skill launches a **second, isolated Chromium instance** inside the `chromium-vnc` container with its own `--user-data-dir`, XDG directories, and crashpad database. It uses a dedicated CDP port from the pool (9224+). **Never target port 9222 for session work** — that is the container's primary shared browser and must remain untouched.
+
+The shared container itself is hardened: it runs on a dedicated `csm-browse-net` bridge (off the default bridge, so sibling containers cannot reach its CDP relay), drops the dangerous Linux capabilities the image does not need, disables new privileges, mounts a read-only rootfs with writable tmpfs for `/tmp`/`/run`/`/dev/shm`, applies cgroup limits (`--memory`/`--cpus`/`--pids-limit`/`--shm-size`), and passes `--remote-debugging-address=127.0.0.1` so Chromium's debug server binds loopback only. Docker's default seccomp profile stays active. Port 9222 is **not published to the host**: the only host path to the shared browser is the token-gated funnel on `127.0.0.1:9222` (the same host-side `cdp-gate` used by sessions, with a shared token stored in `~/.config/csm-browse/container-token`). A bare `curl http://localhost:9222/json/version` is rejected (`403`) — only the tokenized URL form is accepted.
 
 ## Maintenance
 
@@ -138,7 +140,7 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --clean
 | `recorder.json` | Screencast recorder state (`running:true` while recording). |
 | `daemon.log` | Daemon stdout/stderr. Each daemon start re-creates this log, so copy it out before restarting if you need the history. |
 
-**CDP authentication**: every session's CDP endpoint is protected by a per-session token. `cdpUrl` and `wsUrl` in `state.json` already carry `?token=<value>` (the raw token also lives in the `token` field); the value is redacted from transcripts and logs. Connections without the token are answered `403` by the host-side gate before any byte reaches Chromium. `ensure-browser` rotates the token (new generation) whenever it has to reconnect the daemon to an existing session, and `close`/sweep revokes it by removing the gate and `state.json`.
+**CDP authentication**: every session's CDP endpoint is protected by a per-session token. `cdpUrl` and `wsUrl` in `state.json` already carry `?token=<value>` (the raw token also lives in the `token` field); the value is redacted from transcripts and logs. Connections without the token are answered `403` by the host-side gate before any byte reaches Chromium. The shared container's primary browser on port 9222 is gated the same way: its funnel lives on `127.0.0.1:9222`, reads a shared token from `~/.config/csm-browse/container-token`, and rejects bare/unauthenticated probes with `403`. `ensure-browser` rotates the per-session token (new generation) whenever it has to reconnect the daemon to an existing session, and `close`/sweep revokes it by removing the gate and `state.json`.
 
 **"Daemon not ready" diagnosis flow** (ensure-browser prints this after 2 attempts):
 

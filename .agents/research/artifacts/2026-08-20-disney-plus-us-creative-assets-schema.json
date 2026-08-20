@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://disney.creative-specs.example/schemas/disneyplus-us-creative-asset.schema.json",
+  "title": "Disney+ US Creative Asset",
+  "description": "Creative assets accepted by Disney+ (With Ads) in the United States. Sources: Disney Advertising 'DISNEY+ VIDEO AD — Video Ad Formats' canonical US spec PDF (© 2023, last update 2026-03-05) and the US 'Video Commercial' product page (products.disneyadvertising.com/video-commercial/), retrieved 2026-08-20. Only linear video commercials in long-form content breaks are covered; interactive/pause/shoppable formats are unverified and intentionally not accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "market",
+    "assetType",
+    "fileFormat",
+    "durationSeconds",
+    "aspectRatio",
+    "resolution",
+    "video",
+    "audio",
+    "fileWeightGB",
+    "servingPath",
+    "placement",
+    "serving"
+  ],
+  "$defs": {
+    "video": {
+      "type": "object",
+      "title": "Video track",
+      "description": "Exactly one video track; constant frame rate only; progressive scan; no frame-rate conversion (no 3:2 pulldown added for broadcast).",
+      "additionalProperties": false,
+      "required": ["trackCount", "codec", "bitrateKbps", "frameRate", "frameRateMode", "scanType", "colorSpace"],
+      "properties": {
+        "trackCount": { "const": 1, "description": "Single video track." },
+        "codec": { "enum": ["Apple ProRes 422 HQ", "H.264"], "description": "Apple ProRes 422 HQ or H.264." },
+        "h264Profile": { "const": "Main Profile @ Main Level", "description": "H.264 Main Profile @ Main Level (MP@ML); listed as a standalone spec bullet." },
+        "bitrateKbps": { "type": "integer", "minimum": 10000, "maximum": 40000, "description": "Constant bitrate (CBR) 10-40 Mbps. ProRes is variable by design (waived); H.264/ProRes beyond the range can be accepted." },
+        "programmaticBitrate": {
+          "type": "object",
+          "title": "Programmatic bitrate tier",
+          "description": "Bitrate guidance for programmatic-served creatives (optional; only when serving programmatically).",
+          "additionalProperties": false,
+          "required": ["cbrPreferred", "vbrAccepted"],
+          "properties": {
+            "cbrPreferred": { "const": "15000-60000 Kbps", "description": "Constant Bitrate (CBR) 15-60 Mbps (Preferred)." },
+            "vbrAccepted": { "const": "20000-60000 Kbps", "description": "Variable Bitrate (VBR) 20-60 Mbps (Accepted)." }
+          }
+        },
+        "sdVariant": {
+          "type": "object",
+          "title": "SD variant",
+          "description": "Standard-definition variant (optional; only when delivering SD).",
+          "additionalProperties": false,
+          "required": ["resolution", "aspectRatio", "bitrateKbpsMin"],
+          "properties": {
+            "resolution": { "const": "720x480", "description": "SD resolution." },
+            "aspectRatio": { "enum": ["4:3", "16:9"], "description": "4:3 or 16:9 pixel aspect ratio; 3:2 display aspect ratio is not accepted." },
+            "bitrateKbpsMin": { "const": 2000, "description": "Bitrate greater than 2 Mbps." }
+          }
+        },
+        "frameRate": { "type": "number", "enum": [23.98, 24, 25, 29.97, 30], "description": "23.98, 24, 25, or 29.97 or 30 fps based on native frame rate." },
+        "frameRateMode": { "const": "CFR", "description": "Constant frame rate only." },
+        "scanType": { "const": "Progressive", "description": "Content must be progressive scan." },
+        "colorSpace": { "const": "4:2:2", "description": "4:2:2 color space (standalone spec bullet)." }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "Audio track",
+      "description": "Audio is required; exactly one track matching the video duration.",
+      "additionalProperties": false,
+      "required": ["trackCount", "codec", "bitrateKbpsMin", "sampleRateHz", "channels", "matchesVideoDuration"],
+      "properties": {
+        "trackCount": { "const": 1, "description": "Must have exactly one audio track." },
+        "codec": { "enum": ["AAC", "PCM"], "description": "Advanced Audio Coding (AAC) or Pulse-code modulation (PCM)." },
+        "bitrateKbpsMin": { "const": 128, "description": "128 Kbps minimum, constant bitrate (CBR)." },
+        "sampleRateHz": { "enum": [44100, 48000], "description": "44.1 or 48 kHz sample rate." },
+        "channels": { "const": 2, "description": "Two channels only." },
+        "bitDepth": { "enum": [16, 24], "description": "16- or 24-bit depth (PCM codec only; omit for AAC)." },
+        "matchesVideoDuration": { "const": true, "description": "Audio track must match the video duration." }
+      }
+    },
+    "serving": {
+      "type": "object",
+      "title": "Ad serving constraints",
+      "additionalProperties": false,
+      "required": ["vastVersions", "skippable", "javascriptAllowed", "wrapperTagsAllowed", "iFrameAllowed", "iLayerAllowed", "internalRedirectAllowed", "vpaid", "verificationPixels", "clickCommandsAccepted", "secureTagsRequired", "approvedVendorsOnly"],
+      "properties": {
+        "vastVersions": {
+          "type": "array",
+          "items": { "enum": ["2.0", "3.0"] },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "VAST 2.0 & 3.0 per the canonical US PDF.",
+          "$comment": "Conflict recorded (finding U1): the canonical PDF says 'VAST 2.0 & 3.0'; the product page's Hulu-scoped serving text says 'VAST 2.0 only'. This schema encodes the canonical PDF."
+        },
+        "skippable": { "const": false, "description": "Non-skippable." },
+        "javascriptAllowed": { "const": false, "description": "No JavaScript tags." },
+        "wrapperTagsAllowed": { "const": false, "description": "No wrappers on VASTs." },
+        "iFrameAllowed": { "const": false, "description": "No iFrame tags." },
+        "iLayerAllowed": { "const": false, "description": "No iLayer tags." },
+        "internalRedirectAllowed": { "const": false, "description": "No internal redirect tags." },
+        "vpaid": { "const": false, "description": "VPAID not accepted (programmatic: VAST only)." },
+        "verificationPixels": { "const": "1x1", "description": "1x1 trackers accepted." },
+        "clickCommandsAccepted": { "const": true, "description": "Click commands accepted." },
+        "secureTagsRequired": { "const": true, "description": "Secure tags must be used (programmatic)." },
+        "approvedVendorsOnly": { "const": true, "description": "VAST from approved vendors only." }
+      }
+    }
+  },
+  "properties": {
+    "market": { "const": "US", "description": "United States market; Disney+ (With Ads)." },
+    "assetType": { "const": "video-commercial", "description": "Linear video creative in Disney+/Hulu long-form content commercial breaks." },
+    "fileFormat": { "enum": [".mov", ".mp4", ".m4v"], "description": "QuickTime movie (.MOV), MPEG-4 (.MP4), Apple MPEG-4 (.M4V)." },
+    "durationSeconds": {
+      "enum": [15, 30, 45, 60, 75, 90],
+      "type": "integer",
+      "description": "Duration: 15, 30, 45, 60, 75, or 90 seconds (canonical US PDF).",
+      "$comment": "The canonical US PDF lists 'Duration • 15, 30, 45, 60, 75, or 90 seconds'. The product page publishes no duration numbers; Disney's Oct 2023 press corroborates ':15s to :90s'. The Türkçe/EN EMEA editions differ (5-120 range / 15-20-30-60 list)."
+    },
+    "aspectRatio": { "const": "16:9", "description": "Required aspect ratio 16:9; 1:1 or 9:16 videos will be rejected." },
+    "resolution": { "enum": ["1920x1080", "1280x720"], "description": "PREFERRED 1920x1080; ACCEPTED 1280x720." },
+    "video": { "$ref": "#/$defs/video" },
+    "audio": { "$ref": "#/$defs/audio" },
+    "servingPath": {
+      "enum": ["partner", "vast", "programmatic", "hulu-served"],
+      "description": "Serving path; drives the file-weight cap."
+    },
+    "fileWeightGB": {
+      "type": "number",
+      "maximum": 1.9,
+      "description": "Max file weight: 1.9 GB for partner/VAST/programmatic-served; 250 MB for Hulu-served (see conditional below)."
+    },
+    "placement": { "enum": ["pre-roll", "mid-roll"], "description": "Standard long-form content commercial breaks." },
+    "serving": { "$ref": "#/$defs/serving" },
+    "creativeRules": {
+      "type": "object",
+      "title": "Creative content rules",
+      "additionalProperties": false,
+      "required": ["clickableCTAStylingAllowed", "urlsHashtagsAllowed", "qrCodesAccepted", "leadersAllowed", "letterboxing", "turnaroundBusinessDays", "safetyZonePublished"],
+      "properties": {
+        "clickableCTAStylingAllowed": { "const": false, "description": "CTA buttons that look clickable ('Learn More', 'Buy Now') are not allowed." },
+        "urlsHashtagsAllowed": { "const": true, "description": "URLs and hashtags are accepted." },
+        "qrCodesAccepted": { "const": true, "description": "QR codes are accepted; all QR codes are subject to review." },
+        "leadersAllowed": { "const": false, "description": "No leaders such as slates, countdowns, etc." },
+        "letterboxing": {
+          "const": "not-allowed-exception-on-request",
+          "description": "Letterboxing (black bars top/bottom) when native aspect ratio is 1.78:1, 2.35:1, or 1.33:1 is not allowed; pillarboxing (side bars) is not allowed; an exception will be considered for a creative reason (contact your Disney representative).",
+          "$comment": "The US rule differs from the EMEA English edition (case-by-case) and the Türkçe edition (not accepted at all)."
+        },
+        "turnaroundBusinessDays": { "const": 5, "description": "Up to 5 business days from receipt of the final assets." },
+        "safetyZonePublished": {
+          "const": false,
+          "description": "The product page references 'Safety Zones' only via imagery; no numeric pixel values are published in visible text (finding U2). Keep the spec's safety-zone guidance from the canonical PDF imagery.",
+          "$comment": "No numeric safety-zone value is encoded because none is published in retrievable text; do not use the EMEA 220x135 value for US creatives."
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": { "servingPath": { "const": "hulu-served" } }
+  },
+  "then": {
+    "properties": {
+      "fileWeightGB": { "type": "number", "maximum": 0.25, "description": "Hulu-served creatives: max 250 MB." }
+    }
+  },
+  "else": {
+    "properties": {
+      "fileWeightGB": { "type": "number", "maximum": 1.9, "description": "Partner/VAST/programmatic-served creatives: max 1.9 GB." }
+    }
+  }
+}

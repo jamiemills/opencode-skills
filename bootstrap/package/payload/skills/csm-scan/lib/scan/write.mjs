@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { rename, unlink, writeFile } from 'node:fs/promises';
 
 import { basename, isAbsolute, relative, sep } from 'node:path';
 
@@ -20,7 +20,9 @@ export const WRITE_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeS
 // Repo-controlled free text (overview description, cross-observation
 // descriptions) keeps the full T224 sanitizer: owner handles and identities
 // redact there even though the structured hook would preserve @scope shapes.
-const FREE_TEXT_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeText });
+// F-024: markdownSafe additionally neutralizes the HTML-significant token set
+// so repo-controlled prose cannot smuggle markup into the report.
+const FREE_TEXT_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeText, markdownSafe: true });
 
 const { escapeField: escapeFreeText } = FREE_TEXT_RENDER_CONTEXT;
 const { escapeField: escapeStructured } = WRITE_RENDER_CONTEXT;
@@ -132,6 +134,21 @@ export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_
   }
 
   const content = finalizeMarkdown(lines);
-  await writeFile(outPath, content, 'utf-8');
+  // F-065-b: atomic write — content lands in a same-directory temp file that is
+  // renamed over the target only after the full write succeeded, so a crash or
+  // a concurrent run can never leave a torn NORMS.md behind. The temp name is
+  // per-run unique; on failure the temp file is removed and the error rethrown.
+  const tmpPath = `${outPath}.tmp-${process.pid}-${Date.now().toString(36)}`;
+  try {
+    await writeFile(tmpPath, content, 'utf-8');
+    await rename(tmpPath, outPath);
+  } catch (error) {
+    try {
+      await unlink(tmpPath);
+    } catch {
+      // Temp cleanup is best-effort; the original failure is what matters.
+    }
+    throw error;
+  }
   return content;
 }

@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://disney.creative-specs.example/schemas/disneyplus-turkey-creative-asset.schema.json",
+  "title": "Disney+ Türkiye Creative Asset",
+  "description": "Creative assets accepted by Disney+ for Turkish advertisers. Source: Disney Advertising 'Disney+ Video Commercial' spec, Türkçe edition (PDF, EMEA scope, dated 2025-01-29, © 2025) — the document Disney serves to Turkish-language buyers; there is no Turkey-specific media kit. Retrieved 2026-08-20. Only linear video commercials (pre-roll/mid-roll) are covered; interactive/pause/shoppable formats are unverified for Turkey and intentionally not accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "market",
+    "assetType",
+    "fileFormat",
+    "durationSeconds",
+    "aspectRatio",
+    "resolution",
+    "video",
+    "audio",
+    "fileWeightGB",
+    "placement",
+    "serving"
+  ],
+  "$defs": {
+    "video": {
+      "type": "object",
+      "title": "Video track",
+      "description": "Exactly one video track, matching the audio duration; no duplicate frames; pull-downs added for broadcast removed; progressive via adaptive deinterlace with no frame blending.",
+      "additionalProperties": false,
+      "required": ["trackCount", "codec", "bitrateKbps", "frameRate", "frameRateMode", "scanType", "colorSpace"],
+      "properties": {
+        "trackCount": { "const": 1, "description": "Exactly 1 video track." },
+        "codec": { "enum": ["Apple ProRes", "H.264"], "description": "Apple ProRes or H.264." },
+        "h264Profile": { "const": "High", "description": "H.264 Profili: Yüksek (High profile)." },
+        "bitrateKbps": { "type": "integer", "minimum": 10000, "maximum": 40000, "description": "10 Mbps - 40 Mbps." },
+        "frameRate": { "type": "number", "enum": [23.98, 24, 25, 29.97, 30], "description": "Native frame rate; duplicate frames not allowed." },
+        "frameRateMode": { "const": "CFR", "description": "Sabit Kare Hızı (constant frame rate)." },
+        "scanType": { "const": "Progressive", "description": "Tarama Türü: Progressive." },
+        "colorSpace": { "const": "YUV", "description": "Renk Alanı: YUV; cannot be unknown or None." }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "Audio track",
+      "description": "Audio is required; exactly 1 track; 2-channel stereo; audio must match video duration.",
+      "additionalProperties": false,
+      "required": ["trackCount", "codec", "bitrateKbpsMin", "sampleRateHz", "channels", "matchesVideoDuration"],
+      "properties": {
+        "trackCount": { "const": 1, "description": "Exactly 1 audio track." },
+        "codec": { "enum": ["PCM", "AAC"], "description": "PCM veya AAC." },
+        "bitrateKbpsMin": { "const": 192, "description": "Minimum 192 Kbps." },
+        "sampleRateHz": { "const": 48000, "description": "48 kHz." },
+        "channels": { "const": 2, "description": "2-kanallı stereo karışımı." },
+        "matchesVideoDuration": { "const": true, "description": "Ses, video süresiyle eşleşmelidir." }
+      }
+    },
+    "serving": {
+      "type": "object",
+      "title": "Ad serving constraints",
+      "additionalProperties": false,
+      "required": ["disneyHosted", "vastVersions", "skippable", "javascriptAllowed", "wrapperTagsAllowed", "vpaid", "verificationPixels", "approvedVendorsOnly"],
+      "properties": {
+        "disneyHosted": { "const": true, "description": "Availability table: Disney-Hosted: Evet on Desktop Web, Mobile Web, Apps and OTT." },
+        "vastVersions": { "type": "array", "items": { "enum": ["2.0", "3.0"] }, "minItems": 1, "uniqueItems": true, "description": "VAST 2.0 & 3.0 from Disney+ approved vendors." },
+        "skippable": { "const": false, "description": "Disney+ spot reklamları geçilemez (non-skippable)." },
+        "javascriptAllowed": { "const": false, "description": "VAST tagleri JavaScript ögesi içermemelidir." },
+        "wrapperTagsAllowed": { "const": false, "description": "VAST tagleri <VASTAdTagURI> içermemelidir (no wrappers)." },
+        "vpaid": { "const": false, "description": "VPAID: Hayır." },
+        "verificationPixels": { "const": "1x1", "description": "1x1 doğrulama kodları from Disney+ approved vendors." },
+        "approvedVendorsOnly": { "const": true, "description": "Only from Disney+ onaylı sağlayıcılar (approved vendors)." }
+      }
+    }
+  },
+  "properties": {
+    "market": { "const": "TR", "description": "Türkiye market; served by the Türkçe edition of the EMEA spec." },
+    "assetType": { "const": "video-commercial", "description": "The only creative asset type with an official Disney+ spec for Turkish buyers." },
+    "fileFormat": { "enum": [".mov", ".mp4"], "description": "Dosya Formatı: .mov veya .mp4." },
+    "durationSeconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 120,
+      "description": "Süre: 5 - 120 saniye (range per the Türkçe edition).",
+      "$comment": "The Türkçe edition states '5 - 120 saniye'. The English and German EMEA editions instead list 15, 20, 30, or 60 seconds; which set actually services in Turkey is unverified (finding U5). This schema encodes the Türkçe edition's own wording."
+    },
+    "aspectRatio": { "const": "16:9", "description": "Çözünürlük: 16:9." },
+    "resolution": { "enum": ["1920x1080", "1280x720"], "description": "1920x1080 and 1280x720 are the listed resolutions." },
+    "video": { "$ref": "#/$defs/video" },
+    "audio": { "$ref": "#/$defs/audio" },
+    "fileWeightGB": { "type": "number", "maximum": 1.9, "description": "Maksimum Dosya Boyutu: 1.9 GB." },
+    "placement": { "enum": ["pre-roll", "mid-roll"], "description": "Pre-Roll ve Mid-Roll positions only per the spec." },
+    "serving": { "$ref": "#/$defs/serving" },
+    "creativeRules": {
+      "type": "object",
+      "title": "Creative content rules",
+      "additionalProperties": false,
+      "required": ["clickableCTAStylingAllowed", "audienceLevel", "safetyZoneTopRightPx", "leadersAllowed", "letterboxing", "turnaroundBusinessDays"],
+      "properties": {
+        "clickableCTAStylingAllowed": { "const": false, "description": "Clickable-looking CTA buttons ('Daha Fazla Bilgi Al' / 'Şimdi Satın Al') not allowed." },
+        "audienceLevel": { "enum": ["18+", "17-and-under"], "description": "URLs/hashtags/QR codes/social handles accepted for 18+ profiles only; not for 17 & under." },
+        "safetyZoneTopRightPx": { "const": "220x135", "description": "Keep the top-right 220x135 px of 1920x1080 clear; overlaps the player 'Ad' logo and countdown." },
+        "leadersAllowed": { "const": false, "description": "Lider slaytlar ve geri sayımlar kabul edilmez (no leader slates or countdowns)." },
+        "letterboxing": {
+          "const": "not-accepted",
+          "description": "Letterbox ve siyah çubuklar kabul edilmez (letterboxing and black bars not accepted).",
+          "$comment": "The English EMEA edition permits letterboxing/pillarboxing on a case-by-case basis; the Türkçe edition rejects it outright (finding U5-adjacent divergence)."
+        },
+        "turnaroundBusinessDays": { "const": 5, "description": "Yayın başlangıcından 5 iş günü önce teslim edilmelidir (deliver 5 business days before air date)." }
+      }
+    }
+  }
+}

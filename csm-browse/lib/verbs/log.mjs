@@ -5,12 +5,12 @@ import { createInterface } from 'node:readline';
 
 async function readEvents(sessionDir) {
   const events = [];
+  // F-004: rotated files are OLDER than the live events.jsonl (rotation
+  // renames the main file away, then a fresh main is written). Pushing
+  // rotated files first (ascending ts) and the main file LAST yields
+  // chronological order, so `--tail` returns the newest events once any
+  // rotation has happened.
   const files = [];
-
-  const mainPath = join(sessionDir, 'events.jsonl');
-  if (existsSync(mainPath)) {
-    files.push(mainPath);
-  }
 
   try {
     const entries = await readdir(sessionDir);
@@ -19,6 +19,11 @@ async function readEvents(sessionDir) {
       .toSorted()
       .forEach(e => files.push(join(sessionDir, e)));
   } catch {}
+
+  const mainPath = join(sessionDir, 'events.jsonl');
+  if (existsSync(mainPath)) {
+    files.push(mainPath);
+  }
 
   for (const file of files) {
     const rl = createInterface({
@@ -76,68 +81,68 @@ function parseStringArg(args, flag) {
   return null;
 }
 
-function subConsole(args, sessionDir) {
+async function subConsole(args, sessionDir) {
   const tail = parseNumericArg(args, '--tail');
 
-  return readEvents(sessionDir).then(events => {
-    if (events.length === 0) {
-      const exists = hasAnyEventsFile(sessionDir);
-      if (!exists) {
-        console.error('no events file — capture not started');
-        process.exit(2);
-        return;
-      }
+  const events = await readEvents(sessionDir);
+  if (events.length === 0) {
+    // F-005: hasAnyEventsFile is async — it must be awaited, else the
+    // Promise is always truthy and the exit-2 diagnostic is dead code.
+    const exists = await hasAnyEventsFile(sessionDir);
+    if (!exists) {
+      console.error('no events file — capture not started');
+      process.exit(2);
     }
+  }
 
-    if (!isDaemonAlive(sessionDir)) {
-      console.error('daemon down — capture gap');
-    }
+  if (!isDaemonAlive(sessionDir)) {
+    console.error('daemon down — capture gap');
+  }
 
-    let filtered = events.filter(e =>
-      e.type === 'console' || e.type === 'exception' || e.type === 'log'
-    );
+  let filtered = events.filter(e =>
+    e.type === 'console' || e.type === 'exception' || e.type === 'log'
+  );
 
-    if (tail !== null && tail > 0) {
-      filtered = filtered.slice(-tail);
-    }
+  if (tail !== null && tail > 0) {
+    filtered = filtered.slice(-tail);
+  }
 
-    process.stdout.write(JSON.stringify(filtered, null, 2) + '\n');
-  });
+  process.stdout.write(JSON.stringify(filtered, null, 2) + '\n');
 }
 
-function subNetwork(args, sessionDir) {
+async function subNetwork(args, sessionDir) {
   const tail = parseNumericArg(args, '--tail');
   const filterStr = parseStringArg(args, '--filter');
 
-  return readEvents(sessionDir).then(events => {
-    if (events.length === 0) {
-      const exists = hasAnyEventsFile(sessionDir);
-      if (!exists) {
-        console.error('no events file — capture not started');
-        process.exit(2);
-        return;
-      }
+  const events = await readEvents(sessionDir);
+  if (events.length === 0) {
+    // F-005: awaited — a session dir with no events files is an explicit
+    // exit-2 diagnostic, not a silent `[]`.
+    const exists = await hasAnyEventsFile(sessionDir);
+    if (!exists) {
+      console.error('no events file — capture not started');
+      process.exit(2);
     }
+  }
 
-    if (!isDaemonAlive(sessionDir)) {
-      console.error('daemon down — capture gap');
-    }
+  if (!isDaemonAlive(sessionDir)) {
+    console.error('daemon down — capture gap');
+  }
 
-    let filtered = events.filter(e => e.type === 'network');
+  let filtered = events.filter(e => e.type === 'network');
 
-    if (filterStr) {
-      const re = new RegExp(filterStr, 'i');
-      filtered = filtered.filter(e =>
-        e.payload && e.payload.url && re.test(e.payload.url)
-      );
-    }
+  if (filterStr) {
+    const re = new RegExp(filterStr, 'i');
+    filtered = filtered.filter(e =>
+      e.payload && e.payload.url && re.test(e.payload.url)
+    );
+  }
 
-    if (tail !== null && tail > 0) {
-      filtered = filtered.slice(-tail);
-    }
+  if (tail !== null && tail > 0) {
+    filtered = filtered.slice(-tail);
+  }
 
-    process.stdout.write(JSON.stringify(filtered, null, 2) + '\n');
-  });
+  process.stdout.write(JSON.stringify(filtered, null, 2) + '\n');
 }
 
 async function subPerformance(state) {
@@ -214,6 +219,13 @@ async function subCookies(args, state) {
     }, sessionId);
 
     const revealValues = args.includes('--values');
+    // F-067-7: `--values` is a sharp footgun — a single stray flag dumps
+    // HttpOnly session tokens into stdout where transcripts persist. Gate it
+    // behind an explicit environment opt-in so a bare flag can never reveal.
+    if (revealValues && process.env.CSM_BROWSE_REVEAL_COOKIES !== '1') {
+      console.error('Refusing to reveal cookie values: --values requires CSM_BROWSE_REVEAL_COOKIES=1 (full values persist in transcripts/logs; set it only when strictly needed).');
+      process.exit(1);
+    }
     if (revealValues) {
       console.error('Warning: full cookie values (incl. HttpOnly session tokens) are being printed to stdout and will persist in transcripts/logs.');
     }

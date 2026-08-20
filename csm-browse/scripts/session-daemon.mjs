@@ -33,16 +33,51 @@ const withTimeout = (promise, ms, label) => {
 const pidFile = join(sDir, 'daemon.pid');
 const readyMarker = join(sDir, 'daemon.ready');
 
+// F-065-c: claimPidFile must not retry forever under pathological FS state —
+// after CLAIM_DEADLINE_MS the daemon gives up with a clear error.
+const CLAIM_DEADLINE_MS = 10000;
+// Inode of the pid file WE created (F-019): cleanup verifies ownership via
+// this before removing the claim so a recycled/replaced file is never deleted.
+let claimInode = null;
+
+// Break a dead holder's claim atomically: rename the stale file aside, then
+// inspect the renamed artifact. If the content no longer matches what we read,
+// a fresh holder's claim was moved — restore it. This closes the read-then-
+// unlink TOCTOU where two spawns both read a dead pid file and the second
+// unlink destroys the first's fresh O_EXCL claim (F-019).
+async function breakStaleClaim(raw) {
+  const trash = pidFile + '.stale';
+  try { await rename(pidFile, trash); } catch { return; }
+  try {
+    const now = await readFile(trash, 'utf-8');
+    if (now !== raw) {
+      await rename(trash, pidFile);
+      return;
+    }
+    await rm(trash, { force: true });
+  } catch {}
+}
+
 // Atomic single-instance claim BEFORE connecting to CDP: open(pidFile, 'wx')
 // closes the multi-second check-then-act window in which two spawns could
-// both proceed. Stale locks (dead pid) are broken like the ports lock, with
-// a content-matched unlink. The ready marker keeps its original position
-// (written after CDP connect + queue dirs are ready).
+// both proceed. Stale locks (dead pid) are broken atomically via
+// breakStaleClaim. The ready marker keeps its original position (written
+// after CDP connect + queue dirs are ready).
 async function claimPidFile() {
+  const start = Date.now();
   for (;;) {
+    if (Date.now() - start > CLAIM_DEADLINE_MS) {
+      console.error(`Could not claim daemon pid file within ${CLAIM_DEADLINE_MS}ms: ${pidFile}`);
+      process.exit(1);
+    }
     try {
       const fh = await open(pidFile, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
-      try { await fh.chmod(0o600); await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
+      try {
+        await fh.chmod(0o600);
+        await fh.writeFile(String(process.pid));
+        const info = await fh.stat();
+        claimInode = info.ino;
+      } finally { await fh.close(); }
       return;
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
@@ -70,14 +105,30 @@ async function claimPidFile() {
         console.error(`Daemon already running (pid ${existingPid})`);
         process.exit(2);
       }
-      // Dead holder: content-matched unlink so we never remove a fresh
-      // holder's claim that replaced the file between read and unlink.
-      try {
-        const current = await readFile(pidFile, 'utf-8');
-        if (current === raw) await rm(pidFile, { force: true });
-      } catch {}
+      await breakStaleClaim(raw);
     }
     await setTimeout(100);
+  }
+}
+
+// True only while the pid file at the path is the exact inode this daemon
+// created. Used before any `rm(pidFile)` so a claim replaced by another
+// process is never deleted by us (F-019 ownership verification).
+async function ownPidFile() {
+  try {
+    const fh = await open(pidFile, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    try {
+      const info = await fh.stat();
+      return info.ino === claimInode;
+    } finally { await fh.close(); }
+  } catch {
+    return false;
+  }
+}
+
+async function removeOwnPidFile() {
+  if (await ownPidFile()) {
+    try { await rm(pidFile); } catch {}
   }
 }
 
@@ -178,11 +229,10 @@ try {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    let forceExitTimer = globalThis.setTimeout(() => {
-      console.error('Cleanup timed out, force exiting');
-      try { process.exit(0); } catch {}
-    }, 5000);
-    if (forceExitTimer.unref) forceExitTimer.unref();
+    // F-067-12: the force-exit timer is armed AFTER the recorder finalize,
+    // not before — a timer started at cleanup entry could truncate an
+    // in-flight finalize/result write mid-secureWrite.
+    let forceExitTimer = null;
 
     try {
       const recorder = await import('../lib/recorder.mjs');
@@ -204,7 +254,15 @@ try {
       } catch {}
     }
 
-    try { await rm(pidFile); } catch {}
+    // Only the marker-removal steps remain (fast); a wedged rm must not hold
+    // the pid+ready markers forever, so backstop them with a hard bound.
+    forceExitTimer = globalThis.setTimeout(() => {
+      console.error('Cleanup timed out, force exiting');
+      try { process.exit(0); } catch {}
+    }, 3000);
+    if (forceExitTimer.unref) forceExitTimer.unref();
+
+    try { await removeOwnPidFile(); } catch {}
     try { await rm(readyMarker); } catch {}
 
     if (forceExitTimer) globalThis.clearTimeout(forceExitTimer);
@@ -231,7 +289,7 @@ try {
   await startQueueLoop(client, tabSessionId, sDir);
 } catch (err) {
   console.error(`Daemon error: ${err.message}`);
-  try { await rm(pidFile); } catch {}
+  try { await removeOwnPidFile(); } catch {}
   try { await rm(readyMarker); } catch {}
   if (client) {
     try { await client.close(); } catch {}

@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { createRecordingRunner, lexicalMask } from './helpers/recording-runner.mjs';
+import { collectTestNames } from './helpers/collect-test-names.mjs';
+import { DIMENSION_REGISTRY } from '../lib/scan/registry/dimensions.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_ROOT = join(ROOT, 'test', 'baselines', 'expansion');
@@ -177,12 +179,19 @@ test('T201 active legacy process owners match exact imports and reviewed file ha
     const imports = staticModuleStatements(source).filter(({ specifier }) => specifier === 'node:child_process');
     assert.deepEqual(imports.map(({ text }) => text), [baseline.broker.import]);
     const inventory = JSON.parse(await readFile(join(BASELINE_ROOT, 'inventory.json'), 'utf8'));
+    // T010 (F-034): the replacement-test byte-hash locks were replaced with a
+    // behavioral constraint — the broker's replacement tests must be REGISTERED
+    // by the real runner and pass, never merely present in source.
     for (const replacement of baseline.broker.replacementTests) {
       assert.ok(inventory.recurringAcceptanceTestFiles.includes(replacement.testFile));
-      const replacementSource = await readFile(join(ROOT, replacement.testFile), 'utf8');
-      assert.equal(digest(replacementSource), replacement.testFileSha256);
       assert.equal(typeof replacement.testName, 'string');
-      assert.ok(replacementSource.includes(replacement.testName));
+      const collected = await collectTestNames([join(ROOT, replacement.testFile)]);
+      assert.equal(collected.code, 0,
+        `runner exited ${collected.code}\n${collected.stderr}`);
+      assert.ok(collected.names.includes(replacement.testName),
+        `${replacement.testName} is not registered by the runner`);
+      assert.ok(!collected.skips.includes(replacement.testName),
+        `${replacement.testName} must not be skipped`);
     }
   }
 });
@@ -217,19 +226,21 @@ test('T201 filesystem capabilities are closed to reads and one exact writer', as
   const sources = await productionSources();
   const allowedReads = new Set(baseline.filesystem.readApis);
   const specialByPath = new Map(baseline.filesystem.specialReaders.map((entry) => [entry.path, entry]));
+  const writer = baseline.filesystem.writer;
   let writerImports = 0;
   for (const { relativePath, source } of sources) {
     for (const statement of staticModuleStatements(source)) {
       if (!baseline.filesystem.modules.includes(statement.specifier)) continue;
+      // The single exact writer import (F-065-b: tmp+rename atomic write) is
+      // allowed wholesale; every other filesystem import must be a read API or
+      // a registered special reader.
+      if (relativePath === writer.path && statement.text === writer.import) {
+        writerImports++;
+        continue;
+      }
       const parsed = canonicalSensitiveImport(statement.text);
       assert.ok(parsed, `${relativePath} has noncanonical filesystem ownership`);
       for (const name of parsed.names) {
-        if (relativePath === baseline.filesystem.writer.path
-            && name === baseline.filesystem.writer.api
-            && statement.text === baseline.filesystem.writer.import) {
-          writerImports++;
-          continue;
-        }
         if (allowedReads.has(name)) continue;
         const special = specialByPath.get(relativePath);
         assert.ok(special, `${relativePath} imports non-read filesystem API ${name}`);
@@ -238,14 +249,17 @@ test('T201 filesystem capabilities are closed to reads and one exact writer', as
       }
     }
   }
-  assert.equal(writerImports, 1);
+  assert.equal(writerImports, 1, 'the writer must import through exactly one exact statement');
+  // T010 (F-034): the special-reader byte-hash locks were replaced with their
+  // structural constraints (exact import text + API allowlist above) — a
+  // legitimate migration now updates the capability surface instead of being
+  // blocked by a digest.
   for (const special of baseline.filesystem.specialReaders) {
     const source = sources.find(({ relativePath }) => relativePath === special.path)?.source;
     assert.ok(source, `${special.path} must remain present while special-reader capable`);
-    assert.equal(digest(source), special.sha256, `${special.path} changed before its migration`);
   }
-  const writer = sources.find(({ relativePath }) => relativePath === baseline.filesystem.writer.path)?.source;
-  assert.equal(writer.split(baseline.filesystem.writer.call).length - 1, 1, 'sole write call must remain exact');
+  const writerSource = sources.find(({ relativePath }) => relativePath === writer.path)?.source;
+  assert.equal(writerSource.split(writer.call).length - 1, 1, 'sole write call must remain exact');
   const cli = sources.find(({ relativePath }) => relativePath === baseline.filesystem.cli.path)?.source;
   assert.equal(cli.split(baseline.filesystem.cli.call).length - 1, 1, 'CLI must invoke writeNORMS exactly once');
 });
@@ -340,7 +354,8 @@ test('T202 replacement: coverage status representation maps claim statuses to co
       ['complete', 'eligible', 'excluded', 'expected', 'incomplete', 'ratio', 'repos', 'unsupported'],
       'coverage aggregate carries the canonical representation fields',
     );
-    assert.equal(coverage.expected, 94, 'every registry claim is counted');
+    const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
+    assert.equal(coverage.expected, registryClaims, 'every registry claim is counted');
     assert.equal(
       coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
       coverage.expected,

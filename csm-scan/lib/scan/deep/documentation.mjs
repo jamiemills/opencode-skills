@@ -1,8 +1,9 @@
-import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
 import { descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
 import { countComments } from '../shared/comments.mjs';
+import { readBoundedFile } from '../shared/reads.mjs';
 
 // Per-ecosystem file sample for comment analysis. Mirrors conventions.mjs so
 // documentation.commentRatio and conventions.commentDensity are computed over
@@ -12,6 +13,14 @@ const COMMENT_FILES_PER_ECO = 20;
 const SUPPORTED_COMMENT_ECOS = ['python', 'javascript', 'typescript', 'rust', 'shell'];
 const TODO_FILE_LIMIT = 400;
 const TODO_BYTE_LIMIT = 1024 * 1024;
+const SCAN_BYTE_LIMIT = 1024 * 1024;
+
+// F-022/F-062: bounded whole-file read shared across the deep scanners. A file
+// above the byte bound is never allocated; `containmentRoot` optionally
+// enforces realpath containment for well-known-file reads (F-023).
+function readFile(absPath, containmentRoot = null) {
+  return readBoundedFile(absPath, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot });
+}
 
 // Reference-artifact detection (T012): QUALITY_GATES.md-style reference docs
 // and SECURITY.md become part of the documentation inventory.
@@ -34,14 +43,6 @@ const SECURITY_PURPOSE_TOKENS = [
   { re: /report/i, purpose: 'vulnerability reporting' },
   { re: /token|cookie|secret/i, purpose: 'token handling' },
 ];
-
-function readFile(path) {
-  try {
-    return readFileSync(path, 'utf-8');
-  } catch {
-    return null;
-  }
-}
 
 // Returns the repo-relative name of the first existing candidate (T005:
 // findings carry repo-relative paths so NORMS.md never embeds host absolute
@@ -114,8 +115,9 @@ function checkChangelog(repoPath) {
   if (!clPath) return { present: false, format: 'none' };
 
   let format = 'free-form';
-  try {
-    const content = readFileSync(join(repoPath, clPath), 'utf-8');
+  // F-022/F-023: bounded, contained read of the well-known changelog name.
+  const content = readFile(join(repoPath, clPath), repoPath);
+  if (content != null) {
     const kep = /keep a changelog/i.test(content);
     const semver = /\b(added|changed|deprecated|removed|fixed|security)\b/i.test(content);
     const versions = /\d+\.\d+\.\d+/g;
@@ -126,7 +128,7 @@ function checkChangelog(repoPath) {
     else if (hasVersionHeaders && semver) format = 'Semantic versioning with change categories';
     else if (hasVersionHeaders) format = 'Versioned entries';
     else format = 'free-form';
-  } catch {}
+  }
 
   return { present: true, format, path: clPath };
 }
@@ -326,19 +328,21 @@ function detectLicense(repoPath) {
   if (!found) return { present: false, name: 'none' };
 
   let name = 'unknown';
-  try {
-    const content = readFileSync(join(repoPath, found), 'utf-8').slice(0, 2000).toLowerCase();
-    if (content.includes('mit license') || (content.includes('mit') && content.includes('permission'))) name = 'MIT';
-    else if (content.includes('apache license') || content.includes('apache 2.0')) name = 'Apache-2.0';
-    else if (content.includes('gnu general public license')) name = 'GPL';
-    else if (content.includes('gnu lesser general public license')) name = 'LGPL';
-    else if (content.includes('bsd')) name = 'BSD';
-    else if (content.includes('isc')) name = 'ISC';
-    else if (content.includes('unlicense')) name = 'Unlicense';
-    else if (content.includes('mozilla public license')) name = 'MPL';
-    else if (content.includes('creative commons')) name = 'CC';
+  // F-022/F-023: bounded, contained read of the well-known license name.
+  const content = readFile(join(repoPath, found), repoPath);
+  if (content != null) {
+    const lower = content.slice(0, 2000).toLowerCase();
+    if (lower.includes('mit license') || (lower.includes('mit') && lower.includes('permission'))) name = 'MIT';
+    else if (lower.includes('apache license') || lower.includes('apache 2.0')) name = 'Apache-2.0';
+    else if (lower.includes('gnu general public license')) name = 'GPL';
+    else if (lower.includes('gnu lesser general public license')) name = 'LGPL';
+    else if (lower.includes('bsd')) name = 'BSD';
+    else if (lower.includes('isc')) name = 'ISC';
+    else if (lower.includes('unlicense')) name = 'Unlicense';
+    else if (lower.includes('mozilla public license')) name = 'MPL';
+    else if (lower.includes('creative commons')) name = 'CC';
     else name = 'Other (see file)';
-  } catch {}
+  }
 
   return { present: true, name, path: found };
 }
@@ -382,9 +386,8 @@ function detectReferenceDocs(repoPath, files) {
   for (const rel of candidates) {
     const isNamed = REFERENCE_DOC_NAMES.includes(rel);
     if (!isNamed && !rootMarkdown.includes(rel)) continue;
-    const p = join(repoPath, rel);
-    if (!existsSync(p)) continue;
-    const content = readFile(p);
+    // F-023: well-known reference docs resolve inside the repo before reading.
+    const content = readFile(join(repoPath, rel), repoPath);
     if (!content || countLines(content) < REFERENCE_DOC_MIN_LINES) continue;
     const markers = referenceDocMarkers(content);
     // A named candidate qualifies on its name; an "equivalent" doc must carry
@@ -401,7 +404,7 @@ function detectReferenceDocs(repoPath, files) {
 function detectSecurity(repoPath) {
   const secPath = findFile(repoPath, ['SECURITY.md', 'security.md', '.github/SECURITY.md', '.github/security.md']);
   if (!secPath) return { present: false, path: null, purpose: null };
-  const content = readFile(join(repoPath, secPath)) || '';
+  const content = readFile(join(repoPath, secPath), repoPath) || '';
   let purpose = 'security policy';
   for (const { re, purpose: token } of SECURITY_PURPOSE_TOKENS) {
     if (re.test(content)) {
@@ -423,16 +426,10 @@ function detectDocToolchain(repoPath) {
   const scripts = new Set();
   const sources = [];
   for (const rel of DOC_TOOLCHAIN_SOURCES) {
-    const p = join(repoPath, rel);
-    if (!existsSync(p)) continue;
-    let content = null;
-    try {
-      content = readFileSync(p, 'utf-8').slice(0, DOC_TOOLCHAIN_BYTE_LIMIT);
-    } catch {
-      continue;
-    }
+    // F-022/F-023: bounded, contained read of the well-known toolchain names.
+    const content = readFile(join(repoPath, rel), repoPath);
     if (!content) continue;
-    const matches = content.match(DOC_TOOLCHAIN_PATTERN) || [];
+    const matches = content.slice(0, DOC_TOOLCHAIN_BYTE_LIMIT).match(DOC_TOOLCHAIN_PATTERN) || [];
     if (matches.length === 0) continue;
     sources.push(rel);
     for (const match of matches) {
@@ -453,7 +450,9 @@ function detectDocToolchain(repoPath) {
 export async function scan(repoPath, overview, broker = commandBroker) {
   const files = await listSourceFiles(repoPath, overview, broker);
   const readmePath = findFile(repoPath, ['README.md', 'readme.md', 'Readme.md', 'README.markdown', 'README.rst', 'README']);
-  const readmeContent = readmePath ? readFile(join(repoPath, readmePath)) : null;
+  // F-023: the README is a well-known name; only read it when it resolves
+  // inside the repository.
+  const readmeContent = readmePath ? readFile(join(repoPath, readmePath), repoPath) : null;
 
   const badges = detectBadges(readmeContent);
   const readmeStructure = checkReadmeStructure(readmeContent);

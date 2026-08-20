@@ -81,6 +81,12 @@ export function checkRequestLine(line, expectedToken) {
 function deny(socket, status) {
   const reason = REASON_PHRASES[status] || 'Bad Gateway';
   socket.end(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  // F-017: half-close is not enough — a hostile client that never reads can
+  // hold the socket half-open forever (fd/memory exhaustion). Force it down
+  // after the same grace serveStaticProtocol uses; the tracked Set in
+  // createGate drops the socket on its 'close' event.
+  const killTimer = setTimeout(() => { try { socket.destroy(); } catch {} }, STATIC_CLOSE_GRACE_MS);
+  if (killTimer.unref) killTimer.unref();
 }
 
 function serveStaticProtocol(socket, log) {
@@ -123,6 +129,10 @@ function handleConnection(socket, ctx) {
 
   const lineTimer = setTimeout(() => { if (!accepted && !denied) { denied = true; deny(socket, 400); } }, LINE_TIMEOUT_MS);
   if (lineTimer.unref) lineTimer.unref();
+
+  // F-017: an unhandled 'error' on a denied/static socket (RST, EPIPE) would
+  // crash the whole gate process; swallow it — teardown handles the child.
+  socket.on('error', () => {});
 
   socket.on('data', (chunk) => {
     if (denied || closed || staticServed) return;
@@ -255,16 +265,17 @@ export function createGate({ port = 0, internalPort, containerName, token, openT
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isCli) {
   const args = process.argv.slice(2);
-  let sid = null, port = null, internal = null, containerName = null;
+  let sid = null, port = null, internal = null, containerName = null, logPath = null;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--sid' && i + 1 < args.length) sid = args[++i];
     else if (args[i] === '--port' && i + 1 < args.length) port = parseInt(args[++i], 10);
     else if (args[i] === '--internal' && i + 1 < args.length) internal = parseInt(args[++i], 10);
     else if (args[i] === '--container' && i + 1 < args.length) containerName = args[++i];
+    else if (args[i] === '--log' && i + 1 < args.length) logPath = args[++i];
   }
   const token = process.env.CSM_CDP_GATE_TOKEN;
-  if (!sid || !Number.isInteger(port) || !Number.isInteger(internal) || !containerName) {
-    console.error('Usage: cdp-gate.mjs --sid <sid> --port <pub> --internal <int> --container <name>  (token via CSM_CDP_GATE_TOKEN)');
+  if (!Number.isInteger(port) || !Number.isInteger(internal) || !containerName) {
+    console.error('Usage: cdp-gate.mjs --sid <sid> --port <pub> --internal <int> --container <name> [--log <path>]  (token via CSM_CDP_GATE_TOKEN)');
     process.exit(1);
   }
   if (!token) {
@@ -272,7 +283,10 @@ if (isCli) {
     process.exit(1);
   }
 
-  const gateLogPath = (() => { try { return join(sessionDir(sid), 'gate.log'); } catch { return null; } })();
+  // --log (used by the shared 9222 funnel) overrides the per-session log
+  // path; --sid stays optional then (it is only used to derive the default
+  // gate.log location under the session dir).
+  const gateLogPath = logPath || (sid ? (() => { try { return join(sessionDir(sid), 'gate.log'); } catch { return null; } })() : null);
   const log = (msg) => {
     if (gateLogPath) {
       secureAppend(gateLogPath, `${new Date().toISOString()} cdp-gate: ${msg}\n`).catch(() => {});

@@ -74,11 +74,49 @@ function loadPackageJson() {
   }
 }
 
-// Resolve every declared dependency (chrome-remote-interface, jimp, ...).
+// Bare-specifier import scan over source + test modules. F-058: a declared
+// dependency is only load-bearing when some module actually imports it — an
+// unused dep (jimp's class of bug) must fail the gate, and only imported deps
+// need to resolve (a removed-but-lingering lockfile entry must not be required).
+const IMPORT_SPECIFIER_RE = /(?:\bfrom\s*|\bimport\s*\(|require(?:\.resolve)?\s*\(\s*)['"]([^'"]+)['"]/g;
+
+function bareSpecifier(specifier) {
+  if (!specifier) return null;
+  if (specifier.startsWith('.')) return null;
+  if (specifier.startsWith('@')) return specifier.split('/').slice(0, 2).join('/');
+  return specifier.split('/')[0];
+}
+
+function collectImportedBareSpecifiers(files) {
+  const found = new Set();
+  for (const file of files) {
+    let src;
+    try { src = readFileSync(file, 'utf-8'); } catch { continue; }
+    for (const match of src.matchAll(IMPORT_SPECIFIER_RE)) {
+      const bare = bareSpecifier(match[1]);
+      if (bare) found.add(bare);
+    }
+  }
+  return found;
+}
+
+// Resolve only declared dependencies actually imported by lib/, scripts/, and
+// tests/unit/; error on declared-but-unimported dependencies so an unused dep
+// can never silently return to the manifest.
 function validateDeps(pkg) {
   if (!pkg) return;
   const require = createRequire(resolve(SKILL_DIR, 'package.json'));
+  const files = [
+    ...collectMjs(resolve(SKILL_DIR, 'lib')),
+    ...collectMjs(resolve(SKILL_DIR, 'scripts')),
+    ...collectMjs(resolve(SKILL_DIR, join('tests', 'unit')))
+  ];
+  const imported = collectImportedBareSpecifiers(files);
   for (const dep of Object.keys(pkg.dependencies ?? {})) {
+    if (!imported.has(dep)) {
+      err(`dependency "${dep}" declared but never imported (remove it or wire it up)`);
+      continue;
+    }
     try {
       require.resolve(dep);
     } catch {

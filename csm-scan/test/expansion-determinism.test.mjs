@@ -21,14 +21,13 @@
 // edited.
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
 import { makeFixture, cleanupFixture } from './harness.mjs';
-import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
+import { runExpandedPipeline, providerObservationSortKey } from '../lib/scan/pipeline/run.mjs';
 import { compareAscii } from '../lib/scan/contracts/evidence.mjs';
 import { DIMENSION_REGISTRY } from '../lib/scan/registry/dimensions.mjs';
 
@@ -42,10 +41,6 @@ const FIXED_CLOCK = () => '2026-08-03';
 const SHORT_DIMENSIONS = DIMENSION_REGISTRY.map(({ id }) => (
   id.replace(/^DIM-/, '').replace(/-v[1-9]\d*$/, '')
 ));
-
-function digest(value) {
-  return createHash('sha256').update(value).digest('hex');
-}
 
 async function runToFile(repoPaths, out) {
   return runExpandedPipeline({
@@ -178,7 +173,7 @@ test('T227 determinism: repository reversal preserves per-repository and global 
 });
 
 const serializeDeep = (result) => JSON.stringify(result.repos[0].deep);
-const edgeKey = (edge) => `${edge.kind}\0${edge.sourceRepository}\0${edge.targetId}\0${edge.coordinate}`;
+const edgeIdKey = (edge) => edge.id;
 
 test('T227 determinism: dimension, claim, provider, evidence, and edge order are stable across runs', async () => {
   const repo = makeFixture('t227-order', unknownFiles);
@@ -207,14 +202,14 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
       'expected-claim coverage must be byte-identical across runs',
     );
 
-    // Provider observations are deterministically sorted (providerId, plugin,
-    // category, matchedKey, path) and stable.
+    // Provider observations are deterministically sorted using the PRODUCTION
+    // sort key (T010/F-068-scan: imported, never re-implemented).
     const maintainability = first.repos[0].deep.find(({ dimension }) => dimension === 'maintainability');
     const observations = maintainability?.findings?.providerObservations ?? [];
     assert.ok(observations.length > 0, 'the unknown-language fixture must carry generic provider observations');
     const sorted = [...observations].toSorted((left, right) => compareAscii(
-      `${left.providerId}\0${left.plugin ?? ''}\0${left.category}\0${left.matchedKey}\0${left.path ?? ''}`,
-      `${right.providerId}\0${right.plugin ?? ''}\0${right.category}\0${right.matchedKey}\0${right.path ?? ''}`,
+      providerObservationSortKey(left),
+      providerObservationSortKey(right),
     ));
     assert.deepEqual(observations, sorted, 'provider observations must be deterministically sorted');
     assert.equal(
@@ -223,9 +218,11 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
       'provider observation order must be byte-identical across runs',
     );
 
-    // Edge order is deterministic in the global snapshot and the rendered section.
+    // Edge order is deterministic in the global snapshot and the rendered
+    // section, using the PRODUCTION edge sort key (edge.id — the deterministic
+    // identity synthesized by cross-repo/edges.mjs).
     const globalEdges = first.global.edges?.edges ?? [];
-    const sortedEdges = [...globalEdges].toSorted((left, right) => compareAscii(edgeKey(left), edgeKey(right)));
+    const sortedEdges = [...globalEdges].toSorted((left, right) => compareAscii(edgeIdKey(left), edgeIdKey(right)));
     assert.deepEqual(globalEdges, sortedEdges, 'resolved cross-repository edges must be deterministically sorted');
     assert.equal(
       JSON.stringify(first.global),
@@ -268,11 +265,7 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
   }
 });
 
-// The plan's acceptance evidence records seeds and hashes. The digest helper
-// above is used by the evidence record so seeds/hashes stay in one place.
-export const DETERMINISM_EVIDENCE = Object.freeze({
-  gate: 'T227',
-  clock: '2026-08-03',
-  fixtures: ['python', 'javascript', 'unknown', 'cross-repo'],
-  digest: digest('T227-determinism-seed-2026-08-03'),
-});
+// T010 (F-068-scan): the DETERMINISM_EVIDENCE self-digest (a hash that pinned
+// only itself) was removed. The determinism guarantees are proven by the
+// byte-identity assertions above; the production sort key for provider
+// observations is imported from lib/scan/pipeline/run.mjs, never re-implemented.

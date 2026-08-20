@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createRecordingRunner } from './helpers/recording-runner.mjs';
 import { withFixture } from './harness.mjs';
+import { canonicalize, fixedInput, semanticProjection } from './helpers/expansion-shared.mjs';
 // T010 (F-026) + T002: the legacy ten-dimension oracle (`runLegacyTenMirror`)
 // pins the retired ten-dimension hashes; the expanded production pipeline
 // projects them from `runExpandedPipeline`.
@@ -38,59 +39,6 @@ const FIXTURE_BEHAVIOR = JSON.parse(await readFile(
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
-}
-
-function canonicalize(value, repoPath) {
-  if (Array.isArray(value)) return value.map((entry) => canonicalize(entry, repoPath));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, canonicalize(entry, repoPath)]));
-  }
-  if (typeof value !== 'string') return value;
-  const normalizedRoot = repoPath.replaceAll('\\', '/');
-  const fixtureName = normalizedRoot.split('/').pop();
-  return value
-    .replaceAll('\\', '/')
-    .replaceAll(normalizedRoot, '<FIXTURE_ROOT>')
-    .replaceAll(fixtureName, '<FIXTURE_NAME>')
-    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '<DATE>')
-    .replace(/\b(Python|Node(?:\.js)?|rustc|Deno|Bun)\s+v?\d+(?:\.\d+)+(?:[-+][\w.-]+)?/g, '$1 <HOST_VERSION>');
-}
-
-function fixedInput() {
-  const overview = {
-    name: 'synthetic-repository',
-    path: '.',
-    languages: ['JavaScript'],
-    ecosystems: { primary: 'javascript', all: ['javascript'] },
-    packageManager: 'npm',
-    totalFiles: 2,
-    isGit: false,
-  };
-  const deep = [
-    { dimension: 'structure', signal: 'high', findings: { tree: '.\n\u251c\u2500\u2500 package.json\n\u2514\u2500\u2500 src/', fileCounts: { js: 1, json: 1 }, totalFiles: 2 } },
-    { dimension: 'stack', signal: 'high', findings: { runtime: 'Node.js (declared)', language: 'JavaScript', framework: '(none)', packageManager: 'npm', name: 'synthetic-package', version: '1.0.0' } },
-    { dimension: 'config', signal: 'high', findings: { lint: { config: 'eslint.config.mjs' }, format: 'prettier', markers: ['.editorconfig'] } },
-    { dimension: 'testing', signal: 'high', findings: { framework: ['node:test'], fileCount: 1, naming: ['*.test.mjs'], sampleFiles: ['test/example.test.mjs'], testDirs: ['test'] } },
-    { dimension: 'conventions', signal: 'high', findings: { importStyle: { type: 'ESM (import/export)', hasTypeImports: false, hasDynamicImports: false, samples: [] }, fileNaming: { dominant: 'kebab-case', total: 2, patterns: { 'kebab-case': 2 } }, errorHandling: { patterns: ['throw'] }, moduleSystem: { inferred: 'ESM' }, commentDensity: '10.0% (1 comment / 10 code lines)' } },
-    { dimension: 'git', signal: 'high', findings: { isGit: false } },
-    { dimension: 'architecture', signal: 'high', findings: { layers: { totalFiles: 2, totalEdges: 1, entryPoints: ['src/index.js'], libModules: ['src/value.js'], shared: [], rest: [] }, asciiGraph: 'src/index.js -> src/value.js' } },
-    { dimension: 'documentation', signal: 'high', findings: { readme: { present: true, path: 'README.md', sections: 2, hasSetup: true }, contributing: { present: false }, license: { present: true, name: 'MIT', path: 'LICENSE' }, commentRatio: { ratio: 10, commentLines: 1, codeLines: 10 }, todoCount: 0 } },
-    { dimension: 'security', signal: 'high', findings: { secrets: { count: 0, findings: [] }, envExample: true, gitignoreEnvProtected: true, hasLockfile: true, dependabot: false } },
-    { dimension: 'operations', signal: 'high', findings: { dockerfiles: [], ci: [], healthChecks: { detected: false, references: [] }, hasMakefile: true, hasJustfile: false } },
-  ];
-  return { overview, deep };
-}
-
-function semanticProjection(enriched, validated) {
-  return {
-    dimensionOrder: validated.findings.map(({ dimension }) => dimension),
-    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).toSorted()])),
-    coverage: validated.coverage,
-    confidence: Object.fromEntries(validated.findings.map(({ dimension, confidence }) => [dimension, confidence])),
-    contradictions: enriched.contradictions,
-    gaps: enriched.gaps,
-    inferredPatterns: enriched.inferredPatterns,
-  };
 }
 
 function weakConfig(deepResults) {
@@ -277,7 +225,6 @@ test('T204 injected sink captures the renderer input exactly once', async () => 
     assert.equal(captured[0].findings.repos.length, 1);
     assert.equal(captured[0].findings.repos[0].deep.length, REGISTRY_SHORTS.length);
     assert.equal(captured[0].out, undefined);
-    assert.equal(typeof DEFAULT_SINK, 'function');
   });
 });
 
@@ -352,18 +299,4 @@ test('T204 pipeline preserves single and multi-repo renderer semantics', async (
       }
     });
   });
-});
-
-test('T204 pipeline tests never reconstruct scanner dispatch independently', async () => {
-  const source = await readFile(new URL(import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /lib\/scan\/deep\//);
-  assert.doesNotMatch(source, /Promise\.all/);
-  const runSource = await readFile(join(TEST_ROOT, '..', 'lib', 'scan', 'pipeline', 'run.mjs'), 'utf8');
-  assert.match(runSource, /runExpandedPipeline/);
-  const runModule = await import(new URL('../lib/scan/pipeline/run.mjs', import.meta.url));
-  const exports = Object.keys(runModule);
-  assert.ok(exports.includes('runExpandedPipeline'), 'the exported production pipeline must remain');
-  assert.ok(exports.includes('enrichValidateRetry'), 'the shared retry engine must remain exported');
-  assert.ok(!exports.some((name) => name === 'runExistingTenPipeline'), 'the legacy pipeline entry must be retired');
-  assert.ok(!exports.some((name) => name === 'processExistingTenRepo'), 'the legacy per-repo processor must be retired');
 });

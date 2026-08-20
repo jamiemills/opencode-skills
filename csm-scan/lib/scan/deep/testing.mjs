@@ -23,20 +23,25 @@
 //                                      //   carries a markers key)
 //   } }
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
 import { readManifest } from '../shared/manifest.mjs';
 import { parseToml } from '../shared/parse.mjs';
 import { enumerate } from '../shared/enum.mjs';
+import { readBoundedFile } from '../shared/reads.mjs';
 
 // ---------------------------------------------------------------------------
 // Small utilities
 // ---------------------------------------------------------------------------
 
-function readJSON(path) {
+const SCAN_BYTE_LIMIT = 1024 * 1024;
+
+function readJSON(path, containmentRoot = null) {
+  const content = readBoundedFile(path, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot });
+  if (content == null) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
+    return JSON.parse(content);
   } catch {
     return null;
   }
@@ -67,8 +72,11 @@ function pep508Name(spec) {
 }
 
 function readToml(repoPath, file) {
+  // F-022/F-023: bounded, contained read of well-known config names.
+  const content = readBoundedFile(join(repoPath, file), { containmentRoot: repoPath });
+  if (content == null) return null;
   try {
-    return parseToml(readFileSync(join(repoPath, file), 'utf-8'));
+    return parseToml(content);
   } catch {
     return null;
   }
@@ -248,12 +256,8 @@ function scanTestContents(repoPath, files, testFn) {
   let examined = 0;
   for (const f of files) {
     if (examined >= MARKER_SCAN_CAP) break;
-    let content;
-    try {
-      content = readFileSync(join(repoPath, f), 'utf-8');
-    } catch {
-      continue;
-    }
+    const content = readBoundedFile(join(repoPath, f), { containmentRoot: repoPath });
+    if (content == null) continue;
     examined++;
     if (testFn(content)) return true;
   }
@@ -323,12 +327,8 @@ function detectRustInlineTests(files, repoPath) {
     // Only source-tree files; skip already-matched integration tests.
     if (!posix.startsWith('src/') && !posix.includes('/src/')) continue;
     if (examined >= INLINE_SCAN_CAP) break;
-    let content;
-    try {
-      content = readFileSync(join(repoPath, f), 'utf-8');
-    } catch {
-      continue;
-    }
+    const content = readBoundedFile(join(repoPath, f), { containmentRoot: repoPath });
+    if (content == null) continue;
     examined++;
     if (re.test(content)) inline.add(f);
   }
@@ -357,12 +357,8 @@ function scanCiRefs(repoPath, files, names) {
       /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(posix);
     if (!isCi) continue;
     if (examined >= CI_SCAN_CAP) break;
-    let content;
-    try {
-      content = readFileSync(join(repoPath, f), 'utf-8');
-    } catch {
-      continue;
-    }
+    const content = readBoundedFile(join(repoPath, f), { containmentRoot: repoPath });
+    if (content == null) continue;
     examined++;
     probe(content);
   }
@@ -378,12 +374,8 @@ function scanCiRefs(repoPath, files, names) {
   for (const name of entries) {
     if (examined >= CI_SCAN_CAP) break;
     if (!/\.ya?ml$/i.test(name)) continue;
-    let content;
-    try {
-      content = readFileSync(join(wfDir, name), 'utf-8');
-    } catch {
-      continue;
-    }
+    const content = readBoundedFile(join(wfDir, name), { containmentRoot: repoPath });
+    if (content == null) continue;
     examined++;
     probe(content);
   }
@@ -633,22 +625,17 @@ function scanDiffCoverEnv(repoPath) {
 
   for (const name of ['Makefile', 'makefile', 'GNUmakefile']) {
     if (examined >= ENV_THRESHOLD_CAP) break;
-    try {
-      probe(readFileSync(join(repoPath, name), 'utf-8'));
-    } catch {
-      continue;
-    }
+    const content = readBoundedFile(join(repoPath, name), { containmentRoot: repoPath });
+    if (content == null) continue;
+    probe(content);
   }
 
   // quality/gates.conf declares DIFF_COVERAGE_THRESHOLD as a locked gate
   // threshold; it is not among the build/CI files probed above, so it is added
   // explicitly so a numeric declaration resolves instead of `unverified`.
   if (examined < ENV_THRESHOLD_CAP) {
-    try {
-      probe(readFileSync(join(repoPath, 'quality', 'gates.conf'), 'utf-8'));
-    } catch {
-      // missing or unreadable gates.conf carries no diff-cover declaration
-    }
+    const gates = readBoundedFile(join(repoPath, 'quality', 'gates.conf'), { containmentRoot: repoPath });
+    if (gates != null) probe(gates);
   }
 
   const workflowsDir = join(repoPath, '.github', 'workflows');
@@ -661,11 +648,9 @@ function scanDiffCoverEnv(repoPath) {
   for (const name of entries) {
     if (examined >= ENV_THRESHOLD_CAP) break;
     if (!/\.ya?ml$/i.test(name)) continue;
-    try {
-      probe(readFileSync(join(workflowsDir, name), 'utf-8'));
-    } catch {
-      continue;
-    }
+    const content = readBoundedFile(join(workflowsDir, name), { containmentRoot: repoPath });
+    if (content == null) continue;
+    probe(content);
   }
 
   // A numeric declaration (e.g. from quality/gates.conf) supersedes a bare-use
@@ -703,13 +688,11 @@ function detectCoverageThresholds(repoPath) {
 // ---------------------------------------------------------------------------
 
 // Bounded read of a single repository file; null when missing/unreadable.
+// F-022/F-062: statSync-gated by the shared helper — never allocates a file
+// above `cap` bytes.
 function readBounded(repoPath, relPath, cap) {
-  try {
-    const content = readFileSync(join(repoPath, relPath), 'utf-8');
-    return content.length > cap ? content.slice(0, cap) : content;
-  } catch {
-    return null;
-  }
+  const content = readBoundedFile(join(repoPath, relPath), { byteLimit: cap, containmentRoot: repoPath });
+  return content == null ? null : content;
 }
 
 // The disclosed python test-file counting rule (b14). Mirrors the python

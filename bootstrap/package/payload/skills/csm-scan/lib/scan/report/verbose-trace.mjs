@@ -10,18 +10,30 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
 
-const TRACE_NAME = '.csm-scan-debug.log';
+const TRACE_PREFIX = '.csm-scan-debug';
+
+// F-051: per-run-unique trace name so two concurrent scans can never clobber
+// the shared `.csm-scan-debug.log` path. The `.gitignore` entry for the prefix
+// keeps an unredacted trace out of `git add .`. A monotonic counter disambiguates
+// two opens in the same millisecond; pid + time36 disambiguate across processes.
+let traceCounter = 0;
+
+function traceFileName() {
+  const stamp = `${process.pid}-${Date.now().toString(36)}-${traceCounter}`;
+  traceCounter += 1;
+  return `${TRACE_PREFIX}-${stamp}.log`;
+}
 
 export function openVerboseTrace(outPath) {
   const candidates = [];
   try {
     if (statSync(dirname(outPath)).isDirectory()) {
-      candidates.push(join(dirname(outPath), TRACE_NAME));
+      candidates.push(join(dirname(outPath), traceFileName()));
     }
   } catch {}
-  candidates.push(join(tmpdir(), TRACE_NAME));
+  candidates.push(join(tmpdir(), traceFileName()));
   const path = candidates[0];
-  const stream = createWriteStream(path, { flags: 'w', mode: 0o600 });
+  const stream = createWriteStream(path, { flags: 'wx', mode: 0o600 });
   stream.on('error', () => {});
   return { path, stream };
 }

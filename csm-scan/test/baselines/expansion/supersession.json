@@ -12,7 +12,6 @@
       ],
       "replacement": {
         "testFile": "test/expansion-command-deep.test.mjs",
-        "testFileSha256": "67cd13701ba50363739f698af9a58eafbe84f9709e984d008d9139011311822c",
         "testName": "T209 conflicting runtime declarations coexist with per-artifact provenance"
       }
     },
@@ -27,7 +26,6 @@
       ],
       "replacement": {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "069b33c6379067dc3a0be0a12b69479c9cda907b7a7defea9ca15230e8592b83",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       }
     },
@@ -41,7 +39,6 @@
       ],
       "replacement": {
         "testFile": "test/expansion-constraints.test.mjs",
-        "testFileSha256": "f3e0f610d5820f5ed597402a2a83a0fcd88ef27732b7040908842133131da6c2",
         "testName": "T202 replacement: free-form applicability rules yield not_applicable git claims excluded from coverage"
       }
     },
@@ -57,7 +54,6 @@
       ],
       "replacement": {
         "testFile": "test/expansion-constraints.test.mjs",
-        "testFileSha256": "f3e0f610d5820f5ed597402a2a83a0fcd88ef27732b7040908842133131da6c2",
         "testName": "T202 replacement: coverage status representation maps claim statuses to coverage states"
       }
     },
@@ -72,7 +68,6 @@
       ],
             "replacement": {
                 "testFile": "test/expansion-privacy-write.test.mjs",
-                "testFileSha256": "93b8f23a72bca7b9ad9471fc1d2e02fd1022d5ef3681d0161d26125206b6bc5b",
                 "testName": "T005 write path renders relative Path, basename gitRoot, redacted description, and no script bodies"
             }
     }

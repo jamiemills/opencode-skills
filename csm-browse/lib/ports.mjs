@@ -1,5 +1,5 @@
 import { execLayer } from './docker.mjs';
-import { open, unlink, readFile, stat, readdir } from 'node:fs/promises';
+import { open, rename, unlink, readFile, stat, readdir } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -27,13 +27,32 @@ export async function breakStaleLock() {
     if (!isNaN(pid)) {
       try { process.kill(pid, 0); return; } catch {}  // holder alive — do not break
     }
-    // Content-matched unlink: only remove the lock if it still holds the exact
-    // contents we inspected, so a fresh holder that replaced a dead holder's
-    // file between our read and the unlink is never destroyed.
+    // F-018: atomic capture replaces read-then-unlink. The stale lock is
+    // renamed to a unique tombstone in the same directory, so the inspect and
+    // the removal operate on the exact artifact that was at the path — there
+    // is no window in which a fresh holder's replacement lock can be
+    // destroyed. If the captured artifact is NOT the stale one we inspected
+    // (a live holder slipped its lock in first), it is restored in place,
+    // never unlinked.
+    const tombstone = `${LOCK_FILE}.stale-${process.pid}-${Date.now()}`;
+    let captured;
     try {
-      const current = await readFile(LOCK_FILE, 'utf-8');
-      if (current === raw) await unlink(LOCK_FILE);
+      await rename(LOCK_FILE, tombstone);
+    } catch {
+      return; // ENOENT (already gone) or EACCES — nothing to break
+    }
+    try {
+      captured = await readFile(tombstone, 'utf-8');
     } catch {}
+    if (captured !== raw) {
+      try {
+        await rename(tombstone, LOCK_FILE);
+      } catch {
+        try { await unlink(tombstone); } catch {} // a fresh lock already took the path
+      }
+      return;
+    }
+    try { await unlink(tombstone); } catch {}
   } catch {}
 }
 
@@ -57,15 +76,25 @@ export async function acquirePortLock() {
 }
 
 export async function releasePortLock() {
-  try { await unlink(LOCK_FILE); } catch {}
+  // F-018/F-067-15: never unlink a lock we did not create. Only release when
+  // the lock still holds OUR pid; a foreign holder's lock (or one that has
+  // been stale-broken and re-claimed since) is left untouched. Safe as a
+  // read-then-unlink here because breakStaleLock refuses to rename a live
+  // holder's artifact (holder liveness is probed before capture).
+  try {
+    const raw = await readFile(LOCK_FILE, 'utf-8');
+    if (raw.trim() !== String(process.pid)) return;
+    await unlink(LOCK_FILE);
+  } catch {}
 }
 
 // Ports already claimed by other sessions, recorded on disk under the port
 // lock: state.json for live sessions, creating.marker for in-flight creations.
 // The lock serializes claim writes, so this scan closes the window where a
 // second creator allocates the same pair after the first released the lock
-// but before chromium actually binds its debug port.
-async function claimedPortSet() {
+// but before chromium actually binds its debug port. Exported so tests can
+// assert the F-009/F-015 claim-freed invariant without binding host ports.
+export async function claimedPortSet() {
   const claimed = new Set();
   let dirs;
   try { dirs = await readdir(SESSIONS_ROOT); } catch { return claimed; }

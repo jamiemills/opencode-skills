@@ -68,8 +68,11 @@ test('T205 unchanged write facade matches the pre-existing deterministic bytes w
   }
 
   const source = await readFile(join(ROOT, 'lib', 'scan', 'write.mjs'), 'utf8');
-  assert.equal(source.split("import { writeFile } from 'node:fs/promises';").length - 1, 1);
-  assert.equal(source.split("await writeFile(outPath, content, 'utf-8');").length - 1, 1);
+  // T010 (F-065-b reconciliation): the write facade is the atomic tmp+rename
+  // writer — exactly one temp write and one rename.
+  assert.equal(source.split("import { rename, unlink, writeFile } from 'node:fs/promises';").length - 1, 1);
+  assert.equal(source.split("await writeFile(tmpPath, content, 'utf-8');").length - 1, 1);
+  assert.equal(source.split("await rename(tmpPath, outPath);").length - 1, 1);
 });
 
 test('T205 base centralizes safe scalars, Markdown escaping, privacy, and LF finalization', () => {

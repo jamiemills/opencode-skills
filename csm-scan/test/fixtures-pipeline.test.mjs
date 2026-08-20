@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withFixture } from './harness.mjs';
+import { canonicalize } from './helpers/expansion-shared.mjs';
 import { runMirrorPipelineDetailed } from './helpers/pipeline-mirror.mjs';
 import { files as pythonFiles } from './fixtures/python.mjs';
 import { files as javascriptFiles } from './fixtures/javascript.mjs';
@@ -29,38 +30,51 @@ function digest(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function canonicalize(value, repoPath) {
-  if (Array.isArray(value)) return value.map((entry) => canonicalize(entry, repoPath));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, canonicalize(entry, repoPath)]));
-  }
-  if (typeof value !== 'string') return value;
-  const normalizedRoot = repoPath.replaceAll('\\', '/');
-  const fixtureName = normalizedRoot.split('/').pop();
-  return value
-    .replaceAll('\\', '/')
-    .replaceAll(normalizedRoot, '<FIXTURE_ROOT>')
-    .replaceAll(fixtureName, '<FIXTURE_NAME>')
-    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '<DATE>')
-    .replace(/\b(Python|Node(?:\.js)?|rustc|Deno|Bun)\s+v?\d+(?:\.\d+)+(?:[-+][\w.-]+)?/g, '$1 <HOST_VERSION>')
-    // The expanded pipeline's cross-repository identity table renders
-    // scan:<scanId>, where scanId = sha256(repo path) (pipeline scanIdFor) —
-    // a one-way derivation of the random fixture tmpdir, so it must be
-    // normalized like the fixture root itself to keep the bytes portable.
-    .replace(/\bscan-[0-9a-f]{24}\b/g, '<SCAN_ID>');
-}
-
 // The production pipeline, single repo, semantic payload exposed.
 export async function runPipeline(repoPath) {
   const detailed = await runMirrorPipelineDetailed(repoPath);
-  const semantic = canonicalize(detailed.semantic, repoPath);
+  // The expanded pipeline renders scan:<scanId> identities (a one-way
+  // derivation of the random fixture tmpdir) — normalized like the fixture
+  // root itself to keep the bytes portable.
+  const semantic = canonicalize(detailed.semantic, repoPath, { normalizeScanIds: true });
   return {
     markdown: detailed.markdown,
     semantic,
     semanticSha256: digest(`${JSON.stringify(semantic)}\n`),
-    markdownSha256: digest(`${canonicalize(detailed.markdown, repoPath)}\n`),
+    markdownSha256: digest(`${canonicalize(detailed.markdown, repoPath, { normalizeScanIds: true })}\n`),
   };
 }
+
+// T010 (F-039): the shared canonicalize helper (test/helpers/expansion-shared.mjs)
+// applies exactly the normalization list recorded in fixture-behavior.json.
+test('T020 canonicalization applies exactly the fixture-behavior normalizations', () => {
+  const root = '/tmp/csm-scan-fixture-root-abc';
+  const input = [
+    `${root}/src/app.py`,
+    'C:\\windows\\path\\app.py',
+    'generated 2026-08-03',
+    'Python 3.12.4',
+    'scan-0123456789abcdef01234567',
+  ].join('\n');
+  const normalized = canonicalize(input, root, { normalizeScanIds: true });
+  assert.ok(normalized.includes('<FIXTURE_ROOT>/src/app.py'), 'fixture root normalizes');
+  assert.ok(normalized.includes('C:/windows/path/app.py'), 'path separators normalize');
+  assert.ok(normalized.includes('generated <DATE>'), 'dates normalize');
+  assert.ok(normalized.includes('Python <HOST_VERSION>'), 'host versions normalize');
+  assert.ok(normalized.includes('<SCAN_ID>'), 'scan identities normalize for the expanded surface');
+  assert.deepEqual(BEHAVIOR_BASELINE.normalizations, [
+    'fixture root to <FIXTURE_ROOT>',
+    'path separators to slash',
+    'YYYY-MM-DD dates to <DATE>',
+    'host Python, Node, rustc, Deno, and Bun versions to <HOST_VERSION>',
+    'path-derived pipeline scan identities (sha256 of the repo path) to <SCAN_ID>',
+  ]);
+  // Legacy surfaces never contain scan identities — the default must not strip them.
+  assert.ok(
+    canonicalize('scan-0123456789abcdef01234567', root).includes('scan-0123456789abcdef01234567'),
+    'scan tokens stay intact without normalizeScanIds',
+  );
+});
 
 function contains(markdown, needle) {
   return needle instanceof RegExp ? needle.test(markdown) : markdown.includes(needle);

@@ -26,19 +26,40 @@ export async function collectorsHook(client, sessionId, sessionDir) {
   await ensurePrivateDir(sessionDir);
   const mainPath = join(sessionDir, 'events.jsonl');
   let count = 0;
+  const buffer = [];
+  let flushing = false;
   let writeQueue = Promise.resolve();
 
-  const enqueue = (entry) => {
-    writeQueue = writeQueue.then(async () => {
+  // F-067-11a: bound the write path. Lines are buffered and flushed in
+  // batches through a single serialized writer, so the promise chain stays
+  // shallow even under bursts. The buffer itself is capped: past it, new
+  // events are dropped instead of growing memory without limit. The cap sits
+  // above EVENTS_JSONL_ROTATION so the documented "rotate after 2000 events"
+  // contract still holds under normal load.
+  const MAX_BUFFERED_LINES = EVENTS_JSONL_ROTATION * 2;
+  const MAX_BATCH = 512;
+
+  const flush = async () => {
+    while (buffer.length > 0) {
+      const batch = buffer.splice(0, MAX_BATCH);
       try {
-        await secureAppend(mainPath, JSON.stringify(redactTelemetry(entry)) + '\n');
-        count++;
+        await secureAppend(mainPath, batch.join(''));
+        count += batch.length;
         if (count >= EVENTS_JSONL_ROTATION) {
           count = 0;
           await rotate(sessionDir, mainPath);
         }
       } catch {}
-    });
+    }
+  };
+
+  const enqueue = (entry) => {
+    if (buffer.length >= MAX_BUFFERED_LINES) return;
+    buffer.push(JSON.stringify(redactTelemetry(entry)) + '\n');
+    if (!flushing) {
+      flushing = true;
+      writeQueue = writeQueue.then(flush).finally(() => { flushing = false; });
+    }
   };
 
   const domains = ['Runtime', 'Log', 'Network', 'Performance'];

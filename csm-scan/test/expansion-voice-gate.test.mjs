@@ -1,8 +1,8 @@
 // T227 — neutral-voice gate for every authored prose surface.
 //
-// Owned by T227. Mirrors the established T116/T126 voice matcher
-// (test/voice-gate.test.mjs) and applies it to every authored surface of the
-// EXPANDED production pipeline:
+// Owned by T227. Applies the shared voice matcher (test/helpers/voice-gate.mjs,
+// imported — never copied) to every authored surface of the EXPANDED
+// production pipeline:
 //   - the rendered Markdown of all six T226 topic fixtures (five built-in
 //     ecosystems plus the unknown-language fixture) and a multi-repository
 //     cross-repo run — every per-repository dimension renderer and the
@@ -12,10 +12,6 @@
 //     even for sections a fixture does not fill with data,
 //   - the T224 reporter diagnostics produced by the pipeline, and
 //   - CLI stdout/stderr diagnostics from scripts/scan.mjs.
-//
-// The matcher is copied from test/voice-gate.test.mjs (BANNED_VOICE +
-// stripNonProse) rather than imported, so importing this gate never executes
-// that file's own tests. The copy is byte-equivalent to the original matcher.
 //
 // Scope (own-only): this test file. No production, baseline, or other test is
 // edited.
@@ -29,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
 
+import { findVoiceHits } from './helpers/voice-gate.mjs';
 import { makeFixture, cleanupFixture } from './harness.mjs';
 import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
 import { createReporter } from '../lib/scan/report/reporter.mjs';
@@ -51,85 +48,6 @@ const ROOT = join(TEST_ROOT, '..');
 const SCAN_SCRIPT = join(ROOT, 'scripts', 'scan.mjs');
 
 const FIXED_CLOCK = () => '2026-08-03';
-
-// Copied byte-for-byte from test/voice-gate.test.mjs so both gates share one
-// vocabulary and cannot drift.
-export const BANNED_VOICE = Object.freeze([
-  'should',
-  'must',
-  'ought',
-  'shall',
-  'poor',
-  'good',
-  'bad',
-  'weak',
-  'strong',
-  'better',
-  'worse',
-  'best',
-  'worst',
-  'recommended',
-  'recommendation',
-  'ideally',
-  'unfortunately',
-  'concern',
-  'concerning',
-  'problem',
-  'anti-pattern',
-  'smell',
-  'suboptimal',
-  'inadequate',
-  'insufficient',
-  'contradiction',
-  'contradictions',
-  'inconsistent',
-  'inconsistency',
-  'conflict',
-  'conflicts',
-  'lacking',
-]);
-
-const BANNED_PATTERN = new RegExp(
-  `\\b(?:${BANNED_VOICE.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
-  'gi',
-);
-
-function mask(value) {
-  return value.replace(/[^\n]/g, ' ');
-}
-
-// Mirrors test/voice-gate.test.mjs stripNonProse: repository-originated code,
-// URLs, paths, and identifiers are masked (line numbers preserved) while all
-// remaining authored prose is checked.
-export function stripNonProse(markdown) {
-  return markdown
-    .replace(/^(?:```|~~~)[^\n]*\n[\s\S]*?^(?:```|~~~)[ \t]*$/gm, mask)
-    .replace(/(`+)[^\n]*?\1/g, mask)
-    .replace(/\b(?:https?:\/\/|www\.)[^\s<>)]+/gi, mask)
-    .replace(/^[ \t]*\|([^|]*)\|(.*)\|[ \t]*$/gm, (row, firstCell, valueCells, offset, source) => {
-      const nextLine = source.slice(offset + row.length).match(/^\r?\n([^\r\n]*)/)?.[1] || '';
-      const separator = /^[ \t]*\|(?:[ \t]*:?-{3,}:?[ \t]*\|)+[ \t]*$/.test(nextLine);
-      if (separator) return row;
-      return `|${firstCell}|${mask(valueCells)}|`;
-    })
-    .replace(/(?:~\/|\.{0,2}\/|\/)(?:[^\s`<>|()[\]{}]+\/)*[^\s`<>|()[\]{}]*/g, mask)
-    .replace(/(?:[\w@+.-]+\/)+[\w@+,=~.-]+/g, mask)
-    .replace(/(?<![\w@.-])[\w@+-]*[\w@+-]\.[A-Za-z0-9][\w.-]*/g, mask);
-}
-
-export function findVoiceHits(markdown) {
-  const prose = stripNonProse(markdown);
-  const hits = [];
-
-  for (const [index, line] of prose.split('\n').entries()) {
-    BANNED_PATTERN.lastIndex = 0;
-    for (const match of line.matchAll(BANNED_PATTERN)) {
-      hits.push({ term: match[0].toLowerCase(), line: index + 1, text: line.trim() });
-    }
-  }
-
-  return hits;
-}
 
 function assertNeutral(label, value) {
   const hits = findVoiceHits(value);

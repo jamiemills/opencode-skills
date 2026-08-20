@@ -9,8 +9,7 @@
     "check": "node scripts/check-skill.mjs"
   },
   "dependencies": {
-    "chrome-remote-interface": "^0.34.0",
-    "jimp": "^1.6.1"
+    "chrome-remote-interface": "^0.34.0"
   },
   "engines": {
     "node": ">=22 <25"

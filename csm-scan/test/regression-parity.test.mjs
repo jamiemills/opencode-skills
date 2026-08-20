@@ -251,7 +251,11 @@ export const P0_CASES = [
   },
 ];
 
-assert.equal(P0_CASES.length, 21, 'the explicit P0 parity matrix must contain exactly 21 cases');
-assert.equal(new Set(P0_CASES.map(({ name }) => name)).size, 21, 'P0 parity case names must be unique');
+// T010 (F-036/F-038): the self-referential `P0_CASES.length === 21` and
+// name-uniqueness literals were removed. The exact 21-name registration and
+// uniqueness are enforced behaviorally by the runner-based inventory gates
+// (expansion-baseline.test.mjs T201 and expansion-final-acceptance.test.mjs
+// AC14), which collect the registered P0 test names from the real runner and
+// compare them against inventory.json's p0TestNames.
 
 for (const { name, run } of P0_CASES) test(name, run);

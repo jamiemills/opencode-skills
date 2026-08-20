@@ -143,13 +143,16 @@ export const EXTERNAL_API_INDICATORS = {
 
 const AUTH_PY = {
   'flask-login': { label: 'Flask-Login', type: 'Session' },
-  django: { label: 'Django (contrib.auth)', type: 'Framework auth' },
+  // F-030: framework-level entries are surfaced as a distinct capability
+  // category, never as verified auth — depending on Django does not prove
+  // `django.contrib.auth` is used. They cannot lift the security signal.
+  django: { label: 'Django (contrib.auth)', type: 'Capability' },
   passlib: { label: 'Passlib', type: 'Hashing' },
   'python-jose': { label: 'python-jose', type: 'JWT' },
   jose: { label: 'jose', type: 'JWT' },
   authlib: { label: 'AuthLib', type: 'OAuth/JWT' },
   itsdangerous: { label: 'itsdangerous', type: 'Signing' },
-  fastapi: { label: 'FastAPI (security)', type: 'Framework auth' },
+  fastapi: { label: 'FastAPI (security)', type: 'Capability' },
   auth0: { label: 'Auth0', type: 'Identity provider' },
 };
 
@@ -200,7 +203,9 @@ const VAL_PY = {
   cerberus: { label: 'Cerberus', type: 'Validation' },
   voluptuous: { label: 'Voluptuous', type: 'Validation' },
   colander: { label: 'Colander', type: 'Validation' },
-  django: { label: 'Django (forms)', type: 'Validation' },
+  // F-030: a django dependency does not prove Django forms are used for
+  // input validation; it stays a capability, never verified validation.
+  django: { label: 'Django (forms)', type: 'Capability' },
 };
 
 const VAL_JS = {

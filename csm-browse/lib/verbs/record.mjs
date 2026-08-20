@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFile, rename } from 'node:fs/promises';
+import { readFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_TIMEOUT_MS } from '../constants.mjs';
@@ -76,6 +76,12 @@ export async function run({ args, state, verb }) {
   }
 
   if (!result) {
+    // F-006: cancel the enqueued command instead of abandoning it — the
+    // daemon must not execute a screencast-start/stop the client already
+    // gave up on. If the file is still unclaimed in cmd/, remove it; if it
+    // was already claimed, the daemon's stale-command drop (commands older
+    // than CMD_TIMEOUT_MS) will discard it at execution time.
+    try { await unlink(cmdPath); } catch {}
     console.error('Daemon unavailable or timed out');
     process.exit(1);
   }

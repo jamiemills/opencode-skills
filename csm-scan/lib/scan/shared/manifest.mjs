@@ -387,14 +387,21 @@ function resolveCargoMembers(repoPath, members, excludes) {
   });
 }
 
-function mergeCargoDependencies(target, dependencies, workspaceDependencies = {}) {
+function mergeCargoDependencies(target, dependencies, workspaceDependencies = {}, poolReferences = null) {
   if (!dependencies || typeof dependencies !== 'object') return;
   for (const [name, value] of Object.entries(dependencies)) {
-    if (name in target) continue;
     if (value && typeof value === 'object' && value.workspace === true) {
-      if (name in workspaceDependencies) target[name] = workspaceDependencies[name];
+      if (name in workspaceDependencies) {
+        // F-027: a member referencing the pool via `workspace = true` is
+        // recorded as a pool reference even when the eager pool merge already
+        // placed the spec in the root inventory (so the member loop's
+        // `name in target` guard cannot mask the reference).
+        if (poolReferences !== null) poolReferences.add(name);
+        if (!(name in target)) target[name] = workspaceDependencies[name];
+      }
       continue;
     }
+    if (name in target) continue;
     target[name] = cargoDepSpec(value);
   }
 }
@@ -466,21 +473,38 @@ function applyCargo(result, cargo, repoPath) {
       defaultMembers: Array.isArray(ws['default-members']) ? ws['default-members'].map(String) : [],
       exclude,
     };
-    // [workspace.dependencies] — shared version source; merge into dependencies.
+    // [workspace.dependencies] — shared version source for member crates.
+    // F-027: in a virtual workspace the root has no [package], so the pool is
+    // NOT the root's own dependency inventory. Pool entries are merged into
+    // the root inventory for backward compatibility, but each one is marked
+    // with distinct declared-pool provenance so downstream detection can tell
+    // an unused pool declaration from a real dependency: the declared pool
+    // map, the sorted pool names, and the subset actually referenced by member
+    // crates via `workspace = true`. The fields are added ONLY when the pool
+    // declares entries, so a pool-less workspace keeps a byte-identical
+    // manifest (the legacy semantic baseline).
     const workspaceDependencies = {};
+    const poolReferences = new Set();
     if (ws.dependencies && typeof ws.dependencies === 'object') {
       for (const [k, v] of Object.entries(ws.dependencies)) {
         workspaceDependencies[k] = cargoDepSpec(v);
         if (!(k in result.dependencies)) result.dependencies[k] = workspaceDependencies[k];
       }
     }
+    if (Object.keys(workspaceDependencies).length > 0) {
+      result.workspace.dependencies = workspaceDependencies;
+      result.workspace.declaredPool = Object.keys(workspaceDependencies).toSorted();
+    }
     // Best-effort: union dependency classes from each resolved member crate.
     for (const member of resolvedMembers) {
       const memberCargo = readToml(join(repoPath, member, 'Cargo.toml'));
       if (!memberCargo) continue;
-      mergeCargoDependencies(result.dependencies, memberCargo.dependencies, workspaceDependencies);
-      mergeCargoDependencies(result.devDependencies, memberCargo['dev-dependencies'], workspaceDependencies);
-      mergeCargoDependencies(result.buildDependencies, memberCargo['build-dependencies'], workspaceDependencies);
+      mergeCargoDependencies(result.dependencies, memberCargo.dependencies, workspaceDependencies, poolReferences);
+      mergeCargoDependencies(result.devDependencies, memberCargo['dev-dependencies'], workspaceDependencies, poolReferences);
+      mergeCargoDependencies(result.buildDependencies, memberCargo['build-dependencies'], workspaceDependencies, poolReferences);
+    }
+    if (Object.keys(workspaceDependencies).length > 0) {
+      result.workspace.referencedPool = [...poolReferences].toSorted();
     }
   }
 }

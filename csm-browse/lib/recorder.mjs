@@ -1,7 +1,8 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFile as execFileCb } from 'node:child_process';
 import { readFile, unlink, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import {
   SCREENCAST_QUALITY,
   SCREENCAST_MAX_WIDTH,
@@ -12,6 +13,22 @@ import {
   SPEED_PRESETS
 } from './constants.mjs';
 import { ensurePrivateDir, ensurePrivateFile, secureAppend, secureWrite } from './security.mjs';
+
+const execFile = promisify(execFileCb);
+
+// F-007: probe the actual duration of a recorded file. A size>0 check passes
+// a trailer-less SIGKILL'd webm; ffprobe reading a real duration is the
+// integrity proof the muxer actually closed the stream.
+async function probeVideoDuration(outPath) {
+  const { stdout } = await execFile('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1',
+    outPath
+  ], { timeout: 10000, maxBuffer: 1024 * 1024 });
+  const d = parseFloat(stdout.trim());
+  return Number.isFinite(d) && d > 0 ? d : null;
+}
 
 const VALID_NAME_RE = /^[A-Za-z0-9._-]+\.(mp4|webm)$/;
 
@@ -62,14 +79,12 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     throw new Error('already recording');
   }
 
+  // F-067-1: the old on-disk "already recording" guard here was dead code —
+  // `state.running && activeRecording` can never throw after the activeRecording
+  // check above (and if state.running && !activeRecording it is a stale flag
+  // reconciled by reconcileRecorder at daemon startup). Only the in-memory
+  // guard is authoritative.
   const recorderJsonPath = join(sessionDir, 'recorder.json');
-  try {
-    const raw = await readFile(recorderJsonPath, 'utf-8');
-    const state = JSON.parse(raw);
-    if (state.running && activeRecording) throw new Error('already recording');
-  } catch (err) {
-    if (err.message === 'already recording') throw err;
-  }
 
   const artifactsDir = join(sessionDir, 'artifacts');
   await ensurePrivateDir(artifactsDir);
@@ -102,9 +117,16 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     stdio: ['pipe', 'ignore', 'pipe']
   });
 
+  // F-067-11: bound the stderr write queue — a chatty ffmpeg or slow disk
+  // must not grow the promise chain without limit. Past the cap, chunks are
+  // dropped instead of buffered forever.
+  const MAX_PENDING_WRITES = 64;
+  let pendingWrites = 0;
   let stderrWrite = Promise.resolve();
   ffmpeg.stderr.on('data', chunk => {
-    stderrWrite = stderrWrite.then(() => secureAppend(stderrPath, chunk)).catch(() => {});
+    if (pendingWrites >= MAX_PENDING_WRITES) return;
+    pendingWrites++;
+    stderrWrite = stderrWrite.then(() => secureAppend(stderrPath, chunk)).catch(() => {}).finally(() => { pendingWrites--; });
   });
 
   const startedAt = new Date().toISOString();
@@ -197,9 +219,33 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
 
   client.on('Page.screencastFrame', frameHandler);
 
+  // F-067-6: publish activeRecording BEFORE any further await so a concurrent
+  // stopRecorder (or a second startRecorder) sees the recording the instant
+  // ffmpeg is spawned — otherwise a stop issued between spawn and assignment
+  // throws 'not recording' and the ffmpeg child is orphaned until sweep's
+  // age cutoff.
+  activeRecording = {
+    ffmpeg,
+    frameHandler,
+    onDrain,
+    drainPromise,
+    exitPromise,
+    frameCount: () => frameCount,
+    droppedFrames: () => droppedFrames,
+    startedAt,
+    fps,
+    outPath,
+    codec: p.codec,
+    recorderJsonPath,
+    ffmpegError: () => ffmpegError,
+    sessionDir,
+    markStop: () => { stopRequested = true; }
+  };
+
   const failStart = async (err) => {
     stopRequested = true;
-    ffmpeg.kill();
+    try { ffmpeg.kill(); } catch {}
+    if (activeRecording && activeRecording.ffmpeg === ffmpeg) activeRecording = null;
     client.off('Page.screencastFrame', frameHandler);
     ffmpeg.stdin.off('drain', onDrain);
     try {
@@ -237,24 +283,6 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     throw err;
   }
 
-  activeRecording = {
-    ffmpeg,
-    frameHandler,
-    onDrain,
-    drainPromise,
-    exitPromise,
-    frameCount: () => frameCount,
-    droppedFrames: () => droppedFrames,
-    startedAt,
-    fps,
-    outPath,
-    codec: p.codec,
-    recorderJsonPath,
-    ffmpegError: () => ffmpegError,
-    sessionDir,
-    markStop: () => { stopRequested = true; }
-  };
-
   return { isRecording: true };
 }
 
@@ -284,6 +312,7 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     try { rec.ffmpeg.stdin.end(); } catch {}
   }
 
+  let usedKill = false;
   if (rec.ffmpeg.exitCode === null && !rec.ffmpeg.killed) {
     await Promise.race([
       new Promise(resolve => rec.ffmpeg.on('exit', resolve)),
@@ -291,6 +320,16 @@ export async function stopRecorder(client, sessionId, sessionDir) {
         try { rec.ffmpeg.kill('SIGKILL'); } catch {}
       })
     ]);
+    usedKill = rec.ffmpeg.killed;
+    // F-007: the race above resolves the moment SIGKILL is issued, NOT when
+    // ffmpeg actually exited — validating against a dying muxer would accept
+    // a trailer-less file. Await the real 'exit' with a short hard bound.
+    if (rec.ffmpeg.exitCode === null) {
+      await Promise.race([
+        new Promise(resolve => rec.ffmpeg.on('exit', resolve)),
+        setTimeout(2000).then(() => { try { rec.ffmpeg.kill('SIGKILL'); } catch {} })
+      ]);
+    }
   }
 
   const duration = (Date.now() - new Date(rec.startedAt).getTime()) / 1000;
@@ -314,6 +353,16 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     try { await unlink(join(sessionDir, 'ffmpeg-stderr.log')); } catch {}
   } catch (err) {
     outputError = err.message;
+  }
+
+  // F-007: on the forced-kill path, a non-empty but trailer-less file must
+  // not be reported as success — probe the real duration.
+  if (usedKill) {
+    let dur = null;
+    try { dur = await probeVideoDuration(rec.outPath); } catch {}
+    if (dur === null && !outputError) {
+      outputError = 'screencast output is unreadable after forced kill (no duration)';
+    }
   }
 
   stats.error = outputError || stats.error;

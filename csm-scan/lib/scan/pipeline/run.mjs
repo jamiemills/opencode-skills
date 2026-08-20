@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 
 import { enrich, computeExpectedClaimCoverage } from '../enrich.mjs';
 import { createCommandBroker, commandBroker } from '../shared/command.mjs';
-import { assertPrivacySafe } from '../shared/privacy.mjs';
+import { assertLegacyPrivacySafe, assertPrivacySafe } from '../shared/privacy.mjs';
 import { enumerate } from '../shared/enum.mjs';
 import { survey } from '../survey.mjs';
 import { validate } from '../validate.mjs';
@@ -148,7 +148,9 @@ export async function enrichValidateRetry({
     validated = await validate(enriched);
     retryCount++;
   }
-  return { enriched: firstEnriched, validated, trace };
+  // F-028: return the FINAL enriched (post-retry) — `firstEnriched` described
+  // pre-retry state while `validated.findings` was already post-retry.
+  return { enriched, validated, trace };
 }
 
 // ---------------------------------------------------------------------------
@@ -374,6 +376,9 @@ function assertAllDimensionsPresent(deep) {
   }
 }
 
+// The new-dimension models run the full field policy (assertPrivacySafe). The
+// ten legacy dimension models run the F-026 value-level allowlist policy
+// (assertLegacyPrivacySafe) — every dimension is now gated before the write.
 const PRIVACY_ENFORCED_DIMENSIONS = Object.freeze([
   'api', 'data', 'deployment', 'maintainability', 'governance', 'assurance', 'practices',
 ]);
@@ -382,31 +387,42 @@ const PRIVACY_ENFORCED_DIMENSIONS = Object.freeze([
  * Fail-before-write privacy gate over an assembled `findings` envelope. The six
  * new-dimension models are T206 privacy-enforced at scan time; this validator
  * re-checks them plus the global cross-repository snapshot so a privacy leak
- * aborts before the sole write. The ten legacy dimensions are grandfathered
- * (their T201 supersession records cover historical leak classes).
+ * aborts before the sole write. F-026: the ten legacy dimension models are no
+ * longer grandfathered — they pass a structural value-level check
+ * (assertLegacyPrivacySafe) with an explicit allowlist so a legacy-scanner leak
+ * can no longer ride on a sanitizer gap alone.
  * @param {object} findings - `{ generated, repos, global }`.
  */
 export function assertFindingsPrivacy(findings) {
   for (const repo of findings.repos) {
     for (const entry of repo.deep) {
-      if (!PRIVACY_ENFORCED_DIMENSIONS.includes(entry.dimension)) continue;
-      try {
-        const { providerObservations, ...core } = entry.findings ?? {};
-        assertPrivacySafe(core);
-        // providerObservations are privacy-filtered at merge time and can carry
-        // up to PROVIDER_OBSERVATIONS_BOUND records, so they are re-checked with
-        // a node budget proportional to their bound instead of the default gate.
-        if (Array.isArray(providerObservations)) {
-          assertPrivacySafe(providerObservations, {
-            maxArray: PROVIDER_OBSERVATIONS_BOUND,
-            maxDepth: 8,
-            maxNodes: PROVIDER_OBSERVATIONS_BOUND * 12,
-            maxObjectKeys: 64,
-            maxString: 2048,
-          });
+      if (PRIVACY_ENFORCED_DIMENSIONS.includes(entry.dimension)) {
+        try {
+          const { providerObservations, ...core } = entry.findings ?? {};
+          assertPrivacySafe(core);
+          // providerObservations are privacy-filtered at merge time and can carry
+          // up to PROVIDER_OBSERVATIONS_BOUND records, so they are re-checked with
+          // a node budget proportional to their bound instead of the default gate.
+          if (Array.isArray(providerObservations)) {
+            assertPrivacySafe(providerObservations, {
+              maxArray: PROVIDER_OBSERVATIONS_BOUND,
+              maxDepth: 8,
+              maxNodes: PROVIDER_OBSERVATIONS_BOUND * 12,
+              maxObjectKeys: 64,
+              maxString: 2048,
+            });
+          }
+        } catch {
+          throw new PipelineError('PRIVACY_LEAK', 'scanner findings contain prohibited sensitive data');
         }
-      } catch {
-        throw new PipelineError('PRIVACY_LEAK', 'scanner findings contain prohibited sensitive data');
+      } else {
+        // F-026: legacy dimensions pass the value-level legacy policy (explicit
+        // allowlist) instead of the full field policy.
+        try {
+          assertLegacyPrivacySafe(entry.findings);
+        } catch {
+          throw new PipelineError('PRIVACY_LEAK', 'legacy scanner findings contain prohibited sensitive data');
+        }
       }
     }
   }
@@ -635,6 +651,13 @@ function withProvenance(observations, dimensionId, provenance) {
   });
 }
 
+// Canonical sort key for merged provider observations. Exported (T010/F-068
+// scan component) so the determinism suite imports the production key instead
+// of re-implementing it; the pipeline uses the same single source here.
+export function providerObservationSortKey(record) {
+  return `${record.providerId}\0${record.plugin ?? ''}\0${record.category}\0${record.matchedKey}\0${record.path ?? ''}`;
+}
+
 function collectProviderEvidence({ matches, pluginRegistry, catalogResults }) {
   const byDimension = new Map();
   const add = (dimensionId, records) => {
@@ -682,8 +705,8 @@ function collectProviderEvidence({ matches, pluginRegistry, catalogResults }) {
       unique.push(record);
     }
     unique.sort((left, right) => compareAscii(
-      `${left.providerId}\0${left.plugin ?? ''}\0${left.category}\0${left.matchedKey}\0${left.path ?? ''}`,
-      `${right.providerId}\0${right.plugin ?? ''}\0${right.category}\0${right.matchedKey}\0${right.path ?? ''}`,
+      providerObservationSortKey(left),
+      providerObservationSortKey(right),
     ));
     // Privacy-safe: a record that trips the shared privacy gate is dropped
     // rather than leaking or aborting the scan. A plugin observation that

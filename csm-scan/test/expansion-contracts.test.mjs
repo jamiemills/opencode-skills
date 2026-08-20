@@ -147,10 +147,10 @@ test('T202R1 exported schema snapshot is exact, complete, and inert', () => {
     'observed', 'inferred', 'not_detected', 'unsupported', 'unverified', 'not_applicable',
   ]);
   assert.deepEqual(COVERAGE_STATES, ['complete', 'incomplete', 'unsupported', 'excluded']);
-  assert.equal(TOTAL_DIMENSION_COUNT, 17);
-  assert.equal(PROVIDER_DIMENSION_COUNT, 15);
-  assert.equal(DIMENSION_IDS.length, 17);
-  assert.equal(PROVIDER_DIMENSION_IDS.length, 15);
+  // T010 (F-036): counts are derived from the production registry, never pinned
+  // as scattered literals.
+  assert.equal(TOTAL_DIMENSION_COUNT, DIMENSION_IDS.length);
+  assert.equal(PROVIDER_DIMENSION_COUNT, PROVIDER_DIMENSION_IDS.length);
   assert.deepEqual(DIMENSION_IDS.filter((id) => !PROVIDER_DIMENSION_IDS.includes(id)), [
     'DIM-structure-v1', 'DIM-git-v1',
   ]);

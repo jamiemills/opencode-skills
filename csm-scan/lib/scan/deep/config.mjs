@@ -13,12 +13,13 @@
 //
 // ESM only. Zero npm deps. node: builtins only.
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { DESCRIPTORS, descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
 import { parseToml, parseYamlShallow } from '../shared/parse.mjs';
 import { readManifest } from '../shared/manifest.mjs';
+import { readBoundedFile } from '../shared/reads.mjs';
 
 // Hook config files are ecosystem-agnostic; mirror the shared constant so this
 // scanner does not need a descriptor to have been resolved first.
@@ -85,12 +86,9 @@ function fileExists(ctx, file) {
 
 function readTextCached(ctx, file) {
   if (ctx.textCache.has(file)) return ctx.textCache.get(file);
-  let text = null;
-  try {
-    text = readFileSync(join(ctx.repoPath, file), 'utf-8');
-  } catch {
-    text = null;
-  }
+  // F-022/F-023: bounded read with realpath containment — a symlinked
+  // well-known config name resolving outside the repo is never read.
+  let text = readBoundedFile(join(ctx.repoPath, file), { containmentRoot: ctx.repoPath });
   ctx.textCache.set(file, text);
   return text;
 }
@@ -493,9 +491,11 @@ function detectDeclaredTools(ctx, ecosystems) {
   return out;
 }
 
-function readJSON(path) {
+function readJSON(path, containmentRoot = null) {
+  const content = readBoundedFile(path, { containmentRoot });
+  if (content == null) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
+    return JSON.parse(content);
   } catch {
     return null;
   }
@@ -513,12 +513,9 @@ function detectCI(repoPath) {
   if (files.length === 0) return null;
   const jobs = new Set();
   for (const f of files) {
-    let content;
-    try {
-      content = readFileSync(join(workflowsDir, f), 'utf-8');
-    } catch {
-      continue;
-    }
+    // F-022/F-023: bounded, contained read of workflow files.
+    const content = readBoundedFile(join(workflowsDir, f), { containmentRoot: repoPath });
+    if (content == null) continue;
     for (const m of content.matchAll(/^  (\w[\w-]*):\s*$/gm)) {
       if (m[1] !== 'on' && m[1] !== 'jobs' && m[1] !== 'env' && !m[1].startsWith('runs')) {
         jobs.add(m[1]);
@@ -545,16 +542,18 @@ function detectEnvVars(repoPath) {
   const found = [];
   for (const f of samples) {
     if (!existsSync(join(repoPath, f))) continue;
-    try {
-      const content = readFileSync(join(repoPath, f), 'utf-8');
-      const vars = content
-        .split('\n')
-        .filter((line) => /^[A-Z_]+=/.test(line))
-        .map((line) => line.split('=')[0]);
-      found.push({ file: f, varCount: vars.length, vars: vars.slice(0, 20) });
-    } catch {
+    // F-022/F-023: bounded read with realpath containment — a symlinked
+    // `.env.*` (e.g. `.env.development -> /dev/zero`) is never read.
+    const content = readBoundedFile(join(repoPath, f), { containmentRoot: repoPath });
+    if (content == null) {
       found.push({ file: f, varCount: 0, vars: [] });
+      continue;
     }
+    const vars = content
+      .split('\n')
+      .filter((line) => /^[A-Z_]+=/.test(line))
+      .map((line) => line.split('=')[0]);
+    found.push({ file: f, varCount: vars.length, vars: vars.slice(0, 20) });
   }
   return found.length > 0 ? found : null;
 }
@@ -707,7 +706,7 @@ export async function scan(repoPath, overview) {
   // Python type-checkers surface in `typeCheckers[]` but leave this null.
   const typescript = ecosystems.includes('typescript') ? detectTsConfig(ctx) : null;
 
-  const pkg = readJSON(join(repoPath, 'package.json'));
+  const pkg = readJSON(join(repoPath, 'package.json'), repoPath);
   const scripts = pkg && pkg.scripts && Object.keys(pkg.scripts).length > 0 ? pkg.scripts : null;
   const ci = detectCI(repoPath);
   const docker = detectDocker(repoPath);

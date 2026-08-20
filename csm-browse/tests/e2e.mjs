@@ -3,7 +3,7 @@ import { execFile, exec, spawn, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SESSIONS_ROOT } from '../lib/constants.mjs';
+import { SESSIONS_ROOT, IMAGE, VNC_PASS_PATH } from '../lib/constants.mjs';
 import { ensurePrivateDir, secureWrite, redactUrl } from '../lib/security.mjs';
 
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -21,14 +21,60 @@ async function writeSummary(summary) {
 // ── Docker / environment probe ────────────────────────────────────
 // e2e is Docker-gated: skip cleanly (exit 0) when Docker or the
 // chromium-vnc container cannot be used. CSM_BROWSE_E2E_SKIP=1 forces it.
+// F-041: under CSM_BROWSE_E2E_REQUIRE=1 a skip becomes a hard failure
+// (non-zero exit) so a CI-style run cannot pass on an unverified suite.
 
+function requireE2E() {
+  return process.env.CSM_BROWSE_E2E_REQUIRE === '1';
+}
+
+// Runtime bridge-gateway detection (F-068): the fixture server binds to a
+// host interface the in-container browser can reach. Derive it from the
+// environment rather than hardcoding a docker-bridge literal (the hardened
+// container sits on a dedicated bridge network; podman/rootless/non-Linux
+// hosts use yet other gateways).
 function detectBridgeGateway() {
+  // 1. The gateway of the network the chromium-vnc container is actually on —
+  //    the single correct host address for THIS deployment, whatever bridge
+  //    the container lives on.
+  try {
+    const gw = execFileSyncProbe('docker', ['inspect', 'chromium-vnc', '--format', '{{range $k,$v := .NetworkSettings.Networks}}{{$v.Gateway}} {{end}}']).trim();
+    const first = gw.split(/\s+/)[0];
+    if (first && /^\d+\.\d+\.\d+\.\d+$/.test(first)) return first;
+  } catch {}
+  // 2. The docker0 bridge src from `ip route` (classic docker on Linux).
   try {
     const out = execFileSyncProbe('ip', ['route']);
     const m = out.match(/dev\s+docker0\b.*\bsrc\s+(\d+\.\d+\.\d+\.\d+)/);
     if (m) return m[1];
   } catch {}
-  return '172.17.0.1';
+  // 3. The Docker engine's own view of the bridge gateway — works for
+  //    rootless docker and podman where `ip route` shows no docker0.
+  try {
+    const gw = execFileSyncProbe('docker', ['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}']).trim();
+    if (gw && /^\d+\.\d+\.\d+\.\d+$/.test(gw)) return gw;
+  } catch {}
+  // 4. The host's own primary IPv4 (reachable from most bridge setups).
+  try {
+    const hostIp = execFileSyncProbe('hostname', ['-I']).trim().split(/\s+/)[0];
+    if (hostIp && /^\d+\.\d+\.\d+\.\d+$/.test(hostIp)) return hostIp;
+  } catch {}
+  // 5. Terminal host-local fallback — still derived at runtime, never a
+  //    bridge-specific literal (host-only runs keep the fixture reachable).
+  return '127.0.0.1';
+}
+
+// Shared-browser CDP probe URL. F-001 (R1) gates the shared 9222 port with a
+// host-side token funnel; when the token file is present the probe must carry
+// the token, otherwise the bare probe (legacy un-gated config) is used.
+const SHARED_TOKEN_PATH = join(dirname(VNC_PASS_PATH), 'container-token');
+
+function sharedCdpProbeUrl() {
+  try {
+    const token = readFileSync(SHARED_TOKEN_PATH, 'utf-8').trim();
+    if (token) return `http://localhost:9222/json/version?token=${encodeURIComponent(token)}`;
+  } catch {}
+  return 'http://localhost:9222/json/version';
 }
 
 function execFileSyncProbe(cmd, args) {
@@ -47,19 +93,32 @@ async function dockerProbeOk() {
   // can still create it offline only when the image is already local.
   const ps = await run('docker', ['ps', '-a', '--filter', 'name=^chromium-vnc$', '--format', '{{.Names}}'], { timeout: 15000 });
   if (ps.stdout.trim() === 'chromium-vnc') return true;
-  const img = await run('docker', ['inspect', '--type=image', 'jlesage/chromium:latest'], { timeout: 15000 });
+  // F-059: probe the digest-pinned IMAGE the runtime actually pulls, never
+  // the mutable :latest tag (a digest-only pull leaves no :latest locally).
+  const img = await run('docker', ['inspect', '--type=image', IMAGE], { timeout: 15000 });
   return !img.error;
 }
 
 async function maybeSkip() {
+  const required = requireE2E();
   if (process.env.CSM_BROWSE_E2E_SKIP === '1') {
-    console.log('SKIP: Docker/chromium-vnc unavailable (CSM_BROWSE_E2E_SKIP=1)');
-    await writeSummary({ skipped: true, reason: 'CSM_BROWSE_E2E_SKIP=1', ts: new Date().toISOString() });
+    const reason = 'CSM_BROWSE_E2E_SKIP=1';
+    console.log(`SKIP: Docker/chromium-vnc unavailable (${reason})`);
+    await writeSummary({ skipped: true, reason, ts: new Date().toISOString() });
+    if (required) {
+      console.error(`FAIL: e2e is REQUIRED (CSM_BROWSE_E2E_REQUIRE=1) but skipped (${reason})`);
+      process.exit(2);
+    }
     process.exit(0);
   }
   if (!(await dockerProbeOk())) {
+    const reason = 'docker-unavailable';
     console.log('SKIP: Docker/chromium-vnc unavailable');
-    await writeSummary({ skipped: true, reason: 'docker-unavailable', ts: new Date().toISOString() });
+    await writeSummary({ skipped: true, reason, ts: new Date().toISOString() });
+    if (required) {
+      console.error(`FAIL: e2e is REQUIRED (CSM_BROWSE_E2E_REQUIRE=1) but skipped (${reason})`);
+      process.exit(2);
+    }
     process.exit(0);
   }
 }
@@ -165,10 +224,15 @@ async function ensureSid(sid) {
   ], { timeout: 120000 });
   if (error && !stdout) throw error;
   const lines = stdout.trim().split('\n');
-  const lastLine = lines[lines.length - 1];
-  let state;
-  try { state = JSON.parse(lastLine); } catch {
-    throw new Error(`ensure-browser did not output valid JSON state. Last line: ${lastLine}`);
+  // Parse the LAST JSON-shaped line (the logState line) rather than requiring
+  // it to be literally the final line — provisioning may print follow-up log
+  // lines (e.g. a gate launch) after the state JSON.
+  let state = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try { state = JSON.parse(lines[i]); break; } catch {}
+  }
+  if (!state) {
+    throw new Error(`ensure-browser did not output valid JSON state. Last line: ${lines[lines.length - 1]}`);
   }
   return { state, stdout };
 }
@@ -208,7 +272,7 @@ async function runTests() {
         assert(step + ' - default chromium running (port 9223)', defaultAlive,
           `got PIDs: ${pidOut.trim().split('\n').slice(0, 3).join(',')}`);
 
-        const { stdout: cdpOut } = await run('curl', ['-s', 'http://localhost:9222/json/version']);
+        const { stdout: cdpOut } = await run('curl', ['-s', sharedCdpProbeUrl()]);
         const cdpJson = parseJson(cdpOut);
         assert(step + ' - CDP responsive', !!(cdpJson && cdpJson.webSocketDebuggerUrl),
           cdpJson ? cdpJson.Browser || 'connected' : `no response: "${cdpOut.substring(0, 80)}"`);
@@ -656,7 +720,7 @@ async function runTests() {
         assert(step + ' - default chromium still running (port 9223)', defaultAlive,
           `PIDs: ${pidOut.trim().split('\n').slice(0, 3).join(',')}`);
 
-        const { stdout: cdpOut } = await run('curl', ['-s', 'http://localhost:9222/json/version']);
+        const { stdout: cdpOut } = await run('curl', ['-s', sharedCdpProbeUrl()]);
         const cdpJson = parseJson(cdpOut);
         assert(step + ' - 9222 CDP responsive', !!(cdpJson && cdpJson.webSocketDebuggerUrl));
 
@@ -702,7 +766,7 @@ async function runTests() {
         assert(step + ' - auto-sweep removed stale', !existsSync(autoDir));
         await run('node', [join(SKILL_DIR, 'scripts', 'browse.mjs'), 'close', '--session', autoSid]);
 
-        const { stdout: cdpOut } = await run('curl', ['-s', 'http://localhost:9222/json/version']);
+        const { stdout: cdpOut } = await run('curl', ['-s', sharedCdpProbeUrl()]);
         const cdpJson = parseJson(cdpOut);
         assert(step + ' - container CDP still up', !!(cdpJson && cdpJson.webSocketDebuggerUrl));
 

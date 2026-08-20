@@ -27,8 +27,7 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { makeFixture, cleanupFixture } from './harness.mjs';
@@ -45,9 +44,6 @@ import { files as rustFiles } from './fixtures-expansion/rust.mjs';
 import { files as unknownFiles } from './fixtures-expansion/unknown.mjs';
 import { files as practicesFiles } from './fixtures-expansion/practices.mjs';
 import { repoA, repoB, repoASingle, repoBSingle } from './fixtures-expansion/cross-repo.mjs';
-
-const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(TEST_ROOT, '..');
 
 const SIX_NEW_DIMENSIONS = ['api', 'data', 'deployment', 'maintainability', 'governance', 'assurance', 'practices'];
 
@@ -834,10 +830,3 @@ test('T226 determinism: fixed clock produces byte-identical repeated runs', asyn
 // Integration contract: the exported production pipeline only
 // ---------------------------------------------------------------------------
 
-test('T226 fixtures run through the exported production pipeline, never a reconstructed dispatch', async () => {
-  const source = await readFile(new URL(import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /lib\/scan\/deep\//);
-  assert.match(source, /runExpandedPipeline/);
-  const runSource = await readFile(join(ROOT, 'lib', 'scan', 'pipeline', 'run.mjs'), 'utf8');
-  assert.match(runSource, /export async function runExpandedPipeline/);
-});

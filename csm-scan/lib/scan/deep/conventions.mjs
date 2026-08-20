@@ -11,31 +11,34 @@
 // ESM only. Zero npm deps. node: builtins only.
 // Read-only with respect to the scanned repo.
 
-import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { commandBroker } from '../shared/command.mjs';
 import { descriptorFor, detectEcosystems, DESCRIPTORS } from '../shared/ecosystem.mjs';
 import { readManifest } from '../shared/manifest.mjs';
 import { countComments } from '../shared/comments.mjs';
+import { readBoundedFile } from '../shared/reads.mjs';
 
 // ---------------------------------------------------------------------------
 // Low-level helpers
 // ---------------------------------------------------------------------------
 
-function readJSON(path) {
+const SCAN_BYTE_LIMIT = 1024 * 1024;
+
+function readJSON(path, containmentRoot = null) {
+  const content = readBoundedFile(path, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot });
+  if (content == null) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
+    return JSON.parse(content);
   } catch {
     return null;
   }
 }
 
-function readContent(absPath) {
-  try {
-    return readFileSync(absPath, 'utf-8');
-  } catch {
-    return null;
-  }
+// F-022/F-062: bounded whole-file read shared across the deep scanners. A file
+// above the byte bound is never allocated.
+function readContent(absPath, containmentRoot = null) {
+  return readBoundedFile(absPath, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot });
 }
 
 /**
@@ -99,11 +102,9 @@ function resolveManifest(repoPath, overview) {
 }
 
 function readCargoEdition(repoPath) {
-  try {
-    const txt = readFileSync(join(repoPath, 'Cargo.toml'), 'utf-8');
-    const m = txt.match(/^\s*edition\s*=\s*"([^"]+)"/m);
-    if (m) return m[1];
-  } catch {}
+  const txt = readContent(join(repoPath, 'Cargo.toml'), repoPath);
+  const m = txt == null ? null : txt.match(/^\s*edition\s*=\s*"([^"]+)"/m);
+  if (m) return m[1];
   return '2015'; // Rust default edition when unspecified
 }
 
@@ -1055,18 +1056,15 @@ function configProbe(repoPath, entries) {
       // pyproject table probe
       const file = entry.split(':[tool.')[0];
       const key = entry.split(':[tool.')[1].replace(/\]$/, '');
-      const p = join(repoPath, file);
-      if (!existsSync(p)) continue;
-      try {
-        const txt = readFileSync(p, 'utf-8');
-        if (new RegExp(`^\\s*\\[tool\\.${key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\]`, 'm').test(txt)) return true;
-      } catch {}
+      // F-022/F-023: bounded, contained read of the well-known config name.
+      const txt = readContent(join(repoPath, file), repoPath);
+      if (txt != null && new RegExp(`^\\s*\\[tool\\.${key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\]`, 'm').test(txt)) return true;
       continue;
     }
     if (entry.includes('#')) {
       // package.json#field
       const [file, field] = entry.split('#');
-      const pkg = readJSON(join(repoPath, file));
+      const pkg = readJSON(join(repoPath, file), repoPath);
       if (pkg && pkg[field] != null) return true;
       continue;
     }
@@ -1363,13 +1361,9 @@ function detectEnforcedConventionsBlock(repoPath, overview, files) {
   }
   candidates.sort();
   for (const rel of candidates) {
-    let text = '';
-    try {
-      text = readFileSync(join(repoPath, rel), 'utf8');
-    } catch {
-      continue;
-    }
-    if (text.length === 0 || text.length > 128 * 1024) continue;
+    // F-022/F-062: bounded read; the conventions block is capped at 128 KiB.
+    const text = readBoundedFile(join(repoPath, rel), { byteLimit: 128 * 1024, containmentRoot: repoPath });
+    if (text == null) continue;
     const hasHeading = CONVENTIONS_BLOCK_HEADINGS.some((re) => re.test(text));
     if (!hasHeading) continue;
     const numbered = text.match(/^\s*\d+\.\s+/gm) || [];
