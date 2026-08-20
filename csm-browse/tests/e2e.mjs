@@ -4,7 +4,6 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, utimes
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SESSIONS_ROOT } from '../lib/constants.mjs';
-import { chmodSync, mkdirSync as mkdirSecureSync } from 'node:fs';
 import { ensurePrivateDir, secureWrite, redactUrl } from '../lib/security.mjs';
 
 const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -383,7 +382,7 @@ async function runTests() {
         data = parseJson(r.stdout);
         assert(step + ' - open tall page', data && data.title, r.stdout);
 
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         r = await browse('screenshot', '--viewport', '--full', 'step7-vp.png');
         data = parseJson(r.stdout);
@@ -636,7 +635,7 @@ async function runTests() {
           data && data.removed && data.removed.length > 0, r.stdout);
         console.log(`      removed: ${(data && data.removed) ? data.removed.join(', ') : 'none'}`);
 
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const hostDir = join(SESSIONS_ROOT, SESSION_ID);
         assert(step + ' - host dir removed', !existsSync(hostDir));
@@ -835,7 +834,7 @@ async function runTests() {
           JSON.stringify(unexpected));
 
         // Real sweep: all three decoys gone, live session untouched.
-        const real2 = await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale'], { timeout: 120000 });
+        await run('node', [join(SKILL_DIR, 'scripts', 'ensure-browser.mjs'), '--cleanup-stale'], { timeout: 120000 });
         const ffmpegAfter = await run('pgrep', ['-af', `ffmpeg.*${ffmpegSid}`]);
         assert(step + ' - sweep killed orphan ffmpeg', !ffmpegAfter.stdout.trim(),
           ffmpegAfter.stdout.substring(0, 120));

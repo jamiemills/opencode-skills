@@ -15,6 +15,8 @@ import { ensurePrivateDir, ensurePrivateFile, secureAppend, secureWrite } from '
 
 const VALID_NAME_RE = /^[A-Za-z0-9._-]+\.(mp4|webm)$/;
 
+function noop() {}
+
 let activeRecording = null;
 
 function validateName(name) {
@@ -114,8 +116,7 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   let stopRequested = false;
   let exitResolve;
   const exitPromise = new Promise(resolve => { exitResolve = resolve; });
-  let drainResolve = () => {};
-  let drainAgain = () => {};
+  let drainResolve = noop;
 
   ffmpeg.on('exit', (code) => {
     ffmpegExited = true;

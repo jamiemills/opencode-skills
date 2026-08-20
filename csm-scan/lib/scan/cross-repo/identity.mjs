@@ -254,7 +254,7 @@ export function normalizePackageCoordinates(manifests) {
     const normalized = normalizePackageCoordinate(manifest);
     if (normalized !== null) coords.add(normalized);
   }
-  return deepFreeze([...coords].sort(compareAscii).slice(0, IDENTITY_LIMITS.coordinates));
+  return deepFreeze([...coords].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates));
 }
 
 export function normalizeComponentRoots(roots) {
@@ -263,7 +263,7 @@ export function normalizeComponentRoots(roots) {
     const normalized = normalizePath(root);
     if (normalized !== null) seen.add(normalized);
   }
-  return deepFreeze([...seen].sort(compareAscii).slice(0, IDENTITY_LIMITS.componentRoots));
+  return deepFreeze([...seen].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.componentRoots));
 }
 
 export function normalizeTokens(values) {
@@ -271,7 +271,7 @@ export function normalizeTokens(values) {
   for (const value of boundedArray(values).slice(0, IDENTITY_LIMITS.tokens)) {
     if (safeToken(value)) seen.add(value);
   }
-  return deepFreeze([...seen].sort(compareAscii).slice(0, IDENTITY_LIMITS.coordinates));
+  return deepFreeze([...seen].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates));
 }
 
 function tokenValue(value) {
@@ -312,7 +312,7 @@ function coordinateList(prefix, values, normalizeEntry) {
     const candidate = coordinate(prefix, normalized);
     if (candidate !== null) out.add(candidate);
   }
-  return deepFreeze([...out].sort(compareAscii).slice(0, IDENTITY_LIMITS.coordinates));
+  return deepFreeze([...out].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates));
 }
 
 function emptyCoordinates() {
@@ -408,7 +408,7 @@ export function normalizeRepositoryIdentity(input) {
     iac: coordinateList('iac', input.iac, normalizeIacValue),
     contract: coordinateList('contract', input.contracts, tokenValue),
     event: coordinateList('event', input.events, tokenValue),
-    package: deepFreeze([...repoPackages].sort(compareAscii).slice(0, IDENTITY_LIMITS.coordinates)),
+    package: deepFreeze([...repoPackages].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates)),
   };
 
   const record = {
@@ -463,7 +463,7 @@ function buildResolved(repo, manifests) {
         iac: deepFreeze([]),
         contract: deepFreeze([]),
         event: deepFreeze([]),
-        package: deepFreeze([...(entry?.purls ?? [])].sort(compareAscii).slice(0, IDENTITY_LIMITS.coordinates)),
+        package: deepFreeze([...(entry?.purls ?? [])].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates)),
       },
     };
     assertPrivacySafe(component);

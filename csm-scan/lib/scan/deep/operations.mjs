@@ -49,7 +49,7 @@ async function listFiles(repoPath, overview, broker) {
       .split('\n')
       .map((s) => s.trim().replace(/\\/g, '/'))
       .filter(Boolean)
-      .sort();
+      .toSorted();
   } catch {
     return [];
   }
@@ -154,7 +154,7 @@ function collectJobStepLines(jobBlock) {
   const stepLines = [];
   let inSteps = false;
   for (const line of jobBlock) {
-    if (/^    steps:/.test(line)) {
+    if (line.startsWith('    steps:')) {
       inSteps = true;
       continue;
     }
@@ -193,7 +193,7 @@ function scanWorkflowSteps(content) {
   for (const { tool, re } of STEP_TOOL_PATTERNS) {
     if (re.test(steps)) found.add(tool);
   }
-  return [...found].sort();
+  return [...found].toSorted();
 }
 
 // ---------------------------------------------------------------------------
@@ -637,13 +637,13 @@ function analyzeDockerCompose(repoPath) {
         dependencies: depMap,
       });
 
-      const netMatch = content.match(/^networks:\n([\s\S]*?)(?=^volumes|^services|\Z)/m);
+      const netMatch = content.match(/^networks:\n([\s\S]*?)(?=^volumes|^services|Z)/m);
       if (netMatch) {
         const netNames = netMatch[1].match(/^  (\w+):/gm) || [];
         networks = netNames.map((n) => n.replace(/^  /, '').replace(/:$/, ''));
       }
 
-      const volMatch = content.match(/^volumes:\n([\s\S]*?)(?=\Z)/m);
+      const volMatch = content.match(/^volumes:\n([\s\S]*?)(?=Z)/m);
       if (volMatch) {
         const volNames = volMatch[1].match(/^  (\w+):/gm) || [];
         volumes = volNames.map((v) => v.replace(/^  /, '').replace(/:$/, ''));
@@ -664,7 +664,7 @@ function analyzeCI(repoPath) {
       try {
         workflowFiles = readdirSync(ghWorkflows)
           .filter((n) => /\.(ya?ml)$/i.test(n))
-          .sort();
+          .toSorted();
       } catch {}
 
       const jobs = new Set();
@@ -696,7 +696,7 @@ function analyzeCI(repoPath) {
         workflowCount: workflowFiles.length,
         jobs: [...jobs],
         triggers: [...triggers],
-        stepTools: [...stepTools].sort(),
+        stepTools: [...stepTools].toSorted(),
         stepToolScan: stepScanVerified ? 'verified' : 'unverified',
         workflows,
       });
@@ -707,7 +707,7 @@ function analyzeCI(repoPath) {
   if (existsSync(gitlabCI)) {
     try {
       const content = readFileSync(gitlabCI, 'utf-8');
-      const stages = content.match(/^stages:\n([\s\S]*?)(?=\n\S|\Z)/m);
+      const stages = content.match(/^stages:\n([\s\S]*?)(?=\n\S|Z)/m);
       let stageList = [];
       if (stages) {
         stageList = stages[1].match(/^\s+-\s+(.+)/gm)?.map((s) => s.replace(/^\s+-\s+/, '')) || [];
@@ -794,7 +794,7 @@ function detectEnvConfig(repoPath, overview) {
 function detectHealthChecks(repoPath, files) {
   const checks = [];
 
-  const re = /healthcheck|health[_\-]?check|readiness[_\-]?probe|liveness[_\-]?probe|\/health\b|\/ready\b|\/live\b|\/ping\b/;
+  const re = /healthcheck|health[-_]?check|readiness[-_]?probe|liveness[-_]?probe|\/health\b|\/ready\b|\/live\b|\/ping\b/;
   for (const f of files.slice(0, SCAN_FILE_LIMIT)) {
     const content = readContent(join(repoPath, f));
     if (content && re.test(content) && checks.length < 10) {
@@ -812,8 +812,8 @@ function detectGracefulShutdown(repoPath, files) {
   const patterns = [
     { name: 'SIGTERM handler', re: /(?:SIGTERM|SIGINT|SIGQUIT)/ },
     { name: 'BeforeExit', re: /beforeExit/ },
-    { name: 'Graceful close', re: /graceful[_\-]?(?:shutdown|close|exit)/i },
-    { name: 'Process exit handler', re: /process\.on\([\'"]exit[\'"]/ },
+    { name: 'Graceful close', re: /graceful[-_]?(?:shutdown|close|exit)/i },
+    { name: 'Process exit handler', re: /process\.on(['"]exit['"])/ },
     { name: 'Server close', re: /server\.close\(\)/ },
   ];
 
@@ -853,8 +853,8 @@ function detectMonitoring(manifest) {
   // ecosystem the manifest normalized (Python/JVM/JS/Rust deps collapse into
   // the same `dependencies`/`devDependencies` buckets in shared/manifest.mjs).
   const allDepNames = Object.keys({
-    ...(manifest.dependencies || {}),
-    ...(manifest.devDependencies || {}),
+    ...(manifest.dependencies),
+    ...(manifest.devDependencies),
   });
 
   const libraries = [];

@@ -11,7 +11,7 @@ import {
   CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
   SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH
 } from '../lib/constants.mjs';
-import { readFile, rm, writeFile, open, stat } from 'node:fs/promises';
+import { readFile, rm, open, stat } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -92,7 +92,7 @@ async function ensureVncPassword() {
     } finally { await fh.close(); }
   } catch (err) {
     if (!['ENOENT', 'ELOOP'].includes(err.code)) throw err;
-    if (err.code === 'ELOOP') throw new Error(`Refusing symlink VNC password file: ${VNC_PASS_PATH}`);
+    if (err.code === 'ELOOP') throw new Error(`Refusing symlink VNC password file: ${VNC_PASS_PATH}`, { cause: err });
   }
   const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const password = Array.from(randomBytes(8), b => chars[b % chars.length]).join('');
@@ -108,7 +108,7 @@ async function ensureVncPassword() {
       const fh = await open(VNC_PASS_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
       try {
         const info = await fh.stat();
-        if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`);
+        if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`, { cause: err });
         await fh.chmod(0o600);
         const existing = (await fh.readFile('utf-8')).trim();
         if (existing) return existing;
@@ -118,7 +118,7 @@ async function ensureVncPassword() {
   }
 }
 
-async function ensureContainer(dryRun) {
+async function ensureContainer(dryRunMode) {
   const running = await isContainerRunning(CONTAINER_NAME);
   const exists = running || await containerExists(CONTAINER_NAME);
 
@@ -138,7 +138,7 @@ async function ensureContainer(dryRun) {
   }
 
   if (exists) {
-    if (dryRun) {
+    if (dryRunMode) {
       console.log(`# Container exists but stopped. Would run:`);
       console.log(`docker start ${CONTAINER_NAME}`);
       return;
@@ -146,7 +146,7 @@ async function ensureContainer(dryRun) {
     console.log(`Container ${CONTAINER_NAME} exists but stopped. Starting...`);
     await execFileAsync('docker', ['start', CONTAINER_NAME]);
   } else {
-    if (dryRun) {
+    if (dryRunMode) {
       console.log(`# Container absent. Would run:`);
       console.log(`#   docker pull ${IMAGE}  (if image missing)`);
       console.log(`#   ${DOCKER_RUN_CMD}`);
@@ -178,7 +178,7 @@ async function ensureContainer(dryRun) {
   console.log('Shared browser CDP ready');
 }
 
-async function adoptSession(sid, containerSessDir) {
+async function adoptSession(targetSid, containerSessDir) {
   const matches = await pgrepMatch(CONTAINER_NAME,
     `--user-data-dir=${containerSessDir}/`);
   if (matches.length === 0) return null;
@@ -200,7 +200,7 @@ async function adoptSession(sid, containerSessDir) {
   const token = generateToken();
   await killGate(publicPort);
   await spawnGate({
-    sid, publicPort, internalPort, containerName: CONTAINER_NAME, token
+    targetSid, publicPort, internalPort, containerName: CONTAINER_NAME, token
   });
   console.log(`CDP gate up on 127.0.0.1:${publicPort} -> ${internalPort}`);
 
@@ -244,10 +244,10 @@ function buildChromiumCmd(containerSessDir, internalPort) {
   ].join(' ');
 }
 
-async function createSession(sid, containerSessDir) {
+async function createSession(targetSid, containerSessDir) {
   console.log('No existing session found — CREATING new instance...');
 
-  const hostSessDir = sessionDir(sid);
+  const hostSessDir = sessionDir(targetSid);
   const markerPath = join(hostSessDir, 'creating.marker');
   let internal;
   let pub;
@@ -297,7 +297,7 @@ async function createSession(sid, containerSessDir) {
     token = generateToken();
     console.log(`Launching CDP gate on 127.0.0.1:${pub} -> ${internal}...`);
     await spawnGate({
-      sid, publicPort: pub, internalPort: internal,
+      targetSid, publicPort: pub, internalPort: internal,
       containerName: CONTAINER_NAME, token
     });
     console.log('CDP gate launched');
@@ -343,9 +343,9 @@ async function memAvailableMb() {
   }
 }
 
-async function daemonCdpAlive(sid) {
+async function daemonCdpAlive(targetSid) {
   try {
-    const state = await loadState(sid);
+    const state = await loadState(targetSid);
     if (state && state.cdpUrl) {
       return await cdpProbe(cdpEndpoint(state.cdpUrl, '/json/version'), { timeoutMs: 3000 });
     }
@@ -353,8 +353,8 @@ async function daemonCdpAlive(sid) {
   return false;
 }
 
-async function launchDaemon(sid) {
-  const sDir = sessionDir(sid);
+async function launchDaemon(targetSid) {
+  const sDir = sessionDir(targetSid);
   const readyMarker = join(sDir, 'daemon.ready');
   const pidFilePath = join(sDir, 'daemon.pid');
 
@@ -376,7 +376,7 @@ async function launchDaemon(sid) {
             const st = await stat(readyMarker);
             if (Date.now() - st.mtimeMs > DAEMON_READY_TIMEOUT_MS) staleMarker = true;
           } catch {}
-          if (staleMarker || !(await daemonCdpAlive(sid))) {
+          if (staleMarker || !(await daemonCdpAlive(targetSid))) {
             console.log(`Daemon pid ${pid} alive but stale (zombie) — stopping before relaunch`);
             await stopDaemon(sDir);
             try { await rm(pidFilePath, { force: true }); } catch {}
@@ -395,7 +395,7 @@ async function launchDaemon(sid) {
 
     const daemonProc = spawn('node', [
       join(SKILL_DIR, 'scripts', 'session-daemon.mjs'),
-      '--session', sid
+      '--session', targetSid
     ], {
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore']
@@ -477,15 +477,15 @@ async function launchDaemon(sid) {
 // gate is torn down, and the new gate validates only the fresh token. The
 // rotated state is persisted FIRST so a reconnecting daemon (which reads
 // state.json from disk) connects with the new token, not the old one.
-async function respawnSession(sid, state) {
+async function respawnSession(targetSid, state) {
   if (!state.publicPort || !state.internalPort) {
-    throw new Error(`Session ${sid} missing ports for gate respawn`);
+    throw new Error(`Session ${targetSid} missing ports for gate respawn`);
   }
   rotateToken(state);
-  await saveState(sid, state);
+  await saveState(targetSid, state);
   await killGate(state.publicPort);
   await spawnGate({
-    sid,
+    targetSid,
     publicPort: state.publicPort,
     internalPort: state.internalPort,
     containerName: CONTAINER_NAME,

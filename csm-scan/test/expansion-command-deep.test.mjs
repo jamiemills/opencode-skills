@@ -247,7 +247,7 @@ test('T209 conflicting runtime declarations coexist with per-artifact provenance
     assert.ok(f.runtime.includes('declared'), `runtime must state declarations, not a verdict: ${f.runtime}`);
     assert.ok(!/\bactual\b/.test(f.runtime), 'runtime must never claim an actual runtime');
 
-    const sources = f.runtimeDeclarations.map((d) => d.source).sort();
+    const sources = f.runtimeDeclarations.map((d) => d.source).toSorted();
     assert.ok(
       sources.includes('pyproject.toml#requires-python'),
       `requires-python provenance missing: ${sources.join(', ')}`,
@@ -265,10 +265,10 @@ test('T209 conflicting runtime declarations coexist with per-artifact provenance
       `workflow container provenance missing: ${sources.join(', ')}`,
     );
 
-    const versions = f.runtimeDeclarations.map((d) => d.version).sort();
+    const versions = f.runtimeDeclarations.map((d) => d.version).toSorted();
     assert.deepEqual(
       versions,
-      ['>=3.10', '3.12.2', 'python:3.11-slim', 'python:3.12'].sort(),
+      ['>=3.10', '3.12.2', 'python:3.11-slim', 'python:3.12'].toSorted(),
       'every conflicting declared version must coexist',
     );
 

@@ -21,7 +21,7 @@ function typeCheckerLabel(tool) {
 // there are no declared tools so repos without them keep byte-identical output.
 function declaredToolchainRows(declaredTools) {
   if (!Array.isArray(declaredTools) || declaredTools.length === 0) return null;
-  const rows = [...declaredTools].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const rows = [...declaredTools].toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return rows.map((tool) => {
     const parts = [];
     const sources = Array.isArray(tool.sources) ? tool.sources : [];

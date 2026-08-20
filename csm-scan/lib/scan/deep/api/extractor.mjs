@@ -876,14 +876,14 @@ function extractPythonRoutes(text, path, constants, spans) {
       re: /@\s*(?:app|router|api)\s*\.\s*api_route\s*\(\s*([^,)]+)/g,
       methodOf: () => 'ANY',
       pathOf: (match) => match[1],
-      methodsFrom: (line, spans, offset) => methodsFromLine(line, spans, offset),
+      methodsFrom: (line, routeSpans, offset) => methodsFromLine(line, routeSpans, offset),
     },
     {
       name: 'flask',
       re: /@\s*(?:app|blueprint|bp)\s*\.\s*route\s*\(\s*([^,)]+)/g,
       methodOf: () => 'GET',
       pathOf: (match) => match[1],
-      methodsFrom: (line, spans, offset) => methodsFromLine(line, spans, offset),
+      methodsFrom: (line, routeSpans, offset) => methodsFromLine(line, routeSpans, offset),
     },
   ];
   for (const pattern of patterns) {
@@ -948,7 +948,7 @@ function djangoPatterns(text, path, spans) {
       continue;
     }
     const withoutAnchors = value.replace(/^\^/, '').replace(/\$$/, '');
-    if (/[\\\[\]()|.*+?{}]/.test(withoutAnchors)) {
+    if (/[\\[\]()|.*+?{}]/.test(withoutAnchors)) {
       diagnostics.push(diagnostic(path, 'unverified', 'DYNAMIC', line));
       continue;
     }
@@ -997,9 +997,9 @@ function extractRustRoutes(text, path, constants, spans) {
       re: /\.\s*route\s*\(\s*([^,)]+)\s*,\s*((?:[A-Za-z_][\w:]*::)*\s*(?:get|post|put|patch|delete|any))\s*\(/g,
       methodOf: (match) => match[2].split('::').pop().trim().replace(/[^a-z]/g, '') || 'any',
       pathOf: (match) => match[1],
-      chainOf: (match, line, spans, baseOffset) => {
+      chainOf: (match, line, routeSpans, baseOffset) => {
         const restStart = match[0].length;
-        return matchesIn(line.slice(restStart), /\.\s*(get|post|put|patch|delete|any)\s*\(/g, spans, baseOffset + restStart)
+        return matchesIn(line.slice(restStart), /\.\s*(get|post|put|patch|delete|any)\s*\(/g, routeSpans, baseOffset + restStart)
           .map((chain) => chain[1]);
       },
     },
@@ -1031,7 +1031,7 @@ function extractRustRoutes(text, path, constants, spans) {
         const lineSlice = source.slice(match.index, lineEnd === -1 ? source.length : lineEnd);
         methods.push(...pattern.chainOf(match, lineSlice, spans, match.index));
       }
-      for (const method of [...new Set(methods)]) {
+      for (const method of new Set(methods)) {
         operations.push(routeCandidate(method, resolved.value, pattern.name, path, line));
       }
     }

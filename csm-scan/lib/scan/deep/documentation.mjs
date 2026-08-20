@@ -184,7 +184,7 @@ async function listSourceFiles(repoPath, overview, broker) {
   try {
     const result = await broker.execute('rg:files', { cwd: repoPath });
     const raw = result.ok || result.noMatch ? result.stdout : '';
-    return raw.split('\n').map((s) => s.trim().replace(/\\/g, '/')).filter(Boolean).sort();
+    return raw.split('\n').map((s) => s.trim().replace(/\\/g, '/')).filter(Boolean).toSorted();
   } catch {
     return [];
   }
@@ -416,7 +416,7 @@ function normalizeToolchainScripts(tokens) {
   const list = [...tokens];
   return list
     .filter((token) => !list.some((other) => other.length > token.length && other.startsWith(token)))
-    .sort();
+    .toSorted();
 }
 
 function detectDocToolchain(repoPath) {
@@ -442,7 +442,7 @@ function detectDocToolchain(repoPath) {
   return {
     present: scripts.size > 0,
     scripts: normalizeToolchainScripts(scripts),
-    sources: [...sources].sort(),
+    sources: [...sources].toSorted(),
   };
 }
 

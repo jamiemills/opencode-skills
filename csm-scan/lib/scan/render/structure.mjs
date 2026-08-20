@@ -42,13 +42,13 @@ export function renderStructure(repoName, findings, context = DEFAULT_RENDER_CON
     const exts = [...new Set([...Object.keys(rgCounts), ...Object.keys(gitCounts)])];
     const entries = exts
       .map((ext) => [ext, rgCounts[ext] ?? 0, gitCounts[ext] ?? 0])
-      .sort((a, b) => (b[1] - a[1]) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+      .toSorted((a, b) => (b[1] - a[1]) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     lines.push('| Extension | Files (rg-scoped) | Files (git-tracked) |');
     lines.push('|-----------|------------------:|--------------------:|');
     lines.push(...extTable(escapeField, entries));
     lines.push(`| **Total** | **${rgTotal}** | **${gitTotal}** |`);
   } else {
-    const sorted = Object.entries(rgCounts).sort((a, b) => b[1] - a[1]);
+    const sorted = Object.entries(rgCounts).toSorted((a, b) => b[1] - a[1]);
     lines.push('| Extension | Files |');
     lines.push('|-----------|------:|');
     lines.push(...extTable(escapeField, sorted));

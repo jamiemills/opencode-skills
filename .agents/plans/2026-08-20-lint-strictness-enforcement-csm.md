@@ -12,12 +12,12 @@ format: csm-plan/1
 ## Control
 - Plan ID: lint-strictness-enforcement
 - Status: in_progress
-- Current CSM state: VALIDATE
-- Cycle: 0
+- Current CSM state: SELECT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 0 — RECOVER: tree clean at b0c5c5a; format csm-plan/1 OK; no NORMS.md; parity baseline 1,001 (-D suspicious). VALIDATE: check-suite 456 OK; hook suite 7/7.
-- Next transition: SELECT -> DISPATCH (T001)
-- Active tasks: T001
+- Last checkpoint: 2026-08-20 cycle 0 — T001 complete (commit 8f57757): .oxlintrc.json (correctness+suspicious warn; no-control-regex off; no-underscore-dangle allow [_meta,_repoPath,__dirname]), make lint strict, README docs; parity 979 (1,001 − 22 config-resolved); check-suite 456 OK. Next: G2 = T002 || T003 || T004.
+- Next transition: SELECT -> DISPATCH (T002, T003, T004)
+- Active tasks: T002, T003, T004
 - Blockers: none
 - Cross-plan coordination: three other pending plans share files with this one — skill-suite plan T006/T008 (`scripts/check-suite.mjs`, `bootstrap/package/payload/**`), journal-learnings plan T001/T004/T007 (`scripts/check-suite.mjs`, `scripts/hooks/pre-commit`), skill-suite T001 (`scripts/sync-skill-boilerplate.mjs`). This plan's edits are additive and idempotent (pack-bootstrap regen is last-writer-wins with identical output when sources match); RECOVER in any build must reconcile against the latest HEAD. See `## Cross-Plan Coordination`.
 

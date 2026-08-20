@@ -116,11 +116,11 @@ async function esmFiles(root) {
     }
   }
   await visit(root);
-  return files.sort();
+  return files.toSorted();
 }
 
 async function productionSources() {
-  const files = (await Promise.all(PRODUCTION_ROOTS.map((dir) => esmFiles(join(ROOT, dir))))).flat().sort();
+  const files = (await Promise.all(PRODUCTION_ROOTS.map((dir) => esmFiles(join(ROOT, dir))))).flat().toSorted();
   return Promise.all(files.map(async (path) => ({
     path,
     relativePath: relative(ROOT, path).replaceAll('\\', '/'),
@@ -156,7 +156,7 @@ test('T201 active legacy process owners match exact imports and reviewed file ha
   const expectedOwners = [
     ...baseline.activeLegacyOwners.map(({ path }) => path),
     ...(baseline.broker ? [baseline.broker.path] : []),
-  ].sort();
+  ].toSorted();
   assert.deepEqual(
     actualOwners.map(({ relativePath }) => relativePath),
     expectedOwners,
@@ -336,7 +336,7 @@ test('T202 replacement: coverage status representation maps claim statuses to co
   await withFixture('t202-coverage-status', { 'app.py': 'value = 1\n' }, async (dir) => {
     const coverage = (await runExpandedPipeline({ repos: [dir], out: join(dir, 'NORMS.md'), reporter: null })).expectedClaimCoverage;
     assert.deepEqual(
-      Object.keys(coverage).sort(),
+      Object.keys(coverage).toSorted(),
       ['complete', 'eligible', 'excluded', 'expected', 'incomplete', 'ratio', 'repos', 'unsupported'],
       'coverage aggregate carries the canonical representation fields',
     );

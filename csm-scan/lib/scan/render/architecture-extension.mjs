@@ -102,7 +102,7 @@ export function createArchitectureExtensionRenderer({ context = DEFAULT_RENDER_C
       lines.push('');
     }
 
-    const fanFiles = Object.keys(facts.fanOut).sort().slice(0, MAX_LISTED_FAN_ROWS);
+    const fanFiles = Object.keys(facts.fanOut).toSorted().slice(0, MAX_LISTED_FAN_ROWS);
     if (fanFiles.length > 0) {
       lines.push('| File | Fan-in | Fan-out |');
       lines.push('|------|-------:|--------:|');
@@ -119,7 +119,7 @@ export function createArchitectureExtensionRenderer({ context = DEFAULT_RENDER_C
   }
 
   return Object.freeze({
-    render(repoName, findings, renderContext = context) {
+    render(repoName, findings, _renderContext = context) {
       if (!findings || !findings.graphFacts) return '';
       return renderGraphFacts(findings.graphFacts);
     },

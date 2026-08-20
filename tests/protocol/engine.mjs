@@ -68,7 +68,7 @@ async function pruneEmptyDirs(destination, relPaths) {
     const parts = rel.split('/');
     for (let index = 0; index < parts.length - 1; index += 1) dirs.add(parts.slice(0, index + 1).join('/'));
   }
-  const ordered = [...dirs].sort((a, b) => (a.length < b.length ? 1 : a.length > b.length ? -1 : 0));
+  const ordered = [...dirs].toSorted((a, b) => (a.length < b.length ? 1 : a.length > b.length ? -1 : 0));
   for (const dir of ordered) {
     try {
       await rmdir(join(destination, dir));
@@ -99,7 +99,7 @@ async function assertPlannableDestination(destination, state) {
 async function copyTree(source, target) {
   await mkdir(target, { recursive: true, mode: 0o700 });
   const entries = await readdir(source, { withFileTypes: true });
-  for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+  for (const entry of entries.toSorted((a, b) => (a.name < b.name ? -1 : 1))) {
     if (entry.isDirectory()) await copyTree(join(source, entry.name), join(target, entry.name));
     else if (entry.isFile()) await copyFile(join(source, entry.name), join(target, entry.name));
   }
@@ -188,7 +188,7 @@ export async function runProtocol(input) {
     const placedEntries = [...index.classes.skills, ...index.classes.supportingFiles];
     for (const entry of placedEntries) if (!entry.path.startsWith(placedPrefix)) refuse('MATERIALIZE', 'E_UNSUPPORTED_FORMAT', `placed entry outside payload/skills: ${entry.path}`);
     const relOf = entry => entry.path.slice(placedPrefix.length);
-    const skillDirs = [...new Set(placedEntries.map(entry => relOf(entry).split('/')[0]))].sort();
+    const skillDirs = [...new Set(placedEntries.map(entry => relOf(entry).split('/')[0]))].toSorted();
 
     const marker = await readJsonOrNull(join(destination, MANAGED_MARKER));
     const managed = marker !== null && marker.schema === 'csm-managed/1';

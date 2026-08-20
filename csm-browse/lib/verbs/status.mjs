@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionDir } from '../session.mjs';
 
-export async function run({ args, state, verb }) {
+export async function run({ args: _args, state, verb }) {
   if (verb === 'status') {
     const client = await connect(state);
 

@@ -42,14 +42,9 @@ import {
 import {
   manifestObservations,
   manifestProviderResult,
-  readManifest,
 } from '../lib/scan/shared/manifest.mjs';
 import {
   DATABASE_INDICATORS,
-  MONITORING_LIBS,
-  AUTH_LIBS,
-  INPUT_VALIDATION_LIBS,
-  AUDIT_TOOLS,
   matchDep,
   detectionObservations,
   detectionProviderResult,
@@ -103,7 +98,7 @@ test('T210 base: provider results are deep-frozen and immutable', () => {
     observation(),
     observation({ matchedKey: 'runtime', category: 'runtime', details: { name: 'Node.js' } }),
   ]);
-  assert.deepEqual(Object.keys(result).sort(), ['dimensionId', 'observations', 'providerId']);
+  assert.deepEqual(Object.keys(result).toSorted(), ['dimensionId', 'observations', 'providerId']);
   assert.equal(result.providerId, 'PRV-test-v1');
   assert.equal(result.dimensionId, 'DIM-stack-v1');
   assert.equal(Object.isFrozen(result), true);
@@ -362,7 +357,7 @@ test('T210 rules: evaluation is bounded and deterministic with typed caps', () =
   const rules = [rule({ extensions: ['.x'] }), rule({ id: 'RUL-two-v1', extensions: ['.x'] })];
   const artifacts = Array.from({ length: 100 }, (_, index) => ({ path: `a/${index}.x`, size: 1, content: '' }));
   const first = evaluateRules({ rules, artifacts });
-  const second = evaluateRules({ rules: [...rules].reverse(), artifacts: [...artifacts].reverse() });
+  const second = evaluateRules({ rules: [...rules].toReversed(), artifacts: [...artifacts].toReversed() });
   assert.equal(JSON.stringify(first), JSON.stringify(second));
   assert.equal(Object.isFrozen(first.matches), true);
   assert.equal(first.capped, false);
@@ -496,7 +491,7 @@ test('T210 generic: manifest, lockfile, and known doc artifact observations carr
   assert.deepEqual(manifests.map(({ path, details }) => [path, details.name]), [['pyproject.toml', 'pyproject.toml']]);
   assert.deepEqual(locks.map(({ path, details }) => [path, details.name]), [['Cargo.lock', 'Cargo.lock']]);
   const docs = results.find(({ dimensionId }) => dimensionId === 'DIM-documentation-v1');
-  assert.deepEqual(docs.observations.map(({ category, path }) => [category, path]).sort(), [
+  assert.deepEqual(docs.observations.map(({ category, path }) => [category, path]).toSorted(), [
     ['license', 'LICENSE'],
     ['readme', 'README.md'],
   ]);
@@ -514,7 +509,7 @@ test('T210 generic: does not fire for the five built-in ecosystems and empty inp
 test('T210 generic: deterministic and immutable envelope results; typed input errors', () => {
   const files = ['src/main.zzz', 'README.md'];
   const first = genericProviderResults({ languages: ['Zeta'], ecosystems: [], files });
-  const second = genericProviderResults({ languages: ['Zeta'], ecosystems: [], files: [...files].reverse() });
+  const second = genericProviderResults({ languages: ['Zeta'], ecosystems: [], files: [...files].toReversed() });
   assert.equal(JSON.stringify(first), JSON.stringify(second));
   assert.equal(first.capped, false);
   assert.ok(first.results.every(({ observations }) => Object.isFrozen(observations)));
@@ -544,7 +539,7 @@ test('T210 generic: long-extension file_metric matchedKeys stay bounded with the
   assert.equal(metric.details.extension, extension, 'full extension stays in details (truncation disclosure)');
   assert.equal(metric.details.count, 1);
   assert.equal(metric.details.bytes, 7);
-  const second = genericProviderResults({ languages: ['Zeta'], ecosystems: [], files: [...files].reverse() });
+  const second = genericProviderResults({ languages: ['Zeta'], ecosystems: [], files: [...files].toReversed() });
   assert.equal(JSON.stringify({ results, capped }), JSON.stringify(second), 'long-extension assembly is deterministic');
 });
 
@@ -575,7 +570,7 @@ test('T210 generic: caps file_metric observations at the declared bound with a d
   );
   assert.equal(Object.isFrozen(results), true);
   const second = genericProviderResults({
-    languages: ['Zeta'], ecosystems: [], files: [...files].reverse(),
+    languages: ['Zeta'], ecosystems: [], files: [...files].toReversed(),
   });
   assert.equal(JSON.stringify({ results, capped }), JSON.stringify(second));
   assert.equal(second.capped, true);
@@ -598,44 +593,44 @@ test('T210 parity: ecosystem adapter matches descriptor data for all five ecosys
     const language = stack.find(({ category }) => category === 'language');
     assert.deepEqual(language.details, { id: descriptor.id, label: descriptor.label }, `${id} language`);
     assert.deepEqual(
-      stack.filter(({ category }) => category === 'runtime').map(({ details }) => details.name).sort(),
-      descriptor.runtimes.map(({ name }) => name).sort(),
+      stack.filter(({ category }) => category === 'runtime').map(({ details }) => details.name).toSorted(),
+      descriptor.runtimes.map(({ name }) => name).toSorted(),
       `${id} runtimes`,
     );
     assert.deepEqual(
-      stack.filter(({ category }) => category === 'package_manager').map(({ details }) => details.name).sort(),
-      [...descriptor.packageManagers].sort(),
+      stack.filter(({ category }) => category === 'package_manager').map(({ details }) => details.name).toSorted(),
+      [...descriptor.packageManagers].toSorted(),
       `${id} packageManagers`,
     );
 
     const config = byDimension.get('DIM-config-v1') ?? [];
     assert.deepEqual(
-      config.filter(({ category }) => category === 'lint').map(({ details }) => details.name).sort(),
-      descriptor.linters.map(({ name }) => name).sort(),
+      config.filter(({ category }) => category === 'lint').map(({ details }) => details.name).toSorted(),
+      descriptor.linters.map(({ name }) => name).toSorted(),
       `${id} linters`,
     );
     assert.deepEqual(
-      config.filter(({ category }) => category === 'format').map(({ details }) => details.name).sort(),
-      descriptor.formatters.map(({ name }) => name).sort(),
+      config.filter(({ category }) => category === 'format').map(({ details }) => details.name).toSorted(),
+      descriptor.formatters.map(({ name }) => name).toSorted(),
       `${id} formatters`,
     );
 
     const testing = byDimension.get('DIM-testing-v1') ?? [];
     assert.deepEqual(
-      testing.filter(({ category }) => category === 'framework').map(({ details }) => details.name).sort(),
-      Object.values(descriptor.testFrameworks).sort(),
+      testing.filter(({ category }) => category === 'framework').map(({ details }) => details.name).toSorted(),
+      Object.values(descriptor.testFrameworks).toSorted(),
       `${id} testFrameworks`,
     );
 
     const assurance = byDimension.get('DIM-assurance-v1') ?? [];
     assert.deepEqual(
-      assurance.filter(({ category }) => category === 'manifest').map(({ details }) => details.name).sort(),
-      [...descriptor.manifests].sort(),
+      assurance.filter(({ category }) => category === 'manifest').map(({ details }) => details.name).toSorted(),
+      [...descriptor.manifests].toSorted(),
       `${id} manifests`,
     );
     assert.deepEqual(
-      assurance.filter(({ category }) => category === 'lock').map(({ details }) => details.name).sort(),
-      [...descriptor.lockfiles].sort(),
+      assurance.filter(({ category }) => category === 'lock').map(({ details }) => details.name).toSorted(),
+      [...descriptor.lockfiles].toSorted(),
       `${id} lockfiles`,
     );
   }
@@ -738,8 +733,8 @@ test('T210 parity: readManifest output is byte-identical to the shared reader co
 
 test('T210 parity: detection adapter matches matchDep results for each supported category', () => {
   const deps = ['sqlx', 'tokio', 'argon2', 'tracing', 'cargo-audit'];
-  const observations = detectionObservations({ ecosystem: 'rust', deps });
-  const flat = observations.flatMap(({ observations }) => observations);
+  const groups = detectionObservations({ ecosystem: 'rust', deps });
+  const flat = groups.flatMap(({ observations }) => observations);
   const store = flat.find(({ category }) => category === 'store');
   assert.deepEqual(store.details, { name: 'sqlx', label: 'SQLx', type: 'Driver/ORM' });
   assert.equal(store.matchedKey, 'store:sqlx');
@@ -756,8 +751,8 @@ test('T210 parity: detection adapter matches matchDep results for each supported
 });
 
 test('T210 parity: detection adapter emits only allowlisted provider categories', () => {
-  const observations = detectionObservations({ ecosystem: 'javascript', deps: ['express-rate-limit', 'zod', 'winston', 'axios', 'prisma'] });
-  const categories = observations.flatMap(({ observations }) => observations.map(({ category }) => category));
+  const groups = detectionObservations({ ecosystem: 'javascript', deps: ['express-rate-limit', 'zod', 'winston', 'axios', 'prisma'] });
+  const categories = groups.flatMap(({ observations }) => observations.map(({ category }) => category));
   assert.ok(!categories.includes('rate_limit'), 'rate-limit is not a provider category');
   assert.ok(!categories.includes('external_api'), 'external-api is not a provider category');
   assert.ok(categories.includes('validation'), 'zod -> validation');
@@ -769,7 +764,7 @@ test('T210 parity: detection adapter emits only allowlisted provider categories'
 test('T210 parity: detection adapter is deterministic, immutable, and empty for unknown input', () => {
   const deps = ['sqlx', 'argon2'];
   const first = detectionObservations({ ecosystem: 'rust', deps });
-  const second = detectionObservations({ ecosystem: 'rust', deps: [...deps].reverse() });
+  const second = detectionObservations({ ecosystem: 'rust', deps: [...deps].toReversed() });
   assert.equal(JSON.stringify(first), JSON.stringify(second));
   assert.ok(first.every(({ observations }) => Object.isFrozen(observations)));
   assert.deepEqual(detectionObservations({ ecosystem: 'go', deps: ['sqlx'] }), []);
@@ -829,7 +824,7 @@ async function libScanFiles() {
     }
   }
   await visit(join(LIB_ROOT, 'scan'));
-  return files.sort();
+  return files.toSorted();
 }
 
 function relativeImportTargets(source) {

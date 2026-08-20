@@ -91,16 +91,11 @@ export const GOVERNANCE_LIMITS = deepFreeze({
   maxRules: 512,
 });
 
-const ENTRY_KEYS = Object.freeze(['category', 'details', 'dialect', 'matchedKey', 'path', 'source', 'status']);
-const SOURCE_KEYS = Object.freeze(['line', 'path']);
 const ARTIFACT_KEYS = Object.freeze(['category', 'details', 'dialect', 'line', 'path', 'status']);
 const DIAGNOSTIC_KEYS = Object.freeze(['line', 'path', 'reason', 'status']);
 const SIMPLE_DETAILS_KEYS = Object.freeze(['kind']);
 const ADR_DETAILS_KEYS = Object.freeze(['date', 'id', 'kind', 'status']);
 const REFERENCE_DETAILS_KEYS = Object.freeze(['kind', 'url']);
-const OWNERSHIP_DETAILS_KEYS = Object.freeze(['defaultLabels', 'kind', 'malformedLines', 'patterns']);
-const RULE_KEYS = Object.freeze(['anchored', 'labels', 'line', 'path', 'pattern']);
-const ASSIGNEE_KEYS = Object.freeze(['count', 'label']);
 
 const TOKEN_PATTERN = /^[\x21-\x7e]+$/;
 const STATUS_TOKEN = /^[A-Za-z][A-Za-z0-9-]{0,47}$/;
@@ -121,7 +116,7 @@ function fail(code, message) {
 }
 
 function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -284,12 +279,12 @@ function artifactDiagnosticPath(artifact) {
   return 'UNKNOWN';
 }
 
-function artifactDiagnostic(artifact, reason) {
+function artifactDiagnostic(artifact, diagnosticReason) {
   return {
     path: artifactDiagnosticPath(artifact),
     line: Number.isSafeInteger(artifact?.line) && artifact.line >= 1 ? artifact.line : null,
     status: 'unverified',
-    reason,
+    reason: diagnosticReason,
   };
 }
 
@@ -340,22 +335,22 @@ function buildOwnershipSection(ownershipRecords) {
       allRules.push({ path: file.path, pattern: rule.pattern, anchored: rule.anchored, owners: rule.owners, line: rule.line });
     }
   }
-  allRules.sort((left, right) => compareAscii(left.path, right.path)
+  const sortedRules = allRules.toSorted((left, right) => compareAscii(left.path, right.path)
     || (left.line ?? 0) - (right.line ?? 0));
 
   const retainedRules = [];
   let assignments = 0;
-  for (const rule of allRules) {
+  for (const rule of sortedRules) {
     if (retainedRules.length >= GOVERNANCE_LIMITS.maxRules) break;
     if (assignments + rule.owners.length > GOVERNANCE_LIMITS.maxAssignments) break;
     retainedRules.push(rule);
     assignments += rule.owners.length;
   }
-  const rulesCapped = allRules.length > retainedRules.length;
+  const rulesCapped = sortedRules.length > retainedRules.length;
 
   const rawAssignments = retainedRules.flatMap((rule) => rule.owners);
   const summary = createOpaqueOwnerSummary(rawAssignments);
-  const distinct = [...new Set(rawAssignments)].sort(compareAscii);
+  const distinct = [...new Set(rawAssignments)].toSorted(compareAscii);
   const labelMap = new Map();
   for (let index = 0; index < summary.owners.length; index++) {
     labelMap.set(distinct[index], summary.owners[index].label);
@@ -420,7 +415,7 @@ function capList(records, maximum) {
 function uniqueDiagnostics(diagnostics) {
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of [...diagnostics].sort((left, right) => compareAscii(left.path, right.path)
+  for (const diagnostic of [...diagnostics].toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.status, right.status)
     || compareAscii(left.reason, right.reason)
     || (left.line ?? 0) - (right.line ?? 0))) {
@@ -539,7 +534,7 @@ export function buildGovernanceModel({
 
   const unique = [];
   const seen = new Set();
-  for (const entry of privacySafe.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
+  for (const entry of privacySafe.toSorted((left, right) => compareAscii(left.matchedKey, right.matchedKey)
     || compareAscii(left.source.path, right.source.path)
     || (left.source.line ?? 0) - (right.source.line ?? 0))) {
     const key = `${entry.matchedKey}\0${entry.source.path}\0${entry.source.line ?? 0}`;
@@ -756,11 +751,11 @@ export function parseAdrMetadata(text, path) {
   let heading = null;
   let headingLine = null;
   let date = null;
-  let status = null;
+  let adrStatus = null;
   let statusBlock = false;
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
-    if (heading === null && /^#/.test(line)) {
+    if (heading === null && line.startsWith('#')) {
       heading = line;
       headingLine = index + 1;
     }
@@ -768,17 +763,17 @@ export function parseAdrMetadata(text, path) {
       statusBlock = true;
       continue;
     }
-    if (statusBlock && status === null && line.trim() && !/^#/.test(line)) {
+    if (statusBlock && adrStatus === null && line.trim() && !line.startsWith('#')) {
       const candidate = line.trim();
-      if (STATUS_TOKEN.test(candidate)) status = candidate;
+      if (STATUS_TOKEN.test(candidate)) adrStatus = candidate;
       statusBlock = false;
       continue;
     }
-    if (statusBlock && /^#/.test(line)) statusBlock = false;
+    if (statusBlock && line.startsWith('#')) statusBlock = false;
     const dateMatch = line.match(/^\s*Date\s*:\s*(\d{4}-\d{2}-\d{2})\s*$/);
     if (dateMatch) date = dateMatch[1];
     const statusMatch = line.match(/^\s*Status\s*:\s*([A-Za-z][A-Za-z0-9-]{0,47})\s*$/);
-    if (statusMatch) status = statusMatch[1];
+    if (statusMatch) adrStatus = statusMatch[1];
   }
 
   let id = null;
@@ -789,7 +784,7 @@ export function parseAdrMetadata(text, path) {
     const headingId = heading.match(/^#\s*(?:ADR\s*)?(\d{1,4})[.:]/i);
     if (headingId) id = boundedAdrId(headingId[1]);
   }
-  return { id, date, status, line: headingLine };
+  return { id, date, status: adrStatus, line: headingLine };
 }
 
 const MARKDOWN_LINK = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/g;

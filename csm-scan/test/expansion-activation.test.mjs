@@ -136,7 +136,7 @@ function fixedInput() {
 function semanticProjection(enriched, validated) {
   return {
     dimensionOrder: validated.findings.map(({ dimension }) => dimension),
-    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).sort()])),
+    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).toSorted()])),
     coverage: validated.coverage,
     confidence: Object.fromEntries(validated.findings.map(({ dimension, confidence }) => [dimension, confidence])),
     contradictions: enriched.contradictions,
@@ -598,6 +598,6 @@ test('T224 integration tests call the exported production pipeline, never recons
   const runModule = await import(new URL('../lib/scan/pipeline/run.mjs', import.meta.url));
   const exports = Object.keys(runModule);
   assert.ok(exports.includes('runExpandedPipeline'), 'the exported production pipeline must remain');
-  assert.ok(!exports.some((name) => name === 'runExisting' + 'TenPipeline'), 'the legacy pipeline entry must be retired');
-  assert.ok(!exports.some((name) => name === 'processExisting' + 'TenRepo'), 'the legacy per-repo processor must be retired');
+  assert.ok(!exports.some((name) => name === 'runExistingTenPipeline'), 'the legacy pipeline entry must be retired');
+  assert.ok(!exports.some((name) => name === 'processExistingTenRepo'), 'the legacy per-repo processor must be retired');
 });

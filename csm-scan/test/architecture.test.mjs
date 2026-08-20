@@ -261,7 +261,7 @@ test('architecture: negative case — no false edges mixing external + internal 
     const r = await scan(dir);
     const fromApp = edgesFrom(r, 'src/app.ts');
     assert.deepEqual(
-      fromApp.sort(),
+      fromApp.toSorted(),
       ['src/internal.ts'],
       `only the internal runtime import should produce an edge; got ${JSON.stringify(fromApp)}`,
     );

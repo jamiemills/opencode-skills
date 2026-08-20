@@ -69,14 +69,6 @@ function diagnosticsOf(result) {
   return result.diagnostics;
 }
 
-function modelOf(result, files = 1) {
-  return buildAssuranceModel({
-    records: result.records,
-    diagnostics: result.diagnostics,
-    measurement: { filesInspected: files, bytesInspected: 1, recordsInspected: 1 },
-  });
-}
-
 // No-verdict vocabulary: the assurance renderer must never assert compliance,
 // conformance, compatibility, vulnerability, or any synthesized pass/fail.
 const BANNED_VOICE = Object.freeze([
@@ -124,7 +116,7 @@ test('T216 model: deep-frozen deterministic model with exact summary', () => {
   ];
   const first = buildAssuranceModel({ records, measurement: { filesInspected: 2 } });
   const second = buildAssuranceModel({
-    records: [...records].reverse(),
+    records: [...records].toReversed(),
     measurement: { filesInspected: 7 },
   });
   assert.notEqual(first, second);
@@ -145,7 +137,7 @@ test('T216 model: deep-frozen deterministic model with exact summary', () => {
   assert.equal(first.summary.records, 2);
   assert.equal(first.summary.filesInspected, 2);
   assert.equal(first.cappedTotal, false);
-  assert.deepEqual(Object.keys(first).sort(), [
+  assert.deepEqual(Object.keys(first).toSorted(), [
     'accessibility', 'attestation', 'cappedTotal', 'configuration', 'diagnostics',
     'license', 'lock', 'manifest', 'pin', 'sarif', 'sbom', 'searchSpace',
     'source', 'standard', 'summary', 'tool_result', 'vex',
@@ -163,15 +155,16 @@ test('T216 model: matchedKey identities are stable and record ids are prefixed h
   assert.match(recordId({ category: 'pin', matchedKey: 'pin:requests:2.31.0', path: 'requirements.txt' }), /^asc-[a-f0-9]{24}$/);
 });
 
+const bad = (overrides) => buildAssuranceModel({
+  records: [{
+    category: 'manifest', path: 'package.json', status: 'observed',
+    details: { format: 'package_json', ecosystem: 'javascript' },
+    ...overrides,
+  }],
+  measurement: { filesInspected: 1 },
+});
+
 test('T216 model: invalid categories, statuses, identities, and paths fail with typed errors', () => {
-  const bad = (overrides) => buildAssuranceModel({
-    records: [{
-      category: 'manifest', path: 'package.json', status: 'observed',
-      details: { format: 'package_json', ecosystem: 'javascript' },
-      ...overrides,
-    }],
-    measurement: { filesInspected: 1 },
-  });
   assert.throws(() => bad({ category: 'language' }), (e) => e instanceof AssuranceModelError && e.code === 'UNKNOWN_CATEGORY');
   assert.throws(() => bad({ status: 'observed-evil' }), AssuranceModelError);
   assert.throws(() => bad({ path: '/etc/passwd' }), AssuranceModelError);
@@ -245,10 +238,10 @@ test('T216 standards pack: versioned, metadata-only, and validated against the r
   assert.equal(ASSURANCE_STANDARD_PACK_VERSION, 1);
   assert.equal(Object.isFrozen(ASSURANCE_STANDARD_JOINS), true);
   assert.ok(ASSURANCE_STANDARD_JOINS.every(Object.isFrozen));
-  for (const join of ASSURANCE_STANDARD_JOINS) {
-    assert.equal(join.disposition, 'metadata_only');
+  for (const packJoin of ASSURANCE_STANDARD_JOINS) {
+    assert.equal(packJoin.disposition, 'metadata_only');
     assert.ok(['std:owasp-cyclonedx:1.7', 'std:spdx-spec:2.3.0', 'std:openvex-spec:0.2.0',
-      'std:oasis-sarif:2.1.0-errata01', 'std:w3c-wcag:2.2-rec-20241212'].includes(join.registryId));
+      'std:oasis-sarif:2.1.0-errata01', 'std:w3c-wcag:2.2-rec-20241212'].includes(packJoin.registryId));
   }
   assert.deepEqual(validateAssuranceStandardsPack(), ASSURANCE_STANDARD_JOINS);
 });
@@ -361,7 +354,7 @@ test('T216 parsers: requirements.txt extracts pins and index sources, skipping r
     { package: 'requests', scope: 'requirements', version: '2.31.0' },
   ]);
   const sources = recordsOf(result).filter((r) => r.category === 'source').map((r) => r.details);
-  assert.deepEqual(sources.map((s) => s.host).sort(), ['pypi.org', 'test.pypi.org']);
+  assert.deepEqual(sources.map((s) => s.host).toSorted(), ['pypi.org', 'test.pypi.org']);
 });
 
 test('T216 parsers: pyproject.toml extracts manifest, license, pins, and uv index', () => {
@@ -687,7 +680,7 @@ test('T216 provider: emits only DIM-assurance categories via the provider founda
     assert.ok(EVIDENCE_SOURCE_KINDS.includes(observation.sourceKind));
   }
   const categories = new Set(providerResult.observations.map(({ category }) => category));
-  assert.deepEqual([...categories].sort(), ['manifest', 'sbom', 'standard']);
+  assert.deepEqual([...categories].toSorted(), ['manifest', 'sbom', 'standard']);
 });
 
 test('T216 provider: deterministic, immutable, and empty for empty/foreign input', () => {
@@ -750,7 +743,7 @@ test('T216 renderer: deterministic byte-identical output and invalid context rej
 });
 
 test('T216 renderer is INERT: not registered in write or existing-ten renderers', async () => {
-  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).sort(), [
+  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).toSorted(), [
     'architecture', 'config', 'conventions', 'documentation', 'git',
     'operations', 'security', 'stack', 'structure', 'testing',
   ]);
@@ -821,7 +814,7 @@ test('T216 scanner: malformed result artifacts never invalidate manifest evidenc
     assert.equal(model.summary.vexes, 0);
     assert.ok(model.diagnostics.length >= 3, 'malformed results are disclosed');
     const malformed = artifacts.filter((entry) => entry.status === 'malformed').map(({ path }) => path);
-    assert.deepEqual(malformed.sort(), ['a.sarif', 'openvex.json', 'sbom.json']);
+    assert.deepEqual(malformed.toSorted(), ['a.sarif', 'openvex.json', 'sbom.json']);
   });
 });
 
@@ -882,7 +875,7 @@ test('T216 scanner: deterministic repeated runs are byte-identical and T202-comp
     const second = await scanAssurance({ root: dir, files: Object.keys(files) });
     assert.equal(JSON.stringify(first.model), JSON.stringify(second.model));
     assert.equal(Object.isFrozen(first.model), true);
-    assert.deepEqual(Object.keys(first.model.searchSpace).sort(), [
+    assert.deepEqual(Object.keys(first.model.searchSpace).toSorted(), [
       'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
       'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
       'recordLimit', 'recordsInspected', 'supported',

@@ -526,11 +526,11 @@ export function detectionObservations({ ecosystem, deps } = {}) {
   }
   const groups = [...grouped.entries()].map(([dimensionId, observations]) => ({
     dimensionId,
-    observations: observations.slice().sort((left, right) => compareAscii(
+    observations: observations.slice().toSorted((left, right) => compareAscii(
       `${left.category}\0${left.matchedKey}`,
       `${right.category}\0${right.matchedKey}`,
     )),
-  })).sort((left, right) => compareAscii(left.dimensionId, right.dimensionId));
+  })).toSorted((left, right) => compareAscii(left.dimensionId, right.dimensionId));
   return deepFreeze(groups);
 }
 

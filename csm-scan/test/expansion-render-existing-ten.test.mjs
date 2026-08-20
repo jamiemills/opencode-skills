@@ -101,16 +101,16 @@ test('T205 existing-ten definitions are complete while partial findings preserve
   assert.match(sections[1], /^## Technology Stack/);
 });
 
-test('T205 injectable renderer definitions fail typed and sanitized', () => {
-  const assertRendererError = (fn, code, canary = '') => {
-    assert.throws(fn, (error) => {
-      assert.ok(error instanceof ExistingTenRendererError);
-      assert.equal(error.code, code);
-      if (canary) assert.equal(error.message.includes(canary), false);
-      return true;
-    });
-  };
+const assertRendererError = (fn, code, canary = '') => {
+  assert.throws(fn, (error) => {
+    assert.ok(error instanceof ExistingTenRendererError);
+    assert.equal(error.code, code);
+    if (canary) assert.equal(error.message.includes(canary), false);
+    return true;
+  });
+};
 
+test('T205 injectable renderer definitions fail typed and sanitized', () => {
   assertRendererError(
     () => createExistingTenRenderer({ order: [...EXISTING_TEN_RENDERER_ORDER, 'private-canary'] }),
     'UNKNOWN_RENDERER',

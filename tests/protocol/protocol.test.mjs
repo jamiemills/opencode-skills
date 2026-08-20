@@ -48,7 +48,7 @@ test('capable agent materializes verified payload copies and emits a schema-vali
     assert.equal(result.report.backupPath, null);
     const schema = await loadReportSchema();
     assert.deepEqual(validateSchema(result.report, schema), []);
-    assert.deepEqual((await readdir(sandbox)).sort(), ['agent skills root']);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), ['agent skills root']);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -63,7 +63,7 @@ test('ambiguous destination asks the user and refuses without confirmation, proc
     assert.equal(refused.report.refusal.state, 'CONFIRM_IF_NEEDED');
     assert.deepEqual(refused.report.states.map(state => state.state), ['DISCOVER', 'TRUST', 'PLAN_DESTINATION', 'CONFIRM_IF_NEEDED']);
     assert.equal(refused.report.destination, null);
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
     const schema = await loadReportSchema();
     assert.deepEqual(validateSchema(refused.report, schema), []);
     const confirmed = join(sandbox, 'user picked dir');
@@ -86,7 +86,7 @@ test('unapproved trust root asks the user and refuses without confirmation, proc
     assert.equal(refused.exitCode, 5);
     assert.equal(refused.report.refusal.code, 'E_UNTRUSTED');
     assert.equal(refused.report.refusal.state, 'CONFIRM_IF_NEEDED');
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
     const proceeded = await runProtocol({ ...base, confirmation: { trustRootApproved: true } });
     assert.equal(proceeded.exitCode, 0);
     assert.equal(proceeded.report.destination, destination);

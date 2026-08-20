@@ -29,8 +29,8 @@ const CAP_LIMITS = Object.freeze({
   ambiguous: 1024,
 });
 
-function count(count, one, many) {
-  return `${count} ${count === 1 ? one : many}`;
+function count(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 function cell(value, context) {
@@ -49,8 +49,8 @@ function table(context, columns, rows) {
   return lines;
 }
 
-function section(context, heading, count, columns, rows) {
-  const lines = [`### ${heading} (${count})`, ''];
+function section(context, heading, itemCount, columns, rows) {
+  const lines = [`### ${heading} (${itemCount})`, ''];
   if (rows.length === 0) {
     lines.push('- None.');
     lines.push('');
@@ -106,7 +106,7 @@ export function renderCrossRepositoryGlobal(_repoName, model, context = DEFAULT_
 
   const identityTable = model.identityTable ?? {};
   const repositories = [...(Array.isArray(identityTable.repositories) ? identityTable.repositories : [])]
-    .sort((left, right) => compareAscii(left.repositoryId, right.repositoryId));
+    .toSorted((left, right) => compareAscii(left.repositoryId, right.repositoryId));
   lines.push(...section(context, 'Repository identities', repositories.length,
     ['Repository', 'VCS', 'Components', 'Packages'],
     repositories.map((repo) => [

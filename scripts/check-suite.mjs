@@ -56,7 +56,7 @@ function splitLines(content) {  return content.split(/\r?\n/);
 }
 
 function fenceMap(lines) {
-  const inFence = new Array(lines.length).fill(false);
+  const inFence = Array.from({ length: lines.length }).fill(false);
   let open = null;
   for (let i = 0; i < lines.length; i += 1) {
     const m = lines[i].match(FENCE_OPEN_RE);
@@ -252,8 +252,8 @@ function verifyMachine(skill, lines, inFence, machine) {
       for (let i = h.line + 1; i < stop; i += 1) {
         if (!inFence[i]) body.push(lines[i]);
       }
-      check(body.some((l) => /^Entry:/.test(l)), `${skill}/SKILL.md state ${h.token} section lacks an "Entry:" line`);
-      check(body.some((l) => /^Exit:/.test(l)), `${skill}/SKILL.md state ${h.token} section lacks an "Exit:" line`);
+      check(body.some((l) => l.startsWith('Entry:')), `${skill}/SKILL.md state ${h.token} section lacks an "Entry:" line`);
+      check(body.some((l) => l.startsWith('Exit:')), `${skill}/SKILL.md state ${h.token} section lacks an "Exit:" line`);
     }
   }
   return { chain, heads, requiredTokens, range };
@@ -319,7 +319,7 @@ function verifyReviewClaims(skill, lines, inFence, machineResult) {
       }
     }
     check(bad === null, `${skill}/SKILL.md grouping has unparseable range "${bad}"`);
-    const sorted = [...covered].sort((x, y) => x - y);
+    const sorted = [...covered].toSorted((x, y) => x - y);
     const want = Array.from({ length: rowNums.length }, (_, idx) => idx + 1);
     check(sorted.length === want.length && sorted.every((n, idx) => n === want[idx]),
       `${skill}/SKILL.md grouping ranges do not cover 1..${rowNums.length} exactly once (got ${sorted.join(', ')})`);
@@ -416,13 +416,13 @@ function main() {
       }
       const labelLines = interfaceLines.filter((line) => /^- [A-Za-z][A-Za-z ]*: /.test(line));
       check(labelLines.length === 4, `${skill}/SKILL.md Interface has ${labelLines.length} labeled bullets (want exactly 4)`);
-      const neverLine = interfaceLines.find((line) => /^- Never invokes: /.test(line));
+      const neverLine = interfaceLines.find((line) => line.startsWith('- Never invokes: '));
       if (neverLine) {
-        const names = neverLine.slice('- Never invokes: '.length).split(',').map((name) => name.trim()).filter(Boolean);
-        const unknown = names.filter((name) => !Object.prototype.hasOwnProperty.call(INTERFACES, name));
+        const names = neverLine.slice('- Never invokes: '.length).split(',').map((nm) => nm.trim()).filter(Boolean);
+        const unknown = names.filter((nm) => !Object.prototype.hasOwnProperty.call(INTERFACES, nm));
         check(unknown.length === 0, `${skill}/SKILL.md Interface Never invokes has unknown skill names: ${unknown.join(', ')}`);
-        const expected = Object.keys(NEVER_INVOKE[skill] || {}).filter((name) => NEVER_INVOKE[skill][name]);
-        check(new Set(names).size === names.length && names.length === expected.length && names.every((name) => expected.includes(name)),
+        const expected = Object.keys(NEVER_INVOKE[skill] || {}).filter((nm) => NEVER_INVOKE[skill][nm]);
+        check(new Set(names).size === names.length && names.length === expected.length && names.every((nm) => expected.includes(nm)),
           `${skill}/SKILL.md Interface Never invokes does not match contracts.mjs row (expected: ${expected.join(', ')})`);
       }
     }
@@ -512,7 +512,7 @@ function main() {
   const plansDir = path.join(root, '.agents', 'plans');
   let planFiles = [];
   try {
-    planFiles = fs.readdirSync(plansDir).filter((f) => f.endsWith('-csm.md')).sort();
+    planFiles = fs.readdirSync(plansDir).filter((f) => f.endsWith('-csm.md')).toSorted();
   } catch {
     planFiles = [];
   }
@@ -536,7 +536,7 @@ function main() {
   const reviewsDir = path.join(root, '.agents', 'reviews');
   let reviewFiles = [];
   try {
-    reviewFiles = fs.readdirSync(reviewsDir).filter((f) => f.endsWith('-review.md')).sort();
+    reviewFiles = fs.readdirSync(reviewsDir).filter((f) => f.endsWith('-review.md')).toSorted();
   } catch {
     reviewFiles = [];
   }
@@ -566,7 +566,7 @@ function main() {
   const approachesDir = path.join(root, '.agents', 'approaches');
   let approachFiles = [];
   try {
-    approachFiles = fs.readdirSync(approachesDir).filter((f) => f.endsWith('-approach.md')).sort();
+    approachFiles = fs.readdirSync(approachesDir).filter((f) => f.endsWith('-approach.md')).toSorted();
   } catch {
     approachFiles = [];
   }

@@ -105,7 +105,7 @@ function renderCodeowners(model, context) {
 function renderAdr(model, context) {
   const decisions = model.entries
     .filter((entry) => entry.category === 'decision' && entry.details?.kind === 'adr')
-    .sort((left, right) => compareAscii(left.details.id ?? '', right.details.id ?? '')
+    .toSorted((left, right) => compareAscii(left.details.id ?? '', right.details.id ?? '')
       || compareAscii(left.source.path, right.source.path));
   if (decisions.length === 0) return [];
   const lines = [];
@@ -125,7 +125,7 @@ function renderAdr(model, context) {
 function renderCategoryEntries(category, model, context) {
   const entries = model.entries
     .filter((entry) => entry.category === category)
-    .sort((left, right) => compareAscii(left.source.path, right.source.path));
+    .toSorted((left, right) => compareAscii(left.source.path, right.source.path));
   if (entries.length === 0) return [];
   const heading = CATEGORY_SECTIONS.find((entry) => entry.category === category)?.heading ?? category;
   const lines = [];
@@ -140,7 +140,7 @@ function renderCategoryEntries(category, model, context) {
 function renderReferences(model, context) {
   const references = model.entries
     .filter((entry) => entry.category === 'reference' && entry.details?.kind === 'link')
-    .sort((left, right) => compareAscii(left.details.url, right.details.url)
+    .toSorted((left, right) => compareAscii(left.details.url, right.details.url)
       || compareAscii(left.source.path, right.source.path)
       || (left.source.line ?? 0) - (right.source.line ?? 0));
   if (references.length === 0) return [];

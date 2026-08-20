@@ -57,7 +57,7 @@ function plainObject(value, label) {
 }
 
 function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -89,7 +89,7 @@ function uniqueStrings(value, maximum, normalize, label) {
   if (!Array.isArray(value) || value.length > maximum) {
     fail('BOUND_EXCEEDED', `${label} must be a bounded array`);
   }
-  const result = value.map((entry) => normalize(entry, label)).sort(compareAscii);
+  const result = value.map((entry) => normalize(entry, label)).toSorted(compareAscii);
   if (new Set(result).size !== result.length) fail('DUPLICATE_ID', `${label} must be unique`);
   return result;
 }
@@ -410,14 +410,14 @@ export function validatePlugin(value) {
       || value.providers.length > PLUGIN_LIMITS.providers) {
     fail('BOUND_EXCEEDED', 'providers must be a bounded non-empty array');
   }
-  const providers = value.providers.map(provider).sort((left, right) => compareAscii(left.id, right.id));
+  const providers = value.providers.map(provider).toSorted((left, right) => compareAscii(left.id, right.id));
   if (new Set(providers.map((entry) => entry.id)).size !== providers.length) {
     fail('DUPLICATE_PROVIDER', 'provider identifiers must be unique');
   }
   if (!Array.isArray(value.rules) || value.rules.length === 0 || value.rules.length > PLUGIN_LIMITS.rules) {
     fail('BOUND_EXCEEDED', 'rules must be a bounded non-empty array');
   }
-  const rules = value.rules.map(normalizeRule).sort((left, right) => compareAscii(left.id, right.id));
+  const rules = value.rules.map(normalizeRule).toSorted((left, right) => compareAscii(left.id, right.id));
   if (new Set(rules.map((entry) => entry.id)).size !== rules.length) {
     fail('DUPLICATE_RULE', 'rule identifiers must be unique');
   }
@@ -450,7 +450,7 @@ export function validatePlugins(values) {
   if (!Array.isArray(values) || values.length > PLUGIN_LIMITS.plugins) {
     fail('BOUND_EXCEEDED', 'plugins must be a bounded array');
   }
-  const plugins = values.map(validatePlugin).sort((left, right) => compareAscii(left.id, right.id));
+  const plugins = values.map(validatePlugin).toSorted((left, right) => compareAscii(left.id, right.id));
   const identities = new Set();
   const providerIds = new Set();
   const ruleIds = new Set();

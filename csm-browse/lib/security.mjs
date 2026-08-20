@@ -105,7 +105,7 @@ export function validateRuntimeRootSelection(path) {
   const parent = resolve(path) === '/' ? '/' : resolve(path).split('/').slice(0, -1).join('/') || '/';
   let info;
   try { info = lstatSync(parent); } catch (err) {
-    if (err.code === 'ENOENT') throw new Error(`Unsafe csm-browse runtime root parent: ${parent} does not exist`);
+    if (err.code === 'ENOENT') throw new Error(`Unsafe csm-browse runtime root parent: ${parent} does not exist`, { cause: err });
     throw err;
   }
   if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`Unsafe csm-browse runtime root parent: ${parent}`);
@@ -231,7 +231,7 @@ export function redactUrl(value) {
   if (typeof value !== 'string') return value;
   try {
     const url = new URL(value);
-    for (const key of [...url.searchParams.keys()]) {
+    for (const key of url.searchParams.keys()) {
       if (SENSITIVE_KEY.test(key)) url.searchParams.set(key, '[REDACTED]');
     }
     if (url.hash) url.hash = `#${redactPairs(url.hash.slice(1))}`;
@@ -246,7 +246,7 @@ function redactPairs(value) {
   // a value like 'a=1?token=SECRET' redacts the token pair instead of being
   // swallowed whole, and 'token=SECRET?more' cannot eat the next key.
   return value.replace(/(^|[&#;,\s?])([A-Za-z][\w-]*(?:[.:][\w-]+)?)\s*([=:])\s*("[^"]*"|'[^']*'|[^&#;,\s?]+)/gi,
-    (whole, prefix, key, separator, secret) => SENSITIVE_KEY.test(key) ? `${prefix}${key}${separator}[REDACTED]` : whole);
+    (whole, prefix, key, separator, _secret) => SENSITIVE_KEY.test(key) ? `${prefix}${key}${separator}[REDACTED]` : whole);
 }
 
 // A scheme-ful URL embedded in prose is not a single parseable string, and
@@ -262,7 +262,7 @@ function redactProse(value) {
 export function redactTelemetry(value, key = '') {
   if (typeof value === 'string') {
     if (key && SENSITIVE_KEY.test(key)) return '[REDACTED]';
-    if (/^\s*[\[{]/.test(value)) {
+    if (/^\s*[{[]/.test(value)) {
       try { return JSON.stringify(redactTelemetry(JSON.parse(value))); } catch {}
     }
     const redacted = redactPairs(redactProse(value));

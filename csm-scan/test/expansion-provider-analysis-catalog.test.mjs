@@ -58,7 +58,7 @@ function keyed(observations) {
 }
 
 function assertCanonicalOrder(observations) {
-  const sorted = observations.slice().sort((left, right) => {
+  const sorted = observations.slice().toSorted((left, right) => {
     const a = `${left.category}\0${left.path ?? ''}\0${left.matchedKey}`;
     const b = `${right.category}\0${right.path ?? ''}\0${right.matchedKey}`;
     return a < b ? -1 : a > b ? 1 : 0;
@@ -68,11 +68,17 @@ function assertCanonicalOrder(observations) {
     'observations are canonically ordered');
 }
 
+const edgeCompare = (left, right) => {
+  const a = `${left[0]}\0${left[1]}`;
+  const b = `${right[0]}\0${right[1]}`;
+  return a < b ? -1 : a > b ? 1 : 0;
+};
+
 function assertArchitectureParity(architecture, findings, facts) {
   const byKey = keyed(architecture.observations);
 
   const modules = architecture.observations.filter(({ category }) => category === 'module');
-  assert.deepEqual(modules.map(({ path }) => path), findings.modules.slice().sort(), 'module paths');
+  assert.deepEqual(modules.map(({ path }) => path), findings.modules.slice().toSorted(), 'module paths');
   for (const entry of modules) {
     assert.equal(entry.details.fanIn, facts.fanIn[entry.path] ?? 0, `fanIn ${entry.path}`);
     assert.equal(entry.details.fanOut, facts.fanOut[entry.path] ?? 0, `fanOut ${entry.path}`);
@@ -82,21 +88,16 @@ function assertArchitectureParity(architecture, findings, facts) {
 
   const entryPoints = architecture.observations.filter(({ category }) => category === 'entry_point');
   assert.deepEqual(entryPoints.map(({ path }) => path),
-    (findings.layers.entryPoints || []).slice().sort(), 'entry-point paths');
+    (findings.layers.entryPoints || []).slice().toSorted(), 'entry-point paths');
 
   const edges = architecture.observations.filter(({ category }) => category === 'import_edge');
   const expectedEdges = [];
   for (const [source, targets] of Object.entries(findings.importGraph.graph)) {
     for (const target of targets || []) expectedEdges.push([source, target]);
   }
-  const edgeCompare = (left, right) => {
-    const a = `${left[0]}\0${left[1]}`;
-    const b = `${right[0]}\0${right[1]}`;
-    return a < b ? -1 : a > b ? 1 : 0;
-  };
   assert.deepEqual(
-    edges.map(({ path, details }) => [path, details.target]).sort(edgeCompare),
-    expectedEdges.sort(edgeCompare),
+    edges.map(({ path, details }) => [path, details.target]).toSorted(edgeCompare),
+    expectedEdges.toSorted(edgeCompare),
     'import-edge pairs',
   );
   assert.ok(edges.every(({ sourceKind }) => sourceKind === 'source'), 'import-edge source kind');
@@ -185,7 +186,7 @@ function assertConventionsParity(conventions, findings) {
   });
 
   const categories = new Set(conventions.observations.map(({ category }) => category));
-  assert.deepEqual([...categories].sort(), ['comment', 'error_handling', 'file_naming', 'import_style', 'module_system']);
+  assert.deepEqual([...categories].toSorted(), ['comment', 'error_handling', 'file_naming', 'import_style', 'module_system']);
 }
 
 function relativeTo(repoPath, value) {
@@ -247,7 +248,7 @@ function assertDocumentationParity(documentation, findings, repoPath) {
   assert.deepEqual(todo.details, { count: findings.todoCount });
 
   const categories = new Set(documentation.observations.map(({ category }) => category));
-  assert.deepEqual([...categories].sort(), ['contributing', 'license', 'readme', 'reference']);
+  assert.deepEqual([...categories].toSorted(), ['contributing', 'license', 'readme', 'reference']);
 }
 
 async function scanAnalysisFixture(name, files) {
@@ -406,7 +407,7 @@ test('T219 parity: practices adapter maps synthetic model entries to category-sa
   const [{ dimensionId, observations }] = practicesObservations(syntheticPracticesModel());
   assert.equal(dimensionId, 'DIM-practices-v1');
   assert.deepEqual(
-    observations.map(({ category }) => category).sort(),
+    observations.map(({ category }) => category).toSorted(),
     ['enforcement', 'methodology', 'quality_gate'],
   );
   assertPracticesParity({ providerId: PRACTICES_PROVIDER_ID, dimensionId, observations });
@@ -491,7 +492,7 @@ test('T219 deterministic: insertion-order changes never alter observations or re
     dynamicIndicators: [],
   };
   const reversed = {
-    modules: [...modules].reverse(),
+    modules: [...modules].toReversed(),
     layers: { entryPoints: ['m.js'] },
     importGraph: { graph: { 'm.js': ['a.js', 'z.js'], 'a.js': [], 'z.js': ['a.js'] } },
   };
@@ -663,7 +664,7 @@ test('T219 generic: unknown-language repositories receive documentation artifact
   assert.equal(results[0].providerId, GENERIC_PROVIDER_ID);
   assert.equal(results[0].dimensionId, 'DIM-documentation-v1');
   const categories = results[0].observations.map((entry) => entry.category);
-  assert.deepEqual(categories.sort(), ['contributing', 'license', 'readme']);
+  assert.deepEqual(categories.toSorted(), ['contributing', 'license', 'readme']);
   const serialized = JSON.stringify(results);
   for (const forbidden of ['module', 'import_edge', 'entry_point', 'dynamic_indicator', 'graph', 'import-style']) {
     assert.equal(serialized.includes(`"category":"${forbidden}"`), false, `generic claimed ${forbidden}`);
@@ -828,7 +829,7 @@ async function libScanFiles() {
   }
   await visit(join(LIB_ROOT, 'lib'));
   await visit(join(LIB_ROOT, 'scripts'));
-  return files.sort();
+  return files.toSorted();
 }
 
 test('T219 inert: the catalog is unregistered and unimported outside the provider directory', async () => {

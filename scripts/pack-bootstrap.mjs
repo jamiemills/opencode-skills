@@ -42,7 +42,7 @@ const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 
 async function walk(dir, prefix = '') {
   const out = [];
-  for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+  for (const entry of (await readdir(dir, { withFileTypes: true })).toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
     const rel = prefix ? join(prefix, entry.name) : entry.name;
     if (entry.isDirectory()) out.push(...(await walk(join(dir, entry.name), rel)));
     else if (entry.isFile()) out.push(rel);
@@ -73,7 +73,7 @@ async function entryFor(dest) {
 async function buildIndex(entries) {
   const classes = { skills: [], supportingFiles: [], helperBins: [], metadata: [] };
   for (const className of Object.keys(classes)) {
-    classes[className] = (await Promise.all(entries.filter(entry => entry.className === className).map(entry => entryFor(entry.dest)))).sort(byPath);
+    classes[className] = (await Promise.all(entries.filter(entry => entry.className === className).map(entry => entryFor(entry.dest)))).toSorted(byPath);
   }
   const index = {
     schema: 'csm-payload-index/1',
@@ -169,10 +169,10 @@ async function packBootstrap() {
 }
 
 async function main() {
-  const { dir, tarball, sha256, bytes, entries } = await packBootstrap();
+  const { dir, tarball, sha256: pkgSha256, bytes, entries } = await packBootstrap();
   const files = entries.filter(entry => entry.type === '0' || entry.type === '\0');
   console.log(`tarball: ${tarball}`);
-  console.log(`sha256: ${sha256}`);
+  console.log(`sha256: ${pkgSha256}`);
   console.log(`bytes: ${bytes}`);
   console.log(`files: ${files.length}`);
   console.log(`workdir: ${dir}`);

@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, stat, unlink } from 'node:fs/promises';
+import { readdir, readFile, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -74,7 +74,7 @@ async function killPidGracefully(pid) {
   try { process.kill(pid, 'SIGKILL'); } catch {}
 }
 
-export async function sweep({ containerName, ip, ageMinutes = 10, dryRun = false, skipSid = null }) {
+export async function sweep({ containerName, ip: _ip, ageMinutes = 10, dryRun = false, skipSid = null }) {
   await prepareRuntimeRoot(SESSIONS_ROOT);
   const swept = [];
   const ageMs = ageMinutes * 60 * 1000;

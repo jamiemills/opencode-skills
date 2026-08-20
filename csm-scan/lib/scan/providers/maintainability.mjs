@@ -28,7 +28,7 @@
 // node:child_process / node:process / node:vm / node:module, so the recurring
 // capability gate remains closed.
 
-import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
+import { deepFreeze } from '../contracts/evidence.mjs';
 import { createProviderResult, PROVIDER_RESULT_LIMITS } from './base.mjs';
 import { MAINTAINABILITY_DIMENSION_ID } from '../deep/maintainability/model.mjs';
 
@@ -40,10 +40,6 @@ export class MaintainabilityProviderError extends TypeError {
     this.name = 'MaintainabilityProviderError';
     this.code = code;
   }
-}
-
-function fail(code, message) {
-  throw new MaintainabilityProviderError(code, message);
 }
 
 function boundedKey(value) {

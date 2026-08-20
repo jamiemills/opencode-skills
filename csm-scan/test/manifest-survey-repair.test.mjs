@@ -107,7 +107,7 @@ test('manifest repair: Cargo classes, ranges, negation, globstar, question, and 
     const manifest = readManifest(dir);
     assert.deepEqual(manifest.workspace.members, ['crates/[a-c]', 'plugins/**', 'tools/?ne', 'ignored/[!x]']);
     assert.deepEqual(manifest.workspace.resolvedMembers, expectedMembers);
-    assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
+    assert.deepEqual(Object.keys(manifest.dependencies).toSorted(), [
       'dep-a',
       'dep-plugin-deep',
       'dep-plugin-root',

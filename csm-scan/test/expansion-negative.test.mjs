@@ -548,6 +548,20 @@ test('T227 constraint: exactly one production write per run', async () => {
   }
 });
 
+// Statement-level static import extraction (masked so string/template code
+// cannot alias an import), mirroring the T201 acquisition audit.
+const staticImports = (source) => {
+  const mask = lexicalMask(source);
+  const statements = [];
+  const pattern = /^\s*(?:import\s+(?:[^'";]*?\s+from\s+)?|export\s+(?:\*|\{[^}]*\})\s+from\s+)(['"])([^'"\n]+)\1\s*;?/gm;
+  for (const match of source.matchAll(pattern)) {
+    const token = match[0].search(/\S/);
+    if (token < 0 || mask[match.index + token] === ' ') continue;
+    statements.push({ text: match[0].trim(), specifier: match[2] });
+  }
+  return statements;
+};
+
 test('T227 constraint: zero-dependency and closed import audits hold for the production tree', async () => {
   const rootEntries = await readdir(ROOT);
   assert.deepEqual(
@@ -568,20 +582,6 @@ test('T227 constraint: zero-dependency and closed import audits hold for the pro
   }
   await visit(join(ROOT, 'lib'));
   await visit(join(ROOT, 'scripts'));
-
-  // Statement-level static import extraction (masked so string/template code
-  // cannot alias an import), mirroring the T201 acquisition audit.
-  const staticImports = (source) => {
-    const mask = lexicalMask(source);
-    const statements = [];
-    const pattern = /^\s*(?:import\s+(?:[^'";]*?\s+from\s+)?|export\s+(?:\*|\{[^}]*\})\s+from\s+)(['"])([^'"\n]+)\1\s*;?/gm;
-    for (const match of source.matchAll(pattern)) {
-      const token = match[0].search(/\S/);
-      if (token < 0 || mask[match.index + token] === ' ') continue;
-      statements.push({ text: match[0].trim(), specifier: match[2] });
-    }
-    return statements;
-  };
 
   const forbiddenSpecifiers = ['node:process', 'node:vm', 'node:module'];
   let childProcessOwners = 0;

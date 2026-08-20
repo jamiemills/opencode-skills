@@ -57,6 +57,8 @@ test('T208 registered commands record exact fixed argv arrays and controlled com
   const gitShortlog = await broker.execute('git:shortlog-summary', { cwd: '/repo' });
   const rgJson = await broker.execute('rg:json', { cwd: '/repo', pattern: 'def' });
 
+  assert.ok([gitToplevel, gitAbbrev, gitLog, gitLog200, gitLsFiles, gitBranch, gitHead, gitRemote]
+    .every((result) => result.ok === true), 'every registered command completes successfully');
   assert.equal(rgFiles.ok, true);
   assert.equal(rgJson.ok, true);
   assert.equal(gitShortlog.ok, true);

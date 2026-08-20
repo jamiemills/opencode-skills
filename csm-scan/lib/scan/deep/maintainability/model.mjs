@@ -166,11 +166,6 @@ const PACKAGE_TOOL_PACKAGES = Object.freeze([
   'eslint', 'prettier', '@biomejs/biome', 'biome', 'jscpd', 'standard', 'jshint',
 ]);
 
-const INI_TOOL_SECTIONS = Object.freeze([
-  'ruff', 'black', 'isort', 'mypy', 'pylint', 'flake8', 'bandit',
-  'pyright', 'deptry', 'vulture', 'pydocstyle',
-]);
-
 export const GENERATED_REASONS = Object.freeze([
   'dir_marker', 'filename_marker', 'header_comment',
 ]);
@@ -192,7 +187,7 @@ function fail(code, message) {
 }
 
 function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -243,7 +238,7 @@ function branchCounts(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     fail('INVALID_TYPE', 'branch counts must be an object');
   }
-  const expected = [...BRANCH_CATEGORIES].sort(compareAscii);
+  const expected = [...BRANCH_CATEGORIES].toSorted(compareAscii);
   exactKeys(value, expected, 'branch counts');
   const counts = {};
   for (const category of BRANCH_CATEGORIES) {
@@ -316,7 +311,7 @@ function normalizeComplexityRecord(value) {
     fail('BOUND_EXCEEDED', 'complexity functions exceed the declared cap');
   }
   const functions = value.functions.map(normalizeComplexityFunction)
-    .sort((left, right) => left.startLine - right.startLine
+    .toSorted((left, right) => left.startLine - right.startLine
       || left.endLine - right.endLine
       || compareAscii(left.functionName, right.functionName));
   return deepFreeze({
@@ -471,7 +466,7 @@ function privacyFilter(records, diagnostics) {
   const all = [...diagnostics, ...privacyDiagnostics];
   const unique = [];
   const seen = new Set();
-  for (const entry of all.sort((left, right) => compareAscii(left.path, right.path)
+  for (const entry of all.toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.status, right.status) || compareAscii(left.reason, right.reason)
     || (left.line ?? 0) - (right.line ?? 0))) {
     const key = `${entry.path}\0${entry.status}\0${entry.reason}\0${entry.line ?? 0}`;
@@ -550,7 +545,7 @@ export function buildMaintainabilityModel({
   const groupRecords = duplicateGroups.map(normalizeDuplicateGroup);
   const boundaryRecords = generatedBoundaries.map(normalizeGeneratedBoundary);
   const toolRecords = toolEvidence.map(normalizeToolEvidence);
-  const sizeRecords = sizeDistribution.map(normalizeSizeDistribution);
+  let sizeRecords = sizeDistribution.map(normalizeSizeDistribution);
   const diagnosticRecords = diagnostics.map(normalizeDiagnostic);
 
   const space = normalizeSearchInput(searchSpace);
@@ -570,13 +565,27 @@ export function buildMaintainabilityModel({
     fail('BOUND_EXCEEDED', 'dead-code entries exceed the declared cap');
   }
 
-  const { records: safeFiles, diagnostics: filePrivacyDiags } = privacyFilter(fileRecords, diagnosticRecords);
-  const { records: safeBranch, diagnostics: branchPrivacyDiags } = privacyFilter(branchRecords, []);
-  const { records: safeComplexity, diagnostics: complexityPrivacyDiags } = privacyFilter(complexityInput, []);
-  const { records: safeDeadCode, diagnostics: deadCodePrivacyDiags } = privacyFilter(deadCodeInput, []);
-  const { records: safeGroups, diagnostics: groupPrivacyDiags } = privacyFilter(groupRecords, []);
-  const { records: safeBoundaries, diagnostics: boundaryPrivacyDiags } = privacyFilter(boundaryRecords, []);
-  const { records: safeTools, diagnostics: toolPrivacyDiags } = privacyFilter(toolRecords, []);
+  const filePrivacy = privacyFilter(fileRecords, diagnosticRecords);
+  const branchPrivacy = privacyFilter(branchRecords, []);
+  const complexityPrivacy = privacyFilter(complexityInput, []);
+  const deadCodePrivacy = privacyFilter(deadCodeInput, []);
+  const groupPrivacy = privacyFilter(groupRecords, []);
+  const boundaryPrivacy = privacyFilter(boundaryRecords, []);
+  const toolPrivacy = privacyFilter(toolRecords, []);
+  let safeFiles = filePrivacy.records;
+  let safeBranch = branchPrivacy.records;
+  let safeComplexity = complexityPrivacy.records;
+  let safeDeadCode = deadCodePrivacy.records;
+  let safeGroups = groupPrivacy.records;
+  let safeBoundaries = boundaryPrivacy.records;
+  let safeTools = toolPrivacy.records;
+  const filePrivacyDiags = filePrivacy.diagnostics;
+  const branchPrivacyDiags = branchPrivacy.diagnostics;
+  const complexityPrivacyDiags = complexityPrivacy.diagnostics;
+  const deadCodePrivacyDiags = deadCodePrivacy.diagnostics;
+  const groupPrivacyDiags = groupPrivacy.diagnostics;
+  const boundaryPrivacyDiags = boundaryPrivacy.diagnostics;
+  const toolPrivacyDiags = toolPrivacy.diagnostics;
 
   const allDiagnostics = [
     ...filePrivacyDiags,
@@ -589,7 +598,7 @@ export function buildMaintainabilityModel({
   ];
   const seenDiagnostics = new Set();
   const uniqueDiagnostics = [];
-  for (const entry of allDiagnostics.sort((left, right) => compareAscii(left.path, right.path)
+  for (const entry of allDiagnostics.toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.status, right.status) || compareAscii(left.reason, right.reason)
     || (left.line ?? 0) - (right.line ?? 0))) {
     const key = `${entry.path}\0${entry.status}\0${entry.reason}\0${entry.line ?? 0}`;
@@ -598,29 +607,28 @@ export function buildMaintainabilityModel({
     uniqueDiagnostics.push(entry);
   }
 
-  safeFiles.sort((left, right) => compareAscii(left.path, right.path));
-  safeBranch.sort((left, right) => compareAscii(left.path, right.path));
-  safeComplexity.sort((left, right) => compareAscii(left.path, right.path));
-  safeDeadCode.sort((left, right) => compareAscii(left.kind, right.kind)
+  safeFiles = safeFiles.toSorted((left, right) => compareAscii(left.path, right.path));
+  safeBranch = safeBranch.toSorted((left, right) => compareAscii(left.path, right.path));
+  safeComplexity = safeComplexity.toSorted((left, right) => compareAscii(left.path, right.path));
+  safeDeadCode = safeDeadCode.toSorted((left, right) => compareAscii(left.kind, right.kind)
     || compareAscii(left.path, right.path));
-  safeGroups.sort((left, right) => compareAscii(left.id, right.id));
-  safeBoundaries.sort((left, right) => compareAscii(left.path, right.path)
+  safeGroups = safeGroups.toSorted((left, right) => compareAscii(left.id, right.id));
+  safeBoundaries = safeBoundaries.toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.reason, right.reason) || (left.line ?? 0) - (right.line ?? 0));
-  safeTools.sort((left, right) => compareAscii(left.tool, right.tool)
+  safeTools = safeTools.toSorted((left, right) => compareAscii(left.tool, right.tool)
     || compareAscii(left.file, right.file));
-  sizeRecords.sort((left, right) => compareAscii(left.bucket, right.bucket));
+  sizeRecords = sizeRecords.toSorted((left, right) => compareAscii(left.bucket, right.bucket));
 
   const measured = new Map(fileRecords.map((record) => [record.path, record]));
   for (const record of safeFiles) measured.set(record.path, record);
-  const measuredPaths = new Set(safeFiles.map((record) => record.path));
 
   const eligibleFiles = Number.isSafeInteger(measurement.eligibleFiles) ? measurement.eligibleFiles : safeFiles.length;
   const measuredFiles = safeFiles.length;
-  const supportedDialects = [...new Set(safeFiles.map((record) => record.dialect))].sort(compareAscii);
+  const supportedDialects = [...new Set(safeFiles.map((record) => record.dialect))].toSorted(compareAscii);
 
   const excludedLanguages = (Array.isArray(measurement.excludedLanguages) ? measurement.excludedLanguages : [])
     .map(normalizeExcludedLanguage)
-    .sort((left, right) => compareAscii(left.extension, right.extension));
+    .toSorted((left, right) => compareAscii(left.extension, right.extension));
   const excludedFiles = excludedLanguages.reduce((sum, entry) => sum + entry.count, 0);
 
   const filesInspected = Number.isSafeInteger(measurement.filesInspected) ? measurement.filesInspected
@@ -883,7 +891,7 @@ export function detectToolEvidence({ path, format = 'text', value = null, text =
     const key = `${record.tool}\0${record.kind}\0${record.file}\0${record.line}\0${record.source}`;
     if (!unique.has(key)) unique.set(key, record);
   }
-  return [...unique.values()].sort((left, right) => compareAscii(left.tool, right.tool)
+  return [...unique.values()].toSorted((left, right) => compareAscii(left.tool, right.tool)
     || compareAscii(left.kind, right.kind) || compareAscii(left.file, right.file));
 }
 
@@ -908,7 +916,7 @@ export function toolConfigCandidatePaths() {
   for (const file of VULTURE_CONFIG_PATHS) paths.add(file);
   for (const file of VULTURE_WHITELIST_PATHS) paths.add(file);
   for (const file of TS_CONFIG_PATHS) paths.add(file);
-  return [...paths].sort(compareAscii);
+  return [...paths].toSorted(compareAscii);
 }
 
 // ---------------------------------------------------------------------------
@@ -959,14 +967,14 @@ const UNUSED_IMPORT_MARKERS = Object.freeze({
  * @returns {object[]} `[{ kind, path, count }]` entries for rust
  *   `allow(dead_code)` attributes and per-dialect unused-import markers.
  */
-export function detectDeadCodeSourceSignals({ path, dialect, text = '' }) {
+export function detectDeadCodeSourceSignals({ path, dialect: dialectName, text = '' }) {
   const entries = [];
   const source = String(text ?? '');
-  if (dialect === 'rust') {
+  if (dialectName === 'rust') {
     const deadCount = (source.match(RUST_ALLOW_DEAD_CODE_PATTERN) ?? []).length;
     if (deadCount > 0) entries.push({ kind: 'allow_dead_code', path, count: deadCount });
   }
-  const unusedPattern = UNUSED_IMPORT_MARKERS[dialect];
+  const unusedPattern = UNUSED_IMPORT_MARKERS[dialectName];
   if (unusedPattern !== undefined) {
     const unusedCount = (source.match(unusedPattern) ?? []).length;
     if (unusedCount > 0) entries.push({ kind: 'unused_import', path, count: unusedCount });
@@ -1014,7 +1022,7 @@ export function complexityDistribution(values) {
     ? values.filter((value) => Number.isSafeInteger(value) && value >= 0)
     : [];
   if (counts.length === 0) return null;
-  const sorted = [...counts].sort((left, right) => left - right);
+  const sorted = [...counts].toSorted((left, right) => left - right);
   const percentile = (percent) => {
     const rank = Math.min(sorted.length, Math.max(1, Math.ceil((percent / 100) * sorted.length)));
     return sorted[rank - 1];

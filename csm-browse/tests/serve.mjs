@@ -11,7 +11,7 @@ const FIXTURES_DIR = resolve(join(fileURLToPath(import.meta.url), '../fixtures')
 function bridgeHost() {
   const envBase = process.env.CSM_BROWSE_FIXTURE_BASE;
   if (envBase) {
-    const m = envBase.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^\/:?]+)/);
+    const m = envBase.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^/:?]+)/);
     if (m) return m[1];
   }
   try {

@@ -108,7 +108,7 @@ test('operations: on: inline scalar trigger form', async () => {
   }, async (dir) => {
     const r = await runScanner(OPS, dir);
     const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
-    assert.deepEqual([...gh.triggers].sort(), ['push']);
+    assert.deepEqual([...gh.triggers].toSorted(), ['push']);
     assert.deepEqual(gh.jobs, ['build']);
   });
 });
@@ -119,7 +119,7 @@ test('operations: on: inline flow sequence trigger form', async () => {
   }, async (dir) => {
     const r = await runScanner(OPS, dir);
     const gh = r.findings.ci.find((c) => c.platform === 'GitHub Actions');
-    assert.deepEqual([...gh.triggers].sort(), ['pull_request', 'push']);
+    assert.deepEqual([...gh.triggers].toSorted(), ['pull_request', 'push']);
   });
 });
 
@@ -149,11 +149,11 @@ test('operations: python config files recognized', async () => {
 test('operations: contract findings keys preserved', async () => {
   await withFixture('ops-contract', { 'README.md': 'x' }, async (dir) => {
     const r = await runScanner(OPS, dir);
-    assert.deepEqual(Object.keys(r.findings).sort(), [
+    assert.deepEqual(Object.keys(r.findings).toSorted(), [
       'dockerCompose', 'dockerfiles', 'envConfig', 'gracefulShutdown',
       'hasDeployScripts', 'hasDockerignore', 'hasJustfile', 'hasMakefile',
       'healthChecks', 'monitoring', 'procfile', 'ci',
-    ].sort());
+    ].toSorted());
     assert.equal(r.dimension, 'operations');
     assert.ok(['low', 'medium', 'high'].includes(r.signal));
     // task-runner booleans default to false on an empty repo.
@@ -284,7 +284,7 @@ test('operations: step scan detects practice tools across names, run and uses', 
     ]);
     // the existing job/trigger inventory is untouched by the step scan.
     assert.deepEqual(gh.jobs, ['static']);
-    assert.deepEqual([...gh.triggers].sort(), ['push']);
+    assert.deepEqual([...gh.triggers].toSorted(), ['push']);
   });
 });
 
@@ -471,8 +471,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           TAG_VERSION="\${GITHUB_REF#refs/tags/}"
-          PY_VERSION=\$(python -c "import tomllib")
-          RUNTIME_VERSION=\$(python -c "from perplexity_cli import __version__")
+          PY_VERSION=$(python -c "import tomllib")
+          RUNTIME_VERSION=$(python -c "from perplexity_cli import __version__")
           if [ "\${TAG_VERSION}" != "\${PY_VERSION}" ]; then exit 1; fi
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1

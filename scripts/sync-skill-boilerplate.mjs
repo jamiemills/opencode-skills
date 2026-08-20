@@ -18,7 +18,7 @@ function splitLines(content) {
 // Fence-aware map: true when the line is inside a code fence. Tracks opening
 // fence run length (``` or ~~~) and closes only on an equal-or-longer run.
 function fenceMap(lines) {
-  const inFence = new Array(lines.length).fill(false);
+  const inFence = Array.from({ length: lines.length }).fill(false);
   let openRun = 0;
   let fenceChar = null;
   for (let i = 0; i < lines.length; i += 1) {

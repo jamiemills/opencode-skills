@@ -279,7 +279,7 @@ test('T221 scoped: fully scoped references disambiguate repositories that share 
       { scanId: 'scan:client', kind: 'vcs', value: 'git@gitlab.example.com:acme/web.git', path: '.', sourceKind: 'config' },
     ],
   );
-  const coordinates = snapshot.edges.edges.map((edge) => edge.coordinate).sort();
+  const coordinates = snapshot.edges.edges.map((edge) => edge.coordinate).toSorted();
   assert.deepEqual(coordinates, ['vcs:github.com/acme/web', 'vcs:gitlab.example.com/acme/web']);
   const webEdge = snapshot.edges.edges.find((edge) => edge.coordinate === 'vcs:github.com/acme/web');
   const mirrorEdge = snapshot.edges.edges.find((edge) => edge.coordinate === 'vcs:gitlab.example.com/acme/web');
@@ -319,7 +319,7 @@ test('T221 self-edge: references to the owning repository resolve to self-edges'
 
 test('T221 reverse-order: reversed repository and reference order is byte-identical', () => {
   const forward = synth(EXACT_REPOS, EXACT_REFS);
-  const reversed = synth([...EXACT_REPOS].reverse(), [...EXACT_REFS].reverse());
+  const reversed = synth([...EXACT_REPOS].toReversed(), [...EXACT_REFS].toReversed());
   assert.equal(JSON.stringify(forward), JSON.stringify(reversed));
 
   const tiedRepos = [
@@ -335,13 +335,13 @@ test('T221 reverse-order: reversed repository and reference order is byte-identi
     { scanId: 'scan:client', kind: 'workspace', value: 'orphan-ws', path: 'package.json', sourceKind: 'config' },
   ];
   const forwardTied = synth(tiedRepos, tiedReferences);
-  const reversedTied = synth(tiedRepos, [...tiedReferences].reverse());
+  const reversedTied = synth(tiedRepos, [...tiedReferences].toReversed());
   assert.equal(JSON.stringify(forwardTied), JSON.stringify(reversedTied),
     'tied records differing only in sourceKind sort byte-identically under reversed input');
   const externalKinds = forwardTied.edges.external.map((record) => record.sourceKind);
-  assert.deepEqual(externalKinds, [...externalKinds].sort(), 'tied external records sort by sourceKind');
+  assert.deepEqual(externalKinds, [...externalKinds].toSorted(), 'tied external records sort by sourceKind');
   const ambiguousKinds = forwardTied.edges.ambiguous.map((record) => record.sourceKind);
-  assert.deepEqual(ambiguousKinds, [...ambiguousKinds].sort(), 'tied ambiguous records sort by sourceKind');
+  assert.deepEqual(ambiguousKinds, [...ambiguousKinds].toSorted(), 'tied ambiguous records sort by sourceKind');
 });
 
 test('T221 determinism: repeated synthesis produces byte-identical snapshots', () => {
@@ -518,7 +518,7 @@ test('T221 caps: ambiguous records are capped and sorted deterministically', () 
   assert.equal(snapshot.metrics.ambiguous, EDGE_LIMITS.ambiguous);
   assert.equal(snapshot.metrics.edges, 0);
   const paths = snapshot.edges.ambiguous.map((record) => record.path);
-  assert.deepEqual(paths, [...paths].sort(), 'ambiguous records are deterministically sorted');
+  assert.deepEqual(paths, [...paths].toSorted(), 'ambiguous records are deterministically sorted');
 });
 
 test('T221 caps: identity synthesis enforces the repository bound', () => {
@@ -627,7 +627,7 @@ async function libScanFiles() {
     }
   }
   await visit(join(LIB_ROOT, 'scan'));
-  return files.sort();
+  return files.toSorted();
 }
 
 function relativeImportTargets(source) {

@@ -479,7 +479,7 @@ test('T214 duplicates: a 40-file identical block discloses the occurrence cap', 
   assert.equal(groups.capped.occurrences, true, 'bucket truncation is disclosed');
   assert.equal(groups.groups.length, 1);
   assert.ok(groups.groups[0].spans.length <= 32, 'spans are bounded by maxOccurrencesPerGroup');
-  assert.deepEqual(Object.keys(groups.capped).sort(),
+  assert.deepEqual(Object.keys(groups.capped).toSorted(),
     ['blocks', 'groups', 'occurrences', 'spans', 'windows']);
 });
 
@@ -500,8 +500,8 @@ test('T214 model: deterministic deep-frozen model with exact summary math', () =
   assert.equal(
     JSON.stringify(buildMaintainabilityModel(modelInput())),
     JSON.stringify(buildMaintainabilityModel(modelInput({
-      files: [...sampleFiles()].reverse(),
-      branchPoints: [...sampleBranchPoints()].reverse(),
+      files: [...sampleFiles()].toReversed(),
+      branchPoints: [...sampleBranchPoints()].toReversed(),
     }))),
     'reversed insertion order produces identical output',
   );
@@ -915,7 +915,7 @@ test('T214 provider: emits only DIM-maintainability categories via the foundatio
       assert.ok(EVIDENCE_SOURCE_KINDS.includes(observation.sourceKind), observation.sourceKind);
       seen.add(observation.category);
     }
-    assert.deepEqual([...seen].sort(), [
+    assert.deepEqual([...seen].toSorted(), [
       'branch_point', 'file_metric', 'measurement_universe',
     ]);
     const universe = result.observations.find(({ category }) => category === 'measurement_universe');
@@ -1066,7 +1066,7 @@ test('T214 renderer: craft sections are absent for models without craft data', (
 });
 
 test('T214 inertness: renderer is never registered in write or existing-ten renderers', async () => {
-  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).sort(), [
+  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).toSorted(), [
     'architecture', 'config', 'conventions', 'documentation', 'git',
     'operations', 'security', 'stack', 'structure', 'testing',
   ]);
@@ -1331,7 +1331,7 @@ test('T214 scanner: deterministic repeated runs are byte-identical and T202-comp
     const second = await scan(dir, {});
     assert.equal(JSON.stringify(first.findings), JSON.stringify(second.findings));
     assert.equal(Object.isFrozen(first.findings), true);
-    assert.deepEqual(Object.keys(first.findings.searchSpace).sort(), [
+    assert.deepEqual(Object.keys(first.findings.searchSpace).toSorted(), [
       'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
       'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
       'recordLimit', 'recordsInspected', 'supported',

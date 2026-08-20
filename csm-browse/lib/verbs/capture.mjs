@@ -51,7 +51,7 @@ function jpegQScale(quality) {
 
 async function ffmpegVstack(inputFiles, outputPath, quality = null) {
   await secureWrite(outputPath, '');
-  return new Promise((resolve, reject) => {
+  return new Promise((res, reject) => {
     const args = [];
     for (const f of inputFiles) args.push('-i', f);
     const pads = inputFiles.map((_, i) => `[${i}]`).join('');
@@ -63,7 +63,7 @@ async function ffmpegVstack(inputFiles, outputPath, quality = null) {
     let stderr = '';
     proc.stderr.on('data', d => stderr += d.toString());
     proc.on('close', code => {
-      if (code === 0) ensurePrivateFile(outputPath).then(resolve, reject);
+      if (code === 0) ensurePrivateFile(outputPath).then(res, reject);
       else reject(new Error(`ffmpeg vstack failed: ${stderr.slice(-200)}`));
     });
     proc.on('error', reject);
@@ -89,7 +89,7 @@ export async function run({ args, state }) {
     console.error('Warning: --quality applies to JPEG output only; ignored for lossless PNG');
   }
 
-  const positional = args.filter(a => !a.startsWith('--') && !/^\d+$/.test(a)).filter((a, i, arr) => {
+  const positional = args.filter(a => !a.startsWith('--') && !/^\d+$/.test(a)).filter(a => {
     const idx = args.indexOf(a);
     return args[idx - 1] !== '--quality';
   });
@@ -165,13 +165,13 @@ export async function run({ args, state }) {
           if (tileNum > 1 && stickyHeight > 0) {
             const cropPath = join(artifactsDir, `.stitch-${tileNum}-crop.png`);
             await secureWrite(cropPath, '');
-            await new Promise((resolve, reject) => {
+            await new Promise((res, reject) => {
               const proc = spawn('ffmpeg', [
                 '-i', tmpPath, '-vf', `crop=iw:ih-${stickyHeight}:0:${stickyHeight}`,
                 '-frames:v', '1', '-y', cropPath
               ], { stdio: ['ignore', 'ignore', 'pipe'] });
               proc.on('close', code => {
-                if (code === 0) ensurePrivateFile(cropPath).then(resolve, reject);
+                if (code === 0) ensurePrivateFile(cropPath).then(res, reject);
                 else reject(new Error('crop failed'));
               });
               proc.on('error', reject);

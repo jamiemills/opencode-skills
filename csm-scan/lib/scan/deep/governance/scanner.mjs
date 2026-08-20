@@ -71,7 +71,7 @@ function hiddenGovernancePaths(repoPath) {
       paths.push(`${directory}/${entry.name}`);
     }
   }
-  return paths.sort();
+  return paths.toSorted();
 }
 
 function readStatusToDiagnostic(result) {
@@ -160,7 +160,7 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
   for (const path of hiddenGovernancePaths(repoPath)) {
     if (classifyGovernancePath(path) !== null) governanceFiles.add(path);
   }
-  const sortedGovernanceFiles = [...governanceFiles].sort();
+  const sortedGovernanceFiles = [...governanceFiles].toSorted();
   const requestedGovernanceFiles = sortedGovernanceFiles.slice(0, 4096);
   if (requestedGovernanceFiles.length !== sortedGovernanceFiles.length) {
     diagnostics.push({ path: 'CODEOWNERS', line: null, status: 'unverified', reason: 'CAP' });

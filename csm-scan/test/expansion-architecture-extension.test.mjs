@@ -64,7 +64,7 @@ test('T217 fan-in/fan-out counts are exact and include zero-degree files', () =>
   assert.deepEqual(fanOut, {
     a: 2, b: 1, c: 2, d: 1, e: 1, f: 1, g: 0,
   });
-  assert.equal(Object.keys(fanIn).sort().join(','), 'a,b,c,d,e,f,g');
+  assert.equal(Object.keys(fanIn).toSorted().join(','), 'a,b,c,d,e,f,g');
 });
 
 test('T217 self-loops are detected and sorted deterministically', () => {
@@ -179,8 +179,8 @@ test('T217 JS dynamic constructs produce indicators; literals are recorded, non-
     { kind: 'reflection', line: 11, specifier: './resolved' },
   ]);
   assert.ok(!indicators.some(({ line }) => line >= 12), 'comments and strings must not produce indicators');
-  for (const kind of indicators.map(({ kind }) => kind)) {
-    assert.ok(INDICATOR_KINDS.includes(kind), `unexpected indicator kind ${kind}`);
+  for (const indicatorKind of indicators.map(({ kind }) => kind)) {
+    assert.ok(INDICATOR_KINDS.includes(indicatorKind), `unexpected indicator kind ${indicatorKind}`);
   }
 });
 
@@ -325,7 +325,7 @@ test('T217 analyzeGraphFacts reports exact facts for a TS dynamic fixture and ma
     assert.equal(facts.fanOut[file], targets.length, `${file} fan-out must match the preserved graph`);
   }
   assert.equal('graphFacts' in scanResult.findings, false, 'scan() must keep its original findings shape');
-  assert.deepEqual(Object.keys(scanResult.findings).sort(),
+  assert.deepEqual(Object.keys(scanResult.findings).toSorted(),
     ['asciiGraph', 'c4Code', 'c4Component', 'c4Container', 'c4Context', 'importGraph', 'layers', 'modules']);
 });
 
@@ -817,7 +817,7 @@ test('T017 integration: real scan findings feed craft aggregates and keep their 
   };
   const overview = overviewFor(['typescript'], Object.keys(files));
   const { scan: scanResult, facts } = await scanFixture('archcraft-integration', files, overview);
-  assert.deepEqual(Object.keys(scanResult.findings).sort(),
+  assert.deepEqual(Object.keys(scanResult.findings).toSorted(),
     ['asciiGraph', 'c4Code', 'c4Component', 'c4Container', 'c4Context', 'importGraph', 'layers', 'modules']);
   const [{ observations }] = architectureObservations({ findings: scanResult.findings, facts });
   const coupling = observations.filter(({ category }) => category === 'coupling');
@@ -919,7 +919,7 @@ test('T005 importContracts is conditional-absent when .importlinter is missing',
     assert.equal(
       Object.prototype.hasOwnProperty.call(result.findings, 'importContracts'),
       false,
-      `importContracts must be conditional-absent: ${JSON.stringify(Object.keys(result.findings).sort())}`,
+      `importContracts must be conditional-absent: ${JSON.stringify(Object.keys(result.findings).toSorted())}`,
     );
   });
 });

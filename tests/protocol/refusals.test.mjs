@@ -30,7 +30,7 @@ test('missing npx or file-write capability refuses before any mutation', async (
       assert.equal(refused.report.destination, null);
       assert.deepEqual(refused.report.filesPlaced, []);
     }
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -49,7 +49,7 @@ test('payload index schema mismatch refuses as unsupported format', async () => 
     const schema = await loadReportSchema();
     assert.deepEqual(validateSchema(result.report, schema), []);
     assert.deepEqual(validateSchema(shapeResult.report, schema), []);
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -67,7 +67,7 @@ test('shell-bearing steps refuse as malicious with zero mutation', async () => {
       assert.deepEqual(result.report.refusal, { code: 'E_MALICIOUS_STEPS', state: 'TRUST' });
       assert.deepEqual(validateSchema(result.report, schema), []);
     }
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -82,8 +82,8 @@ test('symlinked destination path component refuses with zero mutation', async ()
     assert.deepEqual(result.report.refusal, { code: 'E_DESTINATION_SYMLINK', state: 'PLAN_DESTINATION' });
     const schema = await loadReportSchema();
     assert.deepEqual(validateSchema(result.report, schema), []);
-    assert.deepEqual((await readdir(real)).sort(), []);
-    assert.deepEqual((await readdir(sandbox)).sort(), ['link', 'real']);
+    assert.deepEqual((await readdir(real)).toSorted(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), ['link', 'real']);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -106,7 +106,7 @@ test('traversal or duplicate payload index entries refuse before any copy', asyn
     assert.equal(duplicateResult.exitCode, EXIT_CODES.E_DUPLICATE);
     assert.deepEqual(duplicateResult.report.refusal, { code: 'E_DUPLICATE', state: 'MATERIALIZE' });
     for (const refused of [relative, absoluteResult, duplicateResult]) assert.deepEqual(validateSchema(refused.report, schema), []);
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -124,7 +124,7 @@ test('unplannable destinations refuse with no destination', async () => {
       assert.deepEqual(validateSchema(refused.report, schema), []);
       assert.equal(refused.report.destination, null);
     }
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -145,7 +145,7 @@ test('untrusted envelopes refuse at trust before any mutation', async () => {
       assert.deepEqual(result.report.refusal, { code: 'E_UNTRUSTED', state: 'TRUST' }, name);
       assert.deepEqual(validateSchema(result.report, schema), [], name);
     }
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -162,7 +162,7 @@ test('missing sandbox or out-of-scope placed entry refuses at materialize', asyn
     assert.equal(misplaced.exitCode, EXIT_CODES.E_UNSUPPORTED_FORMAT);
     assert.deepEqual(misplaced.report.refusal, { code: 'E_UNSUPPORTED_FORMAT', state: 'MATERIALIZE' });
     for (const refused of [noSandbox, misplaced]) assert.deepEqual(validateSchema(refused.report, schema), []);
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -179,7 +179,7 @@ test('modified existing destination refuses unmanaged and replaces managed with 
     assert.deepEqual(refused.report.refusal, { code: 'E_MODIFIED_EXISTING', state: 'MATERIALIZE' });
     assert.deepEqual(validateSchema(refused.report, schema), []);
     assert.equal(await readFile(skillFile, 'utf8'), 'user-edited content\n');
-    assert.deepEqual((await readdir(destination)).sort(), ['csm-plan']);
+    assert.deepEqual((await readdir(destination)).toSorted(), ['csm-plan']);
 
     const placed = await runProtocol(capableInput({ destination: join(sandbox, 'fresh'), sandbox }));
     assert.equal(placed.exitCode, 0);

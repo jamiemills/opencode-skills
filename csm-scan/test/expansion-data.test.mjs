@@ -82,7 +82,7 @@ function modelOf(result, searchSpace = SEARCH_OK) {
 }
 
 function matchedKeys(result) {
-  return result.records.map(({ category, signature }) => matchedKeyFor(category, signature)).sort();
+  return result.records.map(({ category, signature }) => matchedKeyFor(category, signature)).toSorted();
 }
 
 const BANNED_VOICE = Object.freeze([
@@ -158,7 +158,7 @@ test('T212 model: deep-frozen deterministic model with exact summary and search 
   const first = buildDataModel({ ...sampleResult(), searchSpace: SEARCH_OK });
   const second = buildDataModel({
     ...sampleResult(),
-    edges: [...sampleResult().edges].reverse(),
+    edges: [...sampleResult().edges].toReversed(),
     searchSpace: { ...SEARCH_OK, filesInspected: 7 },
   });
   assert.notEqual(first, second);
@@ -181,12 +181,12 @@ test('T212 model: deep-frozen deterministic model with exact summary and search 
   assert.equal(summary.diagnostics, 0);
   assert.equal(summary.filesInspected, 2);
   assert.equal(summary.capped.edges, false);
-  assert.deepEqual(Object.keys(summary).sort(), [
+  assert.deepEqual(Object.keys(summary).toSorted(), [
     'bytesInspected', 'caches', 'capped', 'diagnostics', 'edges', 'entities',
     'fields', 'filesInspected', 'keys', 'migrations', 'queues',
     'recordsInspected', 'relations', 'schemas', 'stores',
   ]);
-  assert.deepEqual(Object.keys(first.searchSpace).sort(), [
+  assert.deepEqual(Object.keys(first.searchSpace).toSorted(), [
     'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
     'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
     'recordLimit', 'recordsInspected', 'supported',
@@ -221,7 +221,7 @@ test('T212 model: exact duplicates collapse while same-key different-file declar
     searchSpace: SEARCH_OK,
   });
   assert.equal(second.entities.length, 3);
-  assert.deepEqual(second.entities.map(({ source }) => source.path).sort(), [
+  assert.deepEqual(second.entities.map(({ source }) => source.path).toSorted(), [
     'migrations/001.sql', 'migrations/001.sql', 'other/002.sql',
   ]);
 });
@@ -319,7 +319,7 @@ test('T212 extractor: SQL DDL extracts stores, schemas, entities, fields, keys, 
 
 test('T212 extractor: SQL edge candidates cite explicit FK evidence', () => {
   const result = extractSource('migrations/001_init.sql', SQL_FIXTURE, null);
-  assert.deepEqual(result.edges.map(({ from, to, kind }) => `${from}:${to}:${kind}`).sort(), [
+  assert.deepEqual(result.edges.map(({ from, to, kind }) => `${from}:${to}:${kind}`).toSorted(), [
     'orders:users:foreign_key', 'users:organizations:foreign_key',
   ]);
   for (const edge of result.edges) {
@@ -408,7 +408,7 @@ test('T212 extractor: Django models, relation fields, caches, and queues', () =>
   assert.ok(keys.includes('key:Customer:email:unique'));
   assert.ok(keys.includes('relation:Order:Customer:foreign_key'));
   assert.ok(keys.includes('relation:Order:Tag:many_to_many'));
-  assert.deepEqual(result.edges.map(({ from, to, kind }) => `${from}:${to}:${kind}`).sort(), [
+  assert.deepEqual(result.edges.map(({ from, to, kind }) => `${from}:${to}:${kind}`).toSorted(), [
     'Order:Customer:foreign_key', 'Order:Tag:many_to_many',
   ]);
   assert.deepEqual(result.diagnostics, []);
@@ -694,7 +694,7 @@ test('T212 model: ER edges resolve only with explicit evidence and unique endpoi
   const result = extractSource('migrations/001_init.sql', SQL_FIXTURE, null);
   const model = modelOf(result);
   assert.equal(model.edges.length, 2);
-  const kinds = model.edges.map(({ from, to, kind }) => `${from}:${to}:${kind}`).sort();
+  const kinds = model.edges.map(({ from, to, kind }) => `${from}:${to}:${kind}`).toSorted();
   assert.deepEqual(kinds, [
     'entity@orders:entity@users:foreign_key',
     'entity@users:entity@organizations:foreign_key',
@@ -795,7 +795,7 @@ test('T212 provider: emits only DIM-data-v1 categories via the provider foundati
   assert.equal(results.length, 1);
   assert.equal(results[0].providerId, DATA_PROVIDER_ID);
   assert.equal(results[0].dimensionId, 'DIM-data-v1');
-  const categories = [...new Set(results[0].observations.map(({ category }) => category))].sort();
+  const categories = [...new Set(results[0].observations.map(({ category }) => category))].toSorted();
   assert.deepEqual(categories, ['entity', 'field', 'key', 'migration', 'relation', 'schema', 'store']);
   for (const observation of results[0].observations) {
     assert.ok(PROVIDER_CATEGORIES['DIM-data-v1'].includes(observation.category));
@@ -884,7 +884,7 @@ test('T212 renderer: deterministic byte-identical output and invalid context rej
 });
 
 test('T212 inertness: data renderer is never registered in the existing-ten map', async () => {
-  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).sort(), [
+  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).toSorted(), [
     'architecture', 'config', 'conventions', 'documentation', 'git',
     'operations', 'security', 'stack', 'structure', 'testing',
   ]);
@@ -935,7 +935,7 @@ test('T212 scanner: Django fixture resolves relations and migration predecessor 
     const { findings } = await scan(dir, {});
     assert.equal(findings.entities.length, 2);
     assert.equal(findings.edges.length, 2);
-    const kinds = findings.edges.map(({ kind }) => kind).sort();
+    const kinds = findings.edges.map(({ kind }) => kind).toSorted();
     assert.deepEqual(kinds, ['foreign_key', 'migration_predecessor']);
     assert.equal(findings.migrations.length, 2);
   });
@@ -1121,7 +1121,7 @@ test('T212 scanner: deterministic repeated runs are byte-identical and search sp
     const second = await scan(dir, {});
     assert.equal(JSON.stringify(first.findings), JSON.stringify(second.findings));
     assert.equal(Object.isFrozen(first.findings), true);
-    assert.deepEqual(Object.keys(first.findings.searchSpace).sort(), [
+    assert.deepEqual(Object.keys(first.findings.searchSpace).toSorted(), [
       'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
       'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
       'recordLimit', 'recordsInspected', 'supported',

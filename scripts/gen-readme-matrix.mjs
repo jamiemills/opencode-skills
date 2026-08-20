@@ -16,6 +16,11 @@ import { INTERFACES } from './lib/contracts.mjs';
 const START = '<!-- csm-matrix:start -->';
 const END = '<!-- csm-matrix:end -->';
 
+const cell = (v) => {
+  const val = Array.isArray(v) ? v.join(', ') : String(v ?? '');
+  return val.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+};
+
 function renderMatrix() {
   const lines = [
     '## Composition matrix',
@@ -26,10 +31,6 @@ function renderMatrix() {
     '|---|---|---|---|---|',
   ];
   for (const [skill, iface] of Object.entries(INTERFACES)) {
-    const cell = (v) => {
-      const val = Array.isArray(v) ? v.join(', ') : String(v ?? '');
-      return val.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-    };
     lines.push(`| \`${skill}\` | ${cell(iface.entryConditions)} | ${cell(iface.consumes)} | ${cell(iface.produces)} | ${cell(iface.handoff)} |`);
   }
   return lines.join('\n');

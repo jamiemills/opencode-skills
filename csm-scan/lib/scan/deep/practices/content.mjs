@@ -39,7 +39,7 @@ function addKinds(target, ...tokens) {
 }
 
 function kindsOf(set) {
-  return [...set].sort().slice(0, PRACTICES_LIMITS.maxKinds);
+  return [...set].toSorted().slice(0, PRACTICES_LIMITS.maxKinds);
 }
 
 // Acronym-aware camel-case slug for class names (TestFuzzSSEParser -> sse-parser).
@@ -191,7 +191,7 @@ export function extractMutationPolicy({ path, text = '' }) {
       }
     }
     if (actionable.length > 0) {
-      records.push({ kind: 'mutation-actionable', kinds: actionable.sort() });
+      records.push({ kind: 'mutation-actionable', kinds: actionable.toSorted() });
     }
     if (!/waiver|wavier|exempt/i.test(source)) {
       records.push({ kind: 'mutation-waivers', kinds: ['unsupported'], status: 'inferred' });
@@ -259,7 +259,7 @@ export function extractFuzzReplay({ path, text = '' }) {
       records.push({
         kind: 'fuzz-decomposition',
         count: capCount(testCount),
-        kinds: classNames.sort().slice(0, PRACTICES_LIMITS.maxKinds),
+        kinds: classNames.toSorted().slice(0, PRACTICES_LIMITS.maxKinds),
         status: 'inferred',
       });
     }
@@ -480,7 +480,7 @@ export function extractPluginContent({ path, text = '' }) {
         records.push({
           kind: 'conventions-block',
           count: capCount(block.ruleCount),
-          kinds: [...block.ids].sort().slice(0, PRACTICES_LIMITS.maxKinds),
+          kinds: [...block.ids].toSorted().slice(0, PRACTICES_LIMITS.maxKinds),
         });
       }
       const tools = new Set();

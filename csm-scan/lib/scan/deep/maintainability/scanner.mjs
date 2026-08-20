@@ -112,7 +112,7 @@ function excludedLanguages(files) {
     counts.set(extension, (counts.get(extension) ?? 0) + 1);
   }
   return [...counts.entries()]
-    .sort(([left], [right]) => compareAscii(left, right))
+    .toSorted(([left], [right]) => compareAscii(left, right))
     .map(([extension, count]) => ({ extension, count }));
 }
 
@@ -123,7 +123,7 @@ function sizeDistribution(byBytes) {
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
   return [...counts.entries()]
-    .sort(([left], [right]) => compareAscii(left, right))
+    .toSorted(([left], [right]) => compareAscii(left, right))
     .map(([bucket, count]) => ({ bucket, count }));
 }
 

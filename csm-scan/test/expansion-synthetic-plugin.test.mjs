@@ -156,7 +156,7 @@ async function temporarySkillRoot(t, plugin) {
 
 function artifactsFromFiles(files) {
   return Object.entries(files)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([path, content]) => ({ path, size: Buffer.byteLength(content), content }));
 }
 
@@ -270,7 +270,7 @@ test('T225 Fixturelang rules match the fixture artifacts on all 15 provider dime
 
   const artifacts = artifactsFromFiles(FIXTURELANG_FILES);
   const first = evaluateRules({ rules: loaded.rules, artifacts });
-  const second = evaluateRules({ rules: [...loaded.rules].reverse(), artifacts: [...artifacts].reverse() });
+  const second = evaluateRules({ rules: [...loaded.rules].toReversed(), artifacts: [...artifacts].toReversed() });
 
   assert.equal(first.matches.length > 0, true);
   assert.equal(first.capped, false);

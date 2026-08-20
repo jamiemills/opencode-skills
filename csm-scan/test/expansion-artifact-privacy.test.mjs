@@ -95,7 +95,7 @@ test('T206 bounded reads return deterministic T202-compatible typed outcomes and
     ['nested/text.txt', 'read'],
     ['nested/unsupported.txt', 'unsupported'],
   ]);
-  assert.deepEqual(Object.keys(result.searchSpace).sort(), [
+  assert.deepEqual(Object.keys(result.searchSpace).toSorted(), [
     'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
     'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
     'recordLimit', 'recordsInspected', 'supported',
@@ -285,8 +285,8 @@ test('T206 Proxy, accessor, depth, and count bombs fail closed without reflectin
   let deep = 'safe';
   for (let index = 0; index < 20; index++) deep = { child: deep };
   assert.throws(() => assertPrivacySafe(deep), { code: 'DEPTH_LIMIT' });
-  assert.throws(() => projectSarif({ version: '2.1.0', runs: Array(4097).fill({}) }), PrivacyError);
-  assert.throws(() => projectSbom({ components: Array(4097).fill({ name: 'safe' }) }), PrivacyError);
+  assert.throws(() => projectSarif({ version: '2.1.0', runs: Array.from({ length: 4097 }, () => ({})) }), PrivacyError);
+  assert.throws(() => projectSbom({ components: Array.from({ length: 4097 }, () => ({ name: 'safe' })) }), PrivacyError);
   await assert.rejects(readArtifacts(root, [new Proxy(request('nested/text.txt'), {})], LIMITS), ArtifactError);
   await assert.rejects(readArtifacts(root, Array(4097).fill(null), LIMITS), { code: 'BOUND_EXCEEDED' });
 });
@@ -344,7 +344,7 @@ test('T206 bounded reads reopen with O_NOFOLLOW and re-verify inode/realpath con
 
   const resolved = await resolveArtifactReference(root, { path: 'nested/data.json', sensitivity: 'public' });
   assert.equal(resolved.size, 15);
-  assert.deepEqual(Object.keys(resolved).sort(), ['path', 'sensitivity', 'size']);
+  assert.deepEqual(Object.keys(resolved).toSorted(), ['path', 'sensitivity', 'size']);
   assert.equal(JSON.stringify(resolved).includes(root), false);
 
   await rm(join(root, 'nested', 'data.json'));

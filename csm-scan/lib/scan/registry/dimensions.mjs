@@ -313,12 +313,12 @@ export const DIMENSION_REGISTRY = validateDimensions(DIMENSION_DEFINITIONS);
 // unique by construction of the registry validation).
 export const EXPECTED_CLAIM_IDS = deepFreeze(
   DIMENSION_REGISTRY.flatMap(({ expectedClaimIds }) => expectedClaimIds)
-    .sort(compareAscii),
+    .toSorted(compareAscii),
 );
 
 // Deterministically sorted list of the 17 dimension renderer IDs.
 export const DIMENSION_RENDERER_IDS = deepFreeze(
-  DIMENSION_REGISTRY.map(({ rendererId }) => rendererId).sort(compareAscii),
+  DIMENSION_REGISTRY.map(({ rendererId }) => rendererId).toSorted(compareAscii),
 );
 
 // Stable map from dimension id to its renderer ID.

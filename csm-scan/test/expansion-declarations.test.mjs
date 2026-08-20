@@ -49,8 +49,8 @@ test('T207 workflow extracts jobs, containers, commands, environments, and trigg
     ].join('\n'),
   });
   const result = await extractDeclarations({ root, requests: requests(['.github/workflows/ci.yml']), options: LIMITS });
-  assert.deepEqual(kinds(result).sort(), ['command', 'command', 'command', 'environment', 'environment', 'environment', 'image', 'job', 'job']);
-  const commands = result.declarations.filter(({ kind }) => kind === 'command').map(({ label, job }) => [label, job]).sort();
+  assert.deepEqual(kinds(result).toSorted(), ['command', 'command', 'command', 'environment', 'environment', 'environment', 'image', 'job', 'job']);
+  const commands = result.declarations.filter(({ kind }) => kind === 'command').map(({ label, job }) => [label, job]).toSorted();
   assert.deepEqual(commands, [
     ['./deploy.sh', 'deploy'],
     ['npm ci', 'build'],
@@ -58,9 +58,9 @@ test('T207 workflow extracts jobs, containers, commands, environments, and trigg
   ]);
   const job = result.declarations.find(({ kind, label }) => kind === 'job' && label === 'build');
   assert.deepEqual(job.source, { path: '.github/workflows/ci.yml' });
-  const images = result.declarations.filter(({ kind }) => kind === 'image').map(({ label }) => label).sort();
+  const images = result.declarations.filter(({ kind }) => kind === 'image').map(({ label }) => label).toSorted();
   assert.deepEqual(images, ['node:20']);
-  const environments = result.declarations.filter(({ kind }) => kind === 'environment').map(({ label }) => label).sort();
+  const environments = result.declarations.filter(({ kind }) => kind === 'environment').map(({ label }) => label).toSorted();
   assert.deepEqual(environments, ['CI', 'production', 'ubuntu-latest']);
   assert.equal(result.diagnostics.length, 0);
   assert.equal(result.declarations.every((entry) => Object.isFrozen(entry)), true);
@@ -90,9 +90,9 @@ test('T207 compose and dockerfile extract services, images, and environment keys
   assert.equal(services[0].label, 'web');
   assert.equal(services[0].image, 'nginx:alpine');
   assert.equal(services[0].containerName, 'web-app');
-  const environments = result.declarations.filter(({ kind }) => kind === 'environment').map(({ label }) => label).sort();
+  const environments = result.declarations.filter(({ kind }) => kind === 'environment').map(({ label }) => label).toSorted();
   assert.deepEqual(environments, ['PORT', 'PYTHONDONTWRITEBYTECODE', 'SECRET_VALUE']);
-  const images = result.declarations.filter(({ kind }) => kind === 'image').map(({ label }) => label).sort();
+  const images = result.declarations.filter(({ kind }) => kind === 'image').map(({ label }) => label).toSorted();
   assert.deepEqual(images, ['nginx:alpine', 'python:3.12-slim']);
   const serialized = JSON.stringify(result);
   assert.equal(serialized.includes('TOKEN'), false, 'environment values must never be extracted');
@@ -207,7 +207,7 @@ test('T207 search space is T202-compatible and extraction never executes anythin
     '.github/workflows/ci.yml': 'on: push\njobs:\n  build:\n    steps:\n      - run: echo hi\n',
   });
   const result = await extractDeclarations({ root, requests: requests(['.github/workflows/ci.yml']), options: LIMITS });
-  assert.deepEqual(Object.keys(result.searchSpace).sort(), [
+  assert.deepEqual(Object.keys(result.searchSpace).toSorted(), [
     'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
     'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
     'recordLimit', 'recordsInspected', 'supported',

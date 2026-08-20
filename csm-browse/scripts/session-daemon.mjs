@@ -21,6 +21,15 @@ if (!sid) {
 
 const sDir = sessionDir(sid);
 
+const withTimeout = (promise, ms, label) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      globalThis.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    )
+  ]);
+};
+
 const pidFile = join(sDir, 'daemon.pid');
 const readyMarker = join(sDir, 'daemon.ready');
 
@@ -48,7 +57,7 @@ async function claimPidFile() {
         raw = await fh.readFile('utf-8');
       } finally { await fh.close(); }
     } catch (err) {
-      if (err.code === 'ELOOP') throw new Error(`Refusing symlink daemon pid file: ${pidFile}`);
+      if (err.code === 'ELOOP') throw new Error(`Refusing symlink daemon pid file: ${pidFile}`, { cause: err });
       if (err.code !== 'ENOENT') throw err;
     }
     if (raw !== null) {
@@ -164,15 +173,6 @@ try {
   if (touchReady.unref) touchReady.unref();
 
   let shuttingDown = false;
-
-  const withTimeout = (promise, ms, label) => {
-    return Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        globalThis.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-      )
-    ]);
-  };
 
   const cleanup = async () => {
     if (shuttingDown) return;

@@ -81,7 +81,7 @@ function extractTextContract(path, text) {
 }
 
 function signatures(result) {
-  return result.operations.map(({ signature }) => signature).sort();
+  return result.operations.map(({ signature }) => signature).toSorted();
 }
 
 function modelOf(result) {
@@ -139,7 +139,7 @@ function sampleCandidates() {
 test('T211 model: deep-frozen deterministic model with exact summary and search space', () => {
   const first = buildApiModel({ operations: sampleCandidates(), diagnostics: [], searchSpace: SEARCH_OK });
   const second = buildApiModel({
-    operations: [...sampleCandidates()].reverse(),
+    operations: [...sampleCandidates()].toReversed(),
     diagnostics: [],
     searchSpace: { ...SEARCH_OK, filesInspected: 7 },
   });
@@ -164,12 +164,12 @@ test('T211 model: deep-frozen deterministic model with exact summary and search 
   assert.equal(firstSummary.diagnostics, 0);
   assert.equal(firstSummary.filesInspected, 3);
   assert.equal(firstSummary.capped.files, false);
-  assert.deepEqual(Object.keys(firstSummary).sort(), [
+  assert.deepEqual(Object.keys(firstSummary).toSorted(), [
     'bytesInspected', 'capped', 'cliCommands', 'contracts', 'diagnostics',
     'events', 'filesInspected', 'operations', 'publicExports', 'recordsInspected',
     'routes', 'rpcs',
   ]);
-  assert.deepEqual(Object.keys(first.searchSpace).sort(), [
+  assert.deepEqual(Object.keys(first.searchSpace).toSorted(), [
     'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
     'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
     'recordLimit', 'recordsInspected', 'supported',
@@ -930,7 +930,7 @@ test('T211 provider: emits only DIM-api-v1 categories via the provider foundatio
   assert.equal(results.length, 1);
   assert.equal(results[0].providerId, API_PROVIDER_ID);
   assert.equal(results[0].dimensionId, 'DIM-api-v1');
-  const categories = [...new Set(results[0].observations.map(({ category }) => category))].sort();
+  const categories = [...new Set(results[0].observations.map(({ category }) => category))].toSorted();
   assert.deepEqual(categories, ['contract', 'route']);
   for (const observation of results[0].observations) {
     assert.ok(PROVIDER_CATEGORIES['DIM-api-v1'].includes(observation.category));
@@ -1025,7 +1025,7 @@ test('T211 renderer: deterministic byte-identical output and invalid context rej
 });
 
 test('T211 inertness: API renderer is never registered in the existing-ten map', async () => {
-  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).sort(), [
+  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).toSorted(), [
     'architecture', 'config', 'conventions', 'documentation', 'git',
     'operations', 'security', 'stack', 'structure', 'testing',
   ]);
@@ -1224,7 +1224,7 @@ test('T211 scanner: deterministic repeated runs are byte-identical and search sp
     const second = await scan(dir, {});
     assert.equal(JSON.stringify(first.findings), JSON.stringify(second.findings));
     assert.equal(Object.isFrozen(first.findings), true);
-    assert.deepEqual(Object.keys(first.findings.searchSpace).sort(), [
+    assert.deepEqual(Object.keys(first.findings.searchSpace).toSorted(), [
       'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
       'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
       'recordLimit', 'recordsInspected', 'supported',

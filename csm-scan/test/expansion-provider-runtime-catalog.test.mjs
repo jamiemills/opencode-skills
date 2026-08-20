@@ -883,7 +883,7 @@ test('T218 registry: versioned, sorted, deep-frozen, and duplicate-free', () => 
     Object.isFrozen(entry) && Object.isFrozen(entry.dimensions)
   )));
   const ids = RUNTIME_CATALOG_PROVIDERS.map(({ id }) => id);
-  assert.deepEqual(ids, [...ids].sort());
+  assert.deepEqual(ids, [...ids].toSorted());
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(ids.includes(STACK_CATALOG_PROVIDER_ID));
   assert.ok(ids.includes(CONFIG_CATALOG_PROVIDER_ID));
@@ -1006,7 +1006,7 @@ test('T218 parity: runtimeCatalogResults is deterministic and canonically ordere
   assert.equal(JSON.stringify(first), JSON.stringify(second));
   assert.equal(first.mode, 'builtin');
   const order = first.results.map(({ dimensionId }) => dimensionId);
-  assert.deepEqual(order, [...order].sort());
+  assert.deepEqual(order, [...order].toSorted());
   assert.deepEqual(order, ['DIM-config-v1', 'DIM-stack-v1', 'DIM-testing-v1']);
 });
 
@@ -1192,24 +1192,25 @@ test('T218 plugin: empty built-in stack findings still emit a plugin-only provid
   )), 'dimensions with no built-in and no plugin observations are absent');
 });
 
+const plugin = () => createProviderResult({
+  providerId: RUNTIME_PLUGIN_PROVIDER_ID,
+  dimensionId: 'DIM-stack-v1',
+  observations: [{
+    category: 'route', path: null, matchedKey: 'plugin-route:zeta',
+    details: { name: 'zeta' }, sourceKind: 'artifact_metadata',
+  }],
+});
+const duplicate = () => createProviderResult({
+  providerId: RUNTIME_PLUGIN_PROVIDER_ID,
+  dimensionId: 'DIM-stack-v1',
+  observations: [
+    { category: 'runtime', path: null, matchedKey: 'runtime:zeta', details: { name: 'zeta' }, sourceKind: 'repository_metadata' },
+    { category: 'runtime', path: null, matchedKey: 'runtime:zeta', details: { name: 'zeta' }, sourceKind: 'repository_metadata' },
+  ],
+});
+
 test('T218 plugin: unknown and duplicate categories are rejected by the foundation', () => {
-  const plugin = () => createProviderResult({
-    providerId: RUNTIME_PLUGIN_PROVIDER_ID,
-    dimensionId: 'DIM-stack-v1',
-    observations: [{
-      category: 'route', path: null, matchedKey: 'plugin-route:zeta',
-      details: { name: 'zeta' }, sourceKind: 'artifact_metadata',
-    }],
-  });
   assert.throws(plugin, (error) => error instanceof ProviderResultError && error.code === 'UNKNOWN_CATEGORY');
-  const duplicate = () => createProviderResult({
-    providerId: RUNTIME_PLUGIN_PROVIDER_ID,
-    dimensionId: 'DIM-stack-v1',
-    observations: [
-      { category: 'runtime', path: null, matchedKey: 'runtime:zeta', details: { name: 'zeta' }, sourceKind: 'repository_metadata' },
-      { category: 'runtime', path: null, matchedKey: 'runtime:zeta', details: { name: 'zeta' }, sourceKind: 'repository_metadata' },
-    ],
-  });
   assert.throws(duplicate, (error) => error instanceof ProviderResultError && error.code === 'DUPLICATE_OBSERVATION');
 });
 
@@ -1246,7 +1247,7 @@ async function libScanFiles() {
     }
   }
   await visit(join(LIB_ROOT, 'scan'));
-  return files.sort();
+  return files.toSorted();
 }
 
 function relativeImportTargets(source) {

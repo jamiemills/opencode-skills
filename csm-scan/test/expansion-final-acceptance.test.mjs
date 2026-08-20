@@ -62,7 +62,6 @@
 // No production, baseline, contract, or other test is edited.
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import {
@@ -160,8 +159,6 @@ const TEN_DIMENSIONS = Object.freeze([
   'architecture', 'documentation', 'security', 'operations',
 ]);
 
-const ALL_SIXTEEN = Object.freeze([...TEN_DIMENSIONS, ...SIX_NEW_DIMENSIONS]);
-
 const ALL_SEVENTEEN = Object.freeze([...TEN_DIMENSIONS, ...SIX_NEW_DIMENSIONS, 'practices']);
 
 const FIVE_FIXTURES = Object.freeze([
@@ -171,10 +168,6 @@ const FIVE_FIXTURES = Object.freeze([
   ['shell', shellFiles, 'Shell', 'shell'],
   ['rust', rustFiles, 'Rust', 'rust'],
 ]);
-
-function digest(value) {
-  return createHash('sha256').update(value).digest('hex');
-}
 
 async function readJson(name) {
   return JSON.parse(await readFile(join(BASELINE_ROOT, name), 'utf8'));
@@ -190,7 +183,7 @@ async function esmFiles(root) {
     }
   }
   await visit(root);
-  return files.sort();
+  return files.toSorted();
 }
 
 async function productionSources() {
@@ -370,7 +363,7 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
 
   // AC3 — API Surface: declared routes/CLI with dynamic constructs disclosed.
   const api = findingsFor(result, 'api');
-  assert.deepEqual(api.operations.map(({ signature }) => signature).sort(), [
+  assert.deepEqual(api.operations.map(({ signature }) => signature).toSorted(), [
     'GET:/api/items', 'GET:/api/items/{item_id}', 'GET:/api/v1', 'POST:/api/items', 'cli:click:deploy',
   ]);
   assert.ok(api.diagnostics.some(({ status, reason }) => status === 'unverified' && reason === 'DYNAMIC'),
@@ -380,7 +373,7 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
   // AC4 — Data Architecture: stores/entities/keys/relations with a
   // declaration-backed edge; a name-only relationship is disclosed, not an edge.
   const data = findingsFor(result, 'data');
-  assert.deepEqual(data.entities.map(({ signature }) => signature).sort(), ['players', 'teams', 'users']);
+  assert.deepEqual(data.entities.map(({ signature }) => signature).toSorted(), ['players', 'teams', 'users']);
   assert.deepEqual(data.relations.map(({ signature }) => signature), ['users:teams:foreign_key']);
   assert.deepEqual(data.migrations.map(({ signature }) => signature), ['0001_init.py']);
   assert.ok(data.keys.length >= 2, 'explicit keys are inventoried');
@@ -392,8 +385,8 @@ test('T228 AC2-AC9/AC15: the python fixture reports declaration-backed facts for
 
   // AC5 — Deployment Topology: bounded static images/services.
   const deployment = findingsFor(result, 'deployment');
-  assert.deepEqual(deployment.services.map(({ id }) => id).sort(), ['service@api', 'service@db']);
-  assert.deepEqual(deployment.images.map(({ reference }) => reference).sort(), ['postgres:16', 'python:3.12']);
+  assert.deepEqual(deployment.services.map(({ id }) => id).toSorted(), ['service@api', 'service@db']);
+  assert.deepEqual(deployment.images.map(({ reference }) => reference).toSorted(), ['postgres:16', 'python:3.12']);
   assert.ok(deployment.counts && deployment.counts.artifacts >= 2, 'declared artifacts are counted');
 
   // AC7 — Maintainability: disclosed measurement universe, no scores.
@@ -819,7 +812,7 @@ test('T228 AC12: a declarative plugin contributes bounded evidence to all 15 pro
   assert.ok(first.markdown.includes('fixturelang') === false, 'the plugin token is fxlang, not fixturelang');
 
   // No plugin code is evaluated: the plugin registry contains only data.
-  assert.deepEqual(Object.keys(loaded).sort(), ['aliases', 'apiVersion', 'id', 'label', 'providers', 'rules']);
+  assert.deepEqual(Object.keys(loaded).toSorted(), ['aliases', 'apiVersion', 'id', 'label', 'providers', 'rules']);
 });
 
 // ---------------------------------------------------------------------------
@@ -1120,7 +1113,7 @@ test('T228 AC18: fixed clock, repeated runs, insertion-order permutations, and r
   const perm = await mkdtemp(join(tmpdir(), 'csm-scan-t228-det-perm-'));
   t.after(() => rm(perm, { recursive: true, force: true }));
   const entries = Object.entries(pythonFiles);
-  const orders = [entries, [...entries].reverse()];
+  const orders = [entries, [...entries].toReversed()];
   const markdowns = [];
   for (const order of orders) {
     await rm(perm, { recursive: true, force: true });

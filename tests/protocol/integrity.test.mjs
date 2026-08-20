@@ -15,7 +15,7 @@ const loadIndex = async () => JSON.parse(await readFile(join(root, 'bootstrap/pa
 const destinationFault = mode => {
   let finalized = 0;
   return {
-    copyFile: async (source, target, fileMode) => {
+    copyFile: async (source, target, _fileMode) => {
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
       await copyFile(source, target);
       finalized += 1;
@@ -35,7 +35,7 @@ test('transport failure mid-copy interrupts, cleans staging, and leaves the dest
     await writeFile(join(destination, 'user-file.txt'), 'pre-existing\n', { mode: 0o644 });
     let copied = 0;
     const transport = {
-      copyFile: async (source, target, mode) => {
+      copyFile: async (source, target, _mode) => {
         await mkdir(dirname(target), { recursive: true, mode: 0o700 });
         if (copied >= 3) {
           await writeFile(target, 'partial bytes');
@@ -53,7 +53,7 @@ test('transport failure mid-copy interrupts, cleans staging, and leaves the dest
     assert.deepEqual(validateSchema(result.report, schema), []);
     assert.deepEqual(await readdir(destination), ['user-file.txt']);
     assert.equal(await readFile(join(destination, 'user-file.txt'), 'utf8'), 'pre-existing\n');
-    assert.deepEqual((await readdir(sandbox)).sort(), ['skills']);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), ['skills']);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -62,7 +62,7 @@ test('tampered staged file fails hash verification and the destination is never 
   try {
     const destination = join(sandbox, 'skills');
     const transport = {
-      copyFile: async (source, target, mode) => {
+      copyFile: async (source, target, _mode) => {
         await mkdir(dirname(target), { recursive: true, mode: 0o700 });
         await copyFile(source, target);
         if (basename(target) === 'SKILL.md' && target.includes(join('staging', 'csm-plan'))) {
@@ -77,7 +77,7 @@ test('tampered staged file fails hash verification and the destination is never 
     assert.deepEqual(validateSchema(result.report, schema), []);
     assert.deepEqual(result.report.filesPlaced, []);
     assert.deepEqual(result.report.hashVerification, { algorithm: 'sha256', verified: 0, total: 0 });
-    assert.deepEqual((await readdir(sandbox)).sort(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -90,8 +90,8 @@ test('placed hash mismatch on an unmanaged destination removes every newly writt
     assert.deepEqual(result.report.refusal, { code: 'E_HASH_MISMATCH', state: 'VERIFY' });
     const schema = await loadReportSchema();
     assert.deepEqual(validateSchema(result.report, schema), []);
-    assert.deepEqual((await readdir(destination)).sort(), []);
-    assert.deepEqual((await readdir(sandbox)).sort(), ['skills']);
+    assert.deepEqual((await readdir(destination)).toSorted(), []);
+    assert.deepEqual((await readdir(sandbox)).toSorted(), ['skills']);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -104,7 +104,7 @@ test('finalize transport failure on an unmanaged destination interrupts with zer
     assert.deepEqual(result.report.refusal, { code: 'E_INTERRUPTED', state: 'MATERIALIZE' });
     const schema = await loadReportSchema();
     assert.deepEqual(validateSchema(result.report, schema), []);
-    assert.deepEqual((await readdir(destination)).sort(), []);
+    assert.deepEqual((await readdir(destination)).toSorted(), []);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -121,7 +121,7 @@ test('finalize failure on an unmanaged destination preserves identical pre-exist
     assert.equal(result.exitCode, EXIT_CODES.E_INTERRUPTED);
     assert.deepEqual(result.report.refusal, { code: 'E_INTERRUPTED', state: 'MATERIALIZE' });
     assert.equal(sha256(await readFile(join(destination, 'csm-plan', 'SKILL.md'))), planEntry.sha256);
-    assert.deepEqual((await readdir(destination)).sort(), ['csm-plan']);
+    assert.deepEqual((await readdir(destination)).toSorted(), ['csm-plan']);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 

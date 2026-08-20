@@ -597,7 +597,7 @@ test('security: real perplexity-cli -> uv.lock + gitleaks + SECURITY.md, pydanti
 
   assert.equal(f.hasLockfile, true, `perplexity-cli must have uv.lock, got hasLockfile=${f.hasLockfile}`);
   assert.ok(
-    f.securityTools.some((t) => t.includes('gitleaks')),
+    f.securityTools.some((tool) => tool.includes('gitleaks')),
     `expected a gitleaks artifact: ${JSON.stringify(f.securityTools)}`,
   );
   assert.ok(
@@ -670,7 +670,7 @@ test('security: CRLF line endings and a UTF-8 BOM never conceal a secret', async
 
     assert.equal(security.secrets.count, 1, 'the GitHub-token pattern is reported once');
     assert.deepEqual(
-      [...security.secrets.findings[0].files].sort(),
+      [...security.secrets.findings[0].files].toSorted(),
       ['src/crlf-secret.js', 'src/lf-secret.js'],
       'the CRLF+BOM file is detected exactly like the LF file — encoding never conceals',
     );

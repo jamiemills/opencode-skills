@@ -107,7 +107,7 @@ async function libScanFiles() {
     }
   }
   await visit(join(LIB_ROOT, 'scan'));
-  return files.sort();
+  return files.toSorted();
 }
 
 function relativeImportTargets(source) {
@@ -260,7 +260,7 @@ test('T222 dimensions: flags, renderer IDs, and applicability are deterministic 
   }
   assert.equal(new Set(DIMENSION_REGISTRY.map(({ rendererId }) => rendererId)).size, 17);
   assert.equal(DIMENSION_RENDERER_IDS.length, 17);
-  assert.deepEqual(DIMENSION_RENDERER_IDS, DIMENSION_REGISTRY.map(({ rendererId }) => rendererId).sort(compareAscii));
+  assert.deepEqual(DIMENSION_RENDERER_IDS, DIMENSION_REGISTRY.map(({ rendererId }) => rendererId).toSorted(compareAscii));
   assert.equal(Object.keys(DIMENSION_RENDERER_MAP).length, 17);
   for (const dimension of DIMENSION_REGISTRY) {
     assert.equal(DIMENSION_RENDERER_MAP[dimension.id], dimension.rendererId);
@@ -281,7 +281,7 @@ test('T222 dimensions: every expected claim ID is stable, pattern-valid, prefixe
   }
   assert.equal(new Set(flat).size, flat.length, 'expected claim IDs must be globally unique');
   assert.equal(EXPECTED_CLAIM_IDS.length, flat.length);
-  assert.deepEqual(EXPECTED_CLAIM_IDS, flat.slice().sort(compareAscii));
+  assert.deepEqual(EXPECTED_CLAIM_IDS, flat.slice().toSorted(compareAscii));
   assert.equal(new Set(EXPECTED_CLAIM_IDS).size, EXPECTED_CLAIM_IDS.length);
   for (const dimension of DIMENSION_REGISTRY) {
     assert.ok(claimTopics(dimension).length >= 2, `${dimension.id} covers at least two factual topics`);
@@ -291,8 +291,8 @@ test('T222 dimensions: every expected claim ID is stable, pattern-valid, prefixe
 test('T222 dimensions: every DIMENSION_EVIDENCE_CATEGORIES entry has a corresponding claim topic (set inclusion)', () => {
   // The coverage table must name exactly the factual categories the T202
   // contract allows — no stale, orphaned, or invented category keys.
-  const tableCategories = Object.keys(CATEGORY_TOPIC_COVERAGE).slice().sort(compareAscii);
-  const contractCategories = [...new Set(Object.values(DIMENSION_EVIDENCE_CATEGORIES).flat())].sort(compareAscii);
+  const tableCategories = Object.keys(CATEGORY_TOPIC_COVERAGE).slice().toSorted(compareAscii);
+  const contractCategories = [...new Set(Object.values(DIMENSION_EVIDENCE_CATEGORIES).flat())].toSorted(compareAscii);
   assert.deepEqual(tableCategories, contractCategories,
     'CATEGORY_TOPIC_COVERAGE must name every contract category exactly once');
 
@@ -390,7 +390,7 @@ test('T222 dimensions: duplicate and unknown failure cases fail with typed contr
   // consumers), proving the snapshot entries are complete contract objects.
   const single = validateDimension(one);
   assert.equal(single.id, one.id);
-  assert.deepEqual(single.expectedClaimIds, one.expectedClaimIds.slice().sort(compareAscii));
+  assert.deepEqual(single.expectedClaimIds, one.expectedClaimIds.slice().toSorted(compareAscii));
 });
 
 // ---------------------------------------------------------------------------
@@ -422,7 +422,7 @@ test('T222 providers: index validates through the contract and holds every provi
   assert.equal(BUILTIN_PROVIDER_VERSION, 1);
   assert.equal(BUILTIN_PROVIDER_COUNT, 16);
   assert.equal(new Set(BUILTIN_PROVIDER_INDEX.map(({ id }) => id)).size, BUILTIN_PROVIDER_COUNT);
-  assert.deepEqual(BUILTIN_PROVIDER_INDEX.map(({ id }) => id).slice().sort(compareAscii), BUILTIN_PROVIDER_IDS);
+  assert.deepEqual(BUILTIN_PROVIDER_INDEX.map(({ id }) => id).slice().toSorted(compareAscii), BUILTIN_PROVIDER_IDS);
   assert.deepEqual(validateProviders(BUILTIN_PROVIDER_INDEX), BUILTIN_PROVIDER_INDEX);
   assert.ok(BUILTIN_PROVIDER_IDS.every((id) => PROVIDER_ID_PATTERN.test(id)));
   assert.ok(BUILTIN_PROVIDER_IDS.includes(GENERIC_BUILTIN_PROVIDER_ID));
@@ -431,7 +431,7 @@ test('T222 providers: index validates through the contract and holds every provi
 test('T222 providers: all 15 provider dimensions are represented, each with one primary builtin provider', () => {
   assert.equal(BUILTIN_DIMENSION_COUNT, 15);
   const covered = new Set(BUILTIN_PROVIDER_INDEX.flatMap(({ dimensions }) => dimensions.map(({ dimensionId }) => dimensionId)));
-  assert.deepEqual([...covered].sort(compareAscii), [...PROVIDER_DIMENSION_IDS].sort(compareAscii));
+  assert.deepEqual([...covered].toSorted(compareAscii), [...PROVIDER_DIMENSION_IDS].toSorted(compareAscii));
   assert.equal(Object.keys(BUILTIN_DIMENSION_TO_PROVIDER).length, 15);
   for (const dimensionId of PROVIDER_DIMENSION_IDS) {
     const providerId = BUILTIN_DIMENSION_TO_PROVIDER[dimensionId];

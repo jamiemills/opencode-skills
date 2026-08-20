@@ -7,7 +7,7 @@ import {
 } from '../cleanup.mjs';
 import { CONTAINER_NAME } from '../constants.mjs';
 
-export async function run({ args, state, verb, sid }) {
+export async function run({ args: _args, state, verb: _verb, sid }) {
   const hostSessionDir = sessionDir(sid);
 
   if (!state) {

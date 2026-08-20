@@ -217,7 +217,7 @@ export function extractMakeTargets({ path, text = '' }) {
     if (continuation) {
       if (/\\\s*$/.test(line)) continue;
       continuation = false;
-      if (/^\t/.test(line)) continue;
+      if (line.startsWith('\t')) continue;
     }
     if (!inDefine && /^[A-Za-z0-9_.%/-]+\s*:(?:[^=]|$)/.test(line)) {
       const name = line.match(/^([A-Za-z0-9_.%/-]+)\s*:/)?.[1];
@@ -743,7 +743,7 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
     for (const denyLine of denyLines) {
       const nearest = comments
         .filter((block) => block.end < denyLine)
-        .sort((left, right) => right.end - left.end)[0];
+        .toSorted((left, right) => right.end - left.end)[0];
       if (nearest === undefined) continue;
       for (const kind of denyCommentKinds(nearest.text)) semantics.add(kind);
     }
@@ -878,7 +878,7 @@ function httpSpecialCases(source, constants) {
       const members = [...setMatch[1].matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)].map((m) => m[0]);
       const ints = members.map((name) => constants.get(name))
         .filter((value) => typeof value === 'number')
-        .sort((left, right) => left - right);
+        .toSorted((left, right) => left - right);
       if (ints.length === 2 && ints[0] === 401 && ints[1] === 403) expectation = '401-403';
     } else {
       const cmpMatch = /status\s*==\s*([A-Za-z_][A-Za-z0-9_]*|\d+)\s+or\s+status\s*>=\s*([A-Za-z_][A-Za-z0-9_]*|\d+)/.exec(line);

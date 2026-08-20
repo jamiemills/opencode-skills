@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { join } from 'node:path';
 import { withFixture, surveyOverview } from './harness.mjs';
 import { resolveRealRepo, isPerplexityCli, FALLBACK_TEST_FILE_COUNT } from './helpers/real-repo.mjs';
 import { files as crlfBomFiles } from './fixtures/crlf-bom.mjs';

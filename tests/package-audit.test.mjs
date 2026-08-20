@@ -1,15 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
 import { packBootstrap } from '../scripts/pack-bootstrap.mjs';
 
 const execFileAsync = promisify(execFile);
-const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const skillNames = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const parseFrontmatter = text => {
@@ -23,6 +21,8 @@ const parseFrontmatter = text => {
   return fields;
 };
 
+const filesOf = result => result.entries.filter(entry => entry.type === '0' || entry.type === '\0').map(entry => entry.name).toSorted();
+
 test('two isolated packs are deterministic and the packed artifact passes the audit', async () => {
   const dirs = [];
   try {
@@ -34,7 +34,6 @@ test('two isolated packs are deterministic and the packed artifact passes the au
     assert.equal(sha256(firstBytes), sha256(secondBytes));
     assert.equal(Buffer.compare(firstBytes, secondBytes), 0);
 
-    const filesOf = result => result.entries.filter(entry => entry.type === '0' || entry.type === '\0').map(entry => entry.name).sort();
     assert.deepEqual(filesOf(first), filesOf(second));
     const names = filesOf(first);
     assert.ok(names.length >= 100);
@@ -87,7 +86,7 @@ test('two isolated packs are deterministic and the packed artifact passes the au
       if (name !== 'package.json' && name !== 'payload-index.json') assert.ok(indexed.some(entry => entry.path === name), `tarball file not indexed: ${name}`);
     }
 
-    const skillEntries = index.classes.skills.filter(entry => /\/SKILL\.md$/.test(entry.path));
+    const skillEntries = index.classes.skills.filter(entry => entry.path.endsWith('/SKILL.md'));
     assert.equal(skillEntries.length, 8);
     for (const skill of skillNames) {
       const entry = skillEntries.find(candidate => candidate.path === `payload/skills/${skill}/SKILL.md`);

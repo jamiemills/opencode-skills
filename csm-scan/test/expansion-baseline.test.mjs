@@ -58,7 +58,7 @@ function fixedInput() {
 function semanticProjection(enriched, validated) {
   return {
     dimensionOrder: validated.findings.map(({ dimension }) => dimension),
-    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).sort()])),
+    findingKeys: Object.fromEntries(validated.findings.map(({ dimension, findings }) => [dimension, Object.keys(findings).toSorted()])),
     coverage: validated.coverage,
     confidence: Object.fromEntries(validated.findings.map(({ dimension, confidence }) => [dimension, confidence])),
     contradictions: enriched.contradictions,
@@ -111,12 +111,12 @@ test('T201 inventory binds the acceptance command to five fixture pipelines and 
   const fixtureUrl = new URL('./fixtures/', import.meta.url);
   const fixtureModules = (await readdir(join(TEST_ROOT, 'fixtures')))
     .filter((name) => name.endsWith('.mjs'))
-    .sort();
+    .toSorted();
   for (const moduleName of fixtureModules) {
     const module = await import(new URL(moduleName, fixtureUrl));
     assert.equal(typeof module.files, 'object', `${moduleName} must export files`);
   }
-  assert.deepEqual([...fixtureModules].sort(), expected.fixtureModules);
+  assert.deepEqual([...fixtureModules].toSorted(), expected.fixtureModules);
   const fixtureSource = await readFile(join(TEST_ROOT, 'fixtures-pipeline.test.mjs'), 'utf8');
   const fixtureCases = [...fixtureSource.matchAll(/\{ name: '([^']+)', files: \w+Files,/g)].map((match) => match[1]);
   assert.deepEqual(fixtureCases, expected.fixtureCases);
@@ -137,7 +137,7 @@ test('T201 inventory binds the acceptance command to five fixture pipelines and 
 test('T201 reviewed test and fixture inputs cannot be weakened without digest updates', async () => {
   const integrity = await readJson('test-integrity.json');
   assert.equal(integrity.version, 1);
-  assert.deepEqual(Object.keys(integrity.files).sort(), [
+  assert.deepEqual(Object.keys(integrity.files).toSorted(), [
     'test/expansion-command-deep.test.mjs',
     'test/fixtures-pipeline.test.mjs',
     'test/fixtures/javascript.mjs',
@@ -183,7 +183,7 @@ test('T201 supersession records are legacy locks or live recurring replacements'
     const replacementSource = await readFile(join(TEST_ROOT, '..', entry.replacement.testFile), 'utf8');
     assert.equal(digest(replacementSource), entry.replacement.testFileSha256);
     assert.ok(
-      replacementSource.includes(`test('${entry.replacement.testName}'`) || replacementSource.includes(`test(\"${entry.replacement.testName}\"`),
+      replacementSource.includes(`test('${entry.replacement.testName}'`) || replacementSource.includes(`test("${entry.replacement.testName}"`),
       `${entry.id} replacement test is not registered under its exact name`,
     );
   }

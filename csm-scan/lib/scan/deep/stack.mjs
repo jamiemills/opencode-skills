@@ -154,7 +154,7 @@ async function listFiles(repoPath, overview, broker) {
       .split('\n')
       .map((s) => s.trim().replace(/\\/g, '/'))
       .filter(Boolean)
-      .sort();
+      .toSorted();
   } catch {
     return [];
   }
@@ -179,7 +179,7 @@ async function extractStaticDeclarations({ repoPath, overview, broker }) {
   return extractDeclarations({ root: repoPath, requests, options: RUNTIME_LIMITS });
 }
 
-function manifestSourceFor(rt, repoPath) {
+function manifestSourceFor(rt, _repoPath) {
   if (rt.manifestSource) return rt.manifestSource;
   return `manifest#${rt.manifestField}`;
 }
@@ -246,14 +246,14 @@ function dedupeEvidence(evidence) {
     seen.add(key);
     out.push(entry);
   }
-  out.sort((left, right) => (
+  const sorted = out.toSorted((left, right) => (
     left.runtime < right.runtime ? -1 : left.runtime > right.runtime ? 1
       : left.source < right.source ? -1 : left.source > right.source ? 1 : 0
   ));
-  return out;
+  return sorted;
 }
 
-function runtimeNamesFor(descriptor, evidence, repoPath) {
+function runtimeNamesFor(descriptor, evidence, _repoPath) {
   const names = [];
   for (const [index, rt] of (descriptor.runtimes || []).entries()) {
     const primary = index === 0;

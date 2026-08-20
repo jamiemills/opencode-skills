@@ -115,7 +115,7 @@ test('entry validator rejects malformed records and metadata-boundary bypasses',
   assert.throws(() => validateStandardEntry({ ...VALID_ENTRY, copiedText: false }), TypeError);
   assert.throws(() => validateStandardEntry({ ...VALID_ENTRY, controlText: 'source prose' }), TypeError);
   assert.throws(() => {
-    const { editionKey, ...missingEditionKey } = VALID_ENTRY;
+    const { editionKey: _editionKey, ...missingEditionKey } = VALID_ENTRY;
     validateStandardEntry(missingEditionKey);
   }, TypeError);
 });

@@ -30,12 +30,12 @@ const LIBRARY_MAPS = {
 
 test('every library map is keyed by exactly the 5 ecosystems', () => {
   for (const [name, map] of Object.entries(LIBRARY_MAPS)) {
-    assert.deepEqual(Object.keys(map).sort(), [...ECOSYSTEMS].sort(), `${name} keys`);
+    assert.deepEqual(Object.keys(map).toSorted(), [...ECOSYSTEMS].toSorted(), `${name} keys`);
   }
 });
 
 test('AUDIT_TOOLS is keyed by the 5 ecosystems', () => {
-  assert.deepEqual(Object.keys(AUDIT_TOOLS).sort(), [...ECOSYSTEMS].sort());
+  assert.deepEqual(Object.keys(AUDIT_TOOLS).toSorted(), [...ECOSYSTEMS].toSorted());
 });
 
 test('library map shell sub-objects are empty {} (n/a)', () => {
@@ -157,7 +157,7 @@ test('matchDep returns matched entries from an array of deps (spec example)', ()
 test('matchDep accepts a manifest-shaped deps object', () => {
   const out = matchDep({ sqlx: '0.7', tokio: '1', diesel: '2' }, DATABASE_INDICATORS.rust);
   assert.equal(out.length, 2);
-  const names = out.map((e) => e.name).sort();
+  const names = out.map((e) => e.name).toSorted();
   assert.deepEqual(names, ['diesel', 'sqlx']);
 });
 

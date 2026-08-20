@@ -1,4 +1,4 @@
-import { readFile, writeFile, rename, mkdir, readdir, unlink, stat } from 'node:fs/promises';
+import { readFile, rename, readdir, unlink, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from './constants.mjs';

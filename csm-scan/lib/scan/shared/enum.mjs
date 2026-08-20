@@ -36,7 +36,7 @@ function splitLines(stdout) {
     .split('\n')
     .map((s) => s.trim().replace(/\\/g, '/'))
     .filter(Boolean)
-    .sort();
+    .toSorted();
 }
 
 async function gitTrackedScope(repoPath, broker) {

@@ -16,7 +16,6 @@ import { test } from 'node:test';
 
 import {
   GOVERNANCE_CATEGORIES,
-  GOVERNANCE_DIALECTS,
   GOVERNANCE_DIMENSION_ID,
   GOVERNANCE_LIMITS,
   GOVERNANCE_STATUSES,
@@ -151,7 +150,7 @@ test('T215 model: invalid artifacts, statuses, categories, and paths fail with t
 test('T215 model: deterministic deep-frozen output with exact summary and search space', () => {
   const artifacts = [policyArtifact('CODE_OF_CONDUCT.md', 'code-of-conduct')];
   const first = modelOf(artifacts);
-  const second = modelOf([...artifacts].reverse());
+  const second = modelOf([...artifacts].toReversed());
   assert.equal(JSON.stringify(first), JSON.stringify(second));
   assert.equal(Object.isFrozen(first), true);
   assert.equal(Object.isFrozen(first.entries), true);
@@ -166,7 +165,7 @@ test('T215 model: deterministic deep-frozen output with exact summary and search
   assert.equal(first.summary.assigneeCount, 0);
   assert.equal(first.summary.assignmentCount, 0);
   assert.equal(first.entries[0].matchedKey, 'policy:CODE_OF_CONDUCT.md');
-  assert.deepEqual(Object.keys(first.searchSpace).sort(), [
+  assert.deepEqual(Object.keys(first.searchSpace).toSorted(), [
     'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
     'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
     'recordLimit', 'recordsInspected', 'supported',
@@ -307,12 +306,12 @@ test('T215 codeowners: malformed patterns produce typed diagnostics and retain v
   assert.deepEqual(parsed.rules[0].owners, ['@valid']);
   assert.deepEqual(parsed.rules[1].owners, ['@ok']);
   assert.equal(parsed.malformedLines, 6);
-  const reasons = parsed.diagnostics.map(({ reason }) => reason).sort();
+  const reasons = parsed.diagnostics.map(({ reason }) => reason).toSorted();
   assert.deepEqual(reasons, [
     'MALFORMED_LINE', 'NO_OWNERS', 'OWNER_UNSUPPORTED', 'PARTIAL_OWNERS',
     'PATTERN_UNSUPPORTED', 'PATTERN_UNSUPPORTED',
   ]);
-  const statuses = parsed.diagnostics.map(({ status }) => status).sort();
+  const statuses = parsed.diagnostics.map(({ status }) => status).toSorted();
   assert.deepEqual(statuses, [
     'unsupported', 'unsupported', 'unverified', 'unverified', 'unverified', 'unverified',
   ]);
@@ -490,7 +489,7 @@ test('T215 provider: emits only DIM-governance categories via the provider found
   assert.equal(results.length, 1);
   assert.equal(results[0].providerId, GOVERNANCE_PROVIDER_ID);
   assert.equal(results[0].dimensionId, 'DIM-governance-v1');
-  const categories = [...new Set(results[0].observations.map(({ category }) => category))].sort();
+  const categories = [...new Set(results[0].observations.map(({ category }) => category))].toSorted();
   assert.deepEqual(categories, ['ownership', 'policy']);
   for (const observation of results[0].observations) {
     assert.ok(PROVIDER_CATEGORIES['DIM-governance-v1'].includes(observation.category));
@@ -679,7 +678,7 @@ test('T215 renderer: deterministic byte-identical output and invalid context rej
 });
 
 test('T215 inertness: governance renderer is never registered in the existing-ten map', async () => {
-  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).sort(), [
+  assert.deepEqual(Object.keys(EXISTING_TEN_RENDERER_MAP).toSorted(), [
     'architecture', 'config', 'conventions', 'documentation', 'git',
     'operations', 'security', 'stack', 'structure', 'testing',
   ]);
@@ -743,7 +742,7 @@ test('T215 scanner: ADR entries carry declared id, date, and status', async () =
   };
   await withFixture('gov-adr', files, async (dir) => {
     const { findings } = await scan(dir, {}, inertGitBroker());
-    const decisions = findings.entries.filter(({ category }) => category === 'decision').sort(
+    const decisions = findings.entries.filter(({ category }) => category === 'decision').toSorted(
       (left, right) => left.path.localeCompare(right.path),
     );
     assert.equal(decisions.length, 2);
@@ -785,7 +784,7 @@ test('T215 scanner: malformed peers never erase valid evidence', async () => {
     assert.equal(findings.ownership.files, 2);
     assert.equal(findings.summary.patterns, 2);
     assert.ok(findings.entries.some(({ path }) => path === '.github/CODEOWNERS'));
-    const reasons = findings.diagnostics.map(({ reason }) => reason).sort();
+    const reasons = findings.diagnostics.map(({ reason }) => reason).toSorted();
     assert.deepEqual(reasons, ['NO_OWNERS', 'PATTERN_UNSUPPORTED']);
     assert.equal(findings.summary.diagnostics, 2);
   });
@@ -819,7 +818,7 @@ test('T215 scanner: credential URLs and personal data never reach the model, pro
     }
     const references = findings.entries.filter(({ category }) => category === 'reference');
     assert.equal(references.length, 2, 'credential links are sanitized, never dropped with their credentials');
-    assert.deepEqual(references.map(({ details }) => details.url).sort(), [
+    assert.deepEqual(references.map(({ details }) => details.url).toSorted(), [
       'https://example.test/api',
       'https://example.test/conduct',
     ]);
@@ -840,7 +839,7 @@ test('T215 scanner: deterministic repeated runs are byte-identical and search sp
     const second = await scan(dir, {}, broker);
     assert.equal(JSON.stringify(first.findings), JSON.stringify(second.findings));
     assert.equal(Object.isFrozen(first.findings), true);
-    assert.deepEqual(Object.keys(first.findings.searchSpace).sort(), [
+    assert.deepEqual(Object.keys(first.findings.searchSpace).toSorted(), [
       'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
       'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
       'recordLimit', 'recordsInspected', 'supported',

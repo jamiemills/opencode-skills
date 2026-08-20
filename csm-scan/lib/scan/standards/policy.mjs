@@ -97,7 +97,7 @@ export function reuseDisposition(options = {}) {
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     fail('reuse options must be an object');
   }
-  const keys = Object.keys(options).sort();
+  const keys = Object.keys(options).toSorted();
   const allowed = ['authoredMapping', 'reuseProven'];
   if (keys.some((key) => !allowed.includes(key))) fail('reuse options contain an unknown field');
 
@@ -113,7 +113,7 @@ export function validateStandardEntry(entry) {
     fail('entry must be an object');
   }
 
-  const keys = Object.keys(entry).sort();
+  const keys = Object.keys(entry).toSorted();
   if (keys.length !== ENTRY_KEYS.length || keys.some((key, index) => key !== ENTRY_KEYS[index])) {
     fail('entry fields do not match the standards metadata schema');
   }
@@ -154,5 +154,5 @@ export function validateStandardsRegistry(entries) {
     uris.add(entry.officialUri);
   }
 
-  return Object.freeze(validated.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+  return Object.freeze(validated.toSorted((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
 }

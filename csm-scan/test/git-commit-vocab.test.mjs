@@ -114,7 +114,7 @@ test('split facts are deterministic for equal multisets in any input order', () 
     'feat: a', 'feat: b', 'fix: c', 'T005: d', 'T007: e', 'P2C: f', 'plain-ish', 'free text',
   ];
   const first = analyzeCommitStyle(entries);
-  const shuffled = analyzeCommitStyle([...entries].reverse());
+  const shuffled = analyzeCommitStyle([...entries].toReversed());
   assert.equal(first, shuffled, 'reversing input order must not change the split fact');
 });
 
@@ -127,8 +127,9 @@ test('emitted facts are aggregate-only and never carry raw subjects', () => {
   assert.ok(!label.includes('T007'), 'label must not leak the task identifier');
 });
 
+const commitFiles = (index) => ({ [`docs/note-${index}.txt`]: `content ${index}\n` });
+
 test('git fixture with 200+ conventional-dominant commits reports the split over the -200 window', async () => {
-  const commitFiles = (index) => ({ [`docs/note-${index}.txt`]: `content ${index}\n` });
   const commits = [];
   for (let index = 0; index < 40; index++) {
     commits.push({ message: `fix: legacy fix ${index}`, files: commitFiles(index) });

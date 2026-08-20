@@ -133,7 +133,7 @@ function canonicalOrder(left, right) {
 function assertCanonicalOrder(observations) {
   assert.deepEqual(
     observations.map(({ category, path, matchedKey }) => ({ category, path, matchedKey })),
-    observations.slice().sort(canonicalOrder).map(({ category, path, matchedKey }) => ({ category, path, matchedKey })),
+    observations.slice().toSorted(canonicalOrder).map(({ category, path, matchedKey }) => ({ category, path, matchedKey })),
     'observations must be canonically ordered',
   );
 }
@@ -183,7 +183,7 @@ test('T220 registry: versioned, sorted, deep-frozen, and duplicate-free', () => 
     Object.isFrozen(entry) && Object.isFrozen(entry.dimensions)
   )));
   const ids = ASSURANCE_CATALOG_PROVIDERS.map(({ id }) => id);
-  assert.deepEqual(ids, [...ids].sort());
+  assert.deepEqual(ids, [...ids].toSorted());
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(ids.includes(SECURITY_CATALOG_PROVIDER_ID));
   assert.ok(ids.includes(OPERATIONS_CATALOG_PROVIDER_ID));
@@ -252,14 +252,18 @@ test('T220 catalog set: all 15 provider dimensions are represented exactly once'
     .filter(({ id }) => id !== GENERIC_PROVIDER_ID)
     .flatMap(({ dimensions }) => dimensions.map(({ dimensionId }) => dimensionId)));
 
-  assert.deepEqual([...runtimeBuiltIn].sort(), ['DIM-config-v1', 'DIM-stack-v1', 'DIM-testing-v1']);
-  assert.deepEqual([...assuranceBuiltIn].sort(), [...ASSURANCE_DIMENSION_IDS].sort());
+  assert.deepEqual([...runtimeBuiltIn].toSorted(), ['DIM-config-v1', 'DIM-stack-v1', 'DIM-testing-v1']);
+  assert.deepEqual([...assuranceBuiltIn].toSorted(), [...ASSURANCE_DIMENSION_IDS].toSorted());
 
   const all = [...runtimeBuiltIn, ...analysisBuiltIn, ...assuranceBuiltIn];
   assert.equal(new Set(all).size, all.length, 'a provider dimension is covered by more than one catalog');
-  assert.deepEqual([...new Set(all)].sort(), [...PROVIDER_DIMENSION_IDS].sort(),
+  assert.deepEqual([...new Set(all)].toSorted(), [...PROVIDER_DIMENSION_IDS].toSorted(),
     'the three catalogs must cover all 15 provider dimensions exactly once');
 });
+
+const genericCoverage = (registry) => registry
+  .find(({ id }) => id === GENERIC_PROVIDER_ID)
+  ?.dimensions.map(({ dimensionId }) => dimensionId).toSorted();
 
 test('T220 catalog set: provider ids are globally unique with a single shared generic fallback', () => {
   const runtimeIds = new Set(RUNTIME_CATALOG_PROVIDERS.map(({ id }) => id));
@@ -273,9 +277,6 @@ test('T220 catalog set: provider ids are globally unique with a single shared ge
 
   for (const id of nonGeneric) assert.match(id, /^PRV-[a-z0-9]+(?:-[a-z0-9]+)*-v[1-9]\d*$/);
 
-  const genericCoverage = (registry) => registry
-    .find(({ id }) => id === GENERIC_PROVIDER_ID)
-    ?.dimensions.map(({ dimensionId }) => dimensionId).sort();
   assert.deepEqual(genericCoverage(RUNTIME_CATALOG_PROVIDERS),
     ['DIM-assurance-v1', 'DIM-documentation-v1', 'DIM-maintainability-v1']);
   assert.deepEqual(genericCoverage(ASSURANCE_CATALOG_PROVIDERS), genericCoverage(RUNTIME_CATALOG_PROVIDERS),
@@ -459,8 +460,8 @@ const assuranceModel = {
 
 test('T220 parity: security adapter projects scanner findings exactly', () => {
   const raw = securityCatalogObservations(securityFindings);
-  assert.deepEqual(raw.slice().sort(canonicalOrder), EXPECTED_SECURITY, 'raw adapter observation set matches');
-  assertCanonicalOrder(raw.slice().sort(canonicalOrder));
+  assert.deepEqual(raw.slice().toSorted(canonicalOrder), EXPECTED_SECURITY, 'raw adapter observation set matches');
+  assertCanonicalOrder(raw.slice().toSorted(canonicalOrder));
   for (const observation of raw) assertValidObservation(observation, 'DIM-security-v1');
 
   const result = securityCatalogResult(securityFindings);
@@ -475,8 +476,8 @@ test('T220 parity: security adapter projects scanner findings exactly', () => {
 
 test('T220 parity: operations adapter projects scanner findings exactly', () => {
   const raw = operationsCatalogObservations(operationsFindings);
-  assert.deepEqual(raw.slice().sort(canonicalOrder), EXPECTED_OPERATIONS, 'raw adapter observation set matches');
-  assertCanonicalOrder(raw.slice().sort(canonicalOrder));
+  assert.deepEqual(raw.slice().toSorted(canonicalOrder), EXPECTED_OPERATIONS, 'raw adapter observation set matches');
+  assertCanonicalOrder(raw.slice().toSorted(canonicalOrder));
   for (const observation of raw) assertValidObservation(observation, 'DIM-operations-v1');
 
   const result = operationsCatalogResult(operationsFindings);
@@ -612,18 +613,19 @@ test('T220 parity: live five-ecosystem spot matrix is deterministic, allowlisted
       }
       assert.equal(first.capped, false, `${name} capped`);
       assert.deepEqual(first.results.map(({ dimensionId }) => dimensionId),
-        [...first.results.map(({ dimensionId }) => dimensionId)].sort(),
+        first.results.map(({ dimensionId }) => dimensionId).toSorted(),
         `${name} canonical dimension order`);
     });
   }
 });
+
+const keep = (results) => results.filter((result) => result.observations.length > 0);
 
 test('T220 parity: orchestration assembles exactly the per-dimension adapter results', async () => {
   for (const [name, files] of FIVE_ECOSYSTEM_FIXTURES) {
     await withFixture(`t220-orch-${name}`, files, async (repoPath) => {
       const models = await scanAll(repoPath, name);
       const envelope = assuranceCatalogResults({ ...models, languages: [name], ecosystems: [] });
-      const keep = (results) => results.filter((result) => result.observations.length > 0);
       const direct = [];
       const securityResult = securityCatalogResult(models.security);
       if (securityResult) direct.push(securityResult);
@@ -648,9 +650,9 @@ test('T220 parity: orchestration assembles exactly the per-dimension adapter res
 test('T220 deterministic: insertion-order changes never alter observations or results', () => {
   const permutedSecurity = {
     ...securityFindings,
-    secrets: { count: 1, findings: securityFindings.secrets.findings.slice().reverse() },
-    securityTools: [...securityFindings.securityTools].reverse(),
-    auditEvidence: [...securityFindings.auditEvidence].reverse(),
+    secrets: { count: 1, findings: securityFindings.secrets.findings.slice().toReversed() },
+    securityTools: [...securityFindings.securityTools].toReversed(),
+    auditEvidence: [...securityFindings.auditEvidence].toReversed(),
   };
   assert.equal(
     JSON.stringify(securityCatalogResult(securityFindings)),
@@ -660,8 +662,8 @@ test('T220 deterministic: insertion-order changes never alter observations or re
     JSON.stringify(operationsCatalogResult(operationsFindings)),
     JSON.stringify(operationsCatalogResult({
       ...operationsFindings,
-      dockerfiles: [...operationsFindings.dockerfiles].reverse(),
-      gracefulShutdown: [...operationsFindings.gracefulShutdown].reverse(),
+      dockerfiles: [...operationsFindings.dockerfiles].toReversed(),
+      gracefulShutdown: [...operationsFindings.gracefulShutdown].toReversed(),
     })),
   );
 });
@@ -1015,7 +1017,7 @@ async function libScanFiles() {
     }
   }
   await visit(join(LIB_ROOT, 'scan'));
-  return files.sort();
+  return files.toSorted();
 }
 
 function relativeImportTargets(source) {

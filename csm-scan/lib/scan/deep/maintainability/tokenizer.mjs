@@ -205,7 +205,7 @@ export function detectFunctionScopes(tokens, text, dialect) {
     }
     const lines = source.split(/\r?\n/);
     const scopes = [];
-    const entries = [...definitions.entries()].sort((left, right) => left[0] - right[0]);
+    const entries = [...definitions.entries()].toSorted((left, right) => left[0] - right[0]);
     for (const [defLine, functionName] of entries) {
       const defIndent = indents.get(defLine) ?? 0;
       let endLine = defLine;
@@ -451,7 +451,7 @@ export function detectFunctionScopes(tokens, text, dialect) {
     scopes.push({ ...open, endLine: open.endLine > lastLine ? lastLine : open.endLine });
   }
 
-  return scopes.sort((left, right) => left.startLine - right.startLine
+  return scopes.toSorted((left, right) => left.startLine - right.startLine
     || left.endLine - right.endLine
     || (left.functionName < right.functionName ? -1 : left.functionName > right.functionName ? 1 : 0));
 }
@@ -491,7 +491,7 @@ export function countFunctionComplexity(text, dialect, tokens = null) {
   const branch = DIALECT_BRANCH_KEYWORDS[dialect] ?? {};
   const branchWords = new Set(Object.values(branch).flat());
   const booleanWords = new Set(DIALECT_BOOLEAN_OPERATORS[dialect] ?? []);
-  const counts = new Array(scopes.length).fill(0);
+  const counts = Array.from({ length: scopes.length }, () => 0);
   for (const token of stream) {
     const scopeIndex = deepestScopeIndex(token.line, scopes);
     if (scopeIndex === -1) continue;

@@ -64,7 +64,7 @@ test('architecture repair: multiline static imports preserve runtime/type bounda
       `  Declared as ForwardedType,`,
       `} from './declared';`,
       `const unrelated = "import { fake } from './fake'";`,
-      `const alsoUnrelated = 'export { fake } from \'./fake\'';`,
+      `const alsoUnrelated = 'export { fake } from './fake'';`,
       `const url = "https://example.test/a//b/*safe*/";`,
       `const template = \`https://example.test/template//safe/*still-safe*/\`;`,
       `const dynamic = import('./dynamic');`,
@@ -115,7 +115,7 @@ test('architecture repair: globbed Rust members use their own crate roots', asyn
     const result = await scan(dir);
     const root = edgesFrom(result, 'crates/member-a/src/lib.rs');
     const nested = edgesFrom(result, 'crates/member-a/src/nested.rs');
-    assert.deepEqual(root.sort(), [
+    assert.deepEqual(root.toSorted(), [
       'crates/member-a/src/foo.rs',
       'crates/member-a/src/nested.rs',
       'crates/member-b/src/lib.rs',
@@ -149,7 +149,7 @@ test('architecture repair: Cargo glob classes, globstar, question, and exclusion
 
     const result = await scan(dir, { manifest, ecosystems: { primary: 'rust', all: ['rust'] } });
     const edges = edgesFrom(result, 'crates/a/src/lib.rs');
-    assert.deepEqual(edges.sort(), [
+    assert.deepEqual(edges.toSorted(), [
       'plugins/deep/src/lib.rs',
       'plugins/src/lib.rs',
       'tools/one/src/lib.rs',

@@ -219,14 +219,14 @@ test('T226 python fixture: API/data/deployment/governance/assurance facts, dynam
   const { result } = run;
 
   const api = findingsFor(result, 'api');
-  assert.deepEqual(api.operations.map(({ signature }) => signature).sort(), [
+  assert.deepEqual(api.operations.map(({ signature }) => signature).toSorted(), [
     'GET:/api/items', 'GET:/api/items/{item_id}', 'GET:/api/v1', 'POST:/api/items', 'cli:click:deploy',
   ]);
   assert.ok(api.diagnostics.some(({ status, reason }) => status === 'unverified' && reason === 'DYNAMIC'),
     'dynamic route variable must be disclosed as an unverified DYNAMIC diagnostic');
 
   const data = findingsFor(result, 'data');
-  assert.deepEqual(data.entities.map(({ signature }) => signature).sort(), ['players', 'teams', 'users']);
+  assert.deepEqual(data.entities.map(({ signature }) => signature).toSorted(), ['players', 'teams', 'users']);
   assert.deepEqual(data.relations.map(({ signature }) => signature), ['users:teams:foreign_key']);
   assert.deepEqual(data.migrations.map(({ signature }) => signature), ['0001_init.py']);
   assert.ok(data.edges.some((edge) => edge.from === 'entity@users' && edge.to === 'entity@teams' && edge.kind === 'foreign_key'),
@@ -235,8 +235,8 @@ test('T226 python fixture: API/data/deployment/governance/assurance facts, dynam
     'relationship without an FK must be disclosed as NAME_ONLY, never a fabricated edge');
 
   const deployment = findingsFor(result, 'deployment');
-  assert.deepEqual(deployment.services.map(({ id }) => id).sort(), ['service@api', 'service@db']);
-  assert.deepEqual(deployment.images.map(({ reference }) => reference).sort(), ['postgres:16', 'python:3.12']);
+  assert.deepEqual(deployment.services.map(({ id }) => id).toSorted(), ['service@api', 'service@db']);
+  assert.deepEqual(deployment.images.map(({ reference }) => reference).toSorted(), ['postgres:16', 'python:3.12']);
 
   const governance = findingsFor(result, 'governance');
   assert.equal(governance.summary.entries, 3);
@@ -274,7 +274,7 @@ test('T226 javascript fixture: route/event API, prisma ER edge, k8s deployment, 
   assert.ok(api.diagnostics.some(({ status, reason }) => status === 'unverified' && reason === 'DYNAMIC'));
 
   const data = findingsFor(result, 'data');
-  assert.deepEqual(data.entities.map(({ signature }) => signature).sort(), ['Post', 'User']);
+  assert.deepEqual(data.entities.map(({ signature }) => signature).toSorted(), ['Post', 'User']);
   assert.deepEqual(data.relations.map(({ signature }) => signature), ['Post:User:foreign_key']);
   assert.ok(data.edges.some((edge) => edge.from === 'entity@Post' && edge.to === 'entity@User'));
 
@@ -283,7 +283,7 @@ test('T226 javascript fixture: route/event API, prisma ER edge, k8s deployment, 
   assert.deepEqual(deployment.services.map(({ id }) => id), ['container@api:api']);
 
   const architecture = findingsFor(result, 'architecture');
-  assert.deepEqual([...architecture.importGraph.graph['src/app.js']].sort(), ['src/dynamic.js', 'src/secret.js']);
+  assert.deepEqual([...architecture.importGraph.graph['src/app.js']].toSorted(), ['src/dynamic.js', 'src/secret.js']);
 
   const assurance = findingsFor(result, 'assurance');
   assert.equal(assurance.manifest.length, 1);
@@ -299,11 +299,11 @@ test('T226 typescript fixture: NestJS route, reflection/dynamic constructs, pris
   assert.deepEqual(api.operations.map(({ signature }) => signature), ['GET:/api/health']);
 
   const data = findingsFor(result, 'data');
-  assert.deepEqual(data.entities.map(({ signature }) => signature).sort(), ['Account', 'Owner']);
+  assert.deepEqual(data.entities.map(({ signature }) => signature).toSorted(), ['Account', 'Owner']);
   assert.deepEqual(data.relations.map(({ signature }) => signature), ['Account:Owner:foreign_key']);
 
   const deployment = findingsFor(result, 'deployment');
-  assert.deepEqual(deployment.resources.map(({ id }) => id).sort(), ['bucket@assets', 'database@primary']);
+  assert.deepEqual(deployment.resources.map(({ id }) => id).toSorted(), ['bucket@assets', 'database@primary']);
 
   const architecture = findingsFor(result, 'architecture');
   assert.deepEqual(architecture.importGraph.graph['src/app.controller.ts'], ['src/app.service.ts']);
@@ -324,7 +324,7 @@ test('T226 rust fixture: axum/clap/pub API, diesel schema + migration, docker im
   assert.ok(api.operations.some(({ signature }) => signature === 'cli:clap:subcommand:Build'));
 
   const data = findingsFor(result, 'data');
-  assert.deepEqual(data.entities.map(({ signature }) => signature).sort(), ['teams', 'users']);
+  assert.deepEqual(data.entities.map(({ signature }) => signature).toSorted(), ['teams', 'users']);
   assert.deepEqual(data.migrations.map(({ signature }) => signature), ['up.sql']);
   assert.ok(data.fields.length >= 4 && data.keys.length >= 2, 'diesel schema + SQL migration produce fields and keys');
 
@@ -581,7 +581,7 @@ test('T226 boundary: automation make-targets carry content, operations owns Make
   assert.ok(targets, 'practices records make-target content');
   assert.equal(JSON.stringify(automation).includes('hasMakefile'), false,
     'practices must not re-assert the operations presence boolean');
-  assert.deepEqual([...targets.kinds].sort(), ['.PHONY', 'build', 'test']);
+  assert.deepEqual([...targets.kinds].toSorted(), ['.PHONY', 'build', 'test']);
 });
 
 // ---------------------------------------------------------------------------
@@ -610,7 +610,7 @@ test('T226 unknown-language fixture: generic artifact-only evidence, no first-cl
   assert.ok(categories.has('file_metric') && categories.has('measurement_universe'),
     'generic evidence is artifact-only (file_metric + measurement_universe)');
   for (const observation of observations) {
-    assert.deepEqual(Object.keys(observation).sort(), [
+    assert.deepEqual(Object.keys(observation).toSorted(), [
       'category', 'details', 'dimensionId', 'matchedKey', 'path', 'plugin', 'providerId', 'sourceKind',
     ], 'generic observations carry provider provenance only, never source claims');
   }

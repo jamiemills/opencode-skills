@@ -19,7 +19,7 @@ const shellDenylist = /\b(npx|npm|node|nodejs|bash|sh|python|python3|pip|pip3|gi
 const canonical = value => {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+  return `{${Object.keys(value).toSorted().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
 };
 const digest = value => createHash('sha256').update(value).digest('hex');
 const policyToSign = envelope => ({ schema: envelope.schema, audience: envelope.audience, expires_at: envelope.expires_at, key: envelope.key, policy: envelope.policy, steps_sha256: envelope.steps_sha256 });

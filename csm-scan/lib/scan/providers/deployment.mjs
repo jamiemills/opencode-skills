@@ -136,7 +136,7 @@ export function deploymentProviderResults({ topology }) {
   for (const indicator of topology.indicators) {
     indicatorCounts.set(indicator.kind, (indicatorCounts.get(indicator.kind) ?? 0) + 1);
   }
-  for (const [kind, count] of [...indicatorCounts.entries()].sort(([left], [right]) => compareAscii(left, right))) {
+  for (const [kind, count] of [...indicatorCounts.entries()].toSorted(([left], [right]) => compareAscii(left, right))) {
     push(observation(`indicator:${kind}`, {
       category: 'template_indicator',
       path: null,

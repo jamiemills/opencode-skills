@@ -33,7 +33,6 @@ import { deepFreeze } from '../contracts/evidence.mjs';
 
 import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
 
-import { renderArchitecture } from './architecture.mjs';
 import { renderArchitectureExpanded } from './architecture-craft.mjs';
 import { renderConfig } from './config.mjs';
 import { renderConventions } from './conventions.mjs';

@@ -19,26 +19,45 @@
     "replacementTests": [
       {
         "testFile": "test/expansion-command-core.test.mjs",
-        "testFileSha256": "26312b47733898f5a30a80cfdb079ae9d782e8b718b61d1ca83b4475c3e9ad65",
+        "testFileSha256": "069b33c6379067dc3a0be0a12b69479c9cda907b7a7defea9ca15230e8592b83",
         "testName": "T208 git scan issues only registered read-only commands through the broker"
       },
       {
         "testFile": "test/expansion-command-deep.test.mjs",
-        "testFileSha256": "2477e3b072657d6e005be3b686d63e12e7fec095199ce948b3bfd609a6b6b867",
+        "testFileSha256": "67cd13701ba50363739f698af9a58eafbe84f9709e984d008d9139011311822c",
         "testName": "T209 six owned files contain zero prohibited execution sites"
       }
     ]
   },
   "activeLegacyOwners": [],
   "filesystem": {
-    "modules": ["node:fs", "node:fs/promises"],
-    "readApis": ["existsSync", "lstat", "readFile", "readFileSync", "readdir", "readdirSync", "realpath", "statSync"],
+    "modules": [
+      "node:fs",
+      "node:fs/promises"
+    ],
+    "readApis": [
+      "existsSync",
+      "lstat",
+      "readFile",
+      "readFileSync",
+      "readdir",
+      "readdirSync",
+      "realpath",
+      "statSync"
+    ],
     "specialReaders": [
       {
         "path": "lib/scan/plugins/loader.mjs",
-        "imports": ["import { lstat, opendir, readFile, realpath } from 'node:fs/promises';"],
-        "apis": ["lstat", "opendir", "readFile", "realpath"],
-        "sha256": "58787ad3406d948a3ee25ac73f344b0e884ff65d95c2691d3dd08ba6d1a2a54f",
+        "imports": [
+          "import { lstat, opendir, readFile, realpath } from 'node:fs/promises';"
+        ],
+        "apis": [
+          "lstat",
+          "opendir",
+          "readFile",
+          "realpath"
+        ],
+        "sha256": "18d584efe55ebeafcf3e7ce5b1eb05cfa7bbfd2fff6afb14db8f4dd1edc5f707",
         "replacementTask": "T224"
       },
       {
@@ -47,8 +66,13 @@
           "import { constants } from 'node:fs';",
           "import { lstat, open, realpath } from 'node:fs/promises';"
         ],
-        "apis": ["constants", "lstat", "open", "realpath"],
-        "sha256": "bba86b351dec7e7e6b34bb7e95ad209dfe43da700817b18e9c774ab3becbda11",
+        "apis": [
+          "constants",
+          "lstat",
+          "open",
+          "realpath"
+        ],
+        "sha256": "f0b6489f74efacf07c15307a2bcf1ef25e664fb81c2e8146745685a9536ce39f",
         "replacementTask": "T224"
       },
       {
@@ -56,7 +80,10 @@
         "imports": [
           "import { createWriteStream, statSync } from 'node:fs';"
         ],
-        "apis": ["createWriteStream", "statSync"],
+        "apis": [
+          "createWriteStream",
+          "statSync"
+        ],
         "sha256": "478e264fd34c7d0670dfd21c3bd5dba282c40d3a6c6da82a022a6d87123506ec",
         "replacementTask": "T012"
       }

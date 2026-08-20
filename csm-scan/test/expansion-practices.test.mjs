@@ -24,7 +24,6 @@ import {
   buildPracticesModel,
   classifyPracticePath,
   encodeMatchedKey,
-  extractQualityGate,
 } from '../lib/scan/deep/practices/model.mjs';
 import {
   extractDeclaredConventions,
@@ -338,7 +337,7 @@ test('T002 foundations: static and content kinds coexist on the same path withou
     },
   ]);
   assert.equal(model.entries.length, 2, 'static and content kinds must both survive first-wins dedup');
-  assert.deepEqual(model.entries.map((item) => item.matchedKey).sort(),
+  assert.deepEqual(model.entries.map((item) => item.matchedKey).toSorted(),
     ['automation:make-targets:Makefile', 'automation:makefile:Makefile']);
   const content = model.entries.find((item) => item.matchedKey === 'automation:make-targets:Makefile');
   assert.deepEqual(content.kinds, ['build', 'test']);
@@ -356,7 +355,7 @@ test('T003 policy: gate values render as bounded per-key counts and slugs, token
     ].join('\n'),
   });
   assert.equal(records.length, 3);
-  assert.deepEqual(records.map((record) => record.kind).sort(),
+  assert.deepEqual(records.map((record) => record.kind).toSorted(),
     ['gate-value:maxcomplexity', 'gate-value:maxlines', 'gate-value:mincoverage']);
   const minCoverage = records.find((record) => record.kind === 'gate-value:mincoverage');
   assert.equal(minCoverage.count, 85, 'MIN_COVERAGE=85 renders as a bounded count');
@@ -442,7 +441,7 @@ test('T005 provider: model entries flow through the practices adapter', () => {
   assert.equal(results.length, 1);
   assert.equal(results[0].providerId, PRACTICES_PROVIDER_ID);
   assert.equal(results[0].dimensionId, 'DIM-practices-v1');
-  const categories = [...new Set(results[0].observations.map(({ category }) => category))].sort();
+  const categories = [...new Set(results[0].observations.map(({ category }) => category))].toSorted();
   assert.deepEqual(categories, ['methodology', 'quality_gate']);
   for (const observation of results[0].observations) {
     assert.ok(observation.matchedKey.length <= 128, observation.matchedKey);
@@ -571,9 +570,9 @@ test('T005 scanner: malformed artifacts degrade to unverified, never crash', asy
 });
 
 test('T003 negative: generated and vendored content under hidden dirs is never collected', async () => {
-  const { withFixture } = await import('./harness.mjs');
-  const { scan } = await import('../lib/scan/deep/practices/scanner.mjs');
-  await withFixture('t003-generated-junk', {
+  const { withFixture: withFixtureIsolated } = await import('./harness.mjs');
+  const { scan: scanIsolated } = await import('../lib/scan/deep/practices/scanner.mjs');
+  await withFixtureIsolated('t003-generated-junk', {
     '.opencode/node_modules/pkg/index.js': 'x = 1\n',
     '.opencode/node_modules/pkg/package.json': '{"name":"pkg"}\n',
     '.opencode/coverage/index.html': '<html></html>\n',
@@ -581,8 +580,8 @@ test('T003 negative: generated and vendored content under hidden dirs is never c
     '.opencode/eslint.config.mjs': 'export default {};\n',
     'quality/gates.conf': 'MIN_COVERAGE=85\n',
   }, async (dir) => {
-    const { findings } = await scan(dir);
-    const paths = findings.entries.map((entry) => entry.path);
+    const { findings } = await scanIsolated(dir);
+    const paths = findings.entries.map((item) => item.path);
     assert.ok(!paths.some((path) => path.includes('node_modules')), 'node_modules content is never collected');
     assert.ok(!paths.some((path) => path.includes('/coverage/')), 'coverage artifacts are never collected');
     assert.ok(paths.includes('.opencode/eslint.config.mjs'), 'real agent configs are still collected');
@@ -667,7 +666,7 @@ test('T003 style: Makefile targets extract with count and slug kinds', () => {
   assert.equal(records.length, 1);
   assert.equal(records[0].kind, 'make-targets');
   assert.equal(records[0].count, 4);
-  assert.deepEqual(records[0].kinds.sort(), ['ci-lint', 'format', 'lint', 'test']);
+  assert.deepEqual(records[0].kinds.toSorted(), ['ci-lint', 'format', 'lint', 'test']);
   assert.equal(extractMakeTargets({ path: 'src/Makefile', text: 'x:\n' }).length, 1,
     'the extractor is basename-gated; the scanner only reads root Makefiles as candidates');
 });
@@ -704,7 +703,7 @@ test('T003 style: lefthook stages and jobs extract as separate records with pipe
   const records = extractLefthookStages({ path: 'lefthook.yml', text: LEFTHOOK_REALISH });
   const stages = records.find((record) => record.kind === 'hook-stages');
   assert.equal(stages.count, 2, 'stage count is the number of declared hooks, never summed with jobs');
-  assert.deepEqual(stages.kinds.sort(), ['pre-commit', 'pre-push']);
+  assert.deepEqual(stages.kinds.toSorted(), ['pre-commit', 'pre-push']);
   const jobs = records.find((record) => record.kind === 'hook-jobs');
   assert.equal(jobs.count, 7, 'every - name: job across top level and nested groups');
   const preCommit = records.find((record) => record.kind === 'hook-stage:pre-commit');
@@ -738,7 +737,7 @@ test('T003 style: opencode deny rules and plugin inventory extract as kinds', ()
   const records = extractOpencodeWorkflow({ path: 'opencode.jsonc', text: OPENCODE_JSONC });
   const deny = records.find((record) => record.kind === 'deny-rules');
   assert.equal(deny.count, 2);
-  assert.deepEqual(deny.kinds.sort(), ['**/quality/gates.conf', '**/secrets/*.env']);
+  assert.deepEqual(deny.kinds.toSorted(), ['**/quality/gates.conf', '**/secrets/*.env']);
   const plugins = records.find((record) => record.kind === 'opencode-plugins');
   assert.equal(plugins.count, 2);
   assert.ok(plugins.kinds.includes('.opencode/plugins/quality-gate.ts'));
@@ -765,7 +764,7 @@ test('T003 style: convention headings become hyphenated slug kinds', () => {
   assert.equal(records.length, 1);
   assert.equal(records[0].kind, 'declared-conventions');
   assert.equal(records[0].count, 5);
-  assert.deepEqual(records[0].kinds.sort(), [
+  assert.deepEqual(records[0].kinds.toSorted(), [
     'contributing', 'development-setup', 'nested-section',
     'python-and-dependency-policy', 'test-taxonomy',
   ]);
@@ -789,7 +788,7 @@ test('T003 style: exceptions hub reports role count and exit-code taxonomy pairs
   const hub = records.find((record) => record.kind === 'exceptions-hub');
   assert.equal(hub.count, 4, '2 exception classes + 2 bare constants');
   const constants = records.find((record) => record.kind === 'exit-code-constant');
-  assert.deepEqual(constants.kinds.sort(), ['general-failure-1', 'success-0'],
+  assert.deepEqual(constants.kinds.toSorted(), ['general-failure-1', 'success-0'],
     'ALL_CAPS = <int> assignments become tokenized name-value pairs');
   assert.equal(constants.count, 2, '_PRIVATE is not an ALL_CAPS exit-code pair');
   assert.equal(records.some((record) => record.kind === 'exit-code-exception'), false,
@@ -956,7 +955,7 @@ test('T005 style: .PHONY pseudo-targets are excluded from the make-target count'
   });
   const targets = records.find((record) => record.kind === 'make-targets');
   assert.equal(targets.count, 2, '.PHONY is not a buildable target');
-  assert.deepEqual(targets.kinds.sort(), ['.PHONY', 'build', 'lint'],
+  assert.deepEqual(targets.kinds.toSorted(), ['.PHONY', 'build', 'lint'],
     'the discovered declaration stays in the kinds list');
 });
 
@@ -976,9 +975,9 @@ test('T005 style: make check toggles and ci-quality membership emit as automatio
   });
   const toggles = records.find((record) => record.kind === 'make-check-toggles');
   assert.equal(toggles.count, 2, 'CHECK_* toggles feed the check composition');
-  assert.deepEqual(toggles.kinds.sort(), ['check-format', 'check-lint']);
+  assert.deepEqual(toggles.kinds.toSorted(), ['check-format', 'check-lint']);
   const membership = records.find((record) => record.kind === 'make-ci-quality');
-  assert.deepEqual(membership.kinds.sort(), ['deptry', 'format-check', 'lint', 'ratchets', 'semgrep']);
+  assert.deepEqual(membership.kinds.toSorted(), ['deptry', 'format-check', 'lint', 'ratchets', 'semgrep']);
   assert.equal(membership.count, 5);
 });
 
@@ -1014,10 +1013,10 @@ test('T005 style: exit-code taxonomy emits constants, exception table and HTTP s
   assert.ok(!constants.kinds.some((kind) => kind.includes('http')),
     'HTTP status constants are never reported as exit codes');
   const exceptions = records.find((record) => record.kind === 'exit-code-exception');
-  assert.deepEqual(exceptions.kinds.sort(), ['apierror-4', 'keyboardinterrupt-130'],
+  assert.deepEqual(exceptions.kinds.toSorted(), ['apierror-4', 'keyboardinterrupt-130'],
     'exception-to-code rows resolve to tokenized pairs');
   const http = records.find((record) => record.kind === 'exit-code-http');
-  assert.deepEqual(http.kinds.sort(), ['http-401-403-4', 'http-429-5xx-6'],
+  assert.deepEqual(http.kinds.toSorted(), ['http-401-403-4', 'http-429-5xx-6'],
     'HTTP special-casing is disclosed as bounded kinds');
 });
 
@@ -1292,7 +1291,7 @@ const CONTENT_FIXTURE_FILES = {
 };
 
 function contentEntry(model, matchedKey) {
-  return model.entries.find((entry) => entry.matchedKey === matchedKey);
+  return model.entries.find((item) => item.matchedKey === matchedKey);
 }
 
 test('T006 content: suppression-policy kinds emit from both gate scripts', () => {

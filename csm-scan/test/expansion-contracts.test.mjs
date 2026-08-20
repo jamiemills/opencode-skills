@@ -10,7 +10,6 @@ import {
   CONTRACT_LIMITS,
   COVERAGE_STATES,
   DIMENSION_IDS,
-  DimensionContractError,
   PROVIDER_DIMENSION_COUNT,
   PROVIDER_DIMENSION_IDS,
   TOTAL_DIMENSION_COUNT,
@@ -175,7 +174,7 @@ test('T202R1 complete registry owns exact dimensions, order, flags, claims, and 
   assert.deepEqual(validated[10].expectedClaimIds, ['CLM-api-expected-v1']);
   assert.equal(validated[10].applicability.rules[0].value, 'source');
   assert.equal(Object.isFrozen(validated[10].applicability.rules[0]), true);
-  assert.throws(() => validated.reverse(), TypeError);
+  assert.throws(() => validated.push('mutate'), TypeError);
 });
 
 test('T202R1 partial, unknown, reordered, mismatched, and duplicate registries fail closed', () => {
@@ -295,7 +294,7 @@ test('T202R1 six statuses accept mutually exclusive canonical evidence', () => {
     }),
   ];
   const result = validateClaims(claims, records, registry(ids));
-  assert.deepEqual(result.map(({ status }) => status).sort(), [...CLAIM_STATUSES].sort());
+  assert.deepEqual(result.map(({ status }) => status).toSorted(), [...CLAIM_STATUSES].toSorted());
   assert.equal(Object.isFrozen(result[0]), true);
   assert.throws(() => result.pop(), TypeError);
 });
@@ -466,12 +465,12 @@ test('T202R1 providers expose all planned categories and remain strict data-only
   assert.ok(PROVIDER_CATEGORIES['DIM-assurance-v1'].includes('configuration'));
   assert.ok(PROVIDER_CATEGORIES['DIM-assurance-v1'].includes('tool_result'));
   assert.ok(PROVIDER_CATEGORIES['DIM-governance-v1'].includes('reference'));
-  const dimensions = [...PROVIDER_DIMENSION_IDS].reverse().map((dimensionId) => ({
+  const dimensions = [...PROVIDER_DIMENSION_IDS].toReversed().map((dimensionId) => ({
     dimensionId,
     categories: [...PROVIDER_CATEGORIES[dimensionId]],
   }));
   const provider = validateProvider({ id: 'PRV-fixture-v1', apiVersion: 1, dimensions });
-  assert.deepEqual(provider.dimensions.map(({ dimensionId }) => dimensionId), [...PROVIDER_DIMENSION_IDS].sort());
+  assert.deepEqual(provider.dimensions.map(({ dimensionId }) => dimensionId), [...PROVIDER_DIMENSION_IDS].toSorted());
   assert.equal(Object.isFrozen(provider.dimensions[0].categories), true);
   assert.throws(() => provider.dimensions.pop(), TypeError);
   const base = {
@@ -488,13 +487,14 @@ test('T202R1 providers expose all planned categories and remain strict data-only
   assert.throws(() => validateProviders([base, base]), /duplicate identifiers/);
 });
 
+const sparse = (length = 1) => Array.from({ length });
+const stripped = (entries = []) => {
+  const value = [...entries];
+  Object.setPrototypeOf(value, null);
+  return value;
+};
+
 test('T202R2 arrays are canonical dense Array.prototype collections at every contract layer', () => {
-  const sparse = (length = 1) => new Array(length);
-  const stripped = (entries = []) => {
-    const value = [...entries];
-    Object.setPrototypeOf(value, null);
-    return value;
-  };
   const id = 'CLM-api-array-shape-v1';
   const direct = evidence(id);
   const baseClaim = rawClaim(id, 'observed', [direct]);
@@ -553,7 +553,7 @@ test('T202R2 arrays are canonical dense Array.prototype collections at every con
 
 test('T202R2 collection limits precede descriptor inspection and object descriptor allocation', () => {
   let getterCalls = 0;
-  const oversized = new Array(DATA_LIMITS.maxArray + 1);
+  const oversized = Array.from({ length: DATA_LIMITS.maxArray + 1 });
   Object.defineProperty(oversized, '0', {
     enumerable: true,
     get() { getterCalls++; return 'not-read'; },

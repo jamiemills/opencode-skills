@@ -17,6 +17,7 @@ const skillNames = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-grill', 'csm-
 const capable = { hasNpx: true, hasFileWrite: true, knowsDestination: true, supportsStaging: true, supportsLock: true, supportsRollback: true, knowsReload: true };
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const placedPrefix = 'payload/skills/';
+const argvOf = template => template.map(part => (part === '--package=<spec>' ? `--package=${grammar.package.spec}` : part === '<bin>' ? grammar.package.bin : part));
 
 test('pack, payload audit, capable install, offline boundary, malicious refusal, and managed upgrade compose end to end', async () => {
   const dirs = [];
@@ -37,7 +38,7 @@ test('pack, payload audit, capable install, offline boundary, malicious refusal,
     assert.equal(index.package.name, grammar.package.name);
     assert.equal(index.package.version, grammar.package.version);
     assert.equal(index.package.bin, grammar.package.bin);
-    const skillEntries = index.classes.skills.filter(entry => /\/SKILL\.md$/.test(entry.path));
+    const skillEntries = index.classes.skills.filter(entry => entry.path.endsWith('/SKILL.md'));
     assert.equal(skillEntries.length, 8);
     for (const skill of skillNames) assert.ok(skillEntries.some(entry => entry.path === `payload/skills/${skill}/SKILL.md`), skill);
     const indexed = [...index.classes.skills, ...index.classes.supportingFiles, ...index.classes.metadata, index.fixedBin];
@@ -67,7 +68,6 @@ test('pack, payload audit, capable install, offline boundary, malicious refusal,
     assert.equal(installed.report.availability.rollback, false);
     assert.equal(installed.report.backupPath, null);
 
-    const argvOf = template => template.map(part => (part === '--package=<spec>' ? `--package=${grammar.package.spec}` : part === '<bin>' ? grammar.package.bin : part));
     const online = argvOf(grammar.argvTemplates.online);
     const offline = argvOf(grammar.argvTemplates.offline);
     assert.deepEqual(checkSpec(grammar.package.spec), { ok: true, reason: null });

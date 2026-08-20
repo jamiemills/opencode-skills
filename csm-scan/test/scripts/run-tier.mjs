@@ -55,14 +55,14 @@ function discoverTestFiles() {
   return readdirSync(join(SCAN_ROOT, 'test'))
     .filter((name) => name.endsWith('.test.mjs'))
     .map((name) => `test/${name}`)
-    .sort();
+    .toSorted();
 }
 
 // Assert tiers.mjs is a complete, non-overlapping partition of the current
 // test file set. The placeholder (empty arrays) fails the non-empty check.
 function assertManifestPartition() {
   const current = discoverTestFiles();
-  const entries = [...S, ...M, ...L].sort();
+  const entries = [...S, ...M, ...L].toSorted();
 
   if (entries.length === 0) {
     fail(

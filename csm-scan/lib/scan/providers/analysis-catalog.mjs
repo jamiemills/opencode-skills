@@ -54,7 +54,6 @@ import {
 } from '../deep/architecture/craft.mjs';
 import {
   practicesObservations,
-  practicesProviderResult,
 } from './practices.mjs';
 
 export const ANALYSIS_CATALOG_VERSION = 1;
@@ -92,7 +91,11 @@ function plain(value) {
 function asciiList(values) {
   return (Array.isArray(values) ? values : [])
     .filter((entry) => typeof entry === 'string')
-    .sort(compareAscii);
+    .toSorted(compareAscii);
+}
+
+function maximum(values) {
+  return values.length === 0 ? null : Math.max(...values);
 }
 
 function boundedKey(value) {
@@ -125,7 +128,7 @@ function canonicalOrder(left, right) {
 }
 
 function boundedObservations(observations) {
-  const sorted = observations.slice().sort(canonicalOrder);
+  const sorted = observations.slice().toSorted(canonicalOrder);
   const capped = sorted.length > PROVIDER_RESULT_LIMITS.observations;
   if (capped) sorted.length = PROVIDER_RESULT_LIMITS.observations;
   return { observations: sorted, capped };
@@ -310,7 +313,6 @@ function graphFactsObservations(facts) {
     const fanOut = plain(facts.fanOut);
     const fanInValues = fanIn ? Object.values(fanIn).filter(Number.isSafeInteger) : [];
     const fanOutValues = fanOut ? Object.values(fanOut).filter(Number.isSafeInteger) : [];
-    const maximum = (values) => (values.length === 0 ? null : Math.max(...values));
     observations.push(observation(
       'graph',
       null,
@@ -376,8 +378,8 @@ export function architectureObservations(input) {
     observations.push(observation('entry_point', entry, `entry-point:${boundedKey(entry)}`, {}, 'source'));
   }
 
-  for (const source of Object.keys(graph).sort(compareAscii)) {
-    const targets = Array.isArray(graph[source]) ? graph[source].slice().sort(compareAscii) : [];
+  for (const source of Object.keys(graph).toSorted(compareAscii)) {
+    const targets = Array.isArray(graph[source]) ? graph[source].slice().toSorted(compareAscii) : [];
     for (const target of targets) {
       observations.push(observation(
         'import_edge',
@@ -460,7 +462,7 @@ export function conventionsObservations(findings) {
     }, 'source'));
     const byEcosystem = plain(importStyle.byEcosystem);
     if (byEcosystem) {
-      for (const ecosystem of Object.keys(byEcosystem).sort(compareAscii)) {
+      for (const ecosystem of Object.keys(byEcosystem).toSorted(compareAscii)) {
         const entry = plain(byEcosystem[ecosystem]);
         if (!entry) continue;
         const counts = {};
@@ -802,7 +804,7 @@ export function analysisPluginObservations(matches) {
     grouped.set(match.dimensionId, observations);
   }
   return deepFreeze([...grouped.entries()]
-    .sort(([left], [right]) => compareAscii(left, right))
+    .toSorted(([left], [right]) => compareAscii(left, right))
     .map(([dimensionId, observations]) => ({ dimensionId, observations })));
 }
 

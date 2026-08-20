@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -71,8 +71,8 @@ test('T213 dockerfile: literal FROM images, stages, and build edges', async (t) 
   const result = await scanDeploymentTopology({ root, requests: requests(['Dockerfile']) });
   const { topology } = result;
   assert.deepEqual(topology.images.map(({ reference, scope }) => [reference, scope]), [['node:20', 'from']]);
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), ['stage@base', 'stage@runtime']);
-  assert.deepEqual(topology.edges.map(({ from, to, kind }) => [from, to, kind]).sort(), [
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), ['stage@base', 'stage@runtime']);
+  assert.deepEqual(topology.edges.map(({ from, to, kind }) => [from, to, kind]).toSorted(), [
     ['stage@runtime', 'stage@base', 'build_from'],
     ['stage@runtime', 'stage@base', 'copy_from'],
   ]);
@@ -89,7 +89,7 @@ test('T213 dockerfile: undeclared COPY --from becomes a stub, never a resource',
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['Dockerfile']) });
   const { topology } = result;
-  assert.deepEqual(topology.images.map(({ reference }) => reference).sort(),
+  assert.deepEqual(topology.images.map(({ reference }) => reference).toSorted(),
     ['ghcr.io/acme/base:1', 'node:20']);
   assert.deepEqual(topology.stubs.map(({ kind, label, source }) => [kind, label, source]),
     [['stage', 'missing', 'copy_from']]);
@@ -131,11 +131,11 @@ test('T213 compose: services, images, depends_on edges, networks, and volumes', 
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['compose.yaml']) });
   const { topology } = result;
-  assert.deepEqual(topology.services.map(({ id }) => id).sort(), ['service@cache', 'service@db', 'service@web']);
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), ['network@front', 'volume@data']);
-  assert.deepEqual(topology.images.map(({ reference }) => reference).sort(),
+  assert.deepEqual(topology.services.map(({ id }) => id).toSorted(), ['service@cache', 'service@db', 'service@web']);
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), ['network@front', 'volume@data']);
+  assert.deepEqual(topology.images.map(({ reference }) => reference).toSorted(),
     ['nginx:alpine', 'postgres:16', 'redis:7']);
-  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).sort(), [
+  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).toSorted(), [
     'service@db->network@front:network',
     'service@web->network@front:network',
     'service@web->service@cache:depends_on',
@@ -219,7 +219,7 @@ test('T213 kubernetes: literal resources, containers, images, and references', a
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['k8s/all.yaml']) });
   const { topology } = result;
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), [
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), [
     'configmap@api-config',
     'deployment@api',
     'pvc@api-data',
@@ -228,7 +228,7 @@ test('T213 kubernetes: literal resources, containers, images, and references', a
   ]);
   assert.deepEqual(topology.services.map(({ id, image }) => [id, image]), [['container@api:api', 'ghcr.io/acme/api:1.0']]);
   assert.deepEqual(topology.images.map(({ reference }) => reference), ['ghcr.io/acme/api:1.0']);
-  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).sort(), [
+  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).toSorted(), [
     'deployment@api->configmap@api-config:env_from',
     'deployment@api->configmap@api-config:value_from',
     'deployment@api->pvc@api-data:volume_from',
@@ -373,7 +373,7 @@ test('T213 terraform: literal resources and direct references, stubs and indicat
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['main.tf']) });
   const { topology } = result;
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), [
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), [
     'bucket@assets',
     'function@api',
     'local@default',
@@ -386,14 +386,14 @@ test('T213 terraform: literal resources and direct references, stubs and indicat
     'variable@env',
   ]);
   assert.deepEqual(topology.images.map(({ reference }) => reference), ['ghcr.io/acme/api:1.0']);
-  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).sort(), [
+  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).toSorted(), [
     'bucket@assets->variable@env:reference',
     'trigger@poll->function@api:reference',
     'trigger@poll->queue@jobs:reference',
   ]);
   const moduleRecord = topology.resources.find(({ id }) => id === 'module@networking');
   assert.equal(moduleRecord.attributes.source, 'terraform-aws-modules/vpc/aws');
-  assert.deepEqual(topology.indicators.map(({ kind }) => kind).sort(), ['for_each']);
+  assert.deepEqual(topology.indicators.map(({ kind }) => kind).toSorted(), ['for_each']);
   assert.equal(topology.stubs.length, 0);
   assertCited(topology);
 });
@@ -419,7 +419,7 @@ test('T213 terraform: dynamic names, counts, and remote functions never fabricat
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['main.tf']) });
   const { topology } = result;
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), [
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), [
     'bucket@logs',
     'log_group@unknown_fn',
     'parameter@from_module',
@@ -483,7 +483,7 @@ test('T213 cloudformation: literal resources, safe intrinsics, unresolved refs a
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['cfn/template.yaml']) });
   const { topology } = result;
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), [
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), [
     'bucket@AssetsBucket',
     'function@ApiFunction',
     'output@BucketArn',
@@ -493,7 +493,7 @@ test('T213 cloudformation: literal resources, safe intrinsics, unresolved refs a
     'topic@ExternalDep',
     'trigger@PollTrigger',
   ]);
-  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).sort(), [
+  assert.deepEqual(topology.edges.map(({ from, to, kind }) => `${from}->${to}:${kind}`).toSorted(), [
     'bucket@AssetsBucket->parameter@Env:reference',
     'function@ApiFunction->bucket@AssetsBucket:reference',
     'output@BucketArn->bucket@AssetsBucket:reference',
@@ -524,7 +524,7 @@ test('T213 cloudformation: JSON template with Fn:: intrinsics', async (t) => {
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['cfn/template.json']) });
   const { topology } = result;
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), [
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), [
     'bucket@Bucket',
     'queue@Queue',
     'topic@Job',
@@ -567,8 +567,8 @@ test('T213 serverless: functions, images, events, resources, and variables', asy
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['serverless.yml']) });
   const { topology } = result;
-  assert.deepEqual(topology.services.map(({ id }) => id).sort(), ['function@hello', 'function@worker']);
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), [
+  assert.deepEqual(topology.services.map(({ id }) => id).toSorted(), ['function@hello', 'function@worker']);
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), [
     'provider@aws',
     'queue@WorkerQueue',
     'service@demo-api',
@@ -627,7 +627,7 @@ test('T213 dynamic constructs produce indicators and stubs, never fabricated res
   assert.ok(topology.indicators.some(({ kind }) => kind === 'interpolation'));
   assert.ok(topology.indicators.some(({ kind }) => kind === 'template_marker'));
   assert.equal(topology.resources.some(({ label }) => label.includes('${')), false);
-  assert.deepEqual(topology.resources.map(({ id }) => id).sort(), ['bucket@fixed', 'variable@which'],
+  assert.deepEqual(topology.resources.map(({ id }) => id).toSorted(), ['bucket@fixed', 'variable@which'],
     'dynamic terraform names produce no resources; literal resources remain');
 });
 
@@ -865,7 +865,7 @@ test('T213 searchSpace is T202-compatible and deterministic', async (t) => {
     'Dockerfile': 'FROM node:20\n',
   });
   const result = await scanDeploymentTopology({ root, requests: requests(['compose.yaml', 'Dockerfile']) });
-  assert.deepEqual(Object.keys(result.searchSpace).sort(), [
+  assert.deepEqual(Object.keys(result.searchSpace).toSorted(), [
     'ambiguous', 'byteLimit', 'bytesInspected', 'capped', 'complete', 'error',
     'fileLimit', 'filesInspected', 'malformed', 'omittedCount', 'readable',
     'recordLimit', 'recordsInspected', 'supported',
@@ -1023,7 +1023,7 @@ test('T213 provider: DIM-deployment categories via T210 base, immutable and dete
     assert.ok(EVIDENCE_SOURCE_KINDS.includes(observation.sourceKind));
   }
   const categories = new Set(providerResult.observations.map(({ category }) => category));
-  assert.deepEqual([...categories].sort(),
+  assert.deepEqual([...categories].toSorted(),
     ['image', 'resource', 'service', 'template_indicator', 'topology_edge']);
   const indicator = providerResult.observations.find(({ category }) => category === 'template_indicator');
   assert.equal(indicator.details.kind, 'for_each');
@@ -1111,21 +1111,6 @@ test('T213 renderer is INERT: not registered in write or existing-ten renderers'
 // ---------------------------------------------------------------------------
 // Inertness and source policy
 // ---------------------------------------------------------------------------
-
-async function scanLibFiles() {
-  const files = [];
-  async function visit(dir) {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) await visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.mjs')) files.push(path);
-    }
-  }
-  await visit(join(LIB_ROOT, 'scan', 'deep', 'deployment'));
-  await visit(join(LIB_ROOT, 'scan', 'providers'));
-  await visit(join(LIB_ROOT, 'scan', 'render'));
-  return files.sort();
-}
 
 test('T213 inertness: deployment modules never touch fs, child_process, or execution surfaces', async () => {
   const owned = [

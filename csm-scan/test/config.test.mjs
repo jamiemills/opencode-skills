@@ -813,7 +813,7 @@ test('config render: declared toolchain lists the missing tools in the Configura
       assert.match(markdown, /declared-config/, 'declared-config provenance rendered');
       // deterministic ordering: alphabetical by tool name.
       const names = [...markdown.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]);
-      assert.deepEqual(names, [...names].sort(), `toolchain rows not sorted: ${JSON.stringify(names)}`);
+      assert.deepEqual(names, [...names].toSorted(), `toolchain rows not sorted: ${JSON.stringify(names)}`);
     },
   );
 });

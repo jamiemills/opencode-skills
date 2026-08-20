@@ -83,7 +83,7 @@ function branchTotals(model) {
     for (const category of BRANCH_CATEGORIES) entry.counts[category] += record.counts[category];
     totals.set(record.dialect, entry);
   }
-  return [...totals.values()].sort((left, right) => compareAscii(left.dialect, right.dialect));
+  return [...totals.values()].toSorted((left, right) => compareAscii(left.dialect, right.dialect));
 }
 
 function sizeBucketLabel(bucket) {

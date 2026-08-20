@@ -16,7 +16,7 @@ async function readEvents(sessionDir) {
     const entries = await readdir(sessionDir);
     entries
       .filter(e => e.startsWith('events-') && e.endsWith('.jsonl'))
-      .sort()
+      .toSorted()
       .forEach(e => files.push(join(sessionDir, e)));
   } catch {}
 

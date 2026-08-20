@@ -80,7 +80,7 @@ function checkArgv(argv, { offline = false } = {}) {
 async function hashTree(dir, prefix = '') {
   const entries = await readdir(dir, { withFileTypes: true });
   const out = [];
-  for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+  for (const entry of entries.toSorted((a, b) => (a.name < b.name ? -1 : 1))) {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) out.push(...(await hashTree(join(dir, entry.name), rel)));
     else if (entry.isFile()) out.push([rel, sha256(await readFile(join(dir, entry.name)))]);

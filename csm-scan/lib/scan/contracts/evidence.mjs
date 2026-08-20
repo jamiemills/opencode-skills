@@ -60,7 +60,7 @@ export const EVIDENCE_CATEGORIES = Object.freeze([
     'search_space',
     ...Object.values(DIMENSION_EVIDENCE_CATEGORIES).flat(),
   ]),
-].sort(compareAscii));
+].toSorted(compareAscii));
 
 const EVIDENCE_KEYS = Object.freeze([
   'category', 'claimId', 'details', 'detectorId', 'id', 'locator', 'matchedKey',
@@ -207,7 +207,7 @@ export function assertDataOnly(value, ErrorType = EvidenceContractError, limits 
 }
 
 function exactKeys(value, expected, ErrorType = EvidenceContractError, label = 'value') {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail(ErrorType, 'UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -307,7 +307,7 @@ function normalizeApplicabilityDetails(value) {
       fail(EvidenceContractError, 'INVALID_DETAILS', 'absent applicability fact must have null value');
     }
     return { field: fact.field, present: fact.present, value: fact.present ? factValue(fact.field, fact.value) : null };
-  }).sort((left, right) => compareAscii(
+  }).toSorted((left, right) => compareAscii(
     `${left.field}:${left.present}:${JSON.stringify(left.value)}`,
     `${right.field}:${right.present}:${JSON.stringify(right.value)}`,
   ));
@@ -420,5 +420,5 @@ export function validateEvidenceList(records) {
   if (new Set(result.map(({ id }) => id)).size !== result.length) {
     fail(EvidenceContractError, 'DUPLICATE_ID', 'evidence contains a duplicate identifier');
   }
-  return deepFreeze(result.sort((left, right) => compareAscii(left.id, right.id)));
+  return deepFreeze(result.toSorted((left, right) => compareAscii(left.id, right.id)));
 }

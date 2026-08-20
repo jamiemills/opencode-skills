@@ -21,7 +21,7 @@ function makeClient(opts = {}) {
       const i = list.indexOf(fn);
       if (i !== -1) list.splice(i, 1);
     },
-    emit(ev, params) { for (const fn of [...(handlers.get(ev) || [])]) fn(params); },
+    emit(ev, params) { for (const fn of handlers.get(ev) || []) fn(params); },
     listenerCount(ev) { return (handlers.get(ev) || []).length; },
     async send(method, params, sessionId) {
       calls.push({ method, params, sessionId });
@@ -88,7 +88,7 @@ test('fixed privacy-overlay removal pattern is emitted', async () => {
   const client = makeClient();
   await dismissCookies(client, 's');
   assert.ok(evaluates(client).some((c) =>
-    c.params.expression.includes('position===' + '\'fixed\'') && c.params.expression.includes('privacy')));
+    c.params.expression.includes("position==='fixed'") && c.params.expression.includes('privacy')));
 });
 
 test('no consent wall found: returns early, no context work, no wall removal', async () => {
@@ -98,7 +98,7 @@ test('no consent wall found: returns early, no context work, no wall removal', a
   // 4 onetrust + 1 sourcepoint + 1 generic click + 1 overlay + 1 wall detect
   assert.equal(evals.length, 8);
   assert.ok(!client.calls.some((c) => c.method === 'Runtime.enable'));
-  assert.ok(!evals.some((c) => c.params.expression.includes('removed=' + 'n')), 'wall-removal ran without a wall');
+  assert.ok(!evals.some((c) => c.params.expression.includes('removed=n')), 'wall-removal ran without a wall');
   assert.ok(!client.calls.some((c) => c.method === 'Page.getFrameTree'));
 });
 

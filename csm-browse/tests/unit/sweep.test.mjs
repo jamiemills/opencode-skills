@@ -7,8 +7,7 @@ import { freshSessionsRoot, removeRoot, backage, patchKill } from './helpers/env
 
 const root = await freshSessionsRoot('csm-browse-sweep-');
 const { sweep } = await import('../../lib/sweep.mjs');
-const { SESSIONS_ROOT } = await import('../../lib/constants.mjs');
-const { execLayer, setExecLayerForTests } = await import('../../lib/docker.mjs');
+const { setExecLayerForTests } = await import('../../lib/docker.mjs');
 
 after(async () => { setExecLayerForTests(); await removeRoot(root); });
 
@@ -99,7 +98,7 @@ test('host pass reaps a stale session with a dead daemon (container cleanup incl
   assert.ok(!existsSync(dir), 'stale host dir must be removed');
   assert.ok(pkillCalls.includes('--user-data-dir=/config/csm-browse/sessions/sw-a1/'));
   assert.ok(pkillCalls.includes('--database=/config/csm-browse/sessions/sw-a1/crash'));
-  assert.ok(killCalls.some(([pid, sig]) => sig === 'SIGTERM'), `gate not killed: ${JSON.stringify(killCalls)}`);
+  assert.ok(killCalls.some(([_pid, sig]) => sig === 'SIGTERM'), `gate not killed: ${JSON.stringify(killCalls)}`);
   assert.ok(containerCalls.some((a) => a[0] === 'rm' && a.includes('-rf') && a.includes('/config/csm-browse/sessions/sw-a1')));
 });
 
@@ -189,7 +188,7 @@ test('container chromium without host state is killed and its dir removed', asyn
   assert.ok(result.swept.some((e) => e === 'orphan container chromium sid=cc-x'), `not reaped: ${result.swept}`);
   assert.ok(pkillCalls.includes('--user-data-dir=/config/csm-browse/sessions/cc-x/'));
   assert.ok(pkillCalls.includes('--database=/config/csm-browse/sessions/cc-x/crash'));
-  assert.ok(killCalls.some(([pid, sig]) => sig === 'SIGTERM'), `gate not killed: ${JSON.stringify(killCalls)}`);
+  assert.ok(killCalls.some(([_pid, sig]) => sig === 'SIGTERM'), `gate not killed: ${JSON.stringify(killCalls)}`);
   assert.ok(containerCalls.some((a) => a.includes('rm') && a.includes('-rf') && a.includes('/config/csm-browse/sessions/cc-x')));
 });
 
@@ -236,7 +235,7 @@ test('orphan gate without a related chromium is killed; pass skipped while a cre
   let result2;
   try { result2 = await sweep({ ...opts }); } finally { restore2(); }
   assert.ok(!result2.swept.some((e) => e.includes('orphan gate')), `gate pass not skipped: ${result2.swept}`);
-  assert.ok(!killCalls.some(([pid, sig]) => pid === 3), `gate killed during creation: ${JSON.stringify(killCalls)}`);
+  assert.ok(!killCalls.some(([pid, _sig]) => pid === 3), `gate killed during creation: ${JSON.stringify(killCalls)}`);
   await rm(join(root, 'cm-x'), { recursive: true, force: true }); // its fresh marker would suppress later passes
 });
 

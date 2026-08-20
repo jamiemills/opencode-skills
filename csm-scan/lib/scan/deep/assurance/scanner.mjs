@@ -41,13 +41,6 @@ import {
 
 export const ASSURANCE_SCANNER_ID = 'DET-assurance-scan-v1';
 
-const READ_LIMITS = Object.freeze({
-  maxBytes: ASSURANCE_LIMITS.maxBytes,
-  maxDepth: ASSURANCE_LIMITS.maxDepth,
-  maxFiles: ASSURANCE_LIMITS.maxFiles,
-  maxRecords: ASSURANCE_LIMITS.maxRecords,
-});
-
 // Presence-only kinds never need content reads; their records are derived
 // directly from the enumerated path.
 const PRESENCE_ONLY_KINDS = new Set(['attestation', 'configuration', 'license', 'tool_result']);
@@ -122,7 +115,7 @@ export async function scanAssurance({
     }
     paths.set(normalized, true);
   }
-  const sorted = [...paths.keys()].sort();
+  const sorted = [...paths.keys()].toSorted();
   if (sorted.length > options.maxFiles) {
     throw new AssuranceModelError('ARTIFACT_LIMIT', 'assurance artifact count exceeds the declared cap');
   }

@@ -1,6 +1,6 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, stat, writeFile, chmod, symlink, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, writeFile, chmod, symlink, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,7 +29,6 @@ test('runtime root rejects a file and a symlink instead of using it', async () =
   await assert.rejects(prepareRuntimeRoot(file), /directory/);
   const target = await mkdtemp(join(tmpdir(), 'csm-browse-target-'));
   const link = join(root, 'link');
-  const { symlink } = await import('node:fs/promises');
   await symlink(target, link);
   await assert.rejects(prepareRuntimeRoot(link), /directory/);
   await removeRoot(target);

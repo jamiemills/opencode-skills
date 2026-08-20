@@ -131,7 +131,7 @@ function lineIndexOf(text, offset) {
 
 function safeLabel(value) {
   if (typeof value !== 'string') return null;
-  const candidate = value.replace(/^["'`\[]/, '').replace(/["'`\]]$/, '');
+  const candidate = value.replace(/^["'`[]/, '').replace(/["'`\]]$/, '');
   return RECORD_LABEL.test(candidate) && !candidate.endsWith('.') ? candidate : null;
 }
 
@@ -284,7 +284,7 @@ function sqlStatements(text) {
 
 function parseColumnList(inner) {
   return splitTopLevel(inner, ',')
-    .map((entry) => safeLabel(entry.trim().replace(/^["'`\[]/, '').replace(/["'`\]]$/, '')))
+    .map((entry) => safeLabel(entry.trim().replace(/^["'`[]/, '').replace(/["'`\]]$/, '')))
     .filter((entry) => entry !== null);
 }
 
@@ -352,7 +352,6 @@ function extractSql(text, path) {
   };
 
   for (const statement of sqlStatements(source)) {
-    const upper = statement.toUpperCase();
     if (/^CREATE\s+DATABASE\b/i.test(statement)) {
       const match = statement.match(/^CREATE\s+DATABASE\s+(["'`]?)([A-Za-z0-9_.-]+)\1/i);
       if (match) {
@@ -400,7 +399,7 @@ function extractSql(text, path) {
       }));
       continue;
     }
-    const tableMatch = statement.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(["'`\[]?)([A-Za-z0-9_.-]+)\1\s*\(/i);
+    const tableMatch = statement.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(["'`[]?)([A-Za-z0-9_.-]+)\1\s*\(/i);
     if (!tableMatch) {
       if (/^CREATE\s+TABLE\b/i.test(statement)) {
         diagnostics.push(diagnostic(path, 'unsupported', 'UNSUPPORTED', lineIndexOf(source, statement.indexOf('CREATE'))));
@@ -435,10 +434,9 @@ function extractSql(text, path) {
       if (definition.length === 0) continue;
       const constraintMatch = definition.match(/^CONSTRAINT\s+[A-Za-z0-9_.-]+\s+(.*)$/i);
       const core = constraintMatch ? constraintMatch[1].trim() : definition;
-      const coreUpper = core.toUpperCase();
 
       if (/^(PRIMARY\s+KEY|UNIQUE(?:\s+KEY)?)\b/i.test(core)) {
-        const kind = /^PRIMARY/.test(core) ? 'primary' : 'unique';
+        const kind = core.startsWith('PRIMARY') ? 'primary' : 'unique';
         const columns = parseColumnList(core.slice(core.indexOf('(')));
         if (columns.length > 0) {
           emitKey(table, kind, kind, columns);
@@ -918,7 +916,7 @@ function findCallArgsFrom(text, tokenIndex) {
   return { line: lineIndexOf(text, tokenIndex), args: text.slice(parenIndex + 1, close) };
 }
 
-function pythonColumnInfo(body, path) {
+function pythonColumnInfo(body, _path) {
   const columns = [];
   const fkTargets = [];
   const relationships = [];
@@ -1513,7 +1511,7 @@ function extractRustModels(text, path) {
  *   cap flags. Never throws on content; malformed or unsupported content
  *   produces diagnostics.
  */
-export function extractDataArtifact({ path, text, value, format, ecosystem }) {
+export function extractDataArtifact({ path, text, _value, _format, _ecosystem }) {
   const classification = classifyDataPath(path);
   const migration = migrationKindOf(path);
   const source = String(text ?? '');

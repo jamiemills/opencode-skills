@@ -41,7 +41,7 @@ function detectFromScores(scores) {
   const total = entries.reduce((sum, [, s]) => sum + s, 0);
   const threshold = Math.max(3, 0.05 * total);
   return entries
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .filter(([, s]) => s >= threshold)
     .map(([lang]) => lang);
 }

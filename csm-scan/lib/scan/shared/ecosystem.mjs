@@ -557,7 +557,7 @@ export function detectEcosystems(overview, manifest) {
 
   const ranked = candidates
     .map((id, idx) => ({ id, score: ecosystemScore(id, scores), idx }))
-    .sort((a, b) => b.score - a.score || a.idx - b.idx)
+    .toSorted((a, b) => b.score - a.score || a.idx - b.idx)
     .map((x) => x.id);
 
   return {

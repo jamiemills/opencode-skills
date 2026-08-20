@@ -9,8 +9,8 @@ const ECOSYSTEM_IDS = ['python', 'javascript', 'typescript', 'shell', 'rust'];
 
 test('DESCRIPTORS is keyed by exactly the 5 in-scope ecosystem ids', () => {
   assert.deepEqual(
-    Object.keys(DESCRIPTORS).sort(),
-    [...ECOSYSTEM_IDS].sort(),
+    Object.keys(DESCRIPTORS).toSorted(),
+    [...ECOSYSTEM_IDS].toSorted(),
   );
 });
 
@@ -74,8 +74,9 @@ test('T209 runtimeProbe is removed; descriptors carry static runtimes metadata i
   }
 });
 
+const names = (id) => DESCRIPTORS[id].runtimes.map((rt) => rt.name);
+
 test('T209 static runtime metadata names match the declared runtimes per ecosystem', () => {
-  const names = (id) => DESCRIPTORS[id].runtimes.map((rt) => rt.name);
   assert.deepEqual(names('python'), ['Python']);
   assert.deepEqual(names('rust'), ['Rust']);
   assert.deepEqual(names('shell'), ['Shell']);
@@ -210,7 +211,7 @@ test('T101 P0-7: rust formatters reference no Cargo.toml (rustfmt false-positive
   }
   const rustfmt = DESCRIPTORS.rust.formatters.find((s) => s.name === 'rustfmt');
   assert.ok(rustfmt, 'rustfmt formatter present');
-  assert.deepEqual([...rustfmt.files].sort(), ['.rustfmt.toml', 'rustfmt.toml']);
+  assert.deepEqual([...rustfmt.files].toSorted(), ['.rustfmt.toml', 'rustfmt.toml']);
 });
 
 test('T101 P0-11: shell testFrameworks has no shellcheck; shellspec/shunit2 added; shellcheck stays linter+typeChecker', () => {
@@ -251,8 +252,8 @@ test('T101 P0: rust importSyntax has self and super RegExps matching use self::/
 });
 
 test('T101 P0: typescript linters has no tsc (dedup with typeCheckers); tsc stays a typeChecker', () => {
-  const names = DESCRIPTORS.typescript.linters.map((s) => s.name);
-  assert.ok(!names.includes('tsc'), `tsc must not be a linter: ${JSON.stringify(names)}`);
+  const linterNames = DESCRIPTORS.typescript.linters.map((s) => s.name);
+  assert.ok(!linterNames.includes('tsc'), `tsc must not be a linter: ${JSON.stringify(linterNames)}`);
   assert.ok(
     DESCRIPTORS.typescript.typeCheckers.some((s) => s.name === 'tsc'),
     'tsc must remain a typeChecker',

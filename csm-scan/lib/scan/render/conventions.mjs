@@ -41,7 +41,7 @@ export function renderConventions(repoName, findings, context = DEFAULT_RENDER_C
     lines.push(
       `- **File naming**: ${escapeField(findings.fileNaming.dominant)} across ${findings.fileNaming.total} source files${universeNote}`,
     );
-    const sorted = Object.entries(findings.fileNaming.patterns).sort((a, b) => b[1] - a[1]);
+    const sorted = Object.entries(findings.fileNaming.patterns).toSorted((a, b) => b[1] - a[1]);
     const patternSummary = sorted.map(([k, v]) => `${k}: ${v}`).join(', ');
     lines.push(`  - Distribution: ${escapeField(patternSummary)}`);
   }

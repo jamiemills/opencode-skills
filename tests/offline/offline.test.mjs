@@ -150,7 +150,7 @@ test('cache-manifest schema declares draft 2020-12 with the enforced field set',
   const schema = JSON.parse(await readFile(join(root, 'bootstrap', 'cache-manifest.schema.json'), 'utf8'));
   assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
   assert.equal(schema.additionalProperties, false);
-  assert.deepEqual([...schema.required].sort(), ['dependencyClosure', 'node', 'npm', 'package', 'platform', 'schema', 'verification']);
+  assert.deepEqual([...schema.required].toSorted(), ['dependencyClosure', 'node', 'npm', 'package', 'platform', 'schema', 'verification']);
   assert.equal(schema.properties.package.additionalProperties, false);
   assert.equal(schema.properties.package.properties.name.const, grammar.package.name);
   assert.equal(schema.properties.package.properties.version.const, grammar.package.version);

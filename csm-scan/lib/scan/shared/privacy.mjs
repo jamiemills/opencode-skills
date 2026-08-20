@@ -182,7 +182,7 @@ export function createOpaqueOwnerSummary(identities) {
     }
     counts.set(identity, (counts.get(identity) ?? 0) + 1);
   }
-  const owners = [...counts.entries()].sort(([left], [right]) => compareAscii(left, right))
+  const owners = [...counts.entries()].toSorted(([left], [right]) => compareAscii(left, right))
     .map(([, count], index) => ({ label: `Owner-${String(index + 1).padStart(3, '0')}`, count }));
   return deepFreeze({ owners, totalIdentities: owners.length, totalAssignments: identities.length });
 }
@@ -222,8 +222,8 @@ export function projectSarif(value) {
     schemaVersion: value.version === undefined ? null : safeIdentifier(value.version, 'SARIF version'),
     runCount: value.runs.length,
     resultCount,
-    tools: [...tools].sort(compareAscii),
-    rules: [...rules].sort(compareAscii),
+    tools: [...tools].toSorted(compareAscii),
+    rules: [...rules].toSorted(compareAscii),
   };
   assertPrivacySafe(projection);
   return deepFreeze(projection);
@@ -279,8 +279,8 @@ export function projectSbom(value) {
     format: safeIdentifier(format, 'SBOM format'),
     specVersion: specVersion === null ? null : safeIdentifier(specVersion, 'SBOM specification version'),
     componentCount: components.length,
-    licenses: [...licenses].sort(compareAscii),
-    packageCoordinates: [...coordinates].sort(compareAscii),
+    licenses: [...licenses].toSorted(compareAscii),
+    packageCoordinates: [...coordinates].toSorted(compareAscii),
   };
   assertPrivacySafe(projection);
   return deepFreeze(projection);

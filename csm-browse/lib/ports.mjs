@@ -1,11 +1,11 @@
 import { execLayer } from './docker.mjs';
-import { open, unlink, readFile, mkdir, stat, readdir } from 'node:fs/promises';
+import { open, unlink, readFile, stat, readdir } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { createServer as netServer } from 'node:net';
 import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
-import { prepareRuntimeRoot, secureWrite, validateState } from './security.mjs';
+import { prepareRuntimeRoot, validateState } from './security.mjs';
 
 const LOCK_FILE = join(SESSIONS_ROOT, '.ports.lock');
 const LOCK_STALE_MS = 5000;

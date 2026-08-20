@@ -15,7 +15,7 @@ async function rotate(sessionDir, mainPath) {
     const entries = await readdir(sessionDir);
     const rotated = entries
       .filter(e => e.startsWith('events-') && e.endsWith('.jsonl'))
-      .sort();
+      .toSorted();
     while (rotated.length > MAX_ROTATED) {
       await unlink(join(sessionDir, rotated.shift())).catch(() => {});
     }

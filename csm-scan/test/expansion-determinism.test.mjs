@@ -25,7 +25,6 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { makeFixture, cleanupFixture } from './harness.mjs';
@@ -37,8 +36,6 @@ import { files as pythonFiles } from './fixtures-expansion/python.mjs';
 import { files as javascriptFiles } from './fixtures-expansion/javascript.mjs';
 import { files as unknownFiles } from './fixtures-expansion/unknown.mjs';
 import { repoA, repoB } from './fixtures-expansion/cross-repo.mjs';
-
-const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
 
 const FIXED_CLOCK = () => '2026-08-03';
 
@@ -113,7 +110,7 @@ test('T227 determinism: insertion-order permutations of the same repository prod
   const entries = Object.entries(pythonFiles);
   const orders = [
     entries,
-    [...entries].reverse(),
+    [...entries].toReversed(),
     entries.filter((_, index) => index % 2 === 0).concat(entries.filter((_, index) => index % 2 === 1)),
   ];
   try {
@@ -137,6 +134,8 @@ test('T227 determinism: insertion-order permutations of the same repository prod
   }
 });
 
+const globalSection = (markdown) => markdown.split('## Cross-repository Architecture')[1];
+
 test('T227 determinism: repository reversal preserves per-repository and global content byte-identically', async () => {
   const repoPy = makeFixture('t227-rev-py', pythonFiles);
   const repoJs = makeFixture('t227-rev-js', javascriptFiles);
@@ -151,7 +150,6 @@ test('T227 determinism: repository reversal preserves per-repository and global 
     assert.equal(reversedBlocks.length, 2, 'reversed run must render two repository blocks');
 
     // The cross-repository global section is order-independent.
-    const globalSection = (markdown) => markdown.split('## Cross-repository Architecture')[1];
     assert.equal(
       globalSection(forward.markdown),
       globalSection(reversed.markdown),
@@ -165,8 +163,8 @@ test('T227 determinism: repository reversal preserves per-repository and global 
 
     // Each per-repository block is byte-identical regardless of position.
     assert.deepEqual(
-      [...forwardBlocks].sort(),
-      [...reversedBlocks].sort(),
+      [...forwardBlocks].toSorted(),
+      [...reversedBlocks].toSorted(),
       'the per-repository block multiset must be byte-identical under repository reversal',
     );
     // Reversal flips only the top-level repository block order.
@@ -178,6 +176,9 @@ test('T227 determinism: repository reversal preserves per-repository and global 
     await rm(outDir, { recursive: true, force: true });
   }
 });
+
+const serializeDeep = (result) => JSON.stringify(result.repos[0].deep);
+const edgeKey = (edge) => `${edge.kind}\0${edge.sourceRepository}\0${edge.targetId}\0${edge.coordinate}`;
 
 test('T227 determinism: dimension, claim, provider, evidence, and edge order are stable across runs', async () => {
   const repo = makeFixture('t227-order', unknownFiles);
@@ -199,7 +200,6 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
     );
 
     // Evidence (the whole deep findings envelope) is byte-identical across runs.
-    const serializeDeep = (result) => JSON.stringify(result.repos[0].deep);
     assert.equal(serializeDeep(first), serializeDeep(second), 'structured findings and evidence order must be byte-identical across runs');
     assert.equal(
       JSON.stringify(first.expectedClaimCoverage),
@@ -212,7 +212,7 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
     const maintainability = first.repos[0].deep.find(({ dimension }) => dimension === 'maintainability');
     const observations = maintainability?.findings?.providerObservations ?? [];
     assert.ok(observations.length > 0, 'the unknown-language fixture must carry generic provider observations');
-    const sorted = [...observations].sort((left, right) => compareAscii(
+    const sorted = [...observations].toSorted((left, right) => compareAscii(
       `${left.providerId}\0${left.plugin ?? ''}\0${left.category}\0${left.matchedKey}\0${left.path ?? ''}`,
       `${right.providerId}\0${right.plugin ?? ''}\0${right.category}\0${right.matchedKey}\0${right.path ?? ''}`,
     ));
@@ -224,9 +224,8 @@ test('T227 determinism: dimension, claim, provider, evidence, and edge order are
     );
 
     // Edge order is deterministic in the global snapshot and the rendered section.
-    const edgeKey = (edge) => `${edge.kind}\0${edge.sourceRepository}\0${edge.targetId}\0${edge.coordinate}`;
     const globalEdges = first.global.edges?.edges ?? [];
-    const sortedEdges = [...globalEdges].sort((left, right) => compareAscii(edgeKey(left), edgeKey(right)));
+    const sortedEdges = [...globalEdges].toSorted((left, right) => compareAscii(edgeKey(left), edgeKey(right)));
     assert.deepEqual(globalEdges, sortedEdges, 'resolved cross-repository edges must be deterministically sorted');
     assert.equal(
       JSON.stringify(first.global),

@@ -165,7 +165,7 @@ test('unauthenticated clients are rejected before any byte reaches the backend',
   const token = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
 
@@ -197,7 +197,7 @@ test('an authenticated client can execute a browser command through the gate', a
     'Target.getTargets': () => ({ targetInfos: [{ type: 'page', targetId: 'p1', url: 'http://x/' }] }),
   } });
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
 
@@ -234,7 +234,7 @@ test('pipelined second request on an unauthenticated connection never reaches th
   const token = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
 
@@ -283,7 +283,7 @@ test('deny responses carry per-status reason phrases', async () => {
   const token = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
 
@@ -310,7 +310,7 @@ test('token rotation invalidates the old token at the gate', async () => {
   const newToken = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
 
   // Gate on the old credential.
   const g1 = startGate(oldToken, backend.port, tunnels);
@@ -361,7 +361,7 @@ test('revocation blocks reuse: a closed gate never accepts the old token again',
   const token = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
   await gate.close(); // session close/cleanup revokes the gate
@@ -415,7 +415,7 @@ test('gate relays half-close from client to backend (client FIN -> tunnel EOF)',
   const token = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
 
@@ -444,7 +444,7 @@ test('gate relays half-close from backend to client (backend EOF -> client end)'
   const token = generateToken();
   const backend = await startRawBackend();
   const tunnels = [];
-  setExecLayerForTests({ spawnExecTunnel: (c, p) => tunnelTo(backend.port, tunnels) });
+  setExecLayerForTests({ spawnExecTunnel: (_c, _p) => tunnelTo(backend.port, tunnels) });
   const gate = startGate(token, backend.port, tunnels);
   const port = await gate.listen();
 

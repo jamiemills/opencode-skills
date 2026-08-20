@@ -38,7 +38,6 @@ import {
   DIMENSION_REGISTRY,
 } from '../lib/scan/registry/dimensions.mjs';
 import {
-  DEFAULT_EXISTING_TEN_RENDERER,
   EXISTING_TEN_RENDERER_MAP,
   EXISTING_TEN_RENDERER_ORDER,
 } from '../lib/scan/render/existing-ten.mjs';
@@ -283,7 +282,7 @@ async function libScanFiles() {
     }
   }
   await visit(join(ROOT, 'lib'));
-  return files.sort();
+  return files.toSorted();
 }
 
 // ---------------------------------------------------------------------------
@@ -310,7 +309,7 @@ test('T223 registry: snapshot registers all 17 dimensions in canonical order plu
     assert.equal(entry.rendererId, DIMENSION_RENDERER_MAP[`DIM-${entry.dimension}-v1`]);
   }
   assert.deepEqual(
-    RENDERER_SNAPSHOT.slice(0, 17).map(({ rendererId }) => rendererId).slice().sort(compareAscii),
+    RENDERER_SNAPSHOT.slice(0, 17).map(({ rendererId }) => rendererId).slice().toSorted(compareAscii),
     DIMENSION_RENDERER_IDS,
   );
 
@@ -355,16 +354,16 @@ test('T223 registry: verifyRenderRegistry is idempotent and byte-stable on the d
 // Typed, sanitized failures for unknown / missing / duplicate renderers
 // ---------------------------------------------------------------------------
 
-test('T223 registry: unknown, missing, and duplicate renderers fail typed and sanitized', () => {
-  const assertRegistryError = (fn, code, canary = '') => {
-    assert.throws(fn, (error) => {
-      assert.ok(error instanceof RenderRegistryError, `expected RenderRegistryError for ${code}`);
-      assert.equal(error.code, code);
-      if (canary) assert.equal(error.message.includes(canary), false, `${code} message must not echo ${canary}`);
-      return true;
-    });
-  };
+const assertRegistryError = (fn, code, canary = '') => {
+  assert.throws(fn, (error) => {
+    assert.ok(error instanceof RenderRegistryError, `expected RenderRegistryError for ${code}`);
+    assert.equal(error.code, code);
+    if (canary) assert.equal(error.message.includes(canary), false, `${code} message must not echo ${canary}`);
+    return true;
+  });
+};
 
+test('T223 registry: unknown, missing, and duplicate renderers fail typed and sanitized', () => {
   // Unknown dimension in the order.
   assertRegistryError(
     () => createRenderRegistry({ order: [...DIMENSION_RENDERER_ORDER, 'private-canary'] }),
