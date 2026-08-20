@@ -43,19 +43,15 @@ import {
   DimensionContractError,
   PROVIDER_DIMENSION_IDS,
   validateDimension,
-  validateDimensions,
-} from '../lib/scan/contracts/dimension.mjs';
+  validateDimensions,} from '../lib/scan/contracts/dimension.mjs';
 import {
   ProviderContractError,
   PROVIDER_CATEGORIES,
   validateProvider,
-  validateProviders,
-} from '../lib/scan/contracts/provider.mjs';
+  validateProviders,} from '../lib/scan/contracts/provider.mjs';
 import {
   compareAscii,
-  deepFreeze,
-  DIMENSION_EVIDENCE_CATEGORIES,
-} from '../lib/scan/contracts/evidence.mjs';
+  DIMENSION_EVIDENCE_CATEGORIES,} from '../lib/scan/contracts/evidence.mjs';
 import {
   CROSS_REPO_GLOBAL_STAGE,
   DIMENSION_DEFINITIONS,
@@ -63,8 +59,7 @@ import {
   DIMENSION_RENDERER_MAP,
   DIMENSION_REGISTRY,
   DIMENSION_REGISTRY_VERSION,
-  EXPECTED_CLAIM_IDS,
-} from '../lib/scan/registry/dimensions.mjs';
+  EXPECTED_CLAIM_IDS,} from '../lib/scan/registry/dimensions.mjs';
 import {
   BUILTIN_DIMENSION_COUNT,
   BUILTIN_DIMENSION_TO_PROVIDER,
@@ -73,24 +68,14 @@ import {
   BUILTIN_PROVIDER_INDEX,
   BUILTIN_PROVIDER_VERSION,
   GENERIC_BUILTIN_DIMENSIONS,
-  GENERIC_BUILTIN_PROVIDER_ID,
-} from '../lib/scan/providers/builtin/index.mjs';
+  GENERIC_BUILTIN_PROVIDER_ID,} from '../lib/scan/providers/builtin/index.mjs';
 import {
-  CONFIG_CATALOG_PROVIDER_ID,
-  RUNTIME_CATALOG_PROVIDERS,
-  STACK_CATALOG_PROVIDER_ID,
-  TESTING_CATALOG_PROVIDER_ID,
-} from '../lib/scan/providers/runtime-catalog.mjs';
+  RUNTIME_CATALOG_PROVIDERS,} from '../lib/scan/providers/runtime-catalog.mjs';
 import {
   ANALYSIS_DIMENSION_IDS,
-  ANALYSIS_PROVIDER_IDS,
-} from '../lib/scan/providers/analysis-catalog.mjs';
+  ANALYSIS_PROVIDER_IDS,} from '../lib/scan/providers/analysis-catalog.mjs';
 import {
-  ASSURANCE_CATALOG_PROVIDERS,
-  ASSURANCE_PROVIDER_IDS,
-  SECURITY_CATALOG_PROVIDER_ID,
-  OPERATIONS_CATALOG_PROVIDER_ID,
-} from '../lib/scan/providers/assurance-catalog.mjs';
+  ASSURANCE_CATALOG_PROVIDERS,} from '../lib/scan/providers/assurance-catalog.mjs';
 import { GENERIC_PROVIDER_ID } from '../lib/scan/providers/generic.mjs';
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
