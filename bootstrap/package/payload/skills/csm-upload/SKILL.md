@@ -1,6 +1,6 @@
 ---
 name: csm-upload
-description: Upload screenshots, videos, and evidence files to a GitHub Pages demo site with a unique dated page name. Requires gh CLI and a GitHub Pages repo — use when publishing review evidence, screenshots, or videos to the demo site. Uploads only to the configured GitHub Pages repo; never pushes elsewhere.
+description: Upload screenshots, videos, and evidence to a GitHub Pages demo site with unique dated page names. Requires gh CLI and Pages repo. Never pushes elsewhere.
 ---
 
 # CSM Upload

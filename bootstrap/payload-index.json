@@ -22,50 +22,50 @@
     "skills": [
       {
         "path": "payload/skills/csm-bdd-tdd/SKILL.md",
-        "sha256": "f6789dbce8cb2dd71211ee77ba2ca10f0cee327e4a3b49c8ed85d7c23f02f699",
-        "bytes": 22604,
+        "sha256": "ec48c768c2566f2590ff91a4b4d5bcf15c6954d1d9183b2b3a9eb1e16308667d",
+        "bytes": 21268,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-browse/SKILL.md",
-        "sha256": "5483cf1efa6705467d8e16afbd78737ad69c2c8cdb0eac1b74f249903b2a692d",
-        "bytes": 10434,
+        "sha256": "ebc134f296664443a0feebc33a0135da472f74e169c0e2f6dd003879a91101fc",
+        "bytes": 10337,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "67208db0d91b13a587edacd7b8323dbf76b7a123ea60f0b007a9671736e830c1",
-        "bytes": 21023,
+        "sha256": "818c5be565448ca342b6b223d88b2190c8491a179b22bd9371e6b5cde028eda8",
+        "bytes": 21833,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-grill/SKILL.md",
-        "sha256": "2b1707cb693b42e9949495b37725d0090b0262116fb5ee13b19c429ca9a7e73d",
-        "bytes": 11670,
+        "sha256": "05016d9baba40911db3a1db5aa96ae8b2c3501afc6c162b8e67f842326f236e5",
+        "bytes": 12548,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "fd6cabf0415d79ca9d00643f8a8edcf8301e121edf3f3d276836e36b8ae876cb",
-        "bytes": 23987,
+        "sha256": "f947d8bad9c5bff3d84b0aa9e23758319b6441f2b9b2de96bb9688d549a54b08",
+        "bytes": 23925,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "fd004bdde7362949b1fa4c6e1dfc651086a4ef6cddf60bac64ff444c4c32a505",
-        "bytes": 30743,
+        "sha256": "2ff3256603610a23134a6e2404d2f372ba4829085aee194ab064835393b517f2",
+        "bytes": 29765,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/SKILL.md",
-        "sha256": "23a91768689d84f04130b6470b2a7b863f786292488b3ab0def87fea4a41d55e",
-        "bytes": 27113,
+        "sha256": "026b7533dc2996d26d1b0677c3ffbdb77a69b522a9719aa2603d6fefff31b5ad",
+        "bytes": 22950,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-upload/SKILL.md",
-        "sha256": "8590a28252353e66bae7ab668e6b62eaebda65289419ececb2fbae78f20a6524",
-        "bytes": 2585,
+        "sha256": "7c4c670a38e017b0c427c068fdd52410543f2cb21dc2144e2a4ccf1a617d5a66",
+        "bytes": 2438,
         "mode": "0644"
       }
     ],

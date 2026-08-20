@@ -1,6 +1,6 @@
 ---
 name: csm-build
-description: Implement an already saved CSM plan using parallel subagents and durable checkpoints, automatically preferring BDD/TDD-mutated plans when present; use ONLY when the user explicitly asks to start, execute, continue, or resume implementation, never while creating a plan.
+description: Implement saved CSM plans via parallel subagents; use ONLY on explicit start/execute/continue/resume, never while planning. Biases towards retrieval from the saved plan and current repository evidence over memory.
 ---
 
 # CSM Build
@@ -9,25 +9,13 @@ Execute a saved CSM plan from its verified current state. Start a new plan or re
 
 ## Tmux Session Bootstrap
 
-Run this bootstrap before anything else — before `Activation Boundary` work, before locating the plan, and before any execution state. It is not an execution state.
+Run first — before `Activation Boundary` work, locating the plan, or any execution state. Not an execution state.
 
-1. Check whether this invocation is already running inside tmux (the `TMUX` environment variable is set, or `tmux display-message -p '#session_name'` succeeds).
-2. Skip starting a new session and proceed directly with the build in the current context when any of these is true:
-   - the invocation is already inside tmux;
-   - the user or their prompt explicitly said not to use tmux or not to start a tmux session;
-   - the user explicitly asked for a different terminal multiplexer (for example `screen` or `zellij`) — honor that choice instead and never start tmux alongside it;
-   - tmux is not installed or cannot start a session — note this to the user and continue without tmux.
-
-   When skipping because this invocation is already inside tmux, state the current tmux session name (for example via `tmux display-message -p '#session_name'`) and continue in it, so the session in use is always named.
-3. Otherwise, start the orchestrating agent in a new detached tmux session before doing any build work:
-   - Derive a sensible, short, descriptive session name from the current session and the user's prompt, in the form `csm-build-<goal-slug>` (lowercase, hyphen-separated, tmux-safe characters, truncated to a reasonable length).
-   - If a tmux session with that name already exists, append a numeric suffix (`-2`, `-3`, ...).
-   - Launch the same agent invocation carrying the user's original build request inside the detached session, for example:
-     `tmux new-session -d -s csm-build-<goal-slug> 'opencode run "<original build request>"'`
-     adapting the exact command to the agent CLI actually in use so the build work continues inside tmux.
-4. Immediately print a clear notice naming the session so the user can attach later, for example:
-   `Started tmux session "csm-build-<goal-slug>". Attach to it later with: tmux attach-session -t csm-build-<goal-slug>`
-5. After printing the notice, end this invocation without performing any build work; the tmux session performs the actual build from the beginning of this skill. Only when the bootstrap was skipped under step 2 does this same invocation continue directly into the execution workflow below.
+1. In tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds)? Skip — continue with the build.
+2. Skip too when the user/prompt forbade tmux, chose another multiplexer (never start tmux alongside), or tmux is missing (note it, continue without).
+3. Else, before any build work, launch this same agent invocation in a new detached session named `csm-build-<goal-slug>` (from session + prompt; lowercase, hyphen-separated, tmux-safe; `-2`/`-3` on collision): `tmux new-session -d -s csm-build-<goal-slug> 'opencode run "<original build request>"'` (adapt to the agent CLI).
+4. Print `Started tmux session "csm-build-<goal-slug>". Attach: tmux attach-session -t csm-build-<goal-slug>`, then end the invocation — tmux does the build from the start.
+5. Only when skipped (step 2) continue into the execution workflow below.
 
 ## Activation Boundary
 
@@ -50,7 +38,18 @@ Run this bootstrap before anything else — before `Activation Boundary` work, b
 - Do not push, deploy, publish, migrate real data, or perform destructive cleanup unless explicitly requested.
 - Commit at meaningful moments — at minimum each checkpoint with verified work and the completion gate — unless the plan or the user's prompt explicitly states no commits. The primary agent owns all commits; stage only files changed by this execution, use concise messages referencing the plan and cycle, and never push unless explicitly requested.
 - Update the plan after every state transition and completed dispatch group. It must always contain enough evidence and an exact next transition for a fresh agent to resume.
-- Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`.
+- Record `Last model/run:` in Control at each checkpoint so a resumed or model-switched run can re-verify prior evidence instead of trusting status labels.
+- Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`. The only sanctioned exception is the `PAUSED` stop under Pause On Quota.
+
+### Subagent Resilience
+
+Fallback ladder for dispatched subagent failures — journal every incident, never silently:
+
+1. Minimal-prompt retry of the same agent.
+2. Re-dispatch with narrowed scope.
+3. Fresh agent.
+4. Primary completion (evidence gathering) / primary-led integration (low-risk only, with a recorded independence caveat).
+5. On quota-type failures (HTTP 429, rate-limit, quota-exceeded, out-of-credits, billing, context-length-exceeded) do NOT run the retry ladder — surface to the primary agent for the pause protocol (Pause On Quota).
 
 ## Repository Norms (NORMS.md)
 
@@ -58,29 +57,19 @@ Run this bootstrap before anything else — before `Activation Boundary` work, b
 
 ### Detection
 During RECOVER, check for NORMS.md in this order:
-1. User-explicit reference in the prompt (e.g., "use NORMS.md from /path/to/norms.md")
+1. User-explicit reference in the prompt
 2. `<git-root>/NORMS.md`
 3. `<cwd>/NORMS.md`
-4. None found — continue normally with a brief note
+4. None found — continue with a brief note
 
 ### Validation
-Verify the file is authentic csm-scan output by checking for these markers:
-- Contains "Generated by csm-scan" OR "## Repository Overview"
-- Contains "## Code Conventions" section
-- Contains "## Architecture" section
-If markers are absent, warn "NORMS.md found but does not appear to be csm-scan output — conventions may not be accurate" and proceed.
+Authentic csm-scan output shows all of: "Generated by csm-scan" or "## Repository Overview", "## Code Conventions", "## Architecture". Otherwise warn "NORMS.md found but does not appear to be csm-scan output — conventions may not be accurate" and proceed.
 
 ### Integration
-When NORMS.md is loaded:
-- **RECOVER**: Load conventions into the plan context. Note the generation date and warn if stale (>30 days).
-- **DISPATCH**: Include a "Repository Norms" section in every subagent prompt — extract key conventions:
-  - File naming rules
-  - Import style
-  - Testing patterns
-  - Error handling
-  - Commit conventions
-  - Architecture patterns
-- **CHECKPOINT**: Cross-reference Discovered Requirements against NORMS.md norms. Add any mismatches as risks.
+When loaded:
+- **RECOVER**: Load conventions; note the generation date and warn if stale (>30 days).
+- **DISPATCH**: Include a "Repository Norms" section in every subagent prompt.
+- **CHECKPOINT**: Cross-reference Discovered Requirements against NORMS.md norms; add mismatches as risks.
 
 ## Locate The Plan
 
@@ -107,7 +96,7 @@ Use only these control states:
 
 `NOT_STARTED` is the only allowed pre-execution marker. On an explicit start request, transition it to `RECOVER`; never make that transition during plan creation.
 
-From `CHECKPOINT`, transition to `SELECT`, `COMPLETE`, or `BLOCKED`. Any failed validation may transition to `REPAIR`; any discovery that invalidates the plan may transition to `BLOCKED` or, when safely resolvable, back to `SELECT` with corrected tasks.
+From `CHECKPOINT`, transition to `SELECT`, `COMPLETE`, or `BLOCKED`. On quota exhaustion, transition to the `PAUSED` stop (see Pause On Quota). Any failed validation may transition to `REPAIR`; any discovery that invalidates the plan may transition to `BLOCKED` or, when safely resolvable, back to `SELECT` with corrected tasks.
 
 Record every transition in `Control` and `Progress Journal` before proceeding. Increment the cycle when moving from `CHECKPOINT` back to `SELECT`.
 
@@ -117,11 +106,13 @@ Reconstruct reality before continuing:
 
 1. Inspect repository status and current diffs without modifying them.
 2. Check the plan's `format:` marker (e.g. `format: csm-plan/1`); on an unknown version, stop and report incompatibility rather than guessing.
-2. Detect and validate NORMS.md (see Repository Norms section). Load conventions into plan context if present and authentic.
-3. Compare the plan's active and completed tasks with actual implementation and validation evidence.
-4. Identify partial edits, failed checks, generated artifacts, concurrent changes, and stale assumptions.
-5. Mark a task completed only when its acceptance evidence is present and reproducible. Correct stale statuses in the plan.
-6. Set the exact next safe transition. A new plan and an interrupted plan both pass through this state.
+3. Detect and validate NORMS.md (see Repository Norms section). Load conventions into plan context if present and authentic.
+4. Compare the plan's active and completed tasks with actual implementation and validation evidence.
+5. Identify partial edits, failed checks, generated artifacts, concurrent changes, and stale assumptions.
+6. Mark a task completed only when its acceptance evidence is present and reproducible. Correct stale statuses in the plan.
+7. Set the exact next safe transition. A new plan and an interrupted plan both pass through this state.
+
+**Resume block.** When resuming (including from `PAUSED`), re-read Control `Last checkpoint`, the latest journal row, the Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff. When `Last model/run:` differs from the current run, re-verify acceptance evidence authored by the previous run instead of trusting status labels.
 
 ### 2. VALIDATE
 
@@ -139,6 +130,7 @@ Reconstruct reality before continuing:
 5. Partition ownership by non-overlapping files or components. Identify shared integration points that the primary agent will handle.
 6. Mirror the current batch in the session task list when available, while keeping the saved plan authoritative.
 7. If no task is ready, resolve an unmet dependency, repair plan inconsistency, declare a specific blocker, or begin completion verification. Never silently stall.
+8. When resuming from a paused plan, run a best-effort pre-flight probe before the first `DISPATCH`: issue one cheap model call to verify quota has returned. On a quota signal, stay paused — journal the probe result and report — otherwise proceed.
 
 ### 4. DISPATCH
 
@@ -203,6 +195,7 @@ Update the saved plan in place:
 
 - task statuses and stable task IDs;
 - current cycle and state;
+- `Last model/run:` — the current model and run identifier, for model-switch-safe resumption;
 - completed validation and review evidence;
 - actual files or components changed;
 - unresolved findings, risks, and blockers;
@@ -225,7 +218,8 @@ Then immediately choose:
 
 - `SELECT` when verified pending work remains;
 - `COMPLETE` when all work and final acceptance checks pass;
-- `BLOCKED` only under the blocker rules below.
+- `BLOCKED` only under the blocker rules below;
+- `PAUSED` on quota exhaustion (see Pause On Quota).
 
 ## Completion Gate
 
@@ -240,7 +234,7 @@ The primary agent must personally perform the final gate; do not delegate it. Ve
 7. Repository status contains no unexplained changes from this execution.
 8. All execution work is committed, unless the plan or the user's prompt explicitly stated no commits; nothing has been pushed without an explicit request.
 
-If any gate fails, create repair work and continue the cycle. If all pass, set `Status: complete`, set `Current CSM state: COMPLETE`, fill `Completion Review`, add the final journal entry, and report the result and verification evidence.
+If any gate fails, create repair work and continue the cycle. If all pass, set `Status: complete`, set `Current CSM state: COMPLETE`, fill `Completion Review`, add the final journal entry, and report the result and verification evidence. Quota exhaustion is not a gate failure — it pauses via the `PAUSED` stop (Pause On Quota), and the paused checkpoint becomes the resume point.
 
 ## Blocker Rules
 
@@ -253,3 +247,18 @@ Transition to `BLOCKED` only when progress requires one of the following:
 - a failing prerequisite that cannot be repaired within the plan's scope.
 
 Before stopping, save a checkpoint with the blocker, evidence, attempted resolutions, exact user decision needed, and the first transition to run after unblocking. Ask one concise numbered question with concrete options.
+
+## Pause On Quota
+
+Quota exhaustion is the single sanctioned exception to "Do not stop after one task or cycle". When model-API quota is hit, pause cleanly instead of forcing work through.
+
+Quota signal set: `HTTP 429`, `rate-limit`, `quota-exceeded`, `out-of-credits`, `billing`, `context-length-exceeded`.
+
+On a quota signal:
+1. Record the exact error in the journal as evidence.
+2. Integrate only already-returned, safe in-flight subagent results.
+3. Run the full `CHECKPOINT` block including the commit.
+4. Set Control `Status: paused`, `Current CSM state: PAUSED`, `Next transition: PAUSED -> RECOVER`.
+5. Stop cleanly.
+
+Transient signals (a single `HTTP 429` or `rate-limit`) get one short backoff retry before pausing; hard exhaustion pauses immediately. Resume via the RECOVER resume block when quota returns.

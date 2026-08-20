@@ -388,6 +388,40 @@ export function validateInterfaceArtifactPatterns(skill, interfaceText) {
   return failures;
 }
 
+// (6) Journal/Control cross-consistency (T007 action 3). Naive equality
+// (Control Current state == journal last Next-state) false-fails the corpus:
+// complete/terminal plans end their journals at STOP/SAVED/CHECKPOINT/closed,
+// and mid-cycle active plans legitimately move Control ahead of the journal
+// before the next row is written. Enforced invariants instead:
+//   - paused plans: Control `Current CSM state` == PAUSED AND the last journal
+//     row Next-state == PAUSED (the F-063 resume contract);
+//   - active plans (ready/in_progress/blocked): the last journal row
+//     Next-state must NOT be PAUSED (a paused stop requires Status paused);
+//   - complete/terminal plans: exempt (they encode history).
+export function validateJournalControlConsistency(content) {
+  const failures = [];
+  const control = parsePlanControl(content);
+  const journal = parseJournal(content);
+  if (control === null || control.nextTransition === null) return failures;
+  const rawNext = control.nextTransition.trim();
+  const isTerminal = baseToken(rawNext) === 'COMPLETE'
+    || TERMINAL_SENTINELS.some((s) => rawNext.startsWith(s));
+  const last = journal.rows.length > 0 ? journal.rows[journal.rows.length - 1] : null;
+  if (control.status === 'paused') {
+    if (baseToken(control.currentState) !== 'PAUSED') {
+      failures.push(`Control Status paused but Current CSM state is "${control.currentState}" (want PAUSED)`);
+    }
+    if (last === null || !last.next.includes('PAUSED')) {
+      failures.push(`Control Status paused but the last journal row Next-state is ${last ? `"${last.next}"` : 'absent'} (want PAUSED)`);
+    }
+  } else if (control.status !== 'complete' && !isTerminal) {
+    if (last !== null && last.next.includes('PAUSED')) {
+      failures.push(`Active plan (Status ${control.status}) but the last journal row Next-state is "${last.next}" (PAUSED requires Status paused)`);
+    }
+  }
+  return failures;
+}
+
 // ---------------------------------------------------------------------------
 // Gate-wiring helpers: PENDING_DEBT awareness (T006)
 // ---------------------------------------------------------------------------

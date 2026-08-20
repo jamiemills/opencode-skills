@@ -1,6 +1,6 @@
 ---
 name: csm-grill
-description: Grill an idea into an agreed, phased approach document — a relentless one-question-at-a-time interview backed by research subagents, cycling until the user agrees, then saving a single dated approach doc under .agents/approaches whose phases are ready-made briefs for future csm-plan invocations; use when the user shares an idea and wants to be grilled, interviewed, or stress-tested before any planning. Never plans or implements.
+description: Grill an idea into an agreed phased approach when the user wants stress-testing. Never plans or implements. Biases towards retrieval from current documentation over pre-trained knowledge.
 ---
 
 # CSM Grill
@@ -13,7 +13,7 @@ Grill a rough idea into an agreed, phased approach through a relentless, researc
 - The approach document is not a plan: it contains no task list, authorizes no work, and starts nothing.
 - Words such as "build" or "implement" in the idea describe future phases. They do not authorize that work during this invocation.
 - Never invoke csm-plan or csm-build. Each phase brief waits for its own future, explicit csm-plan invocation.
-- SAVED is the terminal state. After reaching it, display the complete approach document and end the response without asking whether to start work.
+- SAVED is the terminal state. After reaching it, display the approach document scale-gated (summary + path for small/quick runs; the complete document for large runs) and end the response without asking whether to start work.
 
 ## Core Rules
 
@@ -33,6 +33,7 @@ Fallback ladder — journal every incident, never silently:
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion of research and synthesis with a recorded independence caveat.
+5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
 
 SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only research for a large idea — when the ladder lands on step 4, record the independence caveat and surface it to the user as a parked open question.
 
@@ -77,6 +78,8 @@ Brief-step mapping:
 | cyclic, not linear, until the user agrees | cycle rules |
 | save the agreed approach to a single dated document in `.agents/approaches/` | SAVED |
 
+Quota note: grill persists nothing until SAVED. On hard quota exhaustion, stop cleanly and tell the user the interview is NOT mid-session resumable — it restarts from the user's answers (the one-question-at-a-time state is cheap to rebuild).
+
 ### 1. INTAKE
 
 1. Restate the idea as understood, in one or two sentences.
@@ -87,8 +90,8 @@ Exit: idea restated, fact base gathered, unknowns listed.
 
 ### 2. SCOUT
 
-1. Always dispatch at least one research subagent to investigate the idea's context; for big ideas, dispatch parallel scouts per domain.
-2. Require each scout to return: assumptions, unknowns that could invalidate the idea, ambiguities and conflicts, and a ranked list of areas needing user clarification with suggested questions.
+1. Always dispatch at least one research subagent to investigate the idea's context; for big ideas, dispatch parallel scouts per domain. Scouts retrieve current facts with named read-only tools available in the environment — webfetch; installed docs-search MCPs such as cloudflare-docs search — never from memory alone.
+2. Require each scout to return: assumptions, unknowns that could invalidate the idea, ambiguities and conflicts, and a ranked list of areas needing user clarification with suggested questions. Every research output cites `source URL + retrieval date` per claim.
 
 Exit: ranked clarification-area list in hand.
 
@@ -104,8 +107,8 @@ Exit: every open decision either answered concretely by the user or explicitly d
 
 ### 4. DEEP_DIVE
 
-1. Always dispatch at least one research subagent into the user's clarifications to deepen understanding of the ask and the direction; for big ideas, dispatch parallel subagents per theme.
-2. Require each subagent to return further options with trade-offs, grounded in evidence.
+1. Always dispatch at least one research subagent into the user's clarifications to deepen understanding of the ask and the direction; for big ideas, dispatch parallel subagents per theme. Use the same named retrieval tools as SCOUT (webfetch; installed docs-search MCPs such as cloudflare-docs search).
+2. Require each subagent to return further options with trade-offs, grounded in evidence cited with `source URL + retrieval date`.
 3. Return to GRILL with anything the user must decide.
 
 Exit: research synthesized into options and implications.
@@ -132,7 +135,7 @@ Exit: user explicitly agrees.
 1. Write `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md` at the git root, or cwd if not a git repo. Create only the approach directory and file.
 2. Unless the user declined, commit the new file in a single commit staging only that file, and never push unless explicitly requested; skip the commit when not a git repo and note why.
 3. Delete the temp dir.
-4. Display the complete document; report the saved path, the commit hash or the reason the commit was skipped, and any parked open questions. Then stop — never invoke csm-plan or csm-build.
+4. Display the document scale-gated: for small/quick runs show a summary, the saved path, and evidence highlights; for large runs display the complete document. Report the commit hash or the reason the commit was skipped, and any parked open questions. Then stop — never invoke csm-plan or csm-build.
 
 Exit: approach document saved and displayed, temp dir deleted, session stopped.
 
@@ -154,6 +157,7 @@ The document contains, in order:
 Template:
 
 ````markdown
+format: csm-grill/1
 # <Idea> Approach
 
 - Idea slug: <idea-slug>
@@ -220,6 +224,6 @@ flowchart LR
 ## Done Criteria
 
 - The user explicitly agreed to the phasing and the approach.
-- Exactly one approach document saved at the required path and displayed in full.
+- Exactly one approach document saved at the required path and displayed (scale-gated for small/quick runs).
 - Temp dir deleted; nothing else written — no plans, specs, code, or other docs.
 - No plan started, no implementation started, no csm-plan or csm-build invoked.
