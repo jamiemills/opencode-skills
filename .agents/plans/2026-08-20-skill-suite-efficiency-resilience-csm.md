@@ -11,12 +11,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: skill-suite-efficiency-resilience
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: VALIDATE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: none
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-20 cycle 0 start — build dispatched by explicit user request ("use csm-build and build it"); RECOVER: tree clean except plan-file stale-fix edits (committed below), no NORMS.md, format marker csm-plan/1 present, all 8 tasks pending; VALIDATE: check-suite 457 OK, sync-skill-boilerplate --check OK, gen-readme-matrix --check OK
+- Next transition: VALIDATE -> SELECT
 - Active tasks: none
 - Blockers: none
 
@@ -30,12 +30,12 @@ Deliverables:
 3. A model-switch-safe resume contract: `Last model/run:` field, canned Resume block, per-task Recovery notes re-read in RECOVER, prior-model evidence re-verification.
 4. Mid-planning survival for csm-plan via a disposable `.draft` plan sidecar.
 5. A retrieval-first ("curiosity") protocol for csm-plan RESEARCH, csm-grill, and csm-review: named read-only retrieval tools, source-URL + retrieval-date citations, edition-drift check for review anchors, and frontmatter bias statements.
-6. Gate hardening: check-suite validates plan Control fields, journal consistency, list ordinals, and template `format:` markers; two known end-to-end defects fixed (F-050 template format markers, F-069 RECOVER duplicate ordinal, doubled pre-commit drift check).
+6. Gate hardening: check-suite validates plan Control fields, journal consistency, list ordinals, and template `format:` markers; two known end-to-end defects fixed (F-050 template format markers, F-069 RECOVER duplicate ordinal; the doubled pre-commit drift check — F-069 component 2 — already resolved by the completed oxlint-lefthook-precommit plan).
 7. Behavioral resume-semantics tests (closes F-063).
 
 Constraints:
 - All eight SKILL.md files have mirrored copies under `bootstrap/package/payload/skills/` that must be regenerated via `node scripts/pack-bootstrap.mjs` before completion.
-- Every edit must keep `node scripts/check-suite.mjs` green (441 checks at the last gate run, 2026-08-19; MANIFEST sections, state chains, interface shape, boilerplate drift, corpus templates). The gate is red on this plan file until its `format: csm-plan/1` frontmatter (added above) is committed — the SAVED commit makes it green.
+- Every edit must keep `node scripts/check-suite.mjs` green (457 checks at the last gate run, 2026-08-20; 441 at planning time 2026-08-19; MANIFEST sections, state chains, interface shape, boilerplate drift, corpus templates). The gate is red on this plan file until its `format: csm-plan/1` frontmatter (added above) is committed — the SAVED commit makes it green.
 - csm-scan stays offline and deterministic (no scan-time network retrieval).
 - The state-machine chain and numbered `### N. STATE` headings are gate-verified; PAUSED must follow the unnumbered-heading BLOCKED precedent, not become a chain token.
 - Never-X clauses and <=1024-char descriptions must be preserved in every frontmatter.
@@ -50,7 +50,7 @@ Exclusions:
 ## Acceptance Criteria
 
 1. Frontmatter descriptions across the 8 skills shrink from 417 words to <=220 words total; every description keeps its Never-X clause, is <=1024 chars, and `node scripts/check-suite.mjs` passes.
-2. Synced boilerplate sections shrink materially (tmux bootstrap body ~362 -> <=150 words per skill; NORMS detection/validation condensed) with `node scripts/sync-skill-boilerplate.mjs --check` clean; pre-commit hook no longer runs the duplicate drift step.
+2. Synced boilerplate sections shrink materially (tmux bootstrap body ~362 -> <=150 words per skill; NORMS detection/validation condensed) with `node scripts/sync-skill-boilerplate.mjs --check` clean; the pre-commit hook no longer runs the duplicate drift step (already true — .lefthook.yml pre-commit jobs contain no sync step).
 3. csm-build/SKILL.md contains a `## Pause On Quota` section: quota signal set (HTTP 429, rate-limit, quota-exceeded, out-of-credits, billing, context-length-exceeded), detect -> journal evidence -> safe integration of in-flight results -> full CHECKPOINT with commit -> `Status: paused` + `Next transition: PAUSED -> RECOVER` -> clean stop; RECOVER contains a resume block (re-read Last checkpoint, latest journal row, Recovery notes of non-COMPLETE tasks, Discovered Requirements; re-verify prior-model evidence claims); SELECT gains a best-effort pre-flight probe when resuming from a pause.
 4. csm-plan/SKILL.md Control template gains `paused` in the Status enum, a `Last model/run:` field, and a canned Resume block; the fenced Required Plan Document starts with a `format: csm-plan/1` marker; a `.draft` sidecar rule persists planning state at every transition and resumes on `.draft` presence; RESEARCH requires a named current-knowledge retrieval check with source URL + retrieval date citations.
 5. csm-grill and csm-review carry the retrieval protocol and bias statements; csm-review adds an anchor edition-drift check; all three producer templates carry `format:` markers (F-050 closed).
@@ -66,7 +66,7 @@ Exclusions:
 - Tmux Session Bootstrap is inline in 5 skills, ~362-381 words each (csm-plan:10-31, csm-build:10-31, csm-bdd-tdd:10-31, csm-scan:10-31, csm-review:10-31), canonical source `scripts/lib/boilerplate.mjs:7-29`, synced by `scripts/sync-skill-boilerplate.mjs` (heading-bounded splice; drift gated at check-suite.mjs:646-649). csm-grill has no tmux section (proof it is not essential).
 - NORMS.md detection/validation blocks duplicated in csm-plan (188 words, lines 82-100), csm-build (161 words, lines 60-84), csm-bdd-tdd (~37), csm-review (~80). csm-bdd-tdd already uses a "Same rules as csm-build" dedup precedent at csm-bdd-tdd/SKILL.md:37.
 - Duplicate ordinal defect: csm-build/SKILL.md:119-120 both numbered `2.` in RECOVER.
-- Pre-commit hook scripts/hooks/pre-commit:38-43 runs `sync-skill-boilerplate.mjs --check` although check-suite.mjs:646-649 already runs checkDrift internally (F-069 component 2).
+- Pre-commit gate is lefthook-managed: .lefthook.yml pre-commit jobs (unstaged-guard, check-suite, mjs-syntax, oxlint, csm-browse-check) contain no sync-skill-boilerplate step; scripts/hooks/pre-commit is a lefthook shim — F-069 component 2 (doubled drift check) resolved by the completed oxlint-lefthook-precommit plan (2026-08-20, cycle 2). check-suite.mjs:646-649 still runs checkDrift internally; the sync step exists only as the repo-wide `node scripts/sync-skill-boilerplate.mjs --check` gate.
 - F-050: producer templates omit the `format:` markers (csm-plan Required Plan Document fence; csm-grill Required Approach Document; csm-review Report Format) that consumers and the gate require; all 17 committed artifacts were retrofitted by hand.
 - check-suite validates state chains (check-suite.mjs:206-259: every chain token gets one numbered heading, consecutive, no orphans, count match; last token terminal-exempt) — adding PAUSED as a chain token would require chain+heading+count changes; the BLOCKED precedent (unnumbered `## Blocker Rules` at csm-build:245) shows the safe pattern.
 - check-suite has zero Control/journal/ordinal/template-marker validation (grep: no `Control`, `Next transition`, or list-ordinal checks); corpus drift existed (2026-08-19-consolidated-remaining-work-csm.md Control said `Next transition: SCOPE`, not a build-machine state) and was amended at planning 2026-08-20 to the valid `NOT_STARTED -> RECOVER` prefix form when the plan was reopened with T012 — T006 verifies it holds.
@@ -96,7 +96,7 @@ Exclusions:
 | ID | Question | Method/tool | Isolation and no-change evidence | Observation | Plan implication |
 |---|---|---|---|---|---|
 | R1 | Is the RECOVER duplicate ordinal real? | Read csm-build/SKILL.md:114-124 | Read-only | Lines 119-120 both `2.` | T003 fix; T006 ordinal check |
-| R2 | Does the pre-commit hook duplicate the drift check? | Read scripts/hooks/pre-commit:38-43 vs check-suite.mjs:646-649 | Read-only | Step 2 re-runs sync --check that check-suite already performs | T001 removes step 2 |
+| R2 | Does the pre-commit hook duplicate the drift check? | Read scripts/hooks/pre-commit vs check-suite.mjs:646-649 | Read-only | RESOLVED post-planning: hook is a lefthook shim, .lefthook.yml pre-commit jobs have no sync step; dup eliminated by the completed oxlint-lefthook-precommit plan | No action in T001 — resolved externally |
 | R3 | Can PAUSED join the state chain without gate surgery? | Read check-suite.mjs:206-259 chain validator | Read-only | Chain tokens need numbered headings + count match; last token exempt; orphans rejected | PAUSED as unnumbered section (BLOCKED precedent) — no chain change |
 | R4 | Do the producer templates carry `format:` markers? | Read csm-plan Required Plan Document fence (csm-plan:213-294); review corpus plans | Read-only | Markers absent in fences; corpus artifacts retrofitted by hand | T002/T004 add markers; T006 validates |
 | R5 | Does any Control/journal validation exist? | grep check-suite.mjs for Control/Next transition | Read-only | None; corpus drift found (consolidated plan `Next transition: SCOPE`) | T006 adds validation + corpus repair |
@@ -106,7 +106,7 @@ Exclusions:
 
 - Every SKILL.md edit must be mirrored into `bootstrap/package/payload/skills/**` via `node scripts/pack-bootstrap.mjs` (integrity test tests/protocol/integrity.test.mjs:116-123); payload drift is unguarded in check-suite today (consolidated-remaining-work plan noted this) — do not rely on a gate to catch it.
 - Synced boilerplate sections (tmux, resilience, NORMS) must be edited ONLY through `scripts/lib/boilerplate.mjs` + `sync-skill-boilerplate.mjs --write`; hand-editing a synced section fails checkDrift.
-- Frontmatter rules: name matches dir; description non-empty, <=1024 chars, contains a Never-X clause (check-suite.mjs:388-391); exactly one H1; no duplicate H2; <500 lines per SKILL.md (check-suite.mjs:375).
+- Frontmatter rules: name matches dir; description non-empty, <=1024 chars, contains a Never-X clause (check-suite.mjs:388-391); exactly one H1; no duplicate H2; <500 lines per SKILL.md (check-suite.mjs:376).
 - State-machine section: backticked chain tokens each need exactly one numbered `### N. STATE` heading, consecutive, no orphans, count match (check-suite.mjs:206-259). csm-review additionally requires per-state Entry/Exit lines and self-claims.
 - Interface section: exactly 4 labeled bullets; `Never invokes` must equal the NEVER_INVOKE matrix row exactly (check-suite.mjs:411-427).
 - Plan/approach/report templates must remain extractable from fenced blocks in csm-plan/csm-grill/csm-review, and the `.agents/plans|approaches|reviews` corpora validate against them (check-suite.mjs:473-588).
@@ -123,7 +123,7 @@ Exclusions:
 
 **Mid-planning survival (csm-plan).** Write allowlist extends to `.agents/plans/<date>-<goal>-csm.draft.md`: persist Control/journal/draft at every state transition during planning; at SAVED rename to the final path. A resumed planning session checks for `.draft` first and continues rather than restarting (mirrors csm-bdd-tdd specs/control.md precedent). The `.draft` is disposable; only the final `.md` is the plan.
 
-**Token efficiency.** (a) Frontmatter descriptions trimmed to <=220 words total across 8 skills (target <=35 words each), keeping Never-X and bias clauses. (b) Canonical boilerplate renders condensed in boilerplate.mjs (tmux ~362-><=150 words preserving all skip rules and notice; NORMS detection/validation condensed ~40%; resilience ladder gains the quota rung); sync --write regenerates all skills; pre-commit step 2 removed. (c) Output display at SAVED scale-gated (A5). (d) csm-scan `## Testing` section trimmed to a concise gate-command list (no README write — that stays with T008).
+**Token efficiency.** (a) Frontmatter descriptions trimmed to <=220 words total across 8 skills (target <=35 words each), keeping Never-X and bias clauses. (b) Canonical boilerplate renders condensed in boilerplate.mjs (tmux ~362-><=150 words preserving all skip rules and notice; NORMS detection/validation condensed ~40%; resilience ladder gains the quota rung); sync --write regenerates all skills; pre-commit step 2 already removed (lefthook plan). (c) Output display at SAVED scale-gated (A5). (d) csm-scan `## Testing` section trimmed to a concise gate-command list (no README write — that stays with T008).
 
 **Curiosity/retrieval protocol.** csm-plan RESEARCH: every track runs a current-knowledge check first via named read-only tools (webfetch; installed docs-search MCPs e.g. cloudflare-docs search) for every technology the plan touches, returning `source URL + retrieval date` in the required research report fields; sources >30 days old warn (staleness precedent csm-plan:97). csm-grill SCOUT/DEEP_DIVE: same with citations. csm-review EVIDENCE: webfetch each anchor URL and record supersession; superseded editions surface as low/info findings. Frontmatter bias sentence "Biases towards retrieval from current documentation over pre-trained knowledge" added to csm-plan, csm-grill, csm-review (mirrors installed Cloudflare skills; additive, Never-X preserved). csm-scan stays offline; its standards registry documents authoritative URIs as current-source pointers for consumers.
 
@@ -136,7 +136,7 @@ Exclusions:
 ## Execution Graph
 
 Dependencies:
-- T001 (boilerplate condensation + ladder quota rung + pre-commit dedup) — base, G1.
+- T001 (boilerplate condensation + ladder quota rung; pre-commit dedup already resolved by the completed oxlint-lefthook-precommit plan) — base, G1.
 - T006 (check-suite/plan-validation hardening) — base, G1, disjoint files from T001.
 - T002 (csm-plan bundle) — depends T001 (synced sections must be regenerated first).
 - T003 (csm-build bundle) — depends T001.
@@ -157,12 +157,12 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
 
 ## Numbered Plan
 
-1. [pending] Condense shared boilerplate, add the ladder quota rung, and remove doubled pre-commit drift check
+1. [pending] Condense shared boilerplate and add the ladder quota rung (pre-commit drift dedup already resolved by the lefthook plan)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
    - Risk: standard
-   - Owned scope: scripts/lib/boilerplate.mjs, scripts/sync-skill-boilerplate.mjs, scripts/hooks/pre-commit, scripts/hooks/test/pre-commit.test.mjs, synced sections in csm-plan/csm-build/csm-bdd-tdd/csm-scan/csm-review SKILL.md files (via sync --write only)
+   - Owned scope: scripts/lib/boilerplate.mjs, scripts/sync-skill-boilerplate.mjs, synced sections in csm-plan/csm-build/csm-bdd-tdd/csm-scan/csm-review SKILL.md files (via sync --write only); NOT scripts/hooks/pre-commit or its test — the hook is a lefthook shim and F-069 component 2 is already resolved by the completed oxlint-lefthook-precommit plan (do not hand-edit)
    - Not in scope: any non-synced SKILL.md prose; check-suite.mjs; contracts.mjs; frontmatter (T002-T005); payload regeneration (T008)
    - Spike candidate: none
    - Actions:
@@ -170,13 +170,13 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
      2. Condense the shared NORMS.md render where duplicated across skills (target ~40% reduction), keeping the detection order, the 3 validation markers, the warn phrase, and the staleness rule.
      3. Extend the canonical subagentResilience render with the quota rung for all laddered skills (grill, plan, bdd-tdd, review): "on quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop" (target ~25 words added).
      4. Re-run `node scripts/sync-skill-boilerplate.mjs --write` to regenerate all synced sections.
-     5. In scripts/hooks/pre-commit, delete step 2 (the `sync-skill-boilerplate.mjs --check` invocation) because check-suite.mjs:646-649 already runs checkDrift internally; renumber remaining comments/steps; keep the syntax-check and csm-browse steps. (superseded by oxlint-lefthook-precommit plan T002/T003 — hook file is now a lefthook shim; do not hand-edit)
-     6. Update scripts/hooks/test/pre-commit.test.mjs: drop the SYNC-related assertions (lines ~65, 89, 104, 118 assert /SYNC/ and CHECK_SUITE-before-SYNC ordering) and assert CHECK_SUITE runs once; keep the unstaged-changes rejection test. (superseded by oxlint-lefthook-precommit plan T002/T003 — hook file is now a lefthook shim; do not hand-edit)
+     5. RESOLVED externally — no action: the completed oxlint-lefthook-precommit plan made scripts/hooks/pre-commit a lefthook shim and .lefthook.yml pre-commit jobs (unstaged-guard, check-suite, mjs-syntax, oxlint, csm-browse-check) contain no sync-skill-boilerplate step; check-suite.mjs:646-649 already runs checkDrift internally. Do not hand-edit the shim.
+     6. RESOLVED externally — no action: the lefthook plan already updated scripts/hooks/test/pre-commit.test.mjs (hook suite 7/7, no SYNC assertions, unstaged-changes rejection retained).
    - Acceptance signal: `node scripts/sync-skill-boilerplate.mjs --check` exits 0 AND `node scripts/check-suite.mjs` exits 0 AND `grep -c "sync-skill-boilerplate" .lefthook.yml` shows exactly 0 occurrences AND `node scripts/hooks/test/pre-commit.test.mjs` passes (its own node:test run).
    - Validation: `wc -w` of the tmux section body in each of the 5 skills <= 150 words; phrase checklist present in each tmux body (TMUX check, skip conditions, `-2`/`-3` suffix, notice, end-invocation rule); quota rung text present in the 4 laddered skills; `pnpm exec lefthook validate`; a dry `git diff --stat` shows no changes outside the synced sections, the hook, and its test.
    - Acceptance evidence: recorded outputs of the acceptance command; word-count table per skill; phrase-checklist grep results; diff stat.
    - Repair attempts: 0
-   - Recovery note: if sync --write or check-suite fails, the boilerplate.mjs edit is the only changed source; revert boilerplate.mjs and re-sync, or fix the render and re-run both commands. Verify no SKILL.md was hand-edited (all changes must come from the sync tool). If the hook test fails, the SYNC assertions are the cause — update them in the same commit as the hook change.
+   - Recovery note: if sync --write or check-suite fails, the boilerplate.mjs edit is the only changed source; revert boilerplate.mjs and re-sync, or fix the render and re-run both commands. Verify no SKILL.md was hand-edited (all changes must come from the sync tool). The hook and its test are out of scope (lefthook shim, owned by the completed oxlint-lefthook-precommit plan) — if they fail, report rather than hand-edit.
 
 2. [pending] csm-plan: resume contract, draft sidecar, retrieval protocol, format marker, frontmatter
    - Task ID: T002
@@ -328,7 +328,7 @@ Ordered cheapest-first:
 
 ## Risks And Recovery
 
-- Gate coupling (medium): every SKILL.md edit must pass 441 checks (last recorded gate run, 2026-08-19); mitigations are per-task acceptance signals that run check-suite immediately; recovery is per-task Recovery notes (revert smallest increment).
+- Gate coupling (medium): every SKILL.md edit must pass 457 checks (last recorded gate run, 2026-08-20); mitigations are per-task acceptance signals that run check-suite immediately; recovery is per-task Recovery notes (revert smallest increment).
 - check-suite changes break the commit path (high, T006): negative-test fixtures, incremental application, independent review mandate; rollback = revert check-suite.mjs and scripts/lib/plan-validation.mjs to HEAD.
 - Corpus drift blocks new checks (medium, T006): known example (consolidated plan `Next transition: SCOPE`); mitigation is the explicit single-artifact corpus-repair action with journal evidence, plus COMPLETE/superseded exemptions; if repairs balloon beyond the known artifact, re-scope.
 - Template-fence blast radius (high, T002): an H2 added to the plan template would fail the corpus subsequence check on all 17 plans; mitigated structurally by rendering Resume as a Control bullet (no H2) and the Execution-Graph rule that template H2 changes require same-task corpus retrofit.
@@ -348,7 +348,7 @@ Ordered cheapest-first:
 | C4: csm-browse/csm-upload frontmatter trims unassigned — AC1 unreachable | Major | T005 expanded to own csm-browse + csm-upload frontmatter trims (47->35, 50->35 words) | Verified word counts: 47/50 > 35 |
 | C5: T006 `Next transition: <token> -> <token>` fails 15/17 corpus plans | Major | Validation scoped to `*-csm.md`; terminal sentinels (`none (terminal)`, `COMPLETE`, superseded forms) and the prefix convention allowed; COMPLETE/superseded plans exempt; repair set enumerated to the single `SCOPE` artifact | Verified 16 corpus Next-transition values across sentinels/prefix conventions |
 | C6: T007 golden test has no assigned check-logic extraction; spawning check-suite infeasible on fixtures | Major | T006 creates importable `scripts/lib/plan-validation.mjs`; T007 imports it directly; spike only for interface direction | check-suite requires full structural repo (skills dirs, README, LICENSE) |
-| C7: Pre-commit hook test asserts SYNC and would break | Major | T001 adds scripts/hooks/test/pre-commit.test.mjs update (drop SYNC assertions) to owned scope and acceptance | pre-commit.test.mjs:65,89,104,118 |
+| C7: Pre-commit hook test asserts SYNC and would break | Major | RESOLVED externally — the completed oxlint-lefthook-precommit plan updated the hook test (shim-era assertions, suite 7/7); T001 scope bars the hook files; acceptance retains the `grep -c "sync-skill-boilerplate" .lefthook.yml` == 0 signal | .lefthook.yml pre-commit jobs; scripts/hooks/test/pre-commit.test.mjs |
 | C8: A4 rationale wrong for csm-grill — no journal exists | Major | A4 rewritten; grill quota rule = stop cleanly, restart interview; review keeps journal-resume | csm-grill persists nothing until SAVED (csm-grill:41-43) |
 | C9: G3 T007\|\|T008 concurrency breaks when T008 runs the not-yet-existing test | Minor | G3 = T007 alone; T008 strictly sequential (G4) after T007 | T008 action 3 invokes tests/resume-semantics.test.mjs |
 | C10: Interface substring assertion infeasible as specced | Minor | Spike default switched to artifact-path pattern assertion (option b); README regeneration implications recorded in T006/T008 | INTERFACES handoff wording differs from SKILL.md prose (build:99, browse:16) |
@@ -368,6 +368,8 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | DRAFT | — | Plan drafted: 8 tasks, parallel groups G1-G4, acceptance criteria mapped | CRITIQUE |
 | 2026-08-20 | 0 | CRITIQUE | — | Independent hostile review: 15 findings (2 critical, 7 major, 4 minor, 2 nits) — plan "needs major rework"; all facts re-verified against repo | REMEDIATE |
 | 2026-08-20 | 0 | REMEDIATE | — | All 15 findings resolved: format marker added; Resume bullet; ladder quota rung to T001; browse/upload trims to T005; scoped Control checks + plan-validation module; hook test; A4/grill fix; G4 sequential; spike default; strengthened signals; facts corrected | VERIFY |
+| 2026-08-20 | 0 | VERIFY | — | Post-planning re-validation against the repo: sibling plans lint-strictness-enforcement and oxlint-lefthook-precommit COMPLETEd meanwhile — gate count 441→457 (2026-08-20); F-069 component 2 (doubled pre-commit drift check) already resolved (hook is a lefthook shim, .lefthook.yml jobs have no sync step, hook-test SYNC assertions dropped); check-suite.mjs:375→376 citation corrected; stale claims updated in Goal d6, Constraints, AC2, Current-State Evidence, R&D R2, Design token-efficiency, Execution Graph, T001 scope/actions/recovery, Risks, Critique C7; tree clean, payload in sync (pack digest a2ba3f39) | SAVED |
+| 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | csm-build dispatched by explicit user request. RECOVER: git status clean except the plan file (stale-fix edits above, committed with this row); no NORMS.md at root (skip norms); format: csm-plan/1 verified at line 2; all 8 tasks [pending]; no partial build artifacts. VALIDATE: check-suite 457/457 OK; sync-skill-boilerplate --check "OK — no drift"; gen-readme-matrix --check "OK — region matches contracts" | SELECT |
 
 ## Completion Review
 
