@@ -239,6 +239,7 @@ Planning never silently becomes implementation, and execution always starts from
 
 - The orchestration skills (`csm-grill`, `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-review`) are single-file skills with no test suite; validate by invoking them.
 - **Commit style** — short imperative messages, frequently skill-prefixed (e.g. `csm-browse: ...`, `add csm-scan skill: ...`).
+- **Cache & token hygiene** — this repo's sessions run on DeepSeek's automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]`. The layer is ON by default and switchable per repo/directory via `.agents/token-efficiency.json`.
 
 ## Troubleshooting
 
