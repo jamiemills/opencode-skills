@@ -1,8 +1,8 @@
 # opencode-skills
 
-A collection of [OpenCode](https://opencode.ai) agent skills built around the **CSM (cyclic state machine)** workflow: relentless idea grilling (`csm-grill`), rigorous, evidence-based planning (`csm-plan`), optional BDD/TDD spec mutation (`csm-bdd-tdd`), resumable plan execution (`csm-build`), adversarial repository review (`csm-review`), and deep cited research (`csm-deep-research`) — supported by repository analysis (`csm-scan`), Dockerized browser automation (`csm-browse`), and evidence publishing (`csm-upload`).
+A collection of **agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow: deep cited research (`csm-deep-research`), relentless idea grilling (`csm-grill`), rigorous, evidence-based planning (`csm-plan`), optional BDD/TDD spec mutation (`csm-bdd-tdd`), resumable plan execution (`csm-build`), and adversarial repository review (`csm-review`) — supported by repository analysis (`csm-scan`), Dockerized browser automation (`csm-browse`), and evidence publishing (`csm-upload`).
 
-> **Progressive disclosure:** this README is the index. It first sets out the system as a whole, then dives deep per area — but each skill's commands, flags, examples, and full reference live in its `SKILL.md`, linked from the [Skills](#skills) table. Read down the ladder only as far as your task needs.
+The collection installs into **any** capable agent runtime — OpenCode, Claude Code, or any Agent Skills runtime — through the [universal agent bootstrap](#universal-agent-bootstrap-no-clone) (single URL, no clone), or by checking out this repository in place. This README is the index: it sets out the system as a whole, then dives deep per area; each skill's commands, flags, examples, and full reference live in its `SKILL.md`, linked from the [Skills](#skills) table.
 
 ## Table of contents
 
@@ -24,10 +24,10 @@ Nine skills, three roles:
 
 | Role | Skills |
 |---|---|
-| **Orchestration** (invoked by name in a session) | `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-build`, `csm-review`, `csm-deep-research` |
+| **Orchestration** (invoked by name in a session) | `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-build`, `csm-review` |
 | **Tooling** (also expose a CLI) | `csm-scan`, `csm-browse`, `csm-upload` |
 
-The core loop — **grill → plan → build** — with the supporting cast:
+The core loop — **research → grill → plan → build** — with the supporting cast:
 
 ```mermaid
 flowchart LR
@@ -36,15 +36,16 @@ flowchart LR
     scan -.->|"optional conventions input"| bdd["csm-bdd-tdd<br/>optional: plan → BDD/TDD spec package"]
     scan -.->|"optional conventions input"| build["csm-build<br/>plan → verified implementation"]
     scan --> review["csm-review<br/>repo(s) → adversarial review"] -->|"review findings"| plan
+    research["csm-deep-research<br/>question → cited finding"] -.->|"cited findings"| grill
+    grill -.->|"follow-up research questions"| research
+    plan -.->|"cited external findings"| research
     plan --> bdd
     bdd --> build
     plan -->|"without mutation"| build
-    grill -.->|"cited external findings"| research["csm-deep-research<br/>question → cited finding"]
-    plan -.->|"cited external findings"| research
     build -->|"delivery"| browse["csm-browse<br/>image/video evidence of delivery"] -->|"evidence"| upload["csm-upload<br/>evidence → GitHub Pages demo site"]
 ```
 
-> **Edge semantics:** dashed edges are optional, human-invoked inputs — feeding `NORMS.md` conventions from `csm-scan` into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`; dispatching a `csm-deep-research` run from `csm-grill` or `csm-plan` when a question turns on an external spec, standard, or factual claim that must be verifiable by citation (the finding lands in `.agents/research/` and feeds back into the approach or plan). `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — never an automatic edge.
+> **Edge semantics:** dashed edges are optional, human-invoked inputs. Research runs **first — or in parallel with the grill** — when the idea rests on external facts, specs, or standards that must be verifiable by citation: `csm-deep-research` answers them, the cited findings feed the grill (which may dispatch follow-up questions) and the plan, and the finding lands in `.agents/research/`. `csm-scan` feeds `NORMS.md` conventions into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`. `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — never an automatic edge.
 
 Each stage is a separate, explicitly invoked skill — planning never silently becomes implementation, and execution always starts from a saved plan on disk. Every stage is terminal: it writes its artifact and stops; handoff to the next stage is a fresh, explicit invocation.
 
@@ -66,13 +67,13 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 
 | Skill | Purpose | Reference |
 |---|---|---|
+| `csm-deep-research` | Deep research, R&D, and validation queries answered with one dated, exhaustively cited research finding — a standalone triage → parallel researchers → adversarial challenge → judge → verify pipeline that saves to `.agents/research/`, optionally with declared run artifacts (e.g. a requested `.json` file). Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-deep-research-<goal-slug>`) and tells you how to attach. Never writes outside the research document and its declared run artifacts. | [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) |
 | `csm-grill` | Grill an idea into an agreed, phased approach — a relentless one-question-at-a-time interview backed by research subagents, cycling until you agree; each phase is a ready-made brief for a future csm-plan run. Never plans or implements. May dispatch `csm-deep-research` for cited external facts. | [csm-grill/SKILL.md](csm-grill/SKILL.md) |
 | `csm-plan` | Turn a brief into an evidence-based, executable, resumable implementation plan — research, critique, verify, save, stop. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-plan-<goal-slug>`) and tells you how to attach. Never implements. May dispatch `csm-deep-research` for cited external facts. | [csm-plan/SKILL.md](csm-plan/SKILL.md) |
 | `csm-bdd-tdd` | Mutate a saved plan into a strict BDD+TDD package: formal spec, executable Gherkin scenarios, unit test designs, and a traceable mutated plan. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-bdd-tdd-<goal-slug>`) and tells you how to attach. | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md) |
 | `csm-build` | Execute a saved CSM plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-build-<goal-slug>`) and tells you how to attach. | [csm-build/SKILL.md](csm-build/SKILL.md) |
 | `csm-scan` | Read-only multi-repo analysis producing a single `NORMS.md`: 17 evidence dimensions (structure, stack, conventions, architecture, security, data, deployment, and more) with Mermaid architecture diagrams. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-scan-<goal-slug>`) and tells you how to attach. | [csm-scan/SKILL.md](csm-scan/SKILL.md) |
 | `csm-review` | Adversarial repository review — a multi-agent defensive sweep that gathers evidence across a review-dimension spine (correctness, technical debt, security, secrets, dependencies, and more), challenges each finding, and saves a review report. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-review-<goal-slug>`) and tells you how to attach. Never fixes. | [csm-review/SKILL.md](csm-review/SKILL.md) |
-| `csm-deep-research` | Deep research, R&D, and validation queries answered with one dated, exhaustively cited research finding — a standalone triage → parallel researchers → adversarial challenge → judge → verify pipeline that saves to `.agents/research/`, optionally with declared run artifacts (e.g. a requested `.json` file). Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-deep-research-<goal-slug>`) and tells you how to attach. Never writes outside the research document and its declared run artifacts. | [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) |
 | `csm-browse` | Drive an isolated Chromium inside the `chromium-vnc` Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM, capture console/network/performance, record video. | [csm-browse/SKILL.md](csm-browse/SKILL.md) |
 | `csm-upload` | Upload screenshots, videos, and evidence files to a GitHub Pages demo site under a unique dated page name. | [csm-upload/SKILL.md](csm-upload/SKILL.md) |
 
@@ -98,10 +99,10 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 
 ### The lifecycle, step by step
 
-1. **Grill** — `csm-grill` interviews you one question at a time (each with a recommended answer), backs every answer with research, and cycles until you explicitly agree. Output: a phased approach document whose phases are ready-made briefs. *Full reference: [csm-grill/SKILL.md](csm-grill/SKILL.md) — Grilling State Machine.*
-2. **Scan** (optional) — `csm-scan` extracts a repository's conventions into `NORMS.md` (17 dimensions, static declarations only — target commands are never executed) so later stages speak the repo's language. *Full reference: [csm-scan/SKILL.md](csm-scan/SKILL.md) — `## Dimensions`, `## CLI`.*
-3. **Review** (optional) — `csm-review` adversarially audits a repository (or a completed build) across a finding spine, challenges every finding, and writes a dated report. Never fixes. *Full reference: [csm-review/SKILL.md](csm-review/SKILL.md) — Review State Machine.*
-4. **Research** (when warranted) — `csm-grill` or `csm-plan` dispatch `csm-deep-research` for external specs/standards/factual claims that must be verifiable by citation; the finding and its artifacts land in `.agents/research/`. *Full reference: [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) — Research State Machine.*
+1. **Research** — when the idea rests on external facts, specs, or standards that must be verifiable by citation, `csm-deep-research` answers them first (or in parallel with the grill): triage → parallel researchers → adversarial challenge → judge → verify, saving an exhaustively cited finding (and any requested run artifacts) to `.agents/research/`. *Full reference: [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) — Research State Machine.*
+2. **Grill** — `csm-grill` interviews you one question at a time (each with a recommended answer), backs every answer with research — dispatching `csm-deep-research` for follow-up questions that need cited evidence — and cycles until you explicitly agree. Output: a phased approach document whose phases are ready-made briefs. *Full reference: [csm-grill/SKILL.md](csm-grill/SKILL.md) — Grilling State Machine.*
+3. **Scan** (optional) — `csm-scan` extracts a repository's conventions into `NORMS.md` (17 dimensions, static declarations only — target commands are never executed) so later stages speak the repo's language. *Full reference: [csm-scan/SKILL.md](csm-scan/SKILL.md) — `## Dimensions`, `## CLI`.*
+4. **Review** (optional) — `csm-review` adversarially audits a repository (or a completed build) across a finding spine, challenges every finding, and writes a dated report. Never fixes. *Full reference: [csm-review/SKILL.md](csm-review/SKILL.md) — Review State Machine.*
 5. **Plan** — `csm-plan` researches, critiques, verifies, and saves a numbered, resumable plan (with acceptance signals, risks, anti-scope). *Full reference: [csm-plan/SKILL.md](csm-plan/SKILL.md) — Planning State Machine, Required Plan Document.*
 6. **Mutate** (optional) — `csm-bdd-tdd` turns the plan into a formal spec + Gherkin scenarios + unit test designs + a mutated plan. *Full reference: [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md) — Pipeline.*
 7. **Build** — `csm-build` executes the saved plan with parallel subagents, durable checkpoints, and review/repair cycles until every acceptance signal has evidence. *Full reference: [csm-build/SKILL.md](csm-build/SKILL.md) — Execution State Machine, Completion Gate.*
@@ -110,7 +111,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 ### Orchestration conventions shared by the six orchestration skills
 
 - **tmux bootstrap** — `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, `csm-review`, and `csm-deep-research` start their orchestrating agent in a detached session named `<skill>-<goal-slug>` when tmux is available and you are not already inside one; say **"no tmux"** to stay in-session. `csm-grill` is interactive by design and never detaches.
-- **Progressive-disclosure artifacts** — every artifact carries a `format: <skill>/<n>` marker as its first line, and the repo-wide gate validates corpus shape (required sections in order, control journals, transition formats) so a fresh session can resume from the artifact alone, never from chat history.- **Write discipline** — orchestration skills write only their own allowlisted artifact (+ a disposable temp dir); they never mutate the researched/planned/executed repository except the intentional artifact write.
+- **Machine-validated artifacts** — every artifact carries a `format: <skill>/<n>` marker as its first line, and the repo-wide gate validates corpus shape (required sections in order, control journals, transition formats) so a fresh session can resume from the artifact alone, never from chat history.- **Write discipline** — orchestration skills write only their own allowlisted artifact (+ a disposable temp dir); they never mutate the researched/planned/executed repository except the intentional artifact write.
 - **Standalone, terminal, never-invoking** — a skill that finishes stops; the only sanctioned cross-skill dispatch edge in the suite is `csm-grill`/`csm-plan` → `csm-deep-research` (enforced by the invoke matrix in `scripts/lib/contracts.mjs`).
 
 ### The deep-research pipeline
@@ -127,9 +128,10 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 
 ## Requirements
 
-- **[OpenCode](https://opencode.ai)** — these are OpenCode skills.
+- **A capable agent runtime** — the skills are agent-agnostic: OpenCode, Claude Code, or any runtime that can read files, invoke tools, and write artifacts. The universal bootstrap installs them into the runtime's Agent Skills location; the in-place checkout below also works for any runtime pointed at this directory.
 - **Node.js >= 22** — for `csm-browse` (see `csm-browse/package.json`) and for running the suite gates and `node:test` suites. `csm-scan` itself is zero-dependency Node built-ins only.
-- **pnpm >= 10** (corepack-managed; the root `package.json` pins `packageManager: pnpm@10.33.0`) — the repo's only package installer, for root tooling (lefthook + oxlint) and `csm-browse`.
+- **make** — the interface to all development gates and suites (see [Development & testing](#development--testing)); the underlying commands are documented there too.
+- **pnpm >= 10** (corepack-managed; the root `package.json` pins `packageManager: pnpm@10.33.0`) — the Makefile's underlying package installer, for root tooling (lefthook + oxlint) and `csm-browse`; you normally reach it via `make install` rather than calling it directly.
 - **Universal bootstrap runtime** — the delivered bootstrap flow needs only `node` and `npx`; Node >= 22 is recommended for the development gates (see [Development & testing](#development--testing)).
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
@@ -139,13 +141,30 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 
 ## Installation
 
-Clone this repository into your OpenCode skills directory (or copy the nine skill folders into an existing one):
+### Universal agent bootstrap (no clone) — the primary path
+
+Any capable agent can install this skill collection from a single URL, without cloning the repository, once the envelope is hosted — envelope hosting and npm publication are credential-gated release steps ([`bootstrap/release-checklist.md`](bootstrap/release-checklist.md)); until then the committed fixture and the deterministic packed artifact from `node scripts/pack-bootstrap.mjs` validate the flow. The URL serves a signed canonical envelope (schema `csm-bootstrap`, version `2`; digest-bound policy + guidance-only `steps_markdown`) that materializes only hash-verified payload files.
+
+- **Trust root first** — a URL cannot choose its own executable. Approve the fixed package `@jamiemills/csm-skills-bootstrap@0.1.0` and bin `csm-skills-bootstrap` (plus its signing key) before use.
+- **Agent-owned protocol** — the agent discovers its own Agent Skills location, asks the user when ambiguous, places only hash-verified payload files, and reports destination, hashes, reload action, and rollback limits. States (`DISCOVER -> TRUST -> PLAN_DESTINATION -> CONFIRM_IF_NEEDED -> MATERIALIZE -> VERIFY -> REPORT`) and refusal codes are specified in [`bootstrap/protocol.md`](bootstrap/protocol.md).
+- **Exact npx invocation** — `--ignore-scripts` always; offline is cache-warmed only — it replays a previously verified warm cache and fails closed with no network fallback:
+
+  ```bash
+  npx --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
+  npx --offline --no-install --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
+  ```
+
+- **Capability boundary** — the flow needs exactly three capabilities: read an HTTPS URL, write files, and invoke exact `npx`. Agents lacking one receive a safe refusal, not a guessed fallback.
+
+### In-place checkout — for using or developing the suite
+
+Clone this repository into any directory the runtime treats as a skills root (or copy the nine skill folders into an existing one):
 
 ```bash
 git clone git@github.com:jamiemills/opencode-skills.git $HOME/.config/opencode/skills
 ```
 
-Restart OpenCode so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-grill`, `csm-scan`, `csm-review`, `csm-upload`, and `csm-deep-research` need no further setup.
+Restart the runtime so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-grill`, `csm-scan`, `csm-review`, `csm-upload`, and `csm-deep-research` need no further setup.
 
 `csm-browse` has runtime dependencies — install and verify:
 
@@ -165,34 +184,20 @@ node scripts/install-hooks.mjs
 
 Dependency inventory: the root `pnpm-lock.yaml` (integrity-hashed) is authoritative for the hook tooling (lefthook + oxlint) and `csm-browse/pnpm-lock.yaml` for csm-browse; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
 
-### Universal agent bootstrap (no clone)
-
-Any capable AI agent can install this skill collection from a single URL, without cloning the repository, once the envelope is hosted — envelope hosting and npm publication are future release steps ([`bootstrap/release-checklist.md`](bootstrap/release-checklist.md)); until then the committed fixture and the deterministic packed artifact from `node scripts/pack-bootstrap.mjs` validate the flow. The URL serves a signed canonical envelope (schema `csm-bootstrap`, version 2): structured, signature-bound policy — fixed package, bin, payload manifest, limits — plus a digest-bound `steps_markdown` field whose Markdown steps are guidance only and can never add commands, paths, package names, or shell policy ([`bootstrap/schema.json`](bootstrap/schema.json), `bootstrap/steps.md`).
-
-- **Trust root first** — a URL cannot choose its own executable. Approve the fixed package `@jamiemills/csm-skills-bootstrap@0.1.0` and bin `csm-skills-bootstrap` (plus its signing key) before use.
-- **Agent-owned protocol** — the agent discovers its own Agent Skills location, asks the user when ambiguous, places only hash-verified payload files, and reports destination, hashes, reload action, and rollback limits. States (`DISCOVER -> TRUST -> PLAN_DESTINATION -> CONFIRM_IF_NEEDED -> MATERIALIZE -> VERIFY -> REPORT`) and refusal codes are specified in [`bootstrap/protocol.md`](bootstrap/protocol.md).
-- **Exact npx invocation** — `--ignore-scripts` always; offline is cache-warmed only — it replays a previously verified warm cache and fails closed with no network fallback:
-
-  ```bash
-  npx --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
-  npx --offline --no-install --yes --ignore-scripts --no-audit --no-fund --package=@jamiemills/csm-skills-bootstrap@0.1.0 csm-skills-bootstrap --version
-  ```
-
-- **Capability boundary** — the flow needs exactly three capabilities: read an HTTPS URL, write files, and invoke exact `npx`. Agents lacking one receive a safe refusal, not a guessed fallback.
-
 ## Quickstart
 
-The core loop is **grill → plan → build**:
+The core loop is **research → grill → plan → build**:
 
+0. **Research** — when the idea hinges on external facts, specs, or standards, invoke `csm-deep-research` first (or run it in parallel with the grill): it returns an exhaustively cited finding (plus any requested run artifacts) that the grill and the plan can rely on.
 1. **Grill** an idea — invoke `csm-grill` to be interviewed one question at a time until the phased approach is agreed and each phase is a ready-made brief for the next step.
 2. **Plan** — invoke `csm-plan` with a brief; it researches, critiques, verifies, and saves a numbered, resumable plan.
 3. **Build** — invoke `csm-build` with the saved plan; it executes with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.
 
-Optional: `node scripts/install-hooks.mjs` installs the root devDependencies and enables the fast lefthook pre-commit gate.
+Optional: `make install` installs the root devDependencies (and `csm-browse`'s), and `node scripts/install-hooks.mjs` enables the fast lefthook pre-commit gate.
 
 The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.
 
-Optional gates around the loop: **`csm-scan`** to capture repository conventions into `NORMS.md` before planning, **`csm-review`** to adversarially audit a repository (or a completed build) for defects and security risks before delivery, and **`csm-deep-research`** when a plan or idea hinges on a cited external fact.
+Optional gates around the loop: **`csm-scan`** to capture repository conventions into `NORMS.md` before planning, and **`csm-review`** to adversarially audit a repository (or a completed build) for defects and security risks before delivery.
 
 ## Repository layout
 
@@ -225,7 +230,7 @@ Optional gates around the loop: **`csm-scan`** to capture repository conventions
 │   ├── pack-bootstrap.mjs         # deterministic npm pack of the bootstrap package
 │   ├── close-plan.mjs             # plan closure automation (Control rewrite + Closure block + journal + index)
 │   ├── record-gate-baseline.mjs   # gate-baseline recorder (evidence for journal numbers)
-│   ├── cache-health.mjs           # per-session/per-day cache hit ratios and cost (DeepSeek prefix caching)
+│   ├── cache-health.mjs           # per-session/per-day cache hit ratios and cost (automatic prefix caching)
 │   ├── wt-session.mjs             # parallel-worktree session helper (one goal per worktree)
 │   ├── with-node22.mjs            # Node 22 toolchain helper for gate runs
 │   ├── hooks/                     # tracked git hooks (core.hooksPath target)
@@ -244,6 +249,9 @@ Optional gates around the loop: **`csm-scan`** to capture repository conventions
 
 ## Development & testing
 
+All gates and test suites run through **`make`** — it is the interface (see the [Makefile](Makefile)); `pnpm` is only the underlying package installer and is normally reached via `make install`.
+
+- `make install`  # install root devDeps (lefthook + oxlint) and csm-browse's deps
 - `make lint`  # repo-wide oxlint with the committed quality bar (`.oxlintrc.json`: correctness + suspicious categories, warnings-as-errors); `.agents/**` is exempt (research findings, plans, and run artifacts)
 - `make check` # the repo-wide conformance gate: `node scripts/check-suite.mjs` (frontmatter, sections, state lines, README integrity, corpora, interfaces, boilerplate drift, matrix drift, payload drift, lint)
 - `make analyze`  # lint + check
@@ -253,13 +261,13 @@ Optional gates around the loop: **`csm-scan`** to capture repository conventions
 - `make test-browse`   # csm-browse fast sanity (no Docker)
 - `make test`          # test-hooks + test-bootstrap + test-browse + test-scan
 
-Direct commands:
+Direct commands (what the targets invoke):
 
 - `node scripts/sync-skill-boilerplate.mjs --check`   # boilerplate drift (also gated); `--write` regenerates
 - `node scripts/gen-readme-matrix.mjs --check`        # composition-matrix drift (also gated); `--write` regenerates
 - `node scripts/close-plan.mjs <plan> <replacement> [--dry-run]`  # plan closure automation
 - `node scripts/cache-health.mjs [--days N]`  # per-session/per-day cache hit ratios and cost for the active model
-- `pnpm install --frozen-lockfile --ignore-scripts && pnpm exec lefthook install --force`  # install root devDeps and enable the local lefthook pre-commit gate (bypass: `git commit --no-verify`)
+- `pnpm exec lefthook install --force`  # (re)enable the local lefthook pre-commit gate after `make install` (bypass: `git commit --no-verify`)
 - **Universal bootstrap suites** — envelope trust, package audit, protocol conformance, offline boundary, resume semantics, and the cross-task integration flow; `node scripts/pack-bootstrap.mjs` prints the deterministic tarball digest:
 
   ```bash
@@ -297,7 +305,7 @@ Direct commands:
 - The orchestration skills (`csm-grill`, `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-review`, `csm-deep-research`) are single-file skills with no test suite; validate by invoking them.
 - **Parallel sessions (worktrees)** — one goal per worktree: from the main checkout run `node scripts/wt-session.mjs create <goal-slug>`, run the session inside the worktree, then `merge` (rebase + ff-only to main) and `nuke` when done. Each worktree has its own index and staging area — sibling sessions cannot sweep each other's files into commits, the gate runs against the worktree's own corpus, and hook races disappear. The main checkout stays on `main` (it is the live skills dir); merge worktree branches serially and re-run the gate after merging. The only expected merge conflict is the `.agents/README.md` index line — resolve by keeping both lines.
 - **Commit style** — short imperative messages, frequently skill-prefixed (e.g. `csm-browse: ...`, `add csm-scan skill: ...`). The pre-commit hook demands a fully staged tree (unstaged-guard) — use pathspec commits for partial work or `--no-verify` to bypass.
-- **Cache & token hygiene** — this repo's sessions run on DeepSeek's automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]`. The layer is **OFF by default everywhere** — only an explicit `.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for a repo or directory.
+- **Cache & token hygiene** — the suite's sessions rely on model-provider automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]`. The layer is **OFF by default everywhere** — only an explicit `.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for a repo or directory.
 
 ## Troubleshooting
 
