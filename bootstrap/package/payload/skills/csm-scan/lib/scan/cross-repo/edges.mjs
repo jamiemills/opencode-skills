@@ -114,7 +114,7 @@ function normalizeReference(input) {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     fail('INVALID_TYPE', 'reference must be an object');
   }
-  const keys = Object.keys(input).sort(compareAscii);
+  const keys = Object.keys(input).toSorted(compareAscii);
   if (keys.length !== REFERENCE_KEYS.length || keys.some((key, index) => key !== REFERENCE_KEYS[index])) {
     fail('UNKNOWN_FIELD', 'reference fields do not match the schema');
   }
@@ -173,12 +173,14 @@ function buildCoordinateIndex(repositories, components) {
       for (const coordinate of component.coordinates[dimension]) add(coordinate, candidate);
     }
   }
-  for (const list of index.values()) list.sort((left, right) => compareAscii(left.id, right.id));
+  for (const coordinate of index.keys()) {
+    index.set(coordinate, index.get(coordinate).toSorted((left, right) => compareAscii(left.id, right.id)));
+  }
   return index;
 }
 
 function edgeIdentity(content) {
-  const framed = Object.keys(content).sort().map((key) => `${key}=${content[key]}`).join('\0');
+  const framed = Object.keys(content).toSorted().map((key) => `${key}=${content[key]}`).join('\0');
   return `EDG-v1-${createHash('sha256').update(framed).digest('hex')}`;
 }
 
@@ -301,9 +303,9 @@ export function resolveReferences({ identities, references } = {}) {
     }
   }
 
-  const edges = [...edgesByContent.values()].sort((left, right) => compareAscii(left.id, right.id));
-  const externalSorted = external.sort(compareReference);
-  const ambiguousSorted = ambiguous.sort(compareReference);
+  const edges = [...edgesByContent.values()].toSorted((left, right) => compareAscii(left.id, right.id));
+  const externalSorted = external.toSorted(compareReference);
+  const ambiguousSorted = ambiguous.toSorted(compareReference);
 
   const capped = deepFreeze({
     references: referencesCapped,

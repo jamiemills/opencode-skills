@@ -112,7 +112,7 @@ export function apiObservations(model) {
   if (model === null || typeof model !== 'object' || !Array.isArray(model.operations)) return [];
   validateModel(model);
   const observations = model.operations.map(observationFor)
-    .sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
+    .toSorted((left, right) => compareAscii(left.matchedKey, right.matchedKey)
       || compareAscii(left.path ?? '', right.path ?? ''));
   const unique = [];
   const seen = new Set();

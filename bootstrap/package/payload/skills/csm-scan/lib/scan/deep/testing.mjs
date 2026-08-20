@@ -226,7 +226,7 @@ function matchTestFiles(ecosystems, files) {
   }
 
   return {
-    matched: [...matched].sort(),
+    matched: [...matched].toSorted(),
     naming: uniq(naming),
     byEco,
   };
@@ -930,13 +930,13 @@ export async function scan(repoPath, overview) {
       naming.push('src/**/*.rs (#[test] inline)');
     }
   }
-  const matchedSorted = [...matchedSet].sort();
+  const matchedSorted = [...matchedSet].toSorted();
   const namingFinal = uniq(naming);
 
   const framework = detectFrameworks(ecosystems, depNames, byEco, repoPath, files);
   const frameworkResolved = framework.length > 0 ? framework : ['unknown'];
 
-  const testDirs = uniq(matchedSorted.map(parentDir)).sort();
+  const testDirs = uniq(matchedSorted.map(parentDir)).toSorted();
 
   const configFiles = detectConfigFiles(ecosystems, files, repoPath);
   const coverage = detectCoverage(ecosystems, depNames, repoPath, files);

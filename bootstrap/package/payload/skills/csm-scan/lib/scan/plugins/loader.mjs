@@ -138,7 +138,7 @@ export async function loadPlugins({ skillRoot } = {}) {
   }
 
   const pluginNames = (await scanNames(pluginsRoot, 'plugin root', PLUGIN_LIMITS.plugins + 1))
-    .sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+    .toSorted((left, right) => left < right ? -1 : left > right ? 1 : 0);
   if (pluginNames.length > PLUGIN_LIMITS.plugins) fail('PLUGIN_LIMIT', 'plugin count exceeds the limit');
 
   const loaded = [];

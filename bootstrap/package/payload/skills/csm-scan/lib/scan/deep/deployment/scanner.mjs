@@ -122,7 +122,7 @@ export async function scanDeploymentTopology({
     }
     paths.set(normalized, true);
   }
-  const sorted = [...paths.keys()].sort();
+  const sorted = [...paths.keys()].toSorted();
   if (sorted.length > options.maxArtifacts) {
     throw new DeploymentModelError('ARTIFACT_LIMIT', 'deployment artifact count exceeds the declared cap');
   }

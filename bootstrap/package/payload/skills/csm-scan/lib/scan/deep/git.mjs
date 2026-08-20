@@ -23,7 +23,7 @@ const REMEDIATION_STRUCTURE = 'remediation/<date>/<id>/attempt-N';
 
 function countMapToSortedList(counts) {
   return Object.entries(counts)
-    .sort((left, right) => right[1] - left[1] || (left[0] < right[0] ? -1 : 1))
+    .toSorted((left, right) => right[1] - left[1] || (left[0] < right[0] ? -1 : 1))
     .map(([label, count]) => `${label} ${count}`);
 }
 
@@ -138,7 +138,7 @@ function analyzeBranchPatterns(branches) {
     }
   }
 
-  const sorted = Object.entries(patterns).sort((a, b) => b[1] - a[1]);
+  const sorted = Object.entries(patterns).toSorted((a, b) => b[1] - a[1]);
   if (sorted.length === 0) {
     if (other.length > 0) return `Flat (${other.slice(0, 3).join(', ')})`;
     return 'unknown';

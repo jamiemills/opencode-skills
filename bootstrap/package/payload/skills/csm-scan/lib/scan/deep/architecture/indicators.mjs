@@ -59,8 +59,8 @@ function lineOf(content, index) {
   return line;
 }
 
-function literalArgument(content, afterParen) {
-  let i = afterParen;
+function literalArgument(content, parenIndex) {
+  let i = parenIndex;
   while (i < content.length && /\s/.test(content[i])) i++;
   const quote = content[i];
   if (quote !== "'" && quote !== '"') return null;
@@ -413,7 +413,7 @@ function detectPythonIndicators(content) {
   for (const entry of machinery) {
     indicators.push({
       kind: 'plugin-loading',
-      specifier: /\($/.test(entry.text) ? literalArgument(content, afterParen(entry)) : null,
+      specifier: entry.text.endsWith('(') ? literalArgument(content, afterParen(entry)) : null,
       line: lineOf(content, entry.index),
     });
   }

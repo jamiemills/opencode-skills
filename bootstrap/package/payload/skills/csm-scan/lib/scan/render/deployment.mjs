@@ -85,7 +85,7 @@ export function renderDeployment(_repoName, topology, context = DEFAULT_RENDER_C
     lines.push(`### Template Indicators (${topology.indicators.length})`);
     lines.push('');
     lines.push(renderTable(context, ['Indicator', 'Count'], [...indicatorCounts.entries()]
-      .sort(([left], [right]) => compareAscii(left, right))
+      .toSorted(([left], [right]) => compareAscii(left, right))
       .map(([kind, count]) => [kind, String(count)])));
     lines.push('');
   }

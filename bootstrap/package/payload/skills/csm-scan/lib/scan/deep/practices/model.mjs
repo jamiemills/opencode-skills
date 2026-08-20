@@ -74,11 +74,10 @@ export const PRACTICES_LIMITS = deepFreeze({
 
 const ENTRY_REQUIRED_KEYS = Object.freeze(['category', 'matchedKey', 'path', 'status']);
 const ENTRY_OPTIONAL_KEYS = Object.freeze(['count', 'kinds', 'paths']);
-const ENTRY_KEYS = Object.freeze([...ENTRY_REQUIRED_KEYS, ...ENTRY_OPTIONAL_KEYS].sort(compareAscii));
+const ENTRY_KEYS = Object.freeze([...ENTRY_REQUIRED_KEYS, ...ENTRY_OPTIONAL_KEYS].toSorted(compareAscii));
 const DIAGNOSTIC_KEYS = Object.freeze(['line', 'path', 'reason', 'status']);
 
 const TOKEN_PATTERN = /^[\x21-\x7e]+$/;
-const STATUS_TOKEN = /^[A-Za-z][A-Za-z0-9-]{0,47}$/;
 const REASON_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 export class PracticesModelError extends TypeError {
@@ -94,7 +93,7 @@ function fail(code, message) {
 }
 
 function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -171,7 +170,7 @@ function normalizeKinds(value) {
     seen.add(itemToken);
     cleaned.push(itemToken);
   }
-  return cleaned.sort(compareAscii);
+  return cleaned.toSorted(compareAscii);
 }
 
 function normalizePaths(value) {
@@ -186,7 +185,7 @@ function normalizePaths(value) {
     seen.add(itemPath);
     cleaned.push(itemPath);
   }
-  return cleaned.sort(compareAscii);
+  return cleaned.toSorted(compareAscii);
 }
 
 function normalizeEntry(value) {
@@ -272,7 +271,7 @@ function capList(records, maximum) {
 function uniqueDiagnostics(diagnostics) {
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of [...diagnostics].sort((left, right) => compareAscii(left.path, right.path)
+  for (const diagnostic of [...diagnostics].toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.status, right.status)
     || compareAscii(left.reason, right.reason)
     || (left.line ?? 0) - (right.line ?? 0))) {
@@ -319,7 +318,7 @@ export function buildPracticesModel({
 
   const unique = [];
   const seen = new Set();
-  for (const entry of privacySafe.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
+  for (const entry of privacySafe.toSorted((left, right) => compareAscii(left.matchedKey, right.matchedKey)
     || compareAscii(left.path, right.path))) {
     const key = `${entry.matchedKey}\0${entry.path}`;
     if (seen.has(key)) continue;
@@ -583,7 +582,7 @@ export function isQualityGatesPath(lower) {
   const base = lower.slice(lower.lastIndexOf('/') + 1);
   return lower === 'quality/gates.conf'
     || lower === 'quality/gates.ini'
-    || /^\.quality-gates/.test(base);
+    || base.startsWith('.quality-gates');
 }
 
 function isRatchetPath(lower) {
@@ -999,7 +998,7 @@ export const QUALITY_GATE_ALLOWLIST = /^(?:mincoverage|minpassrate|mintests|maxc
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds?, status? }]` records.
  */
-export function extractQualityGate({ path, text = '' }) {
+export function extractQualityGate({ path, _text = '' }) {
   const records = [];
   const lower = String(path).toLowerCase();
   if (isRatchetPath(lower)) {

@@ -72,7 +72,7 @@ function knownManifests() {
   for (const descriptor of Object.values(DESCRIPTORS)) {
     for (const name of descriptor.manifests ?? []) names.add(name);
   }
-  return [...names].sort(compareAscii);
+  return [...names].toSorted(compareAscii);
 }
 
 function knownLockfiles() {
@@ -80,7 +80,7 @@ function knownLockfiles() {
   for (const descriptor of Object.values(DESCRIPTORS)) {
     for (const name of descriptor.lockfiles ?? []) names.add(name);
   }
-  return [...names].sort(compareAscii);
+  return [...names].toSorted(compareAscii);
 }
 
 function basenameOf(path) {
@@ -162,8 +162,7 @@ function normalizeFiles(files) {
     seen.add(normalized);
     result.push({ path: normalized, size });
   }
-  result.sort((left, right) => compareAscii(left.path, right.path));
-  return result;
+  return result.toSorted((left, right) => compareAscii(left.path, right.path));
 }
 
 // Keep the file-metric matchedKey within the provider foundation's 128-char
@@ -192,7 +191,7 @@ function extensionMetrics(files) {
       bytes,
       matchedKey: boundedFileMetricKey(extension),
     }))
-    .sort((left, right) => compareAscii(left.matchedKey, right.matchedKey));
+    .toSorted((left, right) => compareAscii(left.matchedKey, right.matchedKey));
 }
 
 function presentArtifact(files, name) {

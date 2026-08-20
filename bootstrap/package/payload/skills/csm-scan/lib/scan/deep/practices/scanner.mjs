@@ -141,9 +141,9 @@ function hiddenPracticePaths(repoPath) {
     rootEntries = [];
   }
   for (const entry of rootEntries) {
-    if (entry.isFile() && /^\.quality-gates/.test(entry.name)) paths.add(entry.name);
+    if (entry.isFile() && entry.name.startsWith('.quality-gates')) paths.add(entry.name);
   }
-  return [...paths].sort();
+  return [...paths].toSorted();
 }
 
 function readStatusToDiagnostic(result) {
@@ -239,7 +239,7 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
   const { files } = await enumerate(repoPath);
   const candidates = new Set(files.filter((path) => isCandidatePath(path)));
   for (const path of hiddenPracticePaths(repoPath)) candidates.add(path);
-  const sortedCandidates = [...candidates].sort();
+  const sortedCandidates = [...candidates].toSorted();
   const requestedCandidates = sortedCandidates.slice(0, PRACTICES_LIMITS.maxFiles);
   if (requestedCandidates.length !== sortedCandidates.length) {
     diagnostics.push({ path: 'UNKNOWN', line: null, status: 'unverified', reason: 'CAP' });

@@ -139,10 +139,10 @@ function categoryGroups(model) {
   }
   const knownCategories = CATEGORY_SECTIONS.map((section) => section.category);
   const canonical = knownCategories.filter((category) => groups.has(category));
-  const remaining = [...groups.keys()].filter((category) => !knownCategories.includes(category)).sort(compareAscii);
+  const remaining = [...groups.keys()].filter((category) => !knownCategories.includes(category)).toSorted(compareAscii);
   return [...canonical, ...remaining].map((category) => {
     const section = CATEGORY_SECTIONS.find((entry) => entry.category === category);
-    const paths = [...groups.get(category)].sort(compareAscii);
+    const paths = [...groups.get(category)].toSorted(compareAscii);
     return {
       category,
       heading: section?.heading ?? category,
@@ -234,7 +234,7 @@ function factEntries(model, category, kind) {
   const prefix = `${category}:${kind}:`;
   return (Array.isArray(model.entries) ? model.entries : [])
     .filter((entry) => entry.category === category && entry.matchedKey.startsWith(prefix))
-    .sort((left, right) => compareAscii(left.path, right.path));
+    .toSorted((left, right) => compareAscii(left.path, right.path));
 }
 
 function hasFactValue(fact, entry) {
@@ -255,7 +255,7 @@ function gateKey(entry) {
 function gateValueEntries(model) {
   return (Array.isArray(model.entries) ? model.entries : [])
     .filter((entry) => entry.category === 'quality_gate' && entry.matchedKey.startsWith(GATE_VALUE_PREFIX))
-    .sort((left, right) => compareAscii(gateKey(left), gateKey(right))
+    .toSorted((left, right) => compareAscii(gateKey(left), gateKey(right))
       || compareAscii(left.path, right.path));
 }
 
@@ -266,7 +266,7 @@ function checkToggleKey(entry) {
 function checkToggleEntries(model) {
   return (Array.isArray(model.entries) ? model.entries : [])
     .filter((entry) => entry.category === 'quality_gate' && entry.matchedKey.startsWith(CHECK_TOGGLE_PREFIX))
-    .sort((left, right) => compareAscii(checkToggleKey(left), checkToggleKey(right))
+    .toSorted((left, right) => compareAscii(checkToggleKey(left), checkToggleKey(right))
       || compareAscii(left.path, right.path));
 }
 
@@ -277,7 +277,7 @@ function hookStageKey(entry) {
 function hookStageEntries(model) {
   return (Array.isArray(model.entries) ? model.entries : [])
     .filter((entry) => entry.category === 'enforcement' && entry.matchedKey.startsWith(HOOK_STAGE_PREFIX))
-    .sort((left, right) => compareAscii(hookStageKey(left), hookStageKey(right))
+    .toSorted((left, right) => compareAscii(hookStageKey(left), hookStageKey(right))
       || compareAscii(left.path, right.path));
 }
 
@@ -285,7 +285,7 @@ function pluralize(count, noun, plural) {
   return `${count} ${count === 1 ? noun : plural ?? `${noun}s`}`;
 }
 
-function kindTokenList(entry, escapeField) {
+function kindTokenList(entry, _escapeField) {
   if (!Array.isArray(entry.kinds) || entry.kinds.length === 0) return '';
   const shown = entry.kinds.slice(0, STYLE_KIND_DISPLAY_CAP);
   const tokens = shown.map((token) => `\`${token}\``);
@@ -401,7 +401,7 @@ function renderDiagnostics(model, context) {
   const lines = [];
   lines.push('### Diagnostics');
   lines.push('');
-  const sorted = [...model.diagnostics].sort((left, right) => compareAscii(left.path, right.path)
+  const sorted = [...model.diagnostics].toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.reason, right.reason)
     || (left.line ?? 0) - (right.line ?? 0));
   for (const entry of sorted) {

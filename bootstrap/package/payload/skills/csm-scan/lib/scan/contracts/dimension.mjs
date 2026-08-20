@@ -91,7 +91,7 @@ function fail(ErrorType, code, message) {
 }
 
 function exactKeys(value, expected, ErrorType, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail(ErrorType, 'UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -110,7 +110,7 @@ function boundedIdArray(value, pattern, ErrorType, field, maximum) {
   }
   const result = value.map((item) => identifier(item, pattern, ErrorType, field));
   if (new Set(result).size !== result.length) fail(ErrorType, 'DUPLICATE_ID', `${field} contains duplicate identifiers`);
-  return result.sort(compareAscii);
+  return result.toSorted(compareAscii);
 }
 
 function safeValue(field, value, ErrorType) {
@@ -146,7 +146,7 @@ function normalizeRule(rule) {
         || rule.value.length > CONTRACT_LIMITS.applicabilityValues) {
       fail(DimensionContractError, 'INVALID_APPLICABILITY', 'in rule requires bounded values');
     }
-    value = rule.value.map((entry) => safeValue(rule.field, entry, DimensionContractError)).sort(compareAscii);
+    value = rule.value.map((entry) => safeValue(rule.field, entry, DimensionContractError)).toSorted(compareAscii);
     if (new Set(value.map(String)).size !== value.length) {
       fail(DimensionContractError, 'DUPLICATE_ID', 'applicability values must be unique');
     }
@@ -233,7 +233,7 @@ function normalizeLimitations(value) {
       fail(ClaimContractError, 'INVALID_TEXT', 'limitations must contain bounded trimmed ASCII text');
     }
     return item;
-  }).sort(compareAscii);
+  }).toSorted(compareAscii);
   if (new Set(result).size !== result.length) fail(ClaimContractError, 'DUPLICATE_ID', 'limitations must be unique');
   return result;
 }
@@ -450,7 +450,7 @@ export function validateClaims(records, evidenceRecords, dimensionRegistry) {
       fail(ClaimContractError, 'ORPHAN_EVIDENCE', 'aggregate evidence must be owned and referenced by a present claim');
     }
   }
-  return deepFreeze(result.sort((left, right) => compareAscii(left.id, right.id)));
+  return deepFreeze(result.toSorted((left, right) => compareAscii(left.id, right.id)));
 }
 
 export function computeCoverage(records, evidenceRecords, dimensionRegistry) {

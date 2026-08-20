@@ -16,7 +16,7 @@ import { compareAscii } from '../../contracts/evidence.mjs';
 import { readArtifacts } from '../../shared/artifacts.mjs';
 import { enumerate } from '../../shared/enum.mjs';
 import { API_LIMITS, buildApiModel } from './model.mjs';
-import { classifyPath, detectContractKind, extractApiSurface } from './extractor.mjs';
+import { classifyPath, extractApiSurface } from './extractor.mjs';
 
 export const API_SCANNER_ID = 'DET-api-scan-v1';
 export const API_SOURCE_FILE_LIMIT = 512;
@@ -69,7 +69,7 @@ function sourcePriority(path) {
 }
 
 function sortedCandidates(files) {
-  return [...files].sort((left, right) => {
+  return [...files].toSorted((left, right) => {
     const byScore = sourcePriority(right) - sourcePriority(left);
     return byScore !== 0 ? byScore : compareAscii(left, right);
   });
@@ -124,9 +124,6 @@ function extractionFor(result) {
     };
   }
   const classification = classifyPath(result.path);
-  const contractKind = classification.kind === 'contract'
-    ? detectContractKind({ text: result.value, value: result.value, format: classification.format })
-    : null;
   return extractApiSurface({
     path: result.path,
     text: classification.format === 'text' ? result.value : '',

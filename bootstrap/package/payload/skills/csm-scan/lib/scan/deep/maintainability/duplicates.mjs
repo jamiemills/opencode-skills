@@ -167,7 +167,7 @@ function DisjointSet() {
 
 function mergeOverlapping(regions) {
   if (regions.length < 2) return regions;
-  const sorted = [...regions].sort((left, right) => left.s - right.s);
+  const sorted = [...regions].toSorted((left, right) => left.s - right.s);
   const merged = [];
   let current = null;
   for (const region of sorted) {
@@ -272,7 +272,6 @@ export function findDuplicateGroups(files, options = DUPLICATE_LIMITS) {
   }
   for (const block of blocks) {
     const aKey = regionKey(block.a);
-    const bKey = regionKey(block.b);
     const root = set.root(aKey);
     groups.get(root).push(block.a, block.b);
   }
@@ -304,21 +303,21 @@ export function findDuplicateGroups(files, options = DUPLICATE_LIMITS) {
     })))
     .filter((spans) => spans.length >= 2);
 
-  groupsOut.sort((left, right) => {
-    const leftKey = left.map((span) => `${span.path}:${span.startLine}`).sort().join('\u0001');
-    const rightKey = right.map((span) => `${span.path}:${span.startLine}`).sort().join('\u0001');
+  const groupsSorted = groupsOut.toSorted((left, right) => {
+    const leftKey = left.map((span) => `${span.path}:${span.startLine}`).toSorted().join('\u0001');
+    const rightKey = right.map((span) => `${span.path}:${span.startLine}`).toSorted().join('\u0001');
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
   });
 
   let groupsCapped = false;
   let spansCapped = false;
   const boundedGroups = [];
-  for (const spans of groupsOut) {
+  for (const spans of groupsSorted) {
     if (boundedGroups.length >= limits.maxGroups) {
       groupsCapped = true;
       break;
     }
-    const sortedSpans = [...spans].sort((left, right) => (
+    const sortedSpans = [...spans].toSorted((left, right) => (
       left.path < right.path ? -1 : left.path > right.path ? 1 : left.startLine - right.startLine
     ));
     let boundedSpans = sortedSpans;

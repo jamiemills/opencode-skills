@@ -171,7 +171,7 @@ export const GENERIC_BUILTIN_DIMENSIONS = deepFreeze(
 
 // Deterministically sorted list of every built-in provider ID.
 export const BUILTIN_PROVIDER_IDS = deepFreeze(
-  BUILTIN_PROVIDER_INDEX.map(({ id }) => id).sort(compareAscii),
+  BUILTIN_PROVIDER_INDEX.map(({ id }) => id).toSorted(compareAscii),
 );
 
 // Primary built-in provider per provider dimension: for each of the 15
@@ -184,7 +184,7 @@ export const BUILTIN_DIMENSION_TO_PROVIDER = deepFreeze(Object.fromEntries(
       .filter(({ id, dimensions }) => id !== GENERIC_BUILTIN_PROVIDER_ID
         && dimensions.some(({ dimensionId: dim }) => dim === dimensionId))
       .map(({ id }) => id)
-      .sort(compareAscii)[0];
+      .toSorted(compareAscii)[0];
     return [dimensionId, primary];
   }),
 ));

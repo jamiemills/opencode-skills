@@ -184,7 +184,7 @@ function findPrimaryPackage(dir) {
     .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== '__pycache__')
     .map((e) => e.name)
     .filter((n) => !/\.egg-info$/i.test(n))
-    .sort();
+    .toSorted();
   for (const d of dirs) {
     if (existsSync(join(dir, d, '__init__.py'))) return d;
   }
@@ -955,7 +955,7 @@ function generateAsciiGraph(layers) {
 // ---------------------------------------------------------------------------
 
 function escapeMermaid(s) {
-  return String(s).replace(/["()]/g, '').replace(/[\[\]<>]/g, '');
+  return String(s).replace(/["()]/g, '').replace(/[\][<>]/g, '');
 }
 
 function dirnameRelative(file) {
@@ -964,7 +964,7 @@ function dirnameRelative(file) {
 
 // Ecosystem-aware DB / external-API detection via shared/detection.mjs.
 function detectNodes(manifest, ecosystems) {
-  const deps = { ...(manifest && manifest.dependencies || {}), ...(manifest && manifest.devDependencies || {}) };
+  const deps = { ...(manifest && manifest.dependencies), ...(manifest && manifest.devDependencies) };
   const dbs = [];
   const apis = [];
   const seenDb = new Set();
@@ -1326,7 +1326,7 @@ export async function scan(repoPath, overview) {
  */
 export async function analyzeGraphFacts(repoPath, overview, options = {}) {
   const opts = options || {};
-  const limits = { ...GRAPH_FACTS_LIMITS, ...(opts.limits || {}) };
+  const limits = { ...GRAPH_FACTS_LIMITS, ...(opts.limits) };
   const prepared = await prepareGraph(repoPath, overview);
   const { ecosystems, moduleFiles, sourceFiles, ctx } = prepared;
 
@@ -1367,7 +1367,7 @@ export async function analyzeGraphFacts(repoPath, overview, options = {}) {
     edgesOmitted,
   });
   const universe = deepFreeze({
-    ecosystems: [...ecosystems.all].sort(compareAscii),
+    ecosystems: [...ecosystems.all].toSorted(compareAscii),
     moduleFiles: moduleFiles.length,
     sourceFiles: sourceFiles.length,
     testFilesExcluded: prepared.testFilesExcluded,

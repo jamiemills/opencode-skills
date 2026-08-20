@@ -50,7 +50,7 @@ export function computeFanInOut(graph) {
   for (const file of Object.keys(graph)) {
     fanOut[file] = (graph[file] || []).length;
   }
-  for (const [source, targets] of Object.entries(graph)) {
+  for (const [, targets] of Object.entries(graph)) {
     for (const target of targets) {
       fanIn[target] = (fanIn[target] || 0) + 1;
     }
@@ -69,8 +69,7 @@ export function computeFanInOut(graph) {
  */
 export function computeSelfLoops(graph) {
   const loops = Object.keys(graph).filter((file) => (graph[file] || []).includes(file));
-  loops.sort(compareAscii);
-  return deepFreeze(loops);
+  return deepFreeze(loops.toSorted(compareAscii));
 }
 
 /**
@@ -86,7 +85,7 @@ export function computeEdgeKindCounts(edgeKinds) {
       counts[kind] = (counts[kind] || 0) + 1;
     }
   }
-  return deepFreeze(Object.fromEntries(Object.keys(counts).sort(compareAscii)
+  return deepFreeze(Object.fromEntries(Object.keys(counts).toSorted(compareAscii)
     .map((kind) => [kind, counts[kind]])));
 }
 
@@ -102,7 +101,7 @@ export function computeEdgeKindCounts(edgeKinds) {
  *   then by first member ascending.
  */
 export function tarjanStronglyConnectedComponents(graph) {
-  const vertices = Object.keys(graph).sort(compareAscii);
+  const vertices = Object.keys(graph).toSorted(compareAscii);
   const indexByVertex = new Map();
   const lowLinkByVertex = new Map();
   const onStack = new Set();
@@ -117,7 +116,7 @@ export function tarjanStronglyConnectedComponents(graph) {
     stack.push(vertex);
     onStack.add(vertex);
 
-    const targets = (graph[vertex] || []).slice().sort(compareAscii);
+    const targets = (graph[vertex] || []).slice().toSorted(compareAscii);
     for (const target of targets) {
       if (!indexByVertex.has(target)) {
         strongConnect(target);
@@ -135,8 +134,7 @@ export function tarjanStronglyConnectedComponents(graph) {
         onStack.delete(current);
         member.push(current);
       } while (current !== vertex);
-      member.sort(compareAscii);
-      components.push(member);
+      components.push(member.toSorted(compareAscii));
     }
   };
 
@@ -144,10 +142,10 @@ export function tarjanStronglyConnectedComponents(graph) {
     if (!indexByVertex.has(vertex)) strongConnect(vertex);
   }
 
-  components.sort((left, right) => right.length - left.length
+  const sortedComponents = components.toSorted((left, right) => right.length - left.length
     || compareAscii(left[0], right[0]));
 
-  const cyclicComponents = components
+  const cyclicComponents = sortedComponents
     .filter((component) => component.length >= CYCLIC_MIN_SIZE)
     .map((member) => deepFreeze({ size: member.length, members: deepFreeze(member) }));
   const singletonComponents = components.reduce(

@@ -444,7 +444,7 @@ export function parseYamlShallow(text) {
     const stripped = stripYamlComment(raw);
     if (stripped.trim() === '') continue;
     // tabs are illegal for indentation in YAML; we treat a leading tab as an error
-    if (/^\t/.test(stripped)) {
+    if (stripped.startsWith('\t')) {
       throw new Error(`YAML parse error at line ${i + 1}: tab indentation is not allowed`);
     }
     const indent = stripped.match(/^[ ]*/)[0].length;

@@ -37,7 +37,7 @@ function fail(code, message) {
 }
 
 function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -255,7 +255,7 @@ export async function readArtifacts(root, inputs, options = ARTIFACT_LIMITS) {
       maxObjectKeys: 3,
       maxString: 512,
     });
-    requests = inputs.map((input) => reference(input, true)).sort((left, right) => compareAscii(left.path, right.path));
+    requests = inputs.map((input) => reference(input, true)).toSorted((left, right) => compareAscii(left.path, right.path));
   } catch (error) {
     if (error instanceof ArtifactError) throw error;
     fail('INVALID_DATA', 'artifact requests must contain plain bounded data');

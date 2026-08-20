@@ -29,7 +29,7 @@
 // never touches node:fs / node:child_process / node:process / node:vm /
 // node:module.
 
-import { parseToml, parseYamlShallow } from '../../shared/parse.mjs';
+import { parseToml } from '../../shared/parse.mjs';
 import { projectSarif, projectSbom } from '../../shared/privacy.mjs';
 import { resolveAssuranceStandard } from '../../standards/assurance-pack.mjs';
 import { ASSURANCE_LIMITS } from './model.mjs';
@@ -114,14 +114,6 @@ const ACCESSIBILITY_FILES = Object.freeze({
   'wcag.md': ['statement'],
 });
 
-const ATTESTATION_SUFFIXES = Object.freeze([
-  ['.att', ['in-toto', 'link']],
-  ['.attestation', ['in-toto', 'statement']],
-  ['.attestation.json', ['in-toto', 'statement']],
-  ['.intoto.jsonl', ['in-toto', 'statement']],
-  ['.sigstore.json', ['sigstore', 'bundle']],
-]);
-
 const LICENSE_FILES = /^(?:LICENSE|LICENCE|COPYING|COPYRIGHT|NOTICE|UNLICENSE)(?:[._-].*)?$/i;
 
 const MANIFEST_DEEP = new Set(['Cargo.toml', 'composer.json', 'package.json', 'pyproject.toml', 'requirements.txt']);
@@ -185,7 +177,7 @@ export function classifyAssurancePath(path) {
 }
 
 export function discoverAssuranceArtifacts(files) {
-  return [...files].filter((path) => classifyAssurancePath(path) !== null).sort();
+  return [...files].filter((path) => classifyAssurancePath(path) !== null).toSorted();
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +436,7 @@ function parseComposerJson(value, path) {
   return { records, diagnostics };
 }
 
-function parseManifest({ path, text, value, format }) {
+function parseManifest({ path, text, value, _format }) {
   const base = basenameOf(path);
   if (base === 'package.json') return parsePackageJson(value, path);
   if (base === 'requirements.txt' || /^requirements(?:[-._].*)?\.txt$/i.test(base)) return parseRequirements(text, path);

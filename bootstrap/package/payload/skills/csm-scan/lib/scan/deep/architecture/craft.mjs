@@ -103,7 +103,7 @@ function maximumFan(counts) {
   const files = entries
     .filter(([, count]) => count === maximum)
     .map(([file]) => file)
-    .sort(compareAscii);
+    .toSorted(compareAscii);
   const truncated = files.length > CRAFT_LIMITS.pathSamples;
   return {
     count: maximum,
@@ -115,7 +115,7 @@ function maximumFan(counts) {
 function topFan(counts, limit) {
   return Object.entries(counts)
     .map(([path, count]) => ({ path, count }))
-    .sort((left, right) => right.count - left.count || compareAscii(left.path, right.path))
+    .toSorted((left, right) => right.count - left.count || compareAscii(left.path, right.path))
     .slice(0, limit);
 }
 
@@ -123,7 +123,7 @@ function filesAboveThreshold(counts, threshold) {
   const files = Object.entries(counts)
     .filter(([, count]) => count >= threshold)
     .map(([file]) => file)
-    .sort(compareAscii);
+    .toSorted(compareAscii);
   const truncated = files.length > CRAFT_LIMITS.pathSamples;
   return {
     threshold,
@@ -136,7 +136,7 @@ function filesAboveThreshold(counts, threshold) {
 function cyclicGroupSizes(components) {
   const sizes = components
     .map((component) => component.size)
-    .sort((left, right) => right - left);
+    .toSorted((left, right) => right - left);
   const truncated = sizes.length > CRAFT_LIMITS.cyclicSizes;
   return {
     count: sizes.length,
@@ -172,7 +172,7 @@ function layerBoundaries(graph, layers) {
   const pairs = [...pairCounts.entries()].map(([key, count]) => {
     const [sourceLayer, targetLayer] = key.split('\0');
     return { sourceLayer, targetLayer, count };
-  }).sort((left, right) => compareAscii(
+  }).toSorted((left, right) => compareAscii(
     `${left.sourceLayer}\0${left.targetLayer}`,
     `${right.sourceLayer}\0${right.targetLayer}`,
   ));
@@ -212,7 +212,7 @@ function dependencyDirection(graph, layers) {
   const pairs = [...pairCounts.entries()].map(([key, count]) => {
     const [sourceLayer, targetLayer, direction] = key.split('\0');
     return { sourceLayer, targetLayer, direction, count };
-  }).sort((left, right) => compareAscii(
+  }).toSorted((left, right) => compareAscii(
     `${left.sourceLayer}\0${left.targetLayer}\0${left.direction}`,
     `${right.sourceLayer}\0${right.targetLayer}\0${right.direction}`,
   ));
@@ -222,7 +222,7 @@ function dependencyDirection(graph, layers) {
 function edgeKindCounts(value) {
   const counts = {};
   if (!plainObject(value)) return counts;
-  for (const kind of Object.keys(value).sort(compareAscii)) {
+  for (const kind of Object.keys(value).toSorted(compareAscii)) {
     if (Number.isSafeInteger(value[kind])) counts[kind] = value[kind];
   }
   return counts;
@@ -258,8 +258,7 @@ function portAdapterDirs(files) {
       }
     }
   }
-  dirs.sort(compareAscii);
-  return dirs;
+  return dirs.toSorted(compareAscii);
 }
 
 function patternSuffixCounts(files) {
@@ -276,8 +275,7 @@ function patternSuffixCounts(files) {
       }
     }
   }
-  matched.sort(compareAscii);
-  return { counts, files: matched };
+  return { counts, files: matched.toSorted(compareAscii) };
 }
 
 function cappedSample(list) {
@@ -337,7 +335,7 @@ export function computeSolidIndicators(input) {
   const layers = plainObject(findings) && plainObject(findings.layers) ? findings.layers : {};
   const modules = Array.isArray(findings && findings.modules) ? findings.modules : [];
   const files = consideredFiles(graph, modules);
-  const interfaceFiles = files.filter(isInterfaceMarked).sort(compareAscii);
+  const interfaceFiles = files.filter(isInterfaceMarked).toSorted(compareAscii);
   const interfaceSet = new Set(interfaceFiles);
   let interfaceReferenceCount = 0;
   for (const targets of Object.values(graph)) {

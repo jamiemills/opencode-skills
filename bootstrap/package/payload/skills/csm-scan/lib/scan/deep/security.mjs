@@ -64,7 +64,8 @@ function fileScanTier(rel) {
 function prioritizeForScan(files) {
   return files
     .map((file, index) => ({ file, index, tier: fileScanTier(file) }))
-    .sort((a, b) => a.tier - b.tier || a.index - b.index)
+    
+    .toSorted((a, b) => a.tier - b.tier || a.index - b.index)
     .map(({ file }) => file);
 }
 
@@ -99,7 +100,7 @@ async function listFiles(repoPath, overview, broker) {
       .split('\n')
       .map((s) => s.trim().replace(/\\/g, '/'))
       .filter(Boolean)
-      .sort();
+      .toSorted();
   } catch {
     return [];
   }
@@ -240,8 +241,8 @@ function detectFirstPartyAuth(files) {
   }
   return {
     detected: clusters.size > 0,
-    clusters: [...clusters].sort(),
-    evidence: evidence.sort(),
+    clusters: [...clusters].toSorted(),
+    evidence: evidence.toSorted(),
   };
 }
 
@@ -259,7 +260,7 @@ function detectInputValidation(depNames, ecosystems) {
 function detectRateLimiting(repoPath, depNames, ecosystems, files) {
   const libraries = unionMatches(depNames, RATE_LIMIT_LIBS, ecosystems);
 
-  const codeRe = /rate[_\-]?limit|throttle|debounce/;
+  const codeRe = /rate[_-]?limit|throttle|debounce/;
   let codeReferences = 0;
   for (const f of files.slice(0, SCAN_FILE_LIMIT)) {
     const content = readContent(join(repoPath, f));
@@ -283,10 +284,10 @@ function secretPatterns() {
     // Mixed) via per-character classes while the VALUE groups stay
     // exact-case (uppercase/digits for access keys, base64 for secrets), so
     // prose like "aws access key id management" cannot match.
-    { name: 'AWS Access Key', re: /(?:AWS|aws)[_\-]?[Aa][Cc][Cc][Ee][Ss][Ss][_\-]?[Kk][Ee][Yy][_\-]?(?:[Ii][Dd])?["'\s:=]+([A-Z0-9]{20})/ },
-    { name: 'AWS Secret Key', re: /(?:AWS|aws)[_\-]?[Ss][Ee][Cc][Rr][Ee][Tt][_\-]?(?:[Aa][Cc][Cc][Ee][Ss][Ss][_\-]?)?[Kk][Ee][Yy][_\-]?(?:[Ii][Dd])?["'\s:=]+([A-Za-z0-9\/+=]{40})/ },
-    { name: 'GitHub Token', re: /(?:ghp|gho|ghu|ghs|ghr|github[_\-]?pat)[_\-\w]*['"\s:=]+([A-Za-z0-9_]{36,})/ },
-    { name: 'Generic API Key', re: /(?:api[_\-]?key|apikey|API_KEY)["'\s:=]+\s*['"]([A-Za-z0-9_\-]{20,})['"]/i },
+    { name: 'AWS Access Key', re: /(?:AWS|aws)[_-]?[Aa][Cc][Cc][Ee][Ss][Ss][_-]?[Kk][Ee][Yy][_-]?(?:[Ii][Dd])?["'\s:=]+([A-Z0-9]{20})/ },
+    { name: 'AWS Secret Key', re: /(?:AWS|aws)[_-]?[Ss][Ee][Cc][Rr][Ee][Tt][_-]?(?:[Aa][Cc][Cc][Ee][Ss][Ss][_-]?)?[Kk][Ee][Yy][_-]?(?:[Ii][Dd])?["'\s:=]+([A-Za-z0-9/+=]{40})/ },
+    { name: 'GitHub Token', re: /(?:ghp|gho|ghu|ghs|ghr|github[_-]?pat)[_-\w]*["'\s:=]+([A-Za-z0-9_]{36,})/ },
+    { name: 'Generic API Key', re: /(?:api[_-]?key|apikey|API_KEY)["'\s:=]+\s*['"]([A-Za-z0-9_-]{20,})['"]/i },
     { name: 'Generic Token', re: /(?:token|secret|password|passwd)["'\s:=]+\s*['"]([^\s'"]{16,})['"]\s*$/im },
     { name: 'Private Key Header', re: /-----BEGIN[ ](?:RSA |EC |DSA |OPENSSH )?PRIVATE[ ]KEY-----/ },
     { name: 'JWT Token', re: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/ },
@@ -343,11 +344,6 @@ function findingsFromTallies(tallies) {
     }
   }
   return findings;
-}
-
-function detectSecretPatterns(repoPath, files) {
-  const bounded = files.slice(0, SCAN_FILE_LIMIT);
-  return findingsFromTallies(tallySecretPatterns(repoPath, bounded));
 }
 
 function detectSecurityHeaders(repoPath, files) {
@@ -451,7 +447,7 @@ function scanAuditReferences(repoPath, overview) {
   const wfDir = join(repoPath, '.github', 'workflows');
   try {
     if (existsSync(wfDir)) {
-      for (const f of readdirSync(wfDir).sort()) {
+      for (const f of readdirSync(wfDir).toSorted()) {
         if (f.endsWith('.yml') || f.endsWith('.yaml')) {
           targets.push({ source: 'workflow', location: `.github/workflows/${f}` });
         }
@@ -487,7 +483,7 @@ function detectAuditEvidence(repoPath, overview, auditMatches) {
   try {
     const pkg = readJSON(join(repoPath, 'package.json'));
     if (pkg?.scripts && typeof pkg.scripts === 'object') {
-      for (const [name, command] of Object.entries(pkg.scripts).sort(([a], [b]) => a.localeCompare(b))) {
+      for (const [name, command] of Object.entries(pkg.scripts).toSorted(([a], [b]) => a.localeCompare(b))) {
         if (typeof command !== 'string') continue;
         const match = command.match(PACKAGE_AUDIT_PATTERN);
         if (match) {
@@ -550,7 +546,7 @@ function parseDependabotBranches(stdout) {
     seen.add(withoutRemote);
     if (seen.size >= BRANCH_EVIDENCE_LIMIT) break;
   }
-  return [...seen].sort();
+  return [...seen].toSorted();
 }
 
 // Gitleaks context (T009/c6): read the .gitleaks.toml allowlist policy
@@ -596,7 +592,7 @@ function detectGitleaksContext(repoPath, overview, secrets) {
     }
   }
 
-  context.fixtureAllowlisted = [...new Set(context.fixtureAllowlisted)].sort();
+  context.fixtureAllowlisted = [...new Set(context.fixtureAllowlisted)].toSorted();
   return context;
 }
 

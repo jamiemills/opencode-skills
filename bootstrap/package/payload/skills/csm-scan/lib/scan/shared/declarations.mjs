@@ -185,7 +185,7 @@ function makefileExtractor(text, path) {
     if (continuation) {
       if (/\\\s*$/.test(line)) continue;
       continuation = false;
-      if (/^\t/.test(line)) continue;
+      if (line.startsWith('\t')) continue;
     }
     if (!inDefine && /^[A-Za-z0-9_.%/-]+\s*:(?:[^=]|$)/.test(line)) {
       declarations.push(record('target', matchOf(line), sourceOf(path, index + 1)));
@@ -195,7 +195,7 @@ function makefileExtractor(text, path) {
       continuation = true;
       continue;
     }
-    if (/^\t/.test(line)) {
+    if (line.startsWith('\t')) {
       declarations.push(record('command', line.trim(), sourceOf(path, index + 1), { scope: 'makefile' }));
     }
   }

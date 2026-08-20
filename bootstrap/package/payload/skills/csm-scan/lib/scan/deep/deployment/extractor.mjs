@@ -160,8 +160,6 @@ const CF_KIND_MAP = Object.freeze({
   'AWS::SQS::QueuePolicy': 'policy',
 });
 
-const PSEUDO_PARAMETER = /^AWS::(?:Region|AccountId|StackId|StackName|Partition|NotificationARNs|URLSuffix|NoValue)$/;
-
 const INTRINSIC_TAGS = new Set([
   'And', 'Base64', 'Cidr', 'Condition', 'Equals', 'FindInMap', 'GetAZs',
   'If', 'ImportValue', 'Join', 'Not', 'Or', 'Ref', 'Select', 'Split',
@@ -722,7 +720,7 @@ function handleK8sEntry(ctx, entry, docIndex) {
         .slice(0, 8);
       if (selectors.length > 0) {
         const record = ctx.resources.find((candidate) => candidate.id === id);
-        if (record) record.attributes = { ...(record.attributes ?? {}), selector: selectors };
+        if (record) record.attributes = { ...(record.attributes), selector: selectors };
       }
     }
   }
@@ -993,7 +991,7 @@ function handleTfAttribute(ctx, block, name, valueStart, idx, lines) {
     return idx;
   }
   if (name === 'depends_on') {
-    for (const match of valueStart.matchAll(/(?:^|[\s,\[])([a-z][\w-]*)\.([A-Za-z0-9_-]+)/g)) {
+    for (const match of valueStart.matchAll(/(?:^|[\s,[])([a-z][\w-]*)\.([A-Za-z0-9_-]+)/g)) {
       if (block.id !== null) ctx.resolve(mappedKind(match[1]), match[2], block.id, 'reference', idx + 1);
     }
     for (const match of valueStart.matchAll(/module\.([A-Za-z_][\w-]*)/g)) {
@@ -1032,13 +1030,13 @@ function handleTfAttribute(ctx, block, name, valueStart, idx, lines) {
   if (block.type === 'module' && name === 'source') {
     const literal = value.trim().match(/^"((?:[^"\\]|\\.)*)"$/);
     if (literal !== null && /^[A-Za-z0-9._/-]+$/.test(literal[1]) && block.record !== null) {
-      block.record.attributes = { ...(block.record.attributes ?? {}), source: literal[1] };
+      block.record.attributes = { ...(block.record.attributes), source: literal[1] };
     }
   }
   if (block.type === 'terraform' && name === 'required_version' && block.record !== null) {
     const literal = value.trim().match(/^"((?:[^"\\]|\\.)*)"$/);
     if (literal !== null) {
-      block.record.attributes = { ...(block.record.attributes ?? {}), requiredVersion: literal[1] };
+      block.record.attributes = { ...(block.record.attributes), requiredVersion: literal[1] };
     }
   }
   classifyTfValue(ctx, block, value, idx + 1);
@@ -1129,7 +1127,7 @@ function extractTerraform(text, path) {
 
 function handleCfRef(ctx, target, fromId) {
   if (typeof target !== 'string' || target === '') return;
-  if (/^AWS::/.test(target)) {
+  if (target.startsWith('AWS::')) {
     ctx.addIndicator('pseudo_parameter', null);
     return;
   }
@@ -1254,7 +1252,10 @@ function extractCloudFormation(text, path) {
     }
   }
   if (doc.Conditions && typeof doc.Conditions === 'object' && !Array.isArray(doc.Conditions)) {
-    for (const name of Object.keys(doc.Conditions)) ctx.addIndicator('intrinsic', null);
+    const conditionCount = Object.keys(doc.Conditions).length;
+    for (let conditionIndex = 0; conditionIndex < conditionCount; conditionIndex++) {
+      ctx.addIndicator('intrinsic', null);
+    }
   }
   cfResourcesInto(ctx, doc.Resources);
   return ctx.finalize();
@@ -1413,7 +1414,7 @@ export function discoverDeploymentArtifacts(files) {
     seen.add(file);
     result.push(file);
   }
-  return result.sort();
+  return result.toSorted();
 }
 
 export function extractArtifact(kind, text, path) {

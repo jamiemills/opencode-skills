@@ -139,7 +139,7 @@ export function renderAssurance(_repoName, model, context = DEFAULT_RENDER_CONTE
   if (model.diagnostics.length > 0) {
     lines.push('### Diagnostics');
     lines.push('');
-    for (const entry of [...model.diagnostics].sort((left, right) => compareAscii(left.path, right.path))) {
+    for (const entry of [...model.diagnostics].toSorted((left, right) => compareAscii(left.path, right.path))) {
       lines.push(`- \`${escapeField(entry.path)}\`: ${escapeField(entry.reason)} (${escapeField(entry.status)})`);
     }
     lines.push('');

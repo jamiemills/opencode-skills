@@ -82,7 +82,7 @@ function normalizeJoin(join) {
   if (join === null || typeof join !== 'object' || Array.isArray(join)) {
     fail('INVALID_JOIN', 'join must be an object');
   }
-  const keys = Object.keys(join).sort(compareAscii);
+  const keys = Object.keys(join).toSorted(compareAscii);
   if (keys.length !== 2 || keys[0] !== 'identity' || keys[1] !== 'registryId') {
     fail('UNKNOWN_FIELD', 'join fields do not match the schema');
   }
@@ -100,7 +100,7 @@ function normalizeJoin(join) {
 }
 
 export const ASSURANCE_STANDARD_JOINS = deepFreeze(
-  ASSURANCE_STANDARD_JOINS_SOURCE.map(normalizeJoin).sort((left, right) => (
+  ASSURANCE_STANDARD_JOINS_SOURCE.map(normalizeJoin).toSorted((left, right) => (
     compareAscii(left.identity, right.identity)
   )),
 );

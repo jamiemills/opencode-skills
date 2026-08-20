@@ -68,7 +68,7 @@ function expandPattern(root, components, traversal) {
     try { entries = readdirSync(abs, { withFileTypes: true }); } catch { return; }
     if (component === '**') {
       visit(abs, rel, index + 1);
-      for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      for (const entry of entries.toSorted((a, b) => a.name.localeCompare(b.name))) {
         if (!entry.isDirectory() || RECURSIVE_IGNORE_DIRS.has(entry.name)) continue;
         const childRel = rel ? `${rel}/${entry.name}` : entry.name;
         visit(join(abs, entry.name), childRel, index);
@@ -111,5 +111,5 @@ export function expandRepositoryDirectoryPatterns(repoPath, patterns, options = 
   const matched = include.flatMap((pattern) => expandPattern(root, pattern, traversal))
     .filter((directory) => !excluded.has(directory))
     .filter((directory) => !marker || existsSync(join(root, directory, marker)));
-  return [...new Set(matched)].sort();
+  return [...new Set(matched)].toSorted();
 }

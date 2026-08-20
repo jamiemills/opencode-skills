@@ -67,7 +67,7 @@ function boundedMatchedKey(rawKey, prefix) {
 
 function stringList(value) {
   if (!Array.isArray(value)) return null;
-  const kept = value.filter((item) => typeof item === 'string').sort(compareAscii);
+  const kept = value.filter((item) => typeof item === 'string').toSorted(compareAscii);
   return kept.length > 0 ? kept : null;
 }
 

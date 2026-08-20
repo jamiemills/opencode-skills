@@ -68,7 +68,7 @@ function sourcePriority(path) {
 }
 
 function sortedCandidates(files) {
-  return [...files].sort((left, right) => {
+  return [...files].toSorted((left, right) => {
     const byScore = sourcePriority(right) - sourcePriority(left);
     return byScore !== 0 ? byScore : compareAscii(left, right);
   });

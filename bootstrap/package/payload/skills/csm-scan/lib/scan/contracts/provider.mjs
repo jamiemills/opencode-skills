@@ -30,7 +30,7 @@ function fail(code, message) {
 }
 
 function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
   }
@@ -54,7 +54,7 @@ function normalizeCapability(capability) {
       fail('UNKNOWN_CATEGORY', 'provider category is not allowlisted for the dimension');
     }
     return category;
-  }).sort(compareAscii);
+  }).toSorted(compareAscii);
   if (new Set(categories).size !== categories.length) fail('DUPLICATE_ID', 'provider categories must be unique');
   return { dimensionId: capability.dimensionId, categories };
 }
@@ -74,7 +74,7 @@ export function validateProvider(provider) {
     fail('BOUND_EXCEEDED', 'provider dimensions must be a bounded non-empty array');
   }
   const dimensions = provider.dimensions.map(normalizeCapability)
-    .sort((left, right) => compareAscii(left.dimensionId, right.dimensionId));
+    .toSorted((left, right) => compareAscii(left.dimensionId, right.dimensionId));
   if (new Set(dimensions.map(({ dimensionId }) => dimensionId)).size !== dimensions.length) {
     fail('DUPLICATE_ID', 'provider dimensions must be unique');
   }
@@ -88,5 +88,5 @@ export function validateProviders(providers) {
   if (new Set(result.map(({ id }) => id)).size !== result.length) {
     fail('DUPLICATE_ID', 'providers contain duplicate identifiers');
   }
-  return deepFreeze(result.sort((left, right) => compareAscii(left.id, right.id)));
+  return deepFreeze(result.toSorted((left, right) => compareAscii(left.id, right.id)));
 }

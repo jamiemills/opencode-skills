@@ -661,7 +661,7 @@ export function assurancePluginObservations(matches) {
     grouped.set(match.dimensionId, observations);
   }
   return deepFreeze([...grouped.entries()]
-    .sort(([left], [right]) => compareAscii(left, right))
+    .toSorted(([left], [right]) => compareAscii(left, right))
     .map(([dimensionId, observations]) => ({ dimensionId, observations })));
 }
 

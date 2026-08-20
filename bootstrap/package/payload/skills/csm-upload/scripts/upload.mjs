@@ -104,7 +104,7 @@ async function loadConfig({ probe = true } = {}) {
   return config;
 }
 
-function buildIndexHtml(demoDir, description, uploaded) {
+function buildIndexHtml(demoDir, desc, uploaded) {
   const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(f.ext));
   const vids = uploaded.filter(f => ['webm', 'mp4', 'mov'].includes(f.ext));
   const other = uploaded.filter(f => !imgs.includes(f) && !vids.includes(f));
@@ -116,7 +116,7 @@ function buildIndexHtml(demoDir, description, uploaded) {
 <body>
 <h1>${escapeHtml(demoDir)}</h1>`;
 
-  if (description) html += `<p>${escapeHtml(description)}</p>`;
+  if (desc) html += `<p>${escapeHtml(desc)}</p>`;
   html += `<p class="meta">${uploaded.length} file(s) — uploaded ${new Date().toISOString()}</p>\n`;
 
   for (const f of imgs) {
@@ -145,11 +145,11 @@ const activeChildren = new Set();
 const pendingSetups = new Set();
 let cleanupPromise = null;
 
-function execFileTracked(file, args, options = {}) {
+function execFileTracked(file, cmdArgs, options = {}) {
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = execFile(file, args, options, (error, stdout, stderr) => {
+      child = execFile(file, cmdArgs, options, (error, stdout, stderr) => {
         activeChildren.delete(child);
         if (error) {
           error.stdout = stdout;
@@ -190,7 +190,7 @@ async function cleanup() {
   cleanupPromise = (async () => {
     // A signal can arrive while mkdtemp is still resolving. Wait for setup so
     // its result is tracked before removing temporary paths.
-    await Promise.allSettled([...pendingSetups]);
+    await Promise.allSettled(pendingSetups);
     await terminateChildren();
     for (const path of [pagesDir, previewDir]) {
       if (path) {
@@ -289,8 +289,8 @@ async function main() {
     }
 
     const html = buildIndexHtml(demoDir, description, uploaded);
-    const previewPath = await writePrivatePreview(html);
-    console.log(`[dry-run] Local preview written to: ${previewPath}`);
+    const previewFile = await writePrivatePreview(html);
+    console.log(`[dry-run] Local preview written to: ${previewFile}`);
     console.log(`[dry-run] Site URL would be: ${BASE_URL}/${demoDir}/`);
     return;
   }

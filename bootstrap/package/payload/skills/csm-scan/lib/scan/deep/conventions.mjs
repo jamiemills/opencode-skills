@@ -55,7 +55,7 @@ async function listFiles(repoPath, overview, broker) {
       .split('\n')
       .map((s) => s.trim().replace(/\\/g, '/'))
       .filter(Boolean)
-      .sort();
+      .toSorted();
   } catch {
     return [];
   }
@@ -334,7 +334,7 @@ function detectFileNaming(repoPath, overview, files) {
   const total = Object.values(patterns).reduce((a, b) => a + b, 0);
   if (total === 0) return { dominant: 'unknown', patterns: {}, samples: {}, total: 0 };
 
-  const dominant = Object.entries(patterns).sort((a, b) => b[1] - a[1])[0][0];
+  const dominant = Object.entries(patterns).toSorted((a, b) => b[1] - a[1])[0][0];
   return { dominant, patterns, samples, total, universe: 'full source-file enumeration' };
 }
 
@@ -359,11 +359,13 @@ function classifySymbolName(name, lowerDefault) {
   return 'other';
 }
 
+function lowerDefaultFor(eco) {
+  return eco === 'javascript' || eco === 'typescript' ? 'camelCase' : 'snake_case';
+}
+
 function detectSymbolNaming(repoPath, overview, files) {
   const { all } = resolveEcosystems(repoPath, overview);
   const counts = { snake_case: 0, camelCase: 0, PascalCase: 0, UPPER: 0, other: 0 };
-
-  const lowerDefaultFor = (eco) => (eco === 'javascript' || eco === 'typescript' ? 'camelCase' : 'snake_case');
 
   for (const eco of all) {
     const desc = descriptorFor(eco);
@@ -419,7 +421,7 @@ function detectSymbolNaming(repoPath, overview, files) {
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   if (total === 0) return { dominant: 'unknown', counts, total: 0 };
-  const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  const dominant = Object.entries(counts).toSorted((a, b) => b[1] - a[1])[0][0];
   return { dominant, counts, total };
 }
 
@@ -831,8 +833,11 @@ function parenDeltaOf(line) {
   return delta;
 }
 
+function indentOf(s) {
+  return (s.match(/^[ \t]*/) || [''])[0].length;
+}
+
 function pyHasDocstring(lines, i) {
-  const indentOf = (s) => (s.match(/^[ \t]*/) || [''])[0].length;
   const defIndent = indentOf(lines[i]);
   const re = /^[rbuRBUf]{0,2}("""|''')/;
   let depth = parenDeltaOf(lines[i]);

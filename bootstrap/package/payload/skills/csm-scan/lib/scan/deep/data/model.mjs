@@ -144,16 +144,16 @@ function fail(code, message) {
   throw new DataModelError(code, message);
 }
 
-function exactKeys(value, expected, label) {
-  const keys = Object.keys(value).sort(compareAscii);
+function exactKeys(value, expected, fieldLabel) {
+  const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
+    fail('UNKNOWN_FIELD', `${fieldLabel} fields do not match the schema`);
   }
 }
 
-function plainObject(value, label) {
+function plainObject(value, fieldLabel) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', `${label} must be an object`);
+    fail('INVALID_TYPE', `${fieldLabel} must be an object`);
   }
 }
 
@@ -421,7 +421,7 @@ function privacyFilter(records, diagnostics) {
   const allDiagnostics = [...diagnostics, ...privacyDiagnostics];
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of allDiagnostics.sort((left, right) => compareAscii(left.path, right.path)
+  for (const diagnostic of allDiagnostics.toSorted((left, right) => compareAscii(left.path, right.path)
     || compareAscii(left.status, right.status)
     || compareAscii(left.reason, right.reason)
     || (left.line ?? 0) - (right.line ?? 0))) {
@@ -433,8 +433,8 @@ function privacyFilter(records, diagnostics) {
   return { records: kept, diagnostics: unique };
 }
 
-function entityIdOf(label) {
-  return `entity@${label}`;
+function entityIdOf(entityLabel) {
+  return `entity@${entityLabel}`;
 }
 
 function migrationIdOf(path) {
@@ -471,7 +471,7 @@ function normalizeEdgeCandidate(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     fail('INVALID_TYPE', 'edge candidate must be an object');
   }
-  const keys = Object.keys(value).sort(compareAscii);
+  const keys = Object.keys(value).toSorted(compareAscii);
   const migrationEdge = keys.includes('fromAlias');
   const expected = migrationEdge
     ? ['fromAlias', 'kind', 'line', 'matchedKey', 'path', 'toPath']
@@ -741,7 +741,7 @@ export function buildDataModel({ records = [], edges = [], diagnostics = [], sea
   );
 
   const allDiagnostics = [...uniqueDiagnostics, ...edgePrivacyDiagnostics]
-    .sort((left, right) => compareAscii(left.path, right.path)
+    .toSorted((left, right) => compareAscii(left.path, right.path)
       || compareAscii(left.status, right.status)
       || compareAscii(left.reason, right.reason)
       || (left.line ?? 0) - (right.line ?? 0));

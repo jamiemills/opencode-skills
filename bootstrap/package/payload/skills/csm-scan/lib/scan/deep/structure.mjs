@@ -41,7 +41,7 @@ function isDir(children, key) {
 }
 
 function sortNames(children, key, names) {
-  return names.sort((a, b) => {
+  return names.toSorted((a, b) => {
     const aKey = key === '' ? a : `${key}/${a}`;
     const bKey = key === '' ? b : `${key}/${b}`;
     const aDir = isDir(children, aKey);
@@ -93,7 +93,7 @@ function topDirectories(children) {
     if (isIgnoredPath(name)) continue;
     if (isDir(children, name)) out.push(name);
   }
-  return out.sort();
+  return out.toSorted();
 }
 
 export async function scan(repoPath, overview) {
