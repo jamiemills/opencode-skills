@@ -11,13 +11,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: cache-token-efficiency
-- Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 1
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 1 — G2 (T004) completed: committed `.agents/token-efficiency.json` = {"enabled": true} (gate stays 535), AGENTS.md (46 lines) with the toggle-aware efficiency rules, dated reference doc (137 lines: mechanics, measured ratios 75.4-99.9%, docs-only config block, toggle semantics), README bullet (matrix region untouched), .agents/README.md index line. Self-reviewed (standard risk). Battery: check-suite 535, matrix OK, sync OK, tests 15/15, frontmatter 220.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none (batch complete)
+- Last checkpoint: 2026-08-20 cycle 2 — T005 final battery green: pack digest e19a0d125565888a181f986fa98fe6b268be4da516ffd0e706a63b2097ad28b3 / 458765 bytes (deterministic across two runs; delta = payload/skills/csm-build/SKILL.md + index, as predicted), check-suite 535 OK, matrix OK, sync OK, bootstrap battery 50/50 (twice), csm-scan 1227/1227, csm-browse check-skill PASS, integrity 6/6, payload byte-match all 8. All 5 tasks completed; completion gate verified below.
+- Next transition: none (terminal)
+- Active tasks: none
 - Blockers: none
 - Blockers: none
 
@@ -228,7 +228,7 @@ Rule: no template-fence edits (no producer templates touched); no synced-section
    - Repair attempts: 0
    - Recovery note: if gen-readme-matrix --check fails after the README edit, the matrix region was touched — restore it (`node scripts/gen-readme-matrix.mjs --write` regenerates the canonical region) and re-apply the bullet outside the markers; if check-suite's README checks fail, re-check that referenced paths exist.
 
-5. [pending] Regenerate payload and run the full verification battery
+5. [completed] Regenerate payload and run the full verification battery
    - Task ID: T005
    - Depends on: T001, T002, T003, T004
    - Parallel group: G3 (strictly sequential after T004 — the battery invokes the new tests)
@@ -304,7 +304,17 @@ Ordered cheapest-first:
 | 2026-08-20 | 1 | CHECKPOINT -> SELECT | — | Cycle 1: G2 ready set = T004 (AGENTS.md + .agents/docs/cache-token-efficiency-2026-08-20.md + committed .agents/token-efficiency.json {"enabled": true} + README bullet + .agents/README.md index; depends T001+T002 — complete). After T004 the gate must stay 535 (committed toggle = enabled) | SELECT |
 | 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T004 | T004 implemented: `.agents/token-efficiency.json` = exactly `{"enabled": true}` (18 bytes; gate stays 535 — committed toggle resolves enabled); AGENTS.md 46 lines (<100): stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history, no-new-skills budget rule, monitor pointer, toggle note; `.agents/docs/cache-token-efficiency-2026-08-20.md` 137 lines: DeepSeek mechanics + pricing basis caveat, measured ratios (364 sessions/30d, 75.4-99.9% per-session, 97.3-99.3% per-day), docs-only opencode.jsonc block (compaction/small_model/limit.output/steps/subagent_depth) with rationale, deferred thinking-knob note, full toggle section with disabled example, monitor usage; README.md +1 bullet under Development & testing (matrix region byte-identical); .agents/README.md +1 index line matching convention. VERIFY: check-suite 535 OK, matrix OK, sync OK, tests 15/15 (token-efficiency 10 + cache-health 5 — toggle file did not break fixture resolution), frontmatter total 220, AGENTS.md wc 46. REVIEW (self, standard risk): diffs inspected in full, no matrix/SKILL.md/scripts changes, no new skill dir | CHECKPOINT |
 | 2026-08-20 | 1 | CHECKPOINT -> SELECT | — | Cycle 2: G3 ready set = T005 (payload refresh + full battery + completion; depends T001-T004 — all complete). Expected digest change: csm-build/SKILL.md edited by T003 → payload re-pack; battery invokes the new tests | SELECT |
+| 2026-08-20 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT -> COMPLETE | T005 | Final battery (primary-run): pack-bootstrap twice → deterministic digest e19a0d125565888a181f986fa98fe6b268be4da516ffd0e706a63b2097ad28b3 / 458765 bytes, delta exactly payload/skills/csm-build/SKILL.md (+5) + payload-index.json (predicted by F1 fix); gen-readme-matrix --check OK; sync --check OK; check-suite 535 OK (committed toggle resolves enabled); bootstrap battery 50/50 pass ×2 (one transient 49/1 in the first run traced to the known package-audit payload-regeneration race — stable on re-run); csm-scan serial 1227/1227; csm-browse check-skill PASS; integrity 6/6; payload byte-match all 8 skills. Completion gate: all 5 tasks completed with recorded evidence; AC1 (535, negative pairs, 220 baseline), AC2 (monitor live 364 sessions 75.4-99.9%, DB untouched), AC3 (prefix rule scoped greps 1/1 + Core Rules 1/1), AC4 (AGENTS.md 46 lines, dated doc indexed, README bullet, no new skill, frontmatter 220), AC5 (battery above), AC6 (journal evidence, chains untouched, 220 exact), AC7 (toggle tests 10/10 incl. .git-dir boundary + parse edges; disabled fixtures 526; monitor refusal; docs sections) — all met; review findings: T001 independent GO + 2 low nits repaired; no material open findings; tree contains only plan + payload files | COMPLETE (terminal) |
 
 ## Completion Review
 
-(filled by csm-build when all criteria are verified)
+- **Gate 1 — tasks**: all 5 numbered tasks completed; none excluded.
+- **Gate 2 — acceptance criteria**: AC1 check-suite 535 (526 + 8 volatile + 1 budget; negative pairs independently re-proven: volatile token → MISSING, 221 words → MISSING, disabled toggle → skip + 526); AC2 cache-health monitor zero-dep, live report (364 sessions/30d, general-agent 75.4-99.9% hits, per-day 97.3-99.3%), DB untouched (main + WAL byte-stable), 5/5 hermetic tests; AC3 prefix rule in DISPATCH (scoped grep 1/1) + Core Rules sentence (1/1), sync clean; AC4 AGENTS.md (46 lines), dated doc (137 lines, indexed), README bullet (matrix region intact), no new skill, frontmatter 220 exact; AC5 battery green (digest e19a0d12 deterministic, 50/50 bootstrap ×2, csm-scan 1227/1227, browse PASS, integrity 6/6, byte-match all 8); AC6 all tasks evidenced in journal, no chain changes; AC7 toggle semantics fully verified (10/10 tests incl. .git-dir boundary and parse edge cases; disabled runs prove skip + monitor refusal; docs document the ON-by-default contract and committed `{"enabled": true}`).
+- **Gate 3 — checks**: check-suite 535 OK; sync OK; matrix OK; bootstrap 50/50; csm-scan 1227/1227; browse check-skill PASS; pack deterministic.
+- **Gate 4 — findings**: T001 independent review GO (no existing check weakened; resolver adversarial battery; word budget exact; formatMarkerOf bare-marker fix sound); 2 low test-coverage nits repaired (10/10); T002/T003/T004 self-reviewed clean. NIT-5 (pre-existing check-suite crash on trees lacking README via checkMatrixDrift) recorded out-of-scope for a future plan.
+- **Gate 5 — goal match**: cache maximization + token reduction operationalized — gate-level protection of prefix stability and the 220-word budget (opt-out per repo/directory, ON by default via the committed toggle), a working monitor with real hit-ratio visibility (88-99% sessions were already being served from cache — now measurable), the csm-build prefix-sharing rule, and durable guidance — with the research's quality guardrails (focused contexts, durable rules in files, recall-first compaction) intact.
+- **Gate 6 — docs**: AGENTS.md + dated reference + README bullet + index; no migrations needed.
+- **Gate 7 — tree**: only the plan file and the two payload files in the final commit.
+- **Gate 8 — commits**: 5 commits (89e22f6 cycle start, 827ed24 G1, b4158df G2, this one G3/T005); nothing pushed.
+- **Known residuals (recorded, non-blocking)**: live opencode.jsonc unchanged by design (user decision — docs-only); DeepSeek thinking knob undocumented in opencode (deferred, needs a live experiment); NIT-5 pre-existing README-less-copy crash; logs remain unusable as a monitoring source (opencode v1.15.12).
+- **Verdict**: COMPLETE.
