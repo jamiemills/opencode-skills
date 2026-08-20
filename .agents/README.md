@@ -23,7 +23,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-19-consolidated-remaining-work-csm.md` — 2026-08-19 — consolidate remaining work (payload refresh, CDP-auth residuals, pre-release readiness, stale-plan closure) — status: ready (reopened; T010-T012 pending)
 - `2026-08-20-embrace-journal-learnings-csm.md` — 2026-08-20 — embrace journal learnings — status: ready
 - `2026-08-20-skill-suite-efficiency-resilience-csm.md` — 2026-08-20 — skill-suite efficiency and quota resilience — status: ready
-- `2026-08-20-oxlint-lefthook-precommit-csm.md` — 2026-08-20 — oxlint + lefthook pre-commit gate + pnpm-only installs — status: in_progress (executing)
+- `2026-08-20-oxlint-lefthook-precommit-csm.md` — 2026-08-20 — oxlint + lefthook pre-commit gate + pnpm-only installs — status: complete
+- `2026-08-20-lint-strictness-enforcement-csm.md` — 2026-08-20 — lint strictness: fix 979 warnings, .oxlintrc.json quality bar, three-layer enforcement — status: in_progress (executing)
 
 ## docs/
 

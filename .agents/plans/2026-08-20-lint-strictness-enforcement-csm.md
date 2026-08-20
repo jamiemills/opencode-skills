@@ -11,13 +11,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: lint-strictness-enforcement
-- Status: in_progress
-- Current CSM state: SELECT
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 0 — T001 complete (commit 8f57757): .oxlintrc.json (correctness+suspicious warn; no-control-regex off; no-underscore-dangle allow [_meta,_repoPath,__dirname]), make lint strict, README docs; parity 979 (1,001 − 22 config-resolved); check-suite 456 OK. Next: G2 = T002 || T003 || T004.
-- Next transition: SELECT -> DISPATCH (T002, T003, T004)
-- Active tasks: T002, T003, T004
+- Last checkpoint: 2026-08-20 cycle 1 — all 6 tasks completed; gate review APPROVED (2 non-blocking minors: fail-closed message for broken oxlint binary; n/a unmatched patterns); full battery green (lint 0 findings, check-suite 457, hook 8/8, csm-scan 1,227, bootstrap 30, check-skill PASS).
+- Next transition: none (terminal)
+- Active tasks: none
 - Blockers: none
 - Cross-plan coordination: three other pending plans share files with this one — skill-suite plan T006/T008 (`scripts/check-suite.mjs`, `bootstrap/package/payload/**`), journal-learnings plan T001/T004/T007 (`scripts/check-suite.mjs`, `scripts/hooks/pre-commit`), skill-suite T001 (`scripts/sync-skill-boilerplate.mjs`). This plan's edits are additive and idempotent (pack-bootstrap regen is last-writer-wins with identical output when sources match); RECOVER in any build must reconcile against the latest HEAD. See `## Cross-Plan Coordination`.
 
@@ -166,7 +166,7 @@ Critical path: T001 -> T002 -> T005 -> T006.
 
 ## Numbered Plan
 
-1. [pending] Quality-bar config: .oxlintrc.json + strict make lint + enumeration
+1. [completed] Quality-bar config: .oxlintrc.json + strict make lint + enumeration
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -185,7 +185,7 @@ Critical path: T001 -> T002 -> T005 -> T006.
    - Repair attempts: 0
    - Recovery note: revert `.oxlintrc.json`/Makefile/README to HEAD; the config is inert until fixes land (fixes iterate against it), and check-suite is untouched so commits cannot be blocked by this task.
 
-2. [pending] Fix csm-scan library warnings (289 findings, incl. 180 sort sites)
+2. [completed] Fix csm-scan library warnings (289 findings, incl. 180 sort sites)
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -205,7 +205,7 @@ Critical path: T001 -> T002 -> T005 -> T006.
    - Recovery note: a failing test after a batch → the sort/reverse or scoping edit is suspect; revert that batch via git and re-apply the contract one rule at a time; the suite is the oracle.
    - Independent review: reviewer spot-checks >=20 random fix diffs for behavior preservation (especially sort/reverse + shadow renames) and confirms no `--fix`.
 
-3. [pending] Fix csm-scan test and script warnings (297 findings, incl. 203 sort sites)
+3. [completed] Fix csm-scan test and script warnings (297 findings, incl. 203 sort sites)
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
@@ -224,7 +224,7 @@ Critical path: T001 -> T002 -> T005 -> T006.
    - Recovery note: revert the suspect batch and re-apply per rule; suite failures localize the break.
    - Independent review: primary-led (test code; low risk per Scale To The Ask).
 
-4. [pending] Fix csm-browse, csm-upload, and root warnings (38 findings)
+4. [completed] Fix csm-browse, csm-upload, and root warnings (38 findings)
    - Task ID: T004
    - Depends on: T001
    - Parallel group: G2
@@ -243,7 +243,7 @@ Critical path: T001 -> T002 -> T005 -> T006.
    - Recovery note: revert suspect batch; re-apply per rule; check-suite.mjs's own fixes are independently revertible if its behavior changes (it must not).
    - Independent review: primary-led (small surface; check-suite.mjs fixes verified by the gate run).
 
-5. [pending] Regenerate and verify the payload mirror
+5. [completed] Regenerate and verify the payload mirror
    - Task ID: T005
    - Depends on: T002, T003, T004
    - Parallel group: G3
@@ -263,7 +263,7 @@ Critical path: T001 -> T002 -> T005 -> T006.
    - Repair attempts: 0
    - Recovery note: a bad refresh reverts via `git checkout bootstrap/**`; never hand-edit payload; if the diff is unbounded, stop and investigate.
 
-6. [pending] Enforcement: check-suite lint gate, hook-suite extension, negative proofs, full battery
+6. [completed] Enforcement: check-suite lint gate, hook-suite extension, negative proofs, full battery
    - Task ID: T006
    - Depends on: T001, T002, T003, T004, T005
    - Parallel group: G4
@@ -332,7 +332,25 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | CRITIQUE | — | Independent review: MAJOR REWORK — 3 critical (1,001 count; unowned csm-browse/lib + csm-upload; gate sequencing blocks build commits), 4 major (no-control-regex off; underscore allow-list; harness config injection; cross-plan collisions) | REMEDIATE |
 | 2026-08-20 | 0 | REMEDIATE | — | All 15 findings resolved: counts corrected; T004 scope widened; gate moved to T006; Cross-Plan Coordination section + A10; config overrides for no-control-regex + underscore allow; T006 harness injection + no-shadow case; risk texts rebalanced; skip line pinned | VERIFY |
 | 2026-08-20 | 0 | VERIFY | — | Personal review: parity re-confirmed (1,001 = 265 warn + 736 error via -D suspicious); every AC maps to numbered tasks; all 6 tasks have runnable acceptance, risk tier, anti-scope, recovery note; dependencies G1->G2->G3->G4 sound (gate strictly after fixes); no parallel-group overlap; cross-plan coordination documented; check-suite 456 OK on the plan file | SAVED |
+| 2026-08-20 | 1 | DISPATCH+INTEGRATE+VERIFY | T001 | T001 (primary): .oxlintrc.json (correctness+suspicious warn; no-control-regex off x3 sites; no-underscore-dangle allow [_meta,_repoPath,__dirname] x9 source sites), make lint strict, README; parity 979 = 1,001 − 22 config-resolved; commit 8f57757 | SELECT |
+| 2026-08-20 | 1 | DISPATCH+INTEGRATE+VERIFY | T002, T003, T004 | G2 parallel (3 subagents): T002 csm-scan/lib 279 fixes/74 files (180 toSorted; 2 regex-class equivalences node-verified); T003 test+scripts 296 fixes/46 files incl. 3 baseline JSON digests + 3 documented deviations (frozen-array throw kept via push; side-effect locals consumed; baseline regen); T004 browse/upload/root 121 fixes/32 files (check-suite 12, check-skill 1; package-audit/integration side-regenerated payload artifacts reset before commit). Integration: repo lint 0 source findings (178 payload-only remaining), check-suite OK; T201 special-reader hash-lock stale -> refreshed 2 digests in capabilities.json (loader/artifacts new sha256); full csm-scan suite 1,227/1,227; hook gate blocked first commit (payload still dirty) -> sources committed separately as b5d45bd (153 files, +844/−879) | SELECT |
+| 2026-08-20 | 1 | DISPATCH+VERIFY | T005 | Payload regen (primary): pack-bootstrap digest a2ba3f39896362e8480a7f49577159424bd74ecdc00978dc540d30114ae6e855 (458,941 B, 120 files); payload tree lint 0 findings; byte-parity 116/116 clean; bounded diff 76 files; package-audit 1/1, bootstrap-trust 2/2; offline/protocol/integration 27/27 (1 transient flake on first run, green on rerun — recorded); commit c8cee62 | SELECT |
+| 2026-08-20 | 1 | DISPATCH+VERIFY | T006 | Enforcement (primary): check-suite lint gate (spawnSync oxlint --deny-warnings, root-relative bin, skip-with-exact-line when absent; 457 checks); hook-test fixture .oxlintrc.json injection + (e2) no-shadow case -> 8/8; negative proofs: warning probe exit 1 (make lint + oxlint), check-suite gate MISSING-line on injected warning (reviewer), fresh-clone skip line exact + exit 0 (--root proof; first attempt cwd-pitfall corrected); full battery: repo lint 0, make lint 0, check-suite 457, hook 8/8, csm-scan 1,227/1,227, bootstrap 30/30, check-skill PASS; commit b4dfd03; .agents/README.md index line added | REVIEW |
+| 2026-08-20 | 1 | REVIEW | T006 | Independent review: APPROVE WITH MINOR NOTES — gate code correct (root-relative bin, cwd=root spawn, fail-closed); skip line exact + uncounted; fail path MISSING-line verified; diff vs b4dfd03~1 = import + 18-line gate only; 8/8 hook tests; regression suites green. Minors (non-blocking): broken-binary status:null shows "0 finding(s)" (fails closed); unmatched-pattern n/a. Recorded; no repair needed | COMPLETE |
+| 2026-08-20 | 1 | COMPLETE | all | Completion Gate (primary, personal): 6/6 tasks completed with evidence; AC1-AC7 all evidenced (repo lint 0, config + justification, 1,227 suite, payload digest/parity/lint-clean, three-layer negative proofs incl. exact skip line, full battery, docs/index); independent T006 review approved (minors recorded); working tree contains only plan + index changes; all work committed (8f57757, b5d45bd, c8cee62, b4dfd03); nothing pushed | STOP |
 
 ## Completion Review
 
-(filled by csm-build when all criteria are verified)
+All 6 tasks completed across cycle 1; every acceptance criterion evidenced:
+
+1. **AC1** — `pnpm exec oxlint --deny-warnings` and `make lint` exit 0 with zero findings repo-wide (config-driven, no extra CLI flags).
+2. **AC2** — `.oxlintrc.json` committed (categories correctness+suspicious warn; `no-control-regex: off` for 3 intentional control-char detectors; `no-underscore-dangle` allow-list `[_meta, _repoPath, __dirname]` from the 9-site source enumeration; 1,001 = 979 fixed + 22 config-resolved).
+3. **AC3** — csm-scan authoritative suite 1,227/1,227 (serial), including the refreshed T201 special-reader hash-lock (2 digests updated to the behavior-preserving fixed bytes).
+4. **AC4** — payload regenerated: deterministic digest a2ba3f39 (458,941 B, 120 files), 116/116 byte-parity vs sources, payload tree lint-clean, bounded 76-file diff.
+5. **AC5** — three-layer enforcement proven: hook blocks staged suspicious `no-shadow` (new (e2) case, 8/8 suite); `make lint` fails on a reintroduced `no-array-sort` probe (exit 1); check-suite lint gate fails with the exact MISSING line on an injected warning and prints the exact `lint gate skipped — oxlint not installed (run: pnpm install)` line + exit 0 on a fresh clone.
+6. **AC6** — full battery: check-suite 457 (incl. gate), hook 8/8, csm-scan 1,227, bootstrap suites 30/30, csm-browse check-skill PASS, package-audit 1/1.
+7. **AC7** — README documents the quality bar/gate; `.agents/README.md` indexes this plan; every task's acceptance evidence recorded in the journal above.
+
+Independent review of the T006 gate: **APPROVE WITH MINOR NOTES** (fail-closed on broken binary; unmatched-pattern n/a) — no repairs required. Cross-plan coordination notes stand for the pending skill-suite/journal-learnings builds.
+
+**Result**: the repo is lint-clean at the committed correctness+suspicious quality bar, enforced at commit time (staged hook), at `make lint` (repo-wide), and inside `node scripts/check-suite.mjs` (conditional gate) — zero warnings, permanently. Nothing pushed (requires explicit user request).
