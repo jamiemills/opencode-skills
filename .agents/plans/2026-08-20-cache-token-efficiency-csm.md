@@ -12,12 +12,12 @@ format: csm-plan/1
 ## Control
 - Plan ID: cache-token-efficiency
 - Status: in_progress
-- Current CSM state: VALIDATE
+- Current CSM state: CHECKPOINT
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 0 start — csm-build dispatched by explicit user request ("use csm-build and build it"); RECOVER: tree clean (concurrent session committed d18e01a — its plan file now in corpus, gate 516→526 baseline drift), no NORMS.md, format marker csm-plan/1 present, all 5 tasks pending, formatMarkerOf bare-marker fix (5faf3c8) in place pending T001 review; VALIDATE: check-suite 526 OK, sync --check OK, matrix --check OK. NOTE: plan counts cited 525/516 predate the baseline drift — enabled = 535 (526+9), disabled = 526; plan text updated at first checkpoint.
-- Next transition: VALIDATE -> SELECT
-- Active tasks: none
+- Last checkpoint: 2026-08-20 cycle 0 — G1 (T001, T002, T003) completed: gate lint + toggle resolver (535/526 checks, negative fixtures re-proven independently, independent review GO with 2 low nits repaired → 10/10 tests), cache-health monitor (live 364 sessions, 88-99% hits, DB untouched), prefix-sharing rule in csm-build. Baseline corrected 516-era → 526-era counts (535 enabled / 526 disabled).
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none (batch complete)
 - Blockers: none
 
 ## Goal
@@ -143,7 +143,7 @@ Rule: no template-fence edits (no producer templates touched); no synced-section
 
 ## Numbered Plan
 
-1. [pending] check-suite: volatile-description and word-budget lint
+1. [completed] check-suite: volatile-description and word-budget lint
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -165,7 +165,7 @@ Rule: no template-fence edits (no producer templates touched); no synced-section
    - Repair attempts: 0
    - Recovery note: if a live description fails the volatile check, the regex is too broad (e.g. version-like port numbers) — narrow it and re-run; if the word-budget check fails, the total drifted from 220 — re-verify counts (grill 26 / plan 28 / bdd-tdd 30 / build 28 / review 30 / scan 27 / browse 26 / upload 25) and fix the check, never the descriptions (frontmatter wording is out of scope). If check-suite regresses, revert scripts/check-suite.mjs to HEAD and re-apply in smaller increments, recording each increment's check result.
 
-2. [pending] Zero-dependency cache-health monitor
+2. [completed] Zero-dependency cache-health monitor
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -186,7 +186,7 @@ Rule: no template-fence edits (no producer templates touched); no synced-section
    - Repair attempts: 0
    - Recovery note: if `opencode db` fails or the schema drifts, the query errors loudly (by design) — re-inspect `opencode db --help` and the session table columns read-only, pin the new shape, and update the SQL + fixtures; never fall back to log parsing. If the live DB is unavailable, record the failure and rely on the hermetic tests + a fixture-driven sample.
 
-3. [pending] csm-build: parallel-dispatch prefix-sharing rule
+3. [completed] csm-build: parallel-dispatch prefix-sharing rule
    - Task ID: T003
    - Depends on: none
    - Parallel group: G1
@@ -299,6 +299,8 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | SAVED (unblocked) | — | User chose "Fix the gate now": formatMarkerOf (check-suite.mjs:53-66) extended to accept a bare top-of-file format marker (the F-050 template contract form), additive with the YAML path unchanged; gate green at 522 checks (previously 520 with 1 MISSING on the new approach file). Amendment + fix committed together; the bare-marker corpus form is now template-consistent. T001's independent gate review covers this edit during the build | SAVED |
 | 2026-08-20 | 0 | SAVED (amended: ON-by-default) | — | User follow-up "token efficiency is on by default": made explicit everywhere — Goal d6, Constraints, AC7, A9 (evidence: follow-up request), Design Toggle paragraph, T004 (new action: commit `.agents/token-efficiency.json` = `{"enabled": true}` as the visible ON default; acceptance asserts it + gate count 525), T005 battery count note. Contract now: absent/true/malformed = enabled (fail-closed); only explicit `{"enabled": false}` disables; this repo's default is a committed `true` file | SAVED |
 | 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | csm-build dispatched by explicit user request. RECOVER: git tree clean; concurrent session completed and committed d18e01a (csm-deep-research-skill plan) — corpus gained 1 plan, gate baseline drifted 522→526; no NORMS.md (skip); format: csm-plan/1 verified; all 5 tasks [pending]; formatMarkerOf bare-marker fix (5faf3c8) present — T001's independent review covers it. VALIDATE: check-suite 526/526 OK; sync-skill-boilerplate --check OK; gen-readme-matrix --check OK. Count corrections: plan cites 525/516 from the 516-era baseline; with baseline 526 the enabled count = 535 (526+8 volatile+1 budget), disabled = 526 — to be reflected at first checkpoint | SELECT |
+| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001, T002, T003 | G1 batch parallel-dispatched. T001: VOLATILE_DESC_RE (13/13 hit classes, 14/14 pass classes incl. 9222/NORMS.md — no false positives) + word-budget check (whitespace-split AC1 method, live total 220) + NEW scripts/lib/token-efficiency.mjs (parseToggle/findToggleFile/isEnabled; absent/true/malformed→enabled fail-closed; nearest-wins walk-up to .git file-or-dir boundary) + tests 8→10/10 (LOW-1 .git-dir boundary test, LOW-2 parse edge cases added per review); gating wired (skip+notice when disabled; pre-existing checks byte-identical). Negative evidence independently re-run in /tmp/plan-neg3: (a) pristine control OK, (b) planted 2026-08-20 → volatile MISSING, (c) 221 words → budget MISSING, (d) {"enabled": false} → skip notice + OK. Gate: 526→535 enabled / 526 disabled. INDEPENDENT REVIEW (GO): no existing check weakened (byte-identical diff), toggle resolver adversarial battery all correct, word budget exact, formatMarkerOf bare-marker fix sound (no false-accept, YAML wins, no check weakened), 2 low nits (LOW-1/LOW-2) REPAIRED, NIT-5 (pre-existing matrix ENOENT crash on trees lacking README) recorded as out-of-scope. T002: scripts/cache-health.mjs (only subprocess = `opencode db`, toggle honored pre-query, pure parse/aggregate/render, cost from DB column) + tests 5/5 + live run --days 30: 364 sessions, general-agent 75.4-99.9% hits, per-day 97.3-99.3%; disabled-toggle run exits 0 with notice (even with opencode off PATH — no subprocess before the toggle check); DB-untouched (main DB + WAL mtime/size identical; only SHM bookkeeping). T003: csm-build/SKILL.md +5 lines — Core Rules sentence + DISPATCH prefix-sharing rule with honest intra-batch-warmth caveat + Anthropic/DeepSeek per-provider note; chain/headings/synced sections byte-identical (sync --check clean). VERIFY: check-suite 535 OK, sync --check, matrix --check, node --check, tests 10+5 green. Count baseline note: plan's 525/516-era figures corrected to 535/526 in journal + Control (concurrent-plan drift) | CHECKPOINT |
+| 2026-08-20 | 1 | CHECKPOINT -> SELECT | — | Cycle 1: G2 ready set = T004 (AGENTS.md + .agents/docs/cache-token-efficiency-2026-08-20.md + committed .agents/token-efficiency.json {"enabled": true} + README bullet + .agents/README.md index; depends T001+T002 — complete). After T004 the gate must stay 535 (committed toggle = enabled) | SELECT |
 
 ## Completion Review
 

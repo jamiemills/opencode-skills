@@ -40,6 +40,7 @@ Run first — before `Activation Boundary` work, locating the plan, or any execu
 - Update the plan after every state transition and completed dispatch group. It must always contain enough evidence and an exact next transition for a fresh agent to resume.
 - Record `Last model/run:` in Control at each checkpoint so a resumed or model-switched run can re-verify prior evidence instead of trusting status labels.
 - Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`. The only sanctioned exception is the `PAUSED` stop under Pause On Quota.
+- Never vary the shared static prefix across parallel dispatches in a batch — prefix stability is a cache and cost property.
 
 ### Subagent Resilience
 
@@ -150,6 +151,10 @@ Launch all independent assignments concurrently. Each subagent prompt must inclu
 - required return: files changed, checks run with results, acceptance evidence, remaining risks, and anything that may affect another task.
 
 Use implementation subagents only when their write scopes do not overlap. Use additional parallel subagents for independent read-only investigation or test analysis when that shortens the critical path.
+
+**Prefix-sharing rule.** When dispatching a parallel batch, every subagent receives a byte-identical static prefix — system prompt, tool definitions, skills, and plan evidence identical across the batch, with only per-task payloads differing AFTER the stable region. DeepSeek's automatic prefix caching (api-docs.deepseek.com/guides/kv_cache) persists a detected common prefix across requests and serves subsequent matching requests at ~97% of the input price; measured per-session hit ratios in this repo are 88-99%. Intra-batch hits at ~97% apply when the shared prefix is already warm or the first response lands before peers fire — do NOT vary the shared prefix per subagent (any change breaks the full-prefix-unit match).
+
+Providers using explicit cache breakpoints (e.g. Anthropic-style cache_control, 4 breakpoints max, 20-block lookback) benefit from staggering the first parallel request or a shared breakpoint so the first response warms the cache before peers fire; DeepSeek handles this automatically, but a fully-parallel batch of cold first requests can still race prefix persistence — prefer warm prefixes (repeat sessions, stable tool sets) or accept the first request at miss price.
 
 ### 5. INTEGRATE
 

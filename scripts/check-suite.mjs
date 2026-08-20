@@ -7,6 +7,7 @@ import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES } from './lib/contracts.mjs';
+import { isEnabled } from './lib/token-efficiency.mjs';
 import { checkDrift } from './sync-skill-boilerplate.mjs';
 import { checkDrift as checkMatrixDrift } from './gen-readme-matrix.mjs';
 import {
@@ -33,6 +34,15 @@ for (let i = 0; i < args.length; i += 1) {
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NEVER_CLAUSE_RE = /\bnever\b[^.]{0,120}\b(only|beyond|elsewhere|writes?|runs?|invok\w*|starts?|plans?|planning|implement\w*|fix\w*|patch\w*|review\w*|execut\w*|push\w*|targets?)\b/i;
+// Volatile content in skill descriptions would silently invalidate DeepSeek
+// prefix-cache units. Deliberately NOT a bare \d{4}: csm-browse's stable port
+// "9222" must pass. Rejects ISO dates, bare 20xx years, dotted versions,
+// v-prefixed versions, $ENV vars, and absolute paths.
+const VOLATILE_DESC_RE = /(\d{4}-\d{2}-\d{2}|\b20\d{2}\b|\b\d+\.\d+(\.\d+)?\b|v\d+(\.\d+)+|\$[A-Z][A-Z0-9_]*|\/home\/|\/Users\/|\/tmp|\/etc\/|\/opt\/|\/usr\/|\/var\/)/;
+// Frontmatter budget (AC1 of the completed efficiency plan): the 8
+// descriptions total exactly 220 whitespace-separated tokens today (em-dashes
+// count). The check guards regression only; wording edits stay out of scope.
+const WORD_BUDGET = 220;
 const NORMS_PHRASE_RE = new RegExp(NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
 const CHAIN_RE = /`([A-Z][A-Z_]*(?:\s*->\s*[A-Z][A-Z_]+)+)`/;
 const STATE_HEADING_RE = /^###\s+(\d+)\.\s+(.*)$/;
@@ -373,6 +383,17 @@ function main() {
   const skillDirs = discoverSkillDirs();
   const plansDir = path.join(root, '.agents', 'plans');
 
+  // Repo-local efficiency toggle (A9): ON by default (absent/malformed =
+  // enabled, fail-closed); only an explicit {"enabled": false} skips the two
+  // additive efficiency checks below with a visible notice.
+  const eff = isEnabled(root);
+  if (!eff.enabled) {
+    console.log(`note: token efficiency disabled (${eff.source}) — volatile/budget checks skipped`);
+  } else if (eff.warning !== null) {
+    console.log(`note: ${eff.warning}`);
+  }
+  let descWordTotal = 0;
+
   for (const skill of skillDirs) {
     check(Object.prototype.hasOwnProperty.call(MANIFEST, skill),
       `skill dir ${skill} has no MANIFEST entry in scripts/lib/contracts.mjs (new skills must be registered, not silently skipped)`);
@@ -409,6 +430,13 @@ function main() {
     check(desc !== '', `${skill}/SKILL.md missing frontmatter description`);
     check(desc.length <= 1024, `${skill}/SKILL.md description length ${desc.length} (> 1024)`);
     check(NEVER_CLAUSE_RE.test(desc), `${skill}/SKILL.md description lacks a Never-X clause (e.g. "never plans or implements")`);
+
+    if (eff.enabled) {
+      const volatileHit = desc.match(VOLATILE_DESC_RE);
+      check(volatileHit === null,
+        `${skill}/SKILL.md description contains volatile token "${volatileHit ? volatileHit[0] : ''}" (dates/years/versions/$ENV/absolute paths break prefix-cache units)`);
+      descWordTotal += desc.trim().split(/\s+/).filter(Boolean).length;
+    }
 
     const h1 = countH1(lines, inFence);
     check(h1 === 1, `${skill}/SKILL.md has ${h1} H1 titles outside fences (want exactly 1)`);
@@ -471,6 +499,11 @@ function main() {
 
     const ordinalFailures = validateOrdinalSequencing(content);
     runGatedCheck(skill, 'ordinal', ordinalFailures, `${skill}/SKILL.md state-section ordinal sequencing`, plansDir);
+  }
+
+  if (eff.enabled) {
+    check(descWordTotal <= WORD_BUDGET,
+      `description word total ${descWordTotal} (> ${WORD_BUDGET}) across ${skillDirs.length} skills (frontmatter budget AC1 regression)`);
   }
 
   for (const contract of CONTRACTS) {
