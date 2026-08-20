@@ -72,6 +72,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 
 - **[OpenCode](https://opencode.ai)** — these are OpenCode skills.
 - **Node.js >= 22** — for `csm-browse` (see `csm-browse/package.json`) and for running the `csm-scan` test suite (`node:test`). `csm-scan` itself is zero-dependency Node built-ins only.
+- **pnpm >= 10** (corepack-managed; the root `package.json` pins `packageManager: pnpm@10.33.0`) — the repo's only package installer, for root tooling (lefthook + oxlint) and `csm-browse`.
 - **Universal bootstrap runtime** — the delivered bootstrap flow needs only `node` and `npx`; Node >= 22 is recommended for the development gates (see [Development & testing](#development--testing)).
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
@@ -93,18 +94,20 @@ Restart OpenCode so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-td
 
 ```bash
 cd $HOME/.config/opencode/skills/csm-browse
-npm install --no-audit --no-fund
+pnpm install
 node -e "require('chrome-remote-interface'); console.log('ok')"
 node scripts/check-skill.mjs
 ```
 
-Optionally activate the local pre-commit gate (fast conformance + boilerplate-drift + syntax checks; bypass with `--no-verify`):
+Optionally activate the local lefthook pre-commit gate (unstaged guard + conformance + syntax + staged oxlint; bypass with `--no-verify`):
 
 ```bash
 node scripts/install-hooks.mjs
 ```
 
-Dependency inventory: `csm-browse/package-lock.json` (integrity-hashed) is authoritative; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
+`install-hooks.mjs` installs the root devDependencies via `pnpm install --frozen-lockfile --ignore-scripts` (lefthook + oxlint) and installs the lefthook pre-commit gate.
+
+Dependency inventory: the root `pnpm-lock.yaml` (integrity-hashed) is authoritative for the hook tooling (lefthook + oxlint) and `csm-browse/pnpm-lock.yaml` for csm-browse; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
 
 ### Universal agent bootstrap (no clone)
 
@@ -129,7 +132,7 @@ The core loop is **grill → plan → build**:
 2. **Plan** — invoke `csm-plan` with a brief; it researches, critiques, verifies, and saves a numbered, resumable plan.
 3. **Build** — invoke `csm-build` with the saved plan; it executes with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.
 
-Optional: `node scripts/install-hooks.mjs` enables the fast pre-commit gate.
+Optional: `node scripts/install-hooks.mjs` installs the root devDependencies and enables the fast lefthook pre-commit gate.
 
 The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.
 
@@ -183,11 +186,14 @@ Planning never silently becomes implementation, and execution always starts from
 │   ├── install-hooks.mjs          # one-time pre-commit hook installer
 │   ├── pack-bootstrap.mjs         # deterministic npm pack of the bootstrap package
 │   ├── hooks/                     # tracked git hooks (core.hooksPath target)
-│   │   └── pre-commit             # fast advisory gate (check-suite + drift + syntax)
+│   │   └── pre-commit             # lefthook shim — pre-commit gate (guard + check-suite + syntax + oxlint staged)
 │   └── lib/                       # shared data + templates
 │       ├── contracts.mjs          # MANIFEST, CONTRACTS, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES
 │       └── boilerplate.mjs        # canonical tmux-bootstrap + resilience templates
-└── .agents/           # process artifacts: plans/, docs/, reviews/, approaches/ (indexed in .agents/README.md)
+├── .agents/           # process artifacts: plans/, docs/, reviews/, approaches/ (indexed in .agents/README.md)
+├── .lefthook.yml      # pre-commit gate definition (guard + check-suite + syntax + oxlint staged)
+├── package.json       # root tooling manifest: lefthook + oxlint devDeps, packageManager pnpm@10.33.0
+└── pnpm-lock.yaml     # hook-tooling dependency lockfile
 ```
 
 ## Development & testing
@@ -195,7 +201,8 @@ Planning never silently becomes implementation, and execution always starts from
 - `node scripts/check-suite.mjs`   # repo-wide conformance gate (frontmatter, sections, state lines, README integrity, corpora, interfaces, boilerplate drift, matrix drift)
 - `node scripts/sync-skill-boilerplate.mjs --check`   # boilerplate drift (also gated by check-suite + pre-commit); `--write` regenerates
 - `node scripts/gen-readme-matrix.mjs --check`        # composition-matrix drift (also gated); `--write` regenerates
-- `node scripts/install-hooks.mjs`  # enable the local pre-commit gate (bypass: `git commit --no-verify`)
+- `pnpm install --frozen-lockfile --ignore-scripts && pnpm exec lefthook install --force`  # install root devDeps and enable the local lefthook pre-commit gate (bypass: `git commit --no-verify`)
+- `node --test scripts/hooks/test/pre-commit.test.mjs`  # hook test suite (lefthook shim + `.lefthook.yml` validation + staged-only oxlint)
 - **Universal bootstrap suites** — envelope trust, package audit, protocol conformance, offline boundary, and the cross-task integration flow; `node scripts/pack-bootstrap.mjs` prints the deterministic tarball digest:
 
   ```bash

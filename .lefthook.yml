@@ -1,0 +1,36 @@
+assert_lefthook_installed: true
+output: [execution, failure, summary]
+
+pre-commit:
+  piped: true
+  jobs:
+    - name: unstaged-guard
+      run: |
+        unstaged=$(git diff --name-status --)
+        if [ -n "$unstaged" ]; then
+          echo "pre-commit: tracked working-tree changes must be staged before running commit gates:"
+          echo "$unstaged"
+          echo "pre-commit: stage or discard those changes, or bypass with \`git commit --no-verify\`."
+          exit 1
+        fi
+      fail_text: "tracked working-tree changes must be staged (bypass: git commit --no-verify)"
+    - name: check-suite
+      run: node scripts/check-suite.mjs
+      fail_text: "conformance gate failed (node scripts/check-suite.mjs)"
+    - name: mjs-syntax
+      glob: "*.mjs"
+      run: for f in {staged_files}; do node --check "$f" || exit 1; done
+      fail_text: "staged .mjs syntax check failed"
+    - name: oxlint
+      glob: "*.{js,mjs,cjs,ts,tsx,mts,cts}"
+      run: ./node_modules/.bin/oxlint --deny-warnings --no-error-on-unmatched-pattern {staged_files}
+      fail_text: "oxlint found problems in staged files (errors and warnings both fail)"
+    - name: csm-browse-check
+      glob: "csm-browse/**"
+      run: |
+        if [ -d csm-browse/node_modules ]; then
+          node csm-browse/scripts/check-skill.mjs
+        else
+          echo "csm-browse deps not installed — skipping check-skill"
+        fi
+      fail_text: "csm-browse check-skill failed"

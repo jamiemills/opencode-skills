@@ -1,70 +1,75 @@
-#!/usr/bin/env node
-'use strict';
+#!/bin/sh
 
-// Pre-commit gate (installed via scripts/install-hooks.mjs -> core.hooksPath).
-// Tracked worktree changes must be staged before repo-wide gates run. Bypass
-// with `git commit --no-verify`; the authoritative gate remains the repo's
-// full check battery (CI when enabled).
+if [ "$LEFTHOOK_VERBOSE" = "1" -o "$LEFTHOOK_VERBOSE" = "true" ]; then
+  set -x
+fi
 
-import { execFileSync } from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
+if [ "$LEFTHOOK" = "0" ]; then
+  exit 0
+fi
 
-const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
-const node = process.execPath;
-
-// Repo-wide gates inspect the working tree, so reject a mixed index/worktree
-// rather than allowing them to validate content different from the commit.
-const unstaged = execFileSync('git', ['diff', '--name-status', '--'], { encoding: 'utf8', cwd: root }).trim();
-if (unstaged) {
-  console.error('pre-commit: tracked working-tree changes must be staged before running commit gates:');
-  console.error(unstaged);
-  console.error('pre-commit: stage or discard those changes, or bypass with `git commit --no-verify`.');
-  process.exit(1);
+call_lefthook()
+{
+  if test -n "$LEFTHOOK_BIN"
+  then
+    "$LEFTHOOK_BIN" "$@"
+  elif lefthook -h >/dev/null 2>&1
+  then
+    lefthook "$@"
+  elif /home/jamiemills/.config/opencode/skills/node_modules/.pnpm/lefthook-linux-x64@2.1.10/node_modules/lefthook-linux-x64/bin/lefthook -h >/dev/null 2>&1
+  then
+    /home/jamiemills/.config/opencode/skills/node_modules/.pnpm/lefthook-linux-x64@2.1.10/node_modules/lefthook-linux-x64/bin/lefthook "$@"
+  else
+    dir="$(git rev-parse --show-toplevel)"
+    osArch=$(uname | tr '[:upper:]' '[:lower:]')
+    cpuArch=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')
+    if test -f "$dir/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook"
+    then
+      "$dir/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook" "$@"
+    elif test -f "$dir/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook"
+    then
+      "$dir/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook" "$@"
+    elif test -f "$dir/node_modules/@evilmartians/lefthook-installer/bin/lefthook"
+    then
+      "$dir/node_modules/@evilmartians/lefthook-installer/bin/lefthook" "$@"
+    elif test -f "$dir/node_modules/lefthook/bin/index.js"
+    then
+      "$dir/node_modules/lefthook/bin/index.js" "$@"
+    elif go tool lefthook -h >/dev/null 2>&1
+    then
+      go tool lefthook "$@"
+    elif bundle exec lefthook -h >/dev/null 2>&1
+    then
+      bundle exec lefthook "$@"
+    elif yarn lefthook -h >/dev/null 2>&1
+    then
+      yarn lefthook "$@"
+    elif pnpm lefthook -h >/dev/null 2>&1
+    then
+      pnpm lefthook "$@"
+    elif swift package lefthook >/dev/null 2>&1
+    then
+      swift package --build-path .build/lefthook --disable-sandbox lefthook "$@"
+    elif command -v mint >/dev/null 2>&1
+    then
+      mint run csjones/lefthook-plugin "$@"
+    elif uv run lefthook -h >/dev/null 2>&1
+    then
+      uv run lefthook "$@"
+    elif mise exec -- lefthook -h >/dev/null 2>&1
+    then
+      mise exec -- lefthook "$@"
+    elif devbox run lefthook -h >/dev/null 2>&1
+    then
+      devbox run lefthook "$@"
+    else
+      echo "Can't find lefthook in PATH"
+      echo "ERROR: Operation is aborted due to lefthook settings."
+      echo "Make sure lefthook is available in your environment and re-try."
+      echo "To skip these checks use --no-verify git argument or set LEFTHOOK=0 env variable."
+      exit 1
+    fi
+  fi
 }
 
-function run(cmd, args, opts = {}) {
-  try {
-    execFileSync(cmd, args, { stdio: 'inherit', cwd: root, ...opts });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-let failed = false;
-
-// 1. Repo-wide conformance gate (always).
-if (!run(node, [path.join('scripts', 'check-suite.mjs')])) failed = true;
-
-// 2. Boilerplate drift gate (when the sync tooling exists).
-if (fs.existsSync(path.join(root, 'scripts', 'sync-skill-boilerplate.mjs'))) {
-  if (!run(node, [path.join('scripts', 'sync-skill-boilerplate.mjs'), '--check'])) failed = true;
-}
-
-// 3. Syntax-check staged .mjs files.
-const staged = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACM'], { encoding: 'utf8', cwd: root })
-  .split('\n')
-  .map((l) => l.trim())
-  .filter((l) => l.endsWith('.mjs'));
-for (const f of staged) {
-  if (!fs.existsSync(path.join(root, f))) continue;
-  if (!run(node, ['--check', f])) {
-    console.error(`pre-commit: syntax check failed for ${f}`);
-    failed = true;
-  }
-}
-
-// 4. csm-browse skill check — only when csm-browse files are staged AND its
-// dependencies are installed (check-skill requires node_modules).
-const browseStaged = staged.some((f) => f.startsWith('csm-browse/'));
-const browseDeps = fs.existsSync(path.join(root, 'csm-browse', 'node_modules'));
-if (browseStaged && browseDeps) {
-  if (!run(node, [path.join('csm-browse', 'scripts', 'check-skill.mjs')])) failed = true;
-}
-
-if (failed) {
-  console.error('pre-commit: gate failed — fix the above, or bypass with `git commit --no-verify`.');
-  process.exit(1);
-}
-process.exit(0);
+call_lefthook run "pre-commit" "$@"

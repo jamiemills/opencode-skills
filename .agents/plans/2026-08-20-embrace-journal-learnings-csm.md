@@ -131,6 +131,7 @@ Dependencies: T004 ← T001; T005 ← T004. All else parallel. Critical path: T0
    - Repair attempts: 0
    - Recovery note: standalone script + one hook line; revertible independently; the JSON is disposable (regenerate with --record).
    - (A8) Deviations warn at pre-commit via exit code, but the script's own exit is the signal — the hook logs and continues for the first cycle only if a baseline exists; policy hardens in a later plan.
+   - (Superseded pointer: plan 2026-08-20-oxlint-lefthook-precommit-csm.md T002/T003) The `record-gate-baseline.mjs` invocation is retargeted to a `.lefthook.yml` pre-commit job — a check-suite-preceding job running `node scripts/record-gate-baseline.mjs` when the file exists; `scripts/hooks/pre-commit` is now a generated lefthook shim, so it must not be hand-edited. Baseline-recording intent unchanged.
 
 3. [pending] Node 22 toolchain helper (ends the PATH-prepend workaround)
    - Task ID: T003
