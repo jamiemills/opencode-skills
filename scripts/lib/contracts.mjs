@@ -138,8 +138,8 @@ const INTERFACES = {
   'csm-deep-research': {
     entryConditions: ['research question or topic', 'explicit deep-research request'],
     consumes: ['research question', 'retrievable sources (web, docs, repositories)'],
-    produces: ['one dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md'],
-    handoff: ['research document to the user'],
+    produces: ['dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md', 'optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a JSON schema)'],
+    handoff: ['research document and any declared run artifacts to the user'],
     midPipeline: ['subagent dispatches', 'findings ledger', 'synthesis'],
   },
 };
