@@ -212,6 +212,7 @@ Planning never silently becomes implementation, and execution always starts from
   node --test tests/protocol/*.test.mjs
   node --test tests/offline/*.test.mjs
   node --test tests/integration/*.test.mjs
+  node --test tests/resume-semantics.test.mjs
   node scripts/pack-bootstrap.mjs
   ```
 

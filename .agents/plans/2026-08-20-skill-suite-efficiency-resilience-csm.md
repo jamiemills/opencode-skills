@@ -11,13 +11,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: skill-suite-efficiency-resilience
-- Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 2
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-20 cycle 2 — T007 completed, independently reviewed (GO conditional; 2 mediums repaired), battery green: resume-semantics 5/5, check-suite 516, combined bootstrap suites 11/11 (after pulling the payload refresh forward — deterministic digest 912219dfa3, 458179 bytes; T008 re-runs pack-bootstrap to record it). Consistency check (T007 a3) implemented as validateJournalControlConsistency with documented exemptions (no naive equality — 11/20 corpus plans would false-fail).
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none (batch complete)
+- Last checkpoint: 2026-08-20 cycle 3 — T008 final battery green: pack digest 912219dfa3 (deterministic, 458179 bytes), check-suite 516 OK, full bootstrap battery 35/35 (trust/audit/protocol/offline/integration/resume-semantics), csm-scan serial 1227/1227, csm-browse check-skill PASS, matrix --check OK, payload byte-match all 8, README test inventory updated. All 8 tasks completed; completion gate verified below.
+- Next transition: none (terminal)
+- Active tasks: none
 - Blockers: none
 - Blockers: none
 - Blockers: none
@@ -300,7 +300,7 @@ Rule (F15): any template-fence edit that alters the extracted H2 sequence must i
    - Repair attempts: 0
    - Recovery note: if the golden fixture fails, the module or the fixture is wrong — compare against the T003 wording (PAUSED, `Next transition: PAUSED -> RECOVER`) and the T006 module implementation; fix the fixture only if it contradicts the skill text, otherwise fix the module (with T006's owner informed via journal).
 
-8. [pending] Regenerate payload, README integrity, and run the full verification battery
+8. [completed] Regenerate payload, README integrity, and run the full verification battery
    - Task ID: T008
    - Depends on: T002, T003, T004, T005, T006, T007
    - Parallel group: G4 (strictly sequential after T007 — its battery invokes tests/resume-semantics.test.mjs)
@@ -378,7 +378,17 @@ Ordered cheapest-first:
 | 2026-08-20 | 1 | CHECKPOINT -> SELECT | — | Cycle 2: G3 ready set = T007 (resume-semantics tests; depends T002+T003+T006 — all complete). T007 is high-risk (new test harness) — independent review required per plan | SELECT |
 | 2026-08-20 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T007 | T007 implemented: tests/resume-semantics.test.mjs (4 groups importing plan-validation directly, hermetic — no network/subprocesses/writes outside fixtures) + tests/fixtures/resume/{golden,bad-transition,bad-journal}-csm.md. VERIFY: 5/5 pass; gate 516 OK. Bootstrap suites showed 2 failures with a STALE payload mirror (protocol tests materialize payload copies and hash-compare vs sources — 12 mismatches; a direct consequence of cycles 0-1 editing all 8 SKILL.md files, documented as expected in Discovered Requirements; package-audit side effect regenerates the tree, which is why solo runs passed) — payload refresh pulled forward: pack-bootstrap deterministic digest 912219dfa31c80ea55a1df6683c62808c53bde5c0ae5731a4495ca68b441efc1, bytes 458179; combined battery 11/11 green. REVIEW (independent): GO conditional — MEDIUM-1: quota-signal test false-green for HTTP 429/rate-limit (also present in transient-retry prose; section-wide includes instead of enumeration-line) REPAIRED (assert anchored to `Quota signal set:` line; mutation-verified); MEDIUM-2: corpus test asserted journal and Control independently, no cross-consistency (plan a3) REPAIRED (new validateJournalControlConsistency in plan-validation.mjs: paused ⇒ currentState PAUSED + last journal Next PAUSED; active ⇒ last journal Next not PAUSED; complete/terminal exempt — naive equality would false-fail 11/20 corpus plans, recorded; 5 mutation cases verified). NIT: README test inventory omits the new test file — T008. Re-VERIFY: 5/5, gate 516, mutations caught | CHECKPOINT |
 | 2026-08-20 | 2 | CHECKPOINT -> SELECT | — | Cycle 3: G4 ready set = T008 (payload/README/full battery; depends T002-T007 — all complete; strictly sequential after T007). Also from T007 review NIT: add tests/resume-semantics.test.mjs to README test inventory if such a list exists | SELECT |
+| 2026-08-20 | 3 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT -> COMPLETE | T008 | Final battery (primary-run): pack-bootstrap deterministic digest 912219dfa31c80ea55a1df6683c62808c53bde5c0ae5731a4495ca68b441efc1 / 458179 bytes (stable across runs); gen-readme-matrix --check OK; check-suite 516 OK; full bootstrap battery 35/35 (bootstrap-trust + package-audit + protocol/* + offline/* + integration/* + resume-semantics 5/5); csm-scan serial `--test-concurrency=1` 1227/1227 (baseline ≥1200); csm-browse check-skill PASS; payload byte-match diff -r all 8 skills; README test inventory gained the resume-semantics line (T007 review NIT; matrix region unchanged). Completion gate: all 8 tasks completed with recorded evidence; all 9 ACs met (AC1 220 words exactly, AC2 tmux ≤150 + NORMS condensed + sync clean + dedup, AC3 Pause On Quota 6-signal PAUSED protocol, AC4 plan resume contract + draft sidecar + format marker + retrieval, AC5 grill/review retrieval + bias + edition drift, AC6 gate checks + ordinal fix, AC7 behavioral tests, AC8 battery, AC9 journal evidence); no material review findings open (cycle 0: 4/4 repaired; cycle 2: 2/2 repaired); tree clean of unexplained changes | COMPLETE (terminal) |
 
 ## Completion Review
 
-(filled by csm-build when all criteria are verified)
+- **Gate 1 — tasks**: all 8 numbered tasks completed; none excluded.
+- **Gate 2 — acceptance criteria**: AC1 frontmatter 417→220 words total (exactly), Never-X + ≤1024 chars preserved (check-suite 516 OK); AC2 tmux bodies 135-148 words (≤150), NORMS blocks condensed ~35-40%, sync --check clean, pre-commit dup resolved (lefthook shim, no sync step); AC3 `## Pause On Quota` with the 6-signal set, journal-evidence → safe integration → full CHECKPOINT incl. commit → `Status: paused`/`PAUSED`/`PAUSED -> RECOVER` → clean stop, transient one-backoff, SELECT pre-flight probe, RECOVER resume block with prior-model re-verification; AC4 csm-plan template gains `format: csm-plan/1`, `paused`, `Last model/run:`, `- Resume:` bullet (no `## Resume` H2), `.draft` sidecar rule, RESEARCH current-knowledge check with source URL + retrieval date; AC5 grill/review retrieval protocol + bias sentences + `format: csm-grill/1`/`csm-review/1` + anchor edition-drift check (F-050 closed); AC6 check-suite +59 checks (Control/journal/ordinal/template/interface) in importable plan-validation.mjs, RECOVER duplicate ordinal fixed (F-069 closed); AC7 tests/resume-semantics.test.mjs 5/5 (template round-trip, PAUSED->RECOVER golden + negatives, corpus journal/control consistency, quota-signal set) — F-063 closed; AC8 full battery green (see cycle-3 journal row); AC9 evidence recorded in this journal.
+- **Gate 3 — checks**: check-suite 516 OK; sync-skill-boilerplate --check OK; gen-readme-matrix --check OK; bootstrap battery 35/35; csm-scan 1227/1227 serial; csm-browse check-skill PASS; pack digest deterministic.
+- **Gate 4 — findings**: cycle-0 independent gate review: 4 findings (debt collision medium, exemption asymmetry low, artifact patterns low, held-invisibility nit) — all repaired and re-verified; cycle-2 independent test review: 2 mediums (quota-signal anchoring, journal/control cross-consistency) — both repaired and mutation-verified. No open material findings.
+- **Gate 5 — goal match**: eight-skill suite is token-efficient (frontmatter -47%, tmux boilerplate -60%+, NORMS -35-40%, scan Testing 34→12 lines, scale-gated output display), quota-resilient (PAUSED stop in csm-build + parity in plan/bdd-tdd/review/grill), and trivially resumable (Last model/run, Resume bullet, draft sidecar, RECOVER resume block) — the three goals (a)/(b)/(c) from the brief, while the gate (516 checks, +59) and the grill→plan→build→review→deliver flow and the plan-as-durable-record design are preserved.
+- **Gate 6 — docs**: README test inventory updated; no migrations/config changes needed.
+- **Gate 7 — tree**: no unexplained changes (only plan file + README in final commit).
+- **Gate 8 — commits**: 4 commits (1d368ff cycle start, 76d7c4f G1, 0641215 G2, 262db14 G3, this final one G4/T008); nothing pushed.
+- **Known residuals (recorded, non-blocking)**: csm-browse/csm-upload behavior unchanged by design (exclusions); lean-plan format v2 and template lazy-loading deferred (D1/D2); csm-scan stays offline (A6); review anchor edition-drift surfaces superseded editions as low/info findings only; README test-commands list is a manual inventory outside the gate (nit, addressed).
+- **Verdict**: COMPLETE.
