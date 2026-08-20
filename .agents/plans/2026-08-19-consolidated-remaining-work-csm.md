@@ -17,8 +17,8 @@ format: csm-plan/1
 - Cycle: 3
 - Commits: allowed
 - Last checkpoint: 2026-08-19 cycle 3 — completion gate. T004 complete: step 1 verbatim (check-suite 441 OK; sync-skill-boilerplate --check OK no drift; gen-readme-matrix --check OK; five bootstrap suites serial 30/30; browse 113/113 Node 22; e2e quick 79/79 LIVE Docker; scan serial 1227/1227; upload 2/2 explicit-file form); step 2 deterministic double-pack identical sha256 a3c735f4c5d300decb25a008d2b009fefdef2927633d67753b612e83ef10f208 (matches T002 pack; earlier journal transcription typo corrected in place); step 3 toolchain Linux 6.8.0-107-generic x86_64 / node v22.23.2 / npm 10.9.8 + payload-index sha256 ce6672bf03699070d77f502d27d22587d9053537d0af0c383c267ba1a6b3f5cd + warm/verify evidence via offline suite 8/8 (isolated cache); AC4 cumulative diff (23f1501..HEAD) = expected files only, zero COMPLETE-plan files, 2026-08-03/universal/remaining-active untouched, deferred records intact
-- Next transition: SCOPE
-- Active tasks: T010, T011
+- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Active tasks: T010, T011, T012
 - Blockers: none
 
 ## Goal
@@ -250,6 +250,21 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Acceptance evidence: journal-learnings plan Completion Review + check-suite output.
    - Repair attempts: 0
    - Recovery note: resume via the journal-learnings plan's own journal.
+
+12. [pending] Follow the skill-suite efficiency and quota resilience plan in full
+   - Task ID: T012
+   - Depends on: none
+   - Parallel group: G3
+   - Risk: standard
+   - Owned scope: every task (T001-T008) of `2026-08-20-skill-suite-efficiency-resilience-csm.md`, executed in full per that plan — token-efficiency cuts, quota-pause/resume (PAUSED stop, save-and-stop protocol), model-switch resume contract, draft sidecar, retrieval-first protocol, gate hardening, resume-semantics tests, payload refresh.
+   - Not in scope: review findings (T010); journal-learnings plan (T011); deferred T005-T009.
+   - Spike candidate: none.
+   - Actions: run csm-build on `.agents/plans/2026-08-20-skill-suite-efficiency-resilience-csm.md` to completion; record evidence in the journal.
+   - Acceptance signal: all 8 tasks of the skill-suite efficiency and quota resilience plan complete with their acceptance evidence recorded.
+   - Validation: cheapest first — per-task gates, then check-suite.
+   - Acceptance evidence: skill-suite plan Completion Review + check-suite output.
+   - Repair attempts: 0
+   - Recovery note: resume via the skill-suite plan's own journal.
 
 ## Verification Strategy
 - Fast per-task gates: `node --check` on touched files; `cd csm-browse && node scripts/check-skill.mjs`; `node scripts/check-suite.mjs` (<1s); scoped greps for T001.
