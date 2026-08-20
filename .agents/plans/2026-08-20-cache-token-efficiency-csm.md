@@ -11,12 +11,12 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: cache-token-efficiency
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: VALIDATE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: none
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-20 cycle 0 start — csm-build dispatched by explicit user request ("use csm-build and build it"); RECOVER: tree clean (concurrent session committed d18e01a — its plan file now in corpus, gate 516→526 baseline drift), no NORMS.md, format marker csm-plan/1 present, all 5 tasks pending, formatMarkerOf bare-marker fix (5faf3c8) in place pending T001 review; VALIDATE: check-suite 526 OK, sync --check OK, matrix --check OK. NOTE: plan counts cited 525/516 predate the baseline drift — enabled = 535 (526+9), disabled = 526; plan text updated at first checkpoint.
+- Next transition: VALIDATE -> SELECT
 - Active tasks: none
 - Blockers: none
 
@@ -298,6 +298,7 @@ Ordered cheapest-first:
 | 2026-08-20 | 0 | SAVED (BLOCKED at commit) | — | Commit of the amendment BLOCKED by the pre-commit gate: concurrent csm-grill session (commit 8882c5d) added .agents/approaches/2026-08-20-csm-deep-research-skill-approach.md following the (F-050) bare-marker template, but formatMarkerOf required YAML frontmatter — latent template/corpus mismatch exposed. Recorded in Discovered Requirements + Risks; user decision requested | SAVED |
 | 2026-08-20 | 0 | SAVED (unblocked) | — | User chose "Fix the gate now": formatMarkerOf (check-suite.mjs:53-66) extended to accept a bare top-of-file format marker (the F-050 template contract form), additive with the YAML path unchanged; gate green at 522 checks (previously 520 with 1 MISSING on the new approach file). Amendment + fix committed together; the bare-marker corpus form is now template-consistent. T001's independent gate review covers this edit during the build | SAVED |
 | 2026-08-20 | 0 | SAVED (amended: ON-by-default) | — | User follow-up "token efficiency is on by default": made explicit everywhere — Goal d6, Constraints, AC7, A9 (evidence: follow-up request), Design Toggle paragraph, T004 (new action: commit `.agents/token-efficiency.json` = `{"enabled": true}` as the visible ON default; acceptance asserts it + gate count 525), T005 battery count note. Contract now: absent/true/malformed = enabled (fail-closed); only explicit `{"enabled": false}` disables; this repo's default is a committed `true` file | SAVED |
+| 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | csm-build dispatched by explicit user request. RECOVER: git tree clean; concurrent session completed and committed d18e01a (csm-deep-research-skill plan) — corpus gained 1 plan, gate baseline drifted 522→526; no NORMS.md (skip); format: csm-plan/1 verified; all 5 tasks [pending]; formatMarkerOf bare-marker fix (5faf3c8) present — T001's independent review covers it. VALIDATE: check-suite 526/526 OK; sync-skill-boilerplate --check OK; gen-readme-matrix --check OK. Count corrections: plan cites 525/516 from the 516-era baseline; with baseline 526 the enabled count = 535 (526+8 volatile+1 budget), disabled = 526 — to be reflected at first checkpoint | SELECT |
 
 ## Completion Review
 
