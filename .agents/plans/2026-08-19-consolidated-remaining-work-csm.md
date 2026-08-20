@@ -146,7 +146,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: pure verification; any failure routes to the owning task above, not to this task.
 
-5. [blocked] DEFERRED — CI and scheduled dependency audits
+5. [blocked] DEFERRED — CI and scheduled dependency audits [DEF:CI]
    - Task ID: T005
    - Depends on: none
    - Parallel group: G4 (never dispatched)
@@ -161,7 +161,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-6. [blocked] DEFERRED — Chromium sandbox redesign
+6. [blocked] DEFERRED — Chromium sandbox redesign [DEF:SANDBOX]
    - Task ID: T006
    - Depends on: none
    - Parallel group: G4 (never dispatched)
@@ -176,7 +176,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-7. [blocked] DEFERRED — old comprehensive README plan
+7. [blocked] DEFERRED — old comprehensive README plan [DEF:README]
    - Task ID: T007
    - Depends on: none
    - Parallel group: G4 (never dispatched)
@@ -191,7 +191,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-8. [blocked] DEFERRED — live-LLM behavioral evaluation harness (F-017 tier-b)
+8. [blocked] DEFERRED — live-LLM behavioral evaluation harness (F-017 tier-b) [DEF:EVAL]
    - Task ID: T008
    - Depends on: none
    - Parallel group: G4 (never dispatched)
@@ -206,7 +206,7 @@ T001 closes the stale plan per D9 and brings the artifacts index up to its own i
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-9. [blocked] DEFERRED — bootstrap publication, hosting, key rotation, post-publication replay
+9. [blocked] DEFERRED — bootstrap publication, hosting, key rotation, post-publication replay [DEF:RELEASE]
    - Task ID: T009
    - Depends on: none
    - Parallel group: G4 (never dispatched)

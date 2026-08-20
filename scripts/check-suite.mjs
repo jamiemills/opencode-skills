@@ -12,10 +12,12 @@ import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMA
 import { isEnabled } from './lib/token-efficiency.mjs';
 import { checkDrift } from './sync-skill-boilerplate.mjs';
 import { checkDrift as checkMatrixDrift } from './gen-readme-matrix.mjs';
+import { lintPlanSignals } from './check-plan-signals.mjs';
 import {
   FENCE_OPEN_RE,
   splitLines,
   fenceMap,
+  parsePlanControl,
   validatePlanControl,
   validatePlanJournal,
   validateOrdinalSequencing,
@@ -470,6 +472,68 @@ function checkPayloadDrift(rootDir) {
   return issues;
 }
 
+// DEFERRED-citation rule (journal-learnings T004): task lines marked
+// `[blocked] DEFERRED` must carry a `[DEF:<slug>]` citation matching an ID in
+// the deferred ledger (.agents/docs/deferred.md). Non-COMPLETE plans hard-fail
+// on a missing citation; COMPLETE plans are grandfathered and warn only, so the
+// rule never forces an edit to a completed/closed plan. Returns the set of
+// ledger IDs (headings `## DEF-<ID>` / `### DEF-<ID>`) or null when the ledger
+// is missing (the rule is then unusable and the gate reports it).
+function readDeferredLedgerIds(ledgerPath) {
+  const content = readOrNull(ledgerPath);
+  if (content === null) return null;
+  const ids = new Set();
+  for (const line of splitLines(content)) {
+    const m = line.match(/^#{2,4}\s+(DEF-[A-Z0-9-]+)\s*$/);
+    if (m) ids.add(m[1]);
+  }
+  return ids;
+}
+
+// Scans a plan for `[blocked] DEFERRED` task lines and returns
+// { isComplete, hasDeferred, issues, warnings }. A DEFERRED task is "cited"
+// when its task block (task line through its attribute lines) contains a
+// `[DEF:<slug>]` token whose `DEF-<slug>` form matches a ledger ID.
+function checkDeferredCitations(planFile, content, ledgerIds) {
+  const issues = [];
+  const warnings = [];
+  const control = parsePlanControl(content);
+  const isComplete = control !== null && control.status === 'complete';
+  const lines = splitLines(content);
+  const inFence = fenceMap(lines);
+  let hasDeferred = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (inFence[i]) continue;
+    const tm = lines[i].match(/^\s*(\d+)\.\s+\[blocked\]\s+DEFERRED\b/);
+    if (!tm) continue;
+    hasDeferred = true;
+    const block = [lines[i]];
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (inFence[j]) continue;
+      if (/^\s*\d+\.\s+\[/.test(lines[j])) break;
+      if (/^#{1,3}\s/.test(lines[j])) break;
+      block.push(lines[j]);
+    }
+    const text = block.join('\n');
+    let cited = null;
+    if (ledgerIds !== null) {
+      for (const cm of text.matchAll(/\[DEF:([A-Z0-9-]+)\]/g)) {
+        if (ledgerIds.has(`DEF-${cm[1]}`)) {
+          cited = cm[1];
+          break;
+        }
+      }
+    }
+    const label = `plan corpus .agents/plans/${planFile}`;
+    if (isComplete) {
+      warnings.push(`${label}: DEFERRED task ${tm[1]} (COMPLETE plan — grandfathered)${cited ? ` cites [DEF:${cited}]` : ' lacks a [DEF:<slug>] ledger citation'}`);
+    } else if (cited === null) {
+      issues.push(`${label}: DEFERRED task ${tm[1]} has no ledger citation [DEF:<slug>] (non-COMPLETE plans must cite a deferred.md record)`);
+    }
+  }
+  return { isComplete, hasDeferred, issues, warnings };
+}
+
 function main() {
   const skillDirs = discoverSkillDirs();
   const plansDir = path.join(root, '.agents', 'plans');
@@ -690,6 +754,11 @@ function main() {
     validateTemplateFormatMarkers(researchSkill ?? '', 'csm-deep-research', 'Required Research Document'),
     'csm-deep-research/SKILL.md template format marker', plansDir);
 
+  const deferredLedgerPath = path.join(root, '.agents', 'docs', 'deferred.md');
+  const deferredLedgerIds = readDeferredLedgerIds(deferredLedgerPath);
+  check(deferredLedgerIds !== null,
+    `deferred ledger ${path.join('.agents', 'docs', 'deferred.md')} not found (DEFERRED-citation rule requires it)`);
+
   let planFiles = [];
   try {
     planFiles = fs.readdirSync(plansDir).filter((f) => f.endsWith('-csm.md')).toSorted();
@@ -723,6 +792,32 @@ function main() {
       check(true, `plan corpus .agents/plans/${f} journal OK`);
     } else {
       for (const msg of journalFailures) check(false, `plan corpus .agents/plans/${f}: ${msg}`);
+    }
+
+    const deferred = checkDeferredCitations(f, content, deferredLedgerIds);
+    if (deferred.hasDeferred) {
+      if (deferred.isComplete) {
+        for (const msg of deferred.warnings) console.log(`  note: ${msg}`);
+      } else if (deferred.issues.length === 0) {
+        check(true, `plan corpus .agents/plans/${f} DEFERRED citations OK`);
+      } else {
+        for (const msg of deferred.issues) check(false, msg);
+      }
+    }
+
+    // Plan acceptance-signal lint (journal-learnings T005 / J5): non-COMPLETE
+    // plans' bash acceptance signals must be bash -n clean with no `<...>`
+    // placeholders, no `; test $? -eq` under set -e, and no `grep -q "$m"`
+    // over dash-leading tokens. COMPLETE plans encode history and are exempt.
+    const signals = lintPlanSignals(f, content);
+    if (signals.status === 'ready' || signals.status === 'in_progress') {
+      if (signals.issues.length === 0) {
+        check(true, `plan corpus .agents/plans/${f} acceptance signals OK`);
+      } else {
+        for (const iss of signals.issues) {
+          check(false, `plan corpus .agents/plans/${f} line ${iss.line}: ${iss.message}`);
+        }
+      }
     }
   }
 

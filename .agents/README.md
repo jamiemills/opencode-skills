@@ -34,6 +34,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `cache-token-efficiency-2026-08-20.md` — 2026-08-20 — cache maximization and token efficiency reference (DeepSeek caching, measured ratios, docs-only config block, monitor, toggle) — status: reference
 - `gate-baselines.json` — 2026-08-20 — machine-recorded gate pass counts for check-suite (source for journal numbers) — status: reference
 - `journal-lessons.md` — 2026-08-20 — 43 mined journal themes grouped by class with embracing mechanisms — status: reference
+- `deferred.md` — 2026-08-20 — deferred-work ledger (5 carried records: CI/audit, sandbox, README plan, eval harness, publication) cited by `[DEF:<slug>]` in non-COMPLETE plans — status: reference
 
 ## reviews/
 
