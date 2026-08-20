@@ -165,6 +165,9 @@ const FORMAT_VERSIONS = {
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
 // skill is terminal at its final state; handoff happens only via artifacts
 // plus an explicit user invocation. Off-diagonal cells are true; diagonal false.
+// Asymmetric by design (D22): the 8 original rows carry 8 columns; only the
+// csm-deep-research row adds the self column (expected sets derive from
+// filtered row keys, so sibling bullets stay 8-name).
 const NEVER_INVOKE = {
   'csm-bdd-tdd':  { 'csm-bdd-tdd': false, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },
   'csm-browse':   { 'csm-bdd-tdd': true, 'csm-browse': false, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true },

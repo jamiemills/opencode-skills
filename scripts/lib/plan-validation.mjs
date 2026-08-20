@@ -83,6 +83,7 @@ export const ARTIFACT_PATTERNS = {
   'csm-scan': [/NORMS\.md/],
   'csm-upload': [/GitHub Pages/],
   'csm-browse': [],
+  'csm-deep-research': [/\.agents\/research\/<yyyy-mm-dd>-<slug>-research\.md/],
 };
 
 // Documented in-flight work that the repo-wide gate tolerates as "expected"

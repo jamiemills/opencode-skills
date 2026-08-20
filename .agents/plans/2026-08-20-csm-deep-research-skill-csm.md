@@ -8,13 +8,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: csm-deep-research-skill
-- Status: ready
-- Current CSM state: CHECKPOINT
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-20 — plan created from approach .agents/approaches/2026-08-20-csm-deep-research-skill-approach.md (agreed, format csm-grill/1)
-- Last model/run: deepseek-v4-flash — build cycle 3
-- Next transition: CHECKPOINT -> SELECT
+- Last model/run: deepseek-v4-flash — build cycle 4 (final)
+- Next transition: none (terminal)
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -376,7 +376,7 @@ The build changes (this plan's real scope) are the suite integration, serialized
    - Repair attempts: 0
    - Recovery note: partial = seed exists but corpus check fails. Re-verify H2 sequence + frontmatter against the SKILL.md template fence; re-run check-suite. If the SKILL.md template changed under T005 remediation, align the seed to it. If the battery fails on the bootstrap suites, verify T003 completed first (payload refresh) and re-run with --test-concurrency=1.
 
-5. [pending] Hostile review, remediation, and final gate
+5. [completed] Hostile review, remediation, and final gate
    - Task ID: T005
    - Depends on: T003, T004
    - Parallel group: G4
@@ -457,6 +457,28 @@ The build changes (this plan's real scope) are the suite integration, serialized
 | R27: "already committed" for the plan file inaccurate at draft time | nit | T005 wording: renamed + committed at plan SAVED | git status |
 | R28: state bodies vs ordinal sequencing | nit | Action 14 pins prose/semicolon bodies, no numbered lists in state headings | validateOrdinalSequencing read |
 | R29: seed H1 literal placeholder + bare-ASCII diagram risk | nit | T004 pins concrete H1 title + diagrams inside fences | h2Titles semantics |
+| R-A1: ARTIFACT_PATTERNS gap (pass A) | minor | Entry added (scripts/lib/plan-validation.mjs) | check-suite green incl. artifact-pattern check |
+| R-A2: F-050 not extended (pass A) | minor | Hard template-format-marker check wired for csm-deep-research | check-suite green |
+| R-A3: corpus block without journal validation (pass A) | minor | Embedded Control-journal row check added to the research corpus block | check-suite green; seed has journal |
+| R-A4: verifyReviewClaims hardcoded (pass A) | low | NOT IMPLEMENTED — accepted (numeric claim verified true; recorded non-blocking) | review doc |
+| R-A5: NEVER_INVOKE comment overstates (pass A) | nit | Comment updated (asymmetry by D22) | contracts.mjs |
+| R-A6: STOP exempt + budget manual check (pass A) | info | ACCEPTED | 220/220 budget, no volatile tokens |
+| R-B1..R-B4 (evidence taxonomy naming, QUICK judge, kill-the-draft edge, Hands-off wording) (pass B) | low/nit | R-B2/R-B3 fixed in REPAIR; R-B1/R-B4 accepted as superseded/pinned | hardened SKILL.md |
+| R-C1 (MAJOR): judge loop uncapped (pass C) | major | Judge-failed dimensions folded into the adversarial cap; residual rubric failure caveated and run proceeds | SKILL.md termination rules |
+| R-C2 (MAJOR): resume destroys temp-dir evidence (pass C) | major | Temp-dir path journaled at INTAKE, reused on resume; cleanup scoped to recorded path, never wildcard | SKILL.md Write Discipline + INTAKE |
+| R-C3..R-C8 (STANDARD display, SAVED allowlist claim, default-off in Activation Boundary, VERIFY->CHALLENGE cap counting, anti-pattern carve-out, STOP undefined) (pass C) | minor | All fixed in REPAIR | hardened SKILL.md |
+| R-C9 (plan pin wording) (pass C) | info | Plan journal notes skill's corrected wording | this journal |
+| R-D1 (HIGH): secrets can be committed (pass D) | high | Content rule: no credentials/keys/tokens/personal data; redact before quoting; re-check at VERIFY + before commit | SKILL.md Write Discipline |
+| R-D2 (HIGH): resume re-dispatch re-spends quota (pass D) | high | Journal records state entry AND completion; resume re-runs only un-completed states, re-reading surviving artifacts | SKILL.md journal contract |
+| R-D3..R-D10 (baseline tree, resume baseline, commit --only, cleanup scope, tmux quoting, critic read-only, no-execution restate, repo-instruction precedence) (pass D) | med | R-D3..R-D6, R-D8..R-D10 fixed; R-D7 mitigated via Core Rules escape rule (synced boilerplate is suite-wide) | hardened SKILL.md |
+| R-D11 (VERIFY budget vs protected-state hard stop) (pass D) | med | Protected-state + critical-incident checks excluded from the budget; always hard-stop | SKILL.md VERIFY |
+| R-D12 (seed R8 + placeholder) (pass D) | low | R8 dropped from seed References; placeholder unified to <slug> | seed file |
+| R-E1..R-E7 (HIGH: opt-in mechanism, QUICK shape, QUICK dispatch carve-outs, distinct-def, verdict vocab, judge threshold, mutation contradiction) (pass E) | high | All fixed in REPAIR (per-state QUICK head-notes; one vocabulary; <0.7 threshold; carve-out) | hardened SKILL.md |
+| R-E8..R-E17 (resume locator, tmux detection, slug algorithm, track semantics, challenger view, suggest_new_claim edge, citation shape, display, marker form, researcher template) (pass E) | med | All fixed in REPAIR (R-E9/R-E10 outcomes covered; literal detection cmds are synced boilerplate — R-R3) | hardened SKILL.md |
+| R-E18..R-E22 (intake wording, re-run ambiguity, parked questions, journal cross-ref, subsequence prose) (pass E) | low | All fixed in REPAIR | hardened SKILL.md |
+| R-R1: no-execution absent from RESEARCH dispatch (re-review) | low | Fixed | SKILL.md RESEARCH |
+| R-R2: budget taxonomy includes protected-state (re-review) | low | Fixed (three countable classes; protected-state named hard-stop) | SKILL.md VERIFY |
+| R-R3: literal tmux detection commands not named (re-review) | nit | ACCEPTED — synced boilerplate, suite-wide | review doc |
 
 ## Progress Journal
 | Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
@@ -466,7 +488,15 @@ The build changes (this plan's real scope) are the suite integration, serialized
 | 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | RECOVER: HEAD now 3db07e4 (concurrent sessions), baseline green 535 checks, payload byte-identical, eff enabled. VALIDATE: budget gate discovered (descWordTotal <=220, currently exactly 220; 9th description ~59 tokens -> would fail) — plan corrected: D23/DR-15 (T002 re-budgets sibling descriptions), pins re-pointed (:460-474 never-invokes, :654-677 approaches corpus, :680-721 README) | SELECT |
 | 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001 | T001: subagent authored csm-deep-research/SKILL.md (341 lines); gate PASS re-run by primary; synced sections byte-exact vs boilerplate renders (findSection replication); independent REVIEW GO with 3 cosmetic findings (R1 anti-pattern vs primary-verifier contradiction, R2 cap edge name, R3 synthesis citation phrasing) — all fixed in REPAIR, gate re-PASS. Committed 375ea4f with --no-verify (DR-14) | SELECT (cycle 2) |
 | 2026-08-20 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T002, T003 | T002: registry (contracts MANIFEST/INTERFACES/NEVER_INVOKE 9 rows/FORMAT_VERSIONS, boilerplate params, research corpus block, README, .agents/README, D23 description re-budget 218->220). T003: pack-bootstrap skillDirs + payload refresh + 3 test files 8->9. Primary INTEGRATE re-ran all gates: matrix --check OK, sync --check OK (zero drift), contracts import OK, budget 218, payload sha match, 5/5+5/5 suites green. Plan Next-transition line bug (non-TOKEN pair) fixed. REVIEW: GO/GO with 3 low findings — R1 corpus-empty expected until T004; R2 token-efficiency toggle flipped true->false by USER DIRECTIVE (volatile/budget checks skipped with notice; budget verified independently 220/220 after R3 repair); R3 csm-browse lost invocation hook -> REPAIR restored hook, re-cut upload/scan/bdd-tdd/grill/plan, budget back to exactly 220, payload re-packed, 10/10 tests green, check-suite failures = corpus-empty only. Commit 39d5d7d --no-verify (DR-14) | SELECT (cycle 3: T004) |
-| 2026-08-20 | 3 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T004 | T004: seed authored (.agents/research/2026-08-20-csm-deep-research-skill-research.md, 186 lines, 8-H2 sequence, diagrams in fences, pinned URLs retrieved 2026-08-20). Primary re-ran battery: check-suite EXIT 0 "OK — 9 skills, 583 checks" (first fully-green), sync --check OK, matrix --check OK, 10/10 tests, make lint exit 0. Tree clean except seed. Commit WITHOUT --no-verify (corpus seeded; DR-14 policy exercised) | SELECT (cycle 4: T005) |
+| 2026-08-20 | 3 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> CHECKPOINT | T004 | T004: seed authored (.agents/research/2026-08-20-csm-deep-research-skill-research.md, 186 lines, 8-H2 sequence, diagrams in fences, pinned URLs retrieved 2026-08-20). Primary re-ran battery: check-suite EXIT 0 "OK — 9 skills, 583 checks" (first fully-green), sync --check OK, matrix --check OK, 10/10 tests, make lint exit 0. Tree clean except seed. Commit 551b815 WITHOUT --no-verify (corpus seeded; DR-14 policy exercised) | SELECT (cycle 4: T005) |
+| 2026-08-20 | 4 | SELECT -> DISPATCH -> INTEGRATE -> REVIEW -> REPAIR -> VERIFY -> CHECKPOINT -> COMPLETE | T005 | T005: five parallel hostile passes — A conformance CONFORMANT (6), B coverage PASS (4), C integrity FAIL (2 major: judge loop uncapped, resume/temp-dir contract), D safety FAIL (2 high: secrets-committed, resume re-dispatch; 6 med), E executability FAIL (7 high: opt-in mechanism, QUICK shape, distinct-def, verdict vocab, judge threshold, mutation contradiction; 11 med) = 53 findings, all recorded in .agents/docs/csm-deep-research-skill-review-2026-08-20.md. REPAIR: fresh subagent hardened SKILL.md per all 13 correction groups (351 lines, pins intact); primary wired ARTIFACT_PATTERNS, F-050 hard check, corpus journal validation, matrix comment; seed standardized (bare marker, R8 dropped). Re-review GO (3 low/nit: R-R1/R-R2 fixed, R-R3 synced-boilerplate accepted). Final battery: check-suite EXIT 0 (585 checks), sync/matrix clean, 10/10 tests, lint clean, payload byte-identical, tree = intended set. Completion Review filled | COMPLETE |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+Completed 2026-08-20 by csm-build (cycle 4):
+- All 5 tasks completed: T001 SKILL.md (351 lines, gate PASS), T002 registry + re-budget (budget 220/220), T003 payload + tests (9 skills, byte-identical mirror), T004 seed + battery (first green: 583 checks), T005 hostile 5-pass review (53 findings) + remediation + final gate.
+- Acceptance criteria 1-7 all met with recorded evidence (T001 gate PASS; registry/matrix/sync green; payload diff clean + 3 test suites green at 9; seed corpus checks pass; review doc + Critique Resolution trace; check-suite EXIT 0 "OK — 9 skills, 585 checks"; final git status = intended set only).
+- Final battery: check-suite 585 checks EXIT 0; sync-skill-boilerplate --check OK; gen-readme-matrix --check OK; package-audit + bootstrap-flow + protocol + resume-semantics 10/10; make lint clean; payload byte-identical.
+- Review findings: 53 total — 47 resolved in remediation, 6 accepted/noted with recorded reasons (R-A4, R-A5, R-B1, R-B4, R-D7 mitigation, R-R3); fresh-eyes re-review GO.
+- Token-efficiency toggle: OFF (user directive during the build); budget verified independently at exactly 220; re-enabling the toggle passes.
+- Commits: 375ea4f (cycle 1, --no-verify), 39d5d7d (cycle 2, --no-verify), 551b815 (cycle 3, hook-passed), final (cycle 4). Nothing pushed.
+- Control: Status complete; Current CSM state COMPLETE; all work committed; plan journal complete.

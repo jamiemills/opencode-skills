@@ -595,6 +595,9 @@ function main() {
   runGatedCheck('csm-review', 'template-format-marker',
     validateTemplateFormatMarkers(reviewSkill ?? '', 'csm-review', 'Report Format'),
     'csm-review/SKILL.md template format marker', plansDir);
+  runGatedCheck('csm-deep-research', 'template-format-marker',
+    validateTemplateFormatMarkers(researchSkill ?? '', 'csm-deep-research', 'Required Research Document'),
+    'csm-deep-research/SKILL.md template format marker', plansDir);
 
   let planFiles = [];
   try {
@@ -708,6 +711,8 @@ function main() {
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, researchTemplate);
     check(gap === null, `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`);
+    const journal = content.match(/^\[\S+\]\s+[A-Z_]+(?:\s*->\s*[A-Z_]+)+\s*::\s*cycle\s+\d+\s*::/m);
+    check(journal !== null, `research corpus .agents/research/${f}: missing embedded Control journal entry (want "[<timestamp>] <From> -> <To> :: cycle <n> ::")`);
   }
 
   const readmePath = path.join(root, 'README.md');

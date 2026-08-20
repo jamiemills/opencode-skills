@@ -1,6 +1,4 @@
----
 format: csm-deep-research/1
----
 # csm-deep-research Skill Design Research Finding
 
 ## TL;DR
@@ -142,7 +140,6 @@ Confidence is high (supported by convergent, independent sources [R1][R2][R4][R5
 - [R5] Wei, J. et al. — "Long-form factuality in large language models" (SAFE) — https://arxiv.org/abs/2403.18802 — retrieved 2026-08-20
 - [R6] Chen, Y. et al. — "CLAMBER: A Benchmark for LLM Agents in Evaluating Clarity of User Queries" — https://arxiv.org/abs/2405.12063 — retrieved 2026-08-20
 - [R7] Nielsen Norman Group — "Progressive Disclosure" — https://www.nngroup.com/articles/progressive-disclosure/ — retrieved 2026-08-20
-- [R8] Nielsen Norman Group / Wikipedia lead-section practice (secondary illustration of the same principle as [R7]; discussed, not separately retrieved)
 - [R9] Internal evidence: `.agents/approaches/2026-08-20-csm-deep-research-skill-approach.md` (Research Synthesis: suite conformance manifest; scout/deep-dive findings; decisions log) — repository file — retrieved 2026-08-20
 - [R10] Internal evidence: `.agents/plans/2026-08-20-csm-deep-research-skill-csm.md` (Current-State Evidence: check-suite verifyMachine, NEVER_CLAUSE_RE, corpus blocks, budget checks; Decisions D1-D23) — repository file — retrieved 2026-08-20
 
