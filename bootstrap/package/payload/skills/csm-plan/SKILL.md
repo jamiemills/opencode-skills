@@ -1,6 +1,6 @@
 ---
 name: csm-plan
-description: CSM planning only: research, critique, verify, display a plan; when asked to make or prepare a plan, never implement. Biases towards retrieval from current documentation over pre-trained knowledge.
+description: CSM planning only: research, critique, verify a plan; never implement. Biases towards retrieval from current documentation over pre-trained knowledge.
 ---
 
 # CSM Plan

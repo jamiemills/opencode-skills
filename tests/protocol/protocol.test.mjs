@@ -24,7 +24,7 @@ test('capable agent materializes verified payload copies and emits a schema-vali
     assert.equal(result.report.destination, destination);
     assert.deepEqual(result.report.states.map(state => state.state), stateChain);
     assert.ok(result.report.states.every(state => state.refusal === null));
-    assert.deepEqual(result.report.skillsPlaced, ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload']);
+    assert.deepEqual(result.report.skillsPlaced, ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-deep-research', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload']);
     const index = JSON.parse(await readFile(join(root, 'bootstrap/payload-index.json'), 'utf8'));
     const expected = [...index.classes.skills, ...index.classes.supportingFiles];
     assert.equal(result.report.filesPlaced.length, expected.length);

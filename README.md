@@ -48,6 +48,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-build` | Execute a saved CSM plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-build-<goal-slug>`) and tells you how to attach. | [csm-build/SKILL.md](csm-build/SKILL.md) |
 | `csm-scan` | Read-only multi-repo analysis producing a single `NORMS.md`: 17 evidence dimensions (structure, stack, conventions, architecture, security, data, deployment, and more) with Mermaid C4 diagrams. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-scan-<goal-slug>`) and tells you how to attach. | [csm-scan/SKILL.md](csm-scan/SKILL.md) |
 | `csm-review` | Adversarial repository review — a multi-agent defensive sweep that gathers evidence across a review-dimension spine (correctness, technical debt, security, secrets, dependencies, and more), challenges each finding, and saves a review report. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-review-<goal-slug>`) and tells you how to attach. Never fixes. | [csm-review/SKILL.md](csm-review/SKILL.md) |
+| `csm-deep-research` | Deep research, R&D, and validation queries answered with one dated, exhaustively cited research finding — a standalone triage → parallel researchers → adversarial challenge → judge → verify pipeline that saves to `.agents/research/`. Unless already inside tmux or told otherwise, it first starts its orchestrating agent in a detached tmux session (named `csm-deep-research-<goal-slug>`) and tells you how to attach. Never writes outside the research document. | [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) |
 | `csm-browse` | Drive an isolated Chromium inside the `chromium-vnc` Docker container via CDP: navigate, click, type, log in, screenshot, inspect DOM, capture console/network/performance, record video. | [csm-browse/SKILL.md](csm-browse/SKILL.md) |
 | `csm-upload` | Upload screenshots, videos, and evidence files to a GitHub Pages demo site under a unique dated page name. | [csm-upload/SKILL.md](csm-upload/SKILL.md) |
 
@@ -66,6 +67,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 | `csm-scan` | repository target, scan or conventions-analysis request | committed repository declarations | NORMS.md | optional conventions input to csm-plan, csm-bdd-tdd, csm-build, or csm-review |
 | `csm-browse` | need to drive a headful Chromium browser | browser session, CDP verbs, delivery target | screenshots, videos, DOM, console, network, or performance evidence | evidence files to csm-upload |
 | `csm-upload` | evidence files ready, configured GitHub Pages destination | screenshots, videos, or evidence files, GitHub configuration | dated GitHub Pages demo page | published evidence URL to the user |
+| `csm-deep-research` | research question or topic, explicit deep-research request | research question, retrievable sources (web, docs, repositories) | one dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md | research document to the user |
 <!-- csm-matrix:end -->
 
 ## Requirements
@@ -76,19 +78,19 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 - **Universal bootstrap runtime** — the delivered bootstrap flow needs only `node` and `npx`; Node >= 22 is recommended for the development gates (see [Development & testing](#development--testing)).
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
-- **tmux** — optional. When available and not already running under tmux (and not opted out of), the `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, and `csm-review` skills start their orchestrating agent in a detached tmux session so long-running work survives a dropped terminal; each prints its session name and how to attach; without tmux they proceed in the current session.
+- **tmux** — optional. When available and not already running under tmux (and not opted out of), the `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, `csm-review`, and `csm-deep-research` skills start their orchestrating agent in a detached tmux session so long-running work survives a dropped terminal; each prints its session name and how to attach; without tmux they proceed in the current session.
 - **ffmpeg** — optional, but required by `csm-browse` for full-page screenshots (image stitching) and video screencasts; capture degrades to viewport-only shots and no recording when it is missing.
 - **curl** — optional, but used by `csm-browse`'s `ensure-browser.mjs` to probe the CDP endpoint readiness.
 
 ## Installation
 
-Clone this repository into your OpenCode skills directory (or copy the eight skill folders into an existing one):
+Clone this repository into your OpenCode skills directory (or copy the nine skill folders into an existing one):
 
 ```bash
 git clone git@github.com:jamiemills/opencode-skills.git $HOME/.config/opencode/skills
 ```
 
-Restart OpenCode so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-grill`, `csm-scan`, `csm-review`, and `csm-upload` need no further setup.
+Restart OpenCode so it picks up the skills. `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-grill`, `csm-scan`, `csm-review`, `csm-upload`, and `csm-deep-research` need no further setup.
 
 `csm-browse` has runtime dependencies — install and verify:
 
@@ -142,7 +144,7 @@ See [Usage](#usage) for the full sequence.
 
 ## Usage
 
-The five orchestration skills (`csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-build`, `csm-review`) are invoked by name in an OpenCode session — e.g. *"use csm-plan to make a plan for adding OAuth login"*. The three tooling skills (`csm-scan`, `csm-browse`, `csm-upload`) also expose a CLI under their `scripts/` directories. **Commands, flags, examples, and full reference for each skill live in its `SKILL.md`** (see the [Skills](#skills) table); for `csm-scan`, the CLI flags are documented in [csm-scan/SKILL.md](csm-scan/SKILL.md) (`## CLI`).
+The six orchestration skills (`csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-build`, `csm-review`, and `csm-deep-research`) are invoked by name in an OpenCode session — e.g. *"use csm-plan to make a plan for adding OAuth login"*. The three tooling skills (`csm-scan`, `csm-browse`, `csm-upload`) also expose a CLI under their `scripts/` directories. **Commands, flags, examples, and full reference for each skill live in its `SKILL.md`** (see the [Skills](#skills) table); for `csm-scan`, the CLI flags are documented in [csm-scan/SKILL.md](csm-scan/SKILL.md) (`## CLI`).
 
 `csm-scan` is **orchestration-shaped tooling**: it runs the same tmux session bootstrap as the orchestration skills (a scan starts in a detached `csm-scan-<goal-slug>` session unless you're already inside one or declined) but is at heart a CLI tool — so it still counts among the three tooling skills below.
 
@@ -172,6 +174,7 @@ Planning never silently becomes implementation, and execution always starts from
 │   ├── scripts/       # scan.mjs CLI
 │   └── test/          # node:test suite + fixtures
 ├── csm-review/        # SKILL.md — the adversarial repository reviewer
+├── csm-deep-research/ # SKILL.md — the deep-research state machine
 ├── csm-browse/        # CDP browser automation
 │   ├── lib/           # CDP client, docker, session, recorder, verb implementations
 │   ├── scripts/       # browse.mjs, ensure-browser.mjs, session-daemon.mjs, check-skill.mjs
@@ -237,7 +240,7 @@ Planning never silently becomes implementation, and execution always starts from
   node tests/e2e.mjs             # full e2e; requires the chromium-vnc container
   ```
 
-- The orchestration skills (`csm-grill`, `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-review`) are single-file skills with no test suite; validate by invoking them.
+- The orchestration skills (`csm-grill`, `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-review`, `csm-deep-research`) are single-file skills with no test suite; validate by invoking them.
 - **Commit style** — short imperative messages, frequently skill-prefixed (e.g. `csm-browse: ...`, `add csm-scan skill: ...`).
 - **Cache & token hygiene** — this repo's sessions run on DeepSeek's automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]`. The layer is ON by default and switchable per repo/directory via `.agents/token-efficiency.json`.
 

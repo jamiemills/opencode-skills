@@ -47,6 +47,12 @@ const MANIFEST = {
     norms: false,
     machine: null,
   },
+  'csm-deep-research': {
+    sections: ['Interface', 'Tmux Session Bootstrap', 'Activation Boundary', 'Core Rules', 'Write Discipline And File Allowlist', 'Triage', 'Research State Machine', 'Required Research Document', 'Anti-Patterns', 'Done Criteria', 'Subagent Resilience'],
+    tmux: true,
+    norms: false,
+    machine: { section: 'Research State Machine', entryExit: false },
+  },
 };
 
 const CONTRACTS = [
@@ -129,6 +135,13 @@ const INTERFACES = {
     handoff: ['published evidence URL to the user'],
     midPipeline: ['clone or pull', 'copy files', 'generate index', 'commit and push'],
   },
+  'csm-deep-research': {
+    entryConditions: ['research question or topic', 'explicit deep-research request'],
+    consumes: ['research question', 'retrievable sources (web, docs, repositories)'],
+    produces: ['one dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md'],
+    handoff: ['research document to the user'],
+    midPipeline: ['subagent dispatches', 'findings ledger', 'synthesis'],
+  },
 };
 
 // NORMS.md detection phrases (any-of semantics; data-only move — behavior
@@ -146,6 +159,7 @@ const FORMAT_VERSIONS = {
   'csm-review': 1,
   'csm-grill': 1,
   'csm-norms': 1,
+  'csm-deep-research': 1,
 };
 
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
@@ -160,6 +174,7 @@ const NEVER_INVOKE = {
   'csm-review':   { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': false, 'csm-scan': true, 'csm-upload': true },
   'csm-scan':     { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': false, 'csm-upload': true },
   'csm-upload':   { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': false },
+  'csm-deep-research': { 'csm-bdd-tdd': true, 'csm-browse': true, 'csm-build': true, 'csm-grill': true, 'csm-plan': true, 'csm-review': true, 'csm-scan': true, 'csm-upload': true, 'csm-deep-research': false },
 };
 
 export { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES };

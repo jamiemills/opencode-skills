@@ -1,6 +1,6 @@
 ---
 name: csm-build
-description: Implement saved CSM plans via parallel subagents; use ONLY on explicit start/execute/continue/resume, never while planning. Biases towards retrieval from the saved plan and current repository evidence over memory.
+description: Implement CSM plans; use ONLY on explicit start/execute/continue/resume, never while planning. Biases towards retrieval from the saved plan and current repository evidence over memory.
 ---
 
 # CSM Build

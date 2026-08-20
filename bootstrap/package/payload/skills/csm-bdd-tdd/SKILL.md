@@ -1,6 +1,6 @@
 ---
 name: csm-bdd-tdd
-description: Mutate a CSM plan into a BDD+TDD package — formal spec, executable Gherkin scenarios, unit test designs, mutated plan with specs path. Use ONLY on explicit BDD/TDD requests; never implements.
+description: Mutate a CSM plan into a BDD+TDD package — spec and test designs. Use ONLY on explicit BDD/TDD requests; never implements.
 ---
 
 # CSM BDD+TDD

@@ -15,7 +15,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const bootstrapDir = join(root, 'bootstrap');
 const packageDir = join(bootstrapDir, 'package');
 const fixedTime = new Date('2026-08-18T00:00:00.000Z');
-const skillDirs = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
+const skillDirs = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-deep-research', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
 
 const mapping = {
   skills: skillDirs.map(name => ({ src: join(name, 'SKILL.md'), dest: join('payload', 'skills', name, 'SKILL.md') })),

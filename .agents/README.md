@@ -37,6 +37,10 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 - `2026-08-15-skills-review.md` — 2026-08-15 — full adversarial review of all 8 skills (findings F-001..F-077) — status: remediated by `plans/2026-08-16-skills-remediation-csm.md`
 
+## research/
+
+- `2026-08-20-csm-deep-research-skill-research.md` — 2026-08-20 — seed research document for the csm-deep-research corpus — status: reference
+
 ## Retention
 
 Completed plans are retained as process evidence; prune after 6 months or when

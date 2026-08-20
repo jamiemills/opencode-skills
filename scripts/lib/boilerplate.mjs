@@ -37,6 +37,10 @@ const TMUX_PARAMS = {
     prelude: 'Run first — before `INTAKE`, any review tool use, or any other section. Not a review state.',
     step2: 'review', work: 'review', request: 'review', activity: 'review', workflow: 'review',
   },
+  'csm-deep-research': {
+    prelude: 'Run first — before any research work or other sections. Not a research state.',
+    step2: 'research', work: 'research', request: 'research', activity: 'research', workflow: 'research',
+  },
 };
 
 function subagentResilience(p) {
@@ -72,6 +76,11 @@ const RESILIENCE_PARAMS = {
     intro: 'Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN) fails — journal every incident in `specs/control.md`, never silently:',
     step4: 'Primary completion of the spec/validation work, with a recorded independence caveat when the primary agent fills in for an independent agent.',
     guard: null,
+  },
+  'csm-deep-research': {
+    intro: 'Fallback ladder for `RESEARCHER`, `CHALLENGER`, and `JUDGE` dispatches — journal every incident, never silently:',
+    step4: 'Primary completion of research and synthesis with a recorded independence caveat.',
+    guard: 'RESEARCHER and CHALLENGER dispatches must never silently degrade to primary-only research for a STANDARD/DEEP query — when the ladder lands on step 4, record the independence caveat and surface it in the report\'s residual unknowns.',
   },
 };
 

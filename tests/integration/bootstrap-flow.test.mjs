@@ -13,7 +13,7 @@ import { checkArgv, checkSpec, grammar, makeSandbox, npmVersion, verifyCacheMani
 
 const execFileAsync = promisify(execFile);
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const skillNames = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
+const skillNames = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-deep-research', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
 const capable = { hasNpx: true, hasFileWrite: true, knowsDestination: true, supportsStaging: true, supportsLock: true, supportsRollback: true, knowsReload: true };
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const placedPrefix = 'payload/skills/';
@@ -39,7 +39,7 @@ test('pack, payload audit, capable install, offline boundary, malicious refusal,
     assert.equal(index.package.version, grammar.package.version);
     assert.equal(index.package.bin, grammar.package.bin);
     const skillEntries = index.classes.skills.filter(entry => entry.path.endsWith('/SKILL.md'));
-    assert.equal(skillEntries.length, 8);
+    assert.equal(skillEntries.length, 9);
     for (const skill of skillNames) assert.ok(skillEntries.some(entry => entry.path === `payload/skills/${skill}/SKILL.md`), skill);
     const indexed = [...index.classes.skills, ...index.classes.supportingFiles, ...index.classes.metadata, index.fixedBin];
     for (const entry of indexed) {

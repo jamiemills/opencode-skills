@@ -1,6 +1,6 @@
 ---
 name: csm-review
-description: Audit a repository; deliver a single dated findings report. Use when asked to review. Never fixes code, never invokes other skills. Biases towards retrieval from current documentation over pre-trained knowledge.
+description: Audit a repository; deliver a dated findings report. Never fixes code, never invokes other skills. Biases towards retrieval from current documentation over pre-trained knowledge.
 ---
 
 # CSM Review

@@ -13,8 +13,8 @@ format: csm-plan/1
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-20 — plan created from approach .agents/approaches/2026-08-20-csm-deep-research-skill-approach.md (agreed, format csm-grill/1)
-- Last model/run: deepseek-v4-flash — build cycle 1
-- Next transition: CHECKPOINT -> SELECT (cycle 2: T002 + T003)
+- Last model/run: deepseek-v4-flash — build cycle 2
+- Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -244,7 +244,7 @@ The build changes (this plan's real scope) are the suite integration, serialized
    - Repair attempts: 1 (3 review findings R1-R3 fixed: anti-pattern wording, adversarial-cap edge name, synthesis URL+date phrasing)
    - Recovery note: partial = file exists but gate fails. The gate is self-contained and the pinned strings are in Actions 1-13: re-check each failing probe against its pin (common failures: H1 count via the template's `# <Topic> Research Finding` line — the gate counts `^# csm-deep-research$` specifically; fence evenness from a stray backtick; a `### ` line inside a fence). If file absent, re-create from Actions. Never edit another task's files to make this gate pass.
 
-2. [pending] Register the skill in the suite gates
+2. [completed] Register the skill in the suite gates
    - Task ID: T002
    - Depends on: T001 (the gates cross into the SKILL.md — dead-registry, README path, layout tree, boilerplate drift, and corpus template-extraction checks all fail while it is absent, so this cannot run in parallel with T001)
    - Parallel group: G2
@@ -317,7 +317,7 @@ The build changes (this plan's real scope) are the suite integration, serialized
    - Repair attempts: 0
    - Recovery note: partial = some registry entries missing or check-suite reports unexpected MISSING lines. Re-verify each owned file against actions 1-8; if sibling Interface mismatches appear, check that NEVER_INVOKE sibling rows were NOT modified (D22) — if they were, restore them. If sync --write touched csm-deep-research/SKILL.md, restore it (D17). If check-suite exited 0 (corpus pre-seeded unexpectedly), verify no stray `*-research.md` file exists outside T004's scope and record a note. If a `lint gate: oxlint reported` MISSING line appears, fix the lint finding in the owned files (oxlint is installed; the gate runs). If a `frontmatter budget` MISSING line appears, re-trim sibling descriptions (D23) — total must be <=220 tokens with the new description included. Never edit T001's file or sibling skills' content beyond the D23 description trims. Re-run gate.
 
-3. [pending] Wire the installer payload and update hardcoded test counts
+3. [completed] Wire the installer payload and update hardcoded test counts
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
@@ -464,7 +464,8 @@ The build changes (this plan's real scope) are the suite integration, serialized
 | 2026-08-20 | 0 | INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> CRITIQUE -> REMEDIATE | — | Approach consumed (format csm-grill/1 OK); baseline green at HEAD 7350a78; round-1 critique 18 findings remediated; round-2 fresh-eyes critique 11 findings (2 major: zsh-safe gates, commit policy DR-14) remediated; draft re-pinned | VERIFY |
 | 2026-08-20 | 0 | VERIFY -> SAVED | — | Plan saved, committed d18e01a | NOT_STARTED |
 | 2026-08-20 | 1 | NOT_STARTED -> RECOVER -> VALIDATE | — | RECOVER: HEAD now 3db07e4 (concurrent sessions), baseline green 535 checks, payload byte-identical, eff enabled. VALIDATE: budget gate discovered (descWordTotal <=220, currently exactly 220; 9th description ~59 tokens -> would fail) — plan corrected: D23/DR-15 (T002 re-budgets sibling descriptions), pins re-pointed (:460-474 never-invokes, :654-677 approaches corpus, :680-721 README) | SELECT |
-| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001 | T001: subagent authored csm-deep-research/SKILL.md (341 lines); gate PASS re-run by primary; synced sections byte-exact vs boilerplate renders (findSection replication); independent REVIEW GO with 3 cosmetic findings (R1 anti-pattern vs primary-verifier contradiction, R2 cap edge name, R3 synthesis citation phrasing) — all fixed in REPAIR, gate re-PASS. Commit d18e01a+... with --no-verify (DR-14: corpus empty until T004, live hook would fail) | SELECT (cycle 2) |
+| 2026-08-20 | 1 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T001 | T001: subagent authored csm-deep-research/SKILL.md (341 lines); gate PASS re-run by primary; synced sections byte-exact vs boilerplate renders (findSection replication); independent REVIEW GO with 3 cosmetic findings (R1 anti-pattern vs primary-verifier contradiction, R2 cap edge name, R3 synthesis citation phrasing) — all fixed in REPAIR, gate re-PASS. Committed 375ea4f with --no-verify (DR-14) | SELECT (cycle 2) |
+| 2026-08-20 | 2 | SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT | T002, T003 | T002: registry (contracts MANIFEST/INTERFACES/NEVER_INVOKE 9 rows/FORMAT_VERSIONS, boilerplate params, research corpus block, README, .agents/README, D23 description re-budget 218->220). T003: pack-bootstrap skillDirs + payload refresh + 3 test files 8->9. Primary INTEGRATE re-ran all gates: matrix --check OK, sync --check OK (zero drift), contracts import OK, budget 218, payload sha match, 5/5+5/5 suites green. Plan Next-transition line bug (non-TOKEN pair) fixed. REVIEW: GO/GO with 3 low findings — R1 corpus-empty expected until T004; R2 token-efficiency toggle flipped true->false by USER DIRECTIVE (volatile/budget checks skipped with notice; budget verified independently 220/220 after R3 repair); R3 csm-browse lost invocation hook -> REPAIR restored hook, re-cut upload/scan/bdd-tdd/grill/plan, budget back to exactly 220, payload re-packed, 10/10 tests green, check-suite failures = corpus-empty only. Commit --no-verify (DR-14) | SELECT (cycle 3: T004) |
 
 ## Completion Review
 <filled by csm-build when all criteria are verified>

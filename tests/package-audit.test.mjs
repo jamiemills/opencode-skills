@@ -8,7 +8,7 @@ import test from 'node:test';
 import { packBootstrap } from '../scripts/pack-bootstrap.mjs';
 
 const execFileAsync = promisify(execFile);
-const skillNames = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
+const skillNames = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-deep-research', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const parseFrontmatter = text => {
   const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
@@ -87,7 +87,7 @@ test('two isolated packs are deterministic and the packed artifact passes the au
     }
 
     const skillEntries = index.classes.skills.filter(entry => entry.path.endsWith('/SKILL.md'));
-    assert.equal(skillEntries.length, 8);
+    assert.equal(skillEntries.length, 9);
     for (const skill of skillNames) {
       const entry = skillEntries.find(candidate => candidate.path === `payload/skills/${skill}/SKILL.md`);
       assert.ok(entry, `missing SKILL.md for ${skill}`);
@@ -105,7 +105,7 @@ test('two isolated packs are deterministic and the packed artifact passes the au
     const verified = JSON.parse(verify.stdout);
     assert.equal(verified.verification.ok, true);
     assert.equal(verified.verification.failures.length, 0);
-    assert.ok(verified.verification.verified >= 118);
+    assert.ok(verified.verification.verified >= 119);
 
     const tamperedDir = await mkdtemp('/tmp/csm-tamper-'); dirs.push(tamperedDir);
     await execFileAsync('tar', ['-xf', first.tarball, '-C', tamperedDir]);

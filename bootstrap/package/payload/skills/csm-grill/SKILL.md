@@ -1,6 +1,6 @@
 ---
 name: csm-grill
-description: Grill an idea into an agreed phased approach when the user wants stress-testing. Never plans or implements. Biases towards retrieval from current documentation over pre-trained knowledge.
+description: Grill an idea into an approach. Never plans or implements. Biases towards retrieval from current documentation over pre-trained knowledge.
 ---
 
 # CSM Grill

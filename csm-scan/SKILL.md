@@ -1,6 +1,6 @@
 ---
 name: csm-scan
-description: Analyze repos for patterns, conventions, tooling, and norms — output NORMS.md; use when onboarding, planning, or auditing. Never runs commands, installs, or writes beyond NORMS.md — read-only.
+description: Analyze repos for patterns, conventions, and norms. Never runs commands, installs, or writes beyond NORMS.md — read-only.
 ---
 
 # CSM Scan

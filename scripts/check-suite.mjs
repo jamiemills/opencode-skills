@@ -554,6 +554,17 @@ function main() {
   }
   check(approachTemplate.length > 0, 'could not extract the Required Approach Document template from csm-grill/SKILL.md');
 
+  const researchSkill = readOrNull(path.join(root, 'csm-deep-research', 'SKILL.md'));
+  let researchTemplate = [];
+  if (researchSkill !== null) {
+    const rl = splitLines(researchSkill);
+    const rf = fenceMap(rl);
+    const range = sectionRange(rl, rf, 'Required Research Document');
+    const body = range ? fencedBlockAfter(rl, rf, range[0]) : null;
+    if (body !== null) researchTemplate = body.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, '').trim());
+  }
+  check(researchTemplate.length > 0, 'could not extract the Required Research Document template from csm-deep-research/SKILL.md');
+
   const reviewSkill = readOrNull(path.join(root, 'csm-review', 'SKILL.md'));
   let reviewTemplateH2 = [];
   let reviewH1Prefix = null;
@@ -673,6 +684,30 @@ function main() {
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, approachTemplate);
     check(gap === null, `approach corpus .agents/approaches/${f}: missing/out-of-order required section "## ${gap}"`);
+  }
+
+  const researchDir = path.join(root, '.agents', 'research');
+  let researchFiles = [];
+  try {
+    researchFiles = fs.readdirSync(researchDir).filter((f) => f.endsWith('-research.md')).toSorted();
+  } catch {
+    researchFiles = [];
+  }
+  check(researchFiles.length > 0, `no *-research.md research corpus found under ${path.join('.agents', 'research')}`);
+  for (const f of researchFiles) {
+    const content = readOrNull(path.join(researchDir, f));
+    if (content === null) {
+      check(false, `research corpus .agents/research/${f} unreadable`);
+      continue;
+    }
+    const marker = formatMarkerOf(content);
+    check(marker !== null && marker.kind === 'csm-deep-research' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-deep-research'] ?? 0),
+      `research corpus .agents/research/${f} missing/unknown format marker (want frontmatter "format: csm-deep-research/<n>")`);
+    const lines = splitLines(content);
+    const inFence = fenceMap(lines);
+    const titles = h2Titles(lines, inFence).map((x) => x.title);
+    const gap = subsequenceGap(titles, researchTemplate);
+    check(gap === null, `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`);
   }
 
   const readmePath = path.join(root, 'README.md');
