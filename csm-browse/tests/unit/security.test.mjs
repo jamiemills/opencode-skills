@@ -16,6 +16,22 @@ const { EventEmitter } = await import('node:events');
 
 after(async () => removeRoot(root));
 
+// F-068: bounded event-driven poll. The collector flush is async, so instead
+// of a fixed sleep, wait until the file actually contains the marker (or the
+// deadline expires) — no fixed timing assumptions.
+async function waitForFile(path, predicate, { ms = 3000, interval = 25 } = {}) {
+  const start = Date.now();
+  for (;;) {
+    try {
+      const content = await readFile(path, 'utf-8');
+      const v = predicate(content);
+      if (v) return v;
+    } catch {}
+    if (Date.now() - start > ms) throw new Error(`waitForFile timed out waiting for ${path}`);
+    await new Promise((r) => setTimeout(r, interval));
+  }
+}
+
 test('runtime root is explicitly private and owned', async () => {
   await prepareRuntimeRoot(root);
   const info = await stat(root);
@@ -218,7 +234,7 @@ test('collector persistence redacts events and uses mode 0600', async () => {
   await collectorsHook(client, 'tab', dir);
   client.emit('Runtime.consoleAPICalled', { type: 'log', args: [{ name: 'password', value: 'secret-value' }, { value: 'ordinary diagnostic' }] });
   client.emit('Network.requestWillBeSent', { requestId: '1', request: { url: 'https://example.test/?token=secret' }, type: 'Document' });
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await waitForFile(join(dir, 'events.jsonl'), (content) => content.includes('ordinary diagnostic'));
   const events = (await readFile(join(dir, 'events.jsonl'), 'utf8')).trim();
   assert.ok(!events.includes('secret-value') && !events.includes('token=secret'));
   assert.ok(events.includes('ordinary diagnostic'));

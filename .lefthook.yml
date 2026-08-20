@@ -14,6 +14,14 @@ pre-commit:
           exit 1
         fi
       fail_text: "tracked working-tree changes must be staged (bypass: git commit --no-verify)"
+    - name: gate-baseline
+      run: |
+        if [ -f scripts/record-gate-baseline.mjs ] && [ -f .agents/docs/gate-baselines.json ]; then
+          node scripts/record-gate-baseline.mjs --check
+        else
+          echo "gate-baseline: script or baseline file missing — skipping"
+        fi
+      fail_text: "gate-baseline check failed (node scripts/record-gate-baseline.mjs --check)"
     - name: check-suite
       run: node scripts/check-suite.mjs
       fail_text: "conformance gate failed (node scripts/check-suite.mjs)"

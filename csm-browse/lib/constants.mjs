@@ -58,12 +58,21 @@ export const CHROMIUM_CUSTOM_ARGS = '--remote-debugging-address=127.0.0.1';
 // anymore: host access goes only through the token-gated funnel (a host-side
 // cdp-gate on 127.0.0.1:9222), and the container is off the default bridge.
 export const SHARED_CDP_PORT = 9222;
+// F-001: the jlesage image starts chromium with
+// `--remote-debugging-port=9223 --remote-debugging-address=127.0.0.1` (when
+// CHROMIUM_REMOTE_DEBUGGING=1) and then runs its OWN `socat TCP-LISTEN:9222,
+// fork TCP:127.0.0.1:9223` on 0.0.0.0 inside the container — which answers
+// unauthenticated CDP on the container's bridge IP even though chromium binds
+// loopback. That relay is neutralized after every container create/start/
+// restart, and the token-gated host funnel targets chromium's real loopback
+// listener here, NOT the dead 9222 relay.
+export const CONTAINER_CDP_INTERNAL_PORT = 9223;
 export const DOCKER_RUN_CMD = [
   'docker run -d --name chromium-vnc --restart unless-stopped',
   `--network ${CONTAINER_NETWORK}`,
   CONTAINER_CAP_DROP.map((c) => `--cap-drop ${c}`).join(' '),
   '--security-opt no-new-privileges --read-only',
-  '--tmpfs /tmp --tmpfs /run --tmpfs /dev/shm',
+  '--tmpfs /tmp --tmpfs /run --tmpfs /dev/shm:size=1073741824',
   `--memory ${CONTAINER_MEMORY} --memory-swap ${CONTAINER_MEMORY} --cpus ${CONTAINER_CPUS} --pids-limit ${CONTAINER_PIDS_LIMIT} --shm-size ${CONTAINER_SHM_SIZE}`,
   '-e CHROMIUM_REMOTE_DEBUGGING=1 -e KEEP_APP_RUNNING=1',
   `--env-file ${CONTAINER_ENV_FILE}`,

@@ -14,8 +14,8 @@
   ],
   "fixedBin": {
     "path": "bin/csm-skills-bootstrap.js",
-    "sha256": "b53329468ead56ec7b1a92771b4475043a354444f26ea1fca24a1557e65a355e",
-    "bytes": 2325,
+    "sha256": "fce528a6e51d8c5f6d1442fb4f447c25ce5ab2244b63c7de967714aab3328f6c",
+    "bytes": 9535,
     "mode": "0755"
   },
   "classes": {
@@ -28,8 +28,8 @@
       },
       {
         "path": "payload/skills/csm-browse/SKILL.md",
-        "sha256": "28a3db3a0ac5d0a497d1311ae16c217572858b96868c51dcec881f0781d5f81f",
-        "bytes": 11510,
+        "sha256": "f81fb1dc0d6225df93f623cc58073b1f0fd449c890f61196839d97ea82437c1e",
+        "bytes": 11775,
         "mode": "0644"
       },
       {
@@ -732,8 +732,8 @@
       },
       {
         "path": "payload/skills/csm-upload/scripts/upload.mjs",
-        "sha256": "317a7fd4be515d16d4e51b39739be7ed3ab6b65b9655ce8b9627c92cd8c27774",
-        "bytes": 12927,
+        "sha256": "826837d47bcf9e5ba9b64838e1f3cb15f3d31580c730acf54d203873a475c12a",
+        "bytes": 14120,
         "mode": "0644"
       }
     ],

@@ -1,6 +1,8 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { execFile as execFileCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,9 +24,10 @@ const { checkRequestLine } = await import('../../scripts/cdp-gate.mjs');
 const {
   DOCKER_RUN_CMD, IMAGE, VNC_PASS_PATH, CONTAINER_ENV_FILE, CONTAINER_NETWORK,
   CONTAINER_CAP_DROP, CHROMIUM_CUSTOM_ARGS, SHARED_CDP_PORT,
+  CONTAINER_CDP_INTERNAL_PORT,
   imageStaleMs, assertImageFresh, IMAGE_PINNED_AT, IMAGE_MAX_AGE_MS
 } = await import('../../lib/constants.mjs');
-const { buildRunArgs, pidMatchesDaemon } = await import('../../scripts/ensure-browser.mjs');
+const { buildRunArgs, buildChromiumCmd, pidMatchesDaemon } = await import('../../scripts/ensure-browser.mjs');
 
 after(async () => { await removeRoot(root); });
 
@@ -112,6 +115,67 @@ test('F-059: the pinned image digest age is tracked and enforced', () => {
   const stale = new Date(IMAGE_PINNED_AT.getTime() + IMAGE_MAX_AGE_MS + 10 * 24 * 60 * 60 * 1000);
   assert.ok(imageStaleMs(stale) > 0, 'a pin past the 90-day window is stale');
   assert.throws(() => assertImageFresh(stale), /stale/);
+});
+
+test('F-001 wiring: session chromium binds loopback on pool ports (buildChromiumCmd)', () => {
+  const cmd = buildChromiumCmd('/config/csm-browse/sessions/abc', 9224);
+  assert.ok(cmd.includes('--remote-debugging-address=127.0.0.1'), 'session chromium must bind loopback');
+  assert.ok(cmd.includes('--remote-debugging-port=9224'));
+  const own = buildChromiumCmd('/config/csm-browse/sessions/abc', 9227);
+  assert.ok(own.includes('--remote-debugging-port=9227'));
+});
+
+test('F-001 wiring: the shared funnel targets the container loopback listener, not the dead 9222 relay', () => {
+  // The jlesage image runs chromium with --remote-debugging-port=9223
+  // (loopback) and its own 0.0.0.0:9222 socat relay is neutralized — the
+  // token funnel must point at 9223, never at the relay port 9222.
+  assert.equal(CONTAINER_CDP_INTERNAL_PORT, 9223);
+  assert.notEqual(CONTAINER_CDP_INTERNAL_PORT, SHARED_CDP_PORT);
+});
+
+test('F-001 live: the container bridge IP refuses unauthenticated CDP (Docker-gated)', { timeout: 30000 }, async (t) => {
+  // Docker-gated: skips cleanly when Docker is down or the container is not
+  // running. When Docker is up, the F-001 invariant is that the container's
+  // bridge IP (NOT the host loopback funnel) must REFUSE a bare CDP probe —
+  // the image's own 0.0.0.0:9222 relay is neutralized, so unauthenticated
+  // CDP is unreachable even from co-bridge containers.
+  const execFile = promisify(execFileCb);
+  let bridgeIp = null;
+  try {
+    const ps = await execFile('docker', ['ps', '--filter', 'name=^chromium-vnc$', '--format', '{{.Names}}']);
+    if (ps.stdout.trim() !== 'chromium-vnc') {
+      t.skip('chromium-vnc container is not running (Docker up)');
+      return;
+    }
+    const inspect = await execFile('docker', [
+      'inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', 'chromium-vnc'
+    ]);
+    bridgeIp = inspect.stdout.trim();
+    if (!bridgeIp) {
+      t.skip('chromium-vnc has no bridge IP');
+      return;
+    }
+  } catch (err) {
+    t.skip(`docker unavailable: ${err.message}`);
+    return;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  if (timer.unref) timer.unref();
+  let refused = false;
+  let status = null;
+  try {
+    const res = await fetch(`http://${bridgeIp}:9222/json/version`, { signal: controller.signal });
+    status = res.status;
+  } catch {
+    // Connection refused / abort is exactly what a neutralized relay must
+    // produce — unauthenticated CDP is unreachable on the bridge IP.
+    refused = true;
+  } finally {
+    clearTimeout(timer);
+  }
+  assert.equal(refused, true, `bridge IP ${bridgeIp}:9222 must refuse CDP (got HTTP ${status ?? 'connection'})`);
 });
 
 test('F-021-eb: daemon pid liveness requires an argv identity match', { timeout: 15000 }, async () => {

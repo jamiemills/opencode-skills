@@ -72,6 +72,31 @@ export async function assertValidOutput(outPath, frames) {
   }
 }
 
+// F-014/R1.7: best-effort teardown of a recorder that may be mid-start — the
+// daemon's command-timeout branch calls this when a screencast-start hung
+// (e.g. Page.startScreencast never resolved). If a recording is active for
+// THIS session dir, kill the spawned ffmpeg, clear the module-level state and
+// the on-disk running flag so the next start/stop is not blocked by 'already
+// recording'. Never throws. A recording belonging to another session dir is
+// left untouched.
+export async function abortRecorder(client, sessionId, sessionDir) {
+  const rec = activeRecording;
+  if (!rec) return;
+  if (rec.sessionDir !== sessionDir) return;
+  activeRecording = null;
+  try { rec.markStop(); } catch {}
+  try { client.off('Page.screencastFrame', rec.frameHandler); } catch {}
+  try { rec.ffmpeg.stdin.off('drain', rec.onDrain); } catch {}
+  try { rec.ffmpeg.kill('SIGKILL'); } catch {}
+  try {
+    await secureWrite(rec.recorderJsonPath, JSON.stringify({
+      running: false,
+      stoppedAt: new Date().toISOString(),
+      error: 'recording aborted after command timeout'
+    }, null, 2), { encoding: 'utf-8' });
+  } catch {}
+}
+
 export async function startRecorder(client, sessionId, sessionDir, outName, fps = 15, preset = 'medium', speed = 'medium') {
   validateName(outName);
 
@@ -313,6 +338,7 @@ export async function stopRecorder(client, sessionId, sessionDir) {
   }
 
   let usedKill = false;
+  let ffmpegNeverExited = false;
   if (rec.ffmpeg.exitCode === null && !rec.ffmpeg.killed) {
     await Promise.race([
       new Promise(resolve => rec.ffmpeg.on('exit', resolve)),
@@ -330,6 +356,11 @@ export async function stopRecorder(client, sessionId, sessionDir) {
         setTimeout(2000).then(() => { try { rec.ffmpeg.kill('SIGKILL'); } catch {} })
       ]);
     }
+    // R1.6/F-007: after the hard bound the process STILL has not emitted
+    // 'exit' — it is wedged (uninterruptible D state or a zombie not yet
+    // reaped), so its output cannot be trusted as a cleanly-finalized file.
+    // Treat the output as a failure rather than validating it as success.
+    if (rec.ffmpeg.exitCode === null) ffmpegNeverExited = true;
   }
 
   const duration = (Date.now() - new Date(rec.startedAt).getTime()) / 1000;
@@ -363,6 +394,12 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     if (dur === null && !outputError) {
       outputError = 'screencast output is unreadable after forced kill (no duration)';
     }
+  }
+
+  // R1.6/F-007: a muxer that never emitted 'exit' after SIGKILL cannot have
+  // written a valid trailer — fail the output regardless of probe results.
+  if (ffmpegNeverExited && !outputError) {
+    outputError = 'screencast output unverified: ffmpeg did not exit after SIGKILL';
   }
 
   stats.error = outputError || stats.error;

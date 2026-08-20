@@ -163,8 +163,15 @@ async function packBootstrap() {
     const tarball = join(dir, filename);
     const data = await readFile(tarball);
     return { dir, tarball, sha256: sha256(data), bytes: data.length, entries: parseTar(data) };
+  } catch (err) {
+    // F-065-e: never leak an unowned copy of the payload in /tmp on a failed
+    // pack. The staging dir is the documented success-path return value, but
+    // on failure it holds nothing worth keeping — remove it before rethrowing
+    // (guarded so a cleanup error cannot mask the original failure).
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+    throw err;
   } finally {
-    await rm(cache, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true }).catch(() => {});
   }
 }
 

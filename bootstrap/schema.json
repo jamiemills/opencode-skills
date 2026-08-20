@@ -4,7 +4,7 @@
   "title": "Signed universal Agent Skills bootstrap envelope",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "audience", "expires_at", "key", "policy", "steps_markdown", "steps_sha256", "signature"],
+  "required": ["schema", "audience", "expires_at", "key", "policy", "steps_markdown", "steps_sha256"],
   "properties": {
     "schema": { "const": "csm-bootstrap/2" },
     "audience": { "type": "string", "minLength": 1, "maxLength": 128 },
@@ -46,6 +46,7 @@
     },
     "steps_markdown": { "type": "string", "minLength": 1, "maxLength": 4096 },
     "steps_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "payload_index_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "signature": {
       "type": "object", "additionalProperties": false,
       "required": ["algorithm", "value"],

@@ -23,6 +23,16 @@ const parseFrontmatter = text => {
 
 const filesOf = result => result.entries.filter(entry => entry.type === '0' || entry.type === '\0').map(entry => entry.name).toSorted();
 
+// F-068 integration tier: this suite spawns real tar/npm/npx against a packed
+// artifact and is environment-sensitive by design (npm-cache behavior, npx
+// resolution). It runs only on the pinned node >=22 toolchain — see the floor
+// test below; a machine with an older default node must invoke it via
+// scripts/with-node22.mjs.
+test('integration tier: pinned toolchain floor — node >= 22', () => {
+  const major = Number(process.versions.node.split('.')[0]);
+  assert.ok(major >= 22, `this integration suite requires node >= 22 (got ${process.versions.node})`);
+});
+
 test('two isolated packs are deterministic and the packed artifact passes the audit', async () => {
   const dirs = [];
   try {
@@ -113,7 +123,13 @@ test('two isolated packs are deterministic and the packed artifact passes the au
     tamperedIndex.classes.skills[0].sha256 = '0'.repeat(64);
     await writeFile(join(tamperedDir, 'package', 'payload-index.json'), `${JSON.stringify(tamperedIndex, null, 2)}\n`);
     await execFileAsync('tar', ['-czf', join(tamperedDir, 'tampered.tgz'), '-C', tamperedDir, 'package']);
-    await assert.rejects(execFileAsync('npx', ['--yes', '--ignore-scripts', '--no-audit', '--no-fund', `--package=file:${join(tamperedDir, 'tampered.tgz')}`, 'csm-skills-bootstrap', 'payload-index'], { encoding: 'utf8', env: { ...process.env, NPM_CONFIG_CACHE: cache } }), error => error.code !== 0);
+    const tamper = await execFileAsync('npx', ['--yes', '--ignore-scripts', '--no-audit', '--no-fund', `--package=file:${join(tamperedDir, 'tampered.tgz')}`, 'csm-skills-bootstrap', 'payload-index'], { encoding: 'utf8', env: { ...process.env, NPM_CONFIG_CACHE: cache } })
+      .then(out => ({ stdout: out.stdout, code: 0 }))
+      .catch(err => ({ stdout: err.stdout || '', code: err.code }));
+    assert.notEqual(tamper.code, 0, 'tampered payload-index must exit non-zero');
+    const tamperResult = JSON.parse(tamper.stdout);
+    assert.equal(tamperResult.verification.ok, false, 'tampered payload must report verification.ok === false');
+    assert.ok(tamperResult.verification.failures.some(f => f.error === 'HASH_MISMATCH'), JSON.stringify(tamperResult.verification.failures));
   } finally {
     for (const dir of dirs) await rm(dir, { recursive: true, force: true });
   }

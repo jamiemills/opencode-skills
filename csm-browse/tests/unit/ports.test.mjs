@@ -12,7 +12,7 @@ const root = await freshSessionsRoot('csm-browse-ports-');
 const ports = await import('../../lib/ports.mjs');
 const { acquirePortLock, releasePortLock, allocate, breakStaleLock } = ports;
 const { SESSIONS_ROOT } = await import('../../lib/constants.mjs');
-const { setExecLayerForTests } = await import('../../lib/docker.mjs');
+const { setExecLayerForTests } = await import('./helpers/exec-layer.mjs');
 
 after(async () => { await removeRoot(root); });
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -10,7 +10,10 @@ import { loadReportSchema, validateSchema } from './report-schema.mjs';
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const capable = { hasNpx: true, hasFileWrite: true, knowsDestination: true, supportsStaging: true, supportsLock: true, supportsRollback: true, knowsReload: true };
-const capableInput = overrides => ({ capabilities: capable, trustRootApproved: true, ...overrides });
+// R3: the battery runs on the same frozen clock as the trust test so expiry
+// behavior is deterministic and never depends on the real wall clock.
+const now = new Date('2026-08-18T00:00:00.000Z');
+const capableInput = overrides => ({ capabilities: capable, trustRootApproved: true, now, ...overrides });
 const loadIndex = async () => JSON.parse(await readFile(join(root, 'bootstrap/payload-index.json'), 'utf8'));
 const destinationFault = mode => {
   let finalized = 0;
@@ -144,5 +147,82 @@ test('placed hash mismatch on a managed destination restores the prior install f
     assert.equal(sha256(await readFile(managedFile)), planEntry.sha256);
     assert.equal(sha256(await readFile(join(sandbox, 'backup', 'csm-plan', 'SKILL.md'))), planEntry.sha256);
     assert.equal(result.report.limitations.includes('restore-failed'), false);
+  } finally { await rm(sandbox, { recursive: true, force: true }); }
+});
+
+test('F-047: a symlink planted mid-finalize is caught by the per-write re-lstat with zero writes through it', async () => {
+  const sandbox = await mkdtemp('/tmp/csm-protocol-'); await chmod(sandbox, 0o700);
+  try {
+    const destination = join(sandbox, 'skills');
+    const outside = join(sandbox, 'outside');
+    await mkdir(outside, { mode: 0o700 });
+    let planted = false;
+    const finalizeTransport = {
+      copyFile: async (source, target, mode) => {
+        await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+        if (!planted) {
+          planted = true;
+          const victim = join(destination, 'csm-plan');
+          await rm(victim, { recursive: true, force: true });
+          await symlink(outside, victim);
+        }
+        await copyFile(source, target);
+        await chmod(target, mode);
+      }
+    };
+    const result = await runProtocol(capableInput({ destination, sandbox, finalizeTransport }));
+    assert.equal(result.exitCode, EXIT_CODES.E_DESTINATION_SYMLINK);
+    assert.deepEqual(result.report.refusal, { code: 'E_DESTINATION_SYMLINK', state: 'MATERIALIZE' });
+    const schema = await loadReportSchema();
+    assert.deepEqual(validateSchema(result.report, schema), []);
+    assert.deepEqual(await readdir(outside), [], 'nothing may be written through the planted symlink');
+    assert.ok(planted, 'the transport must have planted the symlink for the scenario to be meaningful');
+  } finally { await rm(sandbox, { recursive: true, force: true }); }
+});
+
+test('F-047: a symlink planted at a mid-depth component is caught by the full-chain re-lstat with zero writes through it', async () => {
+  const sandbox = await mkdtemp('/tmp/csm-protocol-'); await chmod(sandbox, 0o700);
+  try {
+    const destination = join(sandbox, 'skills');
+    const outside = join(sandbox, 'outside');
+    await mkdir(outside, { mode: 0o700 });
+    let planted = false;
+    const finalizeTransport = {
+      copyFile: async (source, target, mode) => {
+        await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+        if (!planted) {
+          planted = true;
+          await mkdir(join(destination, 'csm-scan'), { recursive: true, mode: 0o700 });
+          await symlink(outside, join(destination, 'csm-scan', 'lib'));
+        }
+        await copyFile(source, target);
+        await chmod(target, mode);
+      }
+    };
+    const result = await runProtocol(capableInput({ destination, sandbox, finalizeTransport }));
+    assert.equal(result.exitCode, EXIT_CODES.E_DESTINATION_SYMLINK);
+    assert.deepEqual(result.report.refusal, { code: 'E_DESTINATION_SYMLINK', state: 'MATERIALIZE' });
+    const schema = await loadReportSchema();
+    assert.deepEqual(validateSchema(result.report, schema), []);
+    assert.deepEqual(await readdir(outside), [], 'nothing may be written through the planted mid-depth symlink');
+    assert.ok(planted, 'the transport must have planted the mid-depth symlink for the scenario to be meaningful');
+  } finally { await rm(sandbox, { recursive: true, force: true }); }
+});
+
+test('F-047: a planted entry at the temp write path fails the O_EXCL reserve with zero writes through it', async () => {
+  const sandbox = await mkdtemp('/tmp/csm-protocol-'); await chmod(sandbox, 0o700);
+  try {
+    const destination = join(sandbox, 'skills');
+    const outside = join(sandbox, 'outside');
+    await mkdir(outside, { mode: 0o700 });
+    await mkdir(join(destination, 'csm-bdd-tdd'), { recursive: true, mode: 0o700 });
+    await symlink(outside, join(destination, 'csm-bdd-tdd', '.csm-tmp-planted'));
+    const result = await runProtocol(capableInput({ destination, sandbox, tmpName: 'planted' }));
+    assert.equal(result.exitCode, EXIT_CODES.E_DESTINATION_SYMLINK);
+    assert.deepEqual(result.report.refusal, { code: 'E_DESTINATION_SYMLINK', state: 'MATERIALIZE' });
+    const schema = await loadReportSchema();
+    assert.deepEqual(validateSchema(result.report, schema), []);
+    assert.deepEqual(await readdir(outside), [], 'nothing may be written through the planted temp path');
+    assert.deepEqual((await readdir(sandbox)).toSorted(), ['outside', 'skills'], 'no destination files may be placed');
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });

@@ -4,8 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { mapping } from './pack-bootstrap.mjs';
 import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES } from './lib/contracts.mjs';
 import { isEnabled } from './lib/token-efficiency.mjs';
 import { checkDrift } from './sync-skill-boilerplate.mjs';
@@ -62,6 +64,10 @@ function readOrNull(p) {
   } catch {
     return null;
   }
+}
+
+function toPosix(value) {
+  return value.split(path.sep).join('/');
 }
 
 // Parses a leading frontmatter block and returns { kind, version } from a
@@ -377,6 +383,91 @@ function discoverSkillDirs() {
   }
   dirs.sort();
   return dirs;
+}
+
+// Recursively lists files under `dir`, returning paths relative to `base`
+// using forward slashes regardless of platform separator.
+function walkRelFiles(dir, base = dir) {
+  const out = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkRelFiles(full, base));
+    else if (entry.isFile()) out.push(path.relative(base, full).split(path.sep).join('/'));
+  }
+  return out;
+}
+
+// Expands the authoritative pack-bootstrap mapping (single source of truth
+// for what ships under bootstrap/package/payload) into dest -> repo-root src.
+// Only the payload/skills/** dests are checked; metadata (e.g. LICENSE at the
+// package root) is out of scope.
+function buildPayloadSrcMap(rootDir) {
+  const map = new Map();
+  for (const item of mapping.skills) {
+    map.set(toPosix(item.dest), toPosix(item.src));
+  }
+  for (const item of mapping.supportingFiles) {
+    if (item.srcDir) {
+      const destDir = toPosix(item.destDir);
+      const srcDir = toPosix(item.srcDir);
+      for (const rel of walkRelFiles(path.join(rootDir, srcDir.split('/').join(path.sep)))) {
+        map.set(`${destDir}/${rel}`, `${srcDir}/${rel}`);
+      }
+    } else {
+      map.set(toPosix(item.dest), toPosix(item.src));
+    }
+  }
+  return map;
+}
+
+// Payload-drift gate (journal-learnings T001): every file under
+// bootstrap/package/payload/skills/** must byte-identical to its repo-root
+// source per the pack-bootstrap mapping. Mirrors checkDrift: collects issues
+// and reports the comparison dynamically ({compared:N, issues:[]}); any issue
+// is a hard failure.
+function checkPayloadDrift(rootDir) {
+  const payloadRoot = path.join(rootDir, 'bootstrap', 'package', 'payload', 'skills');
+  const srcMap = buildPayloadSrcMap(rootDir);
+  const issues = [];
+  let compared = 0;
+  let payloadExists = false;
+  try {
+    payloadExists = fs.statSync(payloadRoot).isDirectory();
+  } catch {
+    payloadExists = false;
+  }
+  if (!payloadExists) {
+    issues.push('payload/skills tree missing');
+  } else {
+    for (const rel of walkRelFiles(payloadRoot)) {
+      compared += 1;
+      const srcRel = srcMap.get(`payload/skills/${rel}`);
+      if (srcRel === undefined) {
+        issues.push(`UNEXPECTED ${rel} (no pack-bootstrap mapping for this payload file)`);
+        continue;
+      }
+      const srcPath = path.join(rootDir, srcRel.split('/').join(path.sep));
+      let srcContent;
+      try {
+        srcContent = fs.readFileSync(srcPath);
+      } catch {
+        issues.push(`MISSING-SOURCE ${rel}`);
+        continue;
+      }
+      const payloadContent = fs.readFileSync(path.join(payloadRoot, rel.split('/').join(path.sep)));
+      if (createHash('sha256').update(payloadContent).digest('hex') !== createHash('sha256').update(srcContent).digest('hex')) {
+        issues.push(`DIFF ${rel}`);
+      }
+    }
+  }
+  console.log(`payload drift: {compared:${compared}, issues:${JSON.stringify(issues)}}`);
+  return issues;
 }
 
 function main() {
@@ -774,6 +865,11 @@ function main() {
   const boilerplateDrift = checkDrift(root);
   for (const d of boilerplateDrift) {
     check(false, `${d.skill}/SKILL.md "${d.section}": ${d.message}`);
+  }
+
+  const payloadDriftIssues = checkPayloadDrift(root);
+  for (const issue of payloadDriftIssues) {
+    check(false, `payload drift: ${issue}`);
   }
 
   const matrixDrift = checkMatrixDrift(path.join(root, 'README.md'));

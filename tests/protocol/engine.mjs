@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto';
-import { chmod, copyFile, lstat, mkdir, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { createHash, randomBytes } from 'node:crypto';
+import { chmod, copyFile, lstat, mkdir, open, readdir, readFile, rm, rmdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, parse, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonicalJson, loadKeyring, validateEnvelope } from './trust-policy.mjs';
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const defaultEnvelopePath = join(root, 'bootstrap/fixtures/valid.json');
@@ -28,10 +29,8 @@ export const PROTOCOL_STATES = ['DISCOVER', 'TRUST', 'PLAN_DESTINATION', 'CONFIR
 export const MANAGED_MARKER = '.csm-bootstrap.json';
 
 const capabilityKeys = ['hasNpx', 'hasFileWrite', 'knowsDestination', 'supportsStaging', 'supportsLock', 'supportsRollback', 'knowsReload'];
-const forbiddenEnvelopeKeys = ['argv', 'command', 'install_path', 'destination', 'path', 'shell', 'exec', 'script'];
 const classKeys = ['skills', 'supportingFiles', 'helperBins', 'metadata'];
 const placedPrefix = 'payload/skills/';
-const shellDenylist = /\b(npx|npm|node|nodejs|bash|sh|python|python3|pip|pip3|git|curl|wget|sudo|rm|powershell|eval|exec|chmod|chown|docker|uvx|bunx|deno)\b/i;
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const refuse = (state, code, message) => {
@@ -96,6 +95,81 @@ async function assertPlannableDestination(destination, state) {
   }
 }
 
+// F-047: re-lstat the FULL parent chain — every component from the filesystem
+// root down to the immediate parent directory — immediately before each final
+// write, creating missing components one at a time and lstat-verifying each
+// created component. This replaces the plan-time assertPlannableDestination
+// inside MATERIALIZE and never uses recursive mkdir, which would traverse a
+// symlink planted at a mid-depth component (creating attacker-chosen
+// directories outside the destination). A component swapped after planning
+// therefore refuses E_DESTINATION_SYMLINK at MATERIALIZE with zero writes
+// through it. Residual window: a component swapped between this walk and the
+// atomic rename inside the same directory cannot escape the re-validated parent
+// inode and is caught by the post-write hash verification.
+async function ensureWriteChain(target, state) {
+  const { root: fsRoot } = parse(target);
+  const components = dirname(target).slice(fsRoot.length).split(sep).filter(component => component.length > 0);
+  let current = fsRoot;
+  for (const component of components) {
+    current = join(current, component);
+    let stat;
+    try {
+      stat = await lstat(current);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      try {
+        await mkdir(current, { mode: 0o700 });
+      } catch (mkdirError) {
+        if (mkdirError.code !== 'EEXIST') throw mkdirError;
+      }
+      stat = await lstat(current);
+    }
+    if (stat.isSymbolicLink()) refuse(state, 'E_DESTINATION_SYMLINK', `symlink component ${current}`);
+    if (!stat.isDirectory()) refuse(state, 'E_NO_DESTINATION', `non-directory component ${current}`);
+  }
+}
+
+// F-047: the write target lives inside a parent chain that ensureWriteChain has
+// just re-lstat-verified. The file is written to a fresh crypto-random temp
+// name inside that re-validated directory and atomically renamed onto the final
+// name. The temp path is reserved with O_CREAT|O_EXCL (flag 'wx') so a
+// pre-planted entry at that name — for example a symlink — fails EEXIST instead
+// of being followed; the name is random, so this is a second layer against a
+// same-directory attacker who can predict names. rename() replaces any existing
+// entry at the final name, including a symlink, rather than following it.
+async function writeFileInValidatedDir(state, parent, target, source, mode, finalizeTransport, tmpName) {
+  const tmp = join(parent, `.csm-tmp-${tmpName}`);
+  try {
+    const reserved = await open(tmp, 'wx', 0o600);
+    await reserved.close();
+  } catch (error) {
+    if (error.code === 'EEXIST') refuse(state, 'E_DESTINATION_SYMLINK', `planted temp path ${tmp}`);
+    throw error;
+  }
+  try {
+    await finalizeTransport.copyFile(source, tmp, mode);
+    await rename(tmp, target);
+  } catch (error) {
+    try {
+      await rm(tmp, { force: true });
+    } catch {
+      // best-effort temp cleanup
+    }
+    throw error;
+  }
+}
+
+async function writeFileAtomic(parent, name, content, tmpName) {
+  const tmp = join(parent, `.csm-tmp-${tmpName}`);
+  try {
+    await writeFile(tmp, content, { mode: 0o644, flag: 'wx' });
+  } catch (error) {
+    if (error.code === 'EEXIST') refuse('MATERIALIZE', 'E_DESTINATION_SYMLINK', `planted temp path ${tmp}`);
+    throw error;
+  }
+  await rename(tmp, join(parent, name));
+}
+
 async function copyTree(source, target) {
   await mkdir(target, { recursive: true, mode: 0o700 });
   const entries = await readdir(source, { withFileTypes: true });
@@ -117,6 +191,11 @@ export async function runProtocol(input) {
   const trace = [];
   const push = (state, action, refusal = null) => trace.push({ state, action, refusal });
   const capabilities = normalizeCapabilities(input?.capabilities);
+  const now = input?.now !== undefined ? new Date(input.now) : new Date();
+  // F-047 test seam: the temp-write name defaults to a fresh crypto-random hex
+  // string per write; a caller may fix it (deterministic temp path) only for
+  // planted-temp-path tests. Randomness makes the temp name unguessable.
+  const tmpName = typeof input?.tmpName === 'string' && input.tmpName.length > 0 ? input.tmpName : randomBytes(16).toString('hex');
   let destination = null;
   let restoreFailed = false;
   try {
@@ -126,14 +205,25 @@ export async function runProtocol(input) {
 
     push('TRUST', 'accepted');
     const envelope = input?.envelope !== undefined ? input.envelope : await readJsonOrNull(defaultEnvelopePath);
-    const index = input?.index !== undefined ? input.index : JSON.parse(await readFile(defaultIndexPath, 'utf8'));
+    const indexInput = input?.index;
+    const indexJson = indexInput !== undefined ? null : await readFile(defaultIndexPath, 'utf8');
+    const index = indexInput !== undefined ? indexInput : JSON.parse(indexJson);
     if (envelope === null || typeof envelope !== 'object' || Array.isArray(envelope)) refuse('TRUST', 'E_UNTRUSTED', 'envelope is missing');
-    if (envelope.schema !== 'csm-bootstrap/2') refuse('TRUST', 'E_UNTRUSTED', 'envelope schema is not csm-bootstrap/2');
-    for (const key of forbiddenEnvelopeKeys) if (Object.prototype.hasOwnProperty.call(envelope, key)) refuse('TRUST', 'E_UNTRUSTED', `envelope supplies forbidden field ${key}`);
-    if (typeof envelope.steps_markdown !== 'string') refuse('TRUST', 'E_UNTRUSTED', 'steps_markdown is missing');
-    if (envelope.steps_markdown.includes('`') || envelope.steps_markdown.includes('~~~') || shellDenylist.test(envelope.steps_markdown)) refuse('TRUST', 'E_MALICIOUS_STEPS', 'steps_markdown carries executable policy');
-    const pkg = envelope.policy?.package;
-    if (pkg?.name !== '@jamiemills/csm-skills-bootstrap' || pkg?.version !== '0.1.0' || pkg?.bin !== 'csm-skills-bootstrap') refuse('TRUST', 'E_UNTRUSTED', 'package policy is not fixed');
+    const keyring = await loadKeyring();
+    // R6: payload_index_sha256 binds a FILE-BYTE digest — the exact bytes of
+    // the shipped payload-index.json (the same convention the shipped bin's
+    // verify subcommand uses). When the index is supplied as an OBJECT the
+    // engine hashes the deterministic canonical serialization (canonicalJson),
+    // i.e. the same byte string a signer must produce via the shared signing
+    // tooling; a signer binding an object-form index must serialize canonically
+    // (see protocol.md for the documented limitation).
+    const indexSha256 = indexJson !== null ? sha256(indexJson) : sha256(canonicalJson(indexInput));
+    try {
+      validateEnvelope(envelope, keyring, { now, indexSha256 });
+    } catch (error) {
+      if (error.code === 'SHELL_POLICY') refuse('TRUST', 'E_MALICIOUS_STEPS', error.message);
+      refuse('TRUST', 'E_UNTRUSTED', error.message);
+    }
     if (index === null || typeof index !== 'object' || Array.isArray(index)) refuse('TRUST', 'E_UNSUPPORTED_FORMAT', 'payload index is missing');
     if (index.schema !== 'csm-payload-index/1') refuse('TRUST', 'E_UNSUPPORTED_FORMAT', 'payload index schema mismatch');
     for (const classKey of classKeys) {
@@ -242,14 +332,14 @@ export async function runProtocol(input) {
         refuse('MATERIALIZE', 'E_INTERRUPTED', `managed backup failed: ${error.message}`);
       }
     }
-    await mkdir(destination, { recursive: true, mode: 0o700 });
     const filesPlaced = [];
     const finalizeTransport = input?.finalizeTransport !== undefined && input.finalizeTransport !== null ? input.finalizeTransport : defaultFinalizeTransport;
     try {
       for (const entry of placedEntries) {
         const target = join(destination, relOf(entry));
-        await mkdir(dirname(target), { recursive: true, mode: 0o700 });
-        await finalizeTransport.copyFile(join(staging, relOf(entry)), target, parseInt(entry.mode, 8));
+        const parent = dirname(target);
+        await ensureWriteChain(target, 'MATERIALIZE');
+        await writeFileInValidatedDir('MATERIALIZE', parent, target, join(staging, relOf(entry)), parseInt(entry.mode, 8), finalizeTransport, tmpName);
         const placed = await readFile(target);
         if (sha256(placed) !== entry.sha256) throw Object.assign(new Error(`placed hash mismatch: ${entry.path}`), { code: 'E_HASH_MISMATCH' });
         filesPlaced.push({ path: relOf(entry), sha256: entry.sha256, bytes: entry.bytes, verified: true });
@@ -269,10 +359,11 @@ export async function runProtocol(input) {
       }
       await rm(staging, { recursive: true, force: true });
       if (error.code === 'E_HASH_MISMATCH') refuse('VERIFY', 'E_HASH_MISMATCH', error.message);
+      if (Object.prototype.hasOwnProperty.call(EXIT_CODES, error.code)) throw error;
       refuse('MATERIALIZE', 'E_INTERRUPTED', `finalization transport failed: ${error.message}`);
     }
     await rm(staging, { recursive: true, force: true });
-    await writeFile(join(destination, MANAGED_MARKER), `${JSON.stringify({ schema: 'csm-managed/1', protocol: 'csm-skills-bootstrap/1', payload_release: envelope.policy?.payload_release ?? null, skills: skillDirs }, null, 2)}\n`, { mode: 0o644 });
+    await writeFileAtomic(destination, MANAGED_MARKER, `${JSON.stringify({ schema: 'csm-managed/1', protocol: 'csm-skills-bootstrap/1', payload_release: envelope.policy?.payload_release ?? null, skills: skillDirs }, null, 2)}\n`, tmpName);
 
     push('REPORT', 'emitted');
     const reloadAction = capabilities.knowsReload

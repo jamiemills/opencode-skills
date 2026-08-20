@@ -7,7 +7,8 @@ import { freshSessionsRoot, removeRoot } from './helpers/env.mjs';
 // are loaded dynamically AFTER the fresh root is pinned (same pattern as the
 // other unit tests).
 const root = await freshSessionsRoot('csm-browse-auth-');
-const { setExecLayerForTests, spawnGate } = await import('../../lib/docker.mjs');
+const { spawnGate } = await import('../../lib/docker.mjs');
+const { setExecLayerForTests } = await import('./helpers/exec-layer.mjs');
 const { generateToken, rotateToken, revokeToken, withToken, cdpEndpoint } = await import('../../lib/session.mjs');
 const { checkRequestLine, createGate } = await import('../../scripts/cdp-gate.mjs');
 const WebSocket = (await import('ws')).default; // ws v7 CJS: module.exports is the WebSocket class
@@ -268,8 +269,14 @@ test('pipelined second request on an unauthenticated connection never reaches th
     assert.match(resp, /Content-Length: \d+/, 'static response must carry a Content-Length');
     assert.ok(resp.trimEnd().endsWith('}'), 'static response must include the JSON schema body');
 
-    // Give any (wrong) relay attempt time to connect; then prove none happened.
-    await new Promise((r) => setTimeout(r, 300));
+    // Settle event-driven instead of a fixed sleep: wait until the gate has
+    // fully torn the connection down (no live sockets), then prove no tunnel
+    // was ever opened. A buggy relay would open its tunnel synchronously
+    // while processing the pipelined bytes — before the connection closes.
+    await waitFor(async () => {
+      const n = await new Promise((resolve) => gate.server.getConnections((err, count) => resolve(err ? null : count)));
+      return n === 0;
+    });
     assert.equal(tunnels.length, 0, 'no tunnel may be opened for the unauthenticated protocol path');
     assert.equal(backend.sockets.length, 0, 'a pipelined second request must never reach the backend');
   } finally {

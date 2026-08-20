@@ -30,6 +30,31 @@ function assertSafeFilename(name) {
   }
 }
 
+// F-048: github/pagesRepo are interpolated into the clone URL and BASE_URL —
+// validate both against their real-world charsets and construct the clone URL
+// with the URL class, asserting the host stays github.com (guards '@' userinfo
+// injection that would otherwise redirect pushes to an attacker host).
+const GITHUB_RE = /^[A-Za-z0-9-]{1,39}$/;
+const PAGES_REPO_RE = /^[A-Za-z0-9._-]+$/;
+
+function buildCloneUrl(github, pagesRepo) {
+  if (!GITHUB_RE.test(github)) {
+    throw new Error(
+      `Invalid GitHub username: "${github}". Usernames may only contain letters, digits, and hyphens (1-39 characters).`
+    );
+  }
+  if (!PAGES_REPO_RE.test(pagesRepo)) {
+    throw new Error(
+      `Invalid pages repository name: "${pagesRepo}". Repository names may only contain letters, digits, dots, underscores, and hyphens.`
+    );
+  }
+  const url = new URL(`https://github.com/${github}/${pagesRepo}.git`);
+  if (url.hostname !== 'github.com') {
+    throw new Error(`Refusing to build the clone URL: resolved host is "${url.hostname}", expected github.com.`);
+  }
+  return url;
+}
+
 const args = process.argv.slice(2);
 let label = '';
 const files = [];
@@ -99,13 +124,13 @@ async function loadConfig({ probe = true } = {}) {
 
   if (!probe) return config;
 
-  await mkdir(dirname(CONFIG_PATH), { recursive: true });
-  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  await mkdir(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
+  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 });
   return config;
 }
 
 function buildIndexHtml(demoDir, desc, uploaded) {
-  const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(f.ext));
+  const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(f.ext));
   const vids = uploaded.filter(f => ['webm', 'mp4', 'mov'].includes(f.ext));
   const other = uploaded.filter(f => !imgs.includes(f) && !vids.includes(f));
 
@@ -269,7 +294,9 @@ async function main() {
   const github = ghOverride || config.github || '<github-user>';
   const pagesRepo = repoOverride || config.pagesRepo;
 
-  const PAGES_REPO = `https://github.com/${github}/${pagesRepo}.git`;
+  const PAGES_REPO = github === '<github-user>'
+    ? `https://github.com/${github}/${pagesRepo}.git`
+    : buildCloneUrl(github, pagesRepo).href;
   const BASE_URL = `https://${github}.github.io/${pagesRepo}`;
 
   const date = new Date().toISOString().split('T')[0];

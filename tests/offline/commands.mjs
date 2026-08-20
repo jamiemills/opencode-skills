@@ -4,10 +4,23 @@ import { chmod, mkdir, mkdtemp, readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { FIXED_PACKAGE_POLICY, checkStepsShellPolicy } from '../protocol/trust-policy.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const grammar = JSON.parse(await readFile(join(root, 'bootstrap', 'runtime-commands.json'), 'utf8'));
+
+// F-044/R7: the offline grammar must stay aligned with the shared trust module's
+// fixed package policy (name/version/bin/registry) so the trust boundary cannot
+// drift between the enforcement copies. The registry field is part of the
+// byte-complete parity cross-check.
+const fixedPolicyMatches = () =>
+  grammar.package.name === FIXED_PACKAGE_POLICY.name &&
+  grammar.package.version === FIXED_PACKAGE_POLICY.version &&
+  grammar.package.bin === FIXED_PACKAGE_POLICY.bin &&
+  grammar.registry === FIXED_PACKAGE_POLICY.registry;
+if (!fixedPolicyMatches()) throw new Error('offline grammar package policy drifted from the shared trust module');
+
 const dummyRegistry = 'http://127.0.0.1:9';
 const sandboxPrefix = '/tmp/csm-offline-';
 const manifestFields = ['schema', 'node', 'npm', 'platform', 'package', 'dependencyClosure', 'verification'];
@@ -166,4 +179,4 @@ async function npmVersion(sandbox) {
   return stdout.trim();
 }
 
-export { checkArgv, checkSpec, grammar, hashTree, makeSandbox, npmVersion, runNpx, verifyCacheManifest };
+export { FIXED_PACKAGE_POLICY, checkStepsShellPolicy, checkArgv, checkSpec, grammar, hashTree, makeSandbox, npmVersion, runNpx, verifyCacheManifest };

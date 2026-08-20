@@ -4,15 +4,41 @@ import { chmod, lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { runProtocol } from './engine.mjs';
+import { EXIT_CODES, PROTOCOL_STATES, runProtocol } from './engine.mjs';
 import { loadReportSchema, validateSchema } from './report-schema.mjs';
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const packageRoot = join(root, 'bootstrap/package');
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const capable = { hasNpx: true, hasFileWrite: true, knowsDestination: true, supportsStaging: true, supportsLock: true, supportsRollback: true, knowsReload: true };
-const capableInput = overrides => ({ capabilities: capable, trustRootApproved: true, ...overrides });
-const stateChain = ['DISCOVER', 'TRUST', 'PLAN_DESTINATION', 'CONFIRM_IF_NEEDED', 'MATERIALIZE', 'VERIFY', 'REPORT'];
+// R3: the battery runs on the same frozen clock as the trust test so expiry
+// behavior is deterministic and never depends on the real wall clock.
+const now = new Date('2026-08-18T00:00:00.000Z');
+const capableInput = overrides => ({ capabilities: capable, trustRootApproved: true, now, ...overrides });
+const stateChain = [...PROTOCOL_STATES];
+
+test('F-043 conformance: the protocol state table in protocol.md derives from the engine implementation', async () => {
+  const protocol = await readFile(join(root, 'bootstrap/protocol.md'), 'utf8');
+  const chain = protocol.match(/The state chain is exactly:\s*\n\s*`([^`]+)`/);
+  assert.ok(chain, 'protocol.md must declare the exact state chain');
+  assert.deepEqual(chain[1].split('->').map(state => state.trim()), PROTOCOL_STATES);
+  for (const state of PROTOCOL_STATES) {
+    assert.ok(new RegExp(`### \\d+\\s*\\.\\s*${state}\\b`).test(protocol), `protocol.md lacks the numbered ${state} section`);
+  }
+  const table = protocol.slice(protocol.indexOf('## Refusal Codes'));
+  const rows = [...table.matchAll(/^\| (\d+) \| `([A-Z_]+)` \| (.*?) \| ([A-Z_ /]+) \|\s*$/gm)];
+  const errorCodes = Object.keys(EXIT_CODES).filter(code => code !== 'PLACED');
+  assert.ok(rows.length >= errorCodes.length, 'refusal table must list every exit code');
+  const covered = new Set();
+  for (const [, exit, code, , failing] of rows) {
+    assert.equal(EXIT_CODES[code], Number(exit), `protocol.md exit ${exit} disagrees with EXIT_CODES.${code}`);
+    covered.add(code);
+    for (const state of failing.split('/').map(value => value.trim())) assert.ok(PROTOCOL_STATES.includes(state), `unknown failing state ${state} for ${code}`);
+  }
+  for (const code of errorCodes) assert.ok(covered.has(code), `EXIT_CODES.${code} missing from the protocol.md refusal table`);
+  assert.equal(EXIT_CODES.E_DESTINATION_SYMLINK, 8);
+  assert.ok(PROTOCOL_STATES.includes('MATERIALIZE'));
+});
 
 test('capable agent materializes verified payload copies and emits a schema-valid report', async () => {
   const sandbox = await mkdtemp('/tmp/csm-protocol-'); await chmod(sandbox, 0o700);
@@ -56,7 +82,7 @@ test('ambiguous destination asks the user and refuses without confirmation, proc
   const sandbox = await mkdtemp('/tmp/csm-protocol-'); await chmod(sandbox, 0o700);
   try {
     const capabilities = { ...capable, knowsDestination: false, knowsReload: false };
-    const base = { capabilities, trustRootApproved: true, sandbox, destinationCandidates: [join(sandbox, 'choice-a'), join(sandbox, 'choice-b')] };
+    const base = { capabilities, trustRootApproved: true, now, sandbox, destinationCandidates: [join(sandbox, 'choice-a'), join(sandbox, 'choice-b')] };
     const refused = await runProtocol(base);
     assert.equal(refused.exitCode, 4);
     assert.equal(refused.report.refusal.code, 'E_AMBIGUOUS_DESTINATION');
@@ -81,7 +107,7 @@ test('unapproved trust root asks the user and refuses without confirmation, proc
   const sandbox = await mkdtemp('/tmp/csm-protocol-'); await chmod(sandbox, 0o700);
   try {
     const destination = join(sandbox, 'skills');
-    const base = { capabilities: capable, trustRootApproved: false, destination, sandbox };
+    const base = { capabilities: capable, trustRootApproved: false, now, destination, sandbox };
     const refused = await runProtocol(base);
     assert.equal(refused.exitCode, 5);
     assert.equal(refused.report.refusal.code, 'E_UNTRUSTED');

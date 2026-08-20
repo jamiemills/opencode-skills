@@ -13,7 +13,8 @@ import {
   CONTAINER_NETWORK, CONTAINER_CONFIG_HOST_DIR, CONTAINER_ENV_FILE,
   CONTAINER_TOKEN_PATH, CONTAINER_GATE_LOG, CONTAINER_GATE_SID,
   CONTAINER_CAP_DROP, CONTAINER_MEMORY, CONTAINER_CPUS, CONTAINER_PIDS_LIMIT,
-  CONTAINER_SHM_SIZE, CHROMIUM_CUSTOM_ARGS, SHARED_CDP_PORT, imageStaleMs
+  CONTAINER_SHM_SIZE, CHROMIUM_CUSTOM_ARGS, SHARED_CDP_PORT,
+  CONTAINER_CDP_INTERNAL_PORT, imageStaleMs
 } from '../lib/constants.mjs';
 import { readFile, rm, open, stat } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
@@ -212,7 +213,10 @@ export function buildRunArgs() {
     '--read-only',
     '--tmpfs', '/tmp',
     '--tmpfs', '/run',
-    '--tmpfs', '/dev/shm',
+    // F-016/R1.4: bind the tmpfs /dev/shm size explicitly so the shm bound
+    // is enforced (a bare `--tmpfs /dev/shm` takes the tmpfs default, not the
+    // --shm-size value, silently ignoring the limit).
+    '--tmpfs', '/dev/shm:size=1073741824',
     '--memory', CONTAINER_MEMORY, '--memory-swap', CONTAINER_MEMORY,
     '--cpus', CONTAINER_CPUS,
     '--pids-limit', String(CONTAINER_PIDS_LIMIT),
@@ -227,8 +231,32 @@ export function buildRunArgs() {
   ];
 }
 
+// F-001: the jlesage image runs its OWN `socat TCP-LISTEN:9222,fork
+// TCP:127.0.0.1:9223` listening on 0.0.0.0 inside the container, so the
+// container's bridge IP answers unauthenticated CDP even though chromium
+// binds loopback (--remote-debugging-address=127.0.0.1). Neutralize that
+// relay after every container create/start/restart. Tolerant of absence: the
+// image may stop shipping it, or a prior run already killed it.
+async function neutralizeSharedRelay() {
+  try {
+    // `922[2]` — the bracket breaks pkill's self-match: our own `sh -c`
+    // command line contains the literal `922[2]`, which the class does not
+    // match, while the relay's `socat TCP-LISTEN:9222,...` does. A bare
+    // "socat TCP-LISTEN:9222" pattern would kill this very shell.
+    await dockerCli([
+      'exec', CONTAINER_NAME, 'sh', '-c',
+      'pkill -f "socat TCP-LISTEN:922[2]" || true'
+    ], { timeout: 10000 });
+  } catch {
+    // Container may be between states (restarting); the migration path and
+    // the containerIsHardened relay probe re-check on the next run.
+  }
+}
+
 // A hardened container does not publish 9222, sits on the dedicated network,
-// and mounts a read-only rootfs. Anything else is migrated (one-time) so the
+// mounts a read-only rootfs, and has NO live 0.0.0.0:9222 relay inside it
+// (F-001: the image's own socat shim would still answer unauthenticated CDP
+// on the bridge IP). Anything else is migrated (one-time) so the
 // unauthenticated shared-CDP exposure cannot silently persist.
 async function containerIsHardened(name) {
   try {
@@ -238,7 +266,23 @@ async function containerIsHardened(name) {
     ], { timeout: 10000 });
     const [ports, network, ro] = stdout.trim().split('|');
     const publishes9222 = /9222\//.test(ports || '');
-    return !publishes9222 && (network || '').includes(CONTAINER_NETWORK) && ro === 'true';
+    if (publishes9222 || !(network || '').includes(CONTAINER_NETWORK) || ro !== 'true') return false;
+  } catch {
+    return false;
+  }
+  // F-001: the config checks pass but the image's 0.0.0.0:9222 relay may be
+  // live again (a container crash-restart re-runs the image init). Probe it;
+  // a live relay means the container is NOT hardened. Only probe a RUNNING
+  // container — a stopped one cannot be exec'd, and treating it as
+  // un-hardened would destroy its /config profile in the migration.
+  try {
+    const running = await isContainerRunning(name);
+    if (!running) return true;
+    const relay = await dockerCli([
+      'exec', name, 'sh', '-c',
+      'pgrep -f "socat TCP-LISTEN:922[2]" >/dev/null && echo LIVE || true'
+    ], { timeout: 10000 });
+    return !relay.stdout.includes('LIVE');
   } catch {
     return false;
   }
@@ -276,7 +320,8 @@ function waitForPortFree(port, timeoutMs = 5000) {
 
 // F-001: the shared 9222 port is no longer published. Host access goes only
 // through a token-gated funnel: a host-side cdp-gate on 127.0.0.1:9222 whose
-// tunnel reaches the container's relay via docker exec. Idempotent: reuses an
+// tunnel reaches the container's chromium loopback listener (9223, the
+// image's --remote-debugging-port) via docker exec. Idempotent: reuses an
 // existing gate on 9222 and returns the shared token.
 export async function ensureSharedGate(dryRunMode = false) {
   const token = await ensureSharedToken();
@@ -285,23 +330,56 @@ export async function ensureSharedGate(dryRunMode = false) {
     const m = g.cmd.match(/cdp-gate\.mjs\s+(?:--sid\s+\S+\s+)?--port\s+(\d+)/);
     return m && parseInt(m[1], 10) === SHARED_CDP_PORT;
   });
-  if (already) return token;
+  if (already) {
+    // R1.2/F-001: a pgrep hit is not proof the funnel works — the gate could
+    // be a dead/hung process, still tunnel to the (now-neutralized) 9222
+    // relay, or hold a stale token. Verify the port actually answers with
+    // OUR token; if it does not, tear the gate down and respawn it.
+    const bound = await waitForPortBind(SHARED_CDP_PORT, 5000);
+    if (bound) {
+      try {
+        const ok = await cdpProbe(
+          cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), '/json/version'),
+          { timeoutMs: 3000, attemptTimeoutMs: 1500, delayMs: 250 }
+        );
+        if (ok) return token;
+      } catch {}
+    }
+    if (dryRunMode) {
+      console.log(`# Existing shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} is not answering with the current token. Would respawn:`);
+      console.log(`#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${CONTAINER_CDP_INTERNAL_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`);
+      return token;
+    }
+    console.log(`Existing shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} is not answering with the current token — respawning...`);
+    await killGate(SHARED_CDP_PORT);
+    await waitForPortFree(SHARED_CDP_PORT, 5000);
+  }
   if (dryRunMode) {
     console.log('# Shared CDP gate absent. Would run:');
-    console.log(`#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${SHARED_CDP_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`);
+    console.log(`#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${CONTAINER_CDP_INTERNAL_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`);
     return token;
   }
   console.log(`Launching shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} (token-gated)`);
   await spawnGate({
     sid: CONTAINER_GATE_SID,
     publicPort: SHARED_CDP_PORT,
-    internalPort: SHARED_CDP_PORT,
+    internalPort: CONTAINER_CDP_INTERNAL_PORT,
     containerName: CONTAINER_NAME,
     token,
     log: CONTAINER_GATE_LOG
   });
   const bound = await waitForPortBind(SHARED_CDP_PORT, 10000);
   if (!bound) throw new Error(`Shared CDP gate did not bind 127.0.0.1:${SHARED_CDP_PORT}`);
+  // R1.2: verify the funnel actually answers through the gate before handing
+  // out the token — a bound port alone does not prove the tunnel reaches
+  // chromium's loopback listener.
+  const ready = await cdpProbe(
+    cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), '/json/version'),
+    { timeoutMs: 8000, attemptTimeoutMs: 2000, delayMs: 500 }
+  );
+  if (!ready) {
+    throw new Error(`Shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} did not answer /json/version`);
+  }
   return token;
 }
 
@@ -327,13 +405,13 @@ async function ensureContainer(dryRunMode) {
     console.warn(`WARNING: pinned browser image is ${Math.round(staleMs / 86400000)} days stale — refresh the digest per the IMAGE comment cadence`);
   }
 
-  const running = await isContainerRunning(CONTAINER_NAME);
-  const exists = running || await containerExists(CONTAINER_NAME);
-  const hardened = exists ? await containerIsHardened(CONTAINER_NAME) : false;
+  let running = await isContainerRunning(CONTAINER_NAME);
+  let exists = running || await containerExists(CONTAINER_NAME);
+  let hardened = exists ? await containerIsHardened(CONTAINER_NAME) : false;
 
   if (exists && !hardened) {
     if (dryRunMode) {
-      console.log(`# Container ${CONTAINER_NAME} is not hardened (published 9222 / off the dedicated network / no read-only rootfs). Would migrate:`);
+      console.log(`# Container ${CONTAINER_NAME} is not hardened (published 9222 / off the dedicated network / no read-only rootfs / live 0.0.0.0:9222 relay). Would migrate:`);
       console.log(`#   docker cp ${CONTAINER_NAME}:/config/. ${CONTAINER_CONFIG_HOST_DIR}/`);
       console.log(`#   docker rm -f ${CONTAINER_NAME}`);
       console.log(`#   ${DOCKER_RUN_CMD}`);
@@ -347,6 +425,12 @@ async function ensureContainer(dryRunMode) {
       console.warn(`Could not copy /config out of ${CONTAINER_NAME}: ${e.message}`);
     }
     await dockerCli(['rm', '-f', CONTAINER_NAME], { timeout: 30000 });
+    // F-001/R1.1: the container is gone — the stale exists/running flags must
+    // not short-circuit the create path below, or the migration would leave
+    // no container and the probe would fail against nothing.
+    running = false;
+    exists = false;
+    hardened = false;
   }
 
   if (running && hardened) {
@@ -357,6 +441,9 @@ async function ensureContainer(dryRunMode) {
     if (!ready) {
       console.log('CDP not ready on reused container — restarting container...');
       await dockerCli(['restart', CONTAINER_NAME], { timeout: 60000 });
+      // F-001: the image init re-runs on restart and brings its 0.0.0.0:9222
+      // relay back with it — neutralize it again before the funnel respawn.
+      await neutralizeSharedRelay();
       const token2 = await ensureSharedGate(false);
       ready = await cdpProbe(cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token2), '/json/version'));
       if (!ready) {
@@ -375,6 +462,9 @@ async function ensureContainer(dryRunMode) {
     }
     console.log(`Container ${CONTAINER_NAME} exists but stopped. Starting...`);
     await dockerCli(['start', CONTAINER_NAME], { timeout: 60000 });
+    // F-001: the image init runs on start — neutralize its 0.0.0.0:9222
+    // relay so the bridge IP stops answering unauthenticated CDP.
+    await neutralizeSharedRelay();
   } else if (!exists) {
     if (dryRunMode) {
       console.log(`# Container absent. Would run:`);
@@ -394,6 +484,9 @@ async function ensureContainer(dryRunMode) {
     await ensureVncEnvFile();
     console.log(`Running: ${DOCKER_RUN_CMD}`);
     await dockerCli(buildRunArgs(), { timeout: 60000 });
+    // F-001: the fresh container's image init immediately starts the
+    // 0.0.0.0:9222 socat relay — neutralize it before the readiness probe.
+    await neutralizeSharedRelay();
   }
 
   const token = await ensureSharedGate(dryRunMode);
@@ -468,7 +561,12 @@ async function adoptSession(targetSid, containerSessDir) {
   }
 }
 
-function buildChromiumCmd(containerSessDir, internalPort) {
+// F-001/R1.1: session chromium instances must bind loopback inside the
+// container too (--remote-debugging-address=127.0.0.1) — without it they bind
+// 0.0.0.0 on the pool ports (9224-9234) and answer unauthenticated CDP on the
+// container bridge IP. The session gate's docker exec tunnel always targets
+// 127.0.0.1:<internalPort>, so loopback binding changes nothing for the host.
+export function buildChromiumCmd(containerSessDir, internalPort) {
   const flagsStr = CHROMIUM_FLAGS.join(' ');
   return [
     'mkdir -p',
@@ -479,6 +577,7 @@ function buildChromiumCmd(containerSessDir, internalPort) {
     '&&',
     CHROMIUM_BIN,
     flagsStr,
+    '--remote-debugging-address=127.0.0.1',
     `--remote-debugging-port=${internalPort}`,
     '--user-data-dir=$SESS/profile',
     '--disk-cache-dir=$SESS/cache',

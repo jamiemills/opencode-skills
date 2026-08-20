@@ -34,7 +34,9 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
   const containerSessDir = state.profileDir;
 
   try {
-    const stopped = await stopDaemon(hostSessionDir);
+    // F-021/R1.3: pass the sid so stopDaemon verifies process identity (argv
+    // match) before signaling — a recycled pid must never be SIGTERM'd.
+    const stopped = await stopDaemon(hostSessionDir, sid);
     if (stopped) removed.push('daemon');
   } catch (e) {
     failures.push(`stopDaemon: ${e.message}`);

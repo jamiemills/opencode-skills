@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access, chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
-import { spawn } from 'node:child_process';
+import { basename, dirname, join } from 'node:path';
+import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { promisify } from 'node:util';
 
 const SCRIPT = join(import.meta.dirname, '..', 'scripts', 'upload.mjs');
+const execFileAsync = promisify(execFile);
 
 async function makeSandbox(prefix) {
   return await mkdtemp(join(tmpdir(), prefix));
@@ -129,5 +131,102 @@ test('SIGTERM stops clone, commit, and push children and removes temporary clone
     } finally {
       await rm(sandbox, { recursive: true, force: true });
     }
+  }
+});
+
+test('F-048: rejects an invalid github value (userinfo injection)', async () => {
+  const sandbox = await makeSandbox('csm-upload-reject-gh-');
+  try {
+    const input = join(sandbox, 'input.png');
+    await writeFile(input, 'synthetic', 'utf8');
+    await mkdir(join(sandbox, 'home', '.agents'), { recursive: true });
+    await writeFile(join(sandbox, 'home', '.agents', 'csm-upload.json'), '{"github":"nobody","pagesRepo":"nowhere"}', 'utf8');
+    const result = await runNode([SCRIPT, '--label', 'bad', '--github', 'nobody@evil.com', '--repo', 'nowhere', input], baseEnv(sandbox));
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Invalid GitHub username/);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test('F-048: rejects an invalid pagesRepo value', async () => {
+  const sandbox = await makeSandbox('csm-upload-reject-repo-');
+  try {
+    const input = join(sandbox, 'input.png');
+    await writeFile(input, 'synthetic', 'utf8');
+    await mkdir(join(sandbox, 'home', '.agents'), { recursive: true });
+    await writeFile(join(sandbox, 'home', '.agents', 'csm-upload.json'), '{"github":"nobody","pagesRepo":"nowhere"}', 'utf8');
+    const result = await runNode([SCRIPT, '--label', 'bad', '--github', 'nobody', '--repo', 'bad/repo', input], baseEnv(sandbox));
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Invalid pages repository name/);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test('F-064: uploaded svg is never embedded as an <img> (link bucket only)', async () => {
+  const sandbox = await makeSandbox('csm-upload-svg-');
+  try {
+    await makeCommandStubs(sandbox, `process.exit(0);`);
+    const inputPng = join(sandbox, 'shot.png');
+    const inputSvg = join(sandbox, 'asset.svg');
+    await writeFile(inputPng, 'synthetic', 'utf8');
+    await writeFile(inputSvg, '<svg xmlns="http://www.w3.org/2000/svg"></svg>', 'utf8');
+    const result = await runNode([SCRIPT, '--label', 'svgtest', '--github', 'nobody', '--repo', 'nowhere', '--dry-run', inputPng, inputSvg], baseEnv(sandbox));
+    assert.equal(result.code, 0, result.stderr);
+    const match = result.stdout.match(/Local preview written to: (.+)/);
+    assert.ok(match, result.stdout);
+    const preview = match[1].trim();
+    const html = await readFile(preview, 'utf8');
+    assert.match(html, /<img src="shot\.png"/);
+    assert.doesNotMatch(html, /<img[^>]*asset\.svg/);
+    assert.match(html, /<a href="asset\.svg">/);
+    await rm(join(preview, '..'), { recursive: true, force: true });
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test('F-068: real-remote happy-path upload against a local bare stub remote (url.insteadOf, no network)', async () => {
+  const sandbox = await makeSandbox('csm-upload-push-');
+  try {
+    const bin = join(sandbox, 'bin');
+    await mkdir(bin, { recursive: true });
+    const ghStub = join(bin, 'gh');
+    await writeFile(ghStub, '#!/usr/bin/env node\nprocess.stdout.write("nobody\\n");\n', 'utf8');
+    await chmod(ghStub, 0o700);
+
+    const remotesBase = join(sandbox, 'remotes');
+    const bareRepo = join(remotesBase, 'nobody', 'nowhere.git');
+    await mkdir(dirname(bareRepo), { recursive: true });
+    const env = baseEnv(sandbox, { GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' });
+    await execFileAsync('git', ['init', '--bare', bareRepo], { env });
+
+    const gitconfig = `[user]\n\tname = csm-upload test\n\temail = upload@test.local\n[url "file://${remotesBase}/"]\n\tinsteadOf = https://github.com/\n`;
+    await mkdir(join(sandbox, 'home'), { recursive: true });
+    await writeFile(join(sandbox, 'home', '.gitconfig'), gitconfig, 'utf8');
+
+    const input = join(sandbox, 'input.png');
+    await writeFile(input, 'synthetic', 'utf8');
+
+    const result = await runNode([SCRIPT, '--label', 'happy', '--github', 'nobody', '--repo', 'nowhere', input], env);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /Pushed/);
+
+    const configDir = join(sandbox, 'home', '.agents');
+    const configFile = join(configDir, 'csm-upload.json');
+    assert.equal((await stat(configDir)).mode & 0o777, 0o700, 'config dir must be 0700');
+    assert.equal((await stat(configFile)).mode & 0o777, 0o600, 'config file must be 0600');
+    assert.equal(JSON.parse(await readFile(configFile, 'utf8')).github, 'nobody');
+
+    const checkout = join(sandbox, 'checkout');
+    await execFileAsync('git', ['clone', bareRepo, checkout], { env });
+    const demo = `demo-${new Date().toISOString().split('T')[0]}-happy`;
+    const html = await readFile(join(checkout, demo, 'index.html'), 'utf8');
+    assert.match(html, /<img src="input\.png"/);
+    assert.ok((await stat(join(checkout, demo, 'input.png'))).isFile());
+    assert.match(result.stdout, new RegExp(`https://nobody\\.github\\.io/nowhere/${demo}/`));
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
   }
 });

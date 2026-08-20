@@ -24,6 +24,24 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+// R1.7/F-014: a screencast-start that times out may have ALREADY spawned
+// ffmpeg and set the recorder's activeRecording before hanging (e.g. on
+// Page.startScreencast). Leaving that behind makes every later command see
+// 'already recording' and orphans a running ffmpeg. Best-effort: stop the
+// recorder / kill the spawned ffmpeg / reset activeRecording. Never throws.
+async function abortRecording(client, sessionId, sessionDir) {
+  try {
+    const recorder = await import('../lib/recorder.mjs');
+    if (recorder.abortRecorder) {
+      await withTimeout(
+        recorder.abortRecorder(client, sessionId, sessionDir),
+        2000,
+        'recorder abort'
+      );
+    }
+  } catch {}
+}
+
 async function executeCommand(cmd, client, sessionId, sessionDir) {
   if (cmd.verb !== 'screencast-start' && cmd.verb !== 'screencast-stop') {
     return { ok: false, error: 'unknown verb', ts: new Date().toISOString() };
@@ -208,8 +226,13 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
             result = { ok: false, error: 'recorder unavailable', ts: new Date().toISOString() };
           } else if (err && err.timedOut) {
             result = { ok: false, error: 'command timed out', ts: new Date().toISOString() };
+            // R1.7/F-014: the timed-out command may have started the recorder
+            // before hanging — clean it up so the queue is not stuck on
+            // 'already recording' with an orphaned ffmpeg.
+            await abortRecording(client, sessionId, sessionDir);
           } else {
             result = { ok: false, error: err && err.message ? err.message : String(err), ts: new Date().toISOString() };
+            await abortRecording(client, sessionId, sessionDir);
           }
         }
 

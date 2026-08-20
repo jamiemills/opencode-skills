@@ -7,7 +7,7 @@ import { freshSessionsRoot, removeRoot, backage, patchKill } from './helpers/env
 
 const root = await freshSessionsRoot('csm-browse-sweep-');
 const { sweep } = await import('../../lib/sweep.mjs');
-const { setExecLayerForTests } = await import('../../lib/docker.mjs');
+const { setExecLayerForTests } = await import('./helpers/exec-layer.mjs');
 
 after(async () => { setExecLayerForTests(); await removeRoot(root); });
 

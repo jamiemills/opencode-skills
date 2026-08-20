@@ -4,19 +4,19 @@
     {
       "id": "fixture-2026",
       "algorithm": "Ed25519",
-      "public_key_der_base64": "MCowBQYDK2VwAyEA/UWEbUz21l4ZLszxXO2a73G1qmSk84HaO2cmORmC0sc=",
-      "fingerprint": "9becc4df9427fd431d39a09d82e98d43625c1b57dcd12c9dc29bd8283d3b55cf",
+      "public_key_der_base64": "MCowBQYDK2VwAyEATcWR27WU2b6rIfJuqGlgPt89KHz5OX6tSibHg8wn/48=",
+      "fingerprint": "b37f525affc870505af1b92034ab44837d06372b6bea27cc24aed14d09d40209",
       "not_before": "2026-01-01T00:00:00.000Z",
-      "not_after": "2027-01-01T00:00:00.000Z",
+      "not_after": "2030-12-31T23:59:59.000Z",
       "revoked": false
     },
     {
       "id": "revoked-fixture",
       "algorithm": "Ed25519",
-      "public_key_der_base64": "MCowBQYDK2VwAyEA/UWEbUz21l4ZLszxXO2a73G1qmSk84HaO2cmORmC0sc=",
-      "fingerprint": "9becc4df9427fd431d39a09d82e98d43625c1b57dcd12c9dc29bd8283d3b55cf",
+      "public_key_der_base64": "MCowBQYDK2VwAyEATcWR27WU2b6rIfJuqGlgPt89KHz5OX6tSibHg8wn/48=",
+      "fingerprint": "b37f525affc870505af1b92034ab44837d06372b6bea27cc24aed14d09d40209",
       "not_before": "2026-01-01T00:00:00.000Z",
-      "not_after": "2027-01-01T00:00:00.000Z",
+      "not_after": "2030-12-31T23:59:59.000Z",
       "revoked": true,
       "revoked_at": "2026-02-01T00:00:00.000Z"
     }
