@@ -8,13 +8,13 @@ format: csm-plan/1
 
 ## Control
 - Plan ID: deep-research-browse-fallback
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-20 planning complete; plan saved
-- Last model/run: deepseek-v4-flash / csm-plan run
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: cycle 1 COMPLETE — all 5 tasks verified; check-suite OK 659 checks, payload drift clean, matrix check PASS, targeted tests pass under pinned node 22 (v20 floor failures environmental), baseline 659=659
+- Last model/run: deepseek-v4-flash / csm-build run (cycle 1)
+- Next transition: COMPLETE (terminal)
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -108,7 +108,7 @@ T001 ---------------> T004 (payload regen) ---> T005
 
 ## Numbered Plan
 
-1. [pending] Rewrite csm-deep-research/SKILL.md boundary prose and add the Browser Retrieval Fallback section
+1. [completed] Rewrite csm-deep-research/SKILL.md boundary prose and add the Browser Retrieval Fallback section
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -137,7 +137,7 @@ T001 ---------------> T004 (payload regen) ---> T005
    - Repair attempts: 0
    - Recovery note: revertible single file; if the gate later fails on this task's ranges, re-diff against HEAD and re-apply only the boundary lines; the new H2 is appended at file end so partial work is detectable by its absence.
 
-2. [pending] Update the never-invoke contract and interface entry in contracts.mjs
+2. [completed] Update the never-invoke contract and interface entry in contracts.mjs
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -156,7 +156,7 @@ T001 ---------------> T004 (payload regen) ---> T005
    - Recovery note: revertible single module; partial edits detectable by the acceptance one-liner.
    - Spike candidate: none
 
-3. [pending] Regenerate the README composition matrix and update edge-semantics prose
+3. [completed] Regenerate the README composition matrix and update edge-semantics prose
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G2
@@ -174,7 +174,7 @@ T001 ---------------> T004 (payload regen) ---> T005
    - Recovery note: re-run the generator to restore the matrix; the prose sentence is revertible.
    - Spike candidate: none
 
-4. [pending] Regenerate the bootstrap payload
+4. [completed] Regenerate the bootstrap payload
    - Task ID: T004
    - Depends on: T001
    - Parallel group: G2
@@ -192,7 +192,7 @@ T001 ---------------> T004 (payload regen) ---> T005
    - Recovery note: `git checkout -- bootstrap/` restores the prior payload if regeneration misbehaves (content is generated; nothing hand-written there).
    - Spike candidate: none
 
-5. [pending] Run the full gates, targeted tests, and verify the gate baseline
+5. [completed] Run the full gates, targeted tests, and verify the gate baseline
    - Task ID: T005
    - Depends on: T001, T002, T003, T004
    - Parallel group: G3 (final)
@@ -251,6 +251,14 @@ T001 ---------------> T004 (payload regen) ---> T005
 | 2026-08-20 | 0 | DRAFT complete | — | 5-task plan (T001-T005), G1/T002->T003->T005 and T001->T004->T005 graph, design with guardrails and evidence shape | CRITIQUE |
 | 2026-08-20 | 0 | CRITIQUE complete | — | Verdict REVISE: 4 major (T001 acceptance ordering; payload >=120 bound; challenger edit missing; description +1 token), 6 minor | REMEDIATE |
 | 2026-08-20 | 0 | REMEDIATE complete | — | All findings resolved: T001 partial acceptance, AC6/T004 bound removed, CHALLENGE edit added, 59-token description pinned, flag convention pinned, line-budget/never-claims/notes added; Critique Resolution table filled | VERIFY |
+| 2026-08-21 | 1 | NOT_STARTED -> RECOVER | — | git status: only 2 untracked concurrent-session research docs (preserved); format csm-plan/1 OK; no NORMS.md (noted); all 5 tasks pending, no partial work | VALIDATE |
+| 2026-08-21 | 1 | VALIDATE complete | — | node scripts/check-suite.mjs: OK — 9 skills, 659 checks; payload drift {compared:119, issues:[]}; plan references re-confirmed against repo | SELECT |
+| 2026-08-21 | 1 | SELECT complete | — | Ready set {T001,T002}; batch G1 (non-overlapping: SKILL.md vs contracts.mjs); acceptance signals present for both | DISPATCH |
+| 2026-08-21 | 1 | DISPATCH complete | — | T002 subagent: contracts row flipped + consumes entry + comment; all acceptance checks pass. T001 subagent returned EMPTY (incident journaled; resilience ladder) | INTEGRATE |
+| 2026-08-21 | 1 | INTEGRATE complete | — | T002 diff inspected and accepted. T001: no diff landed -> chose primary-led completion (recorded independence caveat; spec was exact and objectively verifiable); all 12 edit points applied primary | VERIFY |
+| 2026-08-21 | 1 | VERIFY complete | — | T001 partial signal PASS (220 tokens exact, 7-name never-invokes, section placement, interface bullets, no numbered H3, 395<500 lines); T003 matrix check PASS; T004 cmp byte-identical PASS; T005: lint exit 0, check-suite OK 659 checks payload {119,[]}, targeted tests 23/25 with 2 failures = pre-existing node-v20 floor (pass under scripts/with-node22.mjs node 22.23.2), baseline 659=659 OK | REVIEW |
+| 2026-08-21 | 1 | REVIEW complete | — | Primary-led review (low-risk docs/data change; gate acts as independent verifier): full diff inspected, all edits match plan, no material findings. Concurrent session's oxfmt changes (package.json/pnpm-lock/Makefile/.oxfmtignore) present in tree — preserved, excluded from this execution's commit | CHECKPOINT |
+| 2026-08-21 | 1 | CHECKPOINT -> COMPLETE | — | Completion gate passed personally: 5/5 tasks completed with evidence, all ACs have recorded evidence, gates green, no unexplained changes from this execution, commit follows | COMPLETE |
 
 ## Completion Review
-<filled by csm-build when all criteria are verified>
+All five tasks completed cycle 1. Evidence: AC1/AC3 new section + guardrails present (grep PASS); AC2 never-invokes set-equality passes inside check-suite (659 checks OK); AC4 description 220/220 tokens, no volatile tokens, never-clause matches (node one-liner PASS); AC5 lint exit 0, check-suite OK 659 checks with payload drift {compared:119, issues:[]}, matrix check PASS, targeted tests pass under pinned node v22.23.2 (two v20-floor failures are pre-existing environmental); baseline recorded=observed=659. AC6 payload byte-identical (cmp PASS). T001 was completed primary-led after the dispatched subagent returned empty (recorded caveat; objective gate checks substitute for implementer independence). Concurrent session work (oxfmt: package.json, pnpm-lock.yaml, Makefile, .oxfmtignore) preserved untouched and excluded from this execution's commits.
