@@ -17,7 +17,7 @@ pre-commit:
     - name: oxfmt
       run: |
         if [ -x ./node_modules/.bin/oxfmt ]; then
-          files=$(git diff --cached --name-only --diff-filter=ACM)
+          files=$(git diff --cached --name-only --diff-filter=ACM -- . ':(exclude).agents' ':(exclude)tests/fixtures/token-efficiency/malformed')
           if [ -n "$files" ]; then
             ./node_modules/.bin/oxfmt --write --ignore-path=.oxfmtignore $files
             git add $files
