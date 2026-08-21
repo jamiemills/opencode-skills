@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help install lint fmt fmt-check check test test-hooks test-bootstrap test-scan test-browse test-e2e analyze
+.PHONY: help install lint fmt fmt-check fmt-staged check test test-hooks test-bootstrap test-scan test-browse test-e2e analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -17,6 +17,14 @@ fmt: ## format repo-wide with oxfmt
 
 fmt-check: ## verify formatting, no writes (CI gate)
 	pnpm exec oxfmt --check --ignore-path=.oxfmtignore .
+
+fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
+	files=$$(git diff --cached --name-only --diff-filter=ACM); \
+	if [ -n "$$files" ]; then \
+	  pnpm exec oxfmt --write --ignore-path=.oxfmtignore $$files && \
+	  git add $$files && \
+	  pnpm exec oxfmt --check --ignore-path=.oxfmtignore $$files; \
+	fi
 
 check: ## repo conformance gate
 	node scripts/check-suite.mjs

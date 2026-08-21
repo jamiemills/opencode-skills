@@ -14,6 +14,20 @@ pre-commit:
           exit 1
         fi
       fail_text: "tracked working-tree changes must be staged (bypass: git commit --no-verify)"
+    - name: oxfmt
+      run: |
+        if [ -x ./node_modules/.bin/oxfmt ]; then
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          if [ -n "$files" ]; then
+            ./node_modules/.bin/oxfmt --write --ignore-path=.oxfmtignore $files
+            git add $files
+            ./node_modules/.bin/oxfmt --check --ignore-path=.oxfmtignore $files
+          fi
+        else
+          echo "pre-commit: oxfmt not installed — run 'make install' first"
+          exit 1
+        fi
+      fail_text: "oxfmt formatting or verify check failed on staged files"
     - name: gate-baseline
       run: |
         if [ -f scripts/record-gate-baseline.mjs ] && [ -f .agents/docs/gate-baselines.json ]; then

@@ -162,6 +162,7 @@ test("(a) repo .lefthook.yml validates and the hook shim is in place", { skip: S
   assert.match(real, /piped:\s*true/);
   for (const job of [
     "unstaged-guard",
+    "oxfmt",
     "gate-baseline",
     "check-suite",
     "mjs-syntax",
