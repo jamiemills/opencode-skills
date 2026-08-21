@@ -1,32 +1,65 @@
 #!/usr/bin/env node
-import { validateSid, sessionDir, containerSessionDir, loadState, saveState, generateToken, rotateToken, cdpEndpoint } from '../lib/session.mjs';
-import { sweep } from '../lib/sweep.mjs';
-import { stopDaemon, killGate } from '../lib/cleanup.mjs';
 import {
-  isContainerRunning, containerExists, containerIP, execDetached,
-  pgrepMatch, pkillMatch, pullImage, spawnGate, dockerCli, hostPgrep
-} from '../lib/docker.mjs';
-import { allocate, acquirePortLock, releasePortLock } from '../lib/ports.mjs';
+  validateSid,
+  sessionDir,
+  containerSessionDir,
+  loadState,
+  saveState,
+  generateToken,
+  rotateToken,
+  cdpEndpoint,
+} from "../lib/session.mjs";
+import { sweep } from "../lib/sweep.mjs";
+import { stopDaemon, killGate } from "../lib/cleanup.mjs";
 import {
-  CONTAINER_NAME, IMAGE, DOCKER_RUN_CMD, CHROMIUM_FLAGS, CHROMIUM_BIN,
-  SKILL_DIR, DAEMON_READY_TIMEOUT_MS, VNC_PASS_PATH,
-  CONTAINER_NETWORK, CONTAINER_CONFIG_HOST_DIR, CONTAINER_ENV_FILE,
-  CONTAINER_TOKEN_PATH, CONTAINER_GATE_LOG, CONTAINER_GATE_SID,
-  CONTAINER_CAP_DROP, CONTAINER_MEMORY, CONTAINER_CPUS, CONTAINER_PIDS_LIMIT,
-  CONTAINER_SHM_SIZE, CHROMIUM_CUSTOM_ARGS, SHARED_CDP_PORT,
-  CONTAINER_CDP_INTERNAL_PORT, imageStaleMs
-} from '../lib/constants.mjs';
-import { readFile, rm, open, stat } from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
-import { existsSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { randomBytes } from 'node:crypto';
-import { setTimeout } from 'node:timers/promises';
-import { spawn } from 'node:child_process';
-import { createConnection } from 'node:net';
-import { ensurePrivateDir, secureWrite, redactTelemetry, redactUrl } from '../lib/security.mjs';
-import { cdpFetchJson, cdpProbe } from '../lib/fetch.mjs';
+  isContainerRunning,
+  containerExists,
+  containerIP,
+  execDetached,
+  pgrepMatch,
+  pkillMatch,
+  pullImage,
+  spawnGate,
+  dockerCli,
+  hostPgrep,
+} from "../lib/docker.mjs";
+import { allocate, acquirePortLock, releasePortLock } from "../lib/ports.mjs";
+import {
+  CONTAINER_NAME,
+  IMAGE,
+  DOCKER_RUN_CMD,
+  CHROMIUM_FLAGS,
+  CHROMIUM_BIN,
+  SKILL_DIR,
+  DAEMON_READY_TIMEOUT_MS,
+  VNC_PASS_PATH,
+  CONTAINER_NETWORK,
+  CONTAINER_CONFIG_HOST_DIR,
+  CONTAINER_ENV_FILE,
+  CONTAINER_TOKEN_PATH,
+  CONTAINER_GATE_LOG,
+  CONTAINER_GATE_SID,
+  CONTAINER_CAP_DROP,
+  CONTAINER_MEMORY,
+  CONTAINER_CPUS,
+  CONTAINER_PIDS_LIMIT,
+  CONTAINER_SHM_SIZE,
+  CHROMIUM_CUSTOM_ARGS,
+  SHARED_CDP_PORT,
+  CONTAINER_CDP_INTERNAL_PORT,
+  imageStaleMs,
+} from "../lib/constants.mjs";
+import { readFile, rm, open, stat } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { pathToFileURL } from "node:url";
+import { randomBytes } from "node:crypto";
+import { setTimeout } from "node:timers/promises";
+import { spawn } from "node:child_process";
+import { createConnection } from "node:net";
+import { ensurePrivateDir, secureWrite, redactTelemetry, redactUrl } from "../lib/security.mjs";
+import { cdpFetchJson, cdpProbe } from "../lib/fetch.mjs";
 
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
@@ -38,14 +71,16 @@ let ageMinutes = 10;
 if (isCli) {
   const args = process.argv.slice(2);
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--session' && i + 1 < args.length) sid = args[++i];
-    else if (args[i] === '--dry-run') dryRun = true;
-    else if (args[i] === '--cleanup-stale') cleanupStale = true;
-    else if (args[i] === '--age' && i + 1 < args.length) ageMinutes = parseFloat(args[++i]) || 10;
+    if (args[i] === "--session" && i + 1 < args.length) sid = args[++i];
+    else if (args[i] === "--dry-run") dryRun = true;
+    else if (args[i] === "--cleanup-stale") cleanupStale = true;
+    else if (args[i] === "--age" && i + 1 < args.length) ageMinutes = parseFloat(args[++i]) || 10;
   }
 
   if (!sid && !cleanupStale) {
-    console.error('Usage: node scripts/ensure-browser.mjs --session <sid> [--dry-run] [--cleanup-stale] [--age MINS]');
+    console.error(
+      "Usage: node scripts/ensure-browser.mjs --session <sid> [--dry-run] [--cleanup-stale] [--age MINS]",
+    );
     process.exit(1);
   }
 
@@ -69,15 +104,15 @@ if (isCli) {
 // the stored URLs unchanged.
 function gateCdpUrl(publicPort, token) {
   const url = new URL(`http://127.0.0.1:${publicPort}`);
-  url.searchParams.set('token', token);
+  url.searchParams.set("token", token);
   return url.toString();
 }
 
 function gateWsUrl(versionJson, publicPort, token) {
   const url = new URL(versionJson.webSocketDebuggerUrl);
-  url.hostname = '127.0.0.1';
+  url.hostname = "127.0.0.1";
   url.port = String(publicPort);
-  url.searchParams.set('token', token);
+  url.searchParams.set("token", token);
   return url.toString();
 }
 
@@ -93,41 +128,59 @@ async function ensureVncPassword() {
     const fh = await open(VNC_PASS_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
     try {
       const info = await fh.stat();
-      if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`);
+      if (!info.isFile() || info.uid !== process.getuid())
+        throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`);
       await fh.chmod(0o600);
-      const existing = (await fh.readFile('utf-8')).trim();
+      const existing = (await fh.readFile("utf-8")).trim();
       if (existing) return existing;
-    } finally { await fh.close(); }
+    } finally {
+      await fh.close();
+    }
   } catch (err) {
-    if (!['ENOENT', 'ELOOP'].includes(err.code)) throw err;
-    if (err.code === 'ELOOP') throw new Error(`Refusing symlink VNC password file: ${VNC_PASS_PATH}`, { cause: err });
+    if (!["ENOENT", "ELOOP"].includes(err.code)) throw err;
+    if (err.code === "ELOOP")
+      throw new Error(`Refusing symlink VNC password file: ${VNC_PASS_PATH}`, { cause: err });
   }
-  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const password = Array.from(randomBytes(8), b => chars[b % chars.length]).join('');
+  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const password = Array.from(randomBytes(8), (b) => chars[b % chars.length]).join("");
   // First-writer-wins: concurrent creators race to create the file with 'wx';
   // the loser re-reads and uses the winner's password so both derive the
   // same VNC_PASSWORD for the shared container.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const fh = await open(VNC_PASS_PATH, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
-      try { await fh.chmod(0o600); await fh.writeFile(password); } finally { await fh.close(); }
+      const fh = await open(
+        VNC_PASS_PATH,
+        fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+        0o600,
+      );
+      try {
+        await fh.chmod(0o600);
+        await fh.writeFile(password);
+      } finally {
+        await fh.close();
+      }
       return password;
     } catch (err) {
-      if (err.code !== 'EEXIST') throw err;
+      if (err.code !== "EEXIST") throw err;
       const fh = await open(VNC_PASS_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
       try {
         const info = await fh.stat();
-        if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`, { cause: err });
+        if (!info.isFile() || info.uid !== process.getuid())
+          throw new Error(`Unsafe VNC password file: ${VNC_PASS_PATH}`, { cause: err });
         await fh.chmod(0o600);
-        const existing = (await fh.readFile('utf-8')).trim();
+        const existing = (await fh.readFile("utf-8")).trim();
         if (existing) return existing;
-      } finally { await fh.close(); }
+      } finally {
+        await fh.close();
+      }
       // F-010: the file exists but is EMPTY (crash between the O_EXCL open
       // and write, or external creation). Without this, every subsequent run
       // throws EEXIST forever and the container can never be created. Remove
       // it and retry the O_EXCL create once.
       if (attempt === 0) {
-        try { await rm(VNC_PASS_PATH, { force: true }); } catch {}
+        try {
+          await rm(VNC_PASS_PATH, { force: true });
+        } catch {}
         continue;
       }
       throw err;
@@ -144,24 +197,43 @@ async function ensureSharedToken() {
     const fh = await open(CONTAINER_TOKEN_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
     try {
       const info = await fh.stat();
-      if (!info.isFile() || info.uid !== process.getuid()) throw new Error(`Unsafe container token file: ${CONTAINER_TOKEN_PATH}`);
+      if (!info.isFile() || info.uid !== process.getuid())
+        throw new Error(`Unsafe container token file: ${CONTAINER_TOKEN_PATH}`);
       await fh.chmod(0o600);
-      const existing = (await fh.readFile('utf-8')).trim();
+      const existing = (await fh.readFile("utf-8")).trim();
       if (existing) return existing;
-    } finally { await fh.close(); }
+    } finally {
+      await fh.close();
+    }
   } catch (err) {
-    if (!['ENOENT', 'ELOOP'].includes(err.code)) throw err;
-    if (err.code === 'ELOOP') throw new Error(`Refusing symlink container token file: ${CONTAINER_TOKEN_PATH}`, { cause: err });
+    if (!["ENOENT", "ELOOP"].includes(err.code)) throw err;
+    if (err.code === "ELOOP")
+      throw new Error(`Refusing symlink container token file: ${CONTAINER_TOKEN_PATH}`, {
+        cause: err,
+      });
   }
   const token = generateToken();
   try {
-    const fh = await open(CONTAINER_TOKEN_PATH, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
-    try { await fh.chmod(0o600); await fh.writeFile(token); } finally { await fh.close(); }
+    const fh = await open(
+      CONTAINER_TOKEN_PATH,
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      await fh.chmod(0o600);
+      await fh.writeFile(token);
+    } finally {
+      await fh.close();
+    }
     return token;
   } catch (err) {
-    if (err.code === 'EEXIST') {
+    if (err.code === "EEXIST") {
       const fh = await open(CONTAINER_TOKEN_PATH, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-      try { return (await fh.readFile('utf-8')).trim(); } finally { await fh.close(); }
+      try {
+        return (await fh.readFile("utf-8")).trim();
+      } finally {
+        await fh.close();
+      }
     }
     throw err;
   }
@@ -175,18 +247,31 @@ async function ensureVncEnvFile() {
   const password = await ensureVncPassword();
   const content = `VNC_PASSWORD=${password}\n`;
   try {
-    const fh = await open(CONTAINER_ENV_FILE, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
-    try { await fh.chmod(0o600); await fh.writeFile(content); } finally { await fh.close(); }
+    const fh = await open(
+      CONTAINER_ENV_FILE,
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      await fh.chmod(0o600);
+      await fh.writeFile(content);
+    } finally {
+      await fh.close();
+    }
   } catch (err) {
-    if (err.code !== 'EEXIST') throw err;
+    if (err.code !== "EEXIST") throw err;
     const fh = await open(CONTAINER_ENV_FILE, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
     try {
-      const existing = await fh.readFile('utf-8');
+      const existing = await fh.readFile("utf-8");
       if (/^VNC_PASSWORD=.+\n?$/.test(existing)) return;
       await fh.close();
-      try { await rm(CONTAINER_ENV_FILE, { force: true }); } catch {}
+      try {
+        await rm(CONTAINER_ENV_FILE, { force: true });
+      } catch {}
       return ensureVncEnvFile();
-    } finally { await fh.close(); }
+    } finally {
+      await fh.close();
+    }
   }
 }
 
@@ -195,39 +280,60 @@ async function ensureVncEnvFile() {
 // hardening (F-016/F-067-10).
 async function ensureNetwork() {
   try {
-    await dockerCli(['network', 'inspect', CONTAINER_NETWORK], { timeout: 10000 });
+    await dockerCli(["network", "inspect", CONTAINER_NETWORK], { timeout: 10000 });
   } catch {
     console.log(`Creating docker network ${CONTAINER_NETWORK}...`);
-    await dockerCli(['network', 'create', CONTAINER_NETWORK], { timeout: 10000 });
+    await dockerCli(["network", "create", CONTAINER_NETWORK], { timeout: 10000 });
   }
 }
 
 export function buildRunArgs() {
-  const capDrops = CONTAINER_CAP_DROP.map((c) => ['--cap-drop', c]).flat();
+  const capDrops = CONTAINER_CAP_DROP.map((c) => ["--cap-drop", c]).flat();
   return [
-    'run', '-d', '--name', CONTAINER_NAME,
-    '--restart', 'unless-stopped',
-    '--network', CONTAINER_NETWORK,
+    "run",
+    "-d",
+    "--name",
+    CONTAINER_NAME,
+    "--restart",
+    "unless-stopped",
+    "--network",
+    CONTAINER_NETWORK,
     ...capDrops,
-    '--security-opt', 'no-new-privileges',
-    '--read-only',
-    '--tmpfs', '/tmp',
-    '--tmpfs', '/run',
+    "--security-opt",
+    "no-new-privileges",
+    "--read-only",
+    "--tmpfs",
+    "/tmp",
+    "--tmpfs",
+    "/run",
     // F-016/R1.4: bind the tmpfs /dev/shm size explicitly so the shm bound
     // is enforced (a bare `--tmpfs /dev/shm` takes the tmpfs default, not the
     // --shm-size value, silently ignoring the limit).
-    '--tmpfs', '/dev/shm:size=1073741824',
-    '--memory', CONTAINER_MEMORY, '--memory-swap', CONTAINER_MEMORY,
-    '--cpus', CONTAINER_CPUS,
-    '--pids-limit', String(CONTAINER_PIDS_LIMIT),
-    '--shm-size', CONTAINER_SHM_SIZE,
-    '-e', 'CHROMIUM_REMOTE_DEBUGGING=1',
-    '-e', 'KEEP_APP_RUNNING=1',
-    '--env-file', CONTAINER_ENV_FILE,
-    '-e', `CHROMIUM_CUSTOM_ARGS=${CHROMIUM_CUSTOM_ARGS}`,
-    '-v', `${CONTAINER_CONFIG_HOST_DIR}:/config`,
-    '-p', '127.0.0.1:5900:5900',
-    IMAGE
+    "--tmpfs",
+    "/dev/shm:size=1073741824",
+    "--memory",
+    CONTAINER_MEMORY,
+    "--memory-swap",
+    CONTAINER_MEMORY,
+    "--cpus",
+    CONTAINER_CPUS,
+    "--pids-limit",
+    String(CONTAINER_PIDS_LIMIT),
+    "--shm-size",
+    CONTAINER_SHM_SIZE,
+    "-e",
+    "CHROMIUM_REMOTE_DEBUGGING=1",
+    "-e",
+    "KEEP_APP_RUNNING=1",
+    "--env-file",
+    CONTAINER_ENV_FILE,
+    "-e",
+    `CHROMIUM_CUSTOM_ARGS=${CHROMIUM_CUSTOM_ARGS}`,
+    "-v",
+    `${CONTAINER_CONFIG_HOST_DIR}:/config`,
+    "-p",
+    "127.0.0.1:5900:5900",
+    IMAGE,
   ];
 }
 
@@ -243,10 +349,10 @@ async function neutralizeSharedRelay() {
     // command line contains the literal `922[2]`, which the class does not
     // match, while the relay's `socat TCP-LISTEN:9222,...` does. A bare
     // "socat TCP-LISTEN:9222" pattern would kill this very shell.
-    await dockerCli([
-      'exec', CONTAINER_NAME, 'sh', '-c',
-      'pkill -f "socat TCP-LISTEN:922[2]" || true'
-    ], { timeout: 10000 });
+    await dockerCli(
+      ["exec", CONTAINER_NAME, "sh", "-c", 'pkill -f "socat TCP-LISTEN:922[2]" || true'],
+      { timeout: 10000 },
+    );
   } catch {
     // Container may be between states (restarting); the migration path and
     // the containerIsHardened relay probe re-check on the next run.
@@ -260,13 +366,19 @@ async function neutralizeSharedRelay() {
 // unauthenticated shared-CDP exposure cannot silently persist.
 async function containerIsHardened(name) {
   try {
-    const { stdout } = await dockerCli([
-      'inspect', name, '--format',
-      '{{.HostConfig.PortBindings}}|{{.HostConfig.NetworkMode}}|{{.HostConfig.ReadonlyRootfs}}'
-    ], { timeout: 10000 });
-    const [ports, network, ro] = stdout.trim().split('|');
-    const publishes9222 = /9222\//.test(ports || '');
-    if (publishes9222 || !(network || '').includes(CONTAINER_NETWORK) || ro !== 'true') return false;
+    const { stdout } = await dockerCli(
+      [
+        "inspect",
+        name,
+        "--format",
+        "{{.HostConfig.PortBindings}}|{{.HostConfig.NetworkMode}}|{{.HostConfig.ReadonlyRootfs}}",
+      ],
+      { timeout: 10000 },
+    );
+    const [ports, network, ro] = stdout.trim().split("|");
+    const publishes9222 = /9222\//.test(ports || "");
+    if (publishes9222 || !(network || "").includes(CONTAINER_NETWORK) || ro !== "true")
+      return false;
   } catch {
     return false;
   }
@@ -278,11 +390,17 @@ async function containerIsHardened(name) {
   try {
     const running = await isContainerRunning(name);
     if (!running) return true;
-    const relay = await dockerCli([
-      'exec', name, 'sh', '-c',
-      'pgrep -f "socat TCP-LISTEN:922[2]" >/dev/null && echo LIVE || true'
-    ], { timeout: 10000 });
-    return !relay.stdout.includes('LIVE');
+    const relay = await dockerCli(
+      [
+        "exec",
+        name,
+        "sh",
+        "-c",
+        'pgrep -f "socat TCP-LISTEN:922[2]" >/dev/null && echo LIVE || true',
+      ],
+      { timeout: 10000 },
+    );
+    return !relay.stdout.includes("LIVE");
   } catch {
     return false;
   }
@@ -295,10 +413,14 @@ function waitForPortBind(port, timeoutMs = 5000) {
     const start = Date.now();
     const probe = () => {
       if (Date.now() - start >= timeoutMs) return resolve(false);
-      const sock = createConnection({ port, host: '127.0.0.1' });
-      const done = (ok) => { sock.destroy(); if (ok) resolve(true); else globalThis.setTimeout(probe, 200); };
-      sock.once('connect', () => done(true));
-      sock.once('error', () => done(false));
+      const sock = createConnection({ port, host: "127.0.0.1" });
+      const done = (ok) => {
+        sock.destroy();
+        if (ok) resolve(true);
+        else globalThis.setTimeout(probe, 200);
+      };
+      sock.once("connect", () => done(true));
+      sock.once("error", () => done(false));
     };
     probe();
   });
@@ -309,10 +431,14 @@ function waitForPortFree(port, timeoutMs = 5000) {
     const start = Date.now();
     const probe = () => {
       if (Date.now() - start >= timeoutMs) return resolve(false);
-      const sock = createConnection({ port, host: '127.0.0.1' });
-      const done = (busy) => { sock.destroy(); if (!busy) resolve(true); else globalThis.setTimeout(probe, 200); };
-      sock.once('connect', () => done(true));
-      sock.once('error', () => done(false));
+      const sock = createConnection({ port, host: "127.0.0.1" });
+      const done = (busy) => {
+        sock.destroy();
+        if (!busy) resolve(true);
+        else globalThis.setTimeout(probe, 200);
+      };
+      sock.once("connect", () => done(true));
+      sock.once("error", () => done(false));
     };
     probe();
   });
@@ -325,7 +451,7 @@ function waitForPortFree(port, timeoutMs = 5000) {
 // existing gate on 9222 and returns the shared token.
 export async function ensureSharedGate(dryRunMode = false) {
   const token = await ensureSharedToken();
-  const gates = await hostPgrep('cdp-gate.mjs');
+  const gates = await hostPgrep("cdp-gate.mjs");
   const already = gates.some((g) => {
     const m = g.cmd.match(/cdp-gate\.mjs\s+(?:--sid\s+\S+\s+)?--port\s+(\d+)/);
     return m && parseInt(m[1], 10) === SHARED_CDP_PORT;
@@ -339,24 +465,32 @@ export async function ensureSharedGate(dryRunMode = false) {
     if (bound) {
       try {
         const ok = await cdpProbe(
-          cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), '/json/version'),
-          { timeoutMs: 3000, attemptTimeoutMs: 1500, delayMs: 250 }
+          cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), "/json/version"),
+          { timeoutMs: 3000, attemptTimeoutMs: 1500, delayMs: 250 },
         );
         if (ok) return token;
       } catch {}
     }
     if (dryRunMode) {
-      console.log(`# Existing shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} is not answering with the current token. Would respawn:`);
-      console.log(`#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${CONTAINER_CDP_INTERNAL_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`);
+      console.log(
+        `# Existing shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} is not answering with the current token. Would respawn:`,
+      );
+      console.log(
+        `#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${CONTAINER_CDP_INTERNAL_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`,
+      );
       return token;
     }
-    console.log(`Existing shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} is not answering with the current token — respawning...`);
+    console.log(
+      `Existing shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} is not answering with the current token — respawning...`,
+    );
     await killGate(SHARED_CDP_PORT);
     await waitForPortFree(SHARED_CDP_PORT, 5000);
   }
   if (dryRunMode) {
-    console.log('# Shared CDP gate absent. Would run:');
-    console.log(`#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${CONTAINER_CDP_INTERNAL_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`);
+    console.log("# Shared CDP gate absent. Would run:");
+    console.log(
+      `#   cdp-gate.mjs --sid ${CONTAINER_GATE_SID} --port ${SHARED_CDP_PORT} --internal ${CONTAINER_CDP_INTERNAL_PORT} --container ${CONTAINER_NAME} --log ${CONTAINER_GATE_LOG} (token via env)`,
+    );
     return token;
   }
   console.log(`Launching shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} (token-gated)`);
@@ -366,17 +500,18 @@ export async function ensureSharedGate(dryRunMode = false) {
     internalPort: CONTAINER_CDP_INTERNAL_PORT,
     containerName: CONTAINER_NAME,
     token,
-    log: CONTAINER_GATE_LOG
+    log: CONTAINER_GATE_LOG,
   });
   const bound = await waitForPortBind(SHARED_CDP_PORT, 10000);
   if (!bound) throw new Error(`Shared CDP gate did not bind 127.0.0.1:${SHARED_CDP_PORT}`);
   // R1.2: verify the funnel actually answers through the gate before handing
   // out the token — a bound port alone does not prove the tunnel reaches
   // chromium's loopback listener.
-  const ready = await cdpProbe(
-    cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), '/json/version'),
-    { timeoutMs: 8000, attemptTimeoutMs: 2000, delayMs: 500 }
-  );
+  const ready = await cdpProbe(cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), "/json/version"), {
+    timeoutMs: 8000,
+    attemptTimeoutMs: 2000,
+    delayMs: 500,
+  });
   if (!ready) {
     throw new Error(`Shared CDP gate on 127.0.0.1:${SHARED_CDP_PORT} did not answer /json/version`);
   }
@@ -390,8 +525,10 @@ export async function ensureSharedGate(dryRunMode = false) {
 export function pidMatchesDaemon(pid, targetSid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
-    const cmd = readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').filter(Boolean).join(' ');
-    return cmd.includes('session-daemon.mjs') && cmd.includes('--session') && cmd.includes(targetSid);
+    const cmd = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean).join(" ");
+    return (
+      cmd.includes("session-daemon.mjs") && cmd.includes("--session") && cmd.includes(targetSid)
+    );
   } catch {
     return false;
   }
@@ -402,29 +539,37 @@ async function ensureContainer(dryRunMode) {
   // letting browser CVEs age silently behind the digest.
   const staleMs = imageStaleMs();
   if (staleMs > 0) {
-    console.warn(`WARNING: pinned browser image is ${Math.round(staleMs / 86400000)} days stale — refresh the digest per the IMAGE comment cadence`);
+    console.warn(
+      `WARNING: pinned browser image is ${Math.round(staleMs / 86400000)} days stale — refresh the digest per the IMAGE comment cadence`,
+    );
   }
 
   let running = await isContainerRunning(CONTAINER_NAME);
-  let exists = running || await containerExists(CONTAINER_NAME);
+  let exists = running || (await containerExists(CONTAINER_NAME));
   let hardened = exists ? await containerIsHardened(CONTAINER_NAME) : false;
 
   if (exists && !hardened) {
     if (dryRunMode) {
-      console.log(`# Container ${CONTAINER_NAME} is not hardened (published 9222 / off the dedicated network / no read-only rootfs / live 0.0.0.0:9222 relay). Would migrate:`);
+      console.log(
+        `# Container ${CONTAINER_NAME} is not hardened (published 9222 / off the dedicated network / no read-only rootfs / live 0.0.0.0:9222 relay). Would migrate:`,
+      );
       console.log(`#   docker cp ${CONTAINER_NAME}:/config/. ${CONTAINER_CONFIG_HOST_DIR}/`);
       console.log(`#   docker rm -f ${CONTAINER_NAME}`);
       console.log(`#   ${DOCKER_RUN_CMD}`);
       return;
     }
-    console.log(`Container ${CONTAINER_NAME} is not hardened — migrating to the gated/hardened config (profile preserved via ${CONTAINER_CONFIG_HOST_DIR})...`);
+    console.log(
+      `Container ${CONTAINER_NAME} is not hardened — migrating to the gated/hardened config (profile preserved via ${CONTAINER_CONFIG_HOST_DIR})...`,
+    );
     await ensurePrivateDir(CONTAINER_CONFIG_HOST_DIR);
     try {
-      await dockerCli(['cp', `${CONTAINER_NAME}:/config/.`, CONTAINER_CONFIG_HOST_DIR], { timeout: 120000 });
+      await dockerCli(["cp", `${CONTAINER_NAME}:/config/.`, CONTAINER_CONFIG_HOST_DIR], {
+        timeout: 120000,
+      });
     } catch (e) {
       console.warn(`Could not copy /config out of ${CONTAINER_NAME}: ${e.message}`);
     }
-    await dockerCli(['rm', '-f', CONTAINER_NAME], { timeout: 30000 });
+    await dockerCli(["rm", "-f", CONTAINER_NAME], { timeout: 30000 });
     // F-001/R1.1: the container is gone — the stale exists/running flags must
     // not short-circuit the create path below, or the migration would leave
     // no container and the probe would fail against nothing.
@@ -434,20 +579,22 @@ async function ensureContainer(dryRunMode) {
   }
 
   if (running && hardened) {
-    console.log(`Container ${CONTAINER_NAME} already running (reusing) — probing shared CDP via the token gate...`);
+    console.log(
+      `Container ${CONTAINER_NAME} already running (reusing) — probing shared CDP via the token gate...`,
+    );
     const token = await ensureSharedGate(dryRunMode);
     const sharedUrl = gateCdpUrl(SHARED_CDP_PORT, token);
-    let ready = await cdpProbe(cdpEndpoint(sharedUrl, '/json/version'), { timeoutMs: 5000 });
+    let ready = await cdpProbe(cdpEndpoint(sharedUrl, "/json/version"), { timeoutMs: 5000 });
     if (!ready) {
-      console.log('CDP not ready on reused container — restarting container...');
-      await dockerCli(['restart', CONTAINER_NAME], { timeout: 60000 });
+      console.log("CDP not ready on reused container — restarting container...");
+      await dockerCli(["restart", CONTAINER_NAME], { timeout: 60000 });
       // F-001: the image init re-runs on restart and brings its 0.0.0.0:9222
       // relay back with it — neutralize it again before the funnel respawn.
       await neutralizeSharedRelay();
       const token2 = await ensureSharedGate(false);
-      ready = await cdpProbe(cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token2), '/json/version'));
+      ready = await cdpProbe(cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token2), "/json/version"));
       if (!ready) {
-        console.error('Shared browser CDP did not become ready after container restart');
+        console.error("Shared browser CDP did not become ready after container restart");
         process.exit(1);
       }
     }
@@ -461,7 +608,7 @@ async function ensureContainer(dryRunMode) {
       return;
     }
     console.log(`Container ${CONTAINER_NAME} exists but stopped. Starting...`);
-    await dockerCli(['start', CONTAINER_NAME], { timeout: 60000 });
+    await dockerCli(["start", CONTAINER_NAME], { timeout: 60000 });
     // F-001: the image init runs on start — neutralize its 0.0.0.0:9222
     // relay so the bridge IP stops answering unauthenticated CDP.
     await neutralizeSharedRelay();
@@ -474,7 +621,7 @@ async function ensureContainer(dryRunMode) {
     }
     console.log(`Container ${CONTAINER_NAME} absent. Creating...`);
     try {
-      await dockerCli(['inspect', '--type=image', IMAGE], { timeout: 10000 });
+      await dockerCli(["inspect", "--type=image", IMAGE], { timeout: 10000 });
     } catch {
       console.log(`Pulling image ${IMAGE}...`);
       await pullImage(IMAGE);
@@ -491,24 +638,25 @@ async function ensureContainer(dryRunMode) {
 
   const token = await ensureSharedGate(dryRunMode);
   console.log(`Waiting for shared browser CDP via the 127.0.0.1:${SHARED_CDP_PORT} token gate...`);
-  const ready = await cdpProbe(cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), '/json/version'));
+  const ready = await cdpProbe(cdpEndpoint(gateCdpUrl(SHARED_CDP_PORT, token), "/json/version"));
   if (!ready) {
-    console.error('Shared browser CDP did not become ready within timeout');
+    console.error("Shared browser CDP did not become ready within timeout");
     process.exit(1);
   }
-  console.log('Shared browser CDP ready');
+  console.log("Shared browser CDP ready");
 }
 
 async function adoptSession(targetSid, containerSessDir) {
-  const matches = await pgrepMatch(CONTAINER_NAME,
-    `--user-data-dir=${containerSessDir}/`);
+  const matches = await pgrepMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
   if (matches.length === 0) return null;
 
-  console.log(`Found existing chromium process with our profile (pid ${matches[0].pid}) — ADOPTING`);
+  console.log(
+    `Found existing chromium process with our profile (pid ${matches[0].pid}) — ADOPTING`,
+  );
 
   const portMatch = matches[0].cmd.match(/--remote-debugging-port=(\d+)/);
   if (!portMatch) {
-    console.error('Could not parse --remote-debugging-port from existing chromium process');
+    console.error("Could not parse --remote-debugging-port from existing chromium process");
     return null;
   }
 
@@ -520,11 +668,19 @@ async function adoptSession(targetSid, containerSessDir) {
   // the chromium/gate mid-adoption. The marker is removed once state.json
   // lands (main removes it after saveState).
   const hostSessDir = sessionDir(targetSid);
-  const markerPath = join(hostSessDir, 'creating.marker');
+  const markerPath = join(hostSessDir, "creating.marker");
   await ensurePrivateDir(hostSessDir);
-  await secureWrite(markerPath, JSON.stringify({
-    pid: process.pid, internal: internalPort, public: publicPort, ts: new Date().toISOString(), adopt: true
-  }), { encoding: 'utf-8' });
+  await secureWrite(
+    markerPath,
+    JSON.stringify({
+      pid: process.pid,
+      internal: internalPort,
+      public: publicPort,
+      ts: new Date().toISOString(),
+      adopt: true,
+    }),
+    { encoding: "utf-8" },
+  );
 
   // Always respawn the gate with a fresh token: an old gate (if any) holds an
   // unknown token we cannot recover, and adoption must never inherit a stale
@@ -533,30 +689,43 @@ async function adoptSession(targetSid, containerSessDir) {
   try {
     await killGate(publicPort);
     await spawnGate({
-      sid: targetSid, publicPort, internalPort, containerName: CONTAINER_NAME, token
+      sid: targetSid,
+      publicPort,
+      internalPort,
+      containerName: CONTAINER_NAME,
+      token,
     });
     console.log(`CDP gate up on 127.0.0.1:${publicPort} -> ${internalPort}`);
 
     const cdpUrl = gateCdpUrl(publicPort, token);
     console.log(`Waiting for CDP after adopt at ${redactUrl(cdpUrl)}...`);
-    const ready = await cdpProbe(cdpEndpoint(cdpUrl, '/json/version'));
+    const ready = await cdpProbe(cdpEndpoint(cdpUrl, "/json/version"));
     if (!ready) {
-      console.error('CDP did not become ready after adopt — killing stale instance');
+      console.error("CDP did not become ready after adopt — killing stale instance");
       await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
       await killGate(publicPort);
-      try { await rm(markerPath, { force: true }); } catch {}
+      try {
+        await rm(markerPath, { force: true });
+      } catch {}
       return null;
     }
-    console.log('CDP ready after adopt');
+    console.log("CDP ready after adopt");
 
-    const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, '/json/version'));
+    const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, "/json/version"));
     const wsUrl = gateWsUrl(versionJson, publicPort, token);
 
     return {
-      cdpUrl, wsUrl, token, internalPort, publicPort, adopted: true
+      cdpUrl,
+      wsUrl,
+      token,
+      internalPort,
+      publicPort,
+      adopted: true,
     };
   } catch (err) {
-    try { await rm(markerPath, { force: true }); } catch {}
+    try {
+      await rm(markerPath, { force: true });
+    } catch {}
     throw err;
   }
 }
@@ -567,40 +736,48 @@ async function adoptSession(targetSid, containerSessDir) {
 // container bridge IP. The session gate's docker exec tunnel always targets
 // 127.0.0.1:<internalPort>, so loopback binding changes nothing for the host.
 export function buildChromiumCmd(containerSessDir, internalPort) {
-  const flagsStr = CHROMIUM_FLAGS.join(' ');
+  const flagsStr = CHROMIUM_FLAGS.join(" ");
   return [
-    'mkdir -p',
-    '$SESS/profile',
-    '$SESS/cache',
-    '$SESS/crash',
-    '$SESS/xdg/runtime',
-    '&&',
+    "mkdir -p",
+    "$SESS/profile",
+    "$SESS/cache",
+    "$SESS/crash",
+    "$SESS/xdg/runtime",
+    "&&",
     CHROMIUM_BIN,
     flagsStr,
-    '--remote-debugging-address=127.0.0.1',
+    "--remote-debugging-address=127.0.0.1",
     `--remote-debugging-port=${internalPort}`,
-    '--user-data-dir=$SESS/profile',
-    '--disk-cache-dir=$SESS/cache',
-    '--crash-dumps-dir=$SESS/crash',
-    '>$SESS/chromium.log',
-    '2>&1',
-    '&'
-  ].join(' ');
+    "--user-data-dir=$SESS/profile",
+    "--disk-cache-dir=$SESS/cache",
+    "--crash-dumps-dir=$SESS/crash",
+    ">$SESS/chromium.log",
+    "2>&1",
+    "&",
+  ].join(" ");
 }
 
 async function createSession(targetSid, containerSessDir) {
-  console.log('No existing session found — CREATING new instance...');
+  console.log("No existing session found — CREATING new instance...");
 
   const hostSessDir = sessionDir(targetSid);
-  const markerPath = join(hostSessDir, 'creating.marker');
+  const markerPath = join(hostSessDir, "creating.marker");
   let internal;
   let pub;
   let token;
 
   const cleanupLaunch = async () => {
-    if (pub) { try { await killGate(pub); } catch {} }
-    try { await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`); } catch {}
-    try { await rm(markerPath, { force: true }); } catch {}
+    if (pub) {
+      try {
+        await killGate(pub);
+      } catch {}
+    }
+    try {
+      await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
+    } catch {}
+    try {
+      await rm(markerPath, { force: true });
+    } catch {}
   };
 
   await acquirePortLock();
@@ -612,28 +789,35 @@ async function createSession(targetSid, containerSessDir) {
     // chromium: any concurrent sweep that runs while we hold/release the
     // lock must treat this session as do-not-touch until state.json lands.
     await ensurePrivateDir(hostSessDir);
-    await secureWrite(markerPath, JSON.stringify({
-      pid: process.pid, internal, public: pub, ts: new Date().toISOString()
-    }), { encoding: 'utf-8' });
+    await secureWrite(
+      markerPath,
+      JSON.stringify({
+        pid: process.pid,
+        internal,
+        public: pub,
+        ts: new Date().toISOString(),
+      }),
+      { encoding: "utf-8" },
+    );
 
     const chromiumCmd = buildChromiumCmd(containerSessDir, internal);
 
-    console.log('Launching chromium...');
-    await execDetached(CONTAINER_NAME, ['sh', '-c', chromiumCmd], {
-      user: '1000',
+    console.log("Launching chromium...");
+    await execDetached(CONTAINER_NAME, ["sh", "-c", chromiumCmd], {
+      user: "1000",
       env: {
-        DISPLAY: ':0',
+        DISPLAY: ":0",
         HOME: containerSessDir,
         XDG_CONFIG_HOME: `${containerSessDir}/xdg/config`,
         XDG_CACHE_HOME: `${containerSessDir}/xdg/cache`,
         XDG_DATA_HOME: `${containerSessDir}/xdg/data`,
         XDG_STATE_HOME: `${containerSessDir}/xdg/state`,
         XDG_RUNTIME_DIR: `${containerSessDir}/xdg/runtime`,
-        SESS: containerSessDir
+        SESS: containerSessDir,
       },
-      timeout: 60000
+      timeout: 60000,
     });
-    console.log('Chromium launched');
+    console.log("Chromium launched");
 
     // Host-side token gate replaces the container socat bridge. The gate
     // spawns a `docker exec -i ... socat -` tunnel per authenticated
@@ -641,8 +825,11 @@ async function createSession(targetSid, containerSessDir) {
     token = generateToken();
     console.log(`Launching CDP gate on 127.0.0.1:${pub} -> ${internal}...`);
     await spawnGate({
-      sid: targetSid, publicPort: pub, internalPort: internal,
-      containerName: CONTAINER_NAME, token
+      sid: targetSid,
+      publicPort: pub,
+      internalPort: internal,
+      containerName: CONTAINER_NAME,
+      token,
     });
     // F-067-8: the lock stays held until the gate has CONFIRMED its bind —
     // spawnGate only returns the child pid; without this, a slow gate start
@@ -650,7 +837,7 @@ async function createSession(targetSid, containerSessDir) {
     // has not yet bound (EADDRINUSE double-allocation).
     const bound = await waitForPortBind(pub, 10000);
     if (!bound) throw new Error(`CDP gate did not bind 127.0.0.1:${pub} within 10s`);
-    console.log('CDP gate launched');
+    console.log("CDP gate launched");
   } catch (err) {
     await releasePortLock();
     console.error(`Create failed: ${err.message} — cleaning up`);
@@ -666,15 +853,20 @@ async function createSession(targetSid, containerSessDir) {
   const cdpUrl = gateCdpUrl(pub, token);
   try {
     console.log(`Waiting for CDP at ${redactUrl(cdpUrl)}...`);
-    const ready = await cdpProbe(cdpEndpoint(cdpUrl, '/json/version'));
-    if (!ready) throw new Error('CDP did not become ready within timeout');
-    console.log('CDP ready');
+    const ready = await cdpProbe(cdpEndpoint(cdpUrl, "/json/version"));
+    if (!ready) throw new Error("CDP did not become ready within timeout");
+    console.log("CDP ready");
 
-    const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, '/json/version'));
+    const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, "/json/version"));
     const wsUrl = gateWsUrl(versionJson, pub, token);
 
     return {
-      cdpUrl, wsUrl, token, internalPort: internal, publicPort: pub, adopted: false
+      cdpUrl,
+      wsUrl,
+      token,
+      internalPort: internal,
+      publicPort: pub,
+      adopted: false,
     };
   } catch (err) {
     console.error(`Create failed: ${err.message} — cleaning up`);
@@ -685,7 +877,7 @@ async function createSession(targetSid, containerSessDir) {
 
 async function memAvailableMb() {
   try {
-    const { stdout } = await execFileAsync('free', ['-m']);
+    const { stdout } = await execFileAsync("free", ["-m"]);
     const m = stdout.match(/^Mem:\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/m);
     return m ? parseInt(m[1], 10) : -1;
   } catch {
@@ -697,7 +889,7 @@ async function daemonCdpAlive(targetSid) {
   try {
     const state = await loadState(targetSid);
     if (state && state.cdpUrl) {
-      return await cdpProbe(cdpEndpoint(state.cdpUrl, '/json/version'), { timeoutMs: 3000 });
+      return await cdpProbe(cdpEndpoint(state.cdpUrl, "/json/version"), { timeoutMs: 3000 });
     }
   } catch {}
   return false;
@@ -705,8 +897,8 @@ async function daemonCdpAlive(targetSid) {
 
 async function launchDaemon(targetSid) {
   const sDir = sessionDir(targetSid);
-  const readyMarker = join(sDir, 'daemon.ready');
-  const pidFilePath = join(sDir, 'daemon.pid');
+  const readyMarker = join(sDir, "daemon.ready");
+  const pidFilePath = join(sDir, "daemon.pid");
 
   // Zombie pre-check: a stale-but-alive daemon from a previous session
   // generation holds pid+ready markers, makes our fresh spawn exit 2
@@ -716,13 +908,19 @@ async function launchDaemon(targetSid) {
   try {
     if (existsSync(pidFilePath)) {
       let pid = null;
-      try { pid = parseInt((await readFile(pidFilePath, 'utf-8')).trim(), 10); } catch {}
+      try {
+        pid = parseInt((await readFile(pidFilePath, "utf-8")).trim(), 10);
+      } catch {}
       if (!isNaN(pid)) {
         // F-021: liveness is not identity. A recycled pid that is NOT our
         // session-daemon must never be SIGTERM'd (or treated as the live
         // daemon); verify the argv before signaling.
         let alive = pidMatchesDaemon(pid, targetSid);
-        try { if (alive) process.kill(pid, 0); } catch { alive = false; }
+        try {
+          if (alive) process.kill(pid, 0);
+        } catch {
+          alive = false;
+        }
         if (alive) {
           let staleMarker = false;
           try {
@@ -732,8 +930,12 @@ async function launchDaemon(targetSid) {
           if (staleMarker || !(await daemonCdpAlive(targetSid))) {
             console.log(`Daemon pid ${pid} alive but stale (zombie) — stopping before relaunch`);
             await stopDaemon(sDir);
-            try { await rm(pidFilePath, { force: true }); } catch {}
-            try { await rm(readyMarker, { force: true }); } catch {}
+            try {
+              await rm(pidFilePath, { force: true });
+            } catch {}
+            try {
+              await rm(readyMarker, { force: true });
+            } catch {}
           } else {
             console.log(`Healthy daemon already running (pid ${pid})`);
             return pid;
@@ -746,18 +948,21 @@ async function launchDaemon(targetSid) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     console.log(`Starting session daemon (attempt ${attempt})...`);
 
-    const daemonProc = spawn('node', [
-      join(SKILL_DIR, 'scripts', 'session-daemon.mjs'),
-      '--session', targetSid
-    ], {
-      detached: true,
-      stdio: ['ignore', 'ignore', 'ignore']
-    });
+    const daemonProc = spawn(
+      "node",
+      [join(SKILL_DIR, "scripts", "session-daemon.mjs"), "--session", targetSid],
+      {
+        detached: true,
+        stdio: ["ignore", "ignore", "ignore"],
+      },
+    );
     daemonProc.unref();
     // Capture the exit code: 2 = single-instance refusal, meaning a healthy
     // winner daemon owns pidFile/readyMarker — those markers must survive.
     let childExitCode = null;
-    daemonProc.on('exit', (code) => { childExitCode = code; });
+    daemonProc.on("exit", (code) => {
+      childExitCode = code;
+    });
 
     const childPid = daemonProc.pid;
     const start = Date.now();
@@ -765,7 +970,11 @@ async function launchDaemon(targetSid) {
     while (Date.now() - start < DAEMON_READY_TIMEOUT_MS) {
       let childAlive = true;
       if (childPid) {
-        try { process.kill(childPid, 0); } catch { childAlive = false; }
+        try {
+          process.kill(childPid, 0);
+        } catch {
+          childAlive = false;
+        }
       }
       if (!childAlive) break;
 
@@ -787,40 +996,62 @@ async function launchDaemon(targetSid) {
 
     let died = false;
     if (childPid) {
-      try { process.kill(childPid, 0); } catch { died = true; }
+      try {
+        process.kill(childPid, 0);
+      } catch {
+        died = true;
+      }
     }
     const mem = await memAvailableMb();
     if (died) {
       if (childExitCode === 2) {
         // Refused because another healthy daemon owns the claim: adopt it
         // instead of deleting the winner's markers and double-spawning.
-        console.log('Daemon claim refused (already running) — adopting existing daemon');
+        console.log("Daemon claim refused (already running) — adopting existing daemon");
         try {
-          const pid = parseInt((await readFile(pidFilePath, 'utf-8')).trim(), 10);
+          const pid = parseInt((await readFile(pidFilePath, "utf-8")).trim(), 10);
           if (!isNaN(pid)) return pid;
         } catch {}
         return null;
       }
-      console.error(`Daemon (pid ${childPid}) died before becoming ready — possible OOM. Host available memory: ${mem} MB`);
-      try { await rm(pidFilePath, { force: true }); } catch {}
-      try { await rm(readyMarker, { force: true }); } catch {}
+      console.error(
+        `Daemon (pid ${childPid}) died before becoming ready — possible OOM. Host available memory: ${mem} MB`,
+      );
+      try {
+        await rm(pidFilePath, { force: true });
+      } catch {}
+      try {
+        await rm(readyMarker, { force: true });
+      } catch {}
       return null;
     }
     if (attempt < 2) {
-      console.error('Daemon did not become ready within timeout — retrying once...');
+      console.error("Daemon did not become ready within timeout — retrying once...");
       if (childPid) {
-        try { process.kill(childPid, 'SIGTERM'); } catch {}
+        try {
+          process.kill(childPid, "SIGTERM");
+        } catch {}
         for (let i = 0; i < 20; i++) {
-          try { process.kill(childPid, 0); } catch { break; }
+          try {
+            process.kill(childPid, 0);
+          } catch {
+            break;
+          }
           await setTimeout(100);
         }
       }
-      try { await rm(pidFilePath, { force: true }); } catch {}
-      try { await rm(readyMarker, { force: true }); } catch {}
+      try {
+        await rm(pidFilePath, { force: true });
+      } catch {}
+      try {
+        await rm(readyMarker, { force: true });
+      } catch {}
     }
   }
 
-  console.error(`Daemon did not become ready after 2 attempts. Host available memory: ${await memAvailableMb()} MB`);
+  console.error(
+    `Daemon did not become ready after 2 attempts. Host available memory: ${await memAvailableMb()} MB`,
+  );
   return null;
 }
 
@@ -846,7 +1077,7 @@ async function respawnSession(targetSid, state) {
     publicPort: state.publicPort,
     internalPort: state.internalPort,
     containerName: CONTAINER_NAME,
-    token: state.token
+    token: state.token,
   });
 }
 
@@ -878,13 +1109,13 @@ async function main() {
   try {
     const ip = await containerIP(CONTAINER_NAME);
     const res = await sweep({ containerName: CONTAINER_NAME, ip, skipSid: sid, dryRun: false });
-    if (res.swept.length > 0) console.log(`Sweep: ${res.swept.join(', ')}`);
+    if (res.swept.length > 0) console.log(`Sweep: ${res.swept.join(", ")}`);
   } catch (e) {
     console.error(`Sweep skipped: ${e.message}`);
   }
 
   const ip = await containerIP(CONTAINER_NAME);
-  if (!ip) throw new Error('container IP unavailable');
+  if (!ip) throw new Error("container IP unavailable");
   console.log(`Container IP: ${ip}`);
 
   const hostSessDir = sessionDir(sid);
@@ -892,8 +1123,10 @@ async function main() {
   const existingState = await loadState(sid);
 
   if (existingState) {
-    console.log('Found existing state.json');
-    const cdpReachable = await cdpProbe(cdpEndpoint(existingState.cdpUrl, '/json/version'), { timeoutMs: 5000 });
+    console.log("Found existing state.json");
+    const cdpReachable = await cdpProbe(cdpEndpoint(existingState.cdpUrl, "/json/version"), {
+      timeoutMs: 5000,
+    });
 
     if (cdpReachable) {
       if (existingState.daemonPid) {
@@ -902,17 +1135,19 @@ async function main() {
           // session's daemon and must never be SIGTERM'd — stopDaemon waits
           // on the pid, so require the argv match before trusting it.
           if (!pidMatchesDaemon(existingState.daemonPid, sid)) {
-            throw new Error('daemon pid does not match this session (recycled?)');
+            throw new Error("daemon pid does not match this session (recycled?)");
           }
-          try { process.kill(existingState.daemonPid, 0); } catch {
-            throw new Error('daemon pid dead');
+          try {
+            process.kill(existingState.daemonPid, 0);
+          } catch {
+            throw new Error("daemon pid dead");
           }
           // Stale-but-alive zombie: pid responds but the ready marker's
           // mtime is old (a live daemon touches it every 2s) — stop and
           // relaunch instead of wiring the session to a dead queue loop.
           let zombie = false;
           try {
-            const st = await stat(join(hostSessDir, 'daemon.ready'));
+            const st = await stat(join(hostSessDir, "daemon.ready"));
             if (Date.now() - st.mtimeMs > DAEMON_READY_TIMEOUT_MS) zombie = true;
           } catch {}
           if (!zombie) {
@@ -920,39 +1155,39 @@ async function main() {
               // Pre-auth session state (upgrade): never reuse a session
               // without a token — rotate to mint one, bring the gate up, and
               // reconnect the daemon through it (fail closed).
-              console.log('Existing session has no auth token — rotating...');
+              console.log("Existing session has no auth token — rotating...");
               await stopDaemon(hostSessDir);
               await respawnSession(sid, existingState);
               await ensureDaemon(sid, existingState);
               logState(existingState);
               return;
             }
-            console.log('CDP reachable, daemon alive — reusing existing session');
+            console.log("CDP reachable, daemon alive — reusing existing session");
             logState(existingState);
             return;
           }
-          console.log('CDP reachable but daemon is a stale zombie — restarting daemon...');
+          console.log("CDP reachable but daemon is a stale zombie — restarting daemon...");
           await stopDaemon(hostSessDir);
           await respawnSession(sid, existingState);
           await ensureDaemon(sid, existingState);
           logState(existingState);
           return;
         } catch {
-          console.log('CDP reachable but daemon dead — restarting daemon...');
+          console.log("CDP reachable but daemon dead — restarting daemon...");
           await respawnSession(sid, existingState);
           await ensureDaemon(sid, existingState);
           logState(existingState);
           return;
         }
       } else {
-        console.log('CDP reachable but no daemon on record — launching daemon...');
+        console.log("CDP reachable but no daemon on record — launching daemon...");
         await respawnSession(sid, existingState);
         await ensureDaemon(sid, existingState);
         logState(existingState);
         return;
       }
     } else {
-      console.log('CDP unreachable, recreating session...');
+      console.log("CDP unreachable, recreating session...");
     }
   }
 
@@ -969,13 +1204,15 @@ async function main() {
       sessionDir: hostSessDir,
       profileDir: containerSessDir,
       daemonPid: null,
-      container: { name: CONTAINER_NAME, ip, state: 'running' },
+      container: { name: CONTAINER_NAME, ip, state: "running" },
       createdAt: new Date().toISOString(),
-      adopted: true
+      adopted: true,
     };
     await saveState(sid, state);
     // F-020: the adoption marker retires now that the session is durable.
-    try { await rm(join(hostSessDir, 'creating.marker'), { force: true }); } catch {}
+    try {
+      await rm(join(hostSessDir, "creating.marker"), { force: true });
+    } catch {}
     await ensureDaemon(sid, state);
     logState(state);
     return;
@@ -993,25 +1230,28 @@ async function main() {
     sessionDir: hostSessDir,
     profileDir: containerSessDir,
     daemonPid: null,
-    container: { name: CONTAINER_NAME, ip, state: 'running' },
+    container: { name: CONTAINER_NAME, ip, state: "running" },
     createdAt: new Date().toISOString(),
-    adopted: false
+    adopted: false,
   };
   await saveState(sid, state);
   // Session is durable now — retire the creation marker so sweep's
   // do-not-touch window closes and normal liveness/aging applies.
-  try { await rm(join(hostSessDir, 'creating.marker'), { force: true }); } catch {}
+  try {
+    await rm(join(hostSessDir, "creating.marker"), { force: true });
+  } catch {}
   await ensureDaemon(sid, state);
   logState(state);
 }
 
 if (isCli) {
-  main().catch(err => {
+  main().catch((err) => {
     // F-065-d: report the redacted stack WITH its cause so a failure is
     // diagnosable without leaking tokenized URLs from state.
-    const cause = err && err.cause
-      ? `\ncause: ${redactTelemetry(err.cause && err.cause.stack ? err.cause.stack : (err.cause && err.cause.message))}`
-      : '';
+    const cause =
+      err && err.cause
+        ? `\ncause: ${redactTelemetry(err.cause && err.cause.stack ? err.cause.stack : err.cause && err.cause.message)}`
+        : "";
     console.error(redactTelemetry(err && err.stack ? err.stack : err.message) + cause);
     process.exit(1);
   });

@@ -37,26 +37,26 @@
 // touches node:fs / node:child_process / node:process / node:vm / node:module,
 // so the recurring capability gate remains closed.
 
-import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { validateProviders } from '../contracts/provider.mjs';
-import { descriptorFor } from '../shared/ecosystem.mjs';
-import { createProviderResult, mergeProviderResults } from './base.mjs';
+import { compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { validateProviders } from "../contracts/provider.mjs";
+import { descriptorFor } from "../shared/ecosystem.mjs";
+import { createProviderResult, mergeProviderResults } from "./base.mjs";
 import {
   GENERIC_PROVIDER_ID,
   genericProviderResults,
   isUnknownLanguageEcosystem,
-} from './generic.mjs';
+} from "./generic.mjs";
 
 export const RUNTIME_CATALOG_VERSION = 1;
 
-export const STACK_CATALOG_PROVIDER_ID = 'PRV-runtime-stack-v1';
-export const CONFIG_CATALOG_PROVIDER_ID = 'PRV-runtime-config-v1';
-export const TESTING_CATALOG_PROVIDER_ID = 'PRV-runtime-testing-v1';
-export const RUNTIME_PLUGIN_PROVIDER_ID = 'PRV-runtime-plugin-v1';
+export const STACK_CATALOG_PROVIDER_ID = "PRV-runtime-stack-v1";
+export const CONFIG_CATALOG_PROVIDER_ID = "PRV-runtime-config-v1";
+export const TESTING_CATALOG_PROVIDER_ID = "PRV-runtime-testing-v1";
+export const RUNTIME_PLUGIN_PROVIDER_ID = "PRV-runtime-plugin-v1";
 
-const STACK_DIMENSION_ID = 'DIM-stack-v1';
-const CONFIG_DIMENSION_ID = 'DIM-config-v1';
-const TESTING_DIMENSION_ID = 'DIM-testing-v1';
+const STACK_DIMENSION_ID = "DIM-stack-v1";
+const CONFIG_DIMENSION_ID = "DIM-config-v1";
+const TESTING_DIMENSION_ID = "DIM-testing-v1";
 
 // ---------------------------------------------------------------------------
 // T202 provider registry
@@ -66,34 +66,50 @@ const CATALOG_DEFINITIONS = Object.freeze([
   {
     id: STACK_CATALOG_PROVIDER_ID,
     apiVersion: RUNTIME_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: STACK_DIMENSION_ID,
-      categories: ['framework', 'language', 'package_manager', 'runtime'],
-    }],
+    dimensions: [
+      {
+        dimensionId: STACK_DIMENSION_ID,
+        categories: ["framework", "language", "package_manager", "runtime"],
+      },
+    ],
   },
   {
     id: CONFIG_CATALOG_PROVIDER_ID,
     apiVersion: RUNTIME_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: CONFIG_DIMENSION_ID,
-      categories: ['configuration', 'editor', 'environment', 'format', 'lint'],
-    }],
+    dimensions: [
+      {
+        dimensionId: CONFIG_DIMENSION_ID,
+        categories: ["configuration", "editor", "environment", "format", "lint"],
+      },
+    ],
   },
   {
     id: TESTING_CATALOG_PROVIDER_ID,
     apiVersion: RUNTIME_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: TESTING_DIMENSION_ID,
-      categories: ['configuration', 'coverage', 'fixture', 'framework', 'test_directory', 'test_file'],
-    }],
+    dimensions: [
+      {
+        dimensionId: TESTING_DIMENSION_ID,
+        categories: [
+          "configuration",
+          "coverage",
+          "fixture",
+          "framework",
+          "test_directory",
+          "test_file",
+        ],
+      },
+    ],
   },
   {
     id: GENERIC_PROVIDER_ID,
     apiVersion: RUNTIME_CATALOG_VERSION,
     dimensions: [
-      { dimensionId: 'DIM-maintainability-v1', categories: ['file_metric', 'measurement_universe'] },
-      { dimensionId: 'DIM-assurance-v1', categories: ['lock', 'manifest'] },
-      { dimensionId: 'DIM-documentation-v1', categories: ['contributing', 'license', 'readme'] },
+      {
+        dimensionId: "DIM-maintainability-v1",
+        categories: ["file_metric", "measurement_universe"],
+      },
+      { dimensionId: "DIM-assurance-v1", categories: ["lock", "manifest"] },
+      { dimensionId: "DIM-documentation-v1", categories: ["contributing", "license", "readme"] },
     ],
   },
 ]);
@@ -122,7 +138,7 @@ function stableHash(value) {
     hash ^= value.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193);
   }
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function keyFor(prefix, value) {
@@ -132,7 +148,7 @@ function keyFor(prefix, value) {
 }
 
 function stringValue(value) {
-  return typeof value === 'string' && value.length > 0;
+  return typeof value === "string" && value.length > 0;
 }
 
 function plainList(value) {
@@ -144,10 +160,10 @@ function plainList(value) {
 // ---------------------------------------------------------------------------
 
 function runtimeSourceKind(kind) {
-  if (kind === 'version-file') return 'version_file';
-  if (kind === 'container-image') return 'container';
-  if (kind === 'signal') return 'file_metadata';
-  return 'manifest';
+  if (kind === "version-file") return "version_file";
+  if (kind === "container-image") return "container";
+  if (kind === "signal") return "file_metadata";
+  return "manifest";
 }
 
 /**
@@ -158,46 +174,46 @@ function runtimeSourceKind(kind) {
  * @returns {object[]} provider observations (unsorted).
  */
 export function stackCatalogObservations(findings) {
-  if (findings === null || typeof findings !== 'object' || Array.isArray(findings)) return [];
+  if (findings === null || typeof findings !== "object" || Array.isArray(findings)) return [];
   const observations = [];
 
   if (stringValue(findings.language)) {
     observations.push({
-      category: 'language',
+      category: "language",
       path: null,
-      matchedKey: 'language',
+      matchedKey: "language",
       details: { name: findings.language },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   for (const id of plainList(findings.ecosystems)) {
     if (!stringValue(id)) continue;
     const label = descriptorFor(id)?.label ?? id;
     observations.push({
-      category: 'language',
+      category: "language",
       path: null,
-      matchedKey: keyFor('language', id),
+      matchedKey: keyFor("language", id),
       details: { name: id, label },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   if (stringValue(findings.runtime)) {
     observations.push({
-      category: 'runtime',
+      category: "runtime",
       path: null,
-      matchedKey: 'runtime',
+      matchedKey: "runtime",
       details: { name: findings.runtime },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   for (const entry of plainList(findings.runtimeDeclarations)) {
-    if (entry === null || typeof entry !== 'object' || !stringValue(entry.runtime)) continue;
+    if (entry === null || typeof entry !== "object" || !stringValue(entry.runtime)) continue;
     observations.push({
-      category: 'runtime',
+      category: "runtime",
       path: null,
       matchedKey: keyFor(
-        'runtime-declaration',
-        `${entry.runtime}:${entry.kind ?? 'declaration'}:${entry.source ?? ''}`,
+        "runtime-declaration",
+        `${entry.runtime}:${entry.kind ?? "declaration"}:${entry.source ?? ""}`,
       ),
       details: {
         runtime: entry.runtime,
@@ -209,36 +225,36 @@ export function stackCatalogObservations(findings) {
     });
   }
   for (const [label, display, value] of [
-    ['nodejs', 'Node.js', findings.nodeVersion],
-    ['rust', 'Rust', findings.rustVersion],
-    ['python', 'Python', findings.requiresPython],
+    ["nodejs", "Node.js", findings.nodeVersion],
+    ["rust", "Rust", findings.rustVersion],
+    ["python", "Python", findings.requiresPython],
   ]) {
     if (value == null) continue;
     observations.push({
-      category: 'runtime',
+      category: "runtime",
       path: null,
       matchedKey: `runtime-pin:${label}`,
       details: { name: display, version: String(value) },
-      sourceKind: 'version_file',
+      sourceKind: "version_file",
     });
   }
-  if (stringValue(findings.packageManager) && findings.packageManager !== 'unknown') {
+  if (stringValue(findings.packageManager) && findings.packageManager !== "unknown") {
     observations.push({
-      category: 'package_manager',
+      category: "package_manager",
       path: null,
-      matchedKey: keyFor('package-manager', findings.packageManager),
+      matchedKey: keyFor("package-manager", findings.packageManager),
       details: { name: findings.packageManager },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   for (const name of plainList(findings.frameworks)) {
     if (!stringValue(name)) continue;
     observations.push({
-      category: 'framework',
+      category: "framework",
       path: null,
-      matchedKey: keyFor('framework', name),
+      matchedKey: keyFor("framework", name),
       details: { name },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   return observations;
@@ -267,13 +283,13 @@ export function stackCatalogResult(findings) {
 function toolObservations(category, prefix, tools) {
   const observations = [];
   for (const tool of plainList(tools)) {
-    if (tool === null || typeof tool !== 'object' || !stringValue(tool.name)) continue;
+    if (tool === null || typeof tool !== "object" || !stringValue(tool.name)) continue;
     observations.push({
       category,
       path: null,
       matchedKey: keyFor(prefix, tool.name),
       details: { name: tool.name, config: tool.config ?? null },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   return observations;
@@ -287,58 +303,58 @@ function toolObservations(category, prefix, tools) {
  * @returns {object[]} provider observations (unsorted).
  */
 export function configCatalogObservations(findings) {
-  if (findings === null || typeof findings !== 'object' || Array.isArray(findings)) return [];
+  if (findings === null || typeof findings !== "object" || Array.isArray(findings)) return [];
   const observations = [];
 
-  observations.push(...toolObservations('lint', 'lint', findings.linters));
-  observations.push(...toolObservations('format', 'format', findings.formatters));
-  observations.push(...toolObservations('configuration', 'type-checker', findings.typeCheckers));
-  observations.push(...toolObservations('configuration', 'build-tool', findings.buildTools));
-  observations.push(...toolObservations('configuration', 'runtime', findings.runtimes));
+  observations.push(...toolObservations("lint", "lint", findings.linters));
+  observations.push(...toolObservations("format", "format", findings.formatters));
+  observations.push(...toolObservations("configuration", "type-checker", findings.typeCheckers));
+  observations.push(...toolObservations("configuration", "build-tool", findings.buildTools));
+  observations.push(...toolObservations("configuration", "runtime", findings.runtimes));
 
   for (const hook of plainList(findings.hooks)) {
-    if (hook === null || typeof hook !== 'object' || !stringValue(hook.tool)) continue;
+    if (hook === null || typeof hook !== "object" || !stringValue(hook.tool)) continue;
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: keyFor('hook', hook.tool),
+      matchedKey: keyFor("hook", hook.tool),
       details: { tool: hook.tool, file: hook.file ?? null },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   for (const marker of plainList(findings.markers)) {
     if (!stringValue(marker)) continue;
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: keyFor('marker', marker),
+      matchedKey: keyFor("marker", marker),
       details: { name: marker },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
-  if (findings.lint !== null && typeof findings.lint === 'object') {
+  if (findings.lint !== null && typeof findings.lint === "object") {
     observations.push({
-      category: 'lint',
+      category: "lint",
       path: null,
-      matchedKey: 'lint:summary',
+      matchedKey: "lint:summary",
       details: { style: findings.lint.style ?? null, config: findings.lint.config ?? null },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
-  if (typeof findings.format === 'string' && findings.format.length > 0) {
+  if (typeof findings.format === "string" && findings.format.length > 0) {
     observations.push({
-      category: 'format',
+      category: "format",
       path: null,
-      matchedKey: 'format:summary',
+      matchedKey: "format:summary",
       details: { name: findings.format },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
-  if (findings.typescript !== null && typeof findings.typescript === 'object') {
+  if (findings.typescript !== null && typeof findings.typescript === "object") {
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: 'typescript:summary',
+      matchedKey: "typescript:summary",
       details: {
         config: findings.typescript.config ?? null,
         strict: findings.typescript.strict ?? false,
@@ -349,40 +365,40 @@ export function configCatalogObservations(findings) {
         composite: findings.typescript.composite ?? false,
         declaration: findings.typescript.declaration ?? false,
       },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
-  if (findings.ci !== null && typeof findings.ci === 'object') {
+  if (findings.ci !== null && typeof findings.ci === "object") {
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: 'ci:github-actions',
+      matchedKey: "ci:github-actions",
       details: {
         platform: findings.ci.platform ?? null,
         workflowCount: findings.ci.workflowCount ?? 0,
         jobs: plainList(findings.ci.jobs),
       },
-      sourceKind: 'workflow',
+      sourceKind: "workflow",
     });
   }
   for (const file of plainList(findings.docker)) {
     if (!stringValue(file)) continue;
     observations.push({
-      category: 'environment',
+      category: "environment",
       path: file,
-      matchedKey: keyFor('docker', file),
+      matchedKey: keyFor("docker", file),
       details: { name: file },
-      sourceKind: 'container',
+      sourceKind: "container",
     });
   }
   for (const entry of plainList(findings.envVars)) {
-    if (entry === null || typeof entry !== 'object' || !stringValue(entry.file)) continue;
+    if (entry === null || typeof entry !== "object" || !stringValue(entry.file)) continue;
     observations.push({
-      category: 'environment',
+      category: "environment",
       path: entry.file,
-      matchedKey: keyFor('env', entry.file),
+      matchedKey: keyFor("env", entry.file),
       details: { file: entry.file, varCount: entry.varCount ?? 0 },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   return observations;
@@ -417,88 +433,88 @@ export function configCatalogResult(findings) {
  * @returns {object[]} provider observations (unsorted).
  */
 export function testingCatalogObservations(findings) {
-  if (findings === null || typeof findings !== 'object' || Array.isArray(findings)) return [];
+  if (findings === null || typeof findings !== "object" || Array.isArray(findings)) return [];
   const observations = [];
 
   for (const name of plainList(findings.framework)) {
-    if (!stringValue(name) || name === 'unknown') continue;
+    if (!stringValue(name) || name === "unknown") continue;
     observations.push({
-      category: 'framework',
+      category: "framework",
       path: null,
-      matchedKey: keyFor('test-framework', name),
+      matchedKey: keyFor("test-framework", name),
       details: { name },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   for (const dir of plainList(findings.testDirs)) {
     if (!stringValue(dir)) continue;
     observations.push({
-      category: 'test_directory',
+      category: "test_directory",
       path: dir,
-      matchedKey: keyFor('test-directory', dir),
+      matchedKey: keyFor("test-directory", dir),
       details: { path: dir },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   for (const file of plainList(findings.sampleFiles)) {
     if (!stringValue(file)) continue;
     observations.push({
-      category: 'test_file',
+      category: "test_file",
       path: file,
-      matchedKey: keyFor('test-file', file),
+      matchedKey: keyFor("test-file", file),
       details: { path: file },
-      sourceKind: 'source',
+      sourceKind: "source",
     });
   }
   if (Number.isSafeInteger(findings.fileCount) && findings.fileCount >= 0) {
     observations.push({
-      category: 'test_file',
+      category: "test_file",
       path: null,
-      matchedKey: 'test-file-count',
+      matchedKey: "test-file-count",
       details: { fileCount: findings.fileCount },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   }
   const naming = plainList(findings.naming);
   naming.forEach((glob, index) => {
     if (!stringValue(glob)) return;
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: keyFor('test-naming', `${index}:${glob}`),
+      matchedKey: keyFor("test-naming", `${index}:${glob}`),
       details: { name: glob },
-      sourceKind: 'repository_metadata',
+      sourceKind: "repository_metadata",
     });
   });
   const configFiles = plainList(findings.configFiles);
   configFiles.forEach((entry, index) => {
     if (!stringValue(entry)) return;
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: keyFor('test-config', `${index}:${entry}`),
+      matchedKey: keyFor("test-config", `${index}:${entry}`),
       details: { name: entry },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   });
   const coverage = plainList(findings.coverage);
   coverage.forEach((name, index) => {
     if (!stringValue(name)) return;
     observations.push({
-      category: 'coverage',
+      category: "coverage",
       path: null,
-      matchedKey: keyFor('coverage', `${index}:${name}`),
+      matchedKey: keyFor("coverage", `${index}:${name}`),
       details: { name },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   });
-  if (typeof findings.script === 'string' && findings.script.length > 0) {
+  if (typeof findings.script === "string" && findings.script.length > 0) {
     observations.push({
-      category: 'configuration',
+      category: "configuration",
       path: null,
-      matchedKey: 'test-script',
+      matchedKey: "test-script",
       details: { script: findings.script },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   return observations;
@@ -534,16 +550,20 @@ export function testingCatalogResult(findings) {
 export function pluginObservationsFromMatches(matches) {
   const observations = [];
   for (const match of plainList(matches)) {
-    if (match === null || typeof match !== 'object') continue;
-    if (!stringValue(match.ruleId) || !stringValue(match.category) || !stringValue(match.dimensionId)) {
+    if (match === null || typeof match !== "object") continue;
+    if (
+      !stringValue(match.ruleId) ||
+      !stringValue(match.category) ||
+      !stringValue(match.dimensionId)
+    ) {
       continue;
     }
     observations.push({
       category: match.category,
       path: stringValue(match.path) ? match.path : null,
-      matchedKey: keyFor('plugin-rule', match.ruleId),
+      matchedKey: keyFor("plugin-rule", match.ruleId),
       details: { ruleId: match.ruleId, label: match.label ?? null },
-      sourceKind: 'artifact_metadata',
+      sourceKind: "artifact_metadata",
     });
   }
   return observations;
@@ -611,15 +631,19 @@ export function runtimeCatalogResults({
 } = {}) {
   const unknown = isUnknownLanguageEcosystem({ languages, ecosystems, manifestEcosystems });
   if (unknown) {
-    const { results, capped } = genericProviderResults({ languages, ecosystems, manifestEcosystems, files });
-    return deepFreeze({ results, capped, mode: 'generic' });
+    const { results, capped } = genericProviderResults({
+      languages,
+      ecosystems,
+      manifestEcosystems,
+      files,
+    });
+    return deepFreeze({ results, capped, mode: "generic" });
   }
 
-  const pluginEntriesFor = (dimensionId) => (
+  const pluginEntriesFor = (dimensionId) =>
     pluginObservations !== null && pluginObservations !== undefined
       ? pluginObservations[dimensionId]
-      : null
-  );
+      : null;
 
   const results = [];
   const dimensions = [
@@ -642,5 +666,5 @@ export function runtimeCatalogResults({
     results.push(builtin);
   }
   results.sort((left, right) => compareAscii(left.dimensionId, right.dimensionId));
-  return deepFreeze({ results, capped: false, mode: 'builtin' });
+  return deepFreeze({ results, capped: false, mode: "builtin" });
 }

@@ -31,9 +31,9 @@ import {
   deepFreeze,
   EVIDENCE_SOURCE_KINDS,
   normalizeEvidencePath,
-} from '../contracts/evidence.mjs';
-import { PROVIDER_DIMENSION_IDS } from '../contracts/dimension.mjs';
-import { PROVIDER_CATEGORIES } from '../contracts/provider.mjs';
+} from "../contracts/evidence.mjs";
+import { PROVIDER_DIMENSION_IDS } from "../contracts/dimension.mjs";
+import { PROVIDER_CATEGORIES } from "../contracts/provider.mjs";
 
 export const PROVIDER_RESULT_LIMITS = deepFreeze({
   detailsNodes: 1024,
@@ -43,15 +43,15 @@ export const PROVIDER_RESULT_LIMITS = deepFreeze({
   sourceKind: 32,
 });
 
-const OBSERVATION_KEYS = Object.freeze(['category', 'details', 'matchedKey', 'path', 'sourceKind']);
-const RESULT_KEYS = Object.freeze(['dimensionId', 'observations', 'providerId']);
+const OBSERVATION_KEYS = Object.freeze(["category", "details", "matchedKey", "path", "sourceKind"]);
+const RESULT_KEYS = Object.freeze(["dimensionId", "observations", "providerId"]);
 const MATCHED_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/#@+%()[\],-]*$/;
 const PROVIDER_ID_PATTERN = /^PRV-[a-z0-9]+(?:-[a-z0-9]+)*-v[1-9]\d*$/;
 
 export class ProviderResultError extends TypeError {
   constructor(code, message) {
     super(`Invalid provider result: ${message}`);
-    this.name = 'ProviderResultError';
+    this.name = "ProviderResultError";
     this.code = code;
   }
 }
@@ -63,28 +63,37 @@ function fail(code, message) {
 function exactKeys(value, expected, label) {
   const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
+    fail("UNKNOWN_FIELD", `${label} fields do not match the schema`);
   }
 }
 
 function providerId(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > PROVIDER_RESULT_LIMITS.providerId
-      || !PROVIDER_ID_PATTERN.test(value)) {
-    fail('INVALID_PROVIDER_ID', 'provider id must be a stable versioned ASCII identifier');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > PROVIDER_RESULT_LIMITS.providerId ||
+    !PROVIDER_ID_PATTERN.test(value)
+  ) {
+    fail("INVALID_PROVIDER_ID", "provider id must be a stable versioned ASCII identifier");
   }
   return value;
 }
 
 function dimensionId(value) {
-  if (typeof value !== 'string' || !PROVIDER_DIMENSION_IDS.includes(value)) {
-    fail('UNKNOWN_DIMENSION', 'provider dimension is not allowlisted');
+  if (typeof value !== "string" || !PROVIDER_DIMENSION_IDS.includes(value)) {
+    fail("UNKNOWN_DIMENSION", "provider dimension is not allowlisted");
   }
   return value;
 }
 
 function matchedKey(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 128 || !MATCHED_KEY_PATTERN.test(value)) {
-    fail('INVALID_MATCHED_KEY', 'observation matchedKey must be bounded stable ASCII');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 128 ||
+    !MATCHED_KEY_PATTERN.test(value)
+  ) {
+    fail("INVALID_MATCHED_KEY", "observation matchedKey must be bounded stable ASCII");
   }
   return value;
 }
@@ -94,14 +103,17 @@ function observationPath(value) {
   try {
     return normalizeEvidencePath(value);
   } catch {
-    fail('INVALID_PATH', 'observation path is not a normalized repository-relative POSIX path');
+    fail("INVALID_PATH", "observation path is not a normalized repository-relative POSIX path");
   }
 }
 
 function sourceKind(value) {
-  if (typeof value !== 'string' || value.length > PROVIDER_RESULT_LIMITS.sourceKind
-      || !EVIDENCE_SOURCE_KINDS.includes(value)) {
-    fail('UNKNOWN_SOURCE_KIND', 'observation sourceKind is not allowlisted');
+  if (
+    typeof value !== "string" ||
+    value.length > PROVIDER_RESULT_LIMITS.sourceKind ||
+    !EVIDENCE_SOURCE_KINDS.includes(value)
+  ) {
+    fail("UNKNOWN_SOURCE_KIND", "observation sourceKind is not allowlisted");
   }
   return value;
 }
@@ -118,19 +130,22 @@ function observationDetails(value) {
     });
   } catch (error) {
     if (error instanceof ProviderResultError) throw error;
-    fail('INVALID_DETAILS', 'observation details must contain plain bounded data');
+    fail("INVALID_DETAILS", "observation details must contain plain bounded data");
   }
   return value;
 }
 
 function normalizeObservation(observation, dimensionIdForResult) {
-  if (observation === null || typeof observation !== 'object' || Array.isArray(observation)) {
-    fail('INVALID_TYPE', 'provider observation must be an object');
+  if (observation === null || typeof observation !== "object" || Array.isArray(observation)) {
+    fail("INVALID_TYPE", "provider observation must be an object");
   }
-  exactKeys(observation, OBSERVATION_KEYS, 'provider observation');
+  exactKeys(observation, OBSERVATION_KEYS, "provider observation");
   const category = observation.category;
-  if (typeof category !== 'string' || !PROVIDER_CATEGORIES[dimensionIdForResult]?.includes(category)) {
-    fail('UNKNOWN_CATEGORY', 'provider observation category is not allowlisted for the dimension');
+  if (
+    typeof category !== "string" ||
+    !PROVIDER_CATEGORIES[dimensionIdForResult]?.includes(category)
+  ) {
+    fail("UNKNOWN_CATEGORY", "provider observation category is not allowlisted for the dimension");
   }
   return {
     category,
@@ -156,14 +171,16 @@ function canonicalObservations(dimensionIdForResult, observations) {
   const result = observations.map((observation) => {
     const normalized = normalizeObservation(observation, dimensionIdForResult);
     const identity = observationIdentity(normalized);
-    if (seen.has(identity)) fail('DUPLICATE_OBSERVATION', 'provider observations must be unique');
+    if (seen.has(identity)) fail("DUPLICATE_OBSERVATION", "provider observations must be unique");
     seen.add(identity);
     return normalized;
   });
-  result.sort((left, right) => compareAscii(
-    `${left.category}\0${left.path ?? ''}\0${left.matchedKey}`,
-    `${right.category}\0${right.path ?? ''}\0${right.matchedKey}`,
-  ));
+  result.sort((left, right) =>
+    compareAscii(
+      `${left.category}\0${left.path ?? ""}\0${left.matchedKey}`,
+      `${right.category}\0${right.path ?? ""}\0${right.matchedKey}`,
+    ),
+  );
   return result;
 }
 
@@ -178,10 +195,10 @@ function assertObservationsShape(value) {
     });
   } catch (error) {
     if (error instanceof ProviderResultError) throw error;
-    fail('INVALID_DATA', 'provider observations must contain plain bounded data');
+    fail("INVALID_DATA", "provider observations must contain plain bounded data");
   }
   if (!Array.isArray(value) || value.length > PROVIDER_RESULT_LIMITS.observations) {
-    fail('BOUND_EXCEEDED', 'provider observations must be a bounded array');
+    fail("BOUND_EXCEEDED", "provider observations must be a bounded array");
   }
 }
 
@@ -194,7 +211,11 @@ function assertObservationsShape(value) {
  *   a non-typed error; category, path, source kind, and duplicate violations are
  *   reported through `ProviderResultError`.
  */
-export function createProviderResult({ providerId: id, dimensionId: dimension, observations: entries }) {
+export function createProviderResult({
+  providerId: id,
+  dimensionId: dimension,
+  observations: entries,
+}) {
   const input = { providerId: id, dimensionId: dimension, observations: entries };
   try {
     assertDataOnly(input, ProviderResultError, {
@@ -206,7 +227,7 @@ export function createProviderResult({ providerId: id, dimensionId: dimension, o
     });
   } catch (error) {
     if (error instanceof ProviderResultError) throw error;
-    fail('INVALID_DATA', 'provider result must contain plain bounded data');
+    fail("INVALID_DATA", "provider result must contain plain bounded data");
   }
   const provider = providerId(id);
   const dimensionCanonical = dimensionId(dimension);
@@ -220,8 +241,8 @@ export function createProviderResult({ providerId: id, dimensionId: dimension, o
 }
 
 function asResult(value, label) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', `${label} provider result must be an object`);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", `${label} provider result must be an object`);
   }
   exactKeys(value, RESULT_KEYS, label);
   const provider = providerId(value.providerId);
@@ -247,13 +268,15 @@ function asResult(value, label) {
  */
 export function mergeProviderResults({ builtin, plugin }) {
   if (plugin === undefined || plugin === null) return builtin;
-  const built = asResult(builtin, 'builtin');
-  const plug = asResult(plugin, 'plugin');
+  const built = asResult(builtin, "builtin");
+  const plug = asResult(plugin, "plugin");
   if (built.dimensionId !== plug.dimensionId) {
-    fail('DIMENSION_MISMATCH', 'merged provider results must target the same dimension');
+    fail("DIMENSION_MISMATCH", "merged provider results must target the same dimension");
   }
   const builtinSet = new Set(built.observations.map(observationIdentity));
-  const appended = plug.observations.filter((observation) => !builtinSet.has(observationIdentity(observation)));
+  const appended = plug.observations.filter(
+    (observation) => !builtinSet.has(observationIdentity(observation)),
+  );
   return deepFreeze({
     providerId: built.providerId,
     dimensionId: built.dimensionId,

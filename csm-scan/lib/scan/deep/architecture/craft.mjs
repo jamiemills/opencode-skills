@@ -26,11 +26,8 @@
 // (for `compareAscii`/`deepFreeze`) and the pure graph-facts module; it never
 // touches node:fs / node:child_process / node:process / node:vm / node:module.
 
-import { compareAscii, deepFreeze } from '../../contracts/evidence.mjs';
-import {
-  computeFanInOut,
-  tarjanStronglyConnectedComponents,
-} from './graph-facts.mjs';
+import { compareAscii, deepFreeze } from "../../contracts/evidence.mjs";
+import { computeFanInOut, tarjanStronglyConnectedComponents } from "./graph-facts.mjs";
 
 export const CRAFT_LIMITS = deepFreeze({
   cyclicSizes: 128,
@@ -46,29 +43,36 @@ const LAYER_ORDER = deepFreeze({
   rest: 3,
 });
 
-const INTERFACE_MARKERS = Object.freeze(['abstract', 'contract', 'interface']);
+const INTERFACE_MARKERS = Object.freeze(["abstract", "contract", "interface"]);
 
 const PORT_ADAPTER_MARKERS = Object.freeze([
-  'adapter', 'adapters', 'contract', 'contracts', 'port', 'ports',
+  "adapter",
+  "adapters",
+  "contract",
+  "contracts",
+  "port",
+  "ports",
 ]);
 
-const PATTERN_SUFFIXES = Object.freeze([
-  'Adapter', 'Factory', 'Repository', 'Service',
-]);
+const PATTERN_SUFFIXES = Object.freeze(["Adapter", "Factory", "Repository", "Service"]);
 
 function plainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function findingsGraph(findings) {
-  if (!plainObject(findings) || !plainObject(findings.importGraph)
-      || !plainObject(findings.importGraph.graph)) return {};
+  if (
+    !plainObject(findings) ||
+    !plainObject(findings.importGraph) ||
+    !plainObject(findings.importGraph.graph)
+  )
+    return {};
   return findings.importGraph.graph;
 }
 
 function stemOf(file) {
-  const basename = file.slice(file.lastIndexOf('/') + 1);
-  return basename.replace(/\.[^.]*$/, '').toLowerCase();
+  const basename = file.slice(file.lastIndexOf("/") + 1);
+  return basename.replace(/\.[^.]*$/, "").toLowerCase();
 }
 
 function classificationOf(file, layers) {
@@ -77,20 +81,20 @@ function classificationOf(file, layers) {
   const libModules = Array.isArray(layers.libModules) ? layers.libModules : [];
   const shared = Array.isArray(layers.shared) ? layers.shared : [];
   const rest = Array.isArray(layers.rest) ? layers.rest : [];
-  if (entryPoints.includes(file)) return 'entry';
-  if (coreModules.includes(file) || libModules.includes(file)) return 'core';
-  if (shared.includes(file)) return 'shared';
-  if (rest.includes(file)) return 'rest';
-  return 'unclassified';
+  if (entryPoints.includes(file)) return "entry";
+  if (coreModules.includes(file) || libModules.includes(file)) return "core";
+  if (shared.includes(file)) return "shared";
+  if (rest.includes(file)) return "rest";
+  return "unclassified";
 }
 
 function edgeDirection(sourceLayer, targetLayer) {
-  if (sourceLayer === 'unclassified' || targetLayer === 'unclassified') return 'unknown';
+  if (sourceLayer === "unclassified" || targetLayer === "unclassified") return "unknown";
   const sourceIndex = LAYER_ORDER[sourceLayer];
   const targetIndex = LAYER_ORDER[targetLayer];
-  if (sourceIndex === undefined || targetIndex === undefined) return 'unknown';
-  if (sourceIndex === targetIndex) return 'same';
-  return sourceIndex < targetIndex ? 'downward' : 'upward';
+  if (sourceIndex === undefined || targetIndex === undefined) return "unknown";
+  if (sourceIndex === targetIndex) return "same";
+  return sourceIndex < targetIndex ? "downward" : "upward";
 }
 
 function maximumFan(counts) {
@@ -169,13 +173,17 @@ function layerBoundaries(graph, layers) {
       pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
     }
   }
-  const pairs = [...pairCounts.entries()].map(([key, count]) => {
-    const [sourceLayer, targetLayer] = key.split('\0');
-    return { sourceLayer, targetLayer, count };
-  }).toSorted((left, right) => compareAscii(
-    `${left.sourceLayer}\0${left.targetLayer}`,
-    `${right.sourceLayer}\0${right.targetLayer}`,
-  ));
+  const pairs = [...pairCounts.entries()]
+    .map(([key, count]) => {
+      const [sourceLayer, targetLayer] = key.split("\0");
+      return { sourceLayer, targetLayer, count };
+    })
+    .toSorted((left, right) =>
+      compareAscii(
+        `${left.sourceLayer}\0${left.targetLayer}`,
+        `${right.sourceLayer}\0${right.targetLayer}`,
+      ),
+    );
   return { totalEdges, crossingCount, pairs };
 }
 
@@ -201,21 +209,25 @@ function dependencyDirection(graph, layers) {
       totalEdges += 1;
       const targetLayer = classify(target);
       const direction = edgeDirection(sourceLayer, targetLayer);
-      if (direction === 'downward') downward += 1;
-      else if (direction === 'upward') upward += 1;
-      else if (direction === 'same') same += 1;
+      if (direction === "downward") downward += 1;
+      else if (direction === "upward") upward += 1;
+      else if (direction === "same") same += 1;
       else unknown += 1;
       const key = `${sourceLayer}\0${targetLayer}\0${direction}`;
       pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
     }
   }
-  const pairs = [...pairCounts.entries()].map(([key, count]) => {
-    const [sourceLayer, targetLayer, direction] = key.split('\0');
-    return { sourceLayer, targetLayer, direction, count };
-  }).toSorted((left, right) => compareAscii(
-    `${left.sourceLayer}\0${left.targetLayer}\0${left.direction}`,
-    `${right.sourceLayer}\0${right.targetLayer}\0${right.direction}`,
-  ));
+  const pairs = [...pairCounts.entries()]
+    .map(([key, count]) => {
+      const [sourceLayer, targetLayer, direction] = key.split("\0");
+      return { sourceLayer, targetLayer, direction, count };
+    })
+    .toSorted((left, right) =>
+      compareAscii(
+        `${left.sourceLayer}\0${left.targetLayer}\0${left.direction}`,
+        `${right.sourceLayer}\0${right.targetLayer}\0${right.direction}`,
+      ),
+    );
   return { totalEdges, downward, upward, same, unknown, pairs };
 }
 
@@ -244,12 +256,12 @@ function portAdapterDirs(files) {
   const seen = new Set();
   const dirs = [];
   for (const file of files) {
-    const slash = file.lastIndexOf('/');
+    const slash = file.lastIndexOf("/");
     if (slash <= 0) continue;
-    const segments = file.slice(0, slash).split('/');
+    const segments = file.slice(0, slash).split("/");
     for (let index = 0; index < segments.length; index++) {
       if (PORT_ADAPTER_MARKERS.includes(segments[index].toLowerCase())) {
-        const dir = segments.slice(0, index + 1).join('/');
+        const dir = segments.slice(0, index + 1).join("/");
         if (!seen.has(dir)) {
           seen.add(dir);
           dirs.push(dir);

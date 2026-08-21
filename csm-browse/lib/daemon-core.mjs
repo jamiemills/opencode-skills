@@ -1,9 +1,9 @@
-import { readFile, rename, readdir, unlink, stat } from 'node:fs/promises';
-import { join } from 'node:path';
-import { setTimeout } from 'node:timers/promises';
-import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from './constants.mjs';
-import { dismissCookies } from './cookies.mjs';
-import { ensurePrivateDir, secureWrite } from './security.mjs';
+import { readFile, rename, readdir, unlink, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { setTimeout } from "node:timers/promises";
+import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from "./constants.mjs";
+import { dismissCookies } from "./cookies.mjs";
+import { ensurePrivateDir, secureWrite } from "./security.mjs";
 
 // Accepts both the ts-prefixed form (`<epoch-ms>-<uuid>.json`, written by the
 // record verb) and the legacy bare-UUID form so commands enqueued before an
@@ -20,7 +20,7 @@ function withTimeout(promise, ms, label) {
       const err = new Error(`${label} timed out after ${ms}ms`);
       err.timedOut = true;
       globalThis.setTimeout(() => reject(err), ms);
-    })
+    }),
   ]);
 }
 
@@ -31,41 +31,41 @@ function withTimeout(promise, ms, label) {
 // recorder / kill the spawned ffmpeg / reset activeRecording. Never throws.
 async function abortRecording(client, sessionId, sessionDir) {
   try {
-    const recorder = await import('../lib/recorder.mjs');
+    const recorder = await import("../lib/recorder.mjs");
     if (recorder.abortRecorder) {
       await withTimeout(
         recorder.abortRecorder(client, sessionId, sessionDir),
         2000,
-        'recorder abort'
+        "recorder abort",
       );
     }
   } catch {}
 }
 
 async function executeCommand(cmd, client, sessionId, sessionDir) {
-  if (cmd.verb !== 'screencast-start' && cmd.verb !== 'screencast-stop') {
-    return { ok: false, error: 'unknown verb', ts: new Date().toISOString() };
+  if (cmd.verb !== "screencast-start" && cmd.verb !== "screencast-stop") {
+    return { ok: false, error: "unknown verb", ts: new Date().toISOString() };
   }
 
-  const recorder = await import('../lib/recorder.mjs');
+  const recorder = await import("../lib/recorder.mjs");
 
-  if (cmd.verb === 'screencast-start') {
-    const recorderJsonPath = join(sessionDir, 'recorder.json');
+  if (cmd.verb === "screencast-start") {
+    const recorderJsonPath = join(sessionDir, "recorder.json");
     let recorderState = null;
     try {
-      const raw = await readFile(recorderJsonPath, 'utf-8');
+      const raw = await readFile(recorderJsonPath, "utf-8");
       recorderState = JSON.parse(raw);
     } catch {}
 
     if (recorderState && recorderState.running) {
-      return { ok: false, error: 'already recording', ts: new Date().toISOString() };
+      return { ok: false, error: "already recording", ts: new Date().toISOString() };
     }
 
     await dismissCookies(client, sessionId);
     const name = cmd.params.name;
     const fps = cmd.params.fps || 15;
-    const preset = cmd.params.preset || 'medium';
-    const speed = cmd.params.speed || 'medium';
+    const preset = cmd.params.preset || "medium";
+    const speed = cmd.params.speed || "medium";
     await recorder.startRecorder(client, sessionId, sessionDir, name, fps, preset, speed);
     return { ok: true, result: { started: true }, ts: new Date().toISOString() };
   }
@@ -75,35 +75,35 @@ async function executeCommand(cmd, client, sessionId, sessionDir) {
 }
 
 export async function connectDaemon(wsUrl) {
-  const CRI = await import('chrome-remote-interface');
+  const CRI = await import("chrome-remote-interface");
   return CRI.default({ target: wsUrl });
 }
 
 export async function ensureSingleTab(client) {
-  const { targetInfos } = await client.send('Target.getTargets');
-  const pages = targetInfos.filter(t => t.type === 'page');
+  const { targetInfos } = await client.send("Target.getTargets");
+  const pages = targetInfos.filter((t) => t.type === "page");
 
   if (pages.length > 0) {
     const target = pages[0];
-    const { sessionId } = await client.send('Target.attachToTarget', {
+    const { sessionId } = await client.send("Target.attachToTarget", {
       targetId: target.targetId,
-      flatten: true
+      flatten: true,
     });
     return sessionId;
   }
 
-  const { targetId } = await client.send('Target.createTarget', { url: 'about:blank' });
-  const { sessionId } = await client.send('Target.attachToTarget', {
+  const { targetId } = await client.send("Target.createTarget", { url: "about:blank" });
+  const { sessionId } = await client.send("Target.attachToTarget", {
     targetId,
-    flatten: true
+    flatten: true,
   });
   return sessionId;
 }
 
 export async function prepareQueueDirs(sessionDir) {
-  const cmdDir = join(sessionDir, 'cmd');
-  const runningDir = join(sessionDir, 'cmd', 'running');
-  const outDir = join(sessionDir, 'cmd', 'out');
+  const cmdDir = join(sessionDir, "cmd");
+  const runningDir = join(sessionDir, "cmd", "running");
+  const outDir = join(sessionDir, "cmd", "out");
 
   // Claim-by-rename protocol: cmd/ and out/ are NEVER wiped — commands
   // enqueued while the daemon was down, and their unconsumed results, must
@@ -119,7 +119,11 @@ export async function prepareQueueDirs(sessionDir) {
 // given up on anything that old.
 async function sweepStaleRunning(runningDir, outDir) {
   let entries;
-  try { entries = await readdir(runningDir); } catch { return; }
+  try {
+    entries = await readdir(runningDir);
+  } catch {
+    return;
+  }
   const cutoff = Date.now() - CMD_TIMEOUT_MS;
   for (const entry of entries) {
     const runningPath = join(runningDir, entry);
@@ -127,18 +131,22 @@ async function sweepStaleRunning(runningDir, outDir) {
     try {
       const st = await stat(runningPath);
       if (st.mtimeMs >= cutoff) continue;
-      const errResult = { ok: false, error: 'daemon restarted while command was running', ts: new Date().toISOString() };
-      await secureWrite(outPath + '.tmp', JSON.stringify(errResult), { encoding: 'utf-8' });
-      await rename(outPath + '.tmp', outPath);
+      const errResult = {
+        ok: false,
+        error: "daemon restarted while command was running",
+        ts: new Date().toISOString(),
+      };
+      await secureWrite(outPath + ".tmp", JSON.stringify(errResult), { encoding: "utf-8" });
+      await rename(outPath + ".tmp", outPath);
       await unlink(runningPath);
     } catch {}
   }
 }
 
 export async function startQueueLoop(client, sessionId, sessionDir) {
-  const cmdDir = join(sessionDir, 'cmd');
-  const runningDir = join(sessionDir, 'cmd', 'running');
-  const outDir = join(sessionDir, 'cmd', 'out');
+  const cmdDir = join(sessionDir, "cmd");
+  const runningDir = join(sessionDir, "cmd", "running");
+  const outDir = join(sessionDir, "cmd", "out");
 
   await prepareQueueDirs(sessionDir);
   await sweepStaleRunning(runningDir, outDir);
@@ -146,8 +154,8 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
   while (true) {
     try {
       const entries = await readdir(cmdDir);
-      const jsonFiles = entries.filter(e => e.endsWith('.json'));
-      const candidates = jsonFiles.filter(e => CMD_NAME_RE.test(e.slice(0, -5)));
+      const jsonFiles = entries.filter((e) => e.endsWith(".json"));
+      const candidates = jsonFiles.filter((e) => CMD_NAME_RE.test(e.slice(0, -5)));
 
       // Order by the command's own `ts` (ISO timestamps sort
       // lexicographically) with the filename as tiebreaker, so commands
@@ -155,16 +163,16 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
       // than random-UUID filename order.
       const stamped = [];
       for (const entry of candidates) {
-        let ts = '';
+        let ts = "";
         try {
-          const cmd = JSON.parse(await readFile(join(cmdDir, entry), 'utf-8'));
-          if (typeof cmd.ts === 'string') ts = cmd.ts;
+          const cmd = JSON.parse(await readFile(join(cmdDir, entry), "utf-8"));
+          if (typeof cmd.ts === "string") ts = cmd.ts;
         } catch {}
         stamped.push({ entry, ts });
       }
       stamped.sort((a, b) => {
         if (a.ts !== b.ts) return a.ts < b.ts ? -1 : 1;
-        return a.entry < b.entry ? -1 : (a.entry > b.entry ? 1 : 0);
+        return a.entry < b.entry ? -1 : a.entry > b.entry ? 1 : 0;
       });
 
       for (const { entry } of stamped) {
@@ -185,29 +193,41 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
         try {
           const st = await stat(runningPath);
           if (Date.now() - st.mtimeMs > CMD_TIMEOUT_MS) {
-            const stale = { ok: false, error: 'command dropped (client timed out before daemon picked it up)', ts: new Date().toISOString() };
-            const staleTmp = outPath + '.tmp';
+            const stale = {
+              ok: false,
+              error: "command dropped (client timed out before daemon picked it up)",
+              ts: new Date().toISOString(),
+            };
+            const staleTmp = outPath + ".tmp";
             try {
-              await secureWrite(staleTmp, JSON.stringify(stale), { encoding: 'utf-8' });
+              await secureWrite(staleTmp, JSON.stringify(stale), { encoding: "utf-8" });
               await rename(staleTmp, outPath);
             } catch {}
-            try { await unlink(runningPath); } catch {}
+            try {
+              await unlink(runningPath);
+            } catch {}
             continue;
           }
         } catch {}
 
         let cmd;
         try {
-          const raw = await readFile(runningPath, 'utf-8');
+          const raw = await readFile(runningPath, "utf-8");
           cmd = JSON.parse(raw);
         } catch {
-          const malformed = { ok: false, error: 'malformed command file', ts: new Date().toISOString() };
+          const malformed = {
+            ok: false,
+            error: "malformed command file",
+            ts: new Date().toISOString(),
+          };
           try {
-            const tmpOutPath = outPath + '.tmp';
-            await secureWrite(tmpOutPath, JSON.stringify(malformed), { encoding: 'utf-8' });
+            const tmpOutPath = outPath + ".tmp";
+            await secureWrite(tmpOutPath, JSON.stringify(malformed), { encoding: "utf-8" });
             await rename(tmpOutPath, outPath);
           } catch {}
-          try { await unlink(runningPath); } catch {}
+          try {
+            await unlink(runningPath);
+          } catch {}
           continue;
         }
 
@@ -219,42 +239,48 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
           result = await withTimeout(
             executeCommand(cmd, client, sessionId, sessionDir),
             CMD_TIMEOUT_MS,
-            `command ${entry}`
+            `command ${entry}`,
           );
         } catch (err) {
-          if (err && err.code === 'ERR_MODULE_NOT_FOUND') {
-            result = { ok: false, error: 'recorder unavailable', ts: new Date().toISOString() };
+          if (err && err.code === "ERR_MODULE_NOT_FOUND") {
+            result = { ok: false, error: "recorder unavailable", ts: new Date().toISOString() };
           } else if (err && err.timedOut) {
-            result = { ok: false, error: 'command timed out', ts: new Date().toISOString() };
+            result = { ok: false, error: "command timed out", ts: new Date().toISOString() };
             // R1.7/F-014: the timed-out command may have started the recorder
             // before hanging — clean it up so the queue is not stuck on
             // 'already recording' with an orphaned ffmpeg.
             await abortRecording(client, sessionId, sessionDir);
           } else {
-            result = { ok: false, error: err && err.message ? err.message : String(err), ts: new Date().toISOString() };
+            result = {
+              ok: false,
+              error: err && err.message ? err.message : String(err),
+              ts: new Date().toISOString(),
+            };
             await abortRecording(client, sessionId, sessionDir);
           }
         }
 
-        const tmpOutPath = outPath + '.tmp';
+        const tmpOutPath = outPath + ".tmp";
         // F-008: the result write must not be able to strand the command in
         // running/. On failure, write an error result instead so the client
         // unblocks and the entry is never left claimed-but-silent.
         try {
-          await secureWrite(tmpOutPath, JSON.stringify(result), { encoding: 'utf-8' });
+          await secureWrite(tmpOutPath, JSON.stringify(result), { encoding: "utf-8" });
           await rename(tmpOutPath, outPath);
         } catch (writeErr) {
           try {
             const errResult = {
               ok: false,
               error: `result write failed: ${writeErr && writeErr.message ? writeErr.message : writeErr}`,
-              ts: new Date().toISOString()
+              ts: new Date().toISOString(),
             };
-            await secureWrite(tmpOutPath, JSON.stringify(errResult), { encoding: 'utf-8' });
+            await secureWrite(tmpOutPath, JSON.stringify(errResult), { encoding: "utf-8" });
             await rename(tmpOutPath, outPath);
           } catch {}
         }
-        try { await unlink(runningPath); } catch {}
+        try {
+          await unlink(runningPath);
+        } catch {}
       }
     } catch {
       // readdir can fail if cmd/ doesn't exist yet, continue polling

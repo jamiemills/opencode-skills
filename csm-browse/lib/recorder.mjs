@@ -1,8 +1,8 @@
-import { spawn, execFile as execFileCb } from 'node:child_process';
-import { readFile, unlink, stat } from 'node:fs/promises';
-import { join } from 'node:path';
-import { setTimeout } from 'node:timers/promises';
-import { promisify } from 'node:util';
+import { spawn, execFile as execFileCb } from "node:child_process";
+import { readFile, unlink, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { setTimeout } from "node:timers/promises";
+import { promisify } from "node:util";
 import {
   SCREENCAST_QUALITY,
   SCREENCAST_MAX_WIDTH,
@@ -10,9 +10,9 @@ import {
   SCREENCAST_EVERY_NTH,
   RECORDER_FRAME_BUFFER_CAP,
   VIDEO_PRESETS,
-  SPEED_PRESETS
-} from './constants.mjs';
-import { ensurePrivateDir, ensurePrivateFile, secureAppend, secureWrite } from './security.mjs';
+  SPEED_PRESETS,
+} from "./constants.mjs";
+import { ensurePrivateDir, ensurePrivateFile, secureAppend, secureWrite } from "./security.mjs";
 
 const execFile = promisify(execFileCb);
 
@@ -20,12 +20,19 @@ const execFile = promisify(execFileCb);
 // a trailer-less SIGKILL'd webm; ffprobe reading a real duration is the
 // integrity proof the muxer actually closed the stream.
 async function probeVideoDuration(outPath) {
-  const { stdout } = await execFile('ffprobe', [
-    '-v', 'error',
-    '-show_entries', 'format=duration',
-    '-of', 'default=noprint_wrappers=1:nokey=1',
-    outPath
-  ], { timeout: 10000, maxBuffer: 1024 * 1024 });
+  const { stdout } = await execFile(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      outPath,
+    ],
+    { timeout: 10000, maxBuffer: 1024 * 1024 },
+  );
   const d = parseFloat(stdout.trim());
   return Number.isFinite(d) && d > 0 ? d : null;
 }
@@ -43,19 +50,23 @@ function validateName(name) {
 }
 
 export async function reconcileRecorder(sessionDir) {
-  const recorderJsonPath = join(sessionDir, 'recorder.json');
+  const recorderJsonPath = join(sessionDir, "recorder.json");
   let state;
   try {
-    state = JSON.parse(await readFile(recorderJsonPath, 'utf-8'));
-  } catch { return null; }
+    state = JSON.parse(await readFile(recorderJsonPath, "utf-8"));
+  } catch {
+    return null;
+  }
   if (state.running === true && !activeRecording) {
     const reset = {
       ...state,
       running: false,
       reset: true,
-      note: 'stale running flag reset'
+      note: "stale running flag reset",
     };
-    try { await secureWrite(recorderJsonPath, JSON.stringify(reset, null, 2), { encoding: 'utf-8' }); } catch {}
+    try {
+      await secureWrite(recorderJsonPath, JSON.stringify(reset, null, 2), { encoding: "utf-8" });
+    } catch {}
     return reset;
   }
   return null;
@@ -68,7 +79,9 @@ export async function assertValidOutput(outPath, frames) {
     size = (await stat(outPath)).size;
   } catch {}
   if (!size) {
-    throw new Error(`screencast produced empty/invalid output (${frames} frames captured); see ffmpeg-stderr.log`);
+    throw new Error(
+      `screencast produced empty/invalid output (${frames} frames captured); see ffmpeg-stderr.log`,
+    );
   }
 }
 
@@ -84,24 +97,48 @@ export async function abortRecorder(client, sessionId, sessionDir) {
   if (!rec) return;
   if (rec.sessionDir !== sessionDir) return;
   activeRecording = null;
-  try { rec.markStop(); } catch {}
-  try { client.off('Page.screencastFrame', rec.frameHandler); } catch {}
-  try { rec.ffmpeg.stdin.off('drain', rec.onDrain); } catch {}
-  try { rec.ffmpeg.kill('SIGKILL'); } catch {}
   try {
-    await secureWrite(rec.recorderJsonPath, JSON.stringify({
-      running: false,
-      stoppedAt: new Date().toISOString(),
-      error: 'recording aborted after command timeout'
-    }, null, 2), { encoding: 'utf-8' });
+    rec.markStop();
+  } catch {}
+  try {
+    client.off("Page.screencastFrame", rec.frameHandler);
+  } catch {}
+  try {
+    rec.ffmpeg.stdin.off("drain", rec.onDrain);
+  } catch {}
+  try {
+    rec.ffmpeg.kill("SIGKILL");
+  } catch {}
+  try {
+    await secureWrite(
+      rec.recorderJsonPath,
+      JSON.stringify(
+        {
+          running: false,
+          stoppedAt: new Date().toISOString(),
+          error: "recording aborted after command timeout",
+        },
+        null,
+        2,
+      ),
+      { encoding: "utf-8" },
+    );
   } catch {}
 }
 
-export async function startRecorder(client, sessionId, sessionDir, outName, fps = 15, preset = 'medium', speed = 'medium') {
+export async function startRecorder(
+  client,
+  sessionId,
+  sessionDir,
+  outName,
+  fps = 15,
+  preset = "medium",
+  speed = "medium",
+) {
   validateName(outName);
 
   if (activeRecording) {
-    throw new Error('already recording');
+    throw new Error("already recording");
   }
 
   // F-067-1: the old on-disk "already recording" guard here was dead code —
@@ -109,37 +146,48 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   // check above (and if state.running && !activeRecording it is a stale flag
   // reconciled by reconcileRecorder at daemon startup). Only the in-memory
   // guard is authoritative.
-  const recorderJsonPath = join(sessionDir, 'recorder.json');
+  const recorderJsonPath = join(sessionDir, "recorder.json");
 
-  const artifactsDir = join(sessionDir, 'artifacts');
+  const artifactsDir = join(sessionDir, "artifacts");
   await ensurePrivateDir(artifactsDir);
   const outPath = join(artifactsDir, outName);
-  await secureWrite(outPath, '');
+  await secureWrite(outPath, "");
 
   const p = VIDEO_PRESETS[preset] || VIDEO_PRESETS.medium;
   const fpsOut = SPEED_PRESETS[speed] || SPEED_PRESETS.medium;
 
   const ffmpegArgs = [
-    '-y',
-    '-f', 'image2pipe',
-    '-c:v', 'mjpeg',
-    '-framerate', String(fpsOut),
-    '-i', '-',
-    '-vf', "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-    '-c:v', p.codec,
-    '-deadline', p.deadline,
-    '-cpu-used', String(p.cpuUsed),
-    '-crf', String(p.crf),
-    '-b:v', p.bitrate,
-    '-row-mt', '1',
-    outPath
+    "-y",
+    "-f",
+    "image2pipe",
+    "-c:v",
+    "mjpeg",
+    "-framerate",
+    String(fpsOut),
+    "-i",
+    "-",
+    "-vf",
+    "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+    "-c:v",
+    p.codec,
+    "-deadline",
+    p.deadline,
+    "-cpu-used",
+    String(p.cpuUsed),
+    "-crf",
+    String(p.crf),
+    "-b:v",
+    p.bitrate,
+    "-row-mt",
+    "1",
+    outPath,
   ];
 
-  const stderrPath = join(sessionDir, 'ffmpeg-stderr.log');
-  await secureWrite(stderrPath, '', { encoding: 'utf-8' });
+  const stderrPath = join(sessionDir, "ffmpeg-stderr.log");
+  await secureWrite(stderrPath, "", { encoding: "utf-8" });
 
-  const ffmpeg = spawn('ffmpeg', ffmpegArgs, {
-    stdio: ['pipe', 'ignore', 'pipe']
+  const ffmpeg = spawn("ffmpeg", ffmpegArgs, {
+    stdio: ["pipe", "ignore", "pipe"],
   });
 
   // F-067-11: bound the stderr write queue — a chatty ffmpeg or slow disk
@@ -148,10 +196,15 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   const MAX_PENDING_WRITES = 64;
   let pendingWrites = 0;
   let stderrWrite = Promise.resolve();
-  ffmpeg.stderr.on('data', chunk => {
+  ffmpeg.stderr.on("data", (chunk) => {
     if (pendingWrites >= MAX_PENDING_WRITES) return;
     pendingWrites++;
-    stderrWrite = stderrWrite.then(() => secureAppend(stderrPath, chunk)).catch(() => {}).finally(() => { pendingWrites--; });
+    stderrWrite = stderrWrite
+      .then(() => secureAppend(stderrPath, chunk))
+      .catch(() => {})
+      .finally(() => {
+        pendingWrites--;
+      });
   });
 
   const startedAt = new Date().toISOString();
@@ -162,10 +215,12 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   const frameBuffer = [];
   let stopRequested = false;
   let exitResolve;
-  const exitPromise = new Promise(resolve => { exitResolve = resolve; });
+  const exitPromise = new Promise((resolve) => {
+    exitResolve = resolve;
+  });
   let drainResolve = noop;
 
-  ffmpeg.on('exit', (code) => {
+  ffmpeg.on("exit", (code) => {
     ffmpegExited = true;
     if (code !== 0 && code !== null) {
       ffmpegError = new Error(`ffmpeg exited with code ${code}`);
@@ -173,14 +228,14 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     exitResolve();
   });
 
-  ffmpeg.on('error', (err) => {
+  ffmpeg.on("error", (err) => {
     ffmpegError = err;
     ffmpegExited = true;
     exitResolve();
   });
 
-  ffmpeg.stdin.on('error', (err) => {
-    if (err.code === 'EPIPE') {
+  ffmpeg.stdin.on("error", (err) => {
+    if (err.code === "EPIPE") {
       ffmpegExited = true;
     } else {
       ffmpegError = err;
@@ -200,8 +255,13 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
             const canWrite = ffmpeg.stdin.write(buf);
             if (!canWrite) {
               await Promise.race([
-                new Promise(resolve => { drainResolve = () => { drainResolve = () => {}; resolve(); }; }),
-                exitPromise.then(() => {})
+                new Promise((resolve) => {
+                  drainResolve = () => {
+                    drainResolve = () => {};
+                    resolve();
+                  };
+                }),
+                exitPromise.then(() => {}),
               ]);
             }
           } catch {
@@ -213,10 +273,7 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
       } else if (stopRequested) {
         break;
       } else {
-        await Promise.race([
-          setTimeout(50),
-          exitPromise.then(() => {})
-        ]);
+        await Promise.race([setTimeout(50), exitPromise.then(() => {})]);
       }
     }
   };
@@ -224,12 +281,13 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
   const drainPromise = drainLoop();
 
   const onDrain = () => drainResolve();
-  ffmpeg.stdin.on('drain', onDrain);
+  ffmpeg.stdin.on("drain", onDrain);
 
   const frameHandler = (params) => {
-    const buf = Buffer.from(params.data, 'base64');
+    const buf = Buffer.from(params.data, "base64");
 
-    client.send('Page.screencastFrameAck', { sessionId: params.sessionId }, sessionId)
+    client
+      .send("Page.screencastFrameAck", { sessionId: params.sessionId }, sessionId)
       .catch(() => {});
 
     if (stopRequested || ffmpegExited) return;
@@ -242,7 +300,7 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     frameCount++;
   };
 
-  client.on('Page.screencastFrame', frameHandler);
+  client.on("Page.screencastFrame", frameHandler);
 
   // F-067-6: publish activeRecording BEFORE any further await so a concurrent
   // stopRecorder (or a second startRecorder) sees the recording the instant
@@ -264,20 +322,28 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     recorderJsonPath,
     ffmpegError: () => ffmpegError,
     sessionDir,
-    markStop: () => { stopRequested = true; }
+    markStop: () => {
+      stopRequested = true;
+    },
   };
 
   const failStart = async (err) => {
     stopRequested = true;
-    try { ffmpeg.kill(); } catch {}
-    if (activeRecording && activeRecording.ffmpeg === ffmpeg) activeRecording = null;
-    client.off('Page.screencastFrame', frameHandler);
-    ffmpeg.stdin.off('drain', onDrain);
     try {
-      await secureWrite(recorderJsonPath, JSON.stringify({
-        running: false,
-        error: err.message
-      }), { encoding: 'utf-8' });
+      ffmpeg.kill();
+    } catch {}
+    if (activeRecording && activeRecording.ffmpeg === ffmpeg) activeRecording = null;
+    client.off("Page.screencastFrame", frameHandler);
+    ffmpeg.stdin.off("drain", onDrain);
+    try {
+      await secureWrite(
+        recorderJsonPath,
+        JSON.stringify({
+          running: false,
+          error: err.message,
+        }),
+        { encoding: "utf-8" },
+      );
     } catch {}
   };
 
@@ -285,24 +351,28 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
     running: true,
     startedAt,
     name: outName,
-    outPath
+    outPath,
   };
 
   try {
-    await secureWrite(recorderJsonPath, JSON.stringify(recorderState), { encoding: 'utf-8' });
+    await secureWrite(recorderJsonPath, JSON.stringify(recorderState), { encoding: "utf-8" });
   } catch (err) {
     await failStart(err);
     throw err;
   }
 
   try {
-    await client.send('Page.startScreencast', {
-      format: 'jpeg',
-      quality: SCREENCAST_QUALITY,
-      maxWidth: SCREENCAST_MAX_WIDTH,
-      maxHeight: SCREENCAST_MAX_HEIGHT,
-      everyNthFrame: SCREENCAST_EVERY_NTH
-    }, sessionId);
+    await client.send(
+      "Page.startScreencast",
+      {
+        format: "jpeg",
+        quality: SCREENCAST_QUALITY,
+        maxWidth: SCREENCAST_MAX_WIDTH,
+        maxHeight: SCREENCAST_MAX_HEIGHT,
+        everyNthFrame: SCREENCAST_EVERY_NTH,
+      },
+      sessionId,
+    );
   } catch (err) {
     await failStart(err);
     throw err;
@@ -313,38 +383,44 @@ export async function startRecorder(client, sessionId, sessionDir, outName, fps 
 
 export async function stopRecorder(client, sessionId, sessionDir) {
   if (!activeRecording) {
-    throw new Error('not recording');
+    throw new Error("not recording");
   }
   if (activeRecording.sessionDir !== sessionDir) {
-    throw new Error('not recording');
+    throw new Error("not recording");
   }
 
   const rec = activeRecording;
   activeRecording = null;
 
   try {
-    await client.send('Page.stopScreencast', {}, sessionId);
+    await client.send("Page.stopScreencast", {}, sessionId);
   } catch {}
 
-  client.off('Page.screencastFrame', rec.frameHandler);
+  client.off("Page.screencastFrame", rec.frameHandler);
   rec.markStop();
 
-  try { await rec.drainPromise; } catch {}
+  try {
+    await rec.drainPromise;
+  } catch {}
 
-  rec.ffmpeg.stdin.off('drain', rec.onDrain);
+  rec.ffmpeg.stdin.off("drain", rec.onDrain);
 
   if (rec.ffmpeg.stdin && !rec.ffmpeg.stdin.destroyed) {
-    try { rec.ffmpeg.stdin.end(); } catch {}
+    try {
+      rec.ffmpeg.stdin.end();
+    } catch {}
   }
 
   let usedKill = false;
   let ffmpegNeverExited = false;
   if (rec.ffmpeg.exitCode === null && !rec.ffmpeg.killed) {
     await Promise.race([
-      new Promise(resolve => rec.ffmpeg.on('exit', resolve)),
+      new Promise((resolve) => rec.ffmpeg.on("exit", resolve)),
       setTimeout(8000).then(() => {
-        try { rec.ffmpeg.kill('SIGKILL'); } catch {}
-      })
+        try {
+          rec.ffmpeg.kill("SIGKILL");
+        } catch {}
+      }),
     ]);
     usedKill = rec.ffmpeg.killed;
     // F-007: the race above resolves the moment SIGKILL is issued, NOT when
@@ -352,8 +428,12 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     // a trailer-less file. Await the real 'exit' with a short hard bound.
     if (rec.ffmpeg.exitCode === null) {
       await Promise.race([
-        new Promise(resolve => rec.ffmpeg.on('exit', resolve)),
-        setTimeout(2000).then(() => { try { rec.ffmpeg.kill('SIGKILL'); } catch {} })
+        new Promise((resolve) => rec.ffmpeg.on("exit", resolve)),
+        setTimeout(2000).then(() => {
+          try {
+            rec.ffmpeg.kill("SIGKILL");
+          } catch {}
+        }),
       ]);
     }
     // R1.6/F-007: after the hard bound the process STILL has not emitted
@@ -375,13 +455,15 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     fps: rec.fps,
     duration: duration.toFixed(2),
     codec: rec.codec,
-    error: ffmpegErr ? ffmpegErr.message : null
+    error: ffmpegErr ? ffmpegErr.message : null,
   };
 
   let outputError = null;
   try {
     await assertValidOutput(rec.outPath, rec.frameCount());
-    try { await unlink(join(sessionDir, 'ffmpeg-stderr.log')); } catch {}
+    try {
+      await unlink(join(sessionDir, "ffmpeg-stderr.log"));
+    } catch {}
   } catch (err) {
     outputError = err.message;
   }
@@ -390,22 +472,24 @@ export async function stopRecorder(client, sessionId, sessionDir) {
   // not be reported as success — probe the real duration.
   if (usedKill) {
     let dur = null;
-    try { dur = await probeVideoDuration(rec.outPath); } catch {}
+    try {
+      dur = await probeVideoDuration(rec.outPath);
+    } catch {}
     if (dur === null && !outputError) {
-      outputError = 'screencast output is unreadable after forced kill (no duration)';
+      outputError = "screencast output is unreadable after forced kill (no duration)";
     }
   }
 
   // R1.6/F-007: a muxer that never emitted 'exit' after SIGKILL cannot have
   // written a valid trailer — fail the output regardless of probe results.
   if (ffmpegNeverExited && !outputError) {
-    outputError = 'screencast output unverified: ffmpeg did not exit after SIGKILL';
+    outputError = "screencast output unverified: ffmpeg did not exit after SIGKILL";
   }
 
   stats.error = outputError || stats.error;
 
   try {
-    await secureWrite(rec.recorderJsonPath, JSON.stringify(stats, null, 2), { encoding: 'utf-8' });
+    await secureWrite(rec.recorderJsonPath, JSON.stringify(stats, null, 2), { encoding: "utf-8" });
   } catch {}
 
   if (outputError) throw new Error(outputError);
@@ -414,6 +498,6 @@ export async function stopRecorder(client, sessionId, sessionDir) {
     file: stats.file,
     frames: stats.frames,
     duration: stats.duration,
-    codec: stats.codec
+    codec: stats.codec,
   };
 }

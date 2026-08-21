@@ -30,48 +30,48 @@ import {
   compareAscii,
   deepFreeze,
   normalizeEvidencePath,
-} from '../../contracts/evidence.mjs';
+} from "../../contracts/evidence.mjs";
 import {
   assertPrivacySafe,
   createOpaqueOwnerSummary,
   redactText,
   sanitizeUrl,
-} from '../../shared/privacy.mjs';
-import { ARTIFACT_LIMITS } from '../../shared/artifacts.mjs';
-import { defaultOwners } from './codeowners.mjs';
+} from "../../shared/privacy.mjs";
+import { ARTIFACT_LIMITS } from "../../shared/artifacts.mjs";
+import { defaultOwners } from "./codeowners.mjs";
 
-export const GOVERNANCE_DIMENSION_ID = 'DIM-governance-v1';
+export const GOVERNANCE_DIMENSION_ID = "DIM-governance-v1";
 
 export const GOVERNANCE_CATEGORIES = Object.freeze([
-  'contribution',
-  'decision',
-  'funding',
-  'ownership',
-  'policy',
-  'reference',
-  'release',
-  'review',
-  'runbook',
-  'support',
+  "contribution",
+  "decision",
+  "funding",
+  "ownership",
+  "policy",
+  "reference",
+  "release",
+  "review",
+  "runbook",
+  "support",
 ]);
 
-export const GOVERNANCE_STATUSES = Object.freeze(['observed', 'unverified', 'unsupported']);
+export const GOVERNANCE_STATUSES = Object.freeze(["observed", "unverified", "unsupported"]);
 
 export const GOVERNANCE_DIALECTS = Object.freeze([
-  'adr',
-  'changelog',
-  'code-of-conduct',
-  'codeowners',
-  'contributing',
-  'funding',
-  'governance',
-  'issue-template',
-  'link',
-  'pr-template',
-  'release',
-  'runbook',
-  'security-policy',
-  'support',
+  "adr",
+  "changelog",
+  "code-of-conduct",
+  "codeowners",
+  "contributing",
+  "funding",
+  "governance",
+  "issue-template",
+  "link",
+  "pr-template",
+  "release",
+  "runbook",
+  "security-policy",
+  "support",
 ]);
 
 export const GOVERNANCE_LIMITS = deepFreeze({
@@ -91,11 +91,11 @@ export const GOVERNANCE_LIMITS = deepFreeze({
   maxRules: 512,
 });
 
-const ARTIFACT_KEYS = Object.freeze(['category', 'details', 'dialect', 'line', 'path', 'status']);
-const DIAGNOSTIC_KEYS = Object.freeze(['line', 'path', 'reason', 'status']);
-const SIMPLE_DETAILS_KEYS = Object.freeze(['kind']);
-const ADR_DETAILS_KEYS = Object.freeze(['date', 'id', 'kind', 'status']);
-const REFERENCE_DETAILS_KEYS = Object.freeze(['kind', 'url']);
+const ARTIFACT_KEYS = Object.freeze(["category", "details", "dialect", "line", "path", "status"]);
+const DIAGNOSTIC_KEYS = Object.freeze(["line", "path", "reason", "status"]);
+const SIMPLE_DETAILS_KEYS = Object.freeze(["kind"]);
+const ADR_DETAILS_KEYS = Object.freeze(["date", "id", "kind", "status"]);
+const REFERENCE_DETAILS_KEYS = Object.freeze(["kind", "url"]);
 
 const TOKEN_PATTERN = /^[\x21-\x7e]+$/;
 const STATUS_TOKEN = /^[A-Za-z][A-Za-z0-9-]{0,47}$/;
@@ -106,7 +106,7 @@ const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$/;
 export class GovernanceModelError extends TypeError {
   constructor(code, message) {
     super(`Invalid governance model: ${message}`);
-    this.name = 'GovernanceModelError';
+    this.name = "GovernanceModelError";
     this.code = code;
   }
 }
@@ -118,19 +118,24 @@ function fail(code, message) {
 function exactKeys(value, expected, label) {
   const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
+    fail("UNKNOWN_FIELD", `${label} fields do not match the schema`);
   }
 }
 
 function plainObject(value, label) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', `${label} must be an object`);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", `${label} must be an object`);
   }
 }
 
 function token(value, label, maximum = 256) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > maximum || !TOKEN_PATTERN.test(value)) {
-    fail('INVALID_DETAILS', `${label} must be a bounded printable ASCII token`);
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maximum ||
+    !TOKEN_PATTERN.test(value)
+  ) {
+    fail("INVALID_DETAILS", `${label} must be a bounded printable ASCII token`);
   }
   return value;
 }
@@ -141,22 +146,22 @@ function nullableToken(value, label, maximum = 256) {
 }
 
 function status(value) {
-  if (typeof value !== 'string' || !GOVERNANCE_STATUSES.includes(value)) {
-    fail('INVALID_STATUS', 'entry status must be observed, unverified, or unsupported');
+  if (typeof value !== "string" || !GOVERNANCE_STATUSES.includes(value)) {
+    fail("INVALID_STATUS", "entry status must be observed, unverified, or unsupported");
   }
   return value;
 }
 
 function category(value) {
-  if (typeof value !== 'string' || !GOVERNANCE_CATEGORIES.includes(value)) {
-    fail('UNKNOWN_CATEGORY', 'entry category is not allowlisted for the governance dimension');
+  if (typeof value !== "string" || !GOVERNANCE_CATEGORIES.includes(value)) {
+    fail("UNKNOWN_CATEGORY", "entry category is not allowlisted for the governance dimension");
   }
   return value;
 }
 
 function dialect(value) {
-  if (typeof value !== 'string' || !GOVERNANCE_DIALECTS.includes(value)) {
-    fail('UNKNOWN_DIALECT', 'entry dialect is not allowlisted for the governance dimension');
+  if (typeof value !== "string" || !GOVERNANCE_DIALECTS.includes(value)) {
+    fail("UNKNOWN_DIALECT", "entry dialect is not allowlisted for the governance dimension");
   }
   return value;
 }
@@ -165,39 +170,44 @@ function normalizedPath(value) {
   try {
     return normalizeEvidencePath(value);
   } catch {
-    fail('INVALID_PATH', 'entry path must be a normalized repository-relative POSIX path');
+    fail("INVALID_PATH", "entry path must be a normalized repository-relative POSIX path");
   }
 }
 
 function boundedLine(value) {
   if (value === null) return null;
   if (!Number.isSafeInteger(value) || value < 1 || value > 1_000_000) {
-    fail('INVALID_SOURCE', 'source line must be a bounded positive integer or null');
+    fail("INVALID_SOURCE", "source line must be a bounded positive integer or null");
   }
   return value;
 }
 
 function boundedCount(value, maximum, label) {
   if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
-    fail('BOUND_EXCEEDED', `${label} is outside the explicit bound`);
+    fail("BOUND_EXCEEDED", `${label} is outside the explicit bound`);
   }
   return value;
 }
 
 function reason(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 64 || !REASON_PATTERN.test(value)) {
-    fail('INVALID_REASON', 'diagnostic reason must be a bounded uppercase token');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 64 ||
+    !REASON_PATTERN.test(value)
+  ) {
+    fail("INVALID_REASON", "diagnostic reason must be a bounded uppercase token");
   }
   return value;
 }
 
 function normalizeDiagnostic(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'diagnostic must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "diagnostic must be an object");
   }
-  exactKeys(value, DIAGNOSTIC_KEYS, 'diagnostic');
-  if (!['unverified', 'unsupported'].includes(value.status)) {
-    fail('INVALID_STATUS', 'diagnostic status must be unverified or unsupported');
+  exactKeys(value, DIAGNOSTIC_KEYS, "diagnostic");
+  if (!["unverified", "unsupported"].includes(value.status)) {
+    fail("INVALID_STATUS", "diagnostic status must be unverified or unsupported");
   }
   return {
     path: normalizedPath(value.path),
@@ -208,38 +218,41 @@ function normalizeDiagnostic(value) {
 }
 
 function simpleDetails(value) {
-  plainObject(value, 'details');
-  exactKeys(value, SIMPLE_DETAILS_KEYS, 'details');
-  return { kind: token(value.kind, 'details.kind') };
+  plainObject(value, "details");
+  exactKeys(value, SIMPLE_DETAILS_KEYS, "details");
+  return { kind: token(value.kind, "details.kind") };
 }
 
 function adrDetails(value) {
-  plainObject(value, 'details');
-  exactKeys(value, ADR_DETAILS_KEYS, 'details');
-  const id = value.id === null ? null : token(value.id, 'details.id', 16);
-  if (id !== null && !ID_PATTERN.test(id)) fail('INVALID_DETAILS', 'ADR id must be a bounded stable token');
-  const date = value.date === null ? null : token(value.date, 'details.date', 16);
-  if (date !== null && !DATE_PATTERN.test(date)) fail('INVALID_DETAILS', 'ADR date must be YYYY-MM-DD or null');
+  plainObject(value, "details");
+  exactKeys(value, ADR_DETAILS_KEYS, "details");
+  const id = value.id === null ? null : token(value.id, "details.id", 16);
+  if (id !== null && !ID_PATTERN.test(id))
+    fail("INVALID_DETAILS", "ADR id must be a bounded stable token");
+  const date = value.date === null ? null : token(value.date, "details.date", 16);
+  if (date !== null && !DATE_PATTERN.test(date))
+    fail("INVALID_DETAILS", "ADR date must be YYYY-MM-DD or null");
   return {
-    kind: token(value.kind, 'details.kind'),
+    kind: token(value.kind, "details.kind"),
     id,
     date,
-    status: nullableToken(value.status, 'details.status', 48),
+    status: nullableToken(value.status, "details.status", 48),
   };
 }
 
 function referenceDetails(value) {
-  plainObject(value, 'details');
-  exactKeys(value, REFERENCE_DETAILS_KEYS, 'details');
-  const url = token(value.url, 'details.url', 512);
-  if (!/^https?:\/\//.test(url)) fail('INVALID_DETAILS', 'reference url must be an absolute http(s) URL');
-  return { kind: token(value.kind, 'details.kind'), url };
+  plainObject(value, "details");
+  exactKeys(value, REFERENCE_DETAILS_KEYS, "details");
+  const url = token(value.url, "details.url", 512);
+  if (!/^https?:\/\//.test(url))
+    fail("INVALID_DETAILS", "reference url must be an absolute http(s) URL");
+  return { kind: token(value.kind, "details.kind"), url };
 }
 
 function normalizeDetails(categoryName, value) {
   if (value === null) return null;
-  if (categoryName === 'decision') return adrDetails(value);
-  if (categoryName === 'reference') return referenceDetails(value);
+  if (categoryName === "decision") return adrDetails(value);
+  if (categoryName === "reference") return referenceDetails(value);
   return simpleDetails(value);
 }
 
@@ -252,12 +265,13 @@ const ARTIFACT_DATA_LIMITS = Object.freeze({
 });
 
 function normalizeArtifactShape(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'governance artifact must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "governance artifact must be an object");
   }
-  exactKeys(value, ARTIFACT_KEYS, 'governance artifact');
+  exactKeys(value, ARTIFACT_KEYS, "governance artifact");
   const categoryName = category(value.category);
-  if (categoryName === 'ownership') fail('UNKNOWN_CATEGORY', 'ownership entries are derived from parsed CODEOWNERS');
+  if (categoryName === "ownership")
+    fail("UNKNOWN_CATEGORY", "ownership entries are derived from parsed CODEOWNERS");
   return {
     category: categoryName,
     dialect: dialect(value.dialect),
@@ -269,21 +283,25 @@ function normalizeArtifactShape(value) {
 }
 
 function artifactDiagnosticPath(artifact) {
-  if (typeof artifact?.path === 'string' && artifact.path.length > 0 && artifact.path.length <= 255) {
+  if (
+    typeof artifact?.path === "string" &&
+    artifact.path.length > 0 &&
+    artifact.path.length <= 255
+  ) {
     try {
       return normalizeEvidencePath(artifact.path);
     } catch {
       // fall through to the safe placeholder
     }
   }
-  return 'UNKNOWN';
+  return "UNKNOWN";
 }
 
 function artifactDiagnostic(artifact, diagnosticReason) {
   return {
     path: artifactDiagnosticPath(artifact),
     line: Number.isSafeInteger(artifact?.line) && artifact.line >= 1 ? artifact.line : null,
-    status: 'unverified',
+    status: "unverified",
     reason: diagnosticReason,
   };
 }
@@ -310,8 +328,8 @@ function privacyFilter(entries) {
     } catch {
       diagnostics.push({
         path: redactText(entry.path),
-        status: 'unverified',
-        reason: 'PRIVACY',
+        status: "unverified",
+        reason: "PRIVACY",
         line: entry.source.line,
       });
     }
@@ -321,10 +339,12 @@ function privacyFilter(entries) {
 
 function ownershipDetails(parsed, labelMap) {
   return {
-    kind: 'codeowners',
+    kind: "codeowners",
     patterns: Math.min(parsed.patterns, GOVERNANCE_LIMITS.maxPatterns),
     malformedLines: Math.min(parsed.malformedLines, GOVERNANCE_LIMITS.maxRules),
-    defaultLabels: defaultOwners(parsed.rules).map((identity) => labelMap.get(identity)).filter(Boolean),
+    defaultLabels: defaultOwners(parsed.rules)
+      .map((identity) => labelMap.get(identity))
+      .filter(Boolean),
   };
 }
 
@@ -332,11 +352,18 @@ function buildOwnershipSection(ownershipRecords) {
   const allRules = [];
   for (const file of ownershipRecords) {
     for (const rule of file.rules) {
-      allRules.push({ path: file.path, pattern: rule.pattern, anchored: rule.anchored, owners: rule.owners, line: rule.line });
+      allRules.push({
+        path: file.path,
+        pattern: rule.pattern,
+        anchored: rule.anchored,
+        owners: rule.owners,
+        line: rule.line,
+      });
     }
   }
-  const sortedRules = allRules.toSorted((left, right) => compareAscii(left.path, right.path)
-    || (left.line ?? 0) - (right.line ?? 0));
+  const sortedRules = allRules.toSorted(
+    (left, right) => compareAscii(left.path, right.path) || (left.line ?? 0) - (right.line ?? 0),
+  );
 
   const retainedRules = [];
   let assignments = 0;
@@ -356,24 +383,32 @@ function buildOwnershipSection(ownershipRecords) {
     labelMap.set(distinct[index], summary.owners[index].label);
   }
 
-  const rules = retainedRules.map((rule) => deepFreeze({
-    path: rule.path,
-    pattern: rule.pattern,
-    anchored: rule.anchored,
-    line: rule.line,
-    labels: rule.owners.map((identity) => labelMap.get(identity)).filter(Boolean),
-  })).filter((rule) => {
-    try {
-      assertPrivacySafe(rule);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+  const rules = retainedRules
+    .map((rule) =>
+      deepFreeze({
+        path: rule.path,
+        pattern: rule.pattern,
+        anchored: rule.anchored,
+        line: rule.line,
+        labels: rule.owners.map((identity) => labelMap.get(identity)).filter(Boolean),
+      }),
+    )
+    .filter((rule) => {
+      try {
+        assertPrivacySafe(rule);
+        return true;
+      } catch {
+        return false;
+      }
+    });
 
   const assigneeCapped = summary.owners.length > GOVERNANCE_LIMITS.maxOwners;
-  const assignees = summary.owners.slice(0, GOVERNANCE_LIMITS.maxOwners)
-    .map((entry) => deepFreeze({ label: entry.label, count: boundedCount(entry.count, GOVERNANCE_LIMITS.maxAssignments, 'count') }));
+  const assignees = summary.owners.slice(0, GOVERNANCE_LIMITS.maxOwners).map((entry) =>
+    deepFreeze({
+      label: entry.label,
+      count: boundedCount(entry.count, GOVERNANCE_LIMITS.maxAssignments, "count"),
+    }),
+  );
 
   return {
     files: ownershipRecords.length,
@@ -415,10 +450,13 @@ function capList(records, maximum) {
 function uniqueDiagnostics(diagnostics) {
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of [...diagnostics].toSorted((left, right) => compareAscii(left.path, right.path)
-    || compareAscii(left.status, right.status)
-    || compareAscii(left.reason, right.reason)
-    || (left.line ?? 0) - (right.line ?? 0))) {
+  for (const diagnostic of [...diagnostics].toSorted(
+    (left, right) =>
+      compareAscii(left.path, right.path) ||
+      compareAscii(left.status, right.status) ||
+      compareAscii(left.reason, right.reason) ||
+      (left.line ?? 0) - (right.line ?? 0),
+  )) {
     const key = `${diagnostic.path}\0${diagnostic.status}\0${diagnostic.reason}\0${diagnostic.line ?? 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -453,14 +491,19 @@ export function buildGovernanceModel({
   isGit = false,
   defaultBranch = null,
 } = {}) {
-  if (!Array.isArray(artifacts)) fail('INVALID_TYPE', 'governance artifacts must be an array');
-  if (!Array.isArray(ownership)) fail('INVALID_TYPE', 'governance ownership must be an array');
-  if (!Array.isArray(diagnostics)) fail('INVALID_TYPE', 'governance diagnostics must be an array');
-  if (typeof isGit !== 'boolean') fail('INVALID_TYPE', 'isGit must be boolean');
-  if (defaultBranch !== null && (typeof defaultBranch !== 'string'
-      || defaultBranch.length === 0 || defaultBranch.length > 96
-      || defaultBranch.includes('\0') || /[^\x21-\x7e]/.test(defaultBranch))) {
-    fail('INVALID_DETAILS', 'defaultBranch must be a bounded printable token or null');
+  if (!Array.isArray(artifacts)) fail("INVALID_TYPE", "governance artifacts must be an array");
+  if (!Array.isArray(ownership)) fail("INVALID_TYPE", "governance ownership must be an array");
+  if (!Array.isArray(diagnostics)) fail("INVALID_TYPE", "governance diagnostics must be an array");
+  if (typeof isGit !== "boolean") fail("INVALID_TYPE", "isGit must be boolean");
+  if (
+    defaultBranch !== null &&
+    (typeof defaultBranch !== "string" ||
+      defaultBranch.length === 0 ||
+      defaultBranch.length > 96 ||
+      defaultBranch.includes("\0") ||
+      /[^\x21-\x7e]/.test(defaultBranch))
+  ) {
+    fail("INVALID_DETAILS", "defaultBranch must be a bounded printable token or null");
   }
 
   const normalized = [];
@@ -470,10 +513,12 @@ export function buildGovernanceModel({
       assertDataOnly(artifact, GovernanceModelError, ARTIFACT_DATA_LIMITS);
     } catch (error) {
       if (error instanceof GovernanceModelError) {
-        artifactDiagnostics.push(artifactDiagnostic(
-          artifact,
-          error.code === 'STRING_LIMIT' ? 'STRING_LIMIT' : 'MALFORMED',
-        ));
+        artifactDiagnostics.push(
+          artifactDiagnostic(
+            artifact,
+            error.code === "STRING_LIMIT" ? "STRING_LIMIT" : "MALFORMED",
+          ),
+        );
         continue;
       }
       throw error;
@@ -484,18 +529,22 @@ export function buildGovernanceModel({
       normalized.push(shape);
     } catch (error) {
       if (error instanceof GovernanceModelError) {
-        artifactDiagnostics.push(artifactDiagnostic(artifact, 'MALFORMED'));
+        artifactDiagnostics.push(artifactDiagnostic(artifact, "MALFORMED"));
       } else {
         throw error;
       }
     }
   }
   const ownershipRecords = ownership.map((file) => {
-    if (file === null || typeof file !== 'object' || Array.isArray(file)) {
-      fail('INVALID_TYPE', 'ownership file must be an object');
+    if (file === null || typeof file !== "object" || Array.isArray(file)) {
+      fail("INVALID_TYPE", "ownership file must be an object");
     }
-    if (typeof file.path !== 'string' || typeof file.rules !== 'object' || !Array.isArray(file.rules)) {
-      fail('INVALID_TYPE', 'ownership file requires a path and a rules array');
+    if (
+      typeof file.path !== "string" ||
+      typeof file.rules !== "object" ||
+      !Array.isArray(file.rules)
+    ) {
+      fail("INVALID_TYPE", "ownership file requires a path and a rules array");
     }
     return {
       path: normalizedPath(file.path),
@@ -510,9 +559,17 @@ export function buildGovernanceModel({
 
   const rawEntries = [];
   for (const artifact of normalized) {
-    if (artifact.category === 'reference' && artifact.details !== null
-        && artifact.details.kind === 'link') {
-      rawEntries.push(entryFor(artifact, `reference:${artifact.path}:${artifact.line ?? 0}:${artifact.details.url}`));
+    if (
+      artifact.category === "reference" &&
+      artifact.details !== null &&
+      artifact.details.kind === "link"
+    ) {
+      rawEntries.push(
+        entryFor(
+          artifact,
+          `reference:${artifact.path}:${artifact.line ?? 0}:${artifact.details.url}`,
+        ),
+      );
       continue;
     }
     rawEntries.push(entryFor(artifact, `${artifact.category}:${artifact.path}`));
@@ -521,11 +578,11 @@ export function buildGovernanceModel({
   const ownershipSection = buildOwnershipSection(ownershipRecords);
   for (const file of ownershipRecords) {
     rawEntries.push({
-      category: 'ownership',
-      dialect: 'codeowners',
+      category: "ownership",
+      dialect: "codeowners",
       matchedKey: `ownership:${file.path}`,
       path: file.path,
-      status: 'observed',
+      status: "observed",
       details: ownershipDetails(file, ownershipSection.labelMap),
       source: { path: file.path, line: null },
     });
@@ -534,9 +591,12 @@ export function buildGovernanceModel({
 
   const unique = [];
   const seen = new Set();
-  for (const entry of privacySafe.toSorted((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.source.path, right.source.path)
-    || (left.source.line ?? 0) - (right.source.line ?? 0))) {
+  for (const entry of privacySafe.toSorted(
+    (left, right) =>
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.source.path, right.source.path) ||
+      (left.source.line ?? 0) - (right.source.line ?? 0),
+  )) {
     const key = `${entry.matchedKey}\0${entry.source.path}\0${entry.source.line ?? 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -544,7 +604,7 @@ export function buildGovernanceModel({
   }
 
   const { records: entries, capped: entriesCapped } = capList(unique, GOVERNANCE_LIMITS.maxEntries);
-  const linkCount = unique.filter((entry) => entry.category === 'reference').length;
+  const linkCount = unique.filter((entry) => entry.category === "reference").length;
 
   const codeownersDiagnostics = [];
   for (const file of ownershipRecords) {
@@ -623,11 +683,11 @@ export function buildGovernanceModel({
  * @returns {string} an encoded token safe for `matchedKey`.
  */
 export function encodeMatchedKey(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 512) {
-    fail('INVALID_MATCHED_KEY', 'matchedKey must be a bounded non-empty string');
+  if (typeof value !== "string" || value.length === 0 || value.length > 512) {
+    fail("INVALID_MATCHED_KEY", "matchedKey must be a bounded non-empty string");
   }
   const safe = /[A-Za-z0-9._:/#@+%()[\],-]/;
-  let out = '';
+  let out = "";
   for (const ch of value) {
     if (safe.test(ch)) {
       out += ch;
@@ -635,10 +695,10 @@ export function encodeMatchedKey(value) {
     }
     const codepoint = ch.codePointAt(0);
     if (codepoint < 0x80) {
-      out += `%${codepoint.toString(16).toUpperCase().padStart(2, '0')}`;
+      out += `%${codepoint.toString(16).toUpperCase().padStart(2, "0")}`;
     } else {
-      for (const byte of Buffer.from(ch, 'utf8')) {
-        out += `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+      for (const byte of Buffer.from(ch, "utf8")) {
+        out += `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
       }
     }
   }
@@ -650,36 +710,45 @@ export function encodeMatchedKey(value) {
 // ---------------------------------------------------------------------------
 
 const EXACT_PATHS = new Map([
-  ['.github/codeowners', { category: 'ownership', dialect: 'codeowners', parse: 'codeowners' }],
-  ['codeowners', { category: 'ownership', dialect: 'codeowners', parse: 'codeowners' }],
-  ['docs/codeowners', { category: 'ownership', dialect: 'codeowners', parse: 'codeowners' }],
-  ['.github/code_of_conduct.md', { category: 'policy', dialect: 'code-of-conduct', parse: 'links' }],
-  ['code_of_conduct.md', { category: 'policy', dialect: 'code-of-conduct', parse: 'links' }],
-  ['docs/code_of_conduct.md', { category: 'policy', dialect: 'code-of-conduct', parse: 'links' }],
-  ['.github/security.md', { category: 'policy', dialect: 'security-policy', parse: 'links' }],
-  ['security.md', { category: 'policy', dialect: 'security-policy', parse: 'links' }],
-  ['docs/security.md', { category: 'policy', dialect: 'security-policy', parse: 'links' }],
-  ['.github/governance.md', { category: 'policy', dialect: 'governance', parse: 'links' }],
-  ['governance.md', { category: 'policy', dialect: 'governance', parse: 'links' }],
-  ['docs/governance.md', { category: 'policy', dialect: 'governance', parse: 'links' }],
-  ['.github/contributing.md', { category: 'contribution', dialect: 'contributing', parse: 'links' }],
-  ['contributing.md', { category: 'contribution', dialect: 'contributing', parse: 'links' }],
-  ['docs/contributing.md', { category: 'contribution', dialect: 'contributing', parse: 'links' }],
-  ['.github/contributing', { category: 'contribution', dialect: 'contributing', parse: 'links' }],
-  ['contributing', { category: 'contribution', dialect: 'contributing', parse: 'links' }],
-  ['.github/pull_request_template.md', { category: 'review', dialect: 'pr-template', parse: null }],
-  ['.github/pull_request_template.txt', { category: 'review', dialect: 'pr-template', parse: null }],
-  ['docs/pull_request_template.md', { category: 'review', dialect: 'pr-template', parse: null }],
-  ['.github/issue_template.md', { category: 'review', dialect: 'issue-template', parse: null }],
-  ['.github/issue_template.txt', { category: 'review', dialect: 'issue-template', parse: null }],
-  ['releasing.md', { category: 'release', dialect: 'release', parse: 'links' }],
-  ['release.md', { category: 'release', dialect: 'release', parse: 'links' }],
-  ['changelog.md', { category: 'release', dialect: 'changelog', parse: 'links' }],
-  ['support.md', { category: 'support', dialect: 'support', parse: 'links' }],
-  ['.github/support.md', { category: 'support', dialect: 'support', parse: 'links' }],
-  ['docs/support.md', { category: 'support', dialect: 'support', parse: 'links' }],
-  ['funding.yml', { category: 'funding', dialect: 'funding', parse: null }],
-  ['.github/funding.yml', { category: 'funding', dialect: 'funding', parse: null }],
+  [".github/codeowners", { category: "ownership", dialect: "codeowners", parse: "codeowners" }],
+  ["codeowners", { category: "ownership", dialect: "codeowners", parse: "codeowners" }],
+  ["docs/codeowners", { category: "ownership", dialect: "codeowners", parse: "codeowners" }],
+  [
+    ".github/code_of_conduct.md",
+    { category: "policy", dialect: "code-of-conduct", parse: "links" },
+  ],
+  ["code_of_conduct.md", { category: "policy", dialect: "code-of-conduct", parse: "links" }],
+  ["docs/code_of_conduct.md", { category: "policy", dialect: "code-of-conduct", parse: "links" }],
+  [".github/security.md", { category: "policy", dialect: "security-policy", parse: "links" }],
+  ["security.md", { category: "policy", dialect: "security-policy", parse: "links" }],
+  ["docs/security.md", { category: "policy", dialect: "security-policy", parse: "links" }],
+  [".github/governance.md", { category: "policy", dialect: "governance", parse: "links" }],
+  ["governance.md", { category: "policy", dialect: "governance", parse: "links" }],
+  ["docs/governance.md", { category: "policy", dialect: "governance", parse: "links" }],
+  [
+    ".github/contributing.md",
+    { category: "contribution", dialect: "contributing", parse: "links" },
+  ],
+  ["contributing.md", { category: "contribution", dialect: "contributing", parse: "links" }],
+  ["docs/contributing.md", { category: "contribution", dialect: "contributing", parse: "links" }],
+  [".github/contributing", { category: "contribution", dialect: "contributing", parse: "links" }],
+  ["contributing", { category: "contribution", dialect: "contributing", parse: "links" }],
+  [".github/pull_request_template.md", { category: "review", dialect: "pr-template", parse: null }],
+  [
+    ".github/pull_request_template.txt",
+    { category: "review", dialect: "pr-template", parse: null },
+  ],
+  ["docs/pull_request_template.md", { category: "review", dialect: "pr-template", parse: null }],
+  [".github/issue_template.md", { category: "review", dialect: "issue-template", parse: null }],
+  [".github/issue_template.txt", { category: "review", dialect: "issue-template", parse: null }],
+  ["releasing.md", { category: "release", dialect: "release", parse: "links" }],
+  ["release.md", { category: "release", dialect: "release", parse: "links" }],
+  ["changelog.md", { category: "release", dialect: "changelog", parse: "links" }],
+  ["support.md", { category: "support", dialect: "support", parse: "links" }],
+  [".github/support.md", { category: "support", dialect: "support", parse: "links" }],
+  ["docs/support.md", { category: "support", dialect: "support", parse: "links" }],
+  ["funding.yml", { category: "funding", dialect: "funding", parse: null }],
+  [".github/funding.yml", { category: "funding", dialect: "funding", parse: null }],
 ]);
 
 // Known hidden governance paths. `rg --files` never emits hidden `.github`
@@ -687,21 +756,21 @@ const EXACT_PATHS = new Map([
 // probes (mirroring `deep/git.mjs` and `deep/operations.mjs`) and reads any
 // that exist through the bounded T206 reader.
 export const GOVERNANCE_HIDDEN_PATHS = Object.freeze([
-  '.github/CODEOWNERS',
-  '.github/CODE_OF_CONDUCT.md',
-  '.github/SECURITY.md',
-  '.github/GOVERNANCE.md',
-  '.github/CONTRIBUTING.md',
-  '.github/CONTRIBUTING',
-  '.github/PULL_REQUEST_TEMPLATE.md',
-  '.github/PULL_REQUEST_TEMPLATE.txt',
-  '.github/ISSUE_TEMPLATE.md',
-  '.github/ISSUE_TEMPLATE.txt',
-  '.github/SUPPORT.md',
-  '.github/FUNDING.yml',
+  ".github/CODEOWNERS",
+  ".github/CODE_OF_CONDUCT.md",
+  ".github/SECURITY.md",
+  ".github/GOVERNANCE.md",
+  ".github/CONTRIBUTING.md",
+  ".github/CONTRIBUTING",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/PULL_REQUEST_TEMPLATE.txt",
+  ".github/ISSUE_TEMPLATE.md",
+  ".github/ISSUE_TEMPLATE.txt",
+  ".github/SUPPORT.md",
+  ".github/FUNDING.yml",
 ]);
 
-export const GOVERNANCE_ISSUE_TEMPLATE_DIRS = Object.freeze(['.github/ISSUE_TEMPLATE']);
+export const GOVERNANCE_ISSUE_TEMPLATE_DIRS = Object.freeze([".github/ISSUE_TEMPLATE"]);
 
 /**
  * Classify a repository-relative path as a governance artifact.
@@ -710,29 +779,38 @@ export const GOVERNANCE_ISSUE_TEMPLATE_DIRS = Object.freeze(['.github/ISSUE_TEMP
  *   `parse` is `codeowners`, `adr`, `links`, or null for inventory-only files.
  */
 export function classifyGovernancePath(path) {
-  if (typeof path !== 'string' || path.length === 0) return null;
+  if (typeof path !== "string" || path.length === 0) return null;
   const lower = path.toLowerCase();
   const exact = EXACT_PATHS.get(lower);
   if (exact !== undefined) return exact;
-  if (lower.startsWith('.github/issue_template/')) {
-    return { category: 'review', dialect: 'issue-template', parse: null };
+  if (lower.startsWith(".github/issue_template/")) {
+    return { category: "review", dialect: "issue-template", parse: null };
   }
-  if (lower.endsWith('.md')
-      && (/\/architecture\/decisions\//.test(lower) || /\/adr\//.test(lower)
-        || lower.startsWith('adr/') || lower.startsWith('decisions/'))) {
-    return { category: 'decision', dialect: 'adr', parse: 'adr' };
+  if (
+    lower.endsWith(".md") &&
+    (/\/architecture\/decisions\//.test(lower) ||
+      /\/adr\//.test(lower) ||
+      lower.startsWith("adr/") ||
+      lower.startsWith("decisions/"))
+  ) {
+    return { category: "decision", dialect: "adr", parse: "adr" };
   }
-  const segments = lower.split('/');
-  const base = segments[segments.length - 1] ?? '';
-  if (/^runbooks?\.md$/.test(base) || segments.slice(0, -1).some((segment) => segment === 'runbook' || segment === 'runbooks')) {
-    if (base.endsWith('.md')) return { category: 'runbook', dialect: 'runbook', parse: 'links' };
+  const segments = lower.split("/");
+  const base = segments[segments.length - 1] ?? "";
+  if (
+    /^runbooks?\.md$/.test(base) ||
+    segments.slice(0, -1).some((segment) => segment === "runbook" || segment === "runbooks")
+  ) {
+    if (base.endsWith(".md")) return { category: "runbook", dialect: "runbook", parse: "links" };
     return null;
   }
   return null;
 }
 
 function boundedAdrId(value) {
-  const cleaned = String(value).replace(/[^A-Za-z0-9._-]/g, '').slice(0, 16);
+  const cleaned = String(value)
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .slice(0, 16);
   return cleaned.length > 0 ? cleaned : null;
 }
 
@@ -747,7 +825,7 @@ function boundedAdrId(value) {
  * @returns {{ id: string | null, date: string | null, status: string | null, line: number | null }}
  */
 export function parseAdrMetadata(text, path) {
-  const lines = (typeof text === 'string' ? text : '').split(/\r?\n/).slice(0, 60);
+  const lines = (typeof text === "string" ? text : "").split(/\r?\n/).slice(0, 60);
   let heading = null;
   let headingLine = null;
   let date = null;
@@ -755,7 +833,7 @@ export function parseAdrMetadata(text, path) {
   let statusBlock = false;
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
-    if (heading === null && line.startsWith('#')) {
+    if (heading === null && line.startsWith("#")) {
       heading = line;
       headingLine = index + 1;
     }
@@ -763,13 +841,13 @@ export function parseAdrMetadata(text, path) {
       statusBlock = true;
       continue;
     }
-    if (statusBlock && adrStatus === null && line.trim() && !line.startsWith('#')) {
+    if (statusBlock && adrStatus === null && line.trim() && !line.startsWith("#")) {
       const candidate = line.trim();
       if (STATUS_TOKEN.test(candidate)) adrStatus = candidate;
       statusBlock = false;
       continue;
     }
-    if (statusBlock && line.startsWith('#')) statusBlock = false;
+    if (statusBlock && line.startsWith("#")) statusBlock = false;
     const dateMatch = line.match(/^\s*Date\s*:\s*(\d{4}-\d{2}-\d{2})\s*$/);
     if (dateMatch) date = dateMatch[1];
     const statusMatch = line.match(/^\s*Status\s*:\s*([A-Za-z][A-Za-z0-9-]{0,47})\s*$/);
@@ -777,7 +855,7 @@ export function parseAdrMetadata(text, path) {
   }
 
   let id = null;
-  const base = String(path).split('/').pop() ?? '';
+  const base = String(path).split("/").pop() ?? "";
   const fileId = base.match(/^(\d{3,4})[-_ ]/);
   if (fileId) id = boundedAdrId(fileId[1]);
   if (id === null && heading !== null) {
@@ -805,11 +883,12 @@ const AUTOLINK = /<https?:\/\/[^>\s]+>/g;
 export function extractMarkdownLinks(text, _path, maxPerFile = GOVERNANCE_LIMITS.maxLinksPerFile) {
   const links = [];
   const seen = new Set();
-  const lines = (typeof text === 'string' ? text : '').split(/\r?\n/);
+  const lines = (typeof text === "string" ? text : "").split(/\r?\n/);
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
     const matches = [...line.matchAll(MARKDOWN_LINK)].map((match) => match[1]);
-    for (const url of [...line.matchAll(AUTOLINK)].map((match) => match[0].slice(1, -1))) matches.push(url);
+    for (const url of [...line.matchAll(AUTOLINK)].map((match) => match[0].slice(1, -1)))
+      matches.push(url);
     for (const url of matches) {
       if (links.length >= maxPerFile) return deepFreeze({ links, capped: true });
       let sanitized;

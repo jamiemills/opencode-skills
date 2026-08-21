@@ -29,20 +29,16 @@
 // node:child_process / node:process / node:vm / node:module, so the recurring
 // capability gate remains closed.
 
-import { assertDataOnly, compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult } from './base.mjs';
-import {
-  API_DIMENSION_ID,
-  API_LIMITS,
-  encodeMatchedKey,
-} from '../deep/api/model.mjs';
+import { assertDataOnly, compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult } from "./base.mjs";
+import { API_DIMENSION_ID, API_LIMITS, encodeMatchedKey } from "../deep/api/model.mjs";
 
-export const API_PROVIDER_ID = 'PRV-api-surface-v1';
+export const API_PROVIDER_ID = "PRV-api-surface-v1";
 
 export class ApiProviderError extends TypeError {
   constructor(code, message) {
     super(`Invalid API provider input: ${message}`);
-    this.name = 'ApiProviderError';
+    this.name = "ApiProviderError";
     this.code = code;
   }
 }
@@ -73,10 +69,11 @@ function boundedAssembledKey(value) {
 }
 
 function sourceKindFor(operation) {
-  if (operation.category === 'contract') return 'contract';
-  if (operation.category === 'public_export' && operation.source.path === 'package.json') return 'manifest';
-  if (operation.category === 'public_export') return 'source';
-  return 'source';
+  if (operation.category === "contract") return "contract";
+  if (operation.category === "public_export" && operation.source.path === "package.json")
+    return "manifest";
+  if (operation.category === "public_export") return "source";
+  return "source";
 }
 
 function observationFor(operation) {
@@ -98,7 +95,7 @@ function validateModel(model) {
     assertDataOnly(model, ApiProviderError, PROVIDER_DATA_LIMITS);
   } catch (error) {
     if (error instanceof ApiProviderError) throw error;
-    fail('INVALID_DATA', 'API model must contain plain bounded data');
+    fail("INVALID_DATA", "API model must contain plain bounded data");
   }
 }
 
@@ -109,11 +106,15 @@ function validateModel(model) {
  *   empty or foreign input.
  */
 export function apiObservations(model) {
-  if (model === null || typeof model !== 'object' || !Array.isArray(model.operations)) return [];
+  if (model === null || typeof model !== "object" || !Array.isArray(model.operations)) return [];
   validateModel(model);
-  const observations = model.operations.map(observationFor)
-    .toSorted((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-      || compareAscii(left.path ?? '', right.path ?? ''));
+  const observations = model.operations
+    .map(observationFor)
+    .toSorted(
+      (left, right) =>
+        compareAscii(left.matchedKey, right.matchedKey) ||
+        compareAscii(left.path ?? "", right.path ?? ""),
+    );
   const unique = [];
   const seen = new Set();
   for (const observation of observations) {
@@ -131,7 +132,7 @@ export function apiObservations(model) {
  * @returns {object[]} Deep-frozen provider results (possibly empty).
  */
 export function apiProviderResult(model) {
-  return apiObservations(model).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: API_PROVIDER_ID, dimensionId, observations })
-  ));
+  return apiObservations(model).map(({ dimensionId, observations }) =>
+    createProviderResult({ providerId: API_PROVIDER_ID, dimensionId, observations }),
+  );
 }

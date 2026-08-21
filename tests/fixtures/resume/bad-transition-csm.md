@@ -5,6 +5,7 @@ format: csm-plan/1
 # Paused Fixture CSM Plan (bad transition)
 
 ## Control
+
 - Plan ID: paused-fixture-bad-transition
 - Status: paused
 - Current CSM state: PAUSED
@@ -17,9 +18,11 @@ format: csm-plan/1
 - Blockers: none
 
 ## Goal
+
 Negative fixture: a Next transition referencing a state outside the machine enum must fail validation.
 
 ## Progress Journal
-| Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
-|---|---|---|---|---|---|
-| 2026-08-20 | 1 | CHECKPOINT -> PAUSED | T003 | quota exhausted; paused cleanly per Pause On Quota | PAUSED |
+
+| Timestamp  | Cycle | Transition           | Tasks | Evidence/result                                    | Next state |
+| ---------- | ----- | -------------------- | ----- | -------------------------------------------------- | ---------- |
+| 2026-08-20 | 1     | CHECKPOINT -> PAUSED | T003  | quota exhausted; paused cleanly per Pause On Quota | PAUSED     |

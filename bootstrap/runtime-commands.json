@@ -11,8 +11,26 @@
   "requiredFlags": ["--yes", "--ignore-scripts", "--no-audit", "--no-fund"],
   "offlineFlags": ["--offline", "--no-install"],
   "argvTemplates": {
-    "online": ["npx", "--yes", "--ignore-scripts", "--no-audit", "--no-fund", "--package=<spec>", "<bin>"],
-    "offline": ["npx", "--offline", "--no-install", "--yes", "--ignore-scripts", "--no-audit", "--no-fund", "--package=<spec>", "<bin>"]
+    "online": [
+      "npx",
+      "--yes",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--package=<spec>",
+      "<bin>"
+    ],
+    "offline": [
+      "npx",
+      "--offline",
+      "--no-install",
+      "--yes",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--package=<spec>",
+      "<bin>"
+    ]
   },
   "subcommands": {
     "--version": { "argv": ["--version"], "expectStdout": "0.1.0" },

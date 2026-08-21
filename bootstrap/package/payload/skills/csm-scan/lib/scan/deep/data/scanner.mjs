@@ -13,13 +13,13 @@
 //
 // ESM only. Zero npm deps. node: builtins only.
 
-import { compareAscii } from '../../contracts/evidence.mjs';
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { enumerate } from '../../shared/enum.mjs';
-import { DATA_LIMITS, buildDataModel } from './model.mjs';
-import { classifyDataPath, extractDataArtifact, migrationKindOf } from './extractor.mjs';
+import { compareAscii } from "../../contracts/evidence.mjs";
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { enumerate } from "../../shared/enum.mjs";
+import { DATA_LIMITS, buildDataModel } from "./model.mjs";
+import { classifyDataPath, extractDataArtifact, migrationKindOf } from "./extractor.mjs";
 
-export const DATA_SCANNER_ID = 'DET-data-scan-v1';
+export const DATA_SCANNER_ID = "DET-data-scan-v1";
 export const DATA_SOURCE_FILE_LIMIT = 512;
 
 /**
@@ -31,15 +31,15 @@ export const DATA_SOURCE_FILE_LIMIT = 512;
  */
 export function diagnosticForOutcome(result) {
   const reasons = {
-    capped: 'CAP',
-    malformed: 'MALFORMED',
-    unreadable: 'UNREADABLE',
-    unsupported: 'UNSUPPORTED',
+    capped: "CAP",
+    malformed: "MALFORMED",
+    unreadable: "UNREADABLE",
+    unsupported: "UNSUPPORTED",
   };
   return {
     path: result.path,
-    status: 'unverified',
-    reason: reasons[result.status] ?? 'UNREADABLE',
+    status: "unverified",
+    reason: reasons[result.status] ?? "UNREADABLE",
     line: null,
   };
 }
@@ -52,14 +52,14 @@ const READ_LIMITS = Object.freeze({
 });
 
 function basenameOf(path) {
-  const index = path.lastIndexOf('/');
+  const index = path.lastIndexOf("/");
   return index === -1 ? path : path.slice(index + 1);
 }
 
 function sourcePriority(path) {
   const base = basenameOf(path).toLowerCase();
   let score = 0;
-  if (base === 'schema.prisma' || base === 'schema.rs' || base === 'db.rs') score += 8;
+  if (base === "schema.prisma" || base === "schema.rs" || base === "db.rs") score += 8;
   if (/^(?:models?|model)\./.test(base)) score += 8;
   if (/^(?:db|database|schema|repository|entities?|domain)\./.test(base)) score += 6;
   if (/^(?:migrations?|alembic)\//.test(path)) score += 4;
@@ -79,17 +79,20 @@ function dataRequests(files) {
   const seen = new Set();
   for (const path of sortedCandidates(files)) {
     const classification = classifyDataPath(path);
-    if (classification.kind === 'other') continue;
+    if (classification.kind === "other") continue;
     if (seen.has(path)) continue;
     seen.add(path);
-    requests.push({ path, format: 'text', sensitivity: 'internal' });
+    requests.push({ path, format: "text", sensitivity: "internal" });
   }
   const migrations = [];
   const sql = [];
   const source = [];
   for (const request of requests) {
     if (migrationKindOf(request.path) !== null) migrations.push(request);
-    else if (classifyDataPath(request.path).kind === 'sql' || classifyDataPath(request.path).kind === 'prisma') {
+    else if (
+      classifyDataPath(request.path).kind === "sql" ||
+      classifyDataPath(request.path).kind === "prisma"
+    ) {
       sql.push(request);
     } else {
       source.push(request);
@@ -108,7 +111,7 @@ function dataRequests(files) {
 }
 
 function extractionFor(result) {
-  if (result.status !== 'read') {
+  if (result.status !== "read") {
     return {
       records: [],
       edges: [],
@@ -120,7 +123,7 @@ function extractionFor(result) {
     path: result.path,
     text: result.value,
     value: null,
-    format: 'text',
+    format: "text",
     ecosystem: classifyDataPath(result.path).ecosystem,
   });
 }
@@ -142,9 +145,9 @@ function sourceEligibleCount(files) {
   let count = 0;
   for (const path of files) {
     const classification = classifyDataPath(path);
-    if (classification.kind === 'other') continue;
+    if (classification.kind === "other") continue;
     if (migrationKindOf(path) !== null) continue;
-    if (classification.kind === 'sql' || classification.kind === 'prisma') continue;
+    if (classification.kind === "sql" || classification.kind === "prisma") continue;
     count++;
   }
   return count;
@@ -190,12 +193,19 @@ export async function scan(repoPath, _overview) {
   const { results, searchSpace } = await readArtifacts(repoPath, requests, READ_LIMITS);
   const disclosedSpace = discloseSourceSampling(files, searchSpace);
   const model = modelFromResults(results, disclosedSpace);
-  const recordCount = model.entities.length + model.fields.length + model.keys.length
-    + model.relations.length + model.stores.length + model.schemas.length
-    + model.migrations.length + model.caches.length + model.queues.length;
+  const recordCount =
+    model.entities.length +
+    model.fields.length +
+    model.keys.length +
+    model.relations.length +
+    model.stores.length +
+    model.schemas.length +
+    model.migrations.length +
+    model.caches.length +
+    model.queues.length;
   return {
-    dimension: 'data',
-    signal: recordCount > 0 || model.edges.length > 0 ? 'high' : 'low',
+    dimension: "data",
+    signal: recordCount > 0 || model.edges.length > 0 ? "high" : "low",
     findings: model,
   };
 }

@@ -28,8 +28,8 @@ import {
   deepFreeze,
   EVIDENCE_LIMITS,
   normalizeEvidencePath,
-} from '../contracts/evidence.mjs';
-import { PluginSchemaError, validatePluginRegexSource } from '../plugins/schema.mjs';
+} from "../contracts/evidence.mjs";
+import { PluginSchemaError, validatePluginRegexSource } from "../plugins/schema.mjs";
 
 export const RULE_EVALUATION_LIMITS = deepFreeze({
   contentBytes: 65_536,
@@ -42,15 +42,23 @@ export const RULE_EVALUATION_LIMITS = deepFreeze({
 });
 
 const RULE_KEYS = Object.freeze([
-  'artifactTokens', 'basenames', 'category', 'dimensionId', 'extensions',
-  'id', 'label', 'literal', 'manifestNames', 'regexSource',
+  "artifactTokens",
+  "basenames",
+  "category",
+  "dimensionId",
+  "extensions",
+  "id",
+  "label",
+  "literal",
+  "manifestNames",
+  "regexSource",
 ]);
-const ARTIFACT_KEYS = Object.freeze(['content', 'path', 'size']);
+const ARTIFACT_KEYS = Object.freeze(["content", "path", "size"]);
 
 export class RuleEvaluationError extends TypeError {
   constructor(code, message) {
     super(`Rule evaluation failed: ${message}`);
-    this.name = 'RuleEvaluationError';
+    this.name = "RuleEvaluationError";
     this.code = code;
   }
 }
@@ -62,17 +70,21 @@ function fail(code, message) {
 function exactKeys(value, expected, label) {
   const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
+    fail("UNKNOWN_FIELD", `${label} fields do not match the schema`);
   }
 }
 
 function boundedSelectorArray(value, label) {
   if (!Array.isArray(value) || value.length > RULE_EVALUATION_LIMITS.selectorEntries) {
-    fail('BOUND_EXCEEDED', `${label} must be a bounded array`);
+    fail("BOUND_EXCEEDED", `${label} must be a bounded array`);
   }
   return value.map((entry) => {
-    if (typeof entry !== 'string' || entry.length === 0 || entry.length > RULE_EVALUATION_LIMITS.regexSource) {
-      fail('INVALID_SELECTOR', `${label} must contain bounded strings`);
+    if (
+      typeof entry !== "string" ||
+      entry.length === 0 ||
+      entry.length > RULE_EVALUATION_LIMITS.regexSource
+    ) {
+      fail("INVALID_SELECTOR", `${label} must contain bounded strings`);
     }
     return entry;
   });
@@ -80,8 +92,8 @@ function boundedSelectorArray(value, label) {
 
 function optionalString(value, label) {
   if (value === null) return null;
-  if (typeof value !== 'string' || value.length > RULE_EVALUATION_LIMITS.regexSource) {
-    fail('INVALID_SELECTOR', `${label} must be a bounded string or null`);
+  if (typeof value !== "string" || value.length > RULE_EVALUATION_LIMITS.regexSource) {
+    fail("INVALID_SELECTOR", `${label} must be a bounded string or null`);
   }
   return value;
 }
@@ -98,7 +110,7 @@ function validateRegexSourcePolicy(source) {
     validatePluginRegexSource(source);
   } catch (error) {
     if (error instanceof PluginSchemaError) {
-      fail(error.code, 'regexSource violates the fixed T203 complexity policy');
+      fail(error.code, "regexSource violates the fixed T203 complexity policy");
     }
     throw error;
   }
@@ -111,8 +123,8 @@ function validateRegexSourcePolicy(source) {
  * catastrophic source cannot reach new RegExp. Returns a frozen normalized rule.
  */
 export function validateRuleForEvaluation(rule) {
-  if (rule === null || typeof rule !== 'object' || Array.isArray(rule)) {
-    fail('INVALID_TYPE', 'rule must be an object');
+  if (rule === null || typeof rule !== "object" || Array.isArray(rule)) {
+    fail("INVALID_TYPE", "rule must be an object");
   }
   try {
     assertDataOnly(rule, RuleEvaluationError, {
@@ -124,25 +136,29 @@ export function validateRuleForEvaluation(rule) {
     });
   } catch (error) {
     if (error instanceof RuleEvaluationError) throw error;
-    fail('INVALID_DATA', 'rule must contain plain bounded data');
+    fail("INVALID_DATA", "rule must contain plain bounded data");
   }
-  exactKeys(rule, RULE_KEYS, 'rule');
-  for (const field of ['id', 'label', 'dimensionId', 'category']) {
-    if (typeof rule[field] !== 'string' || rule[field].length === 0 || rule[field].length > 128) {
-      fail('INVALID_SELECTOR', `${field} must be a bounded string`);
+  exactKeys(rule, RULE_KEYS, "rule");
+  for (const field of ["id", "label", "dimensionId", "category"]) {
+    if (typeof rule[field] !== "string" || rule[field].length === 0 || rule[field].length > 128) {
+      fail("INVALID_SELECTOR", `${field} must be a bounded string`);
     }
   }
-  const extensions = boundedSelectorArray(rule.extensions, 'extensions');
-  const basenames = boundedSelectorArray(rule.basenames, 'basenames');
-  const manifestNames = boundedSelectorArray(rule.manifestNames, 'manifestNames');
-  const artifactTokens = boundedSelectorArray(rule.artifactTokens, 'artifactTokens');
-  const literal = optionalString(rule.literal, 'literal');
-  const regexSource = optionalString(rule.regexSource, 'regexSource');
-  if (literal !== null && regexSource !== null) fail('INVALID_MATCH', 'rule may declare literal or regexSource, not both');
+  const extensions = boundedSelectorArray(rule.extensions, "extensions");
+  const basenames = boundedSelectorArray(rule.basenames, "basenames");
+  const manifestNames = boundedSelectorArray(rule.manifestNames, "manifestNames");
+  const artifactTokens = boundedSelectorArray(rule.artifactTokens, "artifactTokens");
+  const literal = optionalString(rule.literal, "literal");
+  const regexSource = optionalString(rule.regexSource, "regexSource");
+  if (literal !== null && regexSource !== null)
+    fail("INVALID_MATCH", "rule may declare literal or regexSource, not both");
   if (regexSource !== null) validateRegexSourcePolicy(regexSource);
-  if (extensions.length + basenames.length + manifestNames.length + artifactTokens.length === 0
-      && literal === null && regexSource === null) {
-    fail('INVALID_MATCH', 'rule must declare at least one artifact selector');
+  if (
+    extensions.length + basenames.length + manifestNames.length + artifactTokens.length === 0 &&
+    literal === null &&
+    regexSource === null
+  ) {
+    fail("INVALID_MATCH", "rule must declare at least one artifact selector");
   }
   return deepFreeze({
     id: rule.id,
@@ -159,19 +175,19 @@ export function validateRuleForEvaluation(rule) {
 }
 
 function basenameOf(path) {
-  const index = path.lastIndexOf('/');
+  const index = path.lastIndexOf("/");
   return index === -1 ? path : path.slice(index + 1);
 }
 
 function directoryOf(path) {
-  const index = path.lastIndexOf('/');
-  return index === -1 ? '' : path.slice(0, index);
+  const index = path.lastIndexOf("/");
+  return index === -1 ? "" : path.slice(0, index);
 }
 
 function extensionOf(path) {
   const base = basenameOf(path);
-  const dot = base.lastIndexOf('.');
-  return dot > 0 ? base.slice(dot).toLowerCase() : '';
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(dot).toLowerCase() : "";
 }
 
 /**
@@ -181,23 +197,29 @@ function extensionOf(path) {
  * inconsistent or escaping path can be introduced. Returns a frozen record.
  */
 export function validateArtifactMetadata(artifact) {
-  if (artifact === null || typeof artifact !== 'object' || Array.isArray(artifact)) {
-    fail('INVALID_TYPE', 'artifact metadata must be an object');
+  if (artifact === null || typeof artifact !== "object" || Array.isArray(artifact)) {
+    fail("INVALID_TYPE", "artifact metadata must be an object");
   }
-  exactKeys(artifact, ARTIFACT_KEYS, 'artifact metadata');
+  exactKeys(artifact, ARTIFACT_KEYS, "artifact metadata");
   let path;
   try {
     path = normalizeEvidencePath(artifact.path);
   } catch {
-    fail('INVALID_PATH', 'artifact path is not a normalized repository-relative POSIX path');
+    fail("INVALID_PATH", "artifact path is not a normalized repository-relative POSIX path");
   }
-  if (!Number.isSafeInteger(artifact.size) || artifact.size < 0 || artifact.size > EVIDENCE_LIMITS.bytes) {
-    fail('INVALID_SIZE', 'artifact size is outside the explicit bound');
+  if (
+    !Number.isSafeInteger(artifact.size) ||
+    artifact.size < 0 ||
+    artifact.size > EVIDENCE_LIMITS.bytes
+  ) {
+    fail("INVALID_SIZE", "artifact size is outside the explicit bound");
   }
-  if (typeof artifact.content !== 'string') fail('INVALID_CONTENT', 'artifact content must be a string');
-  const content = artifact.content.length > RULE_EVALUATION_LIMITS.contentBytes
-    ? artifact.content.slice(0, RULE_EVALUATION_LIMITS.contentBytes)
-    : artifact.content;
+  if (typeof artifact.content !== "string")
+    fail("INVALID_CONTENT", "artifact content must be a string");
+  const content =
+    artifact.content.length > RULE_EVALUATION_LIMITS.contentBytes
+      ? artifact.content.slice(0, RULE_EVALUATION_LIMITS.contentBytes)
+      : artifact.content;
   const bounded = { path, size: artifact.size, content };
   try {
     assertDataOnly(bounded, RuleEvaluationError, {
@@ -209,7 +231,7 @@ export function validateArtifactMetadata(artifact) {
     });
   } catch (error) {
     if (error instanceof RuleEvaluationError) throw error;
-    fail('INVALID_DATA', 'artifact metadata must contain plain bounded data');
+    fail("INVALID_DATA", "artifact metadata must contain plain bounded data");
   }
   return deepFreeze({
     path,
@@ -245,27 +267,42 @@ export function evaluateRule(rule, artifact) {
 }
 
 function evaluateNormalizedRule(normalizedRule, normalizedArtifact) {
-  if (normalizedRule.extensions.length > 0 && extensionMatches(normalizedArtifact.extension, normalizedRule.extensions)) {
+  if (
+    normalizedRule.extensions.length > 0 &&
+    extensionMatches(normalizedArtifact.extension, normalizedRule.extensions)
+  ) {
     return true;
   }
-  if (normalizedRule.basenames.length > 0 && normalizedRule.basenames.includes(normalizedArtifact.basename)) {
+  if (
+    normalizedRule.basenames.length > 0 &&
+    normalizedRule.basenames.includes(normalizedArtifact.basename)
+  ) {
     return true;
   }
-  if (normalizedRule.manifestNames.length > 0 && normalizedRule.manifestNames.includes(normalizedArtifact.basename)) {
+  if (
+    normalizedRule.manifestNames.length > 0 &&
+    normalizedRule.manifestNames.includes(normalizedArtifact.basename)
+  ) {
     return true;
   }
-  if (normalizedRule.artifactTokens.length > 0 && tokensMatchPath(normalizedArtifact.path, normalizedRule.artifactTokens)) {
+  if (
+    normalizedRule.artifactTokens.length > 0 &&
+    tokensMatchPath(normalizedArtifact.path, normalizedRule.artifactTokens)
+  ) {
     return true;
   }
-  if (normalizedRule.literal !== null && normalizedArtifact.content.includes(normalizedRule.literal)) {
+  if (
+    normalizedRule.literal !== null &&
+    normalizedArtifact.content.includes(normalizedRule.literal)
+  ) {
     return true;
   }
   if (normalizedRule.regexSource !== null) {
     let regex;
     try {
-      regex = new RegExp(normalizedRule.regexSource, 'u');
+      regex = new RegExp(normalizedRule.regexSource, "u");
     } catch {
-      fail('INVALID_REGEX', 'regexSource is not compilable under the fixed policy');
+      fail("INVALID_REGEX", "regexSource is not compilable under the fixed policy");
     }
     if (regex.test(normalizedArtifact.content)) return true;
   }
@@ -306,13 +343,13 @@ export function evaluateRules({ rules, artifacts }) {
     });
   } catch (error) {
     if (error instanceof RuleEvaluationError) throw error;
-    fail('INVALID_DATA', 'evaluation inputs must contain plain bounded data');
+    fail("INVALID_DATA", "evaluation inputs must contain plain bounded data");
   }
   if (!Array.isArray(rules) || rules.length > RULE_EVALUATION_LIMITS.maxRules) {
-    fail('BOUND_EXCEEDED', 'rules must be a bounded array');
+    fail("BOUND_EXCEEDED", "rules must be a bounded array");
   }
   if (!Array.isArray(artifacts) || artifacts.length > RULE_EVALUATION_LIMITS.maxArtifacts) {
-    fail('BOUND_EXCEEDED', 'artifacts must be a bounded array');
+    fail("BOUND_EXCEEDED", "artifacts must be a bounded array");
   }
   const normalizedRules = rules.map(validateRuleForEvaluation);
   const normalizedArtifacts = artifacts.map(validateArtifactMetadata);
@@ -340,10 +377,12 @@ export function evaluateRules({ rules, artifacts }) {
     }
     if (matches.length >= RULE_EVALUATION_LIMITS.maxMatches) break;
   }
-  matches.sort((left, right) => compareAscii(
-    `${left.dimensionId}\0${left.category}\0${left.ruleId}\0${left.path}`,
-    `${right.dimensionId}\0${right.category}\0${right.ruleId}\0${right.path}`,
-  ));
+  matches.sort((left, right) =>
+    compareAscii(
+      `${left.dimensionId}\0${left.category}\0${left.ruleId}\0${left.path}`,
+      `${right.dimensionId}\0${right.category}\0${right.ruleId}\0${right.path}`,
+    ),
+  );
   return deepFreeze({
     matches,
     capped,

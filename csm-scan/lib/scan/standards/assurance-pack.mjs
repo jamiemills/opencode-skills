@@ -26,8 +26,8 @@
 // it never touches node:fs / node:child_process / node:process / node:vm /
 // node:module.
 
-import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { standardById } from './registry.mjs';
+import { compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { standardById } from "./registry.mjs";
 
 export const ASSURANCE_STANDARD_PACK_VERSION = 1;
 
@@ -38,17 +38,17 @@ const REGISTRY_ID_PATTERN = /^std:[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:[._-][a-z
 // independent review: each identity must be a provable byte-exact schema
 // identity and the registry entry must be metadata_only.
 const ASSURANCE_STANDARD_JOINS_SOURCE = Object.freeze([
-  { identity: 'sbom:CycloneDX:1.7', registryId: 'std:owasp-cyclonedx:1.7' },
-  { identity: 'sbom:SPDX:SPDX-2.3', registryId: 'std:spdx-spec:2.3.0' },
-  { identity: 'vex:OpenVEX:0.2.0', registryId: 'std:openvex-spec:0.2.0' },
-  { identity: 'sarif:2.1.0', registryId: 'std:oasis-sarif:2.1.0-errata01' },
-  { identity: 'accessibility:WCAG:2.2', registryId: 'std:w3c-wcag:2.2-rec-20241212' },
+  { identity: "sbom:CycloneDX:1.7", registryId: "std:owasp-cyclonedx:1.7" },
+  { identity: "sbom:SPDX:SPDX-2.3", registryId: "std:spdx-spec:2.3.0" },
+  { identity: "vex:OpenVEX:0.2.0", registryId: "std:openvex-spec:0.2.0" },
+  { identity: "sarif:2.1.0", registryId: "std:oasis-sarif:2.1.0-errata01" },
+  { identity: "accessibility:WCAG:2.2", registryId: "std:w3c-wcag:2.2-rec-20241212" },
 ]);
 
 export class AssuranceStandardsPackError extends TypeError {
   constructor(code, message) {
     super(`Invalid assurance standards pack: ${message}`);
-    this.name = 'AssuranceStandardsPackError';
+    this.name = "AssuranceStandardsPackError";
     this.code = code;
   }
 }
@@ -58,33 +58,41 @@ function fail(code, message) {
 }
 
 function normalizeIdentity(identity) {
-  if (typeof identity !== 'string' || identity.length === 0 || identity.length > 96
-      || !IDENTITY_PATTERN.test(identity)) {
-    fail('INVALID_IDENTITY', 'schema identity must be a bounded stable token');
+  if (
+    typeof identity !== "string" ||
+    identity.length === 0 ||
+    identity.length > 96 ||
+    !IDENTITY_PATTERN.test(identity)
+  ) {
+    fail("INVALID_IDENTITY", "schema identity must be a bounded stable token");
   }
   return identity;
 }
 
 function normalizeRegistryId(registryId) {
-  if (typeof registryId !== 'string' || registryId.length === 0 || registryId.length > 96
-      || !REGISTRY_ID_PATTERN.test(registryId)) {
-    fail('INVALID_REGISTRY_ID', 'registry id must be a stable versioned identifier');
+  if (
+    typeof registryId !== "string" ||
+    registryId.length === 0 ||
+    registryId.length > 96 ||
+    !REGISTRY_ID_PATTERN.test(registryId)
+  ) {
+    fail("INVALID_REGISTRY_ID", "registry id must be a stable versioned identifier");
   }
   const entry = standardById(registryId);
-  if (entry === null) fail('UNKNOWN_REGISTRY_ID', `registry id is not registered: ${registryId}`);
-  if (entry.disposition !== 'metadata_only') {
-    fail('NON_METADATA_ONLY', 'assurance joins require a metadata_only disposition');
+  if (entry === null) fail("UNKNOWN_REGISTRY_ID", `registry id is not registered: ${registryId}`);
+  if (entry.disposition !== "metadata_only") {
+    fail("NON_METADATA_ONLY", "assurance joins require a metadata_only disposition");
   }
   return entry;
 }
 
 function normalizeJoin(join) {
-  if (join === null || typeof join !== 'object' || Array.isArray(join)) {
-    fail('INVALID_JOIN', 'join must be an object');
+  if (join === null || typeof join !== "object" || Array.isArray(join)) {
+    fail("INVALID_JOIN", "join must be an object");
   }
   const keys = Object.keys(join).toSorted(compareAscii);
-  if (keys.length !== 2 || keys[0] !== 'identity' || keys[1] !== 'registryId') {
-    fail('UNKNOWN_FIELD', 'join fields do not match the schema');
+  if (keys.length !== 2 || keys[0] !== "identity" || keys[1] !== "registryId") {
+    fail("UNKNOWN_FIELD", "join fields do not match the schema");
   }
   const identity = normalizeIdentity(join.identity);
   const entry = normalizeRegistryId(join.registryId);
@@ -100,9 +108,9 @@ function normalizeJoin(join) {
 }
 
 export const ASSURANCE_STANDARD_JOINS = deepFreeze(
-  ASSURANCE_STANDARD_JOINS_SOURCE.map(normalizeJoin).toSorted((left, right) => (
-    compareAscii(left.identity, right.identity)
-  )),
+  ASSURANCE_STANDARD_JOINS_SOURCE.map(normalizeJoin).toSorted((left, right) =>
+    compareAscii(left.identity, right.identity),
+  ),
 );
 
 const JOINS_BY_IDENTITY = new Map(ASSURANCE_STANDARD_JOINS.map((join) => [join.identity, join]));
@@ -118,7 +126,7 @@ const JOINS_BY_IDENTITY = new Map(ASSURANCE_STANDARD_JOINS.map((join) => [join.i
  * @returns {object|null} Deep-frozen metadata record or null.
  */
 export function resolveAssuranceStandard(identity) {
-  if (typeof identity !== 'string') return null;
+  if (typeof identity !== "string") return null;
   return JOINS_BY_IDENTITY.get(identity) ?? null;
 }
 
@@ -129,7 +137,8 @@ export function resolveAssuranceStandard(identity) {
  */
 export function validateAssuranceStandardsPack() {
   const identities = ASSURANCE_STANDARD_JOINS.map(({ identity }) => identity);
-  if (new Set(identities).size !== identities.length) fail('DUPLICATE_IDENTITY', 'joins must be unique');
+  if (new Set(identities).size !== identities.length)
+    fail("DUPLICATE_IDENTITY", "joins must be unique");
   for (const join of ASSURANCE_STANDARD_JOINS_SOURCE) normalizeJoin(join);
   return ASSURANCE_STANDARD_JOINS;
 }

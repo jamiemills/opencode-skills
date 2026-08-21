@@ -1,41 +1,43 @@
-import { createHash } from 'node:crypto';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { createHash } from "node:crypto";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-import { survey } from '../../lib/scan/survey.mjs';
-import { enrich } from '../../lib/scan/enrich.mjs';
-import { validate } from '../../lib/scan/validate.mjs';
-import { writeNORMS } from '../../lib/scan/write.mjs';
-import * as structure from '../../lib/scan/deep/structure.mjs';
-import * as stack from '../../lib/scan/deep/stack.mjs';
-import * as config from '../../lib/scan/deep/config.mjs';
-import * as testing from '../../lib/scan/deep/testing.mjs';
-import * as conventions from '../../lib/scan/deep/conventions.mjs';
-import * as git from '../../lib/scan/deep/git.mjs';
-import * as architecture from '../../lib/scan/deep/architecture.mjs';
-import * as documentation from '../../lib/scan/deep/documentation.mjs';
-import * as security from '../../lib/scan/deep/security.mjs';
-import * as operations from '../../lib/scan/deep/operations.mjs';
-import { canonicalize } from './expansion-shared.mjs';
-import { MIRROR_GENERATED_DATE } from './pipeline-mirror.mjs';
+import { survey } from "../../lib/scan/survey.mjs";
+import { enrich } from "../../lib/scan/enrich.mjs";
+import { validate } from "../../lib/scan/validate.mjs";
+import { writeNORMS } from "../../lib/scan/write.mjs";
+import * as structure from "../../lib/scan/deep/structure.mjs";
+import * as stack from "../../lib/scan/deep/stack.mjs";
+import * as config from "../../lib/scan/deep/config.mjs";
+import * as testing from "../../lib/scan/deep/testing.mjs";
+import * as conventions from "../../lib/scan/deep/conventions.mjs";
+import * as git from "../../lib/scan/deep/git.mjs";
+import * as architecture from "../../lib/scan/deep/architecture.mjs";
+import * as documentation from "../../lib/scan/deep/documentation.mjs";
+import * as security from "../../lib/scan/deep/security.mjs";
+import * as operations from "../../lib/scan/deep/operations.mjs";
+import { canonicalize } from "./expansion-shared.mjs";
+import { MIRROR_GENERATED_DATE } from "./pipeline-mirror.mjs";
 
 // Legacy ten-dimension oracle retained for the parity test, without importing
 // a .test.mjs module and registering its tests a second time.
 export async function runLegacyTenMirror(repoPath) {
   const overview = await survey(repoPath);
 
-  const deepResults = (await Promise.all([
-    structure.scan(repoPath, overview),
-    stack.scan(repoPath, overview),
-    config.scan(repoPath, overview),
-    testing.scan(repoPath, overview),
-    conventions.scan(repoPath, overview),
-    git.scan(repoPath, overview),
-    architecture.scan(repoPath, overview),
-    documentation.scan(repoPath, overview),
-    security.scan(repoPath, overview),
-    operations.scan(repoPath, overview),
-  ])).filter(Boolean);
+  const deepResults = (
+    await Promise.all([
+      structure.scan(repoPath, overview),
+      stack.scan(repoPath, overview),
+      config.scan(repoPath, overview),
+      testing.scan(repoPath, overview),
+      conventions.scan(repoPath, overview),
+      git.scan(repoPath, overview),
+      architecture.scan(repoPath, overview),
+      documentation.scan(repoPath, overview),
+      security.scan(repoPath, overview),
+      operations.scan(repoPath, overview),
+    ])
+  ).filter(Boolean);
 
   const enriched = await enrich(deepResults, overview);
   const validated = await validate(enriched);
@@ -58,6 +60,5 @@ export async function runLegacyTenMirror(repoPath) {
 }
 
 function digest(value) {
-  return createHash('sha256').update(value).digest('hex');
+  return createHash("sha256").update(value).digest("hex");
 }
-

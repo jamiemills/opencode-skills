@@ -36,49 +36,46 @@
 // node:process / node:vm / node:module, so the recurring capability gate
 // remains closed.
 
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 import {
   assertDataOnly,
   compareAscii,
   deepFreeze,
   normalizeEvidencePath,
-} from '../../contracts/evidence.mjs';
-import { assertPrivacySafe, redactText } from '../../shared/privacy.mjs';
+} from "../../contracts/evidence.mjs";
+import { assertPrivacySafe, redactText } from "../../shared/privacy.mjs";
 
-export const DATA_DIMENSION_ID = 'DIM-data-v1';
+export const DATA_DIMENSION_ID = "DIM-data-v1";
 
 export const DATA_RECORD_CATEGORIES = Object.freeze([
-  'cache',
-  'entity',
-  'field',
-  'key',
-  'migration',
-  'queue',
-  'relation',
-  'schema',
-  'store',
+  "cache",
+  "entity",
+  "field",
+  "key",
+  "migration",
+  "queue",
+  "relation",
+  "schema",
+  "store",
 ]);
 
 export const RELATION_KINDS = Object.freeze([
-  'belongs_to',
-  'belongs_to_many',
-  'foreign_key',
-  'has_many',
-  'has_one',
-  'many_to_many',
+  "belongs_to",
+  "belongs_to_many",
+  "foreign_key",
+  "has_many",
+  "has_one",
+  "many_to_many",
 ]);
 
-export const DATA_EDGE_KINDS = Object.freeze([
-  ...RELATION_KINDS,
-  'migration_predecessor',
-]);
+export const DATA_EDGE_KINDS = Object.freeze([...RELATION_KINDS, "migration_predecessor"]);
 
-export const KEY_KINDS = Object.freeze(['foreign', 'index', 'primary', 'unique']);
+export const KEY_KINDS = Object.freeze(["foreign", "index", "primary", "unique"]);
 
-export const STORE_KINDS = Object.freeze(['database', 'datasource']);
+export const STORE_KINDS = Object.freeze(["database", "datasource"]);
 
-export const DATA_STATUSES = Object.freeze(['observed', 'unverified']);
+export const DATA_STATUSES = Object.freeze(["observed", "unverified"]);
 
 export const DATA_LIMITS = deepFreeze({
   caches: 128,
@@ -107,26 +104,43 @@ export const DATA_LIMITS = deepFreeze({
   type: 128,
 });
 
-const DIAGNOSTIC_KEYS = Object.freeze(['line', 'path', 'reason', 'status']);
+const DIAGNOSTIC_KEYS = Object.freeze(["line", "path", "reason", "status"]);
 const RECORD_KEYS = Object.freeze([
-  'category', 'details', 'dialect', 'id', 'matchedKey', 'signature', 'source', 'status',
+  "category",
+  "details",
+  "dialect",
+  "id",
+  "matchedKey",
+  "signature",
+  "source",
+  "status",
 ]);
-const SOURCE_KEYS = Object.freeze(['line', 'path']);
-const EDGE_KEYS = Object.freeze(['evidence', 'from', 'id', 'kind', 'status', 'to']);
-const EVIDENCE_KEYS = Object.freeze(['line', 'matchedKey', 'path']);
+const SOURCE_KEYS = Object.freeze(["line", "path"]);
+const EDGE_KEYS = Object.freeze(["evidence", "from", "id", "kind", "status", "to"]);
+const EVIDENCE_KEYS = Object.freeze(["line", "matchedKey", "path"]);
 const CAP_KEYS = Object.freeze([
-  'caches', 'edges', 'entities', 'fields', 'files', 'keys', 'migrations', 'queues',
-  'records', 'relations', 'schemas', 'stores',
+  "caches",
+  "edges",
+  "entities",
+  "fields",
+  "files",
+  "keys",
+  "migrations",
+  "queues",
+  "records",
+  "relations",
+  "schemas",
+  "stores",
 ]);
-const STORE_DETAILS_KEYS = Object.freeze(['kind', 'label']);
-const SCHEMA_DETAILS_KEYS = Object.freeze(['label']);
-const ENTITY_DETAILS_KEYS = Object.freeze(['table']);
-const FIELD_DETAILS_KEYS = Object.freeze(['nullable', 'type']);
-const KEY_DETAILS_KEYS = Object.freeze(['columns', 'kind']);
-const RELATION_DETAILS_KEYS = Object.freeze(['kind', 'target']);
-const CACHE_DETAILS_KEYS = Object.freeze(['scope']);
-const QUEUE_DETAILS_KEYS = Object.freeze(['scope']);
-const MIGRATION_DETAILS_KEYS = Object.freeze(['alias', 'dependencies', 'downRevision', 'revision']);
+const STORE_DETAILS_KEYS = Object.freeze(["kind", "label"]);
+const SCHEMA_DETAILS_KEYS = Object.freeze(["label"]);
+const ENTITY_DETAILS_KEYS = Object.freeze(["table"]);
+const FIELD_DETAILS_KEYS = Object.freeze(["nullable", "type"]);
+const KEY_DETAILS_KEYS = Object.freeze(["columns", "kind"]);
+const RELATION_DETAILS_KEYS = Object.freeze(["kind", "target"]);
+const CACHE_DETAILS_KEYS = Object.freeze(["scope"]);
+const QUEUE_DETAILS_KEYS = Object.freeze(["scope"]);
+const MIGRATION_DETAILS_KEYS = Object.freeze(["alias", "dependencies", "downRevision", "revision"]);
 
 const IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/#@+%()[\],{}-]*$/;
 const DETAILS_PATTERN = /^[\x21-\x7e]+$/;
@@ -135,7 +149,7 @@ const DIAGNOSTIC_REASON_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 export class DataModelError extends TypeError {
   constructor(code, message) {
     super(`Invalid data model: ${message}`);
-    this.name = 'DataModelError';
+    this.name = "DataModelError";
     this.code = code;
   }
 }
@@ -147,98 +161,128 @@ function fail(code, message) {
 function exactKeys(value, expected, fieldLabel) {
   const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${fieldLabel} fields do not match the schema`);
+    fail("UNKNOWN_FIELD", `${fieldLabel} fields do not match the schema`);
   }
 }
 
 function plainObject(value, fieldLabel) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', `${fieldLabel} must be an object`);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", `${fieldLabel} must be an object`);
   }
 }
 
 function category(value) {
-  if (typeof value !== 'string' || !DATA_RECORD_CATEGORIES.includes(value)) {
-    fail('UNKNOWN_CATEGORY', 'record category is not allowlisted for the data dimension');
+  if (typeof value !== "string" || !DATA_RECORD_CATEGORIES.includes(value)) {
+    fail("UNKNOWN_CATEGORY", "record category is not allowlisted for the data dimension");
   }
   return value;
 }
 
 function dialect(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 48
-      || !DETAILS_PATTERN.test(value)) {
-    fail('INVALID_DIALECT', 'dialect must be a bounded stable token');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 48 ||
+    !DETAILS_PATTERN.test(value)
+  ) {
+    fail("INVALID_DIALECT", "dialect must be a bounded stable token");
   }
   return value;
 }
 
 function status(value) {
-  if (typeof value !== 'string' || !DATA_STATUSES.includes(value)) {
-    fail('INVALID_STATUS', 'record status must be observed or unverified');
+  if (typeof value !== "string" || !DATA_STATUSES.includes(value)) {
+    fail("INVALID_STATUS", "record status must be observed or unverified");
   }
   return value;
 }
 
 function signature(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 256
-      || !IDENTITY_PATTERN.test(value)) {
-    fail('INVALID_IDENTITY', 'signature must be a bounded stable token');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 256 ||
+    !IDENTITY_PATTERN.test(value)
+  ) {
+    fail("INVALID_IDENTITY", "signature must be a bounded stable token");
   }
   return value;
 }
 
-function label(value, field = 'label') {
-  if (typeof value !== 'string' || value.length === 0 || value.length > DATA_LIMITS.label
-      || /[^A-Za-z0-9_.-]/.test(value) || value.startsWith('-') || value.endsWith('.')) {
-    fail('INVALID_LABEL', `${field} must be a bounded safe identifier`);
+function label(value, field = "label") {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > DATA_LIMITS.label ||
+    /[^A-Za-z0-9_.-]/.test(value) ||
+    value.startsWith("-") ||
+    value.endsWith(".")
+  ) {
+    fail("INVALID_LABEL", `${field} must be a bounded safe identifier`);
   }
   return value;
 }
 
 function detailValue(value, field) {
   if (value === null) return null;
-  if (typeof value !== 'string' || value.length === 0 || value.length > DATA_LIMITS.type
-      || !DETAILS_PATTERN.test(value)) {
-    fail('INVALID_DETAILS', `${field} must contain bounded stable tokens`);
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > DATA_LIMITS.type ||
+    !DETAILS_PATTERN.test(value)
+  ) {
+    fail("INVALID_DETAILS", `${field} must contain bounded stable tokens`);
   }
   return value;
 }
 
 function optionalBoolean(value, field) {
-  if (typeof value !== 'boolean') fail('INVALID_DETAILS', `${field} must be boolean`);
+  if (typeof value !== "boolean") fail("INVALID_DETAILS", `${field} must be boolean`);
   return value;
 }
 
 function optionalBoundedString(value, maximum, field) {
   if (value === null) return null;
-  if (typeof value !== 'string' || value.length === 0 || value.length > maximum
-      || !DETAILS_PATTERN.test(value)) {
-    fail('INVALID_DETAILS', `${field} must be a bounded stable token`);
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maximum ||
+    !DETAILS_PATTERN.test(value)
+  ) {
+    fail("INVALID_DETAILS", `${field} must be a bounded stable token`);
   }
   return value;
 }
 
 function boundedAlias(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > DATA_LIMITS.label
-      || !DETAILS_PATTERN.test(value)) {
-    fail('INVALID_EDGE', 'migration predecessor alias must be a bounded stable token');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > DATA_LIMITS.label ||
+    !DETAILS_PATTERN.test(value)
+  ) {
+    fail("INVALID_EDGE", "migration predecessor alias must be a bounded stable token");
   }
   return value;
 }
 
 function boundedStringList(value, maximum, field) {
   if (!Array.isArray(value) || value.length > maximum) {
-    fail('BOUND_EXCEEDED', `${field} exceeds the declared cap`);
+    fail("BOUND_EXCEEDED", `${field} exceeds the declared cap`);
   }
   const result = value.map((entry) => {
-    if (typeof entry !== 'string' || entry.length === 0 || entry.length > DATA_LIMITS.label
-        || !DETAILS_PATTERN.test(entry)) {
-      fail('INVALID_DETAILS', `${field} must contain bounded stable tokens`);
+    if (
+      typeof entry !== "string" ||
+      entry.length === 0 ||
+      entry.length > DATA_LIMITS.label ||
+      !DETAILS_PATTERN.test(entry)
+    ) {
+      fail("INVALID_DETAILS", `${field} must contain bounded stable tokens`);
     }
     return entry;
   });
   if (new Set(result).size !== result.length) {
-    fail('DUPLICATE_ID', `${field} contains duplicate entries`);
+    fail("DUPLICATE_ID", `${field} contains duplicate entries`);
   }
   return result;
 }
@@ -247,23 +291,23 @@ function normalizeSourcePath(value) {
   try {
     return normalizeEvidencePath(value);
   } catch {
-    fail('INVALID_PATH', 'source path must be a normalized repository-relative POSIX path');
+    fail("INVALID_PATH", "source path must be a normalized repository-relative POSIX path");
   }
 }
 
 function source(value) {
-  plainObject(value, 'source');
-  exactKeys(value, SOURCE_KEYS, 'source');
+  plainObject(value, "source");
+  exactKeys(value, SOURCE_KEYS, "source");
   const path = normalizeSourcePath(value.path);
   const line = value.line;
   if (line !== null && (!Number.isSafeInteger(line) || line < 1 || line > 1_000_000)) {
-    fail('INVALID_SOURCE', 'source line must be a bounded positive integer or null');
+    fail("INVALID_SOURCE", "source line must be a bounded positive integer or null");
   }
   return { path, line };
 }
 
 function detailsFor(categoryName, value) {
-  plainObject(value, 'details');
+  plainObject(value, "details");
   const schema = {
     store: STORE_DETAILS_KEYS,
     schema: SCHEMA_DETAILS_KEYS,
@@ -275,50 +319,59 @@ function detailsFor(categoryName, value) {
     queue: QUEUE_DETAILS_KEYS,
     migration: MIGRATION_DETAILS_KEYS,
   }[categoryName];
-  exactKeys(value, schema, 'details');
+  exactKeys(value, schema, "details");
 
-  if (categoryName === 'store') {
-    if (!STORE_KINDS.includes(value.kind)) fail('INVALID_DETAILS', 'store kind is not allowlisted');
-    return { kind: value.kind, label: label(value.label, 'store label') };
+  if (categoryName === "store") {
+    if (!STORE_KINDS.includes(value.kind)) fail("INVALID_DETAILS", "store kind is not allowlisted");
+    return { kind: value.kind, label: label(value.label, "store label") };
   }
-  if (categoryName === 'schema') {
-    return { label: label(value.label, 'schema label') };
+  if (categoryName === "schema") {
+    return { label: label(value.label, "schema label") };
   }
-  if (categoryName === 'entity') {
-    return { table: value.table === null ? null : label(value.table, 'entity table') };
+  if (categoryName === "entity") {
+    return { table: value.table === null ? null : label(value.table, "entity table") };
   }
-  if (categoryName === 'field') {
+  if (categoryName === "field") {
     return {
-      type: detailValue(value.type, 'field type'),
-      nullable: optionalBoolean(value.nullable, 'field nullable'),
+      type: detailValue(value.type, "field type"),
+      nullable: optionalBoolean(value.nullable, "field nullable"),
     };
   }
-  if (categoryName === 'key') {
-    if (!KEY_KINDS.includes(value.kind)) fail('INVALID_DETAILS', 'key kind is not allowlisted');
+  if (categoryName === "key") {
+    if (!KEY_KINDS.includes(value.kind)) fail("INVALID_DETAILS", "key kind is not allowlisted");
     return {
       kind: value.kind,
-      columns: boundedStringList(value.columns, DATA_LIMITS.indexColumns, 'key columns'),
+      columns: boundedStringList(value.columns, DATA_LIMITS.indexColumns, "key columns"),
     };
   }
-  if (categoryName === 'relation') {
-    if (!RELATION_KINDS.includes(value.kind)) fail('INVALID_DETAILS', 'relation kind is not allowlisted');
-    return { kind: value.kind, target: label(value.target, 'relation target') };
+  if (categoryName === "relation") {
+    if (!RELATION_KINDS.includes(value.kind))
+      fail("INVALID_DETAILS", "relation kind is not allowlisted");
+    return { kind: value.kind, target: label(value.target, "relation target") };
   }
-  if (categoryName === 'cache' || categoryName === 'queue') {
-    if (!['config', 'constructor'].includes(value.scope)) {
-      fail('INVALID_DETAILS', 'declaration scope is not allowlisted');
+  if (categoryName === "cache" || categoryName === "queue") {
+    if (!["config", "constructor"].includes(value.scope)) {
+      fail("INVALID_DETAILS", "declaration scope is not allowlisted");
     }
     return { scope: value.scope };
   }
-  if (categoryName === 'migration') {
+  if (categoryName === "migration") {
     return {
-      alias: optionalBoundedString(value.alias, DATA_LIMITS.label, 'migration alias'),
-      revision: optionalBoundedString(value.revision, DATA_LIMITS.revision, 'migration revision'),
-      downRevision: optionalBoundedString(value.downRevision, DATA_LIMITS.downRevision, 'migration downRevision'),
-      dependencies: boundedStringList(value.dependencies, DATA_LIMITS.dependencies, 'migration dependencies'),
+      alias: optionalBoundedString(value.alias, DATA_LIMITS.label, "migration alias"),
+      revision: optionalBoundedString(value.revision, DATA_LIMITS.revision, "migration revision"),
+      downRevision: optionalBoundedString(
+        value.downRevision,
+        DATA_LIMITS.downRevision,
+        "migration downRevision",
+      ),
+      dependencies: boundedStringList(
+        value.dependencies,
+        DATA_LIMITS.dependencies,
+        "migration dependencies",
+      ),
     };
   }
-  fail('UNKNOWN_CATEGORY', 'record category is not allowlisted');
+  fail("UNKNOWN_CATEGORY", "record category is not allowlisted");
 }
 
 function recordIdentity(record) {
@@ -326,14 +379,12 @@ function recordIdentity(record) {
 }
 
 function hashOf(parts) {
-  const framed = parts
-    .map((part) => `${Buffer.byteLength(part, 'utf8')}:${part}`)
-    .join('|');
-  return createHash('sha256').update(framed).digest('hex');
+  const framed = parts.map((part) => `${Buffer.byteLength(part, "utf8")}:${part}`).join("|");
+  return createHash("sha256").update(framed).digest("hex");
 }
 
 export function recordId(record) {
-  return `rec-${hashOf(recordIdentity(record).split('\0')).slice(0, 24)}`;
+  return `rec-${hashOf(recordIdentity(record).split("\0")).slice(0, 24)}`;
 }
 
 export function matchedKeyFor(categoryName, recordSignature) {
@@ -341,7 +392,7 @@ export function matchedKeyFor(categoryName, recordSignature) {
 }
 
 export function encodeMatchedKey(value) {
-  return value.replace(/\{/g, '%7B').replace(/\}/g, '%7D');
+  return value.replace(/\{/g, "%7B").replace(/\}/g, "%7D");
 }
 
 function normalizeCandidate(candidate) {
@@ -352,13 +403,19 @@ function normalizeCandidate(candidate) {
     maxObjectKeys: 16,
     maxString: 512,
   });
-  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
-    fail('INVALID_TYPE', 'record candidate must be an object');
+  if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+    fail("INVALID_TYPE", "record candidate must be an object");
   }
   const allowed = Object.freeze([
-    'category', 'details', 'dialect', 'line', 'path', 'signature', 'status',
+    "category",
+    "details",
+    "dialect",
+    "line",
+    "path",
+    "signature",
+    "status",
   ]);
-  exactKeys(candidate, allowed, 'record candidate');
+  exactKeys(candidate, allowed, "record candidate");
   const categoryName = category(candidate.category);
   return {
     category: categoryName,
@@ -383,21 +440,25 @@ function normalizeDiagnostic(value) {
     maxObjectKeys: 8,
     maxString: 512,
   });
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'diagnostic must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "diagnostic must be an object");
   }
-  exactKeys(value, DIAGNOSTIC_KEYS, 'diagnostic');
+  exactKeys(value, DIAGNOSTIC_KEYS, "diagnostic");
   const path = normalizeSourcePath(value.path);
-  if (!['unsupported', 'unverified'].includes(value.status)) {
-    fail('INVALID_STATUS', 'diagnostic status must be unsupported or unverified');
+  if (!["unsupported", "unverified"].includes(value.status)) {
+    fail("INVALID_STATUS", "diagnostic status must be unsupported or unverified");
   }
-  if (typeof value.reason !== 'string' || value.reason.length === 0 || value.reason.length > 64
-      || !DIAGNOSTIC_REASON_PATTERN.test(value.reason)) {
-    fail('INVALID_REASON', 'diagnostic reason must be a bounded uppercase token');
+  if (
+    typeof value.reason !== "string" ||
+    value.reason.length === 0 ||
+    value.reason.length > 64 ||
+    !DIAGNOSTIC_REASON_PATTERN.test(value.reason)
+  ) {
+    fail("INVALID_REASON", "diagnostic reason must be a bounded uppercase token");
   }
   const line = value.line;
   if (line !== null && (!Number.isSafeInteger(line) || line < 1 || line > 1_000_000)) {
-    fail('INVALID_DIAGNOSTIC', 'diagnostic line must be a bounded positive integer or null');
+    fail("INVALID_DIAGNOSTIC", "diagnostic line must be a bounded positive integer or null");
   }
   return { path, status: value.status, reason: value.reason, line };
 }
@@ -412,8 +473,8 @@ function privacyFilter(records, diagnostics) {
     } catch {
       privacyDiagnostics.push({
         path: redactText(record.source.path),
-        status: 'unverified',
-        reason: 'PRIVACY',
+        status: "unverified",
+        reason: "PRIVACY",
         line: null,
       });
     }
@@ -421,10 +482,13 @@ function privacyFilter(records, diagnostics) {
   const allDiagnostics = [...diagnostics, ...privacyDiagnostics];
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of allDiagnostics.toSorted((left, right) => compareAscii(left.path, right.path)
-    || compareAscii(left.status, right.status)
-    || compareAscii(left.reason, right.reason)
-    || (left.line ?? 0) - (right.line ?? 0))) {
+  for (const diagnostic of allDiagnostics.toSorted(
+    (left, right) =>
+      compareAscii(left.path, right.path) ||
+      compareAscii(left.status, right.status) ||
+      compareAscii(left.reason, right.reason) ||
+      (left.line ?? 0) - (right.line ?? 0),
+  )) {
     const key = `${diagnostic.path}\0${diagnostic.status}\0${diagnostic.reason}\0${diagnostic.line ?? 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -451,8 +515,8 @@ function privacyFilterEdges(edges, diagnostics) {
     } catch {
       privacyDiagnostics.push({
         path: redactText(edge.evidence.path),
-        status: 'unverified',
-        reason: 'PRIVACY',
+        status: "unverified",
+        reason: "PRIVACY",
         line: null,
       });
     }
@@ -468,26 +532,30 @@ function normalizeEdgeCandidate(value) {
     maxObjectKeys: 16,
     maxString: 512,
   });
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'edge candidate must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "edge candidate must be an object");
   }
   const keys = Object.keys(value).toSorted(compareAscii);
-  const migrationEdge = keys.includes('fromAlias');
+  const migrationEdge = keys.includes("fromAlias");
   const expected = migrationEdge
-    ? ['fromAlias', 'kind', 'line', 'matchedKey', 'path', 'toPath']
-    : ['from', 'kind', 'line', 'matchedKey', 'path', 'to'];
+    ? ["fromAlias", "kind", "line", "matchedKey", "path", "toPath"]
+    : ["from", "kind", "line", "matchedKey", "path", "to"];
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', 'edge candidate fields do not match the schema');
+    fail("UNKNOWN_FIELD", "edge candidate fields do not match the schema");
   }
-  if (!DATA_EDGE_KINDS.includes(value.kind)) fail('INVALID_EDGE', 'edge kind is not allowlisted');
+  if (!DATA_EDGE_KINDS.includes(value.kind)) fail("INVALID_EDGE", "edge kind is not allowlisted");
   const path = normalizeSourcePath(value.path);
   const line = value.line;
   if (line !== null && (!Number.isSafeInteger(line) || line < 1 || line > 1_000_000)) {
-    fail('INVALID_EDGE', 'edge line must be a bounded positive integer or null');
+    fail("INVALID_EDGE", "edge line must be a bounded positive integer or null");
   }
-  if (typeof value.matchedKey !== 'string' || value.matchedKey.length === 0
-      || value.matchedKey.length > 256 || !IDENTITY_PATTERN.test(value.matchedKey)) {
-    fail('INVALID_EDGE', 'edge evidence matchedKey must be a bounded stable token');
+  if (
+    typeof value.matchedKey !== "string" ||
+    value.matchedKey.length === 0 ||
+    value.matchedKey.length > 256 ||
+    !IDENTITY_PATTERN.test(value.matchedKey)
+  ) {
+    fail("INVALID_EDGE", "edge evidence matchedKey must be a bounded stable token");
   }
   if (migrationEdge) {
     return {
@@ -502,8 +570,8 @@ function normalizeEdgeCandidate(value) {
   }
   return {
     migration: false,
-    from: label(value.from, 'edge source entity'),
-    to: label(value.to, 'edge target entity'),
+    from: label(value.from, "edge source entity"),
+    to: label(value.to, "edge target entity"),
     kind: value.kind,
     path,
     line,
@@ -530,7 +598,7 @@ function normalizeRecords(candidates) {
       id: null,
     };
     record.id = recordId(record);
-    exactKeys(record, RECORD_KEYS, 'record');
+    exactKeys(record, RECORD_KEYS, "record");
     const dedupeKey = uniqueRecordKey(record);
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
@@ -546,11 +614,21 @@ function resolveRelationEdgeCandidates(candidates, entityCounts, recordsByMatche
     const sourceCount = entityCounts.get(candidate.from) ?? 0;
     const targetCount = entityCounts.get(candidate.to) ?? 0;
     if (sourceCount !== 1 || targetCount === 0) {
-      diagnostics.push({ path: candidate.path, status: 'unverified', reason: 'UNRESOLVED', line: candidate.line });
+      diagnostics.push({
+        path: candidate.path,
+        status: "unverified",
+        reason: "UNRESOLVED",
+        line: candidate.line,
+      });
       continue;
     }
     if (targetCount > 1) {
-      diagnostics.push({ path: candidate.path, status: 'unverified', reason: 'AMBIGUOUS', line: candidate.line });
+      diagnostics.push({
+        path: candidate.path,
+        status: "unverified",
+        reason: "AMBIGUOUS",
+        line: candidate.line,
+      });
       continue;
     }
     if (!recordsByMatchedKey.has(candidate.matchedKey)) continue;
@@ -558,7 +636,7 @@ function resolveRelationEdgeCandidates(candidates, entityCounts, recordsByMatche
       from: entityIdOf(candidate.from),
       to: entityIdOf(candidate.to),
       kind: candidate.kind,
-      status: 'observed',
+      status: "observed",
       evidence: { path: candidate.path, line: candidate.line, matchedKey: candidate.matchedKey },
     };
     edges.push({ ...edge, id: edgeId(edge) });
@@ -566,18 +644,33 @@ function resolveRelationEdgeCandidates(candidates, entityCounts, recordsByMatche
   return { edges, diagnostics };
 }
 
-function resolveMigrationEdgeCandidates(candidates, migrationsByPath, migrationsByAlias, recordsByMatchedKey) {
+function resolveMigrationEdgeCandidates(
+  candidates,
+  migrationsByPath,
+  migrationsByAlias,
+  recordsByMatchedKey,
+) {
   const edges = [];
   const diagnostics = [];
   for (const candidate of candidates) {
     const toCount = migrationsByPath.get(candidate.toPath) ?? 0;
     const fromCount = migrationsByAlias.get(candidate.fromAlias) ?? 0;
     if (toCount !== 1 || fromCount === 0) {
-      diagnostics.push({ path: candidate.path, status: 'unverified', reason: 'UNRESOLVED', line: candidate.line });
+      diagnostics.push({
+        path: candidate.path,
+        status: "unverified",
+        reason: "UNRESOLVED",
+        line: candidate.line,
+      });
       continue;
     }
     if (fromCount > 1) {
-      diagnostics.push({ path: candidate.path, status: 'unverified', reason: 'AMBIGUOUS', line: candidate.line });
+      diagnostics.push({
+        path: candidate.path,
+        status: "unverified",
+        reason: "AMBIGUOUS",
+        line: candidate.line,
+      });
       continue;
     }
     if (!recordsByMatchedKey.has(candidate.matchedKey)) continue;
@@ -585,7 +678,7 @@ function resolveMigrationEdgeCandidates(candidates, migrationsByPath, migrations
       from: migrationIdOf(candidate.fromAlias),
       to: migrationIdOf(candidate.toPath),
       kind: candidate.kind,
-      status: 'observed',
+      status: "observed",
       evidence: { path: candidate.path, line: candidate.line, matchedKey: candidate.matchedKey },
     };
     edges.push({ ...edge, id: edgeId(edge) });
@@ -594,32 +687,42 @@ function resolveMigrationEdgeCandidates(candidates, migrationsByPath, migrations
 }
 
 function normalizeEdge(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'edge must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "edge must be an object");
   }
-  exactKeys(value, EDGE_KEYS, 'edge');
-  if (typeof value.from !== 'string' || value.from.length === 0 || value.from.length > 256
-      || !IDENTITY_PATTERN.test(value.from)
-      || typeof value.to !== 'string' || value.to.length === 0 || value.to.length > 256
-      || !IDENTITY_PATTERN.test(value.to)) {
-    fail('INVALID_EDGE', 'edge endpoints must be bounded stable identifiers');
+  exactKeys(value, EDGE_KEYS, "edge");
+  if (
+    typeof value.from !== "string" ||
+    value.from.length === 0 ||
+    value.from.length > 256 ||
+    !IDENTITY_PATTERN.test(value.from) ||
+    typeof value.to !== "string" ||
+    value.to.length === 0 ||
+    value.to.length > 256 ||
+    !IDENTITY_PATTERN.test(value.to)
+  ) {
+    fail("INVALID_EDGE", "edge endpoints must be bounded stable identifiers");
   }
-  if (!DATA_EDGE_KINDS.includes(value.kind)) fail('INVALID_EDGE', 'edge kind is not allowlisted');
-  if (value.status !== 'observed') fail('INVALID_STATUS', 'edge status must be observed');
+  if (!DATA_EDGE_KINDS.includes(value.kind)) fail("INVALID_EDGE", "edge kind is not allowlisted");
+  if (value.status !== "observed") fail("INVALID_STATUS", "edge status must be observed");
   const evidence = value.evidence;
-  if (evidence === null || typeof evidence !== 'object' || Array.isArray(evidence)) {
-    fail('INVALID_TYPE', 'edge evidence must be an object');
+  if (evidence === null || typeof evidence !== "object" || Array.isArray(evidence)) {
+    fail("INVALID_TYPE", "edge evidence must be an object");
   }
-  exactKeys(evidence, EVIDENCE_KEYS, 'edge evidence');
+  exactKeys(evidence, EVIDENCE_KEYS, "edge evidence");
   const path = normalizeSourcePath(evidence.path);
   const matchedKey = evidence.matchedKey;
-  if (typeof matchedKey !== 'string' || matchedKey.length === 0 || matchedKey.length > 256
-      || !IDENTITY_PATTERN.test(matchedKey)) {
-    fail('INVALID_EDGE', 'edge evidence matchedKey must be a bounded stable token');
+  if (
+    typeof matchedKey !== "string" ||
+    matchedKey.length === 0 ||
+    matchedKey.length > 256 ||
+    !IDENTITY_PATTERN.test(matchedKey)
+  ) {
+    fail("INVALID_EDGE", "edge evidence matchedKey must be a bounded stable token");
   }
   const line = evidence.line;
   if (line !== null && (!Number.isSafeInteger(line) || line < 1 || line > 1_000_000)) {
-    fail('INVALID_EDGE', 'edge evidence line must be a bounded positive integer or null');
+    fail("INVALID_EDGE", "edge evidence line must be a bounded positive integer or null");
   }
   return {
     from: value.from,
@@ -639,17 +742,24 @@ function dedupeEdges(edges) {
     seen.add(identity);
     result.push(edge);
   }
-  result.sort((left, right) => compareAscii(left.from, right.from)
-    || compareAscii(left.to, right.to)
-    || compareAscii(left.kind, right.kind)
-    || compareAscii(left.evidence.path, right.evidence.path)
-    || (left.evidence.line ?? 0) - (right.evidence.line ?? 0));
+  result.sort(
+    (left, right) =>
+      compareAscii(left.from, right.from) ||
+      compareAscii(left.to, right.to) ||
+      compareAscii(left.kind, right.kind) ||
+      compareAscii(left.evidence.path, right.evidence.path) ||
+      (left.evidence.line ?? 0) - (right.evidence.line ?? 0),
+  );
   return result;
 }
 
 function edgeId(edge) {
   return `edg-${hashOf([
-    edge.from, edge.to, edge.kind, edge.evidence.path, String(edge.evidence.line ?? 0),
+    edge.from,
+    edge.to,
+    edge.kind,
+    edge.evidence.path,
+    String(edge.evidence.line ?? 0),
   ]).slice(0, 24)}`;
 }
 
@@ -675,19 +785,30 @@ function edgeId(edge) {
  *   search spaces; privacy violations are downgraded to diagnostics and never
  *   abort.
  */
-export function buildDataModel({ records = [], edges = [], diagnostics = [], searchSpace = null, measurement = {} } = {}) {
+export function buildDataModel({
+  records = [],
+  edges = [],
+  diagnostics = [],
+  searchSpace = null,
+  measurement = {},
+} = {}) {
   const candidates = (Array.isArray(records) ? records : []).map(normalizeCandidate);
   const normalized = normalizeRecords(candidates);
 
-  const diagnosticRecords = (Array.isArray(diagnostics) ? diagnostics : []).map(normalizeDiagnostic);
+  const diagnosticRecords = (Array.isArray(diagnostics) ? diagnostics : []).map(
+    normalizeDiagnostic,
+  );
   const { records: privacySafe, diagnostics: uniqueDiagnostics } = privacyFilter(
     normalized,
     diagnosticRecords,
   );
 
-  privacySafe.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.source.path, right.source.path)
-    || (left.source.line ?? 0) - (right.source.line ?? 0));
+  privacySafe.sort(
+    (left, right) =>
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.source.path, right.source.path) ||
+      (left.source.line ?? 0) - (right.source.line ?? 0),
+  );
 
   const entityCounts = new Map();
   const migrationsByPath = new Map();
@@ -695,10 +816,10 @@ export function buildDataModel({ records = [], edges = [], diagnostics = [], sea
   const recordsByMatchedKey = new Set();
   for (const record of privacySafe) {
     recordsByMatchedKey.add(record.matchedKey);
-    if (record.category === 'entity' && record.status === 'observed') {
+    if (record.category === "entity" && record.status === "observed") {
       entityCounts.set(record.signature, (entityCounts.get(record.signature) ?? 0) + 1);
     }
-    if (record.category === 'migration') {
+    if (record.category === "migration") {
       const byPath = migrationsByPath.get(record.source.path) ?? 0;
       migrationsByPath.set(record.source.path, byPath + 1);
       if (record.details.alias !== null) {
@@ -727,10 +848,12 @@ export function buildDataModel({ records = [], edges = [], diagnostics = [], sea
     allEdges,
     edgeDiagnostics,
   );
-  const uniqueEdges = dedupeEdges(privacySafeEdges.map(normalizeEdge).map((edge) => ({
-    ...edge,
-    id: edgeId(edge),
-  })));
+  const uniqueEdges = dedupeEdges(
+    privacySafeEdges.map(normalizeEdge).map((edge) => ({
+      ...edge,
+      id: edgeId(edge),
+    })),
+  );
 
   const space = searchSpace ?? normalizeEmptySearchSpace(measurement);
 
@@ -740,11 +863,13 @@ export function buildDataModel({ records = [], edges = [], diagnostics = [], sea
     DATA_RECORD_CATEGORIES.map((entry) => [entry, grouped[entry].length]),
   );
 
-  const allDiagnostics = [...uniqueDiagnostics, ...edgePrivacyDiagnostics]
-    .toSorted((left, right) => compareAscii(left.path, right.path)
-      || compareAscii(left.status, right.status)
-      || compareAscii(left.reason, right.reason)
-      || (left.line ?? 0) - (right.line ?? 0));
+  const allDiagnostics = [...uniqueDiagnostics, ...edgePrivacyDiagnostics].toSorted(
+    (left, right) =>
+      compareAscii(left.path, right.path) ||
+      compareAscii(left.status, right.status) ||
+      compareAscii(left.reason, right.reason) ||
+      (left.line ?? 0) - (right.line ?? 0),
+  );
 
   const capped = {
     stores: counts.store > DATA_LIMITS.stores,
@@ -760,7 +885,7 @@ export function buildDataModel({ records = [], edges = [], diagnostics = [], sea
     files: space.capped,
     records: space.recordsInspected >= space.recordLimit,
   };
-  exactKeys(capped, CAP_KEYS, 'capped');
+  exactKeys(capped, CAP_KEYS, "capped");
 
   const summary = {
     stores: counts.store,

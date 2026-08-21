@@ -1,11 +1,11 @@
-import { execFile as execFileCb, spawn } from 'node:child_process';
-import { promisify } from 'node:util';
-import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { execFile as execFileCb, spawn } from "node:child_process";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 const realExecFile = promisify(execFileCb);
-const SKILL_DIR = fileURLToPath(new URL('..', import.meta.url));
-const GATE_SCRIPT = join(SKILL_DIR, 'scripts', 'cdp-gate.mjs');
+const SKILL_DIR = fileURLToPath(new URL("..", import.meta.url));
+const GATE_SCRIPT = join(SKILL_DIR, "scripts", "cdp-gate.mjs");
 
 // F-012: every docker CLI subprocess gets a default timeout so a wedged
 // docker daemon can never hang ensure-browser/sweep/close indefinitely.
@@ -18,8 +18,12 @@ async function execFile(file, args, opts = {}) {
 
 async function realIsContainerRunning(name) {
   try {
-    const { stdout } = await execFile('docker', [
-      'ps', '--filter', `name=^${name}$`, '--format', '{{.Names}}'
+    const { stdout } = await execFile("docker", [
+      "ps",
+      "--filter",
+      `name=^${name}$`,
+      "--format",
+      "{{.Names}}",
     ]);
     return stdout.trim() === name;
   } catch {
@@ -29,8 +33,13 @@ async function realIsContainerRunning(name) {
 
 async function realContainerExists(name) {
   try {
-    const { stdout } = await execFile('docker', [
-      'ps', '-a', '--filter', `name=^${name}$`, '--format', '{{.Names}}'
+    const { stdout } = await execFile("docker", [
+      "ps",
+      "-a",
+      "--filter",
+      `name=^${name}$`,
+      "--format",
+      "{{.Names}}",
     ]);
     return stdout.trim() === name;
   } catch {
@@ -39,10 +48,11 @@ async function realContainerExists(name) {
 }
 
 async function realContainerIP(name) {
-  const { stdout } = await execFile('docker', [
-    'inspect', '-f',
-    '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
-    name
+  const { stdout } = await execFile("docker", [
+    "inspect",
+    "-f",
+    "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+    name,
   ]);
   return stdout.trim();
 }
@@ -51,21 +61,21 @@ async function realContainerIP(name) {
 // <args>` (network inspect/create, container start/restart, inspect). Applies
 // the centralized default timeout unless overridden.
 export async function dockerCli(args, opts = {}) {
-  return execFile('docker', args, opts);
+  return execFile("docker", args, opts);
 }
 
 function realExecDetached(container, args, opts = {}) {
   return new Promise((resolve, reject) => {
-    const execArgs = ['exec', '-d'];
-    if (opts.user) execArgs.push('-u', opts.user);
+    const execArgs = ["exec", "-d"];
+    if (opts.user) execArgs.push("-u", opts.user);
     if (opts.env) {
       for (const [k, v] of Object.entries(opts.env)) {
-        execArgs.push('-e', `${k}=${v}`);
+        execArgs.push("-e", `${k}=${v}`);
       }
     }
     execArgs.push(container, ...args);
 
-    const proc = spawn('docker', execArgs, { stdio: 'inherit' });
+    const proc = spawn("docker", execArgs, { stdio: "inherit" });
     let timer = null;
     let timedOut = false;
     // F-012: a wedged docker CLI is killed after the centralized default
@@ -73,40 +83,47 @@ function realExecDetached(container, args, opts = {}) {
     const timeout = opts.timeout ?? DOCKER_CLI_TIMEOUT_MS;
     timer = setTimeout(() => {
       timedOut = true;
-      try { proc.kill('SIGTERM'); } catch {}
+      try {
+        proc.kill("SIGTERM");
+      } catch {}
     }, timeout);
     if (timer.unref) timer.unref();
-    const settle = (fn, arg) => { if (timer) clearTimeout(timer); fn(arg); };
-    proc.on('close', (code) => {
+    const settle = (fn, arg) => {
+      if (timer) clearTimeout(timer);
+      fn(arg);
+    };
+    proc.on("close", (code) => {
       if (timedOut) settle(reject, new Error(`docker exec -d timed out after ${timeout}ms`));
       else if (code === 0) settle(resolve);
       else settle(reject, new Error(`docker exec -d failed with code ${code}`));
     });
-    proc.on('error', (err) => { if (!timedOut) settle(reject, err); });
+    proc.on("error", (err) => {
+      if (!timedOut) settle(reject, err);
+    });
   });
 }
 
 async function realExecInContainer(container, args, env = {}, opts = {}) {
-  const execArgs = ['exec'];
+  const execArgs = ["exec"];
   for (const [k, v] of Object.entries(env)) {
-    execArgs.push('-e', `${k}=${v}`);
+    execArgs.push("-e", `${k}=${v}`);
   }
   execArgs.push(container, ...args);
 
-  const { stdout } = await execFile('docker', execArgs, {
+  const { stdout } = await execFile("docker", execArgs, {
     maxBuffer: 10 * 1024 * 1024,
-    ...(opts.timeout ? { timeout: opts.timeout } : {})
+    ...(opts.timeout ? { timeout: opts.timeout } : {}),
   });
   return stdout;
 }
 
 async function realIsPortFree(container, port) {
   try {
-    const stdout = await realExecInContainer(container, ['netstat', '-tln']);
+    const stdout = await realExecInContainer(container, ["netstat", "-tln"]);
     return !stdout.includes(`:${port}`);
   } catch {
     try {
-      const stdout = await realExecInContainer(container, ['ss', '-tln']);
+      const stdout = await realExecInContainer(container, ["ss", "-tln"]);
       return !stdout.includes(`:${port}`);
     } catch {
       throw new Error(`Cannot determine if port ${port} is free in container ${container}`);
@@ -116,27 +133,31 @@ async function realIsPortFree(container, port) {
 
 async function realPgrepMatch(container, pattern) {
   try {
-    const stdout = await realExecInContainer(container, ['pgrep', '-af', '--', pattern]);
-    return stdout.trim().split('\n').filter(Boolean).map(line => {
-      const spaceIdx = line.indexOf(' ');
-      if (spaceIdx === -1) return { pid: parseInt(line, 10), cmd: '' };
-      return {
-        pid: parseInt(line.substring(0, spaceIdx), 10),
-        cmd: line.substring(spaceIdx + 1)
-      };
-    });
+    const stdout = await realExecInContainer(container, ["pgrep", "-af", "--", pattern]);
+    return stdout
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const spaceIdx = line.indexOf(" ");
+        if (spaceIdx === -1) return { pid: parseInt(line, 10), cmd: "" };
+        return {
+          pid: parseInt(line.substring(0, spaceIdx), 10),
+          cmd: line.substring(spaceIdx + 1),
+        };
+      });
   } catch (err) {
-    if (err.code === 1) return [];  // pgrep exit 1 = no process matched
-    throw err;                       // docker failure, permission error, etc.
+    if (err.code === 1) return []; // pgrep exit 1 = no process matched
+    throw err; // docker failure, permission error, etc.
   }
 }
 
 async function realPkillMatch(container, pattern) {
   try {
-    await realExecInContainer(container, ['pkill', '-f', '--', pattern]);
+    await realExecInContainer(container, ["pkill", "-f", "--", pattern]);
   } catch (err) {
-    if (err.code === 1) return;  // pkill exit 1 = no process matched
-    throw err;                    // docker failure, exit 2 (syntax), exit 3 (fatal)
+    if (err.code === 1) return; // pkill exit 1 = no process matched
+    throw err; // docker failure, exit 2 (syntax), exit 3 (fatal)
   }
 }
 
@@ -144,9 +165,9 @@ async function realPullImage(image) {
   let lastErr = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      await execFile('docker', ['pull', image], {
+      await execFile("docker", ["pull", image], {
         timeout: 300000,
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
       });
       return;
     } catch (err) {
@@ -157,7 +178,7 @@ async function realPullImage(image) {
       }
     }
   }
-  const reason = lastErr && lastErr.killed ? 'timed out after 300s' : (lastErr && lastErr.message);
+  const reason = lastErr && lastErr.killed ? "timed out after 300s" : lastErr && lastErr.message;
   throw new Error(`docker pull failed after 2 attempts: ${reason}`);
 }
 
@@ -168,26 +189,39 @@ async function realPullImage(image) {
 async function realSpawnGate({ sid, publicPort, internalPort, containerName, token, log }) {
   const gateArgs = [
     GATE_SCRIPT,
-    '--sid', String(sid),
-    '--port', String(publicPort),
-    '--internal', String(internalPort),
-    '--container', String(containerName)
+    "--sid",
+    String(sid),
+    "--port",
+    String(publicPort),
+    "--internal",
+    String(internalPort),
+    "--container",
+    String(containerName),
   ];
-  if (log) gateArgs.push('--log', String(log));
+  if (log) gateArgs.push("--log", String(log));
   const proc = spawn(process.execPath, gateArgs, {
     detached: true,
-    stdio: 'ignore',
-    env: { ...process.env, CSM_CDP_GATE_TOKEN: token }
+    stdio: "ignore",
+    env: { ...process.env, CSM_CDP_GATE_TOKEN: token },
   });
   // F-065-a: never return a pid for a child that failed to spawn — await the
   // 'spawn'/'error' events first so a missing script/broken node is reported
   // at the call site instead of misdirecting diagnosis to "CDP not ready".
   await new Promise((resolve, reject) => {
-    const cleanup = () => { proc.off('error', onError); proc.off('spawn', onSpawn); };
-    const onError = (err) => { cleanup(); reject(err); };
-    const onSpawn = () => { cleanup(); resolve(); };
-    proc.once('error', onError);
-    proc.once('spawn', onSpawn);
+    const cleanup = () => {
+      proc.off("error", onError);
+      proc.off("spawn", onSpawn);
+    };
+    const onError = (err) => {
+      cleanup();
+      reject(err);
+    };
+    const onSpawn = () => {
+      cleanup();
+      resolve();
+    };
+    proc.once("error", onError);
+    proc.once("spawn", onSpawn);
   });
   proc.unref();
   return proc.pid;
@@ -197,31 +231,36 @@ async function realSpawnGate({ sid, publicPort, internalPort, containerName, tok
 // open (no -t), socat bridges the gate's stdio to chromium's CDP port inside
 // the container. Returns the child so the gate can relay + tear it down.
 function realSpawnExecTunnel(containerName, internalPort) {
-  return spawn('docker', [
-    'exec', '-i', String(containerName),
-    'socat', '-', `TCP:127.0.0.1:${internalPort}`
-  ], { stdio: ['pipe', 'pipe', 'pipe'] });
+  return spawn(
+    "docker",
+    ["exec", "-i", String(containerName), "socat", "-", `TCP:127.0.0.1:${internalPort}`],
+    { stdio: ["pipe", "pipe", "pipe"] },
+  );
 }
 
 // Host-side process search (the gate lives on the host, not in the container).
 async function realHostPgrep(pattern) {
   try {
-    const { stdout } = await execFile('pgrep', ['-af', '--', pattern]);
-    return stdout.trim().split('\n').filter(Boolean).map(line => {
-      const spaceIdx = line.indexOf(' ');
-      if (spaceIdx === -1) return { pid: parseInt(line, 10), cmd: '' };
-      return {
-        pid: parseInt(line.substring(0, spaceIdx), 10),
-        cmd: line.substring(spaceIdx + 1)
-      };
-    });
+    const { stdout } = await execFile("pgrep", ["-af", "--", pattern]);
+    return stdout
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const spaceIdx = line.indexOf(" ");
+        if (spaceIdx === -1) return { pid: parseInt(line, 10), cmd: "" };
+        return {
+          pid: parseInt(line.substring(0, spaceIdx), 10),
+          cmd: line.substring(spaceIdx + 1),
+        };
+      });
   } catch (err) {
-    if (err.code === 1) return [];  // pgrep exit 1 = no process matched
-    throw err;                       // real failure
+    if (err.code === 1) return []; // pgrep exit 1 = no process matched
+    throw err; // real failure
   }
 }
 
-function realKillPid(pid, signal = 'SIGTERM') {
+function realKillPid(pid, signal = "SIGTERM") {
   process.kill(pid, signal);
 }
 
@@ -246,7 +285,7 @@ const realLayer = Object.freeze({
   spawnGate: realSpawnGate,
   spawnExecTunnel: realSpawnExecTunnel,
   hostPgrep: realHostPgrep,
-  killPid: realKillPid
+  killPid: realKillPid,
 });
 
 export const execLayer = { ...realLayer };

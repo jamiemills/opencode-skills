@@ -1,17 +1,17 @@
-import { connect } from '../cdp.mjs';
-import { readFile, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { sessionDir } from '../session.mjs';
+import { connect } from "../cdp.mjs";
+import { readFile, readdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { sessionDir } from "../session.mjs";
 
 export async function run({ args: _args, state, verb }) {
-  if (verb === 'status') {
+  if (verb === "status") {
     const client = await connect(state);
 
-    const versionResult = await client.send('Browser.getVersion');
+    const versionResult = await client.send("Browser.getVersion");
 
-    const { targetInfos } = await client.send('Target.getTargets');
-    const pages = targetInfos.filter(t => t.type === 'page');
+    const { targetInfos } = await client.send("Target.getTargets");
+    const pages = targetInfos.filter((t) => t.type === "page");
 
     let currentUrl = null;
     if (pages.length > 0) {
@@ -19,15 +19,15 @@ export async function run({ args: _args, state, verb }) {
     }
 
     const sDir = sessionDir(state.sid);
-    const pidFile = join(sDir, 'daemon.pid');
-    const readyMarker = join(sDir, 'daemon.ready');
+    const pidFile = join(sDir, "daemon.pid");
+    const readyMarker = join(sDir, "daemon.ready");
     let daemonAlive = false;
     let daemonPid = null;
 
     if (existsSync(readyMarker)) {
       try {
         if (existsSync(pidFile)) {
-          const raw = await readFile(pidFile, 'utf-8');
+          const raw = await readFile(pidFile, "utf-8");
           daemonPid = parseInt(raw.trim(), 10);
         }
         if (daemonPid) {
@@ -41,17 +41,19 @@ export async function run({ args: _args, state, verb }) {
 
     let artifactCount = 0;
     try {
-      artifactCount = (await readdir(join(state.sessionDir, 'artifacts'))).length;
+      artifactCount = (await readdir(join(state.sessionDir, "artifacts"))).length;
     } catch {}
 
-    console.log(JSON.stringify({
-      version: versionResult && versionResult.product,
-      userAgent: versionResult && versionResult.userAgent,
-      currentUrl,
-      daemonAlive,
-      ports: { internal: state.internalPort, public: state.publicPort },
-      artifactCount
-    }));
+    console.log(
+      JSON.stringify({
+        version: versionResult && versionResult.product,
+        userAgent: versionResult && versionResult.userAgent,
+        currentUrl,
+        daemonAlive,
+        ports: { internal: state.internalPort, public: state.publicPort },
+        artifactCount,
+      }),
+    );
 
     await client.close();
     return;

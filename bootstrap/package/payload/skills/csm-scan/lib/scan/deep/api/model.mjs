@@ -29,28 +29,28 @@
 // node:process / node:vm / node:module, so the recurring capability gate
 // remains closed.
 
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 import {
   assertDataOnly,
   compareAscii,
   deepFreeze,
   normalizeEvidencePath,
-} from '../../contracts/evidence.mjs';
-import { assertPrivacySafe, redactText } from '../../shared/privacy.mjs';
+} from "../../contracts/evidence.mjs";
+import { assertPrivacySafe, redactText } from "../../shared/privacy.mjs";
 
-export const API_DIMENSION_ID = 'DIM-api-v1';
+export const API_DIMENSION_ID = "DIM-api-v1";
 
 export const API_OPERATION_CATEGORIES = Object.freeze([
-  'cli_command',
-  'contract',
-  'event',
-  'public_export',
-  'route',
-  'rpc',
+  "cli_command",
+  "contract",
+  "event",
+  "public_export",
+  "route",
+  "rpc",
 ]);
 
-export const API_STATUSES = Object.freeze(['observed', 'unverified']);
+export const API_STATUSES = Object.freeze(["observed", "unverified"]);
 
 export const API_LIMITS = deepFreeze({
   cliCommands: 256,
@@ -69,20 +69,34 @@ export const API_LIMITS = deepFreeze({
   rpcs: 256,
 });
 
-const DIAGNOSTIC_KEYS = Object.freeze(['line', 'path', 'reason', 'status']);
+const DIAGNOSTIC_KEYS = Object.freeze(["line", "path", "reason", "status"]);
 const OPERATION_KEYS = Object.freeze([
-  'category', 'details', 'dialect', 'id', 'matchedKey', 'signature', 'source', 'status',
+  "category",
+  "details",
+  "dialect",
+  "id",
+  "matchedKey",
+  "signature",
+  "source",
+  "status",
 ]);
-const SOURCE_KEYS = Object.freeze(['line', 'path']);
+const SOURCE_KEYS = Object.freeze(["line", "path"]);
 const CAP_KEYS = Object.freeze([
-  'cliCommands', 'contracts', 'events', 'files', 'operations', 'publicExports', 'routes', 'rpcs',
+  "cliCommands",
+  "contracts",
+  "events",
+  "files",
+  "operations",
+  "publicExports",
+  "routes",
+  "rpcs",
 ]);
-const ROUTE_DETAILS_KEYS = Object.freeze(['method', 'operationId']);
-const CONTRACT_DETAILS_KEYS = Object.freeze(['format', 'version']);
-const RPC_DETAILS_KEYS = Object.freeze(['method', 'service']);
-const EVENT_DETAILS_KEYS = Object.freeze(['emitter']);
-const CLI_DETAILS_KEYS = Object.freeze(['command']);
-const EXPORT_DETAILS_KEYS = Object.freeze(['kind', 'module']);
+const ROUTE_DETAILS_KEYS = Object.freeze(["method", "operationId"]);
+const CONTRACT_DETAILS_KEYS = Object.freeze(["format", "version"]);
+const RPC_DETAILS_KEYS = Object.freeze(["method", "service"]);
+const EVENT_DETAILS_KEYS = Object.freeze(["emitter"]);
+const CLI_DETAILS_KEYS = Object.freeze(["command"]);
+const EXPORT_DETAILS_KEYS = Object.freeze(["kind", "module"]);
 
 const IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/#@+%()[\],{}-]*$/;
 const DETAILS_PATTERN = /^[\x21-\x7e]+$/;
@@ -91,7 +105,7 @@ const DIAGNOSTIC_REASON_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 export class ApiModelError extends TypeError {
   constructor(code, message) {
     super(`Invalid API model: ${message}`);
-    this.name = 'ApiModelError';
+    this.name = "ApiModelError";
     this.code = code;
   }
 }
@@ -103,51 +117,63 @@ function fail(code, message) {
 function exactKeys(value, expected, label) {
   const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
+    fail("UNKNOWN_FIELD", `${label} fields do not match the schema`);
   }
 }
 
 function plainObject(value, label) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', `${label} must be an object`);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", `${label} must be an object`);
   }
 }
 
 function category(value) {
-  if (typeof value !== 'string' || !API_OPERATION_CATEGORIES.includes(value)) {
-    fail('UNKNOWN_CATEGORY', 'operation category is not allowlisted for the API dimension');
+  if (typeof value !== "string" || !API_OPERATION_CATEGORIES.includes(value)) {
+    fail("UNKNOWN_CATEGORY", "operation category is not allowlisted for the API dimension");
   }
   return value;
 }
 
 function dialect(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 48
-      || !DETAILS_PATTERN.test(value)) {
-    fail('INVALID_DIALECT', 'dialect must be a bounded stable token');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 48 ||
+    !DETAILS_PATTERN.test(value)
+  ) {
+    fail("INVALID_DIALECT", "dialect must be a bounded stable token");
   }
   return value;
 }
 
 function status(value) {
-  if (typeof value !== 'string' || !API_STATUSES.includes(value)) {
-    fail('INVALID_STATUS', 'operation status must be observed or unverified');
+  if (typeof value !== "string" || !API_STATUSES.includes(value)) {
+    fail("INVALID_STATUS", "operation status must be observed or unverified");
   }
   return value;
 }
 
 function signature(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 256
-      || !IDENTITY_PATTERN.test(value)) {
-    fail('INVALID_IDENTITY', 'signature must be a bounded stable token');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 256 ||
+    !IDENTITY_PATTERN.test(value)
+  ) {
+    fail("INVALID_IDENTITY", "signature must be a bounded stable token");
   }
   return value;
 }
 
 function detailValue(value) {
   if (value === null) return null;
-  if (typeof value !== 'string' || value.length === 0 || value.length > 128
-      || !DETAILS_PATTERN.test(value)) {
-    fail('INVALID_DETAILS', 'details must contain bounded stable tokens');
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 128 ||
+    !DETAILS_PATTERN.test(value)
+  ) {
+    fail("INVALID_DETAILS", "details must contain bounded stable tokens");
   }
   return value;
 }
@@ -156,23 +182,23 @@ function normalizeSourcePath(value) {
   try {
     return normalizeEvidencePath(value);
   } catch {
-    fail('INVALID_PATH', 'source path must be a normalized repository-relative POSIX path');
+    fail("INVALID_PATH", "source path must be a normalized repository-relative POSIX path");
   }
 }
 
 function source(value) {
-  plainObject(value, 'source');
-  exactKeys(value, SOURCE_KEYS, 'source');
+  plainObject(value, "source");
+  exactKeys(value, SOURCE_KEYS, "source");
   const path = normalizeSourcePath(value.path);
   const line = value.line;
   if (line !== null && (!Number.isSafeInteger(line) || line < 1 || line > 1_000_000)) {
-    fail('INVALID_SOURCE', 'source line must be a bounded positive integer or null');
+    fail("INVALID_SOURCE", "source line must be a bounded positive integer or null");
   }
   return { path, line };
 }
 
 function detailsFor(categoryName, value) {
-  plainObject(value, 'details');
+  plainObject(value, "details");
   const schema = {
     route: ROUTE_DETAILS_KEYS,
     contract: CONTRACT_DETAILS_KEYS,
@@ -181,10 +207,8 @@ function detailsFor(categoryName, value) {
     cli_command: CLI_DETAILS_KEYS,
     public_export: EXPORT_DETAILS_KEYS,
   }[categoryName];
-  exactKeys(value, schema, 'details');
-  return Object.fromEntries(
-    schema.map((key) => [key, detailValue(value[key])]),
-  );
+  exactKeys(value, schema, "details");
+  return Object.fromEntries(schema.map((key) => [key, detailValue(value[key])]));
 }
 
 function operationIdentity(op) {
@@ -192,14 +216,12 @@ function operationIdentity(op) {
 }
 
 function hashOf(parts) {
-  const framed = parts
-    .map((part) => `${Buffer.byteLength(part, 'utf8')}:${part}`)
-    .join('|');
-  return createHash('sha256').update(framed).digest('hex');
+  const framed = parts.map((part) => `${Buffer.byteLength(part, "utf8")}:${part}`).join("|");
+  return createHash("sha256").update(framed).digest("hex");
 }
 
 export function operationId(op) {
-  return `op-${hashOf(operationIdentity(op).split('\0')).slice(0, 24)}`;
+  return `op-${hashOf(operationIdentity(op).split("\0")).slice(0, 24)}`;
 }
 
 export function matchedKeyFor(categoryName, opIdentity) {
@@ -207,7 +229,7 @@ export function matchedKeyFor(categoryName, opIdentity) {
 }
 
 export function encodeMatchedKey(value) {
-  return value.replace(/\{/g, '%7B').replace(/\}/g, '%7D');
+  return value.replace(/\{/g, "%7B").replace(/\}/g, "%7D");
 }
 
 /**
@@ -219,8 +241,12 @@ export function encodeMatchedKey(value) {
  * @returns {boolean}
  */
 export function isValidSignatureToken(value) {
-  return typeof value === 'string' && value.length > 0 && value.length <= 256
-    && IDENTITY_PATTERN.test(value);
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 256 &&
+    IDENTITY_PATTERN.test(value)
+  );
 }
 
 /**
@@ -230,8 +256,13 @@ export function isValidSignatureToken(value) {
  * @returns {boolean}
  */
 export function isValidDetailValue(value) {
-  return value === null || (typeof value === 'string' && value.length > 0 && value.length <= 128
-    && DETAILS_PATTERN.test(value));
+  return (
+    value === null ||
+    (typeof value === "string" &&
+      value.length > 0 &&
+      value.length <= 128 &&
+      DETAILS_PATTERN.test(value))
+  );
 }
 
 function normalizeCandidate(candidate) {
@@ -242,13 +273,19 @@ function normalizeCandidate(candidate) {
     maxObjectKeys: 16,
     maxString: 512,
   });
-  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
-    fail('INVALID_TYPE', 'operation candidate must be an object');
+  if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+    fail("INVALID_TYPE", "operation candidate must be an object");
   }
   const allowed = Object.freeze([
-    'category', 'details', 'dialect', 'line', 'path', 'signature', 'status',
+    "category",
+    "details",
+    "dialect",
+    "line",
+    "path",
+    "signature",
+    "status",
   ]);
-  exactKeys(candidate, allowed, 'operation candidate');
+  exactKeys(candidate, allowed, "operation candidate");
   const categoryName = category(candidate.category);
   return {
     category: categoryName,
@@ -273,21 +310,25 @@ function normalizeDiagnostic(value) {
     maxObjectKeys: 8,
     maxString: 512,
   });
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'diagnostic must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "diagnostic must be an object");
   }
-  exactKeys(value, DIAGNOSTIC_KEYS, 'diagnostic');
+  exactKeys(value, DIAGNOSTIC_KEYS, "diagnostic");
   const path = normalizeSourcePath(value.path);
-  if (!['unsupported', 'unverified'].includes(value.status)) {
-    fail('INVALID_STATUS', 'diagnostic status must be unsupported or unverified');
+  if (!["unsupported", "unverified"].includes(value.status)) {
+    fail("INVALID_STATUS", "diagnostic status must be unsupported or unverified");
   }
-  if (typeof value.reason !== 'string' || value.reason.length === 0 || value.reason.length > 64
-      || !DIAGNOSTIC_REASON_PATTERN.test(value.reason)) {
-    fail('INVALID_REASON', 'diagnostic reason must be a bounded uppercase token');
+  if (
+    typeof value.reason !== "string" ||
+    value.reason.length === 0 ||
+    value.reason.length > 64 ||
+    !DIAGNOSTIC_REASON_PATTERN.test(value.reason)
+  ) {
+    fail("INVALID_REASON", "diagnostic reason must be a bounded uppercase token");
   }
   const line = value.line;
   if (line !== null && (!Number.isSafeInteger(line) || line < 1 || line > 1_000_000)) {
-    fail('INVALID_DIAGNOSTIC', 'diagnostic line must be a bounded positive integer or null');
+    fail("INVALID_DIAGNOSTIC", "diagnostic line must be a bounded positive integer or null");
   }
   return { path, status: value.status, reason: value.reason, line };
 }
@@ -302,8 +343,8 @@ function privacyFilter(operations, diagnostics) {
     } catch {
       privacyDiagnostics.push({
         path: redactText(operation.source.path),
-        status: 'unverified',
-        reason: 'PRIVACY',
+        status: "unverified",
+        reason: "PRIVACY",
         line: null,
       });
     }
@@ -311,10 +352,13 @@ function privacyFilter(operations, diagnostics) {
   const allDiagnostics = [...diagnostics, ...privacyDiagnostics];
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of allDiagnostics.toSorted((left, right) => compareAscii(left.path, right.path)
-    || compareAscii(left.status, right.status)
-    || compareAscii(left.reason, right.reason)
-    || (left.line ?? 0) - (right.line ?? 0))) {
+  for (const diagnostic of allDiagnostics.toSorted(
+    (left, right) =>
+      compareAscii(left.path, right.path) ||
+      compareAscii(left.status, right.status) ||
+      compareAscii(left.reason, right.reason) ||
+      (left.line ?? 0) - (right.line ?? 0),
+  )) {
     const key = `${diagnostic.path}\0${diagnostic.status}\0${diagnostic.reason}\0${diagnostic.line ?? 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -336,7 +380,12 @@ function privacyFilter(operations, diagnostics) {
  * @throws {ApiModelError} on malformed candidates, categories, or search
  *   spaces; privacy violations are downgraded to diagnostics and never abort.
  */
-export function buildApiModel({ operations = [], diagnostics = [], searchSpace = null, measurement = {} } = {}) {
+export function buildApiModel({
+  operations = [],
+  diagnostics = [],
+  searchSpace = null,
+  measurement = {},
+} = {}) {
   const candidates = (Array.isArray(operations) ? operations : []).map(normalizeCandidate);
 
   const seen = new Set();
@@ -353,30 +402,39 @@ export function buildApiModel({ operations = [], diagnostics = [], searchSpace =
       matchedKey,
       id: operationId(candidate),
     };
-    exactKeys(operation, OPERATION_KEYS, 'operation');
+    exactKeys(operation, OPERATION_KEYS, "operation");
     const dedupeKey = `${matchedKey}\0${operation.source.path}\0${operation.source.line ?? 0}`;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
     normalizedOperations.push(operation);
   }
 
-  const diagnosticRecords = (Array.isArray(diagnostics) ? diagnostics : []).map(normalizeDiagnostic);
+  const diagnosticRecords = (Array.isArray(diagnostics) ? diagnostics : []).map(
+    normalizeDiagnostic,
+  );
   const { operations: privacySafe, diagnostics: uniqueDiagnostics } = privacyFilter(
     normalizedOperations,
     diagnosticRecords,
   );
 
-  privacySafe.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.source.path, right.source.path)
-    || (left.source.line ?? 0) - (right.source.line ?? 0));
+  privacySafe.sort(
+    (left, right) =>
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.source.path, right.source.path) ||
+      (left.source.line ?? 0) - (right.source.line ?? 0),
+  );
 
   const space = searchSpace ?? normalizeEmptySearchSpace(measurement);
 
   const counts = { contracts: 0, routes: 0, rpcs: 0, events: 0, cliCommands: 0, publicExports: 0 };
   for (const operation of privacySafe) {
-    counts[operation.category === 'cli_command' ? 'cliCommands'
-      : operation.category === 'public_export' ? 'publicExports'
-      : `${operation.category}s`]++;
+    counts[
+      operation.category === "cli_command"
+        ? "cliCommands"
+        : operation.category === "public_export"
+          ? "publicExports"
+          : `${operation.category}s`
+    ]++;
   }
 
   const capped = {
@@ -389,7 +447,7 @@ export function buildApiModel({ operations = [], diagnostics = [], searchSpace =
     publicExports: counts.publicExports > API_LIMITS.publicExports,
     files: space.capped,
   };
-  exactKeys(capped, CAP_KEYS, 'capped');
+  exactKeys(capped, CAP_KEYS, "capped");
 
   const summary = {
     operations: privacySafe.length,

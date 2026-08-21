@@ -1,4 +1,4 @@
-import { isNullishFinding } from './enrich.mjs';
+import { isNullishFinding } from "./enrich.mjs";
 
 export async function validate(enrichResult) {
   const { enriched, contradictions, gaps, inferredPatterns = [] } = enrichResult;
@@ -6,15 +6,16 @@ export async function validate(enrichResult) {
 
   const taggedDimensions = enriched.map((dim) => {
     const dimensionCoverage = coverage[dim.dimension] ?? 0;
-    const confidence = dimensionCoverage === 0
-      ? 'unverified'
-      : inferredPatterns.some((pattern) => pattern.dimension === dim.dimension)
-        ? 'inferred'
-        : 'observed';
+    const confidence =
+      dimensionCoverage === 0
+        ? "unverified"
+        : inferredPatterns.some((pattern) => pattern.dimension === dim.dimension)
+          ? "inferred"
+          : "observed";
 
     const tags = {};
     for (const key of Object.keys(dim.findings || {})) {
-      tags[key] = isNullishFinding(dim.findings[key]) ? 'unverified' : confidence;
+      tags[key] = isNullishFinding(dim.findings[key]) ? "unverified" : confidence;
     }
 
     return {

@@ -13,18 +13,18 @@
 //
 // ESM only. Zero npm deps. node: builtins only (imported here: none).
 
-import { compareAscii } from '../contracts/evidence.mjs';
-import { DEFAULT_RENDER_CONTEXT } from './base.mjs';
+import { compareAscii } from "../contracts/evidence.mjs";
+import { DEFAULT_RENDER_CONTEXT } from "./base.mjs";
 
 function renderTable(context, columns, rows) {
   const { escapeField } = context;
   const lines = [];
-  lines.push(`| ${columns.map((column) => escapeField(column, { inTable: true })).join(' | ')} |`);
-  lines.push(`| ${columns.map(() => '---').join(' | ')} |`);
+  lines.push(`| ${columns.map((column) => escapeField(column, { inTable: true })).join(" | ")} |`);
+  lines.push(`| ${columns.map(() => "---").join(" | ")} |`);
   for (const row of rows) {
-    lines.push(`| ${row.map((cell) => escapeField(cell, { inTable: true })).join(' | ')} |`);
+    lines.push(`| ${row.map((cell) => escapeField(cell, { inTable: true })).join(" | ")} |`);
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -38,44 +38,70 @@ function renderTable(context, columns, rows) {
  *   provided.
  */
 export function renderDeployment(_repoName, topology, context = DEFAULT_RENDER_CONTEXT) {
-  if (!topology) return '';
+  if (!topology) return "";
   const lines = [];
-  lines.push('## Deployment Topology');
-  lines.push('');
-  lines.push('> Static literal parsing of declared resources and direct references. No execution, drift, cost, availability, or security claims.');
-  lines.push('');
+  lines.push("## Deployment Topology");
+  lines.push("");
+  lines.push(
+    "> Static literal parsing of declared resources and direct references. No execution, drift, cost, availability, or security claims.",
+  );
+  lines.push("");
   if (topology.capped) {
-    lines.push(`> Scan capped: ${context.escapeField(topology.cappedKinds.join(', '))}`);
-    lines.push('');
+    lines.push(`> Scan capped: ${context.escapeField(topology.cappedKinds.join(", "))}`);
+    lines.push("");
   }
   if (!topology.counts || topology.counts.artifacts === 0) {
-    lines.push('- No deployment artifacts detected.');
-    lines.push('');
-    return lines.join('\n');
+    lines.push("- No deployment artifacts detected.");
+    lines.push("");
+    return lines.join("\n");
   }
   if (topology.images.length > 0) {
     lines.push(`### Images (${topology.images.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['Image', 'Path'], topology.images.map((image) => [image.reference, image.path])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["Image", "Path"],
+        topology.images.map((image) => [image.reference, image.path]),
+      ),
+    );
+    lines.push("");
   }
   if (topology.services.length > 0) {
     lines.push(`### Services (${topology.services.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['Service', 'Image', 'Path'], topology.services.map((service) => [service.id, service.image ?? '—', service.path])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["Service", "Image", "Path"],
+        topology.services.map((service) => [service.id, service.image ?? "—", service.path]),
+      ),
+    );
+    lines.push("");
   }
   if (topology.resources.length > 0) {
     lines.push(`### Resources (${topology.resources.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['Resource', 'Kind', 'Path'], topology.resources.map((resource) => [resource.id, resource.kind, resource.path])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["Resource", "Kind", "Path"],
+        topology.resources.map((resource) => [resource.id, resource.kind, resource.path]),
+      ),
+    );
+    lines.push("");
   }
   if (topology.edges.length > 0) {
     lines.push(`### Topology Edges (${topology.edges.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['From', 'Edge', 'To', 'Path'], topology.edges.map((edge) => [edge.from, edge.kind, edge.to, edge.path])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["From", "Edge", "To", "Path"],
+        topology.edges.map((edge) => [edge.from, edge.kind, edge.to, edge.path]),
+      ),
+    );
+    lines.push("");
   }
   const indicatorCounts = new Map();
   for (const indicator of topology.indicators) {
@@ -83,23 +109,41 @@ export function renderDeployment(_repoName, topology, context = DEFAULT_RENDER_C
   }
   if (indicatorCounts.size > 0) {
     lines.push(`### Template Indicators (${topology.indicators.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['Indicator', 'Count'], [...indicatorCounts.entries()]
-      .toSorted(([left], [right]) => compareAscii(left, right))
-      .map(([kind, count]) => [kind, String(count)])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["Indicator", "Count"],
+        [...indicatorCounts.entries()]
+          .toSorted(([left], [right]) => compareAscii(left, right))
+          .map(([kind, count]) => [kind, String(count)]),
+      ),
+    );
+    lines.push("");
   }
   if (topology.stubs.length > 0) {
     lines.push(`### Unresolved References (${topology.stubs.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['Kind', 'Reference', 'Path'], topology.stubs.map((stub) => [stub.kind, stub.label, stub.path])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["Kind", "Reference", "Path"],
+        topology.stubs.map((stub) => [stub.kind, stub.label, stub.path]),
+      ),
+    );
+    lines.push("");
   }
   if (topology.diagnostics.length > 0) {
     lines.push(`### Diagnostics (${topology.diagnostics.length})`);
-    lines.push('');
-    lines.push(renderTable(context, ['Path', 'Status', 'Reason'], topology.diagnostics.map((entry) => [entry.path, entry.status, entry.reason])));
-    lines.push('');
+    lines.push("");
+    lines.push(
+      renderTable(
+        context,
+        ["Path", "Status", "Reason"],
+        topology.diagnostics.map((entry) => [entry.path, entry.status, entry.reason]),
+      ),
+    );
+    lines.push("");
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }

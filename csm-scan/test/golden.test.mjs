@@ -1,18 +1,18 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { withFixture } from './harness.mjs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { withFixture } from "./harness.mjs";
 import {
   resolveRealRepo,
   isPerplexityCli,
   FALLBACK_TEST_FILE_COUNT,
   FALLBACK_REAL_REPO,
-} from './helpers/real-repo.mjs';
-import { runMirrorPipeline } from './helpers/pipeline-mirror.mjs';
-import { files as pythonFiles } from './fixtures/python.mjs';
-import { parityFiles as javascriptFiles } from './fixtures/javascript.mjs';
-import { files as typescriptFiles } from './fixtures/typescript.mjs';
-import { files as rustFiles } from './fixtures/rust.mjs';
-import { files as shellFiles } from './fixtures/shell.mjs';
+} from "./helpers/real-repo.mjs";
+import { runMirrorPipeline } from "./helpers/pipeline-mirror.mjs";
+import { files as pythonFiles } from "./fixtures/python.mjs";
+import { parityFiles as javascriptFiles } from "./fixtures/javascript.mjs";
+import { files as typescriptFiles } from "./fixtures/typescript.mjs";
+import { files as rustFiles } from "./fixtures/rust.mjs";
+import { files as shellFiles } from "./fixtures/shell.mjs";
 
 // T010 (F-026): this suite drives the exported production pipeline
 // (runExpandedPipeline) through the shared mirror helper — the retired
@@ -24,7 +24,10 @@ import { files as shellFiles } from './fixtures/shell.mjs';
 const OVER_ESCAPE = /\\[._-]/;
 
 function assertNeutralMetadata(markdown, ecosystem) {
-  assert.match(markdown, /> Coverage: \d+% of scanner fields reported · basis: (?:observed|inferred|unverified)/);
+  assert.match(
+    markdown,
+    /> Coverage: \d+% of scanner fields reported · basis: (?:observed|inferred|unverified)/,
+  );
   assert.doesNotMatch(markdown, /\b(?:Cohesion|Signal):/);
   assert.doesNotMatch(markdown, /^#{1,6}\s+(?:Contradictions|Conflicts)\b/im);
   assert.ok(
@@ -33,41 +36,41 @@ function assertNeutralMetadata(markdown, ecosystem) {
   );
 }
 
-test('T021 golden: python fixture pipeline produces Python, uv, ruff, pytest, and an ASCII/C4 graph with Python', async () => {
+test("T021 golden: python fixture pipeline produces Python, uv, ruff, pytest, and an ASCII/C4 graph with Python", async () => {
   const UVLOCK = 'version = 1\n\n[[package]]\nname = "demo"\nversion = "0.1.0"\n';
   const fixtureFiles = {
     ...pythonFiles,
-    'uv.lock': UVLOCK,
-    '.ruff_cache/content': 'noise\n',
+    "uv.lock": UVLOCK,
+    ".ruff_cache/content": "noise\n",
   };
 
-  const markdown = await withFixture('golden-py', fixtureFiles, runMirrorPipeline);
+  const markdown = await withFixture("golden-py", fixtureFiles, runMirrorPipeline);
 
-  assert.ok(markdown.includes('Python'), 'markdown must mention Python');
-  assert.ok(markdown.includes('uv'), 'markdown must mention uv (package manager)');
+  assert.ok(markdown.includes("Python"), "markdown must mention Python");
+  assert.ok(markdown.includes("uv"), "markdown must mention uv (package manager)");
   assert.ok(
     /ruff/i.test(markdown),
-    'markdown must mention ruff (the fixture declares [tool.ruff])',
+    "markdown must mention ruff (the fixture declares [tool.ruff])",
   );
   assert.ok(
     /pytest/i.test(markdown),
-    'markdown must mention pytest (the fixture declares [tool.pytest.ini_options])',
+    "markdown must mention pytest (the fixture declares [tool.pytest.ini_options])",
   );
 
   assert.ok(
     /```[\s\S]*?Python[\s\S]*?```/.test(markdown),
-    'markdown must contain a fenced ASCII/C4 diagram referencing Python',
+    "markdown must contain a fenced ASCII/C4 diagram referencing Python",
   );
   assert.match(markdown, /Symbol naming.*snake_case dominant/);
   assert.match(markdown, /Type hints.*\d+(?:\.\d+)?% of defs annotated/);
   assert.match(markdown, /Comment density.*comment lines/);
-  assert.ok(!markdown.includes('.hypothesis'), 'markdown must exclude Hypothesis cache noise');
-  assert.ok(!markdown.includes('.ruff_cache'), 'markdown must exclude ruff cache noise');
-  assertNeutralMetadata(markdown, 'python');
+  assert.ok(!markdown.includes(".hypothesis"), "markdown must exclude Hypothesis cache noise");
+  assert.ok(!markdown.includes(".ruff_cache"), "markdown must exclude ruff cache noise");
+  assertNeutralMetadata(markdown, "python");
 });
 
-test('T113 golden: JavaScript fixture renders Node, Bun, tests, workspace architecture, and neutral metadata', async () => {
-  const markdown = await withFixture('golden-js', javascriptFiles, runMirrorPipeline);
+test("T113 golden: JavaScript fixture renders Node, Bun, tests, workspace architecture, and neutral metadata", async () => {
+  const markdown = await withFixture("golden-js", javascriptFiles, runMirrorPipeline);
 
   assert.match(markdown, /Languages.*JavaScript/);
   assert.match(markdown, /Runtime.*Bun/);
@@ -75,37 +78,46 @@ test('T113 golden: JavaScript fixture renders Node, Bun, tests, workspace archit
   assert.match(markdown, /Package Manager.*bun/);
   assert.match(markdown, /Framework.*node:test/);
   assert.match(markdown, /packages\/app\/src\/index\.js[\s\S]*?@demo\/shared/);
-  assert.match(markdown, /Architecture is inferred heuristically[\s\S]*?[1-9]\d* internal dependency edges/);
-  assertNeutralMetadata(markdown, 'javascript');
+  assert.match(
+    markdown,
+    /Architecture is inferred heuristically[\s\S]*?[1-9]\d* internal dependency edges/,
+  );
+  assertNeutralMetadata(markdown, "javascript");
 });
 
-test('T113 golden: TypeScript fixture renders compiler depth, spec tests, coherent architecture, and neutral metadata', async () => {
-  const tsconfig = JSON.parse(typescriptFiles['tsconfig.json']);
-  tsconfig.compilerOptions.moduleResolution = 'node16';
+test("T113 golden: TypeScript fixture renders compiler depth, spec tests, coherent architecture, and neutral metadata", async () => {
+  const tsconfig = JSON.parse(typescriptFiles["tsconfig.json"]);
+  tsconfig.compilerOptions.moduleResolution = "node16";
   tsconfig.compilerOptions.noImplicitAny = true;
   const fixtureFiles = {
     ...typescriptFiles,
-    'tsconfig.json': `${JSON.stringify(tsconfig, null, 2)}\n`,
+    "tsconfig.json": `${JSON.stringify(tsconfig, null, 2)}\n`,
   };
-  const markdown = await withFixture('golden-ts', fixtureFiles, runMirrorPipeline);
+  const markdown = await withFixture("golden-ts", fixtureFiles, runMirrorPipeline);
 
   assert.match(markdown, /Languages.*TypeScript/);
-  assert.match(markdown, /TypeScript.*tsconfig\.json.*moduleResolution: node16.*noImplicitAny.*path aliases/);
+  assert.match(
+    markdown,
+    /TypeScript.*tsconfig\.json.*moduleResolution: node16.*noImplicitAny.*path aliases/,
+  );
   assert.match(markdown, /Test files.*spec.*ts/);
   assert.match(markdown, /Sample files.*src\/index\.spec\.ts/);
-  assert.match(markdown, /Architecture is inferred heuristically[\s\S]*?[1-9]\d* internal dependency edges/);
+  assert.match(
+    markdown,
+    /Architecture is inferred heuristically[\s\S]*?[1-9]\d* internal dependency edges/,
+  );
   assert.doesNotMatch(markdown, /public\.d\.ts[\s\S]{0,100}(?:dependency edge|May use)/i);
-  assertNeutralMetadata(markdown, 'typescript');
+  assertNeutralMetadata(markdown, "typescript");
 });
 
-test('T113 golden: Rust fixture renders Cargo workspace, type checking, conventions, and generic detections', async () => {
-  const cargo = rustFiles['Cargo.toml'].replace(
-    '[dependencies]\n',
+test("T113 golden: Rust fixture renders Cargo workspace, type checking, conventions, and generic detections", async () => {
+  const cargo = rustFiles["Cargo.toml"].replace(
+    "[dependencies]\n",
     '[dependencies]\nsqlx = "0.8"\ntracing = "0.1"\nargon2 = "0.5"\nvalidator = "0.18"\n',
   );
   const markdown = await withFixture(
-    'golden-rust',
-    { ...rustFiles, 'Cargo.toml': cargo },
+    "golden-rust",
+    { ...rustFiles, "Cargo.toml": cargo },
     runMirrorPipeline,
   );
 
@@ -119,11 +131,11 @@ test('T113 golden: Rust fixture renders Cargo workspace, type checking, conventi
   assert.match(markdown, /Authentication.*Argon2/i);
   assert.match(markdown, /Input validation.*Validator/i);
   assert.match(markdown, /Monitoring[\s\S]*?tracing/i);
-  assertNeutralMetadata(markdown, 'rust');
+  assertNeutralMetadata(markdown, "rust");
 });
 
-test('T113 golden: Shell fixture renders shellcheck roles, sourced modules, hygiene, and no shfmt false positive', async () => {
-  const markdown = await withFixture('golden-shell', shellFiles, runMirrorPipeline);
+test("T113 golden: Shell fixture renders shellcheck roles, sourced modules, hygiene, and no shfmt false positive", async () => {
+  const markdown = await withFixture("golden-shell", shellFiles, runMirrorPipeline);
 
   assert.match(markdown, /Languages.*Shell/);
   assert.match(markdown, /Lint.*shellcheck/);
@@ -133,7 +145,7 @@ test('T113 golden: Shell fixture renders shellcheck roles, sourced modules, hygi
   assert.match(markdown, /Shell hygiene.*pipefail adopted in \d+(?:\.\d+)?%/);
   assert.match(markdown, /Shebangs present in \d+ file/);
   assert.doesNotMatch(markdown, /Format[^\n]*shfmt/i);
-  assertNeutralMetadata(markdown, 'shell');
+  assertNeutralMetadata(markdown, "shell");
 });
 
 // T010 (F-007): CSM_SCAN_REAL_REPO when set (the real repository, full-strength
@@ -144,9 +156,11 @@ test('T113 golden: Shell fixture renders shellcheck roles, sourced modules, hygi
 // and the behavioral no-skip gate bans runtime t.skip() here.
 const RESOLVED_REAL_REPO = resolveRealRepo();
 
-test('T021 golden: real perplexity-cli repo (CSM_SCAN_REAL_REPO or the fallback fixture)', async () => {
+test("T021 golden: real perplexity-cli repo (CSM_SCAN_REAL_REPO or the fallback fixture)", async () => {
   if (RESOLVED_REAL_REPO.repo === null) {
-    console.warn(`[T021] CSM_SCAN_REAL_REPO is set but does not exist (${RESOLVED_REAL_REPO.missing}); running against the pxcli-mini fallback fixture`);
+    console.warn(
+      `[T021] CSM_SCAN_REAL_REPO is set but does not exist (${RESOLVED_REAL_REPO.missing}); running against the pxcli-mini fallback fixture`,
+    );
   }
   const REPO = RESOLVED_REAL_REPO.repo ?? FALLBACK_REAL_REPO;
 
@@ -154,13 +168,13 @@ test('T021 golden: real perplexity-cli repo (CSM_SCAN_REAL_REPO or the fallback 
 
   assert.ok(
     /Python \(declared:/.test(markdown),
-    'markdown must render declaration-backed Python runtime evidence',
+    "markdown must render declaration-backed Python runtime evidence",
   );
-  assert.ok(markdown.includes('uv'), 'markdown must mention uv');
-  assert.ok(markdown.includes('Click'), 'markdown must mention Click');
-  assert.ok(/pytest/i.test(markdown), 'markdown must mention pytest');
+  assert.ok(markdown.includes("uv"), "markdown must mention uv");
+  assert.ok(markdown.includes("Click"), "markdown must mention Click");
+  assert.ok(/pytest/i.test(markdown), "markdown must mention pytest");
   const testCount = markdown.match(/Test files\*\*: (\d+)/)?.[1];
-  assert.ok(testCount, 'markdown must report the real repository test-file count');
+  assert.ok(testCount, "markdown must report the real repository test-file count");
   // T007 b14 counting rule (disclosed in the rendered section): python test
   // files are `tests/test_*.py` + `tests/**/test_*.py` + `conftest.py`, with
   // tests/fixtures/**, tests/support/**, _fuzz_harnesses.py, strategies.py and
@@ -180,7 +194,7 @@ test('T021 golden: real perplexity-cli repo (CSM_SCAN_REAL_REPO or the fallback 
   }
   assert.ok(
     /Lockfile[\s\S]{0,40}present/.test(markdown),
-    'markdown must report Lockfile ... present',
+    "markdown must report Lockfile ... present",
   );
   assert.match(markdown, /Security tooling[^\n]*gitleaks[^\n]*SECURITY\.md[^\n]*pip-audit/i);
   assert.match(markdown, /Symbol naming.*snake_case dominant/);
@@ -189,16 +203,16 @@ test('T021 golden: real perplexity-cli repo (CSM_SCAN_REAL_REPO or the fallback 
   assert.match(markdown, /Markers present.*MANIFEST\.in/);
 
   assert.ok(
-    !markdown.includes('.hypothesis'),
-    'markdown must not leak .hypothesis cache noise from the real repo',
+    !markdown.includes(".hypothesis"),
+    "markdown must not leak .hypothesis cache noise from the real repo",
   );
   assert.ok(
-    !markdown.includes('.ruff_cache'),
-    'markdown must not leak .ruff_cache noise from the real repo',
+    !markdown.includes(".ruff_cache"),
+    "markdown must not leak .ruff_cache noise from the real repo",
   );
   assert.ok(
-    !markdown.includes('perplexity\\-cli'),
-    'markdown must not over-escape hyphen in perplexity-cli',
+    !markdown.includes("perplexity\\-cli"),
+    "markdown must not over-escape hyphen in perplexity-cli",
   );
-  assertNeutralMetadata(markdown, 'perplexity-cli');
+  assertNeutralMetadata(markdown, "perplexity-cli");
 });

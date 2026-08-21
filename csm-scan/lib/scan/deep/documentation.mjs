@@ -1,16 +1,16 @@
-import { existsSync, statSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { commandBroker } from '../shared/command.mjs';
-import { descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
-import { countComments } from '../shared/comments.mjs';
-import { readBoundedFile } from '../shared/reads.mjs';
+import { existsSync, statSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { commandBroker } from "../shared/command.mjs";
+import { descriptorFor, detectEcosystems } from "../shared/ecosystem.mjs";
+import { countComments } from "../shared/comments.mjs";
+import { readBoundedFile } from "../shared/reads.mjs";
 
 // Per-ecosystem file sample for comment analysis. Mirrors conventions.mjs so
 // documentation.commentRatio and conventions.commentDensity are computed over
 // the SAME sample; counting is delegated to shared/comments.mjs (single source
 // of truth) so the two deep scanners agree exactly (T111 systemic fix).
 const COMMENT_FILES_PER_ECO = 20;
-const SUPPORTED_COMMENT_ECOS = ['python', 'javascript', 'typescript', 'rust', 'shell'];
+const SUPPORTED_COMMENT_ECOS = ["python", "javascript", "typescript", "rust", "shell"];
 const TODO_FILE_LIMIT = 400;
 const TODO_BYTE_LIMIT = 1024 * 1024;
 const SCAN_BYTE_LIMIT = 1024 * 1024;
@@ -24,7 +24,13 @@ function readFile(absPath, containmentRoot = null) {
 
 // Reference-artifact detection (T012): QUALITY_GATES.md-style reference docs
 // and SECURITY.md become part of the documentation inventory.
-const REFERENCE_DOC_NAMES = ['QUALITY_GATES.md', 'quality-gates.md', 'quality_gates.md', 'QUALITY_GATE.md', 'REFERENCE.md'];
+const REFERENCE_DOC_NAMES = [
+  "QUALITY_GATES.md",
+  "quality-gates.md",
+  "quality_gates.md",
+  "QUALITY_GATE.md",
+  "REFERENCE.md",
+];
 const REFERENCE_DOC_MIN_LINES = 100;
 const RFC2119_RE = /\bRFC\s*2119\b/i;
 const NORMATIVE_KEYWORD_RE = /\b(?:MUST|SHOULD)\b/;
@@ -34,14 +40,15 @@ const REPLICATION_CARDS_RE = /agent\s+replication\s+cards?/i;
 
 // Doc-toolchain detection (T012): doc-validation scripts referenced in
 // Makefile / opencode config. Bounded pattern scan of small config files.
-const DOC_TOOLCHAIN_SOURCES = ['Makefile', 'makefile', 'opencode.json', 'opencode.jsonc'];
+const DOC_TOOLCHAIN_SOURCES = ["Makefile", "makefile", "opencode.json", "opencode.jsonc"];
 const DOC_TOOLCHAIN_BYTE_LIMIT = 128 * 1024;
-const DOC_TOOLCHAIN_PATTERN = /\b(?:check-config|docs-check|docs_check|pre-push-docs|doc-toolchain|validate-docs)[a-z0-9_.-]*/gi;
+const DOC_TOOLCHAIN_PATTERN =
+  /\b(?:check-config|docs-check|docs_check|pre-push-docs|doc-toolchain|validate-docs)[a-z0-9_.-]*/gi;
 
 const SECURITY_PURPOSE_TOKENS = [
-  { re: /responsible disclosure/i, purpose: 'responsible disclosure' },
-  { re: /report/i, purpose: 'vulnerability reporting' },
-  { re: /token|cookie|secret/i, purpose: 'token handling' },
+  { re: /responsible disclosure/i, purpose: "responsible disclosure" },
+  { re: /report/i, purpose: "vulnerability reporting" },
+  { re: /token|cookie|secret/i, purpose: "token handling" },
 ];
 
 // Returns the repo-relative name of the first existing candidate (T005:
@@ -63,16 +70,16 @@ function findFile(repoPath, names) {
 // Each rule tests the captured shields.io URL only (never the whole document),
 // which eliminates the false positives the old whole-document includes() caused.
 const BADGE_URL_RULES = [
-  { re: /codecov|coveralls|coverage/, type: 'coverage' },
-  { re: /license/, type: 'license' },
-  { re: /pypi|pypi\.org/, type: 'pypi' },
-  { re: /npm/, type: 'npm' },
-  { re: /version/, type: 'version' },
-  { re: /github|actions|\bci\b|workflow|build|travis|circleci/, type: 'ci' },
+  { re: /codecov|coveralls|coverage/, type: "coverage" },
+  { re: /license/, type: "license" },
+  { re: /pypi|pypi\.org/, type: "pypi" },
+  { re: /npm/, type: "npm" },
+  { re: /version/, type: "version" },
+  { re: /github|actions|\bci\b|workflow|build|travis|circleci/, type: "ci" },
 ];
 
 function classifyBadgeUrl(url) {
-  const u = String(url || '').toLowerCase();
+  const u = String(url || "").toLowerCase();
   for (const rule of BADGE_URL_RULES) {
     if (rule.re.test(u)) return rule.type;
   }
@@ -98,12 +105,14 @@ function detectBadges(content) {
 // ---------------------------------------------------------------------------
 
 function checkReadmeStructure(content) {
-  if (!content) return { hasSetup: false, hasArchitecture: false, hasApi: false, hasContributing: false };
+  if (!content)
+    return { hasSetup: false, hasArchitecture: false, hasApi: false, hasContributing: false };
   const lower = content.toLowerCase();
   return {
     hasSetup: /(installation|setup|getting started|quickstart)/i.test(lower),
     hasArchitecture: /\barchitecture\b/i.test(lower),
-    hasApi: /\bapi\b/i.test(lower) && (lower.includes('documentation') || lower.includes('reference')),
+    hasApi:
+      /\bapi\b/i.test(lower) && (lower.includes("documentation") || lower.includes("reference")),
     hasContributing: /\bcontributing\b/i.test(lower),
     hasLicense: /\blicense\b/i.test(lower),
     sections: (content.match(/^#{1,3}\s+/gm) || []).length,
@@ -111,10 +120,10 @@ function checkReadmeStructure(content) {
 }
 
 function checkChangelog(repoPath) {
-  const clPath = findFile(repoPath, ['CHANGELOG.md', 'Changelog.md', 'CHANGES.md', 'HISTORY.md']);
-  if (!clPath) return { present: false, format: 'none' };
+  const clPath = findFile(repoPath, ["CHANGELOG.md", "Changelog.md", "CHANGES.md", "HISTORY.md"]);
+  if (!clPath) return { present: false, format: "none" };
 
-  let format = 'free-form';
+  let format = "free-form";
   // F-022/F-023: bounded, contained read of the well-known changelog name.
   const content = readFile(join(repoPath, clPath), repoPath);
   if (content != null) {
@@ -124,17 +133,24 @@ function checkChangelog(repoPath) {
     const verMatches = content.match(versions);
     const hasVersionHeaders = verMatches && verMatches.length >= 2;
 
-    if (kep && semver) format = 'Keep a Changelog';
-    else if (hasVersionHeaders && semver) format = 'Semantic versioning with change categories';
-    else if (hasVersionHeaders) format = 'Versioned entries';
-    else format = 'free-form';
+    if (kep && semver) format = "Keep a Changelog";
+    else if (hasVersionHeaders && semver) format = "Semantic versioning with change categories";
+    else if (hasVersionHeaders) format = "Versioned entries";
+    else format = "free-form";
   }
 
   return { present: true, format, path: clPath };
 }
 
 function detectADRs(repoPath) {
-  const patterns = ['docs/adr', 'doc/adr', 'adr', 'decisions', 'docs/decisions', 'doc/architecture/decisions'];
+  const patterns = [
+    "docs/adr",
+    "doc/adr",
+    "adr",
+    "decisions",
+    "docs/decisions",
+    "doc/architecture/decisions",
+  ];
   const dirs = [];
   for (const pat of patterns) {
     const full = join(repoPath, pat);
@@ -144,7 +160,7 @@ function detectADRs(repoPath) {
         let count = 0;
         try {
           for (const entry of readdirSync(full)) {
-            if (entry.endsWith('.md')) count++;
+            if (entry.endsWith(".md")) count++;
           }
         } catch {}
         dirs.push({ path: pat, count });
@@ -165,7 +181,10 @@ function detectADRs(repoPath) {
 
 function resolveEcosystems(overview) {
   const ov = overview || {};
-  if (ov.ecosystems && (ov.ecosystems.primary || (Array.isArray(ov.ecosystems.all) && ov.ecosystems.all.length > 0))) {
+  if (
+    ov.ecosystems &&
+    (ov.ecosystems.primary || (Array.isArray(ov.ecosystems.all) && ov.ecosystems.all.length > 0))
+  ) {
     return ov.ecosystems;
   }
   return detectEcosystems(ov, ov.manifest || {});
@@ -179,14 +198,17 @@ function resolveAllEcosystems(overview) {
 }
 
 async function listSourceFiles(repoPath, overview, broker) {
-  const fromOverview = overview && Array.isArray(overview.files) && overview.files.length > 0
-    ? overview.files
-    : null;
+  const fromOverview =
+    overview && Array.isArray(overview.files) && overview.files.length > 0 ? overview.files : null;
   if (fromOverview) return fromOverview;
   try {
-    const result = await broker.execute('rg:files', { cwd: repoPath });
-    const raw = result.ok || result.noMatch ? result.stdout : '';
-    return raw.split('\n').map((s) => s.trim().replace(/\\/g, '/')).filter(Boolean).toSorted();
+    const result = await broker.execute("rg:files", { cwd: repoPath });
+    const raw = result.ok || result.noMatch ? result.stdout : "";
+    return raw
+      .split("\n")
+      .map((s) => s.trim().replace(/\\/g, "/"))
+      .filter(Boolean)
+      .toSorted();
   } catch {
     return [];
   }
@@ -197,8 +219,8 @@ function filterByExt(files, extensions) {
   const set = new Set(extensions);
   const out = [];
   for (const f of files) {
-    const base = f.split('/').pop() || '';
-    const dot = base.lastIndexOf('.');
+    const base = f.split("/").pop() || "";
+    const dot = base.lastIndexOf(".");
     if (dot <= 0) continue; // skip dotfiles and extensionless names
     if (set.has(base.slice(dot).toLowerCase())) out.push(f);
   }
@@ -233,27 +255,31 @@ function computeCommentRatio(repoPath, overview, files) {
 // Python docstring dialect (Google / NumPy / Sphinx / reST) — P2 richness
 // ---------------------------------------------------------------------------
 
-const GOOGLE_SECTION_RE = /^\s*(Args|Arguments|Returns|Yields|Raises|Attributes|Examples?|Notes?|References|See Also|Other Parameters|Warnings?|Todo)\s*:\s*$/;
-const NUMPY_HEADER_RE = /^(Parameters|Returns|Raises|Yields|Attributes|See Also|Notes|Examples|References|Other Parameters|Warns)\s*$/;
-const SPHINX_FIELD_RE = /^:\s*(param|parameter|type|return|returns|rtype|raises|yield|yields|ivar|cvar|vtype)\b/;
+const GOOGLE_SECTION_RE =
+  /^\s*(Args|Arguments|Returns|Yields|Raises|Attributes|Examples?|Notes?|References|See Also|Other Parameters|Warnings?|Todo)\s*:\s*$/;
+const NUMPY_HEADER_RE =
+  /^(Parameters|Returns|Raises|Yields|Attributes|See Also|Notes|Examples|References|Other Parameters|Warns)\s*$/;
+const SPHINX_FIELD_RE =
+  /^:\s*(param|parameter|type|return|returns|rtype|raises|yield|yields|ivar|cvar|vtype)\b/;
 const REST_DIRECTIVE_RE = /^\.\.\s+[\w-]+::/;
 const DASH_RULE_RE = /^\s*(-{3,}|={3,})\s*$/;
 
 function classifyPythonDocstring(text) {
   const counts = { google: 0, numpy: 0, sphinx: 0, rest: 0 };
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (GOOGLE_SECTION_RE.test(line)) counts.google++;
     if (SPHINX_FIELD_RE.test(line.trim())) counts.sphinx++;
     if (REST_DIRECTIVE_RE.test(line.trim())) counts.rest++;
-    if (DASH_RULE_RE.test(line) && i > 0 && NUMPY_HEADER_RE.test(lines[i - 1].trim())) counts.numpy++;
+    if (DASH_RULE_RE.test(line) && i > 0 && NUMPY_HEADER_RE.test(lines[i - 1].trim()))
+      counts.numpy++;
   }
   return counts;
 }
 
 function detectPythonDocstringDialect(repoPath, overview, files) {
-  const pyFiles = filterByExt(files, ['.py', '.pyi']).slice(0, COMMENT_FILES_PER_ECO);
+  const pyFiles = filterByExt(files, [".py", ".pyi"]).slice(0, COMMENT_FILES_PER_ECO);
   const totals = { google: 0, numpy: 0, sphinx: 0, rest: 0 };
   for (const f of pyFiles) {
     const content = readFile(join(repoPath, f));
@@ -261,7 +287,7 @@ function detectPythonDocstringDialect(repoPath, overview, files) {
     const c = classifyPythonDocstring(content);
     for (const k of Object.keys(totals)) totals[k] += c[k];
   }
-  const order = ['google', 'numpy', 'sphinx', 'rest'];
+  const order = ["google", "numpy", "sphinx", "rest"];
   let dominant = null;
   let best = 0;
   for (const k of order) {
@@ -278,7 +304,8 @@ function detectPythonDocstringDialect(repoPath, overview, files) {
 // ---------------------------------------------------------------------------
 
 const DOC_BLOCK_RE = /\/\*\*[\s\S]*?\*\//g;
-const TSDOC_TAG_RE = /@(template|typeParam|override|public|private|protected|readonly|sealed|internal|virtual|abstract|satisfies)\b/;
+const TSDOC_TAG_RE =
+  /@(template|typeParam|override|public|private|protected|readonly|sealed|internal|virtual|abstract|satisfies)\b/;
 
 function classifyDocBlocks(text, isTs) {
   const blocks = text.match(DOC_BLOCK_RE) || [];
@@ -296,7 +323,7 @@ function classifyDocBlocks(text, isTs) {
 function detectDocStyle(repoPath, overview, files) {
   const result = { jsdocBlocks: 0, tsdocBlocks: 0, dominant: null, filesAnalyzed: 0 };
   for (const eco of resolveAllEcosystems(overview)) {
-    if (eco !== 'javascript' && eco !== 'typescript') continue;
+    if (eco !== "javascript" && eco !== "typescript") continue;
     const desc = descriptorFor(eco);
     if (!desc) continue;
     const subset = filterByExt(files, desc.extensions).slice(0, COMMENT_FILES_PER_ECO);
@@ -304,13 +331,13 @@ function detectDocStyle(repoPath, overview, files) {
     for (const f of subset) {
       const content = readFile(join(repoPath, f));
       if (!content) continue;
-      const r = classifyDocBlocks(content, eco === 'typescript');
+      const r = classifyDocBlocks(content, eco === "typescript");
       result.jsdocBlocks += r.jsdoc;
       result.tsdocBlocks += r.tsdoc;
     }
   }
-  if (result.tsdocBlocks > result.jsdocBlocks) result.dominant = 'tsdoc';
-  else if (result.jsdocBlocks > result.tsdocBlocks) result.dominant = 'jsdoc';
+  if (result.tsdocBlocks > result.jsdocBlocks) result.dominant = "tsdoc";
+  else if (result.jsdocBlocks > result.tsdocBlocks) result.dominant = "jsdoc";
   return result;
 }
 
@@ -320,28 +347,34 @@ function detectDocStyle(repoPath, overview, files) {
 
 function detectLicense(repoPath) {
   const licFiles = [
-    'LICENSE', 'LICENSE.md', 'LICENSE.txt',
-    'LICENCE', 'LICENCE.md', 'LICENCE.txt',
-    'COPYING', 'UNLICENSE',
+    "LICENSE",
+    "LICENSE.md",
+    "LICENSE.txt",
+    "LICENCE",
+    "LICENCE.md",
+    "LICENCE.txt",
+    "COPYING",
+    "UNLICENSE",
   ];
   const found = findFile(repoPath, licFiles);
-  if (!found) return { present: false, name: 'none' };
+  if (!found) return { present: false, name: "none" };
 
-  let name = 'unknown';
+  let name = "unknown";
   // F-022/F-023: bounded, contained read of the well-known license name.
   const content = readFile(join(repoPath, found), repoPath);
   if (content != null) {
     const lower = content.slice(0, 2000).toLowerCase();
-    if (lower.includes('mit license') || (lower.includes('mit') && lower.includes('permission'))) name = 'MIT';
-    else if (lower.includes('apache license') || lower.includes('apache 2.0')) name = 'Apache-2.0';
-    else if (lower.includes('gnu general public license')) name = 'GPL';
-    else if (lower.includes('gnu lesser general public license')) name = 'LGPL';
-    else if (lower.includes('bsd')) name = 'BSD';
-    else if (lower.includes('isc')) name = 'ISC';
-    else if (lower.includes('unlicense')) name = 'Unlicense';
-    else if (lower.includes('mozilla public license')) name = 'MPL';
-    else if (lower.includes('creative commons')) name = 'CC';
-    else name = 'Other (see file)';
+    if (lower.includes("mit license") || (lower.includes("mit") && lower.includes("permission")))
+      name = "MIT";
+    else if (lower.includes("apache license") || lower.includes("apache 2.0")) name = "Apache-2.0";
+    else if (lower.includes("gnu general public license")) name = "GPL";
+    else if (lower.includes("gnu lesser general public license")) name = "LGPL";
+    else if (lower.includes("bsd")) name = "BSD";
+    else if (lower.includes("isc")) name = "ISC";
+    else if (lower.includes("unlicense")) name = "Unlicense";
+    else if (lower.includes("mozilla public license")) name = "MPL";
+    else if (lower.includes("creative commons")) name = "CC";
+    else name = "Other (see file)";
   }
 
   return { present: true, name, path: found };
@@ -364,22 +397,22 @@ function countLines(content) {
 function referenceDocMarkers(content) {
   const markers = [];
   if (RFC2119_RE.test(content) && NORMATIVE_KEYWORD_RE.test(content)) {
-    markers.push('RFC 2119 vocabulary');
+    markers.push("RFC 2119 vocabulary");
   }
   const ids = new Set();
   for (const match of content.matchAll(GATE_ID_RE)) {
     ids.add(match[0]);
     if (ids.size >= GATE_ID_MIN_DISTINCT) break;
   }
-  if (ids.size >= GATE_ID_MIN_DISTINCT) markers.push('stable gate IDs');
-  if (REPLICATION_CARDS_RE.test(content)) markers.push('agent replication cards');
+  if (ids.size >= GATE_ID_MIN_DISTINCT) markers.push("stable gate IDs");
+  if (REPLICATION_CARDS_RE.test(content)) markers.push("agent replication cards");
   return markers;
 }
 
 function detectReferenceDocs(repoPath, files) {
-  const normalized = (files || []).map((file) => file.replace(/\\/g, '/'));
+  const normalized = (files || []).map((file) => file.replace(/\\/g, "/"));
   const rootMarkdown = normalized
-    .filter((file) => !file.includes('/'))
+    .filter((file) => !file.includes("/"))
     .filter((file) => /\.md$/i.test(file));
   const candidates = new Set([...REFERENCE_DOC_NAMES, ...rootMarkdown]);
   const docs = [];
@@ -402,10 +435,15 @@ function detectReferenceDocs(repoPath, files) {
 }
 
 function detectSecurity(repoPath) {
-  const secPath = findFile(repoPath, ['SECURITY.md', 'security.md', '.github/SECURITY.md', '.github/security.md']);
+  const secPath = findFile(repoPath, [
+    "SECURITY.md",
+    "security.md",
+    ".github/SECURITY.md",
+    ".github/security.md",
+  ]);
   if (!secPath) return { present: false, path: null, purpose: null };
-  const content = readFile(join(repoPath, secPath), repoPath) || '';
-  let purpose = 'security policy';
+  const content = readFile(join(repoPath, secPath), repoPath) || "";
+  let purpose = "security policy";
   for (const { re, purpose: token } of SECURITY_PURPOSE_TOKENS) {
     if (re.test(content)) {
       purpose = token;
@@ -418,7 +456,9 @@ function detectSecurity(repoPath) {
 function normalizeToolchainScripts(tokens) {
   const list = [...tokens];
   return list
-    .filter((token) => !list.some((other) => other.length > token.length && other.startsWith(token)))
+    .filter(
+      (token) => !list.some((other) => other.length > token.length && other.startsWith(token)),
+    )
     .toSorted();
 }
 
@@ -433,7 +473,7 @@ function detectDocToolchain(repoPath) {
     if (matches.length === 0) continue;
     sources.push(rel);
     for (const match of matches) {
-      scripts.add(match.toLowerCase().replace(/\.(ts|js)$/, ''));
+      scripts.add(match.toLowerCase().replace(/\.(ts|js)$/, ""));
     }
   }
   return {
@@ -449,7 +489,14 @@ function detectDocToolchain(repoPath) {
 
 export async function scan(repoPath, overview, broker = commandBroker) {
   const files = await listSourceFiles(repoPath, overview, broker);
-  const readmePath = findFile(repoPath, ['README.md', 'readme.md', 'Readme.md', 'README.markdown', 'README.rst', 'README']);
+  const readmePath = findFile(repoPath, [
+    "README.md",
+    "readme.md",
+    "Readme.md",
+    "README.markdown",
+    "README.rst",
+    "README",
+  ]);
   // F-023: the README is a well-known name; only read it when it resolves
   // inside the repository.
   const readmeContent = readmePath ? readFile(join(repoPath, readmePath), repoPath) : null;
@@ -459,9 +506,15 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const changelog = checkChangelog(repoPath);
   const adrs = detectADRs(repoPath);
 
-  const contributingPath = findFile(repoPath, ['CONTRIBUTING.md', 'Contributing.md', 'contributing.md', '.github/CONTRIBUTING.md']);
-  const hasCodeOfConduct = existsSync(join(repoPath, 'CODE_OF_CONDUCT.md')) ||
-    existsSync(join(repoPath, '.github/CODE_OF_CONDUCT.md'));
+  const contributingPath = findFile(repoPath, [
+    "CONTRIBUTING.md",
+    "Contributing.md",
+    "contributing.md",
+    ".github/CONTRIBUTING.md",
+  ]);
+  const hasCodeOfConduct =
+    existsSync(join(repoPath, "CODE_OF_CONDUCT.md")) ||
+    existsSync(join(repoPath, ".github/CODE_OF_CONDUCT.md"));
 
   const commentRatio = computeCommentRatio(repoPath, overview, files);
   const docstringDialect = detectPythonDocstringDialect(repoPath, overview, files);
@@ -478,10 +531,10 @@ export async function scan(repoPath, overview, broker = commandBroker) {
     if (/TODO|FIXME|HACK|XXX/i.test(content)) todoCount++;
   }
 
-  const signal = readmePath ? 'high' : 'medium';
+  const signal = readmePath ? "high" : "medium";
 
   return {
-    dimension: 'documentation',
+    dimension: "documentation",
     signal,
     findings: {
       readme: {

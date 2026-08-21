@@ -10,11 +10,11 @@ format: csm-norms/1
 
 ### Coverage Basis
 
-| Basis | Meaning |
-|-------|---------|
-| `observed` | Scanner fields reported directly from repository artifacts |
-| `inferred` | Scanner fields reported with one or more derived repository patterns |
-| `unverified` | No top-level scanner fields reported |
+| Basis        | Meaning                                                              |
+| ------------ | -------------------------------------------------------------------- |
+| `observed`   | Scanner fields reported directly from repository artifacts           |
+| `inferred`   | Scanner fields reported with one or more derived repository patterns |
+| `unverified` | No top-level scanner fields reported                                 |
 
 ---
 
@@ -39,32 +39,32 @@ Directory tree (max depth 4):
 ```
 
 | Extension | Files |
-|-----------|------:|
-| .js | 1 |
-| .json | 1 |
+| --------- | ----: |
+| .js       |     1 |
+| .json     |     1 |
 | **Total** | **2** |
 
 > Coverage: 100% of scanner fields reported · basis: inferred
 
 ## Technology Stack — `repository`
 
-| Layer | Tool | Version |
-|-------|------|---------|
-| Runtime | Node.js (declared) | — |
-| Language | JavaScript | — |
-| Framework | (none) | — |
-| Package Manager | npm | — |
-| Package | synthetic-package | 1.0.0 |
+| Layer           | Tool               | Version |
+| --------------- | ------------------ | ------- |
+| Runtime         | Node.js (declared) | —       |
+| Language        | JavaScript         | —       |
+| Framework       | (none)             | —       |
+| Package Manager | npm                | —       |
+| Package         | synthetic-package  | 1.0.0   |
 
 > Coverage: 100% of scanner fields reported · basis: observed
 
 ## Configuration — `repository`
 
-| Tool | Config File | Details |
-|------|-------------|---------|
-| Lint | `eslint.config.mjs` | detected |
-| Format | `prettier` | detected |
-| Type checking | — | not detected |
+| Tool          | Config File         | Details      |
+| ------------- | ------------------- | ------------ |
+| Lint          | `eslint.config.mjs` | detected     |
+| Format        | `prettier`          | detected     |
+| Type checking | —                   | not detected |
 
 - **Markers present**: .editorconfig
 
@@ -108,13 +108,13 @@ src/index.js -> src/value.js
 
 ### Layer Breakdown
 
-| Layer | Count |
-|-------|------:|
-| Entry Points | 1 |
-| Core Modules | 1 |
-| Shared Utilities | 0 |
-| Other | 0 |
-| **Total** | **2** |
+| Layer            | Count |
+| ---------------- | ----: |
+| Entry Points     |     1 |
+| Core Modules     |     1 |
+| Shared Utilities |     0 |
+| Other            |     0 |
+| **Total**        | **2** |
 
 > Coverage: 100% of scanner fields reported · basis: observed
 

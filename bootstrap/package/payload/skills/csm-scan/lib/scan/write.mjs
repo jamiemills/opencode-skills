@@ -1,10 +1,10 @@
-import { rename, unlink, writeFile } from 'node:fs/promises';
+import { rename, unlink, writeFile } from "node:fs/promises";
 
-import { basename, isAbsolute, relative, sep } from 'node:path';
+import { basename, isAbsolute, relative, sep } from "node:path";
 
-import { createRenderContext, finalizeMarkdown } from './render/base.mjs';
-import { DEFAULT_EXISTING_TEN_RENDERER } from './render/existing-ten.mjs';
-import { sanitizeStructuredText, sanitizeText } from './report/reporter.mjs';
+import { createRenderContext, finalizeMarkdown } from "./render/base.mjs";
+import { DEFAULT_EXISTING_TEN_RENDERER } from "./render/existing-ten.mjs";
+import { sanitizeStructuredText, sanitizeText } from "./report/reporter.mjs";
 
 // T005 privacy cutover, R1 threading: WRITE_RENDER_CONTEXT is passed into
 // every deep renderer (write.mjs render call and the pipeline's render
@@ -22,7 +22,10 @@ export const WRITE_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeS
 // redact there even though the structured hook would preserve @scope shapes.
 // F-024: markdownSafe additionally neutralizes the HTML-significant token set
 // so repo-controlled prose cannot smuggle markup into the report.
-const FREE_TEXT_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeText, markdownSafe: true });
+const FREE_TEXT_RENDER_CONTEXT = createRenderContext({
+  privacyHook: sanitizeText,
+  markdownSafe: true,
+});
 
 const { escapeField: escapeFreeText } = FREE_TEXT_RENDER_CONTEXT;
 const { escapeField: escapeStructured } = WRITE_RENDER_CONTEXT;
@@ -32,87 +35,91 @@ const { escapeField: escapeStructured } = WRITE_RENDER_CONTEXT;
 // unchanged; absolute paths render relative to their git root when inside it
 // (the root itself renders `.`) and as a bare basename otherwise.
 function displayRepoPath(overview) {
-  const raw = overview.path || '';
-  if (raw === '' || !isAbsolute(raw)) return raw;
-  const root = typeof overview.gitRoot === 'string' && isAbsolute(overview.gitRoot)
-    ? overview.gitRoot
-    : null;
+  const raw = overview.path || "";
+  if (raw === "" || !isAbsolute(raw)) return raw;
+  const root =
+    typeof overview.gitRoot === "string" && isAbsolute(overview.gitRoot) ? overview.gitRoot : null;
   if (root && (raw === root || raw.startsWith(`${root}${sep}`))) {
-    return relative(root, raw) || '.';
+    return relative(root, raw) || ".";
   }
-  return basename(raw) || '.';
+  return basename(raw) || ".";
 }
 
 function overviewSection(overview) {
-  if (!overview) return '';
+  if (!overview) return "";
   const lines = [];
-  lines.push('## Repository Overview');
-  lines.push('');
-  lines.push(`- **Name**: ${escapeStructured(overview.name || 'unknown')}`);
+  lines.push("## Repository Overview");
+  lines.push("");
+  lines.push(`- **Name**: ${escapeStructured(overview.name || "unknown")}`);
   lines.push(`- **Path**: \`${escapeStructured(displayRepoPath(overview))}\``);
-  lines.push(`- **Languages**: ${escapeStructured((overview.languages || []).join(', ') || 'none detected')}`);
-  lines.push(`- **Package Manager**: ${escapeStructured(overview.packageManager || 'unknown')}`);
+  lines.push(
+    `- **Languages**: ${escapeStructured((overview.languages || []).join(", ") || "none detected")}`,
+  );
+  lines.push(`- **Package Manager**: ${escapeStructured(overview.packageManager || "unknown")}`);
   lines.push(`- **Total Files**: ${overview.totalFiles || 0}`);
   if (overview.gitTrackedTotalFiles != null) {
     lines.push(
       `- **Total Files (git-tracked)**: ${overview.gitTrackedTotalFiles} ` +
-        '(rg-scoped enumeration excludes hidden/gitignored paths)',
+        "(rg-scoped enumeration excludes hidden/gitignored paths)",
     );
   }
   if (overview.isGit) {
-    const rootLabel = overview.gitRoot ? basename(String(overview.gitRoot)) : 'root';
+    const rootLabel = overview.gitRoot ? basename(String(overview.gitRoot)) : "root";
     lines.push(`- **Git**: yes (${escapeStructured(rootLabel)})`);
   }
-  if (overview.description) lines.push(`- **Description**: ${escapeFreeText(overview.description)}`);
-  lines.push('');
-  return lines.join('\n');
+  if (overview.description)
+    lines.push(`- **Description**: ${escapeFreeText(overview.description)}`);
+  lines.push("");
+  return lines.join("\n");
 }
 
 function crossObservationsSection(contradictions) {
-  if (!Array.isArray(contradictions) || contradictions.length === 0) return '';
+  if (!Array.isArray(contradictions) || contradictions.length === 0) return "";
   const lines = [];
-  lines.push('## Cross-observations');
-  lines.push('');
+  lines.push("## Cross-observations");
+  lines.push("");
   for (const c of contradictions) {
-    lines.push(`- ${escapeFreeText(c.description || '')}`);
+    lines.push(`- ${escapeFreeText(c.description || "")}`);
   }
-  lines.push('');
-  return lines.join('\n');
+  lines.push("");
+  return lines.join("\n");
 }
 
 export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_TEN_RENDERER) {
-  if (renderer === null || renderer === undefined || typeof renderer.render !== 'function') {
-    throw new TypeError('writeNORMS requires a renderer with a render(deep) method');
+  if (renderer === null || renderer === undefined || typeof renderer.render !== "function") {
+    throw new TypeError("writeNORMS requires a renderer with a render(deep) method");
   }
   const lines = [];
   const firstRepo = findings.repos[0];
   const firstOverview = firstRepo?.overview;
-  const titleRepo = firstOverview?.name || firstRepo?.overview?.name || 'unknown';
+  const titleRepo = firstOverview?.name || firstRepo?.overview?.name || "unknown";
 
-  lines.push('---');
-  lines.push('format: csm-norms/1');
-  lines.push('---');
-  lines.push('');
+  lines.push("---");
+  lines.push("format: csm-norms/1");
+  lines.push("---");
+  lines.push("");
   lines.push(`# NORMS — ${escapeStructured(titleRepo)}`);
-  lines.push('');
+  lines.push("");
   lines.push(`> Generated by csm-scan on ${findings.generated}`);
   if (findings.repos.length > 1) {
-    const names = findings.repos.map((r) => r.overview?.name || 'unknown').join(', ');
+    const names = findings.repos.map((r) => r.overview?.name || "unknown").join(", ");
     lines.push(`> Scanned repos: ${escapeStructured(names)}`);
   }
-  lines.push('');
-  lines.push('---');
-  lines.push('');
-  lines.push('### Coverage Basis');
-  lines.push('');
-  lines.push('| Basis | Meaning |');
-  lines.push('|-------|---------|');
-  lines.push('| `observed` | Scanner fields reported directly from repository artifacts |');
-  lines.push('| `inferred` | Scanner fields reported with one or more derived repository patterns |');
-  lines.push('| `unverified` | No top-level scanner fields reported |');
-  lines.push('');
-  lines.push('---');
-  lines.push('');
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+  lines.push("### Coverage Basis");
+  lines.push("");
+  lines.push("| Basis | Meaning |");
+  lines.push("|-------|---------|");
+  lines.push("| `observed` | Scanner fields reported directly from repository artifacts |");
+  lines.push(
+    "| `inferred` | Scanner fields reported with one or more derived repository patterns |",
+  );
+  lines.push("| `unverified` | No top-level scanner fields reported |");
+  lines.push("");
+  lines.push("---");
+  lines.push("");
 
   for (const repo of findings.repos) {
     lines.push(overviewSection(repo.overview));
@@ -127,8 +134,11 @@ export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_
     }
   }
 
-  if (findings.global !== undefined && findings.global !== null
-      && typeof renderer.renderGlobal === 'function') {
+  if (
+    findings.global !== undefined &&
+    findings.global !== null &&
+    typeof renderer.renderGlobal === "function"
+  ) {
     const globalSection = renderer.renderGlobal(findings.global);
     if (globalSection) lines.push(globalSection);
   }
@@ -140,7 +150,7 @@ export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_
   // per-run unique; on failure the temp file is removed and the error rethrown.
   const tmpPath = `${outPath}.tmp-${process.pid}-${Date.now().toString(36)}`;
   try {
-    await writeFile(tmpPath, content, 'utf-8');
+    await writeFile(tmpPath, content, "utf-8");
     await rename(tmpPath, outPath);
   } catch (error) {
     try {

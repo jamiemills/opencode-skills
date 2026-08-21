@@ -1,9 +1,9 @@
-import test, { before, after } from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, delimiter } from 'node:path';
-import { execDetached, execInContainer } from '../../lib/docker.mjs';
+import test, { before, after } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, writeFile, chmod, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, delimiter } from "node:path";
+import { execDetached, execInContainer } from "../../lib/docker.mjs";
 
 // Sub-item 1 (T004): the execLayer gained an optional `timeout` on
 // execDetached/execInContainer whose DEFAULT is the previous behavior (no
@@ -24,8 +24,8 @@ const origPath = process.env.PATH;
 let fakeBin;
 
 before(async () => {
-  fakeBin = await mkdtemp(join(tmpdir(), 'csm-browse-docker-bin-'));
-  const script = join(fakeBin, 'docker');
+  fakeBin = await mkdtemp(join(tmpdir(), "csm-browse-docker-bin-"));
+  const script = join(fakeBin, "docker");
   await writeFile(script, FAKE_DOCKER, { mode: 0o755 });
   await chmod(script, 0o755);
   process.env.PATH = `${fakeBin}${delimiter}${origPath}`;
@@ -36,44 +36,56 @@ after(async () => {
   await rm(fakeBin, { recursive: true, force: true });
 });
 
-function mode(value) { process.env.FAKE_DOCKER_MODE = value; }
+function mode(value) {
+  process.env.FAKE_DOCKER_MODE = value;
+}
 
-test('execInContainer: fast command resolves and returns stdout (default behavior unchanged)', async () => {
-  mode('ok');
+test("execInContainer: fast command resolves and returns stdout (default behavior unchanged)", async () => {
+  mode("ok");
   try {
-    const out = await execInContainer('container', ['echo', 'x']);
-    assert.equal(out, '');
-  } finally { mode(''); }
+    const out = await execInContainer("container", ["echo", "x"]);
+    assert.equal(out, "");
+  } finally {
+    mode("");
+  }
 });
 
-test('execInContainer: timeout option fires and kills the hanging child (err.killed)', async () => {
-  mode('hang');
+test("execInContainer: timeout option fires and kills the hanging child (err.killed)", async () => {
+  mode("hang");
   try {
     await assert.rejects(
-      execInContainer('container', ['anything'], undefined, { timeout: 300 }),
+      execInContainer("container", ["anything"], undefined, { timeout: 300 }),
       (err) => err.killed === true,
-      'expected the timeout to kill the child with err.killed=true'
+      "expected the timeout to kill the child with err.killed=true",
     );
-  } finally { mode(''); }
+  } finally {
+    mode("");
+  }
 });
 
-test('execDetached: fast command resolves and nonzero exit rejects (default behavior unchanged)', async () => {
-  mode('ok');
+test("execDetached: fast command resolves and nonzero exit rejects (default behavior unchanged)", async () => {
+  mode("ok");
   try {
-    await execDetached('container', ['true']);
-  } finally { mode(''); }
-  mode('fail');
+    await execDetached("container", ["true"]);
+  } finally {
+    mode("");
+  }
+  mode("fail");
   try {
-    await assert.rejects(execDetached('container', ['false']), /docker exec -d failed with code 1/);
-  } finally { mode(''); }
+    await assert.rejects(execDetached("container", ["false"]), /docker exec -d failed with code 1/);
+  } finally {
+    mode("");
+  }
 });
 
-test('execDetached: timeout option kills a wedged docker CLI and rejects', async () => {
-  mode('hang');
+test("execDetached: timeout option kills a wedged docker CLI and rejects", async () => {
+  mode("hang");
   try {
     await assert.rejects(
-      execDetached('container', ['anything'], { timeout: 300 }),
-      /docker exec -d timed out after 300ms/
+      execDetached("container", ["anything"], { timeout: 300 }),
+      /docker exec -d timed out after 300ms/,
     );
-  } finally { mode(''); }
+  } finally {
+    mode("");
+  }
 });

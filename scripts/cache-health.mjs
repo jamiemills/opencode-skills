@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
 // Zero-dependency cache-health monitor (plan T002). Reports per-session and
 // per-day cache hit ratios and actual DB cost for deepseek-v4-flash sessions.
@@ -20,21 +20,21 @@
 // time_created is epoch milliseconds; `--days N` filters
 // `time_created >= now - N * 86400000`.
 
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-import { isEnabled } from './lib/token-efficiency.mjs';
+import { isEnabled } from "./lib/token-efficiency.mjs";
 
-const MODEL_FILTER = '%deepseek-v4-flash%';
+const MODEL_FILTER = "%deepseek-v4-flash%";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_COLUMNS = 8;
 
 function toNumberOrNaN(value) {
   const t = value.trim();
-  if (t === '') return NaN;
+  if (t === "") return NaN;
   const n = Number(t);
   return Number.isFinite(n) ? n : NaN;
 }
@@ -44,9 +44,9 @@ function toNumberOrNaN(value) {
 // lines and rows without a usable time_created are skipped.
 export function parseSessionRows(tsvText) {
   const rows = [];
-  for (const line of String(tsvText).split('\n')) {
-    if (line.trim() === '') continue;
-    const cells = line.split('\t');
+  for (const line of String(tsvText).split("\n")) {
+    if (line.trim() === "") continue;
+    const cells = line.split("\t");
     if (cells.length < SESSION_COLUMNS) continue;
     const [id, slug, agent, timeRaw, inputRaw, cacheReadRaw, cacheWriteRaw, costRaw] = cells;
     const input = toNumberOrNaN(inputRaw);
@@ -86,7 +86,15 @@ export function aggregateReport(rows) {
   const byDay = new Map();
   for (const s of sessions) {
     const date = new Date(s.timeCreated).toISOString().slice(0, 10);
-    const day = byDay.get(date) ?? { date, sessionCount: 0, input: 0, cacheRead: 0, cacheWrite: 0, cost: 0, skipped: 0 };
+    const day = byDay.get(date) ?? {
+      date,
+      sessionCount: 0,
+      input: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      cost: 0,
+      skipped: 0,
+    };
     day.sessionCount += 1;
     day.input += s.input;
     day.cacheRead += s.cacheRead;
@@ -106,53 +114,57 @@ export function aggregateReport(rows) {
 }
 
 function fmtInt(n) {
-  return Math.round(n).toLocaleString('en-US');
+  return Math.round(n).toLocaleString("en-US");
 }
 
 function fmtPct(value) {
-  if (value === null) return 'n/a';
+  if (value === null) return "n/a";
   return `${(value * 100).toFixed(1)}%`;
 }
 
 function fmtCost(n) {
-  return n === 0 ? '0' : n.toFixed(8);
+  return n === 0 ? "0" : n.toFixed(8);
 }
 
 // Renders the report in the repo's plain check-suite-style text.
-export function renderReport(report, { windowLabel = 'all sessions' } = {}) {
+export function renderReport(report, { windowLabel = "all sessions" } = {}) {
   const out = [];
-  out.push('cache-health: deepseek-v4-flash cache hit report');
-  out.push(`window: ${windowLabel} · sessions: ${report.sessionCount} · zero-denominator skipped: ${report.skipped}`);
-  out.push('');
-  out.push('per-session (newest first):');
-  out.push('  slug                          agent    input    cache.read  cache.write  hit %  cost');
+  out.push("cache-health: deepseek-v4-flash cache hit report");
+  out.push(
+    `window: ${windowLabel} · sessions: ${report.sessionCount} · zero-denominator skipped: ${report.skipped}`,
+  );
+  out.push("");
+  out.push("per-session (newest first):");
+  out.push(
+    "  slug                          agent    input    cache.read  cache.write  hit %  cost",
+  );
   for (const s of report.sessions) {
     out.push(
       `  ${s.slug.padEnd(30)}${s.agent.padEnd(9)}${fmtInt(s.input).padStart(8)}  ${fmtInt(s.cacheRead).padStart(10)}  ${fmtInt(s.cacheWrite).padStart(10)}  ${fmtPct(s.hitRatio).padStart(5)}  ${fmtCost(s.cost)}`,
     );
   }
-  out.push('');
-  out.push('per-day summary (UTC):');
-  out.push('  date         sessions  input    cache.read  hit %  cost');
+  out.push("");
+  out.push("per-day summary (UTC):");
+  out.push("  date         sessions  input    cache.read  hit %  cost");
   for (const d of report.days) {
     out.push(
       `  ${d.date}  ${String(d.sessionCount).padStart(8)}  ${fmtInt(d.input).padStart(8)}  ${fmtInt(d.cacheRead).padStart(10)}  ${fmtPct(d.hitRatio).padStart(5)}  ${fmtCost(d.cost)}`,
     );
   }
-  out.push('');
-  return out.join('\n');
+  out.push("");
+  return out.join("\n");
 }
 
 function parseArgs(argv) {
   const args = { days: null, help: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
-    if (a === '--days') {
+    if (a === "--days") {
       const n = Number(argv[i + 1]);
-      if (!Number.isInteger(n) || n <= 0) throw new Error('--days requires a positive integer');
+      if (!Number.isInteger(n) || n <= 0) throw new Error("--days requires a positive integer");
       args.days = n;
       i += 1;
-    } else if (a === '-h' || a === '--help') {
+    } else if (a === "-h" || a === "--help") {
       args.help = true;
     } else {
       throw new Error(`unknown argument: ${a}`);
@@ -170,7 +182,7 @@ function main() {
     process.exit(2);
   }
   if (args.help) {
-    console.log('usage: node scripts/cache-health.mjs [--days N]');
+    console.log("usage: node scripts/cache-health.mjs [--days N]");
     process.exit(0);
   }
 
@@ -182,23 +194,30 @@ function main() {
   }
 
   const cutoff = args.days === null ? null : Date.now() - args.days * DAY_MS;
-  const windowClause = cutoff === null ? '' : ` and time_created >= ${cutoff}`;
+  const windowClause = cutoff === null ? "" : ` and time_created >= ${cutoff}`;
   const sql = [
-    'select id, slug, agent, time_created, tokens_input, tokens_cache_read, tokens_cache_write, cost',
+    "select id, slug, agent, time_created, tokens_input, tokens_cache_read, tokens_cache_write, cost",
     `from session where model LIKE '${MODEL_FILTER}'${windowClause} order by time_created desc`,
-  ].join(' ');
+  ].join(" ");
 
   let tsv;
   try {
-    tsv = execFileSync('opencode', ['db', sql, '--format', 'tsv'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+    tsv = execFileSync("opencode", ["db", sql, "--format", "tsv"], {
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    });
   } catch (err) {
-    console.error(`cache-health: opencode db query failed: ${err.stderr !== undefined && err.stderr !== '' ? err.stderr : err.message}`);
+    console.error(
+      `cache-health: opencode db query failed: ${err.stderr !== undefined && err.stderr !== "" ? err.stderr : err.message}`,
+    );
     process.exit(1);
   }
 
   const report = aggregateReport(parseSessionRows(tsv));
   const windowLabel =
-    args.days === null ? 'all sessions' : `last ${args.days} days (cutoff ${new Date(cutoff).toISOString().slice(0, 10)} UTC)`;
+    args.days === null
+      ? "all sessions"
+      : `last ${args.days} days (cutoff ${new Date(cutoff).toISOString().slice(0, 10)} UTC)`;
   process.stdout.write(`${renderReport(report, { windowLabel })}\n`);
 }
 

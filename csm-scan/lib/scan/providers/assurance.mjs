@@ -26,37 +26,37 @@
 // node:child_process / node:process / node:vm / node:module, so the recurring
 // capability gate remains closed.
 
-import { assertDataOnly, compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult } from './base.mjs';
-import { ASSURANCE_DIMENSION_ID } from '../deep/assurance/model.mjs';
+import { assertDataOnly, compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult } from "./base.mjs";
+import { ASSURANCE_DIMENSION_ID } from "../deep/assurance/model.mjs";
 
-export const ASSURANCE_PROVIDER_ID = 'PRV-assurance-supply-chain-v1';
+export const ASSURANCE_PROVIDER_ID = "PRV-assurance-supply-chain-v1";
 
 const SOURCE_KIND_BY_CATEGORY = Object.freeze({
-  accessibility: 'documentation',
-  attestation: 'artifact_metadata',
-  configuration: 'config',
-  license: 'manifest',
-  lock: 'lockfile',
-  manifest: 'manifest',
-  pin: 'lockfile',
-  sarif: 'tool_result',
-  sbom: 'tool_result',
-  source: 'config',
-  standard: 'policy',
-  tool_result: 'tool_result',
-  vex: 'tool_result',
+  accessibility: "documentation",
+  attestation: "artifact_metadata",
+  configuration: "config",
+  license: "manifest",
+  lock: "lockfile",
+  manifest: "manifest",
+  pin: "lockfile",
+  sarif: "tool_result",
+  sbom: "tool_result",
+  source: "config",
+  standard: "policy",
+  tool_result: "tool_result",
+  vex: "tool_result",
 });
 
 function sourceKindFor(record) {
-  if (record.category === 'license' && record.details.declared === 'file') return 'documentation';
-  if (record.category === 'pin' && record.details.scope === 'manifest') return 'manifest';
-  return SOURCE_KIND_BY_CATEGORY[record.category] ?? 'artifact_metadata';
+  if (record.category === "license" && record.details.declared === "file") return "documentation";
+  if (record.category === "pin" && record.details.scope === "manifest") return "manifest";
+  return SOURCE_KIND_BY_CATEGORY[record.category] ?? "artifact_metadata";
 }
 
 function flattenedDetails(record) {
   const details = { status: record.status };
-  if (record.category === 'sbom') {
+  if (record.category === "sbom") {
     const projection = record.details.projection ?? {};
     details.format = record.details.format;
     details.specVersion = record.details.specVersion;
@@ -65,7 +65,7 @@ function flattenedDetails(record) {
     details.packageCoordinates = projection.packageCoordinates ?? [];
     return details;
   }
-  if (record.category === 'sarif') {
+  if (record.category === "sarif") {
     const projection = record.details.projection ?? {};
     details.version = record.details.version;
     details.runCount = projection.runCount ?? 0;
@@ -116,20 +116,39 @@ function validateModel(model) {
  *   empty or foreign input.
  */
 export function assuranceObservations(model) {
-  if (model === null || typeof model !== 'object'
-      || !Array.isArray(model.manifest) && !Array.isArray(model.pin)) return [];
-  validateModel(model);  const observations = [];
+  if (
+    model === null ||
+    typeof model !== "object" ||
+    (!Array.isArray(model.manifest) && !Array.isArray(model.pin))
+  )
+    return [];
+  validateModel(model);
+  const observations = [];
   for (const category of [
-    'manifest', 'lock', 'pin', 'source', 'license', 'sbom', 'vex', 'sarif',
-    'configuration', 'tool_result', 'accessibility', 'attestation', 'standard',
+    "manifest",
+    "lock",
+    "pin",
+    "source",
+    "license",
+    "sbom",
+    "vex",
+    "sarif",
+    "configuration",
+    "tool_result",
+    "accessibility",
+    "attestation",
+    "standard",
   ]) {
     for (const record of Array.isArray(model[category]) ? model[category] : []) {
       observations.push(observationFor(record));
     }
   }
-  observations.sort((left, right) => compareAscii(left.category, right.category)
-    || compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.path ?? '', right.path ?? ''));
+  observations.sort(
+    (left, right) =>
+      compareAscii(left.category, right.category) ||
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.path ?? "", right.path ?? ""),
+  );
   const unique = [];
   const seen = new Set();
   for (const observation of observations) {
@@ -147,7 +166,7 @@ export function assuranceObservations(model) {
  * @returns {object[]} Deep-frozen provider results (possibly empty).
  */
 export function assuranceProviderResult(model) {
-  return assuranceObservations(model).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: ASSURANCE_PROVIDER_ID, dimensionId, observations })
-  ));
+  return assuranceObservations(model).map(({ dimensionId, observations }) =>
+    createProviderResult({ providerId: ASSURANCE_PROVIDER_ID, dimensionId, observations }),
+  );
 }

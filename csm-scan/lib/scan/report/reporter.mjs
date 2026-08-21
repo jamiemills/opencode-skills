@@ -22,17 +22,20 @@
 // ESM only. Zero npm deps. node: builtins only. The module never performs
 // filesystem, network, or child-process access itself.
 
-import { assertPrivacySafe } from '../shared/privacy.mjs';
-import { SECRET_TOKEN_FAMILIES, spanMatcher } from '../shared/token-families.mjs';
+import { assertPrivacySafe } from "../shared/privacy.mjs";
+import { SECRET_TOKEN_FAMILIES, spanMatcher } from "../shared/token-families.mjs";
 
-export const REDACTED = '[redacted]';
+export const REDACTED = "[redacted]";
 
 const EMAIL = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
-const POSIX_ABSOLUTE = /(^|[\s"'=(])\/(?!\/)[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%+-]+)*/g;
-const POSIX_DOUBLE_SLASH = /(^|[\s"'=(])\/\/[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%+-]+)*/g;
+const POSIX_ABSOLUTE =
+  /(^|[\s"'=(])\/(?!\/)[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%+-]+)*/g;
+const POSIX_DOUBLE_SLASH =
+  /(^|[\s"'=(])\/\/[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%+-]+)*/g;
 const WINDOWS_ABSOLUTE = /(^|[\s"'=(])[A-Za-z]:[\\/][^\s"'<>]*/g;
 const UNC_PATH = /(^|[\s"'=(])(?:\\\\|\\\\\\\\)[^\\\s]+(?:\\|\\\\)[^\s"'<>]+/g;
-const SECRET = /(?:-----BEGIN[ ](?:RSA |EC |OPENSSH )?PRIVATE[ ]KEY-----|\b(?:bearer|password|passwd|secret|token|api[_-]?key|client[_-]?secret|access[_-]?token|refresh[_-]?token|auth[_-]?token|session)\s*[:=]\s*\S+|\b[a-z][a-z0-9_-]*_token\s*[:=]\s*\S+|\b(?:gh[opusr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b)/gi;
+const SECRET =
+  /(?:-----BEGIN[ ](?:RSA |EC |OPENSSH )?PRIVATE[ ]KEY-----|\b(?:bearer|password|passwd|secret|token|api[_-]?key|client[_-]?secret|access[_-]?token|refresh[_-]?token|auth[_-]?token|session)\s*[:=]\s*\S+|\b[a-z][a-z0-9_-]*_token\s*[:=]\s*\S+|\b(?:gh[opusr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b)/gi;
 const URL_CREDENTIAL = /\bhttps?:\/\/[^\s/@:]+:[^\s/@]+@/gi;
 const OWNER_IDENTITY = /(^|[\s"'])@[A-Za-z0-9][A-Za-z0-9_-]{1,38}\b/g;
 const COMMIT_SUBJECT = /^(?:commit subject|subject):\s*\S/gi;
@@ -46,7 +49,11 @@ const REDACTIONS = Object.freeze([
   // F-025: span redaction for the deep scanner's token families (JWT, Slack,
   // Stripe, NPM, GitHub, AWS, ...) — a family the scanner detects must never
   // survive into the report. Each family's full token span is replaced.
-  ...SECRET_TOKEN_FAMILIES.map(({ re }) => (text) => text.replace(spanMatcher(re), REDACTED)),
+  ...SECRET_TOKEN_FAMILIES.map(
+    ({ re }) =>
+      (text) =>
+        text.replace(spanMatcher(re), REDACTED),
+  ),
   (text) => text.replace(COMMIT_SUBJECT, REDACTED),
   (text) => text.replace(POSIX_DOUBLE_SLASH, (_match, boundary) => `${boundary}${REDACTED}`),
   (text) => text.replace(UNC_PATH, (_match, boundary) => `${boundary}${REDACTED}`),
@@ -89,7 +96,10 @@ export function sanitizeStructuredText(value) {
     return `\u0000${spans.length - 1}\u0000`;
   });
   let result = sanitizeText(masked);
-  result = result.replace(SCOPED_NAME_PLACEHOLDER, (_match, index) => spans[Number(index)] ?? REDACTED);
+  result = result.replace(
+    SCOPED_NAME_PLACEHOLDER,
+    (_match, index) => spans[Number(index)] ?? REDACTED,
+  );
   let secretCleaned = result
     .replace(URL_CREDENTIAL, REDACTED)
     .replace(EMAIL, REDACTED)
@@ -101,37 +111,46 @@ export function sanitizeStructuredText(value) {
 }
 
 export function formatError(error) {
-  if (error === null || error === undefined) return 'Scan failed: unknown error';
-  const name = typeof error?.name === 'string' && error.name.length > 0 ? error.name : 'Error';
-  const message = typeof error?.message === 'string' ? error.message : String(error);
+  if (error === null || error === undefined) return "Scan failed: unknown error";
+  const name = typeof error?.name === "string" && error.name.length > 0 ? error.name : "Error";
+  const message = typeof error?.message === "string" ? error.message : String(error);
   return `${name}: ${sanitizeText(message)}`;
 }
 
 function isGuarded(stream, guard) {
-  return typeof stream?.write === 'function' && stream.write === guard;
+  return typeof stream?.write === "function" && stream.write === guard;
 }
 
 function guardWrite(stream, sanitize) {
-  if (stream === null || stream === undefined || typeof stream.write !== 'function') return null;
+  if (stream === null || stream === undefined || typeof stream.write !== "function") return null;
   const originalWrite = stream.write.bind(stream);
   const guarded = function guardedWrite(chunk, encoding, callback) {
     let enc = encoding;
     let cb = callback;
-    if (typeof enc === 'function') {
+    if (typeof enc === "function") {
       cb = enc;
       enc = undefined;
     }
-    const text = Buffer.isBuffer(chunk) ? chunk.toString(enc || 'utf8') : String(chunk);
+    const text = Buffer.isBuffer(chunk) ? chunk.toString(enc || "utf8") : String(chunk);
     return originalWrite(sanitize(text), enc, cb);
   };
-  return { guarded, restore: () => { stream.write = originalWrite; } };
+  return {
+    guarded,
+    restore: () => {
+      stream.write = originalWrite;
+    },
+  };
 }
 
 /**
  * Wrap `process.stdout.write` and `process.stderr.write` so every write is
  * privacy-sanitized. Returns a `restore()` function. Idempotent per stream.
  */
-export function installSanitizedStdio({ out = process.stdout, err = process.stderr, sanitize = sanitizeText } = {}) {
+export function installSanitizedStdio({
+  out = process.stdout,
+  err = process.stderr,
+  sanitize = sanitizeText,
+} = {}) {
   const restored = [];
   const install = (stream) => {
     if (!isGuarded(stream, sanitize)) {
@@ -167,15 +186,33 @@ export function createReporter({
     err.write(`${sanitize(String(line))}\n`);
   };
   return Object.freeze({
-    info(line) { writeOut(line); },
-    phase(line) { writeOut(line); },
-    progress(line) { writeOut(line); },
-    observation(line) { writeOut(line); },
-    note(line) { writeOut(line); },
-    inferred(line) { writeOut(line); },
-    coverage(line) { writeOut(line); },
-    error(line) { writeErr(line); },
-    warning(line) { writeErr(line); },
+    info(line) {
+      writeOut(line);
+    },
+    phase(line) {
+      writeOut(line);
+    },
+    progress(line) {
+      writeOut(line);
+    },
+    observation(line) {
+      writeOut(line);
+    },
+    note(line) {
+      writeOut(line);
+    },
+    inferred(line) {
+      writeOut(line);
+    },
+    coverage(line) {
+      writeOut(line);
+    },
+    error(line) {
+      writeErr(line);
+    },
+    warning(line) {
+      writeErr(line);
+    },
   });
 }
 

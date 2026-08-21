@@ -1,7 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import { pathToFileURL } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { pathToFileURL } from "node:url";
 
 export function makeFixture(name, files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `csm-scan-${name}-`));
@@ -33,7 +33,15 @@ export async function withFixture(name, files, fn) {
 }
 
 export async function surveyOverview(repoPath) {
-  const url = pathToFileURL(path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'lib', 'scan', 'survey.mjs')).href;
+  const url = pathToFileURL(
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "..",
+      "lib",
+      "scan",
+      "survey.mjs",
+    ),
+  ).href;
   const mod = await import(url);
   return mod.survey(repoPath);
 }

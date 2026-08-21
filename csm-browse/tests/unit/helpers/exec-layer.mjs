@@ -6,4 +6,4 @@
 // Existing suites still import setExecLayerForTests from lib/docker.mjs
 // (transitional re-export); R9 re-points them to this module, after which
 // the docker.mjs alias is removed.
-export { setExecLayerForTests, execLayer, realExecLayer } from '../../../lib/docker.mjs';
+export { setExecLayerForTests, execLayer, realExecLayer } from "../../../lib/docker.mjs";

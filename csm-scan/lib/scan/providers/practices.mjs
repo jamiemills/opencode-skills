@@ -29,24 +29,24 @@
 // and the evidence contract; it never touches node:fs / node:child_process /
 // node:process / node:vm / node:module.
 
-import { assertDataOnly, compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { encodeMatchedKey } from '../deep/practices/model.mjs';
-import { createProviderResult } from './base.mjs';
+import { assertDataOnly, compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { encodeMatchedKey } from "../deep/practices/model.mjs";
+import { createProviderResult } from "./base.mjs";
 
-export const PRACTICES_PROVIDER_ID = 'PRV-analysis-practices-v1';
+export const PRACTICES_PROVIDER_ID = "PRV-analysis-practices-v1";
 
-export const PRACTICES_DIMENSION_ID = 'DIM-practices-v1';
+export const PRACTICES_DIMENSION_ID = "DIM-practices-v1";
 
-const PRACTICES_STATUSES = Object.freeze(['observed', 'inferred', 'unverified']);
+const PRACTICES_STATUSES = Object.freeze(["observed", "inferred", "unverified"]);
 
 function sourceKindFor(category) {
-  if (category === 'methodology') return 'source';
-  if (category === 'enforcement') return 'workflow';
-  if (category === 'automation') return 'config';
-  if (category === 'ritual') return 'documentation';
-  if (category === 'quality_gate') return 'config';
-  if (category === 'agent_workflow') return 'documentation';
-  return 'config';
+  if (category === "methodology") return "source";
+  if (category === "enforcement") return "workflow";
+  if (category === "automation") return "config";
+  if (category === "ritual") return "documentation";
+  if (category === "quality_gate") return "config";
+  if (category === "agent_workflow") return "documentation";
+  return "config";
 }
 
 function stableHash(value) {
@@ -55,7 +55,7 @@ function stableHash(value) {
     hash ^= value.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193);
   }
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function boundedMatchedKey(rawKey, prefix) {
@@ -67,7 +67,7 @@ function boundedMatchedKey(rawKey, prefix) {
 
 function stringList(value) {
   if (!Array.isArray(value)) return null;
-  const kept = value.filter((item) => typeof item === 'string').toSorted(compareAscii);
+  const kept = value.filter((item) => typeof item === "string").toSorted(compareAscii);
   return kept.length > 0 ? kept : null;
 }
 
@@ -106,13 +106,16 @@ function validateModel(model) {
  *   empty or foreign input.
  */
 export function practicesObservations(model) {
-  if (model === null || typeof model !== 'object' || !Array.isArray(model.entries)) return [];
+  if (model === null || typeof model !== "object" || !Array.isArray(model.entries)) return [];
   validateModel(model);
   const observations = [];
   for (const entry of model.entries) observations.push(entryObservation(entry));
 
-  observations.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.path ?? '', right.path ?? ''));
+  observations.sort(
+    (left, right) =>
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.path ?? "", right.path ?? ""),
+  );
 
   const unique = [];
   const seen = new Set();
@@ -131,7 +134,7 @@ export function practicesObservations(model) {
  * @returns {object[]} Deep-frozen provider results (possibly empty).
  */
 export function practicesProviderResult(model) {
-  return practicesObservations(model).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: PRACTICES_PROVIDER_ID, dimensionId, observations })
-  ));
+  return practicesObservations(model).map(({ dimensionId, observations }) =>
+    createProviderResult({ providerId: PRACTICES_PROVIDER_ID, dimensionId, observations }),
+  );
 }

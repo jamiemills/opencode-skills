@@ -33,9 +33,9 @@
 // modules; it never touches node:fs / node:child_process / node:process /
 // node:vm / node:module, so the recurring capability gate remains closed.
 
-import { compareAscii } from '../../contracts/evidence.mjs';
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { enumerate } from '../../shared/enum.mjs';
+import { compareAscii } from "../../contracts/evidence.mjs";
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { enumerate } from "../../shared/enum.mjs";
 import {
   MAINTAINABILITY_LIMITS,
   NO_EXTENSION_LABEL,
@@ -49,11 +49,16 @@ import {
   isValidExcludedExtension,
   sizeBucketFor,
   toolConfigCandidatePaths,
-} from './model.mjs';
-import { countBranchPoints, countFunctionComplexity, dialectForPath, tokenize } from './tokenizer.mjs';
-import { findDuplicateGroups } from './duplicates.mjs';
+} from "./model.mjs";
+import {
+  countBranchPoints,
+  countFunctionComplexity,
+  dialectForPath,
+  tokenize,
+} from "./tokenizer.mjs";
+import { findDuplicateGroups } from "./duplicates.mjs";
 
-export const MAINTAINABILITY_SCANNER_ID = 'DET-maintainability-scan-v1';
+export const MAINTAINABILITY_SCANNER_ID = "DET-maintainability-scan-v1";
 
 const READ_LIMITS = Object.freeze({
   maxBytes: MAINTAINABILITY_LIMITS.maxBytes,
@@ -65,9 +70,9 @@ const READ_LIMITS = Object.freeze({
 const MAX_TOOL_CANDIDATES = 96;
 
 function extensionOf(path) {
-  const base = path.slice(path.lastIndexOf('/') + 1);
-  const dot = base.lastIndexOf('.');
-  return dot > 0 ? base.slice(dot).toLowerCase() : '';
+  const base = path.slice(path.lastIndexOf("/") + 1);
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(dot).toLowerCase() : "";
 }
 
 function diagnostic(path, status, reason, line = null) {
@@ -78,19 +83,23 @@ function sourceRequests(files) {
   const requests = [];
   for (const path of files) {
     if (dialectForPath(path) === null) continue;
-    requests.push({ path, format: 'text', sensitivity: 'internal' });
+    requests.push({ path, format: "text", sensitivity: "internal" });
     if (requests.length >= MAINTAINABILITY_LIMITS.files) break;
   }
   return requests;
 }
 
 function probeRequests() {
-  return toolConfigCandidatePaths().slice(0, MAX_TOOL_CANDIDATES).map((path) => ({
-    path,
-    format: path === 'package.json' || path === 'tsconfig.json' || path === 'jsconfig.json'
-      ? 'json' : 'text',
-    sensitivity: 'internal',
-  }));
+  return toolConfigCandidatePaths()
+    .slice(0, MAX_TOOL_CANDIDATES)
+    .map((path) => ({
+      path,
+      format:
+        path === "package.json" || path === "tsconfig.json" || path === "jsconfig.json"
+          ? "json"
+          : "text",
+      sensitivity: "internal",
+    }));
 }
 
 // Map a raw extension to a disclosed excluded-language label. Extensions that
@@ -100,7 +109,7 @@ function probeRequests() {
 // abort the dimension through `normalizeExcludedLanguage`.
 function disclosedExtension(path) {
   const raw = extensionOf(path);
-  if (raw === '') return NO_EXTENSION_LABEL;
+  if (raw === "") return NO_EXTENSION_LABEL;
   return isValidExcludedExtension(raw) ? raw : OTHER_EXTENSION_LABEL;
 }
 
@@ -152,12 +161,18 @@ export async function scan(repoPath, _overview) {
   let measuredFiles = 0;
 
   for (const result of results) {
-    if (result.status !== 'read') {
-      const reason = result.status === 'unreadable' ? 'UNREADABLE'
-        : result.status === 'malformed' ? 'MALFORMED'
-        : result.status === 'capped' ? 'CAP' : 'UNSUPPORTED';
-      const status = ['capped', 'unreadable', 'malformed'].includes(result.status)
-        ? 'unverified' : 'unsupported';
+    if (result.status !== "read") {
+      const reason =
+        result.status === "unreadable"
+          ? "UNREADABLE"
+          : result.status === "malformed"
+            ? "MALFORMED"
+            : result.status === "capped"
+              ? "CAP"
+              : "UNSUPPORTED";
+      const status = ["capped", "unreadable", "malformed"].includes(result.status)
+        ? "unverified"
+        : "unsupported";
       diagnostics.push(diagnostic(result.path, status, reason));
       continue;
     }
@@ -165,7 +180,7 @@ export async function scan(repoPath, _overview) {
     const dialect = dialectForPath(result.path);
     if (dialect === null) continue;
 
-    const text = typeof result.value === 'string' ? result.value : '';
+    const text = typeof result.value === "string" ? result.value : "";
     const { tokens, truncated } = tokenize(text, dialect);
     const counts = countBranchPoints(tokens, dialect);
     const { functions } = countFunctionComplexity(text, dialect, tokens);
@@ -197,7 +212,7 @@ export async function scan(repoPath, _overview) {
       functionsCapped,
     });
     if (functionsCapped) {
-      diagnostics.push(diagnostic(result.path, 'unverified', 'COMPLEXITY_CAP'));
+      diagnostics.push(diagnostic(result.path, "unverified", "COMPLEXITY_CAP"));
     }
     deadCode.push(...detectDeadCodeSourceSignals({ path: result.path, dialect, text }));
     tokenFiles.push({ path: result.path, tokens });
@@ -208,7 +223,7 @@ export async function scan(repoPath, _overview) {
     if (boundary !== null) boundaryRecords.push(boundary);
 
     if (truncated) {
-      diagnostics.push(diagnostic(result.path, 'unverified', 'TOKEN_LIMIT'));
+      diagnostics.push(diagnostic(result.path, "unverified", "TOKEN_LIMIT"));
     }
   }
 
@@ -216,29 +231,35 @@ export async function scan(repoPath, _overview) {
   let configFilesInspected = 0;
   const probe = await readArtifacts(repoPath, probeRequests(), READ_LIMITS);
   for (const result of probe.results) {
-    if (result.status !== 'read') {
-      if (result.status === 'malformed' || result.status === 'capped') {
-        diagnostics.push(diagnostic(
-          result.path,
-          result.status === 'malformed' ? 'unverified' : 'unverified',
-          result.status === 'malformed' ? 'MALFORMED' : 'CAP',
-        ));
+    if (result.status !== "read") {
+      if (result.status === "malformed" || result.status === "capped") {
+        diagnostics.push(
+          diagnostic(
+            result.path,
+            result.status === "malformed" ? "unverified" : "unverified",
+            result.status === "malformed" ? "MALFORMED" : "CAP",
+          ),
+        );
       }
       continue;
     }
     configFilesInspected++;
-    toolRecords.push(...detectToolEvidence({
-      path: result.path,
-      format: result.format,
-      value: result.value,
-      text: typeof result.value === 'string' ? result.value : '',
-    }));
-    deadCode.push(...detectDeadCodeConfigSignals({
-      path: result.path,
-      format: result.format,
-      value: result.value,
-      text: typeof result.value === 'string' ? result.value : '',
-    }));
+    toolRecords.push(
+      ...detectToolEvidence({
+        path: result.path,
+        format: result.format,
+        value: result.value,
+        text: typeof result.value === "string" ? result.value : "",
+      }),
+    );
+    deadCode.push(
+      ...detectDeadCodeConfigSignals({
+        path: result.path,
+        format: result.format,
+        value: result.value,
+        text: typeof result.value === "string" ? result.value : "",
+      }),
+    );
   }
 
   const duplicateResult = findDuplicateGroups(tokenFiles, {
@@ -274,8 +295,8 @@ export async function scan(repoPath, _overview) {
   });
 
   return {
-    dimension: 'maintainability',
-    signal: model.summary.filesMeasured > 0 ? 'high' : 'low',
+    dimension: "maintainability",
+    signal: model.summary.filesMeasured > 0 ? "high" : "low",
     findings: model,
   };
 }

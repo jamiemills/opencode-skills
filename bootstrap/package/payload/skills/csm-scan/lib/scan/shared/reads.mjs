@@ -9,8 +9,8 @@
 // ESM only. Zero npm deps. node: builtins only. Synchronous — the deep
 // scanners are sync-heavy; async callers on the provider path use
 // `readPluginArtifacts` in pipeline/run.mjs instead.
-import { readFileSync, realpathSync, statSync } from 'node:fs';
-import { sep } from 'node:path';
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { sep } from "node:path";
 
 export const DEFAULT_BYTE_LIMIT = 1024 * 1024;
 
@@ -32,7 +32,10 @@ function isInside(rootReal, candidateReal) {
  *   resolve inside it (realpath) before being read.
  * @returns {string|null}
  */
-export function readBoundedFile(absPath, { byteLimit = DEFAULT_BYTE_LIMIT, containmentRoot = null } = {}) {
+export function readBoundedFile(
+  absPath,
+  { byteLimit = DEFAULT_BYTE_LIMIT, containmentRoot = null } = {},
+) {
   try {
     if (containmentRoot !== null) {
       const rootReal = realpathSync(containmentRoot);
@@ -41,7 +44,7 @@ export function readBoundedFile(absPath, { byteLimit = DEFAULT_BYTE_LIMIT, conta
     }
     const stats = statSync(absPath);
     if (!stats.isFile() || stats.size > byteLimit) return null;
-    const content = readFileSync(absPath, 'utf-8');
+    const content = readFileSync(absPath, "utf-8");
     return content.length > byteLimit ? null : content;
   } catch {
     return null;

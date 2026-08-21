@@ -8,7 +8,7 @@
 // are digest-locked there); registered in inventory.json `fixtureModules`.
 
 export const files = {
-  'package.json': JSON.stringify({ name: 'adv-crlf', type: 'module' }),
-  'src/app.js': '\uFEFFexport function main() {\r\n  return \'adv-crlf\';\r\n}\r\n',
-  'test/app.test.js': '\uFEFFimport { main } from \'../src/app.js\';\r\nconsole.log(main());\r\n',
+  "package.json": JSON.stringify({ name: "adv-crlf", type: "module" }),
+  "src/app.js": "\uFEFFexport function main() {\r\n  return 'adv-crlf';\r\n}\r\n",
+  "test/app.test.js": "\uFEFFimport { main } from '../src/app.js';\r\nconsole.log(main());\r\n",
 };

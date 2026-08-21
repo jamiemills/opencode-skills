@@ -13,55 +13,55 @@
 // reference machinery resolves; single-candidate resolution is proven).
 
 export const repoA = {
-  'package.json': JSON.stringify({ name: 'worker', type: 'module' }),
-  'proto/order.proto': [
+  "package.json": JSON.stringify({ name: "worker", type: "module" }),
+  "proto/order.proto": [
     'syntax = "proto3";',
-    'package acme.orders.v1;',
-    'service OrderService {',
-    '  rpc GetOrder(OrderRequest) returns (OrderReply);',
-    '}',
-    'message OrderRequest { string id = 1; }',
-    'message OrderReply { string id = 1; }',
-    '',
-  ].join('\n'),
+    "package acme.orders.v1;",
+    "service OrderService {",
+    "  rpc GetOrder(OrderRequest) returns (OrderReply);",
+    "}",
+    "message OrderRequest { string id = 1; }",
+    "message OrderReply { string id = 1; }",
+    "",
+  ].join("\n"),
 };
 
 export const repoB = {
-  'package.json': JSON.stringify({ name: 'worker', type: 'module' }),
-  'proto/order.proto': [
+  "package.json": JSON.stringify({ name: "worker", type: "module" }),
+  "proto/order.proto": [
     'syntax = "proto3";',
-    'package acme.orders.v1;',
-    'service OrderService {',
-    '  rpc ListOrders(ListRequest) returns (ListReply);',
-    '}',
-    'message ListRequest { string id = 1; }',
-    'message ListReply { string id = 1; }',
-    '',
-  ].join('\n'),
+    "package acme.orders.v1;",
+    "service OrderService {",
+    "  rpc ListOrders(ListRequest) returns (ListReply);",
+    "}",
+    "message ListRequest { string id = 1; }",
+    "message ListReply { string id = 1; }",
+    "",
+  ].join("\n"),
 };
 
 export const repoASingle = {
-  'package.json': JSON.stringify({ name: 'worker', type: 'module' }),
-  'proto/order.proto': [
+  "package.json": JSON.stringify({ name: "worker", type: "module" }),
+  "proto/order.proto": [
     'syntax = "proto3";',
-    'service ServiceA {',
-    '  rpc GetA(Request) returns (Reply);',
-    '}',
-    'message Request { string id = 1; }',
-    'message Reply { string id = 1; }',
-    '',
-  ].join('\n'),
+    "service ServiceA {",
+    "  rpc GetA(Request) returns (Reply);",
+    "}",
+    "message Request { string id = 1; }",
+    "message Reply { string id = 1; }",
+    "",
+  ].join("\n"),
 };
 
 export const repoBSingle = {
-  'package.json': JSON.stringify({ name: 'worker', type: 'module' }),
-  'proto/order.proto': [
+  "package.json": JSON.stringify({ name: "worker", type: "module" }),
+  "proto/order.proto": [
     'syntax = "proto3";',
-    'service ServiceB {',
-    '  rpc GetB(Request) returns (Reply);',
-    '}',
-    'message Request { string id = 1; }',
-    'message Reply { string id = 1; }',
-    '',
-  ].join('\n'),
+    "service ServiceB {",
+    "  rpc GetB(Request) returns (Reply);",
+    "}",
+    "message Request { string id = 1; }",
+    "message Reply { string id = 1; }",
+    "",
+  ].join("\n"),
 };

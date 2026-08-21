@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help install lint check test test-hooks test-bootstrap test-scan test-browse test-e2e analyze
+.PHONY: help install lint fmt fmt-check check test test-hooks test-bootstrap test-scan test-browse test-e2e analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -11,6 +11,12 @@ install: ## install all deps (pnpm frozen, no lifecycle scripts)
 
 lint: ## oxlint repo-wide, warnings fail (quality bar: .oxlintrc.json correctness+suspicious)
 	pnpm exec oxlint --deny-warnings
+
+fmt: ## format repo-wide with oxfmt
+	pnpm exec oxfmt --ignore-path=.oxfmtignore .
+
+fmt-check: ## verify formatting, no writes (CI gate)
+	pnpm exec oxfmt --check --ignore-path=.oxfmtignore .
 
 check: ## repo conformance gate
 	node scripts/check-suite.mjs

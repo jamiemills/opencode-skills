@@ -20,15 +20,15 @@
 // shared/command.mjs buildCommandEnv copy) is what makes the instrumented
 // run green.
 
-import { spawn } from 'node:child_process';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawn } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // `node --test` discovers every .mjs under test/ — including this script —
 // and executes it as a test file. In that context (NODE_TEST_CONTEXT set by
 // the runner) the gate stays inert instead of spawning a nested suite; it
 // only runs when invoked directly: `node test/scripts/coverage-gate.mjs`.
-if (process.env.NODE_TEST_CONTEXT !== undefined && process.env.NODE_TEST_CONTEXT !== '') {
+if (process.env.NODE_TEST_CONTEXT !== undefined && process.env.NODE_TEST_CONTEXT !== "") {
   process.exit(0);
 }
 
@@ -45,31 +45,31 @@ const FUNCTION_THRESHOLD = 78;
 // established full-suite coverage. A module whose line coverage falls below
 // its floor (or a module that is no longer exercised at all) fails the gate.
 const MODULE_FLOORS = Object.freeze({
-  'lib/scan/deep/architecture/canonical.mjs': { lines: 85, functions: 90 },
-  'lib/scan/shared/jsonc.mjs': { lines: 80, functions: 90 },
-  'lib/scan/render/git.mjs': { lines: 90, branches: 60, functions: 90 },
-  'lib/scan/report/verbose-trace.mjs': { lines: 90, branches: 60, functions: 90 },
+  "lib/scan/deep/architecture/canonical.mjs": { lines: 85, functions: 90 },
+  "lib/scan/shared/jsonc.mjs": { lines: 80, functions: 90 },
+  "lib/scan/render/git.mjs": { lines: 90, branches: 60, functions: 90 },
+  "lib/scan/report/verbose-trace.mjs": { lines: 90, branches: 60, functions: 90 },
 });
 
-const SCAN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SCAN_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const child = spawn(
   process.execPath,
-  ['--test', '--test-concurrency=1', '--experimental-test-coverage'],
-  { cwd: SCAN_ROOT, stdio: ['ignore', 'pipe', 'inherit'] },
+  ["--test", "--test-concurrency=1", "--experimental-test-coverage"],
+  { cwd: SCAN_ROOT, stdio: ["ignore", "pipe", "inherit"] },
 );
 
 const SUMMARY_PATTERN = /^#\s*all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|/;
 const FILE_PATTERN = /^# (\s*)([^|]+?)\s*\|\s*([\d.]*)\s*\|\s*([\d.]*)\s*\|\s*([\d.]*)\s*\|/;
 let summary = null;
-let pending = '';
+let pending = "";
 const fileCoverage = new Map();
 const dirStack = [];
 
-child.stdout.on('data', (chunk) => {
-  pending += chunk.toString('utf8');
+child.stdout.on("data", (chunk) => {
+  pending += chunk.toString("utf8");
   let newline;
-  while ((newline = pending.indexOf('\n')) >= 0) {
+  while ((newline = pending.indexOf("\n")) >= 0) {
     const line = pending.slice(0, newline);
     pending = pending.slice(newline + 1);
     process.stdout.write(`${line}\n`);
@@ -86,13 +86,13 @@ child.stdout.on('data', (chunk) => {
     if (file === null) continue;
     const depth = file[1].length;
     const name = file[2].trim();
-    const linePct = file[3] === '' ? null : Number(file[3]);
-    const branchPct = file[4] === '' ? null : Number(file[4]);
-    const funcPct = file[5] === '' ? null : Number(file[5]);
+    const linePct = file[3] === "" ? null : Number(file[3]);
+    const branchPct = file[4] === "" ? null : Number(file[4]);
+    const funcPct = file[5] === "" ? null : Number(file[5]);
     dirStack[depth] = name;
     dirStack.length = depth + 1;
     if (linePct === null) continue;
-    fileCoverage.set(dirStack.slice(0, depth).concat(name).join('/'), {
+    fileCoverage.set(dirStack.slice(0, depth).concat(name).join("/"), {
       lines: linePct,
       branches: branchPct,
       functions: funcPct,
@@ -101,11 +101,11 @@ child.stdout.on('data', (chunk) => {
 });
 
 const exitCode = await new Promise((resolve) => {
-  child.on('error', (error) => {
+  child.on("error", (error) => {
     console.error(`coverage-gate: failed to start the suite: ${error.message}`);
     resolve(1);
   });
-  child.on('close', resolve);
+  child.on("close", resolve);
 });
 
 if (pending.length > 0) process.stdout.write(`${pending}\n`);
@@ -133,27 +133,33 @@ if (exitCode !== 0) {
       failed.push(`- ${path}: no coverage entry — module is no longer exercised by the suite`);
       continue;
     }
-    moduleCheck(path, coverage.lines, floors.lines ?? 0, 'line');
-    moduleCheck(path, coverage.branches, floors.branches ?? 0, 'branch');
-    moduleCheck(path, coverage.functions, floors.functions ?? 0, 'function');
+    moduleCheck(path, coverage.lines, floors.lines ?? 0, "line");
+    moduleCheck(path, coverage.branches, floors.branches ?? 0, "branch");
+    moduleCheck(path, coverage.functions, floors.functions ?? 0, "function");
   }
   console.error(
     `coverage-gate: line ${summary.lines}% (floor ${LINE_THRESHOLD}%) · branch ${summary.branches}% (floor ${BRANCH_THRESHOLD}%) · funcs ${summary.functions}% (floor ${FUNCTION_THRESHOLD}%)`,
   );
   if (summary.lines < LINE_THRESHOLD) {
-    failed.push(`- aggregate line coverage ${summary.lines}% is below the ${LINE_THRESHOLD}% floor`);
+    failed.push(
+      `- aggregate line coverage ${summary.lines}% is below the ${LINE_THRESHOLD}% floor`,
+    );
   }
   if (summary.branches < BRANCH_THRESHOLD) {
-    failed.push(`- aggregate branch coverage ${summary.branches}% is below the ${BRANCH_THRESHOLD}% floor`);
+    failed.push(
+      `- aggregate branch coverage ${summary.branches}% is below the ${BRANCH_THRESHOLD}% floor`,
+    );
   }
   if (summary.functions < FUNCTION_THRESHOLD) {
-    failed.push(`- aggregate function coverage ${summary.functions}% is below the ${FUNCTION_THRESHOLD}% floor`);
+    failed.push(
+      `- aggregate function coverage ${summary.functions}% is below the ${FUNCTION_THRESHOLD}% floor`,
+    );
   }
   if (failed.length > 0) {
-    console.error('coverage-gate: FAIL — coverage floors not met:');
+    console.error("coverage-gate: FAIL — coverage floors not met:");
     for (const entry of failed) console.error(entry);
     process.exitCode = 1;
   } else {
-    console.error('coverage-gate: PASS');
+    console.error("coverage-gate: PASS");
   }
 }

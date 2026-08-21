@@ -17,8 +17,8 @@
 // `descriptorFor`, so the focused ecosystem tests stay byte-identical. Results
 // are built through the provider foundation and are immutable.
 
-import { deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult } from '../providers/base.mjs';
+import { deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult } from "../providers/base.mjs";
 
 function descriptorObservation(category, matchedKey, details, sourceKind) {
   return { category, path: null, matchedKey, details, sourceKind };
@@ -35,43 +35,73 @@ export function descriptorObservations(ecosystemId) {
   if (!descriptor) return [];
   const groups = [];
   groups.push({
-    dimensionId: 'DIM-stack-v1',
+    dimensionId: "DIM-stack-v1",
     observations: [
-      descriptorObservation('language', 'language', { id: descriptor.id, label: descriptor.label }, 'repository_metadata'),
-      ...(descriptor.runtimes ?? []).map((rt) => descriptorObservation(
-        'runtime', `runtime:${rt.name}`, { name: rt.name }, 'repository_metadata',
-      )),
-      ...(descriptor.packageManagers ?? []).map((name) => descriptorObservation(
-        'package_manager', `package-manager:${name}`, { name }, 'repository_metadata',
-      )),
+      descriptorObservation(
+        "language",
+        "language",
+        { id: descriptor.id, label: descriptor.label },
+        "repository_metadata",
+      ),
+      ...(descriptor.runtimes ?? []).map((rt) =>
+        descriptorObservation(
+          "runtime",
+          `runtime:${rt.name}`,
+          { name: rt.name },
+          "repository_metadata",
+        ),
+      ),
+      ...(descriptor.packageManagers ?? []).map((name) =>
+        descriptorObservation(
+          "package_manager",
+          `package-manager:${name}`,
+          { name },
+          "repository_metadata",
+        ),
+      ),
     ],
   });
   groups.push({
-    dimensionId: 'DIM-config-v1',
+    dimensionId: "DIM-config-v1",
     observations: [
-      ...(descriptor.linters ?? []).map((spec) => descriptorObservation(
-        'lint', `lint:${spec.name}`, { name: spec.name, files: spec.files }, 'config',
-      )),
-      ...(descriptor.formatters ?? []).map((spec) => descriptorObservation(
-        'format', `format:${spec.name}`, { name: spec.name, files: spec.files }, 'config',
-      )),
+      ...(descriptor.linters ?? []).map((spec) =>
+        descriptorObservation(
+          "lint",
+          `lint:${spec.name}`,
+          { name: spec.name, files: spec.files },
+          "config",
+        ),
+      ),
+      ...(descriptor.formatters ?? []).map((spec) =>
+        descriptorObservation(
+          "format",
+          `format:${spec.name}`,
+          { name: spec.name, files: spec.files },
+          "config",
+        ),
+      ),
     ],
   });
   groups.push({
-    dimensionId: 'DIM-testing-v1',
-    observations: Object.entries(descriptor.testFrameworks ?? {}).map(([key, label]) => descriptorObservation(
-      'framework', `test-framework:${key}`, { name: label, key }, 'repository_metadata',
-    )),
+    dimensionId: "DIM-testing-v1",
+    observations: Object.entries(descriptor.testFrameworks ?? {}).map(([key, label]) =>
+      descriptorObservation(
+        "framework",
+        `test-framework:${key}`,
+        { name: label, key },
+        "repository_metadata",
+      ),
+    ),
   });
   groups.push({
-    dimensionId: 'DIM-assurance-v1',
+    dimensionId: "DIM-assurance-v1",
     observations: [
-      ...(descriptor.manifests ?? []).map((name) => descriptorObservation(
-        'manifest', `manifest:${name}`, { name }, 'manifest',
-      )),
-      ...(descriptor.lockfiles ?? []).map((name) => descriptorObservation(
-        'lock', `lock:${name}`, { name }, 'lockfile',
-      )),
+      ...(descriptor.manifests ?? []).map((name) =>
+        descriptorObservation("manifest", `manifest:${name}`, { name }, "manifest"),
+      ),
+      ...(descriptor.lockfiles ?? []).map((name) =>
+        descriptorObservation("lock", `lock:${name}`, { name }, "lockfile"),
+      ),
     ],
   });
   return deepFreeze(groups.filter(({ observations }) => observations.length > 0));
@@ -85,9 +115,9 @@ export function descriptorObservations(ecosystemId) {
  */
 export function descriptorProviderResults(ecosystemId) {
   const provider = `PRV-${ecosystemId}-builtin-v1`;
-  return descriptorObservations(ecosystemId).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: provider, dimensionId, observations })
-  ));
+  return descriptorObservations(ecosystemId).map(({ dimensionId, observations }) =>
+    createProviderResult({ providerId: provider, dimensionId, observations }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -96,23 +126,18 @@ export function descriptorProviderResults(ecosystemId) {
 
 // Hook config files are ecosystem-agnostic. Defined once and referenced by
 // each descriptor so there is exactly one place to edit.
-const HOOK_FILES = [
-  'lefthook.yml',
-  'lefthook.yaml',
-  '.pre-commit-config.yaml',
-  '.husky',
-];
+const HOOK_FILES = ["lefthook.yml", "lefthook.yaml", ".pre-commit-config.yaml", ".husky"];
 
 // Maps a Linguist-style language name (lowercased) to an ecosystem id.
 // Used by detectEcosystems() when a manifest does not declare ecosystems.
 const LANGUAGE_TO_ECOSYSTEM = {
-  python: 'python',
-  javascript: 'javascript',
-  typescript: 'typescript',
-  shell: 'shell',
-  'shell script': 'shell',
-  bash: 'shell',
-  rust: 'rust',
+  python: "python",
+  javascript: "javascript",
+  typescript: "typescript",
+  shell: "shell",
+  "shell script": "shell",
+  bash: "shell",
+  rust: "rust",
 };
 
 // ---------------------------------------------------------------------------
@@ -120,89 +145,115 @@ const LANGUAGE_TO_ECOSYSTEM = {
 // ---------------------------------------------------------------------------
 
 const PYTHON = {
-  id: 'python',
-  label: 'Python',
-  manifests: ['pyproject.toml', 'setup.py', 'setup.cfg', 'requirements.txt', 'Pipfile'],
-  lockfiles: ['uv.lock', 'poetry.lock', 'Pipfile.lock', 'pdm.lock'],
+  id: "python",
+  label: "Python",
+  manifests: ["pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile"],
+  lockfiles: ["uv.lock", "poetry.lock", "Pipfile.lock", "pdm.lock"],
   runtimes: [
     {
-      name: 'Python',
-      manifestField: 'requiresPython',
-      manifestSource: 'pyproject.toml#requires-python',
-      versionFiles: ['.python-version'],
-      toolVersions: ['python'],
-      images: ['python'],
+      name: "Python",
+      manifestField: "requiresPython",
+      manifestSource: "pyproject.toml#requires-python",
+      versionFiles: [".python-version"],
+      toolVersions: ["python"],
+      images: ["python"],
     },
   ],
-  packageManagers: ['uv', 'pip', 'poetry', 'pipenv', 'hatch'],
-  extensions: ['.py', '.pyi'],
-  markers: ['py.typed', 'MANIFEST.in', '.python-version', 'runtime.txt'],
+  packageManagers: ["uv", "pip", "poetry", "pipenv", "hatch"],
+  extensions: [".py", ".pyi"],
+  markers: ["py.typed", "MANIFEST.in", ".python-version", "runtime.txt"],
   frameworks: {
-    click: 'Click',
-    typer: 'Typer',
-    fastapi: 'FastAPI',
-    django: 'Django',
-    flask: 'Flask',
-    starlette: 'Starlette',
-    sanic: 'Sanic',
-    aiohttp: 'AIOHttp',
-    tornado: 'Tornado',
-    rich: 'Rich',
-    httpx: 'HTTPX',
+    click: "Click",
+    typer: "Typer",
+    fastapi: "FastAPI",
+    django: "Django",
+    flask: "Flask",
+    starlette: "Starlette",
+    sanic: "Sanic",
+    aiohttp: "AIOHttp",
+    tornado: "Tornado",
+    rich: "Rich",
+    httpx: "HTTPX",
   },
   testFrameworks: {
-    pytest: 'pytest',
-    unittest: 'unittest (stdlib)',
-    hypothesis: 'Hypothesis',
-    nox: 'nox',
-    tox: 'tox',
-    'pytest-asyncio': 'pytest-asyncio',
-    'pytest-xdist': 'pytest-xdist',
-    'pytest-mock': 'pytest-mock',
-    behave: 'Behave',
-    robotframework: 'Robot Framework',
+    pytest: "pytest",
+    unittest: "unittest (stdlib)",
+    hypothesis: "Hypothesis",
+    nox: "nox",
+    tox: "tox",
+    "pytest-asyncio": "pytest-asyncio",
+    "pytest-xdist": "pytest-xdist",
+    "pytest-mock": "pytest-mock",
+    behave: "Behave",
+    robotframework: "Robot Framework",
   },
-  testFileGlobs: ['tests/test_*.py', 'tests/**/test_*.py', 'conftest.py'],
+  testFileGlobs: ["tests/test_*.py", "tests/**/test_*.py", "conftest.py"],
   testConfigFiles: [
-    'pytest.ini',
-    'tox.ini',
-    'noxfile.py',
-    'setup.cfg',
-    'conftest.py',
-    'pyproject.toml:[tool.pytest.ini_options]',
+    "pytest.ini",
+    "tox.ini",
+    "noxfile.py",
+    "setup.cfg",
+    "conftest.py",
+    "pyproject.toml:[tool.pytest.ini_options]",
   ],
   linters: [
-    { name: 'ruff', files: ['ruff.toml', '.ruff.toml', 'pyproject.toml:[tool.ruff]'] },
-    { name: 'flake8', files: ['.flake8', 'setup.cfg:[flake8]', 'tox.ini:[flake8]'] },
-    { name: 'pylint', files: ['.pylintrc', 'pylintrc', 'pyproject.toml:[tool.pylint]'] },
-    { name: 'bandit', files: ['pyproject.toml:[tool.bandit]', '.bandit'] },
-    { name: 'vulture', files: ['pyproject.toml:[tool.vulture]'] },
-    { name: 'mypy', files: ['mypy.ini', '.mypy.ini', 'pyproject.toml:[tool.mypy]', 'setup.cfg:[mypy]'] },
-    { name: 'pyright', files: ['pyproject.toml:[tool.pyright]', 'pyrightconfig.json'] },
-    { name: 'deptry', files: ['pyproject.toml:[tool.deptry]'] },
-    { name: 'semgrep', files: ['.semgrep.yml', '.semgrep.yaml', '.semgrep'] },
-    { name: 'pydocstyle', files: ['.pydocstyle', 'setup.cfg:[pydocstyle]', 'tox.ini:[pydocstyle]', 'pyproject.toml:[tool.pydocstyle]'] },
-    { name: 'prospector', files: ['.prospector.yaml', '.prospector.yml', 'prospector.yaml', '.prospector'] },
-    { name: 'dlint', files: ['.dlint.toml', 'pyproject.toml:[tool.dlint]', 'setup.cfg:[dlint]'] },
+    { name: "ruff", files: ["ruff.toml", ".ruff.toml", "pyproject.toml:[tool.ruff]"] },
+    { name: "flake8", files: [".flake8", "setup.cfg:[flake8]", "tox.ini:[flake8]"] },
+    { name: "pylint", files: [".pylintrc", "pylintrc", "pyproject.toml:[tool.pylint]"] },
+    { name: "bandit", files: ["pyproject.toml:[tool.bandit]", ".bandit"] },
+    { name: "vulture", files: ["pyproject.toml:[tool.vulture]"] },
+    {
+      name: "mypy",
+      files: ["mypy.ini", ".mypy.ini", "pyproject.toml:[tool.mypy]", "setup.cfg:[mypy]"],
+    },
+    { name: "pyright", files: ["pyproject.toml:[tool.pyright]", "pyrightconfig.json"] },
+    { name: "deptry", files: ["pyproject.toml:[tool.deptry]"] },
+    { name: "semgrep", files: [".semgrep.yml", ".semgrep.yaml", ".semgrep"] },
+    {
+      name: "pydocstyle",
+      files: [
+        ".pydocstyle",
+        "setup.cfg:[pydocstyle]",
+        "tox.ini:[pydocstyle]",
+        "pyproject.toml:[tool.pydocstyle]",
+      ],
+    },
+    {
+      name: "prospector",
+      files: [".prospector.yaml", ".prospector.yml", "prospector.yaml", ".prospector"],
+    },
+    { name: "dlint", files: [".dlint.toml", "pyproject.toml:[tool.dlint]", "setup.cfg:[dlint]"] },
   ],
   formatters: [
-    { name: 'black', files: ['pyproject.toml:[tool.black]'] },
-    { name: 'isort', files: ['.isort.cfg', 'pyproject.toml:[tool.isort]', 'setup.cfg:[isort]', 'tox.ini:[isort]'] },
-    { name: 'ruff-format', files: ['pyproject.toml:[tool.ruff.format]', 'ruff.toml', '.ruff.toml'] },
-    { name: 'autopep8', files: ['pyproject.toml:[tool.autopep8]', 'setup.cfg:[autopep8]'] },
-    { name: 'yapf', files: ['.style.yapf', 'setup.cfg:[yapf]', 'pyproject.toml:[tool.yapf]'] },
-    { name: 'blue', files: ['pyproject.toml:[tool.blue]'] },
-    { name: 'flynt', files: ['pyproject.toml:[tool.flynt]'] },
+    { name: "black", files: ["pyproject.toml:[tool.black]"] },
+    {
+      name: "isort",
+      files: [".isort.cfg", "pyproject.toml:[tool.isort]", "setup.cfg:[isort]", "tox.ini:[isort]"],
+    },
+    {
+      name: "ruff-format",
+      files: ["pyproject.toml:[tool.ruff.format]", "ruff.toml", ".ruff.toml"],
+    },
+    { name: "autopep8", files: ["pyproject.toml:[tool.autopep8]", "setup.cfg:[autopep8]"] },
+    { name: "yapf", files: [".style.yapf", "setup.cfg:[yapf]", "pyproject.toml:[tool.yapf]"] },
+    { name: "blue", files: ["pyproject.toml:[tool.blue]"] },
+    { name: "flynt", files: ["pyproject.toml:[tool.flynt]"] },
   ],
   typeCheckers: [
-    { name: 'pyright', files: ['pyproject.toml:[tool.pyright]', 'pyrightconfig.json'] },
-    { name: 'mypy', files: ['mypy.ini', '.mypy.ini', 'pyproject.toml:[tool.mypy]', 'setup.cfg:[mypy]'] },
-    { name: 'pytype', files: ['pyproject.toml:[tool.pytype]', '.pytype'] },
-    { name: 'pyre-check', files: ['.pyre_configuration', 'pyre.cfg'] },
-    { name: 'pyrefly', files: ['pyproject.toml:[tool.pyrefly]', '.pyreflyconfig'] },
+    { name: "pyright", files: ["pyproject.toml:[tool.pyright]", "pyrightconfig.json"] },
+    {
+      name: "mypy",
+      files: ["mypy.ini", ".mypy.ini", "pyproject.toml:[tool.mypy]", "setup.cfg:[mypy]"],
+    },
+    { name: "pytype", files: ["pyproject.toml:[tool.pytype]", ".pytype"] },
+    { name: "pyre-check", files: [".pyre_configuration", "pyre.cfg"] },
+    { name: "pyrefly", files: ["pyproject.toml:[tool.pyrefly]", ".pyreflyconfig"] },
   ],
   coverage: [
-    { name: 'coverage.py', files: ['.coveragerc', 'setup.cfg:[coverage:run]', 'pyproject.toml:[tool.coverage.run]'] },
+    {
+      name: "coverage.py",
+      files: [".coveragerc", "setup.cfg:[coverage:run]", "pyproject.toml:[tool.coverage.run]"],
+    },
   ],
   hookFiles: HOOK_FILES,
   importSyntax: {
@@ -216,99 +267,112 @@ const PYTHON = {
 };
 
 const JAVASCRIPT = {
-  id: 'javascript',
-  label: 'JavaScript',
-  manifests: ['package.json'],
-  lockfiles: ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock'],
+  id: "javascript",
+  label: "JavaScript",
+  manifests: ["package.json"],
+  lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "bun.lock"],
   runtimes: [
     {
-      name: 'Node.js',
-      manifestField: 'nodeVersion',
-      manifestSource: 'package.json#engines.node',
-      versionFiles: ['.nvmrc', '.node-version'],
-      toolVersions: ['nodejs'],
-      images: ['node', 'nodejs'],
+      name: "Node.js",
+      manifestField: "nodeVersion",
+      manifestSource: "package.json#engines.node",
+      versionFiles: [".nvmrc", ".node-version"],
+      toolVersions: ["nodejs"],
+      images: ["node", "nodejs"],
     },
-    { name: 'Bun', toolVersions: ['bun'], images: ['oven/bun', 'bun'], signals: ['bun.lock', 'bun.lockb', 'bunfig.toml'] },
-    { name: 'Deno', toolVersions: ['deno'], images: ['denoland/deno', 'deno'], signals: ['deno.json', 'deno.jsonc', 'deno.lock'] },
+    {
+      name: "Bun",
+      toolVersions: ["bun"],
+      images: ["oven/bun", "bun"],
+      signals: ["bun.lock", "bun.lockb", "bunfig.toml"],
+    },
+    {
+      name: "Deno",
+      toolVersions: ["deno"],
+      images: ["denoland/deno", "deno"],
+      signals: ["deno.json", "deno.jsonc", "deno.lock"],
+    },
   ],
-  packageManagers: ['npm', 'yarn', 'pnpm', 'bun'],
-  extensions: ['.js', '.mjs', '.cjs', '.jsx'],
-  markers: ['jsconfig.json', 'deno.json', 'deno.jsonc', 'bunfig.toml'],
+  packageManagers: ["npm", "yarn", "pnpm", "bun"],
+  extensions: [".js", ".mjs", ".cjs", ".jsx"],
+  markers: ["jsconfig.json", "deno.json", "deno.jsonc", "bunfig.toml"],
   frameworks: {
-    express: 'Express',
-    fastify: 'Fastify',
-    koa: 'Koa',
-    next: 'Next.js',
-    react: 'React',
-    vue: 'Vue',
-    svelte: 'Svelte',
-    '@angular/core': 'Angular',
-    '@nestjs/core': 'NestJS',
-    nuxt: 'Nuxt',
+    express: "Express",
+    fastify: "Fastify",
+    koa: "Koa",
+    next: "Next.js",
+    react: "React",
+    vue: "Vue",
+    svelte: "Svelte",
+    "@angular/core": "Angular",
+    "@nestjs/core": "NestJS",
+    nuxt: "Nuxt",
   },
   testFrameworks: {
-    jest: 'Jest',
-    vitest: 'Vitest',
-    mocha: 'Mocha',
-    '@playwright/test': 'Playwright',
-    cypress: 'Cypress',
-    ava: 'AVA',
-    'node:test': 'node:test (Node test runner)',
-    tap: 'node-tap (TAP)',
-    tape: 'tape',
-    uvu: 'uvu',
-    jasmine: 'Jasmine',
+    jest: "Jest",
+    vitest: "Vitest",
+    mocha: "Mocha",
+    "@playwright/test": "Playwright",
+    cypress: "Cypress",
+    ava: "AVA",
+    "node:test": "node:test (Node test runner)",
+    tap: "node-tap (TAP)",
+    tape: "tape",
+    uvu: "uvu",
+    jasmine: "Jasmine",
   },
-  testFileGlobs: ['**/*.test.{js,mjs,cjs,jsx}', '**/*.spec.{js,mjs,cjs,jsx}'],
+  testFileGlobs: ["**/*.test.{js,mjs,cjs,jsx}", "**/*.spec.{js,mjs,cjs,jsx}"],
   testConfigFiles: [
-    'jest.config.{js,ts,mjs,json}',
-    'vitest.config.{ts,js,mjs}',
-    '.mocharc.{js,json,yml}',
+    "jest.config.{js,ts,mjs,json}",
+    "vitest.config.{ts,js,mjs}",
+    ".mocharc.{js,json,yml}",
   ],
   linters: [
     {
-      name: 'eslint',
+      name: "eslint",
       files: [
-        'eslint.config.js',
-        'eslint.config.mjs',
-        'eslint.config.cjs',
-        'eslint.config.ts',
-        'eslint.config.mts',
-        'eslint.config.cts',
-        '.eslintrc',
-        '.eslintrc.js',
-        '.eslintrc.cjs',
-        '.eslintrc.json',
-        '.eslintrc.yml',
-        '.eslintrc.yaml',
-        'package.json#eslintConfig',
+        "eslint.config.js",
+        "eslint.config.mjs",
+        "eslint.config.cjs",
+        "eslint.config.ts",
+        "eslint.config.mts",
+        "eslint.config.cts",
+        ".eslintrc",
+        ".eslintrc.js",
+        ".eslintrc.cjs",
+        ".eslintrc.json",
+        ".eslintrc.yml",
+        ".eslintrc.yaml",
+        "package.json#eslintConfig",
       ],
     },
-    { name: 'biome', files: ['biome.json', 'biome.jsonc'] },
-    { name: 'standard', files: ['package.json#standard'] },
-    { name: 'jshint', files: ['.jshintrc', '.jshintrc.json', '.jshintrc.js', 'package.json#jshintConfig'] },
-    { name: 'oxlint', files: ['.oxlintrc.json', 'oxlintrc.json'] },
+    { name: "biome", files: ["biome.json", "biome.jsonc"] },
+    { name: "standard", files: ["package.json#standard"] },
+    {
+      name: "jshint",
+      files: [".jshintrc", ".jshintrc.json", ".jshintrc.js", "package.json#jshintConfig"],
+    },
+    { name: "oxlint", files: [".oxlintrc.json", "oxlintrc.json"] },
   ],
   formatters: [
     {
-      name: 'prettier',
+      name: "prettier",
       files: [
-        '.prettierrc',
-        '.prettierrc.json',
-        '.prettierrc.yml',
-        '.prettierrc.yaml',
-        '.prettierrc.js',
-        '.prettierrc.cjs',
-        '.prettierrc.toml',
-        'prettier.config.js',
-        'prettier.config.cjs',
-        'prettier.config.mjs',
-        'package.json#prettier',
+        ".prettierrc",
+        ".prettierrc.json",
+        ".prettierrc.yml",
+        ".prettierrc.yaml",
+        ".prettierrc.js",
+        ".prettierrc.cjs",
+        ".prettierrc.toml",
+        "prettier.config.js",
+        "prettier.config.cjs",
+        "prettier.config.mjs",
+        "package.json#prettier",
       ],
     },
-    { name: 'biome', files: ['biome.json', 'biome.jsonc'] },
-    { name: 'dprint', files: ['dprint.json', 'dprint.jsonc'] },
+    { name: "biome", files: ["biome.json", "biome.jsonc"] },
+    { name: "dprint", files: ["dprint.json", "dprint.jsonc"] },
   ],
   typeCheckers: [],
   hookFiles: HOOK_FILES,
@@ -322,82 +386,82 @@ const JAVASCRIPT = {
 };
 
 const TYPESCRIPT = {
-  id: 'typescript',
-  label: 'TypeScript',
-  manifests: ['package.json', 'tsconfig.json'],
-  lockfiles: ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock'],
+  id: "typescript",
+  label: "TypeScript",
+  manifests: ["package.json", "tsconfig.json"],
+  lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "bun.lock"],
   runtimes: [...JAVASCRIPT.runtimes],
-  packageManagers: ['npm', 'yarn', 'pnpm', 'bun'],
-  extensions: ['.ts', '.tsx', '.mts', '.cts'],
-  markers: ['jsconfig.json', 'deno.json', 'deno.jsonc', 'bunfig.toml'],
+  packageManagers: ["npm", "yarn", "pnpm", "bun"],
+  extensions: [".ts", ".tsx", ".mts", ".cts"],
+  markers: ["jsconfig.json", "deno.json", "deno.jsonc", "bunfig.toml"],
   frameworks: { ...JAVASCRIPT.frameworks },
   testFrameworks: {
     ...JAVASCRIPT.testFrameworks,
-    'ts-jest': 'ts-jest',
-    '@swc/jest': '@swc/jest',
-    'ts-node': 'ts-node',
-    tsx: 'tsx',
-    '@types/jest': '@types/jest',
+    "ts-jest": "ts-jest",
+    "@swc/jest": "@swc/jest",
+    "ts-node": "ts-node",
+    tsx: "tsx",
+    "@types/jest": "@types/jest",
   },
-  testFileGlobs: ['**/*.{test,spec}.{ts,tsx,mts,cts}'],
+  testFileGlobs: ["**/*.{test,spec}.{ts,tsx,mts,cts}"],
   testConfigFiles: [
-    'jest.config.{js,ts,mjs,json}',
-    'vitest.config.{ts,js,mjs}',
-    '.mocharc.{js,json,yml}',
-    'tsconfig.json',
+    "jest.config.{js,ts,mjs,json}",
+    "vitest.config.{ts,js,mjs}",
+    ".mocharc.{js,json,yml}",
+    "tsconfig.json",
   ],
   linters: [
     {
-      name: 'eslint',
+      name: "eslint",
       files: [
-        'eslint.config.js',
-        'eslint.config.mjs',
-        'eslint.config.cjs',
-        'eslint.config.ts',
-        'eslint.config.mts',
-        'eslint.config.cts',
-        '.eslintrc',
-        '.eslintrc.js',
-        '.eslintrc.cjs',
-        '.eslintrc.json',
-        '.eslintrc.yml',
-        '.eslintrc.yaml',
-        'package.json#eslintConfig',
+        "eslint.config.js",
+        "eslint.config.mjs",
+        "eslint.config.cjs",
+        "eslint.config.ts",
+        "eslint.config.mts",
+        "eslint.config.cts",
+        ".eslintrc",
+        ".eslintrc.js",
+        ".eslintrc.cjs",
+        ".eslintrc.json",
+        ".eslintrc.yml",
+        ".eslintrc.yaml",
+        "package.json#eslintConfig",
       ],
     },
     {
-      name: '@typescript-eslint',
+      name: "@typescript-eslint",
       files: [
-        'eslint.config.js',
-        'eslint.config.mjs',
-        'eslint.config.cjs',
-        'eslint.config.ts',
-        'eslint.config.mts',
-        'eslint.config.cts',
+        "eslint.config.js",
+        "eslint.config.mjs",
+        "eslint.config.cjs",
+        "eslint.config.ts",
+        "eslint.config.mts",
+        "eslint.config.cts",
       ],
     },
-    { name: 'biome', files: ['biome.json', 'biome.jsonc'] },
+    { name: "biome", files: ["biome.json", "biome.jsonc"] },
   ],
   formatters: [
     {
-      name: 'prettier',
+      name: "prettier",
       files: [
-        '.prettierrc',
-        '.prettierrc.json',
-        '.prettierrc.yml',
-        '.prettierrc.yaml',
-        '.prettierrc.js',
-        '.prettierrc.cjs',
-        '.prettierrc.toml',
-        'prettier.config.js',
-        'prettier.config.cjs',
-        'prettier.config.mjs',
-        'package.json#prettier',
+        ".prettierrc",
+        ".prettierrc.json",
+        ".prettierrc.yml",
+        ".prettierrc.yaml",
+        ".prettierrc.js",
+        ".prettierrc.cjs",
+        ".prettierrc.toml",
+        "prettier.config.js",
+        "prettier.config.cjs",
+        "prettier.config.mjs",
+        "package.json#prettier",
       ],
     },
-    { name: 'biome', files: ['biome.json', 'biome.jsonc'] },
+    { name: "biome", files: ["biome.json", "biome.jsonc"] },
   ],
-  typeCheckers: [{ name: 'tsc', files: ['tsconfig.json'] }],
+  typeCheckers: [{ name: "tsc", files: ["tsconfig.json"] }],
   hookFiles: HOOK_FILES,
   importSyntax: {
     relative: /(?:from|require\()\s*['"](\.{1,2}[^'"]*)['"]/,
@@ -409,30 +473,28 @@ const TYPESCRIPT = {
 };
 
 const SHELL = {
-  id: 'shell',
-  label: 'Shell',
+  id: "shell",
+  label: "Shell",
   manifests: [],
   lockfiles: [],
-  runtimes: [{ name: 'Shell' }],
+  runtimes: [{ name: "Shell" }],
   packageManagers: [],
-  extensions: ['.sh', '.bash', '.zsh'],
+  extensions: [".sh", ".bash", ".zsh"],
   markers: [],
   frameworks: {},
   testFrameworks: {
-    bats: 'bats',
-    shellspec: 'ShellSpec',
-    shunit2: 'shUnit2',
+    bats: "bats",
+    shellspec: "ShellSpec",
+    shunit2: "shUnit2",
   },
-  testFileGlobs: ['*.bats', 'tests/**/*.bats'],
+  testFileGlobs: ["*.bats", "tests/**/*.bats"],
   testConfigFiles: [],
   linters: [
-    { name: 'shellcheck', files: ['.shellcheckrc', 'shellcheckrc'] },
-    { name: 'bashate', files: ['.bashaterc', 'tox.ini:[bashate]'] },
+    { name: "shellcheck", files: [".shellcheckrc", "shellcheckrc"] },
+    { name: "bashate", files: [".bashaterc", "tox.ini:[bashate]"] },
   ],
-  formatters: [
-    { name: 'shfmt', files: ['.editorconfig'], marker: true },
-  ],
-  typeCheckers: [{ name: 'shellcheck', files: ['.shellcheckrc', 'shellcheckrc'], analysis: true }],
+  formatters: [{ name: "shfmt", files: [".editorconfig"], marker: true }],
+  typeCheckers: [{ name: "shellcheck", files: [".shellcheckrc", "shellcheckrc"], analysis: true }],
   hookFiles: HOOK_FILES,
   importSyntax: {
     source: /^\s*(?:source|\.)\s+([\w./-]+)/m,
@@ -443,53 +505,47 @@ const SHELL = {
 };
 
 const RUST = {
-  id: 'rust',
-  label: 'Rust',
-  manifests: ['Cargo.toml'],
-  lockfiles: ['Cargo.lock'],
+  id: "rust",
+  label: "Rust",
+  manifests: ["Cargo.toml"],
+  lockfiles: ["Cargo.lock"],
   runtimes: [
     {
-      name: 'Rust',
-      manifestField: 'rustVersion',
-      manifestSource: 'Cargo.toml#rust-version',
-      versionFiles: ['rust-toolchain', 'rust-toolchain.toml'],
-      toolVersions: ['rust'],
-      images: ['rust'],
+      name: "Rust",
+      manifestField: "rustVersion",
+      manifestSource: "Cargo.toml#rust-version",
+      versionFiles: ["rust-toolchain", "rust-toolchain.toml"],
+      toolVersions: ["rust"],
+      images: ["rust"],
     },
   ],
-  packageManagers: ['cargo'],
-  extensions: ['.rs'],
-  markers: ['.cargo/config.toml', 'rust-toolchain.toml', 'rust-toolchain', 'build.rs'],
+  packageManagers: ["cargo"],
+  extensions: [".rs"],
+  markers: [".cargo/config.toml", "rust-toolchain.toml", "rust-toolchain", "build.rs"],
   frameworks: {
-    tokio: 'Tokio',
-    'actix-web': 'Actix Web',
-    axum: 'Axum',
-    rocket: 'Rocket',
-    serde: 'Serde',
-    clap: 'Clap',
+    tokio: "Tokio",
+    "actix-web": "Actix Web",
+    axum: "Axum",
+    rocket: "Rocket",
+    serde: "Serde",
+    clap: "Clap",
   },
   testFrameworks: {
-    cargo: 'cargo test',
-    '#[test]': 'builtin',
-    proptest: 'Proptest',
-    quickcheck: 'QuickCheck',
-    trybuild: 'trybuild',
-    rstest: 'rstest',
-    criterion: 'Criterion (bench)',
-    mockall: 'Mockall',
-    insta: 'Insta',
+    cargo: "cargo test",
+    "#[test]": "builtin",
+    proptest: "Proptest",
+    quickcheck: "QuickCheck",
+    trybuild: "trybuild",
+    rstest: "rstest",
+    criterion: "Criterion (bench)",
+    mockall: "Mockall",
+    insta: "Insta",
   },
-  testFileGlobs: ['*_test.rs', 'tests/**/*.rs'],
+  testFileGlobs: ["*_test.rs", "tests/**/*.rs"],
   testConfigFiles: [],
-  linters: [
-    { name: 'clippy', files: ['Cargo.toml:[lints]', 'clippy.toml', '.clippy.toml'] },
-  ],
-  formatters: [
-    { name: 'rustfmt', files: ['rustfmt.toml', '.rustfmt.toml'] },
-  ],
-  typeCheckers: [
-    { name: 'rustc', files: ['Cargo.toml'] },
-  ],
+  linters: [{ name: "clippy", files: ["Cargo.toml:[lints]", "clippy.toml", ".clippy.toml"] }],
+  formatters: [{ name: "rustfmt", files: ["rustfmt.toml", ".rustfmt.toml"] }],
+  typeCheckers: [{ name: "rustc", files: ["Cargo.toml"] }],
   hookFiles: HOOK_FILES,
   importSyntax: {
     crate: /^\s*use\s+crate::([\w:]+)/m,
@@ -517,7 +573,7 @@ const DESCRIPTORS = {
 // ---------------------------------------------------------------------------
 
 function ecosystemScore(ecosystem, languageScores) {
-  if (!languageScores || typeof languageScores !== 'object') return 0;
+  if (!languageScores || typeof languageScores !== "object") return 0;
   let best = 0;
   for (const [lang, score] of Object.entries(languageScores)) {
     const mapped = LANGUAGE_TO_ECOSYSTEM[String(lang).toLowerCase()];
@@ -545,7 +601,7 @@ export function detectEcosystems(overview, manifest) {
 
   let candidates;
   if (Array.isArray(mf.ecosystems) && mf.ecosystems.length > 0) {
-    candidates = mf.ecosystems.filter((e) => typeof e === 'string' && e);
+    candidates = mf.ecosystems.filter((e) => typeof e === "string" && e);
   } else {
     candidates = [];
     const langs = Array.isArray(ov.languages) ? ov.languages : [];

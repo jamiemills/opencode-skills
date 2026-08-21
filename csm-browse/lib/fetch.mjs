@@ -1,5 +1,5 @@
-import { redactUrl } from './security.mjs';
-import { CDP_RETRY_TIMEOUT_MS } from './constants.mjs';
+import { redactUrl } from "./security.mjs";
+import { CDP_RETRY_TIMEOUT_MS } from "./constants.mjs";
 
 // CDP discovery over Node's global fetch (Node 22). The tokenized URL lives
 // in the request, never in argv, so it cannot be read from /proc/<pid>/cmdline
@@ -21,11 +21,10 @@ export async function cdpFetchJson(url, { timeoutMs = 2000 } = {}) {
 // CDP readiness probe: keep trying until `timeoutMs` total has elapsed. Each
 // attempt is bounded by `attemptTimeoutMs` (the old curl -m 2); failures and
 // malformed payloads are treated as not-ready and retried after `delayMs`.
-export async function cdpProbe(url, {
-  timeoutMs = CDP_RETRY_TIMEOUT_MS,
-  attemptTimeoutMs = 2000,
-  delayMs = 1000
-} = {}) {
+export async function cdpProbe(
+  url,
+  { timeoutMs = CDP_RETRY_TIMEOUT_MS, attemptTimeoutMs = 2000, delayMs = 1000 } = {},
+) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {

@@ -7,13 +7,13 @@
 // ten-dimension assertions are projected from the expanded result where they
 // still apply.
 
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { unlink } from 'node:fs/promises';
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { unlink } from "node:fs/promises";
 
-import { runExpandedPipeline } from '../../lib/scan/pipeline/run.mjs';
+import { runExpandedPipeline } from "../../lib/scan/pipeline/run.mjs";
 
-export const MIRROR_GENERATED_DATE = '2026-01-01';
+export const MIRROR_GENERATED_DATE = "2026-01-01";
 
 // Runs the production expanded pipeline single-repo through the real sink
 // (writeNORMS requires an output path; a temp file is used and removed) and
@@ -21,7 +21,7 @@ export const MIRROR_GENERATED_DATE = '2026-01-01';
 export async function runMirrorPipeline(repoPath) {
   const { markdown, out } = await runMirrorPipelineDetailed(repoPath);
   await unlink(out).catch((error) => {
-    if (error.code !== 'ENOENT') throw error;
+    if (error.code !== "ENOENT") throw error;
   });
   return markdown;
 }

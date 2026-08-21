@@ -4,13 +4,22 @@
   "title": "Signed universal Agent Skills bootstrap envelope",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "audience", "expires_at", "key", "policy", "steps_markdown", "steps_sha256"],
+  "required": [
+    "schema",
+    "audience",
+    "expires_at",
+    "key",
+    "policy",
+    "steps_markdown",
+    "steps_sha256"
+  ],
   "properties": {
     "schema": { "const": "csm-bootstrap/2" },
     "audience": { "type": "string", "minLength": 1, "maxLength": 128 },
     "expires_at": { "type": "string", "format": "date-time" },
     "key": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "required": ["id", "fingerprint", "algorithm"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
@@ -19,11 +28,13 @@
       }
     },
     "policy": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "required": ["package", "payload_release", "limits"],
       "properties": {
         "package": {
-          "type": "object", "additionalProperties": false,
+          "type": "object",
+          "additionalProperties": false,
           "required": ["name", "version", "bin", "registry"],
           "properties": {
             "name": { "const": "@jamiemills/csm-skills-bootstrap" },
@@ -34,7 +45,8 @@
         },
         "payload_release": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
         "limits": {
-          "type": "object", "additionalProperties": false,
+          "type": "object",
+          "additionalProperties": false,
           "required": ["max_bytes", "max_redirects", "allowed_origin"],
           "properties": {
             "max_bytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
@@ -48,9 +60,13 @@
     "steps_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "payload_index_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "signature": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "required": ["algorithm", "value"],
-      "properties": { "algorithm": { "const": "Ed25519" }, "value": { "type": "string", "contentEncoding": "base64" } }
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "value": { "type": "string", "contentEncoding": "base64" }
+      }
     }
   }
 }

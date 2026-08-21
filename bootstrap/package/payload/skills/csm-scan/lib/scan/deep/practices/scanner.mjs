@@ -27,12 +27,12 @@
 // ESM only. Zero npm deps. node: builtins only (read-only `node:fs` probes
 // for hidden paths, mirroring `deep/governance/scanner.mjs`).
 
-import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { commandBroker } from '../../shared/command.mjs';
-import { enumerate } from '../../shared/enum.mjs';
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { commandBroker } from "../../shared/command.mjs";
+import { enumerate } from "../../shared/enum.mjs";
 import {
   PRACTICES_HIDDEN_DIRS,
   PRACTICES_HIDDEN_FILES,
@@ -49,7 +49,7 @@ import {
   isCandidatePath,
   isGeneratedPracticePath,
   isRelevantHiddenFile,
-} from './model.mjs';
+} from "./model.mjs";
 import {
   extractDeclaredConventions,
   extractExceptionsHub,
@@ -58,7 +58,7 @@ import {
   extractMakeTargets,
   extractOpencodeWorkflow,
   extractRuffRules,
-} from './style.mjs';
+} from "./style.mjs";
 import {
   aggregateMethodology,
   extractAnalyserContracts,
@@ -69,9 +69,9 @@ import {
   extractRatchet,
   extractSuppressionBaseline,
   extractSuppressionPolicy,
-} from './content.mjs';
+} from "./content.mjs";
 
-export const PRACTICES_SCANNER_ID = 'DET-practices-scan-v1';
+export const PRACTICES_SCANNER_ID = "DET-practices-scan-v1";
 
 const READ_LIMITS = Object.freeze({
   maxBytes: PRACTICES_LIMITS.maxBytes,
@@ -81,28 +81,28 @@ const READ_LIMITS = Object.freeze({
 });
 
 const CATEGORY_EXTRACTORS = Object.freeze([
-  ['methodology', extractMethodology],
-  ['methodology', extractFuzzReplay],
-  ['enforcement', extractEnforcement],
-  ['enforcement', extractLefthookStages],
-  ['enforcement', extractPolicyValidators],
-  ['automation', extractAutomation],
-  ['automation', extractMakeTargets],
-  ['ritual', extractRitual],
-  ['quality_gate', extractQualityGate],
-  ['quality_gate', extractGateValues],
-  ['quality_gate', extractSuppressionPolicy],
-  ['quality_gate', extractSuppressionBaseline],
-  ['quality_gate', extractRatchet],
-  ['quality_gate', extractMutationPolicy],
-  ['quality_gate', extractAnalyserContracts],
-  ['agent_workflow', extractAgentWorkflow],
-  ['agent_workflow', extractOpencodeWorkflow],
-  ['agent_workflow', extractPluginContent],
-  ['style_guide', extractStyleGuide],
-  ['style_guide', extractRuffRules],
-  ['style_guide', extractDeclaredConventions],
-  ['style_guide', extractExceptionsHub],
+  ["methodology", extractMethodology],
+  ["methodology", extractFuzzReplay],
+  ["enforcement", extractEnforcement],
+  ["enforcement", extractLefthookStages],
+  ["enforcement", extractPolicyValidators],
+  ["automation", extractAutomation],
+  ["automation", extractMakeTargets],
+  ["ritual", extractRitual],
+  ["quality_gate", extractQualityGate],
+  ["quality_gate", extractGateValues],
+  ["quality_gate", extractSuppressionPolicy],
+  ["quality_gate", extractSuppressionBaseline],
+  ["quality_gate", extractRatchet],
+  ["quality_gate", extractMutationPolicy],
+  ["quality_gate", extractAnalyserContracts],
+  ["agent_workflow", extractAgentWorkflow],
+  ["agent_workflow", extractOpencodeWorkflow],
+  ["agent_workflow", extractPluginContent],
+  ["style_guide", extractStyleGuide],
+  ["style_guide", extractRuffRules],
+  ["style_guide", extractDeclaredConventions],
+  ["style_guide", extractExceptionsHub],
 ]);
 
 function walkHiddenDir(repoPath, directory, target, depth, budget = { collected: 0 }) {
@@ -114,7 +114,8 @@ function walkHiddenDir(repoPath, directory, target, depth, budget = { collected:
     return;
   }
   for (const entry of entries) {
-    if (target.size >= PRACTICES_LIMITS.maxFiles || budget.collected >= PRACTICES_LIMITS.maxPerDir) return;
+    if (target.size >= PRACTICES_LIMITS.maxFiles || budget.collected >= PRACTICES_LIMITS.maxPerDir)
+      return;
     const relative = `${directory}/${entry.name}`;
     if (entry.isDirectory()) {
       if (isGeneratedPracticePath(relative)) continue;
@@ -141,18 +142,23 @@ function hiddenPracticePaths(repoPath) {
     rootEntries = [];
   }
   for (const entry of rootEntries) {
-    if (entry.isFile() && entry.name.startsWith('.quality-gates')) paths.add(entry.name);
+    if (entry.isFile() && entry.name.startsWith(".quality-gates")) paths.add(entry.name);
   }
   return [...paths].toSorted();
 }
 
 function readStatusToDiagnostic(result) {
-  const status = result.status === 'unsupported' ? 'unsupported' : 'unverified';
-  const reason = result.status === 'unreadable' ? 'UNREADABLE'
-    : result.status === 'capped' ? 'CAP'
-    : result.status === 'malformed' ? 'MALFORMED'
-    : result.status === 'unsupported' ? 'PARSE_UNSUPPORTED'
-    : 'UNVERIFIED';
+  const status = result.status === "unsupported" ? "unsupported" : "unverified";
+  const reason =
+    result.status === "unreadable"
+      ? "UNREADABLE"
+      : result.status === "capped"
+        ? "CAP"
+        : result.status === "malformed"
+          ? "MALFORMED"
+          : result.status === "unsupported"
+            ? "PARSE_UNSUPPORTED"
+            : "UNVERIFIED";
   return { path: result.path, line: null, status, reason };
 }
 
@@ -161,7 +167,7 @@ function entryRecord(categoryName, kind, path, record) {
     category: categoryName,
     matchedKey: `${categoryName}:${kind}:${path}`,
     path,
-    status: record.status ?? 'observed',
+    status: record.status ?? "observed",
   };
   if (Number.isSafeInteger(record.count)) entry.count = record.count;
   if (Array.isArray(record.kinds) && record.kinds.length > 0) entry.kinds = record.kinds;
@@ -171,17 +177,19 @@ function entryRecord(categoryName, kind, path, record) {
 
 function classifyResult(result) {
   const entries = [];
-  const text = typeof result.value === 'string' ? result.value : '';
+  const text = typeof result.value === "string" ? result.value : "";
   const staticHit = classifyPracticePath(result.path);
   if (staticHit !== null) {
-    entries.push(entryRecord(staticHit.category, staticHit.kind, result.path, { status: 'observed' }));
+    entries.push(
+      entryRecord(staticHit.category, staticHit.kind, result.path, { status: "observed" }),
+    );
   }
   for (const [categoryName, extractor] of CATEGORY_EXTRACTORS) {
     let records;
     try {
       records = extractor({ path: result.path, text });
     } catch {
-      records = [{ kind: 'parse-failure', status: 'unverified' }];
+      records = [{ kind: "parse-failure", status: "unverified" }];
     }
     for (const record of records) {
       entries.push(entryRecord(categoryName, record.kind, result.path, record));
@@ -191,18 +199,18 @@ function classifyResult(result) {
 }
 
 function releaseNotesCoupling(entries) {
-  const changelog = entries.find((entry) => (
-    entry.category === 'ritual' && entry.matchedKey.includes(':changelog-format:')
-  ));
-  const hasDrafter = entries.some((entry) => (
-    entry.category === 'automation' && entry.matchedKey.includes(':release-drafter:')
-  ));
+  const changelog = entries.find(
+    (entry) => entry.category === "ritual" && entry.matchedKey.includes(":changelog-format:"),
+  );
+  const hasDrafter = entries.some(
+    (entry) => entry.category === "automation" && entry.matchedKey.includes(":release-drafter:"),
+  );
   if (changelog === undefined || !hasDrafter) return null;
   return {
-    category: 'ritual',
+    category: "ritual",
     matchedKey: `ritual:release-notes:${changelog.path}`,
     path: changelog.path,
-    status: 'inferred',
+    status: "inferred",
   };
 }
 
@@ -215,11 +223,11 @@ async function gitFacts(repoPath, broker) {
       return null;
     }
   };
-  const isGit = (await safeGit('git:rev-parse-toplevel')) !== null;
+  const isGit = (await safeGit("git:rev-parse-toplevel")) !== null;
   let defaultBranch = null;
   if (isGit) {
-    const branch = await safeGit('git:rev-parse-abbrev-head');
-    if (branch !== null && branch !== 'HEAD') defaultBranch = branch;
+    const branch = await safeGit("git:rev-parse-abbrev-head");
+    if (branch !== null && branch !== "HEAD") defaultBranch = branch;
   }
   return { isGit, defaultBranch };
 }
@@ -242,19 +250,19 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
   const sortedCandidates = [...candidates].toSorted();
   const requestedCandidates = sortedCandidates.slice(0, PRACTICES_LIMITS.maxFiles);
   if (requestedCandidates.length !== sortedCandidates.length) {
-    diagnostics.push({ path: 'UNKNOWN', line: null, status: 'unverified', reason: 'CAP' });
+    diagnostics.push({ path: "UNKNOWN", line: null, status: "unverified", reason: "CAP" });
   }
   const requests = requestedCandidates.map((path) => ({
     path,
-    format: 'text',
-    sensitivity: 'internal',
+    format: "text",
+    sensitivity: "internal",
   }));
   const read = await readArtifacts(repoPath, requests, READ_LIMITS);
   const { isGit, defaultBranch } = await gitFacts(repoPath, broker);
 
   const rawEntries = [];
   for (const result of read.results) {
-    if (result.status !== 'read') {
+    if (result.status !== "read") {
       diagnostics.push(readStatusToDiagnostic(result));
       continue;
     }
@@ -275,8 +283,8 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
   });
 
   return {
-    dimension: 'practices',
-    signal: model.summary.entries > 0 ? 'high' : 'low',
+    dimension: "practices",
+    signal: model.summary.entries > 0 ? "high" : "low",
     findings: model,
   };
 }

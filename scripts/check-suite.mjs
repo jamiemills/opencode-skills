@@ -1,18 +1,26 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { mapping } from './pack-bootstrap.mjs';
-import { MANIFEST, CONTRACTS, UPLOAD_SCRIPT_REF, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES } from './lib/contracts.mjs';
-import { isEnabled } from './lib/token-efficiency.mjs';
-import { checkDrift } from './sync-skill-boilerplate.mjs';
-import { checkDrift as checkMatrixDrift } from './gen-readme-matrix.mjs';
-import { lintPlanSignals } from './check-plan-signals.mjs';
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { mapping } from "./pack-bootstrap.mjs";
+import {
+  MANIFEST,
+  CONTRACTS,
+  UPLOAD_SCRIPT_REF,
+  INTERFACES,
+  NEVER_INVOKE,
+  FORMAT_VERSIONS,
+  NORMS_PHRASES,
+} from "./lib/contracts.mjs";
+import { isEnabled } from "./lib/token-efficiency.mjs";
+import { checkDrift } from "./sync-skill-boilerplate.mjs";
+import { checkDrift as checkMatrixDrift } from "./gen-readme-matrix.mjs";
+import { lintPlanSignals } from "./check-plan-signals.mjs";
 import {
   FENCE_OPEN_RE,
   splitLines,
@@ -23,29 +31,33 @@ import {
   validateOrdinalSequencing,
   validateTemplateFormatMarkers,
   validateInterfaceArtifactPatterns,
-} from './lib/plan-validation.mjs';
+} from "./lib/plan-validation.mjs";
 
 const args = process.argv.slice(2);
 let root = process.cwd();
 for (let i = 0; i < args.length; i += 1) {
-  if (args[i] === '--root') {
+  if (args[i] === "--root") {
     const next = args[i + 1];
     if (next) root = path.resolve(next);
   }
 }
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const NEVER_CLAUSE_RE = /\bnever\b[^.]{0,120}\b(only|beyond|elsewhere|writes?|runs?|invok\w*|starts?|plans?|planning|implement\w*|fix\w*|patch\w*|review\w*|execut\w*|push\w*|targets?)\b/i;
+const NEVER_CLAUSE_RE =
+  /\bnever\b[^.]{0,120}\b(only|beyond|elsewhere|writes?|runs?|invok\w*|starts?|plans?|planning|implement\w*|fix\w*|patch\w*|review\w*|execut\w*|push\w*|targets?)\b/i;
 // Volatile content in skill descriptions would silently invalidate DeepSeek
 // prefix-cache units. Deliberately NOT a bare \d{4}: csm-browse's stable port
 // "9222" must pass. Rejects ISO dates, bare 20xx years, dotted versions,
 // v-prefixed versions, $ENV vars, and absolute paths.
-const VOLATILE_DESC_RE = /(\d{4}-\d{2}-\d{2}|\b20\d{2}\b|\b\d+\.\d+(\.\d+)?\b|v\d+(\.\d+)+|\$[A-Z][A-Z0-9_]*|\/home\/|\/Users\/|\/tmp|\/etc\/|\/opt\/|\/usr\/|\/var\/)/;
+const VOLATILE_DESC_RE =
+  /(\d{4}-\d{2}-\d{2}|\b20\d{2}\b|\b\d+\.\d+(\.\d+)?\b|v\d+(\.\d+)+|\$[A-Z][A-Z0-9_]*|\/home\/|\/Users\/|\/tmp|\/etc\/|\/opt\/|\/usr\/|\/var\/)/;
 // Frontmatter budget (AC1 of the completed efficiency plan): the 8
 // descriptions total exactly 220 whitespace-separated tokens today (em-dashes
 // count). The check guards regression only; wording edits stay out of scope.
 const WORD_BUDGET = 220;
-const NORMS_PHRASE_RE = new RegExp(NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
+const NORMS_PHRASE_RE = new RegExp(
+  NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
+);
 const CHAIN_RE = /`([A-Z][A-Z_]*(?:\s*->\s*[A-Z][A-Z_]+)+)`/;
 const STATE_HEADING_RE = /^###\s+(\d+)\.\s+(.*)$/;
 const STATE_TOKEN_RE = /^[A-Z][A-Z_]*/;
@@ -63,7 +75,7 @@ function check(ok, detail) {
 
 function readOrNull(p) {
   try {
-    return fs.readFileSync(p, 'utf8');
+    return fs.readFileSync(p, "utf8");
   } catch {
     return null;
   }
@@ -85,11 +97,11 @@ function containsOutsideFences(content, needle) {
 // visible. When non-null, untracked in-progress corpus drafts are ignored so
 // they cannot block the gate (the F-053 defect).
 function loadTrackedFiles(rootDir) {
-  if (!fs.existsSync(path.join(rootDir, '.git'))) return null;
-  const r = spawnSync('git', ['ls-files'], { cwd: rootDir, encoding: 'utf8' });
+  if (!fs.existsSync(path.join(rootDir, ".git"))) return null;
+  const r = spawnSync("git", ["ls-files"], { cwd: rootDir, encoding: "utf8" });
   if (r.status !== 0) return null;
   const set = new Set();
-  for (const line of r.stdout.split('\n')) {
+  for (const line of r.stdout.split("\n")) {
     const t = line.trim();
     if (t) set.add(t);
   }
@@ -101,7 +113,10 @@ function loadTrackedFiles(rootDir) {
 // becomes a hyphen (GitHub does NOT collapse — "Development & testing" anchors
 // to "development--testing", one hyphen per removed-char space).
 function githubAnchor(title) {
-  return title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s/g, '-');
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s/g, "-");
 }
 
 // F-061: every H2 below the README TOC must have a TOC entry (and, dually,
@@ -144,16 +159,21 @@ function checkReadmeToc(readme) {
   const headingAnchors = new Set([...h2s.map(githubAnchor), ...h3s]);
   for (const title of h2s) {
     const a = githubAnchor(title);
-    check(tocAnchors.has(a), `README.md TOC has no entry for "## ${title}" (want "- [${title}](#${a})")`);
+    check(
+      tocAnchors.has(a),
+      `README.md TOC has no entry for "## ${title}" (want "- [${title}](#${a})")`,
+    );
   }
   for (const entry of tocEntries) {
-    check(headingAnchors.has(entry.anchor),
-      `README.md TOC entry "[${entry.text}](#${entry.anchor})" has no matching heading below the TOC`);
+    check(
+      headingAnchors.has(entry.anchor),
+      `README.md TOC entry "[${entry.text}](#${entry.anchor})" has no matching heading below the TOC`,
+    );
   }
 }
 
 function toPosix(value) {
-  return value.split(path.sep).join('/');
+  return value.split(path.sep).join("/");
 }
 
 // Parses a leading frontmatter block and returns { kind, version } from a
@@ -230,7 +250,7 @@ function fencedBlockAfter(lines, inFence, startIdx) {
     const body = [];
     for (let j = i + 1; j < lines.length; j += 1) {
       const cm = lines[j].match(FENCE_OPEN_RE);
-      if (cm && cm[1][0] === char && cm[1].length >= len && cm[2].trim() === '') return body;
+      if (cm && cm[1][0] === char && cm[1].length >= len && cm[2].trim() === "") return body;
       body.push(lines[j]);
     }
     return body;
@@ -246,7 +266,7 @@ function parseFrontmatter(content) {
   const lines = splitLines(m[1]);
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    if (line.trim() === '') continue;
+    if (line.trim() === "") continue;
     if (/^\s/.test(line)) {
       errors.push(`unexpected indented line ${i + 1}: "${line.trim().slice(0, 40)}"`);
       continue;
@@ -261,20 +281,23 @@ function parseFrontmatter(content) {
       errors.push(`duplicate frontmatter key "${key}"`);
       continue;
     }
-    let val = (pair[2] === undefined ? '' : pair[2]).trim();
+    let val = (pair[2] === undefined ? "" : pair[2]).trim();
     const block = val.match(/^([|>])[+-]?\s*$/);
     if (block) {
       const buf = [];
       let j = i + 1;
-      while (j < lines.length && (lines[j].trim() === '' || /^\s+/.test(lines[j]))) {
+      while (j < lines.length && (lines[j].trim() === "" || /^\s+/.test(lines[j]))) {
         buf.push(lines[j].trim());
         j += 1;
       }
-      kv[key] = block[1] === '>' ? buf.filter((x) => x !== '').join(' ') : buf.join('\n');
+      kv[key] = block[1] === ">" ? buf.filter((x) => x !== "").join(" ") : buf.join("\n");
       i = j - 1;
       continue;
     }
-    if (val.length >= 2 && ((val[0] === '"' && val.endsWith('"')) || (val[0] === "'" && val.endsWith("'")))) {
+    if (
+      val.length >= 2 &&
+      ((val[0] === '"' && val.endsWith('"')) || (val[0] === "'" && val.endsWith("'")))
+    ) {
       val = val.slice(1, -1);
     }
     kv[key] = val;
@@ -321,7 +344,10 @@ function verifyMachine(skill, lines, inFence, machine) {
     return null;
   }
   check(chain.tokens.length >= 2, `${skill}/SKILL.md state chain has fewer than 2 states`);
-  check(new Set(chain.tokens).size === chain.tokens.length, `${skill}/SKILL.md state chain has duplicate states: ${chain.tokens.join(' -> ')}`);
+  check(
+    new Set(chain.tokens).size === chain.tokens.length,
+    `${skill}/SKILL.md state chain has duplicate states: ${chain.tokens.join(" -> ")}`,
+  );
 
   const heads = [];
   for (let i = start + 1; i < end; i += 1) {
@@ -334,22 +360,36 @@ function verifyMachine(skill, lines, inFence, machine) {
 
   const last = chain.tokens[chain.tokens.length - 1];
   const stopHeaded = heads.some((h) => h.token === last);
-  const terminalExempt = last === 'STOP' && !stopHeaded;
+  const terminalExempt = last === "STOP" && !stopHeaded;
   const requiredTokens = terminalExempt ? chain.tokens.slice(0, -1) : chain.tokens;
 
   for (const t of requiredTokens) {
     const n = heads.filter((h) => h.token === t).length;
-    check(n === 1, n === 0
-      ? `${skill}/SKILL.md state ${t} from the chain has no "### <n>. ${t}" heading`
-      : `${skill}/SKILL.md state ${t} has ${n} numbered headings (want exactly 1)`);
+    check(
+      n === 1,
+      n === 0
+        ? `${skill}/SKILL.md state ${t} from the chain has no "### <n>. ${t}" heading`
+        : `${skill}/SKILL.md state ${t} has ${n} numbered headings (want exactly 1)`,
+    );
   }
   const orphans = heads.filter((h) => !chain.tokens.includes(h.token));
-  check(orphans.length === 0, `${skill}/SKILL.md numbered state headings not in the chain: ${orphans.map((h) => h.token).join(', ')}`);
-  check(heads.length === requiredTokens.length, `${skill}/SKILL.md chain claims ${chain.tokens.length} states but has ${heads.length} numbered state sections (want ${requiredTokens.length})`);
-  check(heads.length === requiredTokens.length && heads.every((h, idx) => h.token === requiredTokens[idx]),
-    `${skill}/SKILL.md state headings out of chain order (chain: ${requiredTokens.join(' -> ')}; headings: ${heads.map((h) => h.token).join(' -> ')})`);
-  check(heads.every((h, idx) => h.num === idx + 1),
-    `${skill}/SKILL.md state headings not consecutively numbered from 1 (got ${heads.map((h) => h.num).join(', ')})`);
+  check(
+    orphans.length === 0,
+    `${skill}/SKILL.md numbered state headings not in the chain: ${orphans.map((h) => h.token).join(", ")}`,
+  );
+  check(
+    heads.length === requiredTokens.length,
+    `${skill}/SKILL.md chain claims ${chain.tokens.length} states but has ${heads.length} numbered state sections (want ${requiredTokens.length})`,
+  );
+  check(
+    heads.length === requiredTokens.length &&
+      heads.every((h, idx) => h.token === requiredTokens[idx]),
+    `${skill}/SKILL.md state headings out of chain order (chain: ${requiredTokens.join(" -> ")}; headings: ${heads.map((h) => h.token).join(" -> ")})`,
+  );
+  check(
+    heads.every((h, idx) => h.num === idx + 1),
+    `${skill}/SKILL.md state headings not consecutively numbered from 1 (got ${heads.map((h) => h.num).join(", ")})`,
+  );
 
   if (machine.entryExit) {
     for (const h of heads) {
@@ -364,15 +404,21 @@ function verifyMachine(skill, lines, inFence, machine) {
       for (let i = h.line + 1; i < stop; i += 1) {
         if (!inFence[i]) body.push(lines[i]);
       }
-      check(body.some((l) => l.startsWith('Entry:')), `${skill}/SKILL.md state ${h.token} section lacks an "Entry:" line`);
-      check(body.some((l) => l.startsWith('Exit:')), `${skill}/SKILL.md state ${h.token} section lacks an "Exit:" line`);
+      check(
+        body.some((l) => l.startsWith("Entry:")),
+        `${skill}/SKILL.md state ${h.token} section lacks an "Entry:" line`,
+      );
+      check(
+        body.some((l) => l.startsWith("Exit:")),
+        `${skill}/SKILL.md state ${h.token} section lacks an "Exit:" line`,
+      );
     }
   }
   return { chain, heads, requiredTokens, range };
 }
 
 function verifyReviewClaims(skill, lines, inFence, machineResult) {
-  const done = sectionRange(lines, inFence, 'Done Criteria');
+  const done = sectionRange(lines, inFence, "Done Criteria");
   if (!done) {
     check(false, `${skill}/SKILL.md missing "## Done Criteria" for numeric claims`);
     return;
@@ -381,19 +427,21 @@ function verifyReviewClaims(skill, lines, inFence, machineResult) {
   for (let i = done[0]; i < done[1]; i += 1) {
     if (!inFence[i]) doneText.push(lines[i]);
   }
-  const joined = doneText.join('\n');
+  const joined = doneText.join("\n");
 
   const statesClaim = joined.match(/\bAll\s+(\d+)\s+states\b/);
   check(statesClaim !== null, `${skill}/SKILL.md Done Criteria lacks an "All N states" claim`);
   if (statesClaim && machineResult) {
-    check(Number(statesClaim[1]) === machineResult.heads.length,
-      `${skill}/SKILL.md claims ${statesClaim[1]} states; machine has ${machineResult.heads.length} numbered state sections`);
+    check(
+      Number(statesClaim[1]) === machineResult.heads.length,
+      `${skill}/SKILL.md claims ${statesClaim[1]} states; machine has ${machineResult.heads.length} numbered state sections`,
+    );
   }
 
   const dimsClaim = joined.match(/\b(\d+)\s+dimensions\b/);
   check(dimsClaim !== null, `${skill}/SKILL.md Done Criteria lacks an "N dimensions" claim`);
 
-  const dims = sectionRange(lines, inFence, 'Review Dimensions');
+  const dims = sectionRange(lines, inFence, "Review Dimensions");
   if (!dims) {
     check(false, `${skill}/SKILL.md missing "## Review Dimensions" for dimension-table checks`);
     return;
@@ -407,19 +455,26 @@ function verifyReviewClaims(skill, lines, inFence, machineResult) {
     if (/group for finder assignment/.test(lines[i])) groupingLine = lines[i];
   }
   if (dimsClaim) {
-    check(rowNums.length === Number(dimsClaim[1]),
-      `${skill}/SKILL.md claims ${dimsClaim[1]} dimensions; dimension table has ${rowNums.length} rows`);
+    check(
+      rowNums.length === Number(dimsClaim[1]),
+      `${skill}/SKILL.md claims ${dimsClaim[1]} dimensions; dimension table has ${rowNums.length} rows`,
+    );
   }
-  check(rowNums.every((n, idx) => n === idx + 1),
-    `${skill}/SKILL.md dimension table numbering is not 1..${rowNums.length} (got ${rowNums.join(', ')})`);
+  check(
+    rowNums.every((n, idx) => n === idx + 1),
+    `${skill}/SKILL.md dimension table numbering is not 1..${rowNums.length} (got ${rowNums.join(", ")})`,
+  );
 
-  check(groupingLine !== null, `${skill}/SKILL.md Review Dimensions lacks the finder-assignment grouping line`);
+  check(
+    groupingLine !== null,
+    `${skill}/SKILL.md Review Dimensions lacks the finder-assignment grouping line`,
+  );
   if (groupingLine !== null) {
-    const after = groupingLine.slice(groupingLine.indexOf('group for finder assignment'));
+    const after = groupingLine.slice(groupingLine.indexOf("group for finder assignment"));
     const covered = [];
     let bad = null;
     for (const gm of after.match(/\(([^)]*)\)/g) || []) {
-      for (const item of gm.slice(1, -1).split(',')) {
+      for (const item of gm.slice(1, -1).split(",")) {
         const im = item.trim().match(/^(\d+)(?:\s*[–—-]\s*(\d+))?$/);
         if (!im) {
           bad = item.trim();
@@ -433,8 +488,10 @@ function verifyReviewClaims(skill, lines, inFence, machineResult) {
     check(bad === null, `${skill}/SKILL.md grouping has unparseable range "${bad}"`);
     const sorted = [...covered].toSorted((x, y) => x - y);
     const want = Array.from({ length: rowNums.length }, (_, idx) => idx + 1);
-    check(sorted.length === want.length && sorted.every((n, idx) => n === want[idx]),
-      `${skill}/SKILL.md grouping ranges do not cover 1..${rowNums.length} exactly once (got ${sorted.join(', ')})`);
+    check(
+      sorted.length === want.length && sorted.every((n, idx) => n === want[idx]),
+      `${skill}/SKILL.md grouping ranges do not cover 1..${rowNums.length} exactly once (got ${sorted.join(", ")})`,
+    );
   }
 }
 
@@ -456,7 +513,7 @@ function discoverSkillDirs() {
     } catch {
       isDir = false;
     }
-    if (isDir && fs.existsSync(path.join(dirPath, 'SKILL.md'))) dirs.push(entry);
+    if (isDir && fs.existsSync(path.join(dirPath, "SKILL.md"))) dirs.push(entry);
   }
   dirs.sort();
   return dirs;
@@ -472,10 +529,12 @@ function walkRelFiles(dir, base = dir) {
   } catch {
     return out;
   }
-  for (const entry of entries.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+  for (const entry of entries.toSorted((a, b) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+  )) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...walkRelFiles(full, base));
-    else if (entry.isFile()) out.push(path.relative(base, full).split(path.sep).join('/'));
+    else if (entry.isFile()) out.push(path.relative(base, full).split(path.sep).join("/"));
   }
   return out;
 }
@@ -493,7 +552,7 @@ function buildPayloadSrcMap(rootDir) {
     if (item.srcDir) {
       const destDir = toPosix(item.destDir);
       const srcDir = toPosix(item.srcDir);
-      for (const rel of walkRelFiles(path.join(rootDir, srcDir.split('/').join(path.sep)))) {
+      for (const rel of walkRelFiles(path.join(rootDir, srcDir.split("/").join(path.sep)))) {
         map.set(`${destDir}/${rel}`, `${srcDir}/${rel}`);
       }
     } else {
@@ -509,7 +568,7 @@ function buildPayloadSrcMap(rootDir) {
 // and reports the comparison dynamically ({compared:N, issues:[]}); any issue
 // is a hard failure.
 function checkPayloadDrift(rootDir) {
-  const payloadRoot = path.join(rootDir, 'bootstrap', 'package', 'payload', 'skills');
+  const payloadRoot = path.join(rootDir, "bootstrap", "package", "payload", "skills");
   const srcMap = buildPayloadSrcMap(rootDir);
   const issues = [];
   let compared = 0;
@@ -520,7 +579,7 @@ function checkPayloadDrift(rootDir) {
     payloadExists = false;
   }
   if (!payloadExists) {
-    issues.push('payload/skills tree missing');
+    issues.push("payload/skills tree missing");
   } else {
     for (const rel of walkRelFiles(payloadRoot)) {
       compared += 1;
@@ -529,7 +588,7 @@ function checkPayloadDrift(rootDir) {
         issues.push(`UNEXPECTED ${rel} (no pack-bootstrap mapping for this payload file)`);
         continue;
       }
-      const srcPath = path.join(rootDir, srcRel.split('/').join(path.sep));
+      const srcPath = path.join(rootDir, srcRel.split("/").join(path.sep));
       let srcContent;
       try {
         srcContent = fs.readFileSync(srcPath);
@@ -537,8 +596,11 @@ function checkPayloadDrift(rootDir) {
         issues.push(`MISSING-SOURCE ${rel}`);
         continue;
       }
-      const payloadContent = fs.readFileSync(path.join(payloadRoot, rel.split('/').join(path.sep)));
-      if (createHash('sha256').update(payloadContent).digest('hex') !== createHash('sha256').update(srcContent).digest('hex')) {
+      const payloadContent = fs.readFileSync(path.join(payloadRoot, rel.split("/").join(path.sep)));
+      if (
+        createHash("sha256").update(payloadContent).digest("hex") !==
+        createHash("sha256").update(srcContent).digest("hex")
+      ) {
         issues.push(`DIFF ${rel}`);
       }
     }
@@ -573,7 +635,7 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
   const issues = [];
   const warnings = [];
   const control = parsePlanControl(content);
-  const isComplete = control !== null && control.status === 'complete';
+  const isComplete = control !== null && control.status === "complete";
   const lines = splitLines(content);
   const inFence = fenceMap(lines);
   let hasDeferred = false;
@@ -589,7 +651,7 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
       if (/^#{1,3}\s/.test(lines[j])) break;
       block.push(lines[j]);
     }
-    const text = block.join('\n');
+    const text = block.join("\n");
     let cited = null;
     if (ledgerIds !== null) {
       for (const cm of text.matchAll(/\[DEF:([A-Z0-9-]+)\]/g)) {
@@ -601,9 +663,13 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
     }
     const label = `plan corpus .agents/plans/${planFile}`;
     if (isComplete) {
-      warnings.push(`${label}: DEFERRED task ${tm[1]} (COMPLETE plan — grandfathered)${cited ? ` cites [DEF:${cited}]` : ' lacks a [DEF:<slug>] ledger citation'}`);
+      warnings.push(
+        `${label}: DEFERRED task ${tm[1]} (COMPLETE plan — grandfathered)${cited ? ` cites [DEF:${cited}]` : " lacks a [DEF:<slug>] ledger citation"}`,
+      );
     } else if (cited === null) {
-      issues.push(`${label}: DEFERRED task ${tm[1]} has no ledger citation [DEF:<slug>] (non-COMPLETE plans must cite a deferred.md record)`);
+      issues.push(
+        `${label}: DEFERRED task ${tm[1]} has no ledger citation [DEF:<slug>] (non-COMPLETE plans must cite a deferred.md record)`,
+      );
     }
   }
   return { isComplete, hasDeferred, issues, warnings };
@@ -611,7 +677,7 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
 
 function main() {
   const skillDirs = discoverSkillDirs();
-  const plansDir = path.join(root, '.agents', 'plans');
+  const plansDir = path.join(root, ".agents", "plans");
 
   // F-053 (corpus half, D15): when a `.git` exists at the corpus root, the
   // corpus loops below skip untracked files (in-progress drafts cannot block
@@ -624,22 +690,29 @@ function main() {
   // efficiency checks below. A malformed toggle surfaces a visible warning.
   const eff = isEnabled(root);
   if (!eff.enabled) {
-    console.log(`note: token efficiency disabled (${eff.source})${eff.warning !== null ? ` — ${eff.warning}` : ''} — volatile/budget checks skipped`);
+    console.log(
+      `note: token efficiency disabled (${eff.source})${eff.warning !== null ? ` — ${eff.warning}` : ""} — volatile/budget checks skipped`,
+    );
   } else if (eff.warning !== null) {
     console.log(`note: ${eff.warning}`);
   }
   let descWordTotal = 0;
 
   for (const skill of skillDirs) {
-    check(Object.prototype.hasOwnProperty.call(MANIFEST, skill),
-      `skill dir ${skill} has no MANIFEST entry in scripts/lib/contracts.mjs (new skills must be registered, not silently skipped)`);
+    check(
+      Object.prototype.hasOwnProperty.call(MANIFEST, skill),
+      `skill dir ${skill} has no MANIFEST entry in scripts/lib/contracts.mjs (new skills must be registered, not silently skipped)`,
+    );
   }
   for (const key of Object.keys(MANIFEST)) {
-    check(skillDirs.includes(key), `MANIFEST key "${key}" has no matching skill directory (dead registry key)`);
+    check(
+      skillDirs.includes(key),
+      `MANIFEST key "${key}" has no matching skill directory (dead registry key)`,
+    );
   }
 
   for (const skill of skillDirs) {
-    const file = path.join(root, skill, 'SKILL.md');
+    const file = path.join(root, skill, "SKILL.md");
     const content = readOrNull(file);
     if (content === null) {
       check(false, `${skill}/SKILL.md unreadable`);
@@ -654,23 +727,28 @@ function main() {
     const fm = parseFrontmatter(content);
     check(fm !== null, `${skill}/SKILL.md frontmatter does not parse`);
     if (fm === null) continue;
-    check(fm.errors.length === 0, `${skill}/SKILL.md frontmatter: ${fm.errors.join('; ')}`);
+    check(fm.errors.length === 0, `${skill}/SKILL.md frontmatter: ${fm.errors.join("; ")}`);
     const kv = fm.kv;
 
-    const name = typeof kv.name === 'string' ? kv.name : '';
-    check(name !== '', `${skill}/SKILL.md missing frontmatter name`);
+    const name = typeof kv.name === "string" ? kv.name : "";
+    check(name !== "", `${skill}/SKILL.md missing frontmatter name`);
     check(NAME_RE.test(name), `${skill}/SKILL.md name "${name}" not ^[a-z0-9]+(-[a-z0-9]+)*$`);
     check(name === skill, `${skill}/SKILL.md name "${name}" != dir "${skill}"`);
 
-    const desc = typeof kv.description === 'string' ? kv.description : '';
-    check(desc !== '', `${skill}/SKILL.md missing frontmatter description`);
+    const desc = typeof kv.description === "string" ? kv.description : "";
+    check(desc !== "", `${skill}/SKILL.md missing frontmatter description`);
     check(desc.length <= 1024, `${skill}/SKILL.md description length ${desc.length} (> 1024)`);
-    check(NEVER_CLAUSE_RE.test(desc), `${skill}/SKILL.md description lacks a Never-X clause (e.g. "never plans or implements")`);
+    check(
+      NEVER_CLAUSE_RE.test(desc),
+      `${skill}/SKILL.md description lacks a Never-X clause (e.g. "never plans or implements")`,
+    );
 
     if (eff.enabled) {
       const volatileHit = desc.match(VOLATILE_DESC_RE);
-      check(volatileHit === null,
-        `${skill}/SKILL.md description contains volatile token "${volatileHit ? volatileHit[0] : ''}" (dates/years/versions/$ENV/absolute paths break prefix-cache units)`);
+      check(
+        volatileHit === null,
+        `${skill}/SKILL.md description contains volatile token "${volatileHit ? volatileHit[0] : ""}" (dates/years/versions/$ENV/absolute paths break prefix-cache units)`,
+      );
       descWordTotal += desc.trim().split(/\s+/).filter(Boolean).length;
     }
 
@@ -683,33 +761,58 @@ function main() {
     const h2 = h2Titles(lines, inFence);
     const h2Set = h2.map((x) => x.title);
     const dupes = h2Set.filter((t, idx) => h2Set.indexOf(t) !== idx);
-    check(dupes.length === 0, `${skill}/SKILL.md duplicate H2 sections: ${[...new Set(dupes)].join(', ')}`);
+    check(
+      dupes.length === 0,
+      `${skill}/SKILL.md duplicate H2 sections: ${[...new Set(dupes)].join(", ")}`,
+    );
 
     for (const sec of manifest.sections) {
-      check(h2Set.includes(sec), `${skill}/SKILL.md missing section "## ${sec}" (as a real heading outside fences)`);
+      check(
+        h2Set.includes(sec),
+        `${skill}/SKILL.md missing section "## ${sec}" (as a real heading outside fences)`,
+      );
     }
 
-    const interfaceRange = sectionRange(lines, inFence, 'Interface');
+    const interfaceRange = sectionRange(lines, inFence, "Interface");
     check(interfaceRange !== null, `${skill}/SKILL.md missing exact "## Interface" section`);
     if (interfaceRange !== null) {
       const interfaceLines = lines.slice(interfaceRange[0], interfaceRange[1]);
-      const labels = ['Consumes', 'Produces', 'Hands off', 'Never invokes'];
+      const labels = ["Consumes", "Produces", "Hands off", "Never invokes"];
       for (const label of labels) {
         const matches = interfaceLines.filter((line) => new RegExp(`^- ${label}: `).test(line));
-        check(matches.length === 1, `${skill}/SKILL.md Interface label "${label}:" occurs ${matches.length} times (want exactly 1)`);
+        check(
+          matches.length === 1,
+          `${skill}/SKILL.md Interface label "${label}:" occurs ${matches.length} times (want exactly 1)`,
+        );
       }
       const labelLines = interfaceLines.filter((line) => /^- [A-Za-z][A-Za-z ]*: /.test(line));
-      check(labelLines.length === 4, `${skill}/SKILL.md Interface has ${labelLines.length} labeled bullets (want exactly 4)`);
-      const neverLine = interfaceLines.find((line) => line.startsWith('- Never invokes: '));
+      check(
+        labelLines.length === 4,
+        `${skill}/SKILL.md Interface has ${labelLines.length} labeled bullets (want exactly 4)`,
+      );
+      const neverLine = interfaceLines.find((line) => line.startsWith("- Never invokes: "));
       if (neverLine) {
-        const names = neverLine.slice('- Never invokes: '.length).split(',').map((nm) => nm.trim()).filter(Boolean);
+        const names = neverLine
+          .slice("- Never invokes: ".length)
+          .split(",")
+          .map((nm) => nm.trim())
+          .filter(Boolean);
         const unknown = names.filter((nm) => !Object.prototype.hasOwnProperty.call(INTERFACES, nm));
-        check(unknown.length === 0, `${skill}/SKILL.md Interface Never invokes has unknown skill names: ${unknown.join(', ')}`);
-        const expected = Object.keys(NEVER_INVOKE[skill] || {}).filter((nm) => NEVER_INVOKE[skill][nm]);
-        check(new Set(names).size === names.length && names.length === expected.length && names.every((nm) => expected.includes(nm)),
-          `${skill}/SKILL.md Interface Never invokes does not match contracts.mjs row (expected: ${expected.join(', ')})`);
+        check(
+          unknown.length === 0,
+          `${skill}/SKILL.md Interface Never invokes has unknown skill names: ${unknown.join(", ")}`,
+        );
+        const expected = Object.keys(NEVER_INVOKE[skill] || {}).filter(
+          (nm) => NEVER_INVOKE[skill][nm],
+        );
+        check(
+          new Set(names).size === names.length &&
+            names.length === expected.length &&
+            names.every((nm) => expected.includes(nm)),
+          `${skill}/SKILL.md Interface Never invokes does not match contracts.mjs row (expected: ${expected.join(", ")})`,
+        );
       }
-      const artifactFailures = validateInterfaceArtifactPatterns(skill, interfaceLines.join('\n'));
+      const artifactFailures = validateInterfaceArtifactPatterns(skill, interfaceLines.join("\n"));
       if (artifactFailures.length === 0) {
         check(true, `${skill}/SKILL.md Interface artifact patterns OK`);
       } else {
@@ -718,45 +821,70 @@ function main() {
     }
 
     if (manifest.tmux) {
-      check(h2Set.includes('Tmux Session Bootstrap'), `${skill}/SKILL.md missing section "## Tmux Session Bootstrap"`);
+      check(
+        h2Set.includes("Tmux Session Bootstrap"),
+        `${skill}/SKILL.md missing section "## Tmux Session Bootstrap"`,
+      );
     } else {
-      check(!h2Set.includes('Tmux Session Bootstrap'), `${skill}/SKILL.md has "## Tmux Session Bootstrap" (must not)`);
+      check(
+        !h2Set.includes("Tmux Session Bootstrap"),
+        `${skill}/SKILL.md has "## Tmux Session Bootstrap" (must not)`,
+      );
     }
 
     if (manifest.norms) {
       const phraseHit = lines.some((l, idx) => !inFence[idx] && NORMS_PHRASE_RE.test(l));
-      check(phraseHit, `${skill}/SKILL.md lacks NORMS detection phrase ("Generated by csm-scan" or "## Repository Overview") outside fences`);
+      check(
+        phraseHit,
+        `${skill}/SKILL.md lacks NORMS detection phrase ("Generated by csm-scan" or "## Repository Overview") outside fences`,
+      );
     }
 
     if (manifest.machine) {
       const machineResult = verifyMachine(skill, lines, inFence, manifest.machine);
-      if (skill === 'csm-review' && machineResult) verifyReviewClaims(skill, lines, inFence, machineResult);
+      if (skill === "csm-review" && machineResult)
+        verifyReviewClaims(skill, lines, inFence, machineResult);
     }
 
     const ordinalFailures = validateOrdinalSequencing(content);
-    runGatedCheck(skill, 'ordinal', ordinalFailures, `${skill}/SKILL.md state-section ordinal sequencing`);
+    runGatedCheck(
+      skill,
+      "ordinal",
+      ordinalFailures,
+      `${skill}/SKILL.md state-section ordinal sequencing`,
+    );
   }
 
   if (eff.enabled) {
-    check(descWordTotal <= WORD_BUDGET,
-      `description word total ${descWordTotal} (> ${WORD_BUDGET}) across ${skillDirs.length} skills (frontmatter budget AC1 regression)`);
+    check(
+      descWordTotal <= WORD_BUDGET,
+      `description word total ${descWordTotal} (> ${WORD_BUDGET}) across ${skillDirs.length} skills (frontmatter budget AC1 regression)`,
+    );
   }
 
   for (const contract of CONTRACTS) {
-    const srcContent = readOrNull(path.join(root, contract.source.skill, 'SKILL.md'));
-    check(containsOutsideFences(srcContent, contract.source.needle),
-      `contract ${contract.id}: producer ${contract.source.skill}/SKILL.md lacks "${contract.source.needle}" (outside fences)`);
+    const srcContent = readOrNull(path.join(root, contract.source.skill, "SKILL.md"));
+    check(
+      containsOutsideFences(srcContent, contract.source.needle),
+      `contract ${contract.id}: producer ${contract.source.skill}/SKILL.md lacks "${contract.source.needle}" (outside fences)`,
+    );
     for (const consumer of contract.consumers) {
-      const consContent = readOrNull(path.join(root, consumer.skill, 'SKILL.md'));
-      if (contract.rule === 'prefix') {
-        check(contract.source.needle.startsWith(consumer.needle),
-          `contract ${contract.id}: consumer needle "${consumer.needle}" is not a prefix of producer needle "${contract.source.needle}"`);
+      const consContent = readOrNull(path.join(root, consumer.skill, "SKILL.md"));
+      if (contract.rule === "prefix") {
+        check(
+          contract.source.needle.startsWith(consumer.needle),
+          `contract ${contract.id}: consumer needle "${consumer.needle}" is not a prefix of producer needle "${contract.source.needle}"`,
+        );
       } else {
-        check(consumer.needle === contract.source.needle,
-          `contract ${contract.id}: consumer needle "${consumer.needle}" != producer needle "${contract.source.needle}"`);
+        check(
+          consumer.needle === contract.source.needle,
+          `contract ${contract.id}: consumer needle "${consumer.needle}" != producer needle "${contract.source.needle}"`,
+        );
       }
-      check(containsOutsideFences(consContent, consumer.needle),
-        `contract ${contract.id}: consumer ${consumer.skill}/SKILL.md lacks "${consumer.needle}" (outside fences)`);
+      check(
+        containsOutsideFences(consContent, consumer.needle),
+        `contract ${contract.id}: consumer ${consumer.skill}/SKILL.md lacks "${consumer.needle}" (outside fences)`,
+      );
     }
   }
 
@@ -765,7 +893,7 @@ function main() {
   // at a missing script is a defect wherever the reference sits); a fenced-only
   // reference is surfaced as a note (F-052 residual — a hard non-fenced
   // presence rule would require a prose reference in csm-upload/SKILL.md).
-  const uploadSkillFile = path.join(root, UPLOAD_SCRIPT_REF.skill, 'SKILL.md');
+  const uploadSkillFile = path.join(root, UPLOAD_SCRIPT_REF.skill, "SKILL.md");
   const uploadContent = readOrNull(uploadSkillFile);
   const uploadLines = uploadContent === null ? [] : splitLines(uploadContent);
   const uploadFence = fenceMap(uploadLines);
@@ -779,92 +907,153 @@ function main() {
   };
   const allRefs = collectScriptRefs(() => true);
   const proseRefs = collectScriptRefs((i) => !uploadFence[i]);
-  check(allRefs.length > 0, `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references no csm-*/scripts/*.mjs script paths`);
+  check(
+    allRefs.length > 0,
+    `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references no csm-*/scripts/*.mjs script paths`,
+  );
   for (const ref of allRefs) {
-    check(fs.existsSync(path.join(root, ref)), `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references ${ref} which does not exist`);
+    check(
+      fs.existsSync(path.join(root, ref)),
+      `${UPLOAD_SCRIPT_REF.skill}/SKILL.md references ${ref} which does not exist`,
+    );
   }
   if (allRefs.length > 0 && proseRefs.length === 0) {
-    console.log(`  note: ${UPLOAD_SCRIPT_REF.skill}/SKILL.md references its script path(s) only inside code fences (F-052 residual — no non-fenced declaration)`);
+    console.log(
+      `  note: ${UPLOAD_SCRIPT_REF.skill}/SKILL.md references its script path(s) only inside code fences (F-052 residual — no non-fenced declaration)`,
+    );
   }
 
-  const planSkill = readOrNull(path.join(root, 'csm-plan', 'SKILL.md'));
+  const planSkill = readOrNull(path.join(root, "csm-plan", "SKILL.md"));
   let planTemplate = [];
   if (planSkill !== null) {
     const pl = splitLines(planSkill);
     const pf = fenceMap(pl);
-    const range = sectionRange(pl, pf, 'Required Plan Document');
+    const range = sectionRange(pl, pf, "Required Plan Document");
     const body = range ? fencedBlockAfter(pl, pf, range[0]) : null;
-    if (body !== null) planTemplate = body.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, '').trim());
+    if (body !== null)
+      planTemplate = body.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, "").trim());
   }
-  check(planTemplate.length > 0, 'could not extract the Required Plan Document template from csm-plan/SKILL.md');
+  check(
+    planTemplate.length > 0,
+    "could not extract the Required Plan Document template from csm-plan/SKILL.md",
+  );
 
-  const grillSkill = readOrNull(path.join(root, 'csm-grill', 'SKILL.md'));
+  const grillSkill = readOrNull(path.join(root, "csm-grill", "SKILL.md"));
   let approachTemplate = [];
   if (grillSkill !== null) {
     const gl = splitLines(grillSkill);
     const gf = fenceMap(gl);
-    const grange = sectionRange(gl, gf, 'Required Approach Document');
+    const grange = sectionRange(gl, gf, "Required Approach Document");
     const gbody = grange ? fencedBlockAfter(gl, gf, grange[0]) : null;
-    if (gbody !== null) approachTemplate = gbody.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, '').trim());
+    if (gbody !== null)
+      approachTemplate = gbody
+        .filter((l) => /^##\s/.test(l))
+        .map((l) => l.replace(/^##\s+/, "").trim());
   }
-  check(approachTemplate.length > 0, 'could not extract the Required Approach Document template from csm-grill/SKILL.md');
+  check(
+    approachTemplate.length > 0,
+    "could not extract the Required Approach Document template from csm-grill/SKILL.md",
+  );
 
-  const researchSkill = readOrNull(path.join(root, 'csm-deep-research', 'SKILL.md'));
+  const researchSkill = readOrNull(path.join(root, "csm-deep-research", "SKILL.md"));
   let researchTemplate = [];
   if (researchSkill !== null) {
     const rl = splitLines(researchSkill);
     const rf = fenceMap(rl);
-    const range = sectionRange(rl, rf, 'Required Research Document');
+    const range = sectionRange(rl, rf, "Required Research Document");
     const body = range ? fencedBlockAfter(rl, rf, range[0]) : null;
-    if (body !== null) researchTemplate = body.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, '').trim());
+    if (body !== null)
+      researchTemplate = body
+        .filter((l) => /^##\s/.test(l))
+        .map((l) => l.replace(/^##\s+/, "").trim());
   }
-  check(researchTemplate.length > 0, 'could not extract the Required Research Document template from csm-deep-research/SKILL.md');
+  check(
+    researchTemplate.length > 0,
+    "could not extract the Required Research Document template from csm-deep-research/SKILL.md",
+  );
 
-  const reviewSkill = readOrNull(path.join(root, 'csm-review', 'SKILL.md'));
+  const reviewSkill = readOrNull(path.join(root, "csm-review", "SKILL.md"));
   let reviewTemplateH2 = [];
   let reviewH1Prefix = null;
   if (reviewSkill !== null) {
     const rl = splitLines(reviewSkill);
     const rf = fenceMap(rl);
-    const range = sectionRange(rl, rf, 'Report Format');
+    const range = sectionRange(rl, rf, "Report Format");
     const body = range ? fencedBlockAfter(rl, rf, range[0]) : null;
     if (body !== null) {
       const h1Line = body.find((l) => /^#\s/.test(l));
-      if (h1Line) reviewH1Prefix = `${h1Line.replace(/^#\s+/, '').split('—')[0].trim()} —`;
-      reviewTemplateH2 = body.filter((l) => /^##\s/.test(l)).map((l) => l.replace(/^##\s+/, '').trim().replace(/\s+\(.*$/, ''));
+      if (h1Line) reviewH1Prefix = `${h1Line.replace(/^#\s+/, "").split("—")[0].trim()} —`;
+      reviewTemplateH2 = body
+        .filter((l) => /^##\s/.test(l))
+        .map((l) =>
+          l
+            .replace(/^##\s+/, "")
+            .trim()
+            .replace(/\s+\(.*$/, ""),
+        );
     }
   }
-  check(reviewTemplateH2.length > 0, 'could not extract the Report Format template from csm-review/SKILL.md');
-  check(reviewH1Prefix !== null, 'Report Format template has no H1 line — review-corpus H1 check would silently skip');
+  check(
+    reviewTemplateH2.length > 0,
+    "could not extract the Report Format template from csm-review/SKILL.md",
+  );
+  check(
+    reviewH1Prefix !== null,
+    "Report Format template has no H1 line — review-corpus H1 check would silently skip",
+  );
 
   // Template format-marker validation (F-050): the first line inside each
   // producer template fence must be `format: <skill>/<n>`. Hard-enforced
   // (the old PENDING_DEBT softening was pruned as inert).
-  runGatedCheck('csm-plan', 'template-format-marker',
-    validateTemplateFormatMarkers(planSkill ?? '', 'csm-plan', 'Required Plan Document'),
-    'csm-plan/SKILL.md template format marker');
-  runGatedCheck('csm-grill', 'template-format-marker',
-    validateTemplateFormatMarkers(grillSkill ?? '', 'csm-grill', 'Required Approach Document'),
-    'csm-grill/SKILL.md template format marker');
-  runGatedCheck('csm-review', 'template-format-marker',
-    validateTemplateFormatMarkers(reviewSkill ?? '', 'csm-review', 'Report Format'),
-    'csm-review/SKILL.md template format marker');
-  runGatedCheck('csm-deep-research', 'template-format-marker',
-    validateTemplateFormatMarkers(researchSkill ?? '', 'csm-deep-research', 'Required Research Document'),
-    'csm-deep-research/SKILL.md template format marker');
+  runGatedCheck(
+    "csm-plan",
+    "template-format-marker",
+    validateTemplateFormatMarkers(planSkill ?? "", "csm-plan", "Required Plan Document"),
+    "csm-plan/SKILL.md template format marker",
+  );
+  runGatedCheck(
+    "csm-grill",
+    "template-format-marker",
+    validateTemplateFormatMarkers(grillSkill ?? "", "csm-grill", "Required Approach Document"),
+    "csm-grill/SKILL.md template format marker",
+  );
+  runGatedCheck(
+    "csm-review",
+    "template-format-marker",
+    validateTemplateFormatMarkers(reviewSkill ?? "", "csm-review", "Report Format"),
+    "csm-review/SKILL.md template format marker",
+  );
+  runGatedCheck(
+    "csm-deep-research",
+    "template-format-marker",
+    validateTemplateFormatMarkers(
+      researchSkill ?? "",
+      "csm-deep-research",
+      "Required Research Document",
+    ),
+    "csm-deep-research/SKILL.md template format marker",
+  );
 
-  const deferredLedgerPath = path.join(root, '.agents', 'docs', 'deferred.md');
+  const deferredLedgerPath = path.join(root, ".agents", "docs", "deferred.md");
   const deferredLedgerIds = readDeferredLedgerIds(deferredLedgerPath);
-  check(deferredLedgerIds !== null,
-    `deferred ledger ${path.join('.agents', 'docs', 'deferred.md')} not found (DEFERRED-citation rule requires it)`);
+  check(
+    deferredLedgerIds !== null,
+    `deferred ledger ${path.join(".agents", "docs", "deferred.md")} not found (DEFERRED-citation rule requires it)`,
+  );
 
   let planFiles = [];
   try {
-    planFiles = fs.readdirSync(plansDir).filter((f) => f.endsWith('-csm.md')).toSorted();
+    planFiles = fs
+      .readdirSync(plansDir)
+      .filter((f) => f.endsWith("-csm.md"))
+      .toSorted();
   } catch {
     planFiles = [];
   }
-  check(planFiles.length > 0, `no *-csm.md plan corpus found under ${path.join('.agents', 'plans')}`);
+  check(
+    planFiles.length > 0,
+    `no *-csm.md plan corpus found under ${path.join(".agents", "plans")}`,
+  );
   for (const f of planFiles) {
     if (tracked !== null && !tracked.has(`.agents/plans/${f}`)) continue;
     const content = readOrNull(path.join(plansDir, f));
@@ -873,13 +1062,21 @@ function main() {
       continue;
     }
     const marker = formatMarkerOf(content);
-    check(marker !== null && marker.kind === 'csm-plan' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-plan'] ?? 0),
-      `plan corpus .agents/plans/${f} missing/unknown format marker (want frontmatter "format: csm-plan/<n>")`);
+    check(
+      marker !== null &&
+        marker.kind === "csm-plan" &&
+        marker.version >= 1 &&
+        marker.version <= (FORMAT_VERSIONS["csm-plan"] ?? 0),
+      `plan corpus .agents/plans/${f} missing/unknown format marker (want frontmatter "format: csm-plan/<n>")`,
+    );
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, planTemplate);
-    check(gap === null, `plan corpus .agents/plans/${f}: missing/out-of-order required section "## ${gap}"`);
+    check(
+      gap === null,
+      `plan corpus .agents/plans/${f}: missing/out-of-order required section "## ${gap}"`,
+    );
 
     const controlFailures = validatePlanControl(content);
     if (controlFailures.length === 0) {
@@ -910,7 +1107,7 @@ function main() {
     // placeholders, no `; test $? -eq` under set -e, and no `grep -q "$m"`
     // over dash-leading tokens. COMPLETE plans encode history and are exempt.
     const signals = lintPlanSignals(f, content);
-    if (signals.status === 'ready' || signals.status === 'in_progress') {
+    if (signals.status === "ready" || signals.status === "in_progress") {
       if (signals.issues.length === 0) {
         check(true, `plan corpus .agents/plans/${f} acceptance signals OK`);
       } else {
@@ -921,14 +1118,20 @@ function main() {
     }
   }
 
-  const reviewsDir = path.join(root, '.agents', 'reviews');
+  const reviewsDir = path.join(root, ".agents", "reviews");
   let reviewFiles = [];
   try {
-    reviewFiles = fs.readdirSync(reviewsDir).filter((f) => f.endsWith('-review.md')).toSorted();
+    reviewFiles = fs
+      .readdirSync(reviewsDir)
+      .filter((f) => f.endsWith("-review.md"))
+      .toSorted();
   } catch {
     reviewFiles = [];
   }
-  check(reviewFiles.length > 0, `no *-review.md review corpus found under ${path.join('.agents', 'reviews')}`);
+  check(
+    reviewFiles.length > 0,
+    `no *-review.md review corpus found under ${path.join(".agents", "reviews")}`,
+  );
   for (const f of reviewFiles) {
     if (tracked !== null && !tracked.has(`.agents/reviews/${f}`)) continue;
     const content = readOrNull(path.join(reviewsDir, f));
@@ -937,29 +1140,48 @@ function main() {
       continue;
     }
     const marker = formatMarkerOf(content);
-    check(marker !== null && marker.kind === 'csm-review' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-review'] ?? 0),
-      `review corpus .agents/reviews/${f} missing/unknown format marker (want frontmatter "format: csm-review/<n>")`);
+    check(
+      marker !== null &&
+        marker.kind === "csm-review" &&
+        marker.version >= 1 &&
+        marker.version <= (FORMAT_VERSIONS["csm-review"] ?? 0),
+      `review corpus .agents/reviews/${f} missing/unknown format marker (want frontmatter "format: csm-review/<n>")`,
+    );
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
     const h1s = lines.filter((l, idx) => !inFence[idx] && /^#\s/.test(l));
-    check(h1s.length === 1, `review corpus .agents/reviews/${f} has ${h1s.length} H1 titles (want 1)`);
+    check(
+      h1s.length === 1,
+      `review corpus .agents/reviews/${f} has ${h1s.length} H1 titles (want 1)`,
+    );
     if (reviewH1Prefix !== null && h1s.length === 1) {
-      check(h1s[0].replace(/^#\s+/, '').startsWith(reviewH1Prefix),
-        `review corpus .agents/reviews/${f} H1 does not start with "${reviewH1Prefix}"`);
+      check(
+        h1s[0].replace(/^#\s+/, "").startsWith(reviewH1Prefix),
+        `review corpus .agents/reviews/${f} H1 does not start with "${reviewH1Prefix}"`,
+      );
     }
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, reviewTemplateH2);
-    check(gap === null, `review corpus .agents/reviews/${f}: missing/out-of-order Report Format section "## ${gap}"`);
+    check(
+      gap === null,
+      `review corpus .agents/reviews/${f}: missing/out-of-order Report Format section "## ${gap}"`,
+    );
   }
 
-  const approachesDir = path.join(root, '.agents', 'approaches');
+  const approachesDir = path.join(root, ".agents", "approaches");
   let approachFiles = [];
   try {
-    approachFiles = fs.readdirSync(approachesDir).filter((f) => f.endsWith('-approach.md')).toSorted();
+    approachFiles = fs
+      .readdirSync(approachesDir)
+      .filter((f) => f.endsWith("-approach.md"))
+      .toSorted();
   } catch {
     approachFiles = [];
   }
-  check(approachFiles.length > 0, `no *-approach.md approach corpus found under ${path.join('.agents', 'approaches')}`);
+  check(
+    approachFiles.length > 0,
+    `no *-approach.md approach corpus found under ${path.join(".agents", "approaches")}`,
+  );
   for (const f of approachFiles) {
     if (tracked !== null && !tracked.has(`.agents/approaches/${f}`)) continue;
     const content = readOrNull(path.join(approachesDir, f));
@@ -968,23 +1190,37 @@ function main() {
       continue;
     }
     const marker = formatMarkerOf(content);
-    check(marker !== null && marker.kind === 'csm-grill' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-grill'] ?? 0),
-      `approach corpus .agents/approaches/${f} missing/unknown format marker (want frontmatter "format: csm-grill/<n>")`);
+    check(
+      marker !== null &&
+        marker.kind === "csm-grill" &&
+        marker.version >= 1 &&
+        marker.version <= (FORMAT_VERSIONS["csm-grill"] ?? 0),
+      `approach corpus .agents/approaches/${f} missing/unknown format marker (want frontmatter "format: csm-grill/<n>")`,
+    );
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, approachTemplate);
-    check(gap === null, `approach corpus .agents/approaches/${f}: missing/out-of-order required section "## ${gap}"`);
+    check(
+      gap === null,
+      `approach corpus .agents/approaches/${f}: missing/out-of-order required section "## ${gap}"`,
+    );
   }
 
-  const researchDir = path.join(root, '.agents', 'research');
+  const researchDir = path.join(root, ".agents", "research");
   let researchFiles = [];
   try {
-    researchFiles = fs.readdirSync(researchDir).filter((f) => f.endsWith('-research.md')).toSorted();
+    researchFiles = fs
+      .readdirSync(researchDir)
+      .filter((f) => f.endsWith("-research.md"))
+      .toSorted();
   } catch {
     researchFiles = [];
   }
-  check(researchFiles.length > 0, `no *-research.md research corpus found under ${path.join('.agents', 'research')}`);
+  check(
+    researchFiles.length > 0,
+    `no *-research.md research corpus found under ${path.join(".agents", "research")}`,
+  );
   for (const f of researchFiles) {
     if (tracked !== null && !tracked.has(`.agents/research/${f}`)) continue;
     const content = readOrNull(path.join(researchDir, f));
@@ -993,18 +1229,31 @@ function main() {
       continue;
     }
     const marker = formatMarkerOf(content);
-    check(marker !== null && marker.kind === 'csm-deep-research' && marker.version >= 1 && marker.version <= (FORMAT_VERSIONS['csm-deep-research'] ?? 0),
-      `research corpus .agents/research/${f} missing/unknown format marker (want frontmatter "format: csm-deep-research/<n>")`);
+    check(
+      marker !== null &&
+        marker.kind === "csm-deep-research" &&
+        marker.version >= 1 &&
+        marker.version <= (FORMAT_VERSIONS["csm-deep-research"] ?? 0),
+      `research corpus .agents/research/${f} missing/unknown format marker (want frontmatter "format: csm-deep-research/<n>")`,
+    );
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
     const titles = h2Titles(lines, inFence).map((x) => x.title);
     const gap = subsequenceGap(titles, researchTemplate);
-    check(gap === null, `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`);
-    const journal = content.match(/^\[\S+\]\s+[A-Z_]+(?:\s*->\s*[A-Z_]+)+\s*::\s*cycle\s+\d+\s*::/m);
-    check(journal !== null, `research corpus .agents/research/${f}: missing embedded Control journal entry (want "[<timestamp>] <From> -> <To> :: cycle <n> ::")`);
+    check(
+      gap === null,
+      `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`,
+    );
+    const journal = content.match(
+      /^\[\S+\]\s+[A-Z_]+(?:\s*->\s*[A-Z_]+)+\s*::\s*cycle\s+\d+\s*::/m,
+    );
+    check(
+      journal !== null,
+      `research corpus .agents/research/${f}: missing embedded Control journal entry (want "[<timestamp>] <From> -> <To> :: cycle <n> ::")`,
+    );
   }
 
-  const readmePath = path.join(root, 'README.md');
+  const readmePath = path.join(root, "README.md");
   const readme = readOrNull(readmePath);
   check(readme !== null, `README.md not found at ${readmePath}`);
   if (readme !== null) {
@@ -1018,17 +1267,25 @@ function main() {
       let m;
       while ((m = README_PATH_RE.exec(line)) !== null) {
         const full = m[0];
-        const seg = full.split('/')[0];
+        const seg = full.split("/")[0];
         check(fs.existsSync(path.join(root, full)), `README path not found: ${full}`);
         if (skillSet.has(seg)) seen.add(seg);
       }
     }
     const missingSkills = [...skillSet].filter((s) => !seen.has(s));
-    check(missingSkills.length === 0, `README references ${seen.size}/${skillSet.size} skills; missing ${missingSkills.join(', ')}`);
+    check(
+      missingSkills.length === 0,
+      `README references ${seen.size}/${skillSet.size} skills; missing ${missingSkills.join(", ")}`,
+    );
 
     const tmuxSkills = Object.keys(MANIFEST).filter((s) => MANIFEST[s].tmux);
-    const hasTmuxBullet = readmeLines.some((l, i) => !readmeFence[i] && /tmux/i.test(l) && tmuxSkills.every((s) => l.includes(s)));
-    check(hasTmuxBullet, `README tmux bullet does not list the ${tmuxSkills.length} bootstrap skills (${tmuxSkills.join(', ')})`);
+    const hasTmuxBullet = readmeLines.some(
+      (l, i) => !readmeFence[i] && /tmux/i.test(l) && tmuxSkills.every((s) => l.includes(s)),
+    );
+    check(
+      hasTmuxBullet,
+      `README tmux bullet does not list the ${tmuxSkills.length} bootstrap skills (${tmuxSkills.join(", ")})`,
+    );
 
     // F-061: every H2 below the TOC must have a TOC entry (and every TOC entry
     // must resolve to a heading below it). The composition-matrix section is
@@ -1040,13 +1297,13 @@ function main() {
       const m = line.match(/^((?:[│ ]{4})*)[├└]──\s+(\S+)/);
       if (!m) continue;
       const name = m[2];
-      if (name === '.') continue;
+      if (name === ".") continue;
       const depth = m[1].length / 4;
-      const clean = name.replace(/\/+$/, '');
+      const clean = name.replace(/\/+$/, "");
       stack[depth] = clean;
-      const rel = stack.slice(0, depth + 1).join('/');
+      const rel = stack.slice(0, depth + 1).join("/");
       const abs = path.join(root, rel);
-      if (name.endsWith('/')) {
+      if (name.endsWith("/")) {
         let isDir = false;
         try {
           isDir = fs.statSync(abs).isDirectory();
@@ -1062,11 +1319,11 @@ function main() {
 
   let licenseOk = false;
   try {
-    licenseOk = fs.statSync(path.join(root, 'LICENSE')).isFile();
+    licenseOk = fs.statSync(path.join(root, "LICENSE")).isFile();
   } catch {
     licenseOk = false;
   }
-  check(licenseOk, 'LICENSE file not found at repo root');
+  check(licenseOk, "LICENSE file not found at repo root");
 
   const boilerplateDrift = checkDrift(root);
   for (const d of boilerplateDrift) {
@@ -1078,26 +1335,34 @@ function main() {
     check(false, `payload drift: ${issue}`);
   }
 
-  const matrixDrift = checkMatrixDrift(path.join(root, 'README.md'));
+  const matrixDrift = checkMatrixDrift(path.join(root, "README.md"));
   if (matrixDrift !== null) check(false, matrixDrift);
 
   // Lint gate — repo-wide oxlint against the committed quality bar
   // (.oxlintrc.json). Conditional: skipped with a notice when oxlint is not
   // installed so the gate stays runnable on fresh clones without node_modules.
-  const oxlintBin = path.join(root, 'node_modules', '.bin', 'oxlint');
+  const oxlintBin = path.join(root, "node_modules", ".bin", "oxlint");
   if (fs.existsSync(oxlintBin)) {
-    const lint = spawnSync(oxlintBin, ['--deny-warnings', '--no-error-on-unmatched-pattern'], { cwd: root, encoding: 'utf8' });
+    const lint = spawnSync(oxlintBin, ["--deny-warnings", "--no-error-on-unmatched-pattern"], {
+      cwd: root,
+      encoding: "utf8",
+    });
     if (lint.status === null) {
-      check(false, `lint gate: oxlint could not be executed (${lint.error ? lint.error.message : 'unknown spawn error'})`);
+      check(
+        false,
+        `lint gate: oxlint could not be executed (${lint.error ? lint.error.message : "unknown spawn error"})`,
+      );
     } else if (lint.status === 0) {
-      check(true, 'lint gate: clean');
+      check(true, "lint gate: clean");
     } else {
-      const findings = (lint.stdout + lint.stderr).split('\n').filter((l) => /warning|error/.test(l));
-      const first = findings[0] ? ` (e.g. ${findings[0].trim()})` : '';
+      const findings = (lint.stdout + lint.stderr)
+        .split("\n")
+        .filter((l) => /warning|error/.test(l));
+      const first = findings[0] ? ` (e.g. ${findings[0].trim()})` : "";
       check(false, `lint gate: oxlint reported ${findings.length} finding(s)${first}`);
     }
   } else {
-    console.log('lint gate skipped — oxlint not installed (run: pnpm install)');
+    console.log("lint gate skipped — oxlint not installed (run: pnpm install)");
   }
 
   if (failures.length === 0) {
@@ -1122,4 +1387,12 @@ if (process.argv[1]) {
 }
 if (isMain) main();
 
-export { fenceMap, countH1, parseFrontmatter, subsequenceGap, githubAnchor, containsOutsideFences, README_PATH_RE };
+export {
+  fenceMap,
+  countH1,
+  parseFrontmatter,
+  subsequenceGap,
+  githubAnchor,
+  containsOutsideFences,
+  README_PATH_RE,
+};

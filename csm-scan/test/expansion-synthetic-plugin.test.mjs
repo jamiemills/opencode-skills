@@ -26,69 +26,67 @@
 // Scope (own-only): this test file, the temporary skill-root fixture created by
 // the test, and the Fixturelang fixture repository map. Nothing else is edited.
 
-import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import {
-  mkdir, mkdtemp, rm, writeFile,
-} from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { test } from 'node:test';
-import { promisify } from 'node:util';
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { test } from "node:test";
+import { promisify } from "node:util";
 
-import { PROVIDER_CATEGORIES, validateProvider } from '../lib/scan/contracts/provider.mjs';
-import { PROVIDER_DIMENSION_IDS } from '../lib/scan/contracts/dimension.mjs';
-import { loadPlugins } from '../lib/scan/plugins/loader.mjs';
-import { validatePlugin } from '../lib/scan/plugins/schema.mjs';
-import { evaluateRules } from '../lib/scan/providers/rules.mjs';
+import { PROVIDER_CATEGORIES, validateProvider } from "../lib/scan/contracts/provider.mjs";
+import { PROVIDER_DIMENSION_IDS } from "../lib/scan/contracts/dimension.mjs";
+import { loadPlugins } from "../lib/scan/plugins/loader.mjs";
+import { validatePlugin } from "../lib/scan/plugins/schema.mjs";
+import { evaluateRules } from "../lib/scan/providers/rules.mjs";
 import {
   pluginObservationsFromMatches,
   runtimeCatalogResults,
-} from '../lib/scan/providers/runtime-catalog.mjs';
+} from "../lib/scan/providers/runtime-catalog.mjs";
 import {
   analysisPluginProviderResults,
   analysisProviderResults,
   mergeAnalysisResults,
-} from '../lib/scan/providers/analysis-catalog.mjs';
+} from "../lib/scan/providers/analysis-catalog.mjs";
 import {
   assurancePluginObservations,
   assuranceCatalogResults,
-} from '../lib/scan/providers/assurance-catalog.mjs';
-import { GENERIC_PROVIDER_ID } from '../lib/scan/providers/generic.mjs';
-import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
-import { makeFixture, cleanupFixture } from './harness.mjs';
+} from "../lib/scan/providers/assurance-catalog.mjs";
+import { GENERIC_PROVIDER_ID } from "../lib/scan/providers/generic.mjs";
+import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { makeFixture, cleanupFixture } from "./harness.mjs";
 
 const execFileAsync = promisify(execFile);
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(TEST_ROOT, '..');
+const ROOT = join(TEST_ROOT, "..");
 
-const RUNTIME_DIMENSIONS = ['DIM-stack-v1', 'DIM-config-v1', 'DIM-testing-v1'];
+const RUNTIME_DIMENSIONS = ["DIM-stack-v1", "DIM-config-v1", "DIM-testing-v1"];
 
 // Fixture repository map for the synthetic Fixturelang language (T225). This is
 // the ONLY place in the skill that knows Fixturelang content; it is deliberately
 // excluded from `test/fixtures/` so the T201 fixture-inventory baseline stays
 // unchanged. The artifacts below are matched by the injected plugin rules.
 const FIXTURELANG_FILES = Object.freeze({
-  'src/main.fixturelang': [
-    ';; fixturelang main module',
-    'route: /api/health',
-    'entity: User',
-    'service: web',
-    'token=fixturelang-secret',
-    '',
-  ].join('\n'),
-  'src/lib.fixturelang': ';; fixturelang library\n',
-  'test/unit.fixturelang': ';; fixturelang unit test\n',
-  'Fixturefile': 'name = "fixturelang-demo"\nversion = "1.0.0"\n',
-  'fixturelang.json': '{ "name": "fixturelang-demo", "version": "1.0.0" }\n',
-  'fixturelang.lock': 'lock: sha256:abcdef\n',
-  'README.fixturelang': '# Fixturelang demo\n',
-  'POLICY.fixturelang': 'policy: secure-by-default\n',
-  'Fixtureworkflow': 'workflow: ci\n',
-  'src/practice.fixturelang': ';; fixturelang practice\npractice: bdd\n',
-  '.fixturelangrc': 'strict = true\n',
+  "src/main.fixturelang": [
+    ";; fixturelang main module",
+    "route: /api/health",
+    "entity: User",
+    "service: web",
+    "token=fixturelang-secret",
+    "",
+  ].join("\n"),
+  "src/lib.fixturelang": ";; fixturelang library\n",
+  "test/unit.fixturelang": ";; fixturelang unit test\n",
+  Fixturefile: 'name = "fixturelang-demo"\nversion = "1.0.0"\n',
+  "fixturelang.json": '{ "name": "fixturelang-demo", "version": "1.0.0" }\n',
+  "fixturelang.lock": "lock: sha256:abcdef\n",
+  "README.fixturelang": "# Fixturelang demo\n",
+  "POLICY.fixturelang": "policy: secure-by-default\n",
+  Fixtureworkflow: "workflow: ci\n",
+  "src/practice.fixturelang": ";; fixturelang practice\npractice: bdd\n",
+  ".fixturelangrc": "strict = true\n",
 });
 
 // ---------------------------------------------------------------------------
@@ -99,25 +97,25 @@ const FIXTURELANG_FILES = Object.freeze({
 // PROVIDER_CATEGORIES below) and declared by the plugin's single provider
 // capability, so `loadPlugins` accepts the plugin unchanged.
 const RULE_BLUEPRINTS = Object.freeze([
-  ['DIM-stack-v1', 'language', { extensions: ['.fixturelang'] }],
-  ['DIM-config-v1', 'configuration', { basenames: ['Fixturefile'] }],
-  ['DIM-testing-v1', 'test_file', { artifactTokens: ['test'], extensions: ['.fixturelang'] }],
-  ['DIM-conventions-v1', 'comment', { extensions: ['.fixturelang'], literal: ';;' }],
-  ['DIM-architecture-v1', 'module', { artifactTokens: ['src'], extensions: ['.fixturelang'] }],
-  ['DIM-documentation-v1', 'readme', { basenames: ['README.fixturelang'] }],
-  ['DIM-security-v1', 'secret_pattern', { extensions: ['.fixturelang'], literal: 'token=' }],
-  ['DIM-operations-v1', 'workflow', { basenames: ['Fixtureworkflow'] }],
-  ['DIM-api-v1', 'route', { extensions: ['.fixturelang'], literal: 'route:' }],
-  ['DIM-data-v1', 'entity', { extensions: ['.fixturelang'], literal: 'entity:' }],
-  ['DIM-deployment-v1', 'service', { extensions: ['.fixturelang'], literal: 'service:' }],
-  ['DIM-maintainability-v1', 'file_metric', { extensions: ['.fixturelang'] }],
-  ['DIM-governance-v1', 'policy', { basenames: ['POLICY.fixturelang'] }],
-  ['DIM-assurance-v1', 'manifest', { manifestNames: ['fixturelang.json'] }],
-  ['DIM-practices-v1', 'methodology', { extensions: ['.fixturelang'], literal: 'practice:' }],
+  ["DIM-stack-v1", "language", { extensions: [".fixturelang"] }],
+  ["DIM-config-v1", "configuration", { basenames: ["Fixturefile"] }],
+  ["DIM-testing-v1", "test_file", { artifactTokens: ["test"], extensions: [".fixturelang"] }],
+  ["DIM-conventions-v1", "comment", { extensions: [".fixturelang"], literal: ";;" }],
+  ["DIM-architecture-v1", "module", { artifactTokens: ["src"], extensions: [".fixturelang"] }],
+  ["DIM-documentation-v1", "readme", { basenames: ["README.fixturelang"] }],
+  ["DIM-security-v1", "secret_pattern", { extensions: [".fixturelang"], literal: "token=" }],
+  ["DIM-operations-v1", "workflow", { basenames: ["Fixtureworkflow"] }],
+  ["DIM-api-v1", "route", { extensions: [".fixturelang"], literal: "route:" }],
+  ["DIM-data-v1", "entity", { extensions: [".fixturelang"], literal: "entity:" }],
+  ["DIM-deployment-v1", "service", { extensions: [".fixturelang"], literal: "service:" }],
+  ["DIM-maintainability-v1", "file_metric", { extensions: [".fixturelang"] }],
+  ["DIM-governance-v1", "policy", { basenames: ["POLICY.fixturelang"] }],
+  ["DIM-assurance-v1", "manifest", { manifestNames: ["fixturelang.json"] }],
+  ["DIM-practices-v1", "methodology", { extensions: [".fixturelang"], literal: "practice:" }],
 ]);
 
 function dimensionShort(dimensionId) {
-  return dimensionId.replace(/^DIM-/, '').replace(/-v[1-9]\d*$/, '');
+  return dimensionId.replace(/^DIM-/, "").replace(/-v[1-9]\d*$/, "");
 }
 
 // A valid T203 plugin whose one provider declares a capability for every
@@ -136,21 +134,21 @@ function fixturelangPlugin() {
     ...selectors,
   }));
   return {
-    id: 'fixturelang',
+    id: "fixturelang",
     apiVersion: 1,
-    label: 'Fixturelang synthetic language',
-    aliases: ['fxlang'],
-    providers: [{ id: 'PRV-fixturelang-v1', apiVersion: 1, dimensions }],
+    label: "Fixturelang synthetic language",
+    aliases: ["fxlang"],
+    providers: [{ id: "PRV-fixturelang-v1", apiVersion: 1, dimensions }],
     rules,
   };
 }
 
 async function temporarySkillRoot(t, plugin) {
-  const skillRoot = await mkdtemp(join(tmpdir(), 'csm-scan-t225-skill-'));
+  const skillRoot = await mkdtemp(join(tmpdir(), "csm-scan-t225-skill-"));
   t.after(() => rm(skillRoot, { recursive: true, force: true }));
-  const pluginDir = join(skillRoot, 'plugins', plugin.id);
+  const pluginDir = join(skillRoot, "plugins", plugin.id);
   await mkdir(pluginDir, { recursive: true });
-  await writeFile(join(pluginDir, 'plugin.json'), JSON.stringify(plugin));
+  await writeFile(join(pluginDir, "plugin.json"), JSON.stringify(plugin));
   return skillRoot;
 }
 
@@ -192,7 +190,10 @@ function mergeCatalogs({ matches, deep, overview, repoPath }) {
     practices: byDim.practices,
     generic: null,
   });
-  const analysis = mergeAnalysisResults({ builtin: analysisBuiltin.results, plugin: analysisPlugin });
+  const analysis = mergeAnalysisResults({
+    builtin: analysisBuiltin.results,
+    plugin: analysisPlugin,
+  });
 
   const assuranceObservationsByDimension = {};
   for (const group of assurancePluginObservations(matches)) {
@@ -217,18 +218,19 @@ function mergeCatalogs({ matches, deep, overview, repoPath }) {
 }
 
 function pluginContributed(observations) {
-  return observations.filter((o) => o.matchedKey.startsWith('plugin-rule:')
-    || o.matchedKey.startsWith('plugin:'));
+  return observations.filter(
+    (o) => o.matchedKey.startsWith("plugin-rule:") || o.matchedKey.startsWith("plugin:"),
+  );
 }
 
 // ---------------------------------------------------------------------------
 // T203 validity and 14-dimension coverage of the injected skill root
 // ---------------------------------------------------------------------------
 
-test('T225 plugin fixture is valid per T203 and covers all 15 provider dimensions', async (t) => {
+test("T225 plugin fixture is valid per T203 and covers all 15 provider dimensions", async (t) => {
   const plugin = fixturelangPlugin();
   const validated = validatePlugin(plugin);
-  assert.equal(validated.id, 'fixturelang');
+  assert.equal(validated.id, "fixturelang");
   assert.equal(validated.providers.length, 1);
   assert.equal(validated.providers[0].dimensions.length, PROVIDER_DIMENSION_IDS.length);
 
@@ -240,11 +242,13 @@ test('T225 plugin fixture is valid per T203 and covers all 15 provider dimension
     assert.ok(declared.has(dimensionId), `${dimensionId} must be declared`);
     const capability = validated.providers[0].dimensions.find((d) => d.dimensionId === dimensionId);
     for (const category of capability.categories) {
-      assert.ok(PROVIDER_CATEGORIES[dimensionId].includes(category),
-        `${dimensionId}:${category} must be allowlisted`);
+      assert.ok(
+        PROVIDER_CATEGORIES[dimensionId].includes(category),
+        `${dimensionId}:${category} must be allowlisted`,
+      );
     }
   }
-  assert.ok(validateProvider(validated.providers[0]), 'provider validates in isolation');
+  assert.ok(validateProvider(validated.providers[0]), "provider validates in isolation");
 
   // One rule per provider dimension, each targeting a declared category.
   const ruleDimensions = new Set(validated.rules.map((r) => r.dimensionId));
@@ -256,26 +260,32 @@ test('T225 plugin fixture is valid per T203 and covers all 15 provider dimension
   const skillRoot = await temporarySkillRoot(t, plugin);
   const registry = await loadPlugins({ skillRoot });
   assert.equal(registry.length, 1);
-  assert.equal(registry[0].id, 'fixturelang');
+  assert.equal(registry[0].id, "fixturelang");
 });
 
 // ---------------------------------------------------------------------------
 // Rule evaluation over the fixture repo -> all 15 provider dimensions
 // ---------------------------------------------------------------------------
 
-test('T225 Fixturelang rules match the fixture artifacts on all 15 provider dimensions', async (t) => {
+test("T225 Fixturelang rules match the fixture artifacts on all 15 provider dimensions", async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
 
   const artifacts = artifactsFromFiles(FIXTURELANG_FILES);
   const first = evaluateRules({ rules: loaded.rules, artifacts });
-  const second = evaluateRules({ rules: [...loaded.rules].toReversed(), artifacts: [...artifacts].toReversed() });
+  const second = evaluateRules({
+    rules: [...loaded.rules].toReversed(),
+    artifacts: [...artifacts].toReversed(),
+  });
 
   assert.equal(first.matches.length > 0, true);
   assert.equal(first.capped, false);
-  assert.equal(JSON.stringify(first.matches), JSON.stringify(second.matches),
-    'rule evaluation is insertion-order independent');
+  assert.equal(
+    JSON.stringify(first.matches),
+    JSON.stringify(second.matches),
+    "rule evaluation is insertion-order independent",
+  );
 
   const matchedDimensions = new Set(first.matches.map((m) => m.dimensionId));
   assert.equal(matchedDimensions.size, PROVIDER_DIMENSION_IDS.length);
@@ -284,8 +294,8 @@ test('T225 Fixturelang rules match the fixture artifacts on all 15 provider dime
   }
   // Matches carry only rule identity + normalized path (never matched content).
   for (const match of first.matches) {
-    assert.ok(typeof match.ruleId === 'string' && match.ruleId.length > 0);
-    assert.ok(typeof match.path === 'string' && !match.path.includes('fixturelang-secret'));
+    assert.ok(typeof match.ruleId === "string" && match.ruleId.length > 0);
+    assert.ok(typeof match.path === "string" && !match.path.includes("fixturelang-secret"));
   }
 });
 
@@ -293,12 +303,12 @@ test('T225 Fixturelang rules match the fixture artifacts on all 15 provider dime
 // Production catalogs merge plugin observations built-in-first
 // ---------------------------------------------------------------------------
 
-test('T225 plugin observations contribute to all 15 provider dimensions, built-in-first', async (t) => {
+test("T225 plugin observations contribute to all 15 provider dimensions, built-in-first", async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
 
-  const repoPath = makeFixture('t225-repo', FIXTURELANG_FILES);
+  const repoPath = makeFixture("t225-repo", FIXTURELANG_FILES);
   t.after(() => cleanupFixture(repoPath));
 
   const artifacts = artifactsFromFiles(FIXTURELANG_FILES);
@@ -306,14 +316,19 @@ test('T225 plugin observations contribute to all 15 provider dimensions, built-i
 
   const pipeline = await runExpandedPipeline({
     repos: [repoPath],
-    clock: () => '2026-07-01',
-    sink: () => '',
+    clock: () => "2026-07-01",
+    sink: () => "",
     pluginRegistry: [loaded],
   });
   const overview = pipeline.semantic[0].overview;
   const deep = pipeline.semantic[0].deepResults;
 
-  const { runtime, analysis, assurance, byDim } = mergeCatalogs({ matches, deep, overview, repoPath });
+  const { runtime, analysis, assurance, byDim } = mergeCatalogs({
+    matches,
+    deep,
+    overview,
+    repoPath,
+  });
 
   // All 15 provider dimensions appear across the three merged catalogs, and
   // every result carries at least one plugin-contributed observation.
@@ -321,10 +336,15 @@ test('T225 plugin observations contribute to all 15 provider dimensions, built-i
   const mergedDimensions = new Set(merged.map((r) => r.dimensionId));
   assert.equal(mergedDimensions.size, PROVIDER_DIMENSION_IDS.length);
   for (const dimensionId of PROVIDER_DIMENSION_IDS) {
-    assert.ok(mergedDimensions.has(dimensionId), `${dimensionId} must appear in the merged catalogs`);
+    assert.ok(
+      mergedDimensions.has(dimensionId),
+      `${dimensionId} must appear in the merged catalogs`,
+    );
     const result = merged.find((r) => r.dimensionId === dimensionId);
-    assert.ok(pluginContributed(result.observations).length > 0,
-      `${dimensionId} must carry a plugin observation`);
+    assert.ok(
+      pluginContributed(result.observations).length > 0,
+      `${dimensionId} must carry a plugin observation`,
+    );
   }
 
   // Built-in-first: for dimensions where a built-in result exists, the merged
@@ -347,18 +367,19 @@ test('T225 plugin observations contribute to all 15 provider dimensions, built-i
         `${dimensionId}: built-in observations are a prefix and never replaced`,
       );
       assert.ok(
-        pluginContributed(mergedResult.observations.slice(builtinOnly.observations.length)).length > 0,
+        pluginContributed(mergedResult.observations.slice(builtinOnly.observations.length)).length >
+          0,
         `${dimensionId}: plugin observations are appended after the built-ins`,
       );
     }
   }
 
-  const stack = runtime.results.find((r) => r.dimensionId === 'DIM-stack-v1');
-  const stackBuiltin = runtimeWithoutPlugin.results.find((r) => r.dimensionId === 'DIM-stack-v1');
+  const stack = runtime.results.find((r) => r.dimensionId === "DIM-stack-v1");
+  const stackBuiltin = runtimeWithoutPlugin.results.find((r) => r.dimensionId === "DIM-stack-v1");
   assert.deepEqual(
     stack.observations.slice(0, stackBuiltin.observations.length),
     stackBuiltin.observations,
-    'stack built-in language/runtime findings are preserved byte-identically',
+    "stack built-in language/runtime findings are preserved byte-identically",
   );
 
   // Deterministic ordering: repeated catalog merges are byte-identical.
@@ -372,72 +393,101 @@ test('T225 plugin observations contribute to all 15 provider dimensions, built-i
 // Production pipeline with the injected plugin registry: output-level evidence
 // ---------------------------------------------------------------------------
 
-test('T225 runExpandedPipeline renders plugin-labeled evidence for all 15 provider dimensions and is byte-identical', async (t) => {
+test("T225 runExpandedPipeline renders plugin-labeled evidence for all 15 provider dimensions and is byte-identical", async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
 
-  const repoPath = makeFixture('t225-pipe', FIXTURELANG_FILES);
+  const repoPath = makeFixture("t225-pipe", FIXTURELANG_FILES);
   t.after(() => cleanupFixture(repoPath));
-  const outDir = await mkdtemp(join(tmpdir(), 'csm-scan-t225-out-'));
+  const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t225-out-"));
   t.after(() => rm(outDir, { recursive: true, force: true }));
 
   const options = {
     repos: [repoPath],
-    clock: () => '2026-07-01',
+    clock: () => "2026-07-01",
   };
-  const first = await runExpandedPipeline({ ...options, out: join(outDir, 'first.md'), pluginRegistry: [loaded] });
-  const second = await runExpandedPipeline({ ...options, out: join(outDir, 'second.md'), pluginRegistry: [loaded] });
-  assert.equal(first.markdown, second.markdown, 'repeated runs are byte-identical');
-  assert.equal(first.context.pluginRegistry.length, 1, 'the injected plugin registry is threaded through the scan context');
-  assert.equal(first.context.pluginRegistry[0].id, 'fixturelang');
-  assert.equal(first.repos[0].deep.length, 17, 'all 17 dimensions scan the fixture repo');
+  const first = await runExpandedPipeline({
+    ...options,
+    out: join(outDir, "first.md"),
+    pluginRegistry: [loaded],
+  });
+  const second = await runExpandedPipeline({
+    ...options,
+    out: join(outDir, "second.md"),
+    pluginRegistry: [loaded],
+  });
+  assert.equal(first.markdown, second.markdown, "repeated runs are byte-identical");
+  assert.equal(
+    first.context.pluginRegistry.length,
+    1,
+    "the injected plugin registry is threaded through the scan context",
+  );
+  assert.equal(first.context.pluginRegistry[0].id, "fixturelang");
+  assert.equal(first.repos[0].deep.length, 17, "all 17 dimensions scan the fixture repo");
 
   // Output level: every provider dimension renders plugin-labeled evidence.
   for (const dimensionId of PROVIDER_DIMENSION_IDS) {
-    const short = dimensionId.replace(/^DIM-/, '').replace(/-v[1-9]\d*$/, '');
-    assert.ok(first.markdown.includes(`RUL-fixturelang-${short}-v1`),
-      `${dimensionId}: NORMS.md must contain plugin-labeled evidence`);
+    const short = dimensionId.replace(/^DIM-/, "").replace(/-v[1-9]\d*$/, "");
+    assert.ok(
+      first.markdown.includes(`RUL-fixturelang-${short}-v1`),
+      `${dimensionId}: NORMS.md must contain plugin-labeled evidence`,
+    );
   }
-  assert.ok(first.markdown.includes('PRV-fixturelang-v1'),
-    'the plugin provider id must appear as provenance in NORMS.md');
-  assert.ok(first.markdown.includes('### Provider Evidence'),
-    'provider evidence sections must render in the expanded output');
+  assert.ok(
+    first.markdown.includes("PRV-fixturelang-v1"),
+    "the plugin provider id must appear as provenance in NORMS.md",
+  );
+  assert.ok(
+    first.markdown.includes("### Provider Evidence"),
+    "provider evidence sections must render in the expanded output",
+  );
 });
 
 // ---------------------------------------------------------------------------
 // Generic fallback after plugin removal + no plugin tokens
 // ---------------------------------------------------------------------------
 
-test('T225 removing the plugin yields generic artifact-only evidence with no plugin tokens; the outputs differ', async (t) => {
+test("T225 removing the plugin yields generic artifact-only evidence with no plugin tokens; the outputs differ", async (t) => {
   const plugin = fixturelangPlugin();
   const skillRoot = await temporarySkillRoot(t, plugin);
   const [loaded] = await loadPlugins({ skillRoot });
 
-  const repoPath = makeFixture('t225-removal', FIXTURELANG_FILES);
+  const repoPath = makeFixture("t225-removal", FIXTURELANG_FILES);
   t.after(() => cleanupFixture(repoPath));
-  const outDir = await mkdtemp(join(tmpdir(), 'csm-scan-t225-removal-out-'));
+  const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t225-removal-out-"));
   t.after(() => rm(outDir, { recursive: true, force: true }));
 
   // Remove the synthetic plugin from the temporary skill root.
-  await rm(join(skillRoot, 'plugins', 'fixturelang'), { recursive: true, force: true });
+  await rm(join(skillRoot, "plugins", "fixturelang"), { recursive: true, force: true });
   const empty = await loadPlugins({ skillRoot });
-  assert.deepEqual(empty, [], 'removing plugin.json yields an empty registry');
+  assert.deepEqual(empty, [], "removing plugin.json yields an empty registry");
 
   const files = artifactsFromFiles(FIXTURELANG_FILES).map((a) => a.path);
 
   // The same fixture repo, treated as an unknown language, receives only
   // artifact-only generic findings through the generic fallback.
-  const runtime = runtimeCatalogResults({ languages: ['Fixturelang'], ecosystems: [], files });
-  assert.equal(runtime.mode, 'generic');
+  const runtime = runtimeCatalogResults({ languages: ["Fixturelang"], ecosystems: [], files });
+  assert.equal(runtime.mode, "generic");
   assert.ok(runtime.results.length > 0);
   assert.ok(runtime.results.every((r) => r.providerId === GENERIC_PROVIDER_ID));
-  assert.ok(!runtime.results.some((r) => r.dimensionId === 'DIM-stack-v1'
-    || r.dimensionId === 'DIM-config-v1' || r.dimensionId === 'DIM-testing-v1'),
-  'generic mode never claims built-in stack/config/testing semantics');
+  assert.ok(
+    !runtime.results.some(
+      (r) =>
+        r.dimensionId === "DIM-stack-v1" ||
+        r.dimensionId === "DIM-config-v1" ||
+        r.dimensionId === "DIM-testing-v1",
+    ),
+    "generic mode never claims built-in stack/config/testing semantics",
+  );
 
-  const assurance = assuranceCatalogResults({ security: {}, languages: ['Fixturelang'], ecosystems: [], files });
-  assert.equal(assurance.mode, 'generic');
+  const assurance = assuranceCatalogResults({
+    security: {},
+    languages: ["Fixturelang"],
+    ecosystems: [],
+    files,
+  });
+  assert.equal(assurance.mode, "generic");
   assert.ok(assurance.results.every((r) => r.providerId === GENERIC_PROVIDER_ID));
 
   // Output level: with the plugin the repo renders plugin-labeled evidence;
@@ -445,50 +495,71 @@ test('T225 removing the plugin yields generic artifact-only evidence with no plu
   // tokens, and the two outputs differ.
   const options = {
     repos: [repoPath],
-    clock: () => '2026-07-01',
+    clock: () => "2026-07-01",
   };
-  const withPlugin = await runExpandedPipeline({ ...options, out: join(outDir, 'with.md'), pluginRegistry: [loaded] });
-  const withoutPlugin = await runExpandedPipeline({ ...options, out: join(outDir, 'without.md') });
-  const again = await runExpandedPipeline({ ...options, out: join(outDir, 'again.md') });
+  const withPlugin = await runExpandedPipeline({
+    ...options,
+    out: join(outDir, "with.md"),
+    pluginRegistry: [loaded],
+  });
+  const withoutPlugin = await runExpandedPipeline({ ...options, out: join(outDir, "without.md") });
+  const again = await runExpandedPipeline({ ...options, out: join(outDir, "again.md") });
 
-  assert.notEqual(withPlugin.markdown, withoutPlugin.markdown,
-    'plugin evidence and generic evidence must produce different outputs');
-  assert.equal(withoutPlugin.markdown, again.markdown, 'generic-mode repeated runs are byte-identical');
-  assert.ok(withoutPlugin.markdown.includes('PRV-generic-artifacts-v1'),
-    'the generic artifact fallback provider must render in the output');
-  assert.ok(withoutPlugin.markdown.includes('### Provider Evidence'),
-    'provider evidence sections render in generic mode');
-  for (const token of ['RUL-fixturelang', 'PRV-fixturelang', 'Fixturelang']) {
-    assert.equal(withoutPlugin.markdown.includes(token), false,
-      `generic output must not contain the plugin token ${token}`);
+  assert.notEqual(
+    withPlugin.markdown,
+    withoutPlugin.markdown,
+    "plugin evidence and generic evidence must produce different outputs",
+  );
+  assert.equal(
+    withoutPlugin.markdown,
+    again.markdown,
+    "generic-mode repeated runs are byte-identical",
+  );
+  assert.ok(
+    withoutPlugin.markdown.includes("PRV-generic-artifacts-v1"),
+    "the generic artifact fallback provider must render in the output",
+  );
+  assert.ok(
+    withoutPlugin.markdown.includes("### Provider Evidence"),
+    "provider evidence sections render in generic mode",
+  );
+  for (const token of ["RUL-fixturelang", "PRV-fixturelang", "Fixturelang"]) {
+    assert.equal(
+      withoutPlugin.markdown.includes(token),
+      false,
+      `generic output must not contain the plugin token ${token}`,
+    );
   }
 });
 
-test('T225 fixturelang appears nowhere in production source or the production plugin root', async () => {
-  const productionRoots = [join(ROOT, 'lib'), join(ROOT, 'scripts')];
-  const { stdout } = await execFileAsync('rg', [
-    '--files-with-matches', '--no-messages', '-i', 'fixturelang',
-    ...productionRoots,
-  ], { cwd: ROOT }).catch((error) => {
-    if (error.code === 1) return { stdout: '' }; // no matches
+test("T225 fixturelang appears nowhere in production source or the production plugin root", async () => {
+  const productionRoots = [join(ROOT, "lib"), join(ROOT, "scripts")];
+  const { stdout } = await execFileAsync(
+    "rg",
+    ["--files-with-matches", "--no-messages", "-i", "fixturelang", ...productionRoots],
+    { cwd: ROOT },
+  ).catch((error) => {
+    if (error.code === 1) return { stdout: "" }; // no matches
     throw error;
   });
-  assert.equal(stdout.trim(), '', 'production lib/ and scripts/ must not mention fixturelang');
+  assert.equal(stdout.trim(), "", "production lib/ and scripts/ must not mention fixturelang");
 
   // The production plugin root must not exist or must not mention fixturelang.
-  const pluginsRoot = join(ROOT, 'plugins');
+  const pluginsRoot = join(ROOT, "plugins");
   let absent = false;
   try {
-    const { stdout: out } = await execFileAsync('rg', [
-      '--files-with-matches', '--no-messages', '-i', 'fixturelang', pluginsRoot,
-    ], { cwd: ROOT }).catch((error) => {
-      if (error.code === 1) return { stdout: '' };
-      if (error.code === 2) return { stdout: '' };
+    const { stdout: out } = await execFileAsync(
+      "rg",
+      ["--files-with-matches", "--no-messages", "-i", "fixturelang", pluginsRoot],
+      { cwd: ROOT },
+    ).catch((error) => {
+      if (error.code === 1) return { stdout: "" };
+      if (error.code === 2) return { stdout: "" };
       throw error;
     });
-    absent = out.trim() === '';
+    absent = out.trim() === "";
   } catch {
     absent = true;
   }
-  assert.ok(absent, 'the production plugin root must not mention fixturelang');
+  assert.ok(absent, "the production plugin root must not mention fixturelang");
 });

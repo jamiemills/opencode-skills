@@ -1,11 +1,11 @@
-import { readFile, rm } from 'node:fs/promises';
-import { existsSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { setTimeout } from 'node:timers/promises';
-import { pkillMatch, execInContainer, hostPgrep, killPid } from './docker.mjs';
-import { validateContainerSessionDir, validateState } from './security.mjs';
-import { SESSIONS_ROOT } from './constants.mjs';
-import { assertContained, assertRuntimeRoot } from './security.mjs';
+import { readFile, rm } from "node:fs/promises";
+import { existsSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { setTimeout } from "node:timers/promises";
+import { pkillMatch, execInContainer, hostPgrep, killPid } from "./docker.mjs";
+import { validateContainerSessionDir, validateState } from "./security.mjs";
+import { SESSIONS_ROOT } from "./constants.mjs";
+import { assertContained, assertRuntimeRoot } from "./security.mjs";
 
 // F-021: process-identity verification. A bare `process.kill(pid, 0)` probe
 // proves only that SOME process occupies the pid — a recycled pid could be an
@@ -15,27 +15,27 @@ import { assertContained, assertRuntimeRoot } from './security.mjs';
 // false when the process is gone or unverifiable (non-Linux /proc, EACCES),
 // so a caller never signals a pid it cannot identify.
 export async function isSessionDaemon(pid, sid) {
-  if (!Number.isInteger(pid) || typeof sid !== 'string' || !sid) return false;
+  if (!Number.isInteger(pid) || typeof sid !== "string" || !sid) return false;
   let argv;
   try {
-    const buf = await readFile(`/proc/${pid}/cmdline`, 'utf-8');
-    argv = buf.split('\0').filter(Boolean);
+    const buf = await readFile(`/proc/${pid}/cmdline`, "utf-8");
+    argv = buf.split("\0").filter(Boolean);
   } catch {
     return false;
   }
-  const sIdx = argv.indexOf('--session');
-  return sIdx !== -1
-    && argv[sIdx + 1] === sid
-    && argv.some((a) => a.includes('session-daemon.mjs'));
+  const sIdx = argv.indexOf("--session");
+  return (
+    sIdx !== -1 && argv[sIdx + 1] === sid && argv.some((a) => a.includes("session-daemon.mjs"))
+  );
 }
 
 export async function stopDaemon(sessionDir, sid = null) {
-  const pidFile = join(sessionDir, 'daemon.pid');
+  const pidFile = join(sessionDir, "daemon.pid");
   if (!existsSync(pidFile)) return false;
 
   let pid;
   try {
-    const raw = await readFile(pidFile, 'utf-8');
+    const raw = await readFile(pidFile, "utf-8");
     pid = parseInt(raw.trim(), 10);
     if (isNaN(pid)) return false;
   } catch {
@@ -48,7 +48,7 @@ export async function stopDaemon(sessionDir, sid = null) {
   if (sid !== null && !(await isSessionDaemon(pid, sid))) return false;
 
   try {
-    process.kill(pid, 'SIGTERM');
+    process.kill(pid, "SIGTERM");
   } catch {
     return false;
   }
@@ -70,8 +70,8 @@ export async function stopDaemon(sessionDir, sid = null) {
 
   if (sid === null || (await isSessionDaemon(pid, sid))) {
     try {
-      process.kill(pid, 'SIGKILL');
-    } catch { }
+      process.kill(pid, "SIGKILL");
+    } catch {}
   }
 
   return true;
@@ -87,13 +87,16 @@ export async function killInstance(containerName, containerSessDir) {
 // process (127.0.0.1:<publicPort>), matched by its exact --port argument —
 // never by a regex that could straddle another port.
 export async function killGate(publicPort) {
-  if (!Number.isInteger(publicPort) || publicPort < 1024 || publicPort > 65535) throw new Error(`Unsafe public port: ${publicPort}`);
+  if (!Number.isInteger(publicPort) || publicPort < 1024 || publicPort > 65535)
+    throw new Error(`Unsafe public port: ${publicPort}`);
   try {
-    const gates = await hostPgrep('cdp-gate.mjs');
+    const gates = await hostPgrep("cdp-gate.mjs");
     for (const gate of gates) {
       const m = gate.cmd.match(/cdp-gate\.mjs\s+--sid\s+\S+\s+--port\s+(\d+)/);
       if (m && parseInt(m[1], 10) === publicPort) {
-        try { killPid(gate.pid, 'SIGTERM'); } catch {}
+        try {
+          killPid(gate.pid, "SIGTERM");
+        } catch {}
       }
     }
   } catch {}
@@ -101,7 +104,7 @@ export async function killGate(publicPort) {
 
 export async function removeContainerSession(containerName, containerSessDir) {
   validateContainerSessionDir(containerSessDir);
-  await execInContainer(containerName, ['rm', '-rf', containerSessDir], {}, { timeout: 120000 });
+  await execInContainer(containerName, ["rm", "-rf", containerSessDir], {}, { timeout: 120000 });
 }
 
 export async function removeHostSession(sessionDir) {
@@ -128,9 +131,14 @@ export async function releasePorts(state) {
 
 export async function truncateLogs(sessionDir, containerName, containerSessDir) {
   try {
-    await execInContainer(containerName, ['rm', '-f', `${containerSessDir}/chromium.log`], {}, { timeout: 30000 });
-  } catch { }
+    await execInContainer(
+      containerName,
+      ["rm", "-f", `${containerSessDir}/chromium.log`],
+      {},
+      { timeout: 30000 },
+    );
+  } catch {}
   try {
-    await rm(join(sessionDir, 'daemon.log'), { force: true });
-  } catch { }
+    await rm(join(sessionDir, "daemon.log"), { force: true });
+  } catch {}
 }

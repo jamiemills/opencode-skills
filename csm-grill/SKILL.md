@@ -68,17 +68,17 @@ Cycle rules — the machine is cyclic, not linear:
 
 Brief-step mapping:
 
-| Brief step (user prescription) | State / rule |
-|---|---|
-| (1) clarify any context needed for the idea | INTAKE |
-| (2) spawn a subagent to research and identify areas needing clarification | SCOUT |
-| (3) get clarification from the user by asking questions | GRILL |
-| (4) subagent deep research into the user's clarifications → understand the ask + further options | DEEP_DIVE |
-| (5) synthesize → big-picture plan of parts, each a brief for a future csm-plan activity | SYNTHESIZE |
-| (6) understand the answers and devise the final approach | final SYNTHESIZE step (draft the approach); presented at CONFIRM |
-| (7) confirm the user is happy with phasing and approach | CONFIRM |
-| cyclic, not linear, until the user agrees | cycle rules |
-| save the agreed approach to a single dated document in `.agents/approaches/` | SAVED |
+| Brief step (user prescription)                                                                   | State / rule                                                     |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| (1) clarify any context needed for the idea                                                      | INTAKE                                                           |
+| (2) spawn a subagent to research and identify areas needing clarification                        | SCOUT                                                            |
+| (3) get clarification from the user by asking questions                                          | GRILL                                                            |
+| (4) subagent deep research into the user's clarifications → understand the ask + further options | DEEP_DIVE                                                        |
+| (5) synthesize → big-picture plan of parts, each a brief for a future csm-plan activity          | SYNTHESIZE                                                       |
+| (6) understand the answers and devise the final approach                                         | final SYNTHESIZE step (draft the approach); presented at CONFIRM |
+| (7) confirm the user is happy with phasing and approach                                          | CONFIRM                                                          |
+| cyclic, not linear, until the user agrees                                                        | cycle rules                                                      |
+| save the agreed approach to a single dated document in `.agents/approaches/`                     | SAVED                                                            |
 
 Quota note: grill persists nothing until SAVED. On hard quota exhaustion, stop cleanly and tell the user the interview is NOT mid-session resumable — it restarts from the user's answers (the one-question-at-a-time state is cheap to rebuild).
 
@@ -160,6 +160,7 @@ Template:
 
 ````markdown
 format: csm-grill/1
+
 # <Idea> Approach
 
 - Idea slug: <idea-slug>
@@ -177,7 +178,7 @@ Paste each phase brief below into its own explicit csm-plan invocation. This doc
 ## Decisions Log
 
 | Question | Answer | Rationale |
-|---|---|---|
+| -------- | ------ | --------- |
 
 ## Research Synthesis
 

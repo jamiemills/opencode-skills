@@ -1,7 +1,7 @@
-import { readFileSync, existsSync, createReadStream } from 'node:fs';
-import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import { createInterface } from 'node:readline';
+import { readFileSync, existsSync, createReadStream } from "node:fs";
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
+import { createInterface } from "node:readline";
 
 async function readEvents(sessionDir) {
   const events = [];
@@ -15,12 +15,12 @@ async function readEvents(sessionDir) {
   try {
     const entries = await readdir(sessionDir);
     entries
-      .filter(e => e.startsWith('events-') && e.endsWith('.jsonl'))
+      .filter((e) => e.startsWith("events-") && e.endsWith(".jsonl"))
       .toSorted()
-      .forEach(e => files.push(join(sessionDir, e)));
+      .forEach((e) => files.push(join(sessionDir, e)));
   } catch {}
 
-  const mainPath = join(sessionDir, 'events.jsonl');
+  const mainPath = join(sessionDir, "events.jsonl");
   if (existsSync(mainPath)) {
     files.push(mainPath);
   }
@@ -28,7 +28,7 @@ async function readEvents(sessionDir) {
   for (const file of files) {
     const rl = createInterface({
       input: createReadStream(file),
-      crlfDelay: Infinity
+      crlfDelay: Infinity,
     });
     for await (const line of rl) {
       if (line.trim()) {
@@ -43,20 +43,20 @@ async function readEvents(sessionDir) {
 }
 
 async function hasAnyEventsFile(sessionDir) {
-  if (existsSync(join(sessionDir, 'events.jsonl'))) return true;
+  if (existsSync(join(sessionDir, "events.jsonl"))) return true;
   try {
     const entries = await readdir(sessionDir);
-    return entries.some(e => e.startsWith('events-') && e.endsWith('.jsonl'));
+    return entries.some((e) => e.startsWith("events-") && e.endsWith(".jsonl"));
   } catch {
     return false;
   }
 }
 
 function isDaemonAlive(sessionDir) {
-  const pidFile = join(sessionDir, 'daemon.pid');
+  const pidFile = join(sessionDir, "daemon.pid");
   if (!existsSync(pidFile)) return false;
   try {
-    const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+    const pid = parseInt(readFileSync(pidFile, "utf-8").trim(), 10);
     process.kill(pid, 0);
     return true;
   } catch {
@@ -82,7 +82,7 @@ function parseStringArg(args, flag) {
 }
 
 async function subConsole(args, sessionDir) {
-  const tail = parseNumericArg(args, '--tail');
+  const tail = parseNumericArg(args, "--tail");
 
   const events = await readEvents(sessionDir);
   if (events.length === 0) {
@@ -90,29 +90,29 @@ async function subConsole(args, sessionDir) {
     // Promise is always truthy and the exit-2 diagnostic is dead code.
     const exists = await hasAnyEventsFile(sessionDir);
     if (!exists) {
-      console.error('no events file — capture not started');
+      console.error("no events file — capture not started");
       process.exit(2);
     }
   }
 
   if (!isDaemonAlive(sessionDir)) {
-    console.error('daemon down — capture gap');
+    console.error("daemon down — capture gap");
   }
 
-  let filtered = events.filter(e =>
-    e.type === 'console' || e.type === 'exception' || e.type === 'log'
+  let filtered = events.filter(
+    (e) => e.type === "console" || e.type === "exception" || e.type === "log",
   );
 
   if (tail !== null && tail > 0) {
     filtered = filtered.slice(-tail);
   }
 
-  process.stdout.write(JSON.stringify(filtered, null, 2) + '\n');
+  process.stdout.write(JSON.stringify(filtered, null, 2) + "\n");
 }
 
 async function subNetwork(args, sessionDir) {
-  const tail = parseNumericArg(args, '--tail');
-  const filterStr = parseStringArg(args, '--filter');
+  const tail = parseNumericArg(args, "--tail");
+  const filterStr = parseStringArg(args, "--filter");
 
   const events = await readEvents(sessionDir);
   if (events.length === 0) {
@@ -120,61 +120,61 @@ async function subNetwork(args, sessionDir) {
     // exit-2 diagnostic, not a silent `[]`.
     const exists = await hasAnyEventsFile(sessionDir);
     if (!exists) {
-      console.error('no events file — capture not started');
+      console.error("no events file — capture not started");
       process.exit(2);
     }
   }
 
   if (!isDaemonAlive(sessionDir)) {
-    console.error('daemon down — capture gap');
+    console.error("daemon down — capture gap");
   }
 
-  let filtered = events.filter(e => e.type === 'network');
+  let filtered = events.filter((e) => e.type === "network");
 
   if (filterStr) {
-    const re = new RegExp(filterStr, 'i');
-    filtered = filtered.filter(e =>
-      e.payload && e.payload.url && re.test(e.payload.url)
-    );
+    const re = new RegExp(filterStr, "i");
+    filtered = filtered.filter((e) => e.payload && e.payload.url && re.test(e.payload.url));
   }
 
   if (tail !== null && tail > 0) {
     filtered = filtered.slice(-tail);
   }
 
-  process.stdout.write(JSON.stringify(filtered, null, 2) + '\n');
+  process.stdout.write(JSON.stringify(filtered, null, 2) + "\n");
 }
 
 async function subPerformance(state) {
-  const CRI = await import('chrome-remote-interface');
+  const CRI = await import("chrome-remote-interface");
   const client = await CRI.default({ target: state.wsUrl });
 
   try {
-    const { targetInfos } = await client.send('Target.getTargets');
-    const pages = targetInfos.filter(t => t.type === 'page');
-    if (pages.length === 0) throw new Error('No page target found');
+    const { targetInfos } = await client.send("Target.getTargets");
+    const pages = targetInfos.filter((t) => t.type === "page");
+    if (pages.length === 0) throw new Error("No page target found");
 
-    const { sessionId } = await client.send('Target.attachToTarget', {
+    const { sessionId } = await client.send("Target.attachToTarget", {
       targetId: pages[0].targetId,
-      flatten: true
+      flatten: true,
     });
 
-    await client.send('Performance.enable', {}, sessionId);
-    const result = await client.send('Performance.getMetrics', {}, sessionId);
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    await client.send("Performance.enable", {}, sessionId);
+    const result = await client.send("Performance.getMetrics", {}, sessionId);
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } catch (err) {
     console.error(err.message);
     process.exit(1);
   } finally {
-    try { await client.close(); } catch {}
+    try {
+      await client.close();
+    } catch {}
   }
 }
 
 // F-062: cookie values are session credentials — mask them by default so
 // agent transcripts/scrollback never capture full tokens. --values opts in.
 export function maskCookieValue(value) {
-  if (typeof value !== 'string' || value.length === 0) return '';
-  if (value.length <= 8) return '****';
+  if (typeof value !== "string" || value.length === 0) return "";
+  if (value.length <= 8) return "****";
   return `${value.slice(0, 4)}…${value.slice(-4)}`;
 }
 
@@ -197,50 +197,62 @@ export function projectCookies(cookies, { revealValues = false } = {}) {
 }
 
 async function subCookies(args, state) {
-  const CRI = await import('chrome-remote-interface');
+  const CRI = await import("chrome-remote-interface");
   const client = await CRI.default({ target: state.wsUrl });
 
   let sessionId;
   try {
-    const { targetInfos } = await client.send('Target.getTargets');
-    const pages = targetInfos.filter(t => t.type === 'page');
-    if (pages.length === 0) throw new Error('No page target found');
+    const { targetInfos } = await client.send("Target.getTargets");
+    const pages = targetInfos.filter((t) => t.type === "page");
+    if (pages.length === 0) throw new Error("No page target found");
 
     const currentUrl = pages[0].url;
 
-    const attachResult = await client.send('Target.attachToTarget', {
+    const attachResult = await client.send("Target.attachToTarget", {
       targetId: pages[0].targetId,
-      flatten: true
+      flatten: true,
     });
     sessionId = attachResult.sessionId;
 
-    const result = await client.send('Network.getCookies', {
-      urls: currentUrl ? [currentUrl] : []
-    }, sessionId);
+    const result = await client.send(
+      "Network.getCookies",
+      {
+        urls: currentUrl ? [currentUrl] : [],
+      },
+      sessionId,
+    );
 
-    const revealValues = args.includes('--values');
+    const revealValues = args.includes("--values");
     // F-067-7: `--values` is a sharp footgun — a single stray flag dumps
     // HttpOnly session tokens into stdout where transcripts persist. Gate it
     // behind an explicit environment opt-in so a bare flag can never reveal.
-    if (revealValues && process.env.CSM_BROWSE_REVEAL_COOKIES !== '1') {
-      console.error('Refusing to reveal cookie values: --values requires CSM_BROWSE_REVEAL_COOKIES=1 (full values persist in transcripts/logs; set it only when strictly needed).');
+    if (revealValues && process.env.CSM_BROWSE_REVEAL_COOKIES !== "1") {
+      console.error(
+        "Refusing to reveal cookie values: --values requires CSM_BROWSE_REVEAL_COOKIES=1 (full values persist in transcripts/logs; set it only when strictly needed).",
+      );
       process.exit(1);
     }
     if (revealValues) {
-      console.error('Warning: full cookie values (incl. HttpOnly session tokens) are being printed to stdout and will persist in transcripts/logs.');
+      console.error(
+        "Warning: full cookie values (incl. HttpOnly session tokens) are being printed to stdout and will persist in transcripts/logs.",
+      );
     }
-    process.stdout.write(JSON.stringify(projectCookies(result.cookies, { revealValues }), null, 2) + '\n');
+    process.stdout.write(
+      JSON.stringify(projectCookies(result.cookies, { revealValues }), null, 2) + "\n",
+    );
   } catch (err) {
     console.error(err.message);
     process.exit(1);
   } finally {
-    try { await client.close(); } catch {}
+    try {
+      await client.close();
+    } catch {}
   }
 }
 
 export async function run({ args, state }) {
   if (args.length === 0) {
-    console.error('Usage: log <console|network|performance|cookies> [options]');
+    console.error("Usage: log <console|network|performance|cookies> [options]");
     process.exit(1);
   }
 
@@ -248,16 +260,16 @@ export async function run({ args, state }) {
   const rest = args.slice(1);
 
   switch (subVerb) {
-    case 'console':
+    case "console":
       await subConsole(rest, state.sessionDir);
       break;
-    case 'network':
+    case "network":
       await subNetwork(rest, state.sessionDir);
       break;
-    case 'performance':
+    case "performance":
       await subPerformance(state);
       break;
-    case 'cookies':
+    case "cookies":
       await subCookies(rest, state);
       break;
     default:

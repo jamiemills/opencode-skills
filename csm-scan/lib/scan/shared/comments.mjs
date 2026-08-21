@@ -12,8 +12,8 @@
 //
 // ESM only. Zero npm deps. node: builtins only. Pure function (no FS access).
 
-import { deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult } from '../providers/base.mjs';
+import { deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult } from "../providers/base.mjs";
 
 /**
  * Count comment lines in a source text for a given ecosystem.
@@ -28,17 +28,17 @@ import { createProviderResult } from '../providers/base.mjs';
  *   - `blankLines`: blank line count.
  */
 export function countComments(text, ecosystem) {
-  const src = text == null ? '' : String(text);
-  const lines = src.split('\n');
+  const src = text == null ? "" : String(text);
+  const lines = src.split("\n");
   switch (ecosystem) {
-    case 'python':
+    case "python":
       return countPython(lines);
-    case 'rust':
+    case "rust":
       return countSlashStyle(lines, true);
-    case 'javascript':
-    case 'typescript':
+    case "javascript":
+    case "typescript":
       return countSlashStyle(lines, false);
-    case 'shell':
+    case "shell":
       return countHash(lines);
     default:
       return { commentLines: 0, totalLines: 0, blankLines: 0 };
@@ -54,12 +54,12 @@ function countHash(lines) {
   let totalLines = 0;
   let blankLines = 0;
   for (const raw of lines) {
-    if (raw.trim() === '') {
+    if (raw.trim() === "") {
       blankLines++;
       continue;
     }
     totalLines++;
-    if (raw.trim().startsWith('#')) commentLines++;
+    if (raw.trim().startsWith("#")) commentLines++;
   }
   return { commentLines, totalLines, blankLines };
 }
@@ -77,7 +77,7 @@ function countPython(lines) {
   let inDoc = null;
 
   for (const line of lines) {
-    if (line.trim() === '') {
+    if (line.trim() === "") {
       blankLines++;
       continue;
     }
@@ -90,7 +90,7 @@ function countPython(lines) {
     }
 
     const trimmed = line.trim();
-    if (trimmed.startsWith('#')) {
+    if (trimmed.startsWith("#")) {
       commentLines++;
       continue;
     }
@@ -125,7 +125,7 @@ function countSlashStyle(lines, nest) {
   let depth = 0;
 
   for (const raw of lines) {
-    if (raw.trim() === '') {
+    if (raw.trim() === "") {
       blankLines++;
       continue;
     }
@@ -135,10 +135,10 @@ function countSlashStyle(lines, nest) {
     const trimmed = raw.trim();
     if (
       startedInBlock ||
-      trimmed.startsWith('//') ||
-      trimmed.startsWith('/*') ||
-      trimmed.startsWith('*/') ||
-      trimmed.startsWith('*')
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("/*") ||
+      trimmed.startsWith("*/") ||
+      trimmed.startsWith("*")
     ) {
       commentLines++;
     }
@@ -147,10 +147,10 @@ function countSlashStyle(lines, nest) {
     // For non-nesting languages depth never exceeds 1, but clamping to >= 0
     // keeps a stray `*/` from going negative.
     for (let i = 0; i < raw.length; i++) {
-      if (raw[i] === '/' && raw[i + 1] === '*') {
+      if (raw[i] === "/" && raw[i + 1] === "*") {
         depth++;
         i++;
-      } else if (raw[i] === '*' && raw[i + 1] === '/') {
+      } else if (raw[i] === "*" && raw[i + 1] === "/") {
         depth = Math.max(0, depth - 1);
         i++;
       }
@@ -174,15 +174,15 @@ function countSlashStyle(lines, nest) {
 
 function commentObservation(counted, path) {
   return {
-    category: 'comment',
+    category: "comment",
     path,
-    matchedKey: `comment:${path ?? 'repository'}`,
+    matchedKey: `comment:${path ?? "repository"}`,
     details: {
       commentLines: counted.commentLines,
       totalLines: counted.totalLines,
       blankLines: counted.blankLines,
     },
-    sourceKind: 'source',
+    sourceKind: "source",
   };
 }
 
@@ -194,10 +194,12 @@ function commentObservation(counted, path) {
  */
 export function commentObservations({ ecosystem, text, path = null } = {}) {
   const counted = countComments(text, ecosystem);
-  return deepFreeze([{
-    dimensionId: 'DIM-conventions-v1',
-    observations: [commentObservation(counted, path)],
-  }]);
+  return deepFreeze([
+    {
+      dimensionId: "DIM-conventions-v1",
+      observations: [commentObservation(counted, path)],
+    },
+  ]);
 }
 
 /**
@@ -208,7 +210,7 @@ export function commentObservations({ ecosystem, text, path = null } = {}) {
  */
 export function commentProviderResult({ ecosystem, text, path = null } = {}) {
   const provider = `PRV-comments-${ecosystem}-v1`;
-  return commentObservations({ ecosystem, text, path }).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: provider, dimensionId, observations })
-  ));
+  return commentObservations({ ecosystem, text, path }).map(({ dimensionId, observations }) =>
+    createProviderResult({ providerId: provider, dimensionId, observations }),
+  );
 }

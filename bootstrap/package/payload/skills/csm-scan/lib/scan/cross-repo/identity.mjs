@@ -38,8 +38,8 @@ import {
   compareAscii,
   deepFreeze,
   normalizeEvidencePath,
-} from '../contracts/evidence.mjs';
-import { assertPrivacySafe } from '../shared/privacy.mjs';
+} from "../contracts/evidence.mjs";
+import { assertPrivacySafe } from "../shared/privacy.mjs";
 
 export const CROSS_REPO_SCHEMA_VERSION = 1;
 
@@ -55,29 +55,44 @@ export const IDENTITY_LIMITS = deepFreeze({
 });
 
 export const REFERENCE_KINDS = Object.freeze([
-  'vcs', 'workspace', 'path', 'iac', 'contract', 'event',
+  "vcs",
+  "workspace",
+  "path",
+  "iac",
+  "contract",
+  "event",
 ]);
 
-const COORDINATE_DIMENSIONS = Object.freeze([
-  ...REFERENCE_KINDS,
-  'package',
-]);
+const COORDINATE_DIMENSIONS = Object.freeze([...REFERENCE_KINDS, "package"]);
 
-const SAFE_HOST = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/;
+const SAFE_HOST =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/;
 const SAFE_TOKEN = /^[A-Za-z0-9@][A-Za-z0-9._:@/+%*-]*$/;
 const PURL = /^pkg:[A-Za-z0-9.+-]+\/[A-Za-z0-9._~@+%/-]+(?:@[A-Za-z0-9._~+%-]+)?$/;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+%-]*$/;
 const ECOSYSTEM_NORMALIZATION = Object.freeze({
-  js: 'npm', javascript: 'npm', node: 'npm', ts: 'npm', typescript: 'npm',
-  python: 'pypi', pip: 'pypi', rust: 'cargo',
-  go: 'go', gomod: 'go', java: 'maven', mvn: 'maven',
-  gem: 'rubygems', ruby: 'rubygems', dotnet: 'nuget', nuget: 'nuget',
+  js: "npm",
+  javascript: "npm",
+  node: "npm",
+  ts: "npm",
+  typescript: "npm",
+  python: "pypi",
+  pip: "pypi",
+  rust: "cargo",
+  go: "go",
+  gomod: "go",
+  java: "maven",
+  mvn: "maven",
+  gem: "rubygems",
+  ruby: "rubygems",
+  dotnet: "nuget",
+  nuget: "nuget",
 });
 
 export class CrossRepoError extends TypeError {
   constructor(code, message) {
     super(`Invalid cross-repository input: ${message}`);
-    this.name = 'CrossRepoError';
+    this.name = "CrossRepoError";
     this.code = code;
   }
 }
@@ -98,20 +113,32 @@ function privacySafe(value) {
 const EMAIL_LIKE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 
 export function safeToken(value) {
-  return typeof value === 'string' && value.length > 0
-    && value.length <= IDENTITY_LIMITS.coordinateLength && SAFE_TOKEN.test(value)
-    && !EMAIL_LIKE.test(value);
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= IDENTITY_LIMITS.coordinateLength &&
+    SAFE_TOKEN.test(value) &&
+    !EMAIL_LIKE.test(value)
+  );
 }
 
 function safeScanId(value) {
-  return typeof value === 'string' && value.length > 0
-    && value.length <= IDENTITY_LIMITS.coordinateLength && SAFE_TOKEN.test(value)
-    && privacySafe(value);
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= IDENTITY_LIMITS.coordinateLength &&
+    SAFE_TOKEN.test(value) &&
+    privacySafe(value)
+  );
 }
 
 function safeUntaggedToken(value) {
-  return typeof value === 'string' && value.length > 0
-    && value.length <= IDENTITY_LIMITS.coordinateLength && SAFE_TOKEN.test(value);
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= IDENTITY_LIMITS.coordinateLength &&
+    SAFE_TOKEN.test(value)
+  );
 }
 
 function boundedArray(value) {
@@ -119,7 +146,7 @@ function boundedArray(value) {
 }
 
 function coordinate(prefix, value) {
-  if (typeof value !== 'string' || value.length === 0) return null;
+  if (typeof value !== "string" || value.length === 0) return null;
   const candidate = `${prefix}:${value}`;
   if (candidate.length > IDENTITY_LIMITS.coordinateLength || !privacySafe(candidate)) return null;
   return candidate;
@@ -132,13 +159,20 @@ function coordinate(prefix, value) {
  * @returns {string|null} normalized path or null when unsafe/invalid.
  */
 export function normalizePath(value) {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== "string") return null;
   let candidate = value.trim();
   if (candidate.length === 0 || candidate.length > 255) return null;
-  if (candidate.startsWith('./')) candidate = candidate.slice(2);
-  if (candidate.length === 0 || candidate.startsWith('/') || candidate.startsWith('//')
-      || candidate === '..' || candidate.startsWith('../')
-      || candidate.includes('\\') || candidate.includes('\0') || /^[A-Za-z]:/.test(candidate)) {
+  if (candidate.startsWith("./")) candidate = candidate.slice(2);
+  if (
+    candidate.length === 0 ||
+    candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate === ".." ||
+    candidate.startsWith("../") ||
+    candidate.includes("\\") ||
+    candidate.includes("\0") ||
+    /^[A-Za-z]:/.test(candidate)
+  ) {
     return null;
   }
   try {
@@ -149,16 +183,16 @@ export function normalizePath(value) {
 }
 
 function stripPort(value) {
-  return value.replace(/^([^/:]+):\d+(?=\/|$)/, '$1');
+  return value.replace(/^([^/:]+):\d+(?=\/|$)/, "$1");
 }
 
 function vcsParts(value) {
-  const parts = value.split('/').filter(Boolean);
+  const parts = value.split("/").filter(Boolean);
   if (parts.length < 3) return null;
-  const host = parts[0].split(':')[0].toLowerCase();
+  const host = parts[0].split(":")[0].toLowerCase();
   if (!SAFE_HOST.test(host)) return null;
-  const repo = parts[parts.length - 1].replace(/\.git$/i, '');
-  const namespace = parts.slice(1, -1).join('/');
+  const repo = parts[parts.length - 1].replace(/\.git$/i, "");
+  const namespace = parts.slice(1, -1).join("/");
   if (repo.length === 0 || namespace.length === 0) return null;
   if (!safeUntaggedToken(namespace) || !safeUntaggedToken(repo)) return null;
   return { host, namespace, repo };
@@ -173,7 +207,7 @@ function vcsParts(value) {
  * @returns {{ host: string, namespace: string, repo: string }|null}
  */
 export function normalizeVcsCoordinates(value) {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== "string") return null;
   let raw = value.trim();
   if (raw.length === 0 || raw.length > IDENTITY_LIMITS.value) return null;
   if (/[\s\0]/.test(raw)) return null;
@@ -183,18 +217,18 @@ export function normalizeVcsCoordinates(value) {
 
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
     const scheme = raw.match(/^([a-z][a-z0-9+.-]*):\/\//i)[1].toLowerCase();
-    if (scheme === 'file' || !['git', 'http', 'https', 'ssh'].includes(scheme)) return null;
-    let rest = raw.slice(raw.indexOf('://') + 3);
-    const at = rest.indexOf('@');
+    if (scheme === "file" || !["git", "http", "https", "ssh"].includes(scheme)) return null;
+    let rest = raw.slice(raw.indexOf("://") + 3);
+    const at = rest.indexOf("@");
     if (at >= 0) rest = rest.slice(at + 1);
     return vcsParts(stripPort(rest));
   }
 
   // scp-style remote (git@host:path or host:path) or bare host/path.
-  let rest = raw.replace(/^[^@/:]+@/, '');
-  if (rest.includes('://')) return null;
-  const colon = rest.indexOf(':');
-  const slash = rest.indexOf('/');
+  let rest = raw.replace(/^[^@/:]+@/, "");
+  if (rest.includes("://")) return null;
+  const colon = rest.indexOf(":");
+  const slash = rest.indexOf("/");
   if (colon >= 0 && (slash < 0 || colon < slash)) {
     const after = rest.slice(colon + 1);
     if (after.length === 0 || /^\d+$/.test(after)) return null;
@@ -211,15 +245,19 @@ export function normalizeVcsCoordinates(value) {
  * @returns {string|null}
  */
 export function vcsCoordinate(vcs) {
-  if (vcs === null || typeof vcs !== 'object' || Array.isArray(vcs)) return null;
-  if (typeof vcs.host !== 'string' || typeof vcs.namespace !== 'string' || typeof vcs.repo !== 'string') {
+  if (vcs === null || typeof vcs !== "object" || Array.isArray(vcs)) return null;
+  if (
+    typeof vcs.host !== "string" ||
+    typeof vcs.namespace !== "string" ||
+    typeof vcs.repo !== "string"
+  ) {
     return null;
   }
-  return coordinate('vcs', `${vcs.host}/${vcs.namespace}/${vcs.repo}`);
+  return coordinate("vcs", `${vcs.host}/${vcs.namespace}/${vcs.repo}`);
 }
 
 function normalizeEcosystem(ecosystem) {
-  if (typeof ecosystem !== 'string') return null;
+  if (typeof ecosystem !== "string") return null;
   const raw = ecosystem.trim().toLowerCase();
   if (raw.length === 0 || raw.length > 64 || /[^a-z0-9+.-]/.test(raw)) return null;
   return ECOSYSTEM_NORMALIZATION[raw] ?? raw;
@@ -233,19 +271,19 @@ function normalizeEcosystem(ecosystem) {
  * @returns {string|null}
  */
 export function normalizePackageCoordinate(manifest) {
-  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) return null;
+  if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) return null;
   const type = normalizeEcosystem(manifest.ecosystem);
-  if (type === null || typeof manifest.name !== 'string') return null;
+  if (type === null || typeof manifest.name !== "string") return null;
   const name = manifest.name.trim();
   if (!safeUntaggedToken(name) || name.length > IDENTITY_LIMITS.coordinateLength) return null;
-  let suffix = '';
-  if (typeof manifest.version === 'string') {
+  let suffix = "";
+  if (typeof manifest.version === "string") {
     const version = manifest.version.trim();
     if (VERSION_PATTERN.test(version) && version.length <= 128) suffix = `@${version}`;
   }
   const purl = `pkg:${type}/${name}${suffix}`;
   if (!PURL.test(purl) || !privacySafe(purl)) return null;
-  return coordinate('package', purl);
+  return coordinate("package", purl);
 }
 
 export function normalizePackageCoordinates(manifests) {
@@ -287,19 +325,19 @@ function tokenValue(value) {
  */
 export function normalizeIacCoordinate(value) {
   const normalized = normalizeIacValue(value);
-  return normalized === null ? null : coordinate('iac', normalized);
+  return normalized === null ? null : coordinate("iac", normalized);
 }
 
 function normalizeIacValue(value) {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== "string") return null;
   let raw = value.trim();
   if (raw.length === 0 || raw.length > IDENTITY_LIMITS.value) return null;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) raw = raw.slice(raw.indexOf('://') + 3);
-  raw = raw.replace(/^[^@/:]+@/, '');
-  const query = raw.indexOf('?');
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) raw = raw.slice(raw.indexOf("://") + 3);
+  raw = raw.replace(/^[^@/:]+@/, "");
+  const query = raw.indexOf("?");
   if (query >= 0) raw = raw.slice(0, query);
   if (raw.length === 0 || /^(?:\.{0,2}\/|~|\\|\/|[A-Za-z]:[\\/])/.test(raw)) return null;
-  raw = raw.replace(/\.git$/, '');
+  raw = raw.replace(/\.git$/, "");
   if (!safeUntaggedToken(raw)) return null;
   return raw;
 }
@@ -316,9 +354,9 @@ function coordinateList(prefix, values, normalizeEntry) {
 }
 
 function emptyCoordinates() {
-  return deepFreeze(Object.fromEntries(
-    COORDINATE_DIMENSIONS.map((dimension) => [dimension, deepFreeze([])]),
-  ));
+  return deepFreeze(
+    Object.fromEntries(COORDINATE_DIMENSIONS.map((dimension) => [dimension, deepFreeze([])])),
+  );
 }
 
 /**
@@ -339,24 +377,24 @@ export function normalizeRepositoryIdentity(input) {
     });
   } catch (error) {
     if (error instanceof CrossRepoError) throw error;
-    fail('INVALID_DATA', 'repository identity must contain plain bounded data');
+    fail("INVALID_DATA", "repository identity must contain plain bounded data");
   }
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    fail('INVALID_TYPE', 'repository identity must be an object');
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    fail("INVALID_TYPE", "repository identity must be an object");
   }
 
   const scanId = safeScanId(input.scanId) ? input.scanId : null;
   if (scanId === null) {
     return deepFreeze({
-      kind: 'repository',
+      kind: "repository",
       scanId: null,
       repositoryId: null,
       vcs: null,
       packageCoordinates: deepFreeze([]),
       componentRoots: deepFreeze([]),
       coordinates: emptyCoordinates(),
-      status: 'unresolved',
-      reason: 'missing_identity',
+      status: "unresolved",
+      reason: "missing_identity",
     });
   }
 
@@ -373,9 +411,8 @@ export function normalizeRepositoryIdentity(input) {
   for (const manifest of manifests) {
     const normalized = normalizePackageCoordinate(manifest);
     if (normalized === null) continue;
-    const root = manifest === null || typeof manifest !== 'object'
-      ? null
-      : normalizePath(manifest.root);
+    const root =
+      manifest === null || typeof manifest !== "object" ? null : normalizePath(manifest.root);
     if (root !== null && rootSet.has(root)) {
       const list = byRoot.get(root) ?? [];
       list.push(normalized);
@@ -389,9 +426,9 @@ export function normalizeRepositoryIdentity(input) {
   for (const [root, purls] of byRoot) {
     const names = [];
     for (const manifest of manifests) {
-      if (manifest === null || typeof manifest !== 'object') continue;
+      if (manifest === null || typeof manifest !== "object") continue;
       if (normalizePath(manifest.root) !== root) continue;
-      if (typeof manifest.name === 'string' && safeToken(manifest.name)) names.push(manifest.name);
+      if (typeof manifest.name === "string" && safeToken(manifest.name)) names.push(manifest.name);
     }
     byRoot.set(root, { purls, names });
   }
@@ -399,20 +436,24 @@ export function normalizeRepositoryIdentity(input) {
     for (const name of entry.names) claimedWorkspaces.add(name);
   }
 
-  const workspaceNames = normalizeTokens(input.workspaceNames).filter((entry) => !claimedWorkspaces.has(entry));
+  const workspaceNames = normalizeTokens(input.workspaceNames).filter(
+    (entry) => !claimedWorkspaces.has(entry),
+  );
 
   const coordinates = {
     vcs: vcsCoord === null ? deepFreeze([]) : deepFreeze([vcsCoord]),
-    workspace: coordinateList('workspace', workspaceNames, tokenValue),
+    workspace: coordinateList("workspace", workspaceNames, tokenValue),
     path: deepFreeze([]),
-    iac: coordinateList('iac', input.iac, normalizeIacValue),
-    contract: coordinateList('contract', input.contracts, tokenValue),
-    event: coordinateList('event', input.events, tokenValue),
-    package: deepFreeze([...repoPackages].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates)),
+    iac: coordinateList("iac", input.iac, normalizeIacValue),
+    contract: coordinateList("contract", input.contracts, tokenValue),
+    event: coordinateList("event", input.events, tokenValue),
+    package: deepFreeze(
+      [...repoPackages].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates),
+    ),
   };
 
   const record = {
-    kind: 'repository',
+    kind: "repository",
     scanId,
     repositoryId,
     vcs,
@@ -420,7 +461,7 @@ export function normalizeRepositoryIdentity(input) {
     componentRoots,
     workspaceCoordinates: coordinates.workspace,
     coordinates,
-    status: 'resolved',
+    status: "resolved",
     reason: null,
   };
   assertPrivacySafe(record);
@@ -437,13 +478,14 @@ export function normalizeRepositoryIdentity(input) {
 function buildResolved(repo, manifests) {
   const byRoot = new Map();
   for (const manifest of boundedArray(manifests).slice(0, IDENTITY_LIMITS.manifests)) {
-    if (manifest === null || typeof manifest !== 'object') continue;
+    if (manifest === null || typeof manifest !== "object") continue;
     const normalized = normalizePackageCoordinate(manifest);
     const root = normalizePath(manifest.root);
     if (normalized === null || root === null || !repo.componentRoots.includes(root)) continue;
     const entry = byRoot.get(root) ?? { purls: [], names: [] };
     entry.purls.push(normalized);
-    if (typeof manifest.name === 'string' && safeToken(manifest.name)) entry.names.push(manifest.name);
+    if (typeof manifest.name === "string" && safeToken(manifest.name))
+      entry.names.push(manifest.name);
     byRoot.set(root, entry);
   }
 
@@ -451,19 +493,21 @@ function buildResolved(repo, manifests) {
   for (const root of repo.componentRoots) {
     const entry = byRoot.get(root);
     const component = {
-      kind: 'component',
-      id: coordinate('component', `${repo.repositoryId}:${root}`),
+      kind: "component",
+      id: coordinate("component", `${repo.repositoryId}:${root}`),
       scanId: repo.scanId,
       repositoryId: repo.repositoryId,
       root,
       coordinates: {
         vcs: deepFreeze([]),
-        workspace: coordinateList('workspace', entry?.names ?? [], tokenValue),
-        path: deepFreeze([coordinate('path', root)]),
+        workspace: coordinateList("workspace", entry?.names ?? [], tokenValue),
+        path: deepFreeze([coordinate("path", root)]),
         iac: deepFreeze([]),
         contract: deepFreeze([]),
         event: deepFreeze([]),
-        package: deepFreeze([...(entry?.purls ?? [])].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates)),
+        package: deepFreeze(
+          [...(entry?.purls ?? [])].toSorted(compareAscii).slice(0, IDENTITY_LIMITS.coordinates),
+        ),
       },
     };
     assertPrivacySafe(component);
@@ -474,11 +518,11 @@ function buildResolved(repo, manifests) {
 
 function unresolvedRecord(record, reason) {
   const unresolved = {
-    kind: 'repository',
+    kind: "repository",
     scanId: record.scanId,
     repositoryId: record.repositoryId,
     vcs: record.vcs ?? null,
-    status: 'unresolved',
+    status: "unresolved",
     reason,
   };
   assertPrivacySafe(unresolved);
@@ -486,7 +530,7 @@ function unresolvedRecord(record, reason) {
 }
 
 function unresolvedSortKey(record) {
-  return `${record.scanId ?? ''}\0${record.repositoryId ?? ''}`;
+  return `${record.scanId ?? ""}\0${record.repositoryId ?? ""}`;
 }
 
 /**
@@ -499,9 +543,9 @@ function unresolvedSortKey(record) {
  *   A deep-frozen identity table.
  */
 export function synthesizeRepositoryIdentities(inputs) {
-  if (!Array.isArray(inputs)) fail('INVALID_TYPE', 'repository identities must be an array');
+  if (!Array.isArray(inputs)) fail("INVALID_TYPE", "repository identities must be an array");
   if (inputs.length > IDENTITY_LIMITS.identities) {
-    fail('BOUND_EXCEEDED', 'repository identity count exceeds the bound');
+    fail("BOUND_EXCEEDED", "repository identity count exceeds the bound");
   }
 
   const normalized = inputs.map(normalizeRepositoryIdentity);
@@ -510,7 +554,7 @@ export function synthesizeRepositoryIdentities(inputs) {
   const flagged = new Set();
 
   for (const record of normalized) {
-    if (record.status === 'unresolved') continue;
+    if (record.status === "unresolved") continue;
     const scanList = byScan.get(record.scanId) ?? [];
     scanList.push(record);
     byScan.set(record.scanId, scanList);
@@ -534,16 +578,20 @@ export function synthesizeRepositoryIdentities(inputs) {
   const repositories = [];
   const components = [];
   for (const record of normalized) {
-    if (record.status === 'unresolved') {
+    if (record.status === "unresolved") {
       unresolved.push(record);
       continue;
     }
     if (flagged.has(record)) {
-      const reason = byScan.get(record.scanId).length > 1 ? 'duplicate_scan_id' : 'duplicate_identity';
+      const reason =
+        byScan.get(record.scanId).length > 1 ? "duplicate_scan_id" : "duplicate_identity";
       unresolved.push(unresolvedRecord(record, reason));
       continue;
     }
-    const { repo, components: built } = buildResolved(record, inputs[normalized.indexOf(record)].manifests);
+    const { repo, components: built } = buildResolved(
+      record,
+      inputs[normalized.indexOf(record)].manifests,
+    );
     repositories.push(repo);
     components.push(...built);
   }

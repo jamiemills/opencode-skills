@@ -1,7 +1,7 @@
-export const manifest = 'pyproject.toml';
+export const manifest = "pyproject.toml";
 
 export const files = {
-  'pyproject.toml': `[build-system]
+  "pyproject.toml": `[build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
@@ -26,11 +26,11 @@ testpaths = ["tests"]
 [tool.setuptools.packages.find]
 where = ["src"]
 `,
-  'src/demo/__init__.py': ``,
-  'requirements.txt': `httpx>=0.27
+  "src/demo/__init__.py": ``,
+  "requirements.txt": `httpx>=0.27
 typing-extensions>=4.10
 `,
-  'src/demo/cli.py': `from .core import greet
+  "src/demo/cli.py": `from .core import greet
 from demo.parts import (
     alpha,
     beta,
@@ -46,7 +46,7 @@ def main():
 if __name__ == "__main__":
     main()
 `,
-  'src/demo/core.py': `def greet():
+  "src/demo/core.py": `def greet():
     """Return the fixture greeting."""
     try:
         return "hello"
@@ -61,21 +61,21 @@ class Greeter:
         """Render a greeting."""
         return greet()
 `,
-  'src/demo/parts/__init__.py': ``,
-  'src/demo/parts/alpha.py': `NAME = "alpha"
+  "src/demo/parts/__init__.py": ``,
+  "src/demo/parts/alpha.py": `NAME = "alpha"
 `,
-  'src/demo/parts/beta.py': `NAME = "beta"
+  "src/demo/parts/beta.py": `NAME = "beta"
 `,
-  'src/acme/marker.py': `NAMESPACE = "acme"
+  "src/acme/marker.py": `NAMESPACE = "acme"
 `,
-  'src/acme/plugins/loader.py': `NAME = "namespace"
+  "src/acme/plugins/loader.py": `NAME = "namespace"
 `,
-  'tests/test_core.py': `from demo.core import greet
+  "tests/test_core.py": `from demo.core import greet
 
 
 def test_greet():
     assert greet() == "hello"
 `,
-  '.hypothesis/constants/abc123': `noise
+  ".hypothesis/constants/abc123": `noise
 `,
 };

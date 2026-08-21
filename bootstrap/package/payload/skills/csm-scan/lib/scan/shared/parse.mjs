@@ -18,7 +18,7 @@ export function parseToml(text) {
 
 class TomlParser {
   constructor(text) {
-    this.s = text == null ? '' : String(text);
+    this.s = text == null ? "" : String(text);
     this.i = 0;
     this.n = this.s.length;
     this.root = {};
@@ -28,19 +28,21 @@ class TomlParser {
   error(msg, at = this.i) {
     let line = 1;
     for (let k = 0; k < at && k < this.n; k++) {
-      if (this.s[k] === '\n') line++;
+      if (this.s[k] === "\n") line++;
     }
     throw new Error(`TOML parse error at line ${line}: ${msg}`);
   }
 
-  atEnd() { return this.i >= this.n; }
+  atEnd() {
+    return this.i >= this.n;
+  }
   peek(off = 0) {
     const j = this.i + off;
-    return j >= 0 && j < this.n ? this.s[j] : '';
+    return j >= 0 && j < this.n ? this.s[j] : "";
   }
   advance() {
     if (this.i < this.n) return this.s[this.i++];
-    return '';
+    return "";
   }
   expect(ch) {
     if (this.peek() !== ch) {
@@ -57,13 +59,13 @@ class TomlParser {
   skipInlineWs() {
     while (!this.atEnd()) {
       const c = this.peek();
-      if (c === ' ' || c === '\t') this.advance();
+      if (c === " " || c === "\t") this.advance();
       else break;
     }
   }
   skipComment() {
-    if (this.peek() === '#') {
-      while (!this.atEnd() && this.peek() !== '\n' && this.peek() !== '\r') this.advance();
+    if (this.peek() === "#") {
+      while (!this.atEnd() && this.peek() !== "\n" && this.peek() !== "\r") this.advance();
     }
   }
   skipInlineWsAndComments() {
@@ -73,9 +75,9 @@ class TomlParser {
   skipWsCommentsNewlines() {
     while (!this.atEnd()) {
       const c = this.peek();
-      if (c === ' ' || c === '\t' || c === '\n' || c === '\r') this.advance();
-      else if (c === '#') {
-        while (!this.atEnd() && this.peek() !== '\n') this.advance();
+      if (c === " " || c === "\t" || c === "\n" || c === "\r") this.advance();
+      else if (c === "#") {
+        while (!this.atEnd() && this.peek() !== "\n") this.advance();
       } else break;
     }
   }
@@ -86,12 +88,12 @@ class TomlParser {
     while (!this.atEnd()) {
       this.skipWsCommentsNewlines();
       if (this.atEnd()) break;
-      if (this.peek() === '[') {
+      if (this.peek() === "[") {
         this.parseTableHeader();
       } else {
         this.parseKeyValue(this.current);
         this.skipInlineWsAndComments();
-        if (!this.atEnd() && this.peek() !== '\n' && this.peek() !== '\r') {
+        if (!this.atEnd() && this.peek() !== "\n" && this.peek() !== "\r") {
           this.error(`expected newline or EOF after key-value, got ${JSON.stringify(this.peek())}`);
         }
       }
@@ -102,19 +104,19 @@ class TomlParser {
   // ---- table headers ----------------------------------------------------
 
   parseTableHeader() {
-    this.expect('[');
-    const isArray = this.peek() === '[';
-    if (isArray) this.expect('[');
+    this.expect("[");
+    const isArray = this.peek() === "[";
+    if (isArray) this.expect("[");
     this.skipInlineWs();
     const path = this.parseDottedKey();
     this.skipInlineWs();
-    this.expect(']');
-    if (isArray) this.expect(']');
+    this.expect("]");
+    if (isArray) this.expect("]");
 
     this.current = isArray ? this.navigateArrayTable(path) : this.navigateTable(path);
 
     this.skipInlineWsAndComments();
-    if (!this.atEnd() && this.peek() !== '\n' && this.peek() !== '\r') {
+    if (!this.atEnd() && this.peek() !== "\n" && this.peek() !== "\r") {
       this.error(`expected newline after table header, got ${JSON.stringify(this.peek())}`);
     }
   }
@@ -129,7 +131,7 @@ class TomlParser {
         node = node[key];
       } else if (Array.isArray(existing)) {
         node = existing[existing.length - 1];
-      } else if (typeof existing === 'object' && existing !== null) {
+      } else if (typeof existing === "object" && existing !== null) {
         node = existing;
       } else {
         this.error(`key ${JSON.stringify(key)} already exists as a non-table value`);
@@ -160,7 +162,7 @@ class TomlParser {
           node = node[key];
         } else if (Array.isArray(existing)) {
           node = existing[existing.length - 1];
-        } else if (typeof existing === 'object' && existing !== null) {
+        } else if (typeof existing === "object" && existing !== null) {
           node = existing;
         } else {
           this.error(`key ${JSON.stringify(key)} conflicts with non-table value`);
@@ -174,7 +176,7 @@ class TomlParser {
 
   parseDottedKey() {
     const path = [this.parseSingleKey()];
-    while (this.peek() === '.') {
+    while (this.peek() === ".") {
       this.advance();
       this.skipInlineWs();
       path.push(this.parseSingleKey());
@@ -188,7 +190,7 @@ class TomlParser {
     if (c === '"') return this.parseBasicString();
     if (c === "'") return this.parseLiteralString();
     if (/[A-Za-z0-9_-]/.test(c)) {
-      let key = '';
+      let key = "";
       while (!this.atEnd() && /[A-Za-z0-9_-]/.test(this.peek())) key += this.advance();
       return key;
     }
@@ -200,7 +202,7 @@ class TomlParser {
   parseKeyValue(target) {
     const path = this.parseDottedKey();
     this.skipInlineWs();
-    this.expect('=');
+    this.expect("=");
     this.skipInlineWs();
     const value = this.parseValue();
 
@@ -211,10 +213,12 @@ class TomlParser {
       if (existing === undefined || existing === null) {
         node[key] = {};
         node = node[key];
-      } else if (typeof existing === 'object' && !Array.isArray(existing)) {
+      } else if (typeof existing === "object" && !Array.isArray(existing)) {
         node = existing;
       } else {
-        this.error(`cannot descend into key ${JSON.stringify(key)} (already a ${Array.isArray(existing) ? 'array' : 'scalar'})`);
+        this.error(
+          `cannot descend into key ${JSON.stringify(key)} (already a ${Array.isArray(existing) ? "array" : "scalar"})`,
+        );
       }
     }
     const finalKey = path[path.length - 1];
@@ -236,57 +240,67 @@ class TomlParser {
       if (this.peek(1) === "'" && this.peek(2) === "'") return this.parseMultilineLiteral();
       return this.parseLiteralString();
     }
-    if (c === '[') return this.parseArray();
-    if (c === '{') return this.parseInlineTable();
-    if (c === 't' || c === 'f') return this.parseBoolOrThrow();
-    if (c === 'i' || c === 'n' || c === '+' || c === '-') {
+    if (c === "[") return this.parseArray();
+    if (c === "{") return this.parseInlineTable();
+    if (c === "t" || c === "f") return this.parseBoolOrThrow();
+    if (c === "i" || c === "n" || c === "+" || c === "-") {
       // could be inf/nan or signed number
       return this.parseNumberOrDate();
     }
-    if (c >= '0' && c <= '9') return this.parseNumberOrDate();
+    if (c >= "0" && c <= "9") return this.parseNumberOrDate();
     this.error(`unexpected value start ${JSON.stringify(c)}`);
   }
 
   parseBasicString() {
     this.expect('"');
-    let out = '';
+    let out = "";
     while (!this.atEnd()) {
       const c = this.advance();
       if (c === '"') return out;
-      if (c === '\\') {
-        if (this.atEnd()) this.error('unterminated escape in basic string');
+      if (c === "\\") {
+        if (this.atEnd()) this.error("unterminated escape in basic string");
         const e = this.advance();
         out += this.applyEscape(e);
-      } else if (c === '\n') {
-        this.error('unescaped newline in basic string');
+      } else if (c === "\n") {
+        this.error("unescaped newline in basic string");
       } else {
         out += c;
       }
     }
-    this.error('unterminated basic string');
+    this.error("unterminated basic string");
   }
 
   applyEscape(e) {
     switch (e) {
-      case 'n': return '\n';
-      case 't': return '\t';
-      case 'r': return '\r';
-      case '"': return '"';
-      case '\\': return '\\';
-      case 'b': return '\b';
-      case 'f': return '\f';
-      case '/': return '/';
-      case 'u': return String.fromCharCode(parseInt(this.readHex(4), 16));
-      case 'U': return String.fromCodePoint(parseInt(this.readHex(8), 16));
+      case "n":
+        return "\n";
+      case "t":
+        return "\t";
+      case "r":
+        return "\r";
+      case '"':
+        return '"';
+      case "\\":
+        return "\\";
+      case "b":
+        return "\b";
+      case "f":
+        return "\f";
+      case "/":
+        return "/";
+      case "u":
+        return String.fromCharCode(parseInt(this.readHex(4), 16));
+      case "U":
+        return String.fromCodePoint(parseInt(this.readHex(8), 16));
       default:
         this.error(`unsupported escape sequence \\${e}`);
     }
   }
 
   readHex(n) {
-    let h = '';
+    let h = "";
     for (let k = 0; k < n; k++) {
-      if (this.atEnd()) this.error('unexpected EOF in hex escape');
+      if (this.atEnd()) this.error("unexpected EOF in hex escape");
       h += this.advance();
     }
     return h;
@@ -294,25 +308,29 @@ class TomlParser {
 
   parseLiteralString() {
     this.expect("'");
-    let out = '';
+    let out = "";
     while (!this.atEnd()) {
       const c = this.advance();
       if (c === "'") return out;
-      if (c === '\n') this.error('unescaped newline in literal string');
+      if (c === "\n") this.error("unescaped newline in literal string");
       out += c;
     }
-    this.error('unterminated literal string');
+    this.error("unterminated literal string");
   }
 
   parseMultilineBasic() {
-    this.expect('"'); this.expect('"'); this.expect('"');
+    this.expect('"');
+    this.expect('"');
+    this.expect('"');
     // trim a single immediate newline
-    if (this.peek() === '\r') this.advance();
-    if (this.peek() === '\n') this.advance();
-    let out = '';
+    if (this.peek() === "\r") this.advance();
+    if (this.peek() === "\n") this.advance();
+    let out = "";
     while (!this.atEnd()) {
       if (this.peek() === '"' && this.peek(1) === '"' && this.peek(2) === '"') {
-        this.advance(); this.advance(); this.advance();
+        this.advance();
+        this.advance();
+        this.advance();
         // allow up to two trailing quote chars to be part of content (TOML quirk)
         while (this.peek() === '"' && out.endsWith('"')) {
           out = out.slice(0, -1);
@@ -321,110 +339,165 @@ class TomlParser {
         return out;
       }
       const c = this.advance();
-      if (c === '\\' && (this.peek() === '\n' || this.peek() === '\r' || this.peek() === ' ' || this.peek() === '\t')) {
+      if (
+        c === "\\" &&
+        (this.peek() === "\n" ||
+          this.peek() === "\r" ||
+          this.peek() === " " ||
+          this.peek() === "\t")
+      ) {
         // line-ending backslash trims trailing whitespace
         // lookahead: only treat as line-continuation if a newline follows whitespace
         let j = this.i;
-        while (j < this.n && (this.s[j] === ' ' || this.s[j] === '\t')) j++;
-        if (j < this.n && (this.s[j] === '\n' || this.s[j] === '\r')) {
+        while (j < this.n && (this.s[j] === " " || this.s[j] === "\t")) j++;
+        if (j < this.n && (this.s[j] === "\n" || this.s[j] === "\r")) {
           this.i = j;
-          if (this.peek() === '\r') this.advance();
-          if (this.peek() === '\n') this.advance();
-          while (!this.atEnd() && (this.peek() === ' ' || this.peek() === '\t' || this.peek() === '\n' || this.peek() === '\r')) this.advance();
+          if (this.peek() === "\r") this.advance();
+          if (this.peek() === "\n") this.advance();
+          while (
+            !this.atEnd() &&
+            (this.peek() === " " ||
+              this.peek() === "\t" ||
+              this.peek() === "\n" ||
+              this.peek() === "\r")
+          )
+            this.advance();
           continue;
         }
         out += c;
-      } else if (c === '\\') {
+      } else if (c === "\\") {
         const e = this.advance();
         out += this.applyEscape(e);
       } else {
         out += c;
       }
     }
-    this.error('unterminated multiline basic string');
+    this.error("unterminated multiline basic string");
   }
 
   parseMultilineLiteral() {
-    this.expect("'"); this.expect("'"); this.expect("'");
-    if (this.peek() === '\r') this.advance();
-    if (this.peek() === '\n') this.advance();
-    let out = '';
+    this.expect("'");
+    this.expect("'");
+    this.expect("'");
+    if (this.peek() === "\r") this.advance();
+    if (this.peek() === "\n") this.advance();
+    let out = "";
     while (!this.atEnd()) {
       if (this.peek() === "'" && this.peek(1) === "'" && this.peek(2) === "'") {
-        this.advance(); this.advance(); this.advance();
+        this.advance();
+        this.advance();
+        this.advance();
         return out;
       }
       out += this.advance();
     }
-    this.error('unterminated multiline literal string');
+    this.error("unterminated multiline literal string");
   }
 
   parseBoolOrThrow() {
-    if (this.startsWith('true')) { this.i += 4; return true; }
-    if (this.startsWith('false')) { this.i += 5; return false; }
+    if (this.startsWith("true")) {
+      this.i += 4;
+      return true;
+    }
+    if (this.startsWith("false")) {
+      this.i += 5;
+      return false;
+    }
     this.error(`unrecognized bare value starting with ${JSON.stringify(this.peek())}`);
   }
 
   parseNumberOrDate() {
-    let token = '';
+    let token = "";
     while (!this.atEnd()) {
       const c = this.peek();
-      if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ',' || c === ']' || c === '}' || c === '#') break;
+      if (
+        c === " " ||
+        c === "\t" ||
+        c === "\n" ||
+        c === "\r" ||
+        c === "," ||
+        c === "]" ||
+        c === "}" ||
+        c === "#"
+      )
+        break;
       token += this.advance();
     }
-    if (token === '') this.error('expected a numeric/datetime value');
+    if (token === "") this.error("expected a numeric/datetime value");
 
     // RFC3339 date or date-time (passthrough as string)
-    if (/^\d{4}-\d{2}-\d{2}([Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|z|[+-]\d{2}:\d{2})?)?$/.test(token)) return token;
+    if (/^\d{4}-\d{2}-\d{2}([Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|z|[+-]\d{2}:\d{2})?)?$/.test(token))
+      return token;
     // local time
     if (/^\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(token)) return token;
     // integer (decimal, underscores allowed)
-    if (/^[+-]?\d[\d_]*$/.test(token)) return parseInt(token.replace(/_/g, ''), 10);
+    if (/^[+-]?\d[\d_]*$/.test(token)) return parseInt(token.replace(/_/g, ""), 10);
     // hex/oct/bin integers
-    if (/^[+-]?0x[0-9A-Fa-f_]+$/.test(token)) return parseInt(token.replace(/_/g, '').replace(/^([+-]?)0x/i, '$1'), 16);
-    if (/^[+-]?0o[0-7_]+$/.test(token)) return parseInt(token.replace(/_/g, '').replace(/^([+-]?)0o/i, '$1'), 8);
-    if (/^[+-]?0b[01_]+$/.test(token)) return parseInt(token.replace(/_/g, '').replace(/^([+-]?)0b/i, '$1'), 2);
+    if (/^[+-]?0x[0-9A-Fa-f_]+$/.test(token))
+      return parseInt(token.replace(/_/g, "").replace(/^([+-]?)0x/i, "$1"), 16);
+    if (/^[+-]?0o[0-7_]+$/.test(token))
+      return parseInt(token.replace(/_/g, "").replace(/^([+-]?)0o/i, "$1"), 8);
+    if (/^[+-]?0b[01_]+$/.test(token))
+      return parseInt(token.replace(/_/g, "").replace(/^([+-]?)0b/i, "$1"), 2);
     // float
     if (/^[+-]?(\d[\d_]*\.\d[\d_]*([eE][+-]?\d+)?|\d[\d_]*[eE][+-]?\d+)$/.test(token)) {
-      return parseFloat(token.replace(/_/g, ''));
+      return parseFloat(token.replace(/_/g, ""));
     }
     // inf / nan
-    if (/^[+-]?inf$/.test(token)) return token === '-inf' ? -Infinity : Infinity;
+    if (/^[+-]?inf$/.test(token)) return token === "-inf" ? -Infinity : Infinity;
     if (/^[+-]?nan$/.test(token)) return NaN;
     this.error(`unsupported value token ${JSON.stringify(token)}`);
   }
 
   parseArray() {
-    this.expect('[');
+    this.expect("[");
     const arr = [];
     while (true) {
       this.skipWsCommentsNewlines();
-      if (this.atEnd()) this.error('unterminated array');
-      if (this.peek() === ']') { this.advance(); break; }
+      if (this.atEnd()) this.error("unterminated array");
+      if (this.peek() === "]") {
+        this.advance();
+        break;
+      }
       const val = this.parseValue();
       arr.push(val);
       this.skipWsCommentsNewlines();
-      if (this.peek() === ',') { this.advance(); continue; }
-      if (this.peek() === ']') { this.advance(); break; }
+      if (this.peek() === ",") {
+        this.advance();
+        continue;
+      }
+      if (this.peek() === "]") {
+        this.advance();
+        break;
+      }
       this.error(`expected ',' or ']' in array, got ${JSON.stringify(this.peek())}`);
     }
     return arr;
   }
 
   parseInlineTable() {
-    this.expect('{');
+    this.expect("{");
     const obj = {};
     while (true) {
       this.skipInlineWs();
-      if (this.peek() === '}') { this.advance(); break; }
-      if (this.atEnd()) this.error('unterminated inline table');
-      if (this.peek() === '\n' || this.peek() === '\r') {
-        this.error('multi-line inline tables are not supported in this subset');
+      if (this.peek() === "}") {
+        this.advance();
+        break;
+      }
+      if (this.atEnd()) this.error("unterminated inline table");
+      if (this.peek() === "\n" || this.peek() === "\r") {
+        this.error("multi-line inline tables are not supported in this subset");
       }
       this.parseKeyValue(obj);
       this.skipInlineWs();
-      if (this.peek() === ',') { this.advance(); continue; }
-      if (this.peek() === '}') { this.advance(); break; }
+      if (this.peek() === ",") {
+        this.advance();
+        continue;
+      }
+      if (this.peek() === "}") {
+        this.advance();
+        break;
+      }
       this.error(`expected ',' or '}' in inline table, got ${JSON.stringify(this.peek())}`);
     }
     return obj;
@@ -436,15 +509,15 @@ class TomlParser {
 // ---------------------------------------------------------------------------
 
 export function parseYamlShallow(text) {
-  const src = text == null ? '' : String(text);
+  const src = text == null ? "" : String(text);
   const rawLines = src.split(/\r?\n/);
   const lines = [];
   for (let i = 0; i < rawLines.length; i++) {
     const raw = rawLines[i];
     const stripped = stripYamlComment(raw);
-    if (stripped.trim() === '') continue;
+    if (stripped.trim() === "") continue;
     // tabs are illegal for indentation in YAML; we treat a leading tab as an error
-    if (stripped.startsWith('\t')) {
+    if (stripped.startsWith("\t")) {
       throw new Error(`YAML parse error at line ${i + 1}: tab indentation is not allowed`);
     }
     const indent = stripped.match(/^[ ]*/)[0].length;
@@ -453,12 +526,12 @@ export function parseYamlShallow(text) {
   }
   if (lines.length === 0) return {};
   // skip a leading document separator '---' if present
-  if (lines[0].content === '---') lines.shift();
+  if (lines[0].content === "---") lines.shift();
   if (lines.length === 0) return {};
   const parser = new YamlParser(lines);
   const node = parser.parseNode(lines[0].indent);
   if (node === null) return {};
-  if (typeof node !== 'object') return { value: node };
+  if (typeof node !== "object") return { value: node };
   return node;
 }
 
@@ -467,18 +540,26 @@ class YamlParser {
     this.lines = lines;
     this.i = 0;
   }
-  peek() { return this.lines[this.i]; }
-  next() { return this.lines[this.i++]; }
-  atEnd() { return this.i >= this.lines.length; }
+  peek() {
+    return this.lines[this.i];
+  }
+  next() {
+    return this.lines[this.i++];
+  }
+  atEnd() {
+    return this.i >= this.lines.length;
+  }
   error(msg, line) {
-    throw new Error(`YAML parse error at line ${line == null ? (this.peek()?.line ?? '?') : line}: ${msg}`);
+    throw new Error(
+      `YAML parse error at line ${line == null ? (this.peek()?.line ?? "?") : line}: ${msg}`,
+    );
   }
 
   parseNode(indent) {
     if (this.atEnd()) return null;
     const line = this.peek();
     if (line.indent < indent) return null;
-    if (line.content.startsWith('-') && (line.content === '-' || line.content[1] === ' ')) {
+    if (line.content.startsWith("-") && (line.content === "-" || line.content[1] === " ")) {
       return this.parseSequence(indent);
     }
     if (findTopLevelColon(line.content) !== -1) {
@@ -494,7 +575,7 @@ class YamlParser {
     while (!this.atEnd()) {
       const line = this.peek();
       if (line.indent !== indent) break;
-      if (line.content.startsWith('-') && (line.content === '-' || line.content[1] === ' ')) break;
+      if (line.content.startsWith("-") && (line.content === "-" || line.content[1] === " ")) break;
       const colonIdx = findTopLevelColon(line.content);
       if (colonIdx === -1) {
         this.error(`expected mapping key, got ${JSON.stringify(line.content)}`, line.line);
@@ -505,7 +586,7 @@ class YamlParser {
       this.next();
 
       let value;
-      if (valRaw === '') {
+      if (valRaw === "") {
         if (!this.atEnd() && this.peek().indent > indent) {
           value = this.parseNode(this.peek().indent);
         } else {
@@ -524,7 +605,8 @@ class YamlParser {
     while (!this.atEnd()) {
       const line = this.peek();
       if (line.indent !== indent) break;
-      if (!(line.content.startsWith('-') && (line.content === '-' || line.content[1] === ' '))) break;
+      if (!(line.content.startsWith("-") && (line.content === "-" || line.content[1] === " ")))
+        break;
 
       const after = line.content.slice(1);
       const leadMatch = after.match(/^[ ]*/);
@@ -532,7 +614,7 @@ class YamlParser {
       const rest = after.slice(leadSpaces);
       const itemIndent = indent + 1 + leadSpaces;
 
-      if (rest === '') {
+      if (rest === "") {
         this.next();
         if (!this.atEnd() && this.peek().indent > indent) {
           arr.push(this.parseNode(this.peek().indent));
@@ -565,9 +647,9 @@ class YamlParser {
 
   parseInline(s, lineNo) {
     s = s.trim();
-    if (s === '') return null;
-    if (s[0] === '{') return parseFlowMapping(s, lineNo);
-    if (s[0] === '[') return parseFlowSequence(s, lineNo);
+    if (s === "") return null;
+    if (s[0] === "{") return parseFlowMapping(s, lineNo);
+    if (s[0] === "[") return parseFlowSequence(s, lineNo);
     return parseYamlScalar(s, lineNo);
   }
 }
@@ -580,12 +662,15 @@ function stripYamlComment(line) {
       if (c === inS) inS = null;
       continue;
     }
-    if (c === '"' || c === "'") { inS = c; continue; }
-    if (c === '#') {
+    if (c === '"' || c === "'") {
+      inS = c;
+      continue;
+    }
+    if (c === "#") {
       // YAML requires a whitespace or start-of-line before '#' to be a comment.
       // We honor that to avoid splitting 'http://...' style values.
       const prev = line[i - 1];
-      if (prev === undefined || prev === ' ' || prev === '\t') {
+      if (prev === undefined || prev === " " || prev === "\t") {
         return line.slice(0, i);
       }
     }
@@ -602,12 +687,21 @@ function findTopLevelColon(s) {
       if (c === inS) inS = null;
       continue;
     }
-    if (c === '"' || c === "'") { inS = c; continue; }
-    if (c === '[' || c === '{') { depth++; continue; }
-    if (c === ']' || c === '}') { depth--; continue; }
-    if (c === ':' && depth === 0) {
+    if (c === '"' || c === "'") {
+      inS = c;
+      continue;
+    }
+    if (c === "[" || c === "{") {
+      depth++;
+      continue;
+    }
+    if (c === "]" || c === "}") {
+      depth--;
+      continue;
+    }
+    if (c === ":" && depth === 0) {
       const next = s[i + 1];
-      if (next === undefined || next === ' ' || next === '\t') return i;
+      if (next === undefined || next === " " || next === "\t") return i;
     }
   }
   return -1;
@@ -615,12 +709,16 @@ function findTopLevelColon(s) {
 
 function parseYamlScalar(s, lineNo) {
   s = s.trim();
-  if (s === '') return null;
-  if (s[0] === '&' || s[0] === '*') {
-    throw new Error(`YAML parse error at line ${lineNo ?? '?'}: anchors/aliases are not supported in this subset (${JSON.stringify(s)})`);
+  if (s === "") return null;
+  if (s[0] === "&" || s[0] === "*") {
+    throw new Error(
+      `YAML parse error at line ${lineNo ?? "?"}: anchors/aliases are not supported in this subset (${JSON.stringify(s)})`,
+    );
   }
-  if (s === '|' || s === '>' || s === '|-' || s === '>-' || s === '|+' || s === '>+') {
-    throw new Error(`YAML parse error at line ${lineNo ?? '?'}: block scalars ('${s}') are not supported in this subset`);
+  if (s === "|" || s === ">" || s === "|-" || s === ">-" || s === "|+" || s === ">+") {
+    throw new Error(
+      `YAML parse error at line ${lineNo ?? "?"}: block scalars ('${s}') are not supported in this subset`,
+    );
   }
   // double-quoted
   if (s.length >= 2 && s[0] === '"' && s[s.length - 1] === '"') {
@@ -631,41 +729,54 @@ function parseYamlScalar(s, lineNo) {
     return s.slice(1, -1).replace(/''/g, "'");
   }
   // nulls
-  if (s === 'null' || s === '~' || s === 'Null' || s === 'NULL') return null;
+  if (s === "null" || s === "~" || s === "Null" || s === "NULL") return null;
   // bools (YAML 1.1 bools restricted to true/false casing variants we accept)
-  if (s === 'true' || s === 'True' || s === 'TRUE') return true;
-  if (s === 'false' || s === 'False' || s === 'FALSE') return false;
+  if (s === "true" || s === "True" || s === "TRUE") return true;
+  if (s === "false" || s === "False" || s === "FALSE") return false;
   // int
   if (/^[-+]?[0-9]+$/.test(s)) return parseInt(s, 10);
   if (/^[-+]?0x[0-9A-Fa-f]+$/.test(s)) return parseInt(s, 16);
   if (/^[-+]?0o[0-7]+$/.test(s)) return parseInt(s.slice(2), 8);
   // float
   if (/^[-+]?(\.[0-9]+|[0-9]+\.[0-9]*)([eE][-+]?[0-9]+)?$/.test(s)) {
-    if (s === '.' || s === '-.' || s === '+.') return s;
+    if (s === "." || s === "-." || s === "+.") return s;
     return parseFloat(s);
   }
   if (/^[-+]?[0-9]+[eE][-+]?[0-9]+$/.test(s)) return parseFloat(s);
-  if (s === '.inf' || s === '.Inf' || s === '.INF') return Infinity;
-  if (s === '-.inf' || s === '-.Inf' || s === '-.INF') return -Infinity;
-  if (s === '.nan' || s === '.NaN' || s === '.NAN') return NaN;
+  if (s === ".inf" || s === ".Inf" || s === ".INF") return Infinity;
+  if (s === "-.inf" || s === "-.Inf" || s === "-.INF") return -Infinity;
+  if (s === ".nan" || s === ".NaN" || s === ".NAN") return NaN;
   // plain string
   return s;
 }
 
 function unescapeBasic(s) {
-  let out = '';
+  let out = "";
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
-    if (c === '\\' && i + 1 < s.length) {
+    if (c === "\\" && i + 1 < s.length) {
       const e = s[++i];
       switch (e) {
-        case 'n': out += '\n'; break;
-        case 't': out += '\t'; break;
-        case 'r': out += '\r'; break;
-        case '"': out += '"'; break;
-        case '\\': out += '\\'; break;
-        case '/': out += '/'; break;
-        default: out += e;
+        case "n":
+          out += "\n";
+          break;
+        case "t":
+          out += "\t";
+          break;
+        case "r":
+          out += "\r";
+          break;
+        case '"':
+          out += '"';
+          break;
+        case "\\":
+          out += "\\";
+          break;
+        case "/":
+          out += "/";
+          break;
+        default:
+          out += e;
       }
     } else out += c;
   }
@@ -676,7 +787,7 @@ function splitTopLevel(s, sep) {
   const parts = [];
   let depth = 0;
   let inS = null;
-  let cur = '';
+  let cur = "";
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
     if (inS) {
@@ -684,10 +795,26 @@ function splitTopLevel(s, sep) {
       if (c === inS) inS = null;
       continue;
     }
-    if (c === '"' || c === "'") { inS = c; cur += c; continue; }
-    if (c === '[' || c === '{') { depth++; cur += c; continue; }
-    if (c === ']' || c === '}') { depth--; cur += c; continue; }
-    if (c === sep && depth === 0) { parts.push(cur); cur = ''; continue; }
+    if (c === '"' || c === "'") {
+      inS = c;
+      cur += c;
+      continue;
+    }
+    if (c === "[" || c === "{") {
+      depth++;
+      cur += c;
+      continue;
+    }
+    if (c === "]" || c === "}") {
+      depth--;
+      cur += c;
+      continue;
+    }
+    if (c === sep && depth === 0) {
+      parts.push(cur);
+      cur = "";
+      continue;
+    }
     cur += c;
   }
   parts.push(cur);
@@ -695,28 +822,28 @@ function splitTopLevel(s, sep) {
 }
 
 function parseFlowMapping(s, lineNo) {
-  const inner = s.trim().replace(/^\{/, '').replace(/\}$/, '').trim();
+  const inner = s.trim().replace(/^\{/, "").replace(/\}$/, "").trim();
   const obj = {};
-  if (inner === '') return obj;
-  for (const part of splitTopLevel(inner, ',')) {
-    if (part.trim() === '') continue;
+  if (inner === "") return obj;
+  for (const part of splitTopLevel(inner, ",")) {
+    if (part.trim() === "") continue;
     const ci = findTopLevelColon(part);
     if (ci === -1) {
       obj[parseYamlScalar(part.trim(), lineNo)] = null;
     } else {
       const k = parseYamlScalar(part.slice(0, ci).trim(), lineNo);
       const vRaw = part.slice(ci + 1).trim();
-      obj[k] = vRaw === '' ? null : parseYamlScalar(vRaw, lineNo);
+      obj[k] = vRaw === "" ? null : parseYamlScalar(vRaw, lineNo);
     }
   }
   return obj;
 }
 
 function parseFlowSequence(s, lineNo) {
-  const inner = s.trim().replace(/^\[/, '').replace(/\]$/, '').trim();
-  if (inner === '') return [];
-  return splitTopLevel(inner, ',')
+  const inner = s.trim().replace(/^\[/, "").replace(/\]$/, "").trim();
+  if (inner === "") return [];
+  return splitTopLevel(inner, ",")
     .map((p) => p.trim())
-    .filter((p) => p !== '')
+    .filter((p) => p !== "")
     .map((p) => parseYamlScalar(p, lineNo));
 }

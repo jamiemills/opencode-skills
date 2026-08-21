@@ -24,42 +24,42 @@
 // the assurance model/parsers; it never touches node:fs /
 // node:child_process / node:process / node:vm / node:module.
 
-import { deepFreeze, normalizeEvidencePath } from '../../contracts/evidence.mjs';
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { enumerate } from '../../shared/enum.mjs';
-import { assertPrivacySafe, PrivacyError } from '../../shared/privacy.mjs';
-import {
-  ASSURANCE_LIMITS,
-  AssuranceModelError,
-  buildAssuranceModel,
-} from './model.mjs';
+import { deepFreeze, normalizeEvidencePath } from "../../contracts/evidence.mjs";
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { enumerate } from "../../shared/enum.mjs";
+import { assertPrivacySafe, PrivacyError } from "../../shared/privacy.mjs";
+import { ASSURANCE_LIMITS, AssuranceModelError, buildAssuranceModel } from "./model.mjs";
 import {
   classifyAssurancePath,
   discoverAssuranceArtifacts,
   extractAssuranceArtifact,
-} from './parsers.mjs';
+} from "./parsers.mjs";
 
-export const ASSURANCE_SCANNER_ID = 'DET-assurance-scan-v1';
+export const ASSURANCE_SCANNER_ID = "DET-assurance-scan-v1";
 
 // Presence-only kinds never need content reads; their records are derived
 // directly from the enumerated path.
-const PRESENCE_ONLY_KINDS = new Set(['attestation', 'configuration', 'license', 'tool_result']);
+const PRESENCE_ONLY_KINDS = new Set(["attestation", "configuration", "license", "tool_result"]);
 
 function requestOf(entry) {
-  if (typeof entry === 'string') {
+  if (typeof entry === "string") {
     const classification = classifyAssurancePath(entry);
-    if (classification === null) throw new AssuranceModelError('INVALID_REQUEST', 'not an assurance artifact path');
-    return { path: entry, format: classification.format, sensitivity: 'internal' };
+    if (classification === null)
+      throw new AssuranceModelError("INVALID_REQUEST", "not an assurance artifact path");
+    return { path: entry, format: classification.format, sensitivity: "internal" };
   }
-  if (entry !== null && typeof entry === 'object' && typeof entry.path === 'string') {
+  if (entry !== null && typeof entry === "object" && typeof entry.path === "string") {
     const classification = classifyAssurancePath(entry.path);
     return {
       path: entry.path,
-      format: entry.format ?? classification?.format ?? 'text',
-      sensitivity: entry.sensitivity ?? 'internal',
+      format: entry.format ?? classification?.format ?? "text",
+      sensitivity: entry.sensitivity ?? "internal",
     };
   }
-  throw new AssuranceModelError('INVALID_REQUEST', 'assurance requests must be paths or request objects');
+  throw new AssuranceModelError(
+    "INVALID_REQUEST",
+    "assurance requests must be paths or request objects",
+  );
 }
 
 function artifactFailure(path, status, reason) {
@@ -67,18 +67,18 @@ function artifactFailure(path, status, reason) {
 }
 
 const STATUS_REASON = Object.freeze({
-  capped: 'CAP',
-  malformed: 'MALFORMED',
-  unreadable: 'UNREADABLE',
-  unsupported: 'UNSUPPORTED',
+  capped: "CAP",
+  malformed: "MALFORMED",
+  unreadable: "UNREADABLE",
+  unsupported: "UNSUPPORTED",
 });
 
 function presenceRecord(path, kind) {
   return extractAssuranceArtifact({
     path,
-    text: '',
+    text: "",
     value: null,
-    format: 'text',
+    format: "text",
     kind,
   });
 }
@@ -101,8 +101,8 @@ export async function scanAssurance({
   requests = [],
   options = ASSURANCE_LIMITS,
 } = {}) {
-  if (typeof root !== 'string' || root.length === 0) {
-    throw new AssuranceModelError('INVALID_ROOT', 'repository root is required');
+  if (typeof root !== "string" || root.length === 0) {
+    throw new AssuranceModelError("INVALID_ROOT", "repository root is required");
   }
   const paths = new Map();
   for (const candidate of discoverAssuranceArtifacts(files)) paths.set(candidate, true);
@@ -111,13 +111,16 @@ export async function scanAssurance({
     try {
       normalized = normalizeEvidencePath(requestOf(entry).path);
     } catch {
-      throw new AssuranceModelError('INVALID_PATH', 'assurance request path is not normalized');
+      throw new AssuranceModelError("INVALID_PATH", "assurance request path is not normalized");
     }
     paths.set(normalized, true);
   }
   const sorted = [...paths.keys()].toSorted();
   if (sorted.length > options.maxFiles) {
-    throw new AssuranceModelError('ARTIFACT_LIMIT', 'assurance artifact count exceeds the declared cap');
+    throw new AssuranceModelError(
+      "ARTIFACT_LIMIT",
+      "assurance artifact count exceeds the declared cap",
+    );
   }
 
   const artifacts = [];
@@ -128,15 +131,15 @@ export async function scanAssurance({
   for (const path of sorted) {
     const classification = classifyAssurancePath(path);
     if (classification === null) {
-      artifacts.push(artifactFailure(path, 'unsupported', 'NO_EXTRACTOR'));
-      diagnostics.push({ path, status: 'unsupported', reason: 'NO_EXTRACTOR' });
+      artifacts.push(artifactFailure(path, "unsupported", "NO_EXTRACTOR"));
+      diagnostics.push({ path, status: "unsupported", reason: "NO_EXTRACTOR" });
       continue;
     }
-    if (PRESENCE_ONLY_KINDS.has(classification.kind) || classification.format === 'binary') {
+    if (PRESENCE_ONLY_KINDS.has(classification.kind) || classification.format === "binary") {
       const extracted = presenceRecord(path, classification.kind);
       records.push(...extracted.records);
       diagnostics.push(...extracted.diagnostics);
-      artifacts.push({ path, status: 'parsed', reason: null });
+      artifacts.push({ path, status: "parsed", reason: null });
       continue;
     }
     contentRequests.push(requestOf(path));
@@ -150,7 +153,7 @@ export async function scanAssurance({
       maxRecords: options.maxRecords,
     });
     for (const result of read.results) {
-      if (result.status !== 'read') {
+      if (result.status !== "read") {
         const reason = STATUS_REASON[result.status] ?? result.status.toUpperCase();
         artifacts.push(artifactFailure(result.path, result.status, result.status));
         diagnostics.push({ path: result.path, status: result.status, reason });
@@ -158,15 +161,15 @@ export async function scanAssurance({
       }
       const classification = classifyAssurancePath(result.path);
       if (classification === null) {
-        artifacts.push(artifactFailure(result.path, 'unsupported', 'NO_EXTRACTOR'));
-        diagnostics.push({ path: result.path, status: 'unsupported', reason: 'NO_EXTRACTOR' });
+        artifacts.push(artifactFailure(result.path, "unsupported", "NO_EXTRACTOR"));
+        diagnostics.push({ path: result.path, status: "unsupported", reason: "NO_EXTRACTOR" });
         continue;
       }
       try {
         const extracted = extractAssuranceArtifact({
           path: result.path,
-          text: classification.format === 'text' ? result.value : '',
-          value: classification.format === 'json' ? result.value : null,
+          text: classification.format === "text" ? result.value : "",
+          value: classification.format === "json" ? result.value : null,
           format: classification.format,
           kind: classification.kind,
         });
@@ -177,14 +180,14 @@ export async function scanAssurance({
         assertPrivacySafe(combined);
         records.push(...extracted.records);
         diagnostics.push(...extracted.diagnostics);
-        artifacts.push({ path: result.path, status: 'parsed', reason: null });
+        artifacts.push({ path: result.path, status: "parsed", reason: null });
       } catch (error) {
         if (error instanceof PrivacyError) {
-          artifacts.push(artifactFailure(result.path, 'unverified', 'privacy'));
-          diagnostics.push({ path: result.path, status: 'unverified', reason: 'PRIVACY' });
+          artifacts.push(artifactFailure(result.path, "unverified", "privacy"));
+          diagnostics.push({ path: result.path, status: "unverified", reason: "PRIVACY" });
         } else {
-          artifacts.push(artifactFailure(result.path, 'malformed', 'PARSE_UNSUPPORTED'));
-          diagnostics.push({ path: result.path, status: 'malformed', reason: 'PARSE_UNSUPPORTED' });
+          artifacts.push(artifactFailure(result.path, "malformed", "PARSE_UNSUPPORTED"));
+          diagnostics.push({ path: result.path, status: "malformed", reason: "PARSE_UNSUPPORTED" });
         }
       }
     }
@@ -196,7 +199,11 @@ export async function scanAssurance({
   const model = buildAssuranceModel({
     records,
     diagnostics,
-    measurement: { filesInspected: sorted.length, bytesInspected: 0, recordsInspected: sorted.length },
+    measurement: {
+      filesInspected: sorted.length,
+      bytesInspected: 0,
+      recordsInspected: sorted.length,
+    },
   });
   return deepFreeze({ artifacts, model, searchSpace: model.searchSpace });
 }
@@ -211,14 +218,15 @@ export async function scanAssurance({
  *   `findings` is the deep-frozen assurance model.
  */
 export async function scan(repoPath, overview = {}) {
-  const enumerated = overview && Array.isArray(overview.files) && overview.files.length > 0
-    ? { files: overview.files }
-    : await enumerate(repoPath);
+  const enumerated =
+    overview && Array.isArray(overview.files) && overview.files.length > 0
+      ? { files: overview.files }
+      : await enumerate(repoPath);
   const { model } = await scanAssurance({ root: repoPath, files: enumerated.files });
   const total = model.summary.records;
   return {
-    dimension: 'assurance',
-    signal: total > 0 ? 'high' : 'low',
+    dimension: "assurance",
+    signal: total > 0 ? "high" : "low",
     findings: model,
   };
 }

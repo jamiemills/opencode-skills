@@ -1,13 +1,13 @@
-import { execLayer } from './docker.mjs';
-import { open, rename, unlink, readFile, stat, readdir } from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
-import { join } from 'node:path';
-import { setTimeout } from 'node:timers/promises';
-import { createServer as netServer } from 'node:net';
-import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from './constants.mjs';
-import { prepareRuntimeRoot, validateState } from './security.mjs';
+import { execLayer } from "./docker.mjs";
+import { open, rename, unlink, readFile, stat, readdir } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { join } from "node:path";
+import { setTimeout } from "node:timers/promises";
+import { createServer as netServer } from "node:net";
+import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from "./constants.mjs";
+import { prepareRuntimeRoot, validateState } from "./security.mjs";
 
-const LOCK_FILE = join(SESSIONS_ROOT, '.ports.lock');
+const LOCK_FILE = join(SESSIONS_ROOT, ".ports.lock");
 const LOCK_STALE_MS = 5000;
 // Must exceed the maximum time any creator holds the lock (allocation +
 // chromium/gate launch). The 30s CDP readiness wait happens OUTSIDE the lock.
@@ -19,13 +19,16 @@ export async function breakStaleLock() {
     if (Date.now() - st.mtimeMs < LOCK_STALE_MS) return;
     let raw;
     try {
-      raw = await readFile(LOCK_FILE, 'utf-8');
+      raw = await readFile(LOCK_FILE, "utf-8");
     } catch {
       return;
     }
     const pid = parseInt(raw.trim(), 10);
     if (!isNaN(pid)) {
-      try { process.kill(pid, 0); return; } catch {}  // holder alive — do not break
+      try {
+        process.kill(pid, 0);
+        return;
+      } catch {} // holder alive — do not break
     }
     // F-018: atomic capture replaces read-then-unlink. The stale lock is
     // renamed to a unique tombstone in the same directory, so the inspect and
@@ -42,17 +45,21 @@ export async function breakStaleLock() {
       return; // ENOENT (already gone) or EACCES — nothing to break
     }
     try {
-      captured = await readFile(tombstone, 'utf-8');
+      captured = await readFile(tombstone, "utf-8");
     } catch {}
     if (captured !== raw) {
       try {
         await rename(tombstone, LOCK_FILE);
       } catch {
-        try { await unlink(tombstone); } catch {} // a fresh lock already took the path
+        try {
+          await unlink(tombstone);
+        } catch {} // a fresh lock already took the path
       }
       return;
     }
-    try { await unlink(tombstone); } catch {}
+    try {
+      await unlink(tombstone);
+    } catch {}
   } catch {}
 }
 
@@ -61,11 +68,20 @@ export async function acquirePortLock() {
   const start = Date.now();
   for (;;) {
     try {
-      const fh = await open(LOCK_FILE, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
-      try { await fh.chmod(0o600); await fh.writeFile(String(process.pid)); } finally { await fh.close(); }
+      const fh = await open(
+        LOCK_FILE,
+        fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+        0o600,
+      );
+      try {
+        await fh.chmod(0o600);
+        await fh.writeFile(String(process.pid));
+      } finally {
+        await fh.close();
+      }
       return;
     } catch (err) {
-      if (err.code !== 'EEXIST') throw err;
+      if (err.code !== "EEXIST") throw err;
     }
     await breakStaleLock();
     if (Date.now() - start > LOCK_WAIT_MS) {
@@ -82,7 +98,7 @@ export async function releasePortLock() {
   // read-then-unlink here because breakStaleLock refuses to rename a live
   // holder's artifact (holder liveness is probed before capture).
   try {
-    const raw = await readFile(LOCK_FILE, 'utf-8');
+    const raw = await readFile(LOCK_FILE, "utf-8");
     if (raw.trim() !== String(process.pid)) return;
     await unlink(LOCK_FILE);
   } catch {}
@@ -97,19 +113,23 @@ export async function releasePortLock() {
 export async function claimedPortSet() {
   const claimed = new Set();
   let dirs;
-  try { dirs = await readdir(SESSIONS_ROOT); } catch { return claimed; }
+  try {
+    dirs = await readdir(SESSIONS_ROOT);
+  } catch {
+    return claimed;
+  }
   for (const d of dirs) {
-    if (d.startsWith('.')) continue;
+    if (d.startsWith(".")) continue;
     try {
-      const state = JSON.parse(await readFile(join(SESSIONS_ROOT, d, 'state.json'), 'utf-8'));
-       validateState(state);
-       if (state && typeof state.internalPort === 'number') claimed.add(state.internalPort);
-       if (state && typeof state.publicPort === 'number') claimed.add(state.publicPort);
+      const state = JSON.parse(await readFile(join(SESSIONS_ROOT, d, "state.json"), "utf-8"));
+      validateState(state);
+      if (state && typeof state.internalPort === "number") claimed.add(state.internalPort);
+      if (state && typeof state.publicPort === "number") claimed.add(state.publicPort);
     } catch {}
     try {
-      const marker = JSON.parse(await readFile(join(SESSIONS_ROOT, d, 'creating.marker'), 'utf-8'));
-      if (marker && typeof marker.internal === 'number') claimed.add(marker.internal);
-      if (marker && typeof marker.public === 'number') claimed.add(marker.public);
+      const marker = JSON.parse(await readFile(join(SESSIONS_ROOT, d, "creating.marker"), "utf-8"));
+      if (marker && typeof marker.internal === "number") claimed.add(marker.internal);
+      if (marker && typeof marker.public === "number") claimed.add(marker.public);
     } catch {}
   }
   return claimed;
@@ -121,8 +141,8 @@ export async function claimedPortSet() {
 function hostPortFree(port) {
   return new Promise((resolve) => {
     const srv = netServer();
-    srv.once('error', () => resolve(false));
-    srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)));
+    srv.once("error", () => resolve(false));
+    srv.listen(port, "127.0.0.1", () => srv.close(() => resolve(true)));
   });
 }
 
@@ -156,7 +176,5 @@ export async function allocate(container) {
     return { internal, public: pub };
   }
 
-  throw new Error(
-    `No free port pair available in range ${PORT_POOL_START}-${PORT_POOL_END}`
-  );
+  throw new Error(`No free port pair available in range ${PORT_POOL_START}-${PORT_POOL_END}`);
 }

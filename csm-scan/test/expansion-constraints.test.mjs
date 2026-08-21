@@ -1,30 +1,30 @@
-import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { test } from 'node:test';
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readdir, readFile } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import { test } from "node:test";
 
-import { createRecordingRunner, lexicalMask } from './helpers/recording-runner.mjs';
-import { collectTestNames } from './helpers/collect-test-names.mjs';
-import { DIMENSION_REGISTRY } from '../lib/scan/registry/dimensions.mjs';
+import { createRecordingRunner, lexicalMask } from "./helpers/recording-runner.mjs";
+import { collectTestNames } from "./helpers/collect-test-names.mjs";
+import { DIMENSION_REGISTRY } from "../lib/scan/registry/dimensions.mjs";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASELINE_ROOT = join(ROOT, 'test', 'baselines', 'expansion');
-const PRODUCTION_ROOTS = ['lib', 'scripts'];
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const BASELINE_ROOT = join(ROOT, "test", "baselines", "expansion");
+const PRODUCTION_ROOTS = ["lib", "scripts"];
 const ORIGINAL_LEGACY_OWNERS = [
-  'lib/scan/deep/conventions.mjs',
-  'lib/scan/deep/documentation.mjs',
-  'lib/scan/deep/git.mjs',
-  'lib/scan/deep/operations.mjs',
-  'lib/scan/deep/security.mjs',
-  'lib/scan/deep/stack.mjs',
-  'lib/scan/shared/enum.mjs',
-  'lib/scan/survey.mjs',
+  "lib/scan/deep/conventions.mjs",
+  "lib/scan/deep/documentation.mjs",
+  "lib/scan/deep/git.mjs",
+  "lib/scan/deep/operations.mjs",
+  "lib/scan/deep/security.mjs",
+  "lib/scan/deep/stack.mjs",
+  "lib/scan/shared/enum.mjs",
+  "lib/scan/survey.mjs",
 ];
 
 function digest(source) {
-  return createHash('sha256').update(source).digest('hex');
+  return createHash("sha256").update(source).digest("hex");
 }
 
 function codeMatches(source, pattern) {
@@ -34,10 +34,11 @@ function codeMatches(source, pattern) {
 function staticModuleStatements(source) {
   const mask = lexicalMask(source);
   const statements = [];
-  const pattern = /^\s*(?:import\s+(?:[^'";]*?\s+from\s+)?|export\s+(?:\*|\{[^}]*\})\s+from\s+)(['"])([^'"\n]+)\1\s*;?/gm;
+  const pattern =
+    /^\s*(?:import\s+(?:[^'";]*?\s+from\s+)?|export\s+(?:\*|\{[^}]*\})\s+from\s+)(['"])([^'"\n]+)\1\s*;?/gm;
   for (const match of source.matchAll(pattern)) {
     const token = match[0].search(/\S/);
-    if (token < 0 || mask[match.index + token] === ' ') continue;
+    if (token < 0 || mask[match.index + token] === " ") continue;
     statements.push({ text: match[0].trim(), specifier: match[2] });
   }
   return statements;
@@ -52,9 +53,11 @@ function dynamicImports(source) {
 }
 
 function canonicalSensitiveImport(statement) {
-  const match = statement.match(/^import \{ ([A-Za-z_$][\w$]*(?:, [A-Za-z_$][\w$]*)*) \} from '(node:fs(?:\/promises)?|node:child_process)';$/);
+  const match = statement.match(
+    /^import \{ ([A-Za-z_$][\w$]*(?:, [A-Za-z_$][\w$]*)*) \} from '(node:fs(?:\/promises)?|node:child_process)';$/,
+  );
   if (!match) return null;
-  return { names: match[1].split(', '), specifier: match[2] };
+  return { names: match[1].split(", "), specifier: match[2] };
 }
 
 function staticSensitiveMentions(source) {
@@ -73,38 +76,50 @@ function acquisitionViolations(source) {
   const statements = staticModuleStatements(source);
   const parsedSensitive = statements
     .map(({ specifier }) => specifier)
-    .filter((specifier) => /^node:(?:fs(?:\/promises)?|child_process|module|process|vm)$/.test(specifier));
+    .filter((specifier) =>
+      /^node:(?:fs(?:\/promises)?|child_process|module|process|vm)$/.test(specifier),
+    );
   const mentionedSensitive = staticSensitiveMentions(source);
-  if (parsedSensitive.length !== mentionedSensitive.length
-      || parsedSensitive.some((specifier, index) => specifier !== mentionedSensitive[index])) {
-    violations.push('noncanonical:unparsed-sensitive-import');
+  if (
+    parsedSensitive.length !== mentionedSensitive.length ||
+    parsedSensitive.some((specifier, index) => specifier !== mentionedSensitive[index])
+  ) {
+    violations.push("noncanonical:unparsed-sensitive-import");
   }
   for (const statement of statements) {
-    if (!statement.specifier.startsWith('node:')
-        && !statement.specifier.startsWith('./')
-        && !statement.specifier.startsWith('../')) {
+    if (
+      !statement.specifier.startsWith("node:") &&
+      !statement.specifier.startsWith("./") &&
+      !statement.specifier.startsWith("../")
+    ) {
       violations.push(`static:package:${statement.specifier}`);
     }
-    if (statement.specifier.startsWith('node:') && !/^node:[a-z0-9_/-]+$/.test(statement.specifier)) {
+    if (
+      statement.specifier.startsWith("node:") &&
+      !/^node:[a-z0-9_/-]+$/.test(statement.specifier)
+    ) {
       violations.push(`noncanonical:builtin:${statement.specifier}`);
     }
-    if (['node:fs', 'node:fs/promises', 'node:child_process'].includes(statement.specifier)
-        && !canonicalSensitiveImport(statement.text)) {
+    if (
+      ["node:fs", "node:fs/promises", "node:child_process"].includes(statement.specifier) &&
+      !canonicalSensitiveImport(statement.text)
+    ) {
       violations.push(`noncanonical:${statement.specifier}`);
     }
-    if (['node:module', 'node:process', 'node:vm'].includes(statement.specifier)) {
+    if (["node:module", "node:process", "node:vm"].includes(statement.specifier)) {
       violations.push(`forbidden:${statement.specifier}`);
     }
   }
   for (const call of dynamicImports(source)) {
-    if (call.specifier === null) violations.push('dynamic:nonliteral');
-    else if (!call.specifier.startsWith('./') && !call.specifier.startsWith('../')) {
+    if (call.specifier === null) violations.push("dynamic:nonliteral");
+    else if (!call.specifier.startsWith("./") && !call.specifier.startsWith("../")) {
       violations.push(`dynamic:${call.specifier}`);
     }
   }
-  if (codeMatches(source, /\brequire\s*\(/g).length) violations.push('forbidden:require');
-  if (codeMatches(source, /\bcreateRequire\b/g).length) violations.push('forbidden:createRequire');
-  if (codeMatches(source, /\bgetBuiltinModule\b/g).length) violations.push('forbidden:getBuiltinModule');
+  if (codeMatches(source, /\brequire\s*\(/g).length) violations.push("forbidden:require");
+  if (codeMatches(source, /\bcreateRequire\b/g).length) violations.push("forbidden:createRequire");
+  if (codeMatches(source, /\bgetBuiltinModule\b/g).length)
+    violations.push("forbidden:getBuiltinModule");
   return violations;
 }
 
@@ -114,7 +129,7 @@ async function esmFiles(root) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name);
       if (entry.isDirectory()) await visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.mjs')) files.push(path);
+      else if (entry.isFile() && entry.name.endsWith(".mjs")) files.push(path);
     }
   }
   await visit(root);
@@ -122,39 +137,49 @@ async function esmFiles(root) {
 }
 
 async function productionSources() {
-  const files = (await Promise.all(PRODUCTION_ROOTS.map((dir) => esmFiles(join(ROOT, dir))))).flat().toSorted();
-  return Promise.all(files.map(async (path) => ({
-    path,
-    relativePath: relative(ROOT, path).replaceAll('\\', '/'),
-    source: await readFile(path, 'utf8'),
-  })));
+  const files = (await Promise.all(PRODUCTION_ROOTS.map((dir) => esmFiles(join(ROOT, dir)))))
+    .flat()
+    .toSorted();
+  return Promise.all(
+    files.map(async (path) => ({
+      path,
+      relativePath: relative(ROOT, path).replaceAll("\\", "/"),
+      source: await readFile(path, "utf8"),
+    })),
+  );
 }
 
 async function capabilities() {
-  return JSON.parse(await readFile(join(BASELINE_ROOT, 'capabilities.json'), 'utf8'));
+  return JSON.parse(await readFile(join(BASELINE_ROOT, "capabilities.json"), "utf8"));
 }
 
-test('T201 capability baseline fixes the original process-owner universe', async () => {
+test("T201 capability baseline fixes the original process-owner universe", async () => {
   const baseline = await capabilities();
   assert.equal(baseline.version, 1);
   assert.deepEqual(baseline.originalLegacyOwnerUniverse, ORIGINAL_LEGACY_OWNERS);
   assert.equal(new Set(baseline.originalLegacyOwnerUniverse).size, ORIGINAL_LEGACY_OWNERS.length);
   assert.ok(baseline.activeLegacyOwners.every(({ path }) => ORIGINAL_LEGACY_OWNERS.includes(path)));
-  assert.equal(baseline.plannedBrokerPath, 'lib/scan/shared/command.mjs');
+  assert.equal(baseline.plannedBrokerPath, "lib/scan/shared/command.mjs");
   if (baseline.broker !== null) {
     assert.equal(baseline.broker.path, baseline.plannedBrokerPath);
-    assert.equal(baseline.broker.api, 'execFile');
+    assert.equal(baseline.broker.api, "execFile");
     assert.deepEqual(canonicalSensitiveImport(baseline.broker.import), {
-      names: ['execFile'], specifier: 'node:child_process',
+      names: ["execFile"],
+      specifier: "node:child_process",
     });
-    assert.ok(baseline.broker.replacementTests.length > 0, 'the broker requires reviewed replacement tests');
+    assert.ok(
+      baseline.broker.replacementTests.length > 0,
+      "the broker requires reviewed replacement tests",
+    );
   }
 });
 
-test('T201 active legacy process owners match exact imports and reviewed file hashes', async () => {
+test("T201 active legacy process owners match exact imports and reviewed file hashes", async () => {
   const baseline = await capabilities();
   const sources = await productionSources();
-  const actualOwners = sources.filter(({ source }) => staticSensitiveMentions(source).includes('node:child_process'));
+  const actualOwners = sources.filter(({ source }) =>
+    staticSensitiveMentions(source).includes("node:child_process"),
+  );
   const expectedOwners = [
     ...baseline.activeLegacyOwners.map(({ path }) => path),
     ...(baseline.broker ? [baseline.broker.path] : []),
@@ -166,66 +191,96 @@ test('T201 active legacy process owners match exact imports and reviewed file ha
   for (const owner of baseline.activeLegacyOwners) {
     const source = actualOwners.find(({ relativePath }) => relativePath === owner.path)?.source;
     assert.ok(source, `${owner.path} must remain present while active`);
-    assert.equal(digest(source), owner.sha256, `${owner.path} changed before its planned migration`);
-    const imports = staticModuleStatements(source).filter(({ specifier }) => specifier === 'node:child_process');
-    assert.deepEqual(imports.map(({ text }) => text), [owner.import]);
+    assert.equal(
+      digest(source),
+      owner.sha256,
+      `${owner.path} changed before its planned migration`,
+    );
+    const imports = staticModuleStatements(source).filter(
+      ({ specifier }) => specifier === "node:child_process",
+    );
+    assert.deepEqual(
+      imports.map(({ text }) => text),
+      [owner.import],
+    );
     assert.deepEqual(canonicalSensitiveImport(owner.import), {
       names: [owner.api],
-      specifier: 'node:child_process',
+      specifier: "node:child_process",
     });
   }
   if (baseline.broker) {
-    const source = actualOwners.find(({ relativePath }) => relativePath === baseline.broker.path)?.source;
-    const imports = staticModuleStatements(source).filter(({ specifier }) => specifier === 'node:child_process');
-    assert.deepEqual(imports.map(({ text }) => text), [baseline.broker.import]);
-    const inventory = JSON.parse(await readFile(join(BASELINE_ROOT, 'inventory.json'), 'utf8'));
+    const source = actualOwners.find(
+      ({ relativePath }) => relativePath === baseline.broker.path,
+    )?.source;
+    const imports = staticModuleStatements(source).filter(
+      ({ specifier }) => specifier === "node:child_process",
+    );
+    assert.deepEqual(
+      imports.map(({ text }) => text),
+      [baseline.broker.import],
+    );
+    const inventory = JSON.parse(await readFile(join(BASELINE_ROOT, "inventory.json"), "utf8"));
     // T010 (F-034): the replacement-test byte-hash locks were replaced with a
     // behavioral constraint — the broker's replacement tests must be REGISTERED
     // by the real runner and pass, never merely present in source.
     for (const replacement of baseline.broker.replacementTests) {
       assert.ok(inventory.recurringAcceptanceTestFiles.includes(replacement.testFile));
-      assert.equal(typeof replacement.testName, 'string');
+      assert.equal(typeof replacement.testName, "string");
       const collected = await collectTestNames([join(ROOT, replacement.testFile)]);
-      assert.equal(collected.code, 0,
-        `runner exited ${collected.code}\n${collected.stderr}`);
-      assert.ok(collected.names.includes(replacement.testName),
-        `${replacement.testName} is not registered by the runner`);
-      assert.ok(!collected.skips.includes(replacement.testName),
-        `${replacement.testName} must not be skipped`);
+      assert.equal(collected.code, 0, `runner exited ${collected.code}\n${collected.stderr}`);
+      assert.ok(
+        collected.names.includes(replacement.testName),
+        `${replacement.testName} is not registered by the runner`,
+      );
+      assert.ok(
+        !collected.skips.includes(replacement.testName),
+        `${replacement.testName} must not be skipped`,
+      );
     }
   }
 });
 
-test('T201 production capability acquisition is direct static and closed', async () => {
+test("T201 production capability acquisition is direct static and closed", async () => {
   const baseline = await capabilities();
   const sources = await productionSources();
   for (const { relativePath, source } of sources) {
     const violations = acquisitionViolations(source);
-    const nonliteral = violations.filter((entry) => entry === 'dynamic:nonliteral');
-    const other = violations.filter((entry) => entry !== 'dynamic:nonliteral');
+    const nonliteral = violations.filter((entry) => entry === "dynamic:nonliteral");
+    const other = violations.filter((entry) => entry !== "dynamic:nonliteral");
     assert.deepEqual(other, [], `${relativePath} has forbidden capability acquisition`);
     if (nonliteral.length === 0) continue;
     assert.equal(relativePath, baseline.safeImportLegacyLock.path);
-    assert.equal(nonliteral.length, 1, 'legacy safeImport must remain singular');
-    assert.equal(digest(source), baseline.safeImportLegacyLock.sha256, 'legacy safeImport is locked until T224');
-    assert.equal(baseline.safeImportLegacyLock.replacementTask, 'T224');
+    assert.equal(nonliteral.length, 1, "legacy safeImport must remain singular");
+    assert.equal(
+      digest(source),
+      baseline.safeImportLegacyLock.sha256,
+      "legacy safeImport is locked until T224",
+    );
+    assert.equal(baseline.safeImportLegacyLock.replacementTask, "T224");
   }
-  const safeImportOwner = sources.find(({ source }) => codeMatches(source, /\bsafeImport\b/g).length > 0);
+  const safeImportOwner = sources.find(
+    ({ source }) => codeMatches(source, /\bsafeImport\b/g).length > 0,
+  );
   if (safeImportOwner) {
     assert.equal(safeImportOwner.relativePath, baseline.safeImportLegacyLock.path);
     assert.equal(digest(safeImportOwner.source), baseline.safeImportLegacyLock.sha256);
   }
   const rootEntries = await readdir(ROOT);
-  assert.deepEqual(rootEntries.filter((name) => [
-    'package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'node_modules',
-  ].includes(name)), []);
+  assert.deepEqual(
+    rootEntries.filter((name) =>
+      ["package.json", "package-lock.json", "npm-shrinkwrap.json", "node_modules"].includes(name),
+    ),
+    [],
+  );
 });
 
-test('T201 filesystem capabilities are closed to reads and one exact writer', async () => {
+test("T201 filesystem capabilities are closed to reads and one exact writer", async () => {
   const baseline = await capabilities();
   const sources = await productionSources();
   const allowedReads = new Set(baseline.filesystem.readApis);
-  const specialByPath = new Map(baseline.filesystem.specialReaders.map((entry) => [entry.path, entry]));
+  const specialByPath = new Map(
+    baseline.filesystem.specialReaders.map((entry) => [entry.path, entry]),
+  );
   const writer = baseline.filesystem.writer;
   let writerImports = 0;
   for (const { relativePath, source } of sources) {
@@ -244,12 +299,18 @@ test('T201 filesystem capabilities are closed to reads and one exact writer', as
         if (allowedReads.has(name)) continue;
         const special = specialByPath.get(relativePath);
         assert.ok(special, `${relativePath} imports non-read filesystem API ${name}`);
-        assert.ok(special.imports.includes(statement.text), `${relativePath} special-reader import must stay exact`);
-        assert.ok(special.apis.includes(name), `${relativePath} uses an unlisted special-reader API ${name}`);
+        assert.ok(
+          special.imports.includes(statement.text),
+          `${relativePath} special-reader import must stay exact`,
+        );
+        assert.ok(
+          special.apis.includes(name),
+          `${relativePath} uses an unlisted special-reader API ${name}`,
+        );
       }
     }
   }
-  assert.equal(writerImports, 1, 'the writer must import through exactly one exact statement');
+  assert.equal(writerImports, 1, "the writer must import through exactly one exact statement");
   // T010 (F-034): the special-reader byte-hash locks were replaced with their
   // structural constraints (exact import text + API allowlist above) — a
   // legitimate migration now updates the capability surface instead of being
@@ -259,12 +320,18 @@ test('T201 filesystem capabilities are closed to reads and one exact writer', as
     assert.ok(source, `${special.path} must remain present while special-reader capable`);
   }
   const writerSource = sources.find(({ relativePath }) => relativePath === writer.path)?.source;
-  assert.equal(writerSource.split(writer.call).length - 1, 1, 'sole write call must remain exact');
-  const cli = sources.find(({ relativePath }) => relativePath === baseline.filesystem.cli.path)?.source;
-  assert.equal(cli.split(baseline.filesystem.cli.call).length - 1, 1, 'CLI must invoke writeNORMS exactly once');
+  assert.equal(writerSource.split(writer.call).length - 1, 1, "sole write call must remain exact");
+  const cli = sources.find(
+    ({ relativePath }) => relativePath === baseline.filesystem.cli.path,
+  )?.source;
+  assert.equal(
+    cli.split(baseline.filesystem.cli.call).length - 1,
+    1,
+    "CLI must invoke writeNORMS exactly once",
+  );
 });
 
-test('T201 acquisition audit rejects bypasses without domain-member false positives', () => {
+test("T201 acquisition audit rejects bypasses without domain-member false positives", () => {
   for (const source of [
     "import fs from 'node:fs';",
     "import * as fs from 'node:fs';",
@@ -287,83 +354,134 @@ test('T201 acquisition audit rejects bypasses without domain-member false positi
     "import vm from 'node:vm';",
     "import value from 'package-name';",
     "import value from 'node:\\x66s';",
-  ]) assert.notDeepEqual(acquisitionViolations(source), [], source);
+  ])
+    assert.notDeepEqual(acquisitionViolations(source), [], source);
   assert.deepEqual(acquisitionViolations("import { readFile } from 'node:fs/promises';"), []);
   assert.deepEqual(acquisitionViolations("import('./relative.mjs');"), []);
   assert.deepEqual(acquisitionViolations("object.open(); const domain = { shell: true };"), []);
-  assert.deepEqual(acquisitionViolations("const text = `open ${object.open()} ${domain.shell}`;"), []);
+  assert.deepEqual(
+    acquisitionViolations("const text = `open ${object.open()} ${domain.shell}`;"),
+    [],
+  );
 });
 
-test('T201 recording runner captures immutable command inputs and outcomes', async () => {
-  const env = { PATH: '/controlled/bin', TOKEN: 'not-forwarded-by-production-yet' };
+test("T201 recording runner captures immutable command inputs and outcomes", async () => {
+  const env = { PATH: "/controlled/bin", TOKEN: "not-forwarded-by-production-yet" };
   const controller = new AbortController();
   const { calls, run } = createRecordingRunner([
-    { status: 0, stdout: 'first\n', stderr: '' },
-    new Error('configured failure'),
+    { status: 0, stdout: "first\n", stderr: "" },
+    new Error("configured failure"),
   ]);
-  const result = await run('rg', ['--files', '--hidden'], {
-    cwd: '/repo', env, timeout: 5000, shell: false,
-    stdio: ['ignore', 'pipe', 'pipe'], signal: controller.signal,
-    outputPolicy: { maxBytes: 1024, encoding: 'utf8' },
+  const result = await run("rg", ["--files", "--hidden"], {
+    cwd: "/repo",
+    env,
+    timeout: 5000,
+    shell: false,
+    stdio: ["ignore", "pipe", "pipe"],
+    signal: controller.signal,
+    outputPolicy: { maxBytes: 1024, encoding: "utf8" },
   });
-  env.PATH = '/changed';
-  assert.deepEqual(result, { status: 0, stdout: 'first\n', stderr: '' });
+  env.PATH = "/changed";
+  assert.deepEqual(result, { status: 0, stdout: "first\n", stderr: "" });
   assert.deepEqual(calls[0], {
-    executable: 'rg', argv: ['--files', '--hidden'], cwd: '/repo',
-    env: { PATH: '/controlled/bin', TOKEN: 'not-forwarded-by-production-yet' },
-    timeout: 5000, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
+    executable: "rg",
+    argv: ["--files", "--hidden"],
+    cwd: "/repo",
+    env: { PATH: "/controlled/bin", TOKEN: "not-forwarded-by-production-yet" },
+    timeout: 5000,
+    shell: false,
+    stdio: ["ignore", "pipe", "pipe"],
     signal: { aborted: false, reason: undefined },
-    outputPolicy: { maxBytes: 1024, encoding: 'utf8' },
+    outputPolicy: { maxBytes: 1024, encoding: "utf8" },
   });
   assert.ok(Object.isFrozen(calls[0]));
   assert.throws(() => calls.push({}), /read-only/);
-  await assert.rejects(run('git', ['status'], { cwd: '/repo', env: {} }), /configured failure/);
+  await assert.rejects(run("git", ["status"], { cwd: "/repo", env: {} }), /configured failure/);
   assert.equal(calls.length, 2);
 });
 
-test('T201 recording runner snapshots functional outcomes', async () => {
+test("T201 recording runner snapshots functional outcomes", async () => {
   const { calls, run } = createRecordingRunner((call, index) => ({
-    mutationAttempt: (() => { try { call.argv.push('mutated'); } catch {} return call.argv.length; })(),
+    mutationAttempt: (() => {
+      try {
+        call.argv.push("mutated");
+      } catch {}
+      return call.argv.length;
+    })(),
     status: index,
-    stdout: `${call.executable}:${call.argv.join(',')}`,
-    stderr: '',
+    stdout: `${call.executable}:${call.argv.join(",")}`,
+    stderr: "",
   }));
-  assert.deepEqual(await run('git', ['log', '-1']), {
-    mutationAttempt: 2, status: 0, stdout: 'git:log,-1', stderr: '',
+  assert.deepEqual(await run("git", ["log", "-1"]), {
+    mutationAttempt: 2,
+    status: 0,
+    stdout: "git:log,-1",
+    stderr: "",
   });
-  assert.deepEqual(calls[0].argv, ['log', '-1']);
+  assert.deepEqual(calls[0].argv, ["log", "-1"]);
 });
 
-test('T202 replacement: free-form applicability rules yield not_applicable git claims excluded from coverage', async () => {
-  const { withFixture } = await import('./harness.mjs');
-  const { runExpandedPipeline } = await import('../lib/scan/pipeline/run.mjs');
-  await withFixture('t202-freeform-na', { 'app.py': 'value = 1\n' }, async (dir) => {
-    const coverage = (await runExpandedPipeline({ repos: [dir], out: join(dir, 'NORMS.md'), reporter: null })).expectedClaimCoverage;
-    assert.equal(coverage.excluded, 2, 'non-git fixture excludes the git dimension as not_applicable');
-    assert.equal(coverage.repos[0].perDimension.git.status, 'not_applicable');
+test("T202 replacement: free-form applicability rules yield not_applicable git claims excluded from coverage", async () => {
+  const { withFixture } = await import("./harness.mjs");
+  const { runExpandedPipeline } = await import("../lib/scan/pipeline/run.mjs");
+  await withFixture("t202-freeform-na", { "app.py": "value = 1\n" }, async (dir) => {
+    const coverage = (
+      await runExpandedPipeline({ repos: [dir], out: join(dir, "NORMS.md"), reporter: null })
+    ).expectedClaimCoverage;
+    assert.equal(
+      coverage.excluded,
+      2,
+      "non-git fixture excludes the git dimension as not_applicable",
+    );
+    assert.equal(coverage.repos[0].perDimension.git.status, "not_applicable");
   });
 });
 
-test('T202 replacement: coverage status representation maps claim statuses to coverage states', async () => {
-  const { withFixture } = await import('./harness.mjs');
-  const { runExpandedPipeline } = await import('../lib/scan/pipeline/run.mjs');
-  await withFixture('t202-coverage-status', { 'app.py': 'value = 1\n' }, async (dir) => {
-    const coverage = (await runExpandedPipeline({ repos: [dir], out: join(dir, 'NORMS.md'), reporter: null })).expectedClaimCoverage;
+test("T202 replacement: coverage status representation maps claim statuses to coverage states", async () => {
+  const { withFixture } = await import("./harness.mjs");
+  const { runExpandedPipeline } = await import("../lib/scan/pipeline/run.mjs");
+  await withFixture("t202-coverage-status", { "app.py": "value = 1\n" }, async (dir) => {
+    const coverage = (
+      await runExpandedPipeline({ repos: [dir], out: join(dir, "NORMS.md"), reporter: null })
+    ).expectedClaimCoverage;
     assert.deepEqual(
       Object.keys(coverage).toSorted(),
-      ['complete', 'eligible', 'excluded', 'expected', 'incomplete', 'ratio', 'repos', 'unsupported'],
-      'coverage aggregate carries the canonical representation fields',
+      [
+        "complete",
+        "eligible",
+        "excluded",
+        "expected",
+        "incomplete",
+        "ratio",
+        "repos",
+        "unsupported",
+      ],
+      "coverage aggregate carries the canonical representation fields",
     );
-    const registryClaims = DIMENSION_REGISTRY.reduce((sum, dimension) => sum + dimension.expectedClaimIds.length, 0);
-    assert.equal(coverage.expected, registryClaims, 'every registry claim is counted');
+    const registryClaims = DIMENSION_REGISTRY.reduce(
+      (sum, dimension) => sum + dimension.expectedClaimIds.length,
+      0,
+    );
+    assert.equal(coverage.expected, registryClaims, "every registry claim is counted");
     assert.equal(
       coverage.complete + coverage.incomplete + coverage.unsupported + coverage.excluded,
       coverage.expected,
-      'every claim is counted exactly once',
+      "every claim is counted exactly once",
     );
-    assert.equal(coverage.ratio, coverage.eligible === 0 ? null : coverage.complete / coverage.eligible);
+    assert.equal(
+      coverage.ratio,
+      coverage.eligible === 0 ? null : coverage.complete / coverage.eligible,
+    );
     const per = coverage.repos[0].perDimension;
-    assert.equal(per.git.status, 'not_applicable', 'non-git repo represents the git dimension as not_applicable');
-    assert.equal(per.practices.status, 'not_detected', 'empty practices signals are represented as not_detected');
+    assert.equal(
+      per.git.status,
+      "not_applicable",
+      "non-git repo represents the git dimension as not_applicable",
+    );
+    assert.equal(
+      per.practices.status,
+      "not_detected",
+      "empty practices signals are represented as not_detected",
+    );
   });
 });

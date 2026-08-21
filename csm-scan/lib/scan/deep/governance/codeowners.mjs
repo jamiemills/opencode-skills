@@ -34,9 +34,9 @@
 // it never touches node:fs / node:child_process / node:process / node:vm /
 // node:module.
 
-import { compareAscii, deepFreeze } from '../../contracts/evidence.mjs';
+import { compareAscii, deepFreeze } from "../../contracts/evidence.mjs";
 
-export const CODEOWNERS_DIALECT = 'codeowners';
+export const CODEOWNERS_DIALECT = "codeowners";
 export const CODEOWNERS_MAX_LINE = 512;
 export const CODEOWNERS_MAX_PATTERN = 200;
 
@@ -48,8 +48,12 @@ const COMPILED_CACHE = new Map();
 const COMPILED_CACHE_MAX = 512;
 
 export function isOwnerToken(token) {
-  return typeof token === 'string' && token.length > 0 && token.length <= 128
-    && (OWNER_INDIVIDUAL.test(token) || OWNER_TEAM.test(token) || OWNER_EMAIL.test(token));
+  return (
+    typeof token === "string" &&
+    token.length > 0 &&
+    token.length <= 128 &&
+    (OWNER_INDIVIDUAL.test(token) || OWNER_TEAM.test(token) || OWNER_EMAIL.test(token))
+  );
 }
 
 function escapeRegex(ch) {
@@ -57,29 +61,29 @@ function escapeRegex(ch) {
 }
 
 function translateBody(body) {
-  let out = '';
+  let out = "";
   for (let index = 0; index < body.length; index++) {
     const ch = body[index];
-    if (ch === '\\') {
+    if (ch === "\\") {
       const next = body[index + 1];
       if (next === undefined) return null;
       out += escapeRegex(next);
       index++;
-    } else if (ch === '*') {
-      if (body[index + 1] === '*') {
+    } else if (ch === "*") {
+      if (body[index + 1] === "*") {
         index++;
-        if (body[index + 1] === '/') {
+        if (body[index + 1] === "/") {
           index++;
-          out += '(?:.*/)?';
+          out += "(?:.*/)?";
         } else {
-          out += '.*';
+          out += ".*";
         }
       } else {
-        out += '[^/]*';
+        out += "[^/]*";
       }
-    } else if (ch === '?') {
-      out += '[^/]';
-    } else if (ch === '!') {
+    } else if (ch === "?") {
+      out += "[^/]";
+    } else if (ch === "!") {
       return null;
     } else {
       out += escapeRegex(ch);
@@ -95,21 +99,22 @@ function translateBody(body) {
  * @returns {RegExp | null}
  */
 export function compilePattern(raw) {
-  if (typeof raw !== 'string' || raw.length === 0 || raw.length > CODEOWNERS_MAX_PATTERN) return null;
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > CODEOWNERS_MAX_PATTERN)
+    return null;
   const cached = COMPILED_CACHE.get(raw);
   if (cached !== undefined) return cached;
   let compiled = null;
-  if (raw[0] !== '!' && !raw.includes('\n') && !raw.includes('\t')) {
-    const anchored = raw[0] === '/';
+  if (raw[0] !== "!" && !raw.includes("\n") && !raw.includes("\t")) {
+    const anchored = raw[0] === "/";
     let body = anchored ? raw.slice(1) : raw;
-    const dirOnly = body.endsWith('/');
+    const dirOnly = body.endsWith("/");
     if (dirOnly) body = body.slice(0, -1);
-    if (body.length > 0 && !body.split('/').includes('..')) {
+    if (body.length > 0 && !body.split("/").includes("..")) {
       const translated = translateBody(body);
       if (translated !== null) {
         try {
-          const prefix = anchored ? '^' : '^(?:.*/)?';
-          const suffix = dirOnly ? '(?:/.*)?$' : '$';
+          const prefix = anchored ? "^" : "^(?:.*/)?";
+          const suffix = dirOnly ? "(?:/.*)?$" : "$";
           compiled = new RegExp(`${prefix}${translated}${suffix}`);
         } catch {
           compiled = null;
@@ -129,26 +134,26 @@ export function compilePattern(raw) {
  * @returns {boolean}
  */
 export function patternMatches(pattern, path) {
-  if (typeof path !== 'string' || path.length === 0) return false;
+  if (typeof path !== "string" || path.length === 0) return false;
   const compiled = compilePattern(pattern);
   return compiled !== null && compiled.test(path);
 }
 
 function splitCodeownersTokens(raw) {
   const tokens = [];
-  let current = '';
+  let current = "";
   let escaped = false;
   for (let index = 0; index < raw.length; index++) {
     const ch = raw[index];
     if (escaped) {
       current += `\\${ch}`;
       escaped = false;
-    } else if (ch === '\\') {
+    } else if (ch === "\\") {
       escaped = true;
-    } else if (ch === ' ' || ch === '\t') {
+    } else if (ch === " " || ch === "\t") {
       if (current.length > 0) {
         tokens.push(current);
-        current = '';
+        current = "";
       }
     } else {
       current += ch;
@@ -160,7 +165,7 @@ function splitCodeownersTokens(raw) {
 }
 
 function normalizedRule(pattern, owners, line) {
-  const anchored = pattern.startsWith('/');
+  const anchored = pattern.startsWith("/");
   const display = anchored ? pattern.slice(1) : pattern;
   return { pattern: display, anchored, owners, line };
 }
@@ -178,8 +183,9 @@ function normalizedRule(pattern, owners, line) {
  *   `owners` holds raw identities for the model builder only.
  */
 export function parseCodeowners(text, filePath) {
-  if (typeof text !== 'string') throw new TypeError('parseCodeowners requires text');
-  if (typeof filePath !== 'string' || filePath.length === 0) throw new TypeError('parseCodeowners requires a path');
+  if (typeof text !== "string") throw new TypeError("parseCodeowners requires text");
+  if (typeof filePath !== "string" || filePath.length === 0)
+    throw new TypeError("parseCodeowners requires a path");
   const lines = text.split(/\r?\n/);
   const rules = [];
   const diagnostics = [];
@@ -190,27 +196,42 @@ export function parseCodeowners(text, filePath) {
     const raw = lines[index];
     if (raw.length > CODEOWNERS_MAX_LINE) {
       malformedLines++;
-      diagnostics.push({ path: filePath, line: lineNo, status: 'unverified', reason: 'MALFORMED_LINE' });
+      diagnostics.push({
+        path: filePath,
+        line: lineNo,
+        status: "unverified",
+        reason: "MALFORMED_LINE",
+      });
       continue;
     }
     const trimmed = raw.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
+    if (!trimmed || trimmed.startsWith("#")) continue;
     const tokens = splitCodeownersTokens(raw);
     if (tokens.length === 0) {
       malformedLines++;
-      diagnostics.push({ path: filePath, line: lineNo, status: 'unverified', reason: 'MALFORMED_LINE' });
+      diagnostics.push({
+        path: filePath,
+        line: lineNo,
+        status: "unverified",
+        reason: "MALFORMED_LINE",
+      });
       continue;
     }
     const pattern = tokens[0];
     const ownerTokens = tokens.slice(1);
     if (compilePattern(pattern) === null) {
       malformedLines++;
-      diagnostics.push({ path: filePath, line: lineNo, status: 'unsupported', reason: 'PATTERN_UNSUPPORTED' });
+      diagnostics.push({
+        path: filePath,
+        line: lineNo,
+        status: "unsupported",
+        reason: "PATTERN_UNSUPPORTED",
+      });
       continue;
     }
     if (ownerTokens.length === 0) {
       malformedLines++;
-      diagnostics.push({ path: filePath, line: lineNo, status: 'unverified', reason: 'NO_OWNERS' });
+      diagnostics.push({ path: filePath, line: lineNo, status: "unverified", reason: "NO_OWNERS" });
       continue;
     }
     const owners = [];
@@ -221,12 +242,22 @@ export function parseCodeowners(text, filePath) {
     }
     if (owners.length === 0) {
       malformedLines++;
-      diagnostics.push({ path: filePath, line: lineNo, status: 'unverified', reason: 'OWNER_UNSUPPORTED' });
+      diagnostics.push({
+        path: filePath,
+        line: lineNo,
+        status: "unverified",
+        reason: "OWNER_UNSUPPORTED",
+      });
       continue;
     }
     if (ownerMalformed) {
       malformedLines++;
-      diagnostics.push({ path: filePath, line: lineNo, status: 'unverified', reason: 'PARTIAL_OWNERS' });
+      diagnostics.push({
+        path: filePath,
+        line: lineNo,
+        status: "unverified",
+        reason: "PARTIAL_OWNERS",
+      });
     }
     rules.push(normalizedRule(pattern, owners, lineNo));
   }
@@ -235,7 +266,7 @@ export function parseCodeowners(text, filePath) {
   const finalRules = [];
   for (let index = rules.length - 1; index >= 0; index--) {
     const rule = rules[index];
-    const key = `${rule.anchored ? '/' : ''}${rule.pattern}`;
+    const key = `${rule.anchored ? "/" : ""}${rule.pattern}`;
     if (!seen.has(key)) {
       seen.add(key);
       finalRules.push(rule);
@@ -243,9 +274,12 @@ export function parseCodeowners(text, filePath) {
   }
   finalRules.reverse();
 
-  diagnostics.sort((left, right) => compareAscii(left.path, right.path)
-    || (left.line ?? 0) - (right.line ?? 0)
-    || compareAscii(left.reason, right.reason));
+  diagnostics.sort(
+    (left, right) =>
+      compareAscii(left.path, right.path) ||
+      (left.line ?? 0) - (right.line ?? 0) ||
+      compareAscii(left.reason, right.reason),
+  );
 
   return deepFreeze({
     dialect: CODEOWNERS_DIALECT,
@@ -265,8 +299,8 @@ export function parseCodeowners(text, filePath) {
 export function resolveOwners(path, rules) {
   let winner = null;
   for (const rule of rules) {
-    if (!rule || typeof rule !== 'object') continue;
-    const raw = `${rule.anchored ? '/' : ''}${rule.pattern}`;
+    if (!rule || typeof rule !== "object") continue;
+    const raw = `${rule.anchored ? "/" : ""}${rule.pattern}`;
     if (patternMatches(raw, path)) winner = rule;
   }
   return winner === null ? [] : winner.owners;
@@ -280,7 +314,7 @@ export function resolveOwners(path, rules) {
 export function defaultOwners(rules) {
   for (let index = rules.length - 1; index >= 0; index--) {
     const rule = rules[index];
-    if (rule && !rule.anchored && rule.pattern === '*') return rule.owners;
+    if (rule && !rule.anchored && rule.pattern === "*") return rule.owners;
   }
   return [];
 }

@@ -41,35 +41,35 @@
 // never touches node:fs / node:child_process / node:process / node:vm /
 // node:module, so the recurring capability gate remains closed.
 
-import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { validateProviders } from '../contracts/provider.mjs';
-import { createProviderResult, mergeProviderResults } from './base.mjs';
-import { ASSURANCE_PROVIDER_ID, assuranceProviderResult } from './assurance.mjs';
-import { API_PROVIDER_ID, apiProviderResult } from './api.mjs';
-import { DATA_PROVIDER_ID, dataProviderResult } from './data.mjs';
-import { DEPLOYMENT_PROVIDER_ID, deploymentProviderResults } from './deployment.mjs';
-import { GOVERNANCE_PROVIDER_ID, governanceProviderResult } from './governance.mjs';
-import { MAINTAINABILITY_PROVIDER_ID, maintainabilityProviderResults } from './maintainability.mjs';
+import { compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { validateProviders } from "../contracts/provider.mjs";
+import { createProviderResult, mergeProviderResults } from "./base.mjs";
+import { ASSURANCE_PROVIDER_ID, assuranceProviderResult } from "./assurance.mjs";
+import { API_PROVIDER_ID, apiProviderResult } from "./api.mjs";
+import { DATA_PROVIDER_ID, dataProviderResult } from "./data.mjs";
+import { DEPLOYMENT_PROVIDER_ID, deploymentProviderResults } from "./deployment.mjs";
+import { GOVERNANCE_PROVIDER_ID, governanceProviderResult } from "./governance.mjs";
+import { MAINTAINABILITY_PROVIDER_ID, maintainabilityProviderResults } from "./maintainability.mjs";
 import {
   GENERIC_PROVIDER_ID,
   genericProviderResults,
   isUnknownLanguageEcosystem,
-} from './generic.mjs';
+} from "./generic.mjs";
 
 export const ASSURANCE_CATALOG_VERSION = 1;
 
-export const SECURITY_CATALOG_PROVIDER_ID = 'PRV-security-hardening-v1';
-export const OPERATIONS_CATALOG_PROVIDER_ID = 'PRV-operations-declarations-v1';
-export const ASSURANCE_PLUGIN_PROVIDER_ID = 'PRV-assurance-plugin-v1';
+export const SECURITY_CATALOG_PROVIDER_ID = "PRV-security-hardening-v1";
+export const OPERATIONS_CATALOG_PROVIDER_ID = "PRV-operations-declarations-v1";
+export const ASSURANCE_PLUGIN_PROVIDER_ID = "PRV-assurance-plugin-v1";
 
-export const SECURITY_DIMENSION_ID = 'DIM-security-v1';
-export const OPERATIONS_DIMENSION_ID = 'DIM-operations-v1';
-export const API_DIMENSION_ID = 'DIM-api-v1';
-export const DATA_DIMENSION_ID = 'DIM-data-v1';
-export const DEPLOYMENT_DIMENSION_ID = 'DIM-deployment-v1';
-export const MAINTAINABILITY_DIMENSION_ID = 'DIM-maintainability-v1';
-export const GOVERNANCE_DIMENSION_ID = 'DIM-governance-v1';
-export const ASSURANCE_DIMENSION_ID = 'DIM-assurance-v1';
+export const SECURITY_DIMENSION_ID = "DIM-security-v1";
+export const OPERATIONS_DIMENSION_ID = "DIM-operations-v1";
+export const API_DIMENSION_ID = "DIM-api-v1";
+export const DATA_DIMENSION_ID = "DIM-data-v1";
+export const DEPLOYMENT_DIMENSION_ID = "DIM-deployment-v1";
+export const MAINTAINABILITY_DIMENSION_ID = "DIM-maintainability-v1";
+export const GOVERNANCE_DIMENSION_ID = "DIM-governance-v1";
+export const ASSURANCE_DIMENSION_ID = "DIM-assurance-v1";
 
 export const ASSURANCE_DIMENSION_IDS = deepFreeze([
   SECURITY_DIMENSION_ID,
@@ -101,74 +101,149 @@ const CATALOG_DEFINITIONS = Object.freeze([
   {
     id: SECURITY_CATALOG_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: SECURITY_DIMENSION_ID,
-      categories: ['authentication', 'authorization', 'dependency_lock', 'secret_pattern', 'security_tool', 'validation'],
-    }],
+    dimensions: [
+      {
+        dimensionId: SECURITY_DIMENSION_ID,
+        categories: [
+          "authentication",
+          "authorization",
+          "dependency_lock",
+          "secret_pattern",
+          "security_tool",
+          "validation",
+        ],
+      },
+    ],
   },
   {
     id: OPERATIONS_CATALOG_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: OPERATIONS_DIMENSION_ID,
-      categories: ['container', 'deployment_declaration', 'health_check', 'monitoring', 'workflow'],
-    }],
+    dimensions: [
+      {
+        dimensionId: OPERATIONS_DIMENSION_ID,
+        categories: [
+          "container",
+          "deployment_declaration",
+          "health_check",
+          "monitoring",
+          "workflow",
+        ],
+      },
+    ],
   },
   {
     id: API_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: API_DIMENSION_ID,
-      categories: ['cli_command', 'contract', 'event', 'public_export', 'route', 'rpc'],
-    }],
+    dimensions: [
+      {
+        dimensionId: API_DIMENSION_ID,
+        categories: ["cli_command", "contract", "event", "public_export", "route", "rpc"],
+      },
+    ],
   },
   {
     id: DATA_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: DATA_DIMENSION_ID,
-      categories: ['cache', 'entity', 'field', 'key', 'migration', 'queue', 'relation', 'schema', 'store'],
-    }],
+    dimensions: [
+      {
+        dimensionId: DATA_DIMENSION_ID,
+        categories: [
+          "cache",
+          "entity",
+          "field",
+          "key",
+          "migration",
+          "queue",
+          "relation",
+          "schema",
+          "store",
+        ],
+      },
+    ],
   },
   {
     id: DEPLOYMENT_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: DEPLOYMENT_DIMENSION_ID,
-      categories: ['image', 'resource', 'service', 'template_indicator', 'topology_edge'],
-    }],
+    dimensions: [
+      {
+        dimensionId: DEPLOYMENT_DIMENSION_ID,
+        categories: ["image", "resource", "service", "template_indicator", "topology_edge"],
+      },
+    ],
   },
   {
     id: MAINTAINABILITY_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: MAINTAINABILITY_DIMENSION_ID,
-      categories: ['branch_point', 'dead_code', 'duplicate_span', 'file_metric', 'generated_boundary', 'measurement_universe', 'tool_result'],
-    }],
+    dimensions: [
+      {
+        dimensionId: MAINTAINABILITY_DIMENSION_ID,
+        categories: [
+          "branch_point",
+          "dead_code",
+          "duplicate_span",
+          "file_metric",
+          "generated_boundary",
+          "measurement_universe",
+          "tool_result",
+        ],
+      },
+    ],
   },
   {
     id: GOVERNANCE_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: GOVERNANCE_DIMENSION_ID,
-      categories: ['contribution', 'decision', 'funding', 'ownership', 'policy', 'reference', 'release', 'review', 'runbook', 'support'],
-    }],
+    dimensions: [
+      {
+        dimensionId: GOVERNANCE_DIMENSION_ID,
+        categories: [
+          "contribution",
+          "decision",
+          "funding",
+          "ownership",
+          "policy",
+          "reference",
+          "release",
+          "review",
+          "runbook",
+          "support",
+        ],
+      },
+    ],
   },
   {
     id: ASSURANCE_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
-    dimensions: [{
-      dimensionId: ASSURANCE_DIMENSION_ID,
-      categories: ['accessibility', 'attestation', 'configuration', 'license', 'lock', 'manifest', 'pin', 'sarif', 'sbom', 'source', 'standard', 'tool_result', 'vex'],
-    }],
+    dimensions: [
+      {
+        dimensionId: ASSURANCE_DIMENSION_ID,
+        categories: [
+          "accessibility",
+          "attestation",
+          "configuration",
+          "license",
+          "lock",
+          "manifest",
+          "pin",
+          "sarif",
+          "sbom",
+          "source",
+          "standard",
+          "tool_result",
+          "vex",
+        ],
+      },
+    ],
   },
   {
     id: GENERIC_PROVIDER_ID,
     apiVersion: ASSURANCE_CATALOG_VERSION,
     dimensions: [
-      { dimensionId: 'DIM-maintainability-v1', categories: ['file_metric', 'measurement_universe'] },
-      { dimensionId: 'DIM-assurance-v1', categories: ['lock', 'manifest'] },
-      { dimensionId: 'DIM-documentation-v1', categories: ['contributing', 'license', 'readme'] },
+      {
+        dimensionId: "DIM-maintainability-v1",
+        categories: ["file_metric", "measurement_universe"],
+      },
+      { dimensionId: "DIM-assurance-v1", categories: ["lock", "manifest"] },
+      { dimensionId: "DIM-documentation-v1", categories: ["contributing", "license", "readme"] },
     ],
   },
 ]);
@@ -197,7 +272,7 @@ function stableHash(value) {
     hash ^= value.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193);
   }
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function keyFor(prefix, value) {
@@ -207,7 +282,7 @@ function keyFor(prefix, value) {
 }
 
 function stringValue(value) {
-  return typeof value === 'string' && value.length > 0;
+  return typeof value === "string" && value.length > 0;
 }
 
 function plainList(value) {
@@ -215,7 +290,7 @@ function plainList(value) {
 }
 
 function plainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function plain(value) {
@@ -235,141 +310,149 @@ function plain(value) {
  * @returns {object[]} provider observations (unsorted).
  */
 export function securityCatalogObservations(findings) {
-  if (findings === null || typeof findings !== 'object' || Array.isArray(findings)) return [];
+  if (findings === null || typeof findings !== "object" || Array.isArray(findings)) return [];
   const observations = [];
 
   const secrets = plain(findings.secrets);
   for (const finding of plainList(secrets && secrets.findings)) {
-    if (finding === null || typeof finding !== 'object' || !stringValue(finding.pattern)) continue;
+    if (finding === null || typeof finding !== "object" || !stringValue(finding.pattern)) continue;
     observations.push({
-      category: 'secret_pattern',
+      category: "secret_pattern",
       path: Array.isArray(finding.files) && stringValue(finding.files[0]) ? finding.files[0] : null,
-      matchedKey: keyFor('secret', finding.pattern),
+      matchedKey: keyFor("secret", finding.pattern),
       details: {
         pattern: finding.pattern,
         totalFiles: Number.isSafeInteger(finding.totalFiles) ? finding.totalFiles : 0,
       },
-      sourceKind: 'search_result',
+      sourceKind: "search_result",
     });
   }
 
   const auth = plain(findings.auth);
   for (const framework of plainList(auth && auth.frameworks)) {
-    if (framework === null || typeof framework !== 'object' || !stringValue(framework.package)) continue;
+    if (framework === null || typeof framework !== "object" || !stringValue(framework.package))
+      continue;
     observations.push({
-      category: 'authentication',
+      category: "authentication",
       path: null,
-      matchedKey: keyFor('auth', framework.package),
+      matchedKey: keyFor("auth", framework.package),
       details: {
         package: framework.package,
         label: stringValue(framework.label) ? framework.label : framework.package,
-        type: typeof framework.type === 'string' ? framework.type : null,
+        type: typeof framework.type === "string" ? framework.type : null,
       },
-      sourceKind: 'manifest',
+      sourceKind: "manifest",
     });
   }
 
   const validation = plain(findings.inputValidation);
   for (const library of plainList(validation && validation.libraries)) {
-    if (library === null || typeof library !== 'object' || !stringValue(library.package)) continue;
+    if (library === null || typeof library !== "object" || !stringValue(library.package)) continue;
     observations.push({
-      category: 'validation',
+      category: "validation",
       path: null,
-      matchedKey: keyFor('validation', library.package),
+      matchedKey: keyFor("validation", library.package),
       details: {
         package: library.package,
         label: stringValue(library.label) ? library.label : library.package,
       },
-      sourceKind: 'manifest',
+      sourceKind: "manifest",
     });
   }
 
   const rateLimit = plain(findings.rateLimiting);
   for (const library of plainList(rateLimit && rateLimit.libraries)) {
-    if (library === null || typeof library !== 'object' || !stringValue(library.package)) continue;
+    if (library === null || typeof library !== "object" || !stringValue(library.package)) continue;
     observations.push({
-      category: 'validation',
+      category: "validation",
       path: null,
-      matchedKey: keyFor('rate-limit', library.package),
+      matchedKey: keyFor("rate-limit", library.package),
       details: {
         package: library.package,
         label: stringValue(library.label) ? library.label : library.package,
-        control: 'rate_limit',
+        control: "rate_limit",
       },
-      sourceKind: 'manifest',
+      sourceKind: "manifest",
     });
   }
-  if (rateLimit !== null && Number.isSafeInteger(rateLimit.codeReferences) && rateLimit.codeReferences > 0) {
+  if (
+    rateLimit !== null &&
+    Number.isSafeInteger(rateLimit.codeReferences) &&
+    rateLimit.codeReferences > 0
+  ) {
     observations.push({
-      category: 'validation',
+      category: "validation",
       path: null,
-      matchedKey: 'rate-limit-references',
+      matchedKey: "rate-limit-references",
       details: { codeReferences: rateLimit.codeReferences },
-      sourceKind: 'search_result',
+      sourceKind: "search_result",
     });
   }
 
   if (findings.hasLockfile === true) {
     observations.push({
-      category: 'dependency_lock',
+      category: "dependency_lock",
       path: null,
-      matchedKey: 'dependency-lock',
+      matchedKey: "dependency-lock",
       details: { present: true },
-      sourceKind: 'lockfile',
+      sourceKind: "lockfile",
     });
   }
 
   for (const tool of plainList(findings.securityTools)) {
     if (!stringValue(tool)) continue;
     observations.push({
-      category: 'security_tool',
+      category: "security_tool",
       path: null,
-      matchedKey: keyFor('security-tool', tool),
+      matchedKey: keyFor("security-tool", tool),
       details: { name: tool },
-      sourceKind: tool.startsWith('.') ? 'config' : 'manifest',
+      sourceKind: tool.startsWith(".") ? "config" : "manifest",
     });
   }
 
   for (const entry of plainList(findings.auditEvidence)) {
-    if (entry === null || typeof entry !== 'object' || !stringValue(entry.tool)) continue;
+    if (entry === null || typeof entry !== "object" || !stringValue(entry.tool)) continue;
     observations.push({
-      category: 'security_tool',
+      category: "security_tool",
       path: null,
-      matchedKey: keyFor('audit-tool', `${entry.tool}:${stringValue(entry.source) ? entry.source : ''}:${stringValue(entry.location) ? entry.location : ''}`),
+      matchedKey: keyFor(
+        "audit-tool",
+        `${entry.tool}:${stringValue(entry.source) ? entry.source : ""}:${stringValue(entry.location) ? entry.location : ""}`,
+      ),
       details: {
         tool: entry.tool,
         source: stringValue(entry.source) ? entry.source : null,
         location: stringValue(entry.location) ? entry.location : null,
       },
-      sourceKind: 'tool_result',
+      sourceKind: "tool_result",
     });
   }
 
   if (findings.dependabot === true) {
     observations.push({
-      category: 'security_tool',
+      category: "security_tool",
       path: null,
-      matchedKey: 'dependabot',
+      matchedKey: "dependabot",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   if (findings.envExample === true) {
     observations.push({
-      category: 'security_tool',
+      category: "security_tool",
       path: null,
-      matchedKey: 'env-example',
+      matchedKey: "env-example",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   if (findings.gitignoreEnvProtected === true) {
     observations.push({
-      category: 'security_tool',
+      category: "security_tool",
       path: null,
-      matchedKey: 'gitignore-env',
+      matchedKey: "gitignore-env",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
 
@@ -405,15 +488,16 @@ export function securityCatalogResult(findings) {
  * @returns {object[]} provider observations (unsorted).
  */
 export function operationsCatalogObservations(findings) {
-  if (findings === null || typeof findings !== 'object' || Array.isArray(findings)) return [];
+  if (findings === null || typeof findings !== "object" || Array.isArray(findings)) return [];
   const observations = [];
 
   for (const dockerfile of plainList(findings.dockerfiles)) {
-    if (dockerfile === null || typeof dockerfile !== 'object' || !stringValue(dockerfile.name)) continue;
+    if (dockerfile === null || typeof dockerfile !== "object" || !stringValue(dockerfile.name))
+      continue;
     observations.push({
-      category: 'container',
+      category: "container",
       path: dockerfile.name,
-      matchedKey: keyFor('dockerfile', dockerfile.name),
+      matchedKey: keyFor("dockerfile", dockerfile.name),
       details: {
         name: dockerfile.name,
         baseImages: plainList(dockerfile.baseImages),
@@ -427,139 +511,142 @@ export function operationsCatalogObservations(findings) {
         hasCmd: dockerfile.hasCmd === true,
         lineCount: Number.isSafeInteger(dockerfile.lineCount) ? dockerfile.lineCount : null,
       },
-      sourceKind: 'container',
+      sourceKind: "container",
     });
   }
   if (findings.hasDockerignore === true) {
     observations.push({
-      category: 'container',
-      path: '.dockerignore',
-      matchedKey: 'dockerignore',
+      category: "container",
+      path: ".dockerignore",
+      matchedKey: "dockerignore",
       details: { present: true },
-      sourceKind: 'container',
+      sourceKind: "container",
     });
   }
 
   const compose = plain(findings.dockerCompose);
   for (const entry of plainList(compose && compose.services)) {
-    if (entry === null || typeof entry !== 'object' || !stringValue(entry.file)) continue;
+    if (entry === null || typeof entry !== "object" || !stringValue(entry.file)) continue;
     observations.push({
-      category: 'deployment_declaration',
+      category: "deployment_declaration",
       path: entry.file,
-      matchedKey: keyFor('compose', entry.file),
+      matchedKey: keyFor("compose", entry.file),
       details: {
         file: entry.file,
         serviceCount: Number.isSafeInteger(entry.count) ? entry.count : 0,
         services: plainList(entry.names),
       },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
-  if (compose !== null && (plainList(compose.networks).length > 0 || plainList(compose.volumes).length > 0)) {
+  if (
+    compose !== null &&
+    (plainList(compose.networks).length > 0 || plainList(compose.volumes).length > 0)
+  ) {
     observations.push({
-      category: 'deployment_declaration',
+      category: "deployment_declaration",
       path: null,
-      matchedKey: 'compose-networks-volumes',
+      matchedKey: "compose-networks-volumes",
       details: {
         networks: plainList(compose.networks),
         volumes: plainList(compose.volumes),
       },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
 
   for (const entry of plainList(findings.ci)) {
-    if (entry === null || typeof entry !== 'object' || !stringValue(entry.platform)) continue;
+    if (entry === null || typeof entry !== "object" || !stringValue(entry.platform)) continue;
     const details = { platform: entry.platform };
     if (Array.isArray(entry.jobs)) details.jobs = entry.jobs;
     if (Array.isArray(entry.triggers)) details.triggers = entry.triggers;
     if (Array.isArray(entry.stages)) details.stages = entry.stages;
     if (Number.isSafeInteger(entry.workflowCount)) details.workflowCount = entry.workflowCount;
     observations.push({
-      category: 'workflow',
+      category: "workflow",
       path: null,
-      matchedKey: keyFor('workflow', entry.platform),
+      matchedKey: keyFor("workflow", entry.platform),
       details,
-      sourceKind: 'workflow',
+      sourceKind: "workflow",
     });
   }
 
   const health = plain(findings.healthChecks);
   if (health !== null && health.detected === true) {
     observations.push({
-      category: 'health_check',
+      category: "health_check",
       path: null,
-      matchedKey: 'health-check',
+      matchedKey: "health-check",
       details: {
         detected: true,
         references: plainList(health.references),
       },
-      sourceKind: 'search_result',
+      sourceKind: "search_result",
     });
   }
   for (const entry of plainList(findings.gracefulShutdown)) {
-    if (entry === null || typeof entry !== 'object' || !stringValue(entry.pattern)) continue;
+    if (entry === null || typeof entry !== "object" || !stringValue(entry.pattern)) continue;
     observations.push({
-      category: 'health_check',
+      category: "health_check",
       path: null,
-      matchedKey: keyFor('shutdown', entry.pattern),
+      matchedKey: keyFor("shutdown", entry.pattern),
       details: {
         pattern: entry.pattern,
         fileCount: Number.isSafeInteger(entry.fileCount) ? entry.fileCount : 0,
       },
-      sourceKind: 'search_result',
+      sourceKind: "search_result",
     });
   }
 
   const monitoring = plain(findings.monitoring);
   for (const library of plainList(monitoring && monitoring.libraries)) {
-    if (library === null || typeof library !== 'object' || !stringValue(library.package)) continue;
+    if (library === null || typeof library !== "object" || !stringValue(library.package)) continue;
     observations.push({
-      category: 'monitoring',
+      category: "monitoring",
       path: null,
-      matchedKey: keyFor('monitoring', library.package),
+      matchedKey: keyFor("monitoring", library.package),
       details: {
         package: library.package,
         label: stringValue(library.label) ? library.label : library.package,
       },
-      sourceKind: 'manifest',
+      sourceKind: "manifest",
     });
   }
 
   if (findings.hasDeployScripts === true) {
     observations.push({
-      category: 'deployment_declaration',
+      category: "deployment_declaration",
       path: null,
-      matchedKey: 'deploy-scripts',
+      matchedKey: "deploy-scripts",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   if (findings.hasMakefile === true) {
     observations.push({
-      category: 'deployment_declaration',
+      category: "deployment_declaration",
       path: null,
-      matchedKey: 'makefile',
+      matchedKey: "makefile",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   if (findings.hasJustfile === true) {
     observations.push({
-      category: 'deployment_declaration',
+      category: "deployment_declaration",
       path: null,
-      matchedKey: 'justfile',
+      matchedKey: "justfile",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
   if (findings.procfile !== null && findings.procfile !== undefined) {
     observations.push({
-      category: 'deployment_declaration',
-      path: 'Procfile',
-      matchedKey: 'procfile',
+      category: "deployment_declaration",
+      path: "Procfile",
+      matchedKey: "procfile",
       details: { present: true },
-      sourceKind: 'config',
+      sourceKind: "config",
     });
   }
 
@@ -598,9 +685,14 @@ function builtInEnvelope(dimensionId, models) {
       return { results: result ? [result] : [], capped: false };
     }
     case API_DIMENSION_ID:
-      return { results: plainObject(models.api) ? apiProviderResult(models.api) : [], capped: false };
+      return {
+        results: plainObject(models.api) ? apiProviderResult(models.api) : [],
+        capped: false,
+      };
     case DATA_DIMENSION_ID:
-      return plainObject(models.data) ? dataProviderResult(models.data) : { results: [], capped: false };
+      return plainObject(models.data)
+        ? dataProviderResult(models.data)
+        : { results: [], capped: false };
     case DEPLOYMENT_DIMENSION_ID:
       return plainObject(models.deployment)
         ? deploymentProviderResults({ topology: models.deployment })
@@ -610,9 +702,15 @@ function builtInEnvelope(dimensionId, models) {
         ? maintainabilityProviderResults(models.maintainability)
         : { results: [], capped: false };
     case GOVERNANCE_DIMENSION_ID:
-      return { results: plainObject(models.governance) ? governanceProviderResult(models.governance) : [], capped: false };
+      return {
+        results: plainObject(models.governance) ? governanceProviderResult(models.governance) : [],
+        capped: false,
+      };
     case ASSURANCE_DIMENSION_ID:
-      return { results: plainObject(models.assurance) ? assuranceProviderResult(models.assurance) : [], capped: false };
+      return {
+        results: plainObject(models.assurance) ? assuranceProviderResult(models.assurance) : [],
+        capped: false,
+      };
     default:
       return { results: [], capped: false };
   }
@@ -627,11 +725,13 @@ function boundedKey(value) {
 }
 
 function validPluginMatch(match) {
-  return plainObject(match)
-    && stringValue(match.ruleId)
-    && stringValue(match.category)
-    && stringValue(match.path)
-    && ASSURANCE_DIMENSION_IDS.includes(match.dimensionId);
+  return (
+    plainObject(match) &&
+    stringValue(match.ruleId) &&
+    stringValue(match.category) &&
+    stringValue(match.path) &&
+    ASSURANCE_DIMENSION_IDS.includes(match.dimensionId)
+  );
 }
 
 /**
@@ -656,13 +756,15 @@ export function assurancePluginObservations(matches) {
         ruleId: match.ruleId,
         label: stringValue(match.label) ? match.label : match.ruleId,
       },
-      sourceKind: 'artifact_metadata',
+      sourceKind: "artifact_metadata",
     });
     grouped.set(match.dimensionId, observations);
   }
-  return deepFreeze([...grouped.entries()]
-    .toSorted(([left], [right]) => compareAscii(left, right))
-    .map(([dimensionId, observations]) => ({ dimensionId, observations })));
+  return deepFreeze(
+    [...grouped.entries()]
+      .toSorted(([left], [right]) => compareAscii(left, right))
+      .map(([dimensionId, observations]) => ({ dimensionId, observations })),
+  );
 }
 
 /**
@@ -689,9 +791,11 @@ export function assurancePluginResult(dimensionId, observations) {
  */
 export function assurancePluginProviderResults(input) {
   const matches = plainObject(input) ? input.matches : undefined;
-  return deepFreeze(assurancePluginObservations(matches).map(({ dimensionId, observations }) => (
-    assurancePluginResult(dimensionId, observations)
-  )));
+  return deepFreeze(
+    assurancePluginObservations(matches).map(({ dimensionId, observations }) =>
+      assurancePluginResult(dimensionId, observations),
+    ),
+  );
 }
 
 /**
@@ -750,19 +854,32 @@ export function assuranceCatalogResults({
 } = {}) {
   const unknown = isUnknownLanguageEcosystem({ languages, ecosystems, manifestEcosystems });
   if (unknown) {
-    const { results, capped } = genericProviderResults({ languages, ecosystems, manifestEcosystems, files });
-    return deepFreeze({ results, capped, mode: 'generic' });
+    const { results, capped } = genericProviderResults({
+      languages,
+      ecosystems,
+      manifestEcosystems,
+      files,
+    });
+    return deepFreeze({ results, capped, mode: "generic" });
   }
 
-  const pluginEntriesFor = (dimensionId) => (
+  const pluginEntriesFor = (dimensionId) =>
     pluginObservations !== null && pluginObservations !== undefined
       ? pluginObservations[dimensionId]
-      : null
-  );
+      : null;
 
   const results = [];
   let capped = false;
-  const models = { security, operations, api, data, deployment, maintainability, governance, assurance };
+  const models = {
+    security,
+    operations,
+    api,
+    data,
+    deployment,
+    maintainability,
+    governance,
+    assurance,
+  };
   for (const dimensionId of ASSURANCE_DIMENSION_IDS) {
     const envelope = builtInEnvelope(dimensionId, models);
     capped = capped || envelope.capped;
@@ -778,15 +895,17 @@ export function assuranceCatalogResults({
     }
     for (const built of builtResults) {
       if (hasPlugin) {
-        results.push(mergeProviderResults({
-          builtin: built,
-          plugin: assurancePluginResult(dimensionId, pluginEntries),
-        }));
+        results.push(
+          mergeProviderResults({
+            builtin: built,
+            plugin: assurancePluginResult(dimensionId, pluginEntries),
+          }),
+        );
       } else {
         results.push(built);
       }
     }
   }
   results.sort((left, right) => compareAscii(left.dimensionId, right.dimensionId));
-  return deepFreeze({ results, capped, mode: 'builtin' });
+  return deepFreeze({ results, capped, mode: "builtin" });
 }

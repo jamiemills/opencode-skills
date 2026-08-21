@@ -20,26 +20,26 @@
 // provider foundation; it never touches node:fs / node:child_process /
 // node:process / node:vm / node:module.
 
-import { compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult, PROVIDER_RESULT_LIMITS } from './base.mjs';
+import { compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult, PROVIDER_RESULT_LIMITS } from "./base.mjs";
 
-export const DEPLOYMENT_PROVIDER_ID = 'PRV-deployment-topology-v1';
+export const DEPLOYMENT_PROVIDER_ID = "PRV-deployment-topology-v1";
 
 const SOURCE_KIND_BY_ARTIFACT = Object.freeze({
-  cloudformation: 'infrastructure',
-  compose: 'config',
-  dockerfile: 'container',
-  helm_chart: 'infrastructure',
-  helm_template: 'infrastructure',
-  kubernetes: 'infrastructure',
-  serverless: 'config',
-  terraform: 'infrastructure',
+  cloudformation: "infrastructure",
+  compose: "config",
+  dockerfile: "container",
+  helm_chart: "infrastructure",
+  helm_template: "infrastructure",
+  kubernetes: "infrastructure",
+  serverless: "config",
+  terraform: "infrastructure",
 });
 
 export class DeploymentProviderError extends TypeError {
   constructor(code, message) {
     super(`Deployment provider failed: ${message}`);
-    this.name = 'DeploymentProviderError';
+    this.name = "DeploymentProviderError";
     this.code = code;
   }
 }
@@ -50,7 +50,7 @@ function fail(code, message) {
 
 function sourceKindFor(topology, path) {
   const kind = topology?.artifactsByPath?.[path];
-  return SOURCE_KIND_BY_ARTIFACT[kind] ?? 'infrastructure';
+  return SOURCE_KIND_BY_ARTIFACT[kind] ?? "infrastructure";
 }
 
 function boundedKey(value) {
@@ -82,8 +82,8 @@ function observation(identity, value) {
  *   provider observation bound and were deterministically truncated.
  */
 export function deploymentProviderResults({ topology }) {
-  if (topology === null || typeof topology !== 'object' || Array.isArray(topology)) {
-    fail('INVALID_INPUT', 'topology is required');
+  if (topology === null || typeof topology !== "object" || Array.isArray(topology)) {
+    fail("INVALID_INPUT", "topology is required");
   }
   const observations = [];
   const seen = new Set();
@@ -96,54 +96,73 @@ export function deploymentProviderResults({ topology }) {
   };
 
   for (const image of topology.images) {
-    push(observation(`image:${image.path}:${image.reference}`, {
-      category: 'image',
-      path: image.path,
-      matchedKey: boundedAssembledKey(`image:${boundedKey(image.reference)}`),
-      details: { reference: image.reference, scope: image.scope, line: image.line },
-      sourceKind: sourceKindFor(topology, image.path),
-    }));
+    push(
+      observation(`image:${image.path}:${image.reference}`, {
+        category: "image",
+        path: image.path,
+        matchedKey: boundedAssembledKey(`image:${boundedKey(image.reference)}`),
+        details: { reference: image.reference, scope: image.scope, line: image.line },
+        sourceKind: sourceKindFor(topology, image.path),
+      }),
+    );
   }
   for (const resource of topology.resources) {
-    push(observation(`resource:${resource.path}:${resource.id}`, {
-      category: 'resource',
-      path: resource.path,
-      matchedKey: boundedAssembledKey(`resource:${boundedKey(resource.id)}`),
-      details: { id: resource.id, kind: resource.kind, label: resource.label },
-      sourceKind: sourceKindFor(topology, resource.path),
-    }));
+    push(
+      observation(`resource:${resource.path}:${resource.id}`, {
+        category: "resource",
+        path: resource.path,
+        matchedKey: boundedAssembledKey(`resource:${boundedKey(resource.id)}`),
+        details: { id: resource.id, kind: resource.kind, label: resource.label },
+        sourceKind: sourceKindFor(topology, resource.path),
+      }),
+    );
   }
   for (const service of topology.services) {
-    push(observation(`service:${service.path}:${service.id}`, {
-      category: 'service',
-      path: service.path,
-      matchedKey: boundedAssembledKey(`service:${boundedKey(service.id)}`),
-      details: { id: service.id, kind: service.kind, label: service.label, image: service.image },
-      sourceKind: sourceKindFor(topology, service.path),
-    }));
+    push(
+      observation(`service:${service.path}:${service.id}`, {
+        category: "service",
+        path: service.path,
+        matchedKey: boundedAssembledKey(`service:${boundedKey(service.id)}`),
+        details: { id: service.id, kind: service.kind, label: service.label, image: service.image },
+        sourceKind: sourceKindFor(topology, service.path),
+      }),
+    );
   }
   for (const edge of topology.edges) {
-    push(observation(`edge:${edge.path}:${edge.from}:${edge.to}:${edge.kind}`, {
-      category: 'topology_edge',
-      path: edge.path,
-      matchedKey: boundedAssembledKey(`edge:${boundedKey(edge.from)}:${boundedKey(edge.to)}:${edge.kind}`),
-      details: { from: edge.from, to: edge.to, kind: edge.kind, crossArtifact: edge.crossArtifact },
-      sourceKind: sourceKindFor(topology, edge.path),
-    }));
+    push(
+      observation(`edge:${edge.path}:${edge.from}:${edge.to}:${edge.kind}`, {
+        category: "topology_edge",
+        path: edge.path,
+        matchedKey: boundedAssembledKey(
+          `edge:${boundedKey(edge.from)}:${boundedKey(edge.to)}:${edge.kind}`,
+        ),
+        details: {
+          from: edge.from,
+          to: edge.to,
+          kind: edge.kind,
+          crossArtifact: edge.crossArtifact,
+        },
+        sourceKind: sourceKindFor(topology, edge.path),
+      }),
+    );
   }
 
   const indicatorCounts = new Map();
   for (const indicator of topology.indicators) {
     indicatorCounts.set(indicator.kind, (indicatorCounts.get(indicator.kind) ?? 0) + 1);
   }
-  for (const [kind, count] of [...indicatorCounts.entries()].toSorted(([left], [right]) => compareAscii(left, right))) {
-    push(observation(`indicator:${kind}`, {
-      category: 'template_indicator',
-      path: null,
-      matchedKey: `indicator:${kind}`,
-      details: { kind, count },
-      sourceKind: 'infrastructure',
-    }));
+  for (const [kind, count] of [...indicatorCounts.entries()].toSorted(([left], [right]) =>
+    compareAscii(left, right),
+  )) {
+    push(
+      observation(`indicator:${kind}`, {
+        category: "template_indicator",
+        path: null,
+        matchedKey: `indicator:${kind}`,
+        details: { kind, count },
+        sourceKind: "infrastructure",
+      }),
+    );
   }
 
   let capped = false;
@@ -153,13 +172,16 @@ export function deploymentProviderResults({ topology }) {
     capped = true;
   }
 
-  const results = observations.length > 0
-    ? [createProviderResult({
-      providerId: DEPLOYMENT_PROVIDER_ID,
-      dimensionId: 'DIM-deployment-v1',
-      observations,
-    })]
-    : [];
+  const results =
+    observations.length > 0
+      ? [
+          createProviderResult({
+            providerId: DEPLOYMENT_PROVIDER_ID,
+            dimensionId: "DIM-deployment-v1",
+            observations,
+          }),
+        ]
+      : [];
 
   return deepFreeze({ results, capped });
 }

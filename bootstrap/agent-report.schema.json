@@ -4,7 +4,16 @@
   "title": "Universal Agent Skills bootstrap agent report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "protocol", "result", "exitCode", "states", "capabilities", "availability", "limitations"],
+  "required": [
+    "schema",
+    "protocol",
+    "result",
+    "exitCode",
+    "states",
+    "capabilities",
+    "availability",
+    "limitations"
+  ],
   "properties": {
     "schema": { "const": "csm-agent-report/1" },
     "protocol": { "const": "csm-skills-bootstrap/1" },
@@ -33,7 +42,15 @@
           ]
         },
         "state": {
-          "enum": ["DISCOVER", "TRUST", "PLAN_DESTINATION", "CONFIRM_IF_NEEDED", "MATERIALIZE", "VERIFY", "REPORT"]
+          "enum": [
+            "DISCOVER",
+            "TRUST",
+            "PLAN_DESTINATION",
+            "CONFIRM_IF_NEEDED",
+            "MATERIALIZE",
+            "VERIFY",
+            "REPORT"
+          ]
         }
       }
     },
@@ -47,7 +64,15 @@
         "required": ["state", "action"],
         "properties": {
           "state": {
-            "enum": ["DISCOVER", "TRUST", "PLAN_DESTINATION", "CONFIRM_IF_NEEDED", "MATERIALIZE", "VERIFY", "REPORT"]
+            "enum": [
+              "DISCOVER",
+              "TRUST",
+              "PLAN_DESTINATION",
+              "CONFIRM_IF_NEEDED",
+              "MATERIALIZE",
+              "VERIFY",
+              "REPORT"
+            ]
           },
           "action": { "type": "string", "pattern": "^[a-z0-9-]{1,64}$" },
           "refusal": {
@@ -83,7 +108,11 @@
         "additionalProperties": false,
         "required": ["path", "sha256", "bytes", "verified"],
         "properties": {
-          "path": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._/-]*$", "maxLength": 256 },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._/-]*$",
+            "maxLength": 256
+          },
           "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "bytes": { "type": "integer", "minimum": 0 },
           "verified": { "const": true }
@@ -112,7 +141,15 @@
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["hasNpx", "hasFileWrite", "knowsDestination", "supportsStaging", "supportsLock", "supportsRollback", "knowsReload"],
+      "required": [
+        "hasNpx",
+        "hasFileWrite",
+        "knowsDestination",
+        "supportsStaging",
+        "supportsLock",
+        "supportsRollback",
+        "knowsReload"
+      ],
       "properties": {
         "hasNpx": { "type": "boolean" },
         "hasFileWrite": { "type": "boolean" },
@@ -150,7 +187,13 @@
     {
       "if": { "properties": { "result": { "const": "placed" } }, "required": ["result"] },
       "then": {
-        "required": ["destination", "skillsPlaced", "filesPlaced", "hashVerification", "reloadAction"],
+        "required": [
+          "destination",
+          "skillsPlaced",
+          "filesPlaced",
+          "hashVerification",
+          "reloadAction"
+        ],
         "properties": {
           "exitCode": { "const": 0 },
           "refusal": { "type": "null" },

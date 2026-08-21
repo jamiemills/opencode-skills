@@ -1,10 +1,10 @@
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { join, resolve, sep, extname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { join, resolve, sep, extname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
-const FIXTURES_DIR = resolve(join(fileURLToPath(import.meta.url), '../fixtures'));
+const FIXTURES_DIR = resolve(join(fileURLToPath(import.meta.url), "../fixtures"));
 
 // Bind host: the docker bridge gateway, so the in-container browser can reach
 // the fixtures. Env base (CSM_BROWSE_FIXTURE_BASE) may pin host and port.
@@ -19,29 +19,44 @@ function bridgeHost() {
     if (m) return m[1];
   }
   try {
-    const gw = execFileSync('docker', ['inspect', 'chromium-vnc', '--format', '{{range $k,$v := .NetworkSettings.Networks}}{{$v.Gateway}} {{end}}'], { timeout: 2000, encoding: 'utf-8' }).trim();
+    const gw = execFileSync(
+      "docker",
+      [
+        "inspect",
+        "chromium-vnc",
+        "--format",
+        "{{range $k,$v := .NetworkSettings.Networks}}{{$v.Gateway}} {{end}}",
+      ],
+      { timeout: 2000, encoding: "utf-8" },
+    ).trim();
     const first = gw.split(/\s+/)[0];
     if (first && /^\d+\.\d+\.\d+\.\d+$/.test(first)) return first;
   } catch {}
   try {
-    const routes = execFileSync('ip', ['route'], { timeout: 2000, encoding: 'utf-8' });
+    const routes = execFileSync("ip", ["route"], { timeout: 2000, encoding: "utf-8" });
     const m = routes.match(/dev\s+docker0\b.*\bsrc\s+(\d+\.\d+\.\d+\.\d+)/);
     if (m) return m[1];
   } catch {}
   try {
-    const gw = execFileSync('docker', ['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}'], { timeout: 2000, encoding: 'utf-8' }).trim();
+    const gw = execFileSync(
+      "docker",
+      ["network", "inspect", "bridge", "--format", "{{(index .IPAM.Config 0).Gateway}}"],
+      { timeout: 2000, encoding: "utf-8" },
+    ).trim();
     if (gw && /^\d+\.\d+\.\d+\.\d+$/.test(gw)) return gw;
   } catch {}
   try {
-    const hostIp = execFileSync('hostname', ['-I'], { timeout: 2000, encoding: 'utf-8' }).trim().split(/\s+/)[0];
+    const hostIp = execFileSync("hostname", ["-I"], { timeout: 2000, encoding: "utf-8" })
+      .trim()
+      .split(/\s+/)[0];
     if (hostIp && /^\d+\.\d+\.\d+\.\d+$/.test(hostIp)) return hostIp;
   } catch {}
-  return '127.0.0.1';
+  return "127.0.0.1";
 }
 
 // Port: explicit in the env base, else ephemeral (0).
 function fixturePort() {
-  const envBase = process.env.CSM_BROWSE_FIXTURE_BASE || '';
+  const envBase = process.env.CSM_BROWSE_FIXTURE_BASE || "";
   const m = envBase.match(/:(\d+)(?:\/|$)/);
   return m ? parseInt(m[1], 10) : 0;
 }
@@ -49,26 +64,28 @@ function fixturePort() {
 const HOST = bridgeHost();
 
 const MIME_TYPES = {
-  '.html': 'text/html',
-  '.txt': 'text/plain',
-  '.css': 'text/css',
-  '.js': 'application/javascript',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.svg': 'image/svg+xml'
+  ".html": "text/html",
+  ".txt": "text/plain",
+  ".css": "text/css",
+  ".js": "application/javascript",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
 };
 
 const server = createServer(async (req, res) => {
   try {
-    let filePath = req.url === '/' ? '/page1.html' : req.url;
-    filePath = filePath.split('?')[0];
+    let filePath = req.url === "/" ? "/page1.html" : req.url;
+    filePath = filePath.split("?")[0];
 
     // Traversal guard: reject any path containing '..' in raw or decoded form.
     let decoded = filePath;
-    try { decoded = decodeURIComponent(filePath); } catch {}
-    if (filePath.includes('..') || decoded.includes('..')) {
+    try {
+      decoded = decodeURIComponent(filePath);
+    } catch {}
+    if (filePath.includes("..") || decoded.includes("..")) {
       res.writeHead(403);
       res.end();
       return;
@@ -83,8 +100,8 @@ const server = createServer(async (req, res) => {
 
     const data = await readFile(abs);
     const ext = extname(abs);
-    const mime = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': mime });
+    const mime = MIME_TYPES[ext] || "application/octet-stream";
+    res.writeHead(200, { "Content-Type": mime });
     res.end(data);
   } catch {
     res.writeHead(404);

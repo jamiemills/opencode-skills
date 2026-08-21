@@ -1,45 +1,39 @@
 const IGNORE_DIRS = [
-  '.git',
-  'node_modules',
-  '.venv',
-  'venv',
-  'env',
-  '__pycache__',
-  '.pytest_cache',
-  '.mypy_cache',
-  '.ruff_cache',
-  '.import_linter_cache',
-  '.hypothesis',
-  '.tox',
-  '.nox',
-  '.eggs',
-  'htmlcov',
-  'dist',
-  'build',
-  '.next',
-  'target',
-  'coverage',
-  '.cache',
-  '.nyc_output',
-  '.dart_tool',
-  '.gradle',
+  ".git",
+  "node_modules",
+  ".venv",
+  "venv",
+  "env",
+  "__pycache__",
+  ".pytest_cache",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".import_linter_cache",
+  ".hypothesis",
+  ".tox",
+  ".nox",
+  ".eggs",
+  "htmlcov",
+  "dist",
+  "build",
+  ".next",
+  "target",
+  "coverage",
+  ".cache",
+  ".nyc_output",
+  ".dart_tool",
+  ".gradle",
 ];
 
-const IGNORE_NAME_GLOBS = [
-  '*.pyc',
-  '*.pyo',
-  '*.egg-info',
-  '*.class',
-  '*.lockb',
-];
+const IGNORE_NAME_GLOBS = ["*.pyc", "*.pyo", "*.egg-info", "*.class", "*.lockb"];
 
 const IGNORE_DIR_SET = new Set(IGNORE_DIRS);
 
 function globToRegex(glob) {
-  let s = '';
+  let s = "";
   for (const ch of glob) {
-    if (ch === '*') s += '.*';
-    else if (/[.+^${}()|[\]\\?]/.test(ch)) s += '\\' + ch;
+    if (ch === "*") s += ".*";
+    else if (/[.+^${}()|[\]\\?]/.test(ch)) s += "\\" + ch;
     else s += ch;
   }
   return new RegExp(`^${s}$`);
@@ -60,12 +54,12 @@ export function findPruneArgs() {
 
 export function isIgnoredPath(relPath) {
   if (!relPath) return false;
-  const posix = String(relPath).replace(/\\/g, '/');
-  const segs = posix.split('/').filter((s) => s.length > 0);
+  const posix = String(relPath).replace(/\\/g, "/");
+  const segs = posix.split("/").filter((s) => s.length > 0);
   for (const seg of segs) {
     if (IGNORE_DIR_SET.has(seg)) return true;
   }
-  const base = segs.length ? segs[segs.length - 1] : '';
+  const base = segs.length ? segs[segs.length - 1] : "";
   if (base) {
     for (const re of NAME_GLOB_REGEXES) {
       if (re.test(base)) return true;

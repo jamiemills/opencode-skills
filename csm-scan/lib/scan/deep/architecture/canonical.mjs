@@ -23,10 +23,10 @@
 //
 // ESM only. Zero npm deps. node: builtins only. Read-only.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseToml } from '../../shared/parse.mjs';
-import { compareAscii } from '../../contracts/evidence.mjs';
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseToml } from "../../shared/parse.mjs";
+import { compareAscii } from "../../contracts/evidence.mjs";
 
 const MAX_LAYERS = 32;
 const MAX_MODULES_PER_LAYER = 512;
@@ -37,13 +37,13 @@ const MAX_COMPOSITION_ROOT_MODULES = 64;
 const MAX_SEAM_WIRINGS = 128;
 const MAX_SEAM_SOURCE_BYTES = 1_000_000;
 
-const CANONICAL_FILENAMES = Object.freeze(['quality/architecture.toml', 'architecture.toml']);
+const CANONICAL_FILENAMES = Object.freeze(["quality/architecture.toml", "architecture.toml"]);
 
 const SEAM_CALL_RE = /_wire_([A-Za-z_][A-Za-z0-9_]*)_seam\s*\(\s*(["'])([^"']{1,64})\2/g;
 const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function toPosix(value) {
-  return String(value).replace(/\\/g, '/');
+  return String(value).replace(/\\/g, "/");
 }
 
 function stringList(value, cap) {
@@ -59,8 +59,9 @@ function stringList(value, cap) {
 function candidatePaths(pkgRoot) {
   const candidates = [...CANONICAL_FILENAMES];
   if (pkgRoot) {
-    const segments = toPosix(pkgRoot).split('/').filter(Boolean);
-    if (segments.length > 1) candidates.push(`${segments.slice(0, -1).join('/')}/architecture.toml`);
+    const segments = toPosix(pkgRoot).split("/").filter(Boolean);
+    if (segments.length > 1)
+      candidates.push(`${segments.slice(0, -1).join("/")}/architecture.toml`);
   }
   return [...new Set(candidates)];
 }
@@ -77,7 +78,7 @@ function parseLayers(parsed) {
   const seenNames = new Set();
   for (const raw of Array.isArray(parsed.layers) ? parsed.layers : []) {
     if (layers.length >= MAX_LAYERS) break;
-    const name = String(raw && raw.name || '').trim();
+    const name = String((raw && raw.name) || "").trim();
     if (!name || seenNames.has(name)) continue;
     seenNames.add(name);
     const modules = stringList(raw.modules, MAX_MODULES_PER_LAYER);
@@ -91,7 +92,7 @@ function parseAdapterIndependence(parsed) {
   const groups = [];
   for (const raw of Array.isArray(parsed.adapter_independence) ? parsed.adapter_independence : []) {
     if (groups.length >= MAX_ADAPTER_GROUPS) break;
-    const name = String(raw && raw.name || `adapter-group-${groups.length}`).trim();
+    const name = String((raw && raw.name) || `adapter-group-${groups.length}`).trim();
     const modules = stringList(raw.modules, MAX_MODULES_PER_GROUP);
     const mayImportFrom = stringList(raw.may_import_from, MAX_ALLOWED_DEPS);
     groups.push({ name, modules, mayImportFrom });
@@ -102,7 +103,7 @@ function parseAdapterIndependence(parsed) {
 // Composition-root membership: the `composition_root` layer's module list when
 // declared, otherwise the `[[composition_roots]]` table declarations.
 function compositionRootModuleNames(parsed, layers) {
-  const fromLayer = layers.find((layer) => layer.name === 'composition_root');
+  const fromLayer = layers.find((layer) => layer.name === "composition_root");
   if (fromLayer) return fromLayer.modules.slice(0, MAX_COMPOSITION_ROOT_MODULES);
   const names = [];
   for (const raw of Array.isArray(parsed.composition_roots) ? parsed.composition_roots : []) {
@@ -118,10 +119,10 @@ function compositionRootModuleNames(parsed, layers) {
 // repository-relative `.py` path (`.`, the root package `__init__.py`).
 function moduleToRelativeFile(pkgRoot, moduleName) {
   const posix = toPosix(pkgRoot);
-  if (moduleName === '.') return `${posix}/__init__.py`;
-  const segments = String(moduleName).split('.');
+  if (moduleName === ".") return `${posix}/__init__.py`;
+  const segments = String(moduleName).split(".");
   const stem = segments[segments.length - 1];
-  const directory = segments.slice(0, -1).join('/');
+  const directory = segments.slice(0, -1).join("/");
   return directory ? `${posix}/${directory}/${stem}.py` : `${posix}/${stem}.py`;
 }
 
@@ -141,7 +142,7 @@ function scanSeamWirings(repoPath, files) {
     try {
       const buffer = readFileSync(join(repoPath, file));
       if (buffer.byteLength > MAX_SEAM_SOURCE_BYTES) continue;
-      content = buffer.toString('utf-8');
+      content = buffer.toString("utf-8");
     } catch {
       continue;
     }
@@ -152,9 +153,12 @@ function scanSeamWirings(repoPath, files) {
       wirings.push({ file, seam: match[1], attribute: match[3] });
     }
   }
-  wirings.sort((left, right) => compareAscii(left.file, right.file)
-    || compareAscii(left.seam, right.seam)
-    || compareAscii(left.attribute, right.attribute));
+  wirings.sort(
+    (left, right) =>
+      compareAscii(left.file, right.file) ||
+      compareAscii(left.seam, right.seam) ||
+      compareAscii(left.attribute, right.attribute),
+  );
   return wirings;
 }
 
@@ -175,17 +179,17 @@ function scanSeamWirings(repoPath, files) {
  *   adapterIndependence, compositionRoots, seamWirings }`, or `null`.
  */
 export function scanCanonicalLayerModel(repoPath, context = {}) {
-  const pkgRoot = String(context.pkgRoot || '').trim();
+  const pkgRoot = String(context.pkgRoot || "").trim();
   const source = detectCanonicalPath(repoPath, pkgRoot);
   if (!source) return null;
 
   let parsed;
   try {
-    parsed = parseToml(readFileSync(join(repoPath, source), 'utf-8'));
+    parsed = parseToml(readFileSync(join(repoPath, source), "utf-8"));
   } catch {
     return null;
   }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
 
   const layers = parseLayers(parsed);
   if (layers.length === 0) return null;
@@ -193,9 +197,12 @@ export function scanCanonicalLayerModel(repoPath, context = {}) {
   const adapterIndependence = parseAdapterIndependence(parsed);
   const declaredCompositionRoots = compositionRootModuleNames(parsed, layers);
   const compositionRootFiles = existingRelativeFiles(repoPath, pkgRoot, declaredCompositionRoots);
-  const seamFiles = compositionRootFiles.length > 0
-    ? compositionRootFiles
-    : (Array.isArray(context.entrypointFiles) ? context.entrypointFiles : []);
+  const seamFiles =
+    compositionRootFiles.length > 0
+      ? compositionRootFiles
+      : Array.isArray(context.entrypointFiles)
+        ? context.entrypointFiles
+        : [];
   const seamWirings = scanSeamWirings(repoPath, seamFiles);
 
   return {

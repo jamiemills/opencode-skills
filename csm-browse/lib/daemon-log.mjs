@@ -16,11 +16,11 @@ export function createLineWriter({ write, transform = (text) => text }) {
 
   const append = (chunk) => {
     if (closed) return;
-    const data = typeof chunk === 'string' ? Buffer.from(chunk, 'utf-8') : Buffer.from(chunk);
+    const data = typeof chunk === "string" ? Buffer.from(chunk, "utf-8") : Buffer.from(chunk);
     pending = pending.length ? Buffer.concat([pending, data]) : data;
     let nl;
     while ((nl = pending.indexOf(0x0a)) !== -1) {
-      const line = pending.subarray(0, nl + 1).toString('utf-8');
+      const line = pending.subarray(0, nl + 1).toString("utf-8");
       pending = pending.subarray(nl + 1);
       write(transform(line));
     }
@@ -31,7 +31,7 @@ export function createLineWriter({ write, transform = (text) => text }) {
   // on process exit, or a test assertion). Idempotent: null when empty.
   const flush = () => {
     if (!pending.length) return null;
-    const tail = transform(pending.toString('utf-8'));
+    const tail = transform(pending.toString("utf-8"));
     pending = Buffer.alloc(0);
     return tail;
   };

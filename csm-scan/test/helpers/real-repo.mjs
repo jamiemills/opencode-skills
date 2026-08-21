@@ -19,20 +19,20 @@
 // The fallback fixture is a miniature of the pxcli repository layout, sized so
 // every scanner assertion still exercises a real behavioral path.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const FALLBACK_REAL_REPO = join(
   dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'fixtures-real',
-  'pxcli-mini',
+  "..",
+  "fixtures-real",
+  "pxcli-mini",
 );
 
 export function resolveRealRepo() {
   const configured = process.env.CSM_SCAN_REAL_REPO;
-  if (configured !== undefined && configured !== '') {
+  if (configured !== undefined && configured !== "") {
     if (!existsSync(configured)) {
       return { repo: null, missing: configured };
     }
@@ -46,10 +46,10 @@ export function resolveRealRepo() {
 // pxcli layout under a different directory name so scale-specific expectations
 // can branch visibly instead of silently weakening.
 export function isPerplexityCli(repoPath) {
-  if (basename(repoPath) === 'perplexity-cli') return true;
+  if (basename(repoPath) === "perplexity-cli") return true;
   if (resolve(repoPath) === resolve(FALLBACK_REAL_REPO)) return false;
   try {
-    const pyproject = readFileSync(join(repoPath, 'pyproject.toml'), 'utf8');
+    const pyproject = readFileSync(join(repoPath, "pyproject.toml"), "utf8");
     return /^name = "pxcli"\s*$/m.test(pyproject);
   } catch {
     return false;

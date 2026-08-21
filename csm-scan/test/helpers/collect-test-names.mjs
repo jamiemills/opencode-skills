@@ -10,15 +10,15 @@
 // runner run otherwise) — same pattern as the AC20 gate in
 // expansion-final-acceptance.test.mjs.
 
-import { spawn } from 'node:child_process';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawn } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const TEST_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const TEST_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cache = new Map();
 
 export async function collectTestNames(files) {
-  const key = files.join('\0');
+  const key = files.join("\0");
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
 
@@ -26,26 +26,30 @@ export async function collectTestNames(files) {
   delete env.NODE_TEST_CONTEXT;
   const child = spawn(
     process.execPath,
-    ['--test', '--test-concurrency=1', '--test-reporter=tap', ...files],
-    { cwd: TEST_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] },
+    ["--test", "--test-concurrency=1", "--test-reporter=tap", ...files],
+    { cwd: TEST_ROOT, env, stdio: ["ignore", "pipe", "pipe"] },
   );
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); });
-  child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString("utf8");
+  });
   const code = await new Promise((resolve) => {
-    child.on('error', () => resolve(-1));
-    child.on('close', resolve);
+    child.on("error", () => resolve(-1));
+    child.on("close", resolve);
   });
 
   const names = [];
   const failures = [];
   const skips = [];
-  for (const line of stdout.split('\n')) {
+  for (const line of stdout.split("\n")) {
     const match = line.match(/^(ok|not ok) \d+ - (.+?)(?: #.*)?$/);
     if (match === null) continue;
     const name = match[2];
-    if (match[1] === 'not ok') failures.push(name);
+    if (match[1] === "not ok") failures.push(name);
     else if (/#\s*skip\b/i.test(line)) skips.push(name);
     else names.push(name);
   }

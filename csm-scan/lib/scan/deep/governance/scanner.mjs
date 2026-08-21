@@ -26,13 +26,13 @@
 // read allowlist; it never touches node:child_process / node:process /
 // node:vm / node:module.
 
-import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { commandBroker } from '../../shared/command.mjs';
-import { enumerate } from '../../shared/enum.mjs';
-import { parseCodeowners } from './codeowners.mjs';
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { commandBroker } from "../../shared/command.mjs";
+import { enumerate } from "../../shared/enum.mjs";
+import { parseCodeowners } from "./codeowners.mjs";
 import {
   GOVERNANCE_HIDDEN_PATHS,
   GOVERNANCE_ISSUE_TEMPLATE_DIRS,
@@ -41,9 +41,9 @@ import {
   classifyGovernancePath,
   extractMarkdownLinks,
   parseAdrMetadata,
-} from './model.mjs';
+} from "./model.mjs";
 
-export const GOVERNANCE_SCANNER_ID = 'DET-governance-scan-v1';
+export const GOVERNANCE_SCANNER_ID = "DET-governance-scan-v1";
 
 const READ_LIMITS = Object.freeze({
   maxBytes: GOVERNANCE_LIMITS.maxBytes,
@@ -75,12 +75,17 @@ function hiddenGovernancePaths(repoPath) {
 }
 
 function readStatusToDiagnostic(result) {
-  const status = result.status === 'unsupported' ? 'unsupported' : 'unverified';
-  const reason = result.status === 'unreadable' ? 'UNREADABLE'
-    : result.status === 'capped' ? 'CAP'
-    : result.status === 'malformed' ? 'MALFORMED'
-    : result.status === 'unsupported' ? 'PARSE_UNSUPPORTED'
-    : 'UNVERIFIED';
+  const status = result.status === "unsupported" ? "unsupported" : "unverified";
+  const reason =
+    result.status === "unreadable"
+      ? "UNREADABLE"
+      : result.status === "capped"
+        ? "CAP"
+        : result.status === "malformed"
+          ? "MALFORMED"
+          : result.status === "unsupported"
+            ? "PARSE_UNSUPPORTED"
+            : "UNVERIFIED";
   return { path: result.path, line: null, status, reason };
 }
 
@@ -90,7 +95,7 @@ function simpleArtifact(classification, path) {
     dialect: classification.dialect,
     path,
     line: null,
-    status: 'observed',
+    status: "observed",
     details: { kind: classification.dialect },
   };
 }
@@ -98,28 +103,35 @@ function simpleArtifact(classification, path) {
 function adrArtifact(path, text) {
   const metadata = parseAdrMetadata(text, path);
   return {
-    category: 'decision',
-    dialect: 'adr',
+    category: "decision",
+    dialect: "adr",
     path,
     line: metadata.line,
-    status: 'observed',
-    details: { kind: 'adr', id: metadata.id, date: metadata.date, status: metadata.status },
+    status: "observed",
+    details: { kind: "adr", id: metadata.id, date: metadata.date, status: metadata.status },
   };
 }
 
 function linkArtifacts(path, text) {
   const { links, capped } = extractMarkdownLinks(text, path, GOVERNANCE_LIMITS.maxLinksPerFile);
   const artifacts = links.map((link) => ({
-    category: 'reference',
-    dialect: 'link',
+    category: "reference",
+    dialect: "link",
     path,
     line: link.line,
-    status: 'observed',
-    details: { kind: 'link', url: link.url },
+    status: "observed",
+    details: { kind: "link", url: link.url },
   }));
-  const diagnostics = capped ? [{
-    path, line: null, status: 'unverified', reason: 'CAP',
-  }] : [];
+  const diagnostics = capped
+    ? [
+        {
+          path,
+          line: null,
+          status: "unverified",
+          reason: "CAP",
+        },
+      ]
+    : [];
   return { artifacts, diagnostics };
 }
 
@@ -132,11 +144,11 @@ async function gitFacts(repoPath, broker) {
       return null;
     }
   };
-  const isGit = (await safeGit('git:rev-parse-toplevel')) !== null;
+  const isGit = (await safeGit("git:rev-parse-toplevel")) !== null;
   let defaultBranch = null;
   if (isGit) {
-    const branch = await safeGit('git:rev-parse-abbrev-head');
-    if (branch !== null && branch !== 'HEAD') defaultBranch = branch;
+    const branch = await safeGit("git:rev-parse-abbrev-head");
+    if (branch !== null && branch !== "HEAD") defaultBranch = branch;
   }
   return { isGit, defaultBranch };
 }
@@ -154,19 +166,20 @@ async function gitFacts(repoPath, broker) {
 export async function scan(repoPath, _overview = {}, broker = commandBroker) {
   const diagnostics = [];
   const { files } = await enumerate(repoPath);
-  const governanceFiles = new Set(
-    files.filter((path) => classifyGovernancePath(path) !== null),
-  );
+  const governanceFiles = new Set(files.filter((path) => classifyGovernancePath(path) !== null));
   for (const path of hiddenGovernancePaths(repoPath)) {
     if (classifyGovernancePath(path) !== null) governanceFiles.add(path);
   }
   const sortedGovernanceFiles = [...governanceFiles].toSorted();
   const requestedGovernanceFiles = sortedGovernanceFiles.slice(0, 4096);
   if (requestedGovernanceFiles.length !== sortedGovernanceFiles.length) {
-    diagnostics.push({ path: 'CODEOWNERS', line: null, status: 'unverified', reason: 'CAP' });
+    diagnostics.push({ path: "CODEOWNERS", line: null, status: "unverified", reason: "CAP" });
   }
-  const requests = requestedGovernanceFiles
-    .map((path) => ({ path, format: 'text', sensitivity: 'internal' }));
+  const requests = requestedGovernanceFiles.map((path) => ({
+    path,
+    format: "text",
+    sensitivity: "internal",
+  }));
   const read = await readArtifacts(repoPath, requests, READ_LIMITS);
   const { isGit, defaultBranch } = await gitFacts(repoPath, broker);
 
@@ -175,11 +188,11 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
 
   for (const result of read.results) {
     const classification = classifyGovernancePath(result.path);
-    if (result.status !== 'read') {
+    if (result.status !== "read") {
       diagnostics.push(readStatusToDiagnostic(result));
       continue;
     }
-    if (classification?.parse === 'codeowners') {
+    if (classification?.parse === "codeowners") {
       const parsed = parseCodeowners(result.value, result.path);
       ownership.push({
         path: result.path,
@@ -189,13 +202,16 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
       });
       continue;
     }
-    if (classification?.parse === 'adr') {
+    if (classification?.parse === "adr") {
       artifacts.push(adrArtifact(result.path, result.value));
       continue;
     }
-    if (classification?.parse === 'links') {
+    if (classification?.parse === "links") {
       artifacts.push(simpleArtifact(classification, result.path));
-      const { artifacts: linked, diagnostics: linkDiagnostics } = linkArtifacts(result.path, result.value);
+      const { artifacts: linked, diagnostics: linkDiagnostics } = linkArtifacts(
+        result.path,
+        result.value,
+      );
       artifacts.push(...linked);
       diagnostics.push(...linkDiagnostics);
       continue;
@@ -215,8 +231,8 @@ export async function scan(repoPath, _overview = {}, broker = commandBroker) {
   });
 
   return {
-    dimension: 'governance',
-    signal: model.summary.entries > 0 ? 'high' : 'low',
+    dimension: "governance",
+    signal: model.summary.entries > 0 ? "high" : "low",
     findings: model,
   };
 }

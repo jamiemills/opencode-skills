@@ -29,10 +29,7 @@
   },
   "activeLegacyOwners": [],
   "filesystem": {
-    "modules": [
-      "node:fs",
-      "node:fs/promises"
-    ],
+    "modules": ["node:fs", "node:fs/promises"],
     "readApis": [
       "existsSync",
       "lstat",
@@ -47,15 +44,8 @@
     "specialReaders": [
       {
         "path": "lib/scan/plugins/loader.mjs",
-        "imports": [
-          "import { lstat, opendir, readFile, realpath } from 'node:fs/promises';"
-        ],
-        "apis": [
-          "lstat",
-          "opendir",
-          "readFile",
-          "realpath"
-        ],
+        "imports": ["import { lstat, opendir, readFile, realpath } from 'node:fs/promises';"],
+        "apis": ["lstat", "opendir", "readFile", "realpath"],
         "replacementTask": "T224"
       },
       {
@@ -64,34 +54,20 @@
           "import { constants } from 'node:fs';",
           "import { lstat, open, realpath } from 'node:fs/promises';"
         ],
-        "apis": [
-          "constants",
-          "lstat",
-          "open",
-          "realpath"
-        ],
+        "apis": ["constants", "lstat", "open", "realpath"],
         "replacementTask": "T224"
       },
       {
         "path": "lib/scan/report/verbose-trace.mjs",
-        "imports": [
-          "import { createWriteStream, statSync } from 'node:fs';"
-        ],
-        "apis": [
-          "createWriteStream",
-          "statSync"
-        ],
+        "imports": ["import { createWriteStream, statSync } from 'node:fs';"],
+        "apis": ["createWriteStream", "statSync"],
         "replacementTask": "T012"
       }
     ],
     "writer": {
       "path": "lib/scan/write.mjs",
       "module": "node:fs/promises",
-      "apis": [
-        "rename",
-        "unlink",
-        "writeFile"
-      ],
+      "apis": ["rename", "unlink", "writeFile"],
       "import": "import { rename, unlink, writeFile } from 'node:fs/promises';",
       "call": "await writeFile(tmpPath, content, 'utf-8');"
     },

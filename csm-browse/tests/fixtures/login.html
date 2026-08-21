@@ -1,22 +1,25 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Login Fixture</title></head>
-<body>
-  <h1>Login</h1>
-  <form id="login-form">
-    <label for="username">Username</label>
-    <input type="text" id="username" name="username">
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password">
-    <button type="submit" id="submit">Submit</button>
-  </form>
-  <p id="result"></p>
-  <script>
-    document.getElementById('login-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      var username = document.getElementById('username').value;
-      document.getElementById('result').textContent = 'welcome ' + username;
-    });
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Login Fixture</title>
+  </head>
+  <body>
+    <h1>Login</h1>
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" />
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" />
+      <button type="submit" id="submit">Submit</button>
+    </form>
+    <p id="result"></p>
+    <script>
+      document.getElementById("login-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var username = document.getElementById("username").value;
+        document.getElementById("result").textContent = "welcome " + username;
+      });
+    </script>
+  </body>
 </html>

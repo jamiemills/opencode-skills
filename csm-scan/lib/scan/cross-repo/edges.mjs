@@ -33,15 +33,15 @@
 // touches node:fs / node:child_process / node:process / node:vm / node:module,
 // so the recurring capability gate remains closed.
 
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 import {
   assertDataOnly,
   compareAscii,
   deepFreeze,
   EVIDENCE_SOURCE_KINDS,
-} from '../contracts/evidence.mjs';
-import { assertPrivacySafe } from '../shared/privacy.mjs';
+} from "../contracts/evidence.mjs";
+import { assertPrivacySafe } from "../shared/privacy.mjs";
 import {
   CROSS_REPO_SCHEMA_VERSION,
   CrossRepoError,
@@ -53,7 +53,7 @@ import {
   safeToken,
   synthesizeRepositoryIdentities,
   vcsCoordinate,
-} from './identity.mjs';
+} from "./identity.mjs";
 
 export const EDGE_LIMITS = deepFreeze({
   ambiguous: 1024,
@@ -63,7 +63,7 @@ export const EDGE_LIMITS = deepFreeze({
   references: 4096,
 });
 
-const REFERENCE_KEYS = Object.freeze(['kind', 'path', 'scanId', 'sourceKind', 'value']);
+const REFERENCE_KEYS = Object.freeze(["kind", "path", "scanId", "sourceKind", "value"]);
 
 function fail(code, message) {
   throw new CrossRepoError(code, message);
@@ -84,15 +84,15 @@ function boundedArray(value) {
 
 function referenceCoordinate(kind, value) {
   let coordinate = null;
-  if (kind === 'vcs') {
+  if (kind === "vcs") {
     const vcs = normalizeVcsCoordinates(value);
     coordinate = vcs === null ? null : vcsCoordinate(vcs);
-  } else if (kind === 'path') {
+  } else if (kind === "path") {
     const path = normalizePath(value);
     coordinate = path === null ? null : `path:${path}`;
-  } else if (kind === 'workspace' || kind === 'contract' || kind === 'event') {
+  } else if (kind === "workspace" || kind === "contract" || kind === "event") {
     coordinate = safeToken(value) ? `${kind}:${value}` : null;
-  } else if (kind === 'iac') {
+  } else if (kind === "iac") {
     coordinate = normalizeIacCoordinate(value);
   }
   return coordinate !== null && privacySafe(coordinate) ? coordinate : null;
@@ -109,27 +109,35 @@ function normalizeReference(input) {
     });
   } catch (error) {
     if (error instanceof CrossRepoError) throw error;
-    fail('INVALID_DATA', 'reference must contain plain bounded data');
+    fail("INVALID_DATA", "reference must contain plain bounded data");
   }
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    fail('INVALID_TYPE', 'reference must be an object');
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    fail("INVALID_TYPE", "reference must be an object");
   }
   const keys = Object.keys(input).toSorted(compareAscii);
-  if (keys.length !== REFERENCE_KEYS.length || keys.some((key, index) => key !== REFERENCE_KEYS[index])) {
-    fail('UNKNOWN_FIELD', 'reference fields do not match the schema');
+  if (
+    keys.length !== REFERENCE_KEYS.length ||
+    keys.some((key, index) => key !== REFERENCE_KEYS[index])
+  ) {
+    fail("UNKNOWN_FIELD", "reference fields do not match the schema");
   }
   if (!REFERENCE_KINDS.includes(input.kind)) {
-    fail('UNKNOWN_KIND', 'reference kind is not allowlisted');
+    fail("UNKNOWN_KIND", "reference kind is not allowlisted");
   }
-  if (typeof input.value !== 'string' || input.value.length === 0 || input.value.length > IDENTITY_LIMITS.value) {
-    fail('INVALID_VALUE', 'reference value must be a bounded string');
+  if (
+    typeof input.value !== "string" ||
+    input.value.length === 0 ||
+    input.value.length > IDENTITY_LIMITS.value
+  ) {
+    fail("INVALID_VALUE", "reference value must be a bounded string");
   }
   if (!safeToken(input.scanId)) {
-    fail('INVALID_SCAN_ID', 'reference scanId is not a safe token');
+    fail("INVALID_SCAN_ID", "reference scanId is not a safe token");
   }
-  const sourceKind = typeof input.sourceKind === 'string' && EVIDENCE_SOURCE_KINDS.includes(input.sourceKind)
-    ? input.sourceKind
-    : 'repository_metadata';
+  const sourceKind =
+    typeof input.sourceKind === "string" && EVIDENCE_SOURCE_KINDS.includes(input.sourceKind)
+      ? input.sourceKind
+      : "repository_metadata";
   const path = input.path === null || input.path === undefined ? null : normalizePath(input.path);
   return {
     scanId: input.scanId,
@@ -153,7 +161,7 @@ function buildCoordinateIndex(repositories, components) {
   };
   for (const repo of repositories) {
     const candidate = {
-      kind: 'repository',
+      kind: "repository",
       id: `repository:${repo.repositoryId}`,
       scanId: repo.scanId,
       repositoryId: repo.repositoryId,
@@ -164,7 +172,7 @@ function buildCoordinateIndex(repositories, components) {
   }
   for (const component of components) {
     const candidate = {
-      kind: 'component',
+      kind: "component",
       id: component.id,
       scanId: component.scanId,
       repositoryId: component.repositoryId,
@@ -174,18 +182,24 @@ function buildCoordinateIndex(repositories, components) {
     }
   }
   for (const coordinate of index.keys()) {
-    index.set(coordinate, index.get(coordinate).toSorted((left, right) => compareAscii(left.id, right.id)));
+    index.set(
+      coordinate,
+      index.get(coordinate).toSorted((left, right) => compareAscii(left.id, right.id)),
+    );
   }
   return index;
 }
 
 function edgeIdentity(content) {
-  const framed = Object.keys(content).toSorted().map((key) => `${key}=${content[key]}`).join('\0');
-  return `EDG-v1-${createHash('sha256').update(framed).digest('hex')}`;
+  const framed = Object.keys(content)
+    .toSorted()
+    .map((key) => `${key}=${content[key]}`)
+    .join("\0");
+  return `EDG-v1-${createHash("sha256").update(framed).digest("hex")}`;
 }
 
 function referenceSortKey(record) {
-  return `${record.scanId ?? ''}\0${record.kind}\0${record.coordinate ?? ''}\0${record.path ?? ''}\0${record.sourceKind ?? ''}`;
+  return `${record.scanId ?? ""}\0${record.kind}\0${record.coordinate ?? ""}\0${record.path ?? ""}\0${record.sourceKind ?? ""}`;
 }
 
 function compareReference(left, right) {
@@ -201,8 +215,8 @@ function compareReference(left, right) {
  *   enter `edges` (the graph metric source).
  */
 export function resolveReferences({ identities, references } = {}) {
-  if (identities === null || typeof identities !== 'object' || Array.isArray(identities)) {
-    fail('INVALID_TYPE', 'identities must be an object');
+  if (identities === null || typeof identities !== "object" || Array.isArray(identities)) {
+    fail("INVALID_TYPE", "identities must be an object");
   }
   const repositories = boundedArray(identities.repositories);
   const components = boundedArray(identities.components);
@@ -229,7 +243,7 @@ export function resolveReferences({ identities, references } = {}) {
         sourceRepository: null,
         path: reference.path,
         sourceKind: reference.sourceKind,
-        reason: 'unknown_owner',
+        reason: "unknown_owner",
       });
       assertPrivacySafe(record);
       external.push(record);
@@ -243,7 +257,7 @@ export function resolveReferences({ identities, references } = {}) {
         sourceRepository: source.repositoryId,
         path: reference.path,
         sourceKind: reference.sourceKind,
-        reason: 'unparseable',
+        reason: "unparseable",
       });
       assertPrivacySafe(record);
       external.push(record);
@@ -258,7 +272,7 @@ export function resolveReferences({ identities, references } = {}) {
         sourceRepository: source.repositoryId,
         path: reference.path,
         sourceKind: reference.sourceKind,
-        reason: 'no_candidates',
+        reason: "no_candidates",
       });
       assertPrivacySafe(record);
       external.push(record);
@@ -303,7 +317,9 @@ export function resolveReferences({ identities, references } = {}) {
     }
   }
 
-  const edges = [...edgesByContent.values()].toSorted((left, right) => compareAscii(left.id, right.id));
+  const edges = [...edgesByContent.values()].toSorted((left, right) =>
+    compareAscii(left.id, right.id),
+  );
   const externalSorted = external.toSorted(compareReference);
   const ambiguousSorted = ambiguous.toSorted(compareReference);
 
@@ -335,8 +351,8 @@ export function resolveReferences({ identities, references } = {}) {
  *   `{ schemaVersion, identityTable, edges, capped, metrics }`.
  */
 export function synthesizeCrossRepository(input) {
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    fail('INVALID_TYPE', 'synthesis input must be an object');
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    fail("INVALID_TYPE", "synthesis input must be an object");
   }
   const identities = synthesizeRepositoryIdentities(input.repositories);
   const resolved = resolveReferences({ identities, references: input.references });

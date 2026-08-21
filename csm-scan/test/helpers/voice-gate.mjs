@@ -9,47 +9,47 @@
 // registers another suite's tests.
 
 export const BANNED_VOICE = Object.freeze([
-  'should',
-  'must',
-  'ought',
-  'shall',
-  'poor',
-  'good',
-  'bad',
-  'weak',
-  'strong',
-  'better',
-  'worse',
-  'best',
-  'worst',
-  'recommended',
-  'recommendation',
-  'ideally',
-  'unfortunately',
-  'concern',
-  'concerning',
-  'problem',
-  'anti-pattern',
-  'smell',
-  'suboptimal',
-  'inadequate',
-  'insufficient',
-  'contradiction',
-  'contradictions',
-  'inconsistent',
-  'inconsistency',
-  'conflict',
-  'conflicts',
-  'lacking',
+  "should",
+  "must",
+  "ought",
+  "shall",
+  "poor",
+  "good",
+  "bad",
+  "weak",
+  "strong",
+  "better",
+  "worse",
+  "best",
+  "worst",
+  "recommended",
+  "recommendation",
+  "ideally",
+  "unfortunately",
+  "concern",
+  "concerning",
+  "problem",
+  "anti-pattern",
+  "smell",
+  "suboptimal",
+  "inadequate",
+  "insufficient",
+  "contradiction",
+  "contradictions",
+  "inconsistent",
+  "inconsistency",
+  "conflict",
+  "conflicts",
+  "lacking",
 ]);
 
 const BANNED_PATTERN = new RegExp(
-  `\\b(?:${BANNED_VOICE.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
-  'gi',
+  `\\b(?:${BANNED_VOICE.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+  "gi",
 );
 
 function mask(value) {
-  return value.replace(/[^\n]/g, ' ');
+  return value.replace(/[^\n]/g, " ");
 }
 
 // Repository-originated code, URLs, paths, and identifiers are masked (line
@@ -60,7 +60,7 @@ export function stripNonProse(markdown) {
     .replace(/(`+)[^\n]*?\1/g, mask)
     .replace(/\b(?:https?:\/\/|www\.)[^\s<>)]+/gi, mask)
     .replace(/^[ \t]*\|([^|]*)\|(.*)\|[ \t]*$/gm, (row, firstCell, valueCells, offset, source) => {
-      const nextLine = source.slice(offset + row.length).match(/^\r?\n([^\r\n]*)/)?.[1] || '';
+      const nextLine = source.slice(offset + row.length).match(/^\r?\n([^\r\n]*)/)?.[1] || "";
       const separator = /^[ \t]*\|(?:[ \t]*:?-{3,}:?[ \t]*\|)+[ \t]*$/.test(nextLine);
       if (separator) return row;
       return `|${firstCell}|${mask(valueCells)}|`;
@@ -73,7 +73,7 @@ export function stripNonProse(markdown) {
 export function findVoiceHits(markdown) {
   const prose = stripNonProse(markdown);
   const hits = [];
-  for (const [index, line] of prose.split('\n').entries()) {
+  for (const [index, line] of prose.split("\n").entries()) {
     BANNED_PATTERN.lastIndex = 0;
     for (const match of line.matchAll(BANNED_PATTERN)) {
       hits.push({ term: match[0].toLowerCase(), line: index + 1, text: line.trim() });

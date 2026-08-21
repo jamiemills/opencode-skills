@@ -1,5 +1,5 @@
 name: CI
-'on':
+"on":
   pull_request:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ concurrency:
   group: ci
   cancel-in-progress: false
 env:
-  PY_VERSION: '3.12'
+  PY_VERSION: "3.12"
 jobs:
   secret-scan:
     runs-on: ubuntu-latest

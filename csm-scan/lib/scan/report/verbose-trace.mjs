@@ -5,12 +5,12 @@
 // here, outside the sanitized reporter boundary, writing ONLY to the trace
 // file (mode 0600, `.csm-scan-debug.log` next to --out, tmpdir fallback),
 // never to stdout or stderr.
-import { createWriteStream, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { performance } from 'node:perf_hooks';
+import { createWriteStream, statSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { performance } from "node:perf_hooks";
 
-const TRACE_PREFIX = '.csm-scan-debug';
+const TRACE_PREFIX = ".csm-scan-debug";
 
 // F-051: per-run-unique trace name so two concurrent scans can never clobber
 // the shared `.csm-scan-debug.log` path. The `.gitignore` entry for the prefix
@@ -33,8 +33,8 @@ export function openVerboseTrace(outPath) {
   } catch {}
   candidates.push(join(tmpdir(), traceFileName()));
   const path = candidates[0];
-  const stream = createWriteStream(path, { flags: 'wx', mode: 0o600 });
-  stream.on('error', () => {});
+  const stream = createWriteStream(path, { flags: "wx", mode: 0o600 });
+  stream.on("error", () => {});
   return { path, stream };
 }
 
@@ -43,10 +43,12 @@ export function openVerboseTrace(outPath) {
 // performance.now() duration of the stage that just ended.
 export function createVerboseReporter(base, debug) {
   const t0 = performance.now();
-  let stage = 'pipeline-start';
+  let stage = "pipeline-start";
   let stageStart = t0;
   const trace = (text) => {
-    debug.stream.write(`${new Date().toISOString()} +${Math.round(performance.now() - t0)}ms ${text}\n`);
+    debug.stream.write(
+      `${new Date().toISOString()} +${Math.round(performance.now() - t0)}ms ${text}\n`,
+    );
   };
   const boundary = (label) => {
     const now = performance.now();
@@ -60,7 +62,16 @@ export function createVerboseReporter(base, debug) {
     return base[method](line);
   };
   const reporter = {};
-  for (const method of ['info', 'progress', 'observation', 'note', 'inferred', 'coverage', 'error', 'warning']) {
+  for (const method of [
+    "info",
+    "progress",
+    "observation",
+    "note",
+    "inferred",
+    "coverage",
+    "error",
+    "warning",
+  ]) {
     reporter[method] = wrap(method);
   }
   reporter.phase = (line) => {
@@ -70,7 +81,7 @@ export function createVerboseReporter(base, debug) {
   reporter.traceEnd = () => {
     const now = performance.now();
     trace(`stage-end ${JSON.stringify(stage)} durationMs=${Math.round(now - stageStart)}`);
-    trace('pipeline-end');
+    trace("pipeline-end");
   };
   return reporter;
 }

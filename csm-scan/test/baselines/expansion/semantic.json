@@ -50,8 +50,16 @@
   "contradictions": [],
   "gaps": [],
   "inferredPatterns": [
-    { "dimension": "conventions", "pattern": "File naming: kebab-case (100% of sampled files)", "confidence": 1 },
-    { "dimension": "conventions", "pattern": "Import style: ESM (import/export)", "confidence": 0.8 },
+    {
+      "dimension": "conventions",
+      "pattern": "File naming: kebab-case (100% of sampled files)",
+      "confidence": 1
+    },
+    {
+      "dimension": "conventions",
+      "pattern": "Import style: ESM (import/export)",
+      "confidence": 0.8
+    },
     { "dimension": "testing", "pattern": "Test framework: node:test", "confidence": 0.9 },
     { "dimension": "stack", "pattern": "Primary ecosystem: javascript", "confidence": 0.85 }
   ]

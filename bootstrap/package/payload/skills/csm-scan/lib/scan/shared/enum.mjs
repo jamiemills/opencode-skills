@@ -1,13 +1,13 @@
-import { statSync } from 'node:fs';
-import { join } from 'node:path';
-import { commandBroker } from './command.mjs';
-import { isIgnoredPath } from './ignore.mjs';
+import { statSync } from "node:fs";
+import { join } from "node:path";
+import { commandBroker } from "./command.mjs";
+import { isIgnoredPath } from "./ignore.mjs";
 
 function extOf(relPath) {
-  const base = relPath.split('/').pop() || '';
-  const dot = base.lastIndexOf('.');
+  const base = relPath.split("/").pop() || "";
+  const dot = base.lastIndexOf(".");
   if (dot > 0) return base.slice(dot).toLowerCase();
-  return '';
+  return "";
 }
 
 export function byExtension(files) {
@@ -29,19 +29,19 @@ export function sumSizes(repoPath, files) {
   return total;
 }
 
-const TRUNCATED_CODE = 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
+const TRUNCATED_CODE = "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
 
 function splitLines(stdout) {
   return stdout
-    .split('\n')
-    .map((s) => s.trim().replace(/\\/g, '/'))
+    .split("\n")
+    .map((s) => s.trim().replace(/\\/g, "/"))
     .filter(Boolean)
     .toSorted();
 }
 
 async function gitTrackedScope(repoPath, broker) {
   try {
-    const result = await broker.execute('git:ls-files', { cwd: repoPath });
+    const result = await broker.execute("git:ls-files", { cwd: repoPath });
     if (!result.ok) return null;
     const files = splitLines(result.stdout);
     return Object.freeze({
@@ -64,8 +64,8 @@ async function gitTrackedScope(repoPath, broker) {
 }
 
 export async function enumerate(repoPath, broker = commandBroker) {
-  const result = await broker.execute('rg:files', { cwd: repoPath });
-  const raw = result.ok || result.noMatch ? result.stdout : '';
+  const result = await broker.execute("rg:files", { cwd: repoPath });
+  const raw = result.ok || result.noMatch ? result.stdout : "";
 
   const files = splitLines(raw).filter((f) => !isIgnoredPath(f));
 
@@ -91,8 +91,8 @@ export async function enumerate(repoPath, broker = commandBroker) {
 // "no hidden files" — never silently report an empty list as coverage.
 export async function enumerateHiddenFiles(repoPath, broker = commandBroker) {
   try {
-    const result = await broker.execute('rg:files-hidden', { cwd: repoPath });
-    const raw = result.ok || result.noMatch ? result.stdout : '';
+    const result = await broker.execute("rg:files-hidden", { cwd: repoPath });
+    const raw = result.ok || result.noMatch ? result.stdout : "";
     const files = splitLines(raw).filter((f) => !isIgnoredPath(f));
     return Object.freeze({ files, failed: !(result.ok || result.noMatch) });
   } catch {

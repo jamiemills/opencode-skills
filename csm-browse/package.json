@@ -2,7 +2,7 @@
   "name": "csm-browse",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "node --test \"tests/unit/*.test.mjs\"",
@@ -11,11 +11,11 @@
   "dependencies": {
     "chrome-remote-interface": "^0.34.0"
   },
+  "devDependencies": {
+    "ws": "^7.5.13"
+  },
   "engines": {
     "node": ">=22 <25"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "ws": "^7.5.13"
-  }
+  "packageManager": "pnpm@10.33.0"
 }

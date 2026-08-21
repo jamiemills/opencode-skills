@@ -22,16 +22,16 @@
 //   8. Inertness — no production module imports the catalog; the catalog
 //      exports only data and pure factories, never execution surfaces.
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { withFixture } from './harness.mjs';
-import { scan as scanStack } from '../lib/scan/deep/stack.mjs';
-import { scan as scanConfig } from '../lib/scan/deep/config.mjs';
-import { scan as scanTesting } from '../lib/scan/deep/testing.mjs';
+import { withFixture } from "./harness.mjs";
+import { scan as scanStack } from "../lib/scan/deep/stack.mjs";
+import { scan as scanConfig } from "../lib/scan/deep/config.mjs";
+import { scan as scanTesting } from "../lib/scan/deep/testing.mjs";
 import {
   CONFIG_CATALOG_PROVIDER_ID,
   RUNTIME_CATALOG_PROVIDERS,
@@ -49,22 +49,20 @@ import {
   stackCatalogResult,
   testingCatalogObservations,
   testingCatalogResult,
-} from '../lib/scan/providers/runtime-catalog.mjs';
-import { validateProviders } from '../lib/scan/contracts/provider.mjs';
-import { PROVIDER_CATEGORIES } from '../lib/scan/contracts/provider.mjs';
-import {
-  EVIDENCE_SOURCE_KINDS,
-} from '../lib/scan/contracts/evidence.mjs';
-import { ProviderResultError, createProviderResult } from '../lib/scan/providers/base.mjs';
-import { GENERIC_LIMITS, GENERIC_PROVIDER_ID } from '../lib/scan/providers/generic.mjs';
-import { files as pythonFiles } from './fixtures/python.mjs';
-import { files as javascriptFiles } from './fixtures/javascript.mjs';
-import { files as typescriptFiles } from './fixtures/typescript.mjs';
-import { files as shellFiles } from './fixtures/shell.mjs';
-import { files as rustFiles } from './fixtures/rust.mjs';
+} from "../lib/scan/providers/runtime-catalog.mjs";
+import { validateProviders } from "../lib/scan/contracts/provider.mjs";
+import { PROVIDER_CATEGORIES } from "../lib/scan/contracts/provider.mjs";
+import { EVIDENCE_SOURCE_KINDS } from "../lib/scan/contracts/evidence.mjs";
+import { ProviderResultError, createProviderResult } from "../lib/scan/providers/base.mjs";
+import { GENERIC_LIMITS, GENERIC_PROVIDER_ID } from "../lib/scan/providers/generic.mjs";
+import { files as pythonFiles } from "./fixtures/python.mjs";
+import { files as javascriptFiles } from "./fixtures/javascript.mjs";
+import { files as typescriptFiles } from "./fixtures/typescript.mjs";
+import { files as shellFiles } from "./fixtures/shell.mjs";
+import { files as rustFiles } from "./fixtures/rust.mjs";
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
-const LIB_ROOT = join(TEST_ROOT, '..', 'lib');
+const LIB_ROOT = join(TEST_ROOT, "..", "lib");
 
 // ---------------------------------------------------------------------------
 // Parity snapshot: recorded adapter output for the five fixture ecosystems.
@@ -74,786 +72,786 @@ const LIB_ROOT = join(TEST_ROOT, '..', 'lib');
 // output breaks this snapshot.
 // ---------------------------------------------------------------------------
 const PARITY_SNAPSHOT = {
-  "python": {
-    "stack": [
+  python: {
+    stack: [
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language",
-        "details": {
-          "name": "Python"
+        category: "language",
+        path: null,
+        matchedKey: "language",
+        details: {
+          name: "Python",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language:python",
-        "details": {
-          "name": "python",
-          "label": "Python"
+        category: "language",
+        path: null,
+        matchedKey: "language:python",
+        details: {
+          name: "python",
+          label: "Python",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime",
-        "details": {
-          "name": "Python (declared: pyproject.toml#requires-python >=3.10)"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime",
+        details: {
+          name: "Python (declared: pyproject.toml#requires-python >=3.10)",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime-declaration:Python:manifest:pyproject.toml#requires-python",
-        "details": {
-          "runtime": "Python",
-          "kind": "manifest",
-          "version": ">=3.10",
-          "source": "pyproject.toml#requires-python"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime-declaration:Python:manifest:pyproject.toml#requires-python",
+        details: {
+          runtime: "Python",
+          kind: "manifest",
+          version: ">=3.10",
+          source: "pyproject.toml#requires-python",
         },
-        "sourceKind": "manifest"
+        sourceKind: "manifest",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime-pin:python",
-        "details": {
-          "name": "Python",
-          "version": ">=3.10"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime-pin:python",
+        details: {
+          name: "Python",
+          version: ">=3.10",
         },
-        "sourceKind": "version_file"
+        sourceKind: "version_file",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "framework:Click",
-        "details": {
-          "name": "Click"
+        category: "framework",
+        path: null,
+        matchedKey: "framework:Click",
+        details: {
+          name: "Click",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "framework:Rich",
-        "details": {
-          "name": "Rich"
+        category: "framework",
+        path: null,
+        matchedKey: "framework:Rich",
+        details: {
+          name: "Rich",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "framework:HTTPX",
-        "details": {
-          "name": "HTTPX"
+        category: "framework",
+        path: null,
+        matchedKey: "framework:HTTPX",
+        details: {
+          name: "HTTPX",
         },
-        "sourceKind": "repository_metadata"
-      }
+        sourceKind: "repository_metadata",
+      },
     ],
-    "config": [
+    config: [
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:ruff",
-        "details": {
-          "name": "ruff",
-          "config": "pyproject.toml:[tool.ruff]"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:ruff",
+        details: {
+          name: "ruff",
+          config: "pyproject.toml:[tool.ruff]",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:summary",
-        "details": {
-          "style": "flat",
-          "config": "ruff: pyproject.toml:[tool.ruff]"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:summary",
+        details: {
+          style: "flat",
+          config: "ruff: pyproject.toml:[tool.ruff]",
         },
-        "sourceKind": "config"
-      }
+        sourceKind: "config",
+      },
     ],
-    "testing": [
+    testing: [
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "test-framework:pytest",
-        "details": {
-          "name": "pytest"
+        category: "framework",
+        path: null,
+        matchedKey: "test-framework:pytest",
+        details: {
+          name: "pytest",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_directory",
-        "path": "tests",
-        "matchedKey": "test-directory:tests",
-        "details": {
-          "path": "tests"
+        category: "test_directory",
+        path: "tests",
+        matchedKey: "test-directory:tests",
+        details: {
+          path: "tests",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_file",
-        "path": "tests/test_core.py",
-        "matchedKey": "test-file:tests/test_core.py",
-        "details": {
-          "path": "tests/test_core.py"
+        category: "test_file",
+        path: "tests/test_core.py",
+        matchedKey: "test-file:tests/test_core.py",
+        details: {
+          path: "tests/test_core.py",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": null,
-        "matchedKey": "test-file-count",
-        "details": {
-          "fileCount": 1
+        category: "test_file",
+        path: null,
+        matchedKey: "test-file-count",
+        details: {
+          fileCount: 1,
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:a3c36ad8",
-        "details": {
-          "name": "tests/test_*.py"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:a3c36ad8",
+        details: {
+          name: "tests/test_*.py",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:e78f40a6",
-        "details": {
-          "name": "tests/**/test_*.py"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:e78f40a6",
+        details: {
+          name: "tests/**/test_*.py",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-config:0:pyproject.toml:[tool.pytest.ini_options]",
-        "details": {
-          "name": "pyproject.toml:[tool.pytest.ini_options]"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-config:0:pyproject.toml:[tool.pytest.ini_options]",
+        details: {
+          name: "pyproject.toml:[tool.pytest.ini_options]",
         },
-        "sourceKind": "config"
-      }
-    ]
+        sourceKind: "config",
+      },
+    ],
   },
-  "javascript": {
-    "stack": [
+  javascript: {
+    stack: [
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language",
-        "details": {
-          "name": "JavaScript"
+        category: "language",
+        path: null,
+        matchedKey: "language",
+        details: {
+          name: "JavaScript",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language:javascript",
-        "details": {
-          "name": "javascript",
-          "label": "JavaScript"
+        category: "language",
+        path: null,
+        matchedKey: "language:javascript",
+        details: {
+          name: "javascript",
+          label: "JavaScript",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime",
-        "details": {
-          "name": "Node.js (no declared runtime version)"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime",
+        details: {
+          name: "Node.js (no declared runtime version)",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "framework:Express",
-        "details": {
-          "name": "Express"
+        category: "framework",
+        path: null,
+        matchedKey: "framework:Express",
+        details: {
+          name: "Express",
         },
-        "sourceKind": "repository_metadata"
-      }
+        sourceKind: "repository_metadata",
+      },
     ],
-    "config": [
+    config: [
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:eslint",
-        "details": {
-          "name": "eslint",
-          "config": "eslint.config.ts"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:eslint",
+        details: {
+          name: "eslint",
+          config: "eslint.config.ts",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:summary",
-        "details": {
-          "style": "flat",
-          "config": "eslint: eslint.config.ts"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:summary",
+        details: {
+          style: "flat",
+          config: "eslint: eslint.config.ts",
         },
-        "sourceKind": "config"
-      }
+        sourceKind: "config",
+      },
     ],
-    "testing": [
+    testing: [
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "test-framework:Jest",
-        "details": {
-          "name": "Jest"
+        category: "framework",
+        path: null,
+        matchedKey: "test-framework:Jest",
+        details: {
+          name: "Jest",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "test-framework:71980435",
-        "details": {
-          "name": "node:test (Node test runner)"
+        category: "framework",
+        path: null,
+        matchedKey: "test-framework:71980435",
+        details: {
+          name: "node:test (Node test runner)",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_directory",
-        "path": "src",
-        "matchedKey": "test-directory:src",
-        "details": {
-          "path": "src"
+        category: "test_directory",
+        path: "src",
+        matchedKey: "test-directory:src",
+        details: {
+          path: "src",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_file",
-        "path": "src/index.test.js",
-        "matchedKey": "test-file:src/index.test.js",
-        "details": {
-          "path": "src/index.test.js"
+        category: "test_file",
+        path: "src/index.test.js",
+        matchedKey: "test-file:src/index.test.js",
+        details: {
+          path: "src/index.test.js",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": "src/util.spec.js",
-        "matchedKey": "test-file:src/util.spec.js",
-        "details": {
-          "path": "src/util.spec.js"
+        category: "test_file",
+        path: "src/util.spec.js",
+        matchedKey: "test-file:src/util.spec.js",
+        details: {
+          path: "src/util.spec.js",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": null,
-        "matchedKey": "test-file-count",
-        "details": {
-          "fileCount": 2
+        category: "test_file",
+        path: null,
+        matchedKey: "test-file-count",
+        details: {
+          fileCount: 2,
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:254c59ed",
-        "details": {
-          "name": "**/*.test.{js,mjs,cjs,jsx}"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:254c59ed",
+        details: {
+          name: "**/*.test.{js,mjs,cjs,jsx}",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:028d3471",
-        "details": {
-          "name": "**/*.spec.{js,mjs,cjs,jsx}"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:028d3471",
+        details: {
+          name: "**/*.spec.{js,mjs,cjs,jsx}",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "coverage",
-        "path": null,
-        "matchedKey": "coverage:340a041e",
-        "details": {
-          "name": "jest (built-in)"
+        category: "coverage",
+        path: null,
+        matchedKey: "coverage:340a041e",
+        details: {
+          name: "jest (built-in)",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-script",
-        "details": {
-          "script": "jest"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-script",
+        details: {
+          script: "jest",
         },
-        "sourceKind": "config"
-      }
-    ]
+        sourceKind: "config",
+      },
+    ],
   },
-  "typescript": {
-    "stack": [
+  typescript: {
+    stack: [
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language",
-        "details": {
-          "name": "TypeScript"
+        category: "language",
+        path: null,
+        matchedKey: "language",
+        details: {
+          name: "TypeScript",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language:typescript",
-        "details": {
-          "name": "typescript",
-          "label": "TypeScript"
+        category: "language",
+        path: null,
+        matchedKey: "language:typescript",
+        details: {
+          name: "typescript",
+          label: "TypeScript",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime",
-        "details": {
-          "name": "Node.js (no declared runtime version)"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime",
+        details: {
+          name: "Node.js (no declared runtime version)",
         },
-        "sourceKind": "repository_metadata"
-      }
+        sourceKind: "repository_metadata",
+      },
     ],
-    "config": [
+    config: [
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:eslint",
-        "details": {
-          "name": "eslint",
-          "config": "eslint.config.ts"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:eslint",
+        details: {
+          name: "eslint",
+          config: "eslint.config.ts",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:@typescript-eslint",
-        "details": {
-          "name": "@typescript-eslint",
-          "config": "eslint.config.ts"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:@typescript-eslint",
+        details: {
+          name: "@typescript-eslint",
+          config: "eslint.config.ts",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "type-checker:tsc",
-        "details": {
-          "name": "tsc",
-          "config": "tsconfig.json"
+        category: "configuration",
+        path: null,
+        matchedKey: "type-checker:tsc",
+        details: {
+          name: "tsc",
+          config: "tsconfig.json",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:summary",
-        "details": {
-          "style": "multi",
-          "config": "eslint: eslint.config.ts"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:summary",
+        details: {
+          style: "multi",
+          config: "eslint: eslint.config.ts",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "typescript:summary",
-        "details": {
-          "config": "tsconfig.json",
-          "strict": true,
-          "target": "ES2020",
-          "moduleResolution": null,
-          "module": "commonjs",
-          "noImplicitAny": false,
-          "composite": true,
-          "declaration": true
+        category: "configuration",
+        path: null,
+        matchedKey: "typescript:summary",
+        details: {
+          config: "tsconfig.json",
+          strict: true,
+          target: "ES2020",
+          moduleResolution: null,
+          module: "commonjs",
+          noImplicitAny: false,
+          composite: true,
+          declaration: true,
         },
-        "sourceKind": "config"
-      }
+        sourceKind: "config",
+      },
     ],
-    "testing": [
+    testing: [
       {
-        "category": "test_directory",
-        "path": "src",
-        "matchedKey": "test-directory:src",
-        "details": {
-          "path": "src"
+        category: "test_directory",
+        path: "src",
+        matchedKey: "test-directory:src",
+        details: {
+          path: "src",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_file",
-        "path": "src/index.spec.ts",
-        "matchedKey": "test-file:src/index.spec.ts",
-        "details": {
-          "path": "src/index.spec.ts"
+        category: "test_file",
+        path: "src/index.spec.ts",
+        matchedKey: "test-file:src/index.spec.ts",
+        details: {
+          path: "src/index.spec.ts",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": null,
-        "matchedKey": "test-file-count",
-        "details": {
-          "fileCount": 1
+        category: "test_file",
+        path: null,
+        matchedKey: "test-file-count",
+        details: {
+          fileCount: 1,
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:da95b822",
-        "details": {
-          "name": "**/*.{test,spec}.{ts,tsx,mts,cts}"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:da95b822",
+        details: {
+          name: "**/*.{test,spec}.{ts,tsx,mts,cts}",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-config:0:tsconfig.json",
-        "details": {
-          "name": "tsconfig.json"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-config:0:tsconfig.json",
+        details: {
+          name: "tsconfig.json",
         },
-        "sourceKind": "config"
-      }
-    ]
+        sourceKind: "config",
+      },
+    ],
   },
-  "shell": {
-    "stack": [
+  shell: {
+    stack: [
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language",
-        "details": {
-          "name": "Shell"
+        category: "language",
+        path: null,
+        matchedKey: "language",
+        details: {
+          name: "Shell",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language:shell",
-        "details": {
-          "name": "shell",
-          "label": "Shell"
+        category: "language",
+        path: null,
+        matchedKey: "language:shell",
+        details: {
+          name: "shell",
+          label: "Shell",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime",
-        "details": {
-          "name": "Shell (no declared runtime version)"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime",
+        details: {
+          name: "Shell (no declared runtime version)",
         },
-        "sourceKind": "repository_metadata"
-      }
+        sourceKind: "repository_metadata",
+      },
     ],
-    "config": [
+    config: [
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:shellcheck",
-        "details": {
-          "name": "shellcheck",
-          "config": ".shellcheckrc"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:shellcheck",
+        details: {
+          name: "shellcheck",
+          config: ".shellcheckrc",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "type-checker:shellcheck",
-        "details": {
-          "name": "shellcheck",
-          "config": ".shellcheckrc"
+        category: "configuration",
+        path: null,
+        matchedKey: "type-checker:shellcheck",
+        details: {
+          name: "shellcheck",
+          config: ".shellcheckrc",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "lint",
-        "path": null,
-        "matchedKey": "lint:summary",
-        "details": {
-          "style": "flat",
-          "config": "shellcheck: .shellcheckrc"
+        category: "lint",
+        path: null,
+        matchedKey: "lint:summary",
+        details: {
+          style: "flat",
+          config: "shellcheck: .shellcheckrc",
         },
-        "sourceKind": "config"
-      }
+        sourceKind: "config",
+      },
     ],
-    "testing": [
+    testing: [
       {
-        "category": "test_directory",
-        "path": "tests",
-        "matchedKey": "test-directory:tests",
-        "details": {
-          "path": "tests"
+        category: "test_directory",
+        path: "tests",
+        matchedKey: "test-directory:tests",
+        details: {
+          path: "tests",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_file",
-        "path": "tests/test_build.bats",
-        "matchedKey": "test-file:tests/test_build.bats",
-        "details": {
-          "path": "tests/test_build.bats"
+        category: "test_file",
+        path: "tests/test_build.bats",
+        matchedKey: "test-file:tests/test_build.bats",
+        details: {
+          path: "tests/test_build.bats",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": null,
-        "matchedKey": "test-file-count",
-        "details": {
-          "fileCount": 1
+        category: "test_file",
+        path: null,
+        matchedKey: "test-file-count",
+        details: {
+          fileCount: 1,
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:dec31114",
-        "details": {
-          "name": "*.bats"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:dec31114",
+        details: {
+          name: "*.bats",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:b5ef05fc",
-        "details": {
-          "name": "tests/**/*.bats"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:b5ef05fc",
+        details: {
+          name: "tests/**/*.bats",
         },
-        "sourceKind": "repository_metadata"
-      }
-    ]
+        sourceKind: "repository_metadata",
+      },
+    ],
   },
-  "rust": {
-    "stack": [
+  rust: {
+    stack: [
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language",
-        "details": {
-          "name": "Rust"
+        category: "language",
+        path: null,
+        matchedKey: "language",
+        details: {
+          name: "Rust",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "language",
-        "path": null,
-        "matchedKey": "language:rust",
-        "details": {
-          "name": "rust",
-          "label": "Rust"
+        category: "language",
+        path: null,
+        matchedKey: "language:rust",
+        details: {
+          name: "rust",
+          label: "Rust",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime",
-        "details": {
-          "name": "Rust (declared: Cargo.toml#rust-version 1.75)"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime",
+        details: {
+          name: "Rust (declared: Cargo.toml#rust-version 1.75)",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime-declaration:Rust:manifest:Cargo.toml#rust-version",
-        "details": {
-          "runtime": "Rust",
-          "kind": "manifest",
-          "version": "1.75",
-          "source": "Cargo.toml#rust-version"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime-declaration:Rust:manifest:Cargo.toml#rust-version",
+        details: {
+          runtime: "Rust",
+          kind: "manifest",
+          version: "1.75",
+          source: "Cargo.toml#rust-version",
         },
-        "sourceKind": "manifest"
+        sourceKind: "manifest",
       },
       {
-        "category": "runtime",
-        "path": null,
-        "matchedKey": "runtime-pin:rust",
-        "details": {
-          "name": "Rust",
-          "version": "1.75"
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime-pin:rust",
+        details: {
+          name: "Rust",
+          version: "1.75",
         },
-        "sourceKind": "version_file"
+        sourceKind: "version_file",
       },
       {
-        "category": "package_manager",
-        "path": null,
-        "matchedKey": "package-manager:cargo",
-        "details": {
-          "name": "cargo"
+        category: "package_manager",
+        path: null,
+        matchedKey: "package-manager:cargo",
+        details: {
+          name: "cargo",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "framework:Serde",
-        "details": {
-          "name": "Serde"
+        category: "framework",
+        path: null,
+        matchedKey: "framework:Serde",
+        details: {
+          name: "Serde",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "framework:Tokio",
-        "details": {
-          "name": "Tokio"
+        category: "framework",
+        path: null,
+        matchedKey: "framework:Tokio",
+        details: {
+          name: "Tokio",
         },
-        "sourceKind": "repository_metadata"
-      }
+        sourceKind: "repository_metadata",
+      },
     ],
-    "config": [
+    config: [
       {
-        "category": "format",
-        "path": null,
-        "matchedKey": "format:rustfmt",
-        "details": {
-          "name": "rustfmt",
-          "config": "rustfmt.toml"
+        category: "format",
+        path: null,
+        matchedKey: "format:rustfmt",
+        details: {
+          name: "rustfmt",
+          config: "rustfmt.toml",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "type-checker:rustc",
-        "details": {
-          "name": "rustc",
-          "config": "Cargo.toml"
+        category: "configuration",
+        path: null,
+        matchedKey: "type-checker:rustc",
+        details: {
+          name: "rustc",
+          config: "Cargo.toml",
         },
-        "sourceKind": "config"
+        sourceKind: "config",
       },
       {
-        "category": "format",
-        "path": null,
-        "matchedKey": "format:summary",
-        "details": {
-          "name": "rustfmt"
+        category: "format",
+        path: null,
+        matchedKey: "format:summary",
+        details: {
+          name: "rustfmt",
         },
-        "sourceKind": "config"
-      }
+        sourceKind: "config",
+      },
     ],
-    "testing": [
+    testing: [
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "test-framework:8bf163ea",
-        "details": {
-          "name": "cargo test"
+        category: "framework",
+        path: null,
+        matchedKey: "test-framework:8bf163ea",
+        details: {
+          name: "cargo test",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "framework",
-        "path": null,
-        "matchedKey": "test-framework:builtin",
-        "details": {
-          "name": "builtin"
+        category: "framework",
+        path: null,
+        matchedKey: "test-framework:builtin",
+        details: {
+          name: "builtin",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_directory",
-        "path": "src",
-        "matchedKey": "test-directory:src",
-        "details": {
-          "path": "src"
+        category: "test_directory",
+        path: "src",
+        matchedKey: "test-directory:src",
+        details: {
+          path: "src",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_directory",
-        "path": "tests",
-        "matchedKey": "test-directory:tests",
-        "details": {
-          "path": "tests"
+        category: "test_directory",
+        path: "tests",
+        matchedKey: "test-directory:tests",
+        details: {
+          path: "tests",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "test_file",
-        "path": "src/lib.rs",
-        "matchedKey": "test-file:src/lib.rs",
-        "details": {
-          "path": "src/lib.rs"
+        category: "test_file",
+        path: "src/lib.rs",
+        matchedKey: "test-file:src/lib.rs",
+        details: {
+          path: "src/lib.rs",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": "tests/integration.rs",
-        "matchedKey": "test-file:tests/integration.rs",
-        "details": {
-          "path": "tests/integration.rs"
+        category: "test_file",
+        path: "tests/integration.rs",
+        matchedKey: "test-file:tests/integration.rs",
+        details: {
+          path: "tests/integration.rs",
         },
-        "sourceKind": "source"
+        sourceKind: "source",
       },
       {
-        "category": "test_file",
-        "path": null,
-        "matchedKey": "test-file-count",
-        "details": {
-          "fileCount": 2
+        category: "test_file",
+        path: null,
+        matchedKey: "test-file-count",
+        details: {
+          fileCount: 2,
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:f2835684",
-        "details": {
-          "name": "tests/**/*.rs"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:f2835684",
+        details: {
+          name: "tests/**/*.rs",
         },
-        "sourceKind": "repository_metadata"
+        sourceKind: "repository_metadata",
       },
       {
-        "category": "configuration",
-        "path": null,
-        "matchedKey": "test-naming:f5312211",
-        "details": {
-          "name": "src/**/*.rs (#[test] inline)"
+        category: "configuration",
+        path: null,
+        matchedKey: "test-naming:f5312211",
+        details: {
+          name: "src/**/*.rs (#[test] inline)",
         },
-        "sourceKind": "repository_metadata"
-      }
-    ]
-  }
+        sourceKind: "repository_metadata",
+      },
+    ],
+  },
 };
 
 const FIXTURES = {
-  python: { files: pythonFiles, language: 'Python' },
-  javascript: { files: javascriptFiles, language: 'JavaScript' },
-  typescript: { files: typescriptFiles, language: 'TypeScript' },
-  shell: { files: shellFiles, language: 'Shell' },
-  rust: { files: rustFiles, language: 'Rust' },
+  python: { files: pythonFiles, language: "Python" },
+  javascript: { files: javascriptFiles, language: "JavaScript" },
+  typescript: { files: typescriptFiles, language: "TypeScript" },
+  shell: { files: shellFiles, language: "Shell" },
+  rust: { files: rustFiles, language: "Rust" },
 };
 
 const DIMENSIONS = [
-  ['stack', 'DIM-stack-v1'],
-  ['config', 'DIM-config-v1'],
-  ['testing', 'DIM-testing-v1'],
+  ["stack", "DIM-stack-v1"],
+  ["config", "DIM-config-v1"],
+  ["testing", "DIM-testing-v1"],
 ];
 
 async function parityInput(name) {
@@ -865,8 +863,14 @@ async function parityInput(name) {
     const testing = await scanTesting(dir, overview);
     return {
       stack: { findings: stack.findings, observations: stackCatalogObservations(stack.findings) },
-      config: { findings: config.findings, observations: configCatalogObservations(config.findings) },
-      testing: { findings: testing.findings, observations: testingCatalogObservations(testing.findings) },
+      config: {
+        findings: config.findings,
+        observations: configCatalogObservations(config.findings),
+      },
+      testing: {
+        findings: testing.findings,
+        observations: testingCatalogObservations(testing.findings),
+      },
     };
   });
 }
@@ -875,13 +879,15 @@ async function parityInput(name) {
 // Registry (T202 provider contract)
 // ---------------------------------------------------------------------------
 
-test('T218 registry: versioned, sorted, deep-frozen, and duplicate-free', () => {
+test("T218 registry: versioned, sorted, deep-frozen, and duplicate-free", () => {
   assert.equal(RUNTIME_CATALOG_VERSION, 1);
   assert.equal(RUNTIME_CATALOG_PROVIDERS.length, 4);
   assert.ok(Object.isFrozen(RUNTIME_CATALOG_PROVIDERS));
-  assert.ok(RUNTIME_CATALOG_PROVIDERS.every((entry) => (
-    Object.isFrozen(entry) && Object.isFrozen(entry.dimensions)
-  )));
+  assert.ok(
+    RUNTIME_CATALOG_PROVIDERS.every(
+      (entry) => Object.isFrozen(entry) && Object.isFrozen(entry.dimensions),
+    ),
+  );
   const ids = RUNTIME_CATALOG_PROVIDERS.map(({ id }) => id);
   assert.deepEqual(ids, [...ids].toSorted());
   assert.equal(new Set(ids).size, ids.length);
@@ -889,38 +895,66 @@ test('T218 registry: versioned, sorted, deep-frozen, and duplicate-free', () => 
   assert.ok(ids.includes(CONFIG_CATALOG_PROVIDER_ID));
   assert.ok(ids.includes(TESTING_CATALOG_PROVIDER_ID));
   assert.ok(ids.includes(GENERIC_PROVIDER_ID));
-  assert.equal(JSON.stringify(RUNTIME_CATALOG_PROVIDERS), JSON.stringify(RUNTIME_CATALOG_PROVIDERS));
+  assert.equal(
+    JSON.stringify(RUNTIME_CATALOG_PROVIDERS),
+    JSON.stringify(RUNTIME_CATALOG_PROVIDERS),
+  );
 });
 
-test('T218 registry: every dimension/category is allowlisted and unique', () => {
+test("T218 registry: every dimension/category is allowlisted and unique", () => {
   for (const provider of RUNTIME_CATALOG_PROVIDERS) {
     const dimensions = provider.dimensions.map(({ dimensionId }) => dimensionId);
     assert.equal(new Set(dimensions).size, dimensions.length, provider.id);
     for (const { dimensionId, categories } of provider.dimensions) {
       assert.equal(new Set(categories).size, categories.length, `${provider.id}:${dimensionId}`);
       for (const category of categories) {
-        assert.ok(PROVIDER_CATEGORIES[dimensionId].includes(category),
-          `${provider.id}:${dimensionId}:${category} is not allowlisted`);
+        assert.ok(
+          PROVIDER_CATEGORIES[dimensionId].includes(category),
+          `${provider.id}:${dimensionId}:${category} is not allowlisted`,
+        );
       }
     }
   }
 });
 
-test('T218 registry: duplicate provider ids and unknown/duplicate categories are rejected', () => {
-  const base = { apiVersion: 1, dimensions: [{ dimensionId: 'DIM-stack-v1', categories: ['language'] }] };
-  assert.throws(() => validateProviders([{ ...base, id: 'PRV-dupe-v1' }, { ...base, id: 'PRV-dupe-v1' }]),
-    (error) => error.code === 'DUPLICATE_ID');
-  assert.throws(() => validateProviders([{
-    ...base, id: 'PRV-unknown-v1',
-    dimensions: [{ dimensionId: 'DIM-stack-v1', categories: ['route'] }],
-  }]), (error) => error.code === 'UNKNOWN_CATEGORY');
-  assert.throws(() => validateProviders([{
-    id: 'PRV-dupe-dims-v1', apiVersion: 1,
-    dimensions: [
-      { dimensionId: 'DIM-stack-v1', categories: ['language'] },
-      { dimensionId: 'DIM-stack-v1', categories: ['runtime'] },
-    ],
-  }]), (error) => error.code === 'DUPLICATE_ID');
+test("T218 registry: duplicate provider ids and unknown/duplicate categories are rejected", () => {
+  const base = {
+    apiVersion: 1,
+    dimensions: [{ dimensionId: "DIM-stack-v1", categories: ["language"] }],
+  };
+  assert.throws(
+    () =>
+      validateProviders([
+        { ...base, id: "PRV-dupe-v1" },
+        { ...base, id: "PRV-dupe-v1" },
+      ]),
+    (error) => error.code === "DUPLICATE_ID",
+  );
+  assert.throws(
+    () =>
+      validateProviders([
+        {
+          ...base,
+          id: "PRV-unknown-v1",
+          dimensions: [{ dimensionId: "DIM-stack-v1", categories: ["route"] }],
+        },
+      ]),
+    (error) => error.code === "UNKNOWN_CATEGORY",
+  );
+  assert.throws(
+    () =>
+      validateProviders([
+        {
+          id: "PRV-dupe-dims-v1",
+          apiVersion: 1,
+          dimensions: [
+            { dimensionId: "DIM-stack-v1", categories: ["language"] },
+            { dimensionId: "DIM-stack-v1", categories: ["runtime"] },
+          ],
+        },
+      ]),
+    (error) => error.code === "DUPLICATE_ID",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -932,13 +966,16 @@ for (const [name, expected] of Object.entries(PARITY_SNAPSHOT)) {
     const actual = await parityInput(name);
     for (const [dim] of DIMENSIONS) {
       assert.deepEqual(actual[dim].observations, expected[dim], `${name}:${dim} observation set`);
-      assert.equal(JSON.stringify(actual[dim].observations), JSON.stringify(expected[dim]),
-        `${name}:${dim} must be byte-identical`);
+      assert.equal(
+        JSON.stringify(actual[dim].observations),
+        JSON.stringify(expected[dim]),
+        `${name}:${dim} must be byte-identical`,
+      );
     }
   });
 }
 
-test('T218 parity: repeated scanner+adapter runs are byte-identical for all fixtures', async () => {
+test("T218 parity: repeated scanner+adapter runs are byte-identical for all fixtures", async () => {
   for (const name of Object.keys(FIXTURES)) {
     const first = await parityInput(name);
     const second = await parityInput(name);
@@ -946,221 +983,279 @@ test('T218 parity: repeated scanner+adapter runs are byte-identical for all fixt
   }
 });
 
-test('T218 parity: every snapshot observation uses an allowlisted category and source kind', () => {
+test("T218 parity: every snapshot observation uses an allowlisted category and source kind", () => {
   for (const [name, expected] of Object.entries(PARITY_SNAPSHOT)) {
     for (const [dim, dimensionId] of DIMENSIONS) {
       for (const observation of expected[dim]) {
-        assert.ok(PROVIDER_CATEGORIES[dimensionId].includes(observation.category),
-          `${name}:${dim} invalid category ${observation.category}`);
-        assert.ok(EVIDENCE_SOURCE_KINDS.includes(observation.sourceKind),
-          `${name}:${dim} invalid sourceKind ${observation.sourceKind}`);
+        assert.ok(
+          PROVIDER_CATEGORIES[dimensionId].includes(observation.category),
+          `${name}:${dim} invalid category ${observation.category}`,
+        );
+        assert.ok(
+          EVIDENCE_SOURCE_KINDS.includes(observation.sourceKind),
+          `${name}:${dim} invalid sourceKind ${observation.sourceKind}`,
+        );
       }
     }
   }
 });
 
-test('T218 parity: adapter results are valid, frozen, and reflect the live findings', async () => {
-  const python = await parityInput('python');
+test("T218 parity: adapter results are valid, frozen, and reflect the live findings", async () => {
+  const python = await parityInput("python");
   const stackResult = stackCatalogResult(python.stack.findings);
   assert.equal(stackResult.providerId, STACK_CATALOG_PROVIDER_ID);
-  assert.equal(stackResult.dimensionId, 'DIM-stack-v1');
+  assert.equal(stackResult.dimensionId, "DIM-stack-v1");
   assert.ok(Object.isFrozen(stackResult));
   assert.ok(Object.isFrozen(stackResult.observations));
   const stackKeys = stackResult.observations.map(({ matchedKey }) => matchedKey);
-  assert.deepEqual(stackKeys.slice(0, 3), ['framework:Click', 'framework:HTTPX', 'framework:Rich']);
-  assert.deepEqual(stackKeys.slice(3, 5), ['language', 'language:python']);
-  assert.ok(stackKeys.includes('runtime'));
-  const runtimeObservation = stackResult.observations.find(({ matchedKey }) => matchedKey === 'runtime');
+  assert.deepEqual(stackKeys.slice(0, 3), ["framework:Click", "framework:HTTPX", "framework:Rich"]);
+  assert.deepEqual(stackKeys.slice(3, 5), ["language", "language:python"]);
+  assert.ok(stackKeys.includes("runtime"));
+  const runtimeObservation = stackResult.observations.find(
+    ({ matchedKey }) => matchedKey === "runtime",
+  );
   assert.deepEqual(runtimeObservation.details, { name: python.stack.findings.runtime });
   const configResult = configCatalogResult(python.config.findings);
-  assert.equal(configResult.observations[0].category, 'lint');
+  assert.equal(configResult.observations[0].category, "lint");
   const testingResult = testingCatalogResult(python.testing.findings);
-  assert.ok(testingResult.observations.some(({ matchedKey }) => matchedKey === 'test-file-count'));
+  assert.ok(testingResult.observations.some(({ matchedKey }) => matchedKey === "test-file-count"));
 });
 
-test('T218 parity: results carry unique observations per dimension', async () => {
+test("T218 parity: results carry unique observations per dimension", async () => {
   for (const name of Object.keys(FIXTURES)) {
     const actual = await parityInput(name);
     for (const [dim] of DIMENSIONS) {
-      const result = dim === 'stack'
-        ? stackCatalogResult(actual.stack.findings)
-        : dim === 'config'
-          ? configCatalogResult(actual.config.findings)
-          : testingCatalogResult(actual.testing.findings);
+      const result =
+        dim === "stack"
+          ? stackCatalogResult(actual.stack.findings)
+          : dim === "config"
+            ? configCatalogResult(actual.config.findings)
+            : testingCatalogResult(actual.testing.findings);
       if (result === null) continue;
       const identities = result.observations.map((observation) => JSON.stringify(observation));
-      assert.equal(new Set(identities).size, identities.length, `${name}:${dim} duplicate observations`);
+      assert.equal(
+        new Set(identities).size,
+        identities.length,
+        `${name}:${dim} duplicate observations`,
+      );
     }
   }
 });
 
-test('T218 parity: runtimeCatalogResults is deterministic and canonically ordered', async () => {
-  const python = await parityInput('python');
-  const build = () => runtimeCatalogResults({
-    stack: python.stack.findings,
-    config: python.config.findings,
-    testing: python.testing.findings,
-  });
+test("T218 parity: runtimeCatalogResults is deterministic and canonically ordered", async () => {
+  const python = await parityInput("python");
+  const build = () =>
+    runtimeCatalogResults({
+      stack: python.stack.findings,
+      config: python.config.findings,
+      testing: python.testing.findings,
+    });
   const first = build();
   const second = build();
   assert.equal(JSON.stringify(first), JSON.stringify(second));
-  assert.equal(first.mode, 'builtin');
+  assert.equal(first.mode, "builtin");
   const order = first.results.map(({ dimensionId }) => dimensionId);
   assert.deepEqual(order, [...order].toSorted());
-  assert.deepEqual(order, ['DIM-config-v1', 'DIM-stack-v1', 'DIM-testing-v1']);
+  assert.deepEqual(order, ["DIM-config-v1", "DIM-stack-v1", "DIM-testing-v1"]);
 });
 
 // ---------------------------------------------------------------------------
 // Generic fallback (unknown languages)
 // ---------------------------------------------------------------------------
 
-test('T218 generic: unknown-language repos get artifact-only generic results, never built-in claims', () => {
+test("T218 generic: unknown-language repos get artifact-only generic results, never built-in claims", () => {
   const unknown = runtimeCatalogResults({
-    languages: ['Zeta'],
+    languages: ["Zeta"],
     ecosystems: [],
-    files: ['src/main.zzz', 'README.md', 'Cargo.lock'],
+    files: ["src/main.zzz", "README.md", "Cargo.lock"],
   });
-  assert.equal(unknown.mode, 'generic');
+  assert.equal(unknown.mode, "generic");
   assert.ok(unknown.results.length > 0);
   assert.ok(unknown.results.every(({ providerId }) => providerId === GENERIC_PROVIDER_ID));
-  assert.ok(!unknown.results.some(({ dimensionId }) => (
-    ['DIM-stack-v1', 'DIM-config-v1', 'DIM-testing-v1'].includes(dimensionId)
-  )));
+  assert.ok(
+    !unknown.results.some(({ dimensionId }) =>
+      ["DIM-stack-v1", "DIM-config-v1", "DIM-testing-v1"].includes(dimensionId),
+    ),
+  );
   const serialized = JSON.stringify(unknown.results);
-  for (const forbidden of ['importEdge', 'sourceSyntax', 'firstClass']) {
+  for (const forbidden of ["importEdge", "sourceSyntax", "firstClass"]) {
     assert.equal(serialized.includes(forbidden), false, `generic claimed ${forbidden}`);
   }
-  const categories = unknown.results.flatMap(({ observations }) => observations.map(({ category }) => category));
-  assert.ok(!categories.includes('language'));
-  assert.ok(!categories.includes('runtime'));
-  assert.ok(!categories.includes('framework'));
+  const categories = unknown.results.flatMap(({ observations }) =>
+    observations.map(({ category }) => category),
+  );
+  assert.ok(!categories.includes("language"));
+  assert.ok(!categories.includes("runtime"));
+  assert.ok(!categories.includes("framework"));
 });
 
-test('T218 generic: unknown language bypasses built-in findings even when findings are present', () => {
+test("T218 generic: unknown language bypasses built-in findings even when findings are present", () => {
   const builtin = runtimeCatalogResults({
-    languages: ['Zeta'],
+    languages: ["Zeta"],
     ecosystems: [],
     files: [],
-    stack: { language: 'Zeta', runtime: 'Zeta (declared)' },
+    stack: { language: "Zeta", runtime: "Zeta (declared)" },
   });
-  assert.equal(builtin.mode, 'generic');
+  assert.equal(builtin.mode, "generic");
   assert.deepEqual(builtin.results, []);
 });
 
-test('T218 generic: known ecosystems keep built-in mode', () => {
-  const builtin = runtimeCatalogResults({ languages: ['Python'], ecosystems: ['python'], files: [] });
-  assert.equal(builtin.mode, 'builtin');
-  const manifestOnly = runtimeCatalogResults({ manifestEcosystems: ['rust'], files: [] });
-  assert.equal(manifestOnly.mode, 'builtin');
+test("T218 generic: known ecosystems keep built-in mode", () => {
+  const builtin = runtimeCatalogResults({
+    languages: ["Python"],
+    ecosystems: ["python"],
+    files: [],
+  });
+  assert.equal(builtin.mode, "builtin");
+  const manifestOnly = runtimeCatalogResults({ manifestEcosystems: ["rust"], files: [] });
+  assert.equal(manifestOnly.mode, "builtin");
 });
 
-test('T218 generic: more than 2048 distinct extensions thread the capped flag through the envelope', () => {
+test("T218 generic: more than 2048 distinct extensions thread the capped flag through the envelope", () => {
   const distinctExtensions = GENERIC_LIMITS.maxObservations + 2;
   const files = [];
   for (let index = 0; index < distinctExtensions; index++) {
-    files.push(`src/file${String(index).padStart(4, '0')}.ext${String(index).padStart(4, '0')}`);
+    files.push(`src/file${String(index).padStart(4, "0")}.ext${String(index).padStart(4, "0")}`);
   }
-  assert.equal(new Set(files.map((path) => path.slice(path.lastIndexOf('.')))).size, distinctExtensions);
+  assert.equal(
+    new Set(files.map((path) => path.slice(path.lastIndexOf(".")))).size,
+    distinctExtensions,
+  );
   const envelope = runtimeCatalogResults({
-    languages: ['Zeta'],
+    languages: ["Zeta"],
     ecosystems: [],
     files,
   });
-  assert.equal(envelope.mode, 'generic');
-  assert.equal(envelope.capped, true, 'generic fallback capped flag is threaded through the envelope');
-  const maintainability = envelope.results.find(({ dimensionId }) => dimensionId === 'DIM-maintainability-v1');
-  assert.ok(maintainability, 'maintainability result is present');
+  assert.equal(envelope.mode, "generic");
+  assert.equal(
+    envelope.capped,
+    true,
+    "generic fallback capped flag is threaded through the envelope",
+  );
+  const maintainability = envelope.results.find(
+    ({ dimensionId }) => dimensionId === "DIM-maintainability-v1",
+  );
+  assert.ok(maintainability, "maintainability result is present");
   assert.equal(maintainability.observations.length, GENERIC_LIMITS.maxObservations);
-  assert.ok(maintainability.observations.some(({ matchedKey }) => matchedKey === 'measurement-universe'),
-    'measurement-universe record is retained after truncation');
-  assert.equal(maintainability.observations.filter(({ category }) => category === 'file_metric').length,
+  assert.ok(
+    maintainability.observations.some(({ matchedKey }) => matchedKey === "measurement-universe"),
+    "measurement-universe record is retained after truncation",
+  );
+  assert.equal(
+    maintainability.observations.filter(({ category }) => category === "file_metric").length,
     GENERIC_LIMITS.maxObservations - 1,
-    'exactly maxObservations - 1 file_metric observations remain after the cap');
+    "exactly maxObservations - 1 file_metric observations remain after the cap",
+  );
 });
 
 // ---------------------------------------------------------------------------
 // Plugin declarative observations (T210 merge rules)
 // ---------------------------------------------------------------------------
 
-test('T218 plugin: declarative matches contribute but never replace built-in findings', async () => {
-  const python = await parityInput('python');
+test("T218 plugin: declarative matches contribute but never replace built-in findings", async () => {
+  const python = await parityInput("python");
   const builtin = stackCatalogResult(python.stack.findings);
-  assert.ok(builtin, 'python stack built-in result is present');
+  assert.ok(builtin, "python stack built-in result is present");
 
   const matches = [
     {
-      ruleId: 'RUL-zeta-runtime-v1', label: 'Zeta runtime marker',
-      dimensionId: 'DIM-stack-v1', category: 'runtime', path: 'zetafile',
+      ruleId: "RUL-zeta-runtime-v1",
+      label: "Zeta runtime marker",
+      dimensionId: "DIM-stack-v1",
+      category: "runtime",
+      path: "zetafile",
     },
   ];
   const pluginObservations = pluginObservationsFromMatches(matches);
-  assert.deepEqual(pluginObservations, [{
-    category: 'runtime',
-    path: 'zetafile',
-    matchedKey: 'plugin-rule:RUL-zeta-runtime-v1',
-    details: { ruleId: 'RUL-zeta-runtime-v1', label: 'Zeta runtime marker' },
-    sourceKind: 'artifact_metadata',
-  }]);
+  assert.deepEqual(pluginObservations, [
+    {
+      category: "runtime",
+      path: "zetafile",
+      matchedKey: "plugin-rule:RUL-zeta-runtime-v1",
+      details: { ruleId: "RUL-zeta-runtime-v1", label: "Zeta runtime marker" },
+      sourceKind: "artifact_metadata",
+    },
+  ]);
 
-  const plugin = pluginResultFromObservations('DIM-stack-v1', pluginObservations);
+  const plugin = pluginResultFromObservations("DIM-stack-v1", pluginObservations);
   const merged = mergeRuntimePlugin({ builtin, plugin });
 
   assert.equal(merged.providerId, STACK_CATALOG_PROVIDER_ID);
   const keys = merged.observations.map(({ matchedKey }) => matchedKey);
   const builtinKeys = builtin.observations.map(({ matchedKey }) => matchedKey);
-  assert.deepEqual(keys.slice(0, builtinKeys.length), builtinKeys, 'built-in observations come first');
-  assert.deepEqual(keys.slice(builtinKeys.length), ['plugin-rule:RUL-zeta-runtime-v1']);
-  const mergedRuntime = merged.observations.find(({ matchedKey }) => matchedKey === 'runtime');
-  const builtinRuntime = builtin.observations.find(({ matchedKey }) => matchedKey === 'runtime');
-  assert.deepEqual(mergedRuntime, builtinRuntime, 'built-in runtime finding is never replaced');
+  assert.deepEqual(
+    keys.slice(0, builtinKeys.length),
+    builtinKeys,
+    "built-in observations come first",
+  );
+  assert.deepEqual(keys.slice(builtinKeys.length), ["plugin-rule:RUL-zeta-runtime-v1"]);
+  const mergedRuntime = merged.observations.find(({ matchedKey }) => matchedKey === "runtime");
+  const builtinRuntime = builtin.observations.find(({ matchedKey }) => matchedKey === "runtime");
+  assert.deepEqual(mergedRuntime, builtinRuntime, "built-in runtime finding is never replaced");
   assert.ok(Object.isFrozen(merged));
 });
 
-test('T218 plugin: exact duplicate plugin observations are dropped and never rewrite built-ins', async () => {
-  const python = await parityInput('python');
+test("T218 plugin: exact duplicate plugin observations are dropped and never rewrite built-ins", async () => {
+  const python = await parityInput("python");
   const builtin = stackCatalogResult(python.stack.findings);
-  const languageObservation = builtin.observations.find(({ matchedKey }) => matchedKey === 'language');
+  const languageObservation = builtin.observations.find(
+    ({ matchedKey }) => matchedKey === "language",
+  );
   const plugin = createProviderResult({
     providerId: RUNTIME_PLUGIN_PROVIDER_ID,
-    dimensionId: 'DIM-stack-v1',
+    dimensionId: "DIM-stack-v1",
     observations: [
       languageObservation,
       {
-        category: 'package_manager', path: null, matchedKey: 'package-manager:pnpm',
-        details: { name: 'pnpm' }, sourceKind: 'repository_metadata',
+        category: "package_manager",
+        path: null,
+        matchedKey: "package-manager:pnpm",
+        details: { name: "pnpm" },
+        sourceKind: "repository_metadata",
       },
     ],
   });
   const merged = mergeRuntimePlugin({ builtin, plugin });
   assert.equal(
-    merged.observations.filter(({ matchedKey }) => matchedKey === 'language').length,
+    merged.observations.filter(({ matchedKey }) => matchedKey === "language").length,
     1,
-    'exact duplicate is dropped',
+    "exact duplicate is dropped",
   );
-  assert.ok(merged.observations.some(({ matchedKey }) => matchedKey === 'package-manager:pnpm'));
+  assert.ok(merged.observations.some(({ matchedKey }) => matchedKey === "package-manager:pnpm"));
 });
 
-test('T218 plugin: runtimeCatalogResults merges per-dimension plugin observations', async () => {
-  const python = await parityInput('python');
+test("T218 plugin: runtimeCatalogResults merges per-dimension plugin observations", async () => {
+  const python = await parityInput("python");
   const envelope = runtimeCatalogResults({
     stack: python.stack.findings,
     config: python.config.findings,
     testing: python.testing.findings,
     pluginObservations: {
-      'DIM-stack-v1': [{
-        category: 'runtime', path: null, matchedKey: 'plugin-runtime:zeta',
-        details: { name: 'Zeta' }, sourceKind: 'artifact_metadata',
-      }],
+      "DIM-stack-v1": [
+        {
+          category: "runtime",
+          path: null,
+          matchedKey: "plugin-runtime:zeta",
+          details: { name: "Zeta" },
+          sourceKind: "artifact_metadata",
+        },
+      ],
     },
   });
-  const stackResult = envelope.results.find(({ dimensionId }) => dimensionId === 'DIM-stack-v1');
-  const runtimeIdx = stackResult.observations.findIndex(({ matchedKey }) => matchedKey === 'plugin-runtime:zeta');
-  assert.ok(runtimeIdx >= 0, 'plugin observation contributed');
-  assert.ok(stackResult.observations.slice(0, runtimeIdx).some(({ matchedKey }) => matchedKey === 'runtime'),
-    'built-in runtime observation still precedes the plugin observation');
+  const stackResult = envelope.results.find(({ dimensionId }) => dimensionId === "DIM-stack-v1");
+  const runtimeIdx = stackResult.observations.findIndex(
+    ({ matchedKey }) => matchedKey === "plugin-runtime:zeta",
+  );
+  assert.ok(runtimeIdx >= 0, "plugin observation contributed");
+  assert.ok(
+    stackResult.observations
+      .slice(0, runtimeIdx)
+      .some(({ matchedKey }) => matchedKey === "runtime"),
+    "built-in runtime observation still precedes the plugin observation",
+  );
 });
 
-test('T218 plugin: empty built-in stack findings still emit a plugin-only provider result', () => {
+test("T218 plugin: empty built-in stack findings still emit a plugin-only provider result", () => {
   const envelope = runtimeCatalogResults({
     stack: {},
     config: {},
@@ -1168,69 +1263,114 @@ test('T218 plugin: empty built-in stack findings still emit a plugin-only provid
     languages: [],
     ecosystems: [],
     pluginObservations: {
-      'DIM-stack-v1': [{
-        category: 'framework', path: null, matchedKey: 'plugin-framework:zeta',
-        details: { ruleId: 'RUL-zeta-framework-v1', label: 'Zeta framework' },
-        sourceKind: 'artifact_metadata',
-      }],
+      "DIM-stack-v1": [
+        {
+          category: "framework",
+          path: null,
+          matchedKey: "plugin-framework:zeta",
+          details: { ruleId: "RUL-zeta-framework-v1", label: "Zeta framework" },
+          sourceKind: "artifact_metadata",
+        },
+      ],
     },
   });
-  assert.equal(envelope.mode, 'builtin');
-  const stackResult = envelope.results.find(({ dimensionId }) => dimensionId === 'DIM-stack-v1');
-  assert.ok(stackResult, 'stack dimension plugin result is emitted');
-  assert.equal(stackResult.providerId, RUNTIME_PLUGIN_PROVIDER_ID,
-    'plugin-only result uses the plugin carrier id, never the built-in id');
-  assert.equal(stackResult.dimensionId, 'DIM-stack-v1');
+  assert.equal(envelope.mode, "builtin");
+  const stackResult = envelope.results.find(({ dimensionId }) => dimensionId === "DIM-stack-v1");
+  assert.ok(stackResult, "stack dimension plugin result is emitted");
+  assert.equal(
+    stackResult.providerId,
+    RUNTIME_PLUGIN_PROVIDER_ID,
+    "plugin-only result uses the plugin carrier id, never the built-in id",
+  );
+  assert.equal(stackResult.dimensionId, "DIM-stack-v1");
   assert.deepEqual(
     stackResult.observations.map(({ matchedKey }) => matchedKey),
-    ['plugin-framework:zeta'],
+    ["plugin-framework:zeta"],
   );
-  assert.ok(!envelope.results.some(({ providerId }) => providerId === STACK_CATALOG_PROVIDER_ID),
-    'built-in stack result is never fabricated from empty findings');
-  assert.ok(!envelope.results.some(({ dimensionId }) => (
-    ['DIM-config-v1', 'DIM-testing-v1'].includes(dimensionId)
-  )), 'dimensions with no built-in and no plugin observations are absent');
+  assert.ok(
+    !envelope.results.some(({ providerId }) => providerId === STACK_CATALOG_PROVIDER_ID),
+    "built-in stack result is never fabricated from empty findings",
+  );
+  assert.ok(
+    !envelope.results.some(({ dimensionId }) =>
+      ["DIM-config-v1", "DIM-testing-v1"].includes(dimensionId),
+    ),
+    "dimensions with no built-in and no plugin observations are absent",
+  );
 });
 
-const plugin = () => createProviderResult({
-  providerId: RUNTIME_PLUGIN_PROVIDER_ID,
-  dimensionId: 'DIM-stack-v1',
-  observations: [{
-    category: 'route', path: null, matchedKey: 'plugin-route:zeta',
-    details: { name: 'zeta' }, sourceKind: 'artifact_metadata',
-  }],
-});
-const duplicate = () => createProviderResult({
-  providerId: RUNTIME_PLUGIN_PROVIDER_ID,
-  dimensionId: 'DIM-stack-v1',
-  observations: [
-    { category: 'runtime', path: null, matchedKey: 'runtime:zeta', details: { name: 'zeta' }, sourceKind: 'repository_metadata' },
-    { category: 'runtime', path: null, matchedKey: 'runtime:zeta', details: { name: 'zeta' }, sourceKind: 'repository_metadata' },
-  ],
-});
+const plugin = () =>
+  createProviderResult({
+    providerId: RUNTIME_PLUGIN_PROVIDER_ID,
+    dimensionId: "DIM-stack-v1",
+    observations: [
+      {
+        category: "route",
+        path: null,
+        matchedKey: "plugin-route:zeta",
+        details: { name: "zeta" },
+        sourceKind: "artifact_metadata",
+      },
+    ],
+  });
+const duplicate = () =>
+  createProviderResult({
+    providerId: RUNTIME_PLUGIN_PROVIDER_ID,
+    dimensionId: "DIM-stack-v1",
+    observations: [
+      {
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime:zeta",
+        details: { name: "zeta" },
+        sourceKind: "repository_metadata",
+      },
+      {
+        category: "runtime",
+        path: null,
+        matchedKey: "runtime:zeta",
+        details: { name: "zeta" },
+        sourceKind: "repository_metadata",
+      },
+    ],
+  });
 
-test('T218 plugin: unknown and duplicate categories are rejected by the foundation', () => {
-  assert.throws(plugin, (error) => error instanceof ProviderResultError && error.code === 'UNKNOWN_CATEGORY');
-  assert.throws(duplicate, (error) => error instanceof ProviderResultError && error.code === 'DUPLICATE_OBSERVATION');
+test("T218 plugin: unknown and duplicate categories are rejected by the foundation", () => {
+  assert.throws(
+    plugin,
+    (error) => error instanceof ProviderResultError && error.code === "UNKNOWN_CATEGORY",
+  );
+  assert.throws(
+    duplicate,
+    (error) => error instanceof ProviderResultError && error.code === "DUPLICATE_OBSERVATION",
+  );
 });
 
 // ---------------------------------------------------------------------------
 // Immutability
 // ---------------------------------------------------------------------------
 
-test('T218 immutability: catalog and every produced result are deep-frozen', async () => {
+test("T218 immutability: catalog and every produced result are deep-frozen", async () => {
   assert.throws(() => RUNTIME_CATALOG_PROVIDERS.push({}), TypeError);
-  assert.throws(() => { RUNTIME_CATALOG_PROVIDERS[0].dimensions.pop(); }, TypeError);
-  assert.throws(() => { RUNTIME_CATALOG_PROVIDERS[0].id = 'PRV-mutated-v1'; }, TypeError);
-  const python = await parityInput('python');
+  assert.throws(() => {
+    RUNTIME_CATALOG_PROVIDERS[0].dimensions.pop();
+  }, TypeError);
+  assert.throws(() => {
+    RUNTIME_CATALOG_PROVIDERS[0].id = "PRV-mutated-v1";
+  }, TypeError);
+  const python = await parityInput("python");
   const result = stackCatalogResult(python.stack.findings);
   assert.ok(Object.isFrozen(result));
   assert.ok(Object.isFrozen(result.observations));
   assert.ok(Object.isFrozen(result.observations[0]));
   assert.ok(Object.isFrozen(result.observations[0].details));
   assert.throws(() => result.observations.pop(), TypeError);
-  assert.throws(() => { result.observations[0].details.name = 'mutated'; }, TypeError);
-  assert.throws(() => { result.dimensionId = 'DIM-api-v1'; }, TypeError);
+  assert.throws(() => {
+    result.observations[0].details.name = "mutated";
+  }, TypeError);
+  assert.throws(() => {
+    result.dimensionId = "DIM-api-v1";
+  }, TypeError);
 });
 
 // ---------------------------------------------------------------------------
@@ -1243,10 +1383,10 @@ async function libScanFiles() {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name);
       if (entry.isDirectory()) await visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.mjs')) files.push(path);
+      else if (entry.isFile() && entry.name.endsWith(".mjs")) files.push(path);
     }
   }
-  await visit(join(LIB_ROOT, 'scan'));
+  await visit(join(LIB_ROOT, "scan"));
   return files.toSorted();
 }
 
@@ -1257,48 +1397,69 @@ function relativeImportTargets(source) {
   return targets;
 }
 
-test('T218 inert: no production module imports the runtime catalog', async () => {
-  const catalogPath = join(LIB_ROOT, 'scan', 'providers', 'runtime-catalog.mjs');
-  const activatedConsumer = join(LIB_ROOT, 'scan', 'pipeline', 'run.mjs');
+test("T218 inert: no production module imports the runtime catalog", async () => {
+  const catalogPath = join(LIB_ROOT, "scan", "providers", "runtime-catalog.mjs");
+  const activatedConsumer = join(LIB_ROOT, "scan", "pipeline", "run.mjs");
   const consumers = [];
   for (const file of await libScanFiles()) {
     if (file === catalogPath || file === activatedConsumer) continue;
-    const source = await readFile(file, 'utf8');
+    const source = await readFile(file, "utf8");
     const resolved = relativeImportTargets(source).map((target) => join(dirname(file), target));
     if (resolved.some((path) => path === catalogPath)) {
-      consumers.push(file.replace(/\\/g, '/').split('/lib/scan/')[1]);
+      consumers.push(file.replace(/\\/g, "/").split("/lib/scan/")[1]);
     }
   }
-  assert.deepEqual(consumers, [], 'only the activated pipeline may consume the runtime catalog');
+  assert.deepEqual(consumers, [], "only the activated pipeline may consume the runtime catalog");
 });
 
-test('T218 inert: catalog avoids T201 forbidden capabilities on import', async () => {
-  const source = await readFile(join(LIB_ROOT, 'scan', 'providers', 'runtime-catalog.mjs'), 'utf8');
-  const imports = [...source.matchAll(/^\s*import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/gm)]
-    .map((match) => match[1]);
+test("T218 inert: catalog avoids T201 forbidden capabilities on import", async () => {
+  const source = await readFile(join(LIB_ROOT, "scan", "providers", "runtime-catalog.mjs"), "utf8");
+  const imports = [...source.matchAll(/^\s*import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/gm)].map(
+    (match) => match[1],
+  );
   for (const specifier of imports) {
-    assert.equal(specifier.startsWith('node:'), false,
-      `catalog must not import a node: capability (${specifier})`);
+    assert.equal(
+      specifier.startsWith("node:"),
+      false,
+      `catalog must not import a node: capability (${specifier})`,
+    );
   }
-  for (const forbidden of ['node:fs', 'node:child_process', 'node:process', 'node:vm', 'node:module']) {
+  for (const forbidden of [
+    "node:fs",
+    "node:child_process",
+    "node:process",
+    "node:vm",
+    "node:module",
+  ]) {
     assert.ok(!imports.includes(forbidden), `catalog must not import ${forbidden}`);
   }
 });
 
-test('T218 inert: catalog exports only data and pure factories, never execution surfaces', async () => {
-  const path = join(LIB_ROOT, 'scan', 'providers', 'runtime-catalog.mjs');
-  const source = await readFile(path, 'utf8');
+test("T218 inert: catalog exports only data and pure factories, never execution surfaces", async () => {
+  const path = join(LIB_ROOT, "scan", "providers", "runtime-catalog.mjs");
+  const source = await readFile(path, "utf8");
   for (const name of [
-    'stackCatalogObservations', 'configCatalogObservations', 'testingCatalogObservations',
-    'stackCatalogResult', 'configCatalogResult', 'testingCatalogResult',
-    'runtimeCatalogResults', 'pluginObservationsFromMatches', 'pluginResultFromObservations',
-    'mergeRuntimePlugin',
+    "stackCatalogObservations",
+    "configCatalogObservations",
+    "testingCatalogObservations",
+    "stackCatalogResult",
+    "configCatalogResult",
+    "testingCatalogResult",
+    "runtimeCatalogResults",
+    "pluginObservationsFromMatches",
+    "pluginResultFromObservations",
+    "mergeRuntimePlugin",
   ]) {
-    assert.ok(new RegExp(`export\\s+(?:function|const)\\s+${name}\\b`).test(source),
-      `catalog exports ${name}`);
+    assert.ok(
+      new RegExp(`export\\s+(?:function|const)\\s+${name}\\b`).test(source),
+      `catalog exports ${name}`,
+    );
   }
-  for (const forbidden of ['scan(', 'run(', 'execute(', 'writeNORMS', 'enrich(', 'validate(']) {
-    assert.equal(source.includes(forbidden), false, `catalog must not expose execution surface ${forbidden}`);
+  for (const forbidden of ["scan(", "run(", "execute(", "writeNORMS", "enrich(", "validate("]) {
+    assert.equal(
+      source.includes(forbidden),
+      false,
+      `catalog must not expose execution surface ${forbidden}`,
+    );
   }
 });
-

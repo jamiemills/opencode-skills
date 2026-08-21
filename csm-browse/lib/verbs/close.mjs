@@ -1,26 +1,31 @@
-import { existsSync } from 'node:fs';
-import { sessionDir, revokeToken, saveState } from '../session.mjs';
+import { existsSync } from "node:fs";
+import { sessionDir, revokeToken, saveState } from "../session.mjs";
 import {
-  stopDaemon, killInstance, killGate,
-  removeContainerSession, removeHostSession,
-  truncateLogs
-} from '../cleanup.mjs';
-import { CONTAINER_NAME } from '../constants.mjs';
+  stopDaemon,
+  killInstance,
+  killGate,
+  removeContainerSession,
+  removeHostSession,
+  truncateLogs,
+} from "../cleanup.mjs";
+import { CONTAINER_NAME } from "../constants.mjs";
 
 export async function run({ args: _args, state, verb: _verb, sid }) {
   const hostSessionDir = sessionDir(sid);
 
   if (!state) {
     if (!existsSync(hostSessionDir)) {
-      console.log(JSON.stringify({
-        message: 'nothing to do',
-        removed: [],
-        warnings: [],
-        container: { name: CONTAINER_NAME, state: 'running' }
-      }));
+      console.log(
+        JSON.stringify({
+          message: "nothing to do",
+          removed: [],
+          warnings: [],
+          container: { name: CONTAINER_NAME, state: "running" },
+        }),
+      );
       process.exit(0);
     }
-    console.error('no session found');
+    console.error("no session found");
     process.exit(1);
   }
 
@@ -37,7 +42,7 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
     // F-021/R1.3: pass the sid so stopDaemon verifies process identity (argv
     // match) before signaling — a recycled pid must never be SIGTERM'd.
     const stopped = await stopDaemon(hostSessionDir, sid);
-    if (stopped) removed.push('daemon');
+    if (stopped) removed.push("daemon");
   } catch (e) {
     failures.push(`stopDaemon: ${e.message}`);
   }
@@ -45,7 +50,7 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
   try {
     if (publicPort) {
       await killGate(publicPort);
-      removed.push('gate');
+      removed.push("gate");
     }
   } catch (e) {
     failures.push(`killGate: ${e.message}`);
@@ -54,7 +59,7 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
   try {
     if (containerSessDir) {
       await killInstance(CONTAINER_NAME, containerSessDir);
-      removed.push('chromium');
+      removed.push("chromium");
     }
   } catch (e) {
     failures.push(`killInstance: ${e.message}`);
@@ -63,7 +68,7 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
   try {
     if (containerSessDir) {
       await removeContainerSession(CONTAINER_NAME, containerSessDir);
-      removed.push('container-dir');
+      removed.push("container-dir");
     }
   } catch (e) {
     failures.push(`removeContainerSession: ${e.message}`);
@@ -81,7 +86,7 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
 
   try {
     await removeHostSession(hostSessionDir);
-    removed.push('host-dir');
+    removed.push("host-dir");
   } catch (e) {
     failures.push(`removeHostSession: ${e.message}`);
   }
@@ -99,21 +104,25 @@ export async function run({ args: _args, state, verb: _verb, sid }) {
   }
 
   if (removed.length === 0) {
-    console.log(JSON.stringify({
-      message: 'nothing to do',
-      removed: [],
-      warnings: [],
-      failures,
-      container: { name: CONTAINER_NAME, state: 'running' }
-    }));
+    console.log(
+      JSON.stringify({
+        message: "nothing to do",
+        removed: [],
+        warnings: [],
+        failures,
+        container: { name: CONTAINER_NAME, state: "running" },
+      }),
+    );
     process.exit(failures.length > 0 ? 1 : 0);
   }
 
-  console.log(JSON.stringify({
-    removed,
-    warnings: [],
-    failures,
-    container: { name: CONTAINER_NAME, state: 'running' }
-  }));
+  console.log(
+    JSON.stringify({
+      removed,
+      warnings: [],
+      failures,
+      container: { name: CONTAINER_NAME, state: "running" },
+    }),
+  );
   if (failures.length > 0) process.exit(1);
 }

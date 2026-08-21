@@ -28,26 +28,26 @@
 // node:child_process / node:process / node:vm / node:module, so the recurring
 // capability gate remains closed.
 
-import { assertDataOnly, compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult, PROVIDER_RESULT_LIMITS } from './base.mjs';
+import { assertDataOnly, compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult, PROVIDER_RESULT_LIMITS } from "./base.mjs";
 import {
   DATA_DIMENSION_ID,
   DATA_RECORD_CATEGORIES,
   encodeMatchedKey,
-} from '../deep/data/model.mjs';
+} from "../deep/data/model.mjs";
 
-export const DATA_PROVIDER_ID = 'PRV-data-architecture-v1';
+export const DATA_PROVIDER_ID = "PRV-data-architecture-v1";
 
 const SOURCE_KIND_BY_CATEGORY = Object.freeze({
-  cache: 'source',
-  entity: 'schema',
-  field: 'schema',
-  key: 'schema',
-  migration: 'migration',
-  queue: 'source',
-  relation: 'schema',
-  schema: 'schema',
-  store: 'schema',
+  cache: "source",
+  entity: "schema",
+  field: "schema",
+  key: "schema",
+  migration: "migration",
+  queue: "source",
+  relation: "schema",
+  schema: "schema",
+  store: "schema",
 });
 
 // Keep every assembled matchedKey within the provider foundation's 128-char
@@ -78,11 +78,11 @@ function edgeObservation(edge) {
   const from = edge.from.length > 64 ? edge.from.slice(0, 64) : edge.from;
   const to = edge.to.length > 64 ? edge.to.slice(0, 64) : edge.to;
   return {
-    category: 'relation',
+    category: "relation",
     path: edge.evidence.path,
     matchedKey: boundedAssembledKey(`edge:${from}:${to}:${edge.kind}`),
     details: { from, to, kind: edge.kind },
-    sourceKind: 'schema',
+    sourceKind: "schema",
   };
 }
 
@@ -97,15 +97,15 @@ function validateModel(model) {
 }
 
 const MODEL_LIST_KEYS = Object.freeze({
-  cache: 'caches',
-  entity: 'entities',
-  field: 'fields',
-  key: 'keys',
-  migration: 'migrations',
-  queue: 'queues',
-  relation: 'relations',
-  schema: 'schemas',
-  store: 'stores',
+  cache: "caches",
+  entity: "entities",
+  field: "fields",
+  key: "keys",
+  migration: "migrations",
+  queue: "queues",
+  relation: "relations",
+  schema: "schemas",
+  store: "stores",
 });
 
 function allRecords(model) {
@@ -125,7 +125,7 @@ function allRecords(model) {
  *   provider observation bound and were deterministically truncated.
  */
 export function dataObservations(model) {
-  if (model === null || typeof model !== 'object' || Array.isArray(model)) return [];
+  if (model === null || typeof model !== "object" || Array.isArray(model)) return [];
   if (!Array.isArray(model.entities) && !Array.isArray(model.edges)) return [];
   validateModel(model);
   const observations = [];
@@ -138,8 +138,11 @@ export function dataObservations(model) {
   };
   for (const record of allRecords(model)) push(recordObservation(record));
   for (const edge of Array.isArray(model.edges) ? model.edges : []) push(edgeObservation(edge));
-  observations.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.path ?? '', right.path ?? ''));
+  observations.sort(
+    (left, right) =>
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.path ?? "", right.path ?? ""),
+  );
   let capped = false;
   if (observations.length > PROVIDER_RESULT_LIMITS.observations) {
     observations.length = PROVIDER_RESULT_LIMITS.observations;
@@ -160,10 +163,12 @@ export function dataProviderResult(model) {
   const entries = dataObservations(model);
   if (entries.length === 0) return deepFreeze({ results: [], capped: false });
   const { dimensionId, observations, capped } = entries[0];
-  const results = [createProviderResult({
-    providerId: DATA_PROVIDER_ID,
-    dimensionId,
-    observations,
-  })];
+  const results = [
+    createProviderResult({
+      providerId: DATA_PROVIDER_ID,
+      dimensionId,
+      observations,
+    }),
+  ];
   return deepFreeze({ results, capped });
 }

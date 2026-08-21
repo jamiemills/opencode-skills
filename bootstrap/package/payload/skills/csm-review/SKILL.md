@@ -200,26 +200,26 @@ Exit: terminal; nothing executes after STOP.
 
 ## Review Dimensions
 
-| # | Dimension | Covers | Anchor(s) (verify at review time; cite editions) |
-|---|---|---|---|
-| 1 | Correctness & defects | functional bugs, wrong outputs, logic errors | Google eng-practices Functionality; ISO/IEC 25010:2023 functional suitability |
-| 2 | Technical debt & architecture | structural decay, coupling, architecture erosion | Fowler TechnicalDebtQuadrant; ISO/IEC 25010:2023 maintainability |
-| 3 | Code smells & poor practices | localized smell patterns | SonarSource concepts docs (docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/concepts.md); Fowler Refactoring catalog |
-| 4 | Anti-patterns | structural anti-patterns, needless complexity | eng-practices Design/Complexity + per-stack framework docs |
-| 5 | Security implementation weaknesses | concrete security defects in code | OWASP Top 10:2025; CWE Top 25 (2025); CWE id per finding |
-| 6 | Security control verification | control presence/strength | OWASP ASVS v5.0.0 (per-requirement pass/fail) |
-| 7 | Secrets & data exposure | hardcoded secrets, data leaks | CWE-798; ASVS v5.0.0 crypto/logging chapters; gitleaks-style rule families |
-| 8 | Concurrency & races | data races, deadlocks, atomicity | TSan wiki DetectableBugs taxonomy; Go race detector + memory model; CWE-362/367/609/667 |
-| 9 | Memory & resource safety | memory errors, resource leaks | Sanitizers wiki ASan/MSan; CWE-416/476/401 |
-| 10 | Error handling & resilience | failure handling, recovery | ISO/IEC 25010:2023 reliability |
-| 11 | Input validation & trust boundaries | unvalidated input, boundary confusion | ASVS v5.0.0 validation/encoding chapters; CWE-20 |
-| 12 | Test presence & coverage | what is tested, what is not | Fowler TestCoverage (coverage as heuristic, not target); per-module uncovered critical paths |
-| 13 | Test quality | test smells, flakiness, weak assertions | testsmells.github.io current catalog; Google flaky-tests post (2016) |
-| 14 | Test-type adequacy | right test types at right levels | unit (S-sized, Google Test Sizes S/M/L); integration; e2e; performance/load; property-based (hypothesis/fast-check); mutation (PIT/Stryker/mutmut); fuzz (via OSS-Fuzz advisories in OSV); security testing (SAST/DAST/penetration/security regression) per OWASP ASVS v5.0.0 testing guidance; ISTQB CTFL v4.0 levels/types |
-| 15 | Dependency vulnerabilities | known vulnerable deps | OSV.dev API `/v1/query` + `/v1/vulns/<id>` affected-range confirmation (incl. unmaintained/deprecated advisories; querybatch output = candidate signal only); CISA KEV via CWE KEV list; library EOL/maintenance status |
-| 16 | Toolchain & language currency | outdated runtimes/toolchains | endoflife.date API (current catalog); declared runtimes/toolchains vs EOL |
-| 17 | Observability & operability | monitoring, tracing, operations | ISO/IEC 25010:2023 operability; instrumentation inventory |
-| 18 | CI, build, docs & licensing | pipeline, build, docs hygiene, licenses | SonarSource quality-gate concepts; eng-practices Documentation; SPDX license list |
+| #   | Dimension                           | Covers                                           | Anchor(s) (verify at review time; cite editions)                                                                                                                                                                                                                                                                             |
+| --- | ----------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Correctness & defects               | functional bugs, wrong outputs, logic errors     | Google eng-practices Functionality; ISO/IEC 25010:2023 functional suitability                                                                                                                                                                                                                                                |
+| 2   | Technical debt & architecture       | structural decay, coupling, architecture erosion | Fowler TechnicalDebtQuadrant; ISO/IEC 25010:2023 maintainability                                                                                                                                                                                                                                                             |
+| 3   | Code smells & poor practices        | localized smell patterns                         | SonarSource concepts docs (docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/concepts.md); Fowler Refactoring catalog                                                                                                                                                                                               |
+| 4   | Anti-patterns                       | structural anti-patterns, needless complexity    | eng-practices Design/Complexity + per-stack framework docs                                                                                                                                                                                                                                                                   |
+| 5   | Security implementation weaknesses  | concrete security defects in code                | OWASP Top 10:2025; CWE Top 25 (2025); CWE id per finding                                                                                                                                                                                                                                                                     |
+| 6   | Security control verification       | control presence/strength                        | OWASP ASVS v5.0.0 (per-requirement pass/fail)                                                                                                                                                                                                                                                                                |
+| 7   | Secrets & data exposure             | hardcoded secrets, data leaks                    | CWE-798; ASVS v5.0.0 crypto/logging chapters; gitleaks-style rule families                                                                                                                                                                                                                                                   |
+| 8   | Concurrency & races                 | data races, deadlocks, atomicity                 | TSan wiki DetectableBugs taxonomy; Go race detector + memory model; CWE-362/367/609/667                                                                                                                                                                                                                                      |
+| 9   | Memory & resource safety            | memory errors, resource leaks                    | Sanitizers wiki ASan/MSan; CWE-416/476/401                                                                                                                                                                                                                                                                                   |
+| 10  | Error handling & resilience         | failure handling, recovery                       | ISO/IEC 25010:2023 reliability                                                                                                                                                                                                                                                                                               |
+| 11  | Input validation & trust boundaries | unvalidated input, boundary confusion            | ASVS v5.0.0 validation/encoding chapters; CWE-20                                                                                                                                                                                                                                                                             |
+| 12  | Test presence & coverage            | what is tested, what is not                      | Fowler TestCoverage (coverage as heuristic, not target); per-module uncovered critical paths                                                                                                                                                                                                                                 |
+| 13  | Test quality                        | test smells, flakiness, weak assertions          | testsmells.github.io current catalog; Google flaky-tests post (2016)                                                                                                                                                                                                                                                         |
+| 14  | Test-type adequacy                  | right test types at right levels                 | unit (S-sized, Google Test Sizes S/M/L); integration; e2e; performance/load; property-based (hypothesis/fast-check); mutation (PIT/Stryker/mutmut); fuzz (via OSS-Fuzz advisories in OSV); security testing (SAST/DAST/penetration/security regression) per OWASP ASVS v5.0.0 testing guidance; ISTQB CTFL v4.0 levels/types |
+| 15  | Dependency vulnerabilities          | known vulnerable deps                            | OSV.dev API `/v1/query` + `/v1/vulns/<id>` affected-range confirmation (incl. unmaintained/deprecated advisories; querybatch output = candidate signal only); CISA KEV via CWE KEV list; library EOL/maintenance status                                                                                                      |
+| 16  | Toolchain & language currency       | outdated runtimes/toolchains                     | endoflife.date API (current catalog); declared runtimes/toolchains vs EOL                                                                                                                                                                                                                                                    |
+| 17  | Observability & operability         | monitoring, tracing, operations                  | ISO/IEC 25010:2023 operability; instrumentation inventory                                                                                                                                                                                                                                                                    |
+| 18  | CI, build, docs & licensing         | pipeline, build, docs hygiene, licenses          | SonarSource quality-gate concepts; eng-practices Documentation; SPDX license list                                                                                                                                                                                                                                            |
 
 Dimension rows group for finder assignment: quality (1–4), security (5–7, 9, 11), concurrency (8), resilience (10), tests (12–14), supply chain (15–16), operations (17–18).
 
@@ -266,17 +266,29 @@ Confidence may never exceed its evidence class; the sole exception is the ADJUDI
 
 ```markdown
 format: csm-review/1
+
 # Repository Review — <repo> @ <short-sha> (<date>)
+
 ## Control (embedded journal: state, cycle, posture rungs, next transition; updated every transition)
+
 ## How To Execute (remediation via future explicit csm-plan/csm-grill invocations; this report fixes nothing)
+
 ## Executive Summary (3–6 bullets: top upheld findings, systemic themes, overall posture sentence)
+
 ## Methodology Disclosure (reviewers, dimensions, tools+versions, rungs used, containment results, egress disclosure, anchor editions, residual unknowns)
+
 ## Coverage (dimension × chunk matrix with finding-or-clean verdicts)
+
 ## Anti-Coverage (what was NOT reviewed and why, each with risk note — mandatory, never omitted)
+
 ## Findings Summary (counts by severity × dimension; confidence distribution; dedup stats raw → upheld)
+
 ## Findings (adjudicated records per schema, ordered by sort_key; each with challenges + dissents + status)
+
 ## Adjudication Log (every downgrade/retraction with rationale)
+
 ## Retracted Findings (kept visible with disproof evidence)
+
 ## Reproducibility (pinned SHA, commands, tool versions, sandbox paths, evidence-artifact records)
 ```
 

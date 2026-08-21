@@ -1,48 +1,84 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { realpathSync } from 'node:fs';
-import { chmod, copyFile, mkdir, mkdtemp, readdir, readFile, rm, rmdir, stat, utimes, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
-import { promisify } from 'node:util';
-import { fileURLToPath } from 'node:url';
-import { gunzipSync } from 'node:zlib';
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
+import {
+  chmod,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  rmdir,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, join, resolve, sep } from "node:path";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 const execFileAsync = promisify(execFile);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const bootstrapDir = join(root, 'bootstrap');
-const packageDir = join(bootstrapDir, 'package');
-const fixedTime = new Date('2026-08-18T00:00:00.000Z');
-const skillDirs = ['csm-bdd-tdd', 'csm-browse', 'csm-build', 'csm-deep-research', 'csm-grill', 'csm-plan', 'csm-review', 'csm-scan', 'csm-upload'];
+const bootstrapDir = join(root, "bootstrap");
+const packageDir = join(bootstrapDir, "package");
+const fixedTime = new Date("2026-08-18T00:00:00.000Z");
+const skillDirs = [
+  "csm-bdd-tdd",
+  "csm-browse",
+  "csm-build",
+  "csm-deep-research",
+  "csm-grill",
+  "csm-plan",
+  "csm-review",
+  "csm-scan",
+  "csm-upload",
+];
 
 const mapping = {
-  skills: skillDirs.map(name => ({ src: join(name, 'SKILL.md'), dest: join('payload', 'skills', name, 'SKILL.md') })),
+  skills: skillDirs.map((name) => ({
+    src: join(name, "SKILL.md"),
+    dest: join("payload", "skills", name, "SKILL.md"),
+  })),
   supportingFiles: [
-    { src: join('csm-scan', 'scripts', 'scan.mjs'), dest: join('payload', 'skills', 'csm-scan', 'scripts', 'scan.mjs') },
-    { srcDir: join('csm-scan', 'lib', 'scan'), destDir: join('payload', 'skills', 'csm-scan', 'lib', 'scan') },
-    { src: join('csm-upload', 'scripts', 'upload.mjs'), dest: join('payload', 'skills', 'csm-upload', 'scripts', 'upload.mjs') }
+    {
+      src: join("csm-scan", "scripts", "scan.mjs"),
+      dest: join("payload", "skills", "csm-scan", "scripts", "scan.mjs"),
+    },
+    {
+      srcDir: join("csm-scan", "lib", "scan"),
+      destDir: join("payload", "skills", "csm-scan", "lib", "scan"),
+    },
+    {
+      src: join("csm-upload", "scripts", "upload.mjs"),
+      dest: join("payload", "skills", "csm-upload", "scripts", "upload.mjs"),
+    },
   ],
   helperBins: [],
-  metadata: [{ src: 'LICENSE', dest: 'LICENSE' }]
+  metadata: [{ src: "LICENSE", dest: "LICENSE" }],
 };
 
 const decisions = [
-  'csm-browse runtime closure excluded: chrome-remote-interface and jimp are external dependencies; the skill ships as SKILL.md guidance only and its dependency setup remains a separate documented step',
-  'csm-scan scripts plus the lib/scan closure and csm-upload scripts are bundled as supporting files: dependency-free node built-ins code',
-  'helperBins ships empty in 0.1.0: optional runtime helpers stay out until each has a dependency-free closure',
-  'package.json and payload-index.json are not indexed: the manifest is audit-checked and the index cannot contain its own digest; both are bound by the recorded tarball shasum'
+  "csm-browse runtime closure excluded: chrome-remote-interface and jimp are external dependencies; the skill ships as SKILL.md guidance only and its dependency setup remains a separate documented step",
+  "csm-scan scripts plus the lib/scan closure and csm-upload scripts are bundled as supporting files: dependency-free node built-ins code",
+  "helperBins ships empty in 0.1.0: optional runtime helpers stay out until each has a dependency-free closure",
+  "package.json and payload-index.json are not indexed: the manifest is audit-checked and the index cannot contain its own digest; both are bound by the recorded tarball shasum",
 ];
 
-const sha256 = data => createHash('sha256').update(data).digest('hex');
-const modeOf = mode => (mode & 0o777).toString(8).padStart(4, '0');
-const toPosix = value => value.split(sep).join('/');
+const sha256 = (data) => createHash("sha256").update(data).digest("hex");
+const modeOf = (mode) => (mode & 0o777).toString(8).padStart(4, "0");
+const toPosix = (value) => value.split(sep).join("/");
 const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 
-async function walk(dir, prefix = '') {
+async function walk(dir, prefix = "") {
   const out = [];
-  for (const entry of (await readdir(dir, { withFileTypes: true })).toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+  for (const entry of (await readdir(dir, { withFileTypes: true })).toSorted((a, b) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+  )) {
     const rel = prefix ? join(prefix, entry.name) : entry.name;
     if (entry.isDirectory()) out.push(...(await walk(join(dir, entry.name), rel)));
     else if (entry.isFile()) out.push(rel);
@@ -55,7 +91,8 @@ async function expandMapping() {
   for (const [className, items] of Object.entries(mapping)) {
     for (const item of items) {
       if (item.srcDir) {
-        for (const rel of await walk(join(root, item.srcDir))) entries.push({ className, src: join(item.srcDir, rel), dest: join(item.destDir, rel) });
+        for (const rel of await walk(join(root, item.srcDir)))
+          entries.push({ className, src: join(item.srcDir, rel), dest: join(item.destDir, rel) });
       } else {
         entries.push({ className, src: item.src, dest: item.dest });
       }
@@ -73,17 +110,27 @@ async function entryFor(dest) {
 async function buildIndex(entries) {
   const classes = { skills: [], supportingFiles: [], helperBins: [], metadata: [] };
   for (const className of Object.keys(classes)) {
-    classes[className] = (await Promise.all(entries.filter(entry => entry.className === className).map(entry => entryFor(entry.dest)))).toSorted(byPath);
+    classes[className] = (
+      await Promise.all(
+        entries
+          .filter((entry) => entry.className === className)
+          .map((entry) => entryFor(entry.dest)),
+      )
+    ).toSorted(byPath);
   }
   const index = {
-    schema: 'csm-payload-index/1',
-    package: { name: '@jamiemills/csm-skills-bootstrap', version: '0.1.0', bin: 'csm-skills-bootstrap' },
-    generatedBy: 'scripts/pack-bootstrap.mjs',
+    schema: "csm-payload-index/1",
+    package: {
+      name: "@jamiemills/csm-skills-bootstrap",
+      version: "0.1.0",
+      bin: "csm-skills-bootstrap",
+    },
+    generatedBy: "scripts/pack-bootstrap.mjs",
     decisions,
-    fixedBin: await entryFor(join('bin', 'csm-skills-bootstrap.js')),
-    classes
+    fixedBin: await entryFor(join("bin", "csm-skills-bootstrap.js")),
+    classes,
   };
-  await writeFile(join(bootstrapDir, 'payload-index.json'), `${JSON.stringify(index, null, 2)}\n`);
+  await writeFile(join(bootstrapDir, "payload-index.json"), `${JSON.stringify(index, null, 2)}\n`);
   return index;
 }
 
@@ -104,10 +151,14 @@ async function syncPayload() {
     await copyFile(join(root, entry.src), join(packageDir, entry.dest));
     await chmod(join(packageDir, entry.dest), 0o644);
   }
-  const desired = new Set([...entries.map(entry => entry.dest), join('bin', 'csm-skills-bootstrap.js')]);
-  for (const rel of await walk(packageDir)) if (!desired.has(rel)) await rm(join(packageDir, rel), { force: true });
+  const desired = new Set([
+    ...entries.map((entry) => entry.dest),
+    join("bin", "csm-skills-bootstrap.js"),
+  ]);
+  for (const rel of await walk(packageDir))
+    if (!desired.has(rel)) await rm(join(packageDir, rel), { force: true });
   await pruneEmptyDirs(packageDir);
-  await chmod(join(packageDir, 'bin', 'csm-skills-bootstrap.js'), 0o755);
+  await chmod(join(packageDir, "bin", "csm-skills-bootstrap.js"), 0o755);
   return buildIndex(entries);
 }
 
@@ -136,11 +187,15 @@ function parseTar(gzip) {
   let offset = 0;
   while (offset + 512 <= data.length) {
     const header = data.subarray(offset, offset + 512);
-    if (header.every(byte => byte === 0)) break;
-    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
-    const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '');
-    const size = parseInt(header.subarray(124, 136).toString('utf8').replace(/\0.*$/, '').trim() || '0', 8) || 0;
-    const mode = parseInt(header.subarray(100, 108).toString('utf8').replace(/\0.*$/, '').trim() || '0', 8) || 0;
+    if (header.every((byte) => byte === 0)) break;
+    const name = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "");
+    const prefix = header.subarray(345, 500).toString("utf8").replace(/\0.*$/, "");
+    const size =
+      parseInt(header.subarray(124, 136).toString("utf8").replace(/\0.*$/, "").trim() || "0", 8) ||
+      0;
+    const mode =
+      parseInt(header.subarray(100, 108).toString("utf8").replace(/\0.*$/, "").trim() || "0", 8) ||
+      0;
     const type = String.fromCharCode(header[156]);
     const fullName = prefix ? `${prefix}/${name}` : name;
     if (fullName) entries.push({ name: fullName, size, mode, type });
@@ -151,15 +206,20 @@ function parseTar(gzip) {
 
 async function packBootstrap() {
   await syncPayload();
-  const dir = await mkdtemp('/tmp/csm-pack-');
-  const cache = await mkdtemp('/tmp/csm-pack-cache-');
+  const dir = await mkdtemp("/tmp/csm-pack-");
+  const cache = await mkdtemp("/tmp/csm-pack-cache-");
   try {
-    await copyFile(join(bootstrapDir, 'package.json'), join(dir, 'package.json'));
-    await copyFile(join(bootstrapDir, 'payload-index.json'), join(dir, 'payload-index.json'));
+    await copyFile(join(bootstrapDir, "package.json"), join(dir, "package.json"));
+    await copyFile(join(bootstrapDir, "payload-index.json"), join(dir, "payload-index.json"));
     await copyTree(packageDir, dir);
     await fixTimes(dir);
-    const { stdout } = await execFileAsync('npm', ['pack', '--json'], { cwd: dir, encoding: 'utf8', env: { ...process.env, NPM_CONFIG_CACHE: cache } });
-    const filename = JSON.parse(stdout.slice(stdout.indexOf('['), stdout.lastIndexOf(']') + 1))[0].filename;
+    const { stdout } = await execFileAsync("npm", ["pack", "--json"], {
+      cwd: dir,
+      encoding: "utf8",
+      env: { ...process.env, NPM_CONFIG_CACHE: cache },
+    });
+    const filename = JSON.parse(stdout.slice(stdout.indexOf("["), stdout.lastIndexOf("]") + 1))[0]
+      .filename;
     const tarball = join(dir, filename);
     const data = await readFile(tarball);
     return { dir, tarball, sha256: sha256(data), bytes: data.length, entries: parseTar(data) };
@@ -177,7 +237,7 @@ async function packBootstrap() {
 
 async function main() {
   const { dir, tarball, sha256: pkgSha256, bytes, entries } = await packBootstrap();
-  const files = entries.filter(entry => entry.type === '0' || entry.type === '\0');
+  const files = entries.filter((entry) => entry.type === "0" || entry.type === "\0");
   console.log(`tarball: ${tarball}`);
   console.log(`sha256: ${pkgSha256}`);
   console.log(`bytes: ${bytes}`);

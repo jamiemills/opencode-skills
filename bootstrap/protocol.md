@@ -78,35 +78,35 @@ The state chain is exactly:
 }
 ```
 
-| Field | Meaning | Hard requirement |
-|---|---|---|
-| `hasNpx` | host can invoke exact-version `npx` | yes — absence refuses `E_NO_NPX` |
-| `hasFileWrite` | host can write skill files | yes — absence refuses `E_NO_WRITE` |
-| `knowsDestination` | agent knows its Agent Skills directory | no — absence asks the user |
-| `supportsStaging` | host can stage near the destination | no — reported |
-| `supportsLock` | host offers destination locking | no — reported |
-| `supportsRollback` | host offers rollback of replaced files | no — reported |
-| `knowsReload` | agent knows its reload mechanism | no — reported as `unknown` |
+| Field              | Meaning                                | Hard requirement                   |
+| ------------------ | -------------------------------------- | ---------------------------------- |
+| `hasNpx`           | host can invoke exact-version `npx`    | yes — absence refuses `E_NO_NPX`   |
+| `hasFileWrite`     | host can write skill files             | yes — absence refuses `E_NO_WRITE` |
+| `knowsDestination` | agent knows its Agent Skills directory | no — absence asks the user         |
+| `supportsStaging`  | host can stage near the destination    | no — reported                      |
+| `supportsLock`     | host offers destination locking        | no — reported                      |
+| `supportsRollback` | host offers rollback of replaced files | no — reported                      |
+| `knowsReload`      | agent knows its reload mechanism       | no — reported as `unknown`         |
 
 ## Refusal Codes
 
 Refusals are nonzero exits; success is `0`. Every refusal performs zero payload mutation at the destination.
 
-| Exit | Code | Meaning | Failing state |
-|---|---|---|---|
-| 1 | `E_NO_NPX` | exact-version npx unavailable | DISCOVER |
-| 2 | `E_NO_WRITE` | file-write capability unavailable, or the staging sandbox is missing at materialization | DISCOVER / MATERIALIZE |
-| 3 | `E_NO_DESTINATION` | no absolute destination known, stated, or creatable | PLAN_DESTINATION |
-| 4 | `E_AMBIGUOUS_DESTINATION` | destination ambiguous and no user confirmation | CONFIRM_IF_NEEDED |
-| 5 | `E_UNTRUSTED` | trust root missing, unapproved, or envelope policy unfixed | TRUST / CONFIRM_IF_NEEDED |
-| 6 | `E_UNSUPPORTED_FORMAT` | payload index schema or entry shape mismatch, or a placed entry outside `payload/skills/` | TRUST / MATERIALIZE |
-| 7 | `E_MALICIOUS_STEPS` | steps Markdown carries executable policy | TRUST |
-| 8 | `E_DESTINATION_SYMLINK` | destination path contains a symlink component | PLAN_DESTINATION / CONFIRM_IF_NEEDED / MATERIALIZE |
-| 9 | `E_TRAVERSAL` | payload index entry escapes its root | MATERIALIZE |
-| 10 | `E_DUPLICATE` | two index entries claim the same path | MATERIALIZE |
-| 11 | `E_MODIFIED_EXISTING` | unmanaged existing content would be overwritten | MATERIALIZE |
-| 12 | `E_HASH_MISMATCH` | staged or placed sha256 differs from the index | VERIFY |
-| 13 | `E_INTERRUPTED` | file transport failed mid-copy | MATERIALIZE |
+| Exit | Code                      | Meaning                                                                                   | Failing state                                      |
+| ---- | ------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| 1    | `E_NO_NPX`                | exact-version npx unavailable                                                             | DISCOVER                                           |
+| 2    | `E_NO_WRITE`              | file-write capability unavailable, or the staging sandbox is missing at materialization   | DISCOVER / MATERIALIZE                             |
+| 3    | `E_NO_DESTINATION`        | no absolute destination known, stated, or creatable                                       | PLAN_DESTINATION                                   |
+| 4    | `E_AMBIGUOUS_DESTINATION` | destination ambiguous and no user confirmation                                            | CONFIRM_IF_NEEDED                                  |
+| 5    | `E_UNTRUSTED`             | trust root missing, unapproved, or envelope policy unfixed                                | TRUST / CONFIRM_IF_NEEDED                          |
+| 6    | `E_UNSUPPORTED_FORMAT`    | payload index schema or entry shape mismatch, or a placed entry outside `payload/skills/` | TRUST / MATERIALIZE                                |
+| 7    | `E_MALICIOUS_STEPS`       | steps Markdown carries executable policy                                                  | TRUST                                              |
+| 8    | `E_DESTINATION_SYMLINK`   | destination path contains a symlink component                                             | PLAN_DESTINATION / CONFIRM_IF_NEEDED / MATERIALIZE |
+| 9    | `E_TRAVERSAL`             | payload index entry escapes its root                                                      | MATERIALIZE                                        |
+| 10   | `E_DUPLICATE`             | two index entries claim the same path                                                     | MATERIALIZE                                        |
+| 11   | `E_MODIFIED_EXISTING`     | unmanaged existing content would be overwritten                                           | MATERIALIZE                                        |
+| 12   | `E_HASH_MISMATCH`         | staged or placed sha256 differs from the index                                            | VERIFY                                             |
+| 13   | `E_INTERRUPTED`           | file transport failed mid-copy                                                            | MATERIALIZE                                        |
 
 ## User Confirmation
 
@@ -143,16 +143,16 @@ Reports use schema `csm-agent-report/1`:
 
 ## Machine Guarantees vs Agent-Reported Guarantees (D10)
 
-| Concern | Machine-guaranteed | Agent-reported (never guaranteed) |
-|---|---|---|
-| Capability gating | refusal before mutation when `hasNpx`/`hasFileWrite` are false | honesty of the capability self-report |
-| Envelope trust | fixed package policy, no envelope path/exec fields, steps denylist, steps never executed | trust-root establishment and approval |
-| Destination | absolute, agent/user-supplied, symlink-free components, existent-or-creatable | discovery of the correct host skills directory |
-| Confirmation | no progress without explicit confirmation input | that the user was actually asked |
-| Payload integrity | traversal/duplicate rejection, staged + post-write sha256 equality, modes from the index | — |
-| Placement scope | only `payload/skills/**` classes placed; helpers/metadata/fixed bin untouched | final placement mechanics the host performs |
-| Transactions | staging cleanup on interruption; managed backup before managed replacement; managed restore on finalize failure; unmanaged finalize failure removes only this run's newly written files (identical pre-existing files preserved) and prunes emptied directories; `restore-failed` limitation on failed restore | staging/locking/rollback availability flags |
-| Reload | reloadAction limited to `declared` or `unknown` | actual reload semantics |
+| Concern           | Machine-guaranteed                                                                                                                                                                                                                                                                                             | Agent-reported (never guaranteed)              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Capability gating | refusal before mutation when `hasNpx`/`hasFileWrite` are false                                                                                                                                                                                                                                                 | honesty of the capability self-report          |
+| Envelope trust    | fixed package policy, no envelope path/exec fields, steps denylist, steps never executed                                                                                                                                                                                                                       | trust-root establishment and approval          |
+| Destination       | absolute, agent/user-supplied, symlink-free components, existent-or-creatable                                                                                                                                                                                                                                  | discovery of the correct host skills directory |
+| Confirmation      | no progress without explicit confirmation input                                                                                                                                                                                                                                                                | that the user was actually asked               |
+| Payload integrity | traversal/duplicate rejection, staged + post-write sha256 equality, modes from the index                                                                                                                                                                                                                       | —                                              |
+| Placement scope   | only `payload/skills/**` classes placed; helpers/metadata/fixed bin untouched                                                                                                                                                                                                                                  | final placement mechanics the host performs    |
+| Transactions      | staging cleanup on interruption; managed backup before managed replacement; managed restore on finalize failure; unmanaged finalize failure removes only this run's newly written files (identical pre-existing files preserved) and prunes emptied directories; `restore-failed` limitation on failed restore | staging/locking/rollback availability flags    |
+| Reload            | reloadAction limited to `declared` or `unknown`                                                                                                                                                                                                                                                                | actual reload semantics                        |
 
 ## Reference Engine
 

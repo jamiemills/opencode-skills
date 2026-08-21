@@ -33,38 +33,42 @@
 // node:process / node:vm / node:module, so the recurring capability gate
 // remains closed.
 
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 import {
   assertDataOnly,
   compareAscii,
   deepFreeze,
   normalizeEvidencePath,
-} from '../../contracts/evidence.mjs';
-import { assertPrivacySafe, redactText } from '../../shared/privacy.mjs';
+} from "../../contracts/evidence.mjs";
+import { assertPrivacySafe, redactText } from "../../shared/privacy.mjs";
 
-export const ASSURANCE_DIMENSION_ID = 'DIM-assurance-v1';
+export const ASSURANCE_DIMENSION_ID = "DIM-assurance-v1";
 
 export const ASSURANCE_CATEGORIES = Object.freeze([
-  'accessibility',
-  'attestation',
-  'configuration',
-  'license',
-  'lock',
-  'manifest',
-  'pin',
-  'sarif',
-  'sbom',
-  'source',
-  'standard',
-  'tool_result',
-  'vex',
+  "accessibility",
+  "attestation",
+  "configuration",
+  "license",
+  "lock",
+  "manifest",
+  "pin",
+  "sarif",
+  "sbom",
+  "source",
+  "standard",
+  "tool_result",
+  "vex",
 ]);
 
-export const ASSURANCE_STATUSES = Object.freeze(['observed', 'unverified']);
+export const ASSURANCE_STATUSES = Object.freeze(["observed", "unverified"]);
 
 export const DIAGNOSTIC_STATUSES = Object.freeze([
-  'capped', 'malformed', 'unreadable', 'unsupported', 'unverified',
+  "capped",
+  "malformed",
+  "unreadable",
+  "unsupported",
+  "unverified",
 ]);
 
 export const ASSURANCE_LIMITS = deepFreeze({
@@ -89,19 +93,19 @@ export const ASSURANCE_LIMITS = deepFreeze({
   vexes: 64,
 });
 
-const MANIFEST_DETAILS_KEYS = Object.freeze(['ecosystem', 'format']);
-const LOCK_DETAILS_KEYS = Object.freeze(['format']);
-const PIN_DETAILS_KEYS = Object.freeze(['package', 'scope', 'version']);
-const SOURCE_DETAILS_KEYS = Object.freeze(['host', 'kind', 'label']);
-const LICENSE_DETAILS_KEYS = Object.freeze(['declared', 'identifier']);
-const SBOM_DETAILS_KEYS = Object.freeze(['format', 'projection', 'specVersion']);
-const VEX_DETAILS_KEYS = Object.freeze(['format', 'specVersion', 'statementCount']);
-const SARIF_DETAILS_KEYS = Object.freeze(['projection', 'version']);
-const CONFIG_DETAILS_KEYS = Object.freeze(['tool']);
-const RESULT_DETAILS_KEYS = Object.freeze(['format', 'tool']);
-const ACCESSIBILITY_DETAILS_KEYS = Object.freeze(['declared', 'kind']);
-const ATTESTATION_DETAILS_KEYS = Object.freeze(['format', 'kind']);
-const STANDARD_DETAILS_KEYS = Object.freeze(['disposition', 'editionKey', 'registryId']);
+const MANIFEST_DETAILS_KEYS = Object.freeze(["ecosystem", "format"]);
+const LOCK_DETAILS_KEYS = Object.freeze(["format"]);
+const PIN_DETAILS_KEYS = Object.freeze(["package", "scope", "version"]);
+const SOURCE_DETAILS_KEYS = Object.freeze(["host", "kind", "label"]);
+const LICENSE_DETAILS_KEYS = Object.freeze(["declared", "identifier"]);
+const SBOM_DETAILS_KEYS = Object.freeze(["format", "projection", "specVersion"]);
+const VEX_DETAILS_KEYS = Object.freeze(["format", "specVersion", "statementCount"]);
+const SARIF_DETAILS_KEYS = Object.freeze(["projection", "version"]);
+const CONFIG_DETAILS_KEYS = Object.freeze(["tool"]);
+const RESULT_DETAILS_KEYS = Object.freeze(["format", "tool"]);
+const ACCESSIBILITY_DETAILS_KEYS = Object.freeze(["declared", "kind"]);
+const ATTESTATION_DETAILS_KEYS = Object.freeze(["format", "kind"]);
+const STANDARD_DETAILS_KEYS = Object.freeze(["disposition", "editionKey", "registryId"]);
 
 const DETAILS_KEYS = Object.freeze({
   accessibility: ACCESSIBILITY_DETAILS_KEYS,
@@ -125,7 +129,7 @@ const DIAGNOSTIC_REASON_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 export class AssuranceModelError extends TypeError {
   constructor(code, message) {
     super(`Invalid assurance model: ${message}`);
-    this.name = 'AssuranceModelError';
+    this.name = "AssuranceModelError";
     this.code = code;
   }
 }
@@ -137,26 +141,26 @@ function fail(code, message) {
 function exactKeys(value, expected, label) {
   const keys = Object.keys(value).toSorted(compareAscii);
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    fail('UNKNOWN_FIELD', `${label} fields do not match the schema`);
+    fail("UNKNOWN_FIELD", `${label} fields do not match the schema`);
   }
 }
 
 function plainObject(value, label) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', `${label} must be an object`);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", `${label} must be an object`);
   }
 }
 
 function categoryOf(value) {
-  if (typeof value !== 'string' || !ASSURANCE_CATEGORIES.includes(value)) {
-    fail('UNKNOWN_CATEGORY', 'record category is not allowlisted for the assurance dimension');
+  if (typeof value !== "string" || !ASSURANCE_CATEGORIES.includes(value)) {
+    fail("UNKNOWN_CATEGORY", "record category is not allowlisted for the assurance dimension");
   }
   return value;
 }
 
 function statusOf(value) {
-  if (typeof value !== 'string' || !ASSURANCE_STATUSES.includes(value)) {
-    fail('INVALID_STATUS', 'record status must be observed or unverified');
+  if (typeof value !== "string" || !ASSURANCE_STATUSES.includes(value)) {
+    fail("INVALID_STATUS", "record status must be observed or unverified");
   }
   return value;
 }
@@ -165,15 +169,19 @@ function normalizedPath(value) {
   try {
     return normalizeEvidencePath(value);
   } catch {
-    fail('INVALID_PATH', 'record path must be a normalized repository-relative POSIX path');
+    fail("INVALID_PATH", "record path must be a normalized repository-relative POSIX path");
   }
 }
 
 function detailToken(value, label) {
   if (value === null) return null;
-  if (typeof value !== 'string' || value.length === 0 || value.length > 256
-      || !DETAILS_TOKEN_PATTERN.test(value)) {
-    fail('INVALID_DETAILS', `${label} must contain bounded printable ASCII`);
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 256 ||
+    !DETAILS_TOKEN_PATTERN.test(value)
+  ) {
+    fail("INVALID_DETAILS", `${label} must contain bounded printable ASCII`);
   }
   return value;
 }
@@ -196,73 +204,88 @@ function projectionDetails(value) {
 }
 
 function normalizeDetails(categoryName, details) {
-  if (details === null || typeof details !== 'object' || Array.isArray(details)) {
-    fail('INVALID_DETAILS', 'record details must be an object');
+  if (details === null || typeof details !== "object" || Array.isArray(details)) {
+    fail("INVALID_DETAILS", "record details must be an object");
   }
-  if (categoryName === 'sbom' || categoryName === 'sarif') {
-    const keys = categoryName === 'sbom' ? SBOM_DETAILS_KEYS : SARIF_DETAILS_KEYS;
-    plainObject(details, 'details');
-    exactKeys(details, keys, 'details');
+  if (categoryName === "sbom" || categoryName === "sarif") {
+    const keys = categoryName === "sbom" ? SBOM_DETAILS_KEYS : SARIF_DETAILS_KEYS;
+    plainObject(details, "details");
+    exactKeys(details, keys, "details");
     const normalized = {};
     for (const key of keys) {
-      if (key === 'projection') normalized.projection = projectionDetails(details.projection);
+      if (key === "projection") normalized.projection = projectionDetails(details.projection);
       else normalized[key] = detailToken(details[key], key);
     }
     return normalized;
   }
-  if (categoryName === 'vex') {
-    plainObject(details, 'details');
-    exactKeys(details, VEX_DETAILS_KEYS, 'details');
-    if (!Number.isSafeInteger(details.statementCount) || details.statementCount < 0
-        || details.statementCount > 10_000_000) {
-      fail('INVALID_DETAILS', 'vex statementCount must be a bounded non-negative integer');
+  if (categoryName === "vex") {
+    plainObject(details, "details");
+    exactKeys(details, VEX_DETAILS_KEYS, "details");
+    if (
+      !Number.isSafeInteger(details.statementCount) ||
+      details.statementCount < 0 ||
+      details.statementCount > 10_000_000
+    ) {
+      fail("INVALID_DETAILS", "vex statementCount must be a bounded non-negative integer");
     }
     return {
-      format: detailToken(details.format, 'format'),
-      specVersion: detailToken(details.specVersion, 'specVersion'),
+      format: detailToken(details.format, "format"),
+      specVersion: detailToken(details.specVersion, "specVersion"),
       statementCount: details.statementCount,
     };
   }
-  if (categoryName === 'standard') {
-    plainObject(details, 'details');
-    exactKeys(details, STANDARD_DETAILS_KEYS, 'details');
+  if (categoryName === "standard") {
+    plainObject(details, "details");
+    exactKeys(details, STANDARD_DETAILS_KEYS, "details");
     return {
-      registryId: detailToken(details.registryId, 'registryId'),
-      editionKey: detailToken(details.editionKey, 'editionKey'),
-      disposition: detailToken(details.disposition, 'disposition'),
+      registryId: detailToken(details.registryId, "registryId"),
+      editionKey: detailToken(details.editionKey, "editionKey"),
+      disposition: detailToken(details.disposition, "disposition"),
     };
   }
-  return detailsObject(details, DETAILS_KEYS[categoryName], 'details');
+  return detailsObject(details, DETAILS_KEYS[categoryName], "details");
 }
 
 function identityFor(categoryName, details) {
   switch (categoryName) {
-    case 'manifest': return `manifest:${details.format}`;
-    case 'lock': return `lock:${details.format}`;
-    case 'pin': return `pin:${details.package}:${details.version}`;
-    case 'source': return `source:${details.kind}:${details.host}`;
-    case 'license': return `license:${details.declared}:${details.identifier}`;
-    case 'sbom': return `sbom:${details.format}:${details.specVersion ?? 'unknown'}`;
-    case 'vex': return `vex:${details.format}:${details.specVersion ?? 'unknown'}`;
-    case 'sarif': return `sarif:${details.version ?? 'unknown'}`;
-    case 'configuration': return `configuration:${details.tool}`;
-    case 'tool_result': return `tool_result:${details.tool}:${details.format ?? 'unknown'}`;
-    case 'accessibility': return `accessibility:${details.kind}:${details.declared ?? 'none'}`;
-    case 'attestation': return `attestation:${details.format}:${details.kind}`;
-    case 'standard': return `standard:${details.registryId}`;
-    default: fail('UNKNOWN_CATEGORY', 'record category is not supported');
+    case "manifest":
+      return `manifest:${details.format}`;
+    case "lock":
+      return `lock:${details.format}`;
+    case "pin":
+      return `pin:${details.package}:${details.version}`;
+    case "source":
+      return `source:${details.kind}:${details.host}`;
+    case "license":
+      return `license:${details.declared}:${details.identifier}`;
+    case "sbom":
+      return `sbom:${details.format}:${details.specVersion ?? "unknown"}`;
+    case "vex":
+      return `vex:${details.format}:${details.specVersion ?? "unknown"}`;
+    case "sarif":
+      return `sarif:${details.version ?? "unknown"}`;
+    case "configuration":
+      return `configuration:${details.tool}`;
+    case "tool_result":
+      return `tool_result:${details.tool}:${details.format ?? "unknown"}`;
+    case "accessibility":
+      return `accessibility:${details.kind}:${details.declared ?? "none"}`;
+    case "attestation":
+      return `attestation:${details.format}:${details.kind}`;
+    case "standard":
+      return `standard:${details.registryId}`;
+    default:
+      fail("UNKNOWN_CATEGORY", "record category is not supported");
   }
 }
 
 function encodeMatchedKey(value) {
-  return value.replace(/\{/g, '%7B').replace(/\}/g, '%7D');
+  return value.replace(/\{/g, "%7B").replace(/\}/g, "%7D");
 }
 
 function hashOf(parts) {
-  const framed = parts
-    .map((part) => `${Buffer.byteLength(part, 'utf8')}:${part}`)
-    .join('|');
-  return createHash('sha256').update(framed).digest('hex');
+  const framed = parts.map((part) => `${Buffer.byteLength(part, "utf8")}:${part}`).join("|");
+  return createHash("sha256").update(framed).digest("hex");
 }
 
 export function recordId(record) {
@@ -277,11 +300,11 @@ function normalizeCandidate(candidate) {
     maxObjectKeys: 16,
     maxString: 512,
   });
-  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
-    fail('INVALID_TYPE', 'assurance candidate must be an object');
+  if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+    fail("INVALID_TYPE", "assurance candidate must be an object");
   }
-  const allowed = Object.freeze(['category', 'details', 'path', 'status']);
-  exactKeys(candidate, allowed, 'assurance candidate');
+  const allowed = Object.freeze(["category", "details", "path", "status"]);
+  exactKeys(candidate, allowed, "assurance candidate");
   const categoryName = categoryOf(candidate.category);
   const details = normalizeDetails(categoryName, candidate.details);
   return {
@@ -305,17 +328,21 @@ function normalizeDiagnostic(value) {
     maxObjectKeys: 8,
     maxString: 512,
   });
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    fail('INVALID_TYPE', 'diagnostic must be an object');
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("INVALID_TYPE", "diagnostic must be an object");
   }
-  exactKeys(value, ['path', 'reason', 'status'], 'diagnostic');
+  exactKeys(value, ["path", "reason", "status"], "diagnostic");
   const path = normalizedPath(value.path);
   if (!DIAGNOSTIC_STATUSES.includes(value.status)) {
-    fail('INVALID_STATUS', 'diagnostic status is not allowlisted');
+    fail("INVALID_STATUS", "diagnostic status is not allowlisted");
   }
-  if (typeof value.reason !== 'string' || value.reason.length === 0 || value.reason.length > 64
-      || !DIAGNOSTIC_REASON_PATTERN.test(value.reason)) {
-    fail('INVALID_REASON', 'diagnostic reason must be a bounded uppercase token');
+  if (
+    typeof value.reason !== "string" ||
+    value.reason.length === 0 ||
+    value.reason.length > 64 ||
+    !DIAGNOSTIC_REASON_PATTERN.test(value.reason)
+  ) {
+    fail("INVALID_REASON", "diagnostic reason must be a bounded uppercase token");
   }
   return { path, status: value.status, reason: value.reason };
 }
@@ -330,17 +357,20 @@ function privacyFilter(records, diagnostics) {
     } catch {
       privacyDiagnostics.push({
         path: redactText(record.path),
-        status: 'unverified',
-        reason: 'PRIVACY',
+        status: "unverified",
+        reason: "PRIVACY",
       });
     }
   }
   const allDiagnostics = [...diagnostics, ...privacyDiagnostics];
   const unique = [];
   const seen = new Set();
-  for (const diagnostic of allDiagnostics.toSorted((left, right) => compareAscii(left.path, right.path)
-    || compareAscii(left.status, right.status)
-    || compareAscii(left.reason, right.reason))) {
+  for (const diagnostic of allDiagnostics.toSorted(
+    (left, right) =>
+      compareAscii(left.path, right.path) ||
+      compareAscii(left.status, right.status) ||
+      compareAscii(left.reason, right.reason),
+  )) {
     const key = `${diagnostic.path}\0${diagnostic.status}\0${diagnostic.reason}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -393,15 +423,20 @@ export function buildAssuranceModel({
     normalizedRecords.push({ ...record, id: recordId(record) });
   }
 
-  const diagnosticRecords = (Array.isArray(diagnostics) ? diagnostics : []).map(normalizeDiagnostic);
+  const diagnosticRecords = (Array.isArray(diagnostics) ? diagnostics : []).map(
+    normalizeDiagnostic,
+  );
   const { records: privacySafe, diagnostics: uniqueDiagnostics } = privacyFilter(
     normalizedRecords,
     diagnosticRecords,
   );
 
-  privacySafe.sort((left, right) => compareAscii(left.category, right.category)
-    || compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.path, right.path));
+  privacySafe.sort(
+    (left, right) =>
+      compareAscii(left.category, right.category) ||
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.path, right.path),
+  );
 
   const space = searchSpace ?? normalizeEmptySearchSpace(measurement);
 
@@ -409,33 +444,39 @@ export function buildAssuranceModel({
   for (const record of privacySafe) grouped[record.category].push(record);
 
   const capped = { files: space.capped, records: false, diagnostics: false };
-  const boundedDiagnostics = uniqueDiagnostics.length > ASSURANCE_LIMITS.diagnostics
-    ? (capped.diagnostics = true, uniqueDiagnostics.slice(0, ASSURANCE_LIMITS.diagnostics))
-    : uniqueDiagnostics;
+  const boundedDiagnostics =
+    uniqueDiagnostics.length > ASSURANCE_LIMITS.diagnostics
+      ? ((capped.diagnostics = true), uniqueDiagnostics.slice(0, ASSURANCE_LIMITS.diagnostics))
+      : uniqueDiagnostics;
   const summaryCounts = { diagnostics: boundedDiagnostics.length };
   for (const category of ASSURANCE_CATEGORIES) {
     const limitKey = {
-      accessibility: 'accessibility',
-      attestation: 'attestations',
-      configuration: 'configurations',
-      license: 'licenses',
-      lock: 'locks',
-      manifest: 'manifests',
-      pin: 'pins',
-      sarif: 'sarifs',
-      sbom: 'sboms',
-      source: 'sources',
-      standard: 'standards',
-      tool_result: 'toolResults',
-      vex: 'vexes',
+      accessibility: "accessibility",
+      attestation: "attestations",
+      configuration: "configurations",
+      license: "licenses",
+      lock: "locks",
+      manifest: "manifests",
+      pin: "pins",
+      sarif: "sarifs",
+      sbom: "sboms",
+      source: "sources",
+      standard: "standards",
+      tool_result: "toolResults",
+      vex: "vexes",
     }[category];
-    const { records: cappedList, capped: hit } = capRecords(grouped[category], ASSURANCE_LIMITS[limitKey]);
+    const { records: cappedList, capped: hit } = capRecords(
+      grouped[category],
+      ASSURANCE_LIMITS[limitKey],
+    );
     grouped[category] = cappedList;
     capped[limitKey] = hit;
     summaryCounts[limitKey] = cappedList.length;
   }
-  summaryCounts.records = ASSURANCE_CATEGORIES
-    .reduce((sum, category) => sum + grouped[category].length, 0);
+  summaryCounts.records = ASSURANCE_CATEGORIES.reduce(
+    (sum, category) => sum + grouped[category].length,
+    0,
+  );
   const allCapped = Object.values(capped).some(Boolean);
   if (privacySafe.length > ASSURANCE_LIMITS.perFile * 8) capped.records = true;
 

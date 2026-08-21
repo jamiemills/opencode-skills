@@ -29,7 +29,7 @@
 // helpers; it never touches node:fs / node:child_process / node:process /
 // node:vm / node:module, so the recurring capability gate remains closed.
 
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 export const DUPLICATE_WINDOW = 50;
 
@@ -44,7 +44,7 @@ const DUPLICATE_LIMITS = Object.freeze({
 export class DuplicateError extends TypeError {
   constructor(code, message) {
     super(`Duplicate detection failed: ${message}`);
-    this.name = 'DuplicateError';
+    this.name = "DuplicateError";
     this.code = code;
   }
 }
@@ -54,19 +54,28 @@ function fail(code, message) {
 }
 
 function plainFiles(value) {
-  if (!Array.isArray(value)) fail('INVALID_INPUT', 'files must be an array');
+  if (!Array.isArray(value)) fail("INVALID_INPUT", "files must be an array");
   const normalized = [];
   for (const entry of value) {
-    if (entry === null || typeof entry !== 'object' || typeof entry.path !== 'string'
-        || !Array.isArray(entry.tokens)) {
-      fail('INVALID_INPUT', 'each file must carry a path and a token array');
+    if (
+      entry === null ||
+      typeof entry !== "object" ||
+      typeof entry.path !== "string" ||
+      !Array.isArray(entry.tokens)
+    ) {
+      fail("INVALID_INPUT", "each file must carry a path and a token array");
     }
     const values = [];
     const lines = [];
     for (const token of entry.tokens) {
-      if (token === null || typeof token !== 'object' || typeof token.value !== 'string'
-          || !Number.isSafeInteger(token.line) || token.line < 1) {
-        fail('INVALID_TOKEN', 'tokens must be { value, line } records');
+      if (
+        token === null ||
+        typeof token !== "object" ||
+        typeof token.value !== "string" ||
+        !Number.isSafeInteger(token.line) ||
+        token.line < 1
+      ) {
+        fail("INVALID_TOKEN", "tokens must be { value, line } records");
       }
       values.push(token.value);
       lines.push(token.line);
@@ -77,12 +86,12 @@ function plainFiles(value) {
 }
 
 function hashWindow(values, start) {
-  let hasher = createHash('sha256');
+  let hasher = createHash("sha256");
   for (let index = start; index < start + DUPLICATE_WINDOW; index++) {
     hasher = hasher.update(values[index]);
-    hasher = hasher.update('\u0001');
+    hasher = hasher.update("\u0001");
   }
-  return hasher.digest('hex');
+  return hasher.digest("hex");
 }
 
 function slicesEqual(valuesA, startA, valuesB, startB) {
@@ -98,13 +107,20 @@ function occurrencesEqual(values, reference, candidate) {
 
 function blockLength(values, refF, refS, otherF, otherS) {
   let back = 0;
-  while (refS - back - 1 >= 0 && otherS - back - 1 >= 0
-      && values[refF][refS - back - 1] === values[otherF][otherS - back - 1]) back++;
+  while (
+    refS - back - 1 >= 0 &&
+    otherS - back - 1 >= 0 &&
+    values[refF][refS - back - 1] === values[otherF][otherS - back - 1]
+  )
+    back++;
   let forward = 0;
-  while (refS + DUPLICATE_WINDOW + forward < values[refF].length
-      && otherS + DUPLICATE_WINDOW + forward < values[otherF].length
-      && values[refF][refS + DUPLICATE_WINDOW + forward]
-          === values[otherF][otherS + DUPLICATE_WINDOW + forward]) forward++;
+  while (
+    refS + DUPLICATE_WINDOW + forward < values[refF].length &&
+    otherS + DUPLICATE_WINDOW + forward < values[otherF].length &&
+    values[refF][refS + DUPLICATE_WINDOW + forward] ===
+      values[otherF][otherS + DUPLICATE_WINDOW + forward]
+  )
+    forward++;
   const startA = refS - back;
   const endA = refS + DUPLICATE_WINDOW + forward;
   const startB = otherS - back;
@@ -295,17 +311,25 @@ export function findDuplicateGroups(files, options = DUPLICATE_LIMITS) {
   }
 
   const groupsOut = rawGroups
-    .map((regions) => regions.map((region) => ({
-      path: normalized[region.f].path,
-      startLine: lines[region.f][region.s],
-      endLine: lines[region.f][region.e - 1],
-      tokenCount: region.e - region.s,
-    })))
+    .map((regions) =>
+      regions.map((region) => ({
+        path: normalized[region.f].path,
+        startLine: lines[region.f][region.s],
+        endLine: lines[region.f][region.e - 1],
+        tokenCount: region.e - region.s,
+      })),
+    )
     .filter((spans) => spans.length >= 2);
 
   const groupsSorted = groupsOut.toSorted((left, right) => {
-    const leftKey = left.map((span) => `${span.path}:${span.startLine}`).toSorted().join('\u0001');
-    const rightKey = right.map((span) => `${span.path}:${span.startLine}`).toSorted().join('\u0001');
+    const leftKey = left
+      .map((span) => `${span.path}:${span.startLine}`)
+      .toSorted()
+      .join("\u0001");
+    const rightKey = right
+      .map((span) => `${span.path}:${span.startLine}`)
+      .toSorted()
+      .join("\u0001");
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
   });
 
@@ -317,9 +341,9 @@ export function findDuplicateGroups(files, options = DUPLICATE_LIMITS) {
       groupsCapped = true;
       break;
     }
-    const sortedSpans = [...spans].toSorted((left, right) => (
-      left.path < right.path ? -1 : left.path > right.path ? 1 : left.startLine - right.startLine
-    ));
+    const sortedSpans = [...spans].toSorted((left, right) =>
+      left.path < right.path ? -1 : left.path > right.path ? 1 : left.startLine - right.startLine,
+    );
     let boundedSpans = sortedSpans;
     if (sortedSpans.length > limits.maxSpansPerGroup) {
       boundedSpans = sortedSpans.slice(0, limits.maxSpansPerGroup);
@@ -327,7 +351,7 @@ export function findDuplicateGroups(files, options = DUPLICATE_LIMITS) {
     }
     const tokenCount = Math.min(...boundedSpans.map((span) => span.tokenCount));
     boundedGroups.push({
-      id: `duplicate-${String(boundedGroups.length + 1).padStart(3, '0')}`,
+      id: `duplicate-${String(boundedGroups.length + 1).padStart(3, "0")}`,
       tokenCount,
       spans: boundedSpans,
     });

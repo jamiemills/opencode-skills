@@ -14,26 +14,19 @@
 //     appear as a detected ecosystem.
 
 export const files = {
-  'go.mod': 'module example.com/t226\n\ngo 1.21\n',
-  'go.sum': 'example.com/dep v1.0.0 h1:abc=\n',
-  'src/main.go': [
-    'package main',
-    '',
+  "go.mod": "module example.com/t226\n\ngo 1.21\n",
+  "go.sum": "example.com/dep v1.0.0 h1:abc=\n",
+  "src/main.go": [
+    "package main",
+    "",
     'import "fmt"',
-    '',
-    'func main() {',
+    "",
+    "func main() {",
     '    fmt.Println("hello")',
-    '}',
-    '',
-  ].join('\n'),
-  'src/lib.go': [
-    'package main',
-    '',
-    'func value() int {',
-    '    return 1',
-    '}',
-    '',
-  ].join('\n'),
-  'README.md': '# t226 unknown (Go)\n',
-  'LICENSE': 'MIT License\n',
+    "}",
+    "",
+  ].join("\n"),
+  "src/lib.go": ["package main", "", "func value() int {", "    return 1", "}", ""].join("\n"),
+  "README.md": "# t226 unknown (Go)\n",
+  LICENSE: "MIT License\n",
 };

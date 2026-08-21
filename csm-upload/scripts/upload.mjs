@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-import { execFile } from 'node:child_process';
-import { accessSync, constants as fsc } from 'node:fs';
-import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, open } from 'node:fs/promises';
-import { once } from 'node:events';
-import { join, basename, dirname } from 'node:path';
-import { homedir, tmpdir } from 'node:os';
+import { execFile } from "node:child_process";
+import { accessSync, constants as fsc } from "node:fs";
+import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, open } from "node:fs/promises";
+import { once } from "node:events";
+import { join, basename, dirname } from "node:path";
+import { homedir, tmpdir } from "node:os";
 
-const CONFIG_PATH = join(homedir(), '.agents', 'csm-upload.json');
+const CONFIG_PATH = join(homedir(), ".agents", "csm-upload.json");
 
 // F-052: every value interpolated into index.html passes through escapeHtml.
 function escapeHtml(value) {
   return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // F-052: uploaded file names must stay inside the demo directory — no path
@@ -23,9 +23,9 @@ function escapeHtml(value) {
 const SAFE_FILENAME_RE = /^[A-Za-z0-9._-]+$/;
 
 function assertSafeFilename(name) {
-  if (!SAFE_FILENAME_RE.test(name) || name === '.' || name === '..') {
+  if (!SAFE_FILENAME_RE.test(name) || name === "." || name === "..") {
     throw new Error(
-      `Unsafe filename rejected: "${name}". Filenames may only contain [A-Za-z0-9._-] (no path separators, no special characters).`
+      `Unsafe filename rejected: "${name}". Filenames may only contain [A-Za-z0-9._-] (no path separators, no special characters).`,
     );
   }
 }
@@ -40,62 +40,70 @@ const PAGES_REPO_RE = /^[A-Za-z0-9._-]+$/;
 function buildCloneUrl(github, pagesRepo) {
   if (!GITHUB_RE.test(github)) {
     throw new Error(
-      `Invalid GitHub username: "${github}". Usernames may only contain letters, digits, and hyphens (1-39 characters).`
+      `Invalid GitHub username: "${github}". Usernames may only contain letters, digits, and hyphens (1-39 characters).`,
     );
   }
   if (!PAGES_REPO_RE.test(pagesRepo)) {
     throw new Error(
-      `Invalid pages repository name: "${pagesRepo}". Repository names may only contain letters, digits, dots, underscores, and hyphens.`
+      `Invalid pages repository name: "${pagesRepo}". Repository names may only contain letters, digits, dots, underscores, and hyphens.`,
     );
   }
   const url = new URL(`https://github.com/${github}/${pagesRepo}.git`);
-  if (url.hostname !== 'github.com') {
-    throw new Error(`Refusing to build the clone URL: resolved host is "${url.hostname}", expected github.com.`);
+  if (url.hostname !== "github.com") {
+    throw new Error(
+      `Refusing to build the clone URL: resolved host is "${url.hostname}", expected github.com.`,
+    );
   }
   return url;
 }
 
 const args = process.argv.slice(2);
-let label = '';
+let label = "";
 const files = [];
-let description = '';
-let ghOverride = '';
-let repoOverride = '';
+let description = "";
+let ghOverride = "";
+let repoOverride = "";
 let dryRun = false;
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--label' && i + 1 < args.length) label = args[++i];
-  else if (args[i] === '--desc' && i + 1 < args.length) description = args[++i];
-  else if (args[i] === '--github' && i + 1 < args.length) ghOverride = args[++i];
-  else if (args[i] === '--repo' && i + 1 < args.length) repoOverride = args[++i];
-  else if (args[i] === '--dry-run') dryRun = true;
-  else if (!args[i].startsWith('--')) files.push(args[i]);
+  if (args[i] === "--label" && i + 1 < args.length) label = args[++i];
+  else if (args[i] === "--desc" && i + 1 < args.length) description = args[++i];
+  else if (args[i] === "--github" && i + 1 < args.length) ghOverride = args[++i];
+  else if (args[i] === "--repo" && i + 1 < args.length) repoOverride = args[++i];
+  else if (args[i] === "--dry-run") dryRun = true;
+  else if (!args[i].startsWith("--")) files.push(args[i]);
 }
 
 if (!label) {
-  console.error('Usage: node scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--dry-run] <file1> [file2...]');
-  console.error('Creates demo-YYYY-MM-DD-<label>/ on your GitHub Pages site with the uploaded files.');
-  console.error('--dry-run builds the index.html locally and performs no git/gh operations.');
+  console.error(
+    "Usage: node scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--dry-run] <file1> [file2...]",
+  );
+  console.error(
+    "Creates demo-YYYY-MM-DD-<label>/ on your GitHub Pages site with the uploaded files.",
+  );
+  console.error("--dry-run builds the index.html locally and performs no git/gh operations.");
   process.exit(1);
 }
 
 async function loadConfig({ probe = true } = {}) {
   let config = {};
   try {
-    const raw = await readFile(CONFIG_PATH, 'utf-8');
+    const raw = await readFile(CONFIG_PATH, "utf-8");
     config = JSON.parse(raw);
   } catch {}
 
   if (config.github && config.pagesRepo) return config;
 
-  if (!config.pagesRepo) config.pagesRepo = 'csm-browse-pages';
+  if (!config.pagesRepo) config.pagesRepo = "csm-browse-pages";
 
   if (!config.github && probe) {
     // F-053: ask the API for the authenticated login first — the auth-status
     // text parse below is only a fallback (it can grab the wrong account on
     // multi-account setups).
     try {
-      const { stdout } = await execFileTracked('gh', ['api', 'user', '--jq', '.login'], { timeout: 60000 });
+      const { stdout } = await execFileTracked("gh", ["api", "user", "--jq", ".login"], {
+        timeout: 60000,
+      });
       const login = stdout.trim();
       if (login) {
         config.github = login;
@@ -105,7 +113,7 @@ async function loadConfig({ probe = true } = {}) {
 
     if (!config.github) {
       try {
-        const { stdout } = await execFileTracked('gh', ['auth', 'status'], { timeout: 60000 });
+        const { stdout } = await execFileTracked("gh", ["auth", "status"], { timeout: 60000 });
         const match = stdout.match(/account\s+(\S+)/) || stdout.match(/as\s+(\S+)/);
         if (match) {
           config.github = match[1];
@@ -115,9 +123,11 @@ async function loadConfig({ probe = true } = {}) {
     }
 
     if (!config.github) {
-      console.error('GitHub username still unset — could not determine GitHub username from gh.');
-      console.error('Run `gh auth status` manually or pass --github <user>.');
-      console.error(`Alternatively, set it manually: echo '{"github":"YOUR_USER","pagesRepo":"csm-browse-pages"}' > ${CONFIG_PATH}`);
+      console.error("GitHub username still unset — could not determine GitHub username from gh.");
+      console.error("Run `gh auth status` manually or pass --github <user>.");
+      console.error(
+        `Alternatively, set it manually: echo '{"github":"YOUR_USER","pagesRepo":"csm-browse-pages"}' > ${CONFIG_PATH}`,
+      );
       process.exit(1);
     }
   }
@@ -125,14 +135,14 @@ async function loadConfig({ probe = true } = {}) {
   if (!probe) return config;
 
   await mkdir(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
-  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), { encoding: "utf-8", mode: 0o600 });
   return config;
 }
 
 function buildIndexHtml(demoDir, desc, uploaded) {
-  const imgs = uploaded.filter(f => ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(f.ext));
-  const vids = uploaded.filter(f => ['webm', 'mp4', 'mov'].includes(f.ext));
-  const other = uploaded.filter(f => !imgs.includes(f) && !vids.includes(f));
+  const imgs = uploaded.filter((f) => ["png", "jpg", "jpeg", "gif", "webp"].includes(f.ext));
+  const vids = uploaded.filter((f) => ["webm", "mp4", "mov"].includes(f.ext));
+  const other = uploaded.filter((f) => !imgs.includes(f) && !vids.includes(f));
 
   let html = `<!DOCTYPE html>
 <html lang="en">
@@ -195,19 +205,27 @@ function execFileTracked(file, cmdArgs, options = {}) {
 async function terminateChildren() {
   const children = [...activeChildren];
   for (const child of children) {
-    try { child.kill('SIGTERM'); } catch {}
+    try {
+      child.kill("SIGTERM");
+    } catch {}
   }
-  await Promise.all(children.map(async child => {
-    if (child.exitCode !== null || child.signalCode !== null) return;
-    await Promise.race([
-      once(child, 'close').catch(() => {}),
-      new Promise(resolve => setTimeout(resolve, 5000)),
-    ]);
-    if (child.exitCode === null && child.signalCode === null) {
-      try { child.kill('SIGKILL'); } catch {}
-      try { await once(child, 'close'); } catch {}
-    }
-  }));
+  await Promise.all(
+    children.map(async (child) => {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      await Promise.race([
+        once(child, "close").catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
+      if (child.exitCode === null && child.signalCode === null) {
+        try {
+          child.kill("SIGKILL");
+        } catch {}
+        try {
+          await once(child, "close");
+        } catch {}
+      }
+    }),
+  );
 }
 
 async function cleanup() {
@@ -219,7 +237,9 @@ async function cleanup() {
     await terminateChildren();
     for (const path of [pagesDir, previewDir]) {
       if (path) {
-        try { await rm(path, { recursive: true, force: true }); } catch {}
+        try {
+          await rm(path, { recursive: true, force: true });
+        } catch {}
       }
     }
     pagesDir = null;
@@ -242,12 +262,14 @@ async function createTrackedTempDir(prefix, assign) {
 }
 
 async function writePrivatePreview(html) {
-  await createTrackedTempDir('csm-upload-preview-', path => { previewDir = path; });
-  previewPath = join(previewDir, 'index.html');
+  await createTrackedTempDir("csm-upload-preview-", (path) => {
+    previewDir = path;
+  });
+  previewPath = join(previewDir, "index.html");
   const flags = fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL | (fsc.O_NOFOLLOW ?? 0);
   const handle = await open(previewPath, flags, 0o600);
   try {
-    await handle.writeFile(html, 'utf-8');
+    await handle.writeFile(html, "utf-8");
   } finally {
     await handle.close();
   }
@@ -258,14 +280,14 @@ async function cleanupOnSignal(signal) {
   if (signalCleaning) return;
   signalCleaning = true;
   await cleanup();
-  process.exit(signal === 'SIGINT' ? 130 : 143);
+  process.exit(signal === "SIGINT" ? 130 : 143);
 }
-process.on('SIGINT', () => cleanupOnSignal('SIGINT'));
-process.on('SIGTERM', () => cleanupOnSignal('SIGTERM'));
+process.on("SIGINT", () => cleanupOnSignal("SIGINT"));
+process.on("SIGTERM", () => cleanupOnSignal("SIGTERM"));
 
 async function main() {
   if (files.length === 0) {
-    console.error('No files specified');
+    console.error("No files specified");
     process.exit(1);
   }
 
@@ -291,23 +313,31 @@ async function main() {
 
   // Dry-run never contacts gh and never writes the config file.
   const config = await loadConfig({ probe: !dryRun });
-  const github = ghOverride || config.github || '<github-user>';
+  const github = ghOverride || config.github || "<github-user>";
   const pagesRepo = repoOverride || config.pagesRepo;
 
-  const PAGES_REPO = github === '<github-user>'
-    ? `https://github.com/${github}/${pagesRepo}.git`
-    : buildCloneUrl(github, pagesRepo).href;
+  const PAGES_REPO =
+    github === "<github-user>"
+      ? `https://github.com/${github}/${pagesRepo}.git`
+      : buildCloneUrl(github, pagesRepo).href;
   const BASE_URL = `https://${github}.github.io/${pagesRepo}`;
 
-  const date = new Date().toISOString().split('T')[0];
-  const demoDir = `demo-${date}-${label.replace(/[^a-z0-9._-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
+  const date = new Date().toISOString().split("T")[0];
+  const demoDir = `demo-${date}-${label
+    .replace(/[^a-z0-9._-]/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")}`;
 
   if (dryRun) {
     // F-052/F-053 dry-run: build the exact index.html locally (escaped), copy
     // nothing, run no git/gh commands — just print what WOULD be uploaded.
-    const uploaded = files.map(f => {
+    const uploaded = files.map((f) => {
       const name = basename(f);
-      return { name, path: `${BASE_URL}/${demoDir}/${name}`, ext: name.split('.').pop().toLowerCase() };
+      return {
+        name,
+        path: `${BASE_URL}/${demoDir}/${name}`,
+        ext: name.split(".").pop().toLowerCase(),
+      };
     });
 
     console.log(`[dry-run] Would create ${demoDir}/ in ${PAGES_REPO}`);
@@ -323,12 +353,14 @@ async function main() {
   }
 
   if (!ghOverride && !config.github) {
-    console.error('GitHub username undefined — refusing to build the clone URL.');
-    console.error('Run `gh auth status` manually or pass --github <user>.');
+    console.error("GitHub username undefined — refusing to build the clone URL.");
+    console.error("Run `gh auth status` manually or pass --github <user>.");
     process.exit(1);
   }
 
-  await createTrackedTempDir('csm-pages-', path => { pagesDir = path; });
+  await createTrackedTempDir("csm-pages-", (path) => {
+    pagesDir = path;
+  });
 
   try {
     const demoPath = join(pagesDir, demoDir);
@@ -339,19 +371,23 @@ async function main() {
         throw new Error(`Conflict: ${pagesDir} is not empty. Refusing to clone into it.`);
       }
       console.log(`Cloning pages repo: ${PAGES_REPO}...`);
-      await execFileTracked('git', ['clone', PAGES_REPO, pagesDir], { timeout: 120000 });
-      console.log('Cloned');
+      await execFileTracked("git", ["clone", PAGES_REPO, pagesDir], { timeout: 120000 });
+      console.log("Cloned");
     }
 
     async function gitCommit() {
-      await execFileTracked('git', ['-C', pagesDir, 'add', '-A'], { timeout: 60000 });
-      const { stdout } = await execFileTracked('git', ['-C', pagesDir, 'status', '--porcelain'], { timeout: 60000 });
+      await execFileTracked("git", ["-C", pagesDir, "add", "-A"], { timeout: 60000 });
+      const { stdout } = await execFileTracked("git", ["-C", pagesDir, "status", "--porcelain"], {
+        timeout: 60000,
+      });
       if (stdout.trim()) {
-        await execFileTracked('git', ['-C', pagesDir, 'commit', '-m', `upload ${demoDir}`], { timeout: 60000 });
-        await execFileTracked('git', ['-C', pagesDir, 'push'], { timeout: 60000 });
-        console.log('Pushed');
+        await execFileTracked("git", ["-C", pagesDir, "commit", "-m", `upload ${demoDir}`], {
+          timeout: 60000,
+        });
+        await execFileTracked("git", ["-C", pagesDir, "push"], { timeout: 60000 });
+        console.log("Pushed");
       } else {
-        console.log('No changes to push');
+        console.log("No changes to push");
       }
     }
 
@@ -364,15 +400,19 @@ async function main() {
         const name = basename(f);
         const dest = join(demoPath, name);
         await copyFile(f, dest);
-        uploaded.push({ name, path: `${BASE_URL}/${demoDir}/${name}`, ext: name.split('.').pop().toLowerCase() });
+        uploaded.push({
+          name,
+          path: `${BASE_URL}/${demoDir}/${name}`,
+          ext: name.split(".").pop().toLowerCase(),
+        });
         console.log(`Copied: ${name}`);
       }
 
       const html = buildIndexHtml(demoDir, description, uploaded);
 
-      const indexPath = join(demoPath, 'index.html');
-      await writeFile(indexPath, html, 'utf-8');
-      console.log('Generated index.html');
+      const indexPath = join(demoPath, "index.html");
+      await writeFile(indexPath, html, "utf-8");
+      console.log("Generated index.html");
 
       await gitCommit();
 
@@ -380,8 +420,12 @@ async function main() {
       console.log(url);
     } catch (err) {
       if (uploaded.length > 0) {
-        console.error(`Partial upload state: ${uploaded.map(u => u.name).join(', ')} were copied into the temporary directory before the failure.`);
-        console.error('The temporary directory is removed now; re-running the same command retries the upload from scratch.');
+        console.error(
+          `Partial upload state: ${uploaded.map((u) => u.name).join(", ")} were copied into the temporary directory before the failure.`,
+        );
+        console.error(
+          "The temporary directory is removed now; re-running the same command retries the upload from scratch.",
+        );
       }
       throw err;
     }
@@ -390,7 +434,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err.message);
   // F-053: git/gh failures put their diagnostics in err.stderr — never drop them.
   if (err.stderr) {

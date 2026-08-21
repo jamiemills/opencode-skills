@@ -1,39 +1,39 @@
-import { statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { runExpandedPipeline } from '../lib/scan/pipeline/run.mjs';
-import { commandBroker } from '../lib/scan/shared/command.mjs';
-import { openVerboseTrace, createVerboseReporter } from '../lib/scan/report/verbose-trace.mjs';
+import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { commandBroker } from "../lib/scan/shared/command.mjs";
+import { openVerboseTrace, createVerboseReporter } from "../lib/scan/report/verbose-trace.mjs";
 import {
   createReporter,
   formatError,
   installSanitizedStdio,
-} from '../lib/scan/report/reporter.mjs';
+} from "../lib/scan/report/reporter.mjs";
 
 const USAGE = [
-  'Usage: scan.mjs [--repos <path>...] [--out <path>] [--verbose]',
-  '',
-  'Scan one or more repositories and write a NORMS.md report.',
-  'With no --repos, the current working directory is scanned.',
-  'With no --out, the report is written to NORMS.md in the current directory.',
-  '',
-  'Options:',
-  '  --repos <path>...  Repositories to scan (default: current working directory).',
-  '  --out <path>       Output file (default: NORMS.md in the current directory).',
-  '  --verbose          Write an unredacted local diagnostic trace (reporter lines +',
-  '                     per-stage durations) to a per-run-unique .csm-scan-debug-*.log',
-  '                     next to --out (or the OS temp dir) — never to stdout. Delete it',
-  '                     after debugging; it is gitignored, not a report artifact.',
-  '  --help             Print this usage information and exit.',
-  '  --version          Print the version and exit.',
-  '',
-  'Report contents are privacy-safe: absolute paths, identities, and secrets',
-  'are redacted before they reach the report and pipeline stdout/stderr.',
-  'Exception: user-typed CLI arguments (for example a --repos path named in',
-  'an error message) are echoed verbatim on stderr.',
-].join('\n');
+  "Usage: scan.mjs [--repos <path>...] [--out <path>] [--verbose]",
+  "",
+  "Scan one or more repositories and write a NORMS.md report.",
+  "With no --repos, the current working directory is scanned.",
+  "With no --out, the report is written to NORMS.md in the current directory.",
+  "",
+  "Options:",
+  "  --repos <path>...  Repositories to scan (default: current working directory).",
+  "  --out <path>       Output file (default: NORMS.md in the current directory).",
+  "  --verbose          Write an unredacted local diagnostic trace (reporter lines +",
+  "                     per-stage durations) to a per-run-unique .csm-scan-debug-*.log",
+  "                     next to --out (or the OS temp dir) — never to stdout. Delete it",
+  "                     after debugging; it is gitignored, not a report artifact.",
+  "  --help             Print this usage information and exit.",
+  "  --version          Print the version and exit.",
+  "",
+  "Report contents are privacy-safe: absolute paths, identities, and secrets",
+  "are redacted before they reach the report and pipeline stdout/stderr.",
+  "Exception: user-typed CLI arguments (for example a --repos path named in",
+  "an error message) are echoed verbatim on stderr.",
+].join("\n");
 
 const USAGE_HINT = "Try 'scan.mjs --help' for usage.";
 
@@ -53,28 +53,28 @@ function parseArgs(argv, cwd) {
   let i = 0;
   while (i < argv.length) {
     const arg = argv[i];
-    if (arg === '--help') {
+    if (arg === "--help") {
       help = true;
       i++;
-    } else if (arg === '--version') {
+    } else if (arg === "--version") {
       version = true;
       i++;
-    } else if (arg === '--verbose') {
+    } else if (arg === "--verbose") {
       verbose = true;
       i++;
-    } else if (arg === '--repos') {
+    } else if (arg === "--repos") {
       i++;
-      while (i < argv.length && !argv[i].startsWith('--')) {
+      while (i < argv.length && !argv[i].startsWith("--")) {
         repos.push(argv[i]);
         i++;
       }
-    } else if (arg === '--out') {
+    } else if (arg === "--out") {
       i++;
-      if (i < argv.length && !argv[i].startsWith('--')) {
+      if (i < argv.length && !argv[i].startsWith("--")) {
         out = argv[i];
         i++;
       } else {
-        errors.push('--out requires a path argument');
+        errors.push("--out requires a path argument");
       }
     } else {
       errors.push(`unknown option: ${arg}`);
@@ -83,7 +83,7 @@ function parseArgs(argv, cwd) {
   }
   return {
     repos: repos.length > 0 ? repos : [cwd],
-    out: out ? resolve(cwd, out) : join(cwd, 'NORMS.md'),
+    out: out ? resolve(cwd, out) : join(cwd, "NORMS.md"),
     help,
     version,
     verbose,
@@ -110,8 +110,10 @@ function validateRepos(repos) {
 
 async function packageVersion() {
   try {
-    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-    if (typeof manifest.version === 'string' && manifest.version.length > 0) {
+    const manifest = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    );
+    if (typeof manifest.version === "string" && manifest.version.length > 0) {
       return manifest.version;
     }
   } catch {
@@ -122,9 +124,9 @@ async function packageVersion() {
 
 async function gitCommitHash() {
   try {
-    const result = await commandBroker.execute('git:log-oneline-50', { cwd: SCRIPT_DIR });
-    const firstLine = String(result.stdout ?? '')
-      .split('\n')
+    const result = await commandBroker.execute("git:log-oneline-50", { cwd: SCRIPT_DIR });
+    const firstLine = String(result.stdout ?? "")
+      .split("\n")
       .find((line) => line.trim().length > 0);
     if (firstLine === undefined) return null;
     const hash = firstLine.trim().split(/\s+/)[0];
@@ -135,7 +137,7 @@ async function gitCommitHash() {
 }
 
 async function resolveVersion() {
-  return (await packageVersion()) ?? (await gitCommitHash()) ?? 'csm-scan';
+  return (await packageVersion()) ?? (await gitCommitHash()) ?? "csm-scan";
 }
 
 // F-075/F-051: --verbose writes an UNREDACTED, local-only trace (never stdout —
@@ -150,7 +152,10 @@ async function main() {
   const printCliError = (line) => {
     rawStderrWrite(`${line}\n`);
   };
-  const { repos, out, help, version, verbose, errors } = parseArgs(process.argv.slice(2), process.cwd());
+  const { repos, out, help, version, verbose, errors } = parseArgs(
+    process.argv.slice(2),
+    process.cwd(),
+  );
 
   if (help) {
     printStdout(USAGE);
@@ -178,7 +183,9 @@ async function main() {
   if (verbose) {
     debug = openVerboseTrace(out);
     if (debug === null) {
-      printCliError('--verbose: could not open a debug trace file; continuing without verbose tracing');
+      printCliError(
+        "--verbose: could not open a debug trace file; continuing without verbose tracing",
+      );
     } else {
       // CLI-arg carve-out: the trace path itself is a user-typed derivation,
       // so raw stderr (not the sanitized reporter) announces it.
@@ -196,7 +203,7 @@ async function main() {
     process.exitCode = 1;
   } finally {
     if (debug !== null) {
-      if (typeof reporter.traceEnd === 'function') reporter.traceEnd();
+      if (typeof reporter.traceEnd === "function") reporter.traceEnd();
       await new Promise((res) => debug.stream.end(res));
     }
     guard.restore();

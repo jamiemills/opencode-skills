@@ -1,7 +1,7 @@
-export const manifest = 'package.json';
+export const manifest = "package.json";
 
 export const files = {
-  'package.json': `{
+  "package.json": `{
   "name": "demo-ts",
   "version": "0.1.0",
   "dependencies": {
@@ -9,7 +9,7 @@ export const files = {
   }
 }
 `,
-  'tsconfig.json': `{
+  "tsconfig.json": `{
   "compilerOptions": {
     "strict": true,
     "target": "ES2020",
@@ -28,33 +28,33 @@ export const files = {
   "include": ["src/**/*.ts"]
 }
 `,
-  'src/index.ts': `import type { Greeting } from './types';
+  "src/index.ts": `import type { Greeting } from './types';
 import { f } from '@app/util';
 
 export function run(): Greeting {
   return f();
 }
 `,
-  'src/util.ts': `export function f(): string {
+  "src/util.ts": `export function f(): string {
   return 'hello';
 }
 `,
-  'src/types.ts': `export type Greeting = string;
+  "src/types.ts": `export type Greeting = string;
 `,
-  'src/public.d.ts': `export declare const ambientGreeting: string;
+  "src/public.d.ts": `export declare const ambientGreeting: string;
 `,
-  'packages/shared/tsconfig.json': `{
+  "packages/shared/tsconfig.json": `{
   "compilerOptions": {
     "composite": true,
     "declaration": true
   }
 }
 `,
-  'packages/shared/index.ts': `export const shared = 'shared';
+  "packages/shared/index.ts": `export const shared = 'shared';
 `,
-  'eslint.config.ts': `export default [];
+  "eslint.config.ts": `export default [];
 `,
-  'src/index.spec.ts': `import { f } from './util';
+  "src/index.spec.ts": `import { f } from './util';
 
 describe('util', () => {
   it('f returns hello', () => {
@@ -62,7 +62,7 @@ describe('util', () => {
   });
 });
 `,
-  'dist/out.js': `"use strict";
+  "dist/out.js": `"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 console.log('built');
 `,

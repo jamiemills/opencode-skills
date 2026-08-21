@@ -7,22 +7,13 @@ name = "pxcli"
 version = "0.7.1"
 description = "Miniature pxcli-layout repository (csm-scan portable fallback fixture)"
 requires-python = ">=3.12"
-dependencies = [
-  "click>=8.0",
-  "pydantic>=2.0",
-]
+dependencies = ["click>=8.0", "pydantic>=2.0"]
 
 [project.optional-dependencies]
-dev = [
-  "bandit>=1.7",
-]
+dev = ["bandit>=1.7"]
 
 [dependency-groups]
-dev = [
-  "pip-audit>=2.7",
-  "pytest>=8.0",
-  "hypothesis>=6.100",
-]
+dev = ["pip-audit>=2.7", "pytest>=8.0", "hypothesis>=6.100"]
 
 [tool.ruff]
 line-length = 100

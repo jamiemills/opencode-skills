@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
 // Plan acceptance-signal lint (journal-learnings T005 / consolidated J5).
 //
@@ -19,17 +19,17 @@
 // from scripts/lib/plan-validation.mjs rather than reimplementing markdown
 // parsing. Kept standalone (no check-suite internals).
 
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import process from 'node:process';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { FENCE_OPEN_RE, splitLines, fenceMap, parsePlanControl } from './lib/plan-validation.mjs';
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import process from "node:process";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { FENCE_OPEN_RE, splitLines, fenceMap, parsePlanControl } from "./lib/plan-validation.mjs";
 
 // Status values whose acceptance signals encode future work and are therefore
 // linted. Everything else (complete, paused, blocked, absent) is exempt.
-const LINTABLE_STATUSES = ['ready', 'in_progress'];
+const LINTABLE_STATUSES = ["ready", "in_progress"];
 
 // `<...>` placeholder token: an angle-bracketed alphanumeric word. Deliberately
 // not matched by bare `<`/`>` (redirections, `2>&1`, `<(cmd)` process
@@ -72,9 +72,9 @@ function collectDashBoundVars(text) {
   const out = new Set();
   for (const line of text.split(/\r?\n/)) {
     const am = line.match(ASSIGN_RE);
-    if (am && unquote(am[2]).startsWith('-')) out.add(am[1]);
+    if (am && unquote(am[2]).startsWith("-")) out.add(am[1]);
     const fm = line.match(FOR_IN_RE);
-    if (fm && listTokens(fm[2]).some((t) => t.startsWith('-'))) out.add(fm[1]);
+    if (fm && listTokens(fm[2]).some((t) => t.startsWith("-"))) out.add(fm[1]);
   }
   return out;
 }
@@ -84,12 +84,17 @@ function collectDashBoundVars(text) {
 function bashSyntaxError(text) {
   let dir = null;
   try {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-signal-'));
-    const file = path.join(dir, 'signal.sh');
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan-signal-"));
+    const file = path.join(dir, "signal.sh");
     fs.writeFileSync(file, `${text}\n`);
-    const r = spawnSync('bash', ['-n', file], { encoding: 'utf8' });
+    const r = spawnSync("bash", ["-n", file], { encoding: "utf8" });
     if (r.status === 0) return null;
-    const err = (r.stderr || r.stdout || 'bash -n reported an error').trim().split('\n').filter(Boolean).slice(0, 3).join('; ');
+    const err = (r.stderr || r.stdout || "bash -n reported an error")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .slice(0, 3)
+      .join("; ");
     return err;
   } finally {
     if (dir !== null) fs.rmSync(dir, { recursive: true, force: true });
@@ -100,17 +105,28 @@ function bashSyntaxError(text) {
 function lintSignalText(text) {
   const issues = [];
   const syntaxErr = bashSyntaxError(text);
-  if (syntaxErr !== null) issues.push({ kind: 'syntax', message: `bash -n failed: ${syntaxErr}` });
+  if (syntaxErr !== null) issues.push({ kind: "syntax", message: `bash -n failed: ${syntaxErr}` });
   const ph = text.match(PLACEHOLDER_RE);
-  if (ph) issues.push({ kind: 'placeholder', message: `placeholder token ${ph[0]} (no "<...>" tokens allowed in acceptance signals)` });
+  if (ph)
+    issues.push({
+      kind: "placeholder",
+      message: `placeholder token ${ph[0]} (no "<...>" tokens allowed in acceptance signals)`,
+    });
   if (SETE_RE.test(text) && SEMICOLON_TEST_QEQ_RE.test(text)) {
-    issues.push({ kind: 'semicolon-test', message: '"; test $? -eq N" immediately after a command under set -e (use "cmd ... || test $? -eq N")' });
+    issues.push({
+      kind: "semicolon-test",
+      message:
+        '"; test $? -eq N" immediately after a command under set -e (use "cmd ... || test $? -eq N")',
+    });
   }
   const dashVars = collectDashBoundVars(text);
   for (const m of text.matchAll(GREP_Q_VAR_RE)) {
-    if (m[1] !== undefined && m[1].includes('e')) continue; // `grep -qe "$m"` is already safe
+    if (m[1] !== undefined && m[1].includes("e")) continue; // `grep -qe "$m"` is already safe
     if (dashVars.has(m[2])) {
-      issues.push({ kind: 'grep-option-injection', message: `grep -q "$${m[2]}" over a dash-leading option token (use "grep -q -e "$${m[2]}"")` });
+      issues.push({
+        kind: "grep-option-injection",
+        message: `grep -q "$${m[2]}" over a dash-leading option token (use "grep -q -e "$${m[2]}"")`,
+      });
     }
   }
   return issues;
@@ -143,14 +159,14 @@ function extractSignals(lines, inFence) {
         let closed = false;
         while (k < lines.length) {
           const cm = lines[k].match(FENCE_OPEN_RE);
-          if (cm && cm[1][0] === char && cm[1].length >= len && cm[2].trim() === '') {
+          if (cm && cm[1][0] === char && cm[1].length >= len && cm[2].trim() === "") {
             closed = true;
             break;
           }
           body.push(lines[k]);
           k += 1;
         }
-        signals.push({ line: j + 1, text: body.join('\n').trim() });
+        signals.push({ line: j + 1, text: body.join("\n").trim() });
         j = closed ? k + 1 : lines.length;
         continue;
       }
@@ -182,13 +198,16 @@ export function lintPlanSignals(planFile, content) {
 function main() {
   const dirArg = process.argv[2];
   if (!dirArg) {
-    console.error('usage: node scripts/check-plan-signals.mjs <dir>');
+    console.error("usage: node scripts/check-plan-signals.mjs <dir>");
     process.exit(2);
   }
   const dir = path.resolve(dirArg);
   let files = [];
   try {
-    files = fs.readdirSync(dir).filter((f) => f.endsWith('-csm.md')).toSorted();
+    files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith("-csm.md"))
+      .toSorted();
   } catch {
     console.error(`cannot read plan dir ${dir}`);
     process.exit(2);
@@ -198,7 +217,7 @@ function main() {
   let exempt = 0;
   let totalSignals = 0;
   for (const f of files) {
-    const content = fs.readFileSync(path.join(dir, f), 'utf8');
+    const content = fs.readFileSync(path.join(dir, f), "utf8");
     const { status, signals, issues } = lintPlanSignals(f, content);
     totalSignals += signals;
     if (status === null || !LINTABLE_STATUSES.includes(status)) {
@@ -207,7 +226,7 @@ function main() {
     }
     if (issues.length === 0) {
       pass += 1;
-      console.log(`PASS ${f} (${signals} signal${signals === 1 ? '' : 's'})`);
+      console.log(`PASS ${f} (${signals} signal${signals === 1 ? "" : "s"})`);
     } else {
       fail += 1;
       console.log(`FAIL ${f}:`);
@@ -217,7 +236,9 @@ function main() {
       }
     }
   }
-  console.log(`plan-signals: ${pass} passed, ${fail} failed, ${exempt} exempt (COMPLETE/other), ${totalSignals} signals linted`);
+  console.log(
+    `plan-signals: ${pass} passed, ${fail} failed, ${exempt} exempt (COMPLETE/other), ${totalSignals} signals linted`,
+  );
   process.exit(fail > 0 ? 1 : 0);
 }
 

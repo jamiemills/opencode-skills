@@ -16,37 +16,44 @@
 // the deployment model/extractors; it never touches node:fs /
 // node:child_process / node:process / node:vm / node:module.
 
-import { deepFreeze, normalizeEvidencePath, normalizeSearchSpace } from '../../contracts/evidence.mjs';
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { assertPrivacySafe, PrivacyError } from '../../shared/privacy.mjs';
+import {
+  deepFreeze,
+  normalizeEvidencePath,
+  normalizeSearchSpace,
+} from "../../contracts/evidence.mjs";
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { assertPrivacySafe, PrivacyError } from "../../shared/privacy.mjs";
 import {
   DEPLOYMENT_LIMITS,
   DeploymentModelError,
   createArtifactResult,
   mergeTopology,
-} from './model.mjs';
+} from "./model.mjs";
 import {
   detectDeploymentKind,
   discoverDeploymentArtifacts,
   extractArtifact,
-} from './extractor.mjs';
+} from "./extractor.mjs";
 
 function requestOf(entry) {
-  if (typeof entry === 'string') return { path: entry, format: 'text', sensitivity: 'internal' };
-  if (entry !== null && typeof entry === 'object' && typeof entry.path === 'string') {
+  if (typeof entry === "string") return { path: entry, format: "text", sensitivity: "internal" };
+  if (entry !== null && typeof entry === "object" && typeof entry.path === "string") {
     return {
       path: entry.path,
-      format: entry.format ?? 'text',
-      sensitivity: entry.sensitivity ?? 'internal',
+      format: entry.format ?? "text",
+      sensitivity: entry.sensitivity ?? "internal",
     };
   }
-  throw new DeploymentModelError('INVALID_REQUEST', 'deployment requests must be paths or request objects');
+  throw new DeploymentModelError(
+    "INVALID_REQUEST",
+    "deployment requests must be paths or request objects",
+  );
 }
 
 function artifactFailure(path, status, reason) {
   return createArtifactResult({
     path,
-    kind: 'unsupported',
+    kind: "unsupported",
     status,
     reason,
     lineCount: 0,
@@ -73,12 +80,12 @@ function deploymentSearchSpace(artifacts, read) {
   const statuses = new Set(artifacts.map(({ status }) => status));
   const any = (status) => statuses.has(status);
   return normalizeSearchSpace({
-    supported: !any('unsupported'),
-    readable: !any('unreadable'),
-    complete: statuses.size === 0 || (statuses.size === 1 && statuses.has('parsed')),
-    capped: any('capped'),
-    error: any('unreadable'),
-    malformed: any('malformed'),
+    supported: !any("unsupported"),
+    readable: !any("unreadable"),
+    complete: statuses.size === 0 || (statuses.size === 1 && statuses.has("parsed")),
+    capped: any("capped"),
+    error: any("unreadable"),
+    malformed: any("malformed"),
     ambiguous: false,
     filesInspected: read.filesInspected,
     fileLimit: read.fileLimit,
@@ -108,8 +115,8 @@ export async function scanDeploymentTopology({
   requests = [],
   options = DEPLOYMENT_LIMITS,
 } = {}) {
-  if (typeof root !== 'string' || root.length === 0) {
-    throw new DeploymentModelError('INVALID_ROOT', 'repository root is required');
+  if (typeof root !== "string" || root.length === 0) {
+    throw new DeploymentModelError("INVALID_ROOT", "repository root is required");
   }
   const paths = new Map();
   for (const candidate of discoverDeploymentArtifacts(files)) paths.set(candidate, true);
@@ -118,15 +125,22 @@ export async function scanDeploymentTopology({
     try {
       normalized = normalizeEvidencePath(requestOf(entry).path);
     } catch {
-      throw new DeploymentModelError('INVALID_PATH', 'deployment request path is not normalized');
+      throw new DeploymentModelError("INVALID_PATH", "deployment request path is not normalized");
     }
     paths.set(normalized, true);
   }
   const sorted = [...paths.keys()].toSorted();
   if (sorted.length > options.maxArtifacts) {
-    throw new DeploymentModelError('ARTIFACT_LIMIT', 'deployment artifact count exceeds the declared cap');
+    throw new DeploymentModelError(
+      "ARTIFACT_LIMIT",
+      "deployment artifact count exceeds the declared cap",
+    );
   }
-  const artifactRequests = sorted.map((path) => ({ path, format: 'text', sensitivity: 'internal' }));
+  const artifactRequests = sorted.map((path) => ({
+    path,
+    format: "text",
+    sensitivity: "internal",
+  }));
   const read = await readArtifacts(root, artifactRequests, {
     maxBytes: options.maxBytes,
     maxDepth: options.maxDepth,
@@ -135,13 +149,13 @@ export async function scanDeploymentTopology({
   });
   const artifacts = [];
   for (const result of read.results) {
-    if (result.status !== 'read') {
+    if (result.status !== "read") {
       artifacts.push(artifactFailure(result.path, result.status, result.status));
       continue;
     }
     const kind = detectDeploymentKind(result.path, result.value);
-    if (kind === 'unknown') {
-      artifacts.push(artifactFailure(result.path, 'unsupported', 'NO_EXTRACTOR'));
+    if (kind === "unknown") {
+      artifacts.push(artifactFailure(result.path, "unsupported", "NO_EXTRACTOR"));
       continue;
     }
     try {
@@ -150,11 +164,11 @@ export async function scanDeploymentTopology({
       artifacts.push(createArtifactResult(raw));
     } catch (error) {
       if (error instanceof PrivacyError) {
-        artifacts.push(artifactFailure(result.path, 'unverified', 'privacy'));
+        artifacts.push(artifactFailure(result.path, "unverified", "privacy"));
       } else if (error instanceof DeploymentModelError) {
-        artifacts.push(artifactFailure(result.path, 'capped', error.code));
+        artifacts.push(artifactFailure(result.path, "capped", error.code));
       } else {
-        artifacts.push(artifactFailure(result.path, 'malformed', 'PARSE_UNSUPPORTED'));
+        artifacts.push(artifactFailure(result.path, "malformed", "PARSE_UNSUPPORTED"));
       }
     }
   }

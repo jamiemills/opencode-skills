@@ -13,20 +13,23 @@ const NEWLINE_RE = /\r\n?|\n/g;
 const MARKDOWN_HTML_TOKENS = /[<>]/g;
 
 export function safeScalar(value, privacyHook = identityPrivacyHook) {
-  return String(privacyHook(value) ?? '');
+  return String(privacyHook(value) ?? "");
 }
 
-export function createRenderContext({ privacyHook = identityPrivacyHook, markdownSafe = false } = {}) {
-  if (typeof privacyHook !== 'function') {
-    throw new TypeError('privacyHook must be a function');
+export function createRenderContext({
+  privacyHook = identityPrivacyHook,
+  markdownSafe = false,
+} = {}) {
+  if (typeof privacyHook !== "function") {
+    throw new TypeError("privacyHook must be a function");
   }
   return Object.freeze({
     escapeField(value, opts = {}) {
       let scalar = safeScalar(value, privacyHook);
-      scalar = scalar.replace(NEWLINE_RE, ' ');
-      scalar = scalar.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/`/g, '\\`');
-      if (markdownSafe || opts.markdownSafe) scalar = scalar.replace(MARKDOWN_HTML_TOKENS, '\\$&');
-      if (!opts.inTable) scalar = scalar.replace(/^([-#+>])/gm, '\\$1');
+      scalar = scalar.replace(NEWLINE_RE, " ");
+      scalar = scalar.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/`/g, "\\`");
+      if (markdownSafe || opts.markdownSafe) scalar = scalar.replace(MARKDOWN_HTML_TOKENS, "\\$&");
+      if (!opts.inTable) scalar = scalar.replace(/^([-#+>])/gm, "\\$1");
       return scalar;
     },
   });
@@ -35,5 +38,5 @@ export function createRenderContext({ privacyHook = identityPrivacyHook, markdow
 export const DEFAULT_RENDER_CONTEXT = createRenderContext();
 
 export function finalizeMarkdown(parts) {
-  return parts.join('\n').replace(/\r\n?/g, '\n');
+  return parts.join("\n").replace(/\r\n?/g, "\n");
 }

@@ -1,20 +1,20 @@
-import { existsSync, readdirSync } from 'node:fs';
-import { performance } from 'node:perf_hooks';
-import { dirname, join } from 'node:path';
-import { commandBroker } from '../shared/command.mjs';
-import { enumerateHiddenFiles } from '../shared/enum.mjs';
-import { DESCRIPTORS, descriptorFor, detectEcosystems } from '../shared/ecosystem.mjs';
-import { readManifest } from '../shared/manifest.mjs';
-import { readBoundedFile } from '../shared/reads.mjs';
-import { SECRET_TOKEN_FAMILIES } from '../shared/token-families.mjs';
-import { validatePluginRegexSource } from '../plugins/schema.mjs';
+import { existsSync, readdirSync } from "node:fs";
+import { performance } from "node:perf_hooks";
+import { dirname, join } from "node:path";
+import { commandBroker } from "../shared/command.mjs";
+import { enumerateHiddenFiles } from "../shared/enum.mjs";
+import { DESCRIPTORS, descriptorFor, detectEcosystems } from "../shared/ecosystem.mjs";
+import { readManifest } from "../shared/manifest.mjs";
+import { readBoundedFile } from "../shared/reads.mjs";
+import { SECRET_TOKEN_FAMILIES } from "../shared/token-families.mjs";
+import { validatePluginRegexSource } from "../plugins/schema.mjs";
 import {
   AUTH_LIBS,
   INPUT_VALIDATION_LIBS,
   RATE_LIMIT_LIBS,
   AUDIT_TOOLS,
   matchDep,
-} from '../shared/detection.mjs';
+} from "../shared/detection.mjs";
 
 // Canonical lockfile vocabulary across every ecosystem we recognize.
 // Sourced from the descriptor table (single source of truth) plus a small set
@@ -22,7 +22,7 @@ import {
 // a recognized lockfile always lifts the security signal regardless of stack.
 // `bun.lock` / `pdm.lock` arrive here via the JS/Python descriptor lockfile
 // lists, so they are recognized without any extra hardcoding.
-const EXTRA_LOCKFILES = ['go.sum', 'deno.lock', 'composer.lock', 'mix.lock', 'Gemfile.lock'];
+const EXTRA_LOCKFILES = ["go.sum", "deno.lock", "composer.lock", "mix.lock", "Gemfile.lock"];
 const KNOWN_LOCKFILES = [
   ...new Set([
     ...EXTRA_LOCKFILES,
@@ -41,25 +41,70 @@ const SCAN_BYTE_LIMIT = 1024 * 1024;
 // rest tier 2. The sort is stable (index tiebreak), so alphabetical order is
 // preserved within each tier.
 const LIKELY_CONFIG_EXTENSIONS = new Set([
-  '.env', '.yml', '.yaml', '.toml', '.ini', '.conf', '.cfg', '.cnf',
-  '.properties', '.json', '.xml', '.tf', '.tfvars', '.config', '.secrets',
+  ".env",
+  ".yml",
+  ".yaml",
+  ".toml",
+  ".ini",
+  ".conf",
+  ".cfg",
+  ".cnf",
+  ".properties",
+  ".json",
+  ".xml",
+  ".tf",
+  ".tfvars",
+  ".config",
+  ".secrets",
 ]);
 const LIKELY_SOURCE_EXTENSIONS = new Set([
-  '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.rb', '.go', '.rs',
-  '.java', '.kt', '.php', '.pl', '.lua', '.sh', '.bash', '.zsh', '.fish',
-  '.ps1', '.bat', '.sql', '.c', '.h', '.cpp', '.hpp', '.cs', '.swift',
-  '.scala', '.dart', '.vue', '.svelte',
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".jsx",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".kt",
+  ".php",
+  ".pl",
+  ".lua",
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".fish",
+  ".ps1",
+  ".bat",
+  ".sql",
+  ".c",
+  ".h",
+  ".cpp",
+  ".hpp",
+  ".cs",
+  ".swift",
+  ".scala",
+  ".dart",
+  ".vue",
+  ".svelte",
 ]);
 
 function fileScanTier(rel) {
-  const base = String(rel).replace(/\\/g, '/').split('/').pop() || '';
+  const base = String(rel).replace(/\\/g, "/").split("/").pop() || "";
   const lower = base.toLowerCase();
-  if (lower.startsWith('.') || lower.startsWith('dockerfile') || lower.startsWith('compose.')
-      || lower.startsWith('docker-compose')) {
+  if (
+    lower.startsWith(".") ||
+    lower.startsWith("dockerfile") ||
+    lower.startsWith("compose.") ||
+    lower.startsWith("docker-compose")
+  ) {
     return 0;
   }
-  const dot = base.lastIndexOf('.');
-  const ext = dot > 0 ? base.slice(dot).toLowerCase() : '';
+  const dot = base.lastIndexOf(".");
+  const ext = dot > 0 ? base.slice(dot).toLowerCase() : "";
   if (LIKELY_CONFIG_EXTENSIONS.has(ext)) return 0;
   if (LIKELY_SOURCE_EXTENSIONS.has(ext)) return 1;
   return 2;
@@ -68,17 +113,17 @@ function fileScanTier(rel) {
 function prioritizeForScan(files) {
   return files
     .map((file, index) => ({ file, index, tier: fileScanTier(file) }))
-    
+
     .toSorted((a, b) => a.tier - b.tier || a.index - b.index)
     .map(({ file }) => file);
 }
 
 // Dependabot config file names checked for the configured fact.
-const DEPENDABOT_CONFIG_FILES = ['.github/dependabot.yml', '.github/dependabot.yaml'];
+const DEPENDABOT_CONFIG_FILES = [".github/dependabot.yml", ".github/dependabot.yaml"];
 
 // First-party auth subsystem cluster names matched against directory and
 // module basenames in the enumerated source tree (T009/b15).
-const FIRST_PARTY_AUTH_CLUSTERS = ['auth', 'token', 'oauth', 'session', 'encryption', 'cookies'];
+const FIRST_PARTY_AUTH_CLUSTERS = ["auth", "token", "oauth", "session", "encryption", "cookies"];
 
 // Bounds for the branch-evidence fact (T009/b2): never claim dating/activity.
 const BRANCH_EVIDENCE_LIMIT = 20;
@@ -86,23 +131,25 @@ const GITLEAKS_PATH_LIMIT = 200;
 
 function readJSON(path) {
   try {
-    return JSON.parse(readBoundedFile(path, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot: dirname(path) }) ?? 'null');
+    return JSON.parse(
+      readBoundedFile(path, { byteLimit: SCAN_BYTE_LIMIT, containmentRoot: dirname(path) }) ??
+        "null",
+    );
   } catch {
     return null;
   }
 }
 
 async function listFiles(repoPath, overview, broker) {
-  const fromOverview = overview && Array.isArray(overview.files) && overview.files.length > 0
-    ? overview.files
-    : null;
+  const fromOverview =
+    overview && Array.isArray(overview.files) && overview.files.length > 0 ? overview.files : null;
   if (fromOverview) return fromOverview;
   try {
-    const result = await broker.execute('rg:files', { cwd: repoPath });
-    const raw = result.ok || result.noMatch ? result.stdout : '';
+    const result = await broker.execute("rg:files", { cwd: repoPath });
+    const raw = result.ok || result.noMatch ? result.stdout : "";
     return raw
-      .split('\n')
-      .map((s) => s.trim().replace(/\\/g, '/'))
+      .split("\n")
+      .map((s) => s.trim().replace(/\\/g, "/"))
       .filter(Boolean)
       .toSorted();
   } catch {
@@ -129,7 +176,7 @@ function readContent(absPath, byteLimit = SCAN_BYTE_LIMIT, containmentRoot = nul
 
 // Prefer the survey's normalized manifest; fall back to reading it ourselves.
 function resolveManifest(repoPath, overview) {
-  if (overview?.manifest && typeof overview.manifest === 'object') return overview.manifest;
+  if (overview?.manifest && typeof overview.manifest === "object") return overview.manifest;
   return readManifest(repoPath);
 }
 
@@ -155,9 +202,9 @@ function resolveEcosystems(overview, manifest) {
 function collectDepNames(manifest) {
   const names = new Set();
   if (!manifest) return names;
-  for (const key of ['dependencies', 'devDependencies', 'optionalDeps']) {
+  for (const key of ["dependencies", "devDependencies", "optionalDeps"]) {
     const bucket = manifest[key];
-    if (bucket && typeof bucket === 'object') {
+    if (bucket && typeof bucket === "object") {
       for (const name of Object.keys(bucket)) names.add(name);
     }
   }
@@ -171,7 +218,7 @@ function toNameArray(depNames) {
   if (!depNames) return [];
   if (Array.isArray(depNames)) return depNames;
   if (depNames instanceof Set) return Array.from(depNames);
-  if (typeof depNames === 'object') return Object.keys(depNames);
+  if (typeof depNames === "object") return Object.keys(depNames);
   return [];
 }
 
@@ -220,14 +267,16 @@ function detectFirstPartyAuth(files) {
   const clusters = new Set();
   const evidence = [];
   const seen = new Set();
-  const isCluster = (candidate) => FIRST_PARTY_AUTH_CLUSTERS.find(
-    (name) => candidate === name || candidate.startsWith(`${name}_`) || candidate.startsWith(`${name}-`),
-  );
+  const isCluster = (candidate) =>
+    FIRST_PARTY_AUTH_CLUSTERS.find(
+      (name) =>
+        candidate === name || candidate.startsWith(`${name}_`) || candidate.startsWith(`${name}-`),
+    );
   for (const rel of Array.isArray(files) ? files : []) {
-    const normalized = String(rel).replace(/\\/g, '/');
-    const segments = normalized.split('/');
-    const leaf = segments[segments.length - 1] || '';
-    const baseName = leaf.includes('.') ? leaf.slice(0, leaf.lastIndexOf('.')) : leaf;
+    const normalized = String(rel).replace(/\\/g, "/");
+    const segments = normalized.split("/");
+    const leaf = segments[segments.length - 1] || "";
+    const baseName = leaf.includes(".") ? leaf.slice(0, leaf.lastIndexOf(".")) : leaf;
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
       const candidate = i === segments.length - 1 ? baseName : segment;
@@ -252,7 +301,7 @@ function detectFirstPartyAuth(files) {
 // distinct `Capability` type — depending on Django does not prove contrib.auth
 // is used. Only specific auth/validation subsystems count toward `detected`;
 // capability entries still surface in the inventory but never lift the signal.
-const CAPABILITY_TYPE = 'Capability';
+const CAPABILITY_TYPE = "Capability";
 
 function detectAuth(depNames, ecosystems, files) {
   const frameworks = unionMatches(depNames, AUTH_LIBS, ecosystems);
@@ -339,13 +388,13 @@ function findingsFromTallies(tallies) {
 
 function detectSecurityHeaders(repoPath, files) {
   const patterns = [
-    { name: 'CORS', re: /(?:cors|Access-Control-Allow-Origin)/i },
-    { name: 'CSP', re: /Content-Security-Policy/i },
-    { name: 'HSTS', re: /Strict-Transport-Security/i },
-    { name: 'XSS Protection', re: /X-XSS-Protection/i },
-    { name: 'Frame Options', re: /X-Frame-Options/i },
-    { name: 'Content Type Options', re: /X-Content-Type-Options/i },
-    { name: 'Helmet.js', re: /helmet/i },
+    { name: "CORS", re: /(?:cors|Access-Control-Allow-Origin)/i },
+    { name: "CSP", re: /Content-Security-Policy/i },
+    { name: "HSTS", re: /Strict-Transport-Security/i },
+    { name: "XSS Protection", re: /X-XSS-Protection/i },
+    { name: "Frame Options", re: /X-Frame-Options/i },
+    { name: "Content Type Options", re: /X-Content-Type-Options/i },
+    { name: "Helmet.js", re: /helmet/i },
   ];
 
   const detections = [];
@@ -374,33 +423,33 @@ function detectSecurityTools(repoPath, overview, auditMatches) {
     if (t && !tools.includes(t)) tools.push(t);
   };
 
-  if (hasFile(repoPath, overview, '.gitleaks.toml')) pushUnique('.gitleaks.toml');
-  if (hasFile(repoPath, overview, '.gitleaksignore')) pushUnique('.gitleaksignore');
-  if (hasFile(repoPath, overview, 'SECURITY.md')) {
-    pushUnique('SECURITY.md');
-  } else if (hasFile(repoPath, overview, '.github/SECURITY.md')) {
-    pushUnique('.github/SECURITY.md');
+  if (hasFile(repoPath, overview, ".gitleaks.toml")) pushUnique(".gitleaks.toml");
+  if (hasFile(repoPath, overview, ".gitleaksignore")) pushUnique(".gitleaksignore");
+  if (hasFile(repoPath, overview, "SECURITY.md")) {
+    pushUnique("SECURITY.md");
+  } else if (hasFile(repoPath, overview, ".github/SECURITY.md")) {
+    pushUnique(".github/SECURITY.md");
   }
 
   // bandit config: standalone file or pyproject [tool.bandit] section. When a
   // config is present the bandit DEP (matched below via AUDIT_TOOLS) is dropped
   // to avoid a redundant duplicate entry for the same tool.
   let banditConfig = false;
-  if (hasFile(repoPath, overview, '.bandit')) {
-    pushUnique('.bandit');
+  if (hasFile(repoPath, overview, ".bandit")) {
+    pushUnique(".bandit");
     banditConfig = true;
   }
-  if (!banditConfig && hasFile(repoPath, overview, 'pyproject.toml')) {
+  if (!banditConfig && hasFile(repoPath, overview, "pyproject.toml")) {
     // F-022/F-023: bounded, contained read of the well-known config name.
-    const txt = readBoundedFile(join(repoPath, 'pyproject.toml'), { containmentRoot: repoPath });
+    const txt = readBoundedFile(join(repoPath, "pyproject.toml"), { containmentRoot: repoPath });
     if (txt != null && /^\s*\[tool\.bandit\]/m.test(txt)) {
-      pushUnique('bandit config');
+      pushUnique("bandit config");
       banditConfig = true;
     }
   }
 
   for (const m of auditMatches) {
-    if (m.package === 'bandit' && banditConfig) continue;
+    if (m.package === "bandit" && banditConfig) continue;
     pushUnique(m.package);
   }
 
@@ -424,22 +473,25 @@ function detectHasLockfile(repoPath, overview, ecosystems) {
   return false;
 }
 
-const PACKAGE_AUDIT_PATTERN = /\b(?:npm\s+audit|yarn\s+audit|cargo(?:\s+|-)audit|pip-audit|snyk|audit)\b/i;
-const FILE_AUDIT_PATTERN = /\b(?:bandit|safety|gitleaks|pip-audit|cargo(?:\s+|-)audit|cargo(?:\s+|-)deny|trufflehog|semgrep)\b/gi;
+const PACKAGE_AUDIT_PATTERN =
+  /\b(?:npm\s+audit|yarn\s+audit|cargo(?:\s+|-)audit|pip-audit|snyk|audit)\b/i;
+const FILE_AUDIT_PATTERN =
+  /\b(?:bandit|safety|gitleaks|pip-audit|cargo(?:\s+|-)audit|cargo(?:\s+|-)deny|trufflehog|semgrep)\b/gi;
 
 // Best-effort references in Makefile and GitHub Actions files. These are
 // evidence of a textual reference only; this scanner does not parse whether a
 // workflow step or recipe executes the referenced tool.
 function scanAuditReferences(repoPath, overview) {
   const targets = [];
-  if (hasFile(repoPath, overview, 'Makefile')) targets.push({ source: 'makefile', location: 'Makefile' });
+  if (hasFile(repoPath, overview, "Makefile"))
+    targets.push({ source: "makefile", location: "Makefile" });
 
-  const wfDir = join(repoPath, '.github', 'workflows');
+  const wfDir = join(repoPath, ".github", "workflows");
   try {
     if (existsSync(wfDir)) {
       for (const f of readdirSync(wfDir).toSorted()) {
-        if (f.endsWith('.yml') || f.endsWith('.yaml')) {
-          targets.push({ source: 'workflow', location: `.github/workflows/${f}` });
+        if (f.endsWith(".yml") || f.endsWith(".yaml")) {
+          targets.push({ source: "workflow", location: `.github/workflows/${f}` });
         }
       }
     }
@@ -471,14 +523,16 @@ function detectAuditEvidence(repoPath, overview, auditMatches) {
   };
 
   try {
-    const pkg = readJSON(join(repoPath, 'package.json'));
-    if (pkg?.scripts && typeof pkg.scripts === 'object') {
-      for (const [name, command] of Object.entries(pkg.scripts).toSorted(([a], [b]) => a.localeCompare(b))) {
-        if (typeof command !== 'string') continue;
+    const pkg = readJSON(join(repoPath, "package.json"));
+    if (pkg?.scripts && typeof pkg.scripts === "object") {
+      for (const [name, command] of Object.entries(pkg.scripts).toSorted(([a], [b]) =>
+        a.localeCompare(b),
+      )) {
+        if (typeof command !== "string") continue;
         const match = command.match(PACKAGE_AUDIT_PATTERN);
         if (match) {
           pushUnique({
-            source: 'package-script',
+            source: "package-script",
             location: `package.json#scripts.${name}`,
             tool: match[0],
           });
@@ -488,8 +542,8 @@ function detectAuditEvidence(repoPath, overview, auditMatches) {
   } catch {}
 
   for (const match of Array.isArray(auditMatches) ? auditMatches : []) {
-    if (typeof match?.package === 'string' && match.package) {
-      pushUnique({ source: 'dependency', location: 'manifest', tool: match.package });
+    if (typeof match?.package === "string" && match.package) {
+      pushUnique({ source: "dependency", location: "manifest", tool: match.package });
     }
   }
 
@@ -506,18 +560,18 @@ function detectAuditEvidence(repoPath, overview, auditMatches) {
 async function detectDependabot(repoPath, overview, broker) {
   const configured = DEPENDABOT_CONFIG_FILES.some((rel) => hasFile(repoPath, overview, rel));
   if (configured) {
-    return { configured: true, status: 'configured', branches: [], branchCount: 0 };
+    return { configured: true, status: "configured", branches: [], branchCount: 0 };
   }
   let branches = [];
-  let status = 'unverified';
+  let status = "unverified";
   try {
-    const result = await broker.execute('git:branch-list', { cwd: repoPath });
+    const result = await broker.execute("git:branch-list", { cwd: repoPath });
     if (result.ok) {
       branches = parseDependabotBranches(result.stdout);
-      status = branches.length > 0 ? 'inferred' : 'not-configured';
+      status = branches.length > 0 ? "inferred" : "not-configured";
     }
   } catch {
-    status = 'unverified';
+    status = "unverified";
   }
   return { configured: false, status, branches, branchCount: branches.length };
 }
@@ -528,11 +582,11 @@ async function detectDependabot(repoPath, overview, broker) {
 // one entry. Deterministic (sorted), bounded.
 function parseDependabotBranches(stdout) {
   const seen = new Set();
-  for (const rawLine of String(stdout).split('\n')) {
-    const cleaned = rawLine.replace(/^\*\s*/, '').trim();
+  for (const rawLine of String(stdout).split("\n")) {
+    const cleaned = rawLine.replace(/^\*\s*/, "").trim();
     if (!cleaned) continue;
-    const withoutRemote = cleaned.replace(/^remotes\/[^/]+\//, '');
-    if (!withoutRemote.startsWith('dependabot/')) continue;
+    const withoutRemote = cleaned.replace(/^remotes\/[^/]+\//, "");
+    if (!withoutRemote.startsWith("dependabot/")) continue;
     seen.add(withoutRemote);
     if (seen.size >= BRANCH_EVIDENCE_LIMIT) break;
   }
@@ -546,10 +600,10 @@ function parseDependabotBranches(stdout) {
 // emits secret values; only counts and the allowlisted pattern names.
 function detectGitleaksContext(repoPath, overview, secrets) {
   const context = {
-    configPresent: hasFile(repoPath, overview, '.gitleaks.toml'),
+    configPresent: hasFile(repoPath, overview, ".gitleaks.toml"),
     allowlistPathCount: 0,
     stopwordCount: 0,
-    ignorePresent: hasFile(repoPath, overview, '.gitleaksignore'),
+    ignorePresent: hasFile(repoPath, overview, ".gitleaksignore"),
     ignoreEntryCount: 0,
     fixtureAllowlisted: [],
   };
@@ -557,7 +611,7 @@ function detectGitleaksContext(repoPath, overview, secrets) {
   if (context.configPresent) {
     // F-023: the well-known config name is attacker-controlled as a symlink;
     // only read it when it resolves inside the repository.
-    const content = readContent(join(repoPath, '.gitleaks.toml'), SCAN_BYTE_LIMIT, repoPath);
+    const content = readContent(join(repoPath, ".gitleaks.toml"), SCAN_BYTE_LIMIT, repoPath);
     if (content) {
       const { paths, stopwords } = parseGitleaksAllowlist(content);
       context.allowlistPathCount = paths.length;
@@ -586,13 +640,12 @@ function detectGitleaksContext(repoPath, overview, secrets) {
 
   if (context.ignorePresent) {
     // F-023: containment before the well-known ignore file read.
-    const content = readContent(join(repoPath, '.gitleaksignore'), SCAN_BYTE_LIMIT, repoPath);
+    const content = readContent(join(repoPath, ".gitleaksignore"), SCAN_BYTE_LIMIT, repoPath);
     if (content) {
       context.ignoreEntryCount = content
-        .split('\n')
+        .split("\n")
         .map((line) => line.trim())
-        .filter((line) => line.length > 0 && !line.startsWith('#'))
-        .length;
+        .filter((line) => line.length > 0 && !line.startsWith("#")).length;
     }
   }
 
@@ -607,10 +660,10 @@ function parseGitleaksAllowlist(content) {
   // F-002: a bounded non-greedy lookahead; the old `\n*$` alternative enabled
   // needless backtracking over the whole (up-to-1MB) block.
   const allowlistMatch = content.match(/\[allowlist\][\s\S]*?(?=\n\[|$)/);
-  const block = allowlistMatch ? allowlistMatch[0] : '';
+  const block = allowlistMatch ? allowlistMatch[0] : "";
   return {
-    paths: extractTomlArray(block, 'paths'),
-    stopwords: extractTomlArray(block, 'stopwords'),
+    paths: extractTomlArray(block, "paths"),
+    stopwords: extractTomlArray(block, "stopwords"),
   };
 }
 
@@ -645,7 +698,7 @@ const GITLEAKS_MATCH_BUDGET_MS = 1000;
 function compileGitleaksPaths(paths) {
   const matchers = [];
   for (const pattern of paths) {
-    const source = typeof pattern === 'string' ? pattern.trim() : '';
+    const source = typeof pattern === "string" ? pattern.trim() : "";
     if (source.length === 0 || source.length > GITLEAKS_PATH_PATTERN_LIMIT) continue;
     let validated;
     try {
@@ -655,7 +708,7 @@ function compileGitleaksPaths(paths) {
       continue;
     }
     try {
-      matchers.push(new RegExp(validated, 'u'));
+      matchers.push(new RegExp(validated, "u"));
     } catch {
       matchers.push(literalGlobMatcher(source));
     }
@@ -664,7 +717,7 @@ function compileGitleaksPaths(paths) {
 }
 
 function escapeRegexLiteral(source) {
-  return source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // Literal-glob matcher for allowlist entries the complexity policy rejects:
@@ -672,11 +725,11 @@ function escapeRegexLiteral(source) {
 // linear — no regex engine, no backtracking. A policy-rejected entry cannot
 // label a finding as allowlisted unless it matches as a literal glob.
 function literalGlobMatcher(source) {
-  if (!source.includes('*')) {
+  if (!source.includes("*")) {
     const needle = source;
     return { test: (file) => file === needle };
   }
-  const re = new RegExp(`^${source.split('*').map(escapeRegexLiteral).join('.*')}$`);
+  const re = new RegExp(`^${source.split("*").map(escapeRegexLiteral).join(".*")}$`);
   return { test: (file) => re.test(file) };
 }
 
@@ -708,10 +761,8 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   // F-018: bounded hidden/gitignored pass feeding only the secret patterns.
   // A failed enumeration is disclosed so an empty hidden window is never
   // mistaken for "no hidden files".
-  const {
-    candidates: hiddenCandidates,
-    failed: hiddenEnumerationFailed,
-  } = await listHiddenSecretCandidates(repoPath, broker, new Set(files));
+  const { candidates: hiddenCandidates, failed: hiddenEnumerationFailed } =
+    await listHiddenSecretCandidates(repoPath, broker, new Set(files));
   const hiddenScanned = hiddenCandidates.slice(0, SCAN_FILE_LIMIT);
   const hiddenFilesSkipped = Math.max(0, hiddenCandidates.length - hiddenScanned.length);
 
@@ -731,14 +782,15 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const dependabot = await detectDependabot(repoPath, overview, broker);
   const gitleaks = detectGitleaksContext(repoPath, overview, secrets);
 
-  const envExample = hasFile(repoPath, overview, '.env.example') ||
-    hasFile(repoPath, overview, '.env.sample') ||
-    hasFile(repoPath, overview, '.env.template');
+  const envExample =
+    hasFile(repoPath, overview, ".env.example") ||
+    hasFile(repoPath, overview, ".env.sample") ||
+    hasFile(repoPath, overview, ".env.template");
 
-  const gitignore = hasFile(repoPath, overview, '.gitignore');
+  const gitignore = hasFile(repoPath, overview, ".gitignore");
   let gitignoreCoversEnv = false;
   if (gitignore) {
-    const content = readBoundedFile(join(repoPath, '.gitignore'), { containmentRoot: repoPath });
+    const content = readBoundedFile(join(repoPath, ".gitignore"), { containmentRoot: repoPath });
     if (content != null) gitignoreCoversEnv = /\.env/.test(content);
   }
 
@@ -752,14 +804,17 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   // example, dependabot); 'low' otherwise. A recognized lockfile therefore
   // always lifts the signal to at least 'medium' — the original bug treated
   // uv.lock as "no lockfile" and depressed the signal to 'low'.
-  const strongSignal =
-    secrets.length > 0 || auth.detected || hasAuditScript || validation.detected;
+  const strongSignal = secrets.length > 0 || auth.detected || hasAuditScript || validation.detected;
   const mediumSignal =
-    hasLockfile || rateLimit.detected || securityTools.length > 0 || envExample || dependabot.configured;
-  const signal = strongSignal ? 'high' : mediumSignal ? 'medium' : 'low';
+    hasLockfile ||
+    rateLimit.detected ||
+    securityTools.length > 0 ||
+    envExample ||
+    dependabot.configured;
+  const signal = strongSignal ? "high" : mediumSignal ? "medium" : "low";
 
   return {
-    dimension: 'security',
+    dimension: "security",
     signal,
     findings: {
       secrets: {

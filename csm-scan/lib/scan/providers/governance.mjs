@@ -28,19 +28,17 @@
 // the contracts, and the governance model; it never touches node:fs /
 // node:child_process / node:process / node:vm / node:module.
 
-import { assertDataOnly, compareAscii, deepFreeze } from '../contracts/evidence.mjs';
-import { createProviderResult } from './base.mjs';
-import {
-  encodeMatchedKey,
-  GOVERNANCE_DIMENSION_ID,
-} from '../deep/governance/model.mjs';
+import { assertDataOnly, compareAscii, deepFreeze } from "../contracts/evidence.mjs";
+import { createProviderResult } from "./base.mjs";
+import { encodeMatchedKey, GOVERNANCE_DIMENSION_ID } from "../deep/governance/model.mjs";
 
-export const GOVERNANCE_PROVIDER_ID = 'PRV-governance-ownership-v1';
+export const GOVERNANCE_PROVIDER_ID = "PRV-governance-ownership-v1";
 
 function sourceKindFor(category) {
-  if (['funding'].includes(category)) return 'config';
-  if (['decision', 'reference', 'release', 'runbook', 'support'].includes(category)) return 'documentation';
-  return 'policy';
+  if (["funding"].includes(category)) return "config";
+  if (["decision", "reference", "release", "runbook", "support"].includes(category))
+    return "documentation";
+  return "policy";
 }
 
 function stableHash(value) {
@@ -49,7 +47,7 @@ function stableHash(value) {
     hash ^= value.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193);
   }
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function boundedMatchedKey(rawKey, prefix) {
@@ -74,26 +72,26 @@ function entryObservation(entry) {
 
 function ruleObservation(rule) {
   return {
-    category: 'ownership',
+    category: "ownership",
     path: rule.path,
-    matchedKey: boundedMatchedKey(`rule:${rule.path}:${rule.pattern}`, 'rule'),
+    matchedKey: boundedMatchedKey(`rule:${rule.path}:${rule.pattern}`, "rule"),
     details: {
       pattern: rule.pattern,
       anchored: rule.anchored,
       labels: rule.labels,
       line: rule.line,
     },
-    sourceKind: 'policy',
+    sourceKind: "policy",
   };
 }
 
 function assigneeObservation(assignee) {
   return {
-    category: 'ownership',
+    category: "ownership",
     path: null,
-    matchedKey: boundedMatchedKey(`assignee:${assignee.label}`, 'assignee'),
+    matchedKey: boundedMatchedKey(`assignee:${assignee.label}`, "assignee"),
     details: { count: assignee.count },
-    sourceKind: 'policy',
+    sourceKind: "policy",
   };
 }
 
@@ -115,15 +113,19 @@ function validateModel(model) {
  *   empty or foreign input.
  */
 export function governanceObservations(model) {
-  if (model === null || typeof model !== 'object' || !Array.isArray(model.entries)) return [];
+  if (model === null || typeof model !== "object" || !Array.isArray(model.entries)) return [];
   validateModel(model);
   const observations = [];
   for (const entry of model.entries) observations.push(entryObservation(entry));
   for (const rule of model.ownership?.rules ?? []) observations.push(ruleObservation(rule));
-  for (const assignee of model.ownership?.assignees ?? []) observations.push(assigneeObservation(assignee));
+  for (const assignee of model.ownership?.assignees ?? [])
+    observations.push(assigneeObservation(assignee));
 
-  observations.sort((left, right) => compareAscii(left.matchedKey, right.matchedKey)
-    || compareAscii(left.path ?? '', right.path ?? ''));
+  observations.sort(
+    (left, right) =>
+      compareAscii(left.matchedKey, right.matchedKey) ||
+      compareAscii(left.path ?? "", right.path ?? ""),
+  );
 
   const unique = [];
   const seen = new Set();
@@ -142,7 +144,7 @@ export function governanceObservations(model) {
  * @returns {object[]} Deep-frozen provider results (possibly empty).
  */
 export function governanceProviderResult(model) {
-  return governanceObservations(model).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: GOVERNANCE_PROVIDER_ID, dimensionId, observations })
-  ));
+  return governanceObservations(model).map(({ dimensionId, observations }) =>
+    createProviderResult({ providerId: GOVERNANCE_PROVIDER_ID, dimensionId, observations }),
+  );
 }

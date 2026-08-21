@@ -12,13 +12,13 @@
 //
 // ESM only. Zero npm deps. node: builtins only.
 
-import { compareAscii } from '../../contracts/evidence.mjs';
-import { readArtifacts } from '../../shared/artifacts.mjs';
-import { enumerate } from '../../shared/enum.mjs';
-import { API_LIMITS, buildApiModel } from './model.mjs';
-import { classifyPath, extractApiSurface } from './extractor.mjs';
+import { compareAscii } from "../../contracts/evidence.mjs";
+import { readArtifacts } from "../../shared/artifacts.mjs";
+import { enumerate } from "../../shared/enum.mjs";
+import { API_LIMITS, buildApiModel } from "./model.mjs";
+import { classifyPath, extractApiSurface } from "./extractor.mjs";
 
-export const API_SCANNER_ID = 'DET-api-scan-v1';
+export const API_SCANNER_ID = "DET-api-scan-v1";
 export const API_SOURCE_FILE_LIMIT = 512;
 
 /**
@@ -31,15 +31,15 @@ export const API_SOURCE_FILE_LIMIT = 512;
  */
 export function diagnosticForOutcome(result) {
   const reasons = {
-    capped: 'CAP',
-    malformed: 'MALFORMED',
-    unreadable: 'UNREADABLE',
-    unsupported: 'UNSUPPORTED',
+    capped: "CAP",
+    malformed: "MALFORMED",
+    unreadable: "UNREADABLE",
+    unsupported: "UNSUPPORTED",
   };
   return {
     path: result.path,
-    status: 'unverified',
-    reason: reasons[result.status] ?? 'UNREADABLE',
+    status: "unverified",
+    reason: reasons[result.status] ?? "UNREADABLE",
     line: null,
   };
 }
@@ -52,7 +52,7 @@ const READ_LIMITS = Object.freeze({
 });
 
 function basenameOf(path) {
-  const index = path.lastIndexOf('/');
+  const index = path.lastIndexOf("/");
   return index === -1 ? path : path.slice(index + 1);
 }
 
@@ -63,7 +63,8 @@ function sourcePriority(path) {
   if (/^(?:urls|views|api|endpoints|controllers)\./.test(base)) score += 6;
   if (/^(?:lib|mod)\.rs$/.test(base)) score += 6;
   if (/^(?:cli|__main__|manage|wsgi|asgi)\./.test(base)) score += 4;
-  if (/(?:^|\/)(?:routes?|controllers?|views|endpoints?|handlers?|middleware|api)\//.test(path)) score += 5;
+  if (/(?:^|\/)(?:routes?|controllers?|views|endpoints?|handlers?|middleware|api)\//.test(path))
+    score += 5;
   if (/(?:^|\/)(?:cli|cmd|bin|commands?|management\/commands)\//.test(path)) score += 3;
   return score;
 }
@@ -79,8 +80,8 @@ function contractRequests(files) {
   const requests = [];
   for (const path of files) {
     const classification = classifyPath(path);
-    if (classification.kind !== 'contract') continue;
-    requests.push({ path, format: classification.format, sensitivity: 'internal' });
+    if (classification.kind !== "contract") continue;
+    requests.push({ path, format: classification.format, sensitivity: "internal" });
   }
   return requests;
 }
@@ -89,16 +90,16 @@ function sourceRequests(files) {
   const requests = [];
   for (const path of sortedCandidates(files)) {
     const classification = classifyPath(path);
-    if (classification.kind !== 'source') continue;
-    requests.push({ path, format: classification.format, sensitivity: 'internal' });
+    if (classification.kind !== "source") continue;
+    requests.push({ path, format: classification.format, sensitivity: "internal" });
     if (requests.length >= API_SOURCE_FILE_LIMIT) break;
   }
   return requests;
 }
 
 function packageRequest(files) {
-  const hit = files.find((path) => path === 'package.json');
-  return hit === undefined ? null : { path: hit, format: 'json', sensitivity: 'internal' };
+  const hit = files.find((path) => path === "package.json");
+  return hit === undefined ? null : { path: hit, format: "json", sensitivity: "internal" };
 }
 
 function requestList(files) {
@@ -116,7 +117,7 @@ function requestList(files) {
 }
 
 function extractionFor(result) {
-  if (result.status !== 'read') {
+  if (result.status !== "read") {
     return {
       operations: [],
       diagnostics: [diagnosticForOutcome(result)],
@@ -126,8 +127,8 @@ function extractionFor(result) {
   const classification = classifyPath(result.path);
   return extractApiSurface({
     path: result.path,
-    text: classification.format === 'text' ? result.value : '',
-    value: classification.format === 'json' ? result.value : null,
+    text: classification.format === "text" ? result.value : "",
+    value: classification.format === "json" ? result.value : null,
     format: classification.format,
     ecosystem: classification.ecosystem,
   });
@@ -147,7 +148,7 @@ function modelFromResults(results, searchSpace) {
 function sourceEligibleCount(files) {
   let count = 0;
   for (const path of files) {
-    if (classifyPath(path).kind === 'source') count++;
+    if (classifyPath(path).kind === "source") count++;
   }
   return count;
 }
@@ -192,8 +193,8 @@ export async function scan(repoPath, _overview) {
   const disclosedSpace = discloseSourceSampling(files, searchSpace);
   const model = modelFromResults(results, disclosedSpace);
   return {
-    dimension: 'api',
-    signal: model.summary.operations > 0 ? 'high' : 'low',
+    dimension: "api",
+    signal: model.summary.operations > 0 ? "high" : "low",
     findings: model,
   };
 }

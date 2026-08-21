@@ -1,51 +1,57 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 // Sync shared SKILL.md boilerplate sections from scripts/lib/boilerplate.mjs.
 // --check: report drift, exit 1 when any synced section differs (hook-safe).
 // --write: regenerate every synced section in place.
 // Heading-bounded whole-section sync — no markers inside SKILL.md.
 
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath } from 'node:url';
-import { SYNC_SECTIONS } from './lib/boilerplate.mjs';
-import { splitLines, fenceMap } from './lib/plan-validation.mjs';
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+import { SYNC_SECTIONS } from "./lib/boilerplate.mjs";
+import { splitLines, fenceMap } from "./lib/plan-validation.mjs";
 
 // Locate a heading ("## Title" or "### Title") outside fences. Returns
 // { headingLine, level, bodyStart, bodyEnd } where the body runs from the
 // line after the heading to the line before the next heading of level <=
 // this heading's level (blank line included), or EOF.
 function findSection(lines, inFence, title, level) {
-  const re = new RegExp(`^#{${level}}\\s+${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+  const re = new RegExp(`^#{${level}}\\s+${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
   let start = -1;
   for (let i = 0; i < lines.length; i += 1) {
-    if (!inFence[i] && re.test(lines[i])) { start = i; break; }
+    if (!inFence[i] && re.test(lines[i])) {
+      start = i;
+      break;
+    }
   }
   if (start === -1) return null;
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i += 1) {
     if (inFence[i]) continue;
     const h = lines[i].match(/^(#{1,6})\s+/);
-    if (h && h[1].length <= level) { end = i; break; }
+    if (h && h[1].length <= level) {
+      end = i;
+      break;
+    }
   }
   return { headingLine: start, level, bodyStart: start + 1, bodyEnd: end };
 }
 
 function extractBody(lines, section) {
-  return lines.slice(section.bodyStart, section.bodyEnd).join('\n');
+  return lines.slice(section.bodyStart, section.bodyEnd).join("\n");
 }
 
 // Returns an array of drift records: { skill, section, message }.
 export function checkDrift(root = process.cwd()) {
   const drift = [];
   for (const [skill, sections] of Object.entries(SYNC_SECTIONS)) {
-    const file = path.join(root, skill, 'SKILL.md');
+    const file = path.join(root, skill, "SKILL.md");
     let content;
     try {
-      content = fs.readFileSync(file, 'utf8');
+      content = fs.readFileSync(file, "utf8");
     } catch {
-      drift.push({ skill, section: '*', message: 'SKILL.md unreadable' });
+      drift.push({ skill, section: "*", message: "SKILL.md unreadable" });
       continue;
     }
     const lines = splitLines(content);
@@ -53,13 +59,18 @@ export function checkDrift(root = process.cwd()) {
     for (const [title, def] of Object.entries(sections)) {
       const located = findSection(lines, inFence, title, def.level);
       if (!located) {
-        drift.push({ skill, section: title, message: 'section heading not found' });
+        drift.push({ skill, section: title, message: "section heading not found" });
         continue;
       }
       const current = extractBody(lines, located);
       const expected = def.render();
       if (current !== expected) {
-        drift.push({ skill, section: title, message: 'boilerplate drifted from scripts/lib/boilerplate.mjs (run: node scripts/sync-skill-boilerplate.mjs --write)' });
+        drift.push({
+          skill,
+          section: title,
+          message:
+            "boilerplate drifted from scripts/lib/boilerplate.mjs (run: node scripts/sync-skill-boilerplate.mjs --write)",
+        });
       }
     }
   }
@@ -69,10 +80,10 @@ export function checkDrift(root = process.cwd()) {
 function syncWrite(root = process.cwd()) {
   let changed = 0;
   for (const [skill, sections] of Object.entries(SYNC_SECTIONS)) {
-    const file = path.join(root, skill, 'SKILL.md');
+    const file = path.join(root, skill, "SKILL.md");
     let content;
     try {
-      content = fs.readFileSync(file, 'utf8');
+      content = fs.readFileSync(file, "utf8");
     } catch {
       continue;
     }
@@ -85,7 +96,9 @@ function syncWrite(root = process.cwd()) {
         // F-069-1: fail loudly instead of silently reporting "rewrote 0
         // section(s)" with exit 0 — --write must not pretend it repaired drift
         // it cannot even locate.
-        throw new Error(`sync-skill-boilerplate: ${skill}/SKILL.md is missing the synced section "${'#'.repeat(def.level)} ${title}" — cannot write (run --check to see all drift)`);
+        throw new Error(
+          `sync-skill-boilerplate: ${skill}/SKILL.md is missing the synced section "${"#".repeat(def.level)} ${title}" — cannot write (run --check to see all drift)`,
+        );
       }
       const expectedLines = splitLines(def.render());
       const current = extractBody(lines, located);
@@ -95,14 +108,17 @@ function syncWrite(root = process.cwd()) {
         changed += 1;
       }
     }
-    if (mutated) fs.writeFileSync(file, lines.join('\n'), 'utf8');
+    if (mutated) fs.writeFileSync(file, lines.join("\n"), "utf8");
   }
   return changed;
 }
 
 let isMain = false;
 try {
-  isMain = process.argv[1] && fs.realpathSync(fileURLToPath(import.meta.url)) === fs.realpathSync(path.resolve(process.argv[1]));
+  isMain =
+    process.argv[1] &&
+    fs.realpathSync(fileURLToPath(import.meta.url)) ===
+      fs.realpathSync(path.resolve(process.argv[1]));
 } catch {
   isMain = false;
 }
@@ -111,20 +127,19 @@ if (isMain) {
   const args = process.argv.slice(2);
   let root = process.cwd();
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === '--root' && args[i + 1]) root = path.resolve(args[i + 1]);
+    if (args[i] === "--root" && args[i + 1]) root = path.resolve(args[i + 1]);
   }
-  const mode = args.includes('--write') ? 'write' : 'check';
-  if (mode === 'write') {
+  const mode = args.includes("--write") ? "write" : "check";
+  if (mode === "write") {
     const changed = syncWrite(root);
     console.log(`sync-skill-boilerplate: rewrote ${changed} section(s)`);
     process.exit(0);
   }
   const drift = checkDrift(root);
   if (drift.length === 0) {
-    console.log('sync-skill-boilerplate: OK — no drift');
+    console.log("sync-skill-boilerplate: OK — no drift");
     process.exit(0);
   }
   for (const d of drift) console.log(`DRIFT: ${d.skill}/SKILL.md "${d.section}": ${d.message}`);
   process.exit(1);
 }
-

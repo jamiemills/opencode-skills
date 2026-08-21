@@ -5,6 +5,7 @@ format: csm-plan/1
 # Paused Fixture CSM Plan
 
 ## Control
+
 - Plan ID: paused-fixture
 - Status: paused
 - Current CSM state: PAUSED
@@ -17,9 +18,11 @@ format: csm-plan/1
 - Blockers: none
 
 ## Goal
+
 Hermetic golden fixture for the resume-semantics tests: a plan paused on quota must pass the plan-validation checks.
 
 ## Progress Journal
-| Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
-|---|---|---|---|---|---|
-| 2026-08-20 | 1 | CHECKPOINT -> PAUSED | T003 | quota exhausted; paused cleanly per Pause On Quota | PAUSED |
+
+| Timestamp  | Cycle | Transition           | Tasks | Evidence/result                                    | Next state |
+| ---------- | ----- | -------------------- | ----- | -------------------------------------------------- | ---------- |
+| 2026-08-20 | 1     | CHECKPOINT -> PAUSED | T003  | quota exhausted; paused cleanly per Pause On Quota | PAUSED     |

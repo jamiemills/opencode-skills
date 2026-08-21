@@ -37,42 +37,32 @@
 // and the provider foundation and never touches node:fs /
 // node:child_process / node:process / node:vm / node:module.
 
-import {
-  compareAscii,
-  deepFreeze,
-  normalizeEvidencePath,
-} from '../contracts/evidence.mjs';
-import {
-  createProviderResult,
-  mergeProviderResults,
-  PROVIDER_RESULT_LIMITS,
-} from './base.mjs';
+import { compareAscii, deepFreeze, normalizeEvidencePath } from "../contracts/evidence.mjs";
+import { createProviderResult, mergeProviderResults, PROVIDER_RESULT_LIMITS } from "./base.mjs";
 import {
   computeCouplingAggregates,
   computeSolidIndicators,
   CRAFT_LIMITS,
-} from '../deep/architecture/craft.mjs';
-import {
-  practicesObservations,
-} from './practices.mjs';
+} from "../deep/architecture/craft.mjs";
+import { practicesObservations } from "./practices.mjs";
 
 export const ANALYSIS_CATALOG_VERSION = 1;
 
 export const ANALYSIS_DIMENSION_IDS = deepFreeze([
-  'DIM-architecture-v1',
-  'DIM-conventions-v1',
-  'DIM-documentation-v1',
-  'DIM-practices-v1',
+  "DIM-architecture-v1",
+  "DIM-conventions-v1",
+  "DIM-documentation-v1",
+  "DIM-practices-v1",
 ]);
 
 export const ANALYSIS_PROVIDER_IDS = deepFreeze({
-  architecture: 'PRV-analysis-architecture-v1',
-  conventions: 'PRV-analysis-conventions-v1',
-  documentation: 'PRV-analysis-documentation-v1',
-  practices: 'PRV-analysis-practices-v1',
+  architecture: "PRV-analysis-architecture-v1",
+  conventions: "PRV-analysis-conventions-v1",
+  documentation: "PRV-analysis-documentation-v1",
+  practices: "PRV-analysis-practices-v1",
 });
 
-export const ANALYSIS_PLUGIN_PROVIDER_ID = 'PRV-analysis-plugin-v1';
+export const ANALYSIS_PLUGIN_PROVIDER_ID = "PRV-analysis-plugin-v1";
 
 export const ANALYSIS_LIMITS = deepFreeze({
   cyclicSizes: 128,
@@ -81,7 +71,7 @@ export const ANALYSIS_LIMITS = deepFreeze({
 });
 
 function plainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function plain(value) {
@@ -90,7 +80,7 @@ function plain(value) {
 
 function asciiList(values) {
   return (Array.isArray(values) ? values : [])
-    .filter((entry) => typeof entry === 'string')
+    .filter((entry) => typeof entry === "string")
     .toSorted(compareAscii);
 }
 
@@ -109,7 +99,9 @@ function boundedKey(value) {
 // deterministically final-truncated at the bound. Full values stay available
 // in observation details, so truncation is disclosed without data loss.
 function boundedAssembledKey(value) {
-  return value.length > ANALYSIS_LIMITS.assembledKey ? value.slice(0, ANALYSIS_LIMITS.assembledKey) : value;
+  return value.length > ANALYSIS_LIMITS.assembledKey
+    ? value.slice(0, ANALYSIS_LIMITS.assembledKey)
+    : value;
 }
 
 function observation(category, path, matchedKey, details, sourceKind) {
@@ -122,8 +114,8 @@ function safeInteger(value) {
 
 function canonicalOrder(left, right) {
   return compareAscii(
-    `${left.category}\0${left.path ?? ''}\0${left.matchedKey}`,
-    `${right.category}\0${right.path ?? ''}\0${right.matchedKey}`,
+    `${left.category}\0${left.path ?? ""}\0${left.matchedKey}`,
+    `${right.category}\0${right.path ?? ""}\0${right.matchedKey}`,
   );
 }
 
@@ -141,7 +133,7 @@ function boundedObservations(observations) {
 function pairingMap(pairs, fields) {
   const map = {};
   for (const pair of pairs) {
-    const key = fields.map((field) => pair[field]).join(':');
+    const key = fields.map((field) => pair[field]).join(":");
     map[key] = pair.count;
   }
   return map;
@@ -155,74 +147,174 @@ function topRankMap(entries) {
 
 function couplingCraftObservations(aggregates) {
   const observations = [];
-  observations.push(observation('coupling', null, 'coupling:fan-in-max', {
-    count: aggregates.fanIn.max.count,
-    files: aggregates.fanIn.max.files,
-    truncated: aggregates.fanIn.max.truncated,
-  }, 'repository_metadata'));
-  observations.push(observation('coupling', null, 'coupling:fan-in-top', {
-    limit: CRAFT_LIMITS.topN,
-    top: topRankMap(aggregates.fanIn.top),
-  }, 'repository_metadata'));
-  observations.push(observation('coupling', null, 'coupling:fan-in-threshold', {
-    threshold: aggregates.fanInThreshold.threshold,
-    count: aggregates.fanInThreshold.count,
-    files: aggregates.fanInThreshold.files,
-    truncated: aggregates.fanInThreshold.truncated,
-  }, 'repository_metadata'));
-  observations.push(observation('coupling', null, 'coupling:fan-out-max', {
-    count: aggregates.fanOut.max.count,
-    files: aggregates.fanOut.max.files,
-    truncated: aggregates.fanOut.max.truncated,
-  }, 'repository_metadata'));
-  observations.push(observation('coupling', null, 'coupling:fan-out-top', {
-    limit: CRAFT_LIMITS.topN,
-    top: topRankMap(aggregates.fanOut.top),
-  }, 'repository_metadata'));
-  observations.push(observation('coupling', null, 'coupling:cyclic-groups', {
-    count: aggregates.cyclicGroups.count,
-    sizes: aggregates.cyclicGroups.sizes,
-    largest: aggregates.cyclicGroups.largest,
-    truncated: aggregates.cyclicGroups.truncated,
-  }, 'repository_metadata'));
-  observations.push(observation('coupling', null, 'coupling:layer-boundaries', {
-    totalEdges: aggregates.layerBoundaries.totalEdges,
-    crossingCount: aggregates.layerBoundaries.crossingCount,
-    pairs: pairingMap(aggregates.layerBoundaries.pairs, ['sourceLayer', 'targetLayer']),
-  }, 'repository_metadata'));
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:fan-in-max",
+      {
+        count: aggregates.fanIn.max.count,
+        files: aggregates.fanIn.max.files,
+        truncated: aggregates.fanIn.max.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:fan-in-top",
+      {
+        limit: CRAFT_LIMITS.topN,
+        top: topRankMap(aggregates.fanIn.top),
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:fan-in-threshold",
+      {
+        threshold: aggregates.fanInThreshold.threshold,
+        count: aggregates.fanInThreshold.count,
+        files: aggregates.fanInThreshold.files,
+        truncated: aggregates.fanInThreshold.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:fan-out-max",
+      {
+        count: aggregates.fanOut.max.count,
+        files: aggregates.fanOut.max.files,
+        truncated: aggregates.fanOut.max.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:fan-out-top",
+      {
+        limit: CRAFT_LIMITS.topN,
+        top: topRankMap(aggregates.fanOut.top),
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:cyclic-groups",
+      {
+        count: aggregates.cyclicGroups.count,
+        sizes: aggregates.cyclicGroups.sizes,
+        largest: aggregates.cyclicGroups.largest,
+        truncated: aggregates.cyclicGroups.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "coupling",
+      null,
+      "coupling:layer-boundaries",
+      {
+        totalEdges: aggregates.layerBoundaries.totalEdges,
+        crossingCount: aggregates.layerBoundaries.crossingCount,
+        pairs: pairingMap(aggregates.layerBoundaries.pairs, ["sourceLayer", "targetLayer"]),
+      },
+      "repository_metadata",
+    ),
+  );
   if (Object.keys(aggregates.edgeKinds).length > 0) {
-    observations.push(observation('coupling', null, 'coupling:edge-kinds', {
-      kinds: aggregates.edgeKinds,
-    }, 'repository_metadata'));
+    observations.push(
+      observation(
+        "coupling",
+        null,
+        "coupling:edge-kinds",
+        {
+          kinds: aggregates.edgeKinds,
+        },
+        "repository_metadata",
+      ),
+    );
   }
   return observations;
 }
 
 function solidCraftObservations(indicators) {
   const observations = [];
-  observations.push(observation('design_pattern', null, 'design:interface-references', {
-    count: indicators.interfaceReferences.count,
-    usageCount: indicators.interfaceReferences.usageCount,
-    paths: indicators.interfaceReferences.paths,
-    truncated: indicators.interfaceReferences.truncated,
-  }, 'repository_metadata'));
-  observations.push(observation('design_pattern', null, 'design:dependency-direction', {
-    totalEdges: indicators.dependencyDirection.totalEdges,
-    downward: indicators.dependencyDirection.downward,
-    upward: indicators.dependencyDirection.upward,
-    same: indicators.dependencyDirection.same,
-    unknown: indicators.dependencyDirection.unknown,
-    pairs: pairingMap(indicators.dependencyDirection.pairs, ['sourceLayer', 'targetLayer', 'direction']),
-  }, 'repository_metadata'));
-  observations.push(observation('design_pattern', null, 'design:port-adapter-dirs', {
-    paths: indicators.portAdapterDirs.paths,
-    truncated: indicators.portAdapterDirs.truncated,
-  }, 'repository_metadata'));
-  observations.push(observation('design_pattern', null, 'design:pattern-suffixes', {
-    counts: indicators.patternSuffixes.counts,
-    files: indicators.patternSuffixes.files,
-    truncated: indicators.patternSuffixes.truncated,
-  }, 'repository_metadata'));
+  observations.push(
+    observation(
+      "design_pattern",
+      null,
+      "design:interface-references",
+      {
+        count: indicators.interfaceReferences.count,
+        usageCount: indicators.interfaceReferences.usageCount,
+        paths: indicators.interfaceReferences.paths,
+        truncated: indicators.interfaceReferences.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "design_pattern",
+      null,
+      "design:dependency-direction",
+      {
+        totalEdges: indicators.dependencyDirection.totalEdges,
+        downward: indicators.dependencyDirection.downward,
+        upward: indicators.dependencyDirection.upward,
+        same: indicators.dependencyDirection.same,
+        unknown: indicators.dependencyDirection.unknown,
+        pairs: pairingMap(indicators.dependencyDirection.pairs, [
+          "sourceLayer",
+          "targetLayer",
+          "direction",
+        ]),
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "design_pattern",
+      null,
+      "design:port-adapter-dirs",
+      {
+        paths: indicators.portAdapterDirs.paths,
+        truncated: indicators.portAdapterDirs.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
+  observations.push(
+    observation(
+      "design_pattern",
+      null,
+      "design:pattern-suffixes",
+      {
+        counts: indicators.patternSuffixes.counts,
+        files: indicators.patternSuffixes.files,
+        truncated: indicators.patternSuffixes.truncated,
+      },
+      "repository_metadata",
+    ),
+  );
   return observations;
 }
 
@@ -236,38 +328,42 @@ function graphFactsObservations(facts) {
   const bounds = plain(facts.bounds);
   const universe = plain(facts.universe);
   if (bounds) {
-    observations.push(observation(
-      'graph',
-      null,
-      'graph:bounds',
-      {
-        filesInspected: safeInteger(bounds.filesInspected),
-        fileLimit: safeInteger(bounds.fileLimit),
-        filesOmitted: safeInteger(bounds.filesOmitted),
-        edgesInspected: safeInteger(bounds.edgesInspected),
-        edgeLimit: safeInteger(bounds.edgeLimit),
-        edgesOmitted: safeInteger(bounds.edgesOmitted),
-        capped: bounds.capped === true,
-      },
-      'repository_metadata',
-    ));
+    observations.push(
+      observation(
+        "graph",
+        null,
+        "graph:bounds",
+        {
+          filesInspected: safeInteger(bounds.filesInspected),
+          fileLimit: safeInteger(bounds.fileLimit),
+          filesOmitted: safeInteger(bounds.filesOmitted),
+          edgesInspected: safeInteger(bounds.edgesInspected),
+          edgeLimit: safeInteger(bounds.edgeLimit),
+          edgesOmitted: safeInteger(bounds.edgesOmitted),
+          capped: bounds.capped === true,
+        },
+        "repository_metadata",
+      ),
+    );
   }
   if (universe) {
-    observations.push(observation(
-      'graph',
-      null,
-      'graph:universe',
-      {
-        ecosystems: asciiList(universe.ecosystems),
-        moduleFiles: safeInteger(universe.moduleFiles),
-        sourceFiles: safeInteger(universe.sourceFiles),
-        testFilesExcluded: safeInteger(universe.testFilesExcluded),
-        declarationFilesExcluded: safeInteger(universe.declarationFilesExcluded),
-        indicatorsDetected: safeInteger(universe.indicatorsDetected),
-        indicatorsOmitted: safeInteger(universe.indicatorsOmitted),
-      },
-      'repository_metadata',
-    ));
+    observations.push(
+      observation(
+        "graph",
+        null,
+        "graph:universe",
+        {
+          ecosystems: asciiList(universe.ecosystems),
+          moduleFiles: safeInteger(universe.moduleFiles),
+          sourceFiles: safeInteger(universe.sourceFiles),
+          testFilesExcluded: safeInteger(universe.testFilesExcluded),
+          declarationFilesExcluded: safeInteger(universe.declarationFilesExcluded),
+          indicatorsDetected: safeInteger(universe.indicatorsDetected),
+          indicatorsOmitted: safeInteger(universe.indicatorsOmitted),
+        },
+        "repository_metadata",
+      ),
+    );
   }
 
   const edgeKindCounts = plain(facts.edgeKindCounts);
@@ -276,7 +372,9 @@ function graphFactsObservations(facts) {
     for (const [kind, count] of Object.entries(edgeKindCounts)) {
       if (Number.isSafeInteger(count)) kinds[kind] = count;
     }
-    observations.push(observation('graph', null, 'graph:edge-kinds', { kinds }, 'repository_metadata'));
+    observations.push(
+      observation("graph", null, "graph:edge-kinds", { kinds }, "repository_metadata"),
+    );
   }
 
   const scc = plain(facts.stronglyConnectedComponents);
@@ -293,19 +391,21 @@ function graphFactsObservations(facts) {
         cyclicSizes.push(component.size);
       }
     }
-    observations.push(observation(
-      'graph',
-      null,
-      'graph:scc',
-      {
-        totalComponents: safeInteger(scc.totalComponents),
-        singletonComponents: safeInteger(scc.singletonComponents),
-        cyclicCount: cyclic.length,
-        cyclicSizes,
-        cyclicSizesTruncated: truncated || cyclic.length > ANALYSIS_LIMITS.cyclicSizes,
-      },
-      'repository_metadata',
-    ));
+    observations.push(
+      observation(
+        "graph",
+        null,
+        "graph:scc",
+        {
+          totalComponents: safeInteger(scc.totalComponents),
+          singletonComponents: safeInteger(scc.singletonComponents),
+          cyclicCount: cyclic.length,
+          cyclicSizes,
+          cyclicSizesTruncated: truncated || cyclic.length > ANALYSIS_LIMITS.cyclicSizes,
+        },
+        "repository_metadata",
+      ),
+    );
   }
 
   if (bounds) {
@@ -313,22 +413,25 @@ function graphFactsObservations(facts) {
     const fanOut = plain(facts.fanOut);
     const fanInValues = fanIn ? Object.values(fanIn).filter(Number.isSafeInteger) : [];
     const fanOutValues = fanOut ? Object.values(fanOut).filter(Number.isSafeInteger) : [];
-    observations.push(observation(
-      'graph',
-      null,
-      'graph:fan',
-      {
-        totalEdges: (safeInteger(bounds.edgesInspected) !== null && safeInteger(bounds.edgesOmitted) !== null)
-          ? bounds.edgesInspected + bounds.edgesOmitted
-          : null,
-        maxFanIn: maximum(fanInValues),
-        maxFanOut: maximum(fanOutValues),
-        filesWithInboundEdges: fanInValues.filter((value) => value > 0).length,
-        filesWithOutboundEdges: fanOutValues.filter((value) => value > 0).length,
-        selfLoopCount: Array.isArray(facts.selfLoops) ? facts.selfLoops.length : 0,
-      },
-      'repository_metadata',
-    ));
+    observations.push(
+      observation(
+        "graph",
+        null,
+        "graph:fan",
+        {
+          totalEdges:
+            safeInteger(bounds.edgesInspected) !== null && safeInteger(bounds.edgesOmitted) !== null
+              ? bounds.edgesInspected + bounds.edgesOmitted
+              : null,
+          maxFanIn: maximum(fanInValues),
+          maxFanOut: maximum(fanOutValues),
+          filesWithInboundEdges: fanInValues.filter((value) => value > 0).length,
+          filesWithOutboundEdges: fanOutValues.filter((value) => value > 0).length,
+          selfLoopCount: Array.isArray(facts.selfLoops) ? facts.selfLoops.length : 0,
+        },
+        "repository_metadata",
+      ),
+    );
   }
 
   return observations;
@@ -350,60 +453,75 @@ export function architectureObservations(input) {
   const factRecord = plainObject(input) && plainObject(input.facts) ? input.facts : {};
   const modules = asciiList(model.modules);
   const entryPoints = asciiList(model.layers && model.layers.entryPoints);
-  const graph = plainObject(model.importGraph) && plainObject(model.importGraph.graph)
-    ? model.importGraph.graph
-    : {};
+  const graph =
+    plainObject(model.importGraph) && plainObject(model.importGraph.graph)
+      ? model.importGraph.graph
+      : {};
   const fanIn = plain(factRecord.fanIn) ?? {};
   const fanOut = plain(factRecord.fanOut) ?? {};
   const selfLoops = Array.isArray(factRecord.selfLoops) ? new Set(factRecord.selfLoops) : new Set();
-  const indicators = Array.isArray(factRecord.dynamicIndicators) ? factRecord.dynamicIndicators : [];
+  const indicators = Array.isArray(factRecord.dynamicIndicators)
+    ? factRecord.dynamicIndicators
+    : [];
 
   const observations = graphFactsObservations(factRecord);
 
   for (const module of modules) {
-    observations.push(observation(
-      'module',
-      module,
-      `module:${boundedKey(module)}`,
-      {
-        fanIn: Number.isInteger(fanIn[module]) ? fanIn[module] : 0,
-        fanOut: Number.isInteger(fanOut[module]) ? fanOut[module] : 0,
-        selfLoop: selfLoops.has(module),
-      },
-      'source',
-    ));
+    observations.push(
+      observation(
+        "module",
+        module,
+        `module:${boundedKey(module)}`,
+        {
+          fanIn: Number.isInteger(fanIn[module]) ? fanIn[module] : 0,
+          fanOut: Number.isInteger(fanOut[module]) ? fanOut[module] : 0,
+          selfLoop: selfLoops.has(module),
+        },
+        "source",
+      ),
+    );
   }
 
   for (const entry of entryPoints) {
-    observations.push(observation('entry_point', entry, `entry-point:${boundedKey(entry)}`, {}, 'source'));
+    observations.push(
+      observation("entry_point", entry, `entry-point:${boundedKey(entry)}`, {}, "source"),
+    );
   }
 
   for (const source of Object.keys(graph).toSorted(compareAscii)) {
-    const targets = Array.isArray(graph[source]) ? graph[source].slice().toSorted(compareAscii) : [];
+    const targets = Array.isArray(graph[source])
+      ? graph[source].slice().toSorted(compareAscii)
+      : [];
     for (const target of targets) {
-      observations.push(observation(
-        'import_edge',
-        source,
-        boundedAssembledKey(`import-edge:${boundedKey(source)}:${boundedKey(target)}`),
-        { target },
-        'source',
-      ));
+      observations.push(
+        observation(
+          "import_edge",
+          source,
+          boundedAssembledKey(`import-edge:${boundedKey(source)}:${boundedKey(target)}`),
+          { target },
+          "source",
+        ),
+      );
     }
   }
 
   for (const indicator of indicators) {
-    if (!plainObject(indicator) || typeof indicator.file !== 'string') continue;
-    observations.push(observation(
-      'dynamic_indicator',
-      indicator.file,
-      boundedAssembledKey(`dynamic-indicator:${typeof indicator.kind === 'string' ? indicator.kind : 'unknown'}:${boundedKey(indicator.file)}:${Number.isInteger(indicator.line) ? indicator.line : 0}`),
-      {
-        kind: typeof indicator.kind === 'string' ? indicator.kind : 'unknown',
-        specifier: typeof indicator.specifier === 'string' ? indicator.specifier : null,
-        line: Number.isInteger(indicator.line) ? indicator.line : 0,
-      },
-      'source',
-    ));
+    if (!plainObject(indicator) || typeof indicator.file !== "string") continue;
+    observations.push(
+      observation(
+        "dynamic_indicator",
+        indicator.file,
+        boundedAssembledKey(
+          `dynamic-indicator:${typeof indicator.kind === "string" ? indicator.kind : "unknown"}:${boundedKey(indicator.file)}:${Number.isInteger(indicator.line) ? indicator.line : 0}`,
+        ),
+        {
+          kind: typeof indicator.kind === "string" ? indicator.kind : "unknown",
+          specifier: typeof indicator.specifier === "string" ? indicator.specifier : null,
+          line: Number.isInteger(indicator.line) ? indicator.line : 0,
+        },
+        "source",
+      ),
+    );
   }
 
   const craftCoupling = computeCouplingAggregates({ findings: model, facts: factRecord });
@@ -426,11 +544,16 @@ export function architectureProviderResults(input) {
   if (!plainObject(findings)) return deepFreeze({ results: [], capped: false });
   const [{ observations }] = architectureObservations({ findings, facts });
   const { observations: bounded, capped } = boundedObservations(observations);
-  const results = bounded.length > 0 ? [createProviderResult({
-    providerId: ANALYSIS_PROVIDER_IDS.architecture,
-    dimensionId: ANALYSIS_DIMENSION_IDS[0],
-    observations: bounded,
-  })] : [];
+  const results =
+    bounded.length > 0
+      ? [
+          createProviderResult({
+            providerId: ANALYSIS_PROVIDER_IDS.architecture,
+            dimensionId: ANALYSIS_DIMENSION_IDS[0],
+            observations: bounded,
+          }),
+        ]
+      : [];
   return deepFreeze({ results, capped });
 }
 
@@ -453,13 +576,25 @@ export function conventionsObservations(findings) {
 
   const importStyle = plain(model.importStyle);
   if (importStyle) {
-    observations.push(observation('import_style', null, 'import-style', {
-      type: typeof importStyle.type === 'string' ? importStyle.type : null,
-      esmCount: safeInteger(importStyle.esmCount),
-      cjsCount: safeInteger(importStyle.cjsCount),
-      hasTypeImports: typeof importStyle.hasTypeImports === 'boolean' ? importStyle.hasTypeImports : null,
-      hasDynamicImports: typeof importStyle.hasDynamicImports === 'boolean' ? importStyle.hasDynamicImports : null,
-    }, 'source'));
+    observations.push(
+      observation(
+        "import_style",
+        null,
+        "import-style",
+        {
+          type: typeof importStyle.type === "string" ? importStyle.type : null,
+          esmCount: safeInteger(importStyle.esmCount),
+          cjsCount: safeInteger(importStyle.cjsCount),
+          hasTypeImports:
+            typeof importStyle.hasTypeImports === "boolean" ? importStyle.hasTypeImports : null,
+          hasDynamicImports:
+            typeof importStyle.hasDynamicImports === "boolean"
+              ? importStyle.hasDynamicImports
+              : null,
+        },
+        "source",
+      ),
+    );
     const byEcosystem = plain(importStyle.byEcosystem);
     if (byEcosystem) {
       for (const ecosystem of Object.keys(byEcosystem).toSorted(compareAscii)) {
@@ -467,55 +602,104 @@ export function conventionsObservations(findings) {
         if (!entry) continue;
         const counts = {};
         for (const [key, value] of Object.entries(entry)) {
-          if (key === 'type' || !Number.isSafeInteger(value)) continue;
+          if (key === "type" || !Number.isSafeInteger(value)) continue;
           counts[key] = value;
         }
-        observations.push(observation('import_style', null, `import-style:${boundedKey(ecosystem)}`, {
-          ecosystem,
-          type: typeof entry.type === 'string' ? entry.type : null,
-          counts,
-        }, 'source'));
+        observations.push(
+          observation(
+            "import_style",
+            null,
+            `import-style:${boundedKey(ecosystem)}`,
+            {
+              ecosystem,
+              type: typeof entry.type === "string" ? entry.type : null,
+              counts,
+            },
+            "source",
+          ),
+        );
       }
     }
   }
 
   const fileNaming = plain(model.fileNaming);
   if (fileNaming) {
-    observations.push(observation('file_naming', null, 'file-naming', {
-      dominant: typeof fileNaming.dominant === 'string' ? fileNaming.dominant : null,
-      patterns: plain(fileNaming.patterns),
-      total: safeInteger(fileNaming.total),
-    }, 'source'));
+    observations.push(
+      observation(
+        "file_naming",
+        null,
+        "file-naming",
+        {
+          dominant: typeof fileNaming.dominant === "string" ? fileNaming.dominant : null,
+          patterns: plain(fileNaming.patterns),
+          total: safeInteger(fileNaming.total),
+        },
+        "source",
+      ),
+    );
   }
 
   const errorHandling = plain(model.errorHandling);
   if (errorHandling) {
-    observations.push(observation('error_handling', null, 'error-handling', {
-      patterns: Array.isArray(errorHandling.patterns) ? errorHandling.patterns.slice() : [],
-      counts: plain(errorHandling.counts),
-    }, 'source'));
+    observations.push(
+      observation(
+        "error_handling",
+        null,
+        "error-handling",
+        {
+          patterns: Array.isArray(errorHandling.patterns) ? errorHandling.patterns.slice() : [],
+          counts: plain(errorHandling.counts),
+        },
+        "source",
+      ),
+    );
   }
 
   const moduleSystem = plain(model.moduleSystem);
   if (moduleSystem) {
-    observations.push(observation('module_system', null, 'module-system', {
-      packageJsonType: typeof moduleSystem.packageJsonType === 'string' ? moduleSystem.packageJsonType : null,
-      inferred: typeof moduleSystem.inferred === 'string' ? moduleSystem.inferred : null,
-    }, 'source'));
+    observations.push(
+      observation(
+        "module_system",
+        null,
+        "module-system",
+        {
+          packageJsonType:
+            typeof moduleSystem.packageJsonType === "string" ? moduleSystem.packageJsonType : null,
+          inferred: typeof moduleSystem.inferred === "string" ? moduleSystem.inferred : null,
+        },
+        "source",
+      ),
+    );
   }
 
-  if (typeof model.commentDensity === 'string') {
-    observations.push(observation('comment', null, 'comment-density', {
-      density: model.commentDensity,
-    }, 'source'));
+  if (typeof model.commentDensity === "string") {
+    observations.push(
+      observation(
+        "comment",
+        null,
+        "comment-density",
+        {
+          density: model.commentDensity,
+        },
+        "source",
+      ),
+    );
   }
 
   const docstrings = plain(model.docstrings);
   if (docstrings) {
-    observations.push(observation('comment', null, 'docstrings', {
-      patterns: plain(docstrings.patterns),
-      coverage: plain(docstrings.coverage),
-    }, 'source'));
+    observations.push(
+      observation(
+        "comment",
+        null,
+        "docstrings",
+        {
+          patterns: plain(docstrings.patterns),
+          coverage: plain(docstrings.coverage),
+        },
+        "source",
+      ),
+    );
   }
 
   return deepFreeze([{ dimensionId: ANALYSIS_DIMENSION_IDS[1], observations }]);
@@ -531,11 +715,16 @@ export function conventionsProviderResults(findings) {
   if (!plainObject(findings)) return deepFreeze({ results: [], capped: false });
   const [{ observations }] = conventionsObservations(findings);
   const { observations: bounded, capped } = boundedObservations(observations);
-  const results = bounded.length > 0 ? [createProviderResult({
-    providerId: ANALYSIS_PROVIDER_IDS.conventions,
-    dimensionId: ANALYSIS_DIMENSION_IDS[1],
-    observations: bounded,
-  })] : [];
+  const results =
+    bounded.length > 0
+      ? [
+          createProviderResult({
+            providerId: ANALYSIS_PROVIDER_IDS.conventions,
+            dimensionId: ANALYSIS_DIMENSION_IDS[1],
+            observations: bounded,
+          }),
+        ]
+      : [];
   return deepFreeze({ results, capped });
 }
 
@@ -544,11 +733,14 @@ export function conventionsProviderResults(findings) {
 // ---------------------------------------------------------------------------
 
 function normalizeRelativePath(repoPath, value) {
-  if (typeof value !== 'string' || value.length === 0) return null;
-  const repo = typeof repoPath === 'string' && repoPath.length > 0 ? String(repoPath).replace(/\/+$/, '') : null;
+  if (typeof value !== "string" || value.length === 0) return null;
+  const repo =
+    typeof repoPath === "string" && repoPath.length > 0
+      ? String(repoPath).replace(/\/+$/, "")
+      : null;
   let candidate = value;
   if (repo && candidate.startsWith(`${repo}/`)) candidate = candidate.slice(repo.length + 1);
-  if (candidate.startsWith('/')) return null;
+  if (candidate.startsWith("/")) return null;
   try {
     return normalizeEvidencePath(candidate);
   } catch {
@@ -575,36 +767,68 @@ export function documentationObservations(input) {
   const readme = plain(model.readme);
   if (readme) {
     const { path, ...details } = readme;
-    observations.push(observation('readme', relative(path), 'readme', details, 'documentation'));
+    observations.push(observation("readme", relative(path), "readme", details, "documentation"));
   }
 
   const license = plain(model.license);
   if (license) {
-    observations.push(observation('license', relative(license.path), 'license', {
-      present: license.present === true,
-      name: typeof license.name === 'string' ? license.name : null,
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "license",
+        relative(license.path),
+        "license",
+        {
+          present: license.present === true,
+          name: typeof license.name === "string" ? license.name : null,
+        },
+        "documentation",
+      ),
+    );
   }
 
   const contributing = plain(model.contributing);
   if (contributing) {
-    observations.push(observation('contributing', relative(contributing.path), 'contributing', {
-      present: contributing.present === true,
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "contributing",
+        relative(contributing.path),
+        "contributing",
+        {
+          present: contributing.present === true,
+        },
+        "documentation",
+      ),
+    );
   }
 
-  if (typeof model.codeOfConduct === 'boolean') {
-    observations.push(observation('reference', null, 'reference:code-of-conduct', {
-      present: model.codeOfConduct,
-    }, 'documentation'));
+  if (typeof model.codeOfConduct === "boolean") {
+    observations.push(
+      observation(
+        "reference",
+        null,
+        "reference:code-of-conduct",
+        {
+          present: model.codeOfConduct,
+        },
+        "documentation",
+      ),
+    );
   }
 
   const changelog = plain(model.changelog);
   if (changelog) {
-    observations.push(observation('reference', relative(changelog.path), 'reference:changelog', {
-      present: changelog.present === true,
-      format: typeof changelog.format === 'string' ? changelog.format : null,
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "reference",
+        relative(changelog.path),
+        "reference:changelog",
+        {
+          present: changelog.present === true,
+          format: typeof changelog.format === "string" ? changelog.format : null,
+        },
+        "documentation",
+      ),
+    );
   }
 
   if (Array.isArray(model.adrs)) {
@@ -612,47 +836,88 @@ export function documentationObservations(input) {
     let count = 0;
     for (const entry of model.adrs) {
       if (!plainObject(entry)) continue;
-      if (typeof entry.path === 'string') paths.push(entry.path);
+      if (typeof entry.path === "string") paths.push(entry.path);
       if (Number.isSafeInteger(entry.count)) count += entry.count;
     }
-    observations.push(observation('reference', null, 'reference:adrs', {
-      count,
-      paths,
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "reference",
+        null,
+        "reference:adrs",
+        {
+          count,
+          paths,
+        },
+        "documentation",
+      ),
+    );
   }
 
   const commentRatio = plain(model.commentRatio);
   if (commentRatio) {
-    observations.push(observation('reference', null, 'reference:comment-ratio', {
-      ratio: typeof commentRatio.ratio === 'number' ? commentRatio.ratio : null,
-      commentLines: safeInteger(commentRatio.commentLines),
-      codeLines: safeInteger(commentRatio.codeLines),
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "reference",
+        null,
+        "reference:comment-ratio",
+        {
+          ratio: typeof commentRatio.ratio === "number" ? commentRatio.ratio : null,
+          commentLines: safeInteger(commentRatio.commentLines),
+          codeLines: safeInteger(commentRatio.codeLines),
+        },
+        "documentation",
+      ),
+    );
   }
 
   const docstringDialect = plain(model.docstringDialect);
   if (docstringDialect) {
-    observations.push(observation('reference', null, 'reference:docstring-dialect', {
-      dominant: typeof docstringDialect.dominant === 'string' ? docstringDialect.dominant : null,
-      counts: plain(docstringDialect.counts),
-      filesAnalyzed: safeInteger(docstringDialect.filesAnalyzed),
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "reference",
+        null,
+        "reference:docstring-dialect",
+        {
+          dominant:
+            typeof docstringDialect.dominant === "string" ? docstringDialect.dominant : null,
+          counts: plain(docstringDialect.counts),
+          filesAnalyzed: safeInteger(docstringDialect.filesAnalyzed),
+        },
+        "documentation",
+      ),
+    );
   }
 
   const docStyle = plain(model.docStyle);
   if (docStyle) {
-    observations.push(observation('reference', null, 'reference:doc-style', {
-      jsdocBlocks: safeInteger(docStyle.jsdocBlocks),
-      tsdocBlocks: safeInteger(docStyle.tsdocBlocks),
-      dominant: typeof docStyle.dominant === 'string' ? docStyle.dominant : null,
-      filesAnalyzed: safeInteger(docStyle.filesAnalyzed),
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "reference",
+        null,
+        "reference:doc-style",
+        {
+          jsdocBlocks: safeInteger(docStyle.jsdocBlocks),
+          tsdocBlocks: safeInteger(docStyle.tsdocBlocks),
+          dominant: typeof docStyle.dominant === "string" ? docStyle.dominant : null,
+          filesAnalyzed: safeInteger(docStyle.filesAnalyzed),
+        },
+        "documentation",
+      ),
+    );
   }
 
   if (Number.isSafeInteger(model.todoCount)) {
-    observations.push(observation('reference', null, 'reference:todo-count', {
-      count: model.todoCount,
-    }, 'documentation'));
+    observations.push(
+      observation(
+        "reference",
+        null,
+        "reference:todo-count",
+        {
+          count: model.todoCount,
+        },
+        "documentation",
+      ),
+    );
   }
 
   return deepFreeze([{ dimensionId: ANALYSIS_DIMENSION_IDS[2], observations }]);
@@ -670,11 +935,16 @@ export function documentationProviderResults(input) {
   if (!plainObject(findings)) return deepFreeze({ results: [], capped: false });
   const [{ observations }] = documentationObservations({ repoPath, findings });
   const { observations: bounded, capped } = boundedObservations(observations);
-  const results = bounded.length > 0 ? [createProviderResult({
-    providerId: ANALYSIS_PROVIDER_IDS.documentation,
-    dimensionId: ANALYSIS_DIMENSION_IDS[2],
-    observations: bounded,
-  })] : [];
+  const results =
+    bounded.length > 0
+      ? [
+          createProviderResult({
+            providerId: ANALYSIS_PROVIDER_IDS.documentation,
+            dimensionId: ANALYSIS_DIMENSION_IDS[2],
+            observations: bounded,
+          }),
+        ]
+      : [];
   return deepFreeze({ results, capped });
 }
 
@@ -697,11 +967,16 @@ export function practicesProviderResults(model) {
   if (!plainObject(model)) return deepFreeze({ results: [], capped: false });
   const [{ observations }] = practicesObservations(model);
   const { observations: bounded, capped } = boundedObservations(observations);
-  const results = bounded.length > 0 ? [createProviderResult({
-    providerId: ANALYSIS_PROVIDER_IDS.practices,
-    dimensionId: ANALYSIS_DIMENSION_IDS[3],
-    observations: bounded,
-  })] : [];
+  const results =
+    bounded.length > 0
+      ? [
+          createProviderResult({
+            providerId: ANALYSIS_PROVIDER_IDS.practices,
+            dimensionId: ANALYSIS_DIMENSION_IDS[3],
+            observations: bounded,
+          }),
+        ]
+      : [];
   return deepFreeze({ results, capped });
 }
 
@@ -723,13 +998,9 @@ export function practicesProviderResults(model) {
  *   result, ordered deterministically.
  */
 export function analysisProviderResults(input) {
-  const {
-    architecture,
-    conventions,
-    documentation,
-    practices,
-    generic,
-  } = plainObject(input) ? input : {};
+  const { architecture, conventions, documentation, practices, generic } = plainObject(input)
+    ? input
+    : {};
   const results = [];
   let capped = false;
 
@@ -755,13 +1026,17 @@ export function analysisProviderResults(input) {
   }
   if (plainObject(generic) && Array.isArray(generic.results)) {
     for (const result of generic.results) {
-      if (plainObject(result) && result.dimensionId === ANALYSIS_DIMENSION_IDS[2]) results.push(result);
+      if (plainObject(result) && result.dimensionId === ANALYSIS_DIMENSION_IDS[2])
+        results.push(result);
     }
     capped = capped || generic.capped === true;
   }
 
-  results.sort((left, right) => compareAscii(left.dimensionId, right.dimensionId)
-    || compareAscii(left.providerId, right.providerId));
+  results.sort(
+    (left, right) =>
+      compareAscii(left.dimensionId, right.dimensionId) ||
+      compareAscii(left.providerId, right.providerId),
+  );
   return deepFreeze({ results, capped });
 }
 
@@ -770,13 +1045,15 @@ export function analysisProviderResults(input) {
 // ---------------------------------------------------------------------------
 
 function validPluginMatch(match) {
-  return plainObject(match)
-    && typeof match.ruleId === 'string'
-    && match.ruleId.length > 0
-    && typeof match.category === 'string'
-    && typeof match.path === 'string'
-    && match.path.length > 0
-    && ANALYSIS_DIMENSION_IDS.includes(match.dimensionId);
+  return (
+    plainObject(match) &&
+    typeof match.ruleId === "string" &&
+    match.ruleId.length > 0 &&
+    typeof match.category === "string" &&
+    typeof match.path === "string" &&
+    match.path.length > 0 &&
+    ANALYSIS_DIMENSION_IDS.includes(match.dimensionId)
+  );
 }
 
 /**
@@ -791,21 +1068,25 @@ export function analysisPluginObservations(matches) {
   for (const match of Array.isArray(matches) ? matches : []) {
     if (!validPluginMatch(match)) continue;
     const observations = grouped.get(match.dimensionId) ?? [];
-    observations.push(observation(
-      match.category,
-      match.path,
-      `plugin:${boundedKey(match.ruleId)}`,
-      {
-        ruleId: match.ruleId,
-        label: typeof match.label === 'string' ? match.label : match.ruleId,
-      },
-      'artifact_metadata',
-    ));
+    observations.push(
+      observation(
+        match.category,
+        match.path,
+        `plugin:${boundedKey(match.ruleId)}`,
+        {
+          ruleId: match.ruleId,
+          label: typeof match.label === "string" ? match.label : match.ruleId,
+        },
+        "artifact_metadata",
+      ),
+    );
     grouped.set(match.dimensionId, observations);
   }
-  return deepFreeze([...grouped.entries()]
-    .toSorted(([left], [right]) => compareAscii(left, right))
-    .map(([dimensionId, observations]) => ({ dimensionId, observations })));
+  return deepFreeze(
+    [...grouped.entries()]
+      .toSorted(([left], [right]) => compareAscii(left, right))
+      .map(([dimensionId, observations]) => ({ dimensionId, observations })),
+  );
 }
 
 /**
@@ -818,10 +1099,12 @@ export function analysisPluginObservations(matches) {
 export function analysisPluginProviderResults(input) {
   const matches = plainObject(input) ? input.matches : undefined;
   const providerId = plainObject(input) ? input.providerId : undefined;
-  const id = typeof providerId === 'string' ? providerId : ANALYSIS_PLUGIN_PROVIDER_ID;
-  return deepFreeze(analysisPluginObservations(matches).map(({ dimensionId, observations }) => (
-    createProviderResult({ providerId: id, dimensionId, observations })
-  )));
+  const id = typeof providerId === "string" ? providerId : ANALYSIS_PLUGIN_PROVIDER_ID;
+  return deepFreeze(
+    analysisPluginObservations(matches).map(({ dimensionId, observations }) =>
+      createProviderResult({ providerId: id, dimensionId, observations }),
+    ),
+  );
 }
 
 /**
@@ -879,7 +1162,10 @@ export function mergeAnalysisResults(input) {
     if (covered.has(dimensionId)) continue;
     merged.push(...results);
   }
-  merged.sort((left, right) => compareAscii(left.dimensionId, right.dimensionId)
-    || compareAscii(left.providerId, right.providerId));
+  merged.sort(
+    (left, right) =>
+      compareAscii(left.dimensionId, right.dimensionId) ||
+      compareAscii(left.providerId, right.providerId),
+  );
   return deepFreeze(merged);
 }

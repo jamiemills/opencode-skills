@@ -31,11 +31,11 @@ import {
   compareAscii,
   deepFreeze,
   normalizeEvidencePath,
-} from '../contracts/evidence.mjs';
-import { DESCRIPTORS } from '../shared/ecosystem.mjs';
-import { createProviderResult } from './base.mjs';
+} from "../contracts/evidence.mjs";
+import { DESCRIPTORS } from "../shared/ecosystem.mjs";
+import { createProviderResult } from "./base.mjs";
 
-export const GENERIC_PROVIDER_ID = 'PRV-generic-artifacts-v1';
+export const GENERIC_PROVIDER_ID = "PRV-generic-artifacts-v1";
 
 export const GENERIC_LIMITS = deepFreeze({
   maxFiles: 1_000_000,
@@ -46,19 +46,34 @@ export const GENERIC_LIMITS = deepFreeze({
 
 const KNOWN_ECOSYSTEM_IDS = Object.freeze(Object.keys(DESCRIPTORS));
 const KNOWN_LANGUAGE_NAMES = new Set([
-  'python', 'javascript', 'typescript', 'shell', 'shell script', 'bash', 'rust',
+  "python",
+  "javascript",
+  "typescript",
+  "shell",
+  "shell script",
+  "bash",
+  "rust",
 ]);
 
 const KNOWN_DOC_ARTIFACTS = deepFreeze({
-  readme: ['README', 'README.md', 'README.txt', 'README.rst', 'README.markdown', 'README.mdx'],
-  license: ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENSE.rst', 'LICENSE.markdown', 'COPYING', 'COPYING.md', 'UNLICENSE'],
-  contributing: ['CONTRIBUTING', 'CONTRIBUTING.md', 'CONTRIBUTING.rst', 'CONTRIBUTING.txt'],
+  readme: ["README", "README.md", "README.txt", "README.rst", "README.markdown", "README.mdx"],
+  license: [
+    "LICENSE",
+    "LICENSE.md",
+    "LICENSE.txt",
+    "LICENSE.rst",
+    "LICENSE.markdown",
+    "COPYING",
+    "COPYING.md",
+    "UNLICENSE",
+  ],
+  contributing: ["CONTRIBUTING", "CONTRIBUTING.md", "CONTRIBUTING.rst", "CONTRIBUTING.txt"],
 });
 
 export class GenericProviderError extends TypeError {
   constructor(code, message) {
     super(`Generic provider failed: ${message}`);
-    this.name = 'GenericProviderError';
+    this.name = "GenericProviderError";
     this.code = code;
   }
 }
@@ -84,19 +99,19 @@ function knownLockfiles() {
 }
 
 function basenameOf(path) {
-  const index = path.lastIndexOf('/');
+  const index = path.lastIndexOf("/");
   return index === -1 ? path : path.slice(index + 1);
 }
 
 function directoryOf(path) {
-  const index = path.lastIndexOf('/');
-  return index === -1 ? '' : path.slice(0, index);
+  const index = path.lastIndexOf("/");
+  return index === -1 ? "" : path.slice(0, index);
 }
 
 function extensionOf(path) {
   const base = basenameOf(path);
-  const dot = base.lastIndexOf('.');
-  return dot > 0 ? base.slice(dot).toLowerCase() : '';
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(dot).toLowerCase() : "";
 }
 
 /**
@@ -108,12 +123,18 @@ function extensionOf(path) {
  * @param {object} input - `{ languages, ecosystems, manifestEcosystems }`.
  * @returns {boolean}
  */
-export function isUnknownLanguageEcosystem({ languages = [], ecosystems = [], manifestEcosystems = [] } = {}) {
-  const ids = [...(Array.isArray(ecosystems) ? ecosystems : []),
-    ...(Array.isArray(manifestEcosystems) ? manifestEcosystems : [])];
+export function isUnknownLanguageEcosystem({
+  languages = [],
+  ecosystems = [],
+  manifestEcosystems = [],
+} = {}) {
+  const ids = [
+    ...(Array.isArray(ecosystems) ? ecosystems : []),
+    ...(Array.isArray(manifestEcosystems) ? manifestEcosystems : []),
+  ];
   if (ids.some((id) => KNOWN_ECOSYSTEM_IDS.includes(id))) return false;
   const names = (Array.isArray(languages) ? languages : [])
-    .filter((name) => typeof name === 'string')
+    .filter((name) => typeof name === "string")
     .map((name) => name.toLowerCase().trim());
   if (names.length === 0) return false;
   return names.some((name) => !KNOWN_LANGUAGE_NAMES.has(name));
@@ -130,33 +151,37 @@ function normalizeFiles(files) {
     });
   } catch (error) {
     if (error instanceof GenericProviderError) throw error;
-    fail('INVALID_FILES', 'files must contain plain bounded data');
+    fail("INVALID_FILES", "files must contain plain bounded data");
   }
   if (!Array.isArray(files) || files.length > GENERIC_LIMITS.maxFiles) {
-    fail('INVALID_FILES', 'files must be a bounded array');
+    fail("INVALID_FILES", "files must be a bounded array");
   }
   const result = [];
   const seen = new Set();
   for (const entry of files) {
     let path;
     let size = 0;
-    if (typeof entry === 'string') {
+    if (typeof entry === "string") {
       path = entry;
-    } else if (entry !== null && typeof entry === 'object') {
+    } else if (entry !== null && typeof entry === "object") {
       path = entry.path;
       if (entry.size !== undefined) {
-        if (!Number.isSafeInteger(entry.size) || entry.size < 0 || entry.size > GENERIC_LIMITS.size) {
-          fail('INVALID_SIZE', 'file size is outside the explicit bound');
+        if (
+          !Number.isSafeInteger(entry.size) ||
+          entry.size < 0 ||
+          entry.size > GENERIC_LIMITS.size
+        ) {
+          fail("INVALID_SIZE", "file size is outside the explicit bound");
         }
         size = entry.size;
       }
     }
-    if (typeof path !== 'string') fail('INVALID_FILES', 'files must contain paths');
+    if (typeof path !== "string") fail("INVALID_FILES", "files must contain paths");
     let normalized;
     try {
       normalized = normalizeEvidencePath(path);
     } catch {
-      fail('INVALID_PATH', 'file path is not a normalized repository-relative POSIX path');
+      fail("INVALID_PATH", "file path is not a normalized repository-relative POSIX path");
     }
     if (seen.has(normalized)) continue;
     seen.add(normalized);
@@ -171,7 +196,7 @@ function normalizeFiles(files) {
 // extension; the full extension is preserved in observation details so
 // truncation is disclosed without data loss.
 function boundedFileMetricKey(extension) {
-  const key = `file-metric:${extension || 'no-extension'}`;
+  const key = `file-metric:${extension || "no-extension"}`;
   return key.length > GENERIC_LIMITS.matchedKey ? key.slice(0, GENERIC_LIMITS.matchedKey) : key;
 }
 
@@ -236,33 +261,35 @@ export function genericProviderResults({
   if (fileMetrics.length > 0) {
     const observations = [
       {
-        category: 'measurement_universe',
+        category: "measurement_universe",
         path: null,
-        matchedKey: 'measurement-universe',
+        matchedKey: "measurement-universe",
         details: {
           filesInspected: normalized.length,
           bytesInspected: totalBytes,
           directoryCount,
         },
-        sourceKind: 'file_metadata',
+        sourceKind: "file_metadata",
       },
       ...fileMetrics.map(({ extension, count, bytes, matchedKey: key }) => ({
-        category: 'file_metric',
+        category: "file_metric",
         path: null,
         matchedKey: key,
         details: { extension, count, bytes },
-        sourceKind: 'file_metadata',
+        sourceKind: "file_metadata",
       })),
     ];
     if (observations.length > GENERIC_LIMITS.maxObservations) {
       observations.length = GENERIC_LIMITS.maxObservations;
       capped = true;
     }
-    results.push(createProviderResult({
-      providerId: GENERIC_PROVIDER_ID,
-      dimensionId: 'DIM-maintainability-v1',
-      observations,
-    }));
+    results.push(
+      createProviderResult({
+        providerId: GENERIC_PROVIDER_ID,
+        dimensionId: "DIM-maintainability-v1",
+        observations,
+      }),
+    );
   }
 
   const assuranceObservations = [];
@@ -270,11 +297,11 @@ export function genericProviderResults({
     const path = presentArtifact(normalized, name);
     if (path !== null) {
       assuranceObservations.push({
-        category: 'manifest',
+        category: "manifest",
         path,
         matchedKey: `manifest:${name}`,
         details: { name },
-        sourceKind: 'manifest',
+        sourceKind: "manifest",
       });
     }
   }
@@ -282,20 +309,22 @@ export function genericProviderResults({
     const path = presentArtifact(normalized, name);
     if (path !== null) {
       assuranceObservations.push({
-        category: 'lock',
+        category: "lock",
         path,
         matchedKey: `lock:${name}`,
         details: { name },
-        sourceKind: 'lockfile',
+        sourceKind: "lockfile",
       });
     }
   }
   if (assuranceObservations.length > 0) {
-    results.push(createProviderResult({
-      providerId: GENERIC_PROVIDER_ID,
-      dimensionId: 'DIM-assurance-v1',
-      observations: assuranceObservations,
-    }));
+    results.push(
+      createProviderResult({
+        providerId: GENERIC_PROVIDER_ID,
+        dimensionId: "DIM-assurance-v1",
+        observations: assuranceObservations,
+      }),
+    );
   }
 
   const documentationObservations = [];
@@ -308,17 +337,19 @@ export function genericProviderResults({
           path,
           matchedKey: `${category}:${name}`,
           details: { name },
-          sourceKind: 'documentation',
+          sourceKind: "documentation",
         });
       }
     }
   }
   if (documentationObservations.length > 0) {
-    results.push(createProviderResult({
-      providerId: GENERIC_PROVIDER_ID,
-      dimensionId: 'DIM-documentation-v1',
-      observations: documentationObservations,
-    }));
+    results.push(
+      createProviderResult({
+        providerId: GENERIC_PROVIDER_ID,
+        dimensionId: "DIM-documentation-v1",
+        observations: documentationObservations,
+      }),
+    );
   }
 
   return deepFreeze({ results, capped });

@@ -11,44 +11,44 @@
 // ESM only. Zero npm deps. node: builtins only.
 // Read-only with respect to the scanned repo.
 
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { commandBroker } from '../shared/command.mjs';
-import { DESCRIPTORS, detectEcosystems, descriptorFor } from '../shared/ecosystem.mjs';
-import { readManifest } from '../shared/manifest.mjs';
-import { extractDeclarations } from '../shared/declarations.mjs';
-import { parseToml } from '../shared/parse.mjs';
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { commandBroker } from "../shared/command.mjs";
+import { DESCRIPTORS, detectEcosystems, descriptorFor } from "../shared/ecosystem.mjs";
+import { readManifest } from "../shared/manifest.mjs";
+import { extractDeclarations } from "../shared/declarations.mjs";
+import { parseToml } from "../shared/parse.mjs";
 
 // Lockfile basename -> package manager name. Cross-referenced against each
 // descriptor's `lockfiles` list so detection stays ecosystem-driven.
 const LOCKFILE_TO_PM = {
-  'uv.lock': 'uv',
-  'poetry.lock': 'poetry',
-  'Pipfile.lock': 'pipenv',
-  'pdm.lock': 'pdm',
-  'Cargo.lock': 'cargo',
-  'package-lock.json': 'npm',
-  'yarn.lock': 'yarn',
-  'pnpm-lock.yaml': 'pnpm',
-  'bun.lockb': 'bun',
-  'bun.lock': 'bun',
+  "uv.lock": "uv",
+  "poetry.lock": "poetry",
+  "Pipfile.lock": "pipenv",
+  "pdm.lock": "pdm",
+  "Cargo.lock": "cargo",
+  "package-lock.json": "npm",
+  "yarn.lock": "yarn",
+  "pnpm-lock.yaml": "pnpm",
+  "bun.lockb": "bun",
+  "bun.lock": "bun",
 };
 
 // Fixed candidate artifacts whose declared versions/images feed runtime
 // findings. Workflow files are enumerated (see listFiles) and appended.
 const VERSION_FILE_PATHS = [
-  '.nvmrc',
-  '.node-version',
-  '.python-version',
-  '.ruby-version',
-  'rust-toolchain',
-  'rust-toolchain.toml',
-  '.tool-versions',
+  ".nvmrc",
+  ".node-version",
+  ".python-version",
+  ".ruby-version",
+  "rust-toolchain",
+  "rust-toolchain.toml",
+  ".tool-versions",
 ];
 
-const CONTAINER_PATHS = ['Dockerfile'];
+const CONTAINER_PATHS = ["Dockerfile"];
 
-const COMPOSE_PATHS = ['docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'];
+const COMPOSE_PATHS = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
 
 const RUNTIME_LIMITS = Object.freeze({
   maxBytes: 1 * 1024 * 1024,
@@ -61,7 +61,7 @@ const WORKFLOW_SOURCE_CAP = 16;
 
 function readJSON(path) {
   try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
+    return JSON.parse(readFileSync(path, "utf-8"));
   } catch {
     return null;
   }
@@ -69,7 +69,7 @@ function readJSON(path) {
 
 function readToml(repoPath, file) {
   try {
-    return parseToml(readFileSync(join(repoPath, file), 'utf-8'));
+    return parseToml(readFileSync(join(repoPath, file), "utf-8"));
   } catch {
     return null;
   }
@@ -78,9 +78,9 @@ function readToml(repoPath, file) {
 // Parse a PEP 508 dependency spec like "pytest>=8.0" or
 // "atheris>=3.1.0; sys_platform == 'linux'". Returns {name, spec} or null.
 function parsePythonDependency(spec) {
-  if (typeof spec !== 'string') return null;
+  if (typeof spec !== "string") return null;
   let s = spec;
-  const semi = s.indexOf(';');
+  const semi = s.indexOf(";");
   if (semi !== -1) s = s.slice(0, semi); // drop environment marker
   s = s.trim();
   const m = s.match(/^([A-Za-z0-9_.-]+)/);
@@ -95,9 +95,9 @@ function parsePythonDependency(spec) {
 // The shared manifest flattens optional deps into `optionalDeps`, losing the
 // group names, so the raw TOML is read here to preserve them.
 function collectOptionalGroups(repoPath) {
-  const pp = readToml(repoPath, 'pyproject.toml');
-  const table = pp && pp.project && pp.project['optional-dependencies'];
-  if (!table || typeof table !== 'object') return {};
+  const pp = readToml(repoPath, "pyproject.toml");
+  const table = pp && pp.project && pp.project["optional-dependencies"];
+  if (!table || typeof table !== "object") return {};
   const groups = {};
   for (const group of Object.keys(table)) {
     const list = table[group];
@@ -129,7 +129,7 @@ function mergeDevTools(devDeps, optionalGroups) {
     if (entry.spec === null && spec !== null && spec !== undefined) entry.spec = spec;
     if (!entry.sources.includes(source)) entry.sources.push(source);
   };
-  for (const name of Object.keys(devDeps)) add(name, devDeps[name], 'devDependencies');
+  for (const name of Object.keys(devDeps)) add(name, devDeps[name], "devDependencies");
   for (const group of Object.keys(optionalGroups)) {
     for (const name of Object.keys(optionalGroups[group])) {
       add(name, optionalGroups[group][name], `optionalDependencies:${group}`);
@@ -143,16 +143,15 @@ function hasAnyFile(repoPath, names) {
 }
 
 async function listFiles(repoPath, overview, broker) {
-  const fromOverview = overview && Array.isArray(overview.files) && overview.files.length > 0
-    ? overview.files
-    : null;
+  const fromOverview =
+    overview && Array.isArray(overview.files) && overview.files.length > 0 ? overview.files : null;
   if (fromOverview) return fromOverview;
   try {
-    const result = await broker.execute('rg:files', { cwd: repoPath });
-    const raw = result.ok || result.noMatch ? result.stdout : '';
+    const result = await broker.execute("rg:files", { cwd: repoPath });
+    const raw = result.ok || result.noMatch ? result.stdout : "";
     return raw
-      .split('\n')
-      .map((s) => s.trim().replace(/\\/g, '/'))
+      .split("\n")
+      .map((s) => s.trim().replace(/\\/g, "/"))
       .filter(Boolean)
       .toSorted();
   } catch {
@@ -161,21 +160,21 @@ async function listFiles(repoPath, overview, broker) {
 }
 
 function request(path, format) {
-  return { path, format, sensitivity: 'internal' };
+  return { path, format, sensitivity: "internal" };
 }
 
 async function extractStaticDeclarations({ repoPath, overview, broker }) {
   const requests = [
-    ...VERSION_FILE_PATHS.map((path) => request(path, 'text')),
-    ...CONTAINER_PATHS.map((path) => request(path, 'text')),
-    ...COMPOSE_PATHS.map((path) => request(path, 'text')),
-    request('package.json', 'json'),
+    ...VERSION_FILE_PATHS.map((path) => request(path, "text")),
+    ...CONTAINER_PATHS.map((path) => request(path, "text")),
+    ...COMPOSE_PATHS.map((path) => request(path, "text")),
+    request("package.json", "json"),
   ];
   const files = await listFiles(repoPath, overview, broker);
   const workflowFiles = files
-    .filter((f) => f.startsWith('.github/workflows/') && /\.ya?ml$/i.test(f))
+    .filter((f) => f.startsWith(".github/workflows/") && /\.ya?ml$/i.test(f))
     .slice(0, WORKFLOW_SOURCE_CAP);
-  for (const path of workflowFiles) requests.push(request(path, 'text'));
+  for (const path of workflowFiles) requests.push(request(path, "text"));
   return extractDeclarations({ root: repoPath, requests, options: RUNTIME_LIMITS });
 }
 
@@ -185,8 +184,8 @@ function manifestSourceFor(rt, _repoPath) {
 }
 
 function imageSource(declaration) {
-  if (declaration.scope === 'from') return `${declaration.source.path}#FROM`;
-  if (declaration.scope === 'service') return `${declaration.source.path}#service`;
+  if (declaration.scope === "from") return `${declaration.source.path}#FROM`;
+  if (declaration.scope === "service") return `${declaration.source.path}#service`;
   return `${declaration.source.path}#container`;
 }
 
@@ -196,7 +195,7 @@ function runtimeEvidenceFor(descriptor, manifest, declarations, repoPath) {
     if (rt.manifestField && manifest && manifest[rt.manifestField] != null) {
       evidence.push({
         runtime: rt.name,
-        kind: 'manifest',
+        kind: "manifest",
         version: String(manifest[rt.manifestField]),
         source: manifestSourceFor(rt, repoPath),
       });
@@ -204,12 +203,12 @@ function runtimeEvidenceFor(descriptor, manifest, declarations, repoPath) {
     const versionFiles = rt.versionFiles || [];
     const toolVersions = rt.toolVersions || [];
     for (const declaration of declarations) {
-      if (declaration.kind !== 'version') continue;
+      if (declaration.kind !== "version") continue;
       const label = declaration.label;
       if (versionFiles.includes(label) || toolVersions.includes(label)) {
         evidence.push({
           runtime: rt.name,
-          kind: 'version-file',
+          kind: "version-file",
           version: declaration.value,
           source: declaration.source.path,
         });
@@ -217,12 +216,12 @@ function runtimeEvidenceFor(descriptor, manifest, declarations, repoPath) {
     }
     const images = rt.images || [];
     for (const declaration of declarations) {
-      if (declaration.kind !== 'image') continue;
+      if (declaration.kind !== "image") continue;
       const lower = String(declaration.label).toLowerCase();
       if (images.some((prefix) => lower.startsWith(prefix))) {
         evidence.push({
           runtime: rt.name,
-          kind: 'container-image',
+          kind: "container-image",
           version: declaration.label,
           source: imageSource(declaration),
         });
@@ -230,7 +229,7 @@ function runtimeEvidenceFor(descriptor, manifest, declarations, repoPath) {
     }
     for (const signal of rt.signals || []) {
       if (hasAnyFile(repoPath, [signal])) {
-        evidence.push({ runtime: rt.name, kind: 'signal', version: null, source: signal });
+        evidence.push({ runtime: rt.name, kind: "signal", version: null, source: signal });
       }
     }
   }
@@ -241,15 +240,22 @@ function dedupeEvidence(evidence) {
   const seen = new Set();
   const out = [];
   for (const entry of evidence) {
-    const key = `${entry.runtime}\0${entry.kind}\0${entry.version ?? ''}\0${entry.source}`;
+    const key = `${entry.runtime}\0${entry.kind}\0${entry.version ?? ""}\0${entry.source}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(entry);
   }
-  const sorted = out.toSorted((left, right) => (
-    left.runtime < right.runtime ? -1 : left.runtime > right.runtime ? 1
-      : left.source < right.source ? -1 : left.source > right.source ? 1 : 0
-  ));
+  const sorted = out.toSorted((left, right) =>
+    left.runtime < right.runtime
+      ? -1
+      : left.runtime > right.runtime
+        ? 1
+        : left.source < right.source
+          ? -1
+          : left.source > right.source
+            ? 1
+            : 0,
+  );
   return sorted;
 }
 
@@ -257,8 +263,12 @@ function runtimeNamesFor(descriptor, evidence, _repoPath) {
   const names = [];
   for (const [index, rt] of (descriptor.runtimes || []).entries()) {
     const primary = index === 0;
-    const hasSignal = evidence.some((entry) => entry.runtime === rt.name && entry.kind === 'signal');
-    const hasDeclaration = evidence.some((entry) => entry.runtime === rt.name && entry.kind !== 'signal');
+    const hasSignal = evidence.some(
+      (entry) => entry.runtime === rt.name && entry.kind === "signal",
+    );
+    const hasDeclaration = evidence.some(
+      (entry) => entry.runtime === rt.name && entry.kind !== "signal",
+    );
     if (primary || hasSignal || hasDeclaration) names.push(rt.name);
   }
   return names.length > 0 ? names : [descriptor.label];
@@ -266,22 +276,22 @@ function runtimeNamesFor(descriptor, evidence, _repoPath) {
 
 function runtimeStringFor(descriptor, evidence, repoPath) {
   const names = runtimeNamesFor(descriptor, evidence, repoPath);
-  const parts = evidence.map((entry) => (
-    entry.kind === 'signal' ? `${entry.source} present` : `${entry.source} ${entry.version}`
-  ));
+  const parts = evidence.map((entry) =>
+    entry.kind === "signal" ? `${entry.source} present` : `${entry.source} ${entry.version}`,
+  );
   if (parts.length > 0) {
-    return `${names.join(', ')} (declared: ${parts.join('; ')})`;
+    return `${names.join(", ")} (declared: ${parts.join("; ")})`;
   }
-  return `${names.join(', ')} (no declared runtime version)`;
+  return `${names.join(", ")} (no declared runtime version)`;
 }
 
 function pinnedVersion(declarations, labels, toolNames) {
   for (const label of labels) {
-    const hit = declarations.find((d) => d.kind === 'version' && d.label === label);
+    const hit = declarations.find((d) => d.kind === "version" && d.label === label);
     if (hit) return hit.value;
   }
   for (const tool of toolNames) {
-    const hit = declarations.find((d) => d.kind === 'version' && d.label === tool);
+    const hit = declarations.find((d) => d.kind === "version" && d.label === tool);
     if (hit) return hit.value;
   }
   return null;
@@ -289,7 +299,7 @@ function pinnedVersion(declarations, labels, toolNames) {
 
 function resolveEcosystems(overview, repoPath) {
   const ov = overview || {};
-  if (ov.ecosystems && typeof ov.ecosystems === 'object' && ov.ecosystems.primary) {
+  if (ov.ecosystems && typeof ov.ecosystems === "object" && ov.ecosystems.primary) {
     const all =
       Array.isArray(ov.ecosystems.all) && ov.ecosystems.all.length > 0
         ? ov.ecosystems.all
@@ -314,7 +324,7 @@ function deriveLanguage(ecosystems, manifest, languages) {
     if (d) return d.label;
   }
   if (Array.isArray(languages) && languages.length > 0) return languages[0];
-  return 'Unknown';
+  return "Unknown";
 }
 
 function detectFrameworks(manifest, ecosystems) {
@@ -343,9 +353,9 @@ function detectFrameworks(manifest, ecosystems) {
 function derivePackageManager(overview, repoPath, ecosystems) {
   const ov = overview || {};
   if (
-    typeof ov.packageManager === 'string' &&
+    typeof ov.packageManager === "string" &&
     ov.packageManager &&
-    ov.packageManager !== 'unknown'
+    ov.packageManager !== "unknown"
   ) {
     return ov.packageManager;
   }
@@ -366,12 +376,12 @@ function derivePackageManager(overview, repoPath, ecosystems) {
       return d.packageManagers[0];
     }
   }
-  return 'unknown';
+  return "unknown";
 }
 
 export async function scan(repoPath, overview, broker = commandBroker) {
   const ov = overview || {};
-  const pkgPath = join(repoPath, 'package.json');
+  const pkgPath = join(repoPath, "package.json");
   const pkg = readJSON(pkgPath);
 
   const manifest = ov.manifest || readManifest(repoPath);
@@ -396,10 +406,10 @@ export async function scan(repoPath, overview, broker = commandBroker) {
 
   const runtime = primaryDescriptor
     ? runtimeStringFor(primaryDescriptor, evidence, repoPath)
-    : 'unknown';
+    : "unknown";
 
   const frameworksList = detectFrameworks(manifest, ecosystems);
-  const framework = frameworksList.length > 0 ? frameworksList.join(', ') : 'None detected';
+  const framework = frameworksList.length > 0 ? frameworksList.join(", ") : "None detected";
 
   const keyDeps = Object.keys(deps).slice(0, 30);
   const keyDevDeps = Object.keys(devDeps).slice(0, 30);
@@ -407,25 +417,28 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const scripts = (pkg && pkg.scripts) || {};
 
   const hasDocker =
-    existsSync(join(repoPath, 'Dockerfile')) ||
-    existsSync(join(repoPath, 'docker-compose.yml')) ||
-    existsSync(join(repoPath, 'docker-compose.yaml'));
+    existsSync(join(repoPath, "Dockerfile")) ||
+    existsSync(join(repoPath, "docker-compose.yml")) ||
+    existsSync(join(repoPath, "docker-compose.yaml"));
 
-  const hasCI = existsSync(join(repoPath, '.github', 'workflows'));
+  const hasCI = existsSync(join(repoPath, ".github", "workflows"));
 
   // Version pins derived ONLY from static declarations. Each pin is the
   // highest-priority declared source; every source with provenance lives in
   // `runtimeDeclarations` so no single declaration is presented as "the"
   // runtime.
-  const nodeVersion = (manifest && manifest.nodeVersion) != null
-    ? String(manifest.nodeVersion)
-    : pinnedVersion(declarations, ['.nvmrc', '.node-version'], ['nodejs']);
-  const rustVersion = (manifest && manifest.rustVersion) != null
-    ? String(manifest.rustVersion)
-    : pinnedVersion(declarations, ['rust-toolchain', 'rust-toolchain.toml'], ['rust']);
-  const requiresPython = (manifest && manifest.requiresPython) != null
-    ? String(manifest.requiresPython)
-    : pinnedVersion(declarations, ['.python-version'], ['python']);
+  const nodeVersion =
+    (manifest && manifest.nodeVersion) != null
+      ? String(manifest.nodeVersion)
+      : pinnedVersion(declarations, [".nvmrc", ".node-version"], ["nodejs"]);
+  const rustVersion =
+    (manifest && manifest.rustVersion) != null
+      ? String(manifest.rustVersion)
+      : pinnedVersion(declarations, ["rust-toolchain", "rust-toolchain.toml"], ["rust"]);
+  const requiresPython =
+    (manifest && manifest.requiresPython) != null
+      ? String(manifest.requiresPython)
+      : pinnedVersion(declarations, [".python-version"], ["python"]);
 
   const runtimeDeclarations = evidence.map((entry) => ({
     runtime: entry.runtime,
@@ -441,19 +454,19 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   const workflowJobs = [];
   const jobSeen = new Set();
   for (const declaration of declarations) {
-    if (declaration.kind === 'image') {
+    if (declaration.kind === "image") {
       const key = `${declaration.source.path}:${declaration.label}`;
       if (!imageSeen.has(key)) {
         imageSeen.add(key);
         containerImages.push({ image: declaration.label, source: imageSource(declaration) });
       }
-    } else if (declaration.kind === 'environment' && declaration.scope === 'runs-on') {
+    } else if (declaration.kind === "environment" && declaration.scope === "runs-on") {
       const key = `${declaration.source.path}:${declaration.label}`;
       if (!runnerSeen.has(key)) {
         runnerSeen.add(key);
         workflowRunners.push({ runner: declaration.label, source: declaration.source.path });
       }
-    } else if (declaration.kind === 'job') {
+    } else if (declaration.kind === "job") {
       const key = `${declaration.source.path}:${declaration.label}`;
       if (!jobSeen.has(key)) {
         jobSeen.add(key);
@@ -463,14 +476,14 @@ export async function scan(repoPath, overview, broker = commandBroker) {
   }
 
   const totalDeps = Object.keys(deps).length + Object.keys(devDeps).length;
-  let signal = 'low';
-  if (totalDeps > 10) signal = 'high';
-  else if (totalDeps > 0) signal = 'medium';
+  let signal = "low";
+  if (totalDeps > 10) signal = "high";
+  else if (totalDeps > 0) signal = "medium";
 
   const isJs = !!pkg;
 
   return {
-    dimension: 'stack',
+    dimension: "stack",
     signal,
     findings: {
       hasPackageJson: isJs,

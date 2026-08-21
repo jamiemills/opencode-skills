@@ -37,14 +37,8 @@
 // evidence contracts and never touches node:fs / node:child_process /
 // node:process / node:vm / node:module.
 
-import {
-  compareAscii,
-  deepFreeze,
-} from '../../contracts/evidence.mjs';
-import {
-  PROVIDER_CATEGORIES,
-  validateProviders,
-} from '../../contracts/provider.mjs';
+import { compareAscii, deepFreeze } from "../../contracts/evidence.mjs";
+import { PROVIDER_CATEGORIES, validateProviders } from "../../contracts/provider.mjs";
 
 export const BUILTIN_PROVIDER_VERSION = 1;
 
@@ -52,12 +46,12 @@ export const BUILTIN_PROVIDER_VERSION = 1;
 // its three artifact-only capabilities (maintainability/assurance/
 // documentation). This raw definition is ordered for readability; the exported
 // GENERIC_BUILTIN_DIMENSIONS is the validated, dimensionId-sorted form.
-export const GENERIC_BUILTIN_PROVIDER_ID = 'PRV-generic-artifacts-v1';
+export const GENERIC_BUILTIN_PROVIDER_ID = "PRV-generic-artifacts-v1";
 
 const GENERIC_DIMENSIONS = Object.freeze([
-  { dimensionId: 'DIM-maintainability-v1', categories: ['file_metric', 'measurement_universe'] },
-  { dimensionId: 'DIM-assurance-v1', categories: ['lock', 'manifest'] },
-  { dimensionId: 'DIM-documentation-v1', categories: ['contributing', 'license', 'readme'] },
+  { dimensionId: "DIM-maintainability-v1", categories: ["file_metric", "measurement_universe"] },
+  { dimensionId: "DIM-assurance-v1", categories: ["lock", "manifest"] },
+  { dimensionId: "DIM-documentation-v1", categories: ["contributing", "license", "readme"] },
 ]);
 
 // Mirror provider definitions. IDs match the catalog constants exactly:
@@ -71,79 +65,112 @@ const GENERIC_DIMENSIONS = Object.freeze([
 // dimension (PROVIDER_CATEGORIES), exactly as each catalog declares.
 const BUILTIN_DEFINITIONS = Object.freeze([
   {
-    id: 'PRV-runtime-stack-v1',
+    id: "PRV-runtime-stack-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-stack-v1', categories: PROVIDER_CATEGORIES['DIM-stack-v1'] }],
+    dimensions: [{ dimensionId: "DIM-stack-v1", categories: PROVIDER_CATEGORIES["DIM-stack-v1"] }],
   },
   {
-    id: 'PRV-runtime-config-v1',
+    id: "PRV-runtime-config-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-config-v1', categories: PROVIDER_CATEGORIES['DIM-config-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-config-v1", categories: PROVIDER_CATEGORIES["DIM-config-v1"] },
+    ],
   },
   {
-    id: 'PRV-runtime-testing-v1',
+    id: "PRV-runtime-testing-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-testing-v1', categories: PROVIDER_CATEGORIES['DIM-testing-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-testing-v1", categories: PROVIDER_CATEGORIES["DIM-testing-v1"] },
+    ],
   },
   {
-    id: 'PRV-analysis-architecture-v1',
+    id: "PRV-analysis-architecture-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-architecture-v1', categories: PROVIDER_CATEGORIES['DIM-architecture-v1'] }],
+    dimensions: [
+      {
+        dimensionId: "DIM-architecture-v1",
+        categories: PROVIDER_CATEGORIES["DIM-architecture-v1"],
+      },
+    ],
   },
   {
-    id: 'PRV-analysis-conventions-v1',
+    id: "PRV-analysis-conventions-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-conventions-v1', categories: PROVIDER_CATEGORIES['DIM-conventions-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-conventions-v1", categories: PROVIDER_CATEGORIES["DIM-conventions-v1"] },
+    ],
   },
   {
-    id: 'PRV-analysis-documentation-v1',
+    id: "PRV-analysis-documentation-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-documentation-v1', categories: PROVIDER_CATEGORIES['DIM-documentation-v1'] }],
+    dimensions: [
+      {
+        dimensionId: "DIM-documentation-v1",
+        categories: PROVIDER_CATEGORIES["DIM-documentation-v1"],
+      },
+    ],
   },
   {
-    id: 'PRV-analysis-practices-v1',
+    id: "PRV-analysis-practices-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-practices-v1', categories: PROVIDER_CATEGORIES['DIM-practices-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-practices-v1", categories: PROVIDER_CATEGORIES["DIM-practices-v1"] },
+    ],
   },
   {
-    id: 'PRV-security-hardening-v1',
+    id: "PRV-security-hardening-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-security-v1', categories: PROVIDER_CATEGORIES['DIM-security-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-security-v1", categories: PROVIDER_CATEGORIES["DIM-security-v1"] },
+    ],
   },
   {
-    id: 'PRV-operations-declarations-v1',
+    id: "PRV-operations-declarations-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-operations-v1', categories: PROVIDER_CATEGORIES['DIM-operations-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-operations-v1", categories: PROVIDER_CATEGORIES["DIM-operations-v1"] },
+    ],
   },
   {
-    id: 'PRV-api-surface-v1',
+    id: "PRV-api-surface-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-api-v1', categories: PROVIDER_CATEGORIES['DIM-api-v1'] }],
+    dimensions: [{ dimensionId: "DIM-api-v1", categories: PROVIDER_CATEGORIES["DIM-api-v1"] }],
   },
   {
-    id: 'PRV-data-architecture-v1',
+    id: "PRV-data-architecture-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-data-v1', categories: PROVIDER_CATEGORIES['DIM-data-v1'] }],
+    dimensions: [{ dimensionId: "DIM-data-v1", categories: PROVIDER_CATEGORIES["DIM-data-v1"] }],
   },
   {
-    id: 'PRV-deployment-topology-v1',
+    id: "PRV-deployment-topology-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-deployment-v1', categories: PROVIDER_CATEGORIES['DIM-deployment-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-deployment-v1", categories: PROVIDER_CATEGORIES["DIM-deployment-v1"] },
+    ],
   },
   {
-    id: 'PRV-maintainability-v1',
+    id: "PRV-maintainability-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-maintainability-v1', categories: PROVIDER_CATEGORIES['DIM-maintainability-v1'] }],
+    dimensions: [
+      {
+        dimensionId: "DIM-maintainability-v1",
+        categories: PROVIDER_CATEGORIES["DIM-maintainability-v1"],
+      },
+    ],
   },
   {
-    id: 'PRV-governance-ownership-v1',
+    id: "PRV-governance-ownership-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-governance-v1', categories: PROVIDER_CATEGORIES['DIM-governance-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-governance-v1", categories: PROVIDER_CATEGORIES["DIM-governance-v1"] },
+    ],
   },
   {
-    id: 'PRV-assurance-supply-chain-v1',
+    id: "PRV-assurance-supply-chain-v1",
     apiVersion: BUILTIN_PROVIDER_VERSION,
-    dimensions: [{ dimensionId: 'DIM-assurance-v1', categories: PROVIDER_CATEGORIES['DIM-assurance-v1'] }],
+    dimensions: [
+      { dimensionId: "DIM-assurance-v1", categories: PROVIDER_CATEGORIES["DIM-assurance-v1"] },
+    ],
   },
   {
     id: GENERIC_BUILTIN_PROVIDER_ID,
@@ -178,13 +205,17 @@ export const BUILTIN_PROVIDER_IDS = deepFreeze(
 // provider dimensions, the first (alphabetically) non-generic provider that
 // claims it. The generic fallback is excluded so this map is the canonical
 // dimension -> builtin provider table (one entry per provider dimension).
-export const BUILTIN_DIMENSION_TO_PROVIDER = deepFreeze(Object.fromEntries(
-  Object.keys(PROVIDER_CATEGORIES).map((dimensionId) => {
-    const primary = BUILTIN_PROVIDER_INDEX
-      .filter(({ id, dimensions }) => id !== GENERIC_BUILTIN_PROVIDER_ID
-        && dimensions.some(({ dimensionId: dim }) => dim === dimensionId))
-      .map(({ id }) => id)
-      .toSorted(compareAscii)[0];
-    return [dimensionId, primary];
-  }),
-));
+export const BUILTIN_DIMENSION_TO_PROVIDER = deepFreeze(
+  Object.fromEntries(
+    Object.keys(PROVIDER_CATEGORIES).map((dimensionId) => {
+      const primary = BUILTIN_PROVIDER_INDEX.filter(
+        ({ id, dimensions }) =>
+          id !== GENERIC_BUILTIN_PROVIDER_ID &&
+          dimensions.some(({ dimensionId: dim }) => dim === dimensionId),
+      )
+        .map(({ id }) => id)
+        .toSorted(compareAscii)[0];
+      return [dimensionId, primary];
+    }),
+  ),
+);

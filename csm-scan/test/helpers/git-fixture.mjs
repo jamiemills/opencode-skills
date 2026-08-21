@@ -9,13 +9,13 @@
 // Test-only: node:child_process and node:fs usage here is outside the
 // production capability gate (which audits `lib/` and `scripts/` only).
 
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
 
 export function runGit(cwd, args) {
-  execFileSync('git', args, { cwd, stdio: 'pipe' });
+  execFileSync("git", args, { cwd, stdio: "pipe" });
 }
 
 /**
@@ -34,15 +34,15 @@ export function makeGitRepo({
   files = {},
   commits = [],
   remote = null,
-  defaultBranch = 'main',
-  user = 'Gov Fixture',
-  email = 'gov-fixture@example.test',
+  defaultBranch = "main",
+  user = "Gov Fixture",
+  email = "gov-fixture@example.test",
 } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'csm-scan-gov-'));
-  runGit(dir, ['init', '-q', '-b', defaultBranch]);
-  runGit(dir, ['config', 'user.name', user]);
-  runGit(dir, ['config', 'user.email', email]);
-  runGit(dir, ['config', 'commit.gpgsign', 'false']);
+  const dir = mkdtempSync(join(tmpdir(), "csm-scan-gov-"));
+  runGit(dir, ["init", "-q", "-b", defaultBranch]);
+  runGit(dir, ["config", "user.name", user]);
+  runGit(dir, ["config", "user.email", email]);
+  runGit(dir, ["config", "commit.gpgsign", "false"]);
   const writeAll = (records) => {
     for (const [rel, content] of Object.entries(records)) {
       const abs = join(dir, rel);
@@ -52,18 +52,18 @@ export function makeGitRepo({
   };
   writeAll(files);
   for (const entry of commits) {
-    const commit = typeof entry === 'string' ? { message: entry } : entry;
+    const commit = typeof entry === "string" ? { message: entry } : entry;
     if (commit.files !== undefined) writeAll(commit.files);
-    runGit(dir, ['add', '-A']);
-    if (commit.user !== undefined) runGit(dir, ['config', 'user.name', commit.user]);
-    if (commit.email !== undefined) runGit(dir, ['config', 'user.email', commit.email]);
+    runGit(dir, ["add", "-A"]);
+    if (commit.user !== undefined) runGit(dir, ["config", "user.name", commit.user]);
+    if (commit.email !== undefined) runGit(dir, ["config", "user.email", commit.email]);
     try {
-      runGit(dir, ['commit', '-q', '-m', commit.message]);
+      runGit(dir, ["commit", "-q", "-m", commit.message]);
     } catch {
       // no pending changes for this commit; skip
     }
   }
-  if (remote !== null) runGit(dir, ['remote', 'add', 'origin', remote]);
+  if (remote !== null) runGit(dir, ["remote", "add", "origin", remote]);
   return dir;
 }
 

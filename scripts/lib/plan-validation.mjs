@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 // Plan/suite validation checks extracted into an importable module (T006).
 //
@@ -26,8 +26,8 @@ export function fenceMap(lines) {
     const m = lines[i].match(FENCE_OPEN_RE);
     if (open) {
       inFence[i] = true;
-      if (m && m[1][0] === open.char && m[1].length >= open.len && m[2].trim() === '') open = null;
-    } else if (m && !(m[1][0] === '`' && m[2].includes('`'))) {
+      if (m && m[1][0] === open.char && m[1].length >= open.len && m[2].trim() === "") open = null;
+    } else if (m && !(m[1][0] === "`" && m[2].includes("`"))) {
       open = { char: m[1][0], len: m[1].length };
       inFence[i] = true;
     }
@@ -42,27 +42,51 @@ export function fenceMap(lines) {
 // Planning state machine (csm-plan) and execution state machine (csm-build)
 // chains plus the documented pre-execution/terminal markers. Journal rows and
 // Control fields may legally reference tokens from either machine.
-export const PLAN_MACHINE = ['INTAKE', 'DISCOVER', 'RESEARCH', 'DRAFT', 'CRITIQUE', 'REMEDIATE', 'VERIFY', 'SAVED', 'STOP'];
-export const BUILD_MACHINE = ['NOT_STARTED', 'RECOVER', 'VALIDATE', 'SELECT', 'DISPATCH', 'INTEGRATE', 'VERIFY', 'REVIEW', 'REPAIR', 'CHECKPOINT', 'COMPLETE', 'BLOCKED', 'PAUSED'];
+export const PLAN_MACHINE = [
+  "INTAKE",
+  "DISCOVER",
+  "RESEARCH",
+  "DRAFT",
+  "CRITIQUE",
+  "REMEDIATE",
+  "VERIFY",
+  "SAVED",
+  "STOP",
+];
+export const BUILD_MACHINE = [
+  "NOT_STARTED",
+  "RECOVER",
+  "VALIDATE",
+  "SELECT",
+  "DISPATCH",
+  "INTEGRATE",
+  "VERIFY",
+  "REVIEW",
+  "REPAIR",
+  "CHECKPOINT",
+  "COMPLETE",
+  "BLOCKED",
+  "PAUSED",
+];
 export const MACHINE_ENUM = [...new Set([...PLAN_MACHINE, ...BUILD_MACHINE])];
 
 // Valid Control `Status:` values.
-export const CONTROL_STATUSES = ['ready', 'in_progress', 'paused', 'blocked', 'complete'];
+export const CONTROL_STATUSES = ["ready", "in_progress", "paused", "blocked", "complete"];
 
 // Non-chain stop values allowed for `Current CSM state:` (build machine).
-export const CONTROL_STOP_VALUES = ['NOT_STARTED', 'COMPLETE', 'PAUSED'];
+export const CONTROL_STOP_VALUES = ["NOT_STARTED", "COMPLETE", "PAUSED"];
 
 // Terminal/superseded `Next transition:` sentinels that encode history and
 // therefore exempt a plan from strict transition validation.
-export const TERMINAL_SENTINELS = ['none (terminal)', 'none; closed as superseded'];
+export const TERMINAL_SENTINELS = ["none (terminal)", "none; closed as superseded"];
 
 // Documented prefix convention for plans saved but not yet dispatched:
 // "On a future explicit csm-build invocation, <A> -> <B>"
-export const NEXT_TRANSITION_PREFIX = 'On a future explicit csm-build invocation, ';
+export const NEXT_TRANSITION_PREFIX = "On a future explicit csm-build invocation, ";
 
 // Journal Next-state values that are not machine tokens but are documented
 // terminal markers in the corpus.
-export const JOURNAL_TERMINALS = ['closed', 'completion gate'];
+export const JOURNAL_TERMINALS = ["closed", "completion gate"];
 
 // Interface-content artifact patterns that must appear in the corresponding
 // SKILL.md `## Interface` section (spike default (b), C10). Full-sentence
@@ -72,15 +96,15 @@ export const JOURNAL_TERMINALS = ['closed', 'completion gate'];
 // carries a full path shape (csm-plan/csm-grill/csm-review) are matched at
 // shape level; the rest are smoke-checked at directory/name level.
 export const ARTIFACT_PATTERNS = {
-  'csm-plan': [/\.agents\/plans\/<yyyy-mm-dd>-<goal-slug>-csm\.md/, /NORMS\.md/],
-  'csm-build': [/\.agents\/plans\//, /NORMS\.md/],
-  'csm-bdd-tdd': [/NORMS\.md/, /\*-bdd-csm\.md/],
-  'csm-grill': [/\.agents\/approaches\/<yyyy-mm-dd>-<idea-slug>-approach\.md/],
-  'csm-review': [/NORMS\.md/, /\.agents\/reviews\/<yyyy-mm-dd>-<repo-slug>-review\.md/],
-  'csm-scan': [/NORMS\.md/],
-  'csm-upload': [/GitHub Pages/],
-  'csm-browse': [],
-  'csm-deep-research': [/\.agents\/research\/<yyyy-mm-dd>-<slug>-research\.md/],
+  "csm-plan": [/\.agents\/plans\/<yyyy-mm-dd>-<goal-slug>-csm\.md/, /NORMS\.md/],
+  "csm-build": [/\.agents\/plans\//, /NORMS\.md/],
+  "csm-bdd-tdd": [/NORMS\.md/, /\*-bdd-csm\.md/],
+  "csm-grill": [/\.agents\/approaches\/<yyyy-mm-dd>-<idea-slug>-approach\.md/],
+  "csm-review": [/NORMS\.md/, /\.agents\/reviews\/<yyyy-mm-dd>-<repo-slug>-review\.md/],
+  "csm-scan": [/NORMS\.md/],
+  "csm-upload": [/GitHub Pages/],
+  "csm-browse": [],
+  "csm-deep-research": [/\.agents\/research\/<yyyy-mm-dd>-<slug>-research\.md/],
 };
 
 // ---------------------------------------------------------------------------
@@ -127,7 +151,7 @@ function fencedBlockAfter(lines, inFence, startIdx) {
     const body = [];
     for (let j = i + 1; j < lines.length; j += 1) {
       const cm = lines[j].match(FENCE_OPEN_RE);
-      if (cm && cm[1][0] === char && cm[1].length >= len && cm[2].trim() === '') return body;
+      if (cm && cm[1][0] === char && cm[1].length >= len && cm[2].trim() === "") return body;
       body.push(lines[j]);
     }
     return body;
@@ -141,15 +165,15 @@ function fencedBlockAfter(lines, inFence, startIdx) {
 export function parsePlanControl(content) {
   const lines = splitLines(content);
   const inFence = fenceMap(lines);
-  const range = sectionRange(lines, inFence, 'Control');
+  const range = sectionRange(lines, inFence, "Control");
   if (!range) return null;
   const control = { status: null, currentState: null, nextTransition: null, line: range[0] };
   for (let i = range[0]; i < range[1]; i += 1) {
     const m = lines[i].match(/^-\s*(Status|Current CSM state|Next transition):\s*(.*)$/);
     if (!m) continue;
-    if (m[1] === 'Status') control.status = m[2].trim();
-    else if (m[1] === 'Current CSM state') control.currentState = m[2].trim();
-    else if (m[1] === 'Next transition') control.nextTransition = m[2].trim();
+    if (m[1] === "Status") control.status = m[2].trim();
+    else if (m[1] === "Current CSM state") control.currentState = m[2].trim();
+    else if (m[1] === "Next transition") control.nextTransition = m[2].trim();
   }
   return control;
 }
@@ -162,7 +186,7 @@ export function parsePlanControl(content) {
 export function parseJournal(content) {
   const lines = splitLines(content);
   const inFence = fenceMap(lines);
-  const range = sectionRange(lines, inFence, 'Progress Journal');
+  const range = sectionRange(lines, inFence, "Progress Journal");
   if (!range) return { header: null, rows: [] };
   let header = null;
   for (let i = range[0]; i < range[1]; i += 1) {
@@ -177,13 +201,14 @@ export function parseJournal(content) {
     if (start >= 0) {
       for (let i = start; i < range[1]; i += 1) {
         if (!/^\|\s*\d{4}-\d{2}-\d{2}/.test(lines[i])) continue;
-        const unescaped = lines[i].replace(/\\\|/g, '\u0000');
-        const parts = unescaped.split('|');
+        const unescaped = lines[i].replace(/\\\|/g, "\u0000");
+        const parts = unescaped.split("|");
         // Some evidence cells contain raw `||` (e.g. "T001 || T003"), which
         // splits into extra empty cells; the Next-state is always the last
         // cell before the trailing pipe.
-        const next = parts.length >= 2 ? parts[parts.length - 2].trim().replace(/\u0000/g, '|') : '';
-        const cells = parts.slice(1, -1).map((c) => c.trim().replace(/\u0000/g, '|'));
+        const next =
+          parts.length >= 2 ? parts[parts.length - 2].trim().replace(/\u0000/g, "|") : "";
+        const cells = parts.slice(1, -1).map((c) => c.trim().replace(/\u0000/g, "|"));
         rows.push({ line: i + 1, cells, next });
       }
     }
@@ -212,7 +237,7 @@ export function validatePlanControl(content) {
   if (status === null) {
     failures.push('Control lacks a "Status:" bullet');
   } else if (!CONTROL_STATUSES.includes(status)) {
-    failures.push(`Control Status "${status}" not one of ${CONTROL_STATUSES.join('|')}`);
+    failures.push(`Control Status "${status}" not one of ${CONTROL_STATUSES.join("|")}`);
   }
 
   if (nextTransition === null) {
@@ -221,16 +246,18 @@ export function validatePlanControl(content) {
   }
 
   const raw = nextTransition.trim();
-  const isTerminal = baseToken(raw) === 'COMPLETE'
-    || TERMINAL_SENTINELS.some((s) => raw.startsWith(s));
-  const encodesHistory = status === 'complete' || isTerminal;
+  const isTerminal =
+    baseToken(raw) === "COMPLETE" || TERMINAL_SENTINELS.some((s) => raw.startsWith(s));
+  const encodesHistory = status === "complete" || isTerminal;
 
   if (currentState === null) {
     failures.push('Control lacks a "Current CSM state:" bullet');
   } else if (!encodesHistory) {
     const tok = baseToken(currentState);
     if (!MACHINE_ENUM.includes(tok)) {
-      failures.push(`Control Current CSM state "${currentState}" is not a machine token or documented stop value (${CONTROL_STOP_VALUES.join('/')})`);
+      failures.push(
+        `Control Current CSM state "${currentState}" is not a machine token or documented stop value (${CONTROL_STOP_VALUES.join("/")})`,
+      );
     }
   }
 
@@ -240,13 +267,18 @@ export function validatePlanControl(content) {
     const pair = raw.slice(NEXT_TRANSITION_PREFIX.length).trim();
     const m = pair.match(/^([A-Z][A-Z_]+)\s*->\s*([A-Z][A-Z_]+)$/);
     const ok = m !== null && MACHINE_ENUM.includes(m[1]) && MACHINE_ENUM.includes(m[2]);
-    if (!ok) failures.push(`Control Next transition prefix form has invalid pair "${pair}" (want "<A> -> <B>")`);
+    if (!ok)
+      failures.push(
+        `Control Next transition prefix form has invalid pair "${pair}" (want "<A> -> <B>")`,
+      );
     return failures;
   }
 
   const m = raw.match(/^([A-Z][A-Z_]+)\s*->\s*([A-Z][A-Z_]+)$/);
   if (m === null) {
-    failures.push(`Control Next transition "${raw}" is not a TOKEN -> TOKEN pair, a terminal sentinel, or the documented prefix form`);
+    failures.push(
+      `Control Next transition "${raw}" is not a TOKEN -> TOKEN pair, a terminal sentinel, or the documented prefix form`,
+    );
   } else if (!MACHINE_ENUM.includes(m[1]) || !MACHINE_ENUM.includes(m[2])) {
     failures.push(`Control Next transition "${raw}" references a state outside the machine enum`);
   }
@@ -260,19 +292,30 @@ export function validatePlanJournal(content) {
   const failures = [];
   const { header, rows } = parseJournal(content);
   if (header === null) {
-    failures.push('missing "## Progress Journal" table header (want columns Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state)');
+    failures.push(
+      'missing "## Progress Journal" table header (want columns Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state)',
+    );
     return failures;
   }
-  const requiredColumns = ['Timestamp', 'Cycle', 'Transition', 'Tasks', 'Evidence/result', 'Next state'];
-  const headerClean = header.replace(/\\\|/g, '');
+  const requiredColumns = [
+    "Timestamp",
+    "Cycle",
+    "Transition",
+    "Tasks",
+    "Evidence/result",
+    "Next state",
+  ];
+  const headerClean = header.replace(/\\\|/g, "");
   for (const col of requiredColumns) {
-    if (!new RegExp(`\\|\\s*${col.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\|`).test(headerClean)) {
+    if (
+      !new RegExp(`\\|\\s*${col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\|`).test(headerClean)
+    ) {
       failures.push(`journal header lacks column "${col}"`);
       return failures;
     }
   }
   if (rows.length === 0) {
-    failures.push('Progress Journal has a header but no timestamped rows');
+    failures.push("Progress Journal has a header but no timestamped rows");
     return failures;
   }
   for (const row of rows) {
@@ -281,7 +324,7 @@ export function validatePlanJournal(content) {
       failures.push(`journal row ${row.line} has ${row.cells.length} columns (want 6)`);
       continue;
     }
-    if (next === '') {
+    if (next === "") {
       failures.push(`journal row ${row.line} has an empty Next state cell`);
       continue;
     }
@@ -316,9 +359,13 @@ export function validateOrdinalSequencing(content) {
       const dupes = ordinals.filter((n, idx) => ordinals.indexOf(n) !== idx);
       const label = `### ${h[1]}. ${h[2].trim()}`;
       if (dupes.length > 0) {
-        failures.push(`${label} ordered list has duplicate ordinals (${dupes.join(', ')}) and is not strictly sequential: ${ordinals.join(', ')}`);
+        failures.push(
+          `${label} ordered list has duplicate ordinals (${dupes.join(", ")}) and is not strictly sequential: ${ordinals.join(", ")}`,
+        );
       } else {
-        failures.push(`${label} ordered list is not strictly sequential 1..${ordinals.length}: ${ordinals.join(', ')}`);
+        failures.push(
+          `${label} ordered list is not strictly sequential 1..${ordinals.length}: ${ordinals.join(", ")}`,
+        );
       }
     }
   }
@@ -343,14 +390,16 @@ export function validateTemplateFormatMarkers(content, skill, sectionTitle) {
     failures.push(`no fenced block found under "## ${sectionTitle}"`);
     return failures;
   }
-  const first = body.find((l) => l.trim() !== '');
+  const first = body.find((l) => l.trim() !== "");
   if (first === undefined) {
     failures.push(`template fence under "## ${sectionTitle}" is empty`);
     return failures;
   }
   const m = first.match(/^format:\s*([A-Za-z][A-Za-z0-9-]*)\/(\d+)\s*$/);
   if (!m) {
-    failures.push(`first line inside the "## ${sectionTitle}" template fence is "${first.trim().slice(0, 60)}" — expected "format: ${skill}/<n>"`);
+    failures.push(
+      `first line inside the "## ${sectionTitle}" template fence is "${first.trim().slice(0, 60)}" — expected "format: ${skill}/<n>"`,
+    );
   } else if (m[1] !== skill) {
     failures.push(`template "## ${sectionTitle}" format marker kind "${m[1]}" != "${skill}"`);
   }
@@ -364,7 +413,9 @@ export function validateInterfaceArtifactPatterns(skill, interfaceText) {
   const failures = [];
   for (const re of patterns) {
     if (!re.test(interfaceText)) {
-      failures.push(`Interface section lacks artifact pattern /${re.source}/ (INTERFACES truth-source contract)`);
+      failures.push(
+        `Interface section lacks artifact pattern /${re.source}/ (INTERFACES truth-source contract)`,
+      );
     }
   }
   return failures;
@@ -386,22 +437,26 @@ export function validateJournalControlConsistency(content) {
   const journal = parseJournal(content);
   if (control === null || control.nextTransition === null) return failures;
   const rawNext = control.nextTransition.trim();
-  const isTerminal = baseToken(rawNext) === 'COMPLETE'
-    || TERMINAL_SENTINELS.some((s) => rawNext.startsWith(s));
+  const isTerminal =
+    baseToken(rawNext) === "COMPLETE" || TERMINAL_SENTINELS.some((s) => rawNext.startsWith(s));
   const last = journal.rows.length > 0 ? journal.rows[journal.rows.length - 1] : null;
-  if (control.status === 'paused') {
-    if (baseToken(control.currentState) !== 'PAUSED') {
-      failures.push(`Control Status paused but Current CSM state is "${control.currentState}" (want PAUSED)`);
+  if (control.status === "paused") {
+    if (baseToken(control.currentState) !== "PAUSED") {
+      failures.push(
+        `Control Status paused but Current CSM state is "${control.currentState}" (want PAUSED)`,
+      );
     }
-    if (last === null || !last.next.includes('PAUSED')) {
-      failures.push(`Control Status paused but the last journal row Next-state is ${last ? `"${last.next}"` : 'absent'} (want PAUSED)`);
+    if (last === null || !last.next.includes("PAUSED")) {
+      failures.push(
+        `Control Status paused but the last journal row Next-state is ${last ? `"${last.next}"` : "absent"} (want PAUSED)`,
+      );
     }
-  } else if (control.status !== 'complete' && !isTerminal) {
-    if (last !== null && last.next.includes('PAUSED')) {
-      failures.push(`Active plan (Status ${control.status}) but the last journal row Next-state is "${last.next}" (PAUSED requires Status paused)`);
+  } else if (control.status !== "complete" && !isTerminal) {
+    if (last !== null && last.next.includes("PAUSED")) {
+      failures.push(
+        `Active plan (Status ${control.status}) but the last journal row Next-state is "${last.next}" (PAUSED requires Status paused)`,
+      );
     }
   }
   return failures;
 }
-
-

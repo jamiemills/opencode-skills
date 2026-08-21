@@ -24,7 +24,7 @@
 // (for `compareAscii`/`deepFreeze`) and never touches node:fs /
 // node:child_process / node:process / node:vm / node:module.
 
-import { compareAscii, deepFreeze } from '../../contracts/evidence.mjs';
+import { compareAscii, deepFreeze } from "../../contracts/evidence.mjs";
 
 export const GRAPH_FACTS_LIMITS = deepFreeze({
   edges: 500_000,
@@ -85,8 +85,13 @@ export function computeEdgeKindCounts(edgeKinds) {
       counts[kind] = (counts[kind] || 0) + 1;
     }
   }
-  return deepFreeze(Object.fromEntries(Object.keys(counts).toSorted(compareAscii)
-    .map((kind) => [kind, counts[kind]])));
+  return deepFreeze(
+    Object.fromEntries(
+      Object.keys(counts)
+        .toSorted(compareAscii)
+        .map((kind) => [kind, counts[kind]]),
+    ),
+  );
 }
 
 /**
@@ -120,9 +125,15 @@ export function tarjanStronglyConnectedComponents(graph) {
     for (const target of targets) {
       if (!indexByVertex.has(target)) {
         strongConnect(target);
-        lowLinkByVertex.set(vertex, Math.min(lowLinkByVertex.get(vertex), lowLinkByVertex.get(target)));
+        lowLinkByVertex.set(
+          vertex,
+          Math.min(lowLinkByVertex.get(vertex), lowLinkByVertex.get(target)),
+        );
       } else if (onStack.has(target)) {
-        lowLinkByVertex.set(vertex, Math.min(lowLinkByVertex.get(vertex), indexByVertex.get(target)));
+        lowLinkByVertex.set(
+          vertex,
+          Math.min(lowLinkByVertex.get(vertex), indexByVertex.get(target)),
+        );
       }
     }
 
@@ -142,8 +153,9 @@ export function tarjanStronglyConnectedComponents(graph) {
     if (!indexByVertex.has(vertex)) strongConnect(vertex);
   }
 
-  const sortedComponents = components.toSorted((left, right) => right.length - left.length
-    || compareAscii(left[0], right[0]));
+  const sortedComponents = components.toSorted(
+    (left, right) => right.length - left.length || compareAscii(left[0], right[0]),
+  );
 
   const cyclicComponents = sortedComponents
     .filter((component) => component.length >= CYCLIC_MIN_SIZE)

@@ -1,5 +1,5 @@
-import { enumerate } from '../shared/enum.mjs';
-import { isIgnoredPath } from '../shared/ignore.mjs';
+import { enumerate } from "../shared/enum.mjs";
+import { isIgnoredPath } from "../shared/ignore.mjs";
 
 const MAX_ENTRIES = 20;
 const MAX_DEPTH = 3;
@@ -7,7 +7,7 @@ const MAX_DEPTH = 3;
 function computeDepth(files) {
   let max = 0;
   for (const f of files) {
-    const segs = String(f).replace(/^\.\//, '').split('/').filter(Boolean).length;
+    const segs = String(f).replace(/^\.\//, "").split("/").filter(Boolean).length;
     if (segs - 1 > max) max = segs - 1;
   }
   return max;
@@ -19,16 +19,16 @@ function buildChildren(files) {
     if (!children.has(k)) children.set(k, new Set());
     return children.get(k);
   };
-  ensure('');
+  ensure("");
   for (const file of files) {
-    const clean = String(file).replace(/^\.\//, '');
-    const segs = clean.split('/');
-    let cur = '';
+    const clean = String(file).replace(/^\.\//, "");
+    const segs = clean.split("/");
+    let cur = "";
     for (let i = 0; i < segs.length; i++) {
       const seg = segs[i];
       if (!seg) continue;
       ensure(cur).add(seg);
-      const childKey = cur === '' ? seg : `${cur}/${seg}`;
+      const childKey = cur === "" ? seg : `${cur}/${seg}`;
       cur = childKey;
       if (i + 1 < segs.length) ensure(childKey);
     }
@@ -42,8 +42,8 @@ function isDir(children, key) {
 
 function sortNames(children, key, names) {
   return names.toSorted((a, b) => {
-    const aKey = key === '' ? a : `${key}/${a}`;
-    const bKey = key === '' ? b : `${key}/${b}`;
+    const aKey = key === "" ? a : `${key}/${a}`;
+    const bKey = key === "" ? b : `${key}/${b}`;
     const aDir = isDir(children, aKey);
     const bDir = isDir(children, bKey);
     if (aDir !== bDir) return aDir ? -1 : 1;
@@ -64,15 +64,15 @@ function renderTree(children, rootName) {
 
     for (let i = 0; i < shown.length; i++) {
       const name = shown[i];
-      const childKey = key === '' ? name : `${key}/${name}`;
+      const childKey = key === "" ? name : `${key}/${name}`;
       const dir = isDir(children, childKey);
       const isLast = !capped && i === shown.length - 1;
-      const connector = isLast ? '└── ' : '├── ';
+      const connector = isLast ? "└── " : "├── ";
       const beyond = dir && level >= MAX_DEPTH;
       const label = beyond ? `${name}/ (…)` : dir ? `${name}/` : name;
       lines.push(`${prefix}${connector}${label}`);
       if (dir && !beyond) {
-        recurse(childKey, prefix + (isLast ? '    ' : '│   '), level + 1);
+        recurse(childKey, prefix + (isLast ? "    " : "│   "), level + 1);
       }
     }
 
@@ -81,12 +81,12 @@ function renderTree(children, rootName) {
     }
   }
 
-  recurse('', '', 1);
-  return lines.join('\n');
+  recurse("", "", 1);
+  return lines.join("\n");
 }
 
 function topDirectories(children) {
-  const set = children.get('');
+  const set = children.get("");
   if (!set) return [];
   const out = [];
   for (const name of set) {
@@ -107,7 +107,7 @@ export async function scan(repoPath, overview) {
     overview &&
     Array.isArray(overview.files) &&
     overview.extCounts &&
-    typeof overview.extCounts === 'object';
+    typeof overview.extCounts === "object";
 
   if (hasOverview) {
     files = overview.files;
@@ -130,8 +130,8 @@ export async function scan(repoPath, overview) {
     } catch (err) {
       const msg = (err && err.message) || String(err);
       return {
-        dimension: 'structure',
-        signal: 'low',
+        dimension: "structure",
+        signal: "low",
         findings: {
           tree: `_(enumeration unavailable: ${msg})_`,
           fileCounts: {},
@@ -145,11 +145,11 @@ export async function scan(repoPath, overview) {
 
   const children = buildChildren(files);
   const rootName =
-    String(repoPath).replace(/\/+$/, '').split('/').filter(Boolean).pop() || 'repository';
+    String(repoPath).replace(/\/+$/, "").split("/").filter(Boolean).pop() || "repository";
   const tree = renderTree(children, rootName);
   const depth = computeDepth(files);
   const topDirs = topDirectories(children);
-  const signal = totalFiles > 100 ? 'high' : totalFiles > 20 ? 'medium' : 'low';
+  const signal = totalFiles > 100 ? "high" : totalFiles > 20 ? "medium" : "low";
 
   const findings = {
     tree,
@@ -164,7 +164,7 @@ export async function scan(repoPath, overview) {
   }
 
   return {
-    dimension: 'structure',
+    dimension: "structure",
     signal,
     findings,
   };

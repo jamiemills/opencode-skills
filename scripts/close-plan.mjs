@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 const args = process.argv.slice(2);
-const dryRun = args.includes('--dry-run');
-const positional = args.filter((a) => a !== '--dry-run');
+const dryRun = args.includes("--dry-run");
+const positional = args.filter((a) => a !== "--dry-run");
 if (positional.length !== 2) {
-  console.error('usage: node scripts/close-plan.mjs [--dry-run] <plan.md> <replacement.md>');
+  console.error("usage: node scripts/close-plan.mjs [--dry-run] <plan.md> <replacement.md>");
   process.exit(1);
 }
 
@@ -30,12 +30,12 @@ if (!fs.existsSync(replacement)) {
 
 const planName = path.basename(planFile);
 const replName = path.basename(replacement);
-const replStem = replName.replace(/\.md$/, '');
+const replStem = replName.replace(/\.md$/, "");
 
 function findRoot(dir) {
   let cur = dir;
   for (;;) {
-    if (fs.existsSync(path.join(cur, '.agents', 'README.md'))) return cur;
+    if (fs.existsSync(path.join(cur, ".agents", "README.md"))) return cur;
     const parent = path.dirname(cur);
     if (parent === cur) return dir;
     cur = parent;
@@ -43,19 +43,19 @@ function findRoot(dir) {
 }
 
 const root = findRoot(path.dirname(planFile));
-const readmeFile = path.join(root, '.agents', 'README.md');
+const readmeFile = path.join(root, ".agents", "README.md");
 
 function nowStamp() {
-  return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function escapeRe(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function diffLines(aText, bText) {
-  const a = aText.split('\n');
-  const b = bText.split('\n');
+  const a = aText.split("\n");
+  const b = bText.split("\n");
   const n = a.length;
   const m = b.length;
   const dp = Array.from({ length: n + 1 }, () => Array.from({ length: m + 1 }).fill(0));
@@ -103,7 +103,7 @@ function controlCycle(lines) {
     const m = l.match(/^- Cycle:\s*(\d+)/);
     if (m) return m[1];
   }
-  return '0';
+  return "0";
 }
 
 function rewriteControl(lines, stamp) {
@@ -115,18 +115,20 @@ function rewriteControl(lines, stamp) {
     }
     if (inControl && /^## \S/.test(lines[i])) inControl = false;
     if (!inControl) continue;
-    if (lines[i].startsWith('- Status: ')) {
-      lines[i] = '- Status: complete';
-    } else if (lines[i].startsWith('- Current CSM state: ')) {
-      lines[i] = '- Current CSM state: NOT_STARTED';
-    } else if (lines[i].startsWith('- Next transition: ')) {
-      lines[i] = '- Next transition: none; closed as superseded — active tasks completed by sibling plan';
-    } else if (lines[i].startsWith('- Active tasks: ')) {
-      lines[i] = '- Active tasks: none';
-    } else if (lines[i].startsWith('- Blockers: ')) {
-      lines[i] = '- Blockers: none; closure is intentional and not an implementation result';
-    } else if (lines[i].startsWith('- Last checkpoint: ')) {
-      lines[i] = `- Last checkpoint: ${stamp} closed as superseded by ${replStem} (see Closure block)`;
+    if (lines[i].startsWith("- Status: ")) {
+      lines[i] = "- Status: complete";
+    } else if (lines[i].startsWith("- Current CSM state: ")) {
+      lines[i] = "- Current CSM state: NOT_STARTED";
+    } else if (lines[i].startsWith("- Next transition: ")) {
+      lines[i] =
+        "- Next transition: none; closed as superseded — active tasks completed by sibling plan";
+    } else if (lines[i].startsWith("- Active tasks: ")) {
+      lines[i] = "- Active tasks: none";
+    } else if (lines[i].startsWith("- Blockers: ")) {
+      lines[i] = "- Blockers: none; closure is intentional and not an implementation result";
+    } else if (lines[i].startsWith("- Last checkpoint: ")) {
+      lines[i] =
+        `- Last checkpoint: ${stamp} closed as superseded by ${replStem} (see Closure block)`;
     }
   }
 }
@@ -156,11 +158,11 @@ function rewriteTasks(lines) {
 function insertClosure(lines, disposition) {
   const goalIdx = lines.findIndex((l) => /^## Goal\s*$/.test(l));
   const block = [
-    '## Closure',
+    "## Closure",
     `- Closure status: closed as superseded; active tasks completed by ${replStem}; no acceptance criteria are claimed by this plan.`,
     `- Replacement plan: ${replacement}.`,
     disposition,
-    '',
+    "",
   ];
   lines.splice(goalIdx === -1 ? lines.length : goalIdx, 0, ...block);
 }
@@ -177,13 +179,13 @@ function appendJournalRow(lines, ids, stamp) {
   }
   let insertAt = end;
   for (let i = end - 1; i > sectionStart; i -= 1) {
-    if (lines[i].trim() !== '') {
+    if (lines[i].trim() !== "") {
       insertAt = i + 1;
       break;
     }
   }
   const cycle = controlCycle(lines);
-  const row = `| ${stamp} | ${cycle} | SAVED -> closed (superseded by ${replStem}) | ${ids.join(', ')} | closed as superseded — active tasks completed by sibling plan ${replStem}; no acceptance criteria claimed by this plan | closed |`;
+  const row = `| ${stamp} | ${cycle} | SAVED -> closed (superseded by ${replStem}) | ${ids.join(", ")} | closed as superseded — active tasks completed by sibling plan ${replStem}; no acceptance criteria claimed by this plan | closed |`;
   lines.splice(insertAt, 0, row);
 }
 
@@ -193,7 +195,7 @@ function planGoal(planContent) {
 }
 
 function updatedReadme(readmeContent, goalText, stamp) {
-  const lines = readmeContent === '' ? [] : readmeContent.split('\n');
+  const lines = readmeContent === "" ? [] : readmeContent.split("\n");
   const lineRe = new RegExp(`^\\s*- \`${escapeRe(planName)}\``);
   const statusRe = /status: [a-z_]+/;
   const annotation = `status: complete (closed as superseded; superseded-by \`${replName}\`; active tasks completed by sibling plan ${replStem})`;
@@ -212,52 +214,59 @@ function updatedReadme(readmeContent, goalText, stamp) {
     const newLine = `- \`${planName}\` — ${stamp.slice(0, 10)} — ${goalText || planName} — ${annotation}`;
     lines.splice(insertAt, 0, newLine);
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 function runCheckSuite() {
-  return spawnSync(
-    process.execPath,
-    [path.join(SCRIPT_DIR, 'check-suite.mjs'), '--root', root],
-    { encoding: 'utf8', timeout: 120000 },
-  );
+  return spawnSync(process.execPath, [path.join(SCRIPT_DIR, "check-suite.mjs"), "--root", root], {
+    encoding: "utf8",
+    timeout: 120000,
+  });
 }
 
 function main() {
-  const planContent = fs.readFileSync(planFile, 'utf8');
-  if (`\n${planContent}`.includes('\n## Closure\n')) {
+  const planContent = fs.readFileSync(planFile, "utf8");
+  if (`\n${planContent}`.includes("\n## Closure\n")) {
     console.log(`plan already closed: ${planFile}`);
     process.exit(0);
   }
   const stamp = nowStamp();
-  const lines = planContent.split('\n');
+  const lines = planContent.split("\n");
   rewriteControl(lines, stamp);
   const ids = rewriteTasks(lines);
-  const disposition = `- Task disposition: ${ids.length > 0 ? ids.join(', ') : 'no active tasks'} superseded — active tasks completed by sibling plan ${replStem}; blocked/DEFERRED records retained as blocked.`;
+  const disposition = `- Task disposition: ${ids.length > 0 ? ids.join(", ") : "no active tasks"} superseded — active tasks completed by sibling plan ${replStem}; blocked/DEFERRED records retained as blocked.`;
   insertClosure(lines, disposition);
   appendJournalRow(lines, ids, stamp);
-  const newPlan = lines.join('\n');
+  const newPlan = lines.join("\n");
 
   const readmeExists = fs.existsSync(readmeFile);
-  const readmeContent = readmeExists ? fs.readFileSync(readmeFile, 'utf8') : '';
+  const readmeContent = readmeExists ? fs.readFileSync(readmeFile, "utf8") : "";
   const newReadme = updatedReadme(readmeContent, planGoal(planContent), stamp);
 
-  console.log(`close-plan: ${dryRun ? 'DRY-RUN (no writes)' : 'APPLY'}`);
+  console.log(`close-plan: ${dryRun ? "DRY-RUN (no writes)" : "APPLY"}`);
   console.log(`  plan:        ${planFile}`);
   console.log(`  replacement: ${replacement}`);
   console.log(`  corpus root: ${root}`);
   console.log(`--- ${planFile}`);
   for (const l of diffLines(planContent, newPlan)) console.log(l);
   console.log(`--- ${readmeFile}`);
-  for (const l of (readmeExists ? diffLines(readmeContent, newReadme) : newReadme.split('\n').map((x) => `+ ${x}`))) console.log(l);
+  for (const l of readmeExists
+    ? diffLines(readmeContent, newReadme)
+    : newReadme.split("\n").map((x) => `+ ${x}`))
+    console.log(l);
 
   if (dryRun) {
     const gate = runCheckSuite();
     const ok = gate.status === 0;
-    console.log(`--- check-suite (dry-run probe, read-only): ${ok ? 'OK' : 'FAILED'} on root ${root}`);
+    console.log(
+      `--- check-suite (dry-run probe, read-only): ${ok ? "OK" : "FAILED"} on root ${root}`,
+    );
     if (!ok) {
-      console.log('    check-suite needs a complete corpus at --root (csm-* skills/, README.md, LICENSE, .agents/{plans,reviews,approaches,research}); the diff above is the closure preview');
-      for (const l of (gate.stderr + '\n' + gate.stdout).split('\n').filter(Boolean)) console.log(`    | ${l}`);
+      console.log(
+        "    check-suite needs a complete corpus at --root (csm-* skills/, README.md, LICENSE, .agents/{plans,reviews,approaches,research}); the diff above is the closure preview",
+      );
+      for (const l of (gate.stderr + "\n" + gate.stdout).split("\n").filter(Boolean))
+        console.log(`    | ${l}`);
     }
     process.exit(0);
   }
@@ -270,10 +279,10 @@ function main() {
 
   const gate = runCheckSuite();
   const ok = gate.status === 0;
-  console.log(`--- check-suite re-run: ${ok ? 'OK' : 'FAILED'} on root ${root}`);
+  console.log(`--- check-suite re-run: ${ok ? "OK" : "FAILED"} on root ${root}`);
   if (gate.stdout.trim()) console.log(gate.stdout.trim());
   if (gate.stderr.trim()) console.log(gate.stderr.trim());
-  if (!ok) console.error('check-suite FAILED after closure — see above');
+  if (!ok) console.error("check-suite FAILED after closure — see above");
   process.exit(ok ? 0 : 1);
 }
 

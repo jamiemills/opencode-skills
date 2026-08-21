@@ -13,47 +13,50 @@
 // ESM only. Zero npm deps. node: builtins only. Pure DATA — no filesystem,
 // network, child-process, or executable access.
 
-import { deepFreeze } from '../contracts/evidence.mjs';
-import { computeCouplingAggregates, computeSolidIndicators } from '../deep/architecture/craft.mjs';
-import { renderArchitecture } from './architecture.mjs';
+import { deepFreeze } from "../contracts/evidence.mjs";
+import { computeCouplingAggregates, computeSolidIndicators } from "../deep/architecture/craft.mjs";
+import { renderArchitecture } from "./architecture.mjs";
 
 export const DEFAULT_RENDER_CONTEXT = deepFreeze({
-  escapeField: (value) => String(value ?? '').replace(/\|/g, '\\|'),
+  escapeField: (value) => String(value ?? "").replace(/\|/g, "\\|"),
 });
 
 function renderCoupling(aggregates, escapeField) {
   const lines = [];
-  lines.push('### Craft Assessment — Coupling');
-  lines.push('');
-  lines.push('| Metric | Value |');
-  lines.push('|--------|-------|');
+  lines.push("### Craft Assessment — Coupling");
+  lines.push("");
+  lines.push("| Metric | Value |");
+  lines.push("|--------|-------|");
   lines.push(`| Maximum fan-in | ${aggregates.fanIn?.max?.count ?? 0} |`);
   lines.push(`| Maximum fan-out | ${aggregates.fanOut?.max?.count ?? 0} |`);
-  lines.push(`| Files above fan-in threshold (${aggregates.fanInThreshold?.threshold ?? 10}) | ${aggregates.fanInThreshold?.count ?? 0} |`);
+  lines.push(
+    `| Files above fan-in threshold (${aggregates.fanInThreshold?.threshold ?? 10}) | ${aggregates.fanInThreshold?.count ?? 0} |`,
+  );
   lines.push(`| Cyclic groups | ${aggregates.cyclicGroups?.count ?? 0} |`);
   lines.push(`| Layer-boundary edges | ${aggregates.layerBoundaries?.crossingCount ?? 0} |`);
-  lines.push('');
+  lines.push("");
   const topIn = aggregates.fanIn?.max?.files;
   if (Array.isArray(topIn) && topIn.length > 0) {
-    lines.push('Highest fan-in files:');
-    lines.push('');
+    lines.push("Highest fan-in files:");
+    lines.push("");
     for (const path of topIn) {
       lines.push(`- \`${escapeField(path)}\``);
     }
-    lines.push('');
+    lines.push("");
   }
   return lines;
 }
 
 function renderSolid(indicators, escapeField) {
   const lines = [];
-  lines.push('### Craft Assessment — Design Indicators');
-  lines.push('');
+  lines.push("### Craft Assessment — Design Indicators");
+  lines.push("");
   const rows = [];
-  if (indicators.interfaceReferences) rows.push(['Interface-typed references', indicators.interfaceReferences.count ?? 0]);
+  if (indicators.interfaceReferences)
+    rows.push(["Interface-typed references", indicators.interfaceReferences.count ?? 0]);
   if (indicators.dependencyDirection) {
-    rows.push(['Downward dependencies', indicators.dependencyDirection.downward ?? 0]);
-    rows.push(['Upward dependencies', indicators.dependencyDirection.upward ?? 0]);
+    rows.push(["Downward dependencies", indicators.dependencyDirection.downward ?? 0]);
+    rows.push(["Upward dependencies", indicators.dependencyDirection.upward ?? 0]);
   }
   if (indicators.patternSuffixes) {
     for (const [suffix, count] of Object.entries(indicators.patternSuffixes.counts ?? {})) {
@@ -61,18 +64,21 @@ function renderSolid(indicators, escapeField) {
     }
   }
   if (rows.length > 0) {
-    lines.push('| Indicator | Count |');
-    lines.push('|-----------|-------|');
+    lines.push("| Indicator | Count |");
+    lines.push("|-----------|-------|");
     for (const [name, count] of rows) lines.push(`| ${name} | ${count} |`);
-    lines.push('');
+    lines.push("");
   }
-  if (Array.isArray(indicators.portAdapterDirs?.paths) && indicators.portAdapterDirs.paths.length > 0) {
-    lines.push('Port/contract/adapter directories:');
-    lines.push('');
+  if (
+    Array.isArray(indicators.portAdapterDirs?.paths) &&
+    indicators.portAdapterDirs.paths.length > 0
+  ) {
+    lines.push("Port/contract/adapter directories:");
+    lines.push("");
     for (const path of indicators.portAdapterDirs.paths) {
       lines.push(`- \`${escapeField(path)}\``);
     }
-    lines.push('');
+    lines.push("");
   }
   return lines;
 }
@@ -82,19 +88,24 @@ function renderSolid(indicators, escapeField) {
 // neutral-voice gate would otherwise flag in a first cell.
 function renderImportContracts(contracts, escapeField) {
   const lines = [];
-  lines.push('### Craft Assessment — Import Contracts');
-  lines.push('');
-  lines.push('| Contract | Type | Modules |');
-  lines.push('|----------|------|---------|');
+  lines.push("### Craft Assessment — Import Contracts");
+  lines.push("");
+  lines.push("| Contract | Type | Modules |");
+  lines.push("|----------|------|---------|");
   for (const contract of contracts) {
     const sourceCount = Array.isArray(contract.sourceModules) ? contract.sourceModules.length : 0;
-    const forbiddenCount = Array.isArray(contract.forbiddenModules) ? contract.forbiddenModules.length : 0;
-    const modules = contract.type === 'independence'
-      ? `${sourceCount} modules`
-      : `${sourceCount} source / ${forbiddenCount} forbidden`;
-    lines.push(`| \`${escapeField(contract.name)}\` | ${escapeField(contract.type)} | ${modules} |`);
+    const forbiddenCount = Array.isArray(contract.forbiddenModules)
+      ? contract.forbiddenModules.length
+      : 0;
+    const modules =
+      contract.type === "independence"
+        ? `${sourceCount} modules`
+        : `${sourceCount} source / ${forbiddenCount} forbidden`;
+    lines.push(
+      `| \`${escapeField(contract.name)}\` | ${escapeField(contract.type)} | ${modules} |`,
+    );
   }
-  lines.push('');
+  lines.push("");
   return lines;
 }
 
@@ -107,14 +118,14 @@ function renderImportContracts(contracts, escapeField) {
  *   findings.
  */
 export function renderArchitectureCraft(findings, context = DEFAULT_RENDER_CONTEXT) {
-  if (findings === null || typeof findings !== 'object') return '';
+  if (findings === null || typeof findings !== "object") return "";
   const escapeField = context?.escapeField ?? DEFAULT_RENDER_CONTEXT.escapeField;
   const input = { findings };
   const aggregates = computeCouplingAggregates(input);
   const indicators = computeSolidIndicators(input);
   const lines = [];
-  lines.push('### Craft Assessment');
-  lines.push('');
+  lines.push("### Craft Assessment");
+  lines.push("");
   const coupling = renderCoupling(aggregates, escapeField);
   if (coupling.length > 0) lines.push(...coupling);
   const solid = renderSolid(indicators, escapeField);
@@ -123,8 +134,8 @@ export function renderArchitectureCraft(findings, context = DEFAULT_RENDER_CONTE
     const contracts = renderImportContracts(findings.importContracts, escapeField);
     if (contracts.length > 0) lines.push(...contracts);
   }
-  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-  return lines.length > 0 ? `${lines.join('\n')}\n` : '';
+  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  return lines.length > 0 ? `${lines.join("\n")}\n` : "";
 }
 
 /**
@@ -138,7 +149,7 @@ export function renderArchitectureCraft(findings, context = DEFAULT_RENDER_CONTE
  */
 export function renderArchitectureExpanded(_repoName, findings, context = DEFAULT_RENDER_CONTEXT) {
   const base = renderArchitecture(_repoName, findings);
-  if (base === '') return '';
+  if (base === "") return "";
   const craft = renderArchitectureCraft(findings, context);
-  return craft === '' ? base : `${base}\n${craft}`;
+  return craft === "" ? base : `${base}\n${craft}`;
 }

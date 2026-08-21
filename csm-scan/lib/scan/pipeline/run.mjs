@@ -1,65 +1,65 @@
-import { createHash } from 'node:crypto';
-import { statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { createHash } from "node:crypto";
+import { statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
-import { enrich, computeExpectedClaimCoverage } from '../enrich.mjs';
-import { createCommandBroker, commandBroker } from '../shared/command.mjs';
-import { assertLegacyPrivacySafe, assertPrivacySafe } from '../shared/privacy.mjs';
-import { enumerate } from '../shared/enum.mjs';
-import { survey } from '../survey.mjs';
-import { validate } from '../validate.mjs';
-import { writeNORMS, WRITE_RENDER_CONTEXT } from '../write.mjs';
-import { synthesizeCrossRepository } from '../cross-repo/edges.mjs';
-import { createCrossRepositoryRenderer } from '../cross-repo/render.mjs';
-import { DIMENSION_REGISTRY } from '../registry/dimensions.mjs';
-import { createRenderRegistry } from '../render/registry.mjs';
-import { compareAscii } from '../contracts/evidence.mjs';
-import { DEFAULT_RENDER_CONTEXT } from '../render/base.mjs';
-import { evaluateRules, RULE_EVALUATION_LIMITS } from '../providers/rules.mjs';
+import { enrich, computeExpectedClaimCoverage } from "../enrich.mjs";
+import { createCommandBroker, commandBroker } from "../shared/command.mjs";
+import { assertLegacyPrivacySafe, assertPrivacySafe } from "../shared/privacy.mjs";
+import { enumerate } from "../shared/enum.mjs";
+import { survey } from "../survey.mjs";
+import { validate } from "../validate.mjs";
+import { writeNORMS, WRITE_RENDER_CONTEXT } from "../write.mjs";
+import { synthesizeCrossRepository } from "../cross-repo/edges.mjs";
+import { createCrossRepositoryRenderer } from "../cross-repo/render.mjs";
+import { DIMENSION_REGISTRY } from "../registry/dimensions.mjs";
+import { createRenderRegistry } from "../render/registry.mjs";
+import { compareAscii } from "../contracts/evidence.mjs";
+import { DEFAULT_RENDER_CONTEXT } from "../render/base.mjs";
+import { evaluateRules, RULE_EVALUATION_LIMITS } from "../providers/rules.mjs";
 import {
   GENERIC_PROVIDER_ID,
   genericProviderResults,
   isUnknownLanguageEcosystem,
-} from '../providers/generic.mjs';
+} from "../providers/generic.mjs";
 import {
   pluginObservationsFromMatches,
   runtimeCatalogResults,
-} from '../providers/runtime-catalog.mjs';
+} from "../providers/runtime-catalog.mjs";
 import {
   analysisPluginObservations,
   analysisProviderResults,
-} from '../providers/analysis-catalog.mjs';
+} from "../providers/analysis-catalog.mjs";
 import {
   assurancePluginObservations,
   assuranceCatalogResults,
-} from '../providers/assurance-catalog.mjs';
-import { scan as scanApi } from '../deep/api/scanner.mjs';
-import { buildApiModel } from '../deep/api/model.mjs';
-import { scan as scanData } from '../deep/data/scanner.mjs';
-import { buildDataModel } from '../deep/data/model.mjs';
-import { scanDeploymentTopology } from '../deep/deployment/scanner.mjs';
-import { createArtifactResult, mergeTopology } from '../deep/deployment/model.mjs';
-import { scan as scanMaintainability } from '../deep/maintainability/scanner.mjs';
-import { buildMaintainabilityModel } from '../deep/maintainability/model.mjs';
-import { scan as scanGovernance } from '../deep/governance/scanner.mjs';
-import { buildGovernanceModel } from '../deep/governance/model.mjs';
-import { scan as scanAssurance } from '../deep/assurance/scanner.mjs';
-import { buildAssuranceModel } from '../deep/assurance/model.mjs';
-import { scan as scanPractices } from '../deep/practices/scanner.mjs';
-import { buildPracticesModel } from '../deep/practices/model.mjs';
-import { deepScan } from './existing-ten.mjs';
+} from "../providers/assurance-catalog.mjs";
+import { scan as scanApi } from "../deep/api/scanner.mjs";
+import { buildApiModel } from "../deep/api/model.mjs";
+import { scan as scanData } from "../deep/data/scanner.mjs";
+import { buildDataModel } from "../deep/data/model.mjs";
+import { scanDeploymentTopology } from "../deep/deployment/scanner.mjs";
+import { createArtifactResult, mergeTopology } from "../deep/deployment/model.mjs";
+import { scan as scanMaintainability } from "../deep/maintainability/scanner.mjs";
+import { buildMaintainabilityModel } from "../deep/maintainability/model.mjs";
+import { scan as scanGovernance } from "../deep/governance/scanner.mjs";
+import { buildGovernanceModel } from "../deep/governance/model.mjs";
+import { scan as scanAssurance } from "../deep/assurance/scanner.mjs";
+import { buildAssuranceModel } from "../deep/assurance/model.mjs";
+import { scan as scanPractices } from "../deep/practices/scanner.mjs";
+import { buildPracticesModel } from "../deep/practices/model.mjs";
+import { deepScan } from "./existing-ten.mjs";
 
 export const MAX_RETRIES = 2;
 
-export const DEFAULT_CLOCK = () => new Date().toISOString().split('T')[0];
+export const DEFAULT_CLOCK = () => new Date().toISOString().split("T")[0];
 
 export const DEFAULT_SINK = writeNORMS;
 
 export class PipelineError extends TypeError {
   constructor(code, message) {
     super(`Pipeline failed: ${message}`);
-    this.name = 'PipelineError';
+    this.name = "PipelineError";
     this.code = code;
   }
 }
@@ -74,18 +74,24 @@ export function createScanContext({
 
 function resolveBroker(commandRunner) {
   if (commandRunner === null || commandRunner === undefined) return commandBroker;
-  if (typeof commandRunner.execute === 'function') return commandRunner;
+  if (typeof commandRunner.execute === "function") return commandRunner;
   return createCommandBroker({ runner: commandRunner });
 }
 
 function runnerFlag(commandRunner) {
-  return typeof commandRunner === 'function'
-    || (commandRunner !== null && commandRunner !== undefined && typeof commandRunner.run === 'function')
-    || (commandRunner !== null && commandRunner !== undefined && typeof commandRunner.execute === 'function');
+  return (
+    typeof commandRunner === "function" ||
+    (commandRunner !== null &&
+      commandRunner !== undefined &&
+      typeof commandRunner.run === "function") ||
+    (commandRunner !== null &&
+      commandRunner !== undefined &&
+      typeof commandRunner.execute === "function")
+  );
 }
 
 function shortName(dimensionId) {
-  return dimensionId.replace(/^DIM-/, '').replace(/-v[1-9]\d*$/, '');
+  return dimensionId.replace(/^DIM-/, "").replace(/-v[1-9]\d*$/, "");
 }
 
 function dimensionShorts(registry) {
@@ -104,9 +110,8 @@ export async function enrichValidateRetry({
   deepResults,
   path,
   broker,
-  rescan = (dimension, repoPath, repoOverview, brokerOverride) => (
-    repoPath === null ? null : deepScan(dimension, repoPath, repoOverview, brokerOverride)
-  ),
+  rescan = (dimension, repoPath, repoOverview, brokerOverride) =>
+    repoPath === null ? null : deepScan(dimension, repoPath, repoOverview, brokerOverride),
   reporter = null,
 }) {
   const trace = [];
@@ -116,13 +121,18 @@ export async function enrichValidateRetry({
   let retryCount = 0;
   while (validated.needsRetry.length > 0 && retryCount < MAX_RETRIES) {
     const retryDimensions = validated.needsRetry;
-    if (reporter) reporter.progress(`[CSM] retrying ${retryDimensions.length} dimensions below the coverage threshold: ${retryDimensions.join(', ')}`);
+    if (reporter)
+      reporter.progress(
+        `[CSM] retrying ${retryDimensions.length} dimensions below the coverage threshold: ${retryDimensions.join(", ")}`,
+      );
     for (const dimension of retryDimensions) {
-      trace.push({ dimension, phase: 'retry' });
+      trace.push({ dimension, phase: "retry" });
     }
-    const retryResults = (await Promise.all(
-      retryDimensions.map((dimension) => rescan(dimension, path, overview, broker)),
-    )).filter(Boolean);
+    const retryResults = (
+      await Promise.all(
+        retryDimensions.map((dimension) => rescan(dimension, path, overview, broker)),
+      )
+    ).filter(Boolean);
 
     const merged = validated.findings.map((f) => {
       const retry = retryResults.find((r) => r.dimension === f.dimension);
@@ -161,37 +171,40 @@ export async function enrichValidateRetry({
 
 async function scanDimension(dimension, repoPath, overview, broker = null) {
   switch (dimension) {
-    case 'structure':
-    case 'stack':
-    case 'config':
-    case 'testing':
-    case 'conventions':
-    case 'git':
-    case 'architecture':
-    case 'documentation':
-    case 'security':
-    case 'operations':
+    case "structure":
+    case "stack":
+    case "config":
+    case "testing":
+    case "conventions":
+    case "git":
+    case "architecture":
+    case "documentation":
+    case "security":
+    case "operations":
       return deepScan(dimension, repoPath, overview, broker);
-    case 'api':
+    case "api":
       return scanApi(repoPath, overview);
-    case 'data':
+    case "data":
       return scanData(repoPath, overview);
-    case 'deployment': {
-      const files = Array.isArray(overview?.files) && overview.files.length > 0
-        ? overview.files
-        : (await enumerate(repoPath)).files;
+    case "deployment": {
+      const files =
+        Array.isArray(overview?.files) && overview.files.length > 0
+          ? overview.files
+          : (await enumerate(repoPath)).files;
       const { topology } = await scanDeploymentTopology({ root: repoPath, files });
       const counts = topology.counts ?? {};
-      const hasRecords = Object.values(counts).some((value) => typeof value === 'number' && value > 0);
-      return { dimension: 'deployment', signal: hasRecords ? 'high' : 'low', findings: topology };
+      const hasRecords = Object.values(counts).some(
+        (value) => typeof value === "number" && value > 0,
+      );
+      return { dimension: "deployment", signal: hasRecords ? "high" : "low", findings: topology };
     }
-    case 'maintainability':
+    case "maintainability":
       return scanMaintainability(repoPath, overview);
-    case 'governance':
+    case "governance":
       return scanGovernance(repoPath, overview, broker ?? commandBroker);
-    case 'assurance':
+    case "assurance":
       return scanAssurance(repoPath, overview);
-    case 'practices':
+    case "practices":
       return scanPractices(repoPath, overview);
     default:
       return null;
@@ -213,16 +226,16 @@ async function scanDimension(dimension, repoPath, overview, broker = null) {
 // ---------------------------------------------------------------------------
 
 const FAILURE_DIAGNOSTIC_LINE = Object.freeze({
-  path: 'scan-failure',
-  status: 'unverified',
-  reason: 'SCANNER_FAILURE',
+  path: "scan-failure",
+  status: "unverified",
+  reason: "SCANNER_FAILURE",
   line: null,
 });
 
 const FAILURE_DIAGNOSTIC_NO_LINE = Object.freeze({
-  path: 'scan-failure',
-  status: 'unverified',
-  reason: 'SCANNER_FAILURE',
+  path: "scan-failure",
+  status: "unverified",
+  reason: "SCANNER_FAILURE",
 });
 
 const FAILURE_SEARCH_SPACE = Object.freeze({
@@ -244,25 +257,25 @@ const FAILURE_SEARCH_SPACE = Object.freeze({
 
 function fallbackDimension(dimension) {
   switch (dimension) {
-    case 'api':
+    case "api":
       return buildApiModel({
         operations: [],
         diagnostics: [FAILURE_DIAGNOSTIC_LINE],
         searchSpace: FAILURE_SEARCH_SPACE,
       });
-    case 'data':
+    case "data":
       return buildDataModel({
         records: [],
         edges: [],
         diagnostics: [FAILURE_DIAGNOSTIC_LINE],
         searchSpace: FAILURE_SEARCH_SPACE,
       });
-    case 'deployment': {
+    case "deployment": {
       const artifact = createArtifactResult({
-        path: 'scan-failure',
-        kind: 'unsupported',
-        status: 'unverified',
-        reason: 'SCANNER_FAILURE',
+        path: "scan-failure",
+        kind: "unsupported",
+        status: "unverified",
+        reason: "SCANNER_FAILURE",
         lineCount: 0,
         resources: [],
         images: [],
@@ -270,11 +283,13 @@ function fallbackDimension(dimension) {
         edges: [],
         stubs: [],
         indicators: [],
-        diagnostics: [{ path: 'scan-failure', status: 'unverified', reason: 'SCANNER_FAILURE', doc: null }],
+        diagnostics: [
+          { path: "scan-failure", status: "unverified", reason: "SCANNER_FAILURE", doc: null },
+        ],
       });
       return { ...mergeTopology([artifact]), searchSpace: FAILURE_SEARCH_SPACE };
     }
-    case 'maintainability':
+    case "maintainability":
       return buildMaintainabilityModel({
         files: [],
         branchPoints: [],
@@ -286,7 +301,7 @@ function fallbackDimension(dimension) {
         diagnostics: [FAILURE_DIAGNOSTIC_LINE],
         searchSpace: FAILURE_SEARCH_SPACE,
       });
-    case 'governance':
+    case "governance":
       return buildGovernanceModel({
         artifacts: [],
         ownership: [],
@@ -295,13 +310,13 @@ function fallbackDimension(dimension) {
         isGit: false,
         defaultBranch: null,
       });
-    case 'assurance':
+    case "assurance":
       return buildAssuranceModel({
         records: [],
         diagnostics: [FAILURE_DIAGNOSTIC_NO_LINE],
         searchSpace: FAILURE_SEARCH_SPACE,
       });
-    case 'practices':
+    case "practices":
       return buildPracticesModel({
         entries: [],
         diagnostics: [FAILURE_DIAGNOSTIC_LINE],
@@ -318,29 +333,23 @@ async function safeScanDimension(dimension, repoPath, overview, broker) {
   }
   try {
     const result = await scanDimension(dimension, repoPath, overview, broker);
-    if (result && typeof result === 'object' && result.dimension) return result;
+    if (result && typeof result === "object" && result.dimension) return result;
     return null;
   } catch {
-    return { dimension, signal: 'low', findings: fallbackDimension(dimension) };
+    return { dimension, signal: "low", findings: fallbackDimension(dimension) };
   }
 }
 
 async function scanAllDimensions(repoPath, overview, broker) {
   const results = await Promise.all(
-    dimensionShorts(DIMENSION_REGISTRY).map((dimension) => (
-      safeScanDimension(dimension, repoPath, overview, broker)
-    )),
+    dimensionShorts(DIMENSION_REGISTRY).map((dimension) =>
+      safeScanDimension(dimension, repoPath, overview, broker),
+    ),
   );
   return results.filter(Boolean);
 }
 
-async function processExpandedRepo({
-  overview,
-  deepResults,
-  path,
-  broker,
-  reporter = null,
-}) {
+async function processExpandedRepo({ overview, deepResults, path, broker, reporter = null }) {
   const { enriched, validated, trace } = await enrichValidateRetry({
     overview,
     deepResults,
@@ -370,9 +379,14 @@ async function processExpandedRepo({
 
 function assertAllDimensionsPresent(deep) {
   const present = new Set(deep.map((entry) => entry.dimension));
-  const missing = dimensionShorts(DIMENSION_REGISTRY).filter((dimension) => !present.has(dimension));
+  const missing = dimensionShorts(DIMENSION_REGISTRY).filter(
+    (dimension) => !present.has(dimension),
+  );
   if (missing.length > 0) {
-    throw new PipelineError('MISSING_DIMENSION', `scanner results are missing dimensions: ${missing.join(', ')}`);
+    throw new PipelineError(
+      "MISSING_DIMENSION",
+      `scanner results are missing dimensions: ${missing.join(", ")}`,
+    );
   }
 }
 
@@ -380,7 +394,13 @@ function assertAllDimensionsPresent(deep) {
 // ten legacy dimension models run the F-026 value-level allowlist policy
 // (assertLegacyPrivacySafe) — every dimension is now gated before the write.
 const PRIVACY_ENFORCED_DIMENSIONS = Object.freeze([
-  'api', 'data', 'deployment', 'maintainability', 'governance', 'assurance', 'practices',
+  "api",
+  "data",
+  "deployment",
+  "maintainability",
+  "governance",
+  "assurance",
+  "practices",
 ]);
 
 /**
@@ -413,7 +433,10 @@ export function assertFindingsPrivacy(findings) {
             });
           }
         } catch {
-          throw new PipelineError('PRIVACY_LEAK', 'scanner findings contain prohibited sensitive data');
+          throw new PipelineError(
+            "PRIVACY_LEAK",
+            "scanner findings contain prohibited sensitive data",
+          );
         }
       } else {
         // F-026: legacy dimensions pass the value-level legacy policy (explicit
@@ -421,7 +444,10 @@ export function assertFindingsPrivacy(findings) {
         try {
           assertLegacyPrivacySafe(entry.findings);
         } catch {
-          throw new PipelineError('PRIVACY_LEAK', 'legacy scanner findings contain prohibited sensitive data');
+          throw new PipelineError(
+            "PRIVACY_LEAK",
+            "legacy scanner findings contain prohibited sensitive data",
+          );
         }
       }
     }
@@ -429,19 +455,20 @@ export function assertFindingsPrivacy(findings) {
   try {
     assertPrivacySafe(findings.global);
   } catch {
-    throw new PipelineError('PRIVACY_LEAK', 'global snapshot contains prohibited sensitive data');
+    throw new PipelineError("PRIVACY_LEAK", "global snapshot contains prohibited sensitive data");
   }
 }
 
 function scanIdFor(overview) {
-  const seed = typeof overview.path === 'string' && overview.path.length > 0
-    ? overview.path
-    : String(overview.name ?? 'unknown');
-  return `scan-${createHash('sha256').update(seed).digest('hex').slice(0, 24)}`;
+  const seed =
+    typeof overview.path === "string" && overview.path.length > 0
+      ? overview.path
+      : String(overview.name ?? "unknown");
+  return `scan-${createHash("sha256").update(seed).digest("hex").slice(0, 24)}`;
 }
 
 function safeReferencePath(path) {
-  if (typeof path !== 'string' || path.length === 0) return null;
+  if (typeof path !== "string" || path.length === 0) return null;
   try {
     assertPrivacySafe(path);
     return path;
@@ -456,21 +483,24 @@ function collectGlobalSnapshot(scanEntries) {
   for (const { overview, deep } of scanEntries) {
     const byDimension = new Map(deep.map((entry) => [entry.dimension, entry.findings]));
     const scanId = scanIdFor(overview);
-    const gitFindings = byDimension.get('git');
-    const apiFindings = byDimension.get('api');
+    const gitFindings = byDimension.get("git");
+    const apiFindings = byDimension.get("api");
 
-    const vcs = gitFindings && typeof gitFindings.remote === 'string'
-      && gitFindings.remote !== 'N/A' && gitFindings.remote.length > 0
-      ? gitFindings.remote
-      : null;
+    const vcs =
+      gitFindings &&
+      typeof gitFindings.remote === "string" &&
+      gitFindings.remote !== "N/A" &&
+      gitFindings.remote.length > 0
+        ? gitFindings.remote
+        : null;
 
     const manifests = [];
     const manifest = overview.manifest;
-    if (manifest && typeof manifest.name === 'string' && manifest.name.length > 0) {
+    if (manifest && typeof manifest.name === "string" && manifest.name.length > 0) {
       manifests.push({
         ecosystem: overview.ecosystems?.primary ?? null,
         name: manifest.name,
-        version: typeof manifest.version === 'string' ? manifest.version : null,
+        version: typeof manifest.version === "string" ? manifest.version : null,
         root: null,
       });
     }
@@ -479,10 +509,10 @@ function collectGlobalSnapshot(scanEntries) {
     const events = [];
     if (apiFindings && Array.isArray(apiFindings.operations)) {
       for (const operation of apiFindings.operations) {
-        if (operation.category === 'rpc' && typeof operation.details?.service === 'string') {
+        if (operation.category === "rpc" && typeof operation.details?.service === "string") {
           contracts.push(operation.details.service);
         }
-        if (operation.category === 'event' && typeof operation.details?.emitter === 'string') {
+        if (operation.category === "event" && typeof operation.details?.emitter === "string") {
           events.push(operation.details.emitter);
         }
       }
@@ -502,22 +532,22 @@ function collectGlobalSnapshot(scanEntries) {
     if (apiFindings && Array.isArray(apiFindings.operations)) {
       for (const operation of apiFindings.operations) {
         const path = safeReferencePath(operation.source?.path);
-        if (operation.category === 'rpc' && typeof operation.details?.service === 'string') {
+        if (operation.category === "rpc" && typeof operation.details?.service === "string") {
           references.push({
             scanId,
-            kind: 'contract',
+            kind: "contract",
             value: operation.details.service,
             path,
-            sourceKind: 'contract',
+            sourceKind: "contract",
           });
         }
-        if (operation.category === 'event' && typeof operation.details?.emitter === 'string') {
+        if (operation.category === "event" && typeof operation.details?.emitter === "string") {
           references.push({
             scanId,
-            kind: 'event',
+            kind: "event",
             value: operation.details.emitter,
             path,
-            sourceKind: 'source',
+            sourceKind: "source",
           });
         }
       }
@@ -557,17 +587,17 @@ function aggregateExpectedClaimCoverage(perRepoCoverage) {
 // bounded, deduplicated, and appends after (never replaces) scanner findings.
 // ---------------------------------------------------------------------------
 
-const RUNTIME_DIMENSION_IDS = Object.freeze([
-  'DIM-stack-v1', 'DIM-config-v1', 'DIM-testing-v1',
-]);
+const RUNTIME_DIMENSION_IDS = Object.freeze(["DIM-stack-v1", "DIM-config-v1", "DIM-testing-v1"]);
 
 const PROVIDER_OBSERVATIONS_BOUND = 2048;
 
-const PLUGIN_MATCHED_KEY_PREFIXES = Object.freeze(['plugin-rule:', 'plugin:']);
+const PLUGIN_MATCHED_KEY_PREFIXES = Object.freeze(["plugin-rule:", "plugin:"]);
 
 function isPluginObservation(observation) {
-  return typeof observation?.matchedKey === 'string'
-    && PLUGIN_MATCHED_KEY_PREFIXES.some((prefix) => observation.matchedKey.startsWith(prefix));
+  return (
+    typeof observation?.matchedKey === "string" &&
+    PLUGIN_MATCHED_KEY_PREFIXES.some((prefix) => observation.matchedKey.startsWith(prefix))
+  );
 }
 
 // The catalogs decide the generic fallback from detected languages. Survey
@@ -577,8 +607,12 @@ function isPluginObservation(observation) {
 function catalogLanguages(overview, stackFindings) {
   const detected = overview?.languages;
   if (Array.isArray(detected) && detected.length > 0) return detected;
-  if (stackFindings && typeof stackFindings === 'object' && typeof stackFindings.language === 'string'
-      && stackFindings.language.length > 0) {
+  if (
+    stackFindings &&
+    typeof stackFindings === "object" &&
+    typeof stackFindings.language === "string" &&
+    stackFindings.language.length > 0
+  ) {
     return [stackFindings.language];
   }
   return [];
@@ -592,11 +626,14 @@ function pluginProvenanceIndex(pluginRegistry) {
   for (const plugin of Array.isArray(pluginRegistry) ? pluginRegistry : []) {
     const providers = Array.isArray(plugin.providers) ? plugin.providers : [];
     for (const rule of Array.isArray(plugin.rules) ? plugin.rules : []) {
-      if (!rule || typeof rule.id !== 'string' || typeof rule.dimensionId !== 'string') continue;
-      const provider = providers.find((entry) => Array.isArray(entry.dimensions)
-        && entry.dimensions.some((dimension) => dimension.dimensionId === rule.dimensionId));
-      const providerId = provider?.id
-        ?? (typeof plugin.id === 'string' ? `PRV-${plugin.id}-v1` : null);
+      if (!rule || typeof rule.id !== "string" || typeof rule.dimensionId !== "string") continue;
+      const provider = providers.find(
+        (entry) =>
+          Array.isArray(entry.dimensions) &&
+          entry.dimensions.some((dimension) => dimension.dimensionId === rule.dimensionId),
+      );
+      const providerId =
+        provider?.id ?? (typeof plugin.id === "string" ? `PRV-${plugin.id}-v1` : null);
       index.set(rule.id, { providerId, plugin: plugin.id });
     }
   }
@@ -617,13 +654,15 @@ async function readPluginArtifacts(repoPath, files) {
     } catch {
       continue;
     }
-    let content = '';
+    let content = "";
     if (size <= RULE_EVALUATION_LIMITS.contentBytes) {
       try {
-        content = (await readFile(join(repoPath, relativePath), 'utf8'))
-          .slice(0, RULE_EVALUATION_LIMITS.contentBytes);
+        content = (await readFile(join(repoPath, relativePath), "utf8")).slice(
+          0,
+          RULE_EVALUATION_LIMITS.contentBytes,
+        );
       } catch {
-        content = '';
+        content = "";
       }
     }
     artifacts.push({ path: relativePath, size, content });
@@ -633,10 +672,12 @@ async function readPluginArtifacts(repoPath, files) {
 
 function withProvenance(observations, dimensionId, provenance) {
   return observations.map((observation) => {
-    const ruleId = observation?.details && typeof observation.details === 'object'
-      && typeof observation.details.ruleId === 'string'
-      ? observation.details.ruleId
-      : null;
+    const ruleId =
+      observation?.details &&
+      typeof observation.details === "object" &&
+      typeof observation.details.ruleId === "string"
+        ? observation.details.ruleId
+        : null;
     const tagged = ruleId !== null && provenance ? provenance.get(ruleId) : null;
     return {
       providerId: tagged?.providerId ?? observation.providerId ?? GENERIC_PROVIDER_ID,
@@ -655,7 +696,7 @@ function withProvenance(observations, dimensionId, provenance) {
 // scan component) so the determinism suite imports the production key instead
 // of re-implementing it; the pipeline uses the same single source here.
 export function providerObservationSortKey(record) {
-  return `${record.providerId}\0${record.plugin ?? ''}\0${record.category}\0${record.matchedKey}\0${record.path ?? ''}`;
+  return `${record.providerId}\0${record.plugin ?? ""}\0${record.category}\0${record.matchedKey}\0${record.path ?? ""}`;
 }
 
 function collectProviderEvidence({ matches, pluginRegistry, catalogResults }) {
@@ -673,11 +714,14 @@ function collectProviderEvidence({ matches, pluginRegistry, catalogResults }) {
   // Plugin observations are always taken from the evaluated matches so they
   // survive the generic fallback (which ignores pluginObservations).
   for (const dimensionId of RUNTIME_DIMENSION_IDS) {
-    add(dimensionId, withProvenance(
-      pluginObservationsFromMatches(matches.filter((match) => match.dimensionId === dimensionId)),
+    add(
       dimensionId,
-      provenance,
-    ));
+      withProvenance(
+        pluginObservationsFromMatches(matches.filter((match) => match.dimensionId === dimensionId)),
+        dimensionId,
+        provenance,
+      ),
+    );
   }
   for (const { dimensionId, observations } of analysisPluginObservations(matches)) {
     add(dimensionId, withProvenance(observations, dimensionId, provenance));
@@ -687,7 +731,8 @@ function collectProviderEvidence({ matches, pluginRegistry, catalogResults }) {
   }
   // Generic artifact-only observations come from the catalogs' generic fallback.
   for (const result of catalogResults) {
-    if (!result || typeof result !== 'object' || result.providerId !== GENERIC_PROVIDER_ID) continue;
+    if (!result || typeof result !== "object" || result.providerId !== GENERIC_PROVIDER_ID)
+      continue;
     add(result.dimensionId, withProvenance(result.observations, result.dimensionId, null));
   }
 
@@ -697,38 +742,48 @@ function collectProviderEvidence({ matches, pluginRegistry, catalogResults }) {
     const unique = [];
     for (const record of records) {
       const identity = JSON.stringify([
-        record.providerId, record.plugin, record.category, record.path,
-        record.matchedKey, record.details,
+        record.providerId,
+        record.plugin,
+        record.category,
+        record.path,
+        record.matchedKey,
+        record.details,
       ]);
       if (seen.has(identity)) continue;
       seen.add(identity);
       unique.push(record);
     }
-    unique.sort((left, right) => compareAscii(
-      providerObservationSortKey(left),
-      providerObservationSortKey(right),
-    ));
+    unique.sort((left, right) =>
+      compareAscii(providerObservationSortKey(left), providerObservationSortKey(right)),
+    );
     // Privacy-safe: a record that trips the shared privacy gate is dropped
     // rather than leaking or aborting the scan. A plugin observation that
     // cannot be attributed to a non-generic provider is also dropped (it must
     // never masquerade as generic evidence).
-    normalized.set(dimension, unique
-      .filter((record) => !isPluginObservation(record) || record.providerId !== GENERIC_PROVIDER_ID)
-      .filter((record) => {
-        try {
-          assertPrivacySafe(record);
-          return true;
-        } catch {
-          return false;
-        }
-      })
-      .slice(0, PROVIDER_OBSERVATIONS_BOUND));
+    normalized.set(
+      dimension,
+      unique
+        .filter(
+          (record) => !isPluginObservation(record) || record.providerId !== GENERIC_PROVIDER_ID,
+        )
+        .filter((record) => {
+          try {
+            assertPrivacySafe(record);
+            return true;
+          } catch {
+            return false;
+          }
+        })
+        .slice(0, PROVIDER_OBSERVATIONS_BOUND),
+    );
   }
   return normalized;
 }
 
 async function buildProviderEvidence({ repoPath, overview, deepResults, pluginRegistry }) {
-  const byDimension = Object.fromEntries(deepResults.map((entry) => [entry.dimension, entry.findings]));
+  const byDimension = Object.fromEntries(
+    deepResults.map((entry) => [entry.dimension, entry.findings]),
+  );
   const languages = catalogLanguages(overview, byDimension.stack);
   const ecosystems = Array.isArray(overview?.ecosystems?.all) ? overview.ecosystems.all : [];
   const manifestEcosystems = Array.isArray(overview?.manifest?.ecosystems)
@@ -746,10 +801,12 @@ async function buildProviderEvidence({ repoPath, overview, deepResults, pluginRe
       if (evaluated.capped) pluginRulesCapped = true;
       matches.push(...evaluated.matches);
     }
-    matches.sort((left, right) => compareAscii(
-      `${left.dimensionId}\0${left.category}\0${left.ruleId}\0${left.path}`,
-      `${right.dimensionId}\0${right.category}\0${right.ruleId}\0${right.path}`,
-    ));
+    matches.sort((left, right) =>
+      compareAscii(
+        `${left.dimensionId}\0${left.category}\0${left.ruleId}\0${left.path}`,
+        `${right.dimensionId}\0${right.category}\0${right.ruleId}\0${right.path}`,
+      ),
+    );
   }
 
   const runtimePluginObservations = {};
@@ -812,16 +869,20 @@ async function buildProviderEvidence({ repoPath, overview, deepResults, pluginRe
     catalogResults = [];
   }
 
-  return { evidence: collectProviderEvidence({ matches, pluginRegistry, catalogResults }), pluginRulesCapped };
+  return {
+    evidence: collectProviderEvidence({ matches, pluginRegistry, catalogResults }),
+    pluginRulesCapped,
+  };
 }
 
 function mergeProviderEvidence(deepResults, evidenceByDimension) {
   return deepResults.map((entry) => {
     const records = evidenceByDimension.get(entry.dimension);
     if (!records || records.length === 0) return entry;
-    const findings = entry.findings && typeof entry.findings === 'object' && !Array.isArray(entry.findings)
-      ? entry.findings
-      : {};
+    const findings =
+      entry.findings && typeof entry.findings === "object" && !Array.isArray(entry.findings)
+        ? entry.findings
+        : {};
     return {
       ...entry,
       findings: {
@@ -834,21 +895,23 @@ function mergeProviderEvidence(deepResults, evidenceByDimension) {
 
 function providerEvidenceSection(dimResult) {
   const records = dimResult?.findings?.providerObservations;
-  if (!Array.isArray(records) || records.length === 0) return '';
+  if (!Array.isArray(records) || records.length === 0) return "";
   const { escapeField } = DEFAULT_RENDER_CONTEXT;
   const lines = [];
-  lines.push('### Provider Evidence');
-  lines.push('');
-  lines.push('| Provider | Source | Category | Rule / Metric | Evidence |');
-  lines.push('|----------|--------|----------|---------------|----------|');
+  lines.push("### Provider Evidence");
+  lines.push("");
+  lines.push("| Provider | Source | Category | Rule / Metric | Evidence |");
+  lines.push("|----------|--------|----------|---------------|----------|");
   for (const record of records) {
     const source = record.plugin ?? record.providerId;
-    const rule = record.details?.ruleId ?? record.matchedKey ?? '';
-    const evidence = record.path ? `\`${escapeField(record.path, { inTable: true })}\`` : '—';
-    lines.push(`| \`${escapeField(record.providerId, { inTable: true })}\` | ${escapeField(source, { inTable: true })} | ${escapeField(record.category, { inTable: true })} | \`${escapeField(rule, { inTable: true })}\` | ${evidence} |`);
+    const rule = record.details?.ruleId ?? record.matchedKey ?? "";
+    const evidence = record.path ? `\`${escapeField(record.path, { inTable: true })}\`` : "—";
+    lines.push(
+      `| \`${escapeField(record.providerId, { inTable: true })}\` | ${escapeField(source, { inTable: true })} | ${escapeField(record.category, { inTable: true })} | \`${escapeField(rule, { inTable: true })}\` | ${evidence} |`,
+    );
   }
-  lines.push('');
-  return lines.join('\n');
+  lines.push("");
+  return lines.join("\n");
 }
 
 function compositeRenderer(renderRegistry, globalRenderer) {
@@ -894,7 +957,7 @@ export async function runExpandedPipeline({
   reporter = null,
 } = {}) {
   if (!Array.isArray(repos) || repos.length === 0) {
-    throw new TypeError('runExpandedPipeline requires a non-empty repos array');
+    throw new TypeError("runExpandedPipeline requires a non-empty repos array");
   }
   const generated = clock();
   const context = createScanContext({ commandRunner, clock, pluginRegistry });
@@ -919,13 +982,20 @@ export async function runExpandedPipeline({
     const resolvedPath = resolve(rawPath);
     const overview = await survey(resolvedPath, broker);
     if (reporter) reporter.progress(`[CSM] survey complete — repository ${overview.name}`);
-    if (reporter) reporter.progress(`  Languages: ${overview.languages.join(', ') || 'none detected'}`);
+    if (reporter)
+      reporter.progress(`  Languages: ${overview.languages.join(", ") || "none detected"}`);
     if (reporter) reporter.progress(`  Files: ${overview.totalFiles}`);
 
     const deepResults = await scanAllDimensions(resolvedPath, overview, broker);
     if (reporter) reporter.phase(`[CSM] deep phase — dispatching ${deepResults.length} scanners`);
     for (const entry of deepResults) {
-      trace.push({ repoIndex: index, dimension: entry.dimension, phase: 'initial', runner, plugins });
+      trace.push({
+        repoIndex: index,
+        dimension: entry.dimension,
+        phase: "initial",
+        runner,
+        plugins,
+      });
       if (reporter) reporter.progress(`  ${entry.dimension}: scanned`);
     }
 
@@ -941,10 +1011,12 @@ export async function runExpandedPipeline({
     const mergedDeep = mergeProviderEvidence(deepResults, providerEvidence.evidence);
     if (providerEvidence.pluginRulesCapped) {
       providerCapped = true;
-      if (reporter) reporter.progress('  provider evidence: plugin rule match cap reached');
+      if (reporter) reporter.progress("  provider evidence: plugin rule match cap reached");
     }
     if (reporter && providerEvidence.evidence.size > 0) {
-      reporter.progress(`  provider evidence: ${[...providerEvidence.evidence.values()].reduce((sum, records) => sum + records.length, 0)} observation(s) across ${providerEvidence.evidence.size} dimension(s)`);
+      reporter.progress(
+        `  provider evidence: ${[...providerEvidence.evidence.values()].reduce((sum, records) => sum + records.length, 0)} observation(s) across ${providerEvidence.evidence.size} dimension(s)`,
+      );
     }
 
     const processed = await processExpandedRepo({
@@ -988,15 +1060,17 @@ export async function runExpandedPipeline({
 
   const expectedClaimCoverage = aggregateExpectedClaimCoverage(perRepoCoverage);
   if (reporter) {
-    reporter.coverage(`  Expected claim coverage: ${JSON.stringify({
-      expected: expectedClaimCoverage.expected,
-      eligible: expectedClaimCoverage.eligible,
-      complete: expectedClaimCoverage.complete,
-      incomplete: expectedClaimCoverage.incomplete,
-      unsupported: expectedClaimCoverage.unsupported,
-      excluded: expectedClaimCoverage.excluded,
-      ratio: expectedClaimCoverage.ratio,
-    })}`);
+    reporter.coverage(
+      `  Expected claim coverage: ${JSON.stringify({
+        expected: expectedClaimCoverage.expected,
+        eligible: expectedClaimCoverage.eligible,
+        complete: expectedClaimCoverage.complete,
+        incomplete: expectedClaimCoverage.incomplete,
+        unsupported: expectedClaimCoverage.unsupported,
+        excluded: expectedClaimCoverage.excluded,
+        ratio: expectedClaimCoverage.ratio,
+      })}`,
+    );
   }
 
   const markdown = await sink(findings, out, compositeRenderer(renderRegistry, globalRenderer));

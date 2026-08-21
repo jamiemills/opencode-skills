@@ -59,26 +59,26 @@ All verbs use the same entrypoint with absolute paths:
 node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --session <sid> [...]
 ```
 
-| Verb | Description |
-|---|---|
-| `open <url>` | Navigate to a URL and wait for `Page.loadEventFired`. |
-| `wait <ms>` | Pause for the given number of milliseconds. |
-| `wait-selector <selector> [timeoutMs]` | Poll until `document.querySelector(selector)` is truthy. |
-| `click <selector> [index]` | Click the element matching the selector (0-indexed for multiple matches). |
-| `type <selector> <text>` | Insert text into the target element. |
-| `press <selector> <key>` | Click to focus the element, then dispatch a key event (e.g. `press "#username" Enter`, `press "body" Tab`). |
-| `text [selector]` | Retrieve `textContent` of the page or of a specific selector. |
-| `html [selector]` | Retrieve `innerHTML` of the page or of a specific selector. |
-| `eval <expression>` | Evaluate a JavaScript expression on the page and print the result. |
-| `screenshot [--small|--medium|--full] [--viewport] [--quality N] [outPath]` | Capture a screenshot. Defaults to full-page (auto-stitched). `--viewport` = viewport only. `--small` = JPEG 30, `--medium` = JPEG 80 (default), `--full` = lossless PNG. `--quality N` overrides compression. |
-| `console` | Read all captured console events from `events.jsonl`. |
-| `network` | Read all captured network events from `events.jsonl`. |
-| `performance` | Get live performance metrics (`Performance.getMetrics`). |
-| `cookies [--values]` | Get cookies for the current page. Cookie **values are masked by default** (≤8 chars → `****`, longer → `first4…last4`) so session tokens never land in transcripts/scrollback. `--values` prints full values and warns first — HttpOnly session tokens will persist in logs; use only when strictly needed. |
-| `status` | Print browser version, tab info, and daemon liveness. |
-| `screencast-start <name> [--small|--medium|--full] [--speed slow|medium|fast]` | Start recording video (VP9/webm). `--speed` controls output fps: slow=3, medium=7 (default), fast=15. |
-| `screencast-stop` | Stop the active video recording. |
-| `close` | Clean up the session: kill daemon, chromium, crashpad, the CDP gate, remove session dirs, release ports. |
+| Verb                                   | Description                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open <url>`                           | Navigate to a URL and wait for `Page.loadEventFired`.                                                                                                                                                                                                                                                       |
+| `wait <ms>`                            | Pause for the given number of milliseconds.                                                                                                                                                                                                                                                                 |
+| `wait-selector <selector> [timeoutMs]` | Poll until `document.querySelector(selector)` is truthy.                                                                                                                                                                                                                                                    |
+| `click <selector> [index]`             | Click the element matching the selector (0-indexed for multiple matches).                                                                                                                                                                                                                                   |
+| `type <selector> <text>`               | Insert text into the target element.                                                                                                                                                                                                                                                                        |
+| `press <selector> <key>`               | Click to focus the element, then dispatch a key event (e.g. `press "#username" Enter`, `press "body" Tab`).                                                                                                                                                                                                 |
+| `text [selector]`                      | Retrieve `textContent` of the page or of a specific selector.                                                                                                                                                                                                                                               |
+| `html [selector]`                      | Retrieve `innerHTML` of the page or of a specific selector.                                                                                                                                                                                                                                                 |
+| `eval <expression>`                    | Evaluate a JavaScript expression on the page and print the result.                                                                                                                                                                                                                                          |
+| `screenshot [--small                   | --medium                                                                                                                                                                                                                                                                                                    | --full] [--viewport] [--quality N] [outPath]` | Capture a screenshot. Defaults to full-page (auto-stitched). `--viewport` = viewport only. `--small` = JPEG 30, `--medium` = JPEG 80 (default), `--full` = lossless PNG. `--quality N` overrides compression. |
+| `console`                              | Read all captured console events from `events.jsonl`.                                                                                                                                                                                                                                                       |
+| `network`                              | Read all captured network events from `events.jsonl`.                                                                                                                                                                                                                                                       |
+| `performance`                          | Get live performance metrics (`Performance.getMetrics`).                                                                                                                                                                                                                                                    |
+| `cookies [--values]`                   | Get cookies for the current page. Cookie **values are masked by default** (≤8 chars → `****`, longer → `first4…last4`) so session tokens never land in transcripts/scrollback. `--values` prints full values and warns first — HttpOnly session tokens will persist in logs; use only when strictly needed. |
+| `status`                               | Print browser version, tab info, and daemon liveness.                                                                                                                                                                                                                                                       |
+| `screencast-start <name> [--small      | --medium                                                                                                                                                                                                                                                                                                    | --full] [--speed slow                         | medium                                                                                                                                                                                                        | fast]` | Start recording video (VP9/webm). `--speed` controls output fps: slow=3, medium=7 (default), fast=15. |
+| `screencast-stop`                      | Stop the active video recording.                                                                                                                                                                                                                                                                            |
+| `close`                                | Clean up the session: kill daemon, chromium, crashpad, the CDP gate, remove session dirs, release ports.                                                                                                                                                                                                    |
 
 An unrecognized verb prints `Unknown verb: <verb> — see SKILL.md verb table` to stderr and exits non-zero, so the verb table above is the authoritative reference for valid verbs.
 
@@ -127,18 +127,18 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --clean
 
 **Session-dir layout** (`$XDG_RUNTIME_DIR/csm-browse/<sid>/`, falling back to `~/.local/state/csm-browse/<sid>/`; override root with `CSM_BROWSE_SESSIONS_ROOT`):
 
-| Path | Meaning |
-|---|---|
-| `state.json` | Session state (cdpUrl, wsUrl, token, ports, daemonPid). Written atomically (tmp+rename) at 0600. |
-| `daemon.pid` | PID of the session daemon. |
-| `daemon.ready` | Ready marker; a live daemon touches its mtime every ~2s. |
-| `creating.marker` | Transient: present only while a session is being created; both sweep passes treat it as do-not-touch. |
-| `gate.log` | CDP gate diagnostics (tunnel spawn/exit failures). The gate itself is a host process (`scripts/cdp-gate.mjs`) listening on `127.0.0.1:<publicPort>`. |
-| `cmd/` `cmd/running/` `cmd/out/` | Verb queue: commands land in `cmd/`, are claimed by rename into `cmd/running/`, results written to `cmd/out/` (processed oldest-ts first). |
-| `events.jsonl` | Captured console/network events (rotated). |
-| `artifacts/` | Screenshots and videos. |
-| `recorder.json` | Screencast recorder state (`running:true` while recording). |
-| `daemon.log` | Daemon stdout/stderr. Each daemon start re-creates this log, so copy it out before restarting if you need the history. |
+| Path                             | Meaning                                                                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state.json`                     | Session state (cdpUrl, wsUrl, token, ports, daemonPid). Written atomically (tmp+rename) at 0600.                                                     |
+| `daemon.pid`                     | PID of the session daemon.                                                                                                                           |
+| `daemon.ready`                   | Ready marker; a live daemon touches its mtime every ~2s.                                                                                             |
+| `creating.marker`                | Transient: present only while a session is being created; both sweep passes treat it as do-not-touch.                                                |
+| `gate.log`                       | CDP gate diagnostics (tunnel spawn/exit failures). The gate itself is a host process (`scripts/cdp-gate.mjs`) listening on `127.0.0.1:<publicPort>`. |
+| `cmd/` `cmd/running/` `cmd/out/` | Verb queue: commands land in `cmd/`, are claimed by rename into `cmd/running/`, results written to `cmd/out/` (processed oldest-ts first).           |
+| `events.jsonl`                   | Captured console/network events (rotated).                                                                                                           |
+| `artifacts/`                     | Screenshots and videos.                                                                                                                              |
+| `recorder.json`                  | Screencast recorder state (`running:true` while recording).                                                                                          |
+| `daemon.log`                     | Daemon stdout/stderr. Each daemon start re-creates this log, so copy it out before restarting if you need the history.                               |
 
 **CDP authentication**: every session's CDP endpoint is protected by a per-session token. `cdpUrl` and `wsUrl` in `state.json` already carry `?token=<value>` (the raw token also lives in the `token` field); the value is redacted from transcripts and logs. Connections without the token are answered `403` by the host-side gate before any byte reaches Chromium. The shared container's primary browser on port 9222 is gated the same way: its funnel lives on `127.0.0.1:9222`, reads a shared token from `~/.config/csm-browse/container-token`, and rejects bare/unauthenticated probes with `403`. `ensure-browser` rotates the per-session token (new generation) whenever it has to reconnect the daemon to an existing session, and `close`/sweep revokes it by removing the gate and `state.json`.
 

@@ -25,14 +25,14 @@
 //
 // ESM only. Zero npm deps. node: builtins via shared modules only.
 
-import { parseToml } from '../../shared/parse.mjs';
-import { removeJsonTrailingCommas, stripJsonComments } from '../../shared/jsonc.mjs';
+import { parseToml } from "../../shared/parse.mjs";
+import { removeJsonTrailingCommas, stripJsonComments } from "../../shared/jsonc.mjs";
 import {
   PRACTICES_LIMITS,
   QUALITY_GATE_ALLOWLIST,
   isLefthookPath,
   isQualityGatesPath,
-} from './model.mjs';
+} from "./model.mjs";
 
 const TOKEN_PATTERN = /^[\x21-\x7e]+$/;
 
@@ -46,17 +46,18 @@ const TOKEN_PATTERN = /^[\x21-\x7e]+$/;
 export function slugToken(value) {
   const source = String(value).trim();
   if (TOKEN_PATTERN.test(source) && source.length <= PRACTICES_LIMITS.kind) return source;
-  const slug = source.toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  const slug = source
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, PRACTICES_LIMITS.kind)
-    .replace(/-+$/g, '');
+    .replace(/-+$/g, "");
   return slug.length > 0 ? slug : null;
 }
 
 function basenameOf(path) {
-  const parts = String(path).split('/');
-  return parts[parts.length - 1] ?? '';
+  const parts = String(path).split("/");
+  return parts[parts.length - 1] ?? "";
 }
 
 function capCount(value) {
@@ -66,11 +67,12 @@ function capCount(value) {
 // Convention headings always become lower-case hyphenated slugs (a single-word
 // heading like `# Contributing` must not keep its title case in a kind token).
 function headingSlug(value) {
-  const slug = String(value).toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  const slug = String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, PRACTICES_LIMITS.kind)
-    .replace(/-+$/g, '');
+    .replace(/-+$/g, "");
   return slug.length > 0 ? slug : null;
 }
 
@@ -80,32 +82,33 @@ function headingSlug(value) {
 
 function isRuffConfigPath(path, text) {
   const base = basenameOf(String(path).toLowerCase());
-  if (base === 'ruff.toml' || base === '.ruff.toml') return true;
-  return String(path).toLowerCase() === 'pyproject.toml'
-    && /\[tool\.ruff\]/.test(String(text ?? ''));
+  if (base === "ruff.toml" || base === ".ruff.toml") return true;
+  return (
+    String(path).toLowerCase() === "pyproject.toml" && /\[tool\.ruff\]/.test(String(text ?? ""))
+  );
 }
 
 function collectSelectCodes(lint, codes) {
-  if (lint === null || typeof lint !== 'object') return;
+  if (lint === null || typeof lint !== "object") return;
   if (!Array.isArray(lint.select)) return;
   for (const item of lint.select) {
-    if (typeof item === 'string' && item.length > 0) codes.add(item);
+    if (typeof item === "string" && item.length > 0) codes.add(item);
   }
 }
 
 function collectIgnoredCodes(lint, codes) {
-  if (lint === null || typeof lint !== 'object') return;
+  if (lint === null || typeof lint !== "object") return;
   if (Array.isArray(lint.ignore)) {
     for (const item of lint.ignore) {
-      if (typeof item === 'string' && item.length > 0) codes.add(item);
+      if (typeof item === "string" && item.length > 0) codes.add(item);
     }
   }
-  const perFile = lint['per-file-ignores'];
-  if (perFile !== null && typeof perFile === 'object' && !Array.isArray(perFile)) {
+  const perFile = lint["per-file-ignores"];
+  if (perFile !== null && typeof perFile === "object" && !Array.isArray(perFile)) {
     for (const glob of Object.values(perFile)) {
       if (!Array.isArray(glob)) continue;
       for (const item of glob) {
-        if (typeof item === 'string' && item.length > 0) codes.add(item);
+        if (typeof item === "string" && item.length > 0) codes.add(item);
       }
     }
   }
@@ -117,9 +120,13 @@ function ruleCodesRecord(lint, selectOnly, kind) {
   else collectIgnoredCodes(lint, codes);
   if (codes.size === 0) return null;
   const uniqueCodes = [...codes];
-  const families = [...new Set(uniqueCodes
-    .map((code) => code.match(/^[A-Z]+/)?.[0])
-    .filter((family) => family !== undefined))];
+  const families = [
+    ...new Set(
+      uniqueCodes
+        .map((code) => code.match(/^[A-Z]+/)?.[0])
+        .filter((family) => family !== undefined),
+    ),
+  ];
   const kinds = [...new Set([...families, ...uniqueCodes])]
     .map((item) => slugToken(item))
     .filter((kindToken) => kindToken !== null)
@@ -135,42 +142,47 @@ function ruleCodesRecord(lint, selectOnly, kind) {
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds?, status? }]` records.
  */
-export function extractRuffRules({ path, text = '' }) {
+export function extractRuffRules({ path, text = "" }) {
   if (!isRuffConfigPath(path, text)) return [];
   let parsed;
   try {
     parsed = parseToml(text);
   } catch {
-    return [{ kind: 'ruff-select', status: 'unverified' }];
+    return [{ kind: "ruff-select", status: "unverified" }];
   }
-  if (parsed === null || typeof parsed !== 'object') return [];
+  if (parsed === null || typeof parsed !== "object") return [];
   const base = basenameOf(String(path).toLowerCase());
-  const isDedicatedConfig = base === 'ruff.toml' || base === '.ruff.toml';
+  const isDedicatedConfig = base === "ruff.toml" || base === ".ruff.toml";
   // A dedicated ruff.toml is a root-level ruff table; a pyproject nests it
   // under `[tool.ruff]`.
-  const ruff = isDedicatedConfig ? parsed
-    : (parsed.tool !== null && typeof parsed.tool === 'object' ? parsed.tool.ruff : null);
-  if (ruff === null || typeof ruff !== 'object') return [];
-  const lint = ruff.lint !== null && typeof ruff.lint === 'object' ? ruff.lint : null;
+  const ruff = isDedicatedConfig
+    ? parsed
+    : parsed.tool !== null && typeof parsed.tool === "object"
+      ? parsed.tool.ruff
+      : null;
+  if (ruff === null || typeof ruff !== "object") return [];
+  const lint = ruff.lint !== null && typeof ruff.lint === "object" ? ruff.lint : null;
   const records = [];
 
-  const selectRecord = ruleCodesRecord(lint, true, 'ruff-select');
+  const selectRecord = ruleCodesRecord(lint, true, "ruff-select");
   if (selectRecord !== null) records.push(selectRecord);
-  const ignoreRecord = ruleCodesRecord(lint, false, 'ruff-ignore');
+  const ignoreRecord = ruleCodesRecord(lint, false, "ruff-ignore");
   if (ignoreRecord !== null) records.push(ignoreRecord);
 
-  if (typeof ruff['line-length'] === 'number' && Number.isSafeInteger(ruff['line-length'])) {
-    records.push({ kind: 'line-length', count: ruff['line-length'] });
+  if (typeof ruff["line-length"] === "number" && Number.isSafeInteger(ruff["line-length"])) {
+    records.push({ kind: "line-length", count: ruff["line-length"] });
   }
-  if (typeof ruff['quote-style'] === 'string') {
-    const token = slugToken(ruff['quote-style']);
-    if (token !== null) records.push({ kind: 'quote-style', kinds: [token] });
+  if (typeof ruff["quote-style"] === "string") {
+    const token = slugToken(ruff["quote-style"]);
+    if (token !== null) records.push({ kind: "quote-style", kinds: [token] });
   }
-  const pydocstyle = lint !== null && lint.pydocstyle !== null
-    && typeof lint.pydocstyle === 'object' ? lint.pydocstyle : null;
-  if (pydocstyle !== null && typeof pydocstyle.convention === 'string') {
+  const pydocstyle =
+    lint !== null && lint.pydocstyle !== null && typeof lint.pydocstyle === "object"
+      ? lint.pydocstyle
+      : null;
+  if (pydocstyle !== null && typeof pydocstyle.convention === "string") {
     const token = slugToken(pydocstyle.convention);
-    if (token !== null) records.push({ kind: 'docstring-dialect', kinds: [token] });
+    if (token !== null) records.push({ kind: "docstring-dialect", kinds: [token] });
   }
   return records;
 }
@@ -183,7 +195,7 @@ const MAKEFILE_CHECK_TOGGLE_IFEQ = /\$\((CHECK_[A-Z0-9_]+)\)\s*,\s*true\)/g;
 const MAKEFILE_TARGET_LINE = /^([A-Za-z0-9_.%/-]+)\s*:\s*([^#\r\n]*)/gm;
 
 function makeToggleSlug(name) {
-  return name.toLowerCase().replace(/[_.]+/g, '-');
+  return name.toLowerCase().replace(/[_.]+/g, "-");
 }
 
 /**
@@ -197,12 +209,12 @@ function makeToggleSlug(name) {
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds? }]` records.
  */
-export function extractMakeTargets({ path, text = '' }) {
+export function extractMakeTargets({ path, text = "" }) {
   const base = basenameOf(String(path).toLowerCase());
-  if (base !== 'makefile' && base !== 'gnumakefile') return [];
+  if (base !== "makefile" && base !== "gnumakefile") return [];
   const targets = [];
   const seen = new Set();
-  const lines = String(text ?? '').split(/\r?\n/);
+  const lines = String(text ?? "").split(/\r?\n/);
   let inDefine = false;
   let continuation = false;
   for (const line of lines) {
@@ -217,7 +229,7 @@ export function extractMakeTargets({ path, text = '' }) {
     if (continuation) {
       if (/\\\s*$/.test(line)) continue;
       continuation = false;
-      if (line.startsWith('\t')) continue;
+      if (line.startsWith("\t")) continue;
     }
     if (!inDefine && /^[A-Za-z0-9_.%/-]+\s*:(?:[^=]|$)/.test(line)) {
       const name = line.match(/^([A-Za-z0-9_.%/-]+)\s*:/)?.[1];
@@ -230,22 +242,22 @@ export function extractMakeTargets({ path, text = '' }) {
       }
       continue;
     }
-    if (line.endsWith('\\')) {
+    if (line.endsWith("\\")) {
       continuation = true;
     }
   }
   const records = [];
   if (targets.length > 0) {
-    const buildable = targets.filter((token) => !token.startsWith('.'));
+    const buildable = targets.filter((token) => !token.startsWith("."));
     records.push({
-      kind: 'make-targets',
+      kind: "make-targets",
       count: capCount(buildable.length),
       kinds: targets.slice(0, PRACTICES_LIMITS.maxKinds),
     });
   }
   const checkToggles = [];
   const seenToggles = new Set();
-  for (const match of String(text ?? '').matchAll(MAKEFILE_CHECK_TOGGLE_IFEQ)) {
+  for (const match of String(text ?? "").matchAll(MAKEFILE_CHECK_TOGGLE_IFEQ)) {
     const token = makeToggleSlug(match[1]);
     if (!seenToggles.has(token)) {
       seenToggles.add(token);
@@ -254,17 +266,20 @@ export function extractMakeTargets({ path, text = '' }) {
   }
   if (checkToggles.length > 0) {
     records.push({
-      kind: 'make-check-toggles',
+      kind: "make-check-toggles",
       count: capCount(checkToggles.length),
       kinds: checkToggles.slice(0, PRACTICES_LIMITS.maxKinds),
     });
   }
-  for (const match of String(text ?? '').matchAll(MAKEFILE_TARGET_LINE)) {
-    if (match[1] !== 'ci-quality') continue;
-    const members = match[2].trim().split(/\s+/).filter((item) => item.length > 0);
+  for (const match of String(text ?? "").matchAll(MAKEFILE_TARGET_LINE)) {
+    if (match[1] !== "ci-quality") continue;
+    const members = match[2]
+      .trim()
+      .split(/\s+/)
+      .filter((item) => item.length > 0);
     if (members.length > 0) {
       records.push({
-        kind: 'make-ci-quality',
+        kind: "make-ci-quality",
         count: capCount(members.length),
         kinds: members.slice(0, PRACTICES_LIMITS.maxKinds),
       });
@@ -278,11 +293,28 @@ export function extractMakeTargets({ path, text = '' }) {
 // ---------------------------------------------------------------------------
 
 const HOOK_STAGE_NAMES = new Set([
-  'pre-commit', 'pre-push', 'commit-msg', 'prepare-commit-msg', 'pre-merge-commit',
-  'post-commit', 'post-merge', 'post-checkout', 'post-rewrite', 'post-update',
-  'pre-rebase', 'applypatch-msg', 'pre-applypatch', 'post-applypatch',
-  'pre-receive', 'update', 'post-receive', 'pre-auto-gc',
-  'post-index-change', 'reference-transaction', 'proc-receive', 'push-to-checkout',
+  "pre-commit",
+  "pre-push",
+  "commit-msg",
+  "prepare-commit-msg",
+  "pre-merge-commit",
+  "post-commit",
+  "post-merge",
+  "post-checkout",
+  "post-rewrite",
+  "post-update",
+  "pre-rebase",
+  "applypatch-msg",
+  "pre-applypatch",
+  "post-applypatch",
+  "pre-receive",
+  "update",
+  "post-receive",
+  "pre-auto-gc",
+  "post-index-change",
+  "reference-transaction",
+  "proc-receive",
+  "push-to-checkout",
 ]);
 
 const HOOK_STAGE_LINE = /^([A-Za-z0-9_.-]+):\s*(?:#.*)?$/;
@@ -337,7 +369,7 @@ function lefthookHookBodies(source) {
  * @returns {number|null} the authored stage count, or null.
  */
 function authoredStageCount(commentLines) {
-  const text = commentLines.join('\n');
+  const text = commentLines.join("\n");
   let maxLabel = 0;
   let found = false;
   for (const match of text.matchAll(/\bStage\s+(\d{1,3})\b/gi)) {
@@ -421,9 +453,9 @@ function hookSemanticsTokens(body) {
   const hookPiped = /^\s{2}piped:\s*true\b/m.test(body);
   const groupPiped = /^\s{4,}piped:\s*true\b/m.test(body);
   const groupParallel = /^\s{4,}parallel:\s*true\b/m.test(body);
-  if (hookPiped) add('piped');
-  if (hookPiped || groupPiped) add('abort-on-failure');
-  if (groupParallel) add('parallel');
+  if (hookPiped) add("piped");
+  if (hookPiped || groupPiped) add("abort-on-failure");
+  if (groupParallel) add("parallel");
   for (const owner of stdinOwnerSlugs(body)) add(`stdin-owner:${owner}`);
   return kinds;
 }
@@ -438,22 +470,24 @@ function hookSemanticsTokens(body) {
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds? }]` records.
  */
-export function extractLefthookStages({ path, text = '' }) {
+export function extractLefthookStages({ path, text = "" }) {
   const base = basenameOf(String(path).toLowerCase());
   if (!isLefthookPath(base)) return [];
-  const source = String(text ?? '');
+  const source = String(text ?? "");
   const hooks = lefthookHookBodies(source).map((hook) => ({
     name: hook.name,
     comment: hook.comment,
-    body: hook.body.join('\n'),
+    body: hook.body.join("\n"),
   }));
   if (hooks.length === 0) return [];
-  const records = [{
-    kind: 'hook-stages',
-    count: capCount(hooks.length),
-    kinds: hooks.map((hook) => hook.name).slice(0, PRACTICES_LIMITS.maxKinds),
-  }];
-  records.push({ kind: 'hook-jobs', count: capCount(countLefthookJobs(source, hooks)) });
+  const records = [
+    {
+      kind: "hook-stages",
+      count: capCount(hooks.length),
+      kinds: hooks.map((hook) => hook.name).slice(0, PRACTICES_LIMITS.maxKinds),
+    },
+  ];
+  records.push({ kind: "hook-jobs", count: capCount(countLefthookJobs(source, hooks)) });
   for (const hook of hooks) {
     const stageCount = authoredStageCount(hook.comment) ?? topLevelStageCount(hook.body);
     records.push({
@@ -474,8 +508,8 @@ const GATE_INTEGER = /^[+-]?\d+$/;
 const GATE_FLOAT = /^[+-]?(\d+\.\d*|\.\d+)([eE][+-]?\d+)?$/;
 // Allowlisted keys that may carry their real string value through the bounded
 // token-safe value channel (percent-encoded so it survives the kinds set).
-const GATE_STRING_VALUE_KEYS = new Set(['semgrepseverity']);
-const GATE_FALSY_VALUES = new Set(['false', '0', 'no', 'off', '']);
+const GATE_STRING_VALUE_KEYS = new Set(["semgrepseverity"]);
+const GATE_FALSY_VALUES = new Set(["false", "0", "no", "off", ""]);
 
 /**
  * Percent-encode a gate string value into a single token-safe kind:
@@ -486,10 +520,10 @@ const GATE_FALSY_VALUES = new Set(['false', '0', 'no', 'off', '']);
  */
 function encodeValueToken(value) {
   return String(value).replace(/[^\x20-\x7e]|%| /g, (ch) => {
-    if (ch === ' ') return '%20';
-    return [...Buffer.from(ch, 'utf8')]
-      .map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, '0')}`)
-      .join('');
+    if (ch === " ") return "%20";
+    return [...Buffer.from(ch, "utf8")]
+      .map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
+      .join("");
   });
 }
 
@@ -502,24 +536,24 @@ function gatesHeaderKinds(source) {
   const comment = [];
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.startsWith('#')) {
+    if (trimmed.startsWith("#")) {
       comment.push(trimmed.slice(1).trim());
       continue;
     }
-    if (trimmed !== '') break;
+    if (trimmed !== "") break;
   }
-  const text = comment.join(' ');
+  const text = comment.join(" ");
   const kinds = [];
   const add = (token) => {
     if (!kinds.includes(token)) kinds.push(token);
   };
-  if (/denied\s+to\s+(?:coding\s+)?agents?/i.test(text)) add('denied-to-agents');
-  if (/\bfloor|locked\b/i.test(text)) add('locked-floors');
-  if (/human/i.test(text)) add('human-change');
+  if (/denied\s+to\s+(?:coding\s+)?agents?/i.test(text)) add("denied-to-agents");
+  if (/\bfloor|locked\b/i.test(text)) add("locked-floors");
+  if (/human/i.test(text)) add("human-change");
   if (/remove\s+(?:the\s+)?deny\s+rule/i.test(text) && /restore/i.test(text)) {
-    add('deny-remove-restore');
+    add("deny-remove-restore");
   }
-  if (/tighten/i.test(text) && /loosen/i.test(text)) add('tighten-not-loosen');
+  if (/tighten/i.test(text) && /loosen/i.test(text)) add("tighten-not-loosen");
   return kinds;
 }
 
@@ -534,20 +568,20 @@ function gatesHeaderKinds(source) {
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds? }]` records, one per key.
  */
-export function extractGateValues({ path, text = '' }) {
+export function extractGateValues({ path, text = "" }) {
   const lower = String(path).toLowerCase();
   if (!isQualityGatesPath(lower)) return [];
   const records = [];
-  const source = String(text ?? '');
+  const source = String(text ?? "");
   const headerKinds = gatesHeaderKinds(source);
-  if (headerKinds.length > 0) records.push({ kind: 'gates-header', kinds: headerKinds });
+  if (headerKinds.length > 0) records.push({ kind: "gates-header", kinds: headerKinds });
   for (const match of source.matchAll(GATE_LINE)) {
     const name = match[1];
-    const value = match[2].replace(/\s+#.*$/, '').trim();
-    const normalized = name.toLowerCase().replace(/[_.-]/g, '');
-    if (normalized.startsWith('check')) {
+    const value = match[2].replace(/\s+#.*$/, "").trim();
+    const normalized = name.toLowerCase().replace(/[_.-]/g, "");
+    if (normalized.startsWith("check")) {
       records.push({
-        kind: `check-toggle:${name.toLowerCase().replace(/[_.]+/g, '-')}`,
+        kind: `check-toggle:${name.toLowerCase().replace(/[_.]+/g, "-")}`,
         count: toggleCount(value),
       });
       continue;
@@ -556,7 +590,11 @@ export function extractGateValues({ path, text = '' }) {
     const kind = `gate-value:${normalized}`;
     if (GATE_STRING_VALUE_KEYS.has(normalized)) {
       const encoded = encodeValueToken(value);
-      if (encoded.length > 0 && encoded.length <= PRACTICES_LIMITS.kind && TOKEN_PATTERN.test(encoded)) {
+      if (
+        encoded.length > 0 &&
+        encoded.length <= PRACTICES_LIMITS.kind &&
+        TOKEN_PATTERN.test(encoded)
+      ) {
         records.push({ kind, kinds: [encoded] });
       } else {
         records.push({ kind });
@@ -582,7 +620,7 @@ export function extractGateValues({ path, text = '' }) {
 // opencode.jsonc deny rules, adjacent semantics, and plugin inventory
 // ---------------------------------------------------------------------------
 
-const OPENCODE_PATHS = new Set(['opencode.jsonc', '.opencode/opencode.jsonc']);
+const OPENCODE_PATHS = new Set(["opencode.jsonc", ".opencode/opencode.jsonc"]);
 
 const OPENCODE_DENY_ENTRY = /"[^"]+":\s*"deny"/;
 
@@ -612,50 +650,50 @@ function jsoncCommentBlocks(source) {
       flush();
       i++;
       while (i < n && source[i] !== '"') {
-        if (source[i] === '\\') i++;
-        if (source[i] === '\n') line++;
+        if (source[i] === "\\") i++;
+        if (source[i] === "\n") line++;
         i++;
       }
       i++;
       continue;
     }
-    if (ch === '/' && next === '/') {
+    if (ch === "/" && next === "/") {
       const start = line;
       const text = [];
       i += 2;
-      while (i < n && source[i] !== '\n') {
+      while (i < n && source[i] !== "\n") {
         text.push(source[i]);
         i++;
       }
       if (current !== null && current.end + 1 === line) {
-        current.text += ` ${text.join('')}`;
+        current.text += ` ${text.join("")}`;
         current.end = line;
       } else {
         flush();
-        current = { start, end: line, text: text.join('') };
+        current = { start, end: line, text: text.join("") };
       }
       continue;
     }
-    if (ch === '/' && next === '*') {
+    if (ch === "/" && next === "*") {
       const start = line;
       const text = [];
       i += 2;
-      while (i < n && !(source[i] === '*' && source[i + 1] === '/')) {
-        if (source[i] === '\n') line++;
+      while (i < n && !(source[i] === "*" && source[i + 1] === "/")) {
+        if (source[i] === "\n") line++;
         else text.push(source[i]);
         i++;
       }
       i += 2;
       if (current !== null && current.end + 1 === start) {
-        current.text += ` ${text.join('')}`;
+        current.text += ` ${text.join("")}`;
         current.end = line;
       } else {
         flush();
-        current = { start, end: line, text: text.join('') };
+        current = { start, end: line, text: text.join("") };
       }
       continue;
     }
-    if (ch === '\n') line++;
+    if (ch === "\n") line++;
     else if (!/\s/.test(ch)) flush();
     i++;
   }
@@ -676,14 +714,17 @@ function denyCommentKinds(text) {
     if (token !== null && token.length > 0 && !kinds.includes(token)) kinds.push(token);
   };
   for (const match of text.matchAll(/\b(OPENCODE_[A-Z0-9_]+)\b/g)) {
-    add(`override-env:${match[1].toLowerCase().replace(/_/g, '-')}`);
+    add(`override-env:${match[1].toLowerCase().replace(/_/g, "-")}`);
   }
-  if (/human override/i.test(text)) add('human-override');
+  if (/human override/i.test(text)) add("human-override");
   if (/remove\s+(?:the\s+)?deny\s+rule/i.test(text) && /restore/i.test(text)) {
-    add('deny-remove-restore');
+    add("deny-remove-restore");
   }
-  if (/(?:denied|blocked)\s+to\s+(?:coding\s+)?agents?/i.test(text) || /not\s+permitted/i.test(text)) {
-    add('agent-denied');
+  if (
+    /(?:denied|blocked)\s+to\s+(?:coding\s+)?agents?/i.test(text) ||
+    /not\s+permitted/i.test(text)
+  ) {
+    add("agent-denied");
   }
   return kinds;
 }
@@ -697,24 +738,28 @@ function denyCommentKinds(text) {
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds? }]` records.
  */
-export function extractOpencodeWorkflow({ path, text = '' }) {
+export function extractOpencodeWorkflow({ path, text = "" }) {
   const lower = String(path).toLowerCase();
   if (!OPENCODE_PATHS.has(lower)) return [];
-  const rawSource = String(text ?? '');
+  const rawSource = String(text ?? "");
   let parsed;
   try {
     parsed = JSON.parse(removeJsonTrailingCommas(stripJsonComments(rawSource)));
   } catch {
     return [];
   }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return [];
   const records = [];
 
-  const permission = parsed.permission !== null && typeof parsed.permission === 'object'
-    ? parsed.permission : null;
-  const edit = permission !== null && permission.edit !== null
-    && typeof permission.edit === 'object' && !Array.isArray(permission.edit)
-    ? permission.edit : null;
+  const permission =
+    parsed.permission !== null && typeof parsed.permission === "object" ? parsed.permission : null;
+  const edit =
+    permission !== null &&
+    permission.edit !== null &&
+    typeof permission.edit === "object" &&
+    !Array.isArray(permission.edit)
+      ? permission.edit
+      : null;
   if (edit !== null) {
     const denyGlobs = [];
     const seenGlobs = new Set();
@@ -725,7 +770,7 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
     }
     const comments = jsoncCommentBlocks(rawSource);
     for (const [glob, mode] of Object.entries(edit)) {
-      if (mode !== 'deny') continue;
+      if (mode !== "deny") continue;
       const token = slugToken(glob);
       if (token !== null && !seenGlobs.has(token)) {
         seenGlobs.add(token);
@@ -734,7 +779,7 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
     }
     if (denyGlobs.length > 0) {
       records.push({
-        kind: 'deny-rules',
+        kind: "deny-rules",
         count: capCount(denyGlobs.length),
         kinds: denyGlobs.slice(0, PRACTICES_LIMITS.maxKinds),
       });
@@ -749,7 +794,7 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
     }
     if (semantics.size > 0) {
       records.push({
-        kind: 'deny-rule-semantics',
+        kind: "deny-rule-semantics",
         count: capCount(denyLines.length),
         kinds: [...semantics].slice(0, PRACTICES_LIMITS.maxKinds),
       });
@@ -760,7 +805,7 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
     const plugins = [];
     const seenPlugins = new Set();
     for (const item of parsed.plugin) {
-      if (typeof item !== 'string') continue;
+      if (typeof item !== "string") continue;
       const token = slugToken(item);
       if (token !== null && !seenPlugins.has(token)) {
         seenPlugins.add(token);
@@ -769,7 +814,7 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
     }
     if (plugins.length > 0) {
       records.push({
-        kind: 'opencode-plugins',
+        kind: "opencode-plugins",
         count: capCount(plugins.length),
         kinds: plugins.slice(0, PRACTICES_LIMITS.maxKinds),
       });
@@ -783,7 +828,10 @@ export function extractOpencodeWorkflow({ path, text = '' }) {
 // ---------------------------------------------------------------------------
 
 const CONVENTION_DOC_PATHS = new Set([
-  'agents.md', '.agents/agents.md', 'contributing.md', '.github/contributing.md',
+  "agents.md",
+  ".agents/agents.md",
+  "contributing.md",
+  ".github/contributing.md",
 ]);
 
 const MARKDOWN_HEADING = /^#{1,6}\s+([^\r\n]+?)\s*#*\s*$/gm;
@@ -795,12 +843,12 @@ const MARKDOWN_HEADING = /^#{1,6}\s+([^\r\n]+?)\s*#*\s*$/gm;
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds? }]` records.
  */
-export function extractDeclaredConventions({ path, text = '' }) {
+export function extractDeclaredConventions({ path, text = "" }) {
   const lower = String(path).toLowerCase();
   if (!CONVENTION_DOC_PATHS.has(lower)) return [];
   const headings = [];
   const seen = new Set();
-  const source = String(text ?? '');
+  const source = String(text ?? "");
   for (const match of source.matchAll(MARKDOWN_HEADING)) {
     const token = headingSlug(match[1]);
     if (token !== null && !seen.has(token)) {
@@ -809,11 +857,13 @@ export function extractDeclaredConventions({ path, text = '' }) {
     }
   }
   if (headings.length === 0) return [];
-  return [{
-    kind: 'declared-conventions',
-    count: capCount(headings.length),
-    kinds: headings.slice(0, PRACTICES_LIMITS.maxKinds),
-  }];
+  return [
+    {
+      kind: "declared-conventions",
+      count: capCount(headings.length),
+      kinds: headings.slice(0, PRACTICES_LIMITS.maxKinds),
+    },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -827,9 +877,10 @@ const EXIT_CODE_CONSTANT_LINE = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]*)?=\s*(
 const EXCEPTION_TABLE_ROW = /\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/g;
 
 function pairSlug(name) {
-  return String(name).toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 /**
@@ -876,16 +927,24 @@ function httpSpecialCases(source, constants) {
     const setMatch = /status\s+in\s*\{([^}]*)\}/.exec(line);
     if (setMatch !== null) {
       const members = [...setMatch[1].matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)].map((m) => m[0]);
-      const ints = members.map((name) => constants.get(name))
-        .filter((value) => typeof value === 'number')
+      const ints = members
+        .map((name) => constants.get(name))
+        .filter((value) => typeof value === "number")
         .toSorted((left, right) => left - right);
-      if (ints.length === 2 && ints[0] === 401 && ints[1] === 403) expectation = '401-403';
+      if (ints.length === 2 && ints[0] === 401 && ints[1] === 403) expectation = "401-403";
     } else {
-      const cmpMatch = /status\s*==\s*([A-Za-z_][A-Za-z0-9_]*|\d+)\s+or\s+status\s*>=\s*([A-Za-z_][A-Za-z0-9_]*|\d+)/.exec(line);
+      const cmpMatch =
+        /status\s*==\s*([A-Za-z_][A-Za-z0-9_]*|\d+)\s+or\s+status\s*>=\s*([A-Za-z_][A-Za-z0-9_]*|\d+)/.exec(
+          line,
+        );
       if (cmpMatch !== null) {
-        const first = /^\d+$/.test(cmpMatch[1]) ? parseInt(cmpMatch[1], 10) : constants.get(cmpMatch[1]);
-        const second = /^\d+$/.test(cmpMatch[2]) ? parseInt(cmpMatch[2], 10) : constants.get(cmpMatch[2]);
-        if (first === 429 && second === 500) expectation = '429-5xx';
+        const first = /^\d+$/.test(cmpMatch[1])
+          ? parseInt(cmpMatch[1], 10)
+          : constants.get(cmpMatch[1]);
+        const second = /^\d+$/.test(cmpMatch[2])
+          ? parseInt(cmpMatch[2], 10)
+          : constants.get(cmpMatch[2]);
+        if (first === 429 && second === 500) expectation = "429-5xx";
       }
     }
     if (expectation === null) continue;
@@ -893,7 +952,7 @@ function httpSpecialCases(source, constants) {
       const ret = /return\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(lines[j]);
       if (ret === null) continue;
       const code = constants.get(ret[1]);
-      if (typeof code === 'number') push(`http-${expectation}-${code}`);
+      if (typeof code === "number") push(`http-${expectation}-${code}`);
       break;
     }
   }
@@ -908,26 +967,26 @@ function httpSpecialCases(source, constants) {
  * @param {object} input - `{ path, text }`.
  * @returns {object[]} `[{ kind, count?, kinds? }]` records.
  */
-export function extractExceptionsHub({ path, text = '' }) {
+export function extractExceptionsHub({ path, text = "" }) {
   const base = basenameOf(String(path).toLowerCase());
   if (!EXCEPTIONS_HUB_BASENAME.test(base)) return [];
-  const source = String(text ?? '');
+  const source = String(text ?? "");
   const records = [];
   const exceptionClasses = source.match(EXCEPTION_CLASS) ?? [];
   const bareConstants = source.match(BARE_UPPERCASE_CONSTANT) ?? [];
   const roleCount = capCount(exceptionClasses.length + bareConstants.length);
-  if (roleCount > 0) records.push({ kind: 'exceptions-hub', count: roleCount });
+  if (roleCount > 0) records.push({ kind: "exceptions-hub", count: roleCount });
 
   const constants = new Map();
   for (const match of source.matchAll(EXIT_CODE_CONSTANT_LINE)) {
     constants.set(match[1], parseInt(match[2], 10));
   }
   const exitCodePairs = [...constants]
-    .filter(([name]) => /^[A-Z][A-Z0-9_]*$/.test(name) && !name.startsWith('_'))
+    .filter(([name]) => /^[A-Z][A-Z0-9_]*$/.test(name) && !name.startsWith("_"))
     .map(([name, value]) => `${pairSlug(name)}-${value}`);
   if (exitCodePairs.length > 0) {
     records.push({
-      kind: 'exit-code-constant',
+      kind: "exit-code-constant",
       count: capCount(exitCodePairs.length),
       kinds: exitCodePairs.slice(0, PRACTICES_LIMITS.maxKinds),
     });
@@ -936,11 +995,11 @@ export function extractExceptionsHub({ path, text = '' }) {
   if (tableRows.length > 0) {
     const pairs = tableRows.map(([className, codeName]) => {
       const resolved = constants.get(codeName);
-      const suffix = typeof resolved === 'number' ? String(resolved) : pairSlug(codeName);
+      const suffix = typeof resolved === "number" ? String(resolved) : pairSlug(codeName);
       return `${pairSlug(className)}-${suffix}`;
     });
     records.push({
-      kind: 'exit-code-exception',
+      kind: "exit-code-exception",
       count: capCount(pairs.length),
       kinds: pairs.slice(0, PRACTICES_LIMITS.maxKinds),
     });
@@ -948,7 +1007,7 @@ export function extractExceptionsHub({ path, text = '' }) {
   const httpKinds = httpSpecialCases(source, constants);
   if (httpKinds.length > 0) {
     records.push({
-      kind: 'exit-code-http',
+      kind: "exit-code-http",
       kinds: httpKinds.slice(0, PRACTICES_LIMITS.maxKinds),
     });
   }
