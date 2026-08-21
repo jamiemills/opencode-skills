@@ -14,726 +14,726 @@
   ],
   "fixedBin": {
     "path": "bin/csm-skills-bootstrap.js",
-    "sha256": "fce528a6e51d8c5f6d1442fb4f447c25ce5ab2244b63c7de967714aab3328f6c",
-    "bytes": 9535,
+    "sha256": "2dd09385dbc0c17a34eda3af9dafe4f98c93c374ba27bce30efee28e470e01f3",
+    "bytes": 9962,
     "mode": "0755"
   },
   "classes": {
     "skills": [
       {
         "path": "payload/skills/csm-bdd-tdd/SKILL.md",
-        "sha256": "96935debbbbd18e23f59d93a0a563bfe8c07ef3dde60418f287cb24ff2e32da2",
-        "bytes": 21199,
+        "sha256": "5eee1e6ec74aa96355b570e62f2e3b5de2ec6a37446e0ac911b0e323e80d6331",
+        "bytes": 21203,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-browse/SKILL.md",
-        "sha256": "f81fb1dc0d6225df93f623cc58073b1f0fd449c890f61196839d97ea82437c1e",
-        "bytes": 11775,
+        "sha256": "496623761ac7751b5ca2bce0bea72bc3483a496064dcaa5ca15535511bc71b0b",
+        "bytes": 18379,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "dcb50af2ab9beb03157ad6bf23b830f165e5d7fc2c65144ff550962d5c4d6be2",
-        "bytes": 23138,
+        "sha256": "b0c72297be198a3b929367779d1baad1d05c41a11020f7e5c5dbd82509782bb5",
+        "bytes": 23144,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-deep-research/SKILL.md",
-        "sha256": "8d0fc08e245dfaa9c3f235c3dd35b12a0f1b096777a387aab87ab4bdaaa75aa6",
-        "bytes": 54124,
+        "sha256": "4c264699b0c146e20f445077b278a977bebe9817337cec079af4b670afa77b94",
+        "bytes": 54246,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-grill/SKILL.md",
-        "sha256": "46fc1939d784fd924458ac3b0c05839c7de47a712159dddef148ee91c0729ba7",
-        "bytes": 13528,
+        "sha256": "0c235c358b20c738ca572fc7b9ecf0403deede7c66592a0107ffe826d5464cdd",
+        "bytes": 14561,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "9237f81f632e26fd15cfcfca0b436ac2468723c12ffed0be2e3f15c0b789d7cb",
-        "bytes": 24593,
+        "sha256": "0ded7fcc92b1f101bc219f5bb2961b98e3dce33debbd1866608704cf877dfd7d",
+        "bytes": 24807,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "66200d77cf5f8944d8b0d39e92ca7a967222107298c1a49f95fba875740be962",
-        "bytes": 29732,
+        "sha256": "f71ea47dc18e9346b23c038b83934d1a9ff378add49a48d2a9ce480cd565fa7e",
+        "bytes": 35046,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/SKILL.md",
-        "sha256": "876ef9ac64c4bb4471656d4197f5a8432637578cfa67f94c06f22dd897cd0539",
-        "bytes": 23166,
+        "sha256": "2359a94bcf437bdd2ca6725cb048f328adae3048b3b7f3f16fd345587080c09d",
+        "bytes": 53006,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-upload/SKILL.md",
-        "sha256": "04c7b72ecdee7260a33e15a09fac81afa49fbd353912398768cc8e1b8d641930",
-        "bytes": 2352,
+        "sha256": "e0e2c40541781e2c8039e8688a8701bcde569ae464c3f189a9dd84822cd7b350",
+        "bytes": 2357,
         "mode": "0644"
       }
     ],
     "supportingFiles": [
       {
         "path": "payload/skills/csm-scan/lib/scan/contracts/dimension.mjs",
-        "sha256": "e0705a63be8a40e19074673825ed8aa69e459f91cdc15fd983e35292644e9f33",
-        "bytes": 21550,
+        "sha256": "1cd5ee7157daf3ee9bb87b1eb55ec54f5127ae9f4ec0baeff7aee128e87ebf91",
+        "bytes": 22610,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/contracts/evidence.mjs",
-        "sha256": "4f22466e1bfc17e842b7bf5aae77aa1f91e44b04c9c32cd2cb4df6764d22379b",
-        "bytes": 19143,
+        "sha256": "358a347b0b8b16bec12fdc9870e1ba9aaf9110c3e8249545e8f33937e52f5c7f",
+        "bytes": 20175,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/contracts/provider.mjs",
-        "sha256": "7a8dd351ecc79429251c47bf577384adcaeb12a6c6617932b3cd756b7aeb3f3c",
-        "bytes": 4133,
+        "sha256": "fc0b1758062f653867542d848a22bc47536d280c6d2b785d269fd4487decc646",
+        "bytes": 4206,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/cross-repo/edges.mjs",
-        "sha256": "74d6cc4e6106f238dd7ffda546d993eb4ffbe1b201c52b0f05adacb9202e7e5c",
-        "bytes": 13327,
+        "sha256": "4c6967ca5c32d66948974fc3c2b05b70f4abe22a25cf85eed5d086a9bfce679a",
+        "bytes": 13405,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/cross-repo/identity.mjs",
-        "sha256": "a160adb84d4c8d48609555cf959987f1e7635faee7dd27b5e43bfd6c3fc6e03d",
-        "bytes": 21001,
+        "sha256": "05b0b17801ce92a849a472c46ad7bef3113ae367fd31dad130154095af72794f",
+        "bytes": 21194,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/cross-repo/render.mjs",
-        "sha256": "f20d323b2b4226d0ec204055d7584bf09543e3bb116c433b02fef9c4b5902cb2",
-        "bytes": 6936,
+        "sha256": "fd62179bb051dce573ada60562a6ec53c1831f6da5ea5e62483fe2d9b12b52a9",
+        "bytes": 7215,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/api/extractor.mjs",
-        "sha256": "fb76ea6a34f7292d02f5e74672387313003c4336b861a1c6dfd1f6da34ef6be4",
-        "bytes": 51144,
+        "sha256": "02a51d4707dbf16ced9214364dd815ed1320022417ff668395e72f58fe53986f",
+        "bytes": 53033,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/api/model.mjs",
-        "sha256": "334b40483923695a2e40d1f8d0e2c30e14c39f3ecc0f9fcf33b772112876b208",
-        "bytes": 15108,
+        "sha256": "bb34b9bb1947dd47a6409587c6cef850aced3eeff87f5a8d4d431d524f762e50",
+        "bytes": 15337,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/api/scanner.mjs",
-        "sha256": "d4daacf2185e31198f4fec12ca0212a7a67435c5d00464fb97186ae197292d42",
-        "bytes": 7157,
+        "sha256": "d9aab4411af037227836319bddc8060cc72d26a767ee027accf2ec5f347eedc7",
+        "bytes": 7161,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/architecture.mjs",
-        "sha256": "2ec786ade529fdbe94aee4735899d81750eec1f465cadbe56df0e84d51d29eb2",
-        "bytes": 56382,
+        "sha256": "8fa25c907ffa89b3a5b612c34320719a28ac67ee832f615950c2b239f62caee7",
+        "bytes": 58074,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/architecture/canonical.mjs",
-        "sha256": "0fa3155aada79f02f2d34765e67c358d3721b111f42c51164659817170c4d33e",
-        "bytes": 8296,
+        "sha256": "c6f67469f7d5701dd9002a8ee515b464f0dbf7b27ec7560023a34a78d4dda000",
+        "bytes": 8347,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/architecture/craft.mjs",
-        "sha256": "b8fc6ea2969361be134672b05e60874585b258a7e4db3c41b7a9ad171874934c",
-        "bytes": 13141,
+        "sha256": "3cc15f5ac025b560306e65188d3d2de01add6322ace9f64b729654d9f4abecf9",
+        "bytes": 13235,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/architecture/graph-facts.mjs",
-        "sha256": "1e7028a37ba9867063b4217a88db760474e775a14438de3e73958ee173bf004c",
-        "bytes": 6504,
+        "sha256": "93009b6cd65cc3ea784d90b2d5b687b8f3ed899f0c0043a6d7d812f1e6936c8d",
+        "bytes": 6606,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/architecture/indicators.mjs",
-        "sha256": "77dd65cdc02e85f634cccb39499d0f963efb4b977ca41ee3791434b1ed0adad3",
-        "bytes": 17096,
+        "sha256": "d9e8333b1a9a6710ac699c86e71cb0ba0f9df7b36d2bfc242e49852400f3d210",
+        "bytes": 17297,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/assurance/model.mjs",
-        "sha256": "1ef864cb074829d730805d61f9dc592c9a85acbc2055acea03270da1dbcf7593",
-        "bytes": 17198,
+        "sha256": "9dd84335c468f8b190bef5380517b893f4f48485031bb7be095bf6c050f8701b",
+        "bytes": 17408,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/assurance/parsers.mjs",
-        "sha256": "b85f6a79e03bd6fa052500b7cac132b092b1049435c499e0fe80038c610d19ae",
-        "bytes": 34839,
+        "sha256": "877603238a4bebe4c599c4260e263996c8132f6d07c282e0507044842fd05c7b",
+        "bytes": 36195,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/assurance/scanner.mjs",
-        "sha256": "47ca55ee8962145e4a30b966787a0234d795f39e0b8003cda8e48b50ea2a540a",
-        "bytes": 8871,
+        "sha256": "4b50a57230210e791cc8491724886c4cfbf9d8256dffef8918c604505666b0bc",
+        "bytes": 8933,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/config.mjs",
-        "sha256": "421ceb56eb79866ee5963ed496518911b7fb31332e06cb7d480ddfb52ce9f96f",
-        "bytes": 27302,
+        "sha256": "2955ddd744607a74858733d40430dfea117cddcd62f2664cfe23cc336dd116f2",
+        "bytes": 27452,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/conventions.mjs",
-        "sha256": "ed958f5a9c94e186d5f4d5e968f1c6f4670546bf5b09fcac880d0f9db50f8b09",
-        "bytes": 54254,
+        "sha256": "4b2af833eca93f5adef5cd916ce78dbbdce737725410bc46fb48907b8d3f46dc",
+        "bytes": 54904,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/data/extractor.mjs",
-        "sha256": "ccbcbebb728be3638319a71eddad4f6f916215733401b340ad35fc59d784b56b",
-        "bytes": 57924,
+        "sha256": "fe18905a17d672d5986252121305d50932f27077bbc755b008dda0d6e84db81b",
+        "bytes": 61195,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/data/model.mjs",
-        "sha256": "c2d4ce10a663b36a12d9c6eb209233fcc8ca276609ee9bbe440801a3190e9d46",
-        "bytes": 29397,
+        "sha256": "4e39cca7d49069dfbe68402adb2192d6d4c120de463908585f55b9ad73d94d76",
+        "bytes": 29975,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/data/scanner.mjs",
-        "sha256": "517958565f742cab43abc4e404f601cfc0a7a37d5d64ef1f20eb8bb32da89f37",
-        "bytes": 7294,
+        "sha256": "627a24f2d838dfd47ed0c5dd4a25f868d894a3fd582e2ff22ed5ecb335010f50",
+        "bytes": 7340,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/deployment/extractor.mjs",
-        "sha256": "ba8780c1f24e1be0b0404429b20ae0bc2ab49f9d57cac94f3dbcf1763f9ad4cc",
-        "bytes": 52302,
+        "sha256": "780cb91e35637082b7c3482bd8040da884d3706809d7bd77f56292f0a3069a26",
+        "bytes": 53582,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/deployment/model.mjs",
-        "sha256": "2b8e59439ee2cd8c9a7e696ae754b7e34e1c5a9e5340b0cbe00ef03d15758b48",
-        "bytes": 19776,
+        "sha256": "a82af0df5ba15110195f8db42e40b621201b894e9e5732f21ac2ada31fc30d43",
+        "bytes": 20103,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/deployment/scanner.mjs",
-        "sha256": "ac59dd99bf882ed781fd33d2c9d96bd03902ab0b12d8f6240695561e06171cdd",
-        "bytes": 6690,
+        "sha256": "e3581efbecc179031b83d4cfbc02348fd6ad566934c1f0c9bc3d9368f1462406",
+        "bytes": 6744,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/documentation.mjs",
-        "sha256": "7ed7a0c429420b66364521b5f38afb0d0e5abf9ccc0435b52458622b0f3a38c7",
-        "bytes": 20515,
+        "sha256": "9983e7a7a2acdfa958d99cd9b5494e44323392057639482b5350bbb5bbcc6457",
+        "bytes": 20733,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/git.mjs",
-        "sha256": "268d82be0c4f3ebe91b855f2b66da4eccac9c30787dbd974658bdb93b97285d1",
-        "bytes": 10026,
+        "sha256": "e35369bfeaada18d3164a221960357d11f9ab989747dccfda2be69f7e36851ac",
+        "bytes": 10068,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/governance/codeowners.mjs",
-        "sha256": "483b6c2db1742a5f4306c16c453e11df390afbfdcd4eaf7c421f8a5d8a209b7c",
-        "bytes": 10206,
+        "sha256": "8b6b6565037231fb9983bb2954c7a1b8d0a111872e0693f6ad946c643a241939",
+        "bytes": 10446,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/governance/model.mjs",
-        "sha256": "a5233be106db2019d5a3c26b82ef9b7fff05d3eceba2fd0bacbacf9d5e7627b2",
-        "bytes": 30913,
+        "sha256": "a5ca2e7077ab1d2d0e79c40df19ea4a419acab66f31ff86fe2f0a0cb857f4473",
+        "bytes": 31393,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/governance/scanner.mjs",
-        "sha256": "ac8109144faef8752fb810a806ebd0a7e577d80021cbbb568ffcdad269111b93",
-        "bytes": 7796,
+        "sha256": "464ea3824a1c368124cfca2e8e260637f99fc608d64f1e6b077f3549cb5ac242",
+        "bytes": 7949,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/maintainability/duplicates.mjs",
-        "sha256": "d5ddc1206bf0a22ad09fab1fc6ac8312198c9759ef41b259fe4b7644469def4a",
-        "bytes": 11466,
+        "sha256": "3c177c42d14764733e198669bccbc6df6e904c3dc051c09c62b6572aec9b7366",
+        "bytes": 11606,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/maintainability/model.mjs",
-        "sha256": "55d2ebe1e12847c2ddd891f374a39d05c89f27556d2ec73c298434ca033e63fb",
-        "bytes": 41772,
+        "sha256": "6f4dafca6b7b7827841e4e7b8c0bd2537b836bf9b73cd11c09e49762c6bfe3c5",
+        "bytes": 42378,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/maintainability/scanner.mjs",
-        "sha256": "d6d4876c01ca73ca7920e648fae5683c9ce67c9801f4dff8c17430ec672ccdc4",
-        "bytes": 10494,
+        "sha256": "47e29bc26a06e41961ee3abda6d77ea28d2554eafa960fa56cc78904eb540c36",
+        "bytes": 10690,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/maintainability/tokenizer.mjs",
-        "sha256": "cf788b4cc252aa0aa9ecd6b09f08c77dad2abf25894355d4bf4b4ed069d3709b",
-        "bytes": 34698,
+        "sha256": "f5e156d4af70f3677a1389a856c9acfc05e62ac2a4e808f6892f7326bac8bc07",
+        "bytes": 35940,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/operations.mjs",
-        "sha256": "b4a70ea7ee3831b9c3b28a19e54175ffb4b0be23a15d202a2f5e303fd8b5a4ed",
-        "bytes": 33188,
+        "sha256": "891b202acb278b28c2667545ee52b8d1a620669c536d26c8cfe46a89a3ec63e4",
+        "bytes": 33409,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/practices/content.mjs",
-        "sha256": "061cb1fdf65396e8b97725570f4d09fd486fa7b7bdb0605fda446a2f03b45487",
-        "bytes": 26072,
+        "sha256": "14f354e48ddef6b2b79f427b7f9d71fb06576c3cfe0f32b109e72cb6aed7d120",
+        "bytes": 26277,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/practices/model.mjs",
-        "sha256": "04e26dd6f066ae2f5d2386c092f18f92e9615e302ba6f92fbb84f0854ddeecf5",
-        "bytes": 44220,
+        "sha256": "c39ff5487afc5ac116de5e2d4aa808f1268f8110c868f9faaac4badd8ed715d0",
+        "bytes": 44617,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/practices/scanner.mjs",
-        "sha256": "c35e36313556d7fb5d23442cdc42aa09fd56246eb0653fcd1b9af66e2684736d",
-        "bytes": 9980,
+        "sha256": "ace1ae9dc839dd52481099c02aaf754dcd4c2dda4d9a2858720dd525c68123e8",
+        "bytes": 10057,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/practices/style.mjs",
-        "sha256": "82f9a1f8ba3eb9fe14e65b15a35383916201a316dc0df0f93361b423eba287a0",
-        "bytes": 35872,
+        "sha256": "676134a01c4861dd0d2ba31c66c846b80584d64d2714059cbf792b315cb1d813",
+        "bytes": 36186,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/security.mjs",
-        "sha256": "8a76b0be27907e452905160c83cf2404c5fb04e7a30b7b32a1839b2bca91469d",
-        "bytes": 32324,
+        "sha256": "41a70627884335d5bd17b4fd3d14c55f99b2fe624a01b6d3cd1410ee4a875e1e",
+        "bytes": 32473,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/stack.mjs",
-        "sha256": "21147883d88d45655accba4ff75b75d27c1f0b3ca8bc93e56ffc3e7ccb75245d",
-        "bytes": 17368,
+        "sha256": "09bf94201c87ab8e8411243e3bcb90239c025eacd9f1df579d7697d04cf32a28",
+        "bytes": 17476,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/structure.mjs",
-        "sha256": "9731411c591b4cd9f58450fa68fc585b51bc2447b25ca17889b0c7a9725218c2",
+        "sha256": "38ecf3896a4291e3ef8de6d4427b58a9eba42a1f00e09fa0f497d18b82d1cb6f",
         "bytes": 4875,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/testing.mjs",
-        "sha256": "c142a3c54b9e0d426676b22c2008d966acfb23db50877ea53394fc9529caf53a",
-        "bytes": 38484,
+        "sha256": "eb437c49dcfebf2d4b3bcd931ec97887662aab0efa099afb5e0cbf342f55cf42",
+        "bytes": 38668,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/enrich.mjs",
-        "sha256": "0ba90901f2fd8f0dc9ffc128d6d0ac9fcf636f92417eb49bb4aedd29af3239fb",
-        "bytes": 16574,
+        "sha256": "914efdf07478354562e65a43c44372323a62143c618267ca9dd3a9ede34ff423",
+        "bytes": 16842,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/pipeline/existing-ten.mjs",
-        "sha256": "99fdf396bda674177ff0face76290949512b03d1bd5963b6720b69f283104eea",
-        "bytes": 1432,
+        "sha256": "df5851ec5d711320ac902d24a0607350a57cb12391065b740fc7b77c57f88c1b",
+        "bytes": 1440,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/pipeline/run.mjs",
-        "sha256": "645b881453b23b3e4a6b98d264ae881e8232c79d845eabea64658a11422c1408",
-        "bytes": 38677,
+        "sha256": "81391e4e0cc944ef24c814e0a85379621854c47e70baee2f2732163986e038a9",
+        "bytes": 39287,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/plugins/loader.mjs",
-        "sha256": "18d584efe55ebeafcf3e7ce5b1eb05cfa7bbfd2fff6afb14db8f4dd1edc5f707",
-        "bytes": 6310,
+        "sha256": "259092ce3d302c684adf4f338d2b4b45fe1929c59eea264afbeddf2bc3fdd435",
+        "bytes": 6373,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/plugins/schema.mjs",
-        "sha256": "670abecf4309b3bafd85bef1619b5ee56673837c3e5f911bf7704067c814b103",
-        "bytes": 17608,
+        "sha256": "9e8f9f85f0e85aa08efa3ca58c9d15f4081700a63364ff6a7b60d7e9d6c4756b",
+        "bytes": 18049,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/analysis-catalog.mjs",
-        "sha256": "855dd15c8f2bddbcb9b685ec92c5a3dab7c80fd8d70574c3a059d2897958e28e",
-        "bytes": 35157,
+        "sha256": "0f71d643f60408f74438e4b7575353e45b213c28a86114a9a63cff9e6e9d139a",
+        "bytes": 37995,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/api.mjs",
-        "sha256": "3704773b5e1638abdc9fd0317c422a87915e78a855a90507e9289bf5cf03eb79",
-        "bytes": 5548,
+        "sha256": "a98a23910be289693d8e47594e42d7b7dc69b8ab7783d859af46a0925f842e6f",
+        "bytes": 5571,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/assurance-catalog.mjs",
-        "sha256": "bf48a82a850119fe3e0278182b9aea0f55996e4c9176052bd2c32649f4f4f25d",
-        "bytes": 30487,
+        "sha256": "d2d5239785f8a9a071402a0de0e313157de95b13fed918c289738f0aa7ef9440",
+        "bytes": 31497,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/assurance.mjs",
-        "sha256": "98829d49124397af42340873c17497beb358880358be9e12166e5c4af424f24d",
-        "bytes": 6157,
+        "sha256": "20452bf3a7d309fc163282e3e1979f4827bf079948a4849164f61fc1ca7110a7",
+        "bytes": 6235,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/base.mjs",
-        "sha256": "8cc09c5760fe472871d6ed535052e29737a989362cfb631d877687fc3f8cc1a4",
-        "bytes": 10137,
+        "sha256": "59974d42b6d1f1b56fd632e8f72430230019f23543bcdb084906cdf59be7a7f8",
+        "bytes": 10223,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/builtin/index.mjs",
-        "sha256": "6a4a34359f6f88214dbf46b0f335e0b136bb3e7506620416313b735d96d9d111",
-        "bytes": 8415,
+        "sha256": "3961185dae0dd500a51bf8b23323763a40103eee462424546f457b10008d8709",
+        "bytes": 8671,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/data.mjs",
-        "sha256": "c6899cdb702e1a1069fa7d10e71e840b436a47899c7c34724b86834552f6c7cb",
-        "bytes": 6468,
+        "sha256": "e12a6de9510154ba321544cc039598d58df28c9b7965744f25f04ef1bf5fa406",
+        "bytes": 6502,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/deployment.mjs",
-        "sha256": "76edb6acbf3170848319a3e78562e22aaa53a94ccca9c190618999f0480fdf67",
-        "bytes": 6288,
+        "sha256": "bbaa118d66b64f0283522c56af524a6ed159548fc90a17a15436fe4518b9a98b",
+        "bytes": 6544,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/generic.mjs",
-        "sha256": "7705ebd9e76e6a5410fee24b265cca907c256647eb75420dc9254f1061b133fc",
-        "bytes": 11451,
+        "sha256": "9420e0c43e30c7bfd8e1ea3c720ec3a7ea8b6d492f91233b1c39ce22989bb4ef",
+        "bytes": 11619,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/governance.mjs",
-        "sha256": "5a58565bd85207f32b2df20c0630fc9b7a32983d152724c666a11706bd3ea394",
-        "bytes": 5469,
+        "sha256": "9fdd275f15a3430634d034301eb95effb1ca96af7257864bfce05022dc29bfa4",
+        "bytes": 5487,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/maintainability.mjs",
-        "sha256": "6ac8c2c7ba991a657e5de4d2f5b0893f40224fb7bb4c83d6a270ab8c719f6e9b",
-        "bytes": 8441,
+        "sha256": "5cb81881f16f047f051fd855060b705715b839ed2945b8977c8f928b88dd1bf6",
+        "bytes": 8797,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/practices.mjs",
-        "sha256": "f8e33dfa81a407954723d09e4643a65f56c8a29a47f581f97a73080e9803e1ac",
-        "bytes": 5419,
+        "sha256": "78d73e568f60c3bed09e1b68258936a70dc0308871d82eef87ac222f1cdf9b77",
+        "bytes": 5434,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/rules.mjs",
-        "sha256": "00a710156ed4e2e61343bcedb65d9a4304d2ceb2ccd617322fc1d1b1056ff82c",
-        "bytes": 13881,
+        "sha256": "7a6b9600ddec18ad499274e5a9c13a28d472b29b7e1e46f98d71b8ee7e7107b7",
+        "bytes": 14037,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/providers/runtime-catalog.mjs",
-        "sha256": "5ef9acd8b4171de2fdd34db371ec843ba667b36039dfb0df70c226ab91384e3f",
-        "bytes": 24152,
+        "sha256": "bd3bb69533224b2df0861686dc60041c0aa7e8a79032fe46c12bb7541e0e9835",
+        "bytes": 24350,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/registry/dimensions.mjs",
-        "sha256": "7773b2383c36b204752ffe27cd3eb2ea197abcfab69764c7862344621d3ee469",
-        "bytes": 11657,
+        "sha256": "dfc0b0f70a866ee804a108ba655b409d7bba58a2eb68bae7af16788e88864443",
+        "bytes": 11662,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/api.mjs",
-        "sha256": "edd87a1e7a4b77ab42a5126a7e62577491ae7fd50a72341ab8ec117481b9ca30",
-        "bytes": 6931,
+        "sha256": "032aca36bb6e44efec96468b6819013c73a08a20914328e136166ea7c28177c0",
+        "bytes": 7080,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/architecture-craft.mjs",
-        "sha256": "fa4c1b75411434b93682bee5cdbb60be78f285e1b5ce509183a49a2c9cd4f594",
-        "bytes": 6447,
+        "sha256": "2345b574dedc6b797955f2542b65bf7f9dcdce54a501d3df944df1d026b2a36a",
+        "bytes": 6507,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/architecture-extension.mjs",
-        "sha256": "d679c917aeeec3f52c205f4b168d34e216a2dcce5d3cca24006a36576d66273b",
-        "bytes": 5685,
+        "sha256": "9491e459e985dad7600a85f6397ee43b2439efa9b4fa843bbce01f7d84c0b90f",
+        "bytes": 5750,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/architecture.mjs",
-        "sha256": "804a8080c51ce5218dfbc0c541590c5de1dcb749d705fd8e89ecd21260a609d0",
-        "bytes": 4934,
+        "sha256": "962039c6fd4194c20a79da2453b2d7d7b22dc214a54916af46a1493a163396d2",
+        "bytes": 4986,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/assurance.mjs",
-        "sha256": "f9e0322bcea55c38b98e47e26339f1aa516e2ef1d81522d9e39a0abba192cf29",
-        "bytes": 7826,
+        "sha256": "6feaa689350bc07da8b331765189fe88f889ef8841bd1a99abd554cd8e610768",
+        "bytes": 8563,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/base.mjs",
-        "sha256": "c1da20aa8204a6b8f54111f552617f9249e29b93d77db33aefb65e4225885a0d",
-        "bytes": 1621,
+        "sha256": "6acf401e224bc9ccbfd2010581a74406869b46d90ae04b6d18fd74e58b305e63",
+        "bytes": 1626,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/config.mjs",
-        "sha256": "edfd95db948c10bd3f675694b7d4b94acd64050eba220f58147f569d1b87ba1a",
-        "bytes": 7467,
+        "sha256": "9bd7e3fc0bd0eb608e2687e73c0fa77130c1968d21c8ad0962cb50a0b0eba5fa",
+        "bytes": 7620,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/conventions.mjs",
-        "sha256": "7bd46468c9fabfaf4bd0296b1a0bac7c35424630ee1f3d56b39bcd9819a2ade8",
-        "bytes": 7155,
+        "sha256": "52124b84a1f8b3b567e77452e45cb49d1a11894c74ac7e72d0b7acd62bf6b30c",
+        "bytes": 7298,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/data.mjs",
-        "sha256": "a029a660aca4c3d85612364d23d149bade302f064b88c543fe3874ec577fb306",
-        "bytes": 9958,
+        "sha256": "11c9291194abc42ecac2a84e3f93f5515f524923879908fd7aa15e025335e512",
+        "bytes": 10891,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/deployment.mjs",
-        "sha256": "89159b0bc8dd340535ab57d5a340da38e6d9fcbea2bf1e0f1b158a7d0e4622b8",
-        "bytes": 4646,
+        "sha256": "5cf6f523e3e87dfab3ed96d5787a97456f31f542f9796e236909922998c688af",
+        "bytes": 4985,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/documentation.mjs",
-        "sha256": "31bcbc9d3f09b896295be04c3661132e38e562e08964a4f1051ce9143b2730bf",
-        "bytes": 3658,
+        "sha256": "f218ba559a9f86f357d897e22c33a8be475b49cbc3c4bab83dc77b2a3950ef1d",
+        "bytes": 3843,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/existing-ten.mjs",
-        "sha256": "a2b9ca1926abe437783f297dc6e4efd018172d764478a9ebebf58ffe94d4170e",
-        "bytes": 4852,
+        "sha256": "9db38791c394c1b2c681f6dc45fdb5a2c41e89a8ba0b78ffd1cc387079469f8c",
+        "bytes": 4931,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/git.mjs",
-        "sha256": "7fef53d086c05249f3f46b9db28f06e3e5f677ce600915634f4239d741daccb0",
-        "bytes": 1362,
+        "sha256": "7c06237326dfa3d50bad46d669855118f1221a212fae971a342552c7077fc48c",
+        "bytes": 1331,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/governance.mjs",
-        "sha256": "22ada7f036bdf9e286fbcc2a32cb586f6b95736b908904d2547b061633a66c09",
-        "bytes": 9032,
+        "sha256": "38c2e62e8df30191b7df5cb174d4e06f03f7cff0254fffbae2ca8f9fe2bc2ec9",
+        "bytes": 9367,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/maintainability.mjs",
-        "sha256": "6e939a1c085143902cb1e20a959906c316edd36041b489daab205a78ce4ab072",
-        "bytes": 14486,
+        "sha256": "26f3fa5960c3729a63524ebca17552ddc75aaa0281ecb0fb332d45109d5047d7",
+        "bytes": 15078,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/operations.mjs",
-        "sha256": "b7e282ca528ad8373ae33e139f5f4b1ddaf66623b82db88766e0f9eb367069d5",
-        "bytes": 8737,
+        "sha256": "6786da4e1ad3a67146dbd08e807d2f623b193f87bd2463d005ff2b6e035c1b8f",
+        "bytes": 8924,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/practices.mjs",
-        "sha256": "4294973152012bd57d11e7fc2a7155eca47dfeb4a1e72a10c5e3db21f06cf559",
-        "bytes": 21573,
+        "sha256": "8c4fd1cc8dbfc1a1e539bf57d90159003b0a0b23579cec3442767b60cc916ae7",
+        "bytes": 22382,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/registry.mjs",
-        "sha256": "3201e7586cc9c019f8846e535d1d9204e67f5c49b445c08c6b04f0f4f6719c27",
-        "bytes": 24901,
+        "sha256": "4612f623110d83773ff8f2e4f7a11523a47aa13daffd9ee2731e8f84535752bc",
+        "bytes": 25143,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/security.mjs",
-        "sha256": "e1ddec0f09fa8f37a132755221de26f2f4bc5e2470ddc6615baf8146b3d9101d",
-        "bytes": 8012,
+        "sha256": "002020674e18250a382e9052dca818afa294b4e4aa2d0f53ef5075b92c62e14f",
+        "bytes": 8287,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/stack.mjs",
-        "sha256": "3229da95c480d8071df7735bb1f9fa3e981c8b76b6285fdf0c57cd46fae472f7",
-        "bytes": 3730,
+        "sha256": "2bf0751a7ba8bb9e18111bca6a64d7757237597fb580ff4e44e90ed93d41243d",
+        "bytes": 3848,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/structure.mjs",
-        "sha256": "0db5a39625548f20ee91217bd37287a92d5645e755b1471ecadffeeb61c4239b",
-        "bytes": 2152,
+        "sha256": "338d371196e1f1a8e0007c233d11341cfef0b50be623458164a8dedbbd46c15d",
+        "bytes": 2154,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/render/testing.mjs",
-        "sha256": "4b4b8b190811dd3d9761cf27edc2304d6e83b8ae030f223c1c1002520f2a8bc4",
-        "bytes": 5461,
+        "sha256": "db42615b1ee778063646ea883d7ceec85ee938454b0a4147419dec1832ca211b",
+        "bytes": 5527,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/report/reporter.mjs",
-        "sha256": "828240c7c98750fead0bda68d444f212148f86bfb6976251bce2c7bf400e0250",
-        "bytes": 7897,
+        "sha256": "4657b7c60d89e2bd9112e1df9b6da874f359d8cad991431aee9f287b39a67692",
+        "bytes": 8057,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/report/verbose-trace.mjs",
-        "sha256": "3a74e4a059cb631a89c25a691f693a724b7edad2c418a725ead3361dec4b56e3",
-        "bytes": 2945,
+        "sha256": "d620e6d0ca97280dc890073d18df0507ca148b1197807936eef14ba6a74bd9b5",
+        "bytes": 2995,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/artifacts.mjs",
-        "sha256": "f0b6489f74efacf07c15307a2bcf1ef25e664fb81c2e8146745685a9536ce39f",
-        "bytes": 11793,
+        "sha256": "b9b616b1394f1c547454f17f85b961411d6b747a00082f6766e5d36a1d960415",
+        "bytes": 11948,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/command.mjs",
-        "sha256": "3ad212efcfb0bb1902f75ae92a833c6c667d635c70533a093c4394482fae3d96",
-        "bytes": 7526,
+        "sha256": "c136e53dd0ca52a14b908dd4437a3ad16413a87ca02eeedb8ee7625931deb6e2",
+        "bytes": 7629,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/comments.mjs",
-        "sha256": "53765997717d31447e903abfba2f5d55f4eead38a7b920db06c979efe901b3a6",
-        "bytes": 7346,
+        "sha256": "d2686ec5e2e59ca27a5f6d5a6cc4721b6513a3d0e2823e0987e3c9d021eaeb4e",
+        "bytes": 7359,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/declarations.mjs",
-        "sha256": "5180dd93fb9746b8b89a02ad8f3e5b4784e69a5da379ba51c6ac431df516f9f2",
-        "bytes": 15214,
+        "sha256": "31227dd797153e35b25a6bbabb0a1eb358f0df93b6a82d2614b1e42325b40e96",
+        "bytes": 15563,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/detection.mjs",
-        "sha256": "6d4f73d4ab4c1be3f7b9091f429dab1f8c901bba8edd4066e38d5698a65973cf",
-        "bytes": 23256,
+        "sha256": "8969849ee65dbf4d82201ab7e69aa7fdbc8bdbec5ac7925bd31d73e9ad57b795",
+        "bytes": 23345,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/ecosystem.mjs",
-        "sha256": "c77a21ac2f001f531be371966be3c715a58352747dd1cd101b500d4717078a2f",
-        "bytes": 19078,
+        "sha256": "23b95e0d500bccb7cc57a3e2051bff9d4eaee88a0ce14a303d4e1b1737b8bc53",
+        "bytes": 19543,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/enum.mjs",
-        "sha256": "8cc9545b3364be57ce705b24b01c132bbd294593588a90b45ef693e14e223cbe",
+        "sha256": "4dc1c353ac7b91cc3dc4fbef27335ba9c4fcd189e24c61b9d5a70537c306c351",
         "bytes": 3026,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/glob.mjs",
-        "sha256": "ad07aa1e462b0bd22a749e099931b4896bab7a913d52ebc4aee5bb3c8e8142be",
-        "bytes": 4528,
+        "sha256": "06294bee5c1f0c52d39ad57ffb12bee9f963239389cd6d07cb48112c190a7285",
+        "bytes": 4649,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/ignore.mjs",
-        "sha256": "7b5fd487ace407f79ad7ee0b6b67107a7ce516a4bc901a9dda086007122ccf18",
-        "bytes": 1547,
+        "sha256": "53a8f931cf714955cff91370ac3c322821f7fb51dded0e02b0018be27d41e7db",
+        "bytes": 1534,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/jsonc.mjs",
-        "sha256": "79a041c981c6be9abaa755afcbe79161f73ca2549963b9878a503ebb70ab1915",
-        "bytes": 2672,
+        "sha256": "050879c4c58a7bff9a3d0345cb2c2e59afc3bd399f1d4bfcf43fefc9bee5dcd7",
+        "bytes": 2722,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/manifest.mjs",
-        "sha256": "4c5fd4e107a276fe400de44e3a1a063919ef1624d265ce31ceccd408bce4671a",
-        "bytes": 22748,
+        "sha256": "74f95beb97abdecf37d0366d156c370cce5d219377bae316ce061e5a261c989e",
+        "bytes": 23194,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/parse.mjs",
-        "sha256": "3dae2f64a3cc99d7df1dc0a097a1b100a2053a0837933717545672b6af120114",
-        "bytes": 23668,
+        "sha256": "50f5a0344996a3bb77c4fc2b96865dc8bde308d9f05a288dcf4e1766b395bc8d",
+        "bytes": 24582,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/privacy.mjs",
-        "sha256": "109da496691333a92cce9e0082cd773dd14717c13f48a085efc0498b5cc2be0c",
-        "bytes": 15007,
+        "sha256": "37a793afb303c791ac0246a77e62d0d69a838d6c7a3ec766e7c5710bf42a2813",
+        "bytes": 15332,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/reads.mjs",
-        "sha256": "69da94c4ad61cf077ae370f63357d820bbd71fd25983eac07bdfafba69df700e",
-        "bytes": 2202,
+        "sha256": "63c19ed5e6b7010d6aee7a4fccad8bc83dcd7fc6b0e0fbc72a00965be0005015",
+        "bytes": 2209,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/shared/token-families.mjs",
-        "sha256": "bb8ad02b634908a6576d58f9a54f984b28ec41b190327ca2cbeb0483398a1184",
-        "bytes": 3061,
+        "sha256": "4b5dfbb694bdaa9341507d209ea76864ab692e65eee9d548005f30a60ffc9d26",
+        "bytes": 3138,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/standards/assurance-pack.mjs",
-        "sha256": "dea1e402525e3df1b55a8c620e429fcc3e51124a59addcd30e57a63fb58bc114",
-        "bytes": 5809,
+        "sha256": "7640923ac12ee373fa1c871bc5fd2596f83e3e6f8a57f2cfb546bc14b5f2a709",
+        "bytes": 5839,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/standards/policy.mjs",
-        "sha256": "f833ca54d738c8fc5e2e2102c5a7b55b8f296645a502de525a9f3ad181c5a13f",
-        "bytes": 5869,
+        "sha256": "fd6e4352c76484db6e43d54a46aeef67c901cf183b3114a39783804f0a33f8c2",
+        "bytes": 5891,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/standards/registry.mjs",
-        "sha256": "e45cf0fa167bfcd992ed9d41518541e4c6a4ed100782fcc5f107fdbea357b4f0",
-        "bytes": 3927,
+        "sha256": "1dec630b23df7de7788266ef9ce17f7a00365800fd12fd8acf8c35be9c01487b",
+        "bytes": 3951,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/survey.mjs",
-        "sha256": "0d48002535ff12ba0ffd4011e9286dd359ccb7320828e32f21a6bf1d51795279",
-        "bytes": 4849,
+        "sha256": "63bbd37526479c85bb874fcc23545be1a24eed72332fedd39a1a166f67fbf0ec",
+        "bytes": 4870,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/validate.mjs",
-        "sha256": "a2354a2f37b8ccf0538c14e3c595357074f611a72c626e2c50d38c3059b90b64",
-        "bytes": 1502,
+        "sha256": "deb22811e1a586416781cdeeaedb7d54f73c99e2724f953cf5abfb2658b380f3",
+        "bytes": 1516,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/write.mjs",
-        "sha256": "bec3988f9b638ad9f10c9c6bacceeaa856f47a7d4a2261ea264d74c54356ec60",
-        "bytes": 6815,
+        "sha256": "f3ebd9886f5a2f338d5219b3bd60ca7dd5ff3bd3be4dda2e31a5b192a9ec7a62",
+        "bytes": 6848,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/scripts/scan.mjs",
-        "sha256": "571fc6ade37e806c494986e44e27959ccd79b474bd50c321e291ef00ab26095f",
-        "bytes": 6517,
+        "sha256": "bd44a73e786134e2820e7a1ee197ef7256f33046b36a94053e6ee2b5c2941852",
+        "bytes": 6560,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-upload/scripts/upload.mjs",
-        "sha256": "826837d47bcf9e5ba9b64838e1f3cb15f3d31580c730acf54d203873a475c12a",
-        "bytes": 14120,
+        "sha256": "aa6948702af904d0d534b189d71ba736d3a104a2ac9c56ab5bcf96a0ca39e66f",
+        "bytes": 14480,
         "mode": "0644"
       }
     ],

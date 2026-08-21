@@ -10,13 +10,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: deep-research-commit-on-save
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: planning complete; plan saved
-- Last model/run: deepseek-v4-flash / csm-plan run
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: cycle 1 COMPLETE — T001 primary-led (six substitutions verified by acceptance greps), T002 payload regen + gates green (669 checks, drift clean, baseline 669=669)
+- Last model/run: deepseek-v4-flash / csm-build run (cycle 1)
+- Next transition: COMPLETE (terminal)
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -90,7 +90,7 @@ Single chain; no parallel groups.
 
 ## Numbered Plan
 
-1. [pending] Flip csm-deep-research commit policy to commit-at-SAVED
+1. [completed] Flip csm-deep-research commit policy to commit-at-SAVED
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -105,7 +105,7 @@ Single chain; no parallel groups.
    - Repair attempts: 0
    - Recovery note: revertible single file (`git checkout -- csm-deep-research/SKILL.md`); partial work detectable by the acceptance greps.
 
-2. [pending] Regenerate bootstrap payload and run the gates
+2. [completed] Regenerate bootstrap payload and run the gates
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2 (final)
@@ -155,7 +155,14 @@ Single chain; no parallel groups.
 | 2026-08-21 | 0 | CRITIQUE complete | — | Primary-led critique (low-risk small plan): all six old phrases covered by acceptance greps; no placeholder tokens in acceptance-signal spans; gate couplings clean; 2 minor findings (journal rows, empty critique table) | REMEDIATE |
 | 2026-08-21 | 0 | REMEDIATE complete | — | Both minor findings fixed; no material issues remain | VERIFY |
 | 2026-08-21 | 0 | VERIFY complete | — | Primary personal review: ACs map to tasks; commands match repo; recovery notes present; plan approved | SAVED |
+| 2026-08-21 | 1 | NOT_STARTED -> RECOVER | — | Tree clean; format csm-plan/1; no NORMS.md; all 6 target lines present (plan not stale) | VALIDATE |
+| 2026-08-21 | 1 | VALIDATE -> SELECT | — | Baseline 669 checks OK (from plan-save commit run) | SELECT |
+| 2026-08-21 | 1 | SELECT -> DISPATCH | — | Ready set {T001}; single tiny task executed primary-led with journaled independence caveat (prior identical dispatch returned empty; spec exact + objective greps) | INTEGRATE |
+| 2026-08-21 | 1 | INTEGRATE -> VERIFY | — | Six substitutions applied via assertion-guarded replaces; T001 signal: 0 old phrases, exactly 1 new phrase, diff = 1 file 6+/6- | VERIFY |
+| 2026-08-21 | 1 | VERIFY complete | — | T002: pack exit 0, cmp PASS, lint exit 0, check-suite OK 669 checks drift clean, baseline 669=669 | REVIEW |
+| 2026-08-21 | 1 | REVIEW complete | — | Primary-led review of full diff: exactly the six intended lines, no material findings | CHECKPOINT |
+| 2026-08-21 | 1 | CHECKPOINT -> COMPLETE | — | Completion gate passed personally; commit follows | COMPLETE |
 
 ## Completion Review
 
-<filled by csm-build when all criteria are verified>
+All criteria verified cycle 1. AC1: six substitutions applied; zero old phrases remain, exactly one "commit unless the user explicitly requested no commit" (grep evidence). AC2: diff = 6 insertions/6 deletions in csm-deep-research/SKILL.md only; frontmatter/Interface untouched. AC3: lint exit 0; check-suite OK — 9 skills, 664->669 checks unchanged by this edit (669), payload drift {compared:119, issues:[]}; baseline recorded=observed=669. AC4: cmp byte-identical after pack-bootstrap. T001 executed primary-led with journaled caveat (single tiny task, prior dispatch empty-return precedent); REVIEW primary-led found no material findings.
