@@ -161,8 +161,7 @@ Vitest          CI truthy -> update=none; mismatch+missing+obsolete fail  [K10][
 cargo-insta     --unreferenced auto => reject in CI                       [K10]
 Go              plain `go test ./...` (never -update) -> divergence fails [K4][K10]
 ApprovalTests   received != approved fails; .received. gitignored         [K4]
-.NET Verify     missing .verified. fails; BuildServerDetector suppresses diff launches
-                on CI                                                     [K10][K22]
+.NET Verify     missing .verified. fails; diff launches auto-suppressed on CI [K10][K22]
 ```
 
 Update flags (`--snapshot-update`, `-u`, `cargo insta accept`, `-update`, received→

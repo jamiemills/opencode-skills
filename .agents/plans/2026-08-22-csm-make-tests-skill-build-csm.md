@@ -286,7 +286,7 @@ Cheapest-first: per-task node asserts and greps (fast, every task) → targeted 
 | 2026-08-22T19:05Z | 2 | INTEGRATE->VERIFY | T009 | dispatch returned empty but edits landed pre-interrupt; primary verified acceptance: 204<480, literals intact, 12 states+STOP, pack+check-suite OK (767 checks, drift 0) | SELECT |
 | 2026-08-22T19:10Z | 2 | SELECT->DISPATCH | T010,T011,T012 | parallel batch disjoint file pairs; interrupted tool calls but all six reference files present post-interrupt -> verify content next | INTEGRATE |
 | 2026-08-22T19:45Z | 2 | INTEGRATE->VERIFY->REVIEW | T010-T012 | independent reviewer: 3/3 PASS; advisories fixed primary-led (fused bullet L37, trailing-newline/line-count 199<200); Randoop no-full-invocation = accepted (guard forbids scripting unverified flags); Go/.NET mutation content honestly flagged as beyond-finding with guards - accepted | CHECKPOINT |
-| 2026-08-22T19:46Z | 2 | CHECKPOINT complete | batch2 commit | central gates: pack OK, check-suite OK 767 checks drift 0; committing SKILL.md body + references + plan + carried batch1 matrix edits | SELECT-or-COMPLETE |
+| 2026-08-22T19:46Z | 2 | CHECKPOINT complete | batch2 commit | central gates: pack OK, check-suite OK 767 checks drift 0; committing SKILL.md body + references + plan + carried batch1 matrix edits | SELECT |
 | 2026-08-22T08:05Z | 1 | NOT_STARTED->RECOVER->VALIDATE | – | format ok; no NORMS; anchors verified; tree was clean | VALIDATE |
 | 2026-08-22T08:20Z | 1 | VALIDATE->SELECT->DISPATCH | T001-T008 | primary-led mechanical batch (single-owner files) | DISPATCH |
 | 2026-08-22T08:40Z | 1 | INTEGRATE->VERIFY | T001-T008 | contracts 4-map assert OK; sync check OK; payload OK; 3 suites fail-0 (node22); check-suite 764 checks rc0; analyze 0 | CHECKPOINT |
