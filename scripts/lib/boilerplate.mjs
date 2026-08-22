@@ -78,7 +78,7 @@ const TMUX_PARAMS = {
     activity: "generation",
     workflow: "generation",
   },
-  "csm-python-doctrine-review": {
+  "csm-review-python": {
     prelude: "Run first — before INTAKE, any analysis tool use, or any other section. Not an analysis state.",
     step2: "analysis",
     work: "analysis",

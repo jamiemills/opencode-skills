@@ -23,68 +23,68 @@
     "skills": [
       {
         "path": "payload/skills/csm-bdd-tdd/SKILL.md",
-        "sha256": "01eeb4792698990ca307cfa07d13c24bdb533db27b2294ab40b69d494e8715f3",
-        "bytes": 21247,
+        "sha256": "cbf3dae31d95289a36da7e3787c79054809698b036df88318eb9351e47087219",
+        "bytes": 21238,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-browse/SKILL.md",
-        "sha256": "6b1738b45c6df575f53bd52ca3658664e09ef3957eebdf4f61d15e4e26c04e9c",
-        "bytes": 18423,
+        "sha256": "a582faf4141f4bfa40618976ac3f066996f248e41ab7a638e75deb0e88c608e6",
+        "bytes": 18414,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "262b9a5d1e1127474f5c05d02e7e16245285fcbb1e266d3de66c2eb1ed7bc7b4",
-        "bytes": 23188,
+        "sha256": "7d648cf7d3bf7851242cfea8a70566887ebd747b27cae5667add20deb544a1b0",
+        "bytes": 23179,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-deep-research/SKILL.md",
-        "sha256": "3f341f8cf43e409c4d8fece89fc713542862872a0cb1d454b5c09a239f4d0252",
-        "bytes": 54290,
+        "sha256": "762031b9e42d91190d391ead68d7e6efcc67517b858fb12fe63d1f11c2963d16",
+        "bytes": 54281,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-grill/SKILL.md",
-        "sha256": "ca28d8d873ba30ebdced49c3b6116a2ad46046f2c9cdc10a3d68cf48e8fad610",
-        "bytes": 14605,
+        "sha256": "a651039f658d858480fc8f4a3fce6aa3ff21430809f46dc50e2520a7724cb3fc",
+        "bytes": 14596,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-make-tests/SKILL.md",
-        "sha256": "4c1a5179aa78ad1828e9bee82b8eef4b42f0df7b9420cb6529ab43ab60ce0cfd",
-        "bytes": 23055,
+        "sha256": "97bc14257755bb1a32017063c16a60016e87c1e3510b5774bcbe6489c4ce10d2",
+        "bytes": 23046,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "8101223fdf0115e7744a299ff34cc14e75b3224b00584333f9ca4fff5dbc3d95",
-        "bytes": 24851,
+        "sha256": "7993b583d54a39470204c1c5fbbec3abaa622e24a8ae62df2b4365aebbd21617",
+        "bytes": 24842,
         "mode": "0644"
       },
       {
-        "path": "payload/skills/csm-python-doctrine-review/SKILL.md",
-        "sha256": "f0230370510858ddb1664975995efdd19145186c099e9e2f70ab4129a4ccd910",
-        "bytes": 14016,
+        "path": "payload/skills/csm-review-python/SKILL.md",
+        "sha256": "5b88ba7b225af002331923dc8d97ae128903d2ff0efe65155f8d11e64cff35b6",
+        "bytes": 13962,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "3e468c0d24500e1207d38c7aa440dac0b3413e369b458c6720c82ce242871195",
-        "bytes": 35948,
+        "sha256": "3130dad21099876203e6c9330e17f63c4e2fdc585a14867ceff9056db58af7a4",
+        "bytes": 35894,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-scan/SKILL.md",
-        "sha256": "018f488d55849b9d1371f8b8c5f4cd07d82af0d2a977ced2e22067268e66b997",
-        "bytes": 53050,
+        "sha256": "b9a8386a28781ef613dd3ff7ba59657307c4528a30f2c04301f0380ba0f4f753",
+        "bytes": 53041,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-upload/SKILL.md",
-        "sha256": "b228ae711c83a018aae232a849526b4d47a724273d52cf9e4e94ffacaaa8cbd5",
-        "bytes": 2401,
+        "sha256": "c58dc993fc40f9a1af707d08187bae116238179df11e0fa9177e7220b78e646e",
+        "bytes": 2392,
         "mode": "0644"
       }
     ],
@@ -126,13 +126,13 @@
         "mode": "0644"
       },
       {
-        "path": "payload/skills/csm-python-doctrine-review/artifact/pep20-idiomatic-python-consolidated-research.md",
+        "path": "payload/skills/csm-review-python/artifact/pep20-idiomatic-python-consolidated-research.md",
         "sha256": "625cc8fdfb192a2aca6ae58f38767350f63734bb3e5cb1407ba3919334f4437a",
         "bytes": 83680,
         "mode": "0644"
       },
       {
-        "path": "payload/skills/csm-python-doctrine-review/artifact/python-idiomatic-reviewer-rules.json",
+        "path": "payload/skills/csm-review-python/artifact/python-idiomatic-reviewer-rules.json",
         "sha256": "3c06f74474f0de634190b37fe98ecec5213f491bbcf47ffed486740bcb7c6212",
         "bytes": 51116,
         "mode": "0644"

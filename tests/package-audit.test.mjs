@@ -16,7 +16,7 @@ const skillNames = [
   "csm-grill",
   "csm-make-tests",
   "csm-plan",
-  "csm-python-doctrine-review",
+  "csm-review-python",
   "csm-review",
   "csm-scan",
   "csm-upload",

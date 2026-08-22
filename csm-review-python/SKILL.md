@@ -1,5 +1,5 @@
 ---
-name: csm-python-doctrine-review
+name: csm-review-python
 description: Review a Python repository against PEP 20 and idiomatic-Python doctrine, producing one evidence-grounded findings and fix-guide report. Use ONLY for Python repository analysis or dispatch from csm-review. Never invokes other skills.
 ---
 
@@ -20,8 +20,8 @@ Run first — before INTAKE, any analysis tool use, or any other section. Not an
 
 1. In tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds)? Skip — continue with analysis.
 2. Skip too when the user/prompt forbade tmux, chose another multiplexer (never start tmux alongside), or tmux is missing (note it, continue without).
-3. Else, before any analysis work, launch this same agent invocation in a new detached session named `csm-python-doctrine-review-<goal-slug>` (from session + prompt; lowercase, hyphen-separated, tmux-safe; `-2`/`-3` on collision): `tmux new-session -d -s csm-python-doctrine-review-<goal-slug> 'opencode run "<original analysis request>"'` (adapt to the agent CLI).
-4. Print `Started tmux session "csm-python-doctrine-review-<goal-slug>". Attach: tmux attach-session -t csm-python-doctrine-review-<goal-slug>`, then end the invocation — tmux does the analysis from the start.
+3. Else, before any analysis work, launch this same agent invocation in a new detached session named `csm-review-python-<goal-slug>` (from session + prompt; lowercase, hyphen-separated, tmux-safe; `-2`/`-3` on collision): `tmux new-session -d -s csm-review-python-<goal-slug> 'opencode run "<original analysis request>"'` (adapt to the agent CLI).
+4. Print `Started tmux session "csm-review-python-<goal-slug>". Attach: tmux attach-session -t csm-review-python-<goal-slug>`, then end the invocation — tmux does the analysis from the start.
 5. Only when skipped (step 2) continue into the analysis workflow below.
 
 ## Activation Boundary
@@ -43,7 +43,7 @@ Run first — before INTAKE, any analysis tool use, or any other section. Not an
 ## Write Discipline And File Allowlist
 
 - Within the target repository, the allowlist is exactly `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md` and the required parent directory. No other target path may be created or modified.
-- Put all scratch notes, command output, logs, temporary reports, and caches outside the target under a run-specific temporary directory, normally `/tmp/csm-python-doctrine-review-<run-id>`.
+- Put all scratch notes, command output, logs, temporary reports, and caches outside the target under a run-specific temporary directory, normally `/tmp/csm-review-python-<run-id>`.
 - Redirect `UV_CACHE_DIR`, `PIPX_HOME`, and `XDG_CACHE_HOME` to directories under that temporary directory. Also use each tool's no-cache or explicit cache-dir option.
 - Do not write target source, tests, documentation, pyproject/config files, dependencies, lockfiles, virtual environments, generated files, `.git`, or git metadata. Do not run mutating package-manager or git commands.
 - Before REPORT, capture a target diff/status baseline; after the report, verify that the only target delta is the allowlisted report. Treat any other delta as a run failure and disclose it; never silently repair it.

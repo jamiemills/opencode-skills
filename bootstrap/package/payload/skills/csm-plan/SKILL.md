@@ -109,7 +109,7 @@ Temporary sandbox mutation and the intentional creation or update of the plan do
 - Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched
 - Produces: one saved, verified CSM plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md`
 - Hands off: the saved plan waits for a later, explicit csm-build invocation (human-mediated)
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload, csm-make-tests, csm-python-doctrine-review
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python
 
 ## Planning State Machine
 

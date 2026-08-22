@@ -93,7 +93,7 @@ test("capable agent materializes verified payload copies and emits a schema-vali
       "csm-grill",
       "csm-make-tests",
       "csm-plan",
-      "csm-python-doctrine-review",
+      "csm-review-python",
       "csm-review",
       "csm-scan",
       "csm-upload",
