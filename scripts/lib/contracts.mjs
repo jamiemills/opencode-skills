@@ -40,6 +40,23 @@ const MANIFEST = {
     norms: true,
     machine: { section: "Pipeline", entryExit: false },
   },
+  "csm-make-tests": {
+    sections: [
+      "Interface",
+      "Tmux Session Bootstrap",
+      "Activation Boundary",
+      "Core Rules",
+      "Write Discipline And File Allowlist",
+      "Repository Norms (NORMS.md)",
+      "Test Generation State Machine",
+      "Required Test Package",
+      "Anti-Patterns",
+      "Done Criteria",
+    ],
+    tmux: true,
+    norms: true,
+    machine: { section: "Test Generation State Machine", entryExit: false },
+  },
   "csm-build": {
     sections: [
       "Interface",
@@ -232,6 +249,13 @@ const INTERFACES = {
     ],
     midPipeline: ["subagent dispatches", "findings ledger", "synthesis"],
   },
+  "csm-make-tests": {
+    entryConditions: ["repository checkout at a pinned commit", "optional change-surface scope"],
+    consumes: ["repository working tree", "optional NORMS.md conventions", "cited research findings under .agents/research/"],
+    produces: ["executable test files and goldens in the target repository", ".agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md", ".agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md"],
+    handoff: ["verified suite, ledger, and verification report to the user or a later explicit csm-build run"],
+    midPipeline: ["run project test commands", "write generated tests and goldens", "record approvals", "run mutation and performance gates"],
+  },
 };
 
 // NORMS.md detection phrases (any-of semantics; data-only move — behavior
@@ -247,6 +271,7 @@ const FORMAT_VERSIONS = {
   "csm-grill": 1,
   "csm-norms": 1,
   "csm-deep-research": 1,
+  "csm-make-tests": 1,
 };
 
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
@@ -270,6 +295,7 @@ const NEVER_INVOKE = {
     "csm-review": true,
     "csm-scan": true,
     "csm-upload": true,
+    "csm-make-tests": true,
   },
   "csm-browse": {
     "csm-bdd-tdd": true,
@@ -280,6 +306,7 @@ const NEVER_INVOKE = {
     "csm-review": true,
     "csm-scan": true,
     "csm-upload": true,
+    "csm-make-tests": true,
   },
   "csm-build": {
     "csm-bdd-tdd": true,
@@ -290,6 +317,7 @@ const NEVER_INVOKE = {
     "csm-review": true,
     "csm-scan": true,
     "csm-upload": true,
+    "csm-make-tests": true,
   },
   "csm-grill": {
     "csm-bdd-tdd": true,
@@ -301,6 +329,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-deep-research": false,
+    "csm-make-tests": true,
   },
   "csm-plan": {
     "csm-bdd-tdd": true,
@@ -312,6 +341,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-deep-research": false,
+    "csm-make-tests": true,
   },
   "csm-review": {
     "csm-bdd-tdd": true,
@@ -322,6 +352,7 @@ const NEVER_INVOKE = {
     "csm-review": false,
     "csm-scan": true,
     "csm-upload": true,
+    "csm-make-tests": true,
   },
   "csm-scan": {
     "csm-bdd-tdd": true,
@@ -332,6 +363,7 @@ const NEVER_INVOKE = {
     "csm-review": true,
     "csm-scan": false,
     "csm-upload": true,
+    "csm-make-tests": true,
   },
   "csm-upload": {
     "csm-bdd-tdd": true,
@@ -342,6 +374,7 @@ const NEVER_INVOKE = {
     "csm-review": true,
     "csm-scan": true,
     "csm-upload": false,
+    "csm-make-tests": true,
   },
   "csm-deep-research": {
     "csm-bdd-tdd": true,
@@ -353,6 +386,19 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-deep-research": false,
+    "csm-make-tests": true,
+  },
+  "csm-make-tests": {
+    "csm-bdd-tdd": true,
+    "csm-browse": true,
+    "csm-build": true,
+    "csm-grill": true,
+    "csm-plan": true,
+    "csm-review": true,
+    "csm-scan": true,
+    "csm-upload": true,
+    "csm-deep-research": true,
+    "csm-make-tests": false,
   },
 };
 

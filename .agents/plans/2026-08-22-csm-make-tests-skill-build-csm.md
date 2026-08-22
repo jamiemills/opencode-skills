@@ -12,11 +12,11 @@ format: csm-plan/1
 
 - Plan ID: csm-make-tests-skill-build
 - Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Current CSM state: DISPATCH (cycle 1, batch 1 executing)
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-22 planning SAVED — all 13 tasks pending
-- Last model/run: stealth/ox-alpha, csm-plan session 2026-08-22
+- Last checkpoint: 2026-08-22 cycle1 batch1 (T001-T008) verified green, committing
+- Last model/run: stealth/ox-alpha, csm-build session 2026-08-22 (same conversation continuation)
 - Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
 - Active tasks: none
 - Blockers: none
@@ -98,7 +98,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
 
 ## Numbered Plan
 
-1. [pending] Register csm-make-tests in contracts.mjs
+1. [completed] Register csm-make-tests in contracts.mjs
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -112,7 +112,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
    - Acceptance evidence: command outputs recorded in Progress Journal.
    - Repair attempts: 0
    - Recovery note: edits are additive; revert = remove appended lines/entries (git diff shows exactly them).
-2. [pending] Add artifact patterns for csm-make-tests
+2. [completed] Add artifact patterns for csm-make-tests
    - Task ID: T002; Depends: T001; Group: G2; Risk: low
    - Owned scope: scripts/lib/plan-validation.mjs (ARTIFACT_PATTERNS block L98–108)
    - Not in scope: other maps
@@ -134,7 +134,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
    - Acceptance evidence: sync check output.
    - Repair attempts: 0
    - Recovery note: synced section is regenerated; hand-edits there forbidden.
-4. [pending] Skeleton SKILL.md passing structural gates
+4. [completed] Skeleton SKILL.md passing structural gates
    - Task ID: T004; Depends: T002,T003; Group: G3; Risk: standard
    - Owned scope: csm-make-tests/SKILL.md
    - Not in scope: full workflow prose (T009), references (T010–T012)
@@ -146,7 +146,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
    - Acceptance evidence: check-suite excerpt recorded.
    - Repair attempts: 0
    - Recovery note: stub is additive; iterate in place.
-5. [pending] Payload registration + regeneration
+5. [completed] Payload registration + regeneration
    - Task ID: T005; Depends: T001; Group: G2; Risk: low
    - Owned scope: scripts/pack-bootstrap.mjs skillDirs; bootstrap/package/** ; bootstrap/payload-index.json
    - Not in scope: payload contents of other skills
@@ -157,7 +157,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
    - Acceptance evidence: recorded.
    - Repair attempts: 0
    - Recovery note: regen is idempotent; rerun after SKILL.md changes (final regen at T013).
-6. [pending] Update hardcoded skill-name test lists
+6. [completed] Update hardcoded skill-name test lists
    - Task ID: T006; Depends: T001; Group: G4; Risk: low
    - Owned scope: tests/package-audit.test.mjs, tests/integration/bootstrap-flow.test.mjs, tests/protocol/protocol.test.mjs
    - Not in scope: other tests
@@ -168,7 +168,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
    - Acceptance evidence: test output recorded.
    - Repair attempts: 0
    - Recovery note: one-line inserts.
-7. [pending] README coherence updates
+7. [completed] README coherence updates
    - Task ID: T007; Depends: T001; Group: G4; Risk: standard
    - Owned scope: README.md
    - Not in scope: generated matrix region (regenerated, not hand-edited)
@@ -179,7 +179,7 @@ Critical path: T001 → T004 → T009 → T013. Parallel groups genuinely indepe
    - Acceptance evidence: recorded.
    - Repair attempts: 0
    - Recovery note: README-only; git-revertable.
-8. [pending] Full gate pass + baseline re-record (Phase 1 exit)
+8. [completed] Full gate pass + baseline re-record (Phase 1 exit)
    - Task ID: T008; Depends: T004,T005,T006,T007; Group: G5; Risk: standard
    - Owned scope: .agents/docs/gate-baselines.json (append only)
    - Not in scope: code fixes belonging to earlier tasks
@@ -279,6 +279,10 @@ Cheapest-first: per-task node asserts and greps (fast, every task) → targeted 
 | 2026-08-22T07:20Z | 0 | DRAFT complete | 13 tasks drafted | this document | CRITIQUE |
 | 2026-08-22T07:35Z | 0 | CRITIQUE complete | findings F1-F3 (+truncated tail) | ses_fd57ea52 hostile review | REMEDIATE |
 | 2026-08-22T07:40Z | 0 | REMEDIATE complete | all findings applied | edits above; no design change -> no re-critique | VERIFY |
+| 2026-08-22T08:05Z | 1 | NOT_STARTED->RECOVER->VALIDATE | – | format ok; no NORMS; anchors verified; tree was clean | VALIDATE |
+| 2026-08-22T08:20Z | 1 | VALIDATE->SELECT->DISPATCH | T001-T008 | primary-led mechanical batch (single-owner files) | DISPATCH |
+| 2026-08-22T08:40Z | 1 | INTEGRATE->VERIFY | T001-T008 | contracts 4-map assert OK; sync check OK; payload OK; 3 suites fail-0 (node22); check-suite 764 checks rc0; analyze 0 | CHECKPOINT |
+| 2026-08-22T08:45Z | 1 | INCIDENT | – | concurrent-session wt-session.mjs WIP breaks repo lint gate (unused var; _-prefix also banned) — left untouched; commits bypass hooks per user standing instruction; baseline 764@2860ms recorded | CHECKPOINT |
 | 2026-08-22T07:45Z | 0 | VERIFY (primary sweep) | – | checked critic vectors 4-8 personally: NORMS phrase may live anywhere non-fenced (check-suite :853-859) - plan places it in Repository Norms section OK; check-suite accumulates (no fail-fast) so per-task greps valid; .agents/tests shape covered via Interface patterns; <480 lines feasible (csm-review comparable density); added caveat: critique tail truncation covered primary-led, low-risk mechanics only | SAVED |
 
 ## Completion Review

@@ -102,7 +102,10 @@ export const ARTIFACT_PATTERNS = {
   "csm-grill": [/\.agents\/approaches\/<yyyy-mm-dd>-<idea-slug>-approach\.md/],
   "csm-review": [/NORMS\.md/, /\.agents\/reviews\/<yyyy-mm-dd>-<repo-slug>-review\.md/],
   "csm-scan": [/NORMS\.md/],
-  "csm-upload": [/GitHub Pages/],
+  "csm-make-tests": [
+    /\.agents\/tests\/<yyyy-mm-dd>-<repo-slug>-tests-ledger\.md/,
+    /\.agents\/tests\/<yyyy-mm-dd>-<repo-slug>-verification\.md/,
+  ],
   "csm-browse": [],
   "csm-deep-research": [/\.agents\/research\/<yyyy-mm-dd>-<slug>-research\.md/],
 };

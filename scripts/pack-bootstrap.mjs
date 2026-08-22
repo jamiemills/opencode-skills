@@ -32,6 +32,7 @@ const skillDirs = [
   "csm-browse",
   "csm-build",
   "csm-deep-research",
+  "csm-make-tests",
   "csm-grill",
   "csm-plan",
   "csm-review",

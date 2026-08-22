@@ -91,6 +91,7 @@ test("capable agent materializes verified payload copies and emits a schema-vali
       "csm-build",
       "csm-deep-research",
       "csm-grill",
+  "csm-make-tests",
       "csm-plan",
       "csm-review",
       "csm-scan",

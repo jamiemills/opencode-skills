@@ -14,6 +14,7 @@ const skillNames = [
   "csm-build",
   "csm-deep-research",
   "csm-grill",
+  "csm-make-tests",
   "csm-plan",
   "csm-review",
   "csm-scan",
@@ -131,7 +132,7 @@ test("two isolated packs are deterministic and the packed artifact passes the au
     }
 
     const skillEntries = index.classes.skills.filter((entry) => entry.path.endsWith("/SKILL.md"));
-    assert.equal(skillEntries.length, 9);
+    assert.equal(skillEntries.length, 10);
     for (const skill of skillNames) {
       const entry = skillEntries.find(
         (candidate) => candidate.path === `payload/skills/${skill}/SKILL.md`,

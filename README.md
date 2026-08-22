@@ -1,23 +1,23 @@
 # opencode-skills
 
-A collection of **nine agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
+A collection of **ten agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
 
 ## Quick install
 
-This repository contains nine AI skills — deep research, idea grilling, planning, BDD/TDD spec mutation, plan execution, adversarial review, repo scanning, browser automation, and evidence publishing — that install into OpenCode, Claude Code, or any Agent Skills runtime.
+This repository contains ten AI skills — deep research, idea grilling, planning, BDD/TDD spec mutation, plan execution, comprehensive test generation, adversarial review, repo scanning, browser automation, and evidence publishing — that install into OpenCode, Claude Code, or any Agent Skills runtime.
 
 ```bash
 git clone https://github.com/jamiemills/opencode-skills.git ~/.config/opencode/skills
 cd ~/.config/opencode/skills/csm-browse && pnpm install && node scripts/check-skill.mjs
 ```
 
-Restart your agent runtime and the nine skills are live (`csm-browse` is the only one with extra setup; everything else works immediately). Full details: [Install](#install).
+Restart your agent runtime and the ten skills are live (`csm-browse` is the only one with extra setup; everything else works immediately). Full details: [Install](#install).
 
 ## Table of contents
 
 - [What this is](#what-this-is)
 - [Install](#install)
-- [The nine skills at a glance](#the-nine-skills-at-a-glance)
+- [The ten skills at a glance](#the-ten-skills-at-a-glance)
 - [Composition matrix](#composition-matrix)
 - [Quickstart](#quickstart)
 - [Skill deep dives](#skill-deep-dives)
@@ -45,11 +45,11 @@ Restart your agent runtime and the nine skills are live (`csm-browse` is the onl
 
 ### Requirements
 
-Nine skills, three roles:
+Ten skills, three roles:
 
 | Role                                             | Skills                                                                                 |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| **Orchestration** (invoked by name in a session) | `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-build`, `csm-review` |
+| **Orchestration** (invoked by name in a session) | `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review` |
 | **Tooling** (also expose a CLI)                  | `csm-scan`, `csm-browse`, `csm-upload`                                                 |
 
 The core loop — **research → grill → plan → build** — with the supporting cast:
@@ -88,7 +88,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-browse`        | screenshots / videos / DOM·console·network evidence                                                                        |
 | `csm-upload`        | dated GitHub Pages demo page                                                                                               |
 
-## The nine skills at a glance
+## The ten skills at a glance
 
 | Skill               | In one sentence                                                                                                                                      | Reference                                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -96,6 +96,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-grill`         | Interviews you one question at a time, backed by research, until an idea becomes an agreed, phased approach.                                         | [csm-grill/SKILL.md](csm-grill/SKILL.md)                 |
 | `csm-plan`          | Turns a brief into an evidence-based, executable, resumable implementation plan — then stops.                                                        | [csm-plan/SKILL.md](csm-plan/SKILL.md)                   |
 | `csm-bdd-tdd`       | Mutates a saved plan into a strict BDD+TDD package: formal spec, Gherkin scenarios, unit test designs, traceable plan.                               | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md)             |
+| `csm-make-tests`     | Generates a comprehensive executable test suite: audits existing tests/coverage, captures goldens, generates intent/contract/perf tests, mutation-validates. | [csm-make-tests/SKILL.md](csm-make-tests/SKILL.md)       |
 | `csm-build`         | Executes a saved plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.                                | [csm-build/SKILL.md](csm-build/SKILL.md)                 |
 | `csm-review`        | Adversarially audits a repository across an 18-dimension spine and saves a challenged findings report. Never fixes.                                  | [csm-review/SKILL.md](csm-review/SKILL.md)               |
 | `csm-scan`          | Read-only multi-repo analyzer producing a single `NORMS.md` across 17 evidence dimensions.                                                           | [csm-scan/SKILL.md](csm-scan/SKILL.md)                   |
@@ -152,6 +153,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 | `csm-browse` | need to drive a headful Chromium browser | browser session, CDP verbs, delivery target | screenshots, videos, DOM, console, network, or performance evidence | evidence files to csm-upload |
 | `csm-upload` | evidence files ready, configured GitHub Pages destination | screenshots, videos, or evidence files, GitHub configuration | dated GitHub Pages demo page | published evidence URL to the user |
 | `csm-deep-research` | research question or topic, explicit deep-research request, dispatch from csm-grill or csm-plan | research question, retrievable sources (web, docs, repositories), browser-rendered retrieval via csm-browse fallback (JS-only pages) | dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md, optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a JSON schema) | research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan |
+| `csm-make-tests` | repository checkout at a pinned commit, optional change-surface scope | repository working tree, optional NORMS.md conventions, cited research findings under .agents/research/ | executable test files and goldens in the target repository, .agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md, .agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md | verified suite, ledger, and verification report to the user or a later explicit csm-build run |
 <!-- csm-matrix:end -->
 
 ## Quickstart
@@ -262,7 +264,7 @@ Terminal evidence publisher: `node $HOME/.config/opencode/skills/csm-upload/scri
 
 ### Orchestration conventions shared by the six orchestration skills
 
-- **tmux bootstrap** — `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-scan`, `csm-review`, and `csm-deep-research` start their orchestrating agent in a detached session named `<skill>-<goal-slug>` when tmux is available and you are not already inside one; say **"no tmux"** to stay in-session. `csm-grill` is interactive by design and never detaches.
+- **tmux bootstrap** — `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-make-tests`, `csm-scan`, `csm-review`, and `csm-deep-research` start their orchestrating agent in a detached session named `<skill>-<goal-slug>` when tmux is available and you are not already inside one; say **"no tmux"** to stay in-session. `csm-grill` is interactive by design and never detaches.
 - **Machine-validated artifacts** — every artifact carries a `format: <skill>/<n>` marker as its first line, and the repo-wide gate validates corpus shape (required sections in order, control journals, transition formats) so a fresh session can resume from the artifact alone, never from chat history.- **Write discipline** — orchestration skills write only their own allowlisted artifact (+ a disposable temp dir); they never mutate the researched/planned/executed repository except the intentional artifact write.
 - **Standalone, terminal, never-invoking** — a skill that finishes stops; the sanctioned cross-skill dispatch edges in the suite are `csm-grill`/`csm-plan` → `csm-deep-research` and `csm-deep-research` → `csm-browse` (browser-rendered retrieval of JS-only pages during a research run) (enforced by the invoke matrix in `scripts/lib/contracts.mjs`).
 

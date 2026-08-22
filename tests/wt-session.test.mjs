@@ -11,6 +11,7 @@ import { execFileSync } from "node:child_process";
 import test from "node:test";
 import {
   createWorktree,
+  pruneWorktrees,
   listWorktrees,
   mergeWorktree,
   removeWorktree,
@@ -170,6 +171,62 @@ test("removeWorktree deletes the branch and tolerates a branch without worktree"
       stillThere = false;
     }
     assert.equal(stillThere, false);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pruneWorktrees reaps detached and foreign registrations, spares managed ones", () => {
+  const root = makeRepo();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-prune-base-"));
+  try {
+    // Managed wt/<slug> worktree: must survive.
+    const managed = createWorktree(root, "keeper", base);
+
+    // Foreign branch worktree: pruned.
+    const foreignDir = path.join(base, "foreign");
+    git(root, ["branch", "side-branch"]);
+    git(root, ["worktree", "add", foreignDir, "side-branch"]);
+
+    // Detached HEAD safety holder (the flagged Aug-20 pattern): pruned.
+    const detachedDir = path.join(base, "head-check");
+    git(root, ["worktree", "add", "--detach", detachedDir, "HEAD"]);
+
+    // Dirty foreign worktree is skipped without --force.
+    fs.writeFileSync(path.join(foreignDir, "dirty.txt"), "x");
+
+    let result = pruneWorktrees(root);
+    assert.ok(
+      result.skipped.some((sk) => sk.dir === foreignDir && /dirty/.test(sk.reason)),
+      "dirty foreign worktree skipped without --force",
+    );
+    assert.ok(
+      result.removed.some((r) => r.dir === detachedDir && r.kind === "detached"),
+      "detached holder removed",
+    );
+    assert.ok(fs.existsSync(managed.dir), "managed worktree untouched");
+    assert.ok(fs.existsSync(foreignDir), "dirty foreign dir still present pre-force");
+
+    result = pruneWorktrees(root, { force: true });
+    assert.ok(result.removed.some((r) => r.dir === foreignDir), "dirty foreign removed with force");
+    assert.ok(!fs.existsSync(detachedDir), "detached dir gone");
+    assert.ok(!fs.existsSync(foreignDir), "foreign dir gone");
+
+    // Main checkout and managed registration never touched.
+    const listing = listWorktrees(root);
+    assert.ok(listing.includes(root), "main checkout intact");
+    assert.ok(listing.includes(managed.dir), "managed wt/ worktree survives prune");
+
+    // A registration whose directory vanished is pruned too.
+    const orphaned = createWorktree(root, "ghost", base);
+    fs.rmSync(orphaned.dir, { recursive: true, force: true });
+    result = pruneWorktrees(root);
+    assert.ok(
+      result.removed.some((r) => r.dir === orphaned.dir && r.kind === "missing"),
+      "missing-dir registration pruned",
+    );
+    assert.ok(!listWorktrees(root).includes(orphaned.dir), "orphaned entry gone from listing");
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });

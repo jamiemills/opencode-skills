@@ -70,6 +70,14 @@ const TMUX_PARAMS = {
     activity: "research",
     workflow: "research",
   },
+  "csm-make-tests": {
+    prelude: "Run first — before INTAKE, locating the plan, or any generation work. Not a generation state.",
+    step2: "generation",
+    work: "generation",
+    request: "generation",
+    activity: "generation",
+    workflow: "generation",
+  },
 };
 
 function subagentResilience(p) {
