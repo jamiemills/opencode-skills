@@ -85,8 +85,8 @@
     "supportingFiles": [
       {
         "path": "payload/skills/csm-make-tests/references/capture-patterns.md",
-        "sha256": "e366ed5ca3a0de513f85e9431c46afcbfc7ea2a16b6405df0ab815c4ddc63a20",
-        "bytes": 6924,
+        "sha256": "8942bc3ae2f022c46f662fb44714070c8ce4f07f5586e48b9b27b5673702c809",
+        "bytes": 8988,
         "mode": "0644"
       },
       {
@@ -109,8 +109,8 @@
       },
       {
         "path": "payload/skills/csm-make-tests/references/mutation-gates.md",
-        "sha256": "a99c1929fb43aa0b9d9210f5c1116a5c4f4670aa5e3741931f52fa9dde48af74",
-        "bytes": 5083,
+        "sha256": "9d31a5d49380c9c23484cb4856b6c039d99c872fa9e48d559512aa3b652a6b51",
+        "bytes": 7972,
         "mode": "0644"
       },
       {

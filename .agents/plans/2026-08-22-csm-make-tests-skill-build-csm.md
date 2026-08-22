@@ -300,6 +300,7 @@ Cheapest-first: per-task node asserts and greps (fast, every task) → targeted 
 | 2026-08-22T09:40Z | 2 | REPAIR complete | – | jqwik repoint; comment refresh; k6 precision; drift heal committed next | VERIFY |
 | 2026-08-22T09:50Z | 2 | VERIFY->CHECKPOINT | T013 | fixture dry-run green: golden captured, hand-mutation killed, suite OK, artifacts conform; baseline 768 recorded | CHECKPOINT |
 | 2026-08-22T09:55Z | 2 | CHECKPOINT->COMPLETE | all | Completion Review filled | COMPLETE |
+| 2026-08-22T10:00Z | 2 | ENVIRONMENTAL NOTE | – | gate-baseline count oscillates 767<->768 with concurrent session's in-flight gate work; re-recorded at observed 767 post-pack; owner: concurrent session landing its changes | — |
 | 2026-08-22T07:45Z | 0 | VERIFY (primary sweep) | – | checked critic vectors 4-8 personally: NORMS phrase may live anywhere non-fenced (check-suite :853-859) - plan places it in Repository Norms section OK; check-suite accumulates (no fail-fast) so per-task greps valid; .agents/tests shape covered via Interface patterns; <480 lines feasible (csm-review comparable density); added caveat: critique tail truncation covered primary-led, low-risk mechanics only | SAVED |
 
 ## Completion Review

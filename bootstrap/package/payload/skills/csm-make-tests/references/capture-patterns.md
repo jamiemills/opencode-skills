@@ -1,9 +1,8 @@
 # Capture Patterns
 
-Per-stack characterization capture: the assertion call, first-run semantics, the
-human-gated approve/re-baseline command, and the volatile-field scrubbing primitive.
-Universal rule: every update flag runs only after explicit human approval; CI never
-writes or updates goldens.
+Per-stack characterization capture: assertion call, what gets snapshotted, first-run
+semantics, human-gated approve/re-baseline command, volatile-field scrubbing. Universal
+rule: every update flag runs only after explicit human approval; CI never updates goldens.
 
 Source: `.agents/research/2026-08-22-characterization-skill-implementation-research.md`
 — inline markers cite its findings (K) and detail sections (D).
@@ -11,14 +10,15 @@ Source: `.agents/research/2026-08-22-characterization-skill-implementation-resea
 ## Quick Table
 
 ```text
-stack              capture call                        first run          approve (human-gated)
-Python/syrupy      assert out == snapshot              fails (missing)    pytest --snapshot-update
-JS/Jest            expect(scrub(x)).toMatchSnapshot()  writes artifact    npx jest -u
-Vitest             expect(x).toMatchSnapshot()         fails in CI        vitest -u / --update
-Rust/cargo-insta   assert_json_snapshot!(x)            pending .snap.new  cargo insta review | accept
-Go/golden file     compare vs testdata/golden/<name>   fails (missing)    go test ./... -update
-JVM/ApprovalTests  Approvals.verifyAsJson(scrub(x))    received file out  copy approved file
-.NET/Verify        Verify checks                       .received. written rename -> .verified.
+stack   tool/library     capture call                        snapshotted            first run
+Python  pytest+syrupy    assert out == snapshot              serialized return      fails (missing)
+Python  approvaltests    verify_as_json(scrub(result))       .received.txt file     received written
+JS/TS   Jest             expect(scrub(x)).toMatchSnapshot()  __snapshots__/*.snap   artifact written
+JS/TS   Vitest           expect(x).toMatchSnapshot()         default snapshot dir   fails in CI
+Rust    cargo-insta      assert_json_snapshot!(x)            .snap (pending .snap.new)  pending created
+Go      golden + -update compare vs testdata/golden/<name>   golden-file bytes      fails (missing)
+JVM     ApprovalTests    Approvals.verifyAsJson(scrub(x))    .received.txt file     received written
+.NET    Verify           Verify(scrubbed)                    .received.<ext> file   received written
 ```
 
 ## Python — pytest + syrupy
@@ -28,72 +28,62 @@ from syrupy.matchers import path_type
 
 def test_order_shape(snapshot_json, client):
     resp = client.get("/orders/42")
-    # Soundness: a MISSING snapshot fails the suite — forces explicit first capture [K4]
+    # Soundness: a MISSING snapshot fails the suite — forces first capture [K4]
     assert snapshot_json(matcher=path_type({"id": (int,), "ts": (datetime,)})) == resp.json()
 ```
 
+- Snapshotted: the serialized return value (use `JSONSnapshotExtension` for APIs).
 - First run fails on the missing snapshot; observed output becomes the pending golden.
-- Approve after human review: `pytest --snapshot-update`.
-- New-only mode (writes only missing snapshots, never modifies existing ones):
-  `pytest --snapshot-update-new-only` — the default choice for first captures.
-- Scrubbing is serialization-time, no regex over rendered output:
+- Approve after human review: `pytest --snapshot-update`; new-only mode
+  `--snapshot-update-new-only` writes only missing snapshots — the first-capture default.- Scrubbing is serialization-time, no regex over rendered output [K7]:
 
 ```python
-path_type({"id": (int,), "registeredAt": (datetime,)})  # by value type at path
+path_type({"id": (int,), "registeredAt": (datetime,)})  # replace by value type at path
 path_value({...})                                       # literal replacement
 ```
-
-- API responses: use `JSONSnapshotExtension` for canonical JSON serialization.
-- CI: missing snapshots fail the run by default — never-auto-accept holds [K10].
 
 ## JavaScript/TypeScript — Jest
 
 ```js
 test("order serialization", () => {
-  expect(scrub(order)).toMatchSnapshot();
+  expect(scrub(order)).toMatchSnapshot(); // snapshotted: rendered snapshot artifact
 });
 ```
 
-- First local run writes `__snapshots__/<file>.snap`; commit it; review the diff [K4].
-- Re-baseline only post-approval: `npx jest -u` (`--updateSnapshot`). CI never writes
-  snapshots without that flag [K10].
+- First local run writes `__snapshots__/<file>.snap`; commit it; re-baseline only
+  post-approval via `npx jest -u` — CI never writes snapshots without that flag [K10].
 - Seeded combination capture (Gilded Rose pattern): `jest-extended-snapshot`
   `toVerifyAllCombinations` enumerates input matrices into one snapshot [K4].
-- No matcher-based scrubbing: manual `scrub()` helper (below) or `expect.any()`.
 
 ## Vitest
 
-- Update flag `-u` / `--update`; v4 type is `boolean | 'new' | 'all' | 'none'` [K24].
-- CI default (`process.env.CI` truthy): update mode resolves to none — mismatches,
-  missing snapshots, AND obsolete snapshots all fail the run [K10][K24].
-- `toMatchFileSnapshot('./explicit/path')` for named goldens outside the default dir [D6].
+- Re-baseline with `-u` / `--update` (v4 type `boolean | 'new' | 'all' | 'none'`) [K24].
+- CI truthy -> update none: mismatch + missing + obsolete all fail [K10][K24];
+  `toMatchFileSnapshot('./explicit/path')` names goldens outside the default dir [D6].
 
 ## Rust — cargo-insta
 
-Strongest machine-readable approve loop found anywhere [D2]:
+The strongest machine-readable approve loop found anywhere [D2]:
 
 ```text
-cargo insta test                          # force-pass collection -> pending .snap.new
+cargo insta test                          # collection -> pending .snap.new artifacts
 cargo insta review                        # interactive per-snapshot accept/reject (human)
 cargo insta accept                        # bulk accept AFTER batch approval only
 cargo insta pending-snapshots --as-json   # machine-readable pending-golden queue
-cargo insta test --accept-unseen          # first-capture shortcut: accepts ONLY unseen
+cargo insta test --accept-unseen          # first capture: accepts ONLY unseen snapshots
 cargo insta test --unreferenced=reject    # CI gate: fail on stale/unreferenced [K10]
 ```
 
-Redactions on serde snapshots — scrubbing at serialization time:
+Snapshotted: serde-serialized values (`.snap`). Redactions scrub at serialization time:
 
 ```rust
 let mut settings = insta::Settings::new();
 settings.add_redaction(".id", "[uuid]");
-settings.bind(|| {
-    insta::assert_json_snapshot!(response);
-});
-// variants: dynamic_redaction(callback), sorted_redaction(),
-//           rounded_redaction(decimal_digits)
+settings.bind(|| insta::assert_json_snapshot!(response));
+// variants: dynamic_redaction(callback), sorted_redaction(), rounded_redaction(digits)
 ```
 
-Inherently string-format snapshots cannot use redactions — use regex filters:
+Inherently string-format snapshots cannot use redactions — regex filters instead:
 `Settings::add_filter(pattern, replacement)` [D6].
 
 ## Go — golden files
@@ -102,11 +92,10 @@ Inherently string-format snapshots cannot use redactions — use regex filters:
 var update = flag.Bool("update", false, "rewrite golden files")
 
 func TestOrderRender(t *testing.T) {
-	got := render(scrub(order))
+	got := render(scrub(order)) // snapshotted: rendered bytes
 	golden := filepath.Join("testdata", "golden", "order.json")
-	if *update {
-		os.MkdirAll(filepath.Dir(golden), 0o755)
-		os.WriteFile(golden, got, 0o644) // gated behind -update, post-approval
+	if *update { // gated behind -update, post-approval
+		os.WriteFile(golden, got, 0o644)
 		return
 	}
 	want, err := os.ReadFile(golden)
@@ -117,37 +106,79 @@ func TestOrderRender(t *testing.T) {
 		t.Errorf("diff:\n%s", cmp.Diff(string(want), string(got)))
 	}
 }
-
-// approve: go test ./... -update   (manual invocation after human sign-off)
 ```
 
-Alternative: `go-approval-tests` — `approvals.VerifyJSONBytes(t, scrubbed)` with the
-received/approved file-pair model [K4].
+Approve: `go test ./... -update`, invoked manually after human sign-off [K4].
+Alternative: `go-approval-tests` `approvals.VerifyJSONBytes(t, scrubbed)` file-pair
+model [K4].
 
 ## JVM — ApprovalTests
 
 ```java
-Approvals.verifyAsJson(scrub(result));
+Approvals.verifyAsJson(scrub(result)); // snapshotted: .received.txt artifact
 ```
 
-Approve-file workflow: the failing test emits a `.received.` artifact next to the
-expected `.approved.` one; inspect the received file, and on approval copy it over the
-approved file and commit [K4]. Same model as Python `approvaltests`.
+The failing test emits a `.received.` artifact next to the expected `.approved.` one;
+inspect the received file, and on approval copy it over the approved file and commit
+[K4]. Same model as Python `approvaltests.verify_as_json` [K4].
 
 ## .NET — Verify
 
 - Fail-by-construction: a missing `.verified.` file fails the test [K10].
-- Acceptance is mechanical and scriptable: rename `<name>.received.<ext>` to
-  `<name>.verified.<ext>` — bulk renames work for batch approval after review [D6].
+- Snapshotted: `<name>.received.<ext>` artifacts; acceptance is mechanical — rename
+  `.received.` to `.verified.` (bulk renames work for batch approval after review) [D6].
 - Convention: `*.received.*` gitignored, `*.verified.*` committed.
-- DiffEngine suppresses diff-tool launches on build servers AND inside AI CLIs
-  automatically — agent-driven runs will not hang on a GUI prompt [K22].
-- Hygiene gate: call `VerifyChecks.Run()` once in an assembly-level test to catch
-  configuration drift.
+- DiffEngine suppresses diff-tool launches on build servers AND inside AI CLIs —
+  agent-driven runs never hang on a GUI prompt [K22].
+- Hygiene gate: `VerifyChecks.Run()` once at assembly level catches config drift.
 
-## Manual scrub() For Stacks Without Matchers
+## Approve-Loop Semantics
 
-Jest/Vitest/Go/JVM lack serialization-time matchers; centralize one helper per suite [K7]:
+A human reviews every diff — old vs observed, with scrubbing context — before any
+approve mechanism runs; never bulk auto-approval, however trivial diffs look ([D2]).
+
+Batch mechanics per stack:
+
+- Rust: `cargo insta test --review` walks all pending snapshots in one interactive pass;
+  `with_settings!` description/info fields give per-snapshot reviewer context [K26]. `pending-snapshots --as-json` builds review queues programmatically.
+- Python/syrupy: `--snapshot-update-new-only` restricts writes to new goldens so
+  already-approved ones stay locked during a partial batch [K4].
+- Jest/Vitest: one reviewed batch, then a single `-u` application [K4][K24].
+- .NET: scripted bulk rename of reviewed `.received.` files only [D6].
+- Go: the `-update` flag invocation itself is the per-batch approval act [K4].
+
+Cap batch size so reviews stay honest; record approver, commit/timestamp, and triage
+classification per row in the ledger (APPROVE steps 2–3). Rejected batches return to
+CAPTURE with the reviewer's reason attached.
+
+## CI Integration Semantics
+
+CI is read-only against goldens: it verifies, never writes or updates [K10].
+
+```text
+pytest/syrupy   missing snapshot FAILS the suite ("Soundness")            [K10]
+Jest            no snapshot writes on CI without --updateSnapshot         [K10]
+Vitest          CI truthy -> update=none; mismatch+missing+obsolete fail  [K10][K24]
+cargo-insta     --unreferenced auto => reject in CI                       [K10]
+Go              plain `go test ./...` (never -update) -> divergence fails [K4][K10]
+ApprovalTests   received != approved fails; .received. gitignored         [K4]
+.NET Verify     missing .verified. fails; BuildServerDetector suppresses
+                diff-tool launches on CI                                  [K10][K22]
+```
+
+Update flags (`--snapshot-update`, `-u`, `cargo insta accept`, `-update`, received→
+verified renames) are local-only human acts, run solely after presented-diff approval.
+
+## Volatile Scrubbing Techniques
+
+Preference order — dependency injection beats matchers beats regex [K7]:
+
+1. Dependency injection: inject clock/id-generator/randomness source so captured
+   output is deterministic by construction (determinism discipline).
+2. Library-native masking: syrupy `path_type`/`path_value`; insta redactions,
+   `sorted_redaction()`, `rounded_redaction(n)`, `add_filter` for string formats.
+3. Centralized `scrub()` helper for stacks without matchers (Jest/Vitest/Go/JVM),
+   never inline regexes [K7]:
 
 ```js
 const UNSTABLE_KEYS = new Set([
@@ -166,8 +197,6 @@ function scrub(node) {
 }
 ```
 
-- UNSTABLE_KEYS covers timestamps, uuids, durations, hostnames, secrets [K7].
-- Preference order for volatility control [K7]:
-  1. Dependency injection — inject clock/id-generator so output is deterministic;
-  2. Library-native matchers/redactions/filters (per-stack sections above);
-  3. Regex scrubbing — last resort, centralized in the helper, never inline.
+UNSTABLE_KEYS masks timestamps, IDs/UUIDs, durations, hostnames, and secrets;
+randomness is handled upstream by seeding/injecting the generator, not by diffing it
+away. Jest/Vitest fallback for opaque values: `expect.any()` matchers.
