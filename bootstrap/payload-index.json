@@ -10,6 +10,7 @@
     "csm-browse runtime closure excluded: chrome-remote-interface and jimp are external dependencies; the skill ships as SKILL.md guidance only and its dependency setup remains a separate documented step",
     "csm-scan scripts plus the lib/scan closure and csm-upload scripts are bundled as supporting files: dependency-free node built-ins code",
     "helperBins ships empty in 0.1.0: optional runtime helpers stay out until each has a dependency-free closure",
+    "csm-make-tests references/ bundled as supporting files: dependency-free markdown depth files loaded on demand by the skill",
     "package.json and payload-index.json are not indexed: the manifest is audit-checked and the index cannot contain its own digest; both are bound by the recorded tarball shasum"
   ],
   "fixedBin": {
@@ -52,8 +53,8 @@
       },
       {
         "path": "payload/skills/csm-make-tests/SKILL.md",
-        "sha256": "319d30f1a22206dacd31c1619cb8071940bd7f4c76d4fff668b12daedbd97d3b",
-        "bytes": 16572,
+        "sha256": "7e978fff36852ba4b3a0dfaff24ac54e228ad51c584f6327f8bc58c8b396a953",
+        "bytes": 23027,
         "mode": "0644"
       },
       {
@@ -82,6 +83,42 @@
       }
     ],
     "supportingFiles": [
+      {
+        "path": "payload/skills/csm-make-tests/references/capture-patterns.md",
+        "sha256": "e366ed5ca3a0de513f85e9431c46afcbfc7ea2a16b6405df0ab815c4ddc63a20",
+        "bytes": 6924,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-make-tests/references/differential-oracle.md",
+        "sha256": "d865d416a0f7fb63d6ed2b3acd387cc1bf8771ec1468660ac0b0c6f43934f05b",
+        "bytes": 4328,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-make-tests/references/intent-generation.md",
+        "sha256": "722c980544d6f2c3d35afb0ef59047e7d0affc23d7612d2a0cfaee270704f311",
+        "bytes": 7937,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-make-tests/references/known-uncertainties.md",
+        "sha256": "6122e478ce897544c6b97300cdc234271e4abb33e1afc20298f2bace50b40c62",
+        "bytes": 4847,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-make-tests/references/mutation-gates.md",
+        "sha256": "a99c1929fb43aa0b9d9210f5c1116a5c4f4670aa5e3741931f52fa9dde48af74",
+        "bytes": 5083,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-make-tests/references/perf-playbook.md",
+        "sha256": "422924328b5485d3d9299de5ee4584c179d95d4484eba2ca72c4103a8368320c",
+        "bytes": 7355,
+        "mode": "0644"
+      },
       {
         "path": "payload/skills/csm-scan/lib/scan/contracts/dimension.mjs",
         "sha256": "1cd5ee7157daf3ee9bb87b1eb55ec54f5127ae9f4ec0baeff7aee128e87ebf91",

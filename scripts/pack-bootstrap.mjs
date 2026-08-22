@@ -58,6 +58,10 @@ const mapping = {
       src: join("csm-upload", "scripts", "upload.mjs"),
       dest: join("payload", "skills", "csm-upload", "scripts", "upload.mjs"),
     },
+    {
+      srcDir: join("csm-make-tests", "references"),
+      destDir: join("payload", "skills", "csm-make-tests", "references"),
+    },
   ],
   helperBins: [],
   metadata: [{ src: "LICENSE", dest: "LICENSE" }],
@@ -67,6 +71,7 @@ const decisions = [
   "csm-browse runtime closure excluded: chrome-remote-interface and jimp are external dependencies; the skill ships as SKILL.md guidance only and its dependency setup remains a separate documented step",
   "csm-scan scripts plus the lib/scan closure and csm-upload scripts are bundled as supporting files: dependency-free node built-ins code",
   "helperBins ships empty in 0.1.0: optional runtime helpers stay out until each has a dependency-free closure",
+  "csm-make-tests references/ bundled as supporting files: dependency-free markdown depth files loaded on demand by the skill",
   "package.json and payload-index.json are not indexed: the manifest is audit-checked and the index cannot contain its own digest; both are bound by the recorded tarball shasum",
 ];
 

@@ -277,7 +277,7 @@ const FORMAT_VERSIONS = {
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
 // skill is terminal at its final state; handoff happens only via artifacts
 // plus an explicit user invocation. Off-diagonal cells are true; diagonal false.
-// Asymmetric by design (D22): the 6 other rows carry 8 columns; the
+// Asymmetric by design (D22): the non-dispatch rows carry 9 columns; dispatch rows carry the deep-research column too; the
 // csm-grill and csm-plan rows add the csm-deep-research column as false —
 // they may dispatch csm-deep-research runs for cited external findings —
 // and only the csm-deep-research row adds the self column (expected sets
