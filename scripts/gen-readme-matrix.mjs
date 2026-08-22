@@ -61,13 +61,28 @@ function locateRegion(lines, inFence) {
   return [start, end];
 }
 
+// Whitespace-insensitive canonical form: the repo formatter (oxfmt)
+// legitimately re-pads Markdown table columns, so cell content is the
+// contract — not column alignment.
+function canonicalMarkdown(text) {
+  return text
+    .split("\n")
+    .map((l) =>
+      l
+        .replace(/\s*\|\s*/g, "|")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .join("\n");
+}
+
 export function checkDrift(readmePath) {
   const content = fs.readFileSync(readmePath, "utf8");
   const lines = splitLines(content);
   const region = locateRegion(lines, fenceMap(lines));
   if (region === null) return "composition-matrix region missing from README";
-  const actual = lines.slice(region[0], region[1] + 1).join("\n");
-  if (actual !== renderRegion())
+  const actual = canonicalMarkdown(lines.slice(region[0], region[1] + 1).join("\n"));
+  if (actual !== canonicalMarkdown(renderRegion()))
     return "composition-matrix region drifted from contracts.mjs (run: node scripts/gen-readme-matrix.mjs --write)";
   return null;
 }
