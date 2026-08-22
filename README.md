@@ -2,6 +2,17 @@
 
 A collection of **nine agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
 
+## Quick install
+
+This repository contains nine AI skills — deep research, idea grilling, planning, BDD/TDD spec mutation, plan execution, adversarial review, repo scanning, browser automation, and evidence publishing — that install into OpenCode, Claude Code, or any Agent Skills runtime.
+
+```bash
+git clone https://github.com/jamiemills/opencode-skills.git ~/.config/opencode/skills
+cd ~/.config/opencode/skills/csm-browse && pnpm install && node scripts/check-skill.mjs
+```
+
+Restart your agent runtime and the nine skills are live (`csm-browse` is the only one with extra setup; everything else works immediately). Full details: [Install](#install).
+
 ## Table of contents
 
 - [What this is](#what-this-is)
@@ -79,17 +90,17 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 
 ## The nine skills at a glance
 
-| Skill              | In one sentence                                                                                                                              | Reference                                                |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Skill               | In one sentence                                                                                                                                      | Reference                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `csm-deep-research` | Answers a research/R&D question with one dated, exhaustively cited finding — triage → parallel researchers → adversarial challenge → judge → verify. | [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) |
-| `csm-grill`         | Interviews you one question at a time, backed by research, until an idea becomes an agreed, phased approach.                                 | [csm-grill/SKILL.md](csm-grill/SKILL.md)                 |
-| `csm-plan`          | Turns a brief into an evidence-based, executable, resumable implementation plan — then stops.                                                 | [csm-plan/SKILL.md](csm-plan/SKILL.md)                   |
-| `csm-bdd-tdd`       | Mutates a saved plan into a strict BDD+TDD package: formal spec, Gherkin scenarios, unit test designs, traceable plan.                        | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md)             |
-| `csm-build`         | Executes a saved plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.                          | [csm-build/SKILL.md](csm-build/SKILL.md)                 |
-| `csm-review`        | Adversarially audits a repository across an 18-dimension spine and saves a challenged findings report. Never fixes.                            | [csm-review/SKILL.md](csm-review/SKILL.md)               |
-| `csm-scan`          | Read-only multi-repo analyzer producing a single `NORMS.md` across 17 evidence dimensions.                                                     | [csm-scan/SKILL.md](csm-scan/SKILL.md)                   |
-| `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.           | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
-| `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                           | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
+| `csm-grill`         | Interviews you one question at a time, backed by research, until an idea becomes an agreed, phased approach.                                         | [csm-grill/SKILL.md](csm-grill/SKILL.md)                 |
+| `csm-plan`          | Turns a brief into an evidence-based, executable, resumable implementation plan — then stops.                                                        | [csm-plan/SKILL.md](csm-plan/SKILL.md)                   |
+| `csm-bdd-tdd`       | Mutates a saved plan into a strict BDD+TDD package: formal spec, Gherkin scenarios, unit test designs, traceable plan.                               | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md)             |
+| `csm-build`         | Executes a saved plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.                                | [csm-build/SKILL.md](csm-build/SKILL.md)                 |
+| `csm-review`        | Adversarially audits a repository across an 18-dimension spine and saves a challenged findings report. Never fixes.                                  | [csm-review/SKILL.md](csm-review/SKILL.md)               |
+| `csm-scan`          | Read-only multi-repo analyzer producing a single `NORMS.md` across 17 evidence dimensions.                                                           | [csm-scan/SKILL.md](csm-scan/SKILL.md)                   |
+| `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.                 | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
+| `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                                 | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
 
 **How they compose** — the core loop with the supporting cast:
 
@@ -143,7 +154,6 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 | `csm-deep-research` | research question or topic, explicit deep-research request, dispatch from csm-grill or csm-plan | research question, retrievable sources (web, docs, repositories), browser-rendered retrieval via csm-browse fallback (JS-only pages) | dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md, optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a JSON schema) | research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan |
 <!-- csm-matrix:end -->
 
-
 ## Quickstart
 
 The core loop is **research → grill → plan → build**:
@@ -160,6 +170,7 @@ The plan and build steps start in a detached tmux session unless you're already 
 Optional gates around the loop: **`csm-scan`** to capture repository conventions into `NORMS.md` before planning, and **`csm-review`** to adversarially audit a repository (or a completed build) for defects and security risks before delivery.
 
 ## Skill deep dives
+
 Deep detail lives in each `SKILL.md` (linked per skill); what follows is the orientation layer — what each skill is for, how it works inside, and what it hands you.
 
 ### csm-deep-research — cited answers to hard questions

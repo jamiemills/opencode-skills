@@ -324,6 +324,7 @@ Consolidated list — every [Vn] cited above maps 1:1 to exactly one URL. During
 ### Control Journal
 
 ```
+[2026-08-22T00:00Z] START -> INTAKE :: cycle 1 :: trigger: user-directed consolidation of pep20 + idiomatic-reviewer findings into one doctrine doc.
 [2026-08-22T00:00Z] CONSOLIDATION :: user-directed merge of pep20 + idiomatic-reviewer findings into this doc; sources banner-marked superseded
 ```
 

@@ -73,6 +73,7 @@ function canonicalMarkdown(text) {
         .replace(/\s+/g, " ")
         .trim(),
     )
+    .filter((l) => l !== "")
     .join("\n");
 }
 
