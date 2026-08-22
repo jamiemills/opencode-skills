@@ -1,4 +1,5 @@
 format: csm-deep-research/1
+> **SUPERSEDED 2026-08-22** — findings consolidated into `.agents/research/2026-08-22-clojure-to-python-consolidated-research.md`. Retained for provenance; do not extend.
 
 # Idiomatic Python Rules for a Specialized Code Reviewer Research Finding
 
