@@ -1,5 +1,7 @@
 format: csm-deep-research/1
-> **SUPERSEDED 2026-08-22** — findings consolidated into `.agents/research/2026-08-22-clojure-to-python-consolidated-research.md`. Retained for provenance; do not extend.
+
+> **SUPERSEDED / REDUNDANT (2026-08-22):** All content consolidated into `2026-08-22-pep20-idiomatic-python-consolidated-research.md`. This file is retained verbatim for corpus history only — do not extend or cite in preference to the consolidated finding.
+> **SUPERSEDED 2026-08-22** — findings consolidated into `.agents/research/2026-08-22-python-doctrine-consolidated-research.md`. Retained for provenance; do not extend.
 
 # PEP 20 as the Basis for Modern Python Architecture (2026) Research Finding
 
