@@ -11,11 +11,11 @@ Turn the user's brief into an evidence-based, executable, and resumable implemen
 
 Run first — before `INTAKE`, any planning tool use, or any other section. Not a planning state.
 
-1. In tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds)? Skip — continue with planning.
-2. Skip too when the user/prompt forbade tmux, chose another multiplexer (never start tmux alongside), or tmux is missing (note it, continue without).
-3. Else, before any planning work, launch this same agent invocation in a new detached session named `csm-plan-<goal-slug>` (from session + prompt; lowercase, hyphen-separated, tmux-safe; `-2`/`-3` on collision): `tmux new-session -d -s csm-plan-<goal-slug> 'opencode run "<original planning request>"'` (adapt to the agent CLI).
-4. Print `Started tmux session "csm-plan-<goal-slug>". Attach: tmux attach-session -t csm-plan-<goal-slug>`, then end the invocation — tmux does the planning from the start.
-5. Only when skipped (step 2) continue into the planning workflow below.
+1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-plan-<goal-slug>`.
+2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-plan-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-plan-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-plan-<goal-slug>` (use `-2`/`-3` on collision): `tmux new-session -d -s csm-plan-<goal-slug> 'opencode run "<original planning request>"'` (adapt to the agent CLI).
+4. Print the active session name and attach command: `tmux attach-session -t csm-plan-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the planning from the start.
+5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the planning workflow without renaming or starting tmux.
 
 ## Activation Boundary
 

@@ -8,11 +8,11 @@ function tmuxBootstrap(p) {
   return `
 ${p.prelude}
 
-1. In tmux (\`TMUX\` env set, or \`tmux display-message -p '#session_name'\` succeeds)? Skip — continue with ${p.step2}.
-2. Skip too when the user/prompt forbade tmux, chose another multiplexer (never start tmux alongside), or tmux is missing (note it, continue without).
-3. Else, before any ${p.work} work, launch this same agent invocation in a new detached session named \`${p.skill}-<goal-slug>\` (from session + prompt; lowercase, hyphen-separated, tmux-safe; \`-2\`/\`-3\` on collision): \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\` (adapt to the agent CLI).
-4. Print \`Started tmux session "${p.skill}-<goal-slug>". Attach: tmux attach-session -t ${p.skill}-<goal-slug>\`, then end the invocation — tmux does the ${p.activity} from the start.
-5. Only when skipped (step 2) continue into the ${p.workflow} workflow below.
+1. Derive a tmux-safe \`<goal-slug>\` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is \`${p.skill}-<goal-slug>\`.
+2. If already in tmux (\`TMUX\` env set, or \`tmux display-message -p '#session_name'\` succeeds), rename the current session to \`${p.skill}-<goal-slug>\` with \`tmux rename-session -t "$(tmux display-message -p '#S')" "${p.skill}-<goal-slug>"\`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named \`${p.skill}-<goal-slug>\` (use \`-2\`/\`-3\` on collision): \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\` (adapt to the agent CLI).
+4. Print the active session name and attach command: \`tmux attach-session -t ${p.skill}-<goal-slug>\`. If a new detached session was launched, end the invocation — tmux does the ${p.activity} from the start.
+5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the ${p.workflow} workflow without renaming or starting tmux.
 `;
 }
 
