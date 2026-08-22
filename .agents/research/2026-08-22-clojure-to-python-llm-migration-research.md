@@ -31,6 +31,10 @@ Six web-mode research tracks (strategy, semantic mapping, translation research, 
 - K7. PROVISIONAL supported The verification net is what makes the converted system deterministic-in-effect: golden-master/characterization tests recorded from Clojure (with masking), clojure.spec generators as a shared conformance corpus, dual-run diffing + GoReplay shadow traffic, Hypothesis stateful tests with the legacy system as oracle, metamorphic properties, mypy strict, mutation-test gates, k6 SLO thresholds as CI exit codes, canary + feature flags (Off=legacy), Pact contracts, and Grafana parity dashboards. [R7][R75][R76][R77][R78][R79][R80][R81][R82][R83][R85][R86][R87][R88][R89]
 - K8. PROVISIONAL partially-supported A concrete toolchain exists for every harness stage — clj-kondo + tree-sitter-clojure for decomposition; OpenAI Structured Outputs + Batch API (50% discount) or Anthropic strict outputs + Message Batches; Outlines/XGrammar/LM Format Enforcer for self-hosted constrained decoding; DSPy/LangGraph for mixed deterministic/LLM orchestration; Aider scripted mode / Claude Code headless / OpenHands SDK as agent harnesses; promptfoo for eval gating — but no published Clojure→Python translation system exists: Clojure proficiency evidence is MultiPL-E inclusion plus one practitioner account, so Clojure-specific effort estimates carry extra uncertainty. [R29][R44][R45][R46][R47][R48][R49][R50][R51][R52][R53][R54][R55][R56][R57][R58][R60]
 - K9. PROVISIONAL supported LLM-driven migration runs at scale fail operationally and introduce supply-chain hazards: high-volume parallel runs have collapsed under rate-limit throttling (mitigated only after retry logic was encoded in the playbook), and generated code references nonexistent packages (≥5.2% commercial / 21.7% OSS across 576k samples, 16 models); the harness therefore needs run-level throttling/retry orchestration, pinned dependency allowlists, and registry-existence verification gates before any generated import is accepted. [R8][R43][R38]
+- K10. PROVISIONAL supported Every major Clojure idiom in the migration surface has a documented Python target, but fidelity is tiered: persistent collections map to pyrsistent PVector/PMap/PSet ("Appends are amortized O(1). Random access and insert is log32(n)") [R101] or immutables' HAMT Map ("O(log N) performance for both set() and get()", the same structure CPython itself uses for contextvars) [R100]; defrecord maps to frozen dataclasses even though "It is not possible to create truly immutable Python objects" [R102]; and `loop`/`recur` has NO mechanical target because Python deliberately rejects tail-call elimination ("If you want a short answer, it's simply unpythonic"; typical implementations allow ~1000 recursion frames) — recursion must be rewritten as iteration or an explicit stack. [R90][R92][R93][R94][R95][R97][R98][R99][R101][R102][R115]
+- K11. PROVISIONAL supported A verified one-to-one ecosystem parity mapping exists for the full development lifecycle: Leiningen → uv (a "single tool to replace pip, pip-tools, pipx, poetry, pyenv, twine, virtualenv", with universal lockfile and Cargo-style workspaces) [R108][R122]; nREPL remote evaluation → debugpy (Debug Adapter Protocol, attach-by-PID) + IPython/Jupyter [R109][R114][R121]; kaocha/clojure.test → pytest (+1300 plugins) [R106][R113]; Eastwood → ruff+mypy [R83][R107][R110]; Reitit/Ring → FastAPI/Starlette ASGI [R112][R119]; HoneySQL → SQLAlchemy Core [R111][R23]; cheshire → orjson/stdlib json [R117][R118]. Parity is structural, not behavioral — each pair still needs the D6 verification net to prove equivalent behavior.
+- K12. PROVISIONAL partially-supported The per-var LLM workflow decomposes into: function-level chunks paired one-to-one with pytest nodes; dependency interfaces compressed into stub/signature context; a translate-then-property-test prompt pattern (translate, then generate Hypothesis properties from the source's spec generators) run inside an execution-feedback repair loop; and human review distributed across gate tiers (lint → type → unit/golden → property → differential dual-run). Vendor guidance confirms the frame (define success criteria and empirical evaluations BEFORE prompt engineering; use prompt chaining) but no vendor publishes a translate-then-property-test template, so the composite pattern is judgment-based synthesis over verified components. [R9][R10][R32][R33][R37][R41][R105][R106][R116]
+- K13. PROVISIONAL supported Two failure classes have no mechanical remedy and must be routed to manual redesign: (1) Java interop leakage — Clojure's dot-forms, type hints, primitive-array ops, proxy/gen-class call java.lang/java.util directly [R96], and no Python target exists for those classes, so every interop site is a redesign decision, not a translation; (2) macro-heavy DSLs — macros compile-time-expand into arbitrary code (destructuring itself is macro-implemented via `clojure.core/destructure`) [R92], so the LLM must translate expansion results, and DSL-shaped code (e.g., HoneySQL query maps [R111]) should be semantically lifted to the target DSL (SQLAlchemy Core expressions) rather than transliterated.
 
 ## Detail Sections
 
@@ -153,6 +157,90 @@ Constrained decoding guarantees format, not semantics — it eliminates parse/re
 
 MultiPL-E includes Clojure among its benchmark languages, making it one of very few Lisp-family languages with systematic LLM measurement — but no dedicated Clojure→Python translation system was found in any searched literature [R44]. The only firsthand practitioner account converts function-by-function with Copilot, test-compares captured outputs, and reports one-shot whole-codebase conversion failing and Python codebases growing substantially larger [R29]. Enterprise effort numbers therefore transfer from Java/Python pairs with a recorded caveat.
 
+### D9. Comprehensive idiom-mapping table (expands K10)
+
+Superset of the D4 rulebook rows; every row verified against primary docs on 2026-08-22. "Discipline" = plain mutable structure + team conventions + tests, chosen when third-party persistent collections are not worth the dependency.
+
+| Clojure | Python target | Evidence / risk note |
+|---|---|---|
+| persistent vector | `list` + discipline, or pyrsistent `PVector` | PVector: "Appends are amortized O(1). Random access and insert is log32(n)"; C extension "generally being 2 - 20 times faster" than its pure-Python flavor; structural sharing via path copying [R101] |
+| persistent map | `dict` + discipline, or pyrsistent `PMap`, or `immutables.Map` | immutables is a HAMT ("used in Clojure, Scala, Haskell") with "O(log N) performance for both set() and get()", shipped inside CPython's contextvars; MapMutation bulk-update API mirrors transients [R100][R101] |
+| persistent set | `set` + discipline, or pyrsistent `PSet` | full set-operator support (`\|`, `&`, `<`) on PSet [R101] |
+| keyword `:foo` | string constants / `enum.Enum`; map access `d.get("foo")` | keywords "evaluate to themselves", are IFns over maps (`(:mykey m :none)` = `(get m :mykey :none)`) — call-as-accessor idiom must be rewritten [R90]; sentinel gap → PEP 661 [R12] |
+| nil-punning | explicit `is None` checks / `Optional[T]` / sentinels | nil is both falsy and the end-of-sequence sentinel in Clojure [R90]; in Python None raises `AttributeError`/`TypeError` on protocol use — every nil-branching function needs an audit tag in the harness |
+| keyword args `(& {:keys [debug] :or {debug false}})` | `def f(*, debug=False)` or `**kwargs` + `.get` defaults | Clojure destructuring guide shows the exact kwarg pattern plus 1.11 trailing-map call style, which maps naturally onto Python's native kwargs [R92] |
+| sequential destructuring `[a b & rest :as all]` | tuple unpacking `a, b, *rest = xs` (+ re-slice for `all`) | Clojure binds missing to nil / ignores extras; Python unpacking RAISES on length mismatch — stricter than source, flag diffs [R92][R98] |
+| associative destructuring `{:keys [...] :or {...} :as m}` | unpacking via local assignments, or `match` mapping patterns | PEP 634 mapping patterns bind keys and `**rest`, use two-arg `get()` so defaults behave like `__missing__`-free lookups [R99][R92] |
+| pattern-style dispatch on shape | `match/case` (3.10+) | sequence patterns (star subpatterns), mapping patterns, class patterns with auto-generated `__match_args__` for dataclasses/namedtuples; guards ≈ `cond` test exprs; `_` wildcard ≈ `_` binding convention [R99][R102] |
+| threading macros `->` / `->>` | method chaining; intermediate locals; genexp pipelines | `->` inserts value as first arg (assoc/update style), `->>` as last (seq style) — the two insertion positions correspond exactly to OOP method chaining vs functional pipeline styles [R91] |
+| `some->` / `some->>` | `if x is not None:` guard chains, or walrus-assigned steps | short-circuits whole chain on first nil [R91]; no stdlib Optional-monad — hand-written guard per step |
+| `cond->` | sequential non-short-circuiting `if` blocks accumulating a value | "unlike ... some-> or cond, cond-> never short-circuits evaluation" — naive if/elif translation is WRONG (elif skips later branches) [R91] |
+| protocols | ABCs, `typing.Protocol`, or `functools.singledispatch` | protocol fns "dispatch on the type of their first argument" — the same contract singledispatch implements; extend-on-nil/Object → register `type(None)`/`object` default impl [R93][R103] |
+| multimethods (`defmulti` arbitrary dispatch fn, `isa?` hierarchies, `prefer-method`) | NO direct equivalent; `functools.singledispatch` covers only first-arg-type dispatch | multimethods dispatch "on types, values, attributes and metadata of, and relationships between, one or more arguments"; translate to hand-written dispatch-dict functions or match statements; derive/isa? taxonomies become explicit lookup tables [R94][R103] |
+| `defrecord` | `@dataclass(frozen=True, slots=True)` | record = "complete implementation of a persistent map" with value equality; dataclass gives `__init__`/`__repr__`/`__eq__`/`__hash__`(when frozen)/`__match_args__` but instances are only emulated-immutable and fields can't grow extra keys like assoc'd records [R95][R102] |
+| `deftype` / `reify` | plain `class` / closure-based anonymous class implementing an ABC | deftype allows mutable fields (record does not); reify bodies are lexical closures ≈ local class capturing scope [R95] |
+| lazy seqs | materialize to `list`, or generators — CHOOSE DELIBERATELY per var | iterators are one-way cursors: "you can only go forward in an iterator; there's no way to get the previous element, reset the iterator, or make a copy of it" — seq code that walks a seq twice breaks silently on a generator [R98][R28] |
+| `loop`/`recur` | `while`/`for` iteration, or explicit stack for mutual/tree recursion | recur gives JVM-level self-tail-call without stack growth; Python has no TRE ("simply unpythonic", ~1,000-frame budget) — mechanical recursive translation is a latent RecursionError [R115][R96] |
+| core.async go-blocks/channels | asyncio coroutines/tasks + `asyncio.Queue` | asyncio provides coroutine running, queues, synchronization primitives; semantic gaps (no M:N parking, no `alts!`) per K5/D4 [R104][R17][R18] |
+| transducers `(comp (filter odd?) (map inc))` | generator-expression / itertools pipelines | xform arities compose right-to-left into a left-to-right transformation stack applied by any process (coll, channel, stream); reduced early-termination has no iterator analog — take/drop-while xforms need itertools.islice/takewhile care [R97][R98] |
+| clojure.spec / malli | pydantic v2 models (existing R20) + typeguard runtime checks | typeguard instruments annotated functions ("automatically checks function arguments, return values and assignments to annotated local variables") approximating s/instrument at runtime [R120][R80] |
+| `cond` | `if`/`elif` chain | direct; watch truthiness divergence (empty coll/0 are truthy in Clojure, falsy in Python) [R90] |
+| `let` | plain function-local bindings; multi-target assignment tuples; `with` only for resource lifecycles | let-scoping is lexical block scope; Python function scope is close enough that mechanical renaming suffices except for shadowing rules [R98] |
+| metadata `^Type` / `with-meta` | type annotations (static only) + wrapper attrs | type hints aid the compiler only; runtime metadata-carrying values have no equivalent — drop or wrap [R96] |
+
+### D10. Toolchain/ecosystem parity table (expands K11)
+
+| Concern | Clojure side | Python side | Parity note |
+|---|---|---|---|
+| build/deps | Leiningen ("automating Clojure projects without setting your hair on fire", declarative project.clj) [R122]; deps.edn CLI | uv — "single tool to replace pip, pip-tools, pipx, poetry, pyenv, twine, virtualenv"; universal lockfile, workspaces, manages Python versions itself [R108] | uv lockfile ≈ deps.edn coordinate pinning; workspaces ≈ monorepo aliases |
+| REPL-driven dev | nREPL: network REPL server/client built so IDEs "evaluate Clojure code in remote environments" [R109] | IPython shell (tab completion, %timeit/%debug magics, ?/? introspection) powering Jupyter kernels [R121]; `python -m asyncio` REPL for await-driven exploration [R104] | workflow parity real but tool-mediated: nREPL middleware features map to editor LSP/DAP integrations, not to the bare REPL |
+| interactive debugging | nREPL eval-in-context, interrupt | debugpy — Debug Adapter Protocol implementation; attach-by-PID injection, `--wait-for-client`, programmatic `breakpoint()`/post-mortem trigger [R114] | attach-to-running-process replaces nREPL's connect-to-running-JVM pattern |
+| test runner | kaocha "Full featured next generation test runner": watch mode, fail-fast, pluggable reporters, extensible test types [R113] over clojure.test | pytest: assert introspection, auto-discovery, fixtures, parametrization, 1300+ plugins [R106] | kaocha watch-mode ↔ pytest-watch plugin; kaocha EDN config ↔ pytest.ini/pyproject config |
+| property-based testing | test.check generators [R79] | Hypothesis: "@given ... strategies", shrinking, stateful machine testing [R105][R81] | spec generators export → st.from_type/from_value bridges |
+| lint/static analysis | Eastwood: tools.analyzer-based linter, compiler-grade accuracy, CI-oriented, ~25 linter classes [R110]; clj-kondo [R57] | ruff: "extremely fast Python linter and code formatter" replacing flake8+black+isort+pydocstyle+pyupgrade, 900+ rules [R107] + mypy strict [R83] | Eastwood's evaluation-accuracy tradeoff inverts: ruff is syntax/fast-tier; mypy carries the semantic load Clojure got from spec |
+| routing | bidi/reitit: "fast data-driven router for Clojure(Script)", route-data + pluggable coercion (spec/malli/schema), ring-router module [R112] | FastAPI APIRouter tree [R16]; Starlette Route tables — "lightweight ASGI framework/toolkit" with routing/middleware/testclient modules usable independently [R119] | reitit route-data coercion ↔ FastAPI dependency/response_model declarations |
+| HTTP server/middleware | Ring handlers + middleware (request→response maps) [R13] | ASGI app + Starlette middleware `(scope, receive, send)` [R14][R15][R119] | per K5/D4 row; async-native successor framing holds |
+| SQL generation | HoneySQL: "SQL as Clojure data structures", composable helper fns, parameterized `format()` output [R111] | SQLAlchemy Core expressions (select()/where() composability) [R23] | HoneySQL map DSL ↔ Core method-chained DSL; both parameterize by construction |
+| JSON | cheshire: Jackson-based "fast JSON encoding", SMILE support, custom encoders, keyword-key round-tripping [R117] | stdlib json, or orjson — "fastest Python library for JSON", dumps returns bytes, natively serializes dataclass/datetime/UUID/numpy, strict RFC 8259, no PyPy [R118] | cheshire custom encoders ↔ orjson `default=` callable; SMILE has no mainstream Python peer (flag in Phase 1 if used) |
+
+### D11. LLM translation workflow deep-dive (expands K12)
+
+**Chunking strategy — per-var/function-level units.** The unit of translation should be the var (defn/def), not the file and not the whole namespace: it is small enough for one prompt with surrounding context, it aligns 1:1 with a pytest node so golden tests pair naturally [R106], and it composes into the dependency-consistent batching that lifted an industrial migration from 9.39% to 100% compile+test success [R37]. Google sizes clusters "to one prompt" off the cross-reference DAG and converts leaf-first [R10][R41]; AlphaTrans translates fragments in reverse call order for the same reason [R34].
+
+**Context windows vs namespace dependencies.** Clojure namespaces declare their `:require` graph explicitly, which gives the harness a deterministic context plan per chunk: (1) translated signatures of in-repo dependencies, compressed into stub files — the mypy-strict regime makes stubs the enforced interface contract rather than documentation [R83]; (2) the D9/D4 rulebook rows relevant to the idioms detected in that var; (3) 10–20 hand-converted exemplars seeded per idiom class [R29]. Everything else stays out of the window; do NOT paste whole dependency sources.
+
+**Prompt patterns — translate-then-property-test.** Stage A prompt: translate one var + emit a docstring stating observed input/output contract (structured output enforces format [R45][R46]). Stage B prompt: given the source spec/test.check generators or captured examples, emit Hypothesis `@given` properties asserting algebraic invariants (round-trip, idempotence, ordering) [R105]. Vendor guidance validates the frame but not the template: Anthropic's overview requires "a clear definition of the success criteria" and "some ways to empirically test against those criteria" BEFORE prompt engineering, and lists prompt chaining among core techniques — i.e., the two-stage chain is the documented shape, while the specific translate-then-property-test instantiation is judgment-based synthesis (see U6) [R116].
+
+**Hallucination risks beyond packages.** Package hallucination is measured (≥5.2% commercial models) and gated by registry-existence checks [R43]. Stdlib-API confusion — plausible-but-wrong method names, wrong signatures, wrong exception types on list/dict/str/asyncio APIs — is unquantified in fetched literature (U2) and plausibly more frequent at function granularity. Cheap gates: ruff undefined-name/unused-import rules catch invented module members only partially, so pair lint [R107] with import-resolution smoke execution plus signature diffing against stubs [R83].
+
+**Human review gates mapped to gate tiers.**
+
+```text
+Tier 0  lint/format          ruff clean                    [R107]
+Tier 1  static contract      mypy strict=true              [R83]
+Tier 2  behavioral           pytest golden/unit green      [R106][R75]
+Tier 3  property             Hypothesis suite green        [R105]
+Tier 4  differential         dual-run diff vs live Clojure [R78]
+Tier 5  HUMAN review         batch boundary, parity evidence attached
+        suspicious units get debugpy step-through before sign-off [R114]
+```
+
+Google's program kept humans mandatory at rollout despite 74.45% LLM-authored changes [R9][R41]; the tier ladder localizes WHERE human attention goes instead of whether it is spent.
+
+**Iterative refinement loop with characterization tests.** Per unit: record characterization tests from the running Clojure system (masking timestamps/IDs) [R75] → translate → run tiers 0–3 → on failure, feed the failing assertion + execution traceback back as repair feedback (execution-feedback repair adds up to +12%, Self-Debugging) [R32], bounded retries, then escalate to UniTrans-style oracle regeneration if the recorded tests themselves were under-specified [R33]. Characterization tests are change detectors, not correctness proofs — exactly right when the old system is the specification [R75]; they are also what makes the loop convergent, since each retry optimizes toward a FIXED target rather than model self-assessment.
+
+### D12. Risk catalog (expands K13)
+
+| Risk | Mechanism | Detection / mitigation |
+|---|---|---|
+| dynamic-typing false safety | Both languages are dynamic; passing tests ≠ correct behavior. Python additionally converts silent nil-flows into runtime `AttributeError`/`TypeError` where Clojure nil-punning returned values [R90]; mutable-by-default dataclasses/dicts invite aliasing bugs absent from immutable-source code [R102] | mypy strict + typeguard runtime instrumentation on public surfaces [R83][R120]; Hypothesis stateful tests with legacy-as-oracle [R81]; treat every `None` branch as a review tag |
+| Java interop leakage | Dot-forms, `^String` hints, primitive-array ops (`amap`/`areduce` "exactly the same speed" as Java), proxy/gen-class call java.* directly [R96] — there is NO Python target for those classes; a translator can only fail loudly or invent code | Phase-0 inventory greps/clj-kondo scan for `.` member forms, type tags, `java.` imports, gen-class/proxy/reify; each hit becomes a manual redesign ticket mapped to a named Python library BEFORE translation batches are planned |
+| performance cliffs — persistent-structure emulation | Pure-Python pyrsistent is the slow floor its own C extension beats by 2–20x [R101]; immutables HAMT ops are O(log N) vs dict O(1) [R100]; JVM persistent collections are JIT-tuned with no CPython peer | profile hot paths first; use discipline-dicts where sharing semantics aren't load-bearing; benchmark gates (k6) before cutover [R86] |
+| performance cliffs — concurrency model | GIL caps CPU-bound thread parallelism (PEP 703) [R69]; free-threaded 3.14 carries ~5-10%/15-20% penalties [R70][R71]; meanwhile recur-based primitive loops run at compiled-Java speed on the JVM [R96] — a direct CPU hot-path translation loses that for free | keep decisioning hot path on JVM longer OR restructure async/precomputed per D5 |
+| macro-heavy DSLs untranslatable mechanically | Macros expand at compile time into arbitrary code — destructuring is itself implemented by `clojure.core/destructure` [R92]; threading macros rewrite forms [R91]; an LLM shown macro DEFINITIONS will hallucinate semantics | feed EXPANSION results (macroexpand-1 output) to the model, never definitions; lift DSL-shaped data (HoneySQL maps → SQLAlchemy Core [R111][R23]) via dedicated rulebook rows instead of line-by-line transliteration |
+| lazy-seq / iterator mismatch (restated for risk triage) | seqs are persistent and re-iterable; Python iterators are single-pass cursors with no reset/copy [R98][R28] | harness lint rule: any translated var whose source touches a seq twice must materialize (`list(...)`) or be flagged; covered by Tier 3 property tests using replayed inputs |
+| truthiness divergence | empty coll / 0 / 0.0 are truthy in Clojure, falsy in Python; `(if [])` ≠ `if []:` | mechanical check: flag every translated conditional whose test was a bare collection/number literal in source |
+
 ## Recommendation
 
 Run a strangler-fig migration executed by a deterministic harness; never a big-bang LLM rewrite. Phases:
@@ -182,6 +270,12 @@ Run a strangler-fig migration executed by a deterministic harness; never a big-b
 - Concrete RTB `tmax` values (e.g., 100ms) are exchange-configured practice, not OpenRTB text. Verify by: exchange/Prebid documentation.
 - Free-threaded CPython wheel availability for the adtech dependency set (asyncpg, uvloop, pydantic-core) is assumed partial as of 2026-08. Verify by: PyPI wheel inventory audit.
 - Airtable/Zapier LLM-migration engineering posts could not be located; their reported pipelines are unverified. Verify by: direct site search.
+- U1: realpython.com Python 3.10 pattern-matching tutorial was not retrieved during this enrichment pass; all match-statement claims rest solely on PEP 634 (canonical spec) [R99]. Verify by: fetching realpython.com/python310-new-features/.
+- U2: stdlib-API-level hallucination rates for LLM code translation (invented method names, wrong signatures on list/dict/str/asyncio APIs) are unquantified in fetched literature; only package-level rates are measured [R43]. Verify by: targeted search for API-level hallucination benchmarks.
+- U3: No benchmark comparing JVM persistent-collection throughput against pyrsistent/immutables emulation under adserver-shaped load was found; the emulation-cost risk is directional, not quantified. Verify by: microbenchmark harness on target hardware.
+- U4: The kaocha→pytest watch-mode/plugin ergonomics parity claim is qualitative, drawn from feature lists of both runners [R113][R106], not from a comparative evaluation. Verify by: side-by-side trial in Phase 2 harness build.
+- U5: IPython-as-nREPL-workflow-replacement is asserted from IPython's feature page (magics, introspection, Jupyter kernel) [R121] vs nREPL's design docs [R109]; no study compares cider-style evaluate-in-place workflows with DAP/LSP debugging loops. Verify by: practitioner time-motion comparison.
+- U6: Anthropic's prompt-engineering overview page redirects to platform.claude.com and contains only meta-guidance (success criteria first, empirical evals, chaining pointer) [R116]; no vendor publishes a translate-then-property-test template, so that composite prompt pattern is judgment-based synthesis. Verify by: vendor cookbook retrieval when such templates appear.
 
 ## References
 
@@ -274,6 +368,39 @@ Run a strangler-fig migration executed by a deterministic harness; never a big-b
 - [R87] CanaryRelease — https://martinfowler.com/bliki/CanaryRelease.html — retrieved 2026-08-22
 - [R88] Feature Toggles — https://martinfowler.com/articles/feature-toggles.html — retrieved 2026-08-22
 - [R89] Pact docs — https://docs.pact.io/ — retrieved 2026-08-22
+- [R90] Clojure Reference: Data Structures — https://clojure.org/reference/data_structures — retrieved 2026-08-22
+- [R91] Clojure Guide: Threading Macros — https://clojure.org/guides/threading_macros — retrieved 2026-08-22
+- [R92] Clojure Guide: Destructuring — https://clojure.org/guides/destructuring — retrieved 2026-08-22
+- [R93] Clojure Reference: Protocols — https://clojure.org/reference/protocols — retrieved 2026-08-22
+- [R94] Clojure Reference: Multimethods and Hierarchies — https://clojure.org/reference/multimethods — retrieved 2026-08-22
+- [R95] Clojure Reference: Datatypes (deftype, defrecord, reify) — https://clojure.org/reference/datatypes — retrieved 2026-08-22
+- [R96] Clojure Reference: Java Interop — https://clojure.org/reference/java_interop — retrieved 2026-08-22
+- [R97] Clojure Reference: Transducers — https://clojure.org/reference/transducers — retrieved 2026-08-22
+- [R98] Python Functional Programming HOWTO — https://docs.python.org/3/howto/functional.html — retrieved 2026-08-22
+- [R99] PEP 634 – Structural Pattern Matching: Specification — https://peps.python.org/pep-0634/ — retrieved 2026-08-22
+- [R100] immutables (HAMT immutable mapping) — https://pypi.org/project/immutables/ — retrieved 2026-08-22
+- [R101] pyrsistent GitHub README — https://github.com/tobgu/pyrsistent — retrieved 2026-08-22
+- [R102] Python dataclasses documentation — https://docs.python.org/3/library/dataclasses.html — retrieved 2026-08-22
+- [R103] Python functools documentation (singledispatch) — https://docs.python.org/3/library/functools.html — retrieved 2026-08-22
+- [R104] Python asyncio documentation — https://docs.python.org/3/library/asyncio.html — retrieved 2026-08-22
+- [R105] Hypothesis documentation — https://hypothesis.readthedocs.io/en/latest/ — retrieved 2026-08-22
+- [R106] pytest documentation — https://docs.pytest.org/en/stable/ — retrieved 2026-08-22
+- [R107] Ruff documentation — https://docs.astral.sh/ruff/ — retrieved 2026-08-22
+- [R108] uv documentation — https://docs.astral.sh/uv/ — retrieved 2026-08-22
+- [R109] nREPL documentation — https://nrepl.org/nrepl/1.3/index.html — retrieved 2026-08-22
+- [R110] Eastwood (Clojure lint tool) — https://github.com/jonase/eastwood — retrieved 2026-08-22
+- [R111] HoneySQL — https://github.com/seancorfield/honeysql — retrieved 2026-08-22
+- [R112] Reitit README — https://github.com/metosin/reitit — retrieved 2026-08-22
+- [R113] Kaocha README — https://github.com/lambdaisland/kaocha — retrieved 2026-08-22
+- [R114] debugpy (Debug Adapter Protocol for Python) — https://github.com/microsoft/debugpy — retrieved 2026-08-22
+- [R115] Guido van Rossum: Tail Recursion Elimination — https://neopythonic.blogspot.com/2009/04/tail-recursion-elimination.html — retrieved 2026-08-22
+- [R116] Anthropic Prompt engineering overview — https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview — retrieved 2026-08-22
+- [R117] Cheshire README — https://github.com/dakrone/cheshire — retrieved 2026-08-22
+- [R118] orjson README — https://github.com/ijl/orjson — retrieved 2026-08-22
+- [R119] Starlette documentation — https://www.starlette.io/ — retrieved 2026-08-22
+- [R120] typeguard — https://pypi.org/project/typeguard/ — retrieved 2026-08-22
+- [R121] IPython — https://ipython.org/ — retrieved 2026-08-22
+- [R122] Leiningen — https://www.leiningen.org/ — retrieved 2026-08-22
 
 ## Process Appendix
 
@@ -366,6 +493,7 @@ Independent judge (saw draft + challenger verdicts, not author rationale): reaso
 [2026-08-22T00:00Z] STOP
 [resilience] SYNTHESIZE dispatch 1 returned empty, document unchanged -> retry rung 1 (minimal-prompt)
 [resilience] SYNTHESIZE dispatch 2 returned empty -> ladder rung 4: primary-led synthesis with recorded independence caveat
+[2026-08-22T17:00Z] ENRICHMENT complete :: cycle 1 :: trigger: user-directed exhaustiveness upgrade; added D9-D12 + K9+ and references.
 ```
 
 ### Evidence Pack Note
