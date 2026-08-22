@@ -276,7 +276,7 @@ const INTERFACES = {
   },
   "csm-review-python": {
     entryConditions: ["target python repository checkout at a pinned commit", "optional change-surface scope", "explicit user consent for any tool installation"],
-    consumes: ["repository working tree (read-only)", "optional NORMS.md conventions", "bundled rules artifact artifact/python-idiomatic-reviewer-rules.json", "doctrine playbook from .agents/research/2026-08-22-pep20-idiomatic-python-consolidated-research.md"],
+    consumes: ["repository working tree (read-only)", "optional NORMS.md conventions", "bundled artifacts artifact/python-idiomatic-reviewer-rules.json and artifact/pep20-idiomatic-python-consolidated-research.md"],
     produces: [".agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md"],
     handoff: ["single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise"],
     midPipeline: ["consent-gated isolated tool runs", "severity-mapped findings", "single-file report emit"],
