@@ -62,6 +62,7 @@
 // No production, baseline, contract, or other test is edited.
 
 import assert from "node:assert/strict";
+import { CANARIES, SARIF, SBOM } from "./helpers/privacy-fixtures.mjs";
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -371,7 +372,7 @@ test("T228 AC1 command boundary: sole broker, registered rg/git argv, zero targe
   // The broker registry itself is closed: only rg and read-only git.
   const sources = await productionSources();
   const childProcessOwners = sources.filter(({ source }) =>
-    source.includes("from 'node:child_process'"),
+    source.replace(/["']/g, '"').includes('from "node:child_process"'),
   );
   assert.equal(
     childProcessOwners.length,
@@ -1345,89 +1346,6 @@ test("T228 AC16: a capped search is unverified, never not_detected", async (t) =
 // ---------------------------------------------------------------------------
 // AC17 — privacy across every output surface
 // ---------------------------------------------------------------------------
-
-const CANARIES = Object.freeze([
-  "Alice Smith",
-  "alice.smith@example.test",
-  "/etc/privacy/path.conf",
-  "C:\\Users\\priv\\secret.conf",
-  "\\\\server\\share\\secret.conf",
-  "privacy-super-secret-token-77",
-  "PrivacyPassw0rd-99",
-  "ghp_\x70rivacy_fixture_token_88",
-  "@alice-dev",
-  "privacy-canary-commit-subject",
-  "privacy-sarif-message",
-  "privacy-snippet",
-  "urn:uuid:privacy-serial-1111",
-  "privacy-sbom-hash-2222",
-  "privacy-sbom-contact",
-  "https://downloads.example.test/privacy-lib-1.0.0.tgz",
-  "https://github.com/acme/privacy-lib.git",
-  "https://user:pass@db.example.test/primary",
-]);
-
-const SARIF = {
-  version: "2.1.0",
-  runs: [
-    {
-      tool: {
-        driver: {
-          name: "privacy-scan",
-          rules: [{ id: "R1", shortDescription: { text: "privacy-sarif-message" } }],
-        },
-      },
-      results: [
-        {
-          ruleId: "R1",
-          message: { text: "privacy-sarif-message leak" },
-          codeFlows: [
-            {
-              threadFlows: [
-                {
-                  locations: [
-                    {
-                      location: {
-                        physicalLocation: {
-                          artifactLocation: { uri: "src/a.js" },
-                          region: { snippet: { text: "privacy-snippet" } },
-                        },
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-const SBOM = {
-  bomFormat: "CycloneDX",
-  specVersion: "1.5",
-  serialNumber: "urn:uuid:privacy-serial-1111",
-  components: [
-    {
-      type: "library",
-      name: "privacy-lib",
-      version: "1.0.0",
-      purl: "pkg:npm/privacy-lib@1.0.0",
-      hashes: [{ alg: "SHA-256", content: "privacy-sbom-hash-2222" }],
-      licenses: [{ license: { id: "MIT" } }],
-      externalReferences: [
-        { type: "distribution", url: "https://downloads.example.test/privacy-lib-1.0.0.tgz" },
-        { type: "vcs", url: "https://github.com/acme/privacy-lib.git" },
-      ],
-      supplier: {
-        name: "privacy-sbom-contact",
-        contact: [{ name: "Alice Smith", email: "alice.smith@example.test" }],
-      },
-    },
-  ],
-};
 
 function canaryFiles() {
   return {

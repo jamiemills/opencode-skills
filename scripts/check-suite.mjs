@@ -604,6 +604,24 @@ function checkPayloadDrift(rootDir) {
         issues.push(`DIFF ${rel}`);
       }
     }
+    // F-008: reverse direction — every mapped source must exist in the
+    // payload tree. The forward walk above only visits files that already
+    // exist under payload/, so a NEW source file added to a mapped directory
+    // without re-running pack-bootstrap would otherwise ship silently
+    // missing from the package while all gates stay green.
+    for (const [dest, srcRel] of srcMap) {
+      const payloadPath = path.join(
+        rootDir,
+        "bootstrap",
+        "package",
+        dest.split("/").join(path.sep),
+      );
+      if (!fs.existsSync(payloadPath)) {
+        issues.push(
+          `MISSING-IN-PAYLOAD ${dest} (source ${srcRel} not packed — rerun scripts/pack-bootstrap.mjs)`,
+        );
+      }
+    }
   }
   console.log(`payload drift: {compared:${compared}, issues:${JSON.stringify(issues)}}`);
   return issues;
@@ -1333,6 +1351,49 @@ function main() {
   const payloadDriftIssues = checkPayloadDrift(root);
   for (const issue of payloadDriftIssues) {
     check(false, `payload drift: ${issue}`);
+  }
+
+  // F-004 early-warning gate: the scan tier manifest must cover every
+  // test/*.test.mjs on disk, otherwise every `run-tier` invocation dies at
+  // its partition assertion before running anything. Text-scanned (no module
+  // execution) so the gate stays deterministic and side-effect free.
+  {
+    const tiersPath = path.join(root, "csm-scan", "test", "scripts", "tiers.mjs");
+    const testDir = path.join(root, "csm-scan", "test");
+    let manifestOk = false;
+    let detail = "unreadable";
+    if (!fs.existsSync(tiersPath)) {
+      // Conditional gate: contexts without a materialized csm-scan tree
+      // (e.g. the pre-commit hook test fixture) skip this check the same
+      // way the lint gate skips without oxlint.
+      console.log("tier manifest gate skipped — csm-scan/test/scripts/tiers.mjs not present");
+      manifestOk = true;
+      detail = "skipped — tiers.mjs not present";
+    } else
+      try {
+        const tiersSrc = fs.readFileSync(tiersPath, "utf8");
+        const listed = new Set(
+          [...tiersSrc.matchAll(/"(test\/[^"]+\.test\.mjs)"/g)].map((m) => m[1]),
+        );
+        const current = fs
+          .readdirSync(testDir)
+          .filter((name) => name.endsWith(".test.mjs"))
+          .map((name) => `test/${name}`)
+          .toSorted();
+        const missing = current.filter((f) => !listed.has(f));
+        const unknown = [...listed].filter((f) => !fs.existsSync(path.join(root, "csm-scan", f)));
+        if (missing.length === 0 && unknown.length === 0) {
+          manifestOk = true;
+          detail = `${current.length}/${current.length} files tiered`;
+        } else {
+          detail = `${missing.length} unlisted, ${unknown.length} phantom${
+            missing.length ? ` (first: ${missing[0]})` : ""
+          }`;
+        }
+      } catch (err) {
+        detail = err.message;
+      }
+    check(manifestOk, `scan tier manifest incomplete: ${detail}`);
   }
 
   const matrixDrift = checkMatrixDrift(path.join(root, "README.md"));

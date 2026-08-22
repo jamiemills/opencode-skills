@@ -246,8 +246,8 @@ test("T208 default runner enforces caps and sanitizes OS errors", async () => {
 
 test("T208 migrated callers own no child-process capability outside the broker", () => {
   assert.match(
-    readSource("lib/scan/shared/command.mjs"),
-    /import \{ execFile \} from 'node:child_process';/,
+    readSource("lib/scan/shared/command.mjs").replace(/["']/g, '"'),
+    /import \{ execFile \} from "node:child_process";/,
   );
   for (const rel of ["lib/scan/shared/enum.mjs", "lib/scan/survey.mjs", "lib/scan/deep/git.mjs"]) {
     const source = readSource(rel);

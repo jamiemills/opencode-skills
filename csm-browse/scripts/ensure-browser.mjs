@@ -49,7 +49,7 @@ import {
   CONTAINER_CDP_INTERNAL_PORT,
   imageStaleMs,
 } from "../lib/constants.mjs";
-import { readFile, rm, open, stat } from "node:fs/promises";
+import { readFile, rm, open, stat, utimes } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -646,6 +646,31 @@ async function ensureContainer(dryRunMode) {
   console.log("Shared browser CDP ready");
 }
 
+// F-011: while an adoption is in flight, touch the creating marker on a
+// heartbeat so its mtime stays fresh. A concurrent sweep's age gate then
+// keeps protecting the session even when the adoption stalls past the
+// original CDP-retry grace; the interval dies with the process (unref'd), and
+// stopMarkerHeartbeat retires it on every terminal path.
+const MARKER_HEARTBEAT_MS = 20000;
+let markerHeartbeatTimer = null;
+
+function startMarkerHeartbeat(markerPath) {
+  stopMarkerHeartbeat();
+  const touch = () => {
+    utimes(markerPath, new Date(), new Date()).catch(() => {});
+  };
+  touch();
+  markerHeartbeatTimer = setInterval(touch, MARKER_HEARTBEAT_MS);
+  if (markerHeartbeatTimer.unref) markerHeartbeatTimer.unref();
+}
+
+function stopMarkerHeartbeat() {
+  if (markerHeartbeatTimer) {
+    clearInterval(markerHeartbeatTimer);
+    markerHeartbeatTimer = null;
+  }
+}
+
 async function adoptSession(targetSid, containerSessDir) {
   const matches = await pgrepMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
   if (matches.length === 0) return null;
@@ -682,6 +707,8 @@ async function adoptSession(targetSid, containerSessDir) {
     { encoding: "utf-8" },
   );
 
+  startMarkerHeartbeat(markerPath);
+
   // Always respawn the gate with a fresh token: an old gate (if any) holds an
   // unknown token we cannot recover, and adoption must never inherit a stale
   // credential.
@@ -704,12 +731,14 @@ async function adoptSession(targetSid, containerSessDir) {
       console.error("CDP did not become ready after adopt — killing stale instance");
       await pkillMatch(CONTAINER_NAME, `--user-data-dir=${containerSessDir}/`);
       await killGate(publicPort);
+      stopMarkerHeartbeat();
       try {
         await rm(markerPath, { force: true });
       } catch {}
       return null;
     }
     console.log("CDP ready after adopt");
+    stopMarkerHeartbeat();
 
     const versionJson = await cdpFetchJson(cdpEndpoint(cdpUrl, "/json/version"));
     const wsUrl = gateWsUrl(versionJson, publicPort, token);
@@ -723,6 +752,7 @@ async function adoptSession(targetSid, containerSessDir) {
       adopted: true,
     };
   } catch (err) {
+    stopMarkerHeartbeat();
     try {
       await rm(markerPath, { force: true });
     } catch {}

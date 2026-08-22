@@ -1,7 +1,12 @@
 #!/usr/bin/env node
-import { readFile, rm, open, utimes } from "node:fs/promises";
+import { readFile, rename, rm, open, utimes } from "node:fs/promises";
 import { constants as fsConstants, openSync, writeSync, closeSync } from "node:fs";
 import { join } from "node:path";
+import {
+  clearCreatorArtifact,
+  holderIdentityMatches,
+  writeCreatorArtifact,
+} from "../lib/pid-identity.mjs";
 import { setTimeout } from "node:timers/promises";
 import { loadState, sessionDir } from "../lib/session.mjs";
 import {
@@ -93,6 +98,9 @@ async function claimPidFile() {
       } finally {
         await fh.close();
       }
+      try {
+        await writeCreatorArtifact(pidFile);
+      } catch {}
       return;
     } catch (err) {
       if (err.code !== "EEXIST") throw err;
@@ -120,7 +128,9 @@ async function claimPidFile() {
       if (!isNaN(existingPid)) {
         try {
           process.kill(existingPid, 0);
-          alive = true;
+          // F-012: a recycled PID must not block startup — verify the
+          // holder's /proc starttime against the claim's creator sidecar.
+          alive = await holderIdentityMatches(pidFile, existingPid);
         } catch {}
       }
       if (alive) {
@@ -155,6 +165,7 @@ async function removeOwnPidFile() {
     try {
       await rm(pidFile);
     } catch {}
+    await clearCreatorArtifact(pidFile);
   }
 }
 
@@ -216,6 +227,7 @@ if (!state || !state.wsUrl) {
 console.log(`Connecting to ${redactUrl(state.wsUrl)}...`);
 let client;
 let tabSessionId;
+let collectorsHandle = null;
 
 try {
   client = await connectDaemon(state.wsUrl);
@@ -227,7 +239,7 @@ try {
   try {
     const collectors = await import("../lib/collectors.mjs");
     if (collectors.collectorsHook) {
-      await collectors.collectorsHook(client, tabSessionId, sDir);
+      collectorsHandle = await collectors.collectorsHook(client, tabSessionId, sDir);
       console.log("Collectors enabled");
     }
   } catch (e) {
@@ -278,6 +290,18 @@ try {
       }
     } catch (e) {
       if (e.code !== "ERR_MODULE_NOT_FOUND") console.error(`Recorder finalize error: ${e.message}`);
+    }
+
+    // F-015: surface telemetry-write accounting before shutdown so a
+    // "capture gap" diagnosis can distinguish a dead daemon from silent
+    // write failures during the session.
+    if (collectorsHandle?.stats) {
+      const stats = collectorsHandle.stats();
+      if (stats.droppedWrites > 0 || stats.droppedRotations > 0) {
+        console.log(
+          `Collectors dropped: writes=${stats.droppedWrites} rotations=${stats.droppedRotations}`,
+        );
+      }
     }
 
     if (client) {

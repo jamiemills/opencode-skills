@@ -170,10 +170,15 @@ test("T205 unchanged write facade matches the pre-existing deterministic bytes w
   // T010 (F-065-b reconciliation): the write facade is the atomic tmp+rename
   // writer — exactly one temp write and one rename.
   assert.equal(
-    source.split("import { rename, unlink, writeFile } from 'node:fs/promises';").length - 1,
+    source
+      .replace(/["']/g, '"')
+      .split('import { rename, unlink, writeFile } from "node:fs/promises";').length - 1,
     1,
   );
-  assert.equal(source.split("await writeFile(tmpPath, content, 'utf-8');").length - 1, 1);
+  assert.equal(
+    source.replace(/["']/g, '"').split('await writeFile(tmpPath, content, "utf-8");').length - 1,
+    1,
+  );
   assert.equal(source.split("await rename(tmpPath, outPath);").length - 1, 1);
 });
 

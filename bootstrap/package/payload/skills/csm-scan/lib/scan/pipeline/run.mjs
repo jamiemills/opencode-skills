@@ -328,7 +328,7 @@ function fallbackDimension(dimension) {
 }
 
 async function safeScanDimension(dimension, repoPath, overview, broker) {
-  if (!PRIVACY_ENFORCED_DIMENSIONS.includes(dimension)) {
+  if (!DEGRADEABLE_DIMENSIONS.includes(dimension)) {
     return scanDimension(dimension, repoPath, overview, broker);
   }
   try {
@@ -402,6 +402,11 @@ const PRIVACY_ENFORCED_DIMENSIONS = Object.freeze([
   "assurance",
   "practices",
 ]);
+
+// F-020: architecture joins the degradeable set so a pathological repository
+// shape degrades that single dimension to a low-signal fallback instead of
+// aborting the whole multi-repo pipeline after all other work completed.
+const DEGRADEABLE_DIMENSIONS = Object.freeze([...PRIVACY_ENFORCED_DIMENSIONS, "architecture"]);
 
 /**
  * Fail-before-write privacy gate over an assembled `findings` envelope. The six

@@ -117,5 +117,26 @@
     "wallMs": 3000,
     "nodeVersion": "v20.20.2",
     "ts": "2026-08-21T23:17:40.642Z"
+  },
+  {
+    "gate": "check-suite",
+    "passCount": 677,
+    "wallMs": 4000,
+    "nodeVersion": "v22.23.2",
+    "ts": "2026-08-22T08:56:11.544Z"
+  },
+  {
+    "gate": "check-suite",
+    "passCount": 680,
+    "wallMs": 4000,
+    "nodeVersion": "v22.23.2",
+    "ts": "2026-08-22T09:09:10.578Z"
+  },
+  {
+    "gate": "check-suite",
+    "passCount": 683,
+    "wallMs": 4000,
+    "nodeVersion": "v22.23.2",
+    "ts": "2026-08-22T09:10:46.826Z"
   }
 ]

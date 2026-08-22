@@ -6,8 +6,20 @@ export async function connect(state) {
 }
 
 export async function getSession(client) {
+  const { sessionId } = await attachFirstPage(client);
+  return sessionId;
+}
+
+// F-014: single implementation of the discover-and-attach sequence shared by
+// every verb and the daemon. Returns the attached session plus the chosen
+// page target so callers that need the page URL avoid re-discovery.
+export async function listPageTargets(client) {
   const { targetInfos } = await client.send("Target.getTargets");
-  const pages = targetInfos.filter((t) => t.type === "page");
+  return targetInfos.filter((t) => t.type === "page");
+}
+
+export async function attachFirstPage(client) {
+  const pages = await listPageTargets(client);
 
   if (pages.length === 0) {
     // F-067-3: a typed error, not process.exit(2) — a library function must
@@ -22,7 +34,7 @@ export async function getSession(client) {
     flatten: true,
   });
 
-  return sessionId;
+  return { sessionId, page: target };
 }
 
 export async function waitForLoad(client, sessionId) {

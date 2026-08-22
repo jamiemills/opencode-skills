@@ -101,6 +101,43 @@ function validateEnvelope(envelope, keyring, { now = new Date(), indexSha256 } =
   for (const field of Object.keys(envelope))
     if (!allowed.includes(field))
       reject("UNEXPECTED_FIELD", `unsigned field ${field} is not allowed`);
+  // F-010: limits validation mirrors tests/protocol/trust-policy.mjs exactly
+  // so the shipped gate and the tested engine cannot drift apart. A
+  // canonical-equality protocol test pins this parity.
+  const limits = envelope.policy?.limits;
+  if (!limits || typeof limits !== "object") reject("SCHEMA", "limits missing");
+  const HARDWIRE_CAP = 1024 * 1024;
+  if (
+    !Number.isInteger(limits.max_bytes) ||
+    limits.max_bytes < 1 ||
+    limits.max_bytes > HARDWIRE_CAP
+  )
+    reject("SCHEMA", "max_bytes out of bounds");
+  if (
+    !Number.isInteger(limits.max_redirects) ||
+    limits.max_redirects < 0 ||
+    limits.max_redirects > 3
+  )
+    reject("SCHEMA", "max_redirects out of bounds");
+  if (typeof limits.allowed_origin !== "string") {
+    reject("SCHEMA", "allowed_origin missing");
+  } else {
+    let allowedOrigin;
+    try {
+      allowedOrigin = new URL(limits.allowed_origin);
+    } catch {
+      reject("SCHEMA", "allowed_origin is not a URL");
+    }
+    if (allowedOrigin && allowedOrigin.protocol !== "https:")
+      reject("SCHEMA", "allowed_origin must be https");
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(envelope, "payload_index_sha256") &&
+    (typeof envelope.payload_index_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/.test(envelope.payload_index_sha256))
+  ) {
+    reject("SCHEMA", "payload_index_sha256 must be a sha256 hex digest");
+  }
   if (envelope.audience !== ENVELOPE_AUDIENCE) reject("WRONG_AUDIENCE", "audience mismatch");
   if (!Number.isFinite(Date.parse(envelope.expires_at)) || Date.parse(envelope.expires_at) <= now)
     reject("EXPIRED", "envelope expired");

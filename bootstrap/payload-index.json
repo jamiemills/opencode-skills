@@ -14,8 +14,8 @@
   ],
   "fixedBin": {
     "path": "bin/csm-skills-bootstrap.js",
-    "sha256": "2dd09385dbc0c17a34eda3af9dafe4f98c93c374ba27bce30efee28e470e01f3",
-    "bytes": 9962,
+    "sha256": "313a6e7efe4f6a20e18d225033fbf35e60e5da8377b01e3ddc43b46e4b6c9e38",
+    "bytes": 11345,
     "mode": "0755"
   },
   "classes": {
@@ -150,8 +150,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/architecture/graph-facts.mjs",
-        "sha256": "93009b6cd65cc3ea784d90b2d5b687b8f3ed899f0c0043a6d7d812f1e6936c8d",
-        "bytes": 6606,
+        "sha256": "68600fffcabccae66d3b97afbd4a63eb9875779fa3bda48a5891c9aef5437d73",
+        "bytes": 7565,
         "mode": "0644"
       },
       {
@@ -282,8 +282,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/deep/operations.mjs",
-        "sha256": "891b202acb278b28c2667545ee52b8d1a620669c536d26c8cfe46a89a3ec63e4",
-        "bytes": 33409,
+        "sha256": "8f427cb077416ae5e1e53cec82955e7ba49826a1d8b4e3eaa2798cf3f3f03f9d",
+        "bytes": 33427,
         "mode": "0644"
       },
       {
@@ -348,8 +348,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/pipeline/run.mjs",
-        "sha256": "81391e4e0cc944ef24c814e0a85379621854c47e70baee2f2732163986e038a9",
-        "bytes": 39287,
+        "sha256": "4f646186fa95565491099aa8a19051ee240e07e7ae0ccca2c3c2b96e8abb1a90",
+        "bytes": 39607,
         "mode": "0644"
       },
       {

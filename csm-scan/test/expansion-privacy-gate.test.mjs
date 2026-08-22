@@ -29,6 +29,7 @@
 // edited.
 
 import assert from "node:assert/strict";
+import { CANARIES, SARIF, SBOM } from "./helpers/privacy-fixtures.mjs";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -52,90 +53,6 @@ const FIXED_CLOCK = () => "2026-08-03";
 
 // Every canary must stay absent from every sink. Add deliberate review before
 // weakening any entry.
-const CANARIES = Object.freeze([
-  "Alice Smith", // personal name
-  "alice.smith@example.test", // email
-  "/etc/privacy/path.conf", // POSIX absolute path
-  "C:\\Users\\priv\\secret.conf", // Windows absolute path
-  "\\\\server\\share\\secret.conf", // UNC path
-  "privacy-super-secret-token-77", // secret token value
-  "PrivacyPassw0rd-99", // credential value
-  "ghp_\x70rivacy_fixture_token_88", // GitHub PAT shape
-  "@alice-dev", // CODEOWNERS identity
-  "privacy-canary-commit-subject", // raw commit subject
-  "privacy-sarif-message", // SARIF message text
-  "privacy-snippet", // SARIF snippet text
-  "urn:uuid:privacy-serial-1111", // SBOM serial
-  "privacy-sbom-hash-2222", // SBOM content hash
-  "privacy-sbom-contact", // SBOM contact identity
-  "https://downloads.example.test/privacy-lib-1.0.0.tgz", // SBOM download URL
-  "https://github.com/acme/privacy-lib.git", // SBOM VCS URL
-  "https://user:pass@db.example.test/primary", // URL with embedded credentials
-  "alice:secret@github.com", // raw git remote with credentials
-]);
-
-const SARIF = {
-  version: "2.1.0",
-  runs: [
-    {
-      tool: {
-        driver: {
-          name: "privacy-scan",
-          rules: [{ id: "R1", shortDescription: { text: "privacy-sarif-message" } }],
-        },
-      },
-      results: [
-        {
-          ruleId: "R1",
-          message: { text: "privacy-sarif-message leak" },
-          codeFlows: [
-            {
-              threadFlows: [
-                {
-                  locations: [
-                    {
-                      location: {
-                        physicalLocation: {
-                          artifactLocation: { uri: "src/a.js" },
-                          region: { snippet: { text: "privacy-snippet" } },
-                        },
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-const SBOM = {
-  bomFormat: "CycloneDX",
-  specVersion: "1.5",
-  serialNumber: "urn:uuid:privacy-serial-1111",
-  components: [
-    {
-      type: "library",
-      name: "privacy-lib",
-      version: "1.0.0",
-      purl: "pkg:npm/privacy-lib@1.0.0",
-      hashes: [{ alg: "SHA-256", content: "privacy-sbom-hash-2222" }],
-      licenses: [{ license: { id: "MIT" } }],
-      externalReferences: [
-        { type: "distribution", url: "https://downloads.example.test/privacy-lib-1.0.0.tgz" },
-        { type: "vcs", url: "https://github.com/acme/privacy-lib.git" },
-      ],
-      supplier: {
-        name: "privacy-sbom-contact",
-        contact: [{ name: "Alice Smith", email: "alice.smith@example.test" }],
-      },
-    },
-  ],
-};
-
 // T005 canaries planted in the repository manifest itself: a ghp_-shaped PAT
 // inside a package.json scripts value and inside the description. The script
 // body must never render (bodies are dropped); the description token must be
@@ -444,4 +361,13 @@ test("T227 privacy: zero leaks across every sink in one combined run", async () 
     cleanupGitRepo(gitRepo);
     await rm(outDir, { recursive: true, force: true });
   }
+});
+
+test("T227 privacy canary fixtures stay canonical and complete", () => {
+  // F-018: pin the shared list so a weakened fixture set cannot ship quietly.
+  assert.ok(Object.isFrozen(CANARIES));
+  assert.equal(CANARIES.length, 19);
+  assert.ok(CANARIES.includes("alice:secret@github.com"));
+  assert.ok(Object.isFrozen(SARIF));
+  assert.ok(Object.isFrozen(SBOM));
 });

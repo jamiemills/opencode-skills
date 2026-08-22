@@ -1,4 +1,4 @@
-import { chmod, mkdir, open } from "node:fs/promises";
+import { chmod, lstat, mkdir, open } from "node:fs/promises";
 import { constants as fsConstants, lstatSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
@@ -12,10 +12,13 @@ export function defaultSessionsRoot() {
   return join(homedir(), ".local", "state", "csm-browse");
 }
 
-function assertOwnedDirectory(path, allowStickyShared = false) {
+// F-016: the ancestor walks run on every secureWrite/secureAppend, so the
+// checks are promise-based (same ordering guarantees as the former sync
+// lstat chain — each ancestor is still verified before the no-follow open).
+async function assertOwnedDirectory(path, allowStickyShared = false) {
   let info;
   try {
-    info = lstatSync(path);
+    info = await lstat(path);
   } catch (err) {
     if (err.code === "ENOENT") return;
     throw err;
@@ -26,14 +29,14 @@ function assertOwnedDirectory(path, allowStickyShared = false) {
   }
 }
 
-function assertSafeAncestors(path) {
+async function assertSafeAncestors(path) {
   const parts = resolve(path).split("/");
   let current = parts[0] || "/";
   for (const part of parts.slice(1, -1)) {
     current = join(current, part);
     let info;
     try {
-      info = lstatSync(current);
+      info = await lstat(current);
     } catch (err) {
       if (err.code === "ENOENT") break;
       throw err;
@@ -71,14 +74,14 @@ async function chmodOwnedNoFollow(path, mode) {
 }
 
 export async function ensurePrivateDir(path) {
-  assertSafeAncestors(path);
+  await assertSafeAncestors(path);
   const target = resolve(path);
   const parts = target.split("/");
   let current = parts[0] || "/";
   for (const part of parts.slice(1)) {
     current = join(current, part);
     try {
-      const info = lstatSync(current);
+      const info = await lstat(current);
       if (info.isSymbolicLink()) throw new Error(`Refusing symlink directory: ${current}`);
       // Same three-bucket ancestor rule as assertSafeAncestors: user-owned,
       // sticky-shared (e.g. /tmp), or root-owned non-writable system dirs.
@@ -100,17 +103,17 @@ export async function ensurePrivateDir(path) {
     }
     await chmodOwnedNoFollow(current, 0o700);
   }
-  assertOwnedDirectory(target);
+  await assertOwnedDirectory(target);
   return path;
 }
 
-export function validateRuntimeRootSelection(path) {
-  assertSafeAncestors(path);
+export async function validateRuntimeRootSelection(path) {
+  await assertSafeAncestors(path);
   const parent =
     resolve(path) === "/" ? "/" : resolve(path).split("/").slice(0, -1).join("/") || "/";
   let info;
   try {
-    info = lstatSync(parent);
+    info = await lstat(parent);
   } catch (err) {
     if (err.code === "ENOENT")
       throw new Error(`Unsafe csm-browse runtime root parent: ${parent} does not exist`, {
@@ -133,18 +136,64 @@ export function validateRuntimeRootSelection(path) {
   return path;
 }
 
+// Sync on purpose: assertRuntimeRoot runs at startup (constants load) and in
+// sessionDir(), whose sync signature is relied on by many callers. The hot
+// write path (secureWrite/secureAppend/ensurePrivateFile/ensurePrivateDir)
+// uses the async checks above instead.
 export function assertRuntimeRoot(path) {
-  validateRuntimeRootSelection(path);
-  assertSafeAncestors(path);
-  assertOwnedDirectory(path);
-  const info = lstatSync(path);
-  if ((info.mode & 0o777) !== 0o700 || info.uid !== UID) {
+  const parent =
+    resolve(path) === "/" ? "/" : resolve(path).split("/").slice(0, -1).join("/") || "/";
+  let parentInfo;
+  try {
+    parentInfo = lstatSync(parent);
+  } catch (err) {
+    if (err.code === "ENOENT")
+      throw new Error(`Unsafe csm-browse runtime root parent: ${parent} does not exist`, {
+        cause: err,
+      });
+    throw err;
+  }
+  if (parentInfo.isSymbolicLink() || !parentInfo.isDirectory())
+    throw new Error(`Unsafe csm-browse runtime root parent: ${parent}`);
+  const stickySharedParent = (parentInfo.mode & 0o7777) === 0o1777;
+  const rootOwnedNonWritableParent = parentInfo.uid === 0 && (parentInfo.mode & 0o022) === 0;
+  if (parentInfo.uid !== UID && !stickySharedParent && !rootOwnedNonWritableParent) {
+    throw new Error(`Unsafe csm-browse runtime root parent: ${parent}`);
+  }
+  const parts = resolve(path).split("/");
+  let current = parts[0] || "/";
+  for (const part of parts.slice(1, -1)) {
+    current = join(current, part);
+    let info;
+    try {
+      info = lstatSync(current);
+    } catch (err) {
+      if (err.code === "ENOENT") break;
+      throw err;
+    }
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw new Error(`Unsafe csm-browse path ancestor: ${current}`);
+    }
+    const stickySharedDir = (info.mode & 0o7777) === 0o1777;
+    const rootOwnedNonWritable = info.uid === 0 && (info.mode & 0o022) === 0;
+    if (info.uid !== UID && !stickySharedDir && !rootOwnedNonWritable) {
+      throw new Error(`Unsafe csm-browse path ancestor: ${current}`);
+    }
+  }
+  const rootInfo = lstatSync(path);
+  const stickyShared = (rootInfo.mode & 0o7777) === 0o1777;
+  if (
+    !rootInfo.isDirectory() ||
+    (rootInfo.uid !== UID && !stickyShared) ||
+    (rootInfo.mode & 0o777) !== 0o700 ||
+    rootInfo.uid !== UID
+  ) {
     throw new Error(`Unsafe csm-browse runtime root: ${path} must be mode 0700 and user-owned`);
   }
 }
 
 export async function prepareRuntimeRoot(path) {
-  assertSafeAncestors(path);
+  await assertSafeAncestors(path);
   await ensurePrivateDir(path);
   assertRuntimeRoot(path);
   return path;
@@ -253,7 +302,7 @@ export async function secureWrite(path, data, options = {}) {
   // Node does not expose Linux openat-style directory handles here. Ancestors
   // are checked before the no-follow open; a hostile rename after that check
   // remains outside the guarantee and is deliberately not called race-free.
-  assertSafeAncestors(path);
+  await assertSafeAncestors(path);
   const flags =
     fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | fsConstants.O_NOFOLLOW;
   const fh = await open(path, flags, 0o600);
@@ -266,7 +315,7 @@ export async function secureWrite(path, data, options = {}) {
 }
 
 export async function secureAppend(path, data) {
-  assertSafeAncestors(path);
+  await assertSafeAncestors(path);
   const flags =
     fsConstants.O_WRONLY | fsConstants.O_APPEND | fsConstants.O_CREAT | fsConstants.O_NOFOLLOW;
   const fh = await open(path, flags, 0o600);
@@ -279,8 +328,8 @@ export async function secureAppend(path, data) {
 }
 
 export async function ensurePrivateFile(path) {
-  assertSafeAncestors(path);
-  const info = lstatSync(path);
+  await assertSafeAncestors(path);
+  const info = await lstat(path);
   if (info.isSymbolicLink() || !info.isFile() || info.uid !== UID)
     throw new Error(`Unsafe csm-browse state file: ${path}`);
   await chmod(path, 0o600);

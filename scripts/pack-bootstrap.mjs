@@ -108,6 +108,9 @@ async function entryFor(dest) {
 }
 
 async function buildIndex(entries) {
+  // L20: the manifest is the single version source — a hand-synced literal
+  // here used to drift from bootstrap/package.json until tests caught it.
+  const pkgManifest = JSON.parse(await readFile(join(bootstrapDir, "package.json"), "utf8"));
   const classes = { skills: [], supportingFiles: [], helperBins: [], metadata: [] };
   for (const className of Object.keys(classes)) {
     classes[className] = (
@@ -121,8 +124,8 @@ async function buildIndex(entries) {
   const index = {
     schema: "csm-payload-index/1",
     package: {
-      name: "@jamiemills/csm-skills-bootstrap",
-      version: "0.1.0",
+      name: pkgManifest.name,
+      version: pkgManifest.version,
       bin: "csm-skills-bootstrap",
     },
     generatedBy: "scripts/pack-bootstrap.mjs",

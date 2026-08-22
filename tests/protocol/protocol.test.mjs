@@ -45,7 +45,11 @@ test("F-043 conformance: the protocol state table in protocol.md derives from th
     );
   }
   const table = protocol.slice(protocol.indexOf("## Refusal Codes"));
-  const rows = [...table.matchAll(/^\| (\d+) \| `([A-Z_]+)` \| (.*?) \| ([A-Z_ /]+) \|\s*$/gm)];
+  // Whitespace-tolerant row match: the table is column-aligned by tooling, so
+  // single-space assumptions silently zero the parse and fail the gate.
+  const rows = [
+    ...table.matchAll(/^\|\s*(\d+)\s*\|\s*`([A-Z_]+)`\s*\|(.*?)\|\s*([A-Z_ /]+)\|\s*$/gm),
+  ];
   const errorCodes = Object.keys(EXIT_CODES).filter((code) => code !== "PLACED");
   assert.ok(rows.length >= errorCodes.length, "refusal table must list every exit code");
   const covered = new Set();

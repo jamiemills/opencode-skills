@@ -2,6 +2,7 @@ import { readFileSync, existsSync, createReadStream } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { attachFirstPage, connect } from "../cdp.mjs";
 
 async function readEvents(sessionDir) {
   const events = [];
@@ -144,18 +145,10 @@ async function subNetwork(args, sessionDir) {
 }
 
 async function subPerformance(state) {
-  const CRI = await import("chrome-remote-interface");
-  const client = await CRI.default({ target: state.wsUrl });
+  const client = await connect(state);
 
   try {
-    const { targetInfos } = await client.send("Target.getTargets");
-    const pages = targetInfos.filter((t) => t.type === "page");
-    if (pages.length === 0) throw new Error("No page target found");
-
-    const { sessionId } = await client.send("Target.attachToTarget", {
-      targetId: pages[0].targetId,
-      flatten: true,
-    });
+    const { sessionId } = await attachFirstPage(client);
 
     await client.send("Performance.enable", {}, sessionId);
     const result = await client.send("Performance.getMetrics", {}, sessionId);
@@ -197,22 +190,14 @@ export function projectCookies(cookies, { revealValues = false } = {}) {
 }
 
 async function subCookies(args, state) {
-  const CRI = await import("chrome-remote-interface");
-  const client = await CRI.default({ target: state.wsUrl });
+  const client = await connect(state);
 
   let sessionId;
   try {
-    const { targetInfos } = await client.send("Target.getTargets");
-    const pages = targetInfos.filter((t) => t.type === "page");
-    if (pages.length === 0) throw new Error("No page target found");
+    const { sessionId: attachedId, page } = await attachFirstPage(client);
+    sessionId = attachedId;
 
-    const currentUrl = pages[0].url;
-
-    const attachResult = await client.send("Target.attachToTarget", {
-      targetId: pages[0].targetId,
-      flatten: true,
-    });
-    sessionId = attachResult.sessionId;
+    const currentUrl = page.url;
 
     const result = await client.send(
       "Network.getCookies",

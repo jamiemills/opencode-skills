@@ -2,6 +2,7 @@ import { readFile, rename, readdir, unlink, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from "./constants.mjs";
+import { listPageTargets } from "./cdp.mjs";
 import { dismissCookies } from "./cookies.mjs";
 import { ensurePrivateDir, secureWrite } from "./security.mjs";
 
@@ -80,8 +81,7 @@ export async function connectDaemon(wsUrl) {
 }
 
 export async function ensureSingleTab(client) {
-  const { targetInfos } = await client.send("Target.getTargets");
-  const pages = targetInfos.filter((t) => t.type === "page");
+  const pages = await listPageTargets(client);
 
   if (pages.length > 0) {
     const target = pages[0];

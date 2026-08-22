@@ -40,6 +40,40 @@ execFileSync("git", ["config", "core.hooksPath", "scripts/hooks"], { cwd: root }
 
 run("pnpm", ["exec", "lefthook", "install", "--force"]);
 
+// L14: lefthook's generated shim embeds the local pnpm-store absolute path
+// (user home + version-pinned layout). Normalize the committed copy to the
+// portable branches only — the generic fallbacks resolve correctly on every
+// machine, so the machine-specific lines add churn and leak usernames.
+const shimPath = path.join(hooksDir, "pre-commit");
+if (fs.existsSync(shimPath)) {
+  const original = fs.readFileSync(shimPath, "utf8");
+  // Drop the machine-specific elif arm structurally (condition line + its
+  // `then` + the exec body line) so the generated shell stays valid.
+  const lines = original.split("\n");
+  const kept = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].includes("/.pnpm/lefthook-")) {
+      let removed = 1;
+      i += 1;
+      while (i < lines.length && removed < 3) {
+        const t = lines[i].trim();
+        if (t === "then" || t.endsWith('lefthook "$@"')) {
+          removed += 1;
+          i += 1;
+        } else break;
+      }
+      i -= 1;
+      continue;
+    }
+    kept.push(lines[i]);
+  }
+  const normalized = kept.join("\n");
+  if (normalized !== original) {
+    fs.writeFileSync(shimPath, normalized);
+    console.log("install-hooks: normalized pre-commit shim (removed machine-specific paths)");
+  }
+}
+
 const oldHook = path.join(hooksDir, "pre-commit.old");
 if (fs.existsSync(oldHook)) {
   fs.rmSync(oldHook);

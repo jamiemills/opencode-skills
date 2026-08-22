@@ -651,7 +651,7 @@ function analyzeDockerCompose(repoPath) {
 
     const depMap = {};
     for (const svc of serviceSet) {
-      const depRe = new RegExp(`^  ${svc}:\\n[\\s\\S]*?(?=^\\S|\\Z)`, "m");
+      const depRe = new RegExp(`^  ${svc}:\\n[\\s\\S]*?(?=^\\S|$)`, "m");
       const depSection = content.match(depRe);
       if (depSection) {
         const depends = depSection[0].match(/^\s+-\s+(\w+)/gm);
@@ -670,13 +670,13 @@ function analyzeDockerCompose(repoPath) {
       dependencies: depMap,
     });
 
-    const netMatch = content.match(/^networks:\n([\s\S]*?)(?=^volumes|^services|Z)/m);
+    const netMatch = content.match(/^networks:\n([\s\S]*?)(?=^volumes|^services|$)/m);
     if (netMatch) {
       const netNames = netMatch[1].match(/^  (\w+):/gm) || [];
       networks = netNames.map((n) => n.replace(/^  /, "").replace(/:$/, ""));
     }
 
-    const volMatch = content.match(/^volumes:\n([\s\S]*?)(?=Z)/m);
+    const volMatch = content.match(/^volumes:\n([\s\S]*?)(?=^networks|^services|$)/m);
     if (volMatch) {
       const volNames = volMatch[1].match(/^  (\w+):/gm) || [];
       volumes = volNames.map((v) => v.replace(/^  /, "").replace(/:$/, ""));

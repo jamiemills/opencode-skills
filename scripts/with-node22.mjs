@@ -7,7 +7,21 @@ import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
-const NVM_BIN = path.join(os.homedir(), ".nvm", "versions", "node", "v22.23.2", "bin");
+// L22: glob every installed nvm v22 patch instead of pinning one — a routine
+// security patch bump used to silently miss the preferred probe.
+function nvmNodeCandidates() {
+  const versionsDir = path.join(os.homedir(), ".nvm", "versions", "node");
+  let entries = [];
+  try {
+    entries = fs.readdirSync(versionsDir);
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((name) => /^v22\.\d+\.\d+$/.test(name))
+    .toSorted((a, b) => b.localeCompare(a, "en", { numeric: true }))
+    .map((name) => path.join(versionsDir, name, "bin"));
+}
 
 function majorVersion(bin) {
   const res = spawnSync(bin, ["--version"], { encoding: "utf8" });
@@ -18,8 +32,9 @@ function majorVersion(bin) {
 
 function resolve() {
   const candidates = [];
-  const nvmNode = path.join(NVM_BIN, "node");
-  if (fs.existsSync(nvmNode)) candidates.push(nvmNode);
+  for (const binDir of nvmNodeCandidates()) {
+    candidates.push(path.join(binDir, "node"));
+  }
   candidates.push(process.execPath);
   for (const bin of candidates) {
     const major = majorVersion(bin);
@@ -30,7 +45,7 @@ function resolve() {
 
 function fail() {
   process.stderr.write(
-    "with-node22: no node >=22 <25 found. Install Node 22+ or export PATH=" + NVM_BIN + ":$PATH\n",
+    "with-node22: no node >=22 <25 found. Install Node 22+ or export PATH=~/.nvm/versions/node/v22.x.y/bin:$PATH\n",
   );
   process.exit(1);
 }

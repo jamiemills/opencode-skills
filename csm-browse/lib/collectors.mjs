@@ -9,9 +9,12 @@ async function rotate(sessionDir, mainPath) {
   const ts = Date.now();
   const rotatedName = `events-${ts}.jsonl`;
   const rotatedPath = join(sessionDir, rotatedName);
+  let renamed = true;
   try {
     await rename(mainPath, rotatedPath);
-  } catch {}
+  } catch {
+    renamed = false;
+  }
 
   try {
     const entries = await readdir(sessionDir);
@@ -22,6 +25,7 @@ async function rotate(sessionDir, mainPath) {
       await unlink(join(sessionDir, rotated.shift())).catch(() => {});
     }
   } catch {}
+  return renamed;
 }
 
 export async function collectorsHook(client, sessionId, sessionDir) {
@@ -41,6 +45,10 @@ export async function collectorsHook(client, sessionId, sessionDir) {
   const MAX_BUFFERED_LINES = EVENTS_JSONL_ROTATION * 2;
   const MAX_BATCH = 512;
 
+  // F-015: failed telemetry writes must be accounted, not lost silently.
+  let droppedWrites = 0;
+  let droppedRotations = 0;
+
   const flush = async () => {
     while (buffer.length > 0) {
       const batch = buffer.splice(0, MAX_BATCH);
@@ -49,9 +57,12 @@ export async function collectorsHook(client, sessionId, sessionDir) {
         count += batch.length;
         if (count >= EVENTS_JSONL_ROTATION) {
           count = 0;
-          await rotate(sessionDir, mainPath);
+          const renamed = await rotate(sessionDir, mainPath);
+          if (!renamed) droppedRotations += 1;
         }
-      } catch {}
+      } catch {
+        droppedWrites += batch.length;
+      }
     }
   };
 
@@ -155,6 +166,7 @@ export async function collectorsHook(client, sessionId, sessionDir) {
   });
 
   return {
+    stats: () => ({ droppedWrites, droppedRotations }),
     detach: async () => {
       for (const d of domains) {
         try {

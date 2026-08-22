@@ -64,20 +64,20 @@ test("validateRuntimeRootSelection applies the three-bucket rule of assertSafeAn
   // User-owned parents are accepted regardless of their mode (three-bucket).
   const userOwned = await mkdtemp(join(tmpdir(), "csm-root-uo-"));
   await chmod(userOwned, 0o700);
-  assert.doesNotThrow(() => validateRuntimeRootSelection(join(userOwned, "root")));
+  await assert.doesNotReject(() => validateRuntimeRootSelection(join(userOwned, "root")));
   await chmod(userOwned, 0o777);
-  assert.doesNotThrow(
+  await assert.doesNotReject(
     () => validateRuntimeRootSelection(join(userOwned, "root")),
     "user-owned world-writable parents are accepted (same predicate as assertSafeAncestors)",
   );
   // Sticky-shared parents (e.g. /tmp) are accepted.
   const sticky = await mkdtemp(join(tmpdir(), "csm-root-st-"));
   await chmod(sticky, 0o1777);
-  assert.doesNotThrow(() => validateRuntimeRootSelection(join(sticky, "root")));
+  await assert.doesNotReject(() => validateRuntimeRootSelection(join(sticky, "root")));
   // A non-directory parent is rejected.
   const fileParent = join(root, "not-a-dir");
   await writeFile(fileParent, "x");
-  assert.throws(
+  await assert.rejects(
     () => validateRuntimeRootSelection(join(fileParent, "root")),
     /must be a directory|Unsafe/,
   );

@@ -131,7 +131,7 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 - **A capable agent runtime** — the skills are agent-agnostic: OpenCode, Claude Code, or any runtime that can read files, invoke tools, and write artifacts. The universal bootstrap installs them into the runtime's Agent Skills location; the in-place checkout below also works for any runtime pointed at this directory.
 - **Node.js >= 22** — for `csm-browse` (see `csm-browse/package.json`) and for running the suite gates and `node:test` suites. `csm-scan` itself is zero-dependency Node built-ins only.
 - **make** — the interface to all development gates and suites (see [Development & testing](#development--testing)); the underlying commands are documented there too.
-- **pnpm >= 10** (corepack-managed; the root `package.json` pins `packageManager: pnpm@10.33.0`) — the Makefile's underlying package installer, for root tooling (lefthook + oxlint) and `csm-browse`; you normally reach it via `make install` rather than calling it directly.
+- **pnpm >= 10** (corepack-managed; the root `package.json` pins `packageManager: pnpm@10.34.5`) — the Makefile's underlying package installer, for root tooling (lefthook + oxfmt + oxlint) and `csm-browse`; you normally reach it via `make install` rather than calling it directly.
 - **Universal bootstrap runtime** — the delivered bootstrap flow needs only `node` and `npx`; Node >= 22 is recommended for the development gates (see [Development & testing](#development--testing)).
 - **Docker** with the `chromium-vnc` container — `csm-browse` only.
 - **`gh` CLI**, authenticated, plus a GitHub Pages-enabled repository — `csm-upload` only.
@@ -180,9 +180,9 @@ Optionally activate the local lefthook pre-commit gate (unstaged guard → gate-
 node scripts/install-hooks.mjs
 ```
 
-`install-hooks.mjs` installs the root devDependencies via `pnpm install --frozen-lockfile --ignore-scripts` (lefthook + oxlint) and installs the lefthook pre-commit gate.
+`install-hooks.mjs` installs the root devDependencies via `pnpm install --frozen-lockfile --ignore-scripts` (lefthook + oxfmt + oxlint) and installs the lefthook pre-commit gate.
 
-Dependency inventory: the root `pnpm-lock.yaml` (integrity-hashed) is authoritative for the hook tooling (lefthook + oxlint) and `csm-browse/pnpm-lock.yaml` for csm-browse; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
+Dependency inventory: the root `pnpm-lock.yaml` (integrity-hashed) is authoritative for the hook tooling (lefthook + oxfmt + oxlint) and `csm-browse/pnpm-lock.yaml` for csm-browse; regenerate a CycloneDX SBOM opportunistically with `npx cyclonedx-npm --output-file sbom.json` — no SBOM tooling is installed by this repo.
 
 ## Quickstart
 
@@ -242,7 +242,7 @@ Optional gates around the loop: **`csm-scan`** to capture repository conventions
 │       └── token-efficiency.mjs   # cache/token-efficiency toggle parsing (OFF by default)
 ├── .agents/           # process artifacts: plans/, approaches/, reviews/, research/ (+ artifacts/), docs/ (indexed in .agents/README.md)
 ├── .lefthook.yml      # pre-commit gate definition (unstaged guard, gate baseline, check-suite, syntax, staged oxlint, browse check)
-├── package.json       # root tooling manifest: lefthook + oxlint devDeps, packageManager pnpm@10.33.0
+├── package.json       # root tooling manifest: lefthook + oxfmt + oxlint devDeps, packageManager pnpm@10.34.5
 ├── pnpm-lock.yaml     # hook-tooling dependency lockfile
 └── .node-version      # 22 — the gate toolchain version
 ```
@@ -251,7 +251,7 @@ Optional gates around the loop: **`csm-scan`** to capture repository conventions
 
 All gates and test suites run through **`make`** — it is the interface (see the [Makefile](Makefile)); `pnpm` is only the underlying package installer and is normally reached via `make install`.
 
-- `make install` # install root devDeps (lefthook + oxlint) and csm-browse's deps
+- `make install` # install root devDeps (lefthook + oxfmt + oxlint) and csm-browse's deps
 - `make lint` # repo-wide oxlint with the committed quality bar (`.oxlintrc.json`: correctness + suspicious categories, warnings-as-errors); `.agents/**` is exempt (research findings, plans, and run artifacts)
 - `make check` # the repo-wide conformance gate: `node scripts/check-suite.mjs` (frontmatter, sections, state lines, README integrity, corpora, interfaces, boilerplate drift, matrix drift, payload drift, lint)
 - `make analyze` # lint + check
@@ -260,6 +260,10 @@ All gates and test suites run through **`make`** — it is the interface (see th
 - `make test-scan` # csm-scan authoritative suite (serial)
 - `make test-browse` # csm-browse fast sanity (no Docker)
 - `make test` # test-hooks + test-bootstrap + test-browse + test-scan
+- `make fmt` # format repo-wide with oxfmt
+- `make fmt-check` # verify formatting, no writes (CI gate)
+- `make fmt-staged` # format + re-stage staged files (pre-commit hook parity)
+- `make test-e2e` # csm-browse e2e (requires chromium-vnc container)
 
 Direct commands (what the targets invoke):
 

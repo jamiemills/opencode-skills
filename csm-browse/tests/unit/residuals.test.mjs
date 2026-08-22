@@ -47,7 +47,7 @@ test("browse.mjs prints every err.message through redactTelemetry", async () => 
     "no console.error may interpolate a raw err.message",
   );
   assert.ok(
-    source.includes("import { redactTelemetry } from '../lib/security.mjs';"),
+    /import \{ redactTelemetry \} from ["']\.\.\/lib\/security\.mjs["'];/.test(source),
     "redactTelemetry must be imported",
   );
 });

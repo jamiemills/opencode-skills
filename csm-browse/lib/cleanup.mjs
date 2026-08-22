@@ -1,5 +1,5 @@
 import { readFile, rm } from "node:fs/promises";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { pkillMatch, execInContainer, hostPgrep, killPid } from "./docker.mjs";
@@ -110,7 +110,7 @@ export async function removeContainerSession(containerName, containerSessDir) {
 export async function removeHostSession(sessionDir) {
   assertRuntimeRoot(SESSIONS_ROOT);
   assertContained(sessionDir, SESSIONS_ROOT);
-  rmSync(sessionDir, { recursive: true, force: true });
+  await rm(sessionDir, { recursive: true, force: true });
 }
 
 export async function releasePorts(state) {

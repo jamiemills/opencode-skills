@@ -54,10 +54,14 @@ function dynamicImports(source) {
 
 function canonicalSensitiveImport(statement) {
   const match = statement.match(
-    /^import \{ ([A-Za-z_$][\w$]*(?:, [A-Za-z_$][\w$]*)*) \} from '(node:fs(?:\/promises)?|node:child_process)';$/,
+    /^import \{ ([A-Za-z_$][\w$]*(?:, [A-Za-z_$][\w$]*)*) \} from ["'](node:fs(?:\/promises)?|node:child_process)["'];$/,
   );
   if (!match) return null;
   return { names: match[1].split(", "), specifier: match[2] };
+}
+
+function normalizeImportQuotes(text) {
+  return text.replace(/["']/g, "'");
 }
 
 function staticSensitiveMentions(source) {
@@ -200,7 +204,7 @@ test("T201 active legacy process owners match exact imports and reviewed file ha
       ({ specifier }) => specifier === "node:child_process",
     );
     assert.deepEqual(
-      imports.map(({ text }) => text),
+      imports.map(({ text }) => normalizeImportQuotes(text)),
       [owner.import],
     );
     assert.deepEqual(canonicalSensitiveImport(owner.import), {
@@ -216,7 +220,7 @@ test("T201 active legacy process owners match exact imports and reviewed file ha
       ({ specifier }) => specifier === "node:child_process",
     );
     assert.deepEqual(
-      imports.map(({ text }) => text),
+      imports.map(({ text }) => normalizeImportQuotes(text)),
       [baseline.broker.import],
     );
     const inventory = JSON.parse(await readFile(join(BASELINE_ROOT, "inventory.json"), "utf8"));
@@ -289,7 +293,10 @@ test("T201 filesystem capabilities are closed to reads and one exact writer", as
       // The single exact writer import (F-065-b: tmp+rename atomic write) is
       // allowed wholesale; every other filesystem import must be a read API or
       // a registered special reader.
-      if (relativePath === writer.path && statement.text === writer.import) {
+      if (
+        relativePath === writer.path &&
+        normalizeImportQuotes(statement.text) === normalizeImportQuotes(writer.import)
+      ) {
         writerImports++;
         continue;
       }
@@ -300,7 +307,9 @@ test("T201 filesystem capabilities are closed to reads and one exact writer", as
         const special = specialByPath.get(relativePath);
         assert.ok(special, `${relativePath} imports non-read filesystem API ${name}`);
         assert.ok(
-          special.imports.includes(statement.text),
+          special.imports
+            .map(normalizeImportQuotes)
+            .includes(normalizeImportQuotes(statement.text)),
           `${relativePath} special-reader import must stay exact`,
         );
         assert.ok(
@@ -320,12 +329,17 @@ test("T201 filesystem capabilities are closed to reads and one exact writer", as
     assert.ok(source, `${special.path} must remain present while special-reader capable`);
   }
   const writerSource = sources.find(({ relativePath }) => relativePath === writer.path)?.source;
-  assert.equal(writerSource.split(writer.call).length - 1, 1, "sole write call must remain exact");
+  assert.equal(
+    normalizeImportQuotes(writerSource).split(normalizeImportQuotes(writer.call)).length - 1,
+    1,
+    "sole write call must remain exact",
+  );
   const cli = sources.find(
     ({ relativePath }) => relativePath === baseline.filesystem.cli.path,
   )?.source;
   assert.equal(
-    cli.split(baseline.filesystem.cli.call).length - 1,
+    normalizeImportQuotes(cli).split(normalizeImportQuotes(baseline.filesystem.cli.call)).length -
+      1,
     1,
     "CLI must invoke writeNORMS exactly once",
   );

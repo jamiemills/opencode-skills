@@ -29,6 +29,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compareAscii } from "../lib/scan/contracts/evidence.mjs";
+
+function normalizeQuotes(source) {
+  return source.replace(/["']/g, '"');
+}
 import { enrich } from "../lib/scan/enrich.mjs";
 import { DEFAULT_SINK } from "../lib/scan/pipeline/run.mjs";
 import { findVoiceHits } from "./helpers/voice-gate.mjs";
@@ -849,17 +853,19 @@ test("T223 inert: no production module imports the renderer registry and the wri
   // T010 (F-065-b reconciliation): the write seam is the atomic tmp+rename
   // writer (exactly one temp write and one rename), not the old direct write.
   assert.equal(
-    writeSource.split("import { rename, unlink, writeFile } from 'node:fs/promises';").length - 1,
+    normalizeQuotes(writeSource).split(
+      'import { rename, unlink, writeFile } from "node:fs/promises";',
+    ).length - 1,
     1,
     "the write seam must import exactly the atomic writer statement",
   );
   assert.equal(
-    writeSource.split("await writeFile(tmpPath, content, 'utf-8');").length - 1,
+    normalizeQuotes(writeSource).split('await writeFile(tmpPath, content, "utf-8");').length - 1,
     1,
     "the write seam must perform exactly one temp write",
   );
   assert.equal(
-    writeSource.split("await rename(tmpPath, outPath);").length - 1,
+    normalizeQuotes(writeSource).split("await rename(tmpPath, outPath);").length - 1,
     1,
     "the write seam must rename the temp file over the target exactly once",
   );

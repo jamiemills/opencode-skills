@@ -448,10 +448,102 @@ test("R5: the shipped bin embeds the shared shell denylist and fixed package pol
   const policyMatch = /const FIXED_PACKAGE_POLICY = \{([\s\S]*?)\};/.exec(binSrc);
   assert.ok(policyMatch, "shipped bin must declare FIXED_PACKAGE_POLICY");
   const embeddedPolicy = {};
-  for (const [, field, value] of policyMatch[1].matchAll(/([a-z]+): '([^']*)'/g))
+  for (const [, field, value] of policyMatch[1].matchAll(/([a-z]+): ["']([^"']*)["']/g))
     embeddedPolicy[field] = value;
   assert.deepEqual(embeddedPolicy, { ...FIXED_PACKAGE_POLICY });
-  const denylistMatch = /const SHELL_DENYLIST = \/([\s\S]*?)\/i;/.exec(binSrc);
+  const denylistMatch = /const SHELL_DENYLIST =\s*\/([\s\S]*?)\/i;/.exec(binSrc);
   assert.ok(denylistMatch, "shipped bin must declare SHELL_DENYLIST");
   assert.equal(denylistMatch[1], SHELL_DENYLIST.source);
+});
+
+test("F-010: shipped bin limits validation mirrors the trust-policy engine", async () => {
+  const dir = await mkdtemp("/tmp/csm-bootstrap-limits-");
+  await chmod(dir, 0o700);
+  try {
+    await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
+    const shippedBin = join(dir, "package", "bin", "csm-skills-bootstrap.js");
+    const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+    // Unsigned local-flow variant: exercises the same shape validation the
+    // signed path uses, without needing private key material.
+    const { signature: _signature, ...unsigned } = envelope;
+    const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
+
+    const cases = [
+      { name: "baseline-valid", mutate: () => {} },
+      { name: "max_bytes-zero", mutate: (e) => (e.policy.limits.max_bytes = 0) },
+      {
+        name: "max_bytes-float",
+        mutate: (e) => (e.policy.limits.max_bytes = 1024.5),
+      },
+      {
+        name: "max_bytes-over-cap",
+        mutate: (e) => (e.policy.limits.max_bytes = 1048577),
+      },
+      { name: "max_redirects-negative", mutate: (e) => (e.policy.limits.max_redirects = -1) },
+      { name: "max_redirects-four", mutate: (e) => (e.policy.limits.max_redirects = 4) },
+      { name: "origin-missing", mutate: (e) => delete e.policy.limits.allowed_origin },
+      {
+        name: "origin-http",
+        mutate: (e) => (e.policy.limits.allowed_origin = "http://registry.npmjs.org"),
+      },
+      {
+        name: "origin-not-url",
+        mutate: (e) => (e.policy.limits.allowed_origin = "not a url"),
+      },
+      {
+        name: "limits-missing",
+        mutate: (e) => delete e.policy.limits,
+      },
+      {
+        name: "index-digest-nonhex",
+        mutate: (e) => (e.payload_index_sha256 = "zzzz"),
+      },
+      {
+        name: "index-digest-nonhex-short",
+        mutate: (e) => (e.payload_index_sha256 = "a".repeat(63)),
+      },
+      {
+        name: "index-digest-mismatch",
+        mutate: (e) => (e.payload_index_sha256 = "a".repeat(64)),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const candidate = JSON.parse(JSON.stringify(unsigned));
+      testCase.mutate(candidate);
+
+      let engineCode = "OK";
+      const realIndexDigest = digest(await readFile(join(dir, "package", "payload-index.json")));
+      try {
+        validateEnvelope(candidate, keyring, { indexSha256: realIndexDigest });
+      } catch (err) {
+        engineCode = err.code;
+      }
+
+      const filePath = join(dir, `${testCase.name}.json`);
+      await writeFile(filePath, JSON.stringify(candidate));
+      let binOk;
+      let binCode;
+      try {
+        const out = await execFileAsync(process.execPath, [shippedBin, "verify", filePath], {
+          encoding: "utf8",
+        });
+        binOk = JSON.parse(out.stdout).verification.ok === true;
+        binCode = "OK";
+      } catch (error) {
+        const parsed = JSON.parse(error.stdout || "{}");
+        binOk = parsed?.verification?.ok === true;
+        binCode = parsed?.verification?.code ?? "UNKNOWN";
+      }
+      const engineOk = engineCode === "OK";
+      assert.equal(
+        binOk,
+        engineOk,
+        `${testCase.name}: bin ok=${binOk} (${binCode}) vs engine ok=${engineOk} (${engineCode})`,
+      );
+      assert.equal(binCode, engineCode === "OK" ? "OK" : engineCode, `${testCase.name} code`);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

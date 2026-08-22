@@ -4,8 +4,18 @@ import { constants as fsConstants } from "node:fs";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { createServer as netServer } from "node:net";
-import { SESSIONS_ROOT, PORT_POOL_START, PORT_POOL_END } from "./constants.mjs";
+import {
+  CDP_RETRY_TIMEOUT_MS,
+  SESSIONS_ROOT,
+  PORT_POOL_START,
+  PORT_POOL_END,
+} from "./constants.mjs";
 import { prepareRuntimeRoot, validateState } from "./security.mjs";
+import {
+  clearCreatorArtifact,
+  holderIdentityMatches,
+  writeCreatorArtifact,
+} from "./pid-identity.mjs";
 
 const LOCK_FILE = join(SESSIONS_ROOT, ".ports.lock");
 const LOCK_STALE_MS = 5000;
@@ -27,8 +37,11 @@ export async function breakStaleLock() {
     if (!isNaN(pid)) {
       try {
         process.kill(pid, 0);
-        return;
-      } catch {} // holder alive — do not break
+        // F-012: a live probe alone cannot distinguish the original holder
+        // from a recycled PID. When a creator sidecar exists and its recorded
+        // /proc starttime differs, the original holder is dead — break.
+        if (await holderIdentityMatches(LOCK_FILE, pid)) return;
+      } catch {} // holder dead — fall through to the atomic capture below
     }
     // F-018: atomic capture replaces read-then-unlink. The stale lock is
     // renamed to a unique tombstone in the same directory, so the inspect and
@@ -79,6 +92,11 @@ export async function acquirePortLock() {
       } finally {
         await fh.close();
       }
+      // Tolerance mirrors claimPidFile: a failed sidecar write must not
+      // strand a created lock with no owner identity for peers to break.
+      try {
+        await writeCreatorArtifact(LOCK_FILE);
+      } catch {}
       return;
     } catch (err) {
       if (err.code !== "EEXIST") throw err;
@@ -101,6 +119,7 @@ export async function releasePortLock() {
     const raw = await readFile(LOCK_FILE, "utf-8");
     if (raw.trim() !== String(process.pid)) return;
     await unlink(LOCK_FILE);
+    await clearCreatorArtifact(LOCK_FILE);
   } catch {}
 }
 
@@ -110,6 +129,27 @@ export async function releasePortLock() {
 // second creator allocates the same pair after the first released the lock
 // but before chromium actually binds its debug port. Exported so tests can
 // assert the F-009/F-015 claim-freed invariant without binding host ports.
+
+const MARKER_REAP_GRACE_MS = CDP_RETRY_TIMEOUT_MS + 60000;
+
+async function markerCreatorDead(markerPath, marker) {
+  let mtime;
+  try {
+    const st = await stat(markerPath);
+    mtime = st.mtimeMs;
+  } catch {
+    return false;
+  }
+  if (Date.now() - mtime < MARKER_REAP_GRACE_MS) return false;
+  if (typeof marker.pid !== "number") return false;
+  try {
+    process.kill(marker.pid, 0);
+    return false; // creator still alive
+  } catch {
+    return true; // creator provably dead past grace
+  }
+}
+
 export async function claimedPortSet() {
   const claimed = new Set();
   let dirs;
@@ -127,9 +167,16 @@ export async function claimedPortSet() {
       if (state && typeof state.publicPort === "number") claimed.add(state.publicPort);
     } catch {}
     try {
-      const marker = JSON.parse(await readFile(join(SESSIONS_ROOT, d, "creating.marker"), "utf-8"));
-      if (marker && typeof marker.internal === "number") claimed.add(marker.internal);
-      if (marker && typeof marker.public === "number") claimed.add(marker.public);
+      const markerPath = join(SESSIONS_ROOT, d, "creating.marker");
+      const marker = JSON.parse(await readFile(markerPath, "utf-8"));
+      if (!marker) continue;
+      // F-013: a marker-only dir from a CRASHED creator must not strand its
+      // port pair until the next sweep. When the marker is older than the
+      // creation grace window AND its recorded creator pid is provably dead,
+      // treat the pair as free so allocate() can proceed.
+      if (await markerCreatorDead(markerPath, marker)) continue;
+      if (typeof marker.internal === "number") claimed.add(marker.internal);
+      if (typeof marker.public === "number") claimed.add(marker.public);
     } catch {}
   }
   return claimed;

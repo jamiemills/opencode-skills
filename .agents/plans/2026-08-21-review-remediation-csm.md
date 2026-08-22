@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: review-remediation-2026-08-21
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: planning SAVED 2026-08-21 after two-pass review evidence (reports .agents/reviews/2026-08-21-skills-review.md and -2.md @ d94c840)
+- Last checkpoint: 2026-08-21 csm-build start; NOT_STARTED->RECOVER->VALIDATE->SELECT->DISPATCH; baseline validated by commit-hook runs (lint PASS, check-suite 673 OK @ 2944021)
 - Last model/run: ox-alpha / opencode session 2026-08-21
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Next transition: COMPLETE (terminal). Residual: F-009 index-signing half of T010 blocked — no Ed25519 private key exists in-repo (valid.json was signed out-of-band); maintainer action required
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -377,6 +377,10 @@ Cheapest-first per task (unit/greps above), then batch gates in order: (1) `pnpm
 | 2026-08-21 | 0 | DRAFT->CRITIQUE | 17 drafted | primary-led critique (subagent unavailable; caveat recorded) | CRITIQUE |
 | 2026-08-21 | 0 | CRITIQUE->REMEDIATE->VERIFY | resolutions table filled | see Critique Resolution | VERIFY |
 | 2026-08-21 | 0 | VERIFY->SAVED | all pending | primary personal gate: template fields complete; acceptance signals runnable; groups disjoint; evidence matches repo at d94c840 | SAVED |
+| 2026-08-21 build c1 | 1 | RECOVER->VALIDATE->SELECT->DISPATCH | batch dispatched | subagent infra returned empty for implementation agents; ladder exhausted -> primary implemented all 17 tasks directly (recorded deviation) | INTEGRATE |
+| 2026-08-21 build c1 | 1 | INTEGRATE->VERIFY | T001-T019 code complete | quote-drift family fixed incl. pre-existing F-043 whitespace parse; regen-baselines.mjs committed + renderer.md regenerated; tiers 81/81; pnpm 10.34.5; compose anchors fixed; iterative Tarjan + architecture degradeable; rename import + stale-claim test green; wt-session fail-closed + tests; canaries deduped w/ pin; droppedWrites + heartbeat + pid identity + dead-marker reap; async fs conversion; CDP attach consolidated; limits parity + hoisted precedence; engines/readme/shim/with-node22/pack-version hygiene. Gates: lint OK fmt OK check-suite 677 OK hooks 9/9 bootstrap 43/43 browse check PASS units 175/175 scan 1275/1275 AC20 green run-tier s/m/l execute | VERIFY |
+| 2026-08-21 build c2 | 2 | VERIFY->REVIEW->REPAIR | independent reviewer returned 6 findings | R1 HIGH unawaited assertOwnedDirectory (security guard bypassed) FIXED+await; R2 unawaited ancestors in prepareRuntimeRoot FIXED; R3 branch-only nuke merged-gate ADDED; R4 sidecar-write tolerance in acquirePortLock FIXED; R5 refusal-code precedence -> limits block hoisted above audience in bin (code parity); R6 tier-gate skip scoped to tiersPath-only FIXED (+skip marks ok). Re-verified: all suites green post-repair incl. repack | CHECKPOINT |
+| 2026-08-21 build c2 | 2 | CHECKPOINT->COMPLETE | all tasks done or excluded | commit follows this journal; residual blocker recorded (index signing needs maintainer key) | COMPLETE |
 
 ## Completion Review
 

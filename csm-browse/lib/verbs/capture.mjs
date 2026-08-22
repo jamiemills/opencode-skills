@@ -2,6 +2,7 @@ import { unlink, readdir } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { dismissCookies } from "../cookies.mjs";
+import { attachFirstPage, connect } from "../cdp.mjs";
 import { MAX_STITCH_HEIGHT_PX } from "../constants.mjs";
 import { ensurePrivateDir, ensurePrivateFile, secureWrite } from "../security.mjs";
 
@@ -129,20 +130,12 @@ export async function run({ args, state }) {
 
   await ensurePrivateDir(artifactsDir);
 
-  const CRI = await import("chrome-remote-interface");
-  const client = await CRI.default({ target: state.wsUrl });
+  const client = await connect(state);
 
   let sessionId;
   try {
-    const { targetInfos } = await client.send("Target.getTargets");
-    const pages = targetInfos.filter((t) => t.type === "page");
-    if (pages.length === 0) throw new Error("No page target found");
-
-    const attachResult = await client.send("Target.attachToTarget", {
-      targetId: pages[0].targetId,
-      flatten: true,
-    });
-    sessionId = attachResult.sessionId;
+    const attached = await attachFirstPage(client);
+    sessionId = attached.sessionId;
 
     await dismissCookies(client, sessionId);
 

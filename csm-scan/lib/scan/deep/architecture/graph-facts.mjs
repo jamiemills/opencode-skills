@@ -114,43 +114,63 @@ export function tarjanStronglyConnectedComponents(graph) {
   const components = [];
   let index = 0;
 
-  const strongConnect = (vertex) => {
-    indexByVertex.set(vertex, index);
-    lowLinkByVertex.set(vertex, index);
+  // Iterative depth-first traversal with an explicit call stack: identical
+  // visit order to the classic recursive form, but immune to RangeError on
+  // very deep import chains (the file-count limits admit ~50k vertices).
+  for (const start of vertices) {
+    if (indexByVertex.has(start)) continue;
+    indexByVertex.set(start, index);
+    lowLinkByVertex.set(start, index);
     index += 1;
-    stack.push(vertex);
-    onStack.add(vertex);
+    stack.push(start);
+    onStack.add(start);
+    const callStack = [
+      { vertex: start, targets: (graph[start] || []).slice().toSorted(compareAscii), next: 0 },
+    ];
 
-    const targets = (graph[vertex] || []).slice().toSorted(compareAscii);
-    for (const target of targets) {
-      if (!indexByVertex.has(target)) {
-        strongConnect(target);
-        lowLinkByVertex.set(
-          vertex,
-          Math.min(lowLinkByVertex.get(vertex), lowLinkByVertex.get(target)),
-        );
-      } else if (onStack.has(target)) {
-        lowLinkByVertex.set(
-          vertex,
-          Math.min(lowLinkByVertex.get(vertex), indexByVertex.get(target)),
-        );
+    while (callStack.length > 0) {
+      const frame = callStack[callStack.length - 1];
+      if (frame.next < frame.targets.length) {
+        const target = frame.targets[frame.next];
+        frame.next += 1;
+        if (!indexByVertex.has(target)) {
+          indexByVertex.set(target, index);
+          lowLinkByVertex.set(target, index);
+          index += 1;
+          stack.push(target);
+          onStack.add(target);
+          callStack.push({
+            vertex: target,
+            targets: (graph[target] || []).slice().toSorted(compareAscii),
+            next: 0,
+          });
+        } else if (onStack.has(target)) {
+          lowLinkByVertex.set(
+            frame.vertex,
+            Math.min(lowLinkByVertex.get(frame.vertex), indexByVertex.get(target)),
+          );
+        }
+      } else {
+        callStack.pop();
+        if (callStack.length > 0) {
+          const parent = callStack[callStack.length - 1];
+          lowLinkByVertex.set(
+            parent.vertex,
+            Math.min(lowLinkByVertex.get(parent.vertex), lowLinkByVertex.get(frame.vertex)),
+          );
+        }
+        if (lowLinkByVertex.get(frame.vertex) === indexByVertex.get(frame.vertex)) {
+          const member = [];
+          let current;
+          do {
+            current = stack.pop();
+            onStack.delete(current);
+            member.push(current);
+          } while (current !== frame.vertex);
+          components.push(member.toSorted(compareAscii));
+        }
       }
     }
-
-    if (lowLinkByVertex.get(vertex) === indexByVertex.get(vertex)) {
-      const member = [];
-      let current;
-      do {
-        current = stack.pop();
-        onStack.delete(current);
-        member.push(current);
-      } while (current !== vertex);
-      components.push(member.toSorted(compareAscii));
-    }
-  };
-
-  for (const vertex of vertices) {
-    if (!indexByVertex.has(vertex)) strongConnect(vertex);
   }
 
   const sortedComponents = components.toSorted(

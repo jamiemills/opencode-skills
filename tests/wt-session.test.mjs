@@ -119,3 +119,59 @@ test("removeWorktree refuses to remove the main checkout", () => {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("mergeWorktree fails closed when the branch exists but no worktree has it", () => {
+  const root = makeRepo();
+  const base = path.join(root, ".base");
+  try {
+    createWorktree(root, "orphan", base);
+    // Simulate a manual `git worktree remove` (or an interrupted nuke):
+    // the branch survives, the worktree registration goes away.
+    execFileSync("git", ["-C", root, "worktree", "remove", "--force", path.join(base, "orphan")]);
+    const mainBefore = git(root, ["rev-parse", "refs/heads/main"]);
+    assert.throws(() => mergeWorktree(root, "orphan"), /no worktree has wt\/orphan/);
+    // Main's SHA must be untouched — the old fallback rebased inside the
+    // live checkout before failing.
+    assert.equal(git(root, ["rev-parse", "refs/heads/main"]), mainBefore);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("removeWorktree deletes the branch and tolerates a branch without worktree", () => {
+  const root = makeRepo();
+  const base = path.join(root, ".base");
+  try {
+    const { dir } = createWorktree(root, "gone", base);
+    removeWorktree(root, "gone", { force: true });
+    assert.ok(!fs.existsSync(dir), "worktree dir removed");
+    // The branch must actually be gone — the old flow only asserted the dir.
+    let exists = true;
+    try {
+      git(root, ["rev-parse", "--verify", "--quiet", "refs/heads/wt/gone"]);
+    } catch {
+      exists = false;
+    }
+    assert.equal(exists, false, "branch deleted by nuke");
+
+    // A leftover branch with no worktree is cleaned up by nuke instead of
+    // erroring with 'no worktree found'.
+    fs.writeFileSync(path.join(root, "x.txt"), "x");
+    git(root, ["add", "x.txt"]);
+    git(root, ["commit", "-m", "x"]);
+    git(root, ["branch", "wt/leftover"]);
+    const result = removeWorktree(root, "leftover");
+    assert.equal(result.branch, "wt/leftover");
+    let stillThere = true;
+    try {
+      git(root, ["rev-parse", "--verify", "--quiet", "refs/heads/wt/leftover"]);
+    } catch {
+      stillThere = false;
+    }
+    assert.equal(stillThere, false);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

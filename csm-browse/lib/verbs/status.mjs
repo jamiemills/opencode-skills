@@ -1,4 +1,4 @@
-import { connect } from "../cdp.mjs";
+import { connect, listPageTargets } from "../cdp.mjs";
 import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -10,8 +10,7 @@ export async function run({ args: _args, state, verb }) {
 
     const versionResult = await client.send("Browser.getVersion");
 
-    const { targetInfos } = await client.send("Target.getTargets");
-    const pages = targetInfos.filter((t) => t.type === "page");
+    const pages = await listPageTargets(client);
 
     let currentUrl = null;
     if (pages.length > 0) {

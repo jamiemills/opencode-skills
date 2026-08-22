@@ -409,6 +409,7 @@ Overall: FAIL — remediation required before publication; lowest dimension: Bal
 
 ### Control Journal
 
+[2026-08-22T00:00Z] START -> INTAKE :: cycle 1 :: trigger: deep-research brief accepted; temp dir /tmp/csm-deep-research-oF2PU7.
 - [2026-08-22T00:00Z] INTAKE complete :: cycle 1 :: temp dir: /tmp/csm-deep-research-oF2PU7; baseline captured (13 modified + 4 untracked pre-existing); clarification mode OFF; no resume candidate found.
 - [2026-08-22T00:05Z] RESUME :: cycle 1 :: trigger: user 'resume'; tree diff vs baseline clean (only this run's doc).
 - [2026-08-22T00:05Z] TRIAGE -> RESEARCH :: cycle 1 :: trigger: triage recorded above (DEEP × web, 5 tracks).

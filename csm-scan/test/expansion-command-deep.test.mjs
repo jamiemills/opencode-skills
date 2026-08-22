@@ -35,6 +35,10 @@ function readSource(rel) {
   return readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
 }
 
+function normalizeQuotes(source) {
+  return source.replace(/["']/g, '"');
+}
+
 function expectedRgFilesArgv() {
   return [
     "--files",
@@ -97,7 +101,7 @@ test("T209 six owned files contain zero prohibited execution sites", () => {
   }
   // The broker remains the sole production child-process owner.
   const brokerSource = readSource("lib/scan/shared/command.mjs");
-  assert.match(brokerSource, /import \{ execFile \} from 'node:child_process';/);
+  assert.match(normalizeQuotes(brokerSource), /import \{ execFile \} from "node:child_process";/);
 });
 
 // ---------------------------------------------------------------------------
@@ -459,7 +463,7 @@ test("T209 the six owned files acquire no process capability outside the broker"
   }
   const broker = readSource("lib/scan/shared/command.mjs");
   assert.ok(
-    broker.includes("import { execFile } from 'node:child_process';"),
+    normalizeQuotes(broker).includes('import { execFile } from "node:child_process";'),
     "broker must remain the sole child-process owner",
   );
 });
