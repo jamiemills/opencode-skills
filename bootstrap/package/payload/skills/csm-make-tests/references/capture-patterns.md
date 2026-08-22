@@ -31,10 +31,11 @@ def test_order_shape(snapshot_json, client):
     assert snapshot_json(matcher=path_type({"id": (int,), "ts": (datetime,)})) == resp.json()
 ```
 
-- Snapshotted: the serialized return value (use `JSONSnapshotExtension` for APIs).
-- First run fails on the missing snapshot; observed output becomes the pending golden.
+- Snapshotted: the serialized return value (`JSONSnapshotExtension` for APIs). First
+  run fails on the missing snapshot; observed output becomes the pending golden.
 - Approve after human review: `pytest --snapshot-update`; new-only mode
-  `--snapshot-update-new-only` writes only missing snapshots — the first-capture default.- Scrubbing is serialization-time, no regex over rendered output [K7]:
+  `--snapshot-update-new-only` writes only missing snapshots — the first-capture default.
+- Scrubbing is serialization-time, no regex over rendered output [K7]:
 
 ```python
 path_type({"id": (int,), "registeredAt": (datetime,)})  # replace by value type at path
@@ -127,9 +128,8 @@ inspect the received file, and on approval copy it over the approved file and co
 - Snapshotted: `<name>.received.<ext>` artifacts; acceptance is mechanical — rename
   `.received.` to `.verified.` (bulk renames work for batch approval after review) [D6].
 - Convention: `*.received.*` gitignored, `*.verified.*` committed.
-- DiffEngine suppresses diff-tool launches on build servers AND inside AI CLIs —
-  agent-driven runs never hang on a GUI prompt [K22].
-- Hygiene gate: `VerifyChecks.Run()` once at assembly level catches config drift.
+- DiffEngine suppresses diff-tool launches on build servers AND inside AI CLIs — agent
+  runs never hang on a GUI prompt [K22]. Hygiene: `VerifyChecks.Run()` catches drift.
 
 ## Approve-Loop Semantics
 
@@ -161,8 +161,8 @@ Vitest          CI truthy -> update=none; mismatch+missing+obsolete fail  [K10][
 cargo-insta     --unreferenced auto => reject in CI                       [K10]
 Go              plain `go test ./...` (never -update) -> divergence fails [K4][K10]
 ApprovalTests   received != approved fails; .received. gitignored         [K4]
-.NET Verify     missing .verified. fails; BuildServerDetector suppresses
-                diff-tool launches on CI                                  [K10][K22]
+.NET Verify     missing .verified. fails; BuildServerDetector suppresses diff launches
+                on CI                                                     [K10][K22]
 ```
 
 Update flags (`--snapshot-update`, `-u`, `cargo insta accept`, `-update`, received→

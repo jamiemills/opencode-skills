@@ -12,7 +12,6 @@ Source: `.agents/research/2026-08-22-characterization-skill-implementation-resea
 ```text
 stack   tool/library     capture call                        snapshotted            first run
 Python  pytest+syrupy    assert out == snapshot              serialized return      fails (missing)
-Python  approvaltests    verify_as_json(scrub(result))       .received.txt file     received written
 JS/TS   Jest             expect(scrub(x)).toMatchSnapshot()  __snapshots__/*.snap   artifact written
 JS/TS   Vitest           expect(x).toMatchSnapshot()         default snapshot dir   fails in CI
 Rust    cargo-insta      assert_json_snapshot!(x)            .snap (pending .snap.new)  pending created
@@ -32,10 +31,11 @@ def test_order_shape(snapshot_json, client):
     assert snapshot_json(matcher=path_type({"id": (int,), "ts": (datetime,)})) == resp.json()
 ```
 
-- Snapshotted: the serialized return value (use `JSONSnapshotExtension` for APIs).
-- First run fails on the missing snapshot; observed output becomes the pending golden.
+- Snapshotted: the serialized return value (`JSONSnapshotExtension` for APIs). First
+  run fails on the missing snapshot; observed output becomes the pending golden.
 - Approve after human review: `pytest --snapshot-update`; new-only mode
-  `--snapshot-update-new-only` writes only missing snapshots — the first-capture default.- Scrubbing is serialization-time, no regex over rendered output [K7]:
+  `--snapshot-update-new-only` writes only missing snapshots — the first-capture default.
+- Scrubbing is serialization-time, no regex over rendered output [K7]:
 
 ```python
 path_type({"id": (int,), "registeredAt": (datetime,)})  # replace by value type at path
@@ -128,9 +128,8 @@ inspect the received file, and on approval copy it over the approved file and co
 - Snapshotted: `<name>.received.<ext>` artifacts; acceptance is mechanical — rename
   `.received.` to `.verified.` (bulk renames work for batch approval after review) [D6].
 - Convention: `*.received.*` gitignored, `*.verified.*` committed.
-- DiffEngine suppresses diff-tool launches on build servers AND inside AI CLIs —
-  agent-driven runs never hang on a GUI prompt [K22].
-- Hygiene gate: `VerifyChecks.Run()` once at assembly level catches config drift.
+- DiffEngine suppresses diff-tool launches on build servers AND inside AI CLIs — agent
+  runs never hang on a GUI prompt [K22]. Hygiene: `VerifyChecks.Run()` catches drift.
 
 ## Approve-Loop Semantics
 
@@ -139,17 +138,17 @@ approve mechanism runs; never bulk auto-approval, however trivial diffs look ([D
 
 Batch mechanics per stack:
 
-- Rust: `cargo insta test --review` walks all pending snapshots in one interactive pass;
-  `with_settings!` description/info fields give per-snapshot reviewer context [K26]. `pending-snapshots --as-json` builds review queues programmatically.
+- Rust: `cargo insta test --review` walks all pending snapshots in one interactive
+  pass; `with_settings!` description/info fields give per-snapshot reviewer context
+  [K26]. `pending-snapshots --as-json` builds review queues programmatically.
 - Python/syrupy: `--snapshot-update-new-only` restricts writes to new goldens so
   already-approved ones stay locked during a partial batch [K4].
-- Jest/Vitest: one reviewed batch, then a single `-u` application [K4][K24].
+- Jest/Vitest: one reviewed batch, then a single `-u` application [K4][K24]. Go: the
+  `-update` flag invocation itself is the per-batch approval act [K4].
 - .NET: scripted bulk rename of reviewed `.received.` files only [D6].
-- Go: the `-update` flag invocation itself is the per-batch approval act [K4].
 
-Cap batch size so reviews stay honest; record approver, commit/timestamp, and triage
-classification per row in the ledger (APPROVE steps 2–3). Rejected batches return to
-CAPTURE with the reviewer's reason attached.
+Cap batch size so reviews stay honest; record approver, timestamp, and triage class
+per ledger row (APPROVE steps 2–3). Rejected batches return to CAPTURE with the reason.
 
 ## CI Integration Semantics
 
@@ -162,8 +161,7 @@ Vitest          CI truthy -> update=none; mismatch+missing+obsolete fail  [K10][
 cargo-insta     --unreferenced auto => reject in CI                       [K10]
 Go              plain `go test ./...` (never -update) -> divergence fails [K4][K10]
 ApprovalTests   received != approved fails; .received. gitignored         [K4]
-.NET Verify     missing .verified. fails; BuildServerDetector suppresses
-                diff-tool launches on CI                                  [K10][K22]
+.NET Verify     missing .verified. fails; diff launches auto-suppressed on CI [K10][K22]
 ```
 
 Update flags (`--snapshot-update`, `-u`, `cargo insta accept`, `-update`, received→
@@ -197,6 +195,5 @@ function scrub(node) {
 }
 ```
 
-UNSTABLE_KEYS masks timestamps, IDs/UUIDs, durations, hostnames, and secrets;
-randomness is handled upstream by seeding/injecting the generator, not by diffing it
-away. Jest/Vitest fallback for opaque values: `expect.any()` matchers.
+UNSTABLE_KEYS masks timestamps, IDs/UUIDs, durations, hostnames, secrets; randomness
+is seeded/injected upstream, never diffed away. Opaque-value fallback: `expect.any()`.

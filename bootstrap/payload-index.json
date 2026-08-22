@@ -85,8 +85,8 @@
     "supportingFiles": [
       {
         "path": "payload/skills/csm-make-tests/references/capture-patterns.md",
-        "sha256": "5afd672a0e20f7fb608f63bd93d2d536f7ab436589dcdd131db723ae11d8759e",
-        "bytes": 8784,
+        "sha256": "f7d54e2fc55665074f2b32776d4d9d2ea43612124981e03dd3d4e46548e5973e",
+        "bytes": 8751,
         "mode": "0644"
       },
       {
