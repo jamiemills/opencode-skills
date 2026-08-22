@@ -12,11 +12,10 @@ format: csm-plan/1
 
 - Plan ID: csm-make-tests-skill-build
 - Status: complete
-- Current CSM state: DISPATCH (cycle 3, batch 3: T010+T011+T012)
+- Current CSM state: COMPLETE
 - Cycle: 1
 - Commits: allowed
 - Last model/run: stealth/ox-alpha opencode 2026-08-22T18:30Z
-- Last checkpoint: 2026-08-22 cycle2 start — batch1 committed 231d053; recover verified tree (7 top-level SKILL.md matrix edits uncommitted, carried to next checkpoint; references/ drafts out-of-order pending T009)
 - Last model/run: stealth/ox-alpha, csm-build session 2026-08-22 (same conversation continuation)
 - Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
 - Active tasks: none
