@@ -1,5 +1,7 @@
 format: csm-deep-research/1
 
+
+> **SUPERSEDED / REDUNDANT (2026-08-22):** Superseded by the complete consolidation `2026-08-22-pep20-idiomatic-python-consolidated-research.md`, which carries all detail sections inline. Retained for provenance only.
 # Python Doctrine Consolidated Research Finding (PEP 20 Architecture + Idiomatic-Python Review)
 
 ## TL;DR
@@ -324,3 +326,5 @@ Consolidated list — every [Vn] cited above maps 1:1 to exactly one URL. During
 ```
 [2026-08-22T00:00Z] CONSOLIDATION :: user-directed merge of pep20 + idiomatic-reviewer findings into this doc; sources banner-marked superseded
 ```
+
+[2026-08-22T16:40Z] CONSOLIDATION -> SUPERSEDED :: cycle 1 :: trigger: complete consolidation landed in 2026-08-22-pep20-idiomatic-python-consolidated-research.md; this summary doc retained provenance-only.
