@@ -35,6 +35,7 @@ const skillDirs = [
   "csm-make-tests",
   "csm-grill",
   "csm-plan",
+  "csm-python-doctrine-review",
   "csm-review",
   "csm-scan",
   "csm-upload",
@@ -61,6 +62,10 @@ const mapping = {
     {
       srcDir: join("csm-make-tests", "references"),
       destDir: join("payload", "skills", "csm-make-tests", "references"),
+    },
+    {
+      srcDir: join("csm-python-doctrine-review", "artifact"),
+      destDir: join("payload", "skills", "csm-python-doctrine-review", "artifact"),
     },
   ],
   helperBins: [],

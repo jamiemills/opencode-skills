@@ -52,7 +52,7 @@ SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only resea
 - Consumes: a rough idea from the user, plus read-only research evidence gathered by subagents; optional csm-deep-research findings when dispatched
 - Produces: one agreed phased approach document saved at `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md`
 - Hands off: phase briefs inside the approach document wait for future, separately invoked csm-plan runs (human-mediated)
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-python-doctrine-review
 
 ## Grilling State Machine
 

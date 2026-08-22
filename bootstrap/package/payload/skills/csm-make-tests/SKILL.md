@@ -12,7 +12,7 @@ Turn a repository into a fully tested one: audit what exists, capture what the c
 - Consumes: a target repository checkout at a pinned commit with optional change-surface scope; optional NORMS.md conventions; cited research findings under `.agents/research/`
 - Produces: executable test files, goldens/fixtures, and benchmark files in the target repository; `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md`; `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md`
 - Hands off: verified suite plus ledger and verification report to the user or a later explicit csm-build run
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-python-doctrine-review
 
 ## Tmux Session Bootstrap
 

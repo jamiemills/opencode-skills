@@ -10,7 +10,7 @@ description: Upload evidence to a GitHub Pages demo site. Never pushes elsewhere
 - Consumes: local evidence files and the `~/.agents/csm-upload.json` configuration
 - Produces: a dated demo directory with index.html in the GitHub Pages repository, plus the public URL
 - Hands off: terminal — the published URL returns to the user
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-make-tests
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-make-tests, csm-python-doctrine-review
 
 ## Requirements
 

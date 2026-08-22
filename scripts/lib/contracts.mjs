@@ -57,6 +57,24 @@ const MANIFEST = {
     norms: true,
     machine: { section: "Test Generation State Machine", entryExit: false },
   },
+  "csm-python-doctrine-review": {
+    sections: [
+      "Interface",
+      "Tmux Session Bootstrap",
+      "Activation Boundary",
+      "Core Rules",
+      "Write Discipline And File Allowlist",
+      "Repository Norms (NORMS.md)",
+      "Analysis State Machine",
+      "Required Report Package",
+      "Anti-Patterns",
+      "Done Criteria",
+    ],
+    tmux: true,
+    norms: true,
+    machine: { section: "Analysis State Machine", entryExit: true },
+  },
+
   "csm-build": {
     sections: [
       "Interface",
@@ -205,7 +223,7 @@ const INTERFACES = {
     entryConditions: ["repository target", "explicit review, audit, or assessment request"],
     consumes: ["repository at a pinned commit", "optional NORMS.md"],
     produces: ["dated findings report"],
-    handoff: ["review findings to a subsequent csm-plan run"],
+    handoff: ["review findings to a subsequent csm-plan run", "separate human-mediated dispatch to csm-python-doctrine-review"],
     midPipeline: ["evidence pack", "finder ledger", "challenge verdicts", "adjudicated findings"],
   },
   "csm-scan": {
@@ -256,6 +274,13 @@ const INTERFACES = {
     handoff: ["verified suite, ledger, and verification report to the user or a later explicit csm-build run"],
     midPipeline: ["run project test commands", "write generated tests and goldens", "record approvals", "run mutation and performance gates"],
   },
+  "csm-python-doctrine-review": {
+    entryConditions: ["target python repository checkout at a pinned commit", "optional change-surface scope", "explicit user consent for any tool installation"],
+    consumes: ["repository working tree (read-only)", "optional NORMS.md conventions", "bundled rules artifact artifact/python-idiomatic-reviewer-rules.json", "doctrine playbook from .agents/research/2026-08-22-pep20-idiomatic-python-consolidated-research.md"],
+    produces: [".agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md"],
+    handoff: ["single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise"],
+    midPipeline: ["consent-gated isolated tool runs", "severity-mapped findings", "single-file report emit"],
+  },
 };
 
 // NORMS.md detection phrases (any-of semantics; data-only move — behavior
@@ -272,6 +297,7 @@ const FORMAT_VERSIONS = {
   "csm-norms": 1,
   "csm-deep-research": 1,
   "csm-make-tests": 1,
+  "csm-python-doctrine-review": 1,
 };
 
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
@@ -285,6 +311,8 @@ const FORMAT_VERSIONS = {
 // Second asymmetry: the csm-deep-research row carries csm-browse as false
 // because deep-research may invoke csm-browse solely for browser-rendered
 // retrieval of JS-only pages.
+// Third asymmetry: the review->analyzer false cell is present because csm-review
+// may hand off a separate, human-mediated csm-python-doctrine-review dispatch.
 const NEVER_INVOKE = {
   "csm-bdd-tdd": {
     "csm-bdd-tdd": false,
@@ -296,6 +324,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-browse": {
     "csm-bdd-tdd": true,
@@ -307,6 +336,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-build": {
     "csm-bdd-tdd": true,
@@ -318,6 +348,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-grill": {
     "csm-bdd-tdd": true,
@@ -330,6 +361,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-deep-research": false,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-plan": {
     "csm-bdd-tdd": true,
@@ -342,6 +374,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-deep-research": false,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-review": {
     "csm-bdd-tdd": true,
@@ -353,6 +386,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": true,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": false,
   },
   "csm-scan": {
     "csm-bdd-tdd": true,
@@ -364,6 +398,7 @@ const NEVER_INVOKE = {
     "csm-scan": false,
     "csm-upload": true,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-upload": {
     "csm-bdd-tdd": true,
@@ -375,6 +410,7 @@ const NEVER_INVOKE = {
     "csm-scan": true,
     "csm-upload": false,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-deep-research": {
     "csm-bdd-tdd": true,
@@ -387,6 +423,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-deep-research": false,
     "csm-make-tests": true,
+    "csm-python-doctrine-review": true,
   },
   "csm-make-tests": {
     "csm-bdd-tdd": true,
@@ -399,6 +436,20 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-deep-research": true,
     "csm-make-tests": false,
+    "csm-python-doctrine-review": true,
+  },
+  "csm-python-doctrine-review": {
+    "csm-bdd-tdd": true,
+    "csm-browse": true,
+    "csm-build": true,
+    "csm-grill": true,
+    "csm-plan": true,
+    "csm-review": true,
+    "csm-scan": true,
+    "csm-upload": true,
+    "csm-deep-research": true,
+    "csm-make-tests": true,
+    "csm-python-doctrine-review": false,
   },
 };
 

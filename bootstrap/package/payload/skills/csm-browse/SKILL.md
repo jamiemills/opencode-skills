@@ -14,7 +14,7 @@ Use `csm-browse` whenever you need to drive a headful Chromium browser inside th
 - Consumes: a browsing/evidence task and the `chromium-vnc` Docker container
 - Produces: screenshots, videos, and DOM/console/network/performance evidence in per-session artifact directories
 - Hands off: evidence file paths return to the human; publishing via the csm-upload CLI is a separate user action
-- Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests
+- Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-python-doctrine-review
 
 ## One-time setup
 

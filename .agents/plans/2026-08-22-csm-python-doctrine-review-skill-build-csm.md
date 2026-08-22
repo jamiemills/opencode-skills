@@ -11,8 +11,8 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: csm-python-doctrine-review-skill-build
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: planning SAVED 2026-08-22
@@ -109,7 +109,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
 
 ## Numbered Plan
 
-1. [pending] Register skill identity in contracts
+1. [completed] Register skill identity in contracts
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -124,7 +124,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Repair attempts: 0
    - Recovery note: single-file additive edit; git checkout recovers.
 
-2. [pending] Wire matrix, artifact patterns, boilerplate
+2. [completed] Wire matrix, artifact patterns, boilerplate
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -139,12 +139,12 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Repair attempts: 0
    - Recovery note: three single-owner file edits; revert per file.
 
-3. [pending] Bundle rules artifact into skill dir
+3. [completed] Bundle rules and doctrine artifacts into skill dir
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
    - Risk: low
-   - Owned scope: csm-python-doctrine-review/artifact/python-idiomatic-reviewer-rules.json (new copy), scripts/pack-bootstrap.mjs (skillDirs entry :30-41 + supportingFiles entry), bootstrap/package/payload/** (regen), bootstrap/payload-index.json
+   - Owned scope: csm-python-doctrine-review/artifact/python-idiomatic-reviewer-rules.json + pep20-idiomatic-python-consolidated-research.md (new copies), scripts/pack-bootstrap.mjs (skillDirs entry :30-41 + supportingFiles entry), bootstrap/package/payload/** (regen), bootstrap/payload-index.json
    - Not in scope: SKILL.md
    - Spike candidate: none
    - Actions: mkdir csm-python-doctrine-review/artifact; copy corpus artifact byte-identical; add `"csm-python-doctrine-review"` to skillDirs (:30-41 — without it the skill is silently never packed: F-008 reverse walk iterates only mapped sources, check-suite.mjs:612-624) AND supportingFiles mapping `{srcDir: join("csm-python-doctrine-review","artifact"), destDir: join("payload","skills","csm-python-doctrine-review","artifact")}` following :62-64 precedent; GUARD: record `git status bootstrap/` before packing and refuse if unmapped paths appear (syncPayload prune :163-169 is destructive); run `node scripts/pack-bootstrap.mjs`.
@@ -154,7 +154,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Repair attempts: 0
    - Recovery note: idempotent regen; rerun after any change.
 
-4. [pending] Scaffold SKILL.md skeleton
+4. [completed] Scaffold SKILL.md skeleton
    - Task ID: T004
    - Depends on: T002
    - Parallel group: G3
@@ -169,7 +169,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Repair attempts: 0
    - Recovery note: body edits only after skeleton passes.
 
-5. [pending] Author analysis body
+5. [completed] Author analysis body
    - Task ID: T005
    - Depends on: T004
    - Parallel group: G4
@@ -177,14 +177,14 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Owned scope: csm-python-doctrine-review/SKILL.md body sections
    - Not in scope: references/ (none planned), other files
    - Spike candidate: none
-   - Actions: author per Design — Activation Boundary (standalone or dispatched by csm-review; analyses only; terminal at REPORT); Core Rules (single-file write rule verbatim-strong: "the ONLY write in the target repo is the report file"; never modify target code/deps/config; never run mutating git; never auto-install without explicit OK; scrub secrets; disclose mypy env-noise; cite artifact rule ids + doctrine playbook steps); Write Discipline (allowlist WITHIN THE TARGET REPO = exactly `.agents/doctrine/<date>-<slug>-python-doctrine-review.md`; scratch under /tmp; consented runner caches live OUTSIDE any repo and their locations are declared — UV_CACHE_DIR/PIPX_HOME/XDG_CACHE_HOME redirected to /tmp; baseline-diff verification step); Repository Norms detection phrase; PROVISION consent ladder (probe uvx → OFFER pinned commands → on explicit OK install/run isolated → pipx fallback → decline ⇒ static-only mode, recorded); SCAN commands with cache redirection; ANALYZE doctrine checklist (playbook steps cited to consolidated research path DR1); JUDGE severity mapping + judgment-gotchas prompts; Required Report Package (exact single-file shape: header/run-record, findings table, agent fix-guide with checkboxes); Anti-Patterns; Done Criteria. Run pack-bootstrap after.
+   - Actions: author per Design — Activation Boundary (standalone or dispatched by csm-review; analyses only; terminal at REPORT); Core Rules (single-file write rule verbatim-strong: "the ONLY write in the target repo is the report file"; never modify target code/deps/config; never run mutating git; never auto-install without explicit OK; scrub secrets; disclose mypy env-noise; cite artifact rule ids + doctrine playbook steps); Write Discipline (allowlist WITHIN THE TARGET REPO = exactly `.agents/doctrine/<date>-<slug>-python-doctrine-review.md`; scratch under /tmp; consented runner caches live OUTSIDE any repo and their locations are declared — UV_CACHE_DIR/PIPX_HOME/XDG_CACHE_HOME redirected to /tmp; baseline-diff verification step); Repository Norms detection phrase; PROVISION consent ladder (probe uvx → OFFER concrete pinned commands ruff 0.16.0, mypy 1.18.2, pyright 1.1.407 → on explicit OK install/run isolated → pipx fallback → decline ⇒ static-only mode, recorded; reject floating/placeholder pins); SCAN commands with cache redirection; ANALYZE doctrine checklist (playbook steps cited to consolidated research path DR1); JUDGE severity mapping + judgment-gotchas prompts; Required Report Package (exact single-file shape: header/run-record, findings table, agent fix-guide with checkboxes); Anti-Patterns; Done Criteria. Run pack-bootstrap after.
    - Acceptance signal: pack + check-suite show zero csm-python-doctrine-review failures; wc -l < 480 (headroom under 500).
    - Validation: manual trace — every state has inputs/actions/outputs; consent + single-file rules quoted verbatim in text.
    - Acceptance evidence: gate output + line count recorded.
    - Repair attempts: 0
    - Recovery note: body-only edits; gates catch regressions.
 
-6. [pending] Prepare dry-run fixture
+6. [completed] Prepare dry-run fixture
    - Task ID: T006
    - Depends on: none
    - Parallel group: G2
@@ -199,7 +199,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Repair attempts: 0
    - Recovery note: disposable; recreate freely.
 
-7. [pending] Enable csm-review dispatch
+7. [completed] Enable csm-review dispatch
    - Task ID: T007
    - Depends on: T005
    - Parallel group: G5
@@ -215,7 +215,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Recovery note: single-file edit; revert restores prior contract.
    - Review requirement: independent reviewer must approve this diff before commit (public-interface change).
 
-8. [pending] Heal sibling bullets + README + final pack
+8. [completed] Heal sibling bullets + README + final pack
    - Task ID: T008
    - Depends on: T005, T007
    - Parallel group: G6
@@ -230,7 +230,7 @@ Critical path: T001 → T004 → T005 → T008 → T009. Parallel group G2 {T002
    - Repair attempts: 0
    - Recovery note: mechanical regeneration; idempotent.
 
-9. [pending] Dry-run proof + completion gates
+9. [completed] Dry-run proof + completion gates
    - Task ID: T009
    - Depends on: T006, T008
    - Parallel group: G7
@@ -286,7 +286,30 @@ Remediation applied primary-led (document-only edits, low risk) with recorded in
 | 2026-08-22T20:30Z | 0 | RESEARCH complete | – | DR1-DR7 captured; design committed | DRAFT |
 | 2026-08-22T20:45Z | 0 | DRAFT->CRITIQUE | – | hostile review: 13 findings (1 critical / 5 major / 7 minor) | CRITIQUE |
 | 2026-08-22T21:00Z | 0 | CRITIQUE->REMEDIATE->VERIFY | – | all 13 applied primary-led (rung-4 caveat); resolution table filled | VERIFY |
+| 2026-08-22T21:40Z | 1 | SELECT->DISPATCH->INTEGRATE | T001 | primary-led mechanical (single-owner file); one misplacement caught+fixed; node import assert: registered-in 3/3 structures | VERIFY |
+| 2026-08-22T21:30Z | 1 | NOT_STARTED->RECOVER->VALIDATE | – | explicit csm-build start; format ok; no NORMS; anchors re-verified (skillDirs 10 entries, no analyzer dir); DR7 churn warning active | SELECT |
 
 ## Completion Review
 
-(filled by csm-build when all criteria are verified)
+All 9 tasks completed. Evidence:
+- T001/T002: contracts, asymmetric csm-review dispatch cell, artifact pattern, and format registration present.
+- T003: rules JSON and consolidated PEP 20/idiomatic research bundled; both source copies match; payload contains both.
+- T004/T005: SKILL.md complete at 160 lines; boilerplate drift and structural gates pass; seven-state analyzer workflow, consent gating, concrete pins, cache isolation, single-file allowlist, and agent fix-guide schema present.
+- T006/T009: `/tmp/csm-pdr-fixture` baseline commit `e4436c6` was clean before analysis; validation report created at exactly `.agents/doctrine/2026-08-22-csm-pdr-fixture-python-doctrine-review.md`; no source, config, dependency, lock, bytecode, or cache changes; approved and declined consent paths recorded in `/tmp/csm-pdr-consent-validation.md`; Ruff 0.16.0 produced expected findings.
+- T007/T008: csm-review dispatch contract, sibling Never-invokes matrix, README, tests, and payload integrated.
+- Gates: `node scripts/check-suite.mjs` rc=0, 11 skills, 837 checks, payload drift 0; `make analyze` rc=0; `make test-bootstrap` ran 43 tests with 41 pass and 2 environment-only failures because host Node is 20.20.2 while those tests require Node >=22. Focused integration/protocol tests pass after inventory updates.
+- Independent final review: initial FAIL corrected by bundling the doctrine playbook, enforcing concrete tool pins, recording fixture evidence, and updating the matrix comment; re-verification gates pass.
+- No production repository source was modified. Implementation is complete; only the analyzer skill surfaces, registration, tests, payload, and this plan changed.
+
+## Progress Journal
+
+| Timestamp | Cycle | Transition | Tasks | Evidence/result | Next state |
+| --------- | ----- | ---------- | ----- | --------------- | ---------- |
+| 2026-08-22T21:30Z | 1 | NOT_STARTED->RECOVER->VALIDATE | – | explicit build; plan format valid; no NORMS | SELECT |
+| 2026-08-22T21:40Z | 1 | SELECT->DISPATCH->INTEGRATE | T001 | contracts MANIFEST/INTERFACES/FORMAT_VERSIONS registered; 3/3 assertion passed | SELECT |
+| 2026-08-22T22:00Z | 1 | DISPATCH->INTEGRATE | T002,T003,T006 | matrix/patterns landed; artifact copied; pack deferred until SKILL.md; fixture baseline e4436c6 clean | SELECT |
+| 2026-08-22T22:20Z | 1 | DISPATCH->INTEGRATE | T004,T005 | 160-line SKILL.md + boilerplate; structural self-review passed | SELECT |
+| 2026-08-22T22:40Z | 1 | DISPATCH->REVIEW->REPAIR | T007 | independent public-interface review found payload/handoff/comment gaps; repairs applied | SELECT |
+| 2026-08-22T23:00Z | 1 | DISPATCH->INTEGRATE | T008 | sibling matrix/README/tests/payload integrated; check-suite passed after plan metadata repair | VERIFY |
+| 2026-08-22T23:20Z | 1 | VERIFY->REPAIR->VERIFY | T009 | final review gaps fixed: doctrine playbook bundled, concrete pins enforced, fixture evidence recorded; check-suite 837/drift0; 41/43 bootstrap tests pass, 2 require unavailable Node22 | CHECKPOINT |
+| 2026-08-22T23:25Z | 1 | CHECKPOINT->COMPLETE | all | all acceptance criteria evidenced; residual Node22 environment limitation disclosed | COMPLETE |
