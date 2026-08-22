@@ -12,6 +12,12 @@
 //   node scripts/wt-session.mjs list [--root <repo>]
 //   node scripts/wt-session.mjs merge <goal-slug> [--push] [--root <repo>]
 //   node scripts/wt-session.mjs nuke <goal-slug> [--force] [--root <repo>]
+//   node scripts/wt-session.mjs prune [--force] [--root <repo>]
+//
+// `prune` reaps worktree registrations the helper does not manage: detached
+// HEAD checkouts (e.g. safety holders left by history rewrites), foreign
+// branches, and registrations whose directory is already gone. Managed
+// wt/<slug> worktrees and the main checkout are never touched.
 //
 // `--root` overrides the repo (default: the git top-level of the cwd), so
 // tests can point the helper at a throwaway repository.
@@ -20,6 +26,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -209,6 +216,61 @@ export function removeWorktree(root, slug, { force = false } = {}) {
   return { dir: entry.dir, branch };
 }
 
+// F-??: reap foreign/stale worktree registrations. The Aug-20 history purge
+// left a detached-HEAD safety worktree (/tmp/head-check) registered forever:
+// prune never fires while its directory exists, and nuke cannot match it
+// (detached = no branch). Policy: main checkout and managed wt/<slug>
+// worktrees are untouchable here; everything else is removed when clean,
+// with --force for dirty ones, plus one `worktree prune` pass for
+// registrations whose directory is already gone.
+export function pruneWorktrees(root, { force = false } = {}) {
+  const lines = git(root, ["worktree", "list", "--porcelain"]).split("\n");
+  const entries = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].startsWith("worktree ")) {
+      entries.push({ dir: lines[i].slice("worktree ".length), branch: null, detached: false });
+    } else if (lines[i].startsWith("branch ")) {
+      entries[entries.length - 1].branch = lines[i].slice("branch ".length);
+    } else if (lines[i].startsWith("detached")) {
+      entries[entries.length - 1].detached = true;
+    }
+  }
+  const removed = [];
+  const skipped = [];
+  for (const entry of entries) {
+    if (path.resolve(entry.dir) === path.resolve(root)) continue;
+    let exists = true;
+    try {
+      fs.statSync(entry.dir);
+    } catch {
+      exists = false;
+    }
+    if (!exists) {
+      // A registration whose directory is gone is stale no matter whose it
+      // was — clear it (the branch, if any, survives for nuke-style cleanup).
+      removed.push({ dir: entry.dir, branch: entry.branch, kind: "missing" });
+      continue;
+    }
+    if (path.resolve(entry.dir) !== path.resolve(root)) {
+      const managed =
+        !entry.detached &&
+        typeof entry.branch === "string" &&
+        entry.branch.startsWith("refs/heads/wt/");
+      if (managed) continue;
+    }
+    const status = gitOk(root, ["-C", entry.dir, "status", "--porcelain"]) ? git(root, ["-C", entry.dir, "status", "--porcelain"]) : "";
+    if (status !== "" && !force) {
+      skipped.push({ dir: entry.dir, branch: entry.branch, reason: "dirty — rerun with --force" });
+      continue;
+    }
+    git(root, ["worktree", "remove", "--force", entry.dir]);
+    removed.push({ dir: entry.dir, branch: entry.branch, kind: entry.detached ? "detached" : "foreign" });
+  }
+  // One prune pass clears every registration whose directory is gone.
+  git(root, ["worktree", "prune", "-v"]);
+  return { removed, skipped };
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const root = resolveRoot(args.root);
@@ -231,6 +293,17 @@ function main() {
       console.log(`merged ${branch} into main (ff-only)`);
       if (pushed) console.log("pushed origin main");
       console.log(`cleanup: node scripts/wt-session.mjs nuke ${args.slug}`);
+    } else if (args.action === "prune") {
+      const result = pruneWorktrees(root, { force: args.force });
+      for (const r of result.removed)
+        console.log(
+          r.kind === "missing"
+            ? `pruned stale registration ${r.dir}`
+            : `removed ${r.kind} worktree ${r.dir}`,
+        );
+      for (const sk of result.skipped) console.log(`skipped ${sk.dir}: ${sk.reason}`);
+      if (result.removed.length === 0 && result.skipped.length === 0)
+        console.log("nothing to prune");
     } else if (args.action === "nuke") {
       if (!args.slug) throw new Error("usage: wt-session nuke <goal-slug> [--force]");
       const { dir, branch, pruned } = removeWorktree(root, args.slug, { force: args.force });
