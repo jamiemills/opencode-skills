@@ -97,8 +97,8 @@
     "supportingFiles": [
       {
         "path": "payload/skills/csm-ddd/lib/ddd/clarify.mjs",
-        "sha256": "8d10926223b21d6bb3bcc386ade1e9ab7163419056b57da8a944acff11ec6b7b",
-        "bytes": 3993,
+        "sha256": "791be683d6a2d47718e1744e9b2f881e46043d97a12079745377ea02363c834e",
+        "bytes": 4076,
         "mode": "0644"
       },
       {
@@ -109,38 +109,38 @@
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/extract.mjs",
-        "sha256": "d0cdf84674956f8a32afea73ead72be326bdbe7e7a2d31f9ea07d5f64178aafe",
-        "bytes": 10376,
+        "sha256": "345088cf456699b49ed5f62146edf1691a3dd5e52d9ba06d87702d1a85488e8d",
+        "bytes": 10590,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/git.mjs",
-        "sha256": "85a6249ffcbc0d056f2eb2b35a445fe2c5161beeeb5eb2d39dfad32adda39391",
-        "bytes": 3202,
+        "sha256": "842f204104b922c68da0ae39f6a1d66b3f4af081c4dcf196c8295581f2f28bc3",
+        "bytes": 3215,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/pipeline.mjs",
-        "sha256": "8ac50c5e87c19c8e36dcfe183cdeb0a34d4c9987597ce205b76224be322ab177",
-        "bytes": 3245,
+        "sha256": "1e5aef19940ba6d922fb545b42ee51587fe98846364c7cfa94fb6cd801ef9f81",
+        "bytes": 3341,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/redact.mjs",
-        "sha256": "68f6e840027736caa44c1876e15219ea97970ce5f78f9c8298bd3b1cc8d6d06e",
-        "bytes": 1214,
+        "sha256": "92713097f6c99084f123b849ea787b2c3eea852660f2908ae56874371e081ed8",
+        "bytes": 1231,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/render.mjs",
-        "sha256": "402f1bfab3effefb26d63c9cfab12db31f1f3ce66fd32f05781a5ba446d9d925",
-        "bytes": 6040,
+        "sha256": "71631024d0741ab0d18dab2acc521ddeceab2db49f033d358fd55fc2ef1f0e15",
+        "bytes": 6236,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/synthesize.mjs",
-        "sha256": "580e5854f00c9855b5c3d5c7674159cca4efef3967eb158a975b6eb28ca6ac3f",
-        "bytes": 9182,
+        "sha256": "855018b725e8428f79a34cf135a81273973e383ac413f72fad9d359231684b85",
+        "bytes": 10095,
         "mode": "0644"
       },
       {
@@ -163,8 +163,8 @@
       },
       {
         "path": "payload/skills/csm-ddd/scripts/ddd.mjs",
-        "sha256": "3088d0ca4359621ea1094244ad0c53b00f34b2cad9a161fcd521f3781dd59dc2",
-        "bytes": 3978,
+        "sha256": "23b4364e1ee7b61599f6b834f75eb65f389d42a7cf82f21222b487d68960d6ce",
+        "bytes": 4196,
         "mode": "0644"
       },
       {

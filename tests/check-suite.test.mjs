@@ -189,7 +189,11 @@ test("boilerplate family: a drifted synced section exits 1 with the drift messag
   const dir = clonePristine();
   try {
     const content = read(dir, "csm-plan/SKILL.md");
-    write(dir, "csm-plan/SKILL.md", content.replace("1. In tmux (", "1. In tmux OR not ("));
+    write(
+      dir,
+      "csm-plan/SKILL.md",
+      content.replace("Derive a tmux-safe", "Derive a DRIFTED tmux-safe"),
+    );
     assertGateFails(
       dir,
       /csm-plan\/SKILL\.md "Tmux Session Bootstrap": boilerplate drifted/,
@@ -226,7 +230,7 @@ test("README family (F-052): a fenced-only skill reference does not satisfy the 
       "README.md",
       `${withoutRefs}\n\`\`\`bash\n# fenced-only reference, must not count as a prose declaration\ncsm-upload/SKILL.md\n\`\`\`\n`,
     );
-    assertGateFails(dir, /README references 8\/9 skills; missing csm-upload/, "readme-fence");
+    assertGateFails(dir, /README references \d+\/\d+ skills; missing csm-upload/, "readme-fence");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
