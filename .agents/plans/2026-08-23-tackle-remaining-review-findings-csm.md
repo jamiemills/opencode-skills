@@ -11,7 +11,7 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: tackle-remaining-review-findings
-- Status: blocked
+- Status: ready
 - Current CSM state: NOT_STARTED
 - Cycle: 0
 - Commits: allowed
@@ -19,7 +19,7 @@ format: csm-plan/1
 - Last model/run: primary csm-plan session 2026-08-23
 - Next transition: NOT_STARTED -> RECOVER
 - Active tasks: none
-- Blockers: D2-D5 and the T004/T005/T010 behavior choices must be answered before their tasks can dispatch; independent documentation/test tasks may proceed after a future explicit csm-build chooses a partial-dispatch policy
+- Blockers: none; the four decision gates were answered by the user on 2026-08-23
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
 
 ## Goal
@@ -69,12 +69,12 @@ Every residual finding is assigned exactly once. Resolved items are retained her
 | ID | Statement | Type | Evidence or rationale | Status |
 | --- | --- | --- | --- | --- |
 | D1 | Documentation-only corrections should prefer current behavior over changing public behavior. | planning default | Most residuals are stale contracts or wording. | decided |
-| D2 | T007 needs choices: (a) require signatures by default or retain unsigned local flow; (b) require payload_index_sha256 on signed envelopes or leave optional; (c) keep prose denylist as advisory or replace with structured steps; (d) rotate fixture key before publication or add a hard no-fixture release gate. | user/product gate | Bootstrap changes alter the trust boundary. | open; blocks T007 |
-| D3 | T010 needs choices: (a) add Dependabot/Renovate config, (b) document manual updates only, or (c) add a scheduled policy check without external credentials; choose exact-vs-range pin policy and ws-major policy. | user/product gate | No `.github/` automation exists; adding one is repository policy. | open; blocks T010 |
+| D2 | Retain unsigned local bootstrap flow as advisory-only; signed/payload-binding hardening is not required in this cycle. | user decision | User selected “Advisory only”. | decided |
+| D3 | Use a manual dependency update policy; do not add Dependabot/Renovate or external automation. | user decision | User selected “Manual policy”. | decided |
 | D4 | F7-02 is local-only state and is not a repository defect; clean-install verification may be added to T010. | evidence-based | Scout confirmed `.modules.yaml` is ignored local state. | decided |
 | D5 | Dead code is removable only when imports/tests prove no production use; otherwise document a retirement seam. | safety guard | Applies to F2-08/F2-09/F3-07/F3-15; no product choice needed. | decided |
-| D6 | T005 must choose whether `--fail-on-gaps` implies non-interactive mode, rejects interactive use, or remains a two-flag contract; whether report/graph runId cross-link becomes a hard CLI invariant. | user/product gate | Both change public CLI/artifact semantics. | open; blocks affected T005 subtasks |
-| D7 | T004 must choose whether to alter VNC password length/rotation or document loopback-only exposure as accepted. | security gate | Password policy changes the local threat model. | open; blocks VNC subtask only |
+| D6 | T005 uses strict contracts: `--fail-on-gaps` implies non-interactive mode and report/graph runId linkage is required at publication. | user decision | User selected “Strict contracts”. | decided |
+| D7 | T004 documents loopback-only VNC exposure as accepted; no password-generation change in this cycle. | user decision | User selected “Document loopback acceptance”. | decided |
 
 ## R&D Record
 
@@ -164,13 +164,13 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
 
 4. [pending] Harden csm-browse security and credential handling
    - Task ID: T004
-   - Depends on: T001/T002 for contract choices; D7 is required only for the VNC subtask
+   - Depends on: T001/T002 for contract choices
    - Parallel group: G1 after browse semantics
    - Risk: high for VNC policy; standard for malformed-regex handling
    - Owned scope: `csm-browse/lib/verbs/log.mjs`, `scripts/ensure-browser.mjs`, security tests
    - Not in scope: DDD redaction vocabulary (T005)
    - Spike candidate: measure false-positive impact of regex filters and review VNC threat boundary; do not change password policy without a decision.
-   - Actions: handle invalid/pathological `--filter` regexes safely (F4-07); implement VNC policy only after D7; document any accepted loopback risk.
+   - Actions: handle invalid/pathological `--filter` regexes safely (F4-07); document loopback-only VNC exposure as the accepted risk for F4-10 without changing password generation.
    - Acceptance signal: `node --test --test-concurrency=1 tests/unit/security.test.mjs tests/unit/recorder.test.mjs tests/unit/log.test.mjs` from csm-browse exits 0 with malformed-regex and selected VNC cases.
    - Validation: `make test-browse-unit`, lint, no credential leakage in synthetic telemetry.
    - Acceptance evidence: threat decision plus tests.
@@ -185,7 +185,7 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Owned scope: `csm-ddd/lib/ddd/clarify.mjs`, `render.mjs`, `synthesize.mjs`, `contracts.mjs`, graph schema, `scripts/ddd.mjs`, direct tests
    - Not in scope: extractor size/redaction fixes already completed
    - Spike candidate: decide D6 options: make report/graph runId cross-link a hard CLI invariant or retain validation-only behavior; make `--fail-on-gaps` imply non-interactive, reject interactive use, or retain the two-flag contract. Record choices before implementation.
-   - Actions: fix F2-14/15/17/18/19/20/21, F3-11, F9-01; synchronize enums or add a contract test; implement cross-links and fail-on-gaps only after D6; test flags, output counts, render order, dead `void` paths, and payload-index error handling.
+   - Actions: fix F2-14/15/17/18/19/20/21, F3-11, F9-01; synchronize enums or add a contract test; enforce report/graph runId linkage at publication; make `--fail-on-gaps` imply non-interactive mode; test flags, output counts, render order, dead `void` paths, and payload-index error handling.
    - Acceptance signal: `cd csm-ddd && node --test --test-concurrency=1` exits 0 with direct contract/CLI tests.
    - Validation: schema validator, CLI negative paths, `make check`.
    - Acceptance evidence: decision record and focused suite output.
@@ -253,14 +253,14 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
 
 10. [pending] Establish dependency and toolchain policy
     - Task ID: T010
-    - Depends on: explicit decision D3
+   - Depends on: none; D3 is decided
     - Parallel group: decision gate
     - Risk: standard
     - Owned scope: package manifests/lockfiles, optional dependency automation config, install documentation/tests
     - Not in scope: committing ignored node_modules or changing runtime versions without evidence
     - Spike candidate: isolated clean install in `/tmp` using both package manifests; compare pnpm versions and lockfile resolution.
-    - Actions: resolve F7-02/03/04; document whether to add Renovate/Dependabot, exact-vs-range policy, and ws-major tracking; add a reproducible clean-install check if selected. F7-01 remains local-only and must not be committed.
-   - Acceptance signal: in a fresh `/tmp` copy with redirected HOME/XDG/TMPDIR, `make install` exits 0 with both frozen lockfiles and no writes outside the copy; if automation is selected, a static config-validation command exits 0 without credentials or network calls.
+   - Actions: resolve F7-02/03/04 through a manual policy: document update cadence, lockfile review, ws-major tracking, and exact-vs-range rationale; add a reproducible clean-install check. F7-01 remains local-only and must not be committed.
+   - Acceptance signal: in a fresh `/tmp` copy with redirected HOME/XDG/TMPDIR, `make install` exits 0 with both frozen lockfiles and no writes outside the copy; `make check` verifies the manual policy text and manifest/lockfile parity.
    - Validation: manifest/lockfile parity and `pnpm list --depth=0` in the isolated copy; OSV is research evidence only, not an acceptance gate.
     - Acceptance evidence: policy decision and isolated install transcript.
     - Repair attempts: 0
@@ -311,6 +311,7 @@ Run focused tests first, then each cluster's suite, then `make lint`, `make chec
 | 2026-08-23T23:35:00+0000 | 0 | DRAFT -> CRITIQUE | T001-T010 | hostile critique dispatched; found 2 blockers, 7 majors, 5 minors | CRITIQUE |
 | 2026-08-23T23:40:00+0000 | 0 | CRITIQUE -> REMEDIATE | T001-T010 | traceability matrix embedded, plan blocked on explicit decisions, ownership/dependencies/acceptance signals corrected | REMEDIATE |
 | 2026-08-23T23:45:00+0000 | 0 | REMEDIATE -> VERIFY | T001-T010 | primary verification: every residual ID has one disposition, every task has runnable signal/risk/anti-scope, decision gates explicit; status remains blocked pending user choices | VERIFY |
+| 2026-08-23T23:50:00+0000 | 0 | VERIFY -> SAVED | none | user decisions recorded: advisory bootstrap, accepted loopback VNC risk, strict DDD contracts, manual dependency policy; plan status changed to ready; implementation not started | SAVED |
 
 ## Completion Review
 
