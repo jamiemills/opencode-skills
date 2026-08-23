@@ -29,6 +29,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-20-oxlint-lefthook-precommit-csm.md` — 2026-08-20 — oxlint + lefthook pre-commit gate + pnpm-only installs — status: complete
 - `2026-08-20-lint-strictness-enforcement-csm.md` — 2026-08-20 — lint strictness: fix 979 warnings, .oxlintrc.json quality bar, three-layer enforcement — status: complete
 - `2026-08-23-csm-ddd-skill-csm.md` — 2026-08-23 — build the csm-ddd skill (DDD repository analyzer) — status: in_progress (cycle 7 of csm-build; T001-T008 complete)
+- `2026-08-23-csm-plan-build-ddd-intake-csm.md` — 2026-08-23 — make csm-plan/csm-build optionally consume csm-ddd artifacts via input triage — status: ready
 
 ## docs/
 
