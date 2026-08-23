@@ -15,7 +15,7 @@ format: csm-plan/1
 - Current CSM state: COMPLETE
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-23T22:30:00+0000 final VERIFY passed — all 22 tasks implemented and reviewed; make lint, make check (956 checks), make test (1278/1278), tracked corpus harness (23/23), and focused upload/bootstrap/browse/ddd suites green
+- Last checkpoint: 2026-08-23T22:40:00+0000 final VERIFY passed — all 22 tasks implemented and reviewed; make lint, make check (955 checks), make test (1278/1278), tracked corpus harness (23/23), and focused upload/bootstrap/browse/ddd suites green
 - Last model/run: primary csm-build session 2026-08-23 resumed 2026-08-23T18:02
 - Next transition: COMPLETE
 - Active tasks: none
@@ -518,13 +518,14 @@ Cheapest-first ladder: (1) per-task acceptance signals (targeted node --test fil
 | 2026-08-23T22:25:00+0000 | 1 | REVIEW -> REPAIR | T022, artifact sync | independent review found parseable invalid upload shapes and formatter-corrupted `__call__`/`__future__` literals; both repaired, tests added, payload repacked | REPAIR |
 | 2026-08-23T22:30:00+0000 | 1 | REPAIR -> CHECKPOINT | T001-T022 | final focused checks green; reviewer low/info residuals recorded in Completion Review; unrelated concurrent research file preserved and excluded from commit | CHECKPOINT |
 | 2026-08-23T22:35:00+0000 | 1 | CHECKPOINT -> COMPLETE | T001-T022 | completion gate passed; all implementation work staged/committed by primary; no push/deploy | COMPLETE |
+| 2026-08-23T22:40:00+0000 | 1 | COMPLETE -> COMPLETE | plan evidence | corrected final check count from intermediate 956 to final 955 after plan status update; no implementation changes | COMPLETE |
 
 ## Completion Review
 
 Status: COMPLETE.
 
 - All 22 numbered tasks completed; T018 included the necessary fixture/question-file amendment because the original ambiguity guards were permanently false.
-- Acceptance evidence: `make lint` passed; `make check` passed with 956 checks; `make test` passed with 1,278/1,278; `node --test tests/check-suite.test.mjs tests/resume-semantics.test.mjs` passed 23/23 after staging new tests; upload passed 9/9; bootstrap passed 49/49 under the Node >=22 wrapper.
+- Acceptance evidence: `make lint` passed; `make check` passed with 955 checks; `make test` passed with 1,278/1,278; `node --test tests/check-suite.test.mjs tests/resume-semantics.test.mjs` passed 23/23 after staging new tests; upload passed 9/9; bootstrap passed 49/49 under the Node >=22 wrapper.
 - High-risk T021 independently reviewed: signed marker is computed in the shipped bin without changing the validateEnvelope return shape; packed fixed-bin hash and payload consistency verified.
 - Privacy T014 independently reviewed: URL-scoped exact-token redaction preserves diagnostic object keys and prose; focused and full browse suites passed.
 - T022 reviewer medium finding repaired: parseable invalid config shapes now refuse and preserve original bytes; four shape cases are tested.
