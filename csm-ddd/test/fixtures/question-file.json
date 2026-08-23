@@ -1,0 +1,14 @@
+{
+  "answers": [
+    {
+      "questionId": "q-owner-0001",
+      "subject": "src/planning",
+      "value": "team-alpha owns it; core outcome"
+    },
+    {
+      "questionId": "q-owner-0002",
+      "subject": "src/scanning",
+      "value": "team-beta owns it; supporting outcome"
+    }
+  ]
+}

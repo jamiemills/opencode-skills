@@ -1,0 +1,73 @@
+{
+  "format": "csm-ddd-graph/1",
+  "runId": "run-a0ab2657-fbe9-45c5-81b1-c78cb40163c0",
+  "generatedAt": "2026-08-23T08:18:44.012Z",
+  "nodes": [],
+  "evidence": [
+    {
+      "id": "ev-16faa7182366c2f393504094",
+      "claimId": "cl-git-history-0002",
+      "sourceKind": "git-log",
+      "path": ".agents/README.md",
+      "locator": "git:head=ab609ab38f88",
+      "matchedKey": "commits:232"
+    },
+    {
+      "id": "ev-48c9b0c7aac30e8aef790b17",
+      "claimId": "cl-inventory-0001",
+      "sourceKind": "walk",
+      "path": ".agents/README.md",
+      "locator": "bounded-walk:capped",
+      "matchedKey": "0-declarations"
+    },
+    {
+      "id": "ev-d6f59b264cea55ac08bf0bcd",
+      "claimId": "cl-git-coupling-0001",
+      "sourceKind": "git-log",
+      "path": "csm-bdd-tdd/SKILL.md",
+      "locator": "git:co-change",
+      "matchedKey": "232"
+    }
+  ],
+  "questions": [],
+  "answers": [],
+  "claims": [
+    {
+      "id": "cl-git-coupling-0001",
+      "claimKind": "workflow",
+      "status": "inferred",
+      "subject": "git-co-change",
+      "basis": "git_history",
+      "confidence": "medium",
+      "evidenceIds": [
+        "ev-d6f59b264cea55ac08bf0bcd"
+      ],
+      "note": "50 co-change pair(s); strongest: csm-bdd-tdd/SKILL.md<->csm-build/SKILL.md(x15), csm-bdd-tdd/SKILL.md<->csm-plan/SKILL.md(x14), csm-build/SKILL.md<->csm-plan/SKILL.md(x14)"
+    },
+    {
+      "id": "cl-git-history-0002",
+      "claimKind": "workflow",
+      "status": "observed",
+      "subject": "git-history",
+      "basis": "git_history",
+      "confidence": "medium",
+      "evidenceIds": [
+        "ev-16faa7182366c2f393504094"
+      ],
+      "note": "232 commits, 1 authors (aggregate only), 50 co-change pairs"
+    },
+    {
+      "id": "cl-inventory-0001",
+      "claimKind": "capability",
+      "status": "unverified",
+      "subject": "repository-inventory",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [
+        "ev-48c9b0c7aac30e8aef790b17"
+      ],
+      "note": "coverage capped at maxFiles=2000/maxBytes=2000000; scanned 64 files/2139635 bytes"
+    }
+  ],
+  "edges": []
+}

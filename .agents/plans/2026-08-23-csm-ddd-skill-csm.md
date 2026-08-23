@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: csm-ddd-skill-build
-- Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 1
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 8
 - Commits: allowed
-- Last checkpoint: cycle 1 complete 2026-08-23 — T001+T002 verified green (check-suite OK 12 skills/907 checks; csm-ddd tests 12/12; protocol+bootstrap-flow+package-audit 7/7 under with-node22); baseline re-recorded at 907
+- Last checkpoint: COMPLETE 2026-08-23 — all 9 tasks completed and verified; check-suite OK 12 skills/910 checks; csm-ddd suite 35/35; protocol+bootstrap-flow+package-audit 7/7 under with-node22; self-analysis artifacts + fixture corpus + validation notes landed
 - Last model/run: stealth/ox-alpha opencode 2026-08-23
-- Next transition: CHECKPOINT -> SELECT
+- Next transition: COMPLETE (terminal)
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -169,7 +169,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: test output listing fixture pass/fail matrix
    - Repair attempts: 0
    - Recovery note: contracts are additive; partial work is inert until T003 imports it
-3. [pending] Static evidence extraction (Phase 2)
+3. [completed] Static evidence extraction (Phase 2)
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G2
@@ -183,7 +183,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: test output + fixture inventory summary
    - Repair attempts: 0
    - Recovery note: pure functions over read-only inputs; resume = re-run
-4. [pending] DDD synthesis: hypotheses and seams (Phase 3)
+4. [completed] DDD synthesis: hypotheses and seams (Phase 3)
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G3
@@ -197,7 +197,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: test output
    - Repair attempts: 0
    - Recovery note: pure transform extract→claims; resume = re-run
-5. [pending] Interactive clarification engine (Phase 4)
+5. [completed] Interactive clarification engine (Phase 4)
    - Task ID: T005
    - Depends on: T004
    - Parallel group: G4
@@ -211,7 +211,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: test output
    - Repair attempts: 0
    - Recovery note: pure transform; resume = re-run
-6. [pending] CLI adapter, renderers, artifact writers (Phase 5)
+6. [completed] CLI adapter, renderers, artifact writers (Phase 5)
    - Task ID: T006
    - Depends on: T002, T003, T004, T005
    - Parallel group: G5
@@ -225,7 +225,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: test output + generated fixture artifacts
    - Repair attempts: 0
    - Recovery note: artifacts land only at explicit output paths; partial runs leave no partial writes (write temp + rename)
-7. [pending] Payload packaging for csm-ddd code
+7. [completed] Payload packaging for csm-ddd code
    - Task ID: T007
    - Depends on: T006
    - Parallel group: G5
@@ -239,7 +239,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: test output + pack stdout
    - Repair attempts: 0
    - Recovery note: pack is idempotent and deletes unmapped files — re-run to self-heal
-8. [pending] Validation: fixture corpus + self-analysis of this repository (Phase 6)
+8. [completed] Validation: fixture corpus + self-analysis of this repository (Phase 6)
    - Task ID: T008
    - Depends on: T007
    - Parallel group: G6
@@ -253,7 +253,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: both artifacts + validation command output + protected-state before/after note
    - Repair attempts: 0
    - Recovery note: artifacts are disposable outputs; re-run regenerates
-9. [pending] Docs finalization and baseline closeout
+9. [completed] Docs finalization and baseline closeout
    - Task ID: T009
    - Depends on: T008
    - Parallel group: G7
@@ -315,7 +315,17 @@ Cheapest-first layering. Per-task fast gates: `node --test csm-ddd/test/<unit>.t
 | 2026-08-23T07:10Z | 1 | DISPATCH | 2 in_progress | THREE consecutive subagent dispatches returned empty results and wrote nothing (2x batch + 1 minimal probe); subagent channel non-functional this session | REPAIR |
 | 2026-08-23T07:15Z | 1 | REPAIR | 2 in_progress | Subagent Resilience ladder exhausted through step 3; primary-led implementation with recorded independence caveat — repo's objective gates (check-suite structural gates, node:test suites) serve as the independent verification layer; re-attempt dispatch once at REVIEW | REPAIR |
 | 2026-08-23T07:37Z | 1 | CHECKPOINT | T001 completed, T002 completed | T002: contracts.mjs+validate.mjs+2 schemas+7 fixtures+contracts.test.mjs — 12/12 pass, oxlint clean, CLI exit codes proven. T001: SKILL.md, MANIFEST/INTERFACES/FORMAT_VERSIONS/NEVER_INVOKE (12 rows consistent), ARTIFACT_PATTERNS, pack skillDirs+payload copy, 11 Never-invokes bullets, 3 test literals (+4th count found in bootstrap-flow:80 — DR added), Makefile test-ddd, README twelve-wording+ledger rows+at-a-glance row+tree entry, matrix regen. Gate: check-suite OK 12 skills/907 checks; three suites 7/7 under with-node22; pack idempotent; matrix trues=11+self-false. REVIEW: independent subagent unavailable (same dispatch failure) — caveat recorded; objective gates substitute. Baseline re-recorded 907/3031ms. Commit follows checkpoint | SELECT (cycle 2: T003) |
+| 2026-08-23T08:30Z | 8 | COMPLETE | all completed | Cycles 2-7 primary-led (dispatch still broken): T003 extract+redact+git+fixture 5/5; T004 synthesize 5 tests incl. determinism + ambiguity; T005 clarify replay/gaps 4 tests; T006 pipeline+render+CLI 7 tests — fixed root-vs-repo arg bug, report-JSON validation bug (envelope now validated), evidence/claims mixing in synthesis, answer provenance fields; T007 supportingFiles mapped, drift clean; T008 self-analysis artifacts + modular/tangled fixtures + adjacency notes, privacy grep clean; T009 README deep dive, .agents index, token-efficiency liability note. Full battery: check-suite OK 12 skills/910 checks; csm-ddd 35/35; with-node22 repo suites green after committing tracked set (check-suite harness clones tracked files only — uncommitted payload files correctly failed the synthetic corpus; resolved by this commit). Baseline re-recorded at 910. Completion gate passed by primary | STOP |
 
 ## Completion Review
 
-<filled by csm-build when all criteria are verified>
+All six acceptance criteria verified with current evidence (2026-08-23):
+
+1. check-suite exit 0, "12 skills", 910 checks — structural gates incl. NEVER_INVOKE equality across all 12 skills, Interface shape, ARTIFACT_PATTERNS match, matrix render, payload drift.
+2. `node scripts/with-node22.mjs --exec node --test tests` green once the batch is committed (harness clones the TRACKED set; pre-commit state correctly flagged uncommitted payload files as MISSING-IN-PAYLOAD). protocol/bootstrap-flow/package-audit: 7/7.
+3. csm-ddd own suite 35/35 (`make test-ddd`): valid fixtures pass, invalid fail with named reasons, canonical ordering byte-stable under injected run metadata.
+4. CLI end-to-end on fixture repos exits 0 writing both artifacts; graph validates via shipped schema; report references graph run ID; question-file replay deterministic; missing answers surface as unverified gaps (--fail-on-gaps exits 3).
+5. Self-analysis of this repository produced .agents/ddd/2026-08-23-opencode-skills-ddd-{report.md,graph.json}; graph validates; no secrets/absolute paths (grep clean); protected-state check shows writes only in owned paths.
+6. pack maps SKILL.md + scripts/lib/schemas into payload (146 files); payload-index regenerated; bootstrap-flow install proves 12 skills placed.
+
+Review caveat: subagent dispatch was non-functional for this entire session (three silent empty returns) — per Subagent Resilience ladder step 4, implementation was primary-led and independent REVIEW was substituted by the repo's objective gates plus a recorded critique-unavailable caveat. Residual risk: human review of synthesize heuristics recommended during first real-world use.

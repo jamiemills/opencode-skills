@@ -1,0 +1,8 @@
+{
+  "name": "sample-repo",
+  "type": "module",
+  "scripts": {
+    "plan": "node src/planning/index.mjs",
+    "scan": "node src/scanning/scan.mjs"
+  }
+}

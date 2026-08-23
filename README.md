@@ -269,8 +269,16 @@ Invoke for a Python repository when the review needs a focused PEP 20 and idioma
 - **Handoff:** the doctrine report can be consumed by a later explicit `csm-review` or `csm-plan` run; the skill is terminal and never fixes code.
 - _Full reference: [csm-review-python/SKILL.md](csm-review-python/SKILL.md)._
 
-### csm-scan — the conventions extractor
+### csm-ddd — the domain-structure analyzer
 
+Invoke against one repository when you want to know where the domain boundaries *might* be before planning a refactor. Read-only: static declarations plus bounded Git history — target code is never executed and nothing outside `.agents/ddd/` is written.
+
+- **Pipeline:** extract (inventory + bounded co-change/authorship evidence, privacy-redacted) -> synthesize (capability map, terminology conflicts, context hypotheses, seams, candidate slices with recommended ordering) -> clarify (questions only where ambiguity changes the analysis) -> render.
+- **CLI:** zero-dependency Node — `node csm-ddd/scripts/ddd.mjs --repo <path> [--out-report] [--out-graph] [--question-file] [--non-interactive] [--max-files] [--max-bytes]`; defaults write both artifacts under `<repo>/.agents/ddd/`.
+- **Output:** one human-readable Markdown report plus one canonical JSON graph (the only machine contract), schema-valid, cross-linked by a shared run ID. Every bounded context is a hypothesis with basis + confidence — never a proof.
+- _Full reference: [csm-ddd/SKILL.md](csm-ddd/SKILL.md) — `## Analysis State Machine`, `## Required Report And Graph`._
+
+### csm-scan — the conventions extractor
 Invoke against one or more repositories before planning or reviewing, so later stages speak the repo's language. Read-only: all runtime/build/test/deployment findings come from committed static declarations — target commands are never executed.
 
 - **Coverage:** 17 per-repository dimensions (Repository Structure, Technology Stack, Configuration, Testing, Code Conventions, Git Practices, Architecture, Documentation, Security, Operations, API Surface, Data Architecture, Deployment Topology, Maintainability, Governance & Ownership, Assurance & Supply Chain, Development Practices) plus a global Cross-repository Architecture section with Mermaid diagrams when multiple repos are scanned.

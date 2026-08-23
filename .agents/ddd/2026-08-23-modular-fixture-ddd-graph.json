@@ -1,0 +1,223 @@
+{
+  "format": "csm-ddd-graph/1",
+  "runId": "run-be58e8e5-4ffc-4b32-937f-d64600583ce0",
+  "generatedAt": "2026-08-23T08:18:09.654Z",
+  "nodes": [
+    {
+      "id": "node-src-billing",
+      "kind": "capability",
+      "label": "src/billing"
+    },
+    {
+      "id": "node-src-orders",
+      "kind": "capability",
+      "label": "src/orders"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-2d8617313d93c532c4235658",
+      "claimId": "cl-capability-0001",
+      "sourceKind": "walk",
+      "path": "src/billing/invoice.mjs",
+      "locator": "capability-dir:src/billing",
+      "matchedKey": "supporting"
+    },
+    {
+      "id": "ev-411c739c61fd2ac736b074ce",
+      "claimId": "cl-context-hypothesis-0002",
+      "sourceKind": "walk",
+      "path": "src/billing/invoice.mjs",
+      "locator": "cohesion:src/billing",
+      "matchedKey": "directory-cluster"
+    },
+    {
+      "id": "ev-44636b56e07b626e8a0d2a9b",
+      "claimId": "cl-inventory-0001",
+      "sourceKind": "walk",
+      "path": "src/billing/invoice.mjs",
+      "locator": "bounded-walk:complete",
+      "matchedKey": "2-declarations"
+    },
+    {
+      "id": "ev-73e66303165f260f9c75efea",
+      "claimId": "cl-context-hypothesis-0004",
+      "sourceKind": "walk",
+      "path": "src/orders/index.mjs",
+      "locator": "cohesion:src/orders",
+      "matchedKey": "directory-cluster"
+    },
+    {
+      "id": "ev-ae18f922b0efa1f014bfda4f",
+      "claimId": "cl-capability-0003",
+      "sourceKind": "walk",
+      "path": "src/orders/index.mjs",
+      "locator": "capability-dir:src/orders",
+      "matchedKey": "core"
+    },
+    {
+      "id": "ev-e754344ed731eff7b0e75f5c",
+      "claimId": "cl-slice-ordering-0008",
+      "sourceKind": "declaration",
+      "path": "src/orders/index.mjs",
+      "locator": "order:1",
+      "matchedKey": "index.placeOrder"
+    },
+    {
+      "id": "ev-eac855b551051e85815a3f6b",
+      "claimId": "cl-seam-0007",
+      "sourceKind": "declaration",
+      "path": "src/orders/index.mjs",
+      "locator": "export:placeOrder",
+      "matchedKey": "consumers:1"
+    },
+    {
+      "id": "ev-f37e55443bc11de5480dabc2",
+      "claimId": "cl-relationship-0005",
+      "sourceKind": "import",
+      "path": "src/billing/invoice.mjs",
+      "locator": "imports:src/billing->src/orders",
+      "matchedKey": "1"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q-owner-0001",
+      "subject": "src/billing",
+      "text": "Which team owns src/billing, and is its business outcome core, supporting, or generic to the product?",
+      "dependsOn": []
+    },
+    {
+      "id": "q-owner-0002",
+      "subject": "src/orders",
+      "text": "Which team owns src/orders, and is its business outcome core, supporting, or generic to the product?",
+      "dependsOn": []
+    }
+  ],
+  "answers": [],
+  "claims": [
+    {
+      "id": "cl-capability-0001",
+      "claimKind": "capability",
+      "status": "observed",
+      "subject": "src/billing",
+      "basis": "static_analysis",
+      "confidence": "medium",
+      "evidenceIds": [
+        "ev-2d8617313d93c532c4235658"
+      ],
+      "note": "classification supporting: inbound=0 outbound=1 cross-directory imports"
+    },
+    {
+      "id": "cl-capability-0003",
+      "claimKind": "capability",
+      "status": "observed",
+      "subject": "src/orders",
+      "basis": "static_analysis",
+      "confidence": "medium",
+      "evidenceIds": [
+        "ev-ae18f922b0efa1f014bfda4f"
+      ],
+      "note": "classification core: inbound=1 outbound=0 cross-directory imports"
+    },
+    {
+      "id": "cl-context-hypothesis-0002",
+      "claimKind": "context_hypothesis",
+      "status": "inferred",
+      "subject": "src/billing",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [
+        "ev-411c739c61fd2ac736b074ce"
+      ],
+      "note": "directory cohesion suggests a bounded-context CANDIDATE; requires domain and ownership validation"
+    },
+    {
+      "id": "cl-context-hypothesis-0004",
+      "claimKind": "context_hypothesis",
+      "status": "inferred",
+      "subject": "src/orders",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [
+        "ev-73e66303165f260f9c75efea"
+      ],
+      "note": "directory cohesion suggests a bounded-context CANDIDATE; requires domain and ownership validation"
+    },
+    {
+      "id": "cl-gap-0001",
+      "claimKind": "invariant",
+      "status": "unverified",
+      "subject": "src/billing",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [],
+      "note": "OPEN QUESTION (unresolved in non-interactive mode): Which team owns src/billing, and is its business outcome core, supporting, or generic to the product?"
+    },
+    {
+      "id": "cl-gap-0002",
+      "claimKind": "invariant",
+      "status": "unverified",
+      "subject": "src/orders",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [],
+      "note": "OPEN QUESTION (unresolved in non-interactive mode): Which team owns src/orders, and is its business outcome core, supporting, or generic to the product?"
+    },
+    {
+      "id": "cl-inventory-0001",
+      "claimKind": "capability",
+      "status": "observed",
+      "subject": "repository-inventory",
+      "basis": "static_analysis",
+      "confidence": "high",
+      "evidenceIds": [
+        "ev-44636b56e07b626e8a0d2a9b"
+      ],
+      "note": "complete bounded scan: 2 files/231 bytes"
+    },
+    {
+      "id": "cl-relationship-0005",
+      "claimKind": "relationship",
+      "status": "inferred",
+      "subject": "src/billing -> src/orders",
+      "basis": "static_analysis",
+      "confidence": "medium",
+      "evidenceIds": [
+        "ev-f37e55443bc11de5480dabc2"
+      ],
+      "note": "1 cross-directory import(s) suggest a upstream-downstream relationship"
+    },
+    {
+      "id": "cl-seam-0007",
+      "claimKind": "seam",
+      "status": "inferred",
+      "subject": "index.placeOrder",
+      "basis": "static_analysis",
+      "confidence": "medium",
+      "evidenceIds": [
+        "ev-eac855b551051e85815a3f6b"
+      ],
+      "note": "enabling point with 1 observable consumer(s)"
+    },
+    {
+      "id": "cl-slice-ordering-0008",
+      "claimKind": "ordering",
+      "status": "inferred",
+      "subject": "index.placeOrder",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [
+        "ev-e754344ed731eff7b0e75f5c"
+      ],
+      "note": "rank 1; UNCERTAINTY: consumer-count ranking ignores runtime traffic and team ownership — validate before any refactor"
+    }
+  ],
+  "edges": [
+    {
+      "source": "node-src-billing",
+      "target": "node-src-orders",
+      "relation": "upstream-downstream"
+    }
+  ]
+}

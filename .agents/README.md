@@ -28,6 +28,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-20-csm-deep-research-skill-csm.md` — 2026-08-20 — build the csm-deep-research skill (grill->plan->build, 5 phases, hostile review) — status: complete
 - `2026-08-20-oxlint-lefthook-precommit-csm.md` — 2026-08-20 — oxlint + lefthook pre-commit gate + pnpm-only installs — status: complete
 - `2026-08-20-lint-strictness-enforcement-csm.md` — 2026-08-20 — lint strictness: fix 979 warnings, .oxlintrc.json quality bar, three-layer enforcement — status: complete
+- `2026-08-23-csm-ddd-skill-csm.md` — 2026-08-23 — build the csm-ddd skill (DDD repository analyzer) — status: in_progress (cycle 7 of csm-build; T001-T008 complete)
 
 ## docs/
 
@@ -55,3 +56,7 @@ still cited (the remediation plan and baselines reference them).
 ## approaches/
 
 - `2026-08-16-suite-coherence-contracts-approach.md` — 2026-08-16 — agreed approach behind the suite-coherence plan — status: complete
+## ddd/
+
+- `2026-08-23-opencode-skills-ddd-report.md` + `-graph.json` — 2026-08-23 — csm-ddd self-analysis of this repository — status: complete
+- `artifacts/2026-08-23-csm-ddd-validation-notes.md` — 2026-08-23 — fixture-corpus + adjacency validation evidence — status: complete

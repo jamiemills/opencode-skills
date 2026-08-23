@@ -1,0 +1,33 @@
+{
+  "format": "csm-ddd-graph/1",
+  "runId": "run-b29b7f26-c557-4431-adec-48f77e586262",
+  "generatedAt": "2026-08-23T08:18:09.797Z",
+  "nodes": [],
+  "evidence": [
+    {
+      "id": "ev-01fbb9bb5905b5d0f9771fb4",
+      "claimId": "cl-inventory-0001",
+      "sourceKind": "walk",
+      "path": "app.mjs",
+      "locator": "bounded-walk:complete",
+      "matchedKey": "4-declarations"
+    }
+  ],
+  "questions": [],
+  "answers": [],
+  "claims": [
+    {
+      "id": "cl-inventory-0001",
+      "claimKind": "capability",
+      "status": "observed",
+      "subject": "repository-inventory",
+      "basis": "static_analysis",
+      "confidence": "high",
+      "evidenceIds": [
+        "ev-01fbb9bb5905b5d0f9771fb4"
+      ],
+      "note": "complete bounded scan: 2 files/317 bytes"
+    }
+  ],
+  "edges": []
+}
