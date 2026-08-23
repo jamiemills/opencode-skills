@@ -2,13 +2,14 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { analyzeRepository, defaultArtifactPaths } from "../lib/ddd/pipeline.mjs";
+import { publishArtifacts } from "../scripts/ddd.mjs";
 import { renderReport } from "../lib/ddd/render.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -160,4 +161,42 @@ test("rendered report parses back to the schema envelope shape", async () => {
   assert.equal(analysis.parsedReport.format, "csm-ddd-report/1");
   assert.equal(analysis.parsedReport.runId, analysis.parsedReport.graphRunId);
   assert.ok(analysis.parsedReport.sections.length >= 5);
+});
+
+test("schema-invalid analysis aborts before writeArtifacts leaving zero bytes at output paths", async () => {
+  const { dir, repo } = freshSandbox();
+  const outDir = join(dir, "out");
+  const outReport = join(outDir, "report.md");
+  const outGraph = join(outDir, "graph.json");
+  const analysis = await analyzeRepository({
+    root: repo,
+    runId: "run-invalid",
+    now: "2026-08-23T00:00:00.000Z",
+  });
+
+  const valid = await publishArtifacts(analysis, outReport, outGraph);
+  assert.equal(valid.ok, true);
+  assert.ok(existsSync(outReport));
+  assert.ok(existsSync(outGraph));
+  rmSync(outDir, { recursive: true, force: true });
+
+  const graphFormat = analysis.graphObject.format;
+  analysis.graphObject.format = "csm-ddd-graph/bogus";
+  const graphBad = await publishArtifacts(analysis, outReport, outGraph);
+  assert.equal(graphBad.ok, false);
+  assert.equal(graphBad.kind, "graph");
+  assert.ok(graphBad.errors.length > 0);
+  assert.equal(existsSync(outReport), false);
+  assert.equal(existsSync(outGraph), false);
+  assert.equal(existsSync(outDir), false);
+
+  analysis.graphObject.format = graphFormat;
+  analysis.parsedReport.format = "csm-ddd-report/bogus";
+  const reportBad = await publishArtifacts(analysis, outReport, outGraph);
+  assert.equal(reportBad.ok, false);
+  assert.equal(reportBad.kind, "report");
+  assert.ok(reportBad.errors.length > 0);
+  assert.equal(existsSync(outReport), false);
+  assert.equal(existsSync(outGraph), false);
+  assert.equal(existsSync(outDir), false);
 });

@@ -258,13 +258,19 @@ export function pruneWorktrees(root, { force = false } = {}) {
         entry.branch.startsWith("refs/heads/wt/");
       if (managed) continue;
     }
-    const status = gitOk(root, ["-C", entry.dir, "status", "--porcelain"]) ? git(root, ["-C", entry.dir, "status", "--porcelain"]) : "";
+    const status = gitOk(root, ["-C", entry.dir, "status", "--porcelain"])
+      ? git(root, ["-C", entry.dir, "status", "--porcelain"])
+      : "";
     if (status !== "" && !force) {
       skipped.push({ dir: entry.dir, branch: entry.branch, reason: "dirty — rerun with --force" });
       continue;
     }
     git(root, ["worktree", "remove", "--force", entry.dir]);
-    removed.push({ dir: entry.dir, branch: entry.branch, kind: entry.detached ? "detached" : "foreign" });
+    removed.push({
+      dir: entry.dir,
+      branch: entry.branch,
+      kind: entry.detached ? "detached" : "foreign",
+    });
   }
   // One prune pass clears every registration whose directory is gone.
   git(root, ["worktree", "prune", "-v"]);

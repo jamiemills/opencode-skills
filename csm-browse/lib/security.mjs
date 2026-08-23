@@ -337,14 +337,27 @@ export async function ensurePrivateFile(path) {
 
 const SENSITIVE_KEY = /(pass(word)?|token|secret|api[-_]?key|auth|cookie|credential|session)/i;
 
+// F4-06 class split: SENSITIVE_KEY is the UNANCHORED object-key/prose class —
+// its substring semantics catch camelCase keys (apiToken, passwordHint) but
+// must never grow URL-only credential words, because it also drives
+// redactPairs' prose pair scan and redactTelemetry's recursive object-key
+// walk: widening it would redact exitCode/statusCode/state/signal
+// diagnostics. URL_CREDENTIAL_PARAM is the ANCHORED exact-token class for
+// credential param names (OAuth code/state, key, sig/signature, mac, jwt,
+// sid) that appear as standalone query/fragment keys; it is consumed ONLY by
+// redactUrl — never by prose or object-key redaction — and its anchors keep
+// look-alike params (?keynote=, ?codes=) readable.
+const URL_CREDENTIAL_PARAM = /^(code|key|sig|signature|mac|jwt|sid|state)$/i;
+
 export function redactUrl(value) {
   if (typeof value !== "string") return value;
   try {
     const url = new URL(value);
     for (const key of url.searchParams.keys()) {
-      if (SENSITIVE_KEY.test(key)) url.searchParams.set(key, "[REDACTED]");
+      if (SENSITIVE_KEY.test(key) || URL_CREDENTIAL_PARAM.test(key))
+        url.searchParams.set(key, "[REDACTED]");
     }
-    if (url.hash) url.hash = `#${redactPairs(url.hash.slice(1))}`;
+    if (url.hash) url.hash = `#${redactPairs(url.hash.slice(1), URL_CREDENTIAL_PARAM)}`;
     if (url.username || url.password) {
       url.username = "";
       url.password = "[REDACTED]";
@@ -355,15 +368,20 @@ export function redactUrl(value) {
   }
 }
 
-function redactPairs(value) {
+function redactPairs(value, urlKeyClass = null) {
   // Prefix class includes '?' so a LONE ?token= (no preceding '&') inside
   // prose or a bare URL is caught as a pair; the secret class excludes '?' so
   // a value like 'a=1?token=SECRET' redacts the token pair instead of being
   // swallowed whole, and 'token=SECRET?more' cannot eat the next key.
+  // urlKeyClass is passed ONLY by redactUrl's fragment pass (fragment pair
+  // keys are exact tokens); prose callers omit it so pair keys like the
+  // `code` in "Exit code: 1" are judged by SENSITIVE_KEY alone.
   return value.replace(
     /(^|[&#;,\s?])([A-Za-z][\w-]*(?:[.:][\w-]+)?)\s*([=:])\s*("[^"]*"|'[^']*'|[^&#;,\s?]+)/gi,
     (whole, prefix, key, separator, _secret) =>
-      SENSITIVE_KEY.test(key) ? `${prefix}${key}${separator}[REDACTED]` : whole,
+      SENSITIVE_KEY.test(key) || (urlKeyClass !== null && urlKeyClass.test(key))
+        ? `${prefix}${key}${separator}[REDACTED]`
+        : whole,
   );
 }
 

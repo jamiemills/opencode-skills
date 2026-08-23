@@ -28,10 +28,12 @@ test("derived questions are dependency-ordered and only ask about real ambiguity
     seen.add(q.id);
   }
   const termQuestions = questions.filter((q) => q.id.startsWith("q-term-"));
-  if (synthesis.terms.some((t) => t.ambiguous)) {
-    assert.ok(termQuestions.length >= 1);
-    assert.match(termQuestions[0].text, /authoritative/);
-  }
+  assert.ok(
+    synthesis.terms.some((t) => t.ambiguous),
+    "fixture drifted: sample repo must still yield at least one ambiguous term",
+  );
+  assert.ok(termQuestions.length >= 1);
+  assert.match(termQuestions[0].text, /authoritative/);
 });
 
 test("question-file replay is deterministic across runs", async () => {
@@ -57,14 +59,16 @@ test("a conflicting answer leaves static evidence untouched and records the conf
       { questionId: "q-owner-9999", subject: staticClaim.subject, value: "user says otherwise" },
     ],
   };
+  const baseline = structuredClone(staticClaim);
   const questions = [{ id: "q-owner-9999", subject: null, text: "?", dependsOn: [] }];
   const result = applyQuestionFile(questions, conflicting, synthesis.claims, "fixture");
   assert.equal(result.applied[0].status, "recorded-as-alternative");
-  const serializedStatic = JSON.stringify(synthesis.claims.find((c) => c.id === staticClaim.id));
   const afterClaims = result.claims.filter((c) => c.basis === "user_provided");
   assert.equal(afterClaims.length, 1);
   assert.match(afterClaims[0].note, /conflicts with|alternative/i);
-  assert.doesNotThrow(() => JSON.parse(serializedStatic));
+  const afterStatic = synthesis.claims.find((c) => c.id === staticClaim.id);
+  assert.ok(afterStatic, "static claim must still be present in the input claims after replay");
+  assert.deepEqual(afterStatic, baseline);
 });
 
 test("missing answers surface as unverified gaps, never silence", () => {

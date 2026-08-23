@@ -97,11 +97,11 @@ unmaintained — reimplement the loop or fork before relying on it [K17].
 
 Set expectations with the user BEFORE generating [K17]:
 
-| Benchmark | Observed ceiling |
-| --- | --- |
-| TestGenEval | best model averaged ~35% suite coverage |
-| CoverUp | agentic coverage+context+feedback loops: ~80% median module line+branch |
-| TestForge | pass@1 ~84%, but line coverage ~44% and mutation score only ~34% |
+| Benchmark   | Observed ceiling                                                        |
+| ----------- | ----------------------------------------------------------------------- |
+| TestGenEval | best model averaged ~35% suite coverage                                 |
+| CoverUp     | agentic coverage+context+feedback loops: ~80% median module line+branch |
+| TestForge   | pass@1 ~84%, but line coverage ~44% and mutation score only ~34%        |
 
 Consequences: high pass rates coexist with weak killing power, so the mutation gate is
 mandatory for every LLM-generated assertion — coverage percentage alone proves nothing
@@ -114,10 +114,10 @@ imperfect generated tests still double fix-selection precision when reused as fi
 Strengthens EXISTING test code — adds and repairs assertions across captured and
 generated suites — before the final scoped mutation scoring [K21].
 
-| Tool | Stack | Maturity note |
-| --- | --- | --- |
+| Tool     | Stack  | Maturity note                                      |
+| -------- | ------ | -------------------------------------------------- |
 | AmPyfier | Python | research-grade; trial on a copy of the suite first |
-| DSpot | Java | longest-standing amplifier; same discipline |
+| DSpot    | Java   | longest-standing amplifier; same discipline        |
 
 - Evidence anchor: amplified-and-repaired tests killed ~21.77% more mutants (YATE
   study) [K21].
@@ -131,12 +131,12 @@ generated suites — before the final scoped mutation scoring [K21].
 Keyed on what the repo ALREADY has — never introduce infrastructure to manufacture an
 option [K18]:
 
-| Inventory | Option | Shape | Caveats |
-| --- | --- | --- | --- |
-| OpenAPI/GraphQL schema | Schemathesis | `st run` (CLI or pytest plugin) against the service | a running checker, NOT a committed suite — "no per-endpoint tests to maintain"; stateful chaining from real response data; every finding ships a minimal curl reproducer [K18] |
-| Recorded traffic | Keploy | eBPF record -> tests + dependency mocks, zero code changes | record LOCALLY by default — k8s and production capture sit behind paid tiers; dedup is experimental, favor low-traffic windows [K18] |
-| Dependency to stub | WireMock | proxy-record interactions -> `mappings/` stubs; repeated sequences become stateful Scenarios | playback fixtures, not behavior verification [K18] |
-| Neither | Testcontainers + Pact | real dependencies in containers; consumer tests emit pacts code-first | test authorship still required; broker `can-i-deploy` deploy gating — check `pact-broker help` before scripting (known-uncertainties item 2) [K18] |
+| Inventory              | Option                | Shape                                                                                        | Caveats                                                                                                                                                                        |
+| ---------------------- | --------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OpenAPI/GraphQL schema | Schemathesis          | `st run` (CLI or pytest plugin) against the service                                          | a running checker, NOT a committed suite — "no per-endpoint tests to maintain"; stateful chaining from real response data; every finding ships a minimal curl reproducer [K18] |
+| Recorded traffic       | Keploy                | eBPF record -> tests + dependency mocks, zero code changes                                   | record LOCALLY by default — k8s and production capture sit behind paid tiers; dedup is experimental, favor low-traffic windows [K18]                                           |
+| Dependency to stub     | WireMock              | proxy-record interactions -> `mappings/` stubs; repeated sequences become stateful Scenarios | playback fixtures, not behavior verification [K18]                                                                                                                             |
+| Neither                | Testcontainers + Pact | real dependencies in containers; consumer tests emit pacts code-first                        | test authorship still required; broker `can-i-deploy` deploy gating — check `pact-broker help` before scripting (known-uncertainties item 2) [K18]                             |
 
 Pact is code-first by design: the contract is generated during execution of the
 automated consumer tests [K18].

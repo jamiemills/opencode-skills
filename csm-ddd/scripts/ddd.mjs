@@ -2,7 +2,12 @@
 
 import process from "node:process";
 import { analyzeRepository, defaultArtifactPaths, writeArtifacts } from "../lib/ddd/pipeline.mjs";
-import { validateGraphFile, validateReportEnvelope } from "../lib/ddd/validate.mjs";
+import {
+  validateGraph,
+  validateGraphFile,
+  validateReport,
+  validateReportEnvelope,
+} from "../lib/ddd/validate.mjs";
 
 function usage() {
   process.stderr.write(
@@ -19,6 +24,7 @@ function usage() {
       "  --fail-on-gaps         exit 3 when unresolved gaps remain (default: disclose and exit 0)",
       "  --max-files N          bounded scan cap",
       "  --max-bytes N          bounded scan cap",
+      "  --max-file-bytes N     per-file cap; oversize files are skipped pre-read and disclosed",
     ].join("\n"),
   );
 }
@@ -64,6 +70,9 @@ async function main(argv) {
       case "--max-bytes":
         opts.limits.maxBytes = positiveInt(requireValue(argv, ++i, arg), arg);
         break;
+      case "--max-file-bytes":
+        opts.limits.maxFileBytes = positiveInt(requireValue(argv, ++i, arg), arg);
+        break;
       default:
         process.stderr.write(`unknown option: ${arg}\n`);
         usage();
@@ -77,11 +86,19 @@ async function main(argv) {
 
   const analysis = await analyzeRepository({ ...opts, root: opts.repo });
   const defaults = defaultArtifactPaths(opts.repo);
-  const paths = await writeArtifacts(
+  const published = await publishArtifacts(
     analysis,
     opts.outReport ?? defaults.outReport,
     opts.outGraph ?? defaults.outGraph,
   );
+  if (!published.ok) {
+    for (const line of published.errors) process.stderr.write(`${line}\n`);
+    process.stderr.write(
+      `pre-write schema validation failed (${published.kind}); no artifacts written\n`,
+    );
+    return 1;
+  }
+  const { paths } = published;
 
   const reportCheck = await validateReportEnvelope(analysis.parsedReport);
   if (!reportCheck.ok) {
@@ -103,6 +120,15 @@ async function main(argv) {
     if (opts.failOnGaps && opts.nonInteractive) return 3;
   }
   return 0;
+}
+
+export async function publishArtifacts(analysis, outReport, outGraph) {
+  const graphCheck = await validateGraph(analysis.graphObject);
+  if (!graphCheck.ok) return { ok: false, kind: "graph", errors: graphCheck.errors };
+  const reportCheck = await validateReport(analysis.parsedReport);
+  if (!reportCheck.ok) return { ok: false, kind: "report", errors: reportCheck.errors };
+  const paths = await writeArtifacts(analysis, outReport, outGraph);
+  return { ok: true, paths };
 }
 
 function requireValue(argv, index, flag) {

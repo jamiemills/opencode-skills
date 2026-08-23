@@ -8,13 +8,13 @@ section of `.agents/research/2026-08-22-characterization-skill-implementation-re
 Format per item: claim — why unverified — RUNTIME GUARD applied during runs — how to
 re-verify and close it.
 
-| # | Residual | Label | Runtime guard | Re-verify |
-| --- | --- | --- | --- | --- |
-| 1 | pitest `mutations.xml` filename | U9 | glob `target/pit-reports/**/*.{xml,csv}` | live run or pitest source |
-| 2 | Pact `can-i-deploy` broker flags | U15 | `pact-broker help` before scripting | docs.pact.io |
-| 3 | Ghostwriter CC0 output license | U15 | never assert license terms in reports | hypothesis.readthedocs.io |
-| 4 | Randoop `--specifications` flag | U15 | `randoop --help` check, regression fallback | randoop.github.io manual |
-| 5 | Diffblue / self-healing efficacy | U16 / U13c | vendor claims excluded from tool selection | independent study appearing |
+| #   | Residual                         | Label      | Runtime guard                               | Re-verify                   |
+| --- | -------------------------------- | ---------- | ------------------------------------------- | --------------------------- |
+| 1   | pitest `mutations.xml` filename  | U9         | glob `target/pit-reports/**/*.{xml,csv}`    | live run or pitest source   |
+| 2   | Pact `can-i-deploy` broker flags | U15        | `pact-broker help` before scripting         | docs.pact.io                |
+| 3   | Ghostwriter CC0 output license   | U15        | never assert license terms in reports       | hypothesis.readthedocs.io   |
+| 4   | Randoop `--specifications` flag  | U15        | `randoop --help` check, regression fallback | randoop.github.io manual    |
+| 5   | Diffblue / self-healing efficacy | U16 / U13c | vendor claims excluded from tool selection  | independent study appearing |
 
 ## 1. pitest report filename (`mutations.xml`) — U9
 

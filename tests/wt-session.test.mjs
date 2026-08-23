@@ -209,7 +209,10 @@ test("pruneWorktrees reaps detached and foreign registrations, spares managed on
     assert.ok(fs.existsSync(foreignDir), "dirty foreign dir still present pre-force");
 
     result = pruneWorktrees(root, { force: true });
-    assert.ok(result.removed.some((r) => r.dir === foreignDir), "dirty foreign removed with force");
+    assert.ok(
+      result.removed.some((r) => r.dir === foreignDir),
+      "dirty foreign removed with force",
+    );
     assert.ok(!fs.existsSync(detachedDir), "detached dir gone");
     assert.ok(!fs.existsSync(foreignDir), "foreign dir gone");
 

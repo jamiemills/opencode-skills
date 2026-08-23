@@ -28,6 +28,7 @@ import {
   parsePlanControl,
   validatePlanControl,
   validatePlanJournal,
+  validateJournalControlConsistency,
   validateOrdinalSequencing,
   validateTemplateFormatMarkers,
   validateInterfaceArtifactPatterns,
@@ -51,10 +52,11 @@ const NEVER_CLAUSE_RE =
 // v-prefixed versions, $ENV vars, and absolute paths.
 const VOLATILE_DESC_RE =
   /(\d{4}-\d{2}-\d{2}|\b20\d{2}\b|\b\d+\.\d+(\.\d+)?\b|v\d+(\.\d+)+|\$[A-Z][A-Z0-9_]*|\/home\/|\/Users\/|\/tmp|\/etc\/|\/opt\/|\/usr\/|\/var\/)/;
-// Frontmatter budget (AC1 of the completed efficiency plan): the 8
-// descriptions total exactly 220 whitespace-separated tokens today (em-dashes
-// count). The check guards regression only; wording edits stay out of scope.
-const WORD_BUDGET = 220;
+// Frontmatter budget (re-pinned 2026-08-23 per review HF-01): the twelve
+// descriptions total exactly 329 whitespace-separated tokens today (em-dashes
+// count). Recompute on any frontmatter edit before re-pinning; the check
+// guards regression only, and the disabled gate still reports live drift.
+const WORD_BUDGET = 329;
 const NORMS_PHRASE_RE = new RegExp(
   NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
 );
@@ -645,6 +647,23 @@ function readDeferredLedgerIds(ledgerPath) {
   return ids;
 }
 
+// Extracts the set of artifact basenames referenced by bullet lines in
+// .agents/README.md (lines like "- `2026-08-19-x.md` — ..."). Returns null
+// when the index file is absent.
+function readAgentsIndexBasenames(indexPath) {
+  const content = readOrNull(indexPath);
+  if (content === null) return null;
+  const names = new Set();
+  for (const line of splitLines(content)) {
+    for (const m of line.matchAll(/`([^`]+)`/g)) {
+      const t = m[1];
+      if (t.includes("/") || t.startsWith(".")) continue;
+      names.add(t);
+    }
+  }
+  return names;
+}
+
 // Scans a plan for `[blocked] DEFERRED` task lines and returns
 // { isComplete, hasDeferred, issues, warnings }. A DEFERRED task is "cited"
 // when its task block (task line through its attribute lines) contains a
@@ -767,8 +786,9 @@ function main() {
         volatileHit === null,
         `${skill}/SKILL.md description contains volatile token "${volatileHit ? volatileHit[0] : ""}" (dates/years/versions/$ENV/absolute paths break prefix-cache units)`,
       );
-      descWordTotal += desc.trim().split(/\s+/).filter(Boolean).length;
     }
+    // Accumulated unconditionally so the disabled-state drift note stays live.
+    descWordTotal += desc.trim().split(/\s+/).filter(Boolean).length;
 
     const h1 = countH1(lines, inFence);
     check(h1 === 1, `${skill}/SKILL.md has ${h1} H1 titles outside fences (want exactly 1)`);
@@ -876,7 +896,14 @@ function main() {
   if (eff.enabled) {
     check(
       descWordTotal <= WORD_BUDGET,
-      `description word total ${descWordTotal} (> ${WORD_BUDGET}) across ${skillDirs.length} skills (frontmatter budget AC1 regression)`,
+      `description word total ${descWordTotal} (> ${WORD_BUDGET}) across ${skillDirs.length} skills (frontmatter budget regression)`,
+    );
+    console.log(
+      `note: token efficiency enabled — description budget ${descWordTotal}/${WORD_BUDGET} (${descWordTotal - WORD_BUDGET >= 0 ? "+" : ""}${descWordTotal - WORD_BUDGET} drift)`,
+    );
+  } else {
+    console.log(
+      `note: token efficiency disabled — description budget ${descWordTotal}/${WORD_BUDGET} (${descWordTotal - WORD_BUDGET >= 0 ? "+" : ""}${descWordTotal - WORD_BUDGET} drift; not enforced)`,
     );
   }
 
@@ -1109,6 +1136,18 @@ function main() {
       for (const msg of journalFailures) check(false, `plan corpus .agents/plans/${f}: ${msg}`);
     }
 
+    // Journal/Control consistency (review F8-03): paused plans must have both
+    // Control PAUSED and a PAUSED last journal row; active plans must not end
+    // PAUSED. COMPLETE/terminal plans are grandfathered inside the validator.
+    const consistencyFailures = validateJournalControlConsistency(content);
+    if (consistencyFailures.length === 0) {
+      check(true, `plan corpus .agents/plans/${f} journal/control consistency OK`);
+    } else {
+      for (const msg of consistencyFailures) {
+        check(false, `plan corpus .agents/plans/${f}: ${msg}`);
+      }
+    }
+
     const deferred = checkDeferredCitations(f, content, deferredLedgerIds);
     if (deferred.hasDeferred) {
       if (deferred.isComplete) {
@@ -1131,6 +1170,36 @@ function main() {
       } else {
         for (const iss of signals.issues) {
           check(false, `plan corpus .agents/plans/${f} line ${iss.line}: ${iss.message}`);
+        }
+      }
+    }
+  }
+
+  // .agents artifact-index rule (review F1-07, journal-lessons F7/J7): every
+  // tracked artifact under .agents/ (except the index itself and the
+  // token-efficiency toggle) must have an index line in .agents/README.md.
+  // Same-commit indexing is the gate's teeth: adding an artifact without its
+  // index line fails the next run. Untracked drafts never brick the gate.
+  {
+    const indexed = readAgentsIndexBasenames(path.join(root, ".agents", "README.md"));
+    if (indexed === null) {
+      console.log("note: .agents/README.md absent — artifact-index check skipped");
+    } else if (tracked === null) {
+      console.log("note: git unavailable — artifact-index check skipped");
+    } else {
+      const AGENTS_INDEX_EXEMPT = new Set([".agents/README.md", ".agents/token-efficiency.json"]);
+      const agentsArtifacts = [...tracked].filter(
+        (t) => t.startsWith(".agents/") && !AGENTS_INDEX_EXEMPT.has(t),
+      );
+      const missing = agentsArtifacts.filter((t) => !indexed.has(path.basename(t))).toSorted();
+      if (missing.length === 0) {
+        check(
+          true,
+          `.agents artifact index covers all ${agentsArtifacts.length} tracked artifacts`,
+        );
+      } else {
+        for (const t of missing) {
+          check(false, `.agents artifact index: ${t} has no index line in .agents/README.md`);
         }
       }
     }

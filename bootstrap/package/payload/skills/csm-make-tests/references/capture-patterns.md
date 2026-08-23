@@ -180,16 +180,24 @@ Preference order — dependency injection beats matchers beats regex [K7]:
 
 ```js
 const UNSTABLE_KEYS = new Set([
-  "id", "uuid", "ts", "createdAt", "duration_ms", "host",
-  "port", "requestId", "token", "secret",
+  "id",
+  "uuid",
+  "ts",
+  "createdAt",
+  "duration_ms",
+  "host",
+  "port",
+  "requestId",
+  "token",
+  "secret",
 ]);
 
 function scrub(node) {
   if (Array.isArray(node)) return node.map(scrub);
   if (node && typeof node === "object") {
     return Object.fromEntries(
-      Object.entries(node).map(([k, v]) =>
-        [k, UNSTABLE_KEYS.has(k) ? `<${k}>` : scrub(v)]));
+      Object.entries(node).map(([k, v]) => [k, UNSTABLE_KEYS.has(k) ? `<${k}>` : scrub(v)]),
+    );
   }
   return node;
 }

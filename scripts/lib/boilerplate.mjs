@@ -71,7 +71,8 @@ const TMUX_PARAMS = {
     workflow: "research",
   },
   "csm-make-tests": {
-    prelude: "Run first — before INTAKE, locating the plan, or any generation work. Not a generation state.",
+    prelude:
+      "Run first — before INTAKE, locating the plan, or any generation work. Not a generation state.",
     step2: "generation",
     work: "generation",
     request: "generation",
@@ -79,7 +80,8 @@ const TMUX_PARAMS = {
     workflow: "generation",
   },
   "csm-review-python": {
-    prelude: "Run first — before INTAKE, any analysis tool use, or any other section. Not an analysis state.",
+    prelude:
+      "Run first — before INTAKE, any analysis tool use, or any other section. Not an analysis state.",
     step2: "analysis",
     work: "analysis",
     request: "analysis",

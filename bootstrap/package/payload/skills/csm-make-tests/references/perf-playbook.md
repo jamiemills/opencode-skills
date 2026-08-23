@@ -18,10 +18,10 @@ Source: `.agents/research/2026-08-22-characterization-skill-implementation-resea
 
 ## Profile Before Load
 
-| Tool | Mode | Best for |
-| --- | --- | --- |
-| cProfile (`python -m cProfile -o out.pstats app.py`) | deterministic, instrumented | batch jobs, offline reproduction |
-| py-spy (`py-spy top`, `py-spy record -o flame.svg --pid <pid>`) | sampling | live services; no restart, no code changes |
+| Tool                                                            | Mode                        | Best for                                   |
+| --------------------------------------------------------------- | --------------------------- | ------------------------------------------ |
+| cProfile (`python -m cProfile -o out.pstats app.py`)            | deterministic, instrumented | batch jobs, offline reproduction           |
+| py-spy (`py-spy top`, `py-spy record -o flame.svg --pid <pid>`) | sampling                    | live services; no restart, no code changes |
 
 - cProfile provides deterministic profiling but is explicitly not for benchmarking —
   timing claims come from the micro-bench layer, never from profiler output [K19].
@@ -36,14 +36,14 @@ Source: `.agents/research/2026-08-22-characterization-skill-implementation-resea
 One script, tiny load, wired to fail CI on breach [K19][K20]:
 
 ```javascript
-import http from 'k6/http';
+import http from "k6/http";
 
 export const options = {
   vus: 2,
-  duration: '30s',
+  duration: "30s",
   thresholds: {
-    http_req_failed: ['rate<0.01'],
-    http_req_duration: ['p(95)<200'],
+    http_req_failed: ["rate<0.01"],
+    http_req_duration: ["p(95)<200"],
   },
 };
 
@@ -84,12 +84,12 @@ demand.
 
 Allocation churn is often the regression that averaged latency hides [K27].
 
-| Stack | Mechanism | Notes |
-| --- | --- | --- |
-| Go | `go test -benchmem`; `AllocedBytesPerOp()` / `AllocsPerOp()` | benchmark-integrated; A/B via benchstat (statistically robust) |
-| Java | JFR allocation sampling (JEP 331) | ~3% overhead |
-| .NET | `dotnet-counters collect` | `dotnet.gc.heap.total_allocated`, `dotnet.monitor.lock_contentions`, `dotnet.thread_pool.queue.length`; CSV/JSON export |
-| Python | `tracemalloc` snapshot diff | snapshot, workload, snapshot, diff — leak detection; no benchmark integration |
+| Stack  | Mechanism                                                    | Notes                                                                                                                   |
+| ------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Go     | `go test -benchmem`; `AllocedBytesPerOp()` / `AllocsPerOp()` | benchmark-integrated; A/B via benchstat (statistically robust)                                                          |
+| Java   | JFR allocation sampling (JEP 331)                            | ~3% overhead                                                                                                            |
+| .NET   | `dotnet-counters collect`                                    | `dotnet.gc.heap.total_allocated`, `dotnet.monitor.lock_contentions`, `dotnet.thread_pool.queue.length`; CSV/JSON export |
+| Python | `tracemalloc` snapshot diff                                  | snapshot, workload, snapshot, diff — leak detection; no benchmark integration                                           |
 
 Go is the only stack where allocation tracking is part of benchmark output; elsewhere it
 is a separate diagnostic pass. Pull lock-contention and thread-pool queue counters into

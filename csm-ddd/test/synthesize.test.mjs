@@ -27,22 +27,27 @@ test("synthesis turns the sample extraction into hypotheses, seams, and ordering
   }
 
   const scanImport = extraction.inventory.consumers.find((c) => c.key.includes("planning"));
-  if (scanImport) {
-    assert.ok(
-      result.edges.some((e) => e.relation === "upstream-downstream" || e.relation === "conformist"),
-    );
-  }
+  assert.ok(
+    scanImport,
+    "fixture drifted: sample repo must still classify the planning import as a consumer",
+  );
+  assert.ok(
+    result.edges.some((e) => e.relation === "upstream-downstream" || e.relation === "conformist"),
+  );
 });
 
 test("conflicting terminology produces an explicit ambiguity record", async () => {
   const extraction = await extractRepository({ root: fixtureRepo });
   const result = synthesize(extraction);
   const ambiguousTerms = result.terms.filter((t) => t.ambiguous);
-  if (ambiguousTerms.length > 0) {
-    for (const ambiguity of result.ambiguities) {
-      assert.equal(ambiguity.status, "unverified");
-      assert.match(ambiguity.note, /AMBIGUITY/);
-    }
+  assert.ok(
+    ambiguousTerms.length > 0,
+    "fixture drifted: sample repo must still yield at least one ambiguous term",
+  );
+  assert.ok(result.ambiguities.length > 0, "ambiguous terms must produce ambiguity records");
+  for (const ambiguity of result.ambiguities) {
+    assert.equal(ambiguity.status, "unverified");
+    assert.match(ambiguity.note, /AMBIGUITY/);
   }
   assert.ok(result.terms.length > 0);
 });

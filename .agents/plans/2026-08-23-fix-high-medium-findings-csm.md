@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: fix-high-medium-findings
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-23T18:15:00+0000 VERIFY passed — all 22 tasks carry acceptance signals/risks/anti-scope; same-file serializations closed (README: T001->T002->T009/T010; ddd.mjs: T015->T017; ensure-browser: T011->T003; security.test: T014->T020; clarify.test: T018->T019); AC traceability complete; plan SAVED
-- Last model/run: primary VERIFY pass 2026-08-23 (remediation subagent disrupted mid-pass; primary completion per resilience ladder — journaled)
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-23T22:30:00+0000 final VERIFY passed — all 22 tasks implemented and reviewed; make lint, make check (956 checks), make test (1278/1278), tracked corpus harness (23/23), and focused upload/bootstrap/browse/ddd suites green
+- Last model/run: primary csm-build session 2026-08-23 resumed 2026-08-23T18:02
+- Next transition: COMPLETE
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -132,7 +132,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
 
 ## Numbered Plan
 
-1. [pending] Wire csm-browse unit suite into gates
+1. [completed] Wire csm-browse unit suite into gates
    - Task ID: T007
    - Depends on: none
    - Parallel group: spine start
@@ -147,7 +147,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: partial work detectable by `git diff Makefile`; spike results recorded before any wiring edit.
 
-2. [pending] Wire csm-upload suite
+2. [completed] Wire csm-upload suite
    - Task ID: T008
    - Depends on: T007 (Makefile serialization)
    - Parallel group: spine
@@ -162,7 +162,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: single-target addition; trivially revertible.
 
-3. [pending] Re-pin token budget to reality (HF-01)
+3. [completed] Re-pin token budget to reality (HF-01)
    - Task ID: T006
    - Depends on: none
    - Parallel group: leaf (before T004 in check-suite queue)
@@ -177,7 +177,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: three-region diff confined to two files + AGENTS.md.
 
-4. [pending] Backfill .agents index + add unindexed-artifact gate rule (F1-07)
+4. [completed] Backfill .agents index + add unindexed-artifact gate rule (F1-07)
    - Task ID: T004
    - Depends on: T006 (check-suite serialization)
    - Parallel group: gate chain
@@ -192,7 +192,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: rule ships after corpus compliance in same commit; bisectable.
 
-5. [pending] Enforce journal/control consistency in check-suite gate (F8-03, gate half)
+5. [completed] Enforce journal/control consistency in check-suite gate (F8-03, gate half)
    - Task ID: T005
    - Depends on: T004 (check-suite serialization)
    - Parallel group: gate chain
@@ -207,7 +207,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: corpus violations pre-checked by spike; wiring reversible one-import.
 
-6. [pending] Wire resume-semantics suite into test-bootstrap (F8-03, suite half)
+6. [completed] Wire resume-semantics suite into test-bootstrap (F8-03, suite half)
    - Task ID: T009
    - Depends on: T005 (validator landed), T008 (Makefile serialization), T002 (README single-writer: T009's universal-suite wording and T002's ledger/diagram share README.md)
    - Parallel group: spine
@@ -222,7 +222,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: one-glob-line addition; trivially revertible.
 
-7. [pending] Freeze true make-test composition into docs (F1-05)
+7. [completed] Freeze true make-test composition into docs (F1-05)
    - Task ID: T010
    - Depends on: T007, T008, T009, T002 (final composition known AND README chain serialized — all four touch README/Makefile surfaces T010 edits)
    - Parallel group: spine end
@@ -237,7 +237,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: docs-only; revert trivially.
 
-8. [pending] Fix README role taxonomy (F1-02)
+8. [completed] Fix README role taxonomy (F1-02)
    - Task ID: T001
    - Depends on: none
    - Parallel group: README chain start
@@ -252,7 +252,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: single-section diff.
 
-9. [pending] Deduplicate README ledger and diagram (F1-03, F1-04)
+9. [completed] Deduplicate README ledger and diagram (F1-03, F1-04)
    - Task ID: T002
    - Depends on: T001 (README serialization)
    - Parallel group: README chain
@@ -267,7 +267,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: contiguous deletions; revertible.
 
-10. [pending] Fix memAvailableMb undefined helper (F2-01)
+10. [completed] Fix memAvailableMb undefined helper (F2-01)
    - Task ID: T011
    - Depends on: none
    - Parallel group: GC-browse
@@ -282,7 +282,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: single-function fix with one added export.
 
-11. [pending] Close launchDaemon retry race: wait for child exit before marker deletion (F5-02)
+11. [completed] Close launchDaemon retry race: wait for child exit before marker deletion (F5-02)
    - Task ID: T003
    - Depends on: T011 (ensure-browser.mjs single-writer serialization)
    - Parallel group: GC-browse chain
@@ -297,7 +297,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
    - Repair attempts: 0
    - Recovery note: bounded-wait + guard are local to one block; revert restores old behavior.
 
-12. [pending] URL-param-scoped credential redaction class (F4-06)
+12. [completed] URL-param-scoped credential redaction class (F4-06)
     - Task ID: T014
     - Depends on: none
     - Parallel group: GC-browse
@@ -312,7 +312,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: rollback = revert the new class + its tests together (single-file + test additions).
 
-13. [pending] Document cookie reveal gate (F2-02)
+13. [completed] Document cookie reveal gate (F2-02)
     - Task ID: T012
     - Depends on: none
     - Parallel group: GC-SKILL chain start
@@ -327,7 +327,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: one-row diff.
 
-14. [pending] Narrow + document capture auto-dismiss (F2-07)
+14. [completed] Narrow + document capture auto-dismiss (F2-07)
     - Task ID: T013
     - Depends on: T012 (SKILL.md serialization)
     - Parallel group: GC-SKILL chain
@@ -342,7 +342,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: contained diff.
 
-15. [pending] Pre-write schema validation in csm-ddd (F2-13)
+15. [completed] Pre-write schema validation in csm-ddd (F2-13)
     - Task ID: T015
     - Depends on: none
     - Parallel group: GD-ddd
@@ -357,7 +357,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: insertion-point diff.
 
-16. [pending] Wire evidence-record redaction (F2-16 + F6-05)
+16. [completed] Wire evidence-record redaction (F2-16 + F6-05)
     - Task ID: T016
     - Depends on: none
     - Parallel group: GD-ddd (before T017; extract.mjs chain)
@@ -372,7 +372,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: funnel insertion reversible.
 
-17. [pending] Per-file size cap in extractor (F5-06)
+17. [completed] Per-file size cap in extractor (F5-06)
     - Task ID: T017
     - Depends on: T016 (extract.mjs chain), T015 (ddd.mjs single-writer: T015's pre-write insertion and T017's --max-file-bytes flag plumbing share scripts/ddd.mjs)
     - Parallel group: GD-ddd chain
@@ -387,7 +387,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: additive limit.
 
-18. [pending] Pin guarded test preconditions (F6-03)
+18. [completed] Pin guarded test preconditions (F6-03)
     - Task ID: T018
     - Depends on: none
     - Parallel group: GD-ddd
@@ -402,7 +402,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: test-only.
 
-19. [pending] Rewrite immutability test honestly (F6-04)
+19. [completed] Rewrite immutability test honestly (F6-04)
    - Task ID: T019
    - Depends on: T018 (both own csm-ddd/test/clarify.test.mjs — single-writer serialization; precondition hardening lands first)
     - Parallel group: GD-ddd
@@ -417,7 +417,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: test-only.
 
-20. [pending] Port seeded-fuzz + redaction property tests (F6-07)
+20. [completed] Port seeded-fuzz + redaction property tests (F6-07)
    - Task ID: T020
    - Depends on: T014 (both add to csm-browse/tests/unit/security.test.mjs — single-writer serialization; property block builds on T014's URL_CREDENTIAL_PARAM cases)
    - Parallel group: GD-ddd leaf
@@ -432,7 +432,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: purely additive tests.
 
-21. [pending] Signed marker in bootstrap verify output (F4-01)
+21. [completed] Signed marker in bootstrap verify output (F4-01)
     - Task ID: T021
     - Depends on: none
     - Parallel group: leaf
@@ -447,7 +447,7 @@ Safe parallel groups: {T001}, {T014->T020, T011->T003, T015, T018->T019, T021, T
     - Repair attempts: 0
     - Recovery note: repack is deterministic; revert bin + rerun pack restores index.
 
-22. [pending] Refuse silent config clobber in upload (F8-07)
+22. [completed] Refuse silent config clobber in upload (F8-07)
     - Task ID: T022
     - Depends on: none
     - Parallel group: leaf
@@ -509,7 +509,26 @@ Cheapest-first ladder: (1) per-task acceptance signals (targeted node --test fil
 | 2026-08-23T18:02:37+0000 | 0 | REMEDIATE -> REMEDIATE | none | DISRUPTION: remediation subagent died mid-pass (empty return; prose-level edits landed, task entries did not) — incident journaled; primary completion invoked per resilience ladder step 4 | REMEDIATE |
 | 2026-08-23T18:10:00+0000 | 0 | REMEDIATE -> VERIFY | T001-T022 | primary completed remediation: T003 reinstated, T005/T009 carve-out, T014 split-class rewrite, T002 structural signals, T010/T019/T020 deps, T021 mandates, T011 seam, T004/T016 precision, risks row, 17-row resolution table; all critique findings resolved | VERIFY |
 | 2026-08-23T18:15:00+0000 | 0 | VERIFY -> SAVED | T001-T022 | primary-personal gate passed: goal/AC mapping complete (AC1-19 -> tasks), same-file write ownership serialized everywhere (three residual conflicts found and closed: T002->T009 README, T015->T017 ddd.mjs, T016 test filename pinned), named files/interfaces scout-verified, assumptions A1/A2 explicit with spike owners, recoverable via Control+journal+recovery notes | SAVED |
+| 2026-08-23T19:25:22+0000 | 1 | RECOVER -> VALIDATE | none | resumed explicit csm-build request; fcf11b2 plan baseline, sole pre-existing untracked review preserved, no NORMS.md | VALIDATE |
+| 2026-08-23T19:26:00+0000 | 1 | VALIDATE -> SELECT | none | baseline check-suite 923/923 from plan commit hook; T007 spike 175/175 browse tests green | SELECT |
+| 2026-08-23T19:30:00+0000 | 1 | SELECT -> DISPATCH | T011,T012,T014,T015,T016,T018,T020,T021,T022,T003,T013,T017,T019 | independent leaf batches dispatched with non-overlapping scopes; no commits by workers | INTEGRATE |
+| 2026-08-23T21:30:00+0000 | 1 | INTEGRATE -> REPAIR | T018,T020,T007 | T018 found ambiguity guards were born-false; fixture + question-file regeneration added; T020 added csm-scan fuzz file requiring tier-manifest entry; README path literal broke sandbox hook tests | REPAIR |
+| 2026-08-23T22:00:00+0000 | 1 | REPAIR -> VERIFY | T018,T020,T007,T009,T021,T022 | csm-ddd 39/39, csm-scan 1278/1278 after baseline refresh, browse 186/186, upload 9/9, bootstrap 49/49 via node22 wrapper; plan task statuses reconciled | VERIFY |
+| 2026-08-23T22:15:00+0000 | 1 | VERIFY -> REVIEW | T001-T022 | make lint pass; make check 956 checks; make test 1278/1278; tracked corpus harness 23/23; diff-check clean | REVIEW |
+| 2026-08-23T22:25:00+0000 | 1 | REVIEW -> REPAIR | T022, artifact sync | independent review found parseable invalid upload shapes and formatter-corrupted `__call__`/`__future__` literals; both repaired, tests added, payload repacked | REPAIR |
+| 2026-08-23T22:30:00+0000 | 1 | REPAIR -> CHECKPOINT | T001-T022 | final focused checks green; reviewer low/info residuals recorded in Completion Review; unrelated concurrent research file preserved and excluded from commit | CHECKPOINT |
+| 2026-08-23T22:35:00+0000 | 1 | CHECKPOINT -> COMPLETE | T001-T022 | completion gate passed; all implementation work staged/committed by primary; no push/deploy | COMPLETE |
 
 ## Completion Review
 
-(filled by csm-build when all criteria are verified)
+Status: COMPLETE.
+
+- All 22 numbered tasks completed; T018 included the necessary fixture/question-file amendment because the original ambiguity guards were permanently false.
+- Acceptance evidence: `make lint` passed; `make check` passed with 956 checks; `make test` passed with 1,278/1,278; `node --test tests/check-suite.test.mjs tests/resume-semantics.test.mjs` passed 23/23 after staging new tests; upload passed 9/9; bootstrap passed 49/49 under the Node >=22 wrapper.
+- High-risk T021 independently reviewed: signed marker is computed in the shipped bin without changing the validateEnvelope return shape; packed fixed-bin hash and payload consistency verified.
+- Privacy T014 independently reviewed: URL-scoped exact-token redaction preserves diagnostic object keys and prose; focused and full browse suites passed.
+- T022 reviewer medium finding repaired: parseable invalid config shapes now refuse and preserve original bytes; four shape cases are tested.
+- T004/T005 gate changes independently reviewed and verified with positive and negative sandbox proofs; artifact-index rule covers tracked artifacts and ignores untracked drafts.
+- Generated artifacts refreshed: bootstrap payload/index and csm-scan renderer baseline.
+- Residual low/info review notes: T021 malformed-signature variants are not separately table-tested because the existing failure-path contract and 49-test bootstrap suite pass; artifact-index matching is basename-based, with no duplicate basenames currently tracked; formatter-generated reference-artifact normalization is included as build output because `make fmt` was run from a clean worktree, and corrupted identifiers were explicitly repaired.
+- Unrelated untracked files `.agents/reviews/2026-08-23-skills-review.md` and `.agents/research/2026-08-23-llm-hill-climbing-autoresearch-skill-research.md` were preserved and excluded from the implementation commit.

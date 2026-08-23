@@ -294,191 +294,191 @@ def slugify(text: str) -> str:
 
 Mechanical correctness/likely-bug flags — every code encodes a documented failure mode; the highest-value lint-coded layer a reviewer surfaces verbatim (K17). Overlap note: complements the EAFP/flat-hierarchy doctrine posture in finding A — see also D6.
 
-| Rule | Detects | Fix | Cite |
-|---|---|---|---|
-| F401 | Imported name never referenced (`{name}` imported but unused) | remove import (auto-fix) | [R61] |
-| F811 | Name redefined before any use of prior definition (duplicate import/function) | drop or rename first def | [R62] |
-| F821 | Reference to name not defined in scope (typos, missing imports) | fix name / add import | [R63] |
-| F841 | Local variable assigned but never read | `_ = compute()`, del, or use value | [R64] |
-| F632 | `is`/`is not` compared against string/number literals | `==` — "Use `==` to compare constant literals" | [R65] |
-| F541 | f-string without any `{}` placeholders | drop the `f` prefix | [R102] |
-| E711 | `==`/`!=` against `None` | `is None` / `is not None` | [R68] |
-| E712 | `== True`/`== False` — "Avoid equality comparisons to `True`; use `{cond}:`" | use condition directly | [R69] |
-| E722 | `except:` with no exception type | `except Exception:` at widest | [R70] |
-| W605 | Invalid `\x` escape in non-raw string | raw string / correct escape | [R71] |
-| B001 | Bare `except:` ≡ `except BaseException:` — swallows SystemExit/KeyboardInterrupt and typo NameErrors | `except Exception:` (re-raise if needed) | [R88] |
-| B004 | `hasattr(x,'__call__')` as callable test — unreliable (custom `__getattr__`, non-callable `__call__`) | `callable(x)` | [R88] |
-| B005 | `.strip()` with multi-character arg strips a char SET, not substring (`"text.txt".strip("tx.")` → `"e"`) | `.removeprefix()`/`.removesuffix()`/`.replace()` | [R88] |
-| B006 | Mutable literal default (`[]`, `{}`, `set()`) created once at def time and shared across calls | `None` sentinel, create inside | [R75],[R88] |
-| B008 | Call in default (`def log(msg, ts=time.time())`) frozen at def time; FastAPI `Depends()` exempt via `extend-immutable-calls` | sentinel + evaluate inside | [R76],[R88] |
-| B009/B010 | getattr/setattr/delattr with constant attribute names — no added safety, defeats static analysis/rename tooling | `obj.name` direct access | [R88] |
-| B011 | `assert False` — stripped under `python -O` | `raise AssertionError()` | [R79],[R88] |
-| B012 | return/break/continue inside `finally` implicitly cancels active exception, overrides try/except returns | move flow control out of `finally` | [R88] |
-| B013/B014/B025/B029 | Except-handler defects: length-one tuple `(ValueError,)`; redundant types `(Exception, TypeError)`; duplicate handlers across clauses; `except ()` catches nothing | fix tuple/ordering/remove duplicates | [R88] |
-| B015/B016/B018 | Pointless statements: comparison as statement (`value == expected`); `raise 'oops'` raises literal (TypeError); useless expressions incl. trailing-comma tuples (`print(x),`) and side-effect-free calls | delete or make side-effecting | [R88] |
-| B022 | `contextlib.suppress()` with no arguments suppresses nothing | pass exception type or drop | [R88] |
-| B023 | Closure defined in loop references loop variable without binding — reads at call time (`[lambda x: x+i for i in range(3)]` all see final i) | default-arg bind `lambda x, i=i:` | [R77],[R88] |
-| B024/B027 | ABC with no abstract methods / empty concrete-looking stub methods missing @abstractmethod — instantiation contract silently unenforced | add @abstractmethod or drop ABC | [R88] |
-| B031 | itertools.groupby result / sub-iterator reused or consumed twice | materialize groups fresh (dict/sorted) | [R88] |
-| B904 | `raise` inside `except` lacking `from err`/`from None` — chained context lost | `raise RuntimeError(...) from exc` / `from None` | [R78],[R88] |
-| B905 | `zip()` without explicit `strict=` — silent truncation risk | `zip(..., strict=True/False)` | [R80],[R88] |
-| B909 | Mutation of loop iterable while iterating (`for x in items: items.remove(x)`) — skipped elements | iterate a copy / build new list (opinionated) | [R88] |
-| B019 | functools.lru_cache/cache/alru_cache on instance methods — cache keys retain `self`, instances never GC'd (memory leak) | move cache off instance methods | [R88] |
-| BLE001 | Blind `except Exception:` swallowing any error with no re-raise/logging intent | narrow the type, log, or re-raise (opinionated) | [R131] |
-| F405 | Name possibly undefined because it may come from `from x import *` star-imports | import names explicitly | [R132] |
-| F822 | Name listed in `__all__` but not defined/imported in the module | define or import the exported name | [R133] |
-| B036 | `except BaseException:` without re-raising — catches SystemExit/KeyboardInterrupt | `except Exception:` or re-raise | [R134] |
+| Rule                | Detects                                                                                                                                                                                                  | Fix                                              | Cite        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------- |
+| F401                | Imported name never referenced (`{name}` imported but unused)                                                                                                                                            | remove import (auto-fix)                         | [R61]       |
+| F811                | Name redefined before any use of prior definition (duplicate import/function)                                                                                                                            | drop or rename first def                         | [R62]       |
+| F821                | Reference to name not defined in scope (typos, missing imports)                                                                                                                                          | fix name / add import                            | [R63]       |
+| F841                | Local variable assigned but never read                                                                                                                                                                   | `_ = compute()`, del, or use value               | [R64]       |
+| F632                | `is`/`is not` compared against string/number literals                                                                                                                                                    | `==` — "Use `==` to compare constant literals"   | [R65]       |
+| F541                | f-string without any `{}` placeholders                                                                                                                                                                   | drop the `f` prefix                              | [R102]      |
+| E711                | `==`/`!=` against `None`                                                                                                                                                                                 | `is None` / `is not None`                        | [R68]       |
+| E712                | `== True`/`== False` — "Avoid equality comparisons to `True`; use `{cond}:`"                                                                                                                             | use condition directly                           | [R69]       |
+| E722                | `except:` with no exception type                                                                                                                                                                         | `except Exception:` at widest                    | [R70]       |
+| W605                | Invalid `\x` escape in non-raw string                                                                                                                                                                    | raw string / correct escape                      | [R71]       |
+| B001                | Bare `except:` ≡ `except BaseException:` — swallows SystemExit/KeyboardInterrupt and typo NameErrors                                                                                                     | `except Exception:` (re-raise if needed)         | [R88]       |
+| B004                | `hasattr(x,'__call__')` as callable test — unreliable (custom `__getattr__`, non-callable `__call__`)                                                                                                    | `callable(x)`                                    | [R88]       |
+| B005                | `.strip()` with multi-character arg strips a char SET, not substring (`"text.txt".strip("tx.")` → `"e"`)                                                                                                 | `.removeprefix()`/`.removesuffix()`/`.replace()` | [R88]       |
+| B006                | Mutable literal default (`[]`, `{}`, `set()`) created once at def time and shared across calls                                                                                                           | `None` sentinel, create inside                   | [R75],[R88] |
+| B008                | Call in default (`def log(msg, ts=time.time())`) frozen at def time; FastAPI `Depends()` exempt via `extend-immutable-calls`                                                                             | sentinel + evaluate inside                       | [R76],[R88] |
+| B009/B010           | getattr/setattr/delattr with constant attribute names — no added safety, defeats static analysis/rename tooling                                                                                          | `obj.name` direct access                         | [R88]       |
+| B011                | `assert False` — stripped under `python -O`                                                                                                                                                              | `raise AssertionError()`                         | [R79],[R88] |
+| B012                | return/break/continue inside `finally` implicitly cancels active exception, overrides try/except returns                                                                                                 | move flow control out of `finally`               | [R88]       |
+| B013/B014/B025/B029 | Except-handler defects: length-one tuple `(ValueError,)`; redundant types `(Exception, TypeError)`; duplicate handlers across clauses; `except ()` catches nothing                                       | fix tuple/ordering/remove duplicates             | [R88]       |
+| B015/B016/B018      | Pointless statements: comparison as statement (`value == expected`); `raise 'oops'` raises literal (TypeError); useless expressions incl. trailing-comma tuples (`print(x),`) and side-effect-free calls | delete or make side-effecting                    | [R88]       |
+| B022                | `contextlib.suppress()` with no arguments suppresses nothing                                                                                                                                             | pass exception type or drop                      | [R88]       |
+| B023                | Closure defined in loop references loop variable without binding — reads at call time (`[lambda x: x+i for i in range(3)]` all see final i)                                                              | default-arg bind `lambda x, i=i:`                | [R77],[R88] |
+| B024/B027           | ABC with no abstract methods / empty concrete-looking stub methods missing @abstractmethod — instantiation contract silently unenforced                                                                  | add @abstractmethod or drop ABC                  | [R88]       |
+| B031                | itertools.groupby result / sub-iterator reused or consumed twice                                                                                                                                         | materialize groups fresh (dict/sorted)           | [R88]       |
+| B904                | `raise` inside `except` lacking `from err`/`from None` — chained context lost                                                                                                                            | `raise RuntimeError(...) from exc` / `from None` | [R78],[R88] |
+| B905                | `zip()` without explicit `strict=` — silent truncation risk                                                                                                                                              | `zip(..., strict=True/False)`                    | [R80],[R88] |
+| B909                | Mutation of loop iterable while iterating (`for x in items: items.remove(x)`) — skipped elements                                                                                                         | iterate a copy / build new list (opinionated)    | [R88]       |
+| B019                | functools.lru_cache/cache/alru_cache on instance methods — cache keys retain `self`, instances never GC'd (memory leak)                                                                                  | move cache off instance methods                  | [R88]       |
+| BLE001              | Blind `except Exception:` swallowing any error with no re-raise/logging intent                                                                                                                           | narrow the type, log, or re-raise (opinionated)  | [R131]      |
+| F405                | Name possibly undefined because it may come from `from x import *` star-imports                                                                                                                          | import names explicitly                          | [R132]      |
+| F822                | Name listed in `__all__` but not defined/imported in the module                                                                                                                                          | define or import the exported name               | [R133]      |
+| B036                | `except BaseException:` without re-raising — catches SystemExit/KeyboardInterrupt                                                                                                                        | `except Exception:` or re-raise                  | [R134]      |
 
 ### D10 Judgment-only gotchas (expands K18)
 
 Gotchas default linters structurally miss — the reviewer's judgment-tier core (K18); rows 9–10 are partially lint-covered (B004, B031).
 
-| Gotcha | Failure mode | Example | Why linters miss it | Cite |
-|---|---|---|---|---|
-| Mutable class attribute shared across instances | Class attr lookup walks instance→class chain; `self.tricks.append(t)` mutates the one class-level object for all instances | tutorial Dog `tricks=[]` → both dogs share `['roll over','play dead']` | tutorial itself calls it "mistaken use of a class variable"; valid syntax, no AST signature | [R50] |
-| `*` replication aliasing | `*` replicates references, not copies — "rows" are one object; writing one writes all | `A=[[None]*2]*3; A[0][0]=5` → 5 in every row | FAQ: "replicating a list with * doesn't create copies, it only creates references"; no standard lint | [R89] |
-| Tuple `+=` mutation-then-raise | `a_tuple[0] += x` desugars get→`__iadd__`(mutates list in place)→setitem(TypeError) — state changed despite exception | `(['foo'],'bar')[0] += ['item']` → TypeError yet element == `['foo','item']` | two-step bytecode semantics behind ordinary-looking augmented assignment | [R89] |
-| Assignment-localization UnboundLocalError | any assignment anywhere makes the name local for the whole scope; earlier reads hit the uninitialized local | `x=10`; `def foo(): print(x); x+=1` → UnboundLocalError | F821-family catches many cases; complex flows stay judgment | [R89] |
-| isinstance(True, int) | bool subclasses int — numeric isinstance checks accept booleans | `isinstance(True,int)` → True; `sum([True,True])` → 2 | valid-code type-hierarchy fact; intent unknowable statically (checkers flag only narrowed unions) | [R50] |
-| Mutators return None (`sort()`) | in-place methods return None by convention to distinguish mutation; chaining yields None downstream | `result = y.sort()` → result is None | FAQ: mutating methods "return None to help avoid getting the two types of operations confused"; mypy catches some, flake8 none | [R89] |
-| `str +=` quadratic build | immutable str reallocates each concatenation — quadratic total cost; CPython in-place optimization non-portable | `s=''`; `for part in parts: s+=part` | performance-not-correctness; perf linters rarely flag | [R89,R4] |
-| Long elif chains → dict dispatch | O(n) branching, hard to extend, easy to fall through; dict-of-functions flat and data-driven ("primary technique used to emulate a case construct") | `if cmd=='go': a() elif cmd=='stop': b()` … | complexity linters count branches, never propose the rewrite | [R89] |
-| hasattr(x,'__call__') partial | custom `__getattr__` or non-callable `__call__` gives false positives; `callable()` is authoritative | `if hasattr(x,'__call__'): x()` | PARTIAL coverage: bugbear B004 flags exactly this form; variants stay judgment | [R88] |
-| groupby reuse | groupby's sub-iterator is exhausted after one pass; consuming the grouped result twice silently yields empties | iterating `groupby` output twice | iterator-protocol behavior, not syntax; bugbear B031 covers the reuse pattern | [R88] |
+| Gotcha                                          | Failure mode                                                                                                                                        | Example                                                                      | Why linters miss it                                                                                                            | Cite     |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| Mutable class attribute shared across instances | Class attr lookup walks instance→class chain; `self.tricks.append(t)` mutates the one class-level object for all instances                          | tutorial Dog `tricks=[]` → both dogs share `['roll over','play dead']`       | tutorial itself calls it "mistaken use of a class variable"; valid syntax, no AST signature                                    | [R50]    |
+| `*` replication aliasing                        | `*` replicates references, not copies — "rows" are one object; writing one writes all                                                               | `A=[[None]*2]*3; A[0][0]=5` → 5 in every row                                 | FAQ: "replicating a list with * doesn't create copies, it only creates references"; no standard lint                           | [R89]    |
+| Tuple `+=` mutation-then-raise                  | `a_tuple[0] += x` desugars get→`__iadd__`(mutates list in place)→setitem(TypeError) — state changed despite exception                               | `(['foo'],'bar')[0] += ['item']` → TypeError yet element == `['foo','item']` | two-step bytecode semantics behind ordinary-looking augmented assignment                                                       | [R89]    |
+| Assignment-localization UnboundLocalError       | any assignment anywhere makes the name local for the whole scope; earlier reads hit the uninitialized local                                         | `x=10`; `def foo(): print(x); x+=1` → UnboundLocalError                      | F821-family catches many cases; complex flows stay judgment                                                                    | [R89]    |
+| isinstance(True, int)                           | bool subclasses int — numeric isinstance checks accept booleans                                                                                     | `isinstance(True,int)` → True; `sum([True,True])` → 2                        | valid-code type-hierarchy fact; intent unknowable statically (checkers flag only narrowed unions)                              | [R50]    |
+| Mutators return None (`sort()`)                 | in-place methods return None by convention to distinguish mutation; chaining yields None downstream                                                 | `result = y.sort()` → result is None                                         | FAQ: mutating methods "return None to help avoid getting the two types of operations confused"; mypy catches some, flake8 none | [R89]    |
+| `str +=` quadratic build                        | immutable str reallocates each concatenation — quadratic total cost; CPython in-place optimization non-portable                                     | `s=''`; `for part in parts: s+=part`                                         | performance-not-correctness; perf linters rarely flag                                                                          | [R89,R4] |
+| Long elif chains → dict dispatch                | O(n) branching, hard to extend, easy to fall through; dict-of-functions flat and data-driven ("primary technique used to emulate a case construct") | `if cmd=='go': a() elif cmd=='stop': b()` …                                  | complexity linters count branches, never propose the rewrite                                                                   | [R89]    |
+| hasattr(x,'**call**') partial                   | custom `__getattr__` or non-callable `__call__` gives false positives; `callable()` is authoritative                                                | `if hasattr(x,'__call__'): x()`                                              | PARTIAL coverage: bugbear B004 flags exactly this form; variants stay judgment                                                 | [R88]    |
+| groupby reuse                                   | groupby's sub-iterator is exhausted after one pass; consuming the grouped result twice silently yields empties                                      | iterating `groupby` output twice                                             | iterator-protocol behavior, not syntax; bugbear B031 covers the reuse pattern                                                  | [R88]    |
 
 ### D11 Idiom & simplification tier (expands K15)
 
 Safe-suggestion rewrites — split by default status: the C4xx family and E731 are default-enabled; SIM105/SIM108, RET504/RET505, PERF401 are opt-in selects; consumed verbatim, not redefined (K15).
 
-| Rule | Detects → rewrite | Cite |
-|---|---|---|
-| C400 | `list(x for x in y)` generator-inside-list → list comprehension | [R103] |
-| C408 | `dict()`/`tuple()`/`list()` with no/literal args → `{}`/`()`/`[]` literals | [R104] |
-| C414 | nested redundant casts/processes `list(set(x))` → `set(x)`; `sorted(list(x))` | [R105] |
-| C417 | `map(lambda …)` → comprehension/listcomp | [R106] |
-| SIM102 | nested `if` with single inner `if` → combined `if a and b:` | [R107] |
-| SIM105 | `try/except X: pass` → `contextlib.suppress(X)` | [R108] |
-| SIM108 | assign-in-both-branches if/else → ternary (suppressed if line would exceed max length; opinionated, coverage-tooling caveat) | [R109] |
-| SIM117 | nested `with` blocks → single `with open(a) as f, lock:` | [R110] |
-| SIM118 | `k in d.keys()` → `k in d` | [R111] |
-| RET501 | explicit `return None` when only return path → bare `return` (only default-enabled RET rule) | [R112] |
-| RET504 | assign local then immediately `return name` → return expression directly | [R113] |
-| RET505 | `else:` after branch that returns → dedent | [R114] |
-| PERF401 | for-loop appending transformed items → list comp `out=[f(x) for x in xs]` | [R115] |
-| PERF402 | for-loop copying items → `list(src)` / `src.copy()` | [R116] |
-| PERF203 | try/except wrapping loop body → hoist outside loop (speed) | [R117] |
-| PIE790 | redundant `pass`/`...` placeholder alongside other statements → delete | [R118] |
-| PIE794 | class field defined twice (second silently wins) → remove duplicate | [R119] |
-| E731 | `f = lambda …` assignment → `def` statement | [R120] |
-| PLR2004 | comparison against unnamed magic constant → named constant | [R121] |
+| Rule    | Detects → rewrite                                                                                                            | Cite   |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| C400    | `list(x for x in y)` generator-inside-list → list comprehension                                                              | [R103] |
+| C408    | `dict()`/`tuple()`/`list()` with no/literal args → `{}`/`()`/`[]` literals                                                   | [R104] |
+| C414    | nested redundant casts/processes `list(set(x))` → `set(x)`; `sorted(list(x))`                                                | [R105] |
+| C417    | `map(lambda …)` → comprehension/listcomp                                                                                     | [R106] |
+| SIM102  | nested `if` with single inner `if` → combined `if a and b:`                                                                  | [R107] |
+| SIM105  | `try/except X: pass` → `contextlib.suppress(X)`                                                                              | [R108] |
+| SIM108  | assign-in-both-branches if/else → ternary (suppressed if line would exceed max length; opinionated, coverage-tooling caveat) | [R109] |
+| SIM117  | nested `with` blocks → single `with open(a) as f, lock:`                                                                     | [R110] |
+| SIM118  | `k in d.keys()` → `k in d`                                                                                                   | [R111] |
+| RET501  | explicit `return None` when only return path → bare `return` (only default-enabled RET rule)                                 | [R112] |
+| RET504  | assign local then immediately `return name` → return expression directly                                                     | [R113] |
+| RET505  | `else:` after branch that returns → dedent                                                                                   | [R114] |
+| PERF401 | for-loop appending transformed items → list comp `out=[f(x) for x in xs]`                                                    | [R115] |
+| PERF402 | for-loop copying items → `list(src)` / `src.copy()`                                                                          | [R116] |
+| PERF203 | try/except wrapping loop body → hoist outside loop (speed)                                                                   | [R117] |
+| PIE790  | redundant `pass`/`...` placeholder alongside other statements → delete                                                       | [R118] |
+| PIE794  | class field defined twice (second silently wins) → remove duplicate                                                          | [R119] |
+| E731    | `f = lambda …` assignment → `def` statement                                                                                  | [R120] |
+| PLR2004 | comparison against unnamed magic constant → named constant                                                                   | [R121] |
 
 ### D12 Modernization tier (expands K19)
 
 UP-family + pyupgrade rewrites gated on `target-version`; unsafe where runtime annotation consumers exist — the reason UP006/UP007 ship `keep-runtime-typing` escape hatches (K19). Overlap note: these are the same annotation rewrites the doctrine posture adopts — see also D4.
 
-| Rewrite | Before → After | Gate/caveat | Cite |
-|---|---|---|---|
-| UP006 non-pep585-annotation | `typing.List[int]` → `list[int]` | target ≥3.9 or `__future__ import annotations`; fix unsafe pre-3.9 (Pydantic-style runtime annotation consumers); `lint.pyupgrade.keep-runtime-typing` opt-out | [R72] |
-| UP007+UP045 union/optional | `Union[int, str]` → `int \| str`; `Optional[X]` handled by sibling UP045 | target ≥3.10 or future-annotations; unsafe fix pre-3.10; same escape hatch | [R73] |
-| UP008 super-call-with-parameters | `super(B, self).foo()` → `super().foo()` | rewrite valid iff arg1 is `__class__` and arg2 is enclosing method's first arg; fix unsafe (comment loss) | [R122] |
-| UP015 redundant-open-modes | `open(f, "r")` → `open(f)` | safe autofix | [R123] |
-| UP024 os-error-alias | `IOError`/`EnvironmentError` → `OSError` | canonical builtin names post-aliasing | [R124] |
-| UP031 printf-string-formatting | `"%s, %s" % (a, b)` → `"{}, {}".format(a, b)` / f-string | ambiguous `"%s" % val` gets no safe fix (tuple-vs-scalar semantics differ) | [R125] |
-| UP032 f-string | `"{}".format(x)` → `f"{x}"` | skips cases with unpacking/format-specifier edge cases | [R126] |
-| UP040 non-pep695-type-alias | assignment / `TypeAlias` alias → PEP 695 `type X = …` | target-version gated (PEP 695 = 3.12+) | [R127] |
-| UP042 replace-str-enum | `class Foo(str, enum.Enum)` → `class Foo(enum.StrEnum)` | target ≥3.11; deliberate behavior choice — restores 3.10-style `str(Foo.BAR)` formatting broken by 3.11 change | [R74] |
-| yield → yield from | `for x in y:\n    yield x` → `yield from y` | delegation clarity/perf | [R91] |
-| py39 stdlib niceties | startswith-slice → `x.removeprefix(y)`; `@functools.lru_cache(maxsize=None)` → `@functools.cache`; `' '.join(shlex.quote(a) for a in cmd)` → `shlex.join(cmd)` | --py39-plus / target ≥3.9 | [R91] |
-| subprocess.run kwargs | `universal_newlines=True` → `text=True`; `stdout=PIPE, stderr=PIPE` → `capture_output=True` | --py37-plus / target ≥3.7 | [R91] |
-| datetime.UTC | `datetime.timezone.utc` → `datetime.UTC` | --py311-plus / target ≥3.11 | [R91] |
-| DTZ003 call-datetime-utcnow | `datetime.datetime.utcnow()` → `datetime.datetime.now(tz=datetime.timezone.utc)` (or `tz=datetime.UTC` on 3.11+) | utcnow returns naive datetime — cannot be compared/located unambiguously; always prefer tz-aware | [R94] |
-| six/mock/__future__ removals | `six.text_type` → `str`; `six.iteritems(dct)` → `dct.items()`; `six.with_metaclass(M, B)` → `class C(B, metaclass=M)`; `from mock import patch` → `from unittest.mock import patch`; obsolete `__future__` imports dropped | dead py2 shims once target ≥3.x; `--keep-mock` opt-out exists | [R91] |
-| version-gated dead blocks | `if sys.version_info < (3, 6): … else: …` → keep else-body only; satisfied pytest skipif markers dropped | unreachable compat code; if-without-else left alone (syntax-error risk) | [R91] |
+| Rewrite                          | Before → After                                                                                                                                                                                                             | Gate/caveat                                                                                                                                                    | Cite   |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| UP006 non-pep585-annotation      | `typing.List[int]` → `list[int]`                                                                                                                                                                                           | target ≥3.9 or `__future__ import annotations`; fix unsafe pre-3.9 (Pydantic-style runtime annotation consumers); `lint.pyupgrade.keep-runtime-typing` opt-out | [R72]  |
+| UP007+UP045 union/optional       | `Union[int, str]` → `int \| str`; `Optional[X]` handled by sibling UP045                                                                                                                                                   | target ≥3.10 or future-annotations; unsafe fix pre-3.10; same escape hatch                                                                                     | [R73]  |
+| UP008 super-call-with-parameters | `super(B, self).foo()` → `super().foo()`                                                                                                                                                                                   | rewrite valid iff arg1 is `__class__` and arg2 is enclosing method's first arg; fix unsafe (comment loss)                                                      | [R122] |
+| UP015 redundant-open-modes       | `open(f, "r")` → `open(f)`                                                                                                                                                                                                 | safe autofix                                                                                                                                                   | [R123] |
+| UP024 os-error-alias             | `IOError`/`EnvironmentError` → `OSError`                                                                                                                                                                                   | canonical builtin names post-aliasing                                                                                                                          | [R124] |
+| UP031 printf-string-formatting   | `"%s, %s" % (a, b)` → `"{}, {}".format(a, b)` / f-string                                                                                                                                                                   | ambiguous `"%s" % val` gets no safe fix (tuple-vs-scalar semantics differ)                                                                                     | [R125] |
+| UP032 f-string                   | `"{}".format(x)` → `f"{x}"`                                                                                                                                                                                                | skips cases with unpacking/format-specifier edge cases                                                                                                         | [R126] |
+| UP040 non-pep695-type-alias      | assignment / `TypeAlias` alias → PEP 695 `type X = …`                                                                                                                                                                      | target-version gated (PEP 695 = 3.12+)                                                                                                                         | [R127] |
+| UP042 replace-str-enum           | `class Foo(str, enum.Enum)` → `class Foo(enum.StrEnum)`                                                                                                                                                                    | target ≥3.11; deliberate behavior choice — restores 3.10-style `str(Foo.BAR)` formatting broken by 3.11 change                                                 | [R74]  |
+| yield → yield from               | `for x in y:\n    yield x` → `yield from y`                                                                                                                                                                                | delegation clarity/perf                                                                                                                                        | [R91]  |
+| py39 stdlib niceties             | startswith-slice → `x.removeprefix(y)`; `@functools.lru_cache(maxsize=None)` → `@functools.cache`; `' '.join(shlex.quote(a) for a in cmd)` → `shlex.join(cmd)`                                                             | --py39-plus / target ≥3.9                                                                                                                                      | [R91]  |
+| subprocess.run kwargs            | `universal_newlines=True` → `text=True`; `stdout=PIPE, stderr=PIPE` → `capture_output=True`                                                                                                                                | --py37-plus / target ≥3.7                                                                                                                                      | [R91]  |
+| datetime.UTC                     | `datetime.timezone.utc` → `datetime.UTC`                                                                                                                                                                                   | --py311-plus / target ≥3.11                                                                                                                                    | [R91]  |
+| DTZ003 call-datetime-utcnow      | `datetime.datetime.utcnow()` → `datetime.datetime.now(tz=datetime.timezone.utc)` (or `tz=datetime.UTC` on 3.11+)                                                                                                           | utcnow returns naive datetime — cannot be compared/located unambiguously; always prefer tz-aware                                                               | [R94]  |
+| six/mock/**future** removals     | `six.text_type` → `str`; `six.iteritems(dct)` → `dct.items()`; `six.with_metaclass(M, B)` → `class C(B, metaclass=M)`; `from mock import patch` → `from unittest.mock import patch`; obsolete `__future__` imports dropped | dead py2 shims once target ≥3.x; `--keep-mock` opt-out exists                                                                                                  | [R91]  |
+| version-gated dead blocks        | `if sys.version_info < (3, 6): … else: …` → keep else-body only; satisfied pytest skipif markers dropped                                                                                                                   | unreachable compat code; if-without-else left alone (syntax-error risk)                                                                                        | [R91]  |
 
 ### D13 Naming, style & docstrings (expands K21,K22)
 
 **Table A — Authority style rules** (mechanically checkable; consume via formatter/linter, surface only violations the configured tools miss).
 
-| Rule | Check | Authority | Cite |
-|---|---|---|---|
-| naming-case-conventions | CapWords classes, lowercase snake_case functions/modules, ALL_CAPS constants; first arg `self` (instance) / `cls` (class) methods; never `l`/`O`/`I` as single-char names | PEP 8 §Naming Conventions | [R4] |
-| underscore-semantics | `_leading` = weak internal; `__double_leading` invokes mangling; never invent `__dunder__` names | PEP 8 §Descriptive Naming | [R4] |
-| imports-one-per-line | `import os, sys` banned (`from x import a, b` exempt) | PEP 8 §Imports | [R4] |
-| import-group-order | stdlib → third-party → local, blank line between groups, after docstring/globals | PEP 8 §Imports | [R4] |
-| absolute-imports | absolute preferred; explicit relative acceptable | PEP 8 §Imports | [R4] |
-| wildcard-import-ban | any `from x import *` (sole exception: republishing internal API) | PEP 8 §Imports | [R4] |
-| module-dunder-placement | `__all__`/`__version__` after docstring, before imports except `from __future__` | PEP 8 §Module Level Dunders | [R4] |
-| top-level-blank-lines | two blank lines around top-level defs/classes; one between methods | PEP 8 §Blank Lines | [R4] |
-| keyword-default-spacing | no spaces around `=` in kwargs/unannotated defaults; spaces when annotated default | PEP 8 §Other Recommendations | [R4] |
-| none-singleton-comparison | `is`/`is not` for None; `x is not None` over `not x is None`; beware truthiness where None-check intended | PEP 8 §Programming Recommendations | [R4,R58] |
-| return-consistency | all returns return an expression or none do; otherwise explicit `return None` | PEP 8 §Programming Recommendations | [R4] |
-| exceptions-from-Exception + Error suffix | derive from `Exception` not `BaseException`; error exceptions named `*Error` | PEP 8 §Programming Recommendations | [R4,R58] |
-| bare-except-ban/minimal-try | specific exceptions; widest legal catch is `except Exception:`; try clause minimal | PEP 8 §Programming Recommendations | [R4,R58] |
-| startswith-endswith | prefix/suffix checks via methods, not slicing `foo[:n]=='bar'` | PEP 8 §Programming Recommendations | [R4] |
-| isinstance-not-type-compare | `isinstance(obj, int)` not `type(obj) is type(1)` | PEP 8 §Programming Recommendations | [R4] |
-| bool/empty-seq truthiness | no `== True/False`, no `if len(seq):` — use `if seq:` / `if not seq:` | PEP 8 §Programming Recommendations | [R4,R58] |
-| trailing-commas | mandatory in singleton tuples; banned same-line-as-closer elsewhere; encouraged one-per-line for VCS-diffed collections | PEP 8 §When to Use Trailing Commas | [R4] |
-| max-line-length | PEP 8: 79 default, ≤99 team opt-in, comments/docstrings 72; ruff default 88 | PEP 8 §Maximum Line Length; ruff E501 | [R67] |
-| indentation | 4 spaces per level; no tabs; never mix tabs and spaces | PEP 8 §Indentation | [R67] |
-| lint-run-required | linter run enforced in CI; suppressions searchable symbolic form | pyguide §2.1 | [R58] |
-| imports-modules-only-no-relative | import packages/modules only (typing/abc exempt); no relative imports | pyguide §2.2–2.3 | [R58] |
-| assert-not-for-preconditions | no `assert` for validation/control flow (removable without breakage); pytest asserts exempt | pyguide §2.4 | [R58] |
-| custom-exception-rules | must inherit existing exception; `Error` suffix; no repetition (`foo.FooError`) | pyguide §2.4 | [R58] |
-| catch-all-ban | `except:`/`except Exception:` only when re-raising or deliberate isolation point | pyguide §2.4 | [R58] |
-| avoid-mutable-global-state | mutable globals internal (`_`-prefixed) with accessors; constants ALL_CAPS module-level | pyguide §2.5 | [R58] |
-| mutable-default-args | no mutable/call defaults (`[]`, `{}`, `time.time()`); None-sentinel + rebind | pyguide §2.12 | [R58] |
-| properties-trivial-only | properties cheap/straightforward/surprising-free; hand-rolled descriptors = power feature | pyguide §2.13 | [R58] |
-| true-false-evaluation | `is None` always; never `== False`; empty-seq truthiness; watch `x or []` falsy conflation | pyguide §2.14 | [R58] |
-| thread-atomicity | don't rely on builtin-type atomicity or bare assignment sync; prefer Queue | pyguide §2.18 | [R58] |
-| power-features-banned | metaclasses, bytecode access, exec, monkey-patching, dynamic inheritance, import hacks, `__del__` cleanup in app code (stdlib-internal *use* OK) | pyguide §2.19 | [R58] |
-| type-annotate-public-api | annotate public APIs added/modified; enable static checking in build | pyguide §2.21/§3.19.1 | [R58] |
-| todo-comment-format | `TODO: link - explanation`; owner-only parenthesized style discouraged | pyguide §3.12 | [R58] |
-| main-guard-required | executables: logic in `main()` behind `if __name__ == '__main__':` | pyguide §3.17 | [R58] |
-| dunder-discouraged | `__mangled` attrs hurt readability/testability, aren't private — prefer `_single`; filenames `.py`, no dashes | pyguide §3.16.2–3.16.3 | [R58] |
-| logging-lazy-percent-format | logger calls take literal `%`-format template + args, never f-strings/pre-interpolated | pyguide §3.10.1 | [R58] |
+| Rule                                     | Check                                                                                                                                                                     | Authority                             | Cite     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | -------- |
+| naming-case-conventions                  | CapWords classes, lowercase snake_case functions/modules, ALL_CAPS constants; first arg `self` (instance) / `cls` (class) methods; never `l`/`O`/`I` as single-char names | PEP 8 §Naming Conventions             | [R4]     |
+| underscore-semantics                     | `_leading` = weak internal; `__double_leading` invokes mangling; never invent `__dunder__` names                                                                          | PEP 8 §Descriptive Naming             | [R4]     |
+| imports-one-per-line                     | `import os, sys` banned (`from x import a, b` exempt)                                                                                                                     | PEP 8 §Imports                        | [R4]     |
+| import-group-order                       | stdlib → third-party → local, blank line between groups, after docstring/globals                                                                                          | PEP 8 §Imports                        | [R4]     |
+| absolute-imports                         | absolute preferred; explicit relative acceptable                                                                                                                          | PEP 8 §Imports                        | [R4]     |
+| wildcard-import-ban                      | any `from x import *` (sole exception: republishing internal API)                                                                                                         | PEP 8 §Imports                        | [R4]     |
+| module-dunder-placement                  | `__all__`/`__version__` after docstring, before imports except `from __future__`                                                                                          | PEP 8 §Module Level Dunders           | [R4]     |
+| top-level-blank-lines                    | two blank lines around top-level defs/classes; one between methods                                                                                                        | PEP 8 §Blank Lines                    | [R4]     |
+| keyword-default-spacing                  | no spaces around `=` in kwargs/unannotated defaults; spaces when annotated default                                                                                        | PEP 8 §Other Recommendations          | [R4]     |
+| none-singleton-comparison                | `is`/`is not` for None; `x is not None` over `not x is None`; beware truthiness where None-check intended                                                                 | PEP 8 §Programming Recommendations    | [R4,R58] |
+| return-consistency                       | all returns return an expression or none do; otherwise explicit `return None`                                                                                             | PEP 8 §Programming Recommendations    | [R4]     |
+| exceptions-from-Exception + Error suffix | derive from `Exception` not `BaseException`; error exceptions named `*Error`                                                                                              | PEP 8 §Programming Recommendations    | [R4,R58] |
+| bare-except-ban/minimal-try              | specific exceptions; widest legal catch is `except Exception:`; try clause minimal                                                                                        | PEP 8 §Programming Recommendations    | [R4,R58] |
+| startswith-endswith                      | prefix/suffix checks via methods, not slicing `foo[:n]=='bar'`                                                                                                            | PEP 8 §Programming Recommendations    | [R4]     |
+| isinstance-not-type-compare              | `isinstance(obj, int)` not `type(obj) is type(1)`                                                                                                                         | PEP 8 §Programming Recommendations    | [R4]     |
+| bool/empty-seq truthiness                | no `== True/False`, no `if len(seq):` — use `if seq:` / `if not seq:`                                                                                                     | PEP 8 §Programming Recommendations    | [R4,R58] |
+| trailing-commas                          | mandatory in singleton tuples; banned same-line-as-closer elsewhere; encouraged one-per-line for VCS-diffed collections                                                   | PEP 8 §When to Use Trailing Commas    | [R4]     |
+| max-line-length                          | PEP 8: 79 default, ≤99 team opt-in, comments/docstrings 72; ruff default 88                                                                                               | PEP 8 §Maximum Line Length; ruff E501 | [R67]    |
+| indentation                              | 4 spaces per level; no tabs; never mix tabs and spaces                                                                                                                    | PEP 8 §Indentation                    | [R67]    |
+| lint-run-required                        | linter run enforced in CI; suppressions searchable symbolic form                                                                                                          | pyguide §2.1                          | [R58]    |
+| imports-modules-only-no-relative         | import packages/modules only (typing/abc exempt); no relative imports                                                                                                     | pyguide §2.2–2.3                      | [R58]    |
+| assert-not-for-preconditions             | no `assert` for validation/control flow (removable without breakage); pytest asserts exempt                                                                               | pyguide §2.4                          | [R58]    |
+| custom-exception-rules                   | must inherit existing exception; `Error` suffix; no repetition (`foo.FooError`)                                                                                           | pyguide §2.4                          | [R58]    |
+| catch-all-ban                            | `except:`/`except Exception:` only when re-raising or deliberate isolation point                                                                                          | pyguide §2.4                          | [R58]    |
+| avoid-mutable-global-state               | mutable globals internal (`_`-prefixed) with accessors; constants ALL_CAPS module-level                                                                                   | pyguide §2.5                          | [R58]    |
+| mutable-default-args                     | no mutable/call defaults (`[]`, `{}`, `time.time()`); None-sentinel + rebind                                                                                              | pyguide §2.12                         | [R58]    |
+| properties-trivial-only                  | properties cheap/straightforward/surprising-free; hand-rolled descriptors = power feature                                                                                 | pyguide §2.13                         | [R58]    |
+| true-false-evaluation                    | `is None` always; never `== False`; empty-seq truthiness; watch `x or []` falsy conflation                                                                                | pyguide §2.14                         | [R58]    |
+| thread-atomicity                         | don't rely on builtin-type atomicity or bare assignment sync; prefer Queue                                                                                                | pyguide §2.18                         | [R58]    |
+| power-features-banned                    | metaclasses, bytecode access, exec, monkey-patching, dynamic inheritance, import hacks, `__del__` cleanup in app code (stdlib-internal _use_ OK)                          | pyguide §2.19                         | [R58]    |
+| type-annotate-public-api                 | annotate public APIs added/modified; enable static checking in build                                                                                                      | pyguide §2.21/§3.19.1                 | [R58]    |
+| todo-comment-format                      | `TODO: link - explanation`; owner-only parenthesized style discouraged                                                                                                    | pyguide §3.12                         | [R58]    |
+| main-guard-required                      | executables: logic in `main()` behind `if __name__ == '__main__':`                                                                                                        | pyguide §3.17                         | [R58]    |
+| dunder-discouraged                       | `__mangled` attrs hurt readability/testability, aren't private — prefer `_single`; filenames `.py`, no dashes                                                             | pyguide §3.16.2–3.16.3                | [R58]    |
+| logging-lazy-percent-format              | logger calls take literal `%`-format template + args, never f-strings/pre-interpolated                                                                                    | pyguide §3.10.1                       | [R58]    |
 
 **Table B — Docstring discipline** (fully codified; caveat noted once here: www.pydocstyle.org now serves hijacked gambling content — D-rule semantics were mined from PyCQA/pydocstyle `checker.py` source; implementations should target ruff's pydocstyle reimplementation or the PyCQA repo directly [R96]; quarantined as U11).
 
-| Rule | Check | Authority | Cite |
-|---|---|---|---|
-| coverage | public modules, exported functions/classes, public methods incl. `__init__` have docstrings | PEP 257 | [R95] |
-| triple-double-quotes-always | `"""` everywhere; `r"""` when backslashes present | PEP 257 | [R95] |
-| one-liner-imperative-no-signature | phrase ending in period, command mood ("Do this", not "Returns the…"); never restate signature | PEP 257 | [R95] |
-| multiline-summary-blank-close | summary line + blank line + body; closing quotes on own line unless one-liner | PEP 257 | [R95] |
-| D100–D107 presence | missing docstring on module/package/class/public function/method/magic method/`__init__` (public = in `__all__` or no `_` prefix) | pydocstyle D-codes | [R96] |
-| D200 | one-liner fits on one physical line with quotes | pydocstyle D-codes | [R96] |
-| D205 | exactly one blank line between summary and description | pydocstyle D-codes | [R96] |
-| D209 | multi-line closing quotes on separate line | pydocstyle D-codes | [R96] |
-| D300 | triple-double-quotes used (`'''` only when body contains `"""`) | pydocstyle D-codes | [R96] |
-| D400/D415 | first line ends with period (D400) / `.!?` punctuation (D415) | pydocstyle D-codes | [R96] |
-| D401 | first line imperative mood ("Do", not "Does"); skipped for tests and `@property` | pydocstyle D-codes | [R96] |
+| Rule                              | Check                                                                                                                             | Authority          | Cite  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----- |
+| coverage                          | public modules, exported functions/classes, public methods incl. `__init__` have docstrings                                       | PEP 257            | [R95] |
+| triple-double-quotes-always       | `"""` everywhere; `r"""` when backslashes present                                                                                 | PEP 257            | [R95] |
+| one-liner-imperative-no-signature | phrase ending in period, command mood ("Do this", not "Returns the…"); never restate signature                                    | PEP 257            | [R95] |
+| multiline-summary-blank-close     | summary line + blank line + body; closing quotes on own line unless one-liner                                                     | PEP 257            | [R95] |
+| D100–D107 presence                | missing docstring on module/package/class/public function/method/magic method/`__init__` (public = in `__all__` or no `_` prefix) | pydocstyle D-codes | [R96] |
+| D200                              | one-liner fits on one physical line with quotes                                                                                   | pydocstyle D-codes | [R96] |
+| D205                              | exactly one blank line between summary and description                                                                            | pydocstyle D-codes | [R96] |
+| D209                              | multi-line closing quotes on separate line                                                                                        | pydocstyle D-codes | [R96] |
+| D300                              | triple-double-quotes used (`'''` only when body contains `"""`)                                                                   | pydocstyle D-codes | [R96] |
+| D400/D415                         | first line ends with period (D400) / `.!?` punctuation (D415)                                                                     | pydocstyle D-codes | [R96] |
+| D401                              | first line imperative mood ("Do", not "Does"); skipped for tests and `@property`                                                  | pydocstyle D-codes | [R96] |
 
 ### D14 Test-quality rules (expands K23)
 
 Overlap note: the practice-layer counterpart (fixtures as DI, property tests, doctests, coverage philosophy) is finding A's verification section — see also D8.
 
-| Rule | Detects | Tier | Cite |
-|---|---|---|---|
-| PT009 | unittest-style `self.assert*` calls inside pytest tests → plain `assert` statements | lint | [R130] |
-| PT011 | `pytest.raises(Exception)` overly broad — test green even if tested code never ran | lint | [R84] |
-| PT012 | multiple statements in `pytest.raises()` block — may mask which statement raised | lint | [R85] |
-| B017 | `assertRaises(Exception)`/"evil" broad-except test contexts incl. BaseException/pytest.raises; exempt with `match=`/`as ex`; B908 flags multiple statements inside raises-context | lint | [R88] |
-| Assertion usefulness / false-positive risk | Does the test fail when the code breaks? Will it false-positive when code changes beneath it? Vacuous-green detection beyond broad-except codes | judgment | [R98] |
-| Fixture hygiene | scope/isolation mistakes, shared-state leakage across tests, fixtures hiding coupling | judgment | [R98] (cross-ref: fixture-hygiene finding in prior corpus review) |
+| Rule                                       | Detects                                                                                                                                                                           | Tier     | Cite                                                              |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| PT009                                      | unittest-style `self.assert*` calls inside pytest tests → plain `assert` statements                                                                                               | lint     | [R130]                                                            |
+| PT011                                      | `pytest.raises(Exception)` overly broad — test green even if tested code never ran                                                                                                | lint     | [R84]                                                             |
+| PT012                                      | multiple statements in `pytest.raises()` block — may mask which statement raised                                                                                                  | lint     | [R85]                                                             |
+| B017                                       | `assertRaises(Exception)`/"evil" broad-except test contexts incl. BaseException/pytest.raises; exempt with `match=`/`as ex`; B908 flags multiple statements inside raises-context | lint     | [R88]                                                             |
+| Assertion usefulness / false-positive risk | Does the test fail when the code breaks? Will it false-positive when code changes beneath it? Vacuous-green detection beyond broad-except codes                                   | judgment | [R98]                                                             |
+| Fixture hygiene                            | scope/isolation mistakes, shared-state leakage across tests, fixtures hiding coupling                                                                                             | judgment | [R98] (cross-ref: fixture-hygiene finding in prior corpus review) |
 
 Judgment grounding: "Tests do not test themselves, and we rarely write tests for our tests—a human must ensure that tests are valid" [R98] — test-validity is the reviewer deliverable no linter claims.
 
 ### D15 Complexity & design gates (expands K20)
 
-| Gate | Threshold semantics | Cite |
-|---|---|---|
-| C901 / mccabe | plugin disabled by default; enable via `--max-complexity N`; emits `'fn' is too complex (N)`; "According to McCabe, anything that goes beyond 10 is too complex"; threshold **inclusive since 0.3** (complexity == limit passes); suppress per-def with `# noqa: C901` | [R92] |
-| PLR0913 too-many-arguments | fires when function args exceed `max-args` (shipped default widely cited as **5**, unconfirmed — see U12) | [R83] |
-| PLR0912 too-many-branches | `Too many branches (N/M)` above `max-branches`; canonical fix shown is elif-chain → dict dispatch; docs example config sets 10 while shipped default is cited as **12** (unconfirmed — see U12) | [R81,R82] |
-| PLR0915 too-many-statements | `Too many statements (N/M)` above `max-statements`; guidance: split into smaller functions; docs example sets 7 while shipped default is cited as **50** (unconfirmed — see U12) | [R81,R82] |
-| radon CC + MI | CC = decisions + 1; if/elif/for/while/except/with/assert/comprehension +1 each, boolean operator +1, else/finally +0; MI formula combines Halstead V, CC, SLOC, comment-% — radon's own docs call MI **experimental**, weigh less than other metrics | [R93] |
-| vulture confidence tiers | AST defined-vs-used walk, scope-insensitive: arguments/unreachable code **100%**, imports **90%**, attribute/class/function/method/property/variable **60%**; gate CI with `--min-confidence` (100 = guaranteed-dead only); whitelist files preferred over noqa | [R128] |
-| ERA001 commented-out-code | eradicate-derived: comments containing Python code ("Commented-out code is dead code"); known false-positive class where prose resembles code (#4845); `lint.task-tags` option available | [R129] |
+| Gate                        | Threshold semantics                                                                                                                                                                                                                                                    | Cite      |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| C901 / mccabe               | plugin disabled by default; enable via `--max-complexity N`; emits `'fn' is too complex (N)`; "According to McCabe, anything that goes beyond 10 is too complex"; threshold **inclusive since 0.3** (complexity == limit passes); suppress per-def with `# noqa: C901` | [R92]     |
+| PLR0913 too-many-arguments  | fires when function args exceed `max-args` (shipped default widely cited as **5**, unconfirmed — see U12)                                                                                                                                                              | [R83]     |
+| PLR0912 too-many-branches   | `Too many branches (N/M)` above `max-branches`; canonical fix shown is elif-chain → dict dispatch; docs example config sets 10 while shipped default is cited as **12** (unconfirmed — see U12)                                                                        | [R81,R82] |
+| PLR0915 too-many-statements | `Too many statements (N/M)` above `max-statements`; guidance: split into smaller functions; docs example sets 7 while shipped default is cited as **50** (unconfirmed — see U12)                                                                                       | [R81,R82] |
+| radon CC + MI               | CC = decisions + 1; if/elif/for/while/except/with/assert/comprehension +1 each, boolean operator +1, else/finally +0; MI formula combines Halstead V, CC, SLOC, comment-% — radon's own docs call MI **experimental**, weigh less than other metrics                   | [R93]     |
+| vulture confidence tiers    | AST defined-vs-used walk, scope-insensitive: arguments/unreachable code **100%**, imports **90%**, attribute/class/function/method/property/variable **60%**; gate CI with `--min-confidence` (100 = guaranteed-dead only); whitelist files preferred over noqa        | [R128]    |
+| ERA001 commented-out-code   | eradicate-derived: comments containing Python code ("Commented-out code is dead code"); known false-positive class where prose resembles code (#4845); `lint.task-tags` option available                                                                               | [R129]    |
 
 Gates approximate reader-relative comprehension ("can't be understood quickly by code readers") but do not replace it — the reviewer supplies the judgment the metric proxies [R99,R98].
 
@@ -486,13 +486,13 @@ Gates approximate reader-relative comprehension ("can't be understood quickly by
 
 **(a) Severity map** — borrow, don't invent (K24):
 
-| Pylint class | Reviewer token | Example rules |
-|---|---|---|
-| C — convention | Nit | E501 line-length, W291 whitespace, keyword-default-spacing, D20x docstring shape |
-| R — refactor (smell) | suggestion | PLR0912/0913/0915 gates, SIM/RET/C4 simplification rewrites, long elif → dict dispatch |
-| W — warning | suggestion → must-fix with context | DTZ003 naive utcnow, mutable-global-state |
-| E — error (probable bug) | must-fix | F821 undefined name, B006 mutable default, B012 finally flow-control, F632 is-literal, B023 loop-closure capture |
-| F — fatal | blocker | parse/analysis failure preventing further processing of the file |
+| Pylint class             | Reviewer token                     | Example rules                                                                                                    |
+| ------------------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| C — convention           | Nit                                | E501 line-length, W291 whitespace, keyword-default-spacing, D20x docstring shape                                 |
+| R — refactor (smell)     | suggestion                         | PLR0912/0913/0915 gates, SIM/RET/C4 simplification rewrites, long elif → dict dispatch                           |
+| W — warning              | suggestion → must-fix with context | DTZ003 naive utcnow, mutable-global-state                                                                        |
+| E — error (probable bug) | must-fix                           | F821 undefined name, B006 mutable default, B012 finally flow-control, F632 is-literal, B023 loop-closure capture |
+| F — fatal                | blocker                            | parse/analysis failure preventing further processing of the file                                                 |
 
 **(b) Automation-boundary diagram:**
 
@@ -724,4 +724,3 @@ Single consolidated list, contiguous R1-R135. Finding A's R1-R60 keep their numb
 ### Control Journal
 
 [2026-08-22T14:30Z] CONSOLIDATION -> SAVED :: cycle 1 :: trigger: user-directed corpus consolidation; merged findings A (c162f0d) + B (b08b22b); sources marked superseded by banner.
-

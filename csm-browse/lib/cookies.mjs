@@ -67,7 +67,7 @@ export async function dismissCookies(client, sessionId) {
     await client.send(
       "Runtime.evaluate",
       {
-        expression: `(function(){var all=document.querySelectorAll('*');for(var i=0;i<all.length;i++){var e=all[i];var s=getComputedStyle(e);if((s.position==='fixed'||s.position==='sticky')&&e.offsetHeight>0&&e.offsetHeight<window.innerHeight){var t=e.textContent.toLowerCase();if(t.includes('privacy')||t.includes('consent')||t.includes('cookie')||t.includes('data')){e.remove()}}}})()`,
+        expression: `(function(){var all=document.querySelectorAll('*');for(var i=0;i<all.length;i++){var e=all[i];var s=getComputedStyle(e);if((s.position==='fixed'||s.position==='sticky')&&e.offsetHeight>0&&e.offsetHeight<window.innerHeight){var t=e.textContent.toLowerCase();if(/\\b(?:privacy|consent|cookie)s?\\b/i.test(t)){e.remove()}}}})()`,
         returnByValue: true,
       },
       sessionId,

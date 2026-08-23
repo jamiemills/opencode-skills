@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -89,6 +89,25 @@ test("caps are disclosed as unverified coverage, never absence", async () => {
 const gitRoots = [];
 after(() => {
   for (const root of gitRoots) rmSync(root, { recursive: true, force: true });
+});
+
+test("oversize files are skipped pre-read and the skip is disclosed", async () => {
+  const root = mkdtempSync(join(tmpdir(), "csm-ddd-oversize-"));
+  gitRoots.push(root);
+  cpSync(fixtureRepo, root, { recursive: true });
+  const hugeRel = "src/huge.mjs";
+  writeFileSync(join(root, hugeRel), `export const huge = 1;\n/*${"x".repeat(1_100_000)}*/\n`);
+  const result = await extractRepository({ root });
+  assert.ok(!result.files.includes(hugeRel), "oversize file must be excluded");
+  assert.equal(result.caps.maxFileBytes, 1_000_000);
+  assert.equal(result.caps.skippedOversizeFiles, 1);
+  assert.ok(
+    result.caps.bytesScanned < 1_100_000,
+    "oversize bytes must never be accumulated into the scan budget",
+  );
+  assert.ok(!result.inventory.declarations.some((d) => d.name === "huge"));
+  const inventoryClaim = result.claims.find((c) => c.subject === "repository-inventory");
+  assert.match(inventoryClaim.note, /skipped 1 file\(s\) exceeding maxFileBytes=1000000/);
 });
 
 test("bounded git evidence yields co-change pairs and aggregate authorship only", async () => {

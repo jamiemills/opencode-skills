@@ -443,6 +443,57 @@ test("R4: an envelope with no signature field is the documented local flow and p
   }
 });
 
+test("F4-01: verify output carries a signed marker distinguishing signed, unsigned, and failed verifications", async () => {
+  const dir = await mkdtemp("/tmp/csm-bootstrap-signed-");
+  await chmod(dir, 0o700);
+  try {
+    await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
+    const shippedBin = join(dir, "package", "bin", "csm-skills-bootstrap.js");
+    const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+
+    const signedRun = await execFileAsync(process.execPath, [shippedBin, "verify", fixturePath], {
+      encoding: "utf8",
+    });
+    assert.equal(JSON.parse(signedRun.stdout).verification.ok, true);
+    assert.equal(JSON.parse(signedRun.stdout).verification.signed, true);
+
+    const unsignedEnvelope = { ...envelope };
+    delete unsignedEnvelope.signature;
+    const unsignedPath = join(dir, "signature-stripped.json");
+    await writeFile(unsignedPath, `${JSON.stringify(unsignedEnvelope, null, 2)}\n`);
+    const unsignedRun = await execFileAsync(
+      process.execPath,
+      [shippedBin, "verify", unsignedPath],
+      {
+        encoding: "utf8",
+      },
+    );
+    assert.equal(JSON.parse(unsignedRun.stdout).verification.ok, true);
+    assert.equal(JSON.parse(unsignedRun.stdout).verification.signed, false);
+
+    await writeFile(
+      join(dir, "malformed.json"),
+      JSON.stringify({
+        ...envelope,
+        signature: { ...envelope.signature, value: Buffer.from("bad").toString("base64") },
+      }),
+    );
+    const malformedRun = await execFileAsync(
+      process.execPath,
+      [shippedBin, "verify", join(dir, "malformed.json")],
+      { encoding: "utf8" },
+    )
+      .then((out) => ({ stdout: out.stdout, code: 0 }))
+      .catch((error) => ({ stdout: error.stdout || "", code: error.code }));
+    assert.notEqual(malformedRun.code, 0, "malformed envelope must exit non-zero");
+    const malformedResult = JSON.parse(malformedRun.stdout);
+    assert.equal(malformedResult.verification.ok, false);
+    assert.equal(malformedResult.verification.signed, false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("R5: the shipped bin embeds the shared shell denylist and fixed package policy without drift", async () => {
   const binSrc = await readFile(binPath, "utf8");
   const policyMatch = /const FIXED_PACKAGE_POLICY = \{([\s\S]*?)\};/.exec(binSrc);

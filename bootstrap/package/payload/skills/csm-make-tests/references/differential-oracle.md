@@ -69,10 +69,10 @@ behavior is compared against it.
 
 When the seam is a service boundary rather than a function call [K25]:
 
-| Mechanism | Shape | Caveat |
-| --- | --- | --- |
-| Istio traffic mirroring | out-of-band copy of live traffic to the mirrored service | responses are DISCARDED — capture and diff outputs yourself |
-| GoReplay | record live HTTP, replay against both implementations, A/B compare | supports soak-style comparisons |
+| Mechanism               | Shape                                                              | Caveat                                                      |
+| ----------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Istio traffic mirroring | out-of-band copy of live traffic to the mirrored service           | responses are DISCARDED — capture and diff outputs yourself |
+| GoReplay                | record live HTTP, replay against both implementations, A/B compare | supports soak-style comparisons                             |
 
 ## Human Adjudication
 

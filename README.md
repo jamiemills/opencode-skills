@@ -61,7 +61,8 @@ Twelve skills, three roles:
 | Role                                             | Skills                                                                                 |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | **Orchestration** (invoked by name in a session) | `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review`, `csm-review-python` |
-| **Tooling** (also expose a CLI)                  | `csm-scan`, `csm-browse`, `csm-upload`                                                 |
+| **Tooling** (repository analyzers with a CLI)    | `csm-scan`, `csm-ddd`                                                                  |
+| **Evidence** (capture & publish)                 | `csm-browse`, `csm-upload`                                                             |
 
 The core loop — **research → grill → plan → build** — with the supporting cast:
 
@@ -95,6 +96,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-grill`         | `.agents/approaches/<date>-<idea-slug>-approach.md`                                                                        |
 | `csm-plan`          | `.agents/plans/<date>-<goal-slug>-csm.md`                                                                                  |
 | `csm-bdd-tdd`       | mutated plan `<date>-<goal>-bdd-csm.md` + spec/scenario/test designs                                                       |
+| `csm-make-tests`    | `.agents/tests/<date>-<repo-slug>-tests-ledger.md` + `-verification.md`                                                    |
 | `csm-build`         | plan journal + delivery evidence (in-repo)                                                                                 |
 | `csm-review`        | `.agents/reviews/<date>-<repo-slug>-review.md`                                                                             |
 | `csm-review-python` | `.agents/doctrine/<date>-<repo-slug>-python-doctrine-review.md`                                                       |
@@ -121,40 +123,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.                 | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
 | `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                                 | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
 
-**How they compose** — the core loop with the supporting cast:
-
-```mermaid
-flowchart LR
-    grill["csm-grill<br/>idea → agreed phased approach"] -.->|"phase briefs"| plan["csm-plan<br/>brief → saved, verified plan"]
-    scan["csm-scan<br/>repo(s) → NORMS.md"] -.->|"optional conventions input"| plan
-    scan -.->|"optional conventions input"| bdd["csm-bdd-tdd<br/>optional: plan → BDD/TDD spec package"]
-    scan -.->|"optional conventions input"| build["csm-build<br/>plan → verified implementation"]
-    scan --> review["csm-review<br/>repo(s) → adversarial review"] -->|"review findings"| plan
-    research["csm-deep-research<br/>question → cited finding"] -.->|"cited findings"| grill
-    grill -.->|"follow-up research questions"| research
-    plan -.->|"cited external findings"| research
-    plan --> bdd
-    bdd --> build
-    plan -->|"without mutation"| build
-    build -->|"delivery"| browse["csm-browse<br/>image/video evidence of delivery"] -->|"evidence"| upload["csm-upload<br/>evidence → GitHub Pages demo site"]
-```
-
-> **Edge semantics:** dashed edges are optional, human-invoked inputs. Research runs **first — or in parallel with the grill** — when the idea rests on external facts, specs, or standards that must be verifiable by citation: `csm-deep-research` answers them, the cited findings feed the grill (which may dispatch follow-up questions) and the plan, and the finding lands in `.agents/research/`. `csm-scan` feeds `NORMS.md` conventions into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`. `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — never an automatic edge. A csm-ddd analysis (report + graph under `.agents/ddd/`) can likewise be referenced by a planning brief or cited by a saved plan as an optional evidence input.
-
-**The artifact ledger** — every run leaves a dated, machine-validated artifact under `.agents/` (indexed in [`.agents/README.md`](.agents/README.md)):
-
-| Skill               | Artifact                                                                                                                   |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `csm-grill`         | `.agents/approaches/<date>-<idea-slug>-approach.md`                                                                        |
-| `csm-plan`          | `.agents/plans/<date>-<goal-slug>-csm.md`                                                                                  |
-| `csm-bdd-tdd`       | mutated plan `<date>-<goal>-bdd-csm.md` + spec/scenario/test designs                                                       |
-| `csm-build`         | plan journal + delivery evidence (in-repo)                                                                                 |
-| `csm-review`        | `.agents/reviews/<date>-<repo-slug>-review.md`                                                                             |
-| `csm-scan`          | `NORMS.md` at the scanned repo root                                                                                        |
-| `csm-deep-research` | `.agents/research/<date>-<slug>-research.md` + optional run artifacts in `.agents/research/artifacts/` (e.g. JSON schemas) |
-| `csm-browse`        | screenshots / videos / DOM·console·network evidence                                                                        |
-| `csm-upload`        | dated GitHub Pages demo page                                                                                               |
-| `csm-ddd`           | `.agents/ddd/<date>-<repo-slug>-ddd-report.md` + `.agents/ddd/<date>-<repo-slug>-ddd-graph.json`                           |
+**How they compose** — see the [core-loop diagram and edge semantics in the Install section](#install); the artifact ledger there is the canonical one (all twelve skills), indexed in [`.agents/README.md`](.agents/README.md).
 
 <!-- csm-matrix:start -->
 ## Composition matrix
@@ -314,7 +283,7 @@ Terminal evidence publisher: `node $HOME/.config/opencode/skills/csm-upload/scri
 8. **Build** — `csm-build` executes the saved plan with parallel subagents, durable checkpoints, and review/repair cycles until every acceptance signal has evidence. _Full reference: [csm-build/SKILL.md](csm-build/SKILL.md) — Execution State Machine, Completion Gate._
 9. **Evidence** — `csm-browse` drives an isolated Chromium container to capture screenshots/videos/DOM·network evidence of the delivery; `csm-upload` publishes it as a dated GitHub Pages demo page. _Full reference: [csm-browse/SKILL.md](csm-browse/SKILL.md) — Verb reference; [csm-upload/SKILL.md](csm-upload/SKILL.md) — Usage._
 
-### Orchestration conventions shared by the eight orchestration skills
+### Conventions shared by the eight tmux-bootstrapping skills
 
 - **tmux bootstrap** — `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-make-tests`, `csm-scan`, `csm-review`, `csm-deep-research`, and `csm-review-python` derive a relevant `<skill>-<goal-slug>` session name from each invocation, rename the active tmux session when already inside one, or start a detached session when outside; say **"no tmux"** to disable this behavior. `csm-grill` is interactive by design and never detaches.
 - **Machine-validated artifacts** — every artifact carries a `format: <skill>/<n>` marker as its first line, and the repo-wide gate validates corpus shape (required sections in order, control journals, transition formats) so a fresh session can resume from the artifact alone, never from chat history.
@@ -393,13 +362,16 @@ All gates and test suites run through **`make`** — it is the interface (see th
 
 - `make install` # install root devDeps (lefthook + oxfmt + oxlint) and csm-browse's deps
 - `make lint` # repo-wide oxlint with the committed quality bar (`.oxlintrc.json`: correctness + suspicious categories, warnings-as-errors); `.agents/**` is exempt (research findings, plans, and run artifacts)
-- `make check` # the repo-wide conformance gate: `node scripts/check-suite.mjs` (frontmatter, sections, state lines, README integrity, corpora, interfaces, boilerplate drift, matrix drift, payload drift, lint)
+- `make check` # the repo-wide conformance gate: `node scripts/check-suite.mjs` (frontmatter, sections, state lines, README integrity, corpora, journal/control consistency, artifact-index coverage, interfaces, boilerplate drift, matrix drift, payload drift, lint)
 - `make analyze` # lint + check
 - `make test-hooks` # hook test suite (lefthook shim + `.lefthook.yml` validation + staged-only oxlint)
-- `make test-bootstrap` # trust, package audit, protocol, offline, integration suites
+- `make test-bootstrap` # trust, package audit, protocol, offline, integration, and resume-semantics suites (pinned to node >=22 via `scripts/with-node22.mjs`)
 - `make test-scan` # csm-scan authoritative suite (serial)
 - `make test-browse` # csm-browse fast sanity (no Docker)
-- `make test` # test-hooks + test-bootstrap + test-browse + test-scan
+- `make test-browse-unit` # csm-browse unit suite (offline-safe; runs the package's `node --test` unit target, needs `pnpm install` in csm-browse)
+- `make test-upload` # csm-upload upload-script tests (offline; stubbed git/gh)
+- `make test-ddd` # csm-ddd unit tests (serial; fixtures + contracts)
+- `make test` # test-hooks + test-bootstrap + test-browse + test-browse-unit + test-upload + test-ddd + test-scan (primary suites, fast -> slow; the suite-tooling battery below runs separately)
 - `make fmt` # format repo-wide with oxfmt
 - `make fmt-check` # verify formatting, no writes (CI gate)
 - `make fmt-staged` # format + re-stage staged files (pre-commit hook parity)

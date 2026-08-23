@@ -309,3 +309,96 @@ test("F-068: real-remote happy-path upload against a local bare stub remote (url
     await rm(sandbox, { recursive: true, force: true });
   }
 });
+
+test("F8-07: malformed config without overrides aborts before any write, preserving the original bytes", async () => {
+  const sandbox = await makeSandbox("csm-upload-malformed-abort-");
+  try {
+    await makeCommandStubs(
+      sandbox,
+      `
+      const fs = require('node:fs');
+      fs.appendFileSync(process.env.CSM_OPS_LOG, process.argv.slice(2).join(' ') + '\\n');
+      process.stdout.write('nobody\\n');
+    `,
+    );
+    const input = join(sandbox, "input.png");
+    await writeFile(input, "synthetic", "utf8");
+    const configDir = join(sandbox, "home", ".agents");
+    const configFile = join(configDir, "csm-upload.json");
+    const malformed = "{ definitely not json";
+    await mkdir(configDir, { recursive: true });
+    await writeFile(configFile, malformed, "utf8");
+    const ops = join(sandbox, "ops.log");
+    const result = await runNode(
+      [SCRIPT, "--label", "malformed", input],
+      baseEnv(sandbox, { CSM_OPS_LOG: ops }),
+    );
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /csm-upload\.json/);
+    assert.match(result.stderr, /unreadable or malformed/);
+    assert.match(result.stderr, /--github\/--repo/);
+    assert.equal(await readFile(configFile, "utf8"), malformed);
+    assert.equal(await readFile(ops, "utf8").catch(() => ""), "");
+    assert.equal(
+      (await readdir(sandbox)).some((name) => name.startsWith("csm-pages-")),
+      false,
+    );
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("F8-07: malformed config with --repo override proceeds with warning and never clobbers the file", async () => {
+  const sandbox = await makeSandbox("csm-upload-malformed-override-");
+  try {
+    const bin = join(sandbox, "bin");
+    await mkdir(bin, { recursive: true });
+    const ghStub = join(bin, "gh");
+    await writeFile(ghStub, '#!/usr/bin/env node\nprocess.stdout.write("nobody\\n");\n', "utf8");
+    await chmod(ghStub, 0o700);
+    const gitStub = join(bin, "git");
+    await writeFile(gitStub, "#!/usr/bin/env node\nprocess.exit(0);\n", "utf8");
+    await chmod(gitStub, 0o700);
+
+    const input = join(sandbox, "input.png");
+    await writeFile(input, "synthetic", "utf8");
+    const configDir = join(sandbox, "home", ".agents");
+    const configFile = join(configDir, "csm-upload.json");
+    const malformed = "{ definitely not json";
+    await mkdir(configDir, { recursive: true });
+    await writeFile(configFile, malformed, "utf8");
+
+    const result = await runNode(
+      [SCRIPT, "--label", "override", "--repo", "nowhere", input],
+      baseEnv(sandbox),
+    );
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stderr, /csm-upload\.json/);
+    assert.match(result.stderr, /unreadable or malformed/);
+    assert.equal(await readFile(configFile, "utf8"), malformed);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("F8-07: parseable non-object configs are rejected without clobbering", async () => {
+  for (const value of ["[]", "null", '"wrong"', '{"github":42}']) {
+    const sandbox = await makeSandbox("csm-upload-invalid-shape-");
+    try {
+      await makeCommandStubs(sandbox, "process.stdout.write('nobody\\n');");
+      const input = join(sandbox, "input.png");
+      await writeFile(input, "synthetic", "utf8");
+      const configDir = join(sandbox, "home", ".agents");
+      const configFile = join(configDir, "csm-upload.json");
+      await mkdir(configDir, { recursive: true });
+      await writeFile(configFile, value, "utf8");
+
+      const result = await runNode([SCRIPT, "--label", "invalid-shape", input], baseEnv(sandbox));
+      assert.equal(result.code, 1, `${value}: ${result.stderr}`);
+      assert.match(result.stderr, /INVALID_CONFIG|unreadable or malformed/);
+      assert.equal(await readFile(configFile, "utf8"), value);
+    } finally {
+      await rm(sandbox, { recursive: true, force: true });
+    }
+  }
+});

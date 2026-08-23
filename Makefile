@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help install lint fmt fmt-check fmt-staged check test test-hooks test-bootstrap test-scan test-browse test-e2e analyze
+.PHONY: help install lint fmt fmt-check fmt-staged check test test-hooks test-bootstrap test-scan test-browse test-browse-unit test-upload test-ddd test-e2e analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -34,9 +34,11 @@ analyze: lint check ## analyzers: lint + conformance gate
 test-hooks: ## lefthook/pre-commit test suite
 	node --test scripts/hooks/test/pre-commit.test.mjs
 
-test-bootstrap: ## bootstrap suites (serial; self-pack)
-	node --test tests/bootstrap-trust.test.mjs tests/package-audit.test.mjs \
-	  tests/protocol/*.test.mjs tests/offline/*.test.mjs tests/integration/*.test.mjs
+test-bootstrap: ## bootstrap suites (serial; self-pack) + resume-semantics corpus contract (node >=22 via with-node22)
+	node scripts/with-node22.mjs --exec node --test tests/bootstrap-trust.test.mjs \
+	  tests/package-audit.test.mjs \
+	  tests/protocol/*.test.mjs tests/offline/*.test.mjs tests/integration/*.test.mjs \
+	  tests/resume-semantics.test.mjs
 
 test-scan: ## csm-scan authoritative suite (serial only — ~2min)
 	cd csm-scan && node --test --test-concurrency=1
@@ -47,7 +49,15 @@ test-ddd: ## csm-ddd unit tests (serial; fixtures + contracts)
 test-browse: ## csm-browse fast sanity (no Docker)
 	cd csm-browse && node scripts/check-skill.mjs
 
+test-browse-unit: ## csm-browse unit suite (offline-safe; needs pnpm install in csm-browse)
+	@if [ ! -d csm-browse/node_modules/ws ]; then \
+	  echo "csm-browse deps missing — run: cd csm-browse && pnpm install --frozen-lockfile" >&2; exit 1; fi
+	cd csm-browse && node --test --test-concurrency=1 tests/unit/
+
+test-upload: ## csm-upload upload-script tests (offline; stubbed git/gh)
+	node --test csm-upload/tests/upload.test.mjs
+
 test-e2e: ## csm-browse e2e (requires chromium-vnc container)
 	cd csm-browse && node tests/e2e.mjs
 
-test: test-hooks test-bootstrap test-browse test-ddd test-scan ## all test suites (fast -> slow)
+test: test-hooks test-bootstrap test-browse test-browse-unit test-upload test-ddd test-scan ## primary test suites (fast -> slow; suite-tooling battery via tests/*.test.mjs documented in README)

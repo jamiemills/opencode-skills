@@ -87,10 +87,49 @@ if (!label) {
 
 async function loadConfig({ probe = true } = {}) {
   let config = {};
+  let configError = null;
   try {
     const raw = await readFile(CONFIG_PATH, "utf-8");
     config = JSON.parse(raw);
-  } catch {}
+  } catch (err) {
+    config = {};
+    // F8-07: a missing config (ENOENT) is the normal first-run state —
+    // proceed with defaults silently. Any other failure (unreadable file,
+    // malformed JSON) must NOT be treated as "no config": rebuilding the
+    // config and saving it would silently overwrite the user's original
+    // bytes. Warn, and never write the file back in that state.
+    if (err.code !== "ENOENT") configError = err;
+  }
+
+  if (
+    configError === null &&
+    (config === null ||
+      typeof config !== "object" ||
+      Array.isArray(config) ||
+      (config.github !== undefined && typeof config.github !== "string") ||
+      (config.pagesRepo !== undefined && typeof config.pagesRepo !== "string"))
+  ) {
+    configError = Object.assign(new Error("invalid config shape"), {
+      code: "INVALID_CONFIG",
+    });
+    config = {};
+  }
+
+  if (configError) {
+    const reason = configError.code || configError.message;
+    console.error(
+      `${CONFIG_PATH} unreadable or malformed (${reason}) — ignoring its contents for this run`,
+    );
+    if (!ghOverride && !repoOverride) {
+      console.error(
+        `Refusing to continue: proceeding on defaults would overwrite the malformed config at ${CONFIG_PATH}.`,
+      );
+      console.error(
+        "Pass --github/--repo overrides for this run, or fix or remove the config file.",
+      );
+      process.exit(1);
+    }
+  }
 
   if (config.github && config.pagesRepo) return config;
 
@@ -134,8 +173,14 @@ async function loadConfig({ probe = true } = {}) {
 
   if (!probe) return config;
 
-  await mkdir(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
-  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), { encoding: "utf-8", mode: 0o600 });
+  // F8-07: never persist a rebuilt config over an unreadable/malformed file.
+  if (!configError) {
+    await mkdir(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+  }
   return config;
 }
 

@@ -34,7 +34,7 @@ mutmut run "pkg.module*"        # wildcard scope to characterized modules
 - Cost knobs: `mutate_only_covered_lines=true` (never mutate lines coverage never
   reaches), `only_mutate`/`do_not_mutate` globs, `# pragma: no mutate`.
 - Gate + survivor output: `mutmut export-cicd-stats` then `mutmut badge --output
-  mutation-score.json` — gate on the exported score, not a documented exit code [K5].
+mutation-score.json` — gate on the exported score, not a documented exit code [K5].
 - CAUTION: the CLI surface is version-dependent — 3.x rewrote its commands. Pin the
   version before scripting any subcommand [K5]. Alternative: cosmic-ray (session-file
   driver); not covered by the committed finding — verify its CLI before use.

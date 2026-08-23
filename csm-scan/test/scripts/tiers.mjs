@@ -96,6 +96,7 @@ export const L = [
   "test/manifest-survey-repair.test.mjs",
   "test/operations.test.mjs",
   "test/regression-parity.test.mjs",
+  "test/fuzz-parse.test.mjs",
   "test/security.test.mjs",
   "test/stack.test.mjs",
   "test/structure.test.mjs",

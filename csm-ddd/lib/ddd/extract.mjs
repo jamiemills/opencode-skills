@@ -3,12 +3,16 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { buildClaim, buildEvidence } from "./contracts.mjs";
-import { redactText, containsAbsoluteRootPath } from "./redact.mjs";
+import { redactEvidenceRecords, redactText } from "./redact.mjs";
 import * as gitProbe from "./git.mjs";
 
 const SKIP_DIRS = new Set([".git", "node_modules", ".venv", "__pycache__", "dist", "build"]);
 const CODE_EXTS = new Set([".mjs", ".js", ".ts", ".py", ".go", ".rs"]);
-const DEFAULT_LIMITS = Object.freeze({ maxFiles: 2000, maxBytes: 2_000_000 });
+const DEFAULT_LIMITS = Object.freeze({
+  maxFiles: 2000,
+  maxBytes: 2_000_000,
+  maxFileBytes: 1_000_000,
+});
 
 export class ExtractLimits extends Error {
   constructor(message) {
@@ -29,6 +33,10 @@ async function walkFiles(root, limits, state) {
     }
     if (!entry.isFile()) continue;
     const info = await stat(full);
+    if (info.size > limits.maxFileBytes) {
+      state.skippedOversizeFiles += 1;
+      continue;
+    }
     state.bytes += info.size;
     state.files.push(full);
     if (state.bytes >= limits.maxBytes || state.files.length >= limits.maxFiles) return;
@@ -118,7 +126,7 @@ export async function extractRepository(options = {}) {
   const root = options.root;
   if (!root || typeof root !== "string") throw new ExtractLimits("root is required");
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
-  const state = { files: [], bytes: 0 };
+  const state = { files: [], bytes: 0, skippedOversizeFiles: 0 };
   await walkFiles(root, limits, state);
   const truncatedByFiles = state.files.length >= limits.maxFiles;
   const truncatedByBytes = state.bytes >= limits.maxBytes;
@@ -155,9 +163,9 @@ export async function extractRepository(options = {}) {
     } catch {
       continue;
     }
-    if (containsAbsoluteRootPath(text)) {
-      // content itself carries absolute paths; individual records are still redacted below
-    }
+    // Text may embed absolute paths or secrets; the evidence records assembled from
+    // repository content are sanitized through the redactEvidenceRecords funnel at the
+    // return statement below (F2-16/F6-05).
     for (const decl of collectDeclarations(rel, text)) {
       inventory.declarations.push({ path: rel, ...decl });
     }
@@ -199,9 +207,13 @@ export async function extractRepository(options = {}) {
 
   const capped = truncatedByFiles || truncatedByBytes;
   const coverageStatus = capped ? "unverified" : "observed";
+  const oversizeNote =
+    state.skippedOversizeFiles > 0
+      ? `; skipped ${state.skippedOversizeFiles} file(s) exceeding maxFileBytes=${limits.maxFileBytes}`
+      : "";
   const capNote = capped
-    ? `coverage capped at maxFiles=${limits.maxFiles}/maxBytes=${limits.maxBytes}; scanned ${state.files.length} files/${state.bytes} bytes`
-    : `complete bounded scan: ${state.files.length} files/${state.bytes} bytes`;
+    ? `coverage capped at maxFiles=${limits.maxFiles}/maxBytes=${limits.maxBytes}; scanned ${state.files.length} files/${state.bytes} bytes${oversizeNote}`
+    : `complete bounded scan: ${state.files.length} files/${state.bytes} bytes${oversizeNote}`;
 
   const invId = makeClaim("inventory", {
     claimKind: "capability",
@@ -278,13 +290,19 @@ export async function extractRepository(options = {}) {
     git = { available: false, reason: "not-a-git-repository" };
   }
 
+  // Privacy funnel (F2-16/F6-05): every assembled evidence record is redacted here,
+  // immediately before records are returned toward artifact assembly.
+  const redactedEvidence = redactEvidenceRecords(evidence);
+
   return {
     root,
     caps: {
       maxFiles: limits.maxFiles,
       maxBytes: limits.maxBytes,
+      maxFileBytes: limits.maxFileBytes,
       filesScanned: state.files.length,
       bytesScanned: state.bytes,
+      skippedOversizeFiles: state.skippedOversizeFiles,
       truncatedByFiles,
       truncatedByBytes,
       disclosedIn: "claims[subject=repository-inventory].note",
@@ -292,7 +310,7 @@ export async function extractRepository(options = {}) {
     files: relFiles,
     inventory,
     claims,
-    evidence,
+    evidence: redactedEvidence,
     norms,
     git,
   };

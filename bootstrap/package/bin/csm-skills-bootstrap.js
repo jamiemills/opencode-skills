@@ -254,7 +254,14 @@ async function verifyEnvelope(envelopePath) {
     now: new Date(),
     indexSha256,
   });
-  return { verification: { ok: true, key: trusted.key, payload_index_sha256: indexSha256 } };
+  // F4-01: `signed` is true only when the envelope carried a signature and
+  // Ed25519 verification ran and passed (validateEnvelope returns only after
+  // every check passed); all failure paths report signed:false.
+  const signed =
+    Object.prototype.hasOwnProperty.call(envelope, "signature") && envelope.signature !== null;
+  return {
+    verification: { ok: true, key: trusted.key, payload_index_sha256: indexSha256, signed },
+  };
 }
 
 const arg = process.argv[2];
@@ -263,7 +270,11 @@ if (arg === "--version") {
 } else if (arg === "payload-index") {
   const { index, verified, failures } = await verifyPayload();
   process.stdout.write(
-    `${JSON.stringify({ index, verification: { ok: failures.length === 0, verified, failures } }, null, 2)}\n`,
+    `${JSON.stringify(
+      { index, verification: { ok: failures.length === 0, verified, failures, signed: false } },
+      null,
+      2,
+    )}\n`,
   );
   process.exitCode = failures.length === 0 ? 0 : 1;
 } else if (arg === "verify") {
@@ -271,7 +282,14 @@ if (arg === "--version") {
   try {
     result = await verifyEnvelope(process.argv[3]);
   } catch (error) {
-    result = { verification: { ok: false, code: error.code || "MALFORMED", error: error.message } };
+    result = {
+      verification: {
+        ok: false,
+        signed: false,
+        code: error.code || "MALFORMED",
+        error: error.message,
+      },
+    };
   }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.verification.ok ? 0 : 1;

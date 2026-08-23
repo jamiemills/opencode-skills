@@ -33,6 +33,29 @@ test("error-message redaction scrubs a bare tokenized wsUrl", () => {
   assert.ok(/token=(\[REDACTED\]|%5BREDACTED%5D)/.test(out), `redaction marker missing: ${out}`);
 });
 
+// F4-06 residual: OAuth redirect credentials (?code=, ?state=) in URLs must
+// never survive telemetry redaction, while the sibling diagnostic object keys
+// (exitCode/statusCode/state) keep their values — the URL-scoped anchored
+// class is consumed only by redactUrl, never by the object-key walk.
+test("URL-embedded OAuth code/state params never survive telemetry redaction", () => {
+  const OAUTH_CODE = "OAUTH-CODE-4f2a91";
+  const out = JSON.stringify(
+    redactTelemetry({
+      url: `https://client.test/cb?code=${OAUTH_CODE}&state=${SECRET}&jwt=${SECRET}`,
+      exitCode: 1,
+      statusCode: 403,
+      state: "ready",
+      message: "Exit code: 1",
+    }),
+  );
+  assert.ok(!out.includes(OAUTH_CODE), `OAuth code leaked: ${out}`);
+  assert.ok(!out.includes(SECRET), `state/jwt param value leaked: ${out}`);
+  assert.ok(out.includes("code=%5BREDACTED%5D"), `code param not redacted: ${out}`);
+  assert.ok(out.includes('"exitCode":1') && out.includes('"statusCode":403'), out);
+  assert.ok(out.includes('"state":"ready"'), `state object key clobbered: ${out}`);
+  assert.ok(out.includes("Exit code: 1"), `prose diagnostic clobbered: ${out}`);
+});
+
 test("browse.mjs prints every err.message through redactTelemetry", async () => {
   const source = await readFile(
     fileURLToPath(new URL("../../scripts/browse.mjs", import.meta.url)),

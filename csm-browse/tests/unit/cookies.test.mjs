@@ -136,6 +136,30 @@ test("fixed privacy-overlay removal pattern is emitted", async () => {
   );
 });
 
+test("overlay removal keywords are word-boundary scoped: 'database docs' survives, 'cookie consent' is removed", async () => {
+  const client = makeClient();
+  await dismissCookies(client, "s");
+  const overlay = evaluates(client).find(
+    (c) =>
+      c.params.expression.includes("position==='fixed'") && c.params.expression.includes("privacy"),
+  );
+  assert.ok(overlay, "fixed overlay removal pattern missing");
+  assert.ok(
+    !overlay.params.expression.includes("includes('data')"),
+    "bare-substring 'data' matching must not remain in the overlay pattern",
+  );
+  const m = overlay.params.expression.match(/\/(.+?)\/([a-z]*)\.test\(/);
+  assert.ok(m, "keyword regex not found in overlay pattern");
+  const keyword = new RegExp(m[1], m[2]);
+  assert.equal(keyword.test("database docs"), false, "'database docs' chrome must survive");
+  assert.equal(keyword.test("cookie consent"), true, "'cookie consent' banner must be removed");
+  assert.equal(
+    keyword.test("we value your data"),
+    false,
+    "bare 'data' alone must not trigger removal",
+  );
+});
+
 test("no consent wall found: returns early, no context work, no wall removal", async () => {
   const client = makeClient({ walls: [] });
   await dismissCookies(client, "s");

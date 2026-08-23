@@ -1,12 +1,12 @@
 {
   "answers": [
     {
-      "questionId": "q-owner-0001",
+      "questionId": "q-owner-0004",
       "subject": "src/planning",
       "value": "team-alpha owns it; core outcome"
     },
     {
-      "questionId": "q-owner-0002",
+      "questionId": "q-owner-0005",
       "subject": "src/scanning",
       "value": "team-beta owns it; supporting outcome"
     }

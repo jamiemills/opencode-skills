@@ -11,12 +11,16 @@ that repo or directory; disabled directories follow default behavior.
 - Never add dates, years, versions, `$ENV` values, or absolute paths to skill
   frontmatter descriptions. Volatility breaks DeepSeek prefix-cache units; the
   lint (check-suite volatile/budget checks) enforces this — a volatile token or
-  a >220-word frontmatter total fails the gate.
-- Frontmatter descriptions total exactly 220 words today. Any edit that changes
-  wording re-budgets the 220; a drift above 220 fails the gate.
-- No new skills without re-budgeting the 220 words: every skill description is
-  injected into every session's prefix, so a 9th skill regresses the budget and
-  the cache-friendly prefix. Guidance goes to AGENTS.md/docs, not a new SKILL.md.
+  a frontmatter total above the pinned budget fails the gate.
+- Frontmatter descriptions carry a word budget pinned in
+  `scripts/check-suite.mjs` (`WORD_BUDGET`, re-pinned to the measured total
+  2026-08-23; see `.agents/docs/csm-ddd-token-efficiency-liability.md`). Any
+  edit that changes wording re-budgets it; a drift above the pin fails the
+  gate while token efficiency is enabled, and the disabled gate still reports
+  the live drift on every run.
+- No new skills without re-budgeting: every skill description is injected into
+  every session's prefix, so an additional skill regresses the budget and the
+  cache-friendly prefix. Guidance goes to AGENTS.md/docs, not a new SKILL.md.
 
 ## Fresh-session resume over long transcripts
 

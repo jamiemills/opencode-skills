@@ -56,10 +56,13 @@ import { join, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import { spawn } from "node:child_process";
+import { spawn, execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
 import { createConnection } from "node:net";
 import { ensurePrivateDir, secureWrite, redactTelemetry, redactUrl } from "../lib/security.mjs";
 import { cdpFetchJson, cdpProbe } from "../lib/fetch.mjs";
+
+const realExecFile = promisify(execFileCb);
 
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
@@ -905,12 +908,17 @@ async function createSession(targetSid, containerSessDir) {
   }
 }
 
-async function memAvailableMb() {
+export async function memAvailableMb(execFile = realExecFile) {
   try {
-    const { stdout } = await execFileAsync("free", ["-m"]);
+    const { stdout } = await execFile("free", ["-m"]);
     const m = stdout.match(/^Mem:\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/m);
-    return m ? parseInt(m[1], 10) : -1;
-  } catch {
+    if (!m) {
+      console.error("memAvailableMb: unparsable `free -m` output");
+      return -1;
+    }
+    return parseInt(m[1], 10);
+  } catch (err) {
+    console.error(`memAvailableMb: probe failed: ${err?.message ?? err}`);
     return -1;
   }
 }
@@ -923,6 +931,53 @@ async function daemonCdpAlive(targetSid) {
     }
   } catch {}
   return false;
+}
+
+// F5-02: bound for waiting out a SIGTERM'd daemon child's exit. The child's
+// worst-case own cleanup is ~8s (3s recorder finalize + 2s CDP close + 3s
+// force-exit backstop), so 10s covers it with margin.
+const CHILD_EXIT_WAIT_MS = 10000;
+
+// F5-02: after SIGTERMming a not-ready daemon child, poll until it actually
+// exits (bounded by CHILD_EXIT_WAIT_MS), then delete the daemon.pid/ready
+// markers only when the terminated child still owns them — the pid file is
+// re-read and must still contain that child's pid, mirroring the daemon-side
+// ownPidFile guard. On mismatch (another writer won the O_EXCL claim) the
+// markers are left in place and the next launch attempt's own O_EXCL claim
+// enforces single-instance. Returns true when the markers were cleared.
+export async function waitForExitAndClearMarkers(
+  childPid,
+  pidFilePath,
+  readyMarker,
+  { exitWaitMs = CHILD_EXIT_WAIT_MS, pollMs = 100, sleep = setTimeout } = {},
+) {
+  if (!childPid) return false;
+  const deadline = Date.now() + exitWaitMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(childPid, 0);
+    } catch {
+      break;
+    }
+    await sleep(pollMs);
+  }
+  let owned = false;
+  try {
+    owned = parseInt((await readFile(pidFilePath, "utf-8")).trim(), 10) === childPid;
+  } catch {}
+  if (!owned) {
+    console.error(
+      `daemon.pid no longer owned by terminated child ${childPid} — leaving markers for the next claim`,
+    );
+    return false;
+  }
+  try {
+    await rm(pidFilePath, { force: true });
+  } catch {}
+  try {
+    await rm(readyMarker, { force: true });
+  } catch {}
+  return true;
 }
 
 async function launchDaemon(targetSid) {
@@ -1061,21 +1116,12 @@ async function launchDaemon(targetSid) {
         try {
           process.kill(childPid, "SIGTERM");
         } catch {}
-        for (let i = 0; i < 20; i++) {
-          try {
-            process.kill(childPid, 0);
-          } catch {
-            break;
-          }
-          await setTimeout(100);
-        }
+        // F5-02: wait for the child's exit (bounded) and clear the markers
+        // only while our terminated child still owns them — never delete a
+        // foreign claim, and never spawn attempt #2 over a live child #1's
+        // markers.
+        await waitForExitAndClearMarkers(childPid, pidFilePath, readyMarker);
       }
-      try {
-        await rm(pidFilePath, { force: true });
-      } catch {}
-      try {
-        await rm(readyMarker, { force: true });
-      } catch {}
     }
   }
 
