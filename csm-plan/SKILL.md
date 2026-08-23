@@ -106,7 +106,7 @@ Temporary sandbox mutation and the intentional creation or update of the plan do
 
 ## Interface
 
-- Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched
+- Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched; optional csm-ddd analysis artifacts when explicitly referenced
 - Produces: one saved, verified CSM plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md`
 - Hands off: the saved plan waits for a later, explicit csm-build invocation (human-mediated)
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd
@@ -125,6 +125,7 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 2. Restate the goal, deliverables, constraints, exclusions, and measurable acceptance criteria from the brief.
 3. Identify unresolved product decisions separately from technical uncertainties.
 4. Ask concise numbered questions only for decisions that cannot be established safely through discovery or R&D.
+5. Optional-input triage: if the brief explicitly references csm-ddd artifacts (report and/or graph under `.agents/ddd/`), load them as evidence — validate the graph with the shipped validator (`node csm-ddd/lib/ddd/validate.mjs graph <path>`), confirm report and graph share one runId, and treat every claim as a hypothesis (status/basis/confidence), never ground truth. Cite loaded seams/hypotheses in Current-State Evidence; let slice-ordering ranks inform task sequencing; and for plans whose tasks alter module or service boundaries, include parity-baseline and rollback-criteria tasks per the DDD research doctrine. Absent an explicit reference, do nothing.
 
 ### 2. DISCOVER
 

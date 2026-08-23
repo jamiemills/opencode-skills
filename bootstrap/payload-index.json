@@ -35,8 +35,8 @@
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "a6f55758b7d851c9d10d80c5bfcbb9dedae13d0d1537c0b8e988715f4177409f",
-        "bytes": 23587,
+        "sha256": "e4f57ca3424dbd8997fe8b5455ab379f1f67189be05c0c24789af0195e0114e6",
+        "bytes": 24030,
         "mode": "0644"
       },
       {
@@ -65,8 +65,8 @@
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "417fe101ab6a811be88971f326d688dbe9ce3a08c476d6a1502ca6dec5f98bfc",
-        "bytes": 25246,
+        "sha256": "b4759d95e9c6adebce1d63b653d6603c59c930eaf90ae4f37f7360b2d22fbc7f",
+        "bytes": 25976,
         "mode": "0644"
       },
       {

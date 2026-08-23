@@ -188,6 +188,15 @@ const CONTRACTS = [
     consumers: [{ skill: "csm-build", needle: "Superseded for BDD/TDD" }],
     rule: "exact",
   },
+  {
+    id: "ddd-analysis-to-planners",
+    source: { skill: "csm-ddd", needle: ".agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md" },
+    consumers: [
+      { skill: "csm-plan", needle: ".agents/ddd/" },
+      { skill: "csm-build", needle: ".agents/ddd/" },
+    ],
+    rule: "prefix",
+  },
 ];
 
 const UPLOAD_SCRIPT_REF = {
@@ -217,6 +226,7 @@ const INTERFACES = {
       "repository conventions",
       "review findings",
       "optional csm-deep-research findings when dispatched",
+      "optional csm-ddd analysis artifacts when explicitly referenced",
     ],
     produces: ["saved, verified CSM plan"],
     handoff: ["saved plan to csm-bdd-tdd or csm-build"],
@@ -231,7 +241,12 @@ const INTERFACES = {
   },
   "csm-build": {
     entryConditions: ["saved CSM plan", "explicit implementation request"],
-    consumes: ["saved plan", "optional NORMS.md", "BDD/TDD package when present"],
+    consumes: [
+      "saved plan",
+      "optional NORMS.md",
+      "BDD/TDD package when present",
+      "optional csm-ddd analysis artifacts when the plan cites them",
+    ],
     produces: ["verified implementation", "delivery evidence"],
     handoff: ["delivery to csm-browse"],
     midPipeline: ["task dependencies", "checkpoints", "review findings", "repair evidence"],

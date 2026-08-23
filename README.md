@@ -164,9 +164,9 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 | Skill | Standalone entry | Consumes | Produces | Hands off |
 |---|---|---|---|---|
 | `csm-grill` | idea shared, explicit request to be grilled, interviewed, or stress-tested | rough idea, repository and research evidence, optional csm-deep-research findings when dispatched | agreed phased approach document | phase briefs to a separately invoked csm-plan |
-| `csm-plan` | brief or phase brief, explicit planning request | idea or phase brief, repository conventions, review findings, optional csm-deep-research findings when dispatched | saved, verified CSM plan | saved plan to csm-bdd-tdd or csm-build |
+| `csm-plan` | brief or phase brief, explicit planning request | idea or phase brief, repository conventions, review findings, optional csm-deep-research findings when dispatched, optional csm-ddd analysis artifacts when explicitly referenced | saved, verified CSM plan | saved plan to csm-bdd-tdd or csm-build |
 | `csm-bdd-tdd` | saved CSM plan, explicit BDD/TDD mutation request | saved plan, repository conventions | formal spec, Gherkin scenarios, unit test designs, mutated CSM plan | mutated plan to csm-build |
-| `csm-build` | saved CSM plan, explicit implementation request | saved plan, optional NORMS.md, BDD/TDD package when present | verified implementation, delivery evidence | delivery to csm-browse |
+| `csm-build` | saved CSM plan, explicit implementation request | saved plan, optional NORMS.md, BDD/TDD package when present, optional csm-ddd analysis artifacts when the plan cites them | verified implementation, delivery evidence | delivery to csm-browse |
 | `csm-review` | repository target, explicit review, audit, or assessment request | repository at a pinned commit, optional NORMS.md | dated findings report | review findings to a subsequent csm-plan run, separate human-mediated dispatch to csm-review-python |
 | `csm-scan` | repository target, scan or conventions-analysis request | committed repository declarations | NORMS.md | optional conventions input to csm-plan, csm-bdd-tdd, csm-build, or csm-review |
 | `csm-browse` | need to drive a headful Chromium browser | browser session, CDP verbs, delivery target | screenshots, videos, DOM, console, network, or performance evidence | evidence files to csm-upload |

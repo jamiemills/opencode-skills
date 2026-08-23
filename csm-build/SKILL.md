@@ -89,7 +89,7 @@ Plans may come from `csm-plan` (base plans) or `csm-bdd-tdd` (BDD/TDD mutations,
 
 ## Interface
 
-- Consumes: a saved CSM plan (explicit path or discovered in `.agents/plans/`, BDD/TDD mutation preferred); optional NORMS.md artifact
+- Consumes: a saved CSM plan (explicit path or discovered in `.agents/plans/`, BDD/TDD mutation preferred); optional NORMS.md artifact; optional csm-ddd analysis artifacts when the plan cites them
 - Produces: a verified implementation with commits, plus the updated plan document (Control, journal, Completion Review)
 - Hands off: terminal executor — delivery returns to the human; evidence capture via csm-browse is a separate user action
 - Never invokes: csm-bdd-tdd, csm-browse, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd
@@ -117,6 +117,7 @@ Reconstruct reality before continuing:
 5. Identify partial edits, failed checks, generated artifacts, concurrent changes, and stale assumptions.
 6. Mark a task completed only when its acceptance evidence is present and reproducible. Correct stale statuses in the plan.
 7. Set the exact next safe transition. A new plan and an interrupted plan both pass through this state.
+8. DDD-context check: if the plan cites `.agents/ddd/` artifacts, verify each referenced file exists and parses, confirm the plan's cited runId equals the graph's runId, and record mismatches as a VALIDATE blocker; absent citations, skip.
 
 **Resume block.** When resuming (including from `PAUSED`), re-read Control `Last checkpoint`, the latest journal row, the Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff. When `Last model/run:` differs from the current run, re-verify acceptance evidence authored by the previous run instead of trusting status labels.
 
@@ -154,6 +155,7 @@ Launch all independent assignments concurrently. Each subagent prompt must inclu
 - if NORMS.md was loaded during RECOVER: a "Repository Norms" section extracting key conventions (file naming rules, import style, testing patterns, error handling, commit conventions, architecture patterns);
 - prohibition on unrelated edits, destructive actions, commits, deployments, and external-system mutation;
 - required return: files changed, checks run with results, acceptance evidence, remaining risks, and anything that may affect another task.
+- for plans citing DDD context: carry the relevant seam constraints (rollback option, observable behavior) into every task touching that seam
 
 Use implementation subagents only when their write scopes do not overlap. Use additional parallel subagents for independent read-only investigation or test analysis when that shortens the critical path.
 
