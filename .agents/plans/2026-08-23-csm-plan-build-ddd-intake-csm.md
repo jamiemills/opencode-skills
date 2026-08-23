@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: csm-plan-build-ddd-intake
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: complete
+- Current CSM state: COMPLETE
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: planning SAVED 2026-08-23
+- Last checkpoint: COMPLETE 2026-08-23 — all 4 tasks verified; check-suite OK 12 skills/919 checks; repo suite 89/89; csm-ddd 35/35; procedure dry-run proves graph validation + runId match
 - Last model/run: stealth/ox-alpha opencode 2026-08-23
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Next transition: COMPLETE (terminal)
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -109,7 +109,7 @@ Critical path: T003→T004. Prose-first is safe for ARTIFACT_PATTERNS and CONTRA
 
 ## Numbered Plan
 
-1. [pending] csm-plan: optional DDD intake procedure
+1. [completed] csm-plan: optional DDD intake procedure
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -123,7 +123,7 @@ Critical path: T003→T004. Prose-first is safe for ARTIFACT_PATTERNS and CONTRA
    - Acceptance evidence: command outputs recorded in journal
    - Repair attempts: 0
    - Recovery note: prose-only; revert = restore prior bullet/step
-2. [pending] csm-build: DDD-context recovery and dispatch hooks
+2. [completed] csm-build: DDD-context recovery and dispatch hooks
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -137,7 +137,7 @@ Critical path: T003→T004. Prose-first is safe for ARTIFACT_PATTERNS and CONTRA
    - Acceptance evidence: command outputs recorded in journal
    - Repair attempts: 0
    - Recovery note: prose-only; revert = remove added items
-3. [pending] Registry recognition: INTERFACES, CONTRACTS, matrix, baseline
+3. [completed] Registry recognition: INTERFACES, CONTRACTS, matrix, baseline
    - Task ID: T003
    - Depends on: T001, T002 (consumer needles must exist in prose before the gate checks them)
    - Parallel group: G2
@@ -151,7 +151,7 @@ Critical path: T003→T004. Prose-first is safe for ARTIFACT_PATTERNS and CONTRA
    - Acceptance evidence: gate output + baseline record line
    - Repair attempts: 0
    - Recovery note: registry is additive; revert = drop entry + regenerate matrix
-4. [pending] Verification battery and closeout
+4. [completed] Verification battery and closeout
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G3
@@ -197,7 +197,16 @@ Cheapest-first: per-task `rg` asserts + single-file reads (seconds) → batch ga
 | 2026-08-23 | 0 | DRAFT | 4 pending | Plan drafted | CRITIQUE |
 | 2026-08-23 | 0 | CRITIQUE | 4 pending | Independent subagent critique (channel recovered): ready-after-remediation — 1 blocker (payload-drift vs G1 gate runs), 1 major (T003 scope), 2 minor | REMEDIATE |
 | 2026-08-23 | 0 | REMEDIATE | 4 pending | All 4 findings resolved (signals retargeted, pack+scope moved to T003, README sentence added to T004, table filled); ordinal/machine safety, contract shape/direction, line caps, and signal lint independently verified OK | VERIFY |
+| 2026-08-23T10:15Z | 1 | CHECKPOINT | T001 completed, T002 completed | Subagent dispatch recovered (both landed cleanly); diffs inspected hunk-by-hunk — exactly the planned additive edits; G1 targeted signals pass; line caps 308/277 | SELECT |
+| 2026-08-23T10:22Z | 2 | CHECKPOINT | T003 completed | Registry: consumes strings x2 + ddd-analysis-to-planners contract; pack regenerated payload copies; matrix re-rendered; gate OK 919 checks (+5 as predicted); baseline re-recorded | VERIFY |
+| 2026-08-23T10:30Z | 2 | COMPLETE | T004 completed | Full battery: repo suite 89/89 (cwd discovery mode), csm-ddd 35/35, gate green; AC2/AC3 procedure dry-run on real artifacts: graph schema-valid, report/graph runIds match. README edge-semantics sentence added to both copies. Completion gate passed by primary | STOP |
 
 ## Completion Review
 
-<filled by csm-build when all criteria are verified>
+All five acceptance criteria verified 2026-08-23:
+1. No-DDD behavior unchanged: gate green throughout; diffs are purely additive prose (inspected hunk-by-hunk).
+2. csm-plan intake documented and exercised: validator CLI validates the real graph; runId match proven in dry-run.
+3. csm-build RECOVER/DISPATCH hooks documented; the same dry-run satisfies the runId-match check RECOVER item 8 prescribes.
+4. Registry: two INTERFACES consumes strings + ddd-analysis-to-planners CONTRACTS entry enforced by the gate (no MISSING messages); matrix regenerated; pack idempotent.
+5. Battery: check-suite OK 12 skills/919 checks; with-node22 repo suite 89/89; make test-ddd 35/35.
+Independent review: critique subagent (pre-build), hunk-level diff inspection, objective gates. Residual risk: doctrine-level only (guidance is procedural, not code-enforced).
