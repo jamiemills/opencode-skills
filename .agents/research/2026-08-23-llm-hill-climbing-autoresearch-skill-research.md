@@ -30,6 +30,10 @@ The central risk is evaluator compromise. METR observed agents modifying graders
 6. **Partially-supported:** Islands, Pareto archives, and MAP-Elites-style diversity are justified for large or deceptive search spaces, but no source establishes one universal archive policy [R3][R4][R5].
 7. **Partially-supported:** LLM-generated feedback improves search guidance, but it must remain advisory; executable checks and hard gates decide acceptance [R4][R5].
 8. **Not-supported:** A user-provided scalar metric alone is sufficient protection against metric gaming or deployment regressions. The reward-hacking evidence directly contradicts this [R6].
+9. **Partially-supported:** HumanEval and evaluation-harness documentation support separating execution outcomes from metric aggregation; the explicit validity/status/provenance schema below is derived design guidance [R10][R11].
+10. **Partially-supported:** Benchmark tools provide concrete examples of calibration, warmup, repeated samples, raw-data inspection, robust summaries, and comparison; the correct estimator and uncertainty procedure remain workload-dependent [R12][R13].
+11. **Partially-supported:** Dev/test separation, fresh or hidden tests, and property-based checks are supported; rotating challenge shards plus metamorphic and mutation suites are proposed anti-gaming extensions requiring domain-specific validation [R9][R14][R15].
+12. **Supported:** Candidate execution requires defense in depth under an explicit threat model. Containers provide namespaces, cgroups, and configurable controls, but retain shared-kernel and daemon/mount risks and have no resource limits by default [R16].
 
 ## Detail Sections
 
@@ -147,6 +151,77 @@ Start with ratchet; add archive only after measured stagnation
 
 The approach is a credible fit for benchmarked algorithms, latency, throughput, test pass rate, prompt accuracy, and static-analysis improvements. It is weak for vague maintainability, safety, user satisfaction, or any objective whose meaningful evaluation requires a human and has no reliable proxy. AlphaEvolve explicitly limits itself to tasks with automatic metrics [R4]; FunSearch similarly relies on efficient evaluation and valid executable candidates [R3]. These sources do not establish reliable transfer to arbitrary repositories.
 
+### 8. Evaluator harness contract
+
+**Sourced facts:** AlphaEvolve describes an evaluator with a fixed signature returning a dictionary of scalar metrics; FunSearch separates the evolved function from the `solve` skeleton and `evaluate` function [R4][R3]. HumanEval reports `passed`, `timed out`, or `failed` and warns that its reliability guard is not a security sandbox [R10].
+
+**Derived policy:** The evaluator should own inputs, execution, validity, scoring, aggregation, and diagnostics. The candidate should return behavior or an artifact, never its own score.
+
+```text
+evaluate(candidate_ref, input_case, policy) ->
+  {
+    status: ok | invalid | failed | timed_out | policy_violation,
+    valid: boolean,
+    metrics: {name: value},
+    diagnostics: {...},
+    provenance: {...}
+  }
+```
+
+The harness should validate the result schema before scoring. Every metric should have a stable name, numeric type, unit, direction, aggregation rule, and missing-value policy. Keep acceptance logic outside the candidate and make secondary concerns hard gates rather than hiding them in an opaque weighted score. These are proposed implementation choices, not a universal standard.
+
+### 9. Measurement pipeline for noisy functions
+
+**Sourced facts:** `pytest-benchmark` calibrates repeated calls to avoid timer-resolution noise and can stop adaptively only within minimum-round and maximum-time bounds [R12]. pyperf retains warmups, calibration runs, raw values, metadata, outlier diagnostics, median/MAD, percentiles, and comparison results [R13].
+
+**Derived policy:** Use these as a staged measurement process, while selecting the estimator and uncertainty method for the workload rather than treating either tool's defaults as universal.
+
+```text
+capture environment -> calibrate -> warm up -> measure repeated samples
+       -> retain raw samples -> summarize -> estimate uncertainty
+       -> compare against baseline -> apply practical threshold -> decide
+```
+
+Do not time setup unless the target is end-to-end latency. Do not silently discard outliers: retain them, classify them, and report whether the run is unstable. As derived policy, compare candidates using paired or otherwise appropriate units, an effect size, an uncertainty interval, and a predeclared minimum-important improvement. Statistical significance alone is not a useful acceptance rule.
+
+### 10. Evaluation partitions and anti-gaming tests
+
+**Sourced facts:** METR's protocol recommends dev-set elicitation followed by non-public test tasks, repeated runs, confidence intervals, and checks for task, infrastructure, elicitation, and scoring problems [R9][R14]. The contamination source supports fresh or rephrased tests, while QuickCheck supports property-based case generation [R15].
+
+**Derived policy:** Use development tests for rich feedback and reserve final tests for milestone decisions. Rotating challenge shards, distribution slices, metamorphic relations, and mutation testing are additional proposed anti-gaming mechanisms that need domain-specific design and validation.
+
+```text
+visible dev cases -> detailed failures and repair feedback
+rotating challenge -> properties, mutations, adversarial and shift slices
+hidden final set -> sparse milestone decision, not continuous tuning
+```
+
+Useful relations include idempotence, monotonicity, permutation invariance, conservation identities, round-trip consistency, and controlled-perturbation behavior. Mutation testing is a proposed harness-adequacy test: inject realistic faults and verify that the evaluator detects them. A high candidate score alongside weak mutation sensitivity may indicate inadequate fault-detection coverage, although unrealistic mutants can also mislead.
+
+### 11. Statistical decision policy
+
+Repeatedly checking a noisy metric until it crosses a threshold is not equivalent to one fixed-sample comparison. The cited sources support pre-specified repetition, uncertainty intervals, and accounting for sequential stopping; the paired/bootstrap/multiplicity procedures below are task-specific statistical design choices [R17].
+
+For each candidate, retain:
+
+```text
+raw paired observations
+point estimate and absolute/relative effect
+confidence interval or bootstrap interval
+practical threshold and statistical decision
+number of looks, retries, exclusions, and failures
+```
+
+As derived policy, resample independent cases or trial blocks rather than correlated low-level iterations. If the candidate is tested across many metrics, shards, or variants, distinguish exploratory signals from the single primary acceptance comparison and account for multiplicity. Never rerun selectively until a desired result appears without recording the stopping rule.
+
+### 12. Security and audit harness
+
+**Sourced facts:** HumanEval explicitly warns that its reliability guard is not a security sandbox [R10]. Docker documents namespaces and cgroups, but also warns about the daemon attack surface, writable host bind mounts, shared-kernel risks, and the absence of default resource constraints [R16].
+
+**Derived policy:** Use a stronger boundary for hostile candidates and defense in depth for ordinary untrusted code.
+
+Minimum controls for the candidate side are: unprivileged identity, read-only root filesystem, ephemeral bounded workspace, no host mounts or Docker socket, network disabled by default, dropped capabilities, syscall/MAC restrictions where available, CPU/memory/PID/disk/output/time limits, and process-group cleanup. Keep private tests, reference answers, clocks, scorer code, and audit logs outside the candidate address space. Logs must be append-only or externally persisted and include evaluator/version hashes, policy configuration, resource limits, file/network violations, exit reason, raw outputs, and every retry or exclusion.
+
 ## Recommendation
 
 Adopt a **registered-function-first, metric-gated hill-climbing skill** with a deliberately narrow v1:
@@ -160,6 +235,15 @@ Adopt a **registered-function-first, metric-gated hill-climbing skill** with a d
 7. Maintain an append-only ledger and archive; add islands/Pareto/MAP-Elites only after evidence of stagnation or diversity need.
 8. Finish with an untouched final test, provenance check, diff review, and explicit human approval for repository-visible changes.
 
+For the evaluator harness specifically, implement this sequence:
+
+1. Define a fixed `evaluate(candidate, case, policy)` protocol with explicit status, validity, named metrics, diagnostics, and provenance.
+2. Separate candidate execution from scoring; the candidate cannot read or modify tests, references, clocks, scorer state, or audit storage.
+3. Add fast schema/type/property checks, then a calibrated measurement stage, then repeated scoring and uncertainty-aware comparison.
+4. Provide detailed feedback only from development and rotating challenge partitions; reserve hidden tests for milestone decisions.
+5. Validate the harness itself with realistic mutants, metamorphic cases, adversarial inputs, contamination checks, and distribution-shift slices.
+6. Investigate anomalous perfect results, policy violations, timing anomalies, and unexplained access under a predeclared anomaly policy; do not automatically treat them as improvements.
+
 Confidence is high for the architectural direction and individual controls, medium for expected gains on arbitrary codebases. The answer changes if the function is trusted and pre-registered, in which case container isolation may be relaxed, or if the metric is subjective, in which case this pattern should not be used without a better evaluator. The cost of being wrong is high: an unsafe executor can expose credentials or alter the host, while a weak evaluator can produce confident but fake improvements.
 
 ## Unverified Claims
@@ -170,6 +254,11 @@ Confidence is high for the architectural direction and individual controls, medi
 4. **Unverified:** Rich LLM feedback improves general-purpose code mutation rather than only prompt or benchmark optimization; a held-out repository-task study is required.
 5. **Unverified:** Containers or VMs provide sufficient evaluator or host protection for a particular deployment; the actual runtime needs a threat model, penetration testing, and documented assumptions.
 6. **Unverified:** Karpathy's reported overnight gains and transfer results are independently reproducible from the public repository; the cited posts are author reports and the experiment log is not part of the tracked repository.
+7. **Unverified:** No single warmup, aggregation, bootstrap, confidence, or regression-threshold policy is correct for every function; pilot variance analysis is required.
+8. **Unverified:** Metamorphic and mutation suites will detect the specific gaming strategies of a future optimizer; relations and mutants must be domain-designed and adversarially refreshed.
+9. **Unverified:** A container configuration is sufficient for a particular threat model; use VM or microVM isolation when candidate hostility or impact warrants it.
+10. **Unverified:** Hidden tests alone prevent adaptive overfitting; secrecy does not address distribution shift, evaluator tampering, or memorization of the task family.
+11. **Unverified:** The exact status taxonomy, provenance schema, anomaly policy, and acceptance test for a function evaluator are universal; each must be selected for the candidate type, workload variance, and decision stakes.
 
 ## References
 
@@ -190,6 +279,22 @@ Confidence is high for the architectural direction and individual controls, medi
 **[R8] Python documentation, “subprocess — Subprocess management.”** https://docs.python.org/3/library/subprocess.html. Retrieved 2026-08-23. Argument arrays, `shell=False`, environment, `cwd`, timeouts, process groups, pipes, and security considerations.
 
 **[R9] METR, “Example autonomy evaluation protocol.”** https://metr.org/blog/2024-03-15-example-autonomy-evaluation-protocol/. Retrieved 2026-08-23. Pre-specified procedures, repeated runs, confidence intervals, auditability, and early-stopping concerns.
+
+**[R10] OpenAI, “HumanEval” README and execution harness.** https://github.com/openai/human-eval/blob/master/README.md; https://github.com/openai/human-eval/blob/master/human_eval/execution.py. Retrieved 2026-08-23. Explicit untrusted-code warning, status outcomes, timeouts, and the statement that the reliability guard is not a security sandbox.
+
+**[R11] EleutherAI, “lm-evaluation-harness task guide.”** https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/task_guide.md. Retrieved 2026-08-23. Separate input/target construction, output type, metrics, aggregation, and direction metadata.
+
+**[R12] pytest-benchmark, “Calibration” and “Comparing past runs.”** https://pytest-benchmark.readthedocs.io/en/latest/calibration.html; https://pytest-benchmark.readthedocs.io/en/latest/comparing.html. Retrieved 2026-08-23. Timer calibration, warmup/round controls, adaptive precision, raw run storage, and thresholded comparison.
+
+**[R13] pyperf, “Analyze benchmark results.”** https://pyperf.readthedocs.io/en/latest/analyze.html. Retrieved 2026-08-23. Raw values, warmups, calibration, metadata, outlier checks, median/MAD, percentiles, and significance comparisons.
+
+**[R14] METR, “Example autonomy evaluation protocol,” plus elicitation guidance.** https://metr.org/blog/2024-03-15-example-autonomy-evaluation-protocol/; https://metr.org/blog/2024-03-15-guidelines-for-capability-elicitation/. Retrieved 2026-08-23. Dev/test separation, hidden tasks, repeated runs, confidence intervals, and checks for task/infrastructure/scoring failures.
+
+**[R15] Yang et al., “Rethinking Benchmark and Contamination for Language Models with Rephrased Samples,” and Claessen and Hughes, “QuickCheck.”** https://arxiv.org/abs/2311.04850; https://doi.org/10.1145/351240.351266. Retrieved 2026-08-23. Benchmark contamination, fresh/rephrased tests, and property-based test generation. Metamorphic and mutation-testing claims are retained as derived recommendations, not directly attributed to this reference.
+
+**[R16] Docker Engine security and resource constraints.** https://docs.docker.com/engine/security/; https://docs.docker.com/engine/containers/resource_constraints/. Retrieved 2026-08-23. Namespaces, cgroups, daemon and mount risks, shared-kernel limits, and explicit resource controls.
+
+**[R17] Kalibera and Jones, “Rigorous Benchmarking in Reasonable Time,” plus the METR protocol.** https://doi.org/10.1145/2555670.2464160; https://metr.org/blog/2024-03-15-example-autonomy-evaluation-protocol/. Retrieved 2026-08-23. Variance at nested experimental levels, effect-size confidence intervals, predeclared repeated evaluation, and sequential-stopping concerns. Exact paired/bootstrap/multiplicity procedures remain task-specific.
 
 ## Process Appendix
 
@@ -216,6 +321,28 @@ Confidence is high for the architectural direction and individual controls, medi
 - Completeness: 0.94. The document covers mechanics, alternatives, interface, safety, applicability, and unknowns.
 - Clarity: 0.91. Progressive disclosure and diagrams make the architecture actionable without pretending this is an implementation plan.
 - Verdict: pass. All dimensions exceed the 0.7 threshold.
+
+### Focused evaluator-harness run
+
+- Question: how to build an evaluator harness for a function used by an autoresearch-style optimizer.
+- Tier: DEEP. Source mode: web-only.
+- Tracks: evaluator contract; benchmark measurement; statistical decisions; security containment; anti-gaming test design.
+- Five independent evidence packs were collected. Primary retrieval confirmed the key passages in R10, R12, R13, R16, and R9; other references are retained with their limitations.
+- [2026-08-23T02:00:00Z] INTAKE -> TRIAGE :: cycle 1 :: trigger: focused evaluator-harness research requested
+- [2026-08-23T02:01:00Z] TRIAGE -> RESEARCH :: cycle 1 :: trigger: five evaluator-harness tracks selected
+- [2026-08-23T02:20:00Z] RESEARCH complete :: cycle 1
+- [2026-08-23T02:21:00Z] RESEARCH -> SYNTHESIZE :: cycle 1 :: trigger: evidence packs and primary retrieval collected
+- [2026-08-23T02:40:00Z] SYNTHESIZE complete :: cycle 1
+- [2026-08-23T02:41:00Z] SYNTHESIZE -> CHALLENGE :: cycle 1 :: trigger: evaluator-harness additions drafted
+- [2026-08-23T02:50:00Z] CHALLENGE complete :: cycle 1 :: trigger: evaluator claims independently challenged
+- Challenge verdicts: uphold the architecture with narrowed wording; downgrade the universal status schema, benchmark convergence, hidden-test policy, R15 bundle, and R17 statistical generality; retain metamorphic and mutation testing as derived recommendations.
+- [2026-08-23T02:51:00Z] CHALLENGE -> JUDGE :: cycle 1 :: trigger: challenge verdicts recorded
+- [2026-08-23T03:00:00Z] JUDGE complete :: cycle 1
+- Judge scores: factual accuracy 0.86; citation accuracy 0.81; completeness 0.91; clarity 0.84; verdict pass with epistemic-separation caveat.
+- [2026-08-23T03:01:00Z] JUDGE -> REMEDIATE :: cycle 1 :: trigger: narrow source claims and repair R15/R17 attribution
+- [2026-08-23T03:10:00Z] REMEDIATE complete :: cycle 1 :: trigger: sourced facts separated from derived policies
+- [2026-08-23T03:11:00Z] REMEDIATE -> VERIFY :: cycle 1 :: trigger: challenge and judge findings resolved
+- [2026-08-23T03:20:00Z] VERIFY complete :: cycle 1 :: trigger: required structure, citations, and redaction rechecked
 
 ### Control Journal
 
