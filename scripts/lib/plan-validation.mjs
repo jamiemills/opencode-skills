@@ -108,8 +108,10 @@ export const ARTIFACT_PATTERNS = {
   ],
   "csm-browse": [],
   "csm-deep-research": [/\.agents\/research\/<yyyy-mm-dd>-<slug>-research\.md/],
-  "csm-review-python": [
-    /\.agents\/doctrine\/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review\.md/,
+  "csm-review-python": [/\.agents\/doctrine\/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review\.md/],
+  "csm-ddd": [
+    /\.agents\/ddd\/<yyyy-mm-dd>-<repo-slug>-ddd-report\.md/,
+    /\.agents\/ddd\/<yyyy-mm-dd>-<repo-slug>-ddd-graph\.json/,
   ],
 };
 

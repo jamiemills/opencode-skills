@@ -12,7 +12,7 @@ Turn a repository into a fully tested one: audit what exists, capture what the c
 - Consumes: a target repository checkout at a pinned commit with optional change-surface scope; optional NORMS.md conventions; cited research findings under `.agents/research/`
 - Produces: executable test files, goldens/fixtures, and benchmark files in the target repository; `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md`; `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md`
 - Hands off: verified suite plus ledger and verification report to the user or a later explicit csm-build run
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-review-python
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-review-python, csm-ddd
 
 ## Tmux Session Bootstrap
 
@@ -233,9 +233,9 @@ format: csm-make-tests/1
 
 ## Entries
 
-| date       | artifact/test      | kind   | status   | approver | notes                       |
-| ---------- | ------------------ | ------ | -------- | -------- | --------------------------- |
-| yyyy-mm-dd | path/to/test::name | golden | approved | user     | batch B1; commit abc1234    |
+| date       | artifact/test      | kind   | status   | approver | notes                    |
+| ---------- | ------------------ | ------ | -------- | -------- | ------------------------ |
+| yyyy-mm-dd | path/to/test::name | golden | approved | user     | batch B1; commit abc1234 |
 
 Kinds: golden | intent | contract | perf | amplified.
 Statuses: approved | pending | known-defect.
@@ -250,15 +250,25 @@ KNOWN-DEFECT rows persist until the user fixes production and a re-capture super
 format: csm-make-tests/1
 
 ## Scope
+
 ## Stacks
+
 ## Audit Summary
+
 ## Generated (counts per kind)
+
 ## Verification Commands And Results
+
 ## Pre-existing Failures (verbatim)
+
 ## Known-Defect Summary
+
 ## Mutation Scores
+
 ## Performance Baselines
+
 ## Not Run (with reasons)
+
 ## Phase-0 Recommendations
 ```
 

@@ -67,7 +67,7 @@ Every finding and every verification records the rung it ran at. Posture is sele
 - Consumes: a target repository (local path or remote URL); optional NORMS.md artifact
 - Produces: one dated findings report at `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md`
 - Hands off: findings feed a future explicit csm-plan or csm-grill invocation (human-mediated); a human may separately and explicitly dispatch csm-review-python for Python doctrine analysis, and that analyzer owns its `.agents/doctrine/` report write.
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload, csm-make-tests
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload, csm-make-tests, csm-ddd
 
 ## Review State Machine
 

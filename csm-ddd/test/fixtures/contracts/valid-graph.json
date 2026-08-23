@@ -1,0 +1,59 @@
+{
+  "format": "csm-ddd-graph/1",
+  "runId": "run-fixed-0001",
+  "generatedAt": "2026-08-23T00:00:00.000Z",
+  "nodes": [
+    { "id": "node-planning", "kind": "capability", "label": "Planning" },
+    { "id": "node-scanning", "kind": "capability", "label": "Scanning" }
+  ],
+  "edges": [{ "source": "node-planning", "target": "node-scanning", "relation": "upstream" }],
+  "claims": [
+    {
+      "id": "cl-capability-planning-0001",
+      "claimKind": "capability",
+      "status": "observed",
+      "subject": "node-planning",
+      "basis": "static_analysis",
+      "confidence": "high",
+      "evidenceIds": ["ev-aaaaaaaaaaaaaaaaaaaaaaaa"],
+      "note": ""
+    },
+    {
+      "id": "cl-hypothesis-boundary-0002",
+      "claimKind": "context_hypothesis",
+      "status": "inferred",
+      "subject": "node-planning",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": ["ev-bbbbbbbbbbbbbbbbbbbbbbbb"],
+      "note": "boundary hypothesis pending domain validation"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-aaaaaaaaaaaaaaaaaaaaaaaa",
+      "claimId": "cl-capability-planning-0001",
+      "sourceKind": "declaration",
+      "path": "src/planning/index.mjs",
+      "locator": "export:planWork",
+      "matchedKey": "planWork"
+    },
+    {
+      "id": "ev-bbbbbbbbbbbbbbbbbbbbbbbb",
+      "claimId": "cl-hypothesis-boundary-0002",
+      "sourceKind": "co-change",
+      "path": "src/planning/index.mjs",
+      "locator": "git-log:src/planning",
+      "matchedKey": "co-change-cluster"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q-boundary-owner-0001",
+      "subject": "node-planning",
+      "text": "Which team owns the planning capability?",
+      "dependsOn": []
+    }
+  ],
+  "answers": []
+}

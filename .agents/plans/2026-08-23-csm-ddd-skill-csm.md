@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: csm-ddd-skill-build
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: CHECKPOINT
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: planning SAVED 2026-08-23
+- Last checkpoint: cycle 1 complete 2026-08-23 — T001+T002 verified green (check-suite OK 12 skills/907 checks; csm-ddd tests 12/12; protocol+bootstrap-flow+package-audit 7/7 under with-node22); baseline re-recorded at 907
 - Last model/run: stealth/ox-alpha opencode 2026-08-23
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
+- Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -87,6 +87,13 @@ Build `csm-ddd`, a 12th skill in this suite: an isolated, read-only DDD reposito
 
 ## Discovered Requirements
 
+**Build discoveries (appended by csm-build):**
+- DR-B1: a FOURTH pinned skill-count literal exists at tests/integration/bootstrap-flow.test.mjs:80 (`skillEntries.length`) beyond the three the plan's research identified — all count literals: package-audit:11→12 (done), bootstrap-flow:80 (done), plus the two name lists and protocol skillsPlaced.
+- DR-B2: `skillsPlaced` ordering follows alphabetical sort in the installer, NOT pack-bootstrap skillDirs order — literals must list csm-review before csm-review-python.
+- DR-B3: subagent dispatch can silently return empty results with no work performed; always verify the working tree after dispatch, and keep primary-led implementation available as the fallback (ladder step 4) with recorded caveat.
+- DR-B4: README layout-tree entries are existence-checked by check-suite — only list directories that exist; extend when later tasks create them.
+- DR-B5: oxlint enforces unicorn(no-array-sort)/consistent-function-scoping etc. on new code — use toSorted, hoist pure helpers.
+- Plan-corpus rules as during planning:
 - check-suite auto-discovers `csm-ddd/` the moment the dir exists — the gate is red from scaffold until T001's registration lands; keep the red window inside one task and record it in the known-failure ledger (precedent: both 2026-08-22 plans).
 - NEVER_INVOKE ripple is mechanical but wide: all 11 SKILL.md bullets + 11 matrix rows gaining `"csm-ddd": true` + 1 new row whose SELF cell stays `false` (no gate checks diagonal-falsity — flipping it would silently break universal terminal semantics); miss a row/bullet and the Interface-equality gate fails.
 - Payload: never hand-edit `bootstrap/package/**` (hash-drift gate); pack deletes unmapped files; three test literals pin the skill set (package-audit also pins `skillEntries.length`); regenerating `payload-index.json` does NOT invalidate the signed fixture (R5).
@@ -134,7 +141,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
 
 ## Numbered Plan
 
-1. [pending] Register csm-ddd across the suite (scaffold + ripple)
+1. [completed] Register csm-ddd across the suite (scaffold + ripple)
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -148,7 +155,7 @@ Critical path: T002→T003→T004→T005→T006→T007→T008→T009. T001 runs 
    - Acceptance evidence: command outputs + baseline re-record line appended to `.agents/docs/gate-baselines.json`
    - Repair attempts: 0
    - Recovery note: if the gate is red at checkpoint, the ledger records which specific gate failed; resume by re-running check-suite and fixing the named surface; never widen staging beyond owned paths
-2. [pending] Contracts, JSON Schemas, and fixtures (Phase 1)
+2. [completed] Contracts, JSON Schemas, and fixtures (Phase 1)
    - Task ID: T002
    - Depends on: none
    - Parallel group: G1
@@ -304,6 +311,10 @@ Cheapest-first layering. Per-task fast gates: `node --test csm-ddd/test/<unit>.t
 | 2026-08-23 | 0 | DRAFT | 9 pending | Full plan drafted to `.draft` sidecar | CRITIQUE |
 | 2026-08-23 | 0 | CRITIQUE | 9 pending | Independent hostile critique: verdict ready-after-remediation — 2 blockers, 5 majors, 6 minors, all with cited corrections | REMEDIATE |
 | 2026-08-23 | 0 | REMEDIATE | 9 pending | R5-R7 verification reads; all 13 findings resolved (11 applied, 2 verified-OK no-change); draft updated; no new uncertainty exposed | VERIFY |
+| 2026-08-23T07:00Z | 1 | RECOVER | 2 selected | User invoked csm-build; tree clean at af51c09; baseline gate green 853; G1={T001,T002} ready, disjoint ownership | SELECT |
+| 2026-08-23T07:10Z | 1 | DISPATCH | 2 in_progress | THREE consecutive subagent dispatches returned empty results and wrote nothing (2x batch + 1 minimal probe); subagent channel non-functional this session | REPAIR |
+| 2026-08-23T07:15Z | 1 | REPAIR | 2 in_progress | Subagent Resilience ladder exhausted through step 3; primary-led implementation with recorded independence caveat — repo's objective gates (check-suite structural gates, node:test suites) serve as the independent verification layer; re-attempt dispatch once at REVIEW | REPAIR |
+| 2026-08-23T07:37Z | 1 | CHECKPOINT | T001 completed, T002 completed | T002: contracts.mjs+validate.mjs+2 schemas+7 fixtures+contracts.test.mjs — 12/12 pass, oxlint clean, CLI exit codes proven. T001: SKILL.md, MANIFEST/INTERFACES/FORMAT_VERSIONS/NEVER_INVOKE (12 rows consistent), ARTIFACT_PATTERNS, pack skillDirs+payload copy, 11 Never-invokes bullets, 3 test literals (+4th count found in bootstrap-flow:80 — DR added), Makefile test-ddd, README twelve-wording+ledger rows+at-a-glance row+tree entry, matrix regen. Gate: check-suite OK 12 skills/907 checks; three suites 7/7 under with-node22; pack idempotent; matrix trues=11+self-false. REVIEW: independent subagent unavailable (same dispatch failure) — caveat recorded; objective gates substitute. Baseline re-recorded 907/3031ms. Commit follows checkpoint | SELECT (cycle 2: T003) |
 
 ## Completion Review
 

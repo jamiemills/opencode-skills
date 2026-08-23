@@ -1,10 +1,10 @@
 # opencode-skills
 
-A collection of **eleven agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
+A collection of **twelve agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
 
 ## Quick install
 
-This repository contains eleven practical AI skills for research, planning, implementation, testing, review, browser evidence, and publishing. They install into OpenCode, Claude Code, or any Agent Skills runtime.
+This repository contains twelve practical AI skills for research, planning, implementation, testing, review, browser evidence, and publishing. They install into OpenCode, Claude Code, or any Agent Skills runtime.
 
 ```bash
 git clone https://github.com/jamiemills/opencode-skills.git ~/.config/opencode/skills
@@ -17,7 +17,7 @@ Restart your agent runtime. Ten skills are instruction-led and ready to use; `cs
 
 - [What this is](#what-this-is)
 - [Install](#install)
-- [The eleven skills at a glance](#the-eleven-skills-at-a-glance)
+- [The twelve skills at a glance](#the-twelve-skills-at-a-glance)
 - [Composition matrix](#composition-matrix)
 - [Quickstart](#quickstart)
 - [Skill deep dives](#skill-deep-dives)
@@ -56,7 +56,7 @@ Start with the smallest useful action: research one question, scan one repositor
 
 ### Requirements
 
-Eleven skills, three roles:
+Twelve skills, three roles:
 
 | Role                                             | Skills                                                                                 |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
@@ -102,8 +102,9 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-deep-research` | `.agents/research/<date>-<slug>-research.md` + optional run artifacts in `.agents/research/artifacts/` (e.g. JSON schemas) |
 | `csm-browse`        | screenshots / videos / DOM·console·network evidence                                                                        |
 | `csm-upload`        | dated GitHub Pages demo page                                                                                               |
+| `csm-ddd`           | `.agents/ddd/<date>-<repo-slug>-ddd-report.md` + `.agents/ddd/<date>-<repo-slug>-ddd-graph.json`                           |
 
-## The eleven skills at a glance
+## The twelve skills at a glance
 
 | Skill               | In one sentence                                                                                                                                      | Reference                                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -116,6 +117,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-review`        | Adversarially audits a repository across an 18-dimension spine and saves a challenged findings report. Never fixes.                                  | [csm-review/SKILL.md](csm-review/SKILL.md)               |
 | `csm-review-python` | Reviews Python repositories against PEP 20 and idiomatic-Python doctrine, producing one evidence-grounded findings and fix-guide report. | [csm-review-python/SKILL.md](csm-review-python/SKILL.md) |
 | `csm-scan`          | Read-only multi-repo analyzer producing a single `NORMS.md` across 17 evidence dimensions.                                                           | [csm-scan/SKILL.md](csm-scan/SKILL.md)                   |
+| `csm-ddd`           | Read-only DDD repository analyzer: dated Markdown report plus canonical JSON graph of capabilities, context hypotheses, seams, and candidate refactoring slices — hypotheses, never proofs. | [csm-ddd/SKILL.md](csm-ddd/SKILL.md)                     |
 | `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.                 | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
 | `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                                 | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
 
@@ -152,6 +154,7 @@ flowchart LR
 | `csm-deep-research` | `.agents/research/<date>-<slug>-research.md` + optional run artifacts in `.agents/research/artifacts/` (e.g. JSON schemas) |
 | `csm-browse`        | screenshots / videos / DOM·console·network evidence                                                                        |
 | `csm-upload`        | dated GitHub Pages demo page                                                                                               |
+| `csm-ddd`           | `.agents/ddd/<date>-<repo-slug>-ddd-report.md` + `.agents/ddd/<date>-<repo-slug>-ddd-graph.json`                           |
 
 <!-- csm-matrix:start -->
 ## Composition matrix
@@ -171,6 +174,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 | `csm-deep-research` | research question or topic, explicit deep-research request, dispatch from csm-grill or csm-plan | research question, retrievable sources (web, docs, repositories), browser-rendered retrieval via csm-browse fallback (JS-only pages) | dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md, optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a JSON schema) | research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan |
 | `csm-make-tests` | repository checkout at a pinned commit, optional change-surface scope | repository working tree, optional NORMS.md conventions, cited research findings under .agents/research/ | executable test files and goldens in the target repository, .agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md, .agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md | verified suite, ledger, and verification report to the user or a later explicit csm-build run |
 | `csm-review-python` | target python repository checkout at a pinned commit, optional change-surface scope, explicit user consent for any tool installation | repository working tree (read-only), optional NORMS.md conventions, bundled artifacts artifact/python-idiomatic-reviewer-rules.json and artifact/pep20-idiomatic-python-consolidated-research.md | .agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md | single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise |
+| `csm-ddd` | repository at a pinned commit, explicit DDD analysis request, CLI run of the bundled pipeline | repository at a pinned commit, optional visible NORMS.md, optional approved question file | .agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md, .agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json | report and graph to the user; downstream csm-grill or csm-plan use stays human-mediated |
 <!-- csm-matrix:end -->
 
 ## Quickstart
@@ -335,6 +339,10 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 │   ├── lib/scan/      # pipeline, dimension registry, scanners, providers, renderers
 │   ├── scripts/       # scan.mjs CLI
 │   └── test/          # node:test suite + fixtures
+├── csm-ddd/           # DDD repository analyzer
+│   ├── lib/ddd/       # pipeline modules (contracts, validate)
+│   ├── schemas/       # report/graph JSON Schemas + validator
+│   └── test/          # node:test suite + contract fixtures
 ├── csm-review/        # SKILL.md — the adversarial repository reviewer
 ├── csm-review-python/ # SKILL.md — the Python doctrine reviewer
 ├── csm-deep-research/ # SKILL.md — the deep-research state machine

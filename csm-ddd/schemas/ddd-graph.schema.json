@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "csm-ddd canonical graph envelope",
+  "type": "object",
+  "required": [
+    "format",
+    "runId",
+    "generatedAt",
+    "nodes",
+    "edges",
+    "claims",
+    "evidence",
+    "questions",
+    "answers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": { "const": "csm-ddd-graph/1" },
+    "runId": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "target", "relation"],
+        "additionalProperties": false,
+        "properties": {
+          "source": { "type": "string", "minLength": 1 },
+          "target": { "type": "string", "minLength": 1 },
+          "relation": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "claimKind",
+          "status",
+          "subject",
+          "basis",
+          "confidence",
+          "evidenceIds",
+          "note"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "claimKind": {
+            "enum": [
+              "capability",
+              "term",
+              "workflow",
+              "invariant",
+              "ownership",
+              "context_hypothesis",
+              "relationship",
+              "seam",
+              "slice",
+              "ordering"
+            ]
+          },
+          "status": {
+            "enum": [
+              "observed",
+              "inferred",
+              "not_detected",
+              "unsupported",
+              "unverified",
+              "not_applicable"
+            ]
+          },
+          "subject": { "type": "string", "minLength": 1 },
+          "basis": { "enum": ["static_analysis", "git_history", "norms_md", "user_provided"] },
+          "confidence": { "enum": ["low", "medium", "high"] },
+          "evidenceIds": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^ev-[0-9a-f]{24}$" }
+          },
+          "note": { "type": "string" }
+        },
+        "if": {
+          "properties": { "claimKind": { "const": "context_hypothesis" } },
+          "required": ["claimKind"]
+        },
+        "then": {
+          "properties": {
+            "status": {
+              "enum": ["inferred", "unverified", "not_detected", "unsupported", "not_applicable"]
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "claimId", "sourceKind", "path", "locator", "matchedKey"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^ev-[0-9a-f]{24}$" },
+          "claimId": { "type": "string", "minLength": 1 },
+          "sourceKind": { "type": "string", "minLength": 1 },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "not": { "pattern": "^([a-zA-Z]:\\\\|/)" }
+          },
+          "locator": { "type": "string", "minLength": 1 },
+          "matchedKey": { "type": "string" }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "subject", "text", "dependsOn"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "subject": { "type": ["string", "null"] },
+          "text": { "type": "string", "minLength": 1 },
+          "dependsOn": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["questionId", "subject", "value", "providedBy"],
+        "additionalProperties": false,
+        "properties": {
+          "questionId": { "type": "string", "minLength": 1 },
+          "subject": { "type": "string", "minLength": 1 },
+          "value": { "type": "string" },
+          "providedBy": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

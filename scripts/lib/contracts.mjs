@@ -150,6 +150,23 @@ const MANIFEST = {
     norms: false,
     machine: { section: "Research State Machine", entryExit: false },
   },
+  "csm-ddd": {
+    sections: [
+      "Interface",
+      "Activation Boundary",
+      "Core Rules",
+      "Write Discipline And File Allowlist",
+      "Repository Norms (NORMS.md)",
+      "Analysis State Machine",
+      "Required Report And Graph",
+      "Testing",
+      "Anti-Patterns",
+      "Done Criteria",
+    ],
+    tmux: false,
+    norms: true,
+    machine: { section: "Analysis State Machine", entryExit: false },
+  },
 };
 
 const CONTRACTS = [
@@ -223,7 +240,10 @@ const INTERFACES = {
     entryConditions: ["repository target", "explicit review, audit, or assessment request"],
     consumes: ["repository at a pinned commit", "optional NORMS.md"],
     produces: ["dated findings report"],
-    handoff: ["review findings to a subsequent csm-plan run", "separate human-mediated dispatch to csm-review-python"],
+    handoff: [
+      "review findings to a subsequent csm-plan run",
+      "separate human-mediated dispatch to csm-review-python",
+    ],
     midPipeline: ["evidence pack", "finder ledger", "challenge verdicts", "adjudicated findings"],
   },
   "csm-scan": {
@@ -269,17 +289,71 @@ const INTERFACES = {
   },
   "csm-make-tests": {
     entryConditions: ["repository checkout at a pinned commit", "optional change-surface scope"],
-    consumes: ["repository working tree", "optional NORMS.md conventions", "cited research findings under .agents/research/"],
-    produces: ["executable test files and goldens in the target repository", ".agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md", ".agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md"],
-    handoff: ["verified suite, ledger, and verification report to the user or a later explicit csm-build run"],
-    midPipeline: ["run project test commands", "write generated tests and goldens", "record approvals", "run mutation and performance gates"],
+    consumes: [
+      "repository working tree",
+      "optional NORMS.md conventions",
+      "cited research findings under .agents/research/",
+    ],
+    produces: [
+      "executable test files and goldens in the target repository",
+      ".agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md",
+      ".agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md",
+    ],
+    handoff: [
+      "verified suite, ledger, and verification report to the user or a later explicit csm-build run",
+    ],
+    midPipeline: [
+      "run project test commands",
+      "write generated tests and goldens",
+      "record approvals",
+      "run mutation and performance gates",
+    ],
   },
   "csm-review-python": {
-    entryConditions: ["target python repository checkout at a pinned commit", "optional change-surface scope", "explicit user consent for any tool installation"],
-    consumes: ["repository working tree (read-only)", "optional NORMS.md conventions", "bundled artifacts artifact/python-idiomatic-reviewer-rules.json and artifact/pep20-idiomatic-python-consolidated-research.md"],
+    entryConditions: [
+      "target python repository checkout at a pinned commit",
+      "optional change-surface scope",
+      "explicit user consent for any tool installation",
+    ],
+    consumes: [
+      "repository working tree (read-only)",
+      "optional NORMS.md conventions",
+      "bundled artifacts artifact/python-idiomatic-reviewer-rules.json and artifact/pep20-idiomatic-python-consolidated-research.md",
+    ],
     produces: [".agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md"],
-    handoff: ["single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise"],
-    midPipeline: ["consent-gated isolated tool runs", "severity-mapped findings", "single-file report emit"],
+    handoff: [
+      "single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise",
+    ],
+    midPipeline: [
+      "consent-gated isolated tool runs",
+      "severity-mapped findings",
+      "single-file report emit",
+    ],
+  },
+  "csm-ddd": {
+    entryConditions: [
+      "repository at a pinned commit",
+      "explicit DDD analysis request",
+      "CLI run of the bundled pipeline",
+    ],
+    consumes: [
+      "repository at a pinned commit",
+      "optional visible NORMS.md",
+      "optional approved question file",
+    ],
+    produces: [
+      ".agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md",
+      ".agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json",
+    ],
+    handoff: [
+      "report and graph to the user; downstream csm-grill or csm-plan use stays human-mediated",
+    ],
+    midPipeline: [
+      "evidence records",
+      "context hypotheses",
+      "seam inventory",
+      "question/answer nodes",
+    ],
   },
 };
 
@@ -298,6 +372,8 @@ const FORMAT_VERSIONS = {
   "csm-deep-research": 1,
   "csm-make-tests": 1,
   "csm-review-python": 1,
+  "csm-ddd-report": 1,
+  "csm-ddd-graph": 1,
 };
 
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
@@ -325,6 +401,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-browse": {
     "csm-bdd-tdd": true,
@@ -337,6 +414,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-build": {
     "csm-bdd-tdd": true,
@@ -349,6 +427,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-grill": {
     "csm-bdd-tdd": true,
@@ -362,6 +441,7 @@ const NEVER_INVOKE = {
     "csm-deep-research": false,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-plan": {
     "csm-bdd-tdd": true,
@@ -375,6 +455,7 @@ const NEVER_INVOKE = {
     "csm-deep-research": false,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-review": {
     "csm-bdd-tdd": true,
@@ -387,6 +468,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-make-tests": true,
     "csm-review-python": false,
+    "csm-ddd": true,
   },
   "csm-scan": {
     "csm-bdd-tdd": true,
@@ -399,6 +481,7 @@ const NEVER_INVOKE = {
     "csm-upload": true,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-upload": {
     "csm-bdd-tdd": true,
@@ -411,6 +494,7 @@ const NEVER_INVOKE = {
     "csm-upload": false,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-deep-research": {
     "csm-bdd-tdd": true,
@@ -424,6 +508,7 @@ const NEVER_INVOKE = {
     "csm-deep-research": false,
     "csm-make-tests": true,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-make-tests": {
     "csm-bdd-tdd": true,
@@ -437,6 +522,7 @@ const NEVER_INVOKE = {
     "csm-deep-research": true,
     "csm-make-tests": false,
     "csm-review-python": true,
+    "csm-ddd": true,
   },
   "csm-review-python": {
     "csm-bdd-tdd": true,
@@ -450,6 +536,21 @@ const NEVER_INVOKE = {
     "csm-deep-research": true,
     "csm-make-tests": true,
     "csm-review-python": false,
+    "csm-ddd": true,
+  },
+  "csm-ddd": {
+    "csm-bdd-tdd": true,
+    "csm-browse": true,
+    "csm-build": true,
+    "csm-grill": true,
+    "csm-plan": true,
+    "csm-review": true,
+    "csm-scan": true,
+    "csm-upload": true,
+    "csm-deep-research": true,
+    "csm-make-tests": true,
+    "csm-review-python": true,
+    "csm-ddd": false,
   },
 };
 

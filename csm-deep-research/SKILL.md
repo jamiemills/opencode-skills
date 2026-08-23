@@ -22,7 +22,7 @@ The corpus location is part of the contract. Findings land under `.agents/resear
 - Consumes: a research question or topic; retrievable sources (repository, docs, web); browser-rendered retrieval of JS-only pages via the csm-browse fallback
 - Produces: one dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md; optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a .json schema the run was asked to emit)
 - Hands off: the research document and any declared run artifacts to the user; csm-grill and csm-plan may dispatch deep-research runs for cited external findings and cite them (invocation-mediated; the only skill this run may invoke is csm-browse, for the Browser Retrieval Fallback)
-- Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python
+- Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd
 
 ## Tmux Session Bootstrap
 

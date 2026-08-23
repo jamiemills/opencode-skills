@@ -24,12 +24,13 @@ const skillNames = [
   "csm-bdd-tdd",
   "csm-browse",
   "csm-build",
+  "csm-ddd",
   "csm-deep-research",
   "csm-grill",
   "csm-make-tests",
   "csm-plan",
-  "csm-review-python",
   "csm-review",
+  "csm-review-python",
   "csm-scan",
   "csm-upload",
 ];
@@ -76,7 +77,7 @@ test("pack, payload audit, capable install, offline boundary, malicious refusal,
     assert.equal(index.package.version, grammar.package.version);
     assert.equal(index.package.bin, grammar.package.bin);
     const skillEntries = index.classes.skills.filter((entry) => entry.path.endsWith("/SKILL.md"));
-    assert.equal(skillEntries.length, 11);
+    assert.equal(skillEntries.length, 12);
     for (const skill of skillNames)
       assert.ok(
         skillEntries.some((entry) => entry.path === `payload/skills/${skill}/SKILL.md`),

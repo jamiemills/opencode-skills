@@ -41,10 +41,13 @@ test-bootstrap: ## bootstrap suites (serial; self-pack)
 test-scan: ## csm-scan authoritative suite (serial only — ~2min)
 	cd csm-scan && node --test --test-concurrency=1
 
+test-ddd: ## csm-ddd unit tests (serial; fixtures + contracts)
+	cd csm-ddd && node --test --test-concurrency=1
+
 test-browse: ## csm-browse fast sanity (no Docker)
 	cd csm-browse && node scripts/check-skill.mjs
 
 test-e2e: ## csm-browse e2e (requires chromium-vnc container)
 	cd csm-browse && node tests/e2e.mjs
 
-test: test-hooks test-bootstrap test-browse test-scan ## all test suites (fast -> slow)
+test: test-hooks test-bootstrap test-browse test-ddd test-scan ## all test suites (fast -> slow)

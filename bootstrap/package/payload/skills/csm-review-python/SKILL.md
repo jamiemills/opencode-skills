@@ -12,7 +12,7 @@ Inspect Python repositories without changing their source, dependencies, configu
 - Consumes: a target Python repository checkout at a pinned commit, optional change-surface scope, optional NORMS.md, and the bundled idiomatic-Python rules artifact
 - Produces: `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md`
 - Hands off: the single doctrine report to the user or a dispatching csm-review; terminal otherwise
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-make-tests
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-make-tests, csm-ddd
 
 ## Tmux Session Bootstrap
 

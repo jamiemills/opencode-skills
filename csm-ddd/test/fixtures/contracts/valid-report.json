@@ -1,0 +1,11 @@
+{
+  "format": "csm-ddd-report/1",
+  "runId": "run-fixed-0001",
+  "graphRunId": "run-fixed-0001",
+  "generatedAt": "2026-08-23T00:00:00.000Z",
+  "title": "DDD repository analysis",
+  "sections": [
+    { "heading": "Capabilities", "body": "Observed capability inventory." },
+    { "heading": "Context hypotheses", "body": "Hypotheses only; nothing is proven." }
+  ]
+}
