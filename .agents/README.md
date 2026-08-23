@@ -67,6 +67,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-22-clojure-to-python-llm-migration-research.md` — 2026-08-22 — deterministic LLM-driven Clojure-to-Python migration research — status: reference
 - `2026-08-22-ddd-repo-analysis-refactoring-research.md` — 2026-08-22 — domain-driven repository analysis for refactoring research — status: reference
 - `2026-08-22-pep20-idiomatic-python-consolidated-research.md` — 2026-08-22 — PEP 20 and idiomatic Python practice consolidated research (feeds csm-review-python doctrine) — status: reference
+- `2026-08-23-llm-hill-climbing-autoresearch-skill-research.md` — 2026-08-23 — LLM-guided hill-climbing and autoresearch skill architecture — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-us-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ US creative-assets schema artifact — status: reference
