@@ -13,14 +13,14 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: optional-progress-tracker
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: CHECKPOINT
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T19:00:00+0000 plan verified against 11 eligible root/payload skill pairs; no implementation started.
+- Last checkpoint: 2026-08-24T19:35:00+0000 T003 verification passed: parity/exclusion audits, `make check`, `make fmt-check`, pre-commit integration tests, and `make test` all pass; payload index regenerated from packaged skill changes.
 - Last model/run: primary planning session 2026-08-24
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Next transition: CHECKPOINT -> COMPLETE
+- Active tasks: T004
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
 
@@ -91,7 +91,7 @@ Add the same `Optional Progress Tracker` section to each eligible skill definiti
 
 ## Numbered Plan
 
-1. [pending] Freeze eligible skill inventory and contract
+1. [completed] Freeze eligible skill inventory and contract
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -106,7 +106,7 @@ Add the same `Optional Progress Tracker` section to each eligible skill definiti
    - Repair attempts: 0
    - Recovery note: if the inventory changes, update only the eligible list and dependent task scope before editing files.
 
-2. [pending] Add the optional tracker contract to eligible skills
+2. [completed] Add the optional tracker contract to eligible skills
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -121,7 +121,7 @@ Add the same `Optional Progress Tracker` section to each eligible skill definiti
    - Repair attempts: 0
    - Recovery note: if a pair diverges, restore parity from the exact shared contract without changing unrelated skill text.
 
-3. [pending] Validate parity, format, and behavior contract
+3. [completed] Validate parity, format, and behavior contract
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G3
@@ -136,7 +136,7 @@ Add the same `Optional Progress Tracker` section to each eligible skill definiti
    - Repair attempts: 0
    - Recovery note: any failure is classified as content drift, formatter behavior, or pre-existing environment failure before repair.
 
-4. [pending] Review, checkpoint, and complete the plan
+4. [in_progress] Review, checkpoint, and complete the plan
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G4
@@ -179,7 +179,10 @@ Run the cheapest checks first: inventory/parity and exact marker audits, then `g
 | --------- | ----- | ---------- | ----- | --------------- | ---------- |
 | 2026-08-24T19:00:00+0000 | 0 | INTAKE -> DISCOVER -> RESEARCH | none | User selected weighted horizontal milestones with one overall bar; repository inspection found 11 eligible root/payload skill pairs and two explicit exclusions. | DRAFT |
 | 2026-08-24T19:05:00+0000 | 0 | RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED | T001-T004 | Shared instruction-contract design reviewed against all eligible skill formats; default-off behavior, exact rendering, parity, and exclusion gates resolved. Implementation not started during planning. | SAVED |
+| 2026-08-24T19:10:00+0000 | 0 | SAVED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001,T002 | Explicit user requested immediate execution; plan format/index validation passed, eligible inventory confirmed, and shared contract ready for implementation. | INTEGRATE |
+| 2026-08-24T19:20:00+0000 | 0 | DISPATCH -> INTEGRATE -> VERIFY | T002,T003 | Identical tracker contract added to all 11 eligible root/payload pairs; parity, exclusion, inventory, and `git diff --check` audits pass. | REVIEW |
+| 2026-08-24T19:35:00+0000 | 0 | VERIFY -> REVIEW -> REPAIR -> VERIFY -> CHECKPOINT | T003,T004 | Independent review found and repaired two wording gaps: explicit disabled-output preservation and active-weight multiplication. `make check`, `make fmt-check`, pre-commit integration tests (8/8), and `make test` (1282/1282) pass; generated payload index is consistent. | COMPLETE |
 
 ## Completion Review
 
-Filled by csm-build after implementation and final verification.
+Implementation complete. The optional tracker contract is present in all eligible root/payload skill pairs, excluded from upload/browse, and verified by repository gates. Final commit is pending after this checkpoint.

@@ -5,6 +5,20 @@ description: Analyze repos for patterns, conventions, and norms. Never runs comm
 
 # CSM Scan
 
+## Optional Progress Tracker
+
+The progress tracker is OFF by default. Include no tracker text in intermediate or final output unless the user explicitly requests progress tracking or supplies `--progress`; otherwise preserve existing output unchanged. When enabled, declare 3–6 skill-appropriate milestones and expected weights totaling 100% before work begins.
+
+Render one overall horizontal bar and one horizontal milestone row as work advances:
+
+```text
+TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
+Milestones
+[Research ✓ 20%] [Plan ✓ 15%] [Build ▶ 45%] [Verify ○ 20%]
+```
+
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. This supplements, never replaces, the skill state machine, acceptance evidence, and final result.
+
 Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract evidence across all 17 dimensions — Repository Structure, Technology Stack, Configuration, Testing, Code Conventions, Git Practices, Architecture, Documentation, Security, Operations, API Surface, Data Architecture, Deployment Topology, Maintainability, Governance & Ownership, Assurance & Supply Chain, and Development Practices — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
 
 ## Tmux Session Bootstrap

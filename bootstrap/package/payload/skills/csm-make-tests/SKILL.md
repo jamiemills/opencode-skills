@@ -5,6 +5,20 @@ description: Generate a comprehensive executable test suite for any repository �
 
 # CSM Make Tests
 
+## Optional Progress Tracker
+
+The progress tracker is OFF by default. Include no tracker text in intermediate or final output unless the user explicitly requests progress tracking or supplies `--progress`; otherwise preserve existing output unchanged. When enabled, declare 3–6 skill-appropriate milestones and expected weights totaling 100% before work begins.
+
+Render one overall horizontal bar and one horizontal milestone row as work advances:
+
+```text
+TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
+Milestones
+[Research ✓ 20%] [Plan ✓ 15%] [Build ▶ 45%] [Verify ○ 20%]
+```
+
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. This supplements, never replaces, the skill state machine, acceptance evidence, and final result.
+
 Turn a repository into a fully tested one: audit what exists, capture what the code actually does, generate the tests that are missing across every layer, prove they detect faults, and keep them maintained as the code evolves. Grounded in the committed research finding `.agents/research/2026-08-22-characterization-skill-implementation-research.md` (characterization techniques, generation ladder, mutation gates, differential oracles, performance continuity).
 
 ## Interface
