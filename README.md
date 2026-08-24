@@ -175,6 +175,14 @@ Use `csm-make-tests` when stronger behavioral coverage or characterization is ne
 
 Optional: `make install` installs the root devDependencies (and `csm-browse`'s), and `node scripts/install-hooks.mjs` enables the fast lefthook pre-commit gate.
 
+### Dependency policy
+
+Dependency updates are manual: review both manifests and both lockfiles quarterly, and before a Node or pnpm major upgrade. The lockfiles are authoritative and `make install` always uses frozen lockfiles; an isolated clean install with redirected `HOME`, `XDG_CONFIG_HOME`, and `TMPDIR` is the release check. Do not add Dependabot or Renovate configuration.
+
+Exact pins are used for root gate tooling where changing the executable can change repository results. `csm-browse` uses compatible ranges for ordinary library dependencies; the lockfile still records the exact resolved versions. Review range updates deliberately rather than treating them as automatic upgrades.
+
+Track the `ws` major explicitly because it is both a direct development dependency and a transitive dependency of `chrome-remote-interface`; assess API and Node support before moving beyond the current major. `F7-01` is ignored local install state, not a tracked dependency change.
+
 The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.
 
 Optional gates around the loop: **`csm-scan`** to capture repository conventions into `NORMS.md` before planning, and **`csm-review`** to adversarially audit a repository (or a completed build) for defects and security risks before delivery.
