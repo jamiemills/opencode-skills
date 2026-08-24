@@ -61,13 +61,23 @@ export async function breakStaleLock() {
       captured = await readFile(tombstone, "utf-8");
     } catch {}
     if (captured !== raw) {
+      // Restore the displaced artifact only if the lock pathname is vacant.
+      // rename(old, path) would replace a fresh O_EXCL claim.
       try {
-        await rename(tombstone, LOCK_FILE);
-      } catch {
+        const fh = await open(
+          LOCK_FILE,
+          fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+          0o600,
+        );
         try {
-          await unlink(tombstone);
-        } catch {} // a fresh lock already took the path
-      }
+          await fh.writeFile(captured ?? "");
+        } finally {
+          await fh.close();
+        }
+      } catch {}
+      try {
+        await unlink(tombstone);
+      } catch {}
       return;
     }
     try {

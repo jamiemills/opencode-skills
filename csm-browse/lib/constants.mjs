@@ -97,27 +97,6 @@ export const SID_REGEX = "^[a-z0-9][a-z0-9_-]{0,40}$";
 // Fixture-server base URL selection lives in tests/serve.mjs and tests/e2e.mjs
 // (env CSM_BROWSE_FIXTURE_BASE → docker0 gateway detection → 172.17.0.1 fallback);
 // kept OUT of this module so production entrypoints never fork `ip route` at import.
-export const FFMPEG_ARGS = [
-  "-y",
-  "-f",
-  "image2pipe",
-  "-c:v",
-  "mjpeg",
-  "-framerate",
-  "15",
-  "-i",
-  "-",
-  "-c:v",
-  "libx264",
-  "-preset",
-  "veryfast",
-  "-crf",
-  "23",
-  "-pix_fmt",
-  "yuv420p",
-  "-movflags",
-  "+faststart",
-];
 export const SCREENCAST_QUALITY = 70;
 export const SCREENCAST_MAX_WIDTH = 1920;
 export const SCREENCAST_MAX_HEIGHT = 1080;

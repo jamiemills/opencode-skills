@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { sessionDir } from "../session.mjs";
+import { isSessionDaemon } from "../cleanup.mjs";
 
 export async function run({ args: _args, state, verb }) {
   if (verb === "status") {
@@ -31,8 +32,7 @@ export async function run({ args: _args, state, verb }) {
         }
         if (daemonPid) {
           try {
-            process.kill(daemonPid, 0);
-            daemonAlive = true;
+            daemonAlive = await isSessionDaemon(daemonPid, state.sid);
           } catch {}
         }
       } catch {}

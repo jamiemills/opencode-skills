@@ -106,14 +106,12 @@ test("property: planted secrets never survive redactText across shapes and carri
   }
 });
 
-// Canary documenting the F4-09 boundary: redactText's token vocabulary does
-// NOT cover webhook-path tokens (https://hooks.example.com/services/TXXX/
-// BYYY/longtoken matches none of the path/email/token/assignment classes).
-// The property above asserts what redactText DOES cover; this canary pins the
-// uncovered webhook class so a future vocabulary widening (F4-09 territory)
-// must consciously update this expectation.
-test("canary: webhook-path-token class survives redactText unredacted (F4-09 boundary)", () => {
+test("webhook-path tokens are redacted without broad URL redaction", () => {
   const webhook = "https://hooks.example.com/services/TXXX/BYYY/longtoken";
-  assert.equal(redactText(webhook), webhook);
-  assert.equal(redactText(`notify ${webhook} now`), `notify ${webhook} now`);
+  assert.equal(redactText(webhook), "<redacted-secret>");
+  assert.equal(redactText(`notify ${webhook} now`), "notify <redacted-secret> now");
+  assert.equal(
+    redactText("https://example.com/services/TXXX/BYYY/longtoken"),
+    "https://example.com/services/TXXX/BYYY/longtoken",
+  );
 });

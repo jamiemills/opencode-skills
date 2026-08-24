@@ -217,11 +217,40 @@ function updatedReadme(readmeContent, goalText, stamp) {
   return lines.join("\n");
 }
 
-function runCheckSuite() {
-  return spawnSync(process.execPath, [path.join(SCRIPT_DIR, "check-suite.mjs"), "--root", root], {
-    encoding: "utf8",
-    timeout: 120000,
+function runCheckSuite(checkRoot = root) {
+  return spawnSync(
+    process.execPath,
+    [path.join(SCRIPT_DIR, "check-suite.mjs"), "--root", checkRoot],
+    {
+      encoding: "utf8",
+      timeout: 120000,
+    },
+  );
+}
+
+function prospectiveRoot(planText, readmeText) {
+  const tempRoot = fs.mkdtempSync(path.join(process.env.TMPDIR || "/tmp", "close-plan-"));
+  fs.cpSync(root, tempRoot, {
+    recursive: true,
+    filter: (source) =>
+      !source.includes(`${path.sep}.git${path.sep}`) &&
+      !source.includes(`${path.sep}node_modules${path.sep}`),
   });
+  fs.writeFileSync(path.join(tempRoot, path.relative(root, planFile)), planText);
+  fs.mkdirSync(path.dirname(path.join(tempRoot, path.relative(root, readmeFile))), {
+    recursive: true,
+  });
+  fs.writeFileSync(path.join(tempRoot, path.relative(root, readmeFile)), readmeText);
+  return tempRoot;
+}
+
+function printGateFailure(gate, context) {
+  console.log(`--- check-suite ${context}: FAILED on root ${root}`);
+  for (const line of `${gate.stderr}\n${gate.stdout}`.split("\n").filter(Boolean))
+    console.log(`    | ${line}`);
+  console.error(
+    "close-plan: no repository files were written; inspect the failure above, repair the replacement or plan, then rerun close-plan",
+  );
 }
 
 function main() {
@@ -269,6 +298,20 @@ function main() {
         console.log(`    | ${l}`);
     }
     process.exit(0);
+  }
+
+  // Validate the complete prospective corpus before touching the real plan or
+  // index. A failed closure must leave the original files recoverable.
+  let validationRoot;
+  try {
+    validationRoot = prospectiveRoot(newPlan, newReadme);
+    const prospectiveGate = runCheckSuite(validationRoot);
+    if (prospectiveGate.status !== 0) {
+      printGateFailure(prospectiveGate, "prospective validation");
+      process.exit(1);
+    }
+  } finally {
+    if (validationRoot) fs.rmSync(validationRoot, { recursive: true, force: true });
   }
 
   fs.mkdirSync(path.dirname(readmeFile), { recursive: true });

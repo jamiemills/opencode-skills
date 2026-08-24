@@ -48,6 +48,14 @@ test("openVerboseTrace falls back to the OS temp directory with a unique name wh
   }
 });
 
+test("F3-02 reports a truthful temp fallback when the output directory cannot open", async () => {
+  const trace = openVerboseTrace("/proc/csm-scan-unwritable/NORMS.md");
+  assert.ok(trace);
+  assert.equal(trace.path.startsWith(tmpdir()), true);
+  trace.stream.destroy();
+  await rm(trace.path, { force: true });
+});
+
 function baseReporter() {
   const calls = [];
   const base = { calls };

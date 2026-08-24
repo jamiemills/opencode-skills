@@ -3,6 +3,20 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { attachFirstPage, connect } from "../cdp.mjs";
+import { isSessionDaemon } from "../cleanup.mjs";
+
+export const MAX_NETWORK_FILTER_LENGTH = 256;
+
+export function compileNetworkFilter(filterStr) {
+  if (typeof filterStr !== "string" || filterStr.length > MAX_NETWORK_FILTER_LENGTH) {
+    throw new Error(`--filter must be a regex of at most ${MAX_NETWORK_FILTER_LENGTH} characters`);
+  }
+  try {
+    return new RegExp(filterStr, "i");
+  } catch (err) {
+    throw new Error(`invalid --filter regex: ${err.message}`, { cause: err });
+  }
+}
 
 async function readEvents(sessionDir) {
   const events = [];
@@ -53,13 +67,12 @@ async function hasAnyEventsFile(sessionDir) {
   }
 }
 
-function isDaemonAlive(sessionDir) {
+async function isDaemonAlive(sessionDir, sid) {
   const pidFile = join(sessionDir, "daemon.pid");
   if (!existsSync(pidFile)) return false;
   try {
     const pid = parseInt(readFileSync(pidFile, "utf-8").trim(), 10);
-    process.kill(pid, 0);
-    return true;
+    return await isSessionDaemon(pid, sid);
   } catch {
     return false;
   }
@@ -82,7 +95,7 @@ function parseStringArg(args, flag) {
   return null;
 }
 
-async function subConsole(args, sessionDir) {
+async function subConsole(args, sessionDir, sid) {
   const tail = parseNumericArg(args, "--tail");
 
   const events = await readEvents(sessionDir);
@@ -96,7 +109,7 @@ async function subConsole(args, sessionDir) {
     }
   }
 
-  if (!isDaemonAlive(sessionDir)) {
+  if (!(await isDaemonAlive(sessionDir, sid))) {
     console.error("daemon down — capture gap");
   }
 
@@ -111,7 +124,7 @@ async function subConsole(args, sessionDir) {
   process.stdout.write(JSON.stringify(filtered, null, 2) + "\n");
 }
 
-async function subNetwork(args, sessionDir) {
+async function subNetwork(args, sessionDir, sid) {
   const tail = parseNumericArg(args, "--tail");
   const filterStr = parseStringArg(args, "--filter");
 
@@ -126,14 +139,21 @@ async function subNetwork(args, sessionDir) {
     }
   }
 
-  if (!isDaemonAlive(sessionDir)) {
+  if (!(await isDaemonAlive(sessionDir, sid))) {
     console.error("daemon down — capture gap");
   }
 
   let filtered = events.filter((e) => e.type === "network");
 
   if (filterStr) {
-    const re = new RegExp(filterStr, "i");
+    let re;
+    try {
+      re = compileNetworkFilter(filterStr);
+    } catch (err) {
+      console.error(err.message);
+      process.exitCode = 2;
+      return;
+    }
     filtered = filtered.filter((e) => e.payload && e.payload.url && re.test(e.payload.url));
   }
 
@@ -246,10 +266,10 @@ export async function run({ args, state }) {
 
   switch (subVerb) {
     case "console":
-      await subConsole(rest, state.sessionDir);
+      await subConsole(rest, state.sessionDir, state.sid);
       break;
     case "network":
-      await subNetwork(rest, state.sessionDir);
+      await subNetwork(rest, state.sessionDir, state.sid);
       break;
     case "performance":
       await subPerformance(state);

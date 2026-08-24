@@ -8,7 +8,7 @@ import { freshSessionsRoot, removeRoot, patchKill } from "./helpers/env.mjs";
 // removeHostSession / releasePorts / truncateLogs) with stubbed docker exec
 // layer + patched process.kill. No Docker required.
 const root = await freshSessionsRoot("csm-browse-cleanup-");
-const { setExecLayerForTests } = await import("../../lib/docker.mjs");
+const { setExecLayerForTests } = await import("./helpers/exec-layer.mjs");
 const cleanup = await import("../../lib/cleanup.mjs");
 
 after(async () => {

@@ -3,7 +3,10 @@
 // import it, and a forgotten reset cannot order-contaminate the next test
 // file via a module that ships to runtime.
 //
-// Existing suites still import setExecLayerForTests from lib/docker.mjs
-// (transitional re-export); R9 re-points them to this module, after which
-// the docker.mjs alias is removed.
-export { setExecLayerForTests, execLayer, realExecLayer } from "../../../lib/docker.mjs";
+import { execLayer, realExecLayer } from "../../../lib/docker.mjs";
+
+export { execLayer, realExecLayer };
+
+export function setExecLayerForTests(layer) {
+  Object.assign(execLayer, layer ?? realExecLayer);
+}

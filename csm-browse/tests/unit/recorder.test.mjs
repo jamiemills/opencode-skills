@@ -5,7 +5,6 @@ import { writeFile, mkdir, chmod, readFile, stat, rm } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 import { freshSessionsRoot, removeRoot } from "./helpers/env.mjs";
 
 // F-040: recorder start/stop with a stubbed ffmpeg. The recorder spawns
@@ -24,7 +23,6 @@ const fakeFfmpeg = [
   "process.stdin.resume();",
   "process.stdin.on('data', () => {});",
   "process.stdin.on('end', () => process.exit(0));",
-  "setTimeout(() => process.exit(0), 10000).unref();",
   "",
 ].join("\n");
 await writeFile(join(fakeBinDir, "ffmpeg"), fakeFfmpeg, { encoding: "utf-8" });
@@ -34,6 +32,7 @@ process.env.PATH = `${fakeBinDir}${process.env.PATH ? ":" : ""}${process.env.PAT
 // recorder.mjs must load AFTER CSM_BROWSE_SESSIONS_ROOT is pinned (constants.mjs
 // validates the runtime root at import).
 const recorder = await import("../../lib/recorder.mjs");
+const { parseStartArgs } = await import("../../lib/verbs/record.mjs");
 
 after(async () => {
   await removeRoot(root);
@@ -65,8 +64,19 @@ async function startAndStop(client, outName, frames = 0) {
   for (let i = 0; i < frames; i++) {
     client.emitFrame({ data: Buffer.from(`frame-${i}`).toString("base64"), sessionId: "x" });
   }
-  if (frames > 0) await sleep(100);
+  if (frames > 0) await waitForFile(join(sessionDir, "artifacts", outName));
   return recorder.stopRecorder(client, SESSION_ID, sessionDir);
+}
+
+async function waitForFile(path, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if ((await stat(path)).size > 0) return;
+    } catch {}
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  throw new Error(`timed out waiting for non-empty file: ${path}`);
 }
 
 test("startRecorder rejects invalid output names", async () => {
@@ -79,6 +89,11 @@ test("startRecorder rejects invalid output names", async () => {
     () => recorder.startRecorder(client, SESSION_ID, sessionDir, "noext"),
     /Invalid recording name/,
   );
+});
+
+test("screencast argument parsing preserves a name equal to the speed value", () => {
+  assert.equal(parseStartArgs(["fast.webm", "--speed", "fast"]), "fast.webm");
+  assert.equal(parseStartArgs(["fast", "--medium"]), "fast");
 });
 
 test("startRecorder launches the stubbed ffmpeg and persists running state", async () => {
@@ -101,18 +116,9 @@ test("startRecorder launches the stubbed ffmpeg and persists running state", asy
     const state = JSON.parse(await readFile(join(sessionDir, "recorder.json"), "utf-8"));
     assert.equal(state.running, true);
     assert.equal(state.name, "test.webm");
+    assert.equal(state.fps, 7);
     assert.equal(state.outPath, join(sessionDir, "artifacts", "test.webm"));
-    // The stub writes the output file at spawn; wait briefly, then confirm.
-    for (let i = 0; i < 20; i++) {
-      try {
-        if ((await stat(join(sessionDir, "artifacts", "test.webm"))).size > 0) break;
-      } catch {}
-      await sleep(50);
-    }
-    assert.ok(
-      (await stat(join(sessionDir, "artifacts", "test.webm"))).size > 0,
-      "stub ffmpeg must write the output file",
-    );
+    await waitForFile(join(sessionDir, "artifacts", "test.webm"));
   } finally {
     try {
       await recorder.stopRecorder(client, SESSION_ID, sessionDir);
@@ -159,6 +165,15 @@ test("stopRecorder drains frames, writes stats, and reaps the stub", async () =>
 
   // ffmpeg-stderr.log is removed after a clean stop.
   await assert.rejects(() => stat(join(sessionDir, "ffmpeg-stderr.log")));
+});
+
+test("recording stats report effective speed FPS", async () => {
+  const client = new FakeClient();
+  await recorder.startRecorder(client, SESSION_ID, sessionDir, "slow.webm", 15, "medium", "slow");
+  const res = await recorder.stopRecorder(client, SESSION_ID, sessionDir);
+  assert.equal(res.frames, 0);
+  const stats = JSON.parse(await readFile(join(sessionDir, "recorder.json"), "utf-8"));
+  assert.equal(stats.fps, 3);
 });
 
 test("stopRecorder without an active recording throws", async () => {

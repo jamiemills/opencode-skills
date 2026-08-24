@@ -135,8 +135,3 @@ export async function survey(repoPath, broker = commandBroker) {
   }
   return overview;
 }
-
-export async function detectLanguages(repoPath, broker = commandBroker) {
-  const { files } = await enumerate(repoPath, broker);
-  return detectFromScores(scoreLanguages(files));
-}

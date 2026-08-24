@@ -127,7 +127,7 @@ function serveStaticProtocol(socket, log) {
 }
 
 function handleConnection(socket, ctx) {
-  const { expectedToken, openTunnel, log } = ctx;
+  const { expectedToken, openTunnel, log, tunnels } = ctx;
   let buf = "";
   let lineDone = false;
   let accepted = false;
@@ -229,6 +229,8 @@ function handleConnection(socket, ctx) {
       return;
     }
     tunnel = child;
+    tunnels.add(child);
+    child.once("close", () => tunnels.delete(child));
     let stderr = "";
     if (child.stderr)
       child.stderr.on("data", (d) => {
@@ -309,11 +311,13 @@ export function createGate({
   openTunnel,
   log = () => {},
 }) {
+  const tunnels = new Set();
   const server = createServer((socket) =>
     handleConnection(socket, {
       expectedToken: token,
       openTunnel: openTunnel || (() => spawnExecTunnel(containerName, internalPort)),
       log,
+      tunnels,
     }),
   );
   // Track live sockets so close() can force-tear them down; a stuck client
@@ -340,8 +344,8 @@ export function createGate({
         server.listen(port, "127.0.0.1");
       });
     },
-    close() {
-      return new Promise((resolve) => {
+    async close() {
+      await new Promise((resolve) => {
         server.close(() => resolve());
         for (const s of sockets) {
           try {
@@ -349,6 +353,30 @@ export function createGate({
           } catch {}
         }
       });
+      for (const child of tunnels) {
+        try {
+          child.kill("SIGTERM");
+        } catch {}
+      }
+      await Promise.race([
+        Promise.all(
+          [...tunnels].map(
+            (child) =>
+              new Promise((resolve) => {
+                if (child.exitCode !== null || child.signalCode) return resolve();
+                child.once("close", resolve);
+              }),
+          ),
+        ),
+        new Promise((resolve) => setTimeout(resolve, TUNNEL_KILL_GRACE_MS)),
+      ]);
+      for (const child of tunnels) {
+        if (child.exitCode === null && !child.signalCode) {
+          try {
+            child.kill("SIGKILL");
+          } catch {}
+        }
+      }
     },
   };
 }

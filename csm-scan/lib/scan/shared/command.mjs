@@ -22,10 +22,13 @@ export class CommandError extends Error {
   }
 }
 
-function splitGlobArgs(entries) {
+export function splitGlobArgs(entries) {
   const out = [];
   for (const s of entries) {
-    const i = s.indexOf(" ");
+    const i = typeof s === "string" ? s.indexOf(" ") : -1;
+    if (typeof s !== "string" || i <= 0 || i !== s.lastIndexOf(" ") || i === s.length - 1) {
+      throw new TypeError(`invalid glob argument: ${JSON.stringify(s)}`);
+    }
     out.push(s.slice(0, i), s.slice(i + 1));
   }
   return out;

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { writeFile, readFile, mkdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { freshSessionsRoot, removeRoot, backage, patchKill } from "./helpers/env.mjs";
 
 const root = await freshSessionsRoot("csm-browse-sweep-");
@@ -160,10 +161,17 @@ test("fresh creating.marker protects a session dir from both passes", async () =
 test("a live daemon beats dir age (liveness-first)", async () => {
   installStubs();
   resetCfg();
+  const daemon = spawn(
+    process.execPath,
+    ["-e", "setInterval(() => {}, 1000)", "session-daemon.mjs", "--session", "sw-c1"],
+    {
+      stdio: "ignore",
+    },
+  );
   const dir = await makeSession("sw-c1", {
     ageMs: 60 * 60 * 1000,
     state: {},
-    daemonPid: process.pid,
+    daemonPid: daemon.pid,
   });
   const restore = patchKill(ME);
   let result;
@@ -177,6 +185,7 @@ test("a live daemon beats dir age (liveness-first)", async () => {
     `live-daemon session swept: ${result.swept}`,
   );
   assert.ok(existsSync(dir));
+  daemon.kill("SIGKILL");
 });
 
 test("skipSid is honored by the host pass", async () => {
@@ -331,9 +340,16 @@ test("stale recorder.json running:true is flipped when the daemon is dead; live 
   installStubs();
   resetCfg();
   await makeSession("rl-x", { recorder: { running: true, name: "x.webm" } });
+  const daemon = spawn(
+    process.execPath,
+    ["-e", "setInterval(() => {}, 1000)", "session-daemon.mjs", "--session", "rl-y"],
+    {
+      stdio: "ignore",
+    },
+  );
   await makeSession("rl-y", {
     recorder: { running: true, name: "y.webm" },
-    daemonPid: process.pid,
+    daemonPid: daemon.pid,
   });
   const restore = patchKill(ME);
   let result;
@@ -350,6 +366,7 @@ test("stale recorder.json running:true is flipped when the daemon is dead; live 
   assert.equal(flipped.running, false);
   const kept = JSON.parse(await readFile(join(root, "rl-y", "recorder.json"), "utf-8"));
   assert.equal(kept.running, true);
+  daemon.kill("SIGKILL");
 });
 
 test("orphan gate without a related chromium is killed; pass skipped while a creating marker exists", async () => {

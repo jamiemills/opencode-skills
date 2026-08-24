@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import test, { after, before } from "node:test";
-import { packBootstrap } from "../scripts/pack-bootstrap.mjs";
+import { packBootstrap, validateReleaseKeyring } from "../scripts/pack-bootstrap.mjs";
 import {
   canonicalJson,
   digest,
@@ -22,6 +22,7 @@ const execFileAsync = promisify(execFile);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixturePath = join(root, "bootstrap/fixtures/valid.json");
 const keyringPath = join(root, "bootstrap/keyring.json");
+const releaseChecklistPath = join(root, "bootstrap/release-checklist.md");
 const stepsPath = join(root, "bootstrap/steps.md");
 const binPath = join(root, "bootstrap/package/bin/csm-skills-bootstrap.js");
 const now = new Date("2026-08-18T00:00:00.000Z");
@@ -393,6 +394,143 @@ test("F-045: the shipped bin embeds the keyring canonically and its verify subco
   }
 });
 
+test("T007: shipped payload-index validation fails closed on malformed shapes, duplicates, digests, and mode drift", async () => {
+  const cases = [
+    ["top-level shape", () => null, "INDEX_SCHEMA"],
+    [
+      "class shape",
+      (index) => ({ ...index, classes: { ...index.classes, skills: {} } }),
+      "INDEX_SCHEMA",
+    ],
+    [
+      "duplicate path",
+      (index) => ({
+        ...index,
+        classes: { ...index.classes, supportingFiles: [{ ...index.classes.skills[0] }] },
+      }),
+      "DUPLICATE_ENTRY",
+    ],
+    [
+      "invalid lowercase sha256",
+      (index) => ({
+        ...index,
+        classes: {
+          ...index.classes,
+          skills: [{ ...index.classes.skills[0], sha256: "A".repeat(64) }],
+        },
+      }),
+      "INVALID_ENTRY",
+    ],
+    [
+      "invalid mode",
+      (index) => ({
+        ...index,
+        classes: { ...index.classes, skills: [{ ...index.classes.skills[0], mode: "not-mode" }] },
+      }),
+      "INVALID_ENTRY",
+    ],
+  ];
+  for (const [name, mutate, expected] of cases) {
+    const dir = await mkdtemp("/tmp/csm-bootstrap-index-");
+    await chmod(dir, 0o700);
+    try {
+      await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
+      const packageDir = join(dir, "package");
+      const indexPath = join(packageDir, "payload-index.json");
+      const index = JSON.parse(await readFile(indexPath, "utf8"));
+      await writeFile(indexPath, `${JSON.stringify(mutate(index), null, 2)}\n`);
+      const result = await execFileAsync(
+        process.execPath,
+        [join(packageDir, "bin/csm-skills-bootstrap.js"), "payload-index"],
+        { encoding: "utf8" },
+      )
+        .then((out) => ({ code: 0, stdout: out.stdout }))
+        .catch((error) => ({
+          code: error.code,
+          stdout: error.stdout || "",
+        }));
+      assert.notEqual(result.code, 0, name);
+      const verification = JSON.parse(result.stdout).verification;
+      if (expected === "INDEX_SCHEMA") assert.equal(verification.code, expected, name);
+      else
+        assert.ok(
+          verification.failures.some((failure) => failure.error === expected),
+          name,
+        );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  const dir = await mkdtemp("/tmp/csm-bootstrap-mode-");
+  await chmod(dir, 0o700);
+  try {
+    await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
+    const packageDir = join(dir, "package");
+    const index = JSON.parse(await readFile(join(packageDir, "payload-index.json"), "utf8"));
+    for (const [label, mode] of [
+      ["group write-bit drift", 0o664],
+      ["other write-bit drift", 0o646],
+    ]) {
+      const target = join(packageDir, index.classes.skills[0].path);
+      await chmod(target, mode);
+      const result = await execFileAsync(
+        process.execPath,
+        [join(packageDir, "bin/csm-skills-bootstrap.js"), "payload-index"],
+        { encoding: "utf8" },
+      )
+        .then((out) => ({ code: 0, stdout: out.stdout }))
+        .catch((error) => ({
+          code: error.code,
+          stdout: error.stdout || "",
+        }));
+      assert.notEqual(result.code, 0, label);
+      assert.ok(
+        JSON.parse(result.stdout).verification.failures.some(
+          (failure) => failure.error === "MODE_MISMATCH",
+        ),
+        label,
+      );
+      await chmod(target, 0o644);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("T007: release pack refuses the fixture keyring while local pack remains allowed", async () => {
+  await assert.rejects(
+    execFileAsync(process.execPath, [join(root, "scripts/pack-bootstrap.mjs"), "--release"], {
+      encoding: "utf8",
+    }),
+    (error) => error.code === 1 && /RELEASE_KEYRING|release pack refused/.test(error.stderr || ""),
+  );
+  assert.ok(packHolder.value.tarball);
+});
+
+test("T007: release gate rejects fixture material after IDs and metadata are disguised", async () => {
+  const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
+  const disguised = {
+    ...keyring,
+    environment: "production",
+    production_use: true,
+    keys: keyring.keys.map((key, index) => ({ ...key, id: `release-key-${index}` })),
+  };
+  assert.throws(
+    () => validateReleaseKeyring(disguised),
+    (error) => error.code === "RELEASE_KEYRING",
+  );
+});
+
+test("T007: fixture keyring is explicitly barred from production release", async () => {
+  const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
+  assert.equal(keyring.environment, "test-fixture-only");
+  assert.equal(keyring.production_use, false);
+  const checklist = await readFile(releaseChecklistPath, "utf8");
+  assert.match(checklist, /release-only keyring gate/i);
+  assert.match(checklist, /node scripts\/pack-bootstrap\.mjs --release/);
+});
+
 test("R2: the envelope schema matches the when-present runtime and validates the fixture and a no-signature envelope", async () => {
   const schema = JSON.parse(await readFile(join(root, "bootstrap/schema.json"), "utf8"));
   assert.deepEqual([...schema.required].toSorted(), [
@@ -593,6 +731,35 @@ test("F-010: shipped bin limits validation mirrors the trust-policy engine", asy
         `${testCase.name}: bin ok=${binOk} (${binCode}) vs engine ok=${engineOk} (${engineCode})`,
       );
       assert.equal(binCode, engineCode === "OK" ? "OK" : engineCode, `${testCase.name} code`);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("T007: shipped payload verifier rejects path and entry metadata drift", async () => {
+  const dir = await mkdtemp("/tmp/csm-bootstrap-payload-");
+  await chmod(dir, 0o700);
+  try {
+    await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
+    const shippedBin = join(dir, "package", "bin", "csm-skills-bootstrap.js");
+    const indexPath = join(dir, "package", "payload-index.json");
+    const index = JSON.parse(await readFile(indexPath, "utf8"));
+    const entry = index.classes.skills[0];
+    const cases = [
+      ["backslash-path", { path: entry.path.replace("/", "\\") }, "INVALID_ENTRY"],
+      ["fractional-size", { bytes: 1.5 }, "INVALID_ENTRY"],
+      ["invalid-mode", { mode: "9999" }, "INVALID_ENTRY"],
+    ];
+    for (const [name, changes, expected] of cases) {
+      const candidate = structuredClone(index);
+      Object.assign(candidate.classes.skills[0], changes);
+      await writeFile(indexPath, `${JSON.stringify(candidate)}\n`);
+      const run = await execFileAsync(process.execPath, [shippedBin, "payload-index"], {
+        encoding: "utf8",
+      }).catch((error) => ({ stdout: error.stdout || "", code: error.code }));
+      assert.notEqual(run.code, 0, name);
+      assert.equal(JSON.parse(run.stdout).verification.failures[0].error, expected, name);
     }
   } finally {
     await rm(dir, { recursive: true, force: true });

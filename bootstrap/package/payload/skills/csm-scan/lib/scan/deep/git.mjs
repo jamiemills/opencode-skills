@@ -21,6 +21,9 @@ const SEMANTIC_LABELS = Object.freeze({
 });
 const TASK_RE =
   /^(?:T\d{3}(?:-[a-z][a-z0-9-]*)?|P\d+C?|CSM(?: plan)?|REPAIR|plan|csm-scan|csm-browse):/i;
+// Keep the repository's local workflow buckets, but also disclose common
+// foreign ticket prefixes instead of silently classifying them as plain text.
+const FOREIGN_TICKET_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\d+:/i;
 const TASK_BUCKETS = Object.freeze([
   { re: /^t\d{3}/, label: "T###" },
   { re: /^p\d/, label: "P#" },
@@ -82,6 +85,10 @@ export function analyzeCommitStyle(logLines) {
       taskCounts[bucket] = (taskCounts[bucket] || 0) + 1;
       continue;
     }
+    if (FOREIGN_TICKET_RE.test(msg)) {
+      taskCounts.ticket = (taskCounts.ticket || 0) + 1;
+      continue;
+    }
     const colonIdx = msg.indexOf(":");
     if (colonIdx > 0 && colonIdx < 30) {
       const prefix = msg.slice(0, colonIdx).toLowerCase();
@@ -139,6 +146,7 @@ function analyzeBranchPatterns(branches) {
 
   for (const raw of branches) {
     const cleaned = raw.replace(/^[*+]\s*/, "").trim();
+    if (/^remotes\/[^/]+\/HEAD\s+->\s+/.test(cleaned)) continue;
     const branch = cleaned.replace(/^remotes\/[^/]+\//, "");
     if (!branch || MAIN_BRANCH_NAMES.has(branch)) continue;
     const slashIdx = branch.indexOf("/");

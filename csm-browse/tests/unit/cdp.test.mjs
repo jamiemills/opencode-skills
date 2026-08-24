@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clickCoords, waitForSelector, evalInPage } from "../../lib/cdp.mjs";
+import { EventEmitter } from "node:events";
+import { clickCoords, waitForSelector, evalInPage, waitForLoad } from "../../lib/cdp.mjs";
 
 function recordingClient(handler) {
   const calls = [];
@@ -96,4 +97,12 @@ test("waitForSelector polls until the element appears", async () => {
   const client = recordingClient(() => ({ result: { value: ++n >= 2 } }));
   await waitForSelector(client, "s", "#late", 5000);
   assert.equal(client.calls.length, 2);
+});
+
+test("waitForLoad resolves on the browser load event", async () => {
+  const client = new EventEmitter();
+  client.send = async () => ({});
+  const loading = waitForLoad(client, "s");
+  client.emit("Page.loadEventFired");
+  await loading;
 });

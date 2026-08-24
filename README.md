@@ -11,12 +11,13 @@ git clone https://github.com/jamiemills/opencode-skills.git ~/.config/opencode/s
 cd ~/.config/opencode/skills/csm-browse && pnpm install && node scripts/check-skill.mjs
 ```
 
-Restart your agent runtime. Ten skills are instruction-led and ready to use; `csm-browse` also needs its Docker/Node setup. Full details: [Install](#install).
+Restart your agent runtime. Eleven skills are instruction-led and ready to use; `csm-browse` also needs its Docker/Node setup. Full details: [Install](#install).
 
 ## Table of contents
 
 - [What this is](#what-this-is)
 - [Install](#install)
+- [Dependency policy](#dependency-policy)
 - [The twelve skills at a glance](#the-twelve-skills-at-a-glance)
 - [Composition matrix](#composition-matrix)
 - [Quickstart](#quickstart)
@@ -158,6 +159,14 @@ The core loop is **research → grill → plan → build**:
 Optional between planning and building: invoke `csm-make-tests` when the change needs a systematic test-generation pass. It audits the current test surface, captures approved characterization/golden behavior, creates intent/contract/performance tests, and returns a ledger and verification report for the build.
 
 Optional: `make install` installs the root devDependencies (and `csm-browse`'s), and `node scripts/install-hooks.mjs` enables the fast lefthook pre-commit gate.
+
+### Dependency policy
+
+Dependency updates are manual: review both manifests and both lockfiles quarterly, and before a Node or pnpm major upgrade. The lockfiles are authoritative and `make install` always uses frozen lockfiles; an isolated clean install with redirected `HOME`, `XDG_CONFIG_HOME`, and `TMPDIR` is the release check. Do not add Dependabot or Renovate configuration.
+
+Exact pins are used for root gate tooling where changing the executable can change repository results. `csm-browse` uses compatible ranges for ordinary library dependencies; the lockfile still records the exact resolved versions. Review range updates deliberately rather than treating them as automatic upgrades.
+
+Track the `ws` major explicitly because it is both a direct development dependency and a transitive dependency of `chrome-remote-interface`; assess API and Node support before moving beyond the current major. `F7-01` is ignored local install state, not a tracked dependency change.
 
 The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.
 
@@ -350,7 +359,7 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 │       ├── plan-validation.mjs    # plan corpus validation rules
 │       └── token-efficiency.mjs   # cache/token-efficiency toggle parsing (OFF by default)
 ├── .agents/           # process artifacts: plans/, approaches/, reviews/, research/ (+ artifacts/), docs/ (indexed in .agents/README.md)
-├── .lefthook.yml      # pre-commit gate definition (unstaged guard, gate baseline, check-suite, syntax, staged oxlint, browse check)
+├── .lefthook.yml      # pre-commit gate definition (unstaged guard, oxfmt, check-suite, syntax, staged oxlint, browse check)
 ├── package.json       # root tooling manifest: lefthook + oxfmt + oxlint devDeps, packageManager pnpm@10.34.5
 ├── pnpm-lock.yaml     # hook-tooling dependency lockfile
 └── .node-version      # 22 — the gate toolchain version
@@ -382,7 +391,7 @@ Direct commands (what the targets invoke):
 - `node scripts/sync-skill-boilerplate.mjs --check` # boilerplate drift (also gated); `--write` regenerates
 - `node scripts/gen-readme-matrix.mjs --check` # composition-matrix drift (also gated); `--write` regenerates
 - `node scripts/close-plan.mjs <plan> <replacement> [--dry-run]` # plan closure automation
-- `node scripts/cache-health.mjs [--days N]` # per-session/per-day cache hit ratios and cost for the active model
+- `node scripts/cache-health.mjs [--days N]` # per-session/per-day cache hit ratios and cost for the explicitly reported fixed `deepseek-v4-flash` model filter
 - `pnpm exec lefthook install --force` # (re)enable the local lefthook pre-commit gate after `make install` (bypass: `git commit --no-verify`)
 - **Universal bootstrap suites** — envelope trust, package audit, protocol conformance, offline boundary, resume semantics, and the cross-task integration flow; `node scripts/pack-bootstrap.mjs` prints the deterministic tarball digest:
 
@@ -421,7 +430,7 @@ Direct commands (what the targets invoke):
 - The orchestration skills (`csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review`, `csm-review-python`, `csm-deep-research`) are instruction/reference skills with no conventional unit suite; validate them through their documented state-machine gates and representative invocations.
 - **Parallel sessions (worktrees)** — one goal per worktree: from the main checkout run `node scripts/wt-session.mjs create <goal-slug>`, run the session inside the worktree, then `merge` (rebase + ff-only to main) and `nuke` when done. Each worktree has its own index and staging area — sibling sessions cannot sweep each other's files into commits, the gate runs against the worktree's own corpus, and hook races disappear. The main checkout stays on `main` (it is the live skills dir); merge worktree branches serially and re-run the gate after merging. The only expected merge conflict is the `.agents/README.md` index line — resolve by keeping both lines.
 - **Commit style** — short imperative messages, frequently skill-prefixed (e.g. `csm-browse: ...`, `add csm-scan skill: ...`). The pre-commit hook demands a fully staged tree (unstaged-guard) — use pathspec commits for partial work or `--no-verify` to bypass.
-- **Cache & token hygiene** — the suite's sessions rely on model-provider automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]`. The layer is **OFF by default everywhere** — only an explicit `.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for a repo or directory.
+- **Cache & token hygiene** — the suite's sessions rely on model-provider automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]` (the report explicitly scopes itself to `deepseek-v4-flash`). The layer is **OFF by default everywhere** — only an explicit `.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for a repo or directory.
 
 ## Troubleshooting
 

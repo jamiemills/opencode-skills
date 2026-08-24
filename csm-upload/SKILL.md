@@ -25,10 +25,10 @@ Reads `~/.agents/csm-upload.json`:
 { "github": "jamiemills", "pagesRepo": "csm-browse-pages" }
 ```
 
-- `github` — your GitHub username (auto-detected from `gh auth status` on first run)
+- `github` — your GitHub username (queried from `gh api user` on first run, with `gh auth status` as a fallback)
 - `pagesRepo` — the repo name to push to (must have GitHub Pages enabled on its default branch)
 
-On first run or missing config, auto-detects from `gh auth status` and writes the file. Override with `--github <user>` and `--repo <name>` CLI flags.
+On first run or missing config, queries `gh api user` and falls back to `gh auth status`, then writes the file. Override with `--github <user>` and `--repo <name>` CLI flags.
 
 ## Usage
 

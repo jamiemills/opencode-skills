@@ -17,7 +17,13 @@ import {
   PORT_POOL_END,
   CDP_RETRY_TIMEOUT_MS,
 } from "./constants.mjs";
-import { sessionDir, containerSessionDir, validateSid, revokeToken } from "./session.mjs";
+import {
+  sessionDir,
+  containerSessionDir,
+  validateSid,
+  revokeToken,
+  saveState,
+} from "./session.mjs";
 import { prepareRuntimeRoot, secureWrite, validateState } from "./security.mjs";
 
 // Session-creation marker protocol (F-010): createSession writes
@@ -76,15 +82,6 @@ async function dirAgeMs(sDir) {
     } catch {}
   }
   return max ? Date.now() - max : null;
-}
-
-async function daemonAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function killPidGracefully(pid, sid) {
@@ -156,7 +153,7 @@ export async function sweep({
       try {
         const raw = await readFile(pidFile, "utf-8");
         const pid = parseInt(raw.trim(), 10);
-        if (!isNaN(pid) && (await daemonAlive(pid))) daemonLive = true;
+        if (!isNaN(pid) && (await isSessionDaemon(pid, sid))) daemonLive = true;
       } catch {}
     }
     if (daemonLive) continue;
@@ -220,7 +217,7 @@ export async function sweep({
     if (state) {
       try {
         revokeToken(state);
-        await secureWrite(statePath, JSON.stringify(state, null, 2), { encoding: "utf-8" });
+        await saveState(sid, state);
       } catch {}
     }
     try {
@@ -279,7 +276,7 @@ export async function sweep({
             try {
               const raw = await readFile(pidFile, "utf-8");
               const pid = parseInt(raw.trim(), 10);
-              alive = !isNaN(pid) && (await daemonAlive(pid));
+              alive = !isNaN(pid) && (await isSessionDaemon(pid, sid));
             } catch {}
           }
           if (alive) continue;
@@ -370,7 +367,7 @@ export async function sweep({
         try {
           const raw = await readFile(pidFile, "utf-8");
           const pid = parseInt(raw.trim(), 10);
-          alive = !isNaN(pid) && (await daemonAlive(pid));
+          alive = !isNaN(pid) && (await isSessionDaemon(pid, sid));
         } catch {}
       }
       if (alive) continue;

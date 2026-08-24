@@ -1,16 +1,22 @@
 import { connect, getSession, waitForLoad, waitForSelector } from "../cdp.mjs";
 
+export function parseUrlArgs(args) {
+  let url = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--url" && i + 1 < args.length) {
+      url = args[++i];
+    } else if (args[i] === "--session") {
+      i++;
+    } else if (!url && !args[i].startsWith("--")) {
+      url = args[i];
+    }
+  }
+  return url;
+}
+
 export async function run({ args, state, verb }) {
   if (verb === "open" || verb === "navigate") {
-    let url = null;
-
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] === "--url" && i + 1 < args.length) {
-        url = args[++i];
-      } else if (!url && !args[i].startsWith("--")) {
-        url = args[i];
-      }
-    }
+    const url = parseUrlArgs(args);
 
     if (!url) {
       console.error("Missing URL. Usage: browse open --session <sid> <url>");
@@ -20,8 +26,9 @@ export async function run({ args, state, verb }) {
     const client = await connect(state);
     const sessionId = await getSession(client);
 
+    const load = waitForLoad(client, sessionId);
     await client.send("Page.navigate", { url }, sessionId);
-    await waitForLoad(client, sessionId);
+    await load;
 
     const { result } = await client.send(
       "Runtime.evaluate",

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -9,6 +12,7 @@ const root = await freshSessionsRoot("csm-browse-lifecycle-");
 const { holderIdentityMatches, writeCreatorArtifact, currentIdentity } =
   await import("../../lib/pid-identity.mjs");
 const ports = await import("../../lib/ports.mjs");
+const { createGate } = await import("../../scripts/cdp-gate.mjs");
 
 test("holderIdentityMatches treats a recycled pid as dead and legacy artifacts as alive", async () => {
   const dir = await mkdtemp(join(tmpdir(), "csm-pidid-"));
@@ -66,4 +70,35 @@ test("claimedPortSet ignores crashed-creator markers past grace but honors live 
   await rm(join(root, deadSid), { recursive: true, force: true });
   await rm(join(root, liveSid), { recursive: true, force: true });
   await removeRoot(root);
+});
+
+test("gate close explicitly reaps a tunnel child instead of waiting for socket grace", async () => {
+  const signals = [];
+  const tunnel = new EventEmitter();
+  tunnel.stdin = new PassThrough();
+  tunnel.stdout = new PassThrough();
+  tunnel.stderr = new PassThrough();
+  tunnel.exitCode = null;
+  tunnel.signalCode = null;
+  tunnel.kill = (signal) => {
+    signals.push(signal);
+    tunnel.signalCode = signal;
+    tunnel.exitCode = 0;
+    queueMicrotask(() => tunnel.emit("close", 0, signal));
+    return true;
+  };
+  const gate = createGate({ token: "token", openTunnel: () => tunnel });
+  const port = await gate.listen();
+  const client = createConnection({ host: "127.0.0.1", port });
+  client.on("error", () => {});
+  await new Promise((resolve, reject) => {
+    client.once("connect", resolve);
+    client.once("error", reject);
+  });
+  client.write("GET /json/version?token=token HTTP/1.1\r\nHost: localhost\r\n\r\n");
+  for (let i = 0; i < 20 && signals.length === 0; i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  await gate.close();
+  assert.deepEqual(signals, ["SIGTERM"]);
+  client.destroy();
 });

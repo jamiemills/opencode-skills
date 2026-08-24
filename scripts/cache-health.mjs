@@ -129,7 +129,7 @@ function fmtCost(n) {
 // Renders the report in the repo's plain check-suite-style text.
 export function renderReport(report, { windowLabel = "all sessions" } = {}) {
   const out = [];
-  out.push("cache-health: deepseek-v4-flash cache hit report");
+  out.push(`cache-health: model=${MODEL_FILTER.slice(1, -1)} cache hit report`);
   out.push(
     `window: ${windowLabel} · sessions: ${report.sessionCount} · zero-denominator skipped: ${report.skipped}`,
   );
@@ -183,6 +183,7 @@ function main() {
   }
   if (args.help) {
     console.log("usage: node scripts/cache-health.mjs [--days N]");
+    console.log(`model scope: ${MODEL_FILTER.slice(1, -1)} (fixed filter)`);
     process.exit(0);
   }
 

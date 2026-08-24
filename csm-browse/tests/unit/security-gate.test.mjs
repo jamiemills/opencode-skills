@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFile as execFileCb } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { freshSessionsRoot, removeRoot } from "./helpers/env.mjs";
@@ -113,6 +113,15 @@ test("F-016 hardening: container is on the dedicated bridge, off the default bri
 
 test("F-001 wiring: VNC live view is still published on 5900", () => {
   assert.ok(DOCKER_RUN_CMD.includes("-p 127.0.0.1:5900:5900"));
+});
+
+test("F4-10 accepted boundary: VNC remains loopback-only and documented as accepted", async () => {
+  assert.ok(DOCKER_RUN_CMD.includes("-p 127.0.0.1:5900:5900"));
+  const docs = await readFile(new URL("../../SKILL.md", import.meta.url), "utf8");
+  assert.match(
+    docs,
+    /Accepted security boundary:.*loopback only \(`127\.0\.0\.1:5900`\).*does not change the generated password policy/,
+  );
 });
 
 test("F-067-5: the VNC password path is single-sourced (no hardcoded ~/.config literal in the run command)", () => {

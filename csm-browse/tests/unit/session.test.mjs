@@ -69,6 +69,21 @@ test("saveState is atomic (tmp+rename) and round-trips via loadState", async () 
   assert.deepEqual(await loadState("rt-1"), state);
 });
 
+test("saveState concurrent writers use distinct temporary claims", async () => {
+  const states = [1, 2, 3, 4].map((version) => ({
+    sid: "atomic-race",
+    wsUrl: "ws://127.0.0.1:1/x",
+    internalPort: 9224,
+    publicPort: 9225,
+    version,
+  }));
+  await Promise.all(states.map((state) => saveState("atomic-race", state)));
+  const loaded = await loadState("atomic-race");
+  assert.ok(states.some((state) => state.version === loaded.version));
+  const entries = await readdir(join(root, "atomic-race"));
+  assert.ok(!entries.some((entry) => entry.startsWith("state.json.tmp-")), entries);
+});
+
 test("token lifecycle round-trips through state.json at 0600", async () => {
   const state = {
     sid: "tok-rt",

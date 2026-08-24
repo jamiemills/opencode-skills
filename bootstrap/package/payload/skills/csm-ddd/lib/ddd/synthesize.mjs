@@ -23,7 +23,7 @@ function representativeFile(files, dir) {
 }
 
 export function synthesize(extraction) {
-  const { files, inventory, claims, git } = extraction;
+  const { files, inventory, git } = extraction;
   const out = {
     capabilities: [],
     terms: [],
@@ -52,8 +52,6 @@ export function synthesize(extraction) {
     out.claims.push(claim);
     return claim;
   };
-  void claims;
-
   const dirs = topDirs(files);
   const importsByDir = new Map();
   for (const consumer of inventory.consumers) {
@@ -224,6 +222,8 @@ export function synthesize(extraction) {
     const seam = {
       id: id("seam"),
       subject: `${fileStem(decl.path)}.${decl.name}`,
+      path: decl.path,
+      consumerCount: consumers.length,
       enablingPoint: `exported symbol ${decl.name} in ${decl.path}`,
       observableBehavior: `consumers import it from ${consumers.length} site(s)`,
       sideEffects: inventory.events.some((e) => e.path === decl.path)
@@ -256,9 +256,7 @@ export function synthesize(extraction) {
     out.seams.push(seam);
   }
 
-  const orderedSeams = [...out.seams].toSorted(
-    (a, b) => consumerCount(b.subject) - consumerCount(a.subject),
-  );
+  const orderedSeams = [...out.seams].toSorted((a, b) => b.consumerCount - a.consumerCount);
   orderedSeams.forEach((seam, index) => {
     const sliceClaim = addClaim(
       "slice-ordering",
@@ -273,7 +271,7 @@ export function synthesize(extraction) {
       [
         {
           sourceKind: "declaration",
-          path: seam.enablingPoint.match(/in (\S+)/)?.[1] ?? ".",
+          path: seam.path,
           locator: `order:${index + 1}`,
           matchedKey: seam.subject,
         },
@@ -282,11 +280,6 @@ export function synthesize(extraction) {
     out.slices.push(sliceClaim);
     out.ordering.push({ rank: index + 1, subject: seam.subject, claimId: sliceClaim.id });
   });
-
-  function consumerCount(subject) {
-    const stem = subject.split(".")[0];
-    return inventory.consumers.filter((c) => c.key.includes(stem)).length;
-  }
 
   if (git?.available) {
     const coupling = addClaim(

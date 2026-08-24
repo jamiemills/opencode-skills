@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { maskCookieValue, projectCookies } from "../../lib/verbs/log.mjs";
+import {
+  compileNetworkFilter,
+  maskCookieValue,
+  projectCookies,
+  MAX_NETWORK_FILTER_LENGTH,
+} from "../../lib/verbs/log.mjs";
 
 // F-062: cookie values are session credentials. The default `log cookies`
 // output must never carry a full value; only the explicit --values opt-in
@@ -83,4 +88,16 @@ test("projectCookies default never mutates the source cookies", () => {
   ];
   projectCookies(source);
   assert.equal(source[0].value, "abcdefghi", "the caller-provided cookie keeps its raw value");
+});
+
+test("compileNetworkFilter rejects malformed regexes with a CLI-safe error", () => {
+  assert.throws(() => compileNetworkFilter("["), /invalid --filter regex/);
+  assert.throws(
+    () => compileNetworkFilter("x".repeat(MAX_NETWORK_FILTER_LENGTH + 1)),
+    /at most 256/,
+  );
+});
+
+test("compileNetworkFilter preserves case-insensitive URL matching for valid filters", () => {
+  assert.equal(compileNetworkFilter("api/example").test("https://EXAMPLE.test/API/Example"), true);
 });

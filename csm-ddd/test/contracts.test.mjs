@@ -80,6 +80,16 @@ test("vocabulary enums are frozen and complete", () => {
   assert.ok(CLAIM_KINDS.includes("context_hypothesis"));
 });
 
+test("runtime vocabulary enums stay synchronized with the graph schema", async () => {
+  const schema = JSON.parse(
+    await readFile(new URL("../schemas/ddd-graph.schema.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(schema.properties.claims.items.properties.status.enum, [...STATUSES]);
+  assert.deepEqual(schema.properties.claims.items.properties.claimKind.enum, [...CLAIM_KINDS]);
+  assert.deepEqual(schema.properties.claims.items.properties.basis.enum, [...BASES]);
+  assert.deepEqual(schema.properties.claims.items.properties.confidence.enum, [...CONFIDENCES]);
+});
+
 test("evidence IDs are deterministic and path-guarded", () => {
   const input = {
     claimId: "cl-x-0001",

@@ -40,21 +40,24 @@ export async function attachFirstPage(client) {
 export async function waitForLoad(client, sessionId) {
   const start = Date.now();
   const timeout = 30000;
-  while (Date.now() - start < timeout) {
-    try {
-      const { result } = await client.send(
-        "Runtime.evaluate",
-        {
-          expression: "document.readyState",
-          returnByValue: true,
-        },
-        sessionId,
-      );
-      if (result && result.value === "complete") return;
-    } catch {}
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error("Page load timed out after 30s");
+  const load = new Promise((resolve, reject) => {
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      client.off("Page.loadEventFired", onLoad);
+    };
+    const onLoad = () => {
+      cleanup();
+      resolve();
+    };
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Page load timed out after ${Date.now() - start}ms`));
+    }, timeout);
+    client.once("Page.loadEventFired", onLoad);
+  });
+  await client.send("Page.enable", {}, sessionId);
+  await load;
 }
 
 export async function clickCoords(client, sessionId, sel, index = 0) {

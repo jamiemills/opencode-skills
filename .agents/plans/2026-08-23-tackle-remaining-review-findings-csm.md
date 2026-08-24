@@ -11,15 +11,15 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: tackle-remaining-review-findings
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: blocked
+- Current CSM state: BLOCKED
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-23T23:27:09+0000 residual scout completed against HEAD ca81d7e; 10 clusters drafted; no implementation performed
-- Last model/run: primary csm-plan session 2026-08-23
-- Next transition: NOT_STARTED -> RECOVER
+- Last checkpoint: 2026-08-24T08:55:00+0000 final implementation checkpoint — all ten tasks have focused evidence; real-tree aggregate test remains blocked solely by unrelated untracked autoresearch plan with invalid Control Next transition
+- Last model/run: primary csm-build T004 2026-08-24T06:25
+- Next transition: BLOCKED -> RECOVER
 - Active tasks: none
-- Blockers: none; the four decision gates were answered by the user on 2026-08-23
+- Blockers: `.agents/plans/2026-08-23-autoresearch-evaluator-csm-csm.md` is an unrelated untracked concurrent plan with invalid `Next transition: NOT_STARTED -> RECOVER on...`; it causes `make test`/resume-semantics to fail. Do not modify it without user ownership decision.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
 
 ## Goal
@@ -117,7 +117,7 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
 
 ## Numbered Plan
 
-1. [pending] Synchronize residual documentation and contracts
+1. [complete] Synchronize residual documentation and contracts
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -132,7 +132,7 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Repair attempts: 0
    - Recovery note: documentation-only changes are isolated; regenerate payload after final wording is settled.
 
-2. [pending] Correct csm-browse verb semantics and dead code
+2. [complete] Correct csm-browse verb semantics and dead code
    - Task ID: T002
    - Depends on: T001 where behavior wording is selected
    - Parallel group: browse chain
@@ -147,7 +147,7 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Repair attempts: 0
    - Recovery note: preserve current public semantics unless the spike records a deliberate change.
 
-3. [pending] Harden csm-browse lifecycle and cleanup
+3. [complete] Harden csm-browse lifecycle and cleanup
    - Task ID: T003
    - Depends on: T002
    - Parallel group: browse chain
@@ -158,11 +158,12 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Actions: address F2-11, F5-03/04/05/10/11/12, F9-02 with identity-preserving restore, bounded close/finalize, atomic state writes, argv re-verification before signals, and explicit tunnel-child teardown; add regression tests for each ownership boundary.
    - Acceptance signal: `node --test --test-concurrency=1 tests/unit/session-daemon-stale-claim.test.mjs tests/unit/lifecycle-identity.test.mjs tests/unit/sweep-ports.test.mjs tests/unit/daemon.test.mjs` from csm-browse exits 0 with lifecycle regression names present.
    - Validation: `make lint`, focused PID/sweep/daemon tests, no orphaned child in synthetic teardown.
-   - Acceptance evidence: bounded timing and ownership test transcripts.
-   - Repair attempts: 0
-   - Recovery note: never broaden signal targets; preserve existing identity guards.
+    - Acceptance evidence: bounded timing and ownership test transcripts.
+    - Repair attempts: 0
+    - Completion evidence: identity-aware daemon liveness is shared by status/log/sweep; stale claim and port-lock restoration never overwrite a fresh claim; state writes use unique temp names and sweep revocation uses saveState; daemon recorder finalize and CDP close are bounded; retry marker cleanup requires child exit and identity ownership; gate shutdown tracks and reaps tunnel children. Exact focused suite passed 23/23, full csm-browse unit suite passed 194/194, and `make lint` passed.
+    - Recovery note: never broaden signal targets; preserve existing identity guards.
 
-4. [pending] Harden csm-browse security and credential handling
+4. [complete] Harden csm-browse security and credential handling
    - Task ID: T004
    - Depends on: T001/T002 for contract choices
    - Parallel group: G1 after browse semantics
@@ -173,11 +174,12 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Actions: handle invalid/pathological `--filter` regexes safely (F4-07); document loopback-only VNC exposure as the accepted risk for F4-10 without changing password generation.
    - Acceptance signal: `node --test --test-concurrency=1 tests/unit/security.test.mjs tests/unit/recorder.test.mjs tests/unit/log.test.mjs` from csm-browse exits 0 with malformed-regex and selected VNC cases.
    - Validation: `make test-browse-unit`, lint, no credential leakage in synthetic telemetry.
-   - Acceptance evidence: threat decision plus tests.
-   - Repair attempts: 0
-   - Recovery note: redact/credential behavior changes require independent review.
+    - Acceptance evidence: threat decision plus tests.
+    - Repair attempts: 0
+    - Completion evidence: F4-07 now bounds `--filter` at 256 characters and reports malformed regexes without a raw crash; F4-10 documents and tests the accepted loopback-only VNC boundary without changing password generation. Focused tests passed 32/32, VNC security-gate tests passed 17/17, full csm-browse unit suite passed 197/197, `node scripts/check-skill.mjs` passed, and `make lint` passed. No lifecycle sections in `scripts/ensure-browser.mjs` were changed by T004.
+    - Recovery note: redact/credential behavior changes require independent review.
 
-5. [pending] Tighten csm-ddd correctness and contract synchronization
+5. [complete] Tighten csm-ddd correctness and contract synchronization
    - Task ID: T005
    - Depends on: none
    - Parallel group: G1
@@ -190,9 +192,10 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Validation: schema validator, CLI negative paths, `make check`.
    - Acceptance evidence: decision record and focused suite output.
    - Repair attempts: 0
+   - Completion evidence: 47/47 DDD tests pass, including strict fail-on-gaps, runId cross-link, enum synchronization, answer counts, payload-index error, and redaction coverage.
    - Recovery note: preserve artifact compatibility unless the decision explicitly changes the contract.
 
-6. [pending] Improve csm-scan correctness and diagnostics
+6. [complete] Improve csm-scan correctness and diagnostics
    - Task ID: T006
    - Depends on: none
    - Parallel group: G1
@@ -204,10 +207,12 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Acceptance signal: `cd csm-scan && node --test --test-concurrency=1 && out=$(node test/scripts/regen-baselines.mjs); printf '%s\n' "$out"; printf '%s\n' "$out" | grep -Fx 'baselines clean'` exits 0.
    - Validation: `make check`, deterministic two-run comparison for verbose/parser cases, and one named regression test per selected F3 finding.
    - Acceptance evidence: fixture results and baseline output.
-   - Repair attempts: 0
+    - Repair attempts: 0
+    - Completion evidence: F2-03 now emits documented `textContent`; F2-04 waits for `Page.loadEventFired` with the listener armed before navigation; F2-06 records effective speed FPS and preserves names equal to speed values; F2-08 production mutator removed and all unit imports use the test helper; F2-09 `FFMPEG_ARGS` removed; F2-12 ignores the normal `not recording` shutdown sentinel; F6-02 named DOM/navigation/recording coverage added. `node --test --test-concurrency=1 tests/unit/` passed 192/192, `node scripts/check-skill.mjs` passed, and `make lint` passed.
+    - Completion evidence: F3-01/F3-02/F3-07/F3-08/F3-09 regressions pass; focused csm-scan suite 49/49; `make lint` passes; official baseline check prints `baselines clean`. Full csm-scan run reached 1279/1282 with unrelated concurrent T201/T228 failures; those files were not changed.
    - Recovery note: preserve the command broker’s current allowlist and output bounds.
 
-7. [pending] Resolve bootstrap trust and release posture
+7. [complete] Resolve bootstrap trust and release posture
    - Task ID: T007
    - Depends on: explicit bootstrap decisions D2 only; D3/D6/D7 belong to other tasks and must not block T007
    - Parallel group: decision gate
@@ -219,10 +224,11 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Acceptance signal: `node scripts/pack-bootstrap.mjs && node scripts/with-node22.mjs --exec node --test tests/bootstrap-trust.test.mjs tests/package-audit.test.mjs` exits 0 with every selected refusal/acceptance case.
    - Validation: payload/index consistency, source-parity checks, independent security review, no publish.
    - Acceptance evidence: decision table, synthetic matrix, reviewer approval.
-   - Repair attempts: 0
+   - Repair attempts: 1
+   - Completion evidence: independent review repair completed; bootstrap suite 15/15, deterministic isolated packs pass, malformed index/mode/release-fixture cases pass, `make check` and lint green.
    - Recovery note: if any policy decision is absent, mark T007 BLOCKED rather than guessing.
 
-8. [pending] Close targeted test and flakiness gaps
+8. [complete] Close targeted test and flakiness gaps
    - Task ID: T008
    - Depends on: T002, T003, T005, T009 behavior decisions and code stabilization
    - Parallel group: G1 after implementation contracts
@@ -234,9 +240,10 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Validation: `make test` and named direct renderer/CLI tests after T002-T006.
    - Acceptance evidence: test names/results and flake-resistant wait proof.
    - Repair attempts: 0
+   - Completion evidence: focused T008 suites pass 17/17, 14/14, and 7/7; recorder sleeps replaced by bounded waits; aggregate blocker is unrelated untracked plan only.
    - Recovery note: add tests before changing behavior where possible.
 
-9. [pending] Improve local operations and gate behavior
+9. [complete] Improve local operations and gate behavior
    - Task ID: T009
    - Depends on: T001 and T005 where docs/contracts overlap
    - Parallel group: G1
@@ -249,9 +256,10 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Validation: synthetic prefix-collision worktree, failed close-plan recovery, and one-gate timing transcript.
    - Acceptance evidence: before/after operational output.
    - Repair attempts: 0
+   - Completion evidence: hook 8/8, focused operations 15/15, prefix/model/close-plan/failure-label probes pass, `make check` 967 checks.
    - Recovery note: preserve guard-first ordering and never weaken staged/unstaged protections.
 
-10. [pending] Establish dependency and toolchain policy
+10. [complete] Establish dependency and toolchain policy
     - Task ID: T010
    - Depends on: none; D3 is decided
     - Parallel group: decision gate
@@ -262,9 +270,10 @@ No task silently implements the unresolved bootstrap or dependency policy decisi
    - Actions: resolve F7-02/03/04 through a manual policy: document update cadence, lockfile review, ws-major tracking, and exact-vs-range rationale; add a reproducible clean-install check. F7-01 remains local-only and must not be committed.
    - Acceptance signal: in a fresh `/tmp` copy with redirected HOME/XDG/TMPDIR, `make install` exits 0 with both frozen lockfiles and no writes outside the copy; `make check` verifies the manual policy text and manifest/lockfile parity.
    - Validation: manifest/lockfile parity and `pnpm list --depth=0` in the isolated copy; OSV is research evidence only, not an acceptance gate.
-    - Acceptance evidence: policy decision and isolated install transcript.
-    - Repair attempts: 0
-    - Recovery note: if automation credentials/access would be required, document config-only scope and stop before external mutation.
+     - Acceptance evidence: policy decision and isolated install transcript.
+     - Repair attempts: 0
+     - Recovery note: if automation credentials/access would be required, document config-only scope and stop before external mutation.
+     - Completion evidence: `node --input-type=module -e '...'` policy/parity check passed; `make lint` passed; isolated Node 22 copy `/tmp/opencode/t010-install.EV0oeV` ran `make install` with frozen lockfiles and `pnpm list --depth=0` successfully; no `.github` automation exists. Full `make check` was attempted and is blocked by unrelated concurrent payload/boilerplate/plan drift.
 
 ## Verification Strategy
 
@@ -312,7 +321,20 @@ Run focused tests first, then each cluster's suite, then `make lint`, `make chec
 | 2026-08-23T23:40:00+0000 | 0 | CRITIQUE -> REMEDIATE | T001-T010 | traceability matrix embedded, plan blocked on explicit decisions, ownership/dependencies/acceptance signals corrected | REMEDIATE |
 | 2026-08-23T23:45:00+0000 | 0 | REMEDIATE -> VERIFY | T001-T010 | primary verification: every residual ID has one disposition, every task has runnable signal/risk/anti-scope, decision gates explicit; status remains blocked pending user choices | VERIFY |
 | 2026-08-23T23:50:00+0000 | 0 | VERIFY -> SAVED | none | user decisions recorded: advisory bootstrap, accepted loopback VNC risk, strict DDD contracts, manual dependency policy; plan status changed to ready; implementation not started | SAVED |
+| 2026-08-24T00:20:00+0000 | 1 | CHECKPOINT | T010 | Added README manual dependency policy and credential-free manifest/lockfile parity gate. Focused policy check, lint, Node 22 isolated frozen install, and top-level package listing passed. `make check` and check-suite regression remain blocked by unrelated concurrent payload/boilerplate/plan drift; no unrelated files changed. | SELECT |
+| 2026-08-24T00:35:00+0000 | 1 | INTEGRATE -> CHECKPOINT | T001 | Fixed F1-09/F1-11/F1-12/F1-13/F1-14, F2-05/F2-10/F2-18, F3-03/F3-04/F3-05/F3-06/F3-10, and F8-08 through authoritative documentation/contracts; generated boilerplate, README matrix, and bootstrap payload. Sync check, matrix check, baseline JSON validation, and `make check` passed (967 checks). Concurrent non-T001 changes remain preserved. | SELECT |
+| 2026-08-24T01:05:00+0000 | 1 | INTEGRATE -> CHECKPOINT | T006 | Fixed F3-01/F3-02/F3-07/F3-08/F3-09; focused 49/49 pass, `make lint` passes, and official baseline check prints `baselines clean`. Full csm-scan run recorded 1279/1282; remaining T201/T228 failures are concurrent cross-task gate failures and were not modified. | SELECT |
+| 2026-08-24T06:05:04+0000 | 1 | INTEGRATE -> CHECKPOINT | T002 | Fixed browse DOM/load semantics, recording FPS/name parsing metadata, production test seam, dead FFMPEG_ARGS, and normal shutdown noise; added named core verb/recording tests. Browse unit suite passed 192/192; `node scripts/check-skill.mjs` and `make lint` passed. | SELECT |
+| 2026-08-24T00:00:00+0000 | 1 | INTEGRATE -> CHECKPOINT | T003 | Fixed lifecycle identity drift, stale-claim restore clobbering, bounded daemon shutdown/finalization, unique state writes, identity-gated sweep signals, and explicit gate tunnel reaping. Exact focused suite passed 23/23; full csm-browse unit suite passed 194/194; `make lint` passed. No commits or external mutation per request. | SELECT |
+| 2026-08-24T06:25:00+0000 | 1 | INTEGRATE -> CHECKPOINT | T004 | Fixed F4-07 with bounded, CLI-safe network filter compilation and added malformed/oversized regex tests. Recorded D7 in user-facing VNC documentation and pinned the loopback-only mapping/documentation contract in security-gate tests; password generation and lifecycle sections were unchanged. Focused 32/32, VNC gate 17/17, full browse 197/197, check-skill, lint, and diff checks passed. No commit or external mutation. | SELECT |
+| 2026-08-24T09:00:00+0000 | 1 | INTEGRATE -> VERIFY | T001,T002,T003,T004,T005,T006,T007,T008,T009,T010 | All ten tasks have focused evidence; T007 independently reviewed and repaired twice; pack/check/lint pass at 967 checks; DDD 47/47; csm-scan 1282/1282; bootstrap 15/15; browse 197/197; operations/hooks and T008 focused suites pass. | VERIFY |
+| 2026-08-24T09:05:00+0000 | 1 | VERIFY -> BLOCKED | final gate | Real-tree `make test` fails only because unrelated untracked `.agents/plans/2026-08-23-autoresearch-evaluator-csm-csm.md` has invalid `Control Next transition: NOT_STARTED -> RECOVER on...`; isolated copy with that file removed passes resume-semantics 5/5. User ownership decision required; file preserved. | BLOCKED |
 
 ## Completion Review
 
-(filled by a future csm-build session; implementation has not started)
+Status: BLOCKED.
+
+- All ten planned residual tasks have implementation evidence and focused validation.
+- Repository gates currently pass: `make check` 967 checks, `make lint`, payload pack/index, DDD 47/47, csm-scan 1282/1282, bootstrap 15/15, browse 197/197, and operations/test-focused suites.
+- Full real-tree `make test` is blocked solely by the unrelated untracked autoresearch plan named above. The isolated implementation copy passes the affected resume suite 5/5 after excluding that file.
+- No task or plan changes were made to the unrelated untracked plan; untracked review/research artifacts are preserved.

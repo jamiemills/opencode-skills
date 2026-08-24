@@ -101,12 +101,7 @@ test("survey: source contains no host-leak shell-outs (test -f / node --version)
   assert.ok(!src.includes("node --version"), "survey.mjs must not leak `node --version`");
 });
 
-test("detectLanguages: returns ranked detected languages from cleaned file list", async () => {
-  const fixtureFiles = { ...pythonFiles, "uv.lock": "version = 1\n" };
-  await withFixture("langdetect", fixtureFiles, async (dir) => {
-    const { detectLanguages } = await import("../lib/scan/survey.mjs");
-    const langs = await detectLanguages(dir);
-    assert.ok(Array.isArray(langs));
-    assert.equal(langs[0], "Python");
-  });
+test("F3-07 removes the unused detectLanguages export", async () => {
+  const module = await import("../lib/scan/survey.mjs");
+  assert.equal("detectLanguages" in module, false);
 });

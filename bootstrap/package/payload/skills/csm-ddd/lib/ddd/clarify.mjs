@@ -17,17 +17,18 @@ export function deriveQuestions(synthesis) {
   const questions = [];
   let n = 0;
   const ambiguousDirs = new Set();
+  const termQuestionIds = [];
   for (const term of synthesis.terms.filter((t) => t.ambiguous)) {
     const dirs = [...new Set(term.locations.map((l) => l.split("/").slice(0, -1).join("/")))];
     dirs.forEach((d) => ambiguousDirs.add(d));
-    questions.push(
-      buildQuestion({
-        id: nextId((n += 1), "q-term"),
-        subject: term.term,
-        text: `The name "${term.term}" appears in ${dirs.join(" and ")} with potentially different meanings. Which meaning is authoritative, or are these genuinely different concepts?`,
-        dependsOn: [],
-      }),
-    );
+    const question = buildQuestion({
+      id: nextId((n += 1), "q-term"),
+      subject: term.term,
+      text: `The name "${term.term}" appears in ${dirs.join(" and ")} with potentially different meanings. Which meaning is authoritative, or are these genuinely different concepts?`,
+      dependsOn: [],
+    });
+    questions.push(question);
+    termQuestionIds.push(question.id);
   }
   for (const cap of synthesis.capabilities) {
     if (!ambiguousDirs.has(cap.dir)) continue;
@@ -36,7 +37,7 @@ export function deriveQuestions(synthesis) {
         id: nextId((n += 1), "q-boundary"),
         subject: cap.dir,
         text: `Given the terminology above, is ${cap.dir} a distinct bounded context or part of another context?`,
-        dependsOn: questions.slice(0, n - synthesis.capabilities.length).map((q) => q.id),
+        dependsOn: [...termQuestionIds],
       }),
     );
   }

@@ -11,7 +11,6 @@ const SHIM = path.join(REPO, "scripts/hooks/pre-commit");
 const REAL_CONFIG = path.join(REPO, ".lefthook.yml");
 const LFK_BIN = path.join(REPO, "node_modules/.bin/lefthook");
 const OXL_BIN = path.join(REPO, "node_modules/.bin/oxlint");
-const BASELINE_SCRIPT = path.join(REPO, "scripts/record-gate-baseline.mjs");
 
 const LEGACY = ["S", "Y", "N", "C"].join("");
 
@@ -41,14 +40,6 @@ pre-commit:
           exit 1
         fi
       fail_text: "tracked working-tree changes must be staged (bypass: git commit --no-verify)"
-    - name: gate-baseline
-      run: |
-        if [ -f scripts/record-gate-baseline.mjs ] && [ -f .agents/docs/gate-baselines.json ]; then
-          node scripts/record-gate-baseline.mjs --check
-        else
-          echo "gate-baseline: script or baseline file missing — skipping"
-        fi
-      fail_text: "gate-baseline check failed (node scripts/record-gate-baseline.mjs --check)"
     - name: check-suite
       run: node scripts/check-suite.mjs
       fail_text: "conformance gate failed (node scripts/check-suite.mjs)"
@@ -114,15 +105,15 @@ function copyRepo(dest) {
   for (const rel of ["tests", "csm-browse/lib", "csm-browse/tests", "csm-scan/test"]) {
     fs.mkdirSync(path.join(dest, rel), { recursive: true });
   }
+  const dependencyPolicy = path.join(REPO, "scripts/lib/dependency-policy.mjs");
+  if (fs.existsSync(dependencyPolicy)) {
+    fs.copyFileSync(dependencyPolicy, path.join(dest, "scripts/lib/dependency-policy.mjs"));
+  }
 }
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pre-commit-lh-"));
   copyRepo(root);
-  // The gate-baseline job compares the sandbox's check-suite count against
-  // .agents/docs/gate-baselines.json, which records the LIVE repo's count;
-  // drop it so the guarded job skips instead of deviating on sandbox count.
-  fs.rmSync(path.join(root, ".agents", "docs", "gate-baselines.json"), { force: true });
   write(root, "good.mjs", "export const base = 1;\n");
   write(root, "tracked.txt", "tracked\n");
   fs.copyFileSync(SHIM, path.join(root, "scripts/hooks/pre-commit"));
@@ -163,7 +154,6 @@ test("(a) repo .lefthook.yml validates and the hook shim is in place", { skip: S
   for (const job of [
     "unstaged-guard",
     "oxfmt",
-    "gate-baseline",
     "check-suite",
     "mjs-syntax",
     "oxlint",
@@ -239,57 +229,6 @@ test("(b) clean / staged-only / staged-deletion / untracked commits pass", { ski
   fs.rmSync(path.join(root, "untracked.mjs"), { force: true });
   t.diagnostic("clean/staged/deletion/untracked all committed");
 });
-
-test(
-  "(b2) gate-baseline job: real script + stubbed matching baseline pass and parse the count",
-  { skip: SKIP },
-  (t) => {
-    const root = setup();
-    t.after(() => cleanup(root));
-
-    fs.copyFileSync(BASELINE_SCRIPT, path.join(root, "scripts/record-gate-baseline.mjs"));
-    write(
-      root,
-      "scripts/check-suite.mjs",
-      'console.log("check-suite: OK — 9 skills, 7 checks");\n',
-    );
-    fs.mkdirSync(path.join(root, ".agents/docs"), { recursive: true });
-    write(
-      root,
-      ".agents/docs/gate-baselines.json",
-      `${JSON.stringify(
-        [
-          {
-            gate: "check-suite",
-            passCount: 7,
-            wallMs: 100,
-            nodeVersion: "v22.23.2",
-            ts: new Date().toISOString(),
-          },
-        ],
-        null,
-        2,
-      )}\n`,
-    );
-    git(root, "add", ".");
-
-    const r = commit(root, "b2:baseline");
-    assert.equal(r.status, 0, `commit failed: ${combined(r)}`);
-    const out = combined(r);
-    assert.doesNotMatch(out, /ENOENT/, "no ENOENT from the gate-baseline job");
-    assert.match(
-      out,
-      /parsed count 7 checks/,
-      'gate-baseline parsed the "N checks" count from the stub check-suite',
-    );
-    assert.match(
-      out,
-      /gate-baseline: OK/,
-      "gate-baseline comparison passed against the matching baseline",
-    );
-    t.diagnostic("gate-baseline job ran the real script against a matching baseline");
-  },
-);
 
 test("(c) unstaged or mixed tracked changes are blocked before any gate", { skip: SKIP }, (t) => {
   const root = setup();

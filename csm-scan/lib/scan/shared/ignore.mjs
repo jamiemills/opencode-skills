@@ -48,10 +48,6 @@ export function rgIgnoreArgs() {
   return args;
 }
 
-export function findPruneArgs() {
-  return IGNORE_DIRS.map((d) => `-name ${d} -prune`);
-}
-
 export function isIgnoredPath(relPath) {
   if (!relPath) return false;
   const posix = String(relPath).replace(/\\/g, "/");

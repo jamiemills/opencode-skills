@@ -65,7 +65,23 @@ async function breakStaleClaim(raw) {
   try {
     const now = await readFile(trash, "utf-8");
     if (now !== raw) {
-      await rename(trash, pidFile);
+      // Do not replace a claim that arrived after the stale file was moved.
+      // Restore only when the pathname is still vacant.
+      try {
+        const replacement = await open(
+          pidFile,
+          fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+          0o600,
+        );
+        try {
+          await replacement.writeFile(now);
+        } finally {
+          await replacement.close();
+        }
+        await rm(trash, { force: true });
+      } catch {
+        await rm(trash, { force: true });
+      }
       return;
     }
     await rm(trash, { force: true });
@@ -284,12 +300,14 @@ try {
         console.log("Finalizing recorder...");
         await withTimeout(
           recorder.stopRecorder(client, tabSessionId, sDir),
-          3000,
+          12000,
           "Recorder finalize",
         );
       }
     } catch (e) {
-      if (e.code !== "ERR_MODULE_NOT_FOUND") console.error(`Recorder finalize error: ${e.message}`);
+      if (e.code !== "ERR_MODULE_NOT_FOUND" && e.message !== "not recording") {
+        console.error(`Recorder finalize error: ${e.message}`);
+      }
     }
 
     // F-015: surface telemetry-write accounting before shutdown so a
@@ -359,7 +377,7 @@ try {
   } catch {}
   if (client) {
     try {
-      await client.close();
+      await withTimeout(client.close(), 2000, "CDP close").catch(() => {});
     } catch {}
   }
   process.exit(1);

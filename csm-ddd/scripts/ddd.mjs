@@ -2,6 +2,7 @@
 
 import process from "node:process";
 import { analyzeRepository, defaultArtifactPaths, writeArtifacts } from "../lib/ddd/pipeline.mjs";
+import { assertReportMatchesGraph } from "../lib/ddd/contracts.mjs";
 import {
   validateGraph,
   validateGraphFile,
@@ -63,6 +64,7 @@ async function main(argv) {
         break;
       case "--fail-on-gaps":
         opts.failOnGaps = true;
+        opts.nonInteractive = true;
         break;
       case "--max-files":
         opts.limits.maxFiles = positiveInt(requireValue(argv, ++i, arg), arg);
@@ -127,6 +129,15 @@ export async function publishArtifacts(analysis, outReport, outGraph) {
   if (!graphCheck.ok) return { ok: false, kind: "graph", errors: graphCheck.errors };
   const reportCheck = await validateReport(analysis.parsedReport);
   if (!reportCheck.ok) return { ok: false, kind: "report", errors: reportCheck.errors };
+  try {
+    assertReportMatchesGraph(analysis.parsedReport, analysis.graphObject);
+  } catch (error) {
+    return {
+      ok: false,
+      kind: "cross-link",
+      errors: [error instanceof Error ? error.message : String(error)],
+    };
+  }
   const paths = await writeArtifacts(analysis, outReport, outGraph);
   return { ok: true, paths };
 }

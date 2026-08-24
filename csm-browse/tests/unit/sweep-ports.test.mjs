@@ -16,7 +16,7 @@ const root = await freshSessionsRoot("csm-browse-sweep-ports-");
 const { sweep } = await import("../../lib/sweep.mjs");
 const { releasePorts, stopDaemon } = await import("../../lib/cleanup.mjs");
 const { releasePortLock, breakStaleLock, claimedPortSet } = await import("../../lib/ports.mjs");
-const { setExecLayerForTests } = await import("../../lib/docker.mjs");
+const { setExecLayerForTests } = await import("./helpers/exec-layer.mjs");
 
 const LOCK = join(root, ".ports.lock");
 const SID_RE = /^[a-z0-9][a-z0-9_-]{0,40}$/;

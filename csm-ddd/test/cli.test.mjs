@@ -9,8 +9,8 @@ import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { analyzeRepository, defaultArtifactPaths } from "../lib/ddd/pipeline.mjs";
-import { publishArtifacts } from "../scripts/ddd.mjs";
 import { renderReport } from "../lib/ddd/render.mjs";
+import { publishArtifacts } from "../scripts/ddd.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureRepo = join(here, "fixtures", "repos", "sample-repo");
@@ -113,6 +113,37 @@ test("explicit output flags are honored verbatim at any path; caps disclose unve
   assert.match(readFileSync(reportPath, "utf8"), /TRUNCATED, coverage unverified/);
 });
 
+test("--norms and --max-bytes are applied and disclosed by the CLI", async () => {
+  const { dir, repo } = freshSandbox();
+  const norms = join(dir, "authoritative-NORMS.md");
+  const reportPath = join(dir, "report.md");
+  const graphPath = join(dir, "graph.json");
+  cpSync(join(fixtureRepo, "NORMS.md"), norms);
+  const result = await runCli([
+    "--repo",
+    repo,
+    "--norms",
+    norms,
+    "--max-bytes",
+    "1",
+    "--out-report",
+    reportPath,
+    "--out-graph",
+    graphPath,
+    "--non-interactive",
+  ]);
+  assert.equal(result.code, 0, result.stderr);
+  const report = readFileSync(reportPath, "utf8");
+  const graph = JSON.parse(readFileSync(graphPath, "utf8"));
+  assert.match(report, /maxBytes=1/);
+  assert.match(report, /TRUNCATED, coverage unverified/);
+  assert.match(report, /NORMS\.md: loaded as authentic scan output/);
+  assert.equal(
+    graph.claims.find((claim) => claim.subject === "repository-inventory").status,
+    "unverified",
+  );
+});
+
 test("non-interactive gaps are disclosed and --fail-on-gaps exits 3", async () => {
   const a = freshSandbox();
   const b = freshSandbox();
@@ -142,6 +173,21 @@ test("non-interactive gaps are disclosed and --fail-on-gaps exits 3", async () =
   assert.match(strict.stderr, /unresolved question/);
 });
 
+test("--fail-on-gaps implies non-interactive mode", async () => {
+  const { dir, repo } = freshSandbox();
+  const result = await runCli([
+    "--repo",
+    repo,
+    "--out-report",
+    join(dir, "r.md"),
+    "--out-graph",
+    join(dir, "g.json"),
+    "--fail-on-gaps",
+  ]);
+  assert.equal(result.code, 3);
+  assert.match(result.stderr, /unresolved question/);
+});
+
 test("invalid arguments exit 2 with usage", async () => {
   const missing = await runCli([]);
   assert.equal(missing.code, 2);
@@ -157,10 +203,87 @@ test("rendered report parses back to the schema envelope shape", async () => {
     runId: "run-x",
     now: "2026-08-23T00:00:00.000Z",
   });
-  void renderReport;
   assert.equal(analysis.parsedReport.format, "csm-ddd-report/1");
   assert.equal(analysis.parsedReport.runId, analysis.parsedReport.graphRunId);
   assert.ok(analysis.parsedReport.sections.length >= 5);
+});
+
+test("answer count is rendered in the coverage section", async () => {
+  const analysis = await analyzeRepository({
+    root: fixtureRepo,
+    questionFilePath: questionFile,
+    runId: "run-answer-count",
+    now: "2026-08-23T00:00:00.000Z",
+  });
+  const coverage = analysis.parsedReport.sections.find(
+    (section) => section.heading === "Coverage and open questions",
+  );
+  assert.match(coverage.body, /User answers applied: 2;/);
+});
+
+test("renderReport directly preserves section order and git cap disclosure", () => {
+  const report = renderReport({
+    runId: "run-render-direct",
+    generatedAt: "2026-08-23T00:00:00.000Z",
+    repoName: "fixture",
+    extraction: {
+      caps: {
+        filesScanned: 2,
+        bytesScanned: 64,
+        maxFiles: 2,
+        maxBytes: 64,
+        truncatedByFiles: false,
+        truncatedByBytes: true,
+      },
+      norms: { loaded: true, authentic: false },
+      git: {
+        available: true,
+        coChangePairs: [{ a: "src/a.mjs", b: "src/b.mjs", count: 3 }],
+      },
+    },
+    synthesis: {
+      capabilities: [{ dir: "src", classification: "mixed", inbound: 1, outbound: 2 }],
+      edges: [],
+      terms: [],
+      seams: [],
+      ordering: [],
+    },
+    clarification: { gaps: [], answerCount: 4 },
+  });
+  assert.deepEqual(
+    [...report.matchAll(/^## (.+)$/gm)].map((match) => match[1]),
+    [
+      "Capabilities",
+      "Context hypotheses",
+      "Terminology and conflicts",
+      "Seams and candidate slices",
+      "Coverage and open questions",
+    ],
+  );
+  assert.match(report, /Co-change coupling \(bounded history\): src\/a\.mjs <-> src\/b\.mjs x3/);
+  assert.match(report, /maxFiles=2, maxBytes=64 — TRUNCATED, coverage unverified/);
+  assert.match(report, /NORMS\.md: loaded but UNTRUSTED/);
+  assert.match(report, /User answers applied: 4; unresolved gaps: 0\./);
+});
+
+test("publication rejects a report and graph cross-link mismatch", async () => {
+  const { dir, repo } = freshSandbox();
+  const analysis = await analyzeRepository({ root: repo, runId: "run-cross-link" });
+  analysis.parsedReport.graphRunId = "run-other";
+  const result = await publishArtifacts(analysis, join(dir, "r.md"), join(dir, "g.json"));
+  assert.equal(result.ok, false);
+  assert.equal(result.kind, "cross-link");
+  assert.match(result.errors.join("\n"), /does not reference graph runId/);
+});
+
+test("payload-index error path refuses invalid graph artifacts before writing", async () => {
+  const { dir, repo } = freshSandbox();
+  const analysis = await analyzeRepository({ root: repo, runId: "run-payload-index-error" });
+  analysis.graphObject.format = "csm-ddd-graph/invalid-index";
+  const result = await publishArtifacts(analysis, join(dir, "r.md"), join(dir, "g.json"));
+  assert.equal(result.ok, false);
+  assert.equal(result.kind, "graph");
+  assert.ok(result.errors.length > 0);
 });
 
 test("schema-invalid analysis aborts before writeArtifacts leaving zero bytes at output paths", async () => {

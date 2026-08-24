@@ -949,12 +949,13 @@ export async function waitForExitAndClearMarkers(
   childPid,
   pidFilePath,
   readyMarker,
-  { exitWaitMs = CHILD_EXIT_WAIT_MS, pollMs = 100, sleep = setTimeout } = {},
+  { exitWaitMs = CHILD_EXIT_WAIT_MS, pollMs = 100, sleep = setTimeout, isOwner = () => true } = {},
 ) {
   if (!childPid) return false;
   const deadline = Date.now() + exitWaitMs;
   while (Date.now() < deadline) {
     try {
+      if (!(await isOwner())) break;
       process.kill(childPid, 0);
     } catch {
       break;
@@ -963,7 +964,16 @@ export async function waitForExitAndClearMarkers(
   }
   let owned = false;
   try {
-    owned = parseInt((await readFile(pidFilePath, "utf-8")).trim(), 10) === childPid;
+    let exited = false;
+    try {
+      process.kill(childPid, 0);
+    } catch {
+      exited = true;
+    }
+    owned =
+      exited &&
+      parseInt((await readFile(pidFilePath, "utf-8")).trim(), 10) === childPid &&
+      (await isOwner());
   } catch {}
   if (!owned) {
     console.error(
@@ -1113,14 +1123,18 @@ async function launchDaemon(targetSid) {
     if (attempt < 2) {
       console.error("Daemon did not become ready within timeout — retrying once...");
       if (childPid) {
-        try {
-          process.kill(childPid, "SIGTERM");
-        } catch {}
+        if (pidMatchesDaemon(childPid, targetSid)) {
+          try {
+            process.kill(childPid, "SIGTERM");
+          } catch {}
+        }
         // F5-02: wait for the child's exit (bounded) and clear the markers
         // only while our terminated child still owns them — never delete a
         // foreign claim, and never spawn attempt #2 over a live child #1's
         // markers.
-        await waitForExitAndClearMarkers(childPid, pidFilePath, readyMarker);
+        await waitForExitAndClearMarkers(childPid, pidFilePath, readyMarker, {
+          isOwner: () => pidMatchesDaemon(childPid, targetSid),
+        });
       }
     }
   }

@@ -21,6 +21,7 @@ import { isEnabled } from "./lib/token-efficiency.mjs";
 import { checkDrift } from "./sync-skill-boilerplate.mjs";
 import { checkDrift as checkMatrixDrift } from "./gen-readme-matrix.mjs";
 import { lintPlanSignals } from "./check-plan-signals.mjs";
+import { checkDependencyPolicy } from "./lib/dependency-policy.mjs";
 import {
   FENCE_OPEN_RE,
   splitLines,
@@ -1468,6 +1469,8 @@ function main() {
   const matrixDrift = checkMatrixDrift(path.join(root, "README.md"));
   if (matrixDrift !== null) check(false, matrixDrift);
 
+  for (const issue of checkDependencyPolicy(root)) check(false, `dependency policy: ${issue}`);
+
   // Lint gate — repo-wide oxlint against the committed quality bar
   // (.oxlintrc.json). Conditional: skipped with a notice when oxlint is not
   // installed so the gate stays runnable on fresh clones without node_modules.
@@ -1499,7 +1502,7 @@ function main() {
     console.log(`check-suite: OK — ${skillDirs.length} skills, ${checks} checks`);
     process.exit(0);
   }
-  for (const f of failures) console.log(`MISSING: ${f}`);
+  for (const f of failures) console.log(`FAIL: ${f}`);
   process.exit(1);
 }
 

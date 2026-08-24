@@ -34,6 +34,12 @@ test("derived questions are dependency-ordered and only ask about real ambiguity
   );
   assert.ok(termQuestions.length >= 1);
   assert.match(termQuestions[0].text, /authoritative/);
+  for (const boundary of questions.filter((q) => q.id.startsWith("q-boundary-"))) {
+    assert.deepEqual(
+      boundary.dependsOn,
+      termQuestions.map((q) => q.id),
+    );
+  }
 });
 
 test("question-file replay is deterministic across runs", async () => {

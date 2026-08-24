@@ -111,7 +111,7 @@ export async function saveState(sid, state) {
   await chmod(dir, 0o700);
   validateState(state, sid);
   const statePath = join(dir, "state.json");
-  const tmpPath = join(dir, "state.json.tmp");
+  const tmpPath = join(dir, `state.json.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
   await secureWrite(tmpPath, JSON.stringify(state, null, 2), { encoding: "utf-8" });
   await rename(tmpPath, statePath);
   await chmod(statePath, 0o600);

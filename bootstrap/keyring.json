@@ -1,5 +1,7 @@
 {
   "schema": "csm-bootstrap-keyring/1",
+  "environment": "test-fixture-only",
+  "production_use": false,
   "keys": [
     {
       "id": "fixture-2026",

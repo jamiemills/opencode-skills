@@ -26,8 +26,8 @@
 //     which the T221 inertness contract requires.
 //   - All exports are deep-frozen and deterministic; repeated evaluation
 //     produces byte-identical snapshots.
-//   - UNREGISTERED: nothing in production imports this module; activation is
-//     exclusively the T224 cutover.
+//   - Production pipeline and enrichment stages consume this registry through
+//     their normal imports; it is no longer an inert pre-cutover snapshot.
 //
 // ESM only. Zero npm deps. node: builtins only. Pure DATA; no filesystem,
 // network, child-process, or executable access.

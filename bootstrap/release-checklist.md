@@ -7,6 +7,7 @@ Checklist for the future release of `@jamiemills/csm-skills-bootstrap@0.1.0` and
 - [ ] Gates green: `node scripts/check-suite.mjs`, `node scripts/sync-skill-boilerplate.mjs --check`, `node scripts/gen-readme-matrix.mjs --check`, and the five bootstrap suites (`tests/bootstrap-trust.test.mjs`, `tests/package-audit.test.mjs`, `tests/protocol/*.test.mjs`, `tests/offline/*.test.mjs`, `tests/integration/*.test.mjs`).
 - [ ] Deterministic pack proven: run `node scripts/pack-bootstrap.mjs` twice and compare the printed `sha256` — the bytes must be identical; record sha256, byte count, and file count.
 - [ ] Toolchain and cache manifest recorded: node/npm/platform versions, tarball integrity (sha256 + bytes), and a warm-cache plus `npm cache verify` transcript, per `bootstrap/cache-manifest.schema.json`.
+- [ ] Release-only keyring gate passes: run `node scripts/pack-bootstrap.mjs --release`; it refuses non-production metadata and committed fixture markers, including renamed fixture IDs (normal `node scripts/pack-bootstrap.mjs` remains allowed for local fixture packs). Do not generate or request production keys as part of local builds.
 
 ## Release (requires explicit user approval — outside any plan)
 

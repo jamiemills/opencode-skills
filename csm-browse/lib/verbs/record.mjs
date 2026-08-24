@@ -5,6 +5,19 @@ import { setTimeout } from "node:timers/promises";
 import { CMD_TIMEOUT_MS } from "../constants.mjs";
 import { ensurePrivateDir, secureWrite } from "../security.mjs";
 
+export function parseStartArgs(args) {
+  let name = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--speed") {
+      i++;
+    } else if (!args[i].startsWith("--")) {
+      name = args[i];
+      break;
+    }
+  }
+  return name;
+}
+
 export async function run({ args, state, verb }) {
   if (verb !== "screencast-start" && verb !== "screencast-stop") {
     console.error(`Unknown verb: ${verb}. Expected screencast-start or screencast-stop`);
@@ -28,8 +41,7 @@ export async function run({ args, state, verb }) {
       console.error("Usage: screencast-start <name> [--small|--medium|--full]");
       process.exit(1);
     }
-    const speedValue = args.indexOf("--speed") !== -1 ? args[args.indexOf("--speed") + 1] : null;
-    const name = args.find((a) => !a.startsWith("--") && a !== speedValue);
+    const name = parseStartArgs(args);
     let preset = "medium";
     if (args.includes("--small")) preset = "small";
     if (args.includes("--medium")) preset = "medium";

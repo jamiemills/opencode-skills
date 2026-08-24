@@ -62,6 +62,20 @@ test("createWorktree refuses a duplicate slug", () => {
   }
 });
 
+test("createWorktree allows a slug that only shares a path prefix", () => {
+  const root = makeRepo();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-base-"));
+  try {
+    createWorktree(root, "goal", base);
+    const { dir, branch } = createWorktree(root, "goal-extra", base);
+    assert.equal(branch, "wt/goal-extra");
+    assert.ok(fs.existsSync(dir), "prefix-colliding worktree was created");
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("mergeWorktree rebases and fast-forwards main; refuses non-main checkout", () => {
   const root = makeRepo();
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-base-"));

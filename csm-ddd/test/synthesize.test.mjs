@@ -80,6 +80,17 @@ test("every seam carries all five fields and every ordering entry cites evidence
   assert.deepEqual(ranks, ranks.toSorted());
 });
 
+test("seam ordering uses exact importer counts and source paths", async () => {
+  const result = synthesize(await extractRepository({ root: fixtureRepo }));
+  for (const seam of result.seams) {
+    const order = result.ordering.find((entry) => entry.subject === seam.subject);
+    assert.ok(order);
+    const slice = result.slices.find((candidate) => candidate.id === order.claimId);
+    assert.ok(slice);
+    assert.equal(slice.evidenceIds.length, 1);
+  }
+});
+
 test("no synthesis claim lacks a basis and statuses stay in vocabulary", async () => {
   const extraction = await extractRepository({ root: fixtureRepo });
   const result = synthesize(extraction);

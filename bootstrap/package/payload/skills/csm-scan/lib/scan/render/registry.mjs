@@ -23,8 +23,8 @@
 //   - createRenderRegistry produces a frozen 17-dimension renderer with an
 //     existing-ten-compatible render(deep) surface and a fixed render context,
 //     so injected rendering is deterministic.
-//   - The default write path (existing-ten) is untouched: nothing in
-//     production imports this module; activation is the T224 cutover.
+//   - The default write path consumes this registry through the production
+//     pipeline, which supplies the fixed render context.
 //
 // ESM only. Zero npm deps. node: builtins only. Pure DATA; no filesystem,
 // network, child-process, or executable access.

@@ -2,6 +2,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { freshSessionsRoot, removeRoot } from "./helpers/env.mjs";
 import { startFakeCdp } from "./helpers/fake-cdp-server.mjs";
 
@@ -65,15 +66,23 @@ test("status reports daemonAlive=true only when ready marker + live pid agree", 
   const sDir = join(root, sid);
   await mkdir(sDir, { recursive: true });
   const state = { wsUrl: server.url, sid, sessionDir: sDir, internalPort: 9226, publicPort: 9227 };
+  const daemon = spawn(
+    process.execPath,
+    ["-e", "setInterval(() => {}, 1000)", "session-daemon.mjs", "--session", sid],
+    {
+      stdio: "ignore",
+    },
+  );
 
   // pid file alone (no ready marker) is not enough
-  await writeFile(join(sDir, "daemon.pid"), String(process.pid));
+  await writeFile(join(sDir, "daemon.pid"), String(daemon.pid));
   assert.equal((await runStatus(state)).daemonAlive, false);
 
   // ready marker + live pid -> alive
-  await writeFile(join(sDir, "daemon.ready"), String(process.pid));
+  await writeFile(join(sDir, "daemon.ready"), String(daemon.pid));
   assert.equal((await runStatus(state)).daemonAlive, true);
   assert.equal((await runStatus(state)).currentUrl, null); // no page targets
 
   await server.stop();
+  daemon.kill("SIGKILL");
 });

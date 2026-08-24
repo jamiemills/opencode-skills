@@ -6,6 +6,7 @@
 // file (mode 0600, `.csm-scan-debug.log` next to --out, tmpdir fallback),
 // never to stdout or stderr.
 import { createWriteStream, statSync } from "node:fs";
+import { openSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
@@ -32,10 +33,26 @@ export function openVerboseTrace(outPath) {
     }
   } catch {}
   candidates.push(join(tmpdir(), traceFileName()));
-  const path = candidates[0];
-  const stream = createWriteStream(path, { flags: "wx", mode: 0o600 });
-  stream.on("error", () => {});
-  return { path, stream };
+  for (const path of candidates) {
+    try {
+      const fd = openSync(path, "wx", 0o600);
+      const stream = createWriteStream(path, { fd, mode: 0o600, autoClose: true });
+      let error = null;
+      stream.on("error", (cause) => {
+        error = cause;
+      });
+      return {
+        path,
+        stream,
+        get error() {
+          return error;
+        },
+      };
+    } catch {
+      // Try the next truthful candidate, including the OS temp directory.
+    }
+  }
+  return null;
 }
 
 // Fans every reporter call out to the trace file. phase() calls mark

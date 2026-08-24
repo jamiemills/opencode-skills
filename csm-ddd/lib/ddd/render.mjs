@@ -105,7 +105,7 @@ function renderSeams(_extraction, synthesis, clarification) {
 
 function renderCoverage(extraction, _synthesis, clarification) {
   const caps = extraction.caps;
-  const answerCount = clarification?.answers ?? 0;
+  const answerCount = clarification?.answerCount ?? clarification?.answers?.length ?? 0;
   return [
     `Scan coverage: ${caps.filesScanned} files / ${caps.bytesScanned} bytes under caps maxFiles=${caps.maxFiles}, maxBytes=${caps.maxBytes}${caps.truncatedByFiles || caps.truncatedByBytes ? " — TRUNCATED, coverage unverified" : " — complete within bounds"}.`,
     `NORMS.md: ${extraction.norms.loaded ? (extraction.norms.authentic ? "loaded as authentic scan output" : "loaded but UNTRUSTED (no csm-scan markers)") : "not present"}.`,
@@ -148,7 +148,6 @@ export function buildGraphEnvelopeObject({
   synthesis,
   clarification,
 }) {
-  void GRAPH_FORMAT;
   const evidence = [...extraction.evidence, ...(synthesis.evidence ?? [])];
   const claims = [...extraction.claims, ...synthesis.claims];
   if (clarification?.claims) claims.push(...clarification.claims);

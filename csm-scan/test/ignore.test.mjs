@@ -4,7 +4,6 @@ import {
   IGNORE_DIRS,
   IGNORE_NAME_GLOBS,
   rgIgnoreArgs,
-  findPruneArgs,
   isIgnoredPath,
 } from "../lib/scan/shared/ignore.mjs";
 
@@ -66,11 +65,7 @@ test("isIgnoredPath treats real lockfiles as kept, binary lockb as ignored", () 
   assert.equal(isIgnoredPath("repo/bun.lockb"), true, "bun.lockb must be ignored");
 });
 
-test("findPruneArgs returns -name <dir> -prune fragments", () => {
-  const frags = findPruneArgs();
-  assert.ok(Array.isArray(frags));
-  assert.ok(frags.length >= IGNORE_DIRS.length);
-  for (const f of frags) {
-    assert.match(f, /^-name \S+ -prune$/);
-  }
+test("F3-07 removes the unused find-shaped prune export", async () => {
+  const module = await import("../lib/scan/shared/ignore.mjs");
+  assert.equal("findPruneArgs" in module, false);
 });

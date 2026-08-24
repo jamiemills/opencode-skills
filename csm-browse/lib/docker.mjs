@@ -264,13 +264,8 @@ function realKillPid(pid, signal = "SIGTERM") {
   process.kill(pid, signal);
 }
 
-// Injectable exec layer (DI seam): all exported helpers dispatch through this
-// object, so tests can substitute any of them. Production modules (sweep.mjs,
-// ports.mjs) read execLayer for internal DI. The MUTATION API
-// (setExecLayerForTests) lives in tests/unit/helpers/exec-layer.mjs — the
-// test-only seam module (F-068-2) — and is re-exported here as a transitional
-// alias until R9 re-points the existing suites to the helper; a forgotten
-// reset there is what order-contaminates the next test file.
+// Injectable exec layer: production modules read this object for internal DI;
+// unit tests replace its functions through the test helper.
 const realLayer = Object.freeze({
   execFile,
   isContainerRunning: realIsContainerRunning,
@@ -290,10 +285,6 @@ const realLayer = Object.freeze({
 
 export const execLayer = { ...realLayer };
 export const realExecLayer = realLayer;
-
-export function setExecLayerForTests(layer) {
-  Object.assign(execLayer, layer ?? realLayer);
-}
 
 export async function isContainerRunning(name) {
   return execLayer.isContainerRunning(name);

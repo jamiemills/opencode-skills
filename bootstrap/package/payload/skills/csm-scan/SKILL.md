@@ -13,7 +13,7 @@ Run first — before any scan, test, or analysis command or other sections. Not 
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-scan-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-scan-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-scan-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-scan-<goal-slug>` (use `-2`/`-3` on collision): `tmux new-session -d -s csm-scan-<goal-slug> 'opencode run "<original scan request>"'` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-scan-<goal-slug>` (use a suffix such as `-2` or `-3` if that name is already taken): `tmux new-session -d -s csm-scan-<goal-slug> 'opencode run "<original scan request>"'` (adapt to the agent CLI).
 4. Print the active session name and attach command: `tmux attach-session -t csm-scan-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the scan from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the scan workflow without renaming or starting tmux.
 
@@ -115,8 +115,10 @@ Deep scanners (`lib/scan/deep/*.mjs`) and the new-dimension extractors (`deep/ap
 
 All production subprocesses go through one broker, `lib/scan/shared/command.mjs`. It accepts **command IDs**, not arbitrary executables or arguments:
 
-- `rg --files` and `rg --json` (with the canonical ignore-argument set and a bounded literal pattern)
+- `rg --files` (with the canonical ignore-argument set)
 - Read-only Git queries (`rev-parse --show-toplevel`, `rev-parse --abbrev-ref HEAD`, `log --oneline -50`, `branch -a`, `symbolic-ref refs/remotes/origin/HEAD`, `config --get remote.origin.url`, `shortlog -s -n HEAD`)
+
+The broker also registers bounded hidden-file enumeration, `rg --json`, `git log --oneline -200`, and `git ls-files` for the scanner's deeper passes and contract tests.
 
 Every execution uses an exact argv array, `shell: false`, a reduced environment, timeouts, output caps, disabled Git prompts/pagers, and `GIT_OPTIONAL_LOCKS=0`. Target runtime/build/test/deploy/scanner commands, shell strings, pipes, redirects, `find`, and runtime probes are absent; `rg` exit 1 means no match only after a completed bounded search. Command timeouts, truncation, and invalid output yield `unverified`/`unsupported`, never absence.
 
@@ -158,7 +160,7 @@ Identical immutable inputs, a fixed clock, the same plugin set, and the same rep
 ## Constraints (non-negotiable)
 
 - **Read-only**: Never modifies scanned repos — only the broker's registered `rg`/Git read-only argv forms execute; target commands and shell execution are absent
-- **Single output file**: Exactly one `writeFile(outPath, content)` call — no config files, lockfiles, temp files, or any other writes
+- **Single output file**: Publish exactly one final `NORMS.md`; the implementation uses a same-directory temporary file plus rename for atomic publication and removes it on failure.
 - **Zero npm dependencies**: Node.js built-ins only (`node:fs`, `node:path`, `node:child_process`)
 - **No installs, no builds**: Never installs dependencies or runs build commands in scanned repos
 - **Deterministic**: Fixed inputs produce byte-identical output
@@ -167,7 +169,7 @@ Identical immutable inputs, a fixed clock, the same plugin set, and the same rep
 
 A single `NORMS.md` file beginning with a `format: csm-norms/1` frontmatter marker, containing one section per scanned repository with the 17 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** section when facts from its scanned dimensions coexist in a relationship reported by enrichment.
 
-Enrichment metadata records factual detection coverage and the observed, inferred, unverified, unsupported, or not-applicable basis of findings. A `### Coverage Basis` table defines the basis vocabulary used across dimensions.
+Enrichment metadata records factual detection coverage and the observed, inferred, unverified, unsupported, or not-applicable basis of findings. The rendered `### Coverage Basis` table summarizes observed, inferred, and unverified top-level scanner fields; claim status vocabulary also includes unsupported and not-applicable.
 
 ## Typical workflow
 
@@ -205,4 +207,4 @@ node test/scripts/run-tier.mjs s|m|l|all                           # tiered runs
 node test/scripts/coverage-gate.mjs                                # ≥88% line-coverage gate (Node ≥22)
 ```
 
-While `test/scripts/tiers.mjs` is the placeholder, every `run-tier` invocation fails loudly instead of silently running nothing. Record pass count + wall time at every gate run.
+`test/scripts/tiers.mjs` is the frozen, complete tier manifest; every `run-tier` invocation validates that partition before running. Record pass count + wall time at every gate run.

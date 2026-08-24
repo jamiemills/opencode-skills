@@ -93,6 +93,35 @@ const decisions = [
   "package.json and payload-index.json are not indexed: the manifest is audit-checked and the index cannot contain its own digest; both are bound by the recorded tarball shasum",
 ];
 
+const FIXTURE_KEY_FINGERPRINT = "b37f525affc870505af1b92034ab44837d06372b6bea27cc24aed14d09d40209";
+const FIXTURE_KEY_DER = "MCowBQYDK2VwAyEATcWR27WU2b6rIfJuqGlgPt89KHz5OX6tSibHg8wn/48=";
+
+function validateReleaseKeyring(keyring) {
+  const fixtureKey = keyring?.keys?.some(
+    (key) =>
+      (typeof key.id === "string" && /fixture/i.test(key.id)) ||
+      key.fingerprint === FIXTURE_KEY_FINGERPRINT ||
+      key.public_key_der_base64 === FIXTURE_KEY_DER,
+  );
+  if (
+    keyring?.production_use !== true ||
+    keyring?.environment === "test-fixture-only" ||
+    fixtureKey
+  ) {
+    const error = new Error(
+      "release pack refused: bootstrap/keyring.json is non-production or contains fixture markers",
+    );
+    error.code = "RELEASE_KEYRING";
+    throw error;
+  }
+  return true;
+}
+
+async function assertReleaseKeyring() {
+  const keyring = JSON.parse(await readFile(join(bootstrapDir, "keyring.json"), "utf8"));
+  validateReleaseKeyring(keyring);
+}
+
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const modeOf = (mode) => (mode & 0o777).toString(8).padStart(4, "0");
 const toPosix = (value) => value.split(sep).join("/");
@@ -263,6 +292,7 @@ async function packBootstrap() {
 }
 
 async function main() {
+  if (process.argv.includes("--release")) await assertReleaseKeyring();
   const { dir, tarball, sha256: pkgSha256, bytes, entries } = await packBootstrap();
   const files = entries.filter((entry) => entry.type === "0" || entry.type === "\0");
   console.log(`tarball: ${tarball}`);
@@ -284,4 +314,13 @@ if (process.argv[1]) {
 }
 if (isMain) await main();
 
-export { mapping, decisions, parseTar, packBootstrap, syncPayload, walk };
+export {
+  assertReleaseKeyring,
+  decisions,
+  mapping,
+  packBootstrap,
+  parseTar,
+  syncPayload,
+  validateReleaseKeyring,
+  walk,
+};

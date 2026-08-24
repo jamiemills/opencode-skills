@@ -30,7 +30,7 @@ Run first — before any research work or other sections. Not a research state.
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-deep-research-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-deep-research-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-deep-research-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-deep-research-<goal-slug>` (use `-2`/`-3` on collision): `tmux new-session -d -s csm-deep-research-<goal-slug> 'opencode run "<original research request>"'` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-deep-research-<goal-slug>` (use a suffix such as `-2` or `-3` if that name is already taken): `tmux new-session -d -s csm-deep-research-<goal-slug> 'opencode run "<original research request>"'` (adapt to the agent CLI).
 4. Print the active session name and attach command: `tmux attach-session -t csm-deep-research-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the research from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the research workflow without renaming or starting tmux.
 

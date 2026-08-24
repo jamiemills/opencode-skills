@@ -17,14 +17,12 @@
 //   node scripts/record-gate-baseline.mjs --check
 //       standalone form: runs `node scripts/check-suite.mjs` itself, parses
 //       the "N checks" count from its stdout, prints it, and compares against
-//       the latest recorded check-suite baseline (the .lefthook.yml job uses
-//       this form).
+//       the latest recorded check-suite baseline.
 //
-// First-baseline policy (journal-learnings A8): deviations are warnings + exit
-// codes, never a hard-fail policy — hard-failing arrives only once a second
-// baseline exists. The standalone --check is guarded at the call site
-// (.lefthook.yml) by existence of both this script and the baseline file, so
-// a fresh clone silently skips it.
+// First-baseline policy (journal-learnings A8): the first observed deviation
+// is a warning; hard-failing starts once at least two historical records exist.
+// The pre-commit hook runs check-suite directly, so this optional comparison
+// command is not a second hidden execution of that expensive gate.
 //
 // The JSON is disposable: delete it and re-record with --record.
 
@@ -87,12 +85,6 @@ function saveRecords(records) {
   fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(records, null, 2)}\n`);
 }
 
-function latestForGate(records, gate) {
-  return (
-    records.filter((r) => r.gate === gate).toSorted((a, b) => (a.ts < b.ts ? 1 : -1))[0] ?? null
-  );
-}
-
 function warnStale(record) {
   const ageMs = Date.now() - Date.parse(record.ts);
   if (Number.isNaN(ageMs)) return;
@@ -131,7 +123,8 @@ function doRecord(gate, passCount, wallMs) {
 
 function doCheckExplicit(gate, passCount, wallMs, tolerance) {
   validateNumbers(passCount, wallMs);
-  const record = latestForGate(loadRecords(), gate);
+  const records = loadRecords().filter((r) => r.gate === gate);
+  const record = records.toSorted((a, b) => (a.ts < b.ts ? 1 : -1))[0] ?? null;
   if (record === null) {
     console.log(
       `gate-baseline: no prior baseline for gate=${gate} — nothing to compare (first baseline? use --record)`,
@@ -141,6 +134,12 @@ function doCheckExplicit(gate, passCount, wallMs, tolerance) {
   warnStale(record);
   const delta = Math.abs(record.passCount - passCount);
   if (delta > tolerance) {
+    if (records.length < 2) {
+      console.warn(
+        `gate-baseline: WARNING first deviation gate=${gate} recorded=${record.passCount} observed=${passCount} tolerance=${tolerance} — record another baseline before enforcing this comparison`,
+      );
+      return 0;
+    }
     console.error(
       `gate-baseline: DEVIATION gate=${gate} recorded=${record.passCount} observed=${passCount} tolerance=${tolerance}`,
     );

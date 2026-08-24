@@ -316,7 +316,7 @@ export async function startRecorder(
     frameCount: () => frameCount,
     droppedFrames: () => droppedFrames,
     startedAt,
-    fps,
+    fps: fpsOut,
     outPath,
     codec: p.codec,
     recorderJsonPath,
@@ -351,6 +351,7 @@ export async function startRecorder(
     running: true,
     startedAt,
     name: outName,
+    fps: fpsOut,
     outPath,
   };
 

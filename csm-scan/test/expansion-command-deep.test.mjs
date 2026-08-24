@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { createRecordingRunner } from "./helpers/recording-runner.mjs";
-import { createCommandBroker } from "../lib/scan/shared/command.mjs";
+import { createCommandBroker, splitGlobArgs } from "../lib/scan/shared/command.mjs";
 import { rgIgnoreArgs } from "../lib/scan/shared/ignore.mjs";
 import { withFixture } from "./harness.mjs";
 import { scan as scanStack } from "../lib/scan/deep/stack.mjs";
@@ -65,6 +65,12 @@ function expectedRgHiddenArgv() {
     }),
   ];
 }
+
+test("F3-08 rejects malformed glob entries instead of corrupting argv", () => {
+  for (const entry of ["--glob", "--glob !foo bar", " !foo", "--glob "]) {
+    assert.throws(() => splitGlobArgs([entry]), /invalid glob argument/);
+  }
+});
 
 function assertNoProhibitedSites(source, rel) {
   const prohibited = [

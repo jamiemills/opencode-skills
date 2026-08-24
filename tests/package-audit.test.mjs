@@ -55,6 +55,7 @@ test("integration tier: pinned toolchain floor — node >= 22", () => {
 
 test("two isolated packs are deterministic and the packed artifact passes the audit", async () => {
   const dirs = [];
+  const originalUmask = process.umask(0o022);
   try {
     const first = await packBootstrap();
     const second = await packBootstrap();
@@ -164,7 +165,10 @@ test("two isolated packs are deterministic and the packed artifact passes the au
         "csm-skills-bootstrap",
         "--version",
       ],
-      { encoding: "utf8", env: { ...process.env, NPM_CONFIG_CACHE: cache } },
+      {
+        encoding: "utf8",
+        env: { ...process.env, NPM_CONFIG_CACHE: cache, NPM_CONFIG_UMASK: "022" },
+      },
     );
     assert.equal(version.stdout.trim(), "0.1.0");
     const verify = await execFileAsync(
@@ -178,7 +182,10 @@ test("two isolated packs are deterministic and the packed artifact passes the au
         "csm-skills-bootstrap",
         "payload-index",
       ],
-      { encoding: "utf8", env: { ...process.env, NPM_CONFIG_CACHE: cache } },
+      {
+        encoding: "utf8",
+        env: { ...process.env, NPM_CONFIG_CACHE: cache, NPM_CONFIG_UMASK: "022" },
+      },
     );
     const verified = JSON.parse(verify.stdout);
     assert.equal(verified.verification.ok, true);
@@ -214,7 +221,10 @@ test("two isolated packs are deterministic and the packed artifact passes the au
         "csm-skills-bootstrap",
         "payload-index",
       ],
-      { encoding: "utf8", env: { ...process.env, NPM_CONFIG_CACHE: cache } },
+      {
+        encoding: "utf8",
+        env: { ...process.env, NPM_CONFIG_CACHE: cache, NPM_CONFIG_UMASK: "022" },
+      },
     )
       .then((out) => ({ stdout: out.stdout, code: 0 }))
       .catch((err) => ({ stdout: err.stdout || "", code: err.code }));
@@ -230,6 +240,7 @@ test("two isolated packs are deterministic and the packed artifact passes the au
       JSON.stringify(tamperResult.verification.failures),
     );
   } finally {
+    if (typeof originalUmask === "number") process.umask(originalUmask);
     for (const dir of dirs) await rm(dir, { recursive: true, force: true });
   }
 });

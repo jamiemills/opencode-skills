@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { promisify } from "node:util";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -7,6 +10,36 @@ import { aggregateReport, parseSessionRows, renderReport } from "../scripts/cach
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixture = (name) => join(root, "tests", "fixtures", "cache-health", name);
+const execFileAsync = promisify(execFile);
+const cacheHealthScript = join(root, "scripts", "cache-health.mjs");
+
+async function runMain(args = [], { output = "", fail = false } = {}) {
+  const sandbox = await mkdtemp(join(root, "tests", ".cache-health-main-"));
+  const bin = join(sandbox, "bin");
+  const log = join(sandbox, "args.log");
+  await mkdir(join(sandbox, ".git"), { recursive: true });
+  await mkdir(join(sandbox, ".agents"), { recursive: true });
+  await writeFile(join(sandbox, ".agents", "token-efficiency.json"), '{"enabled":true}\n');
+  await mkdir(bin);
+  const fake = join(bin, "opencode");
+  const body = fail
+    ? `#!/usr/bin/env node\nprocess.stderr.write("db unavailable\\n"); process.exit(7);\n`
+    : `#!/usr/bin/env node\nconst fs = require("node:fs"); fs.writeFileSync(${JSON.stringify(log)}, process.argv.slice(2).join("\\n")); process.stdout.write(${JSON.stringify(output)});\n`;
+  await writeFile(fake, body);
+  await chmod(fake, 0o755);
+  try {
+    const result = await execFileAsync(process.execPath, [cacheHealthScript, ...args], {
+      cwd: sandbox,
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` },
+    });
+    return { ...result, sqlArgs: await readFile(log, "utf8") };
+  } catch (error) {
+    error.sqlArgs = existsSync(log) ? await readFile(log, "utf8") : "";
+    return error;
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+}
 
 test("parseSessionRows parses the sample fixture into typed rows", async () => {
   const rows = parseSessionRows(await readFile(fixture("sample.tsv"), "utf8"));
@@ -83,7 +116,7 @@ test("renderReport emits the plain-text per-session and per-day report", async (
   const rows = parseSessionRows(await readFile(fixture("sample.tsv"), "utf8"));
   const report = aggregateReport(rows);
   const text = renderReport(report, { windowLabel: "last 30 days" });
-  assert.match(text, /cache-health: deepseek-v4-flash cache hit report/);
+  assert.match(text, /cache-health: model=deepseek-v4-flash cache hit report/);
   assert.match(text, /window: last 30 days · sessions: 6 · zero-denominator skipped: 1/);
   assert.match(text, /per-session \(newest first\):/);
   assert.match(text, /sunny-cactus/);
@@ -96,4 +129,27 @@ test("renderReport emits the plain-text per-session and per-day report", async (
   assert.match(text, /2026-08-19/);
   assert.match(text, /96\.9%/);
   assert.match(text, /78\.8%/);
+});
+
+test("renderReport makes the fixed model scope explicit", () => {
+  const text = renderReport(aggregateReport([]));
+  assert.match(text, /^cache-health: model=deepseek-v4-flash cache hit report/);
+});
+
+test("CLI main constructs the bounded SQL and renders queried rows", async () => {
+  const result = await runMain(["--days", "7"], {
+    output: "id\tsunny-cactus\tagent\t1787224866048\t10\t20\t0\t0.5\n",
+  });
+  assert.equal(result.stderr, "");
+  assert.match(result.sqlArgs, /from session where model LIKE '%deepseek-v4-flash%'/);
+  assert.match(result.sqlArgs, /time_created >= \d+/);
+  assert.match(result.sqlArgs, /order by time_created desc/);
+  assert.match(result.stdout, /window: last 7 days \(cutoff \d{4}-\d{2}-\d{2} UTC\)/);
+  assert.match(result.stdout, /sunny-cactus/);
+});
+
+test("CLI main reports subprocess failures with a nonzero exit", async () => {
+  const result = await runMain([], { fail: true });
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /cache-health: opencode db query failed: db unavailable/);
 });

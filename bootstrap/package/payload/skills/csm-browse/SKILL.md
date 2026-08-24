@@ -84,7 +84,7 @@ An unrecognized verb prints `Unknown verb: <verb> — see SKILL.md verb table` t
 
 ## Login composition example
 
-The fixture server (`node tests/serve.mjs`) binds the docker bridge gateway on an ephemeral port and prints its base URL on the `READY <port>` line. The base is `CSM_BROWSE_FIXTURE_BASE` when set, else auto-detected from the docker0 route (fallback `http://172.17.0.1:8090`).
+The fixture server (`node tests/serve.mjs`) binds the docker bridge gateway on an ephemeral port and prints its base URL on the `READY <port>` line. Set `CSM_BROWSE_FIXTURE_BASE` to override the detected base; otherwise use the URL printed by the server.
 
 ```bash
 SID=my-login-test
@@ -102,7 +102,7 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs close --session
 
 ## VNC live view
 
-The container exposes a VNC server on `localhost:5900`. Connect with any VNC client to watch the browser live. This is purely observational — all control happens via CDP.
+The container exposes a VNC server on `localhost:5900`. Connect with any VNC client to watch the browser live. This is purely observational — all control happens via CDP. **Accepted security boundary:** VNC is exposed on host loopback only (`127.0.0.1:5900`), not as a remote or public VNC service; this cycle intentionally does not change the generated password policy.
 
 ## Isolation note
 
@@ -149,4 +149,4 @@ node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --clean
 3. `state.json` → `daemonPid`: does `kill -0 <pid>` respond? A responding pid with a stale `daemon.ready` (mtime older than ~10s) is a zombie daemon — ensure-browser detects and restarts these itself; a second failure means the log from step 2.
 4. Confirm the CDP endpoint answers. Prefer the mechanical form (reads `state.json`, keeps the token out of shell history): `curl -m 2 "$(node -e 'const u=new URL(JSON.parse(require("fs").readFileSync("<session-dir>/state.json","utf8")).cdpUrl);u.pathname="/json/version";console.log(u.toString())')"`. Manual form: copy the full tokenized `cdpUrl` from `state.json` VERBATIM — it ends with `/?token=<value>` (an empty `/` path) — and replace that lone `/` immediately before `?token=` with the discovery path (`curl -m 2 "http://127.0.0.1:<publicPort>/json/version?token=<value-pasted-verbatim-from-cdpUrl>"`). Never append a path after the query and never retype or hand-construct the token. If it does not answer, the chromium or the gate died — re-run ensure-browser to recreate the session.
 
-**E2E suite**: `node tests/e2e.mjs [--quick]` requires Docker + the chromium-vnc container (it skips cleanly with `SKIP: Docker/chromium-vnc unavailable`, exit 0, when they are absent; `CSM_BROWSE_E2E_SKIP=1` forces the skip). Summary JSON goes to `CSM_BROWSE_E2E_SUMMARY` or `tests/.e2e-summary.json`.
+**E2E suite**: `node tests/e2e.mjs [--quick]` requires Docker + the chromium-vnc container (it skips cleanly with `SKIP: Docker/chromium-vnc unavailable`, exit 0, when they are absent; `CSM_BROWSE_E2E_SKIP=1` forces the skip). Summary JSON goes to `CSM_BROWSE_E2E_SUMMARY` or the sessions root's `.e2e-summary.json`.

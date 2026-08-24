@@ -1,12 +1,28 @@
 import { connect, getSession, evalInPage } from "../cdp.mjs";
 
+function escapeSelector(sel) {
+  return sel ? sel.replace(/\\/g, "\\\\").replace(/'/g, "\\'") : "";
+}
+
+export function textExpression(sel) {
+  const escaped = escapeSelector(sel);
+  return sel
+    ? `document.querySelector('${escaped}')?.textContent?.trim() || ''`
+    : `document.body?.textContent?.trim() || ''`;
+}
+
+export function htmlExpression(sel) {
+  const escaped = escapeSelector(sel);
+  return sel
+    ? `document.querySelector('${escaped}')?.outerHTML || ''`
+    : "document.documentElement.outerHTML";
+}
+
 export async function run({ args, state, verb }) {
   if (verb === "text") {
     const sel = args[0];
-    const escaped = sel ? sel.replace(/\\/g, "\\\\").replace(/'/g, "\\'") : "";
-    const expression = sel
-      ? `document.querySelector('${escaped}')?.innerText?.trim() || ''`
-      : `document.body?.innerText?.trim() || ''`;
+    const escaped = escapeSelector(sel);
+    const expression = textExpression(sel);
 
     const client = await connect(state);
     const sessionId = await getSession(client);
@@ -34,10 +50,8 @@ export async function run({ args, state, verb }) {
 
   if (verb === "html") {
     const sel = args[0];
-    const escaped = sel ? sel.replace(/\\/g, "\\\\").replace(/'/g, "\\'") : "";
-    const expression = sel
-      ? `document.querySelector('${escaped}')?.outerHTML || ''`
-      : "document.documentElement.outerHTML";
+    const escaped = escapeSelector(sel);
+    const expression = htmlExpression(sel);
 
     const client = await connect(state);
     const sessionId = await getSession(client);

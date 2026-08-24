@@ -107,10 +107,11 @@ test("retry teardown stops waiting at the bound instead of hanging", async () =>
   const elapsed = Date.now() - t0;
 
   assert.ok(elapsed < 3000, `bounded wait must return promptly (took ${elapsed}ms)`);
-  // Child still owns the pid file, so the markers are cleared and the retry
-  // proceeds — matching the pre-existing unconditional-clear behavior at the
-  // bound.
-  assert.equal(cleared, true);
+  // A live child still owns the claim at the bound. Do not delete markers
+  // under it; the next attempt must not race a still-running daemon.
+  assert.equal(cleared, false);
+  await readFile(pidFile, "utf-8");
+  await readFile(readyMarker, "utf-8");
   child.kill("SIGKILL");
   await exitDone;
   await rm(dir, { recursive: true, force: true });

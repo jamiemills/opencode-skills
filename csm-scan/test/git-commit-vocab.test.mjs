@@ -91,6 +91,13 @@ test("plain subjects report no conventional or task prefixes", () => {
   );
 });
 
+test("F3-09 discloses foreign ticket prefixes as generic tickets", () => {
+  assert.equal(
+    analyzeCommitStyle(["ABC-123: ship change"]),
+    "Task-identified prefixes dominate: 1 of 1 commits (ticket 1); conventional-style prefixes 0",
+  );
+});
+
 test("emoji subjects report no conventional or task prefixes", () => {
   assert.equal(
     analyzeCommitStyle(["✨ sparkles", "🔥 hot", "✨ more"]),
@@ -195,6 +202,34 @@ test("git fixture with remediation branches reports the remediation depth struct
       !result.findings.branchPattern.includes("attempt-1"),
       "must not leak an attempt number",
     );
+  } finally {
+    cleanupGitRepo(dir);
+  }
+});
+
+test("F3-01 excludes the remote HEAD symref from branch facts", async () => {
+  const dir = makeGitRepo({ files: { "readme.md": "fixture\n" }, commits: ["feat: initial"] });
+  try {
+    const result = await scan(
+      dir,
+      {},
+      {
+        async execute(id) {
+          const stdout =
+            {
+              "git:log-oneline-200": "abc1234 feat: initial\n",
+              "git:branch-list":
+                "* main\n  remotes/origin/HEAD -> origin/main\n  remotes/origin/feature/demo\n",
+              "git:symbolic-ref-origin-head": "refs/remotes/origin/main\n",
+              "git:rev-parse-abbrev-head": "main\n",
+              "git:config-remote-origin-url": "https://example.test/repo.git\n",
+              "git:shortlog-summary": "  1\tAuthor\n",
+            }[id] ?? "";
+          return { ok: true, stdout, stderr: "" };
+        },
+      },
+    );
+    assert.equal(result.findings.branchPattern, "feature/*");
   } finally {
     cleanupGitRepo(dir);
   }

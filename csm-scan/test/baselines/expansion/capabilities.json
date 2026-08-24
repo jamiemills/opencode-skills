@@ -59,8 +59,11 @@
       },
       {
         "path": "lib/scan/report/verbose-trace.mjs",
-        "imports": ["import { createWriteStream, statSync } from 'node:fs';"],
-        "apis": ["createWriteStream", "statSync"],
+        "imports": [
+          "import { createWriteStream, statSync } from 'node:fs';",
+          "import { openSync } from 'node:fs';"
+        ],
+        "apis": ["createWriteStream", "openSync", "statSync"],
         "replacementTask": "T012"
       }
     ],

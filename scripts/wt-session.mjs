@@ -82,7 +82,9 @@ export function createWorktree(root, slug, base) {
   const dir = path.join(base, slug);
   if (
     gitOk(root, ["worktree", "list", "--porcelain"]) &&
-    git(root, ["worktree", "list", "--porcelain"]).includes(`worktree ${dir}`)
+    git(root, ["worktree", "list", "--porcelain"])
+      .split("\n")
+      .some((line) => line === `worktree ${dir}`)
   ) {
     throw new Error(`worktree ${dir} already exists`);
   }
@@ -216,7 +218,7 @@ export function removeWorktree(root, slug, { force = false } = {}) {
   return { dir: entry.dir, branch };
 }
 
-// F-??: reap foreign/stale worktree registrations. The Aug-20 history purge
+// F8-12: reap foreign/stale worktree registrations. The Aug-20 history purge
 // left a detached-HEAD safety worktree (/tmp/head-check) registered forever:
 // prune never fires while its directory exists, and nuke cannot match it
 // (detached = no branch). Policy: main checkout and managed wt/<slug>
@@ -316,7 +318,9 @@ function main() {
       console.log(pruned ? `pruned stale worktree registration ${dir}` : `removed worktree ${dir}`);
       console.log(`deleted branch ${branch}`);
     } else {
-      throw new Error(`usage: wt-session <create|list|merge|nuke> [args] (see header for details)`);
+      throw new Error(
+        `usage: wt-session <create|list|merge|nuke|prune> [args] (see header for details)`,
+      );
     }
   } catch (err) {
     process.stderr.write(`wt-session: ${err.message}\n`);

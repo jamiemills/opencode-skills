@@ -38,6 +38,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-22-csm-python-doctrine-review-skill-build-csm.md` — 2026-08-22 — build the csm-review-python skill — status: complete
 - `2026-08-23-fix-high-medium-findings-csm.md` — 2026-08-23 — fix all high and medium findings from the 2026-08-23 review (22 tasks) — status: in_progress
 - `2026-08-23-tackle-remaining-review-findings-csm.md` — 2026-08-23 — tackle the remaining low and info findings from the 2026-08-23 review — status: ready; decisions recorded
+- `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 
 ## docs/
 
