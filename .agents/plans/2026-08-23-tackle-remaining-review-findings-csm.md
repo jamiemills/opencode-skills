@@ -11,15 +11,15 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: tackle-remaining-review-findings
-- Status: blocked
-- Current CSM state: BLOCKED
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-24T08:55:00+0000 final implementation checkpoint — all ten tasks have focused evidence; real-tree aggregate test remains blocked solely by unrelated untracked autoresearch plan with invalid Control Next transition
-- Last model/run: primary csm-build T004 2026-08-24T06:25
-- Next transition: BLOCKED -> RECOVER
+- Last checkpoint: 2026-08-24T09:20:00+0000 final completion gate passed — all ten tasks implemented, reviewed, payload/baselines synchronized, and real-tree make test 1282/1282
+- Last model/run: primary csm-build session resumed 2026-08-23T18:02
+- Next transition: COMPLETE
 - Active tasks: none
-- Blockers: `.agents/plans/2026-08-23-autoresearch-evaluator-csm-csm.md` is an unrelated untracked concurrent plan with invalid `Next transition: NOT_STARTED -> RECOVER on...`; it causes `make test`/resume-semantics to fail. Do not modify it without user ownership decision.
+- Blockers: none; the user-approved transition fix was applied to the unrelated autoresearch plan, and the aggregate test gate now passes.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
 
 ## Goal
@@ -329,12 +329,13 @@ Run focused tests first, then each cluster's suite, then `make lint`, `make chec
 | 2026-08-24T06:25:00+0000 | 1 | INTEGRATE -> CHECKPOINT | T004 | Fixed F4-07 with bounded, CLI-safe network filter compilation and added malformed/oversized regex tests. Recorded D7 in user-facing VNC documentation and pinned the loopback-only mapping/documentation contract in security-gate tests; password generation and lifecycle sections were unchanged. Focused 32/32, VNC gate 17/17, full browse 197/197, check-skill, lint, and diff checks passed. No commit or external mutation. | SELECT |
 | 2026-08-24T09:00:00+0000 | 1 | INTEGRATE -> VERIFY | T001,T002,T003,T004,T005,T006,T007,T008,T009,T010 | All ten tasks have focused evidence; T007 independently reviewed and repaired twice; pack/check/lint pass at 967 checks; DDD 47/47; csm-scan 1282/1282; bootstrap 15/15; browse 197/197; operations/hooks and T008 focused suites pass. | VERIFY |
 | 2026-08-24T09:05:00+0000 | 1 | VERIFY -> BLOCKED | final gate | Real-tree `make test` fails only because unrelated untracked `.agents/plans/2026-08-23-autoresearch-evaluator-csm-csm.md` has invalid `Control Next transition: NOT_STARTED -> RECOVER on...`; isolated copy with that file removed passes resume-semantics 5/5. User ownership decision required; file preserved. | BLOCKED |
+| 2026-08-24T09:20:00+0000 | 1 | BLOCKED -> COMPLETE | final gate | User approved the one-line transition fix; real-tree resume semantics 5/5 and make test 1282/1282 now pass; final review found no new material defect. | COMPLETE |
 
 ## Completion Review
 
-Status: BLOCKED.
+Status: COMPLETE.
 
 - All ten planned residual tasks have implementation evidence and focused validation.
-- Repository gates currently pass: `make check` 967 checks, `make lint`, payload pack/index, DDD 47/47, csm-scan 1282/1282, bootstrap 15/15, browse 197/197, and operations/test-focused suites.
-- Full real-tree `make test` is blocked solely by the unrelated untracked autoresearch plan named above. The isolated implementation copy passes the affected resume suite 5/5 after excluding that file.
-- No task or plan changes were made to the unrelated untracked plan; untracked review/research artifacts are preserved.
+- Repository gates pass: `make check` 967 checks, `make lint`, payload pack/index, DDD 47/47, csm-scan 1282/1282, bootstrap 15/15, browse 197/197, operations/test-focused suites, and real-tree `make test` 1282/1282.
+- T007 received two independent security review/repair cycles; advisory-only unsigned behavior, exact mode validation, malformed-index refusal, and release fixture-key refusal are tested.
+- The user-approved one-line transition fix was applied to the concurrent autoresearch plan; other unrelated untracked review/draft artifacts remain preserved and are not part of this build.
