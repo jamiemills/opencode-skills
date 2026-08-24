@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: remove-token-efficiency
-- Status: in_progress
-- Current CSM state: CHECKPOINT
+- Status: blocked
+- Current CSM state: BLOCKED
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T16:35:00+0000 T001/T003/T004/T002 integrated; targeted deletion/cache/docs checks pass, check-suite awaits committed deletions and plan metadata correction.
+- Last checkpoint: 2026-08-24T18:00:00+0000 token removal/live audit complete; full suite blocked by unrelated csm-scan renderer baseline mismatch.
 - Last model/run: primary csm-plan session 2026-08-24
-- Next transition: CHECKPOINT -> SELECT
+- Next transition: BLOCKED -> RECOVER
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -147,7 +147,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Repair attempts: 0
    - Recovery note: historical files remain untouched except optional retirement metadata in current reference docs/index.
 
-5. [pending] Verify generated artifacts and formatting
+5. [completed] Verify generated artifacts and formatting
    - Task ID: T005
    - Depends on: T002,T003,T004
    - Parallel group: G3
@@ -162,7 +162,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Repair attempts: 0
    - Recovery note: any unexpected payload change returns to T002/T004 for source review.
 
-6. [pending] Run final removal audit and full verification
+6. [blocked] Run final removal audit and full verification
    - Task ID: T006
    - Depends on: T005
    - Parallel group: G3
@@ -221,7 +221,9 @@ Delete/rewrite tasks use focused syntax/tests first. T002 and T003 run targeted 
 | 2026-08-24T16:00:00+0000 | 0 | SAVED -> RECOVER | none | Explicit csm-build requested; isolated worktree created and root/csm-browse tooling bootstrapped. | VALIDATE |
 | 2026-08-24T16:10:00+0000 | 0 | RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001,T003,T004 | Baseline check-suite passed 1114 checks; G1 independent removal/cache/docs tasks dispatched. | DISPATCH |
 | 2026-08-24T16:35:00+0000 | 0 | CHECKPOINT | T001,T002,T003,T004 | Toggle surfaces deleted; cache-health 8 tests pass; live docs retired; check-suite branches removed. Deleted tracked config will clear after checkpoint commit; next T005. | SELECT |
+| 2026-08-24T17:00:00+0000 | 0 | CHECKPOINT | T001,T002,T003,T004,T005 | Removal checkpoint committed as 7681648; hooks and check-suite pass at 1113 checks; generated/matrix/format checks pass. | VERIFY |
+| 2026-08-24T18:00:00+0000 | 0 | BLOCKED | T006 | Live-reference audit is empty; cache-health 8 tests, lint, formatting, generators, and check-suite pass. `make test` fails in unrelated `csm-scan/test/expansion-baseline.test.mjs:49` because committed Markdown table padding differs from current renderer output. | BLOCKED |
 
 ## Completion Review
 
-(filled by a future csm-build session; implementation has not started)
+Completion Review: token-efficiency runtime/config/test/fixture surfaces are removed; cache-health is unconditional; live docs are clean and current references are marked retired; generators, lint, formatting, and conformance pass; live-reference audit is empty. Overall plan is blocked only by the unrelated csm-scan renderer baseline mismatch in `T201 fixed-input renderer output matches the deterministic Markdown baseline`. The token-removal checkpoint is committed as `7681648`; fixing that scanner golden is outside this plan.
