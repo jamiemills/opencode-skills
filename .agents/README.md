@@ -59,6 +59,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-19-skills-review.md` — 2026-08-19 — adversarial review of the skills suite — status: reference
 - `2026-08-21-skills-review.md` — 2026-08-21 — adversarial review of the skills suite — status: remediated by `plans/2026-08-21-review-remediation-csm.md`
 - `2026-08-21-skills-review-2.md` — 2026-08-21 — follow-up review (second pass) — status: remediated by `plans/2026-08-21-review-remediation-csm.md`
+- `2026-08-23-skills-review.md` — 2026-08-23 — comprehensive skills-suite review — status: reference
 
 ## research/
 
