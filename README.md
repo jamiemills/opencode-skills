@@ -11,7 +11,7 @@ git clone https://github.com/jamiemills/opencode-skills.git ~/.config/opencode/s
 cd ~/.config/opencode/skills/csm-browse && pnpm install && node scripts/check-skill.mjs
 ```
 
-Restart your agent runtime. Ten skills are instruction-led and ready to use; `csm-browse` also needs its Docker/Node setup. Full details: [Install](#install).
+Restart your agent runtime. Most skills are instruction-led; `csm-browse` needs its Docker/Node setup, and `csm-autoresearch` includes a dependency-free evaluator runtime with optional gated providers. Full details: [Install](#install).
 
 ## Table of contents
 
@@ -39,7 +39,7 @@ Restart your agent runtime. Ten skills are instruction-led and ready to use; `cs
 - **Evidence over assertion** — findings are challenged before they are reported, plans carry runnable acceptance signals before they are executed, and builds finish only when every acceptance signal has recorded proof.
 - **Agent-agnostic** — the skills are plain `SKILL.md` instructions plus (where needed) zero-or-low-dependency Node CLIs. They run in OpenCode, Claude Code, or any Agent Skills runtime.
 
-**The core loop** is **research → grill → plan → build**, with optional test generation before the build, Python-specific review when appropriate, repository analysis before planning, adversarial review before delivery, and browser evidence plus publishing at the end.
+**The core loop** is **research → grill → plan → build**, with optional test generation before the build and `csm-autoresearch` after a measurable implementation exists. Python-specific review, repository analysis, adversarial review, browser evidence, and publishing remain separate optional stages.
 
 ### What you can do with it
 
@@ -47,6 +47,7 @@ Restart your agent runtime. Ten skills are instruction-led and ready to use; `cs
 - Turn a rough idea into a phased brief, then into a plan with acceptance tests and recovery notes.
 - Ask `csm-scan` to map an unfamiliar repository before asking another skill to change it.
 - Generate characterization, contract, performance, or mutation tests before touching production code.
+- Optimize a measurable function or declared code region after a working implementation exists, keeping only evaluator-proven improvements.
 - Review a completed change for security, dependency, testing, and maintainability risks.
 - Capture a browser flow as screenshots, console/network evidence, or a short recording and publish the result.
 
@@ -58,11 +59,11 @@ Start with the smallest useful action: research one question, scan one repositor
 
 Thirteen skills, three roles:
 
-| Role                                             | Skills                                                                                 |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Role                                             | Skills                                                                                                                                            |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Orchestration** (invoked by name in a session) | `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review`, `csm-review-python`, `csm-autoresearch` |
-| **Tooling** (repository analyzers with a CLI)    | `csm-scan`, `csm-ddd`                                                                  |
-| **Evidence** (capture & publish)                 | `csm-browse`, `csm-upload`                                                             |
+| **Tooling** (repository analyzers with a CLI)    | `csm-scan`, `csm-ddd`                                                                                                                             |
+| **Evidence** (capture & publish)                 | `csm-browse`, `csm-upload`                                                                                                                        |
 
 The core loop — **research → grill → plan → build** — with the supporting cast:
 
@@ -82,10 +83,12 @@ flowchart LR
     makeTests --> build
     bdd --> build
     plan -->|"without mutation"| build
+    build -->|"optional measurable target"| autoresearch["csm-autoresearch<br/>bounded optimization + ledger"]
     build -->|"delivery"| browse["csm-browse<br/>image/video evidence of delivery"] -->|"evidence"| upload["csm-upload<br/>evidence → GitHub Pages demo site"]
+    autoresearch -->|"approval-ready diff"| review
 ```
 
-> **Edge semantics:** dashed edges are optional, human-invoked inputs. Research runs **first — or in parallel with the grill** — when the idea rests on external facts, specs, or standards that must be verifiable by citation: `csm-deep-research` answers them, the cited findings feed the grill (which may dispatch follow-up questions) and the plan, and the finding lands in `.agents/research/`. `csm-scan` feeds `NORMS.md` conventions into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`. `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — never an automatic edge. A csm-ddd analysis (report + graph under `.agents/ddd/`) can likewise be referenced by a planning brief or cited by a saved plan as an optional evidence input.
+> **Edge semantics:** dashed edges are optional, human-invoked inputs. Research runs **first — or in parallel with the grill** — when the idea rests on external facts, specs, or standards that must be verifiable by citation: `csm-deep-research` answers them, the cited findings feed the grill (which may dispatch follow-up questions) and the plan, and the finding lands in `.agents/research/`. `csm-scan` feeds `NORMS.md` conventions into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`. `csm-autoresearch` is an optional post-build optimization edge that requires a declared numeric evaluator and never replaces correctness tests or review. `review --> plan` is a **human-in-the-loop** feed of review findings into a subsequent plan run — never an automatic edge. A csm-ddd analysis (report + graph under `.agents/ddd/`) can likewise be referenced by a planning brief or cited by a saved plan as an optional evidence input.
 
 Each stage is a separate, explicitly invoked skill — planning never silently becomes implementation, and execution always starts from a saved plan on disk. Every stage is terminal: it writes its artifact and stops; handoff to the next stage is a fresh, explicit invocation.
 
@@ -99,31 +102,31 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-make-tests`    | `.agents/tests/<date>-<repo-slug>-tests-ledger.md` + `-verification.md`                                                    |
 | `csm-build`         | plan journal + delivery evidence (in-repo)                                                                                 |
 | `csm-review`        | `.agents/reviews/<date>-<repo-slug>-review.md`                                                                             |
-| `csm-review-python` | `.agents/doctrine/<date>-<repo-slug>-python-doctrine-review.md`                                                       |
+| `csm-review-python` | `.agents/doctrine/<date>-<repo-slug>-python-doctrine-review.md`                                                            |
 | `csm-scan`          | `NORMS.md` at the scanned repo root                                                                                        |
 | `csm-deep-research` | `.agents/research/<date>-<slug>-research.md` + optional run artifacts in `.agents/research/artifacts/` (e.g. JSON schemas) |
 | `csm-browse`        | screenshots / videos / DOM·console·network evidence                                                                        |
 | `csm-upload`        | dated GitHub Pages demo page                                                                                               |
 | `csm-ddd`           | `.agents/ddd/<date>-<repo-slug>-ddd-report.md` + `.agents/ddd/<date>-<repo-slug>-ddd-graph.json`                           |
-| `csm-autoresearch`  | `.agents/autoresearch/<date>-<run-id>-ledger.jsonl` + atomic report/manifest                                                   |
+| `csm-autoresearch`  | `.agents/autoresearch/<date>-<run-id>-ledger.jsonl` + atomic report/manifest                                               |
 
 ## The thirteen skills at a glance
 
-| Skill               | In one sentence                                                                                                                                      | Reference                                                |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `csm-deep-research` | Answers a research/R&D question with one dated, exhaustively cited finding — triage → parallel researchers → adversarial challenge → judge → verify. | [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) |
-| `csm-grill`         | Interviews you one question at a time, backed by research, until an idea becomes an agreed, phased approach.                                         | [csm-grill/SKILL.md](csm-grill/SKILL.md)                 |
-| `csm-plan`          | Turns a brief into an evidence-based, executable, resumable implementation plan — then stops.                                                        | [csm-plan/SKILL.md](csm-plan/SKILL.md)                   |
-| `csm-bdd-tdd`       | Mutates a saved plan into a strict BDD+TDD package: formal spec, Gherkin scenarios, unit test designs, traceable plan.                               | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md)             |
-| `csm-make-tests`     | Generates a comprehensive executable test suite: audits existing tests/coverage, captures goldens, generates intent/contract/perf tests, mutation-validates. | [csm-make-tests/SKILL.md](csm-make-tests/SKILL.md)       |
-| `csm-build`         | Executes a saved plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.                                | [csm-build/SKILL.md](csm-build/SKILL.md)                 |
-| `csm-review`        | Adversarially audits a repository across an 18-dimension spine and saves a challenged findings report. Never fixes.                                  | [csm-review/SKILL.md](csm-review/SKILL.md)               |
-| `csm-review-python` | Reviews Python repositories against PEP 20 and idiomatic-Python doctrine, producing one evidence-grounded findings and fix-guide report. | [csm-review-python/SKILL.md](csm-review-python/SKILL.md) |
-| `csm-scan`          | Read-only multi-repo analyzer producing a single `NORMS.md` across 17 evidence dimensions.                                                           | [csm-scan/SKILL.md](csm-scan/SKILL.md)                   |
+| Skill               | In one sentence                                                                                                                                                                             | Reference                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `csm-deep-research` | Answers a research/R&D question with one dated, exhaustively cited finding — triage → parallel researchers → adversarial challenge → judge → verify.                                        | [csm-deep-research/SKILL.md](csm-deep-research/SKILL.md) |
+| `csm-grill`         | Interviews you one question at a time, backed by research, until an idea becomes an agreed, phased approach.                                                                                | [csm-grill/SKILL.md](csm-grill/SKILL.md)                 |
+| `csm-plan`          | Turns a brief into an evidence-based, executable, resumable implementation plan — then stops.                                                                                               | [csm-plan/SKILL.md](csm-plan/SKILL.md)                   |
+| `csm-bdd-tdd`       | Mutates a saved plan into a strict BDD+TDD package: formal spec, Gherkin scenarios, unit test designs, traceable plan.                                                                      | [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md)             |
+| `csm-make-tests`    | Generates a comprehensive executable test suite: audits existing tests/coverage, captures goldens, generates intent/contract/perf tests, mutation-validates.                                | [csm-make-tests/SKILL.md](csm-make-tests/SKILL.md)       |
+| `csm-build`         | Executes a saved plan with parallel subagents, durable checkpoints, and review/repair cycles until verified complete.                                                                       | [csm-build/SKILL.md](csm-build/SKILL.md)                 |
+| `csm-review`        | Adversarially audits a repository across an 18-dimension spine and saves a challenged findings report. Never fixes.                                                                         | [csm-review/SKILL.md](csm-review/SKILL.md)               |
+| `csm-review-python` | Reviews Python repositories against PEP 20 and idiomatic-Python doctrine, producing one evidence-grounded findings and fix-guide report.                                                    | [csm-review-python/SKILL.md](csm-review-python/SKILL.md) |
+| `csm-scan`          | Read-only multi-repo analyzer producing a single `NORMS.md` across 17 evidence dimensions.                                                                                                  | [csm-scan/SKILL.md](csm-scan/SKILL.md)                   |
 | `csm-ddd`           | Read-only DDD repository analyzer: dated Markdown report plus canonical JSON graph of capabilities, context hypotheses, seams, and candidate refactoring slices — hypotheses, never proofs. | [csm-ddd/SKILL.md](csm-ddd/SKILL.md)                     |
-| `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.                 | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
-| `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                                 | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
-| `csm-autoresearch`  | Runs bounded evaluator-owned hill climbing over declared functions or evolution regions, with gated LLM proposals and durable trial provenance.      | [csm-autoresearch/SKILL.md](csm-autoresearch/SKILL.md)   |
+| `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.                                                        | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
+| `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                                                                        | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
+| `csm-autoresearch`  | Runs bounded evaluator-owned hill climbing over declared functions or evolution regions, with gated LLM proposals and durable trial provenance.                                             | [csm-autoresearch/SKILL.md](csm-autoresearch/SKILL.md)   |
 
 **How they compose** — see the [core-loop diagram and edge semantics in the Install section](#install); the artifact ledger there is the canonical one (all thirteen skills), indexed in [`.agents/README.md`](.agents/README.md).
 
@@ -214,6 +217,18 @@ Invoke with a pinned repository checkout and an optional change-surface scope wh
 - **Handoff:** the verification report and test ledger can feed a later explicit `csm-build` run.
 - _Full reference: [csm-make-tests/SKILL.md](csm-make-tests/SKILL.md) — Test Generation State Machine and Required Test Package._
 
+### csm-autoresearch — metric-gated iterative optimization
+
+Invoke after `csm-build` has produced a working implementation and you can name a numeric, unattended evaluator. It is not a replacement for planning or ordinary feature implementation: it repeatedly proposes bounded changes, measures them externally, and retains only candidates that satisfy the evaluator-owned gates.
+
+- **Best use:** optimize latency, throughput, memory, test pass rate, benchmark quality, static-analysis metrics, prompt accuracy, or another measurable function where a fixed baseline and held-out validation set exist.
+- **Lifecycle:** `INTAKE -> BASELINE -> PROPOSE -> SCREEN -> EVALUATE -> VALIDATE -> DECIDE -> LEDGER`, repeating until the target is met, the incumbent stops improving, the budget is exhausted, or a safety/policy blocker stops the run.
+- **Trust modes:** registered functions are the safest starting point; trusted-local source is explicitly constrained; generated source remains disabled unless a host-owned sandbox provider proves network, mount, resource, credential, evaluator-asset, and process-cleanup boundaries.
+- **LLM role:** the LLM proposes up to a configurable maximum of 50 hypotheses and may provide advisory qualitative judging. Deterministic hard failures always win; judge disagreement routes to review; live providers are opt-in and require the `DEF-EVAL` decision.
+- **Persistence:** each attempt, rejection, retry, quarantine, metric sample, judge result, provenance hash, promotion, and rollback is recorded under `.agents/autoresearch/`.
+- **Do not use it for:** vague “make it better” requests, subjective goals without a calibrated rubric, evaluator changes, unrestricted repository rewrites, or untrusted code when no verified sandbox exists.
+- **Full reference:** [csm-autoresearch/SKILL.md](csm-autoresearch/SKILL.md) — contract, trust boundaries, evaluator protocol, and autoresearch state machine.
+
 ### csm-build — the execution engine
 
 Invoke with a saved plan (base or BDD/TDD-mutated). This is where work happens — and where the discipline pays off.
@@ -243,7 +258,7 @@ Invoke for a Python repository when the review needs a focused PEP 20 and idioma
 
 ### csm-ddd — the domain-structure analyzer
 
-Invoke against one repository when you want to know where the domain boundaries *might* be before planning a refactor. Read-only: static declarations plus bounded Git history — target code is never executed and nothing outside `.agents/ddd/` is written.
+Invoke against one repository when you want to know where the domain boundaries _might_ be before planning a refactor. Read-only: static declarations plus bounded Git history — target code is never executed and nothing outside `.agents/ddd/` is written.
 
 - **Pipeline:** extract (inventory + bounded co-change/authorship evidence, privacy-redacted) -> synthesize (capability map, terminology conflicts, context hypotheses, seams, candidate slices with recommended ordering) -> clarify (questions only where ambiguity changes the analysis) -> render.
 - **CLI:** zero-dependency Node — `node csm-ddd/scripts/ddd.mjs --repo <path> [--out-report] [--out-graph] [--question-file] [--non-interactive] [--max-files] [--max-bytes]`; defaults write both artifacts under `<repo>/.agents/ddd/`.
@@ -251,6 +266,7 @@ Invoke against one repository when you want to know where the domain boundaries 
 - _Full reference: [csm-ddd/SKILL.md](csm-ddd/SKILL.md) — `## Analysis State Machine`, `## Required Report And Graph`._
 
 ### csm-scan — the conventions extractor
+
 Invoke against one or more repositories before planning or reviewing, so later stages speak the repo's language. Read-only: all runtime/build/test/deployment findings come from committed static declarations — target commands are never executed.
 
 - **Coverage:** 17 per-repository dimensions (Repository Structure, Technology Stack, Configuration, Testing, Code Conventions, Git Practices, Architecture, Documentation, Security, Operations, API Surface, Data Architecture, Deployment Topology, Maintainability, Governance & Ownership, Assurance & Supply Chain, Development Practices) plus a global Cross-repository Architecture section with Mermaid diagrams when multiple repos are scanned.
@@ -282,9 +298,32 @@ Terminal evidence publisher: `node $HOME/.config/opencode/skills/csm-upload/scri
 4. **Review** (optional) — `csm-review` adversarially audits a repository (or a completed build) across a finding spine, challenges every finding, and writes a dated report. Never fixes. _Full reference: [csm-review/SKILL.md](csm-review/SKILL.md) — Review State Machine._
 5. **Plan** — `csm-plan` researches, critiques, verifies, and saves a numbered, resumable plan (with acceptance signals, risks, anti-scope). _Full reference: [csm-plan/SKILL.md](csm-plan/SKILL.md) — Planning State Machine, Required Plan Document._
 6. **Mutate** (optional) — `csm-bdd-tdd` turns the plan into a formal spec + Gherkin scenarios + unit test designs + a mutated plan. _Full reference: [csm-bdd-tdd/SKILL.md](csm-bdd-tdd/SKILL.md) — Pipeline._
-7. **Generate tests** (optional) — `csm-make-tests` audits the test surface and creates approved executable tests, goldens, and a verification ledger before implementation. _Full reference: [csm-make-tests/SKILL.md](csm-make-tests/SKILL.md)._ 
+7. **Generate tests** (optional) — `csm-make-tests` audits the test surface and creates approved executable tests, goldens, and a verification ledger before implementation. _Full reference: [csm-make-tests/SKILL.md](csm-make-tests/SKILL.md)._
 8. **Build** — `csm-build` executes the saved plan with parallel subagents, durable checkpoints, and review/repair cycles until every acceptance signal has evidence. _Full reference: [csm-build/SKILL.md](csm-build/SKILL.md) — Execution State Machine, Completion Gate._
-9. **Evidence** — `csm-browse` drives an isolated Chromium container to capture screenshots/videos/DOM·network evidence of the delivery; `csm-upload` publishes it as a dated GitHub Pages demo page. _Full reference: [csm-browse/SKILL.md](csm-browse/SKILL.md) — Verb reference; [csm-upload/SKILL.md](csm-upload/SKILL.md) — Usage._
+9. **Optimize** (optional) — after the build is green, `csm-autoresearch` runs bounded evaluator-owned experiments over a declared function or code region. It complements `csm-build`: build establishes correctness and structure; autoresearch explores measurable improvements without changing the evaluator or unrelated files. _Full reference: [csm-autoresearch/SKILL.md](csm-autoresearch/SKILL.md)._
+10. **Evidence** — `csm-browse` drives an isolated Chromium container to capture screenshots/videos/DOM·network evidence of the delivery; `csm-upload` publishes it as a dated GitHub Pages demo page. _Full reference: [csm-browse/SKILL.md](csm-browse/SKILL.md) — Verb reference; [csm-upload/SKILL.md](csm-upload/SKILL.md) — Usage._
+
+### Where autoresearch fits
+
+Use `csm-autoresearch` as a controlled optimization loop around work that already has a trustworthy evaluator. The most useful combinations are:
+
+```text
+csm-deep-research -> csm-grill -> csm-plan -> csm-build
+                                              |
+                                              v
+                                  csm-autoresearch
+                                              |
+                                              v
+                                  csm-review -> csm-browse
+```
+
+- **Optimize code built by `csm-build`:** have `csm-build` establish the behavior, tests, and declared extension point first. Then invoke `csm-autoresearch` with one callable/evolution region, a metric, a target or improvement margin, a validation partition, and a trial budget. Do not ask autoresearch to repair an untested feature or redesign the whole repository.
+- **Use `csm-make-tests` before optimization:** generate and verify regression, property, mutation, and performance tests first when the evaluator is weak. Autoresearch should consume those tests as hard gates and held-out validation, not invent its own authority.
+- **Use `csm-review` after optimization:** review the kept diff and the experiment ledger for regressions, evaluator gaming, complexity growth, dependency changes, and suspicious gains. A higher metric does not replace review.
+- **Use `csm-scan` before planning:** capture repository conventions before `csm-plan` when the target repository is unfamiliar. `csm-autoresearch` then respects the declared mutation surface and repository tooling.
+- **Use `csm-ddd` before optimization of a refactor:** identify bounded seams and candidate evolution regions before selecting a function. Treat the DDD graph as hypotheses and use its rollback/observable-behavior constraints in the plan.
+- **Use `csm-deep-research` for evaluator design:** research a metric, benchmark, statistical method, or sandbox standard before committing to the evaluator. The finding should feed `csm-grill` or `csm-plan`; autoresearch itself does not replace that research step.
+- **Keep human approval at promotion:** isolated trials may run unattended, but repository-visible or production promotion requires approval, exact rollback identity, and evidence that the evaluator was not changed.
 
 ### Conventions shared by the eight tmux-bootstrapping skills
 
