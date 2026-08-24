@@ -13,14 +13,14 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: optional-progress-tracker
-- Status: in_progress
-- Current CSM state: CHECKPOINT
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T19:35:00+0000 T003 verification passed: parity/exclusion audits, `make check`, `make fmt-check`, pre-commit integration tests, and `make test` all pass; payload index regenerated from packaged skill changes.
+- Last checkpoint: 2026-08-24T19:40:00+0000 final implementation committed as `15401ff`; pre-commit gates passed and the worktree is clean.
 - Last model/run: primary planning session 2026-08-24
-- Next transition: CHECKPOINT -> COMPLETE
-- Active tasks: T004
+- Next transition: none
+- Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
 
@@ -136,7 +136,7 @@ Add the same `Optional Progress Tracker` section to each eligible skill definiti
    - Repair attempts: 0
    - Recovery note: any failure is classified as content drift, formatter behavior, or pre-existing environment failure before repair.
 
-4. [in_progress] Review, checkpoint, and complete the plan
+4. [completed] Review, checkpoint, and complete the plan
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G4
@@ -182,7 +182,8 @@ Run the cheapest checks first: inventory/parity and exact marker audits, then `g
 | 2026-08-24T19:10:00+0000 | 0 | SAVED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001,T002 | Explicit user requested immediate execution; plan format/index validation passed, eligible inventory confirmed, and shared contract ready for implementation. | INTEGRATE |
 | 2026-08-24T19:20:00+0000 | 0 | DISPATCH -> INTEGRATE -> VERIFY | T002,T003 | Identical tracker contract added to all 11 eligible root/payload pairs; parity, exclusion, inventory, and `git diff --check` audits pass. | REVIEW |
 | 2026-08-24T19:35:00+0000 | 0 | VERIFY -> REVIEW -> REPAIR -> VERIFY -> CHECKPOINT | T003,T004 | Independent review found and repaired two wording gaps: explicit disabled-output preservation and active-weight multiplication. `make check`, `make fmt-check`, pre-commit integration tests (8/8), and `make test` (1282/1282) pass; generated payload index is consistent. | COMPLETE |
+| 2026-08-24T19:40:00+0000 | 0 | CHECKPOINT -> COMPLETE | T004 | Commit `15401ff` contains the 22 skill documents, generated payload index, and completed plan checkpoint; pre-commit gates passed. | COMPLETE |
 
 ## Completion Review
 
-Implementation complete. The optional tracker contract is present in all eligible root/payload skill pairs, excluded from upload/browse, and verified by repository gates. Final commit is pending after this checkpoint.
+Implementation complete. The optional tracker contract is present in all eligible root/payload skill pairs, excluded from upload/browse, and verified by repository gates. Final implementation commit: `15401ff`.
