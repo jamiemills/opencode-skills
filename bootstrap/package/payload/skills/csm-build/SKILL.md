@@ -52,6 +52,44 @@ Fallback ladder for dispatched subagent failures — journal every incident, nev
 4. Primary completion (evidence gathering) / primary-led integration (low-risk only, with a recorded independence caveat).
 5. On quota-type failures (HTTP 429, rate-limit, quota-exceeded, out-of-credits, billing, context-length-exceeded) do NOT run the retry ladder — surface to the primary agent for the pause protocol (Pause On Quota).
 
+## Conditional Applicability Consumption
+
+Applicability is an optional plan input, not a new execution state. A plan
+without a `### Applicability` block remains a legacy plan and keeps the
+existing lightweight execution path. When present, consume one strict
+`csm-applicability/1` JSON record using the repository's shipped validator.
+Validate its decision, mode, matched signals, task slices, obligation IDs and
+statuses, relative DDD artifact paths, bypass, and reclassification history.
+Do not infer, repair, replace, or silently reclassify the record.
+
+For every explicitly referenced DDD pair, validate read-only before relying on
+it: the graph is JSON with `format: csm-ddd-graph/1`, the report has its
+declared `csm-ddd-report/1` format/run-ID envelope, both paths are relative,
+and the graph `runId` matches the report's `graphRunId` (and report `runId`
+when present). Check every consumed claim for status, basis, and confidence,
+and record coverage caps, gaps, and unresolved questions. The Markdown report
+is an envelope and coverage source, not a substitute for the graph machine
+contract. `context_hypothesis`, `inferred`, `unverified`, `not_detected`, and
+capped coverage remain hypotheses or bounded gaps; they never prove absence
+or justify inventing a seam, invariant, or rollback option. Do not invoke
+csm-ddd automatically.
+
+### Applicability Transition Matrix
+
+| Input condition                                                                                         | Required route and behavior                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Legacy plan with no applicability block                                                                 | Existing flow; no new ceremony or mandatory DDD work.                                                                                                  |
+| Valid `lightweight` plan, including a valid bypass                                                      | Existing lightweight flow; preserve the cheap exemption and current acceptance path.                                                                   |
+| Valid `warranted` or `mixed` plan with complete applicable obligations and valid DDD evidence           | `VALIDATE -> SELECT -> DISPATCH`; apply obligations only to warranted task slices.                                                                     |
+| Malformed applicability JSON, invalid obligation mapping, or missing required obligation                | `VALIDATE -> REPAIR`; do not dispatch until repaired and revalidated. If safe repair needs a product or scope decision, `BLOCKED`.                     |
+| Invalid explicitly referenced DDD graph/report pair, path, format, or run-ID envelope                   | `BLOCKED`; do not substitute another artifact or silently invoke csm-ddd.                                                                              |
+| Required boundary, invariant, observable, parity, or rollback/recovery evidence is unverified or absent | `BLOCKED` when safe execution cannot be established; otherwise `REPAIR` only for bounded evidence repair, never a scope redesign.                      |
+| Reclassification or new evidence changes warranted scope                                                | Preserve the prior decision and evidence, record the reason/history, route to `REPAIR` or `BLOCKED`, and require a new valid decision before dispatch. |
+
+No task may be dispatched before `VALIDATE` passes. This matrix changes only
+obligation consumption and routing; it does not add states, alter dependency
+semantics, reduce review scaling, or authorize silent scope reclassification.
+
 ## Repository Norms (NORMS.md)
 
 **NORMS.md is entirely optional.** If a `NORMS.md` file produced by `csm-scan` exists in the repository, load it and apply its conventions. If not present or not authentic, ignore and continue — nothing is blocked.
@@ -118,6 +156,7 @@ Reconstruct reality before continuing:
 6. Mark a task completed only when its acceptance evidence is present and reproducible. Correct stale statuses in the plan.
 7. Set the exact next safe transition. A new plan and an interrupted plan both pass through this state.
 8. DDD-context check: if the plan cites `.agents/ddd/` artifacts, verify each referenced file exists and parses, confirm the plan's cited runId equals the graph's runId, and record mismatches as a VALIDATE blocker; absent citations, skip.
+9. Applicability check: if the optional `### Applicability` block exists, parse and validate the single JSON record, including required obligations for the decision and task slices. Validate every explicitly cited DDD graph/report pair, its relative paths, format/run-ID envelope, claim status/basis/confidence, and disclosed coverage gaps. Preserve plans without the block as legacy lightweight behavior; do not dispatch or silently redesign scope from a malformed or incomplete record.
 
 **Resume block.** When resuming (including from `PAUSED`), re-read Control `Last checkpoint`, the latest journal row, the Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff. When `Last model/run:` differs from the current run, re-verify acceptance evidence authored by the previous run instead of trusting status labels.
 
@@ -127,6 +166,8 @@ Reconstruct reality before continuing:
 2. Confirm that referenced files, interfaces, dependencies, commands, and acceptance criteria still match the repository.
 3. If the plan is stale but can be corrected without changing the user's goal, update it and record why. If correction requires a product choice, broader scope, an unsafe action, or destructive work, transition to `BLOCKED` and ask the user.
 4. Record commands, relevant output, and failures in the progress journal.
+5. Recheck the applicability result and applicable obligations against current repository evidence. A warranted or mixed task cannot proceed with a required obligation marked `missing` or `unverified` without an explicit repair route and acceptance evidence. Confirm that DDD hypotheses and coverage gaps remain limitations, not facts; invalid artifact pairs or unsafe boundary evidence route to `BLOCKED` under the transition matrix.
+6. This gate must pass before `SELECT` can produce a dispatchable ready set or before any `DISPATCH` occurs.
 
 ### 3. SELECT
 
@@ -156,8 +197,15 @@ Launch all independent assignments concurrently. Each subagent prompt must inclu
 - prohibition on unrelated edits, destructive actions, commits, deployments, and external-system mutation;
 - required return: files changed, checks run with results, acceptance evidence, remaining risks, and anything that may affect another task.
 - for plans citing DDD context: carry the relevant seam constraints (rollback option, observable behavior) into every task touching that seam
+- for warranted or mixed task slices: carry only relevant obligation evidence into the prompt — boundary and owner, contract, invariant, observable behavior, seam, parity, rollback/recovery, and unresolved-risk records — with each DDD claim's status, basis, confidence, and coverage limitation; distinguish required evidence from hypotheses and bounded gaps
 
 Use implementation subagents only when their write scopes do not overlap. Use additional parallel subagents for independent read-only investigation or test analysis when that shortens the critical path.
+
+Do not dispatch a task whose applicability record, required obligations, or
+explicit DDD evidence has not passed `VALIDATE`. Do not let a subagent decide
+that warranted work is lightweight, drop an obligation, or broaden the task
+to compensate for missing evidence; return such a condition to `REPAIR` or
+`BLOCKED`.
 
 **Prefix-sharing rule.** When dispatching a parallel batch, every subagent receives a byte-identical static prefix — system prompt, tool definitions, skills, and plan evidence identical across the batch, with only per-task payloads differing AFTER the stable region. DeepSeek's automatic prefix caching (api-docs.deepseek.com/guides/kv_cache) persists a detected common prefix across requests and serves subsequent matching requests at ~97% of the input price; measured per-session hit ratios in this repo are 88-99%. Intra-batch hits at ~97% apply when the shared prefix is already warm or the first response lands before peers fire — do NOT vary the shared prefix per subagent (any change breaks the full-prefix-unit match).
 
@@ -178,6 +226,16 @@ Providers using explicit cache breakpoints (e.g. Anthropic-style cache_control, 
 3. Use real repository tooling and record exact commands and meaningful results.
 4. Check acceptance behavior against the task's runnable acceptance signal, not only compilation or test exit status.
 5. On failure, capture evidence and transition to `REPAIR`. Do not mark failed work complete.
+6. For warranted and mixed task slices, verify each applicable obligation with
+   current evidence: boundary/owner, contract, invariant, observable behavior,
+   seam, parity, rollback/recovery, and unresolved risks. Recheck the referenced
+   DDD graph/report envelope and claim status/basis/confidence, and ensure gaps or
+   hypotheses were not presented as proof. Missing or unverified warranted
+   evidence is not a pass: repair bounded evidence or block when safe execution
+   cannot be established.
+7. Verify any applicability reclassification against its preserved history,
+   reason, and newly recorded evidence. Never silently reclassify scope during
+   verification.
 
 ### 7. REVIEW
 
@@ -191,6 +249,15 @@ Delegate review to subagents that did not implement the reviewed work. For small
 - plan drift, incomplete tasks, and integration conflicts.
 
 Require findings to cite files and lines, severity, impact, evidence, and a concrete correction. The primary agent triages all findings; do not dismiss a finding without recorded reasoning.
+
+For warranted or mixed work, independently review obligation coverage and
+scope integrity: check that prompts and implementation preserve relevant
+boundary, invariant, observable, parity, rollback/recovery, and risk evidence,
+that DDD claims retain status/basis/confidence and disclosed coverage gaps, and
+that no hypothesis or missing artifact was used to redesign or de-scope work.
+Missing warranted obligations require `REPAIR` or `BLOCKED`, not lowered
+applicability. Keep existing risk-based review scaling for legacy and
+lightweight work.
 
 ### 8. REPAIR
 
@@ -213,6 +280,14 @@ Update the saved plan in place:
 - unresolved findings, risks, and blockers;
 - exact next transition and ready tasks;
 - a timestamped progress-journal entry.
+
+For a present applicability record, checkpoint the decision, task slice,
+obligation status/evidence, DDD artifact pair and run-ID validation, coverage
+gaps, and any reclassification history. Reconcile the checkpoint with current
+boundary/invariant/observable/rollback evidence before selecting the next
+transition. If a required obligation became missing or unverified, route to
+`REPAIR` or `BLOCKED` and do not checkpoint it as complete. Legacy and
+lightweight checkpoints retain the existing fields and flow.
 
 Then learn from the cycle before moving on. Scan the cycle's failures and review findings for systemic patterns rather than one-offs, and propagate what was learned forward:
 

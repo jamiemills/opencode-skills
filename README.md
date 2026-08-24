@@ -163,6 +163,16 @@ The core loop is **research → grill → plan → build**:
 
 Optional between planning and building: invoke `csm-make-tests` when the change needs a systematic test-generation pass. It audits the current test surface, captures approved characterization/golden behavior, creates intent/contract/performance tests, and returns a ledger and verification report for the build.
 
+### Conditional DDD and clean-code path
+
+Keep lightweight work lightweight. A simple script or isolated, low-risk change can record a cheap bypass rationale and use the normal plan/build acceptance flow; it does not need DDD artifacts or heavyweight design ceremony.
+
+For meaningful work, classify risk before size. Boundary changes, public contracts, ownership or persistence, invariants, external side effects, migrations or rollback, cross-boundary coordination, security authority, and explicit architecture/refactor intent are signals. File count and lines of code are not sufficient signals. The usual composition is `csm-scan` for repository conventions and, when boundary structure matters, `csm-ddd` for hypotheses; feed those results to `csm-grill` and `csm-plan`, then pass the saved obligations to `csm-build`.
+
+Boundary work carries explicit obligations: cite relevant DDD evidence, contract and ownership decisions, invariants, observable behavior, seam and parity expectations, rollback or recovery, and unresolved risks. DDD reports and graphs remain hypotheses, not proof. Clean-code checks should be reviewable evidence, such as configured lint/type/test or diff diagnostics plus rationale for responsibility, dependencies, side effects, and abstractions, rather than a universal style score.
+
+Use `csm-make-tests` when stronger behavioral coverage or characterization is needed; it generates and verifies tests but does not fix production code. Use `csm-review` for an adversarial, read-only audit before delivery; its findings return to a later human-mediated plan rather than silently changing the build.
+
 Optional: `make install` installs the root devDependencies (and `csm-browse`'s), and `node scripts/install-hooks.mjs` enables the fast lefthook pre-commit gate.
 
 The plan and build steps start in a detached tmux session unless you're already inside tmux or declined — say **"no tmux"** to keep the run in-session.

@@ -1,0 +1,11 @@
+{
+  "format": "csm-ddd-graph/1",
+  "runId": "run-consumer-empty",
+  "generatedAt": "2026-08-24T00:00:00.000Z",
+  "nodes": [],
+  "edges": [],
+  "claims": [],
+  "evidence": [],
+  "questions": [],
+  "answers": []
+}

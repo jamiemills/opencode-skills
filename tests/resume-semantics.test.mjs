@@ -11,6 +11,8 @@ import {
   validatePlanJournal,
   validateJournalControlConsistency,
   validateOrdinalSequencing,
+  validatePlanApplicability,
+  validatePlanTaskCompleteness,
   parsePlanControl,
   parseJournal,
   MACHINE_ENUM,
@@ -165,6 +167,21 @@ test("journal and control consistency over the plan corpus", async () => {
   }
 });
 
+test("resume validation keeps malformed applicability blocked and legacy plans compatible", async () => {
+  const golden = await readFile(join(root, "tests", "fixtures", "resume", "golden-csm.md"), "utf8");
+  assert.deepEqual(validatePlanApplicability(golden), []);
+  const malformed = `${golden}\n\n## Current-State Evidence\n\n### Applicability\n\n\`\`\`json csm-applicability/1\nnot-json\n\`\`\`\n`;
+  assert.ok(validatePlanApplicability(malformed).some((failure) => failure.includes("malformed")));
+  assert.deepEqual(
+    validatePlanApplicability("# Legacy\n\n## Current-State Evidence\n- prior plan\n"),
+    [],
+  );
+  assert.deepEqual(
+    validatePlanTaskCompleteness("# Legacy\n\n## Numbered Plan\n\n1. Historical task\n"),
+    [],
+  );
+});
+
 test('csm-build "## Pause On Quota" documents the full quota-signal set and the resume marker', async () => {
   const build = await readFile(join(root, "csm-build", "SKILL.md"), "utf8");
   const lines = splitLines(build);
@@ -198,4 +215,67 @@ test('csm-build "## Pause On Quota" documents the full quota-signal set and the 
     section.includes("PAUSED -> RECOVER"),
     "Pause On Quota must contain the PAUSED -> RECOVER marker",
   );
+});
+
+test("build applicability routing preserves legacy, repair, blocked, and dispatch paths", async () => {
+  const build = await readFile(join(root, "csm-build", "SKILL.md"), "utf8");
+  assert.match(build, /Legacy plan with no applicability block[\s\S]*Existing flow/);
+  assert.match(build, /Valid `lightweight` plan[\s\S]*Existing lightweight flow/);
+  assert.match(build, /Valid `warranted` or `mixed` plan[\s\S]*VALIDATE -> SELECT -> DISPATCH/);
+  assert.match(build, /missing required obligation[\s\S]*VALIDATE -> REPAIR/);
+  assert.match(build, /Invalid explicitly referenced DDD graph\/report pair[\s\S]*BLOCKED/);
+  assert.match(build, /No task may be dispatched before `VALIDATE` passes/);
+});
+
+test("DDD consumer fixtures preserve envelope IDs, hypothesis metadata, and bounded gaps", async () => {
+  const report = await readFile(
+    join(root, "tests", "fixtures", "ddd-consumer", "matching-report.md"),
+    "utf8",
+  );
+  const graph = JSON.parse(
+    await readFile(join(root, "tests", "fixtures", "ddd-consumer", "matching-graph.json"), "utf8"),
+  );
+  const frontmatter = report.match(/^---\n([\s\S]*?)\n---/m)?.[1] ?? "";
+  assert.match(frontmatter, /^format: csm-ddd-report\/1$/m);
+  assert.match(frontmatter, /^runId: run-consumer-fixed$/m);
+  assert.match(frontmatter, /^graphRunId: run-consumer-fixed$/m);
+  assert.equal(graph.format, "csm-ddd-graph/1");
+  assert.equal(graph.runId, "run-consumer-fixed");
+  assert.equal(graph.claims[0].claimKind, "context_hypothesis");
+  assert.equal(graph.claims[0].status, "unverified");
+  assert.equal(graph.claims[0].basis, "static_analysis");
+  assert.equal(graph.claims[0].confidence, "low");
+  assert.match(report, /capped|unverified/i);
+  assert.match(report, /No seams identified/);
+  assert.doesNotMatch(report, /rollback option|rollback criteria/i);
+});
+
+test("DDD run mismatch and checkpoint drift are not silently accepted", async () => {
+  const report = await readFile(
+    join(root, "tests", "fixtures", "ddd-consumer", "mismatched-report.md"),
+    "utf8",
+  );
+  const graph = JSON.parse(
+    await readFile(join(root, "tests", "fixtures", "ddd-consumer", "matching-graph.json"), "utf8"),
+  );
+  const graphRunId = report.match(/^graphRunId:\s*(\S+)/m)?.[1];
+  assert.notEqual(graphRunId, graph.runId);
+
+  const build = await readFile(join(root, "csm-build", "SKILL.md"), "utf8");
+  assert.match(build, /Preserve the prior decision and evidence/);
+  assert.match(build, /required obligation became missing or unverified/);
+  assert.match(build, /do not checkpoint it as complete/);
+  assert.match(build, /never a scope redesign/);
+});
+
+test("empty DDD output does not create synthetic seams or rollback evidence", async () => {
+  const graph = JSON.parse(
+    await readFile(join(root, "tests", "fixtures", "ddd-consumer", "empty-graph.json"), "utf8"),
+  );
+  assert.deepEqual(graph.nodes, []);
+  assert.deepEqual(graph.edges, []);
+  assert.deepEqual(graph.claims, []);
+  const build = await readFile(join(root, "csm-build", "SKILL.md"), "utf8");
+  assert.match(build, /never prove absence/);
+  assert.match(build, /justify inventing a seam, invariant, or rollback option/);
 });

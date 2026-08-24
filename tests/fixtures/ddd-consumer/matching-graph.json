@@ -1,0 +1,22 @@
+{
+  "format": "csm-ddd-graph/1",
+  "runId": "run-consumer-fixed",
+  "generatedAt": "2026-08-24T00:00:00.000Z",
+  "nodes": [],
+  "edges": [],
+  "claims": [
+    {
+      "id": "cl-consumer-hypothesis",
+      "claimKind": "context_hypothesis",
+      "status": "unverified",
+      "subject": "synthetic-boundary",
+      "basis": "static_analysis",
+      "confidence": "low",
+      "evidenceIds": [],
+      "note": "coverage capped; no seam identified"
+    }
+  ],
+  "evidence": [],
+  "questions": [],
+  "answers": []
+}

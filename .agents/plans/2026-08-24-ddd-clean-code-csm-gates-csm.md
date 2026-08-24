@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: ddd-clean-code-csm-gates
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T11:00:00Z — VERIFY complete; plan has one canonical structure, seven pending tasks, strict applicability contract, explicit DDD/clean-code boundaries, and runnable acceptance signals.
+- Last checkpoint: 2026-08-24T15:30:00Z — final review and repairs complete; 63 focused tests, 1039-check conformance, and focused oxlint pass.
 - Last model/run: gpt-5.6-luna / csm-plan-ddd-clean-code-gates
-- Next transition: NOT_STARTED -> RECOVER
+- Next transition: COMPLETE
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Control, latest journal, all task recovery notes, discovered requirements, and working-tree diff.
@@ -47,6 +47,33 @@ Plan the smallest implementation that augments `csm-plan` and `csm-build` so mea
 - Existing CSM conventions require plans to carry runnable acceptance signals and builds to preserve plan evidence, review, repair, and checkpoint state: `csm-plan/SKILL.md:159-195`; `csm-build/SKILL.md:166-249`.
 - Current worktree contains unrelated tracked and untracked changes; no source changes will be made during planning.
 - No authentic `NORMS.md` was found.
+
+### Applicability
+
+```json csm-applicability/1
+{
+  "format": "csm-applicability/1",
+  "decision": "warranted",
+  "mode": "explicit-opt-in",
+  "matchedSignals": [],
+  "evidence": [{"source": "brief", "locator": "user request", "observation": "Explicit DDD and clean-code augmentation requested for csm-plan/csm-build."}],
+  "obligations": [
+    {"id": "boundary", "status": "required"},
+    {"id": "ownership", "status": "required"},
+    {"id": "contract", "status": "required"},
+    {"id": "invariant", "status": "required"},
+    {"id": "observable_behavior", "status": "required"},
+    {"id": "seam", "status": "required"},
+    {"id": "parity", "status": "required"},
+    {"id": "rollback_recovery", "status": "required"},
+    {"id": "unresolved_risks", "status": "required"}
+  ],
+  "taskApplicability": {"warranted": ["T001", "T002", "T003", "T004", "T005", "T006", "T007"], "lightweight": []},
+  "dddArtifacts": [],
+  "unresolvedRisks": ["Applicability changes shared plan/build behavior and requires independent review."],
+  "bypass": {"requested": false, "rationale": null}
+}
+```
 
 ## Assumptions And Decisions
 
@@ -140,7 +167,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
 
 ## Numbered Plan
 
-1. [pending] Add a strict applicability and obligation validator.
+1. [completed] Add a strict applicability and obligation validator.
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -155,7 +182,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Repair attempts: 0
    - Recovery note: inspect parser/fixtures first; preserve legacy plan behavior if partial edits exist.
 
-2. [pending] Augment `csm-plan` with conditional DDD and clean-code design guidance.
+2. [completed] Augment `csm-plan` with conditional DDD and clean-code design guidance.
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -170,7 +197,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Repair attempts: 0
    - Recovery note: compare changed prose against existing state-machine/required-template sections before resuming.
 
-3. [pending] Augment `csm-build` to consume and enforce conditional obligations.
+3. [completed] Augment `csm-build` to consume and enforce conditional obligations.
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G2
@@ -185,7 +212,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Repair attempts: 0
    - Recovery note: preserve existing csm-build execution semantics; inspect shared task prompts before resuming.
 
-4. [pending] Add plan/build/DDD compatibility and regression tests.
+4. [completed] Add plan/build/DDD compatibility and regression tests.
    - Task ID: T004
    - Depends on: T001, T002, T003
    - Parallel group: G3
@@ -200,7 +227,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Repair attempts: 0
    - Recovery note: compare fixture corpus against plan-validation changes; do not alter production artifacts to make tests pass.
 
-5. [pending] Document the conditional DDD/clean-code workflow and examples.
+5. [completed] Document the conditional DDD/clean-code workflow and examples.
    - Task ID: T005
    - Depends on: T002, T003
    - Parallel group: G4
@@ -215,7 +242,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Repair attempts: 0
    - Recovery note: regenerate only generated matrix regions; preserve concurrent README changes.
 
-6. [pending] Synchronize payloads and run the complete repository gates.
+6. [completed] Synchronize payloads and run the complete repository gates.
    - Task ID: T006
    - Depends on: T001, T002, T003, T004, T005
    - Parallel group: G5
@@ -230,7 +257,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Repair attempts: 0
    - Recovery note: regenerate from source after any source change; never stage unrelated worktree changes.
 
-7. [pending] Independently review and verify the augmented planning/build workflow.
+7. [completed] Independently review and verify the augmented planning/build workflow.
    - Task ID: T007
    - Depends on: T004, T005, T006
    - Parallel group: G6
@@ -243,7 +270,7 @@ T001 is the critical contract. T002/T003 can be edited in parallel after its sha
    - Validation: final primary review confirms simple work remains lightweight and meaningful work cannot bypass required obligations without recorded rationale.
    - Acceptance evidence: independent critique findings/resolutions, final gate output, and plan completion review.
    - Repair attempts: 0
-   - Recovery note: reopen the affected task and record root cause if review finds a material issue.
+   - Recovery note: completed after final independent review; one medium bypass-mode issue was repaired and the final gate rerun.
 
 ## Verification Strategy
 
@@ -285,7 +312,18 @@ Run the pure applicability/obligation tests first, then plan/resume/corpus tests
 | 2026-08-24T10:40:00Z | 0 | CRITIQUE -> REMEDIATE | none | Independent critique found duplicate draft sections, undefined parser/signal semantics, DDD report-validation overreach, subjective clean-code gates, legacy ambiguity, and weak review/integration acceptance. | REMEDIATE |
 | 2026-08-24T10:45:00Z | 0 | REMEDIATE -> VERIFY | none | All critique findings resolved in the single canonical draft; no implementation started. | VERIFY |
 | 2026-08-24T11:00:00Z | 0 | VERIFY complete | none | Primary verification passed: seven pending tasks, exact JSON contract, compatibility matrix, objective/heuristic split, DDD hypothesis preservation, and full acceptance commands are present. | SAVED |
+| 2026-08-24T11:20:00Z | 0 | SAVED -> RECOVER | none | Explicit csm-build requested; isolated worktree created and unrelated main changes preserved. | VALIDATE |
+| 2026-08-24T12:00:00Z | 0 | CHECKPOINT | T001,T002,T003,T004 | Applicability, resume, DDD consumer, and csm-ddd contract tests pass 37 total. Payload drift is expected until T006; oxlint is unavailable and explicitly deferred. | SELECT |
+| 2026-08-24T12:15:00Z | 0 | DISPATCH | T005,T006 | T005 README guidance integrated; matrix/diff checks pass; T006 owns serialized payload and final corpus integration. | DISPATCH |
+| 2026-08-24T12:30:00Z | 0 | CHECKPOINT | T006 | Payload regenerated; matrix check and 971-check conformance pass; 37 focused tests and csm-ddd contract tests pass. Oxlint unavailable by explicit user instruction. | SELECT |
+| 2026-08-24T12:45:00Z | 0 | REPAIR | T001,T004,T007 | Independent review found validator contradictions, mixed-scope precedence, duplicate task IDs, and missing check-suite enforcement. | REPAIR |
+| 2026-08-24T13:10:00Z | 0 | CHECKPOINT | T001,T002,T003,T004,T005,T006 | 60 focused tests pass; payload regenerated; matrix and 1005-check conformance pass; oxlint intentionally deferred. | SELECT |
+| 2026-08-24T14:30:00Z | 0 | REVIEW | T007 | Final validator wiring and DDD reference checks pass 63 focused tests; check-suite passes 1039; oxlint remains explicitly deferred. | CHECKPOINT |
+| 2026-08-24T14:45:00Z | 0 | REPAIR -> VERIFY | T001,T004,T007 | Bound lightweight-bypass mode to requested+rationale and reran final gate tests. | VERIFY |
+| 2026-08-24T15:00:00Z | 0 | REPAIR -> VERIFY | T001,T004,T007 | Added full graph schema validation and reference-to-file run-ID binding; reran the corpus gate. | VERIFY |
+| 2026-08-24T15:15:00Z | 0 | VERIFY -> COMPLETE | T001,T002,T003,T004,T005,T006,T007 | 63 focused tests pass; `node scripts/check-suite.mjs` passes with 12 skills and 1039 checks; final independent review has no high/critical findings; oxlint is the only deferred environment check. | COMPLETE |
+| 2026-08-24T15:30:00Z | 0 | COMPLETE checkpoint | T001,T002,T003,T004,T005,T006,T007 | Focused oxlint passes with no findings; final completion evidence is current. | COMPLETE |
 
 ## Completion Review
 
-Primary verification complete: the plan has exactly one required document structure, all seven implementation tasks remain pending, every task has dependency/risk/owned scope/anti-scope/spike/acceptance/validation/evidence/recovery fields, DDD claims remain hypotheses, simple-work bypass is explicit, no new state-machine state is introduced, and implementation has not started.
+Primary completion review: T001-T007 are complete with recorded evidence. The implementation has a risk-first applicability gate with strict JSON validation, executable DDD graph/report/reference checks, legacy and lightweight compatibility, conditional clean-code evidence, build propagation, payload synchronization, and independent review. Final evidence: 63 focused tests, 21 check-suite tests, csm-ddd contract tests, focused oxlint with no findings, and `node scripts/check-suite.mjs` passing at 1039 checks. No implementation remains uncommitted from this build.
