@@ -92,7 +92,7 @@ Plans may come from `csm-plan` (base plans) or `csm-bdd-tdd` (BDD/TDD mutations,
 - Consumes: a saved CSM plan (explicit path or discovered in `.agents/plans/`, BDD/TDD mutation preferred); optional NORMS.md artifact; optional csm-ddd analysis artifacts when the plan cites them
 - Produces: a verified implementation with commits, plus the updated plan document (Control, journal, Completion Review)
 - Hands off: terminal executor — delivery returns to the human; evidence capture via csm-browse is a separate user action
-- Never invokes: csm-bdd-tdd, csm-browse, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd
+- Never invokes: csm-bdd-tdd, csm-browse, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Execution State Machine
 

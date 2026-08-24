@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "csm-autoresearch run contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "runId", "source", "metric", "mutation", "budget", "policy"],
+  "properties": {
+    "format": { "const": "csm-autoresearch-contract/1" },
+    "runId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$" },
+    "source": { "$ref": "#/$defs/source" },
+    "metric": { "$ref": "#/$defs/metric" },
+    "mutation": { "$ref": "#/$defs/mutation" },
+    "budget": { "$ref": "#/$defs/budget" },
+    "policy": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "id", "sourceHash"],
+      "properties": {
+        "mode": { "enum": ["registered", "trusted-local", "generated"] },
+        "id": { "type": "string", "minLength": 1 },
+        "sourceHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "sandboxProvider": { "type": "string", "minLength": 1 },
+        "sandboxEvidence": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "generated" } } },
+          "then": { "required": ["sandboxProvider", "sandboxEvidence"] }
+        }
+      ]
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "unit", "direction", "aggregation"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" },
+        "unit": { "type": "string", "minLength": 1 },
+        "direction": { "enum": ["minimize", "maximize"] },
+        "aggregation": { "enum": ["min", "max", "mean", "median", "p95", "pass-rate"] }
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "allowedPaths"],
+      "properties": {
+        "mode": { "const": "diff" },
+        "allowedPaths": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)(?!.*(?:evaluator|tests?|fixtures?|policy|credentials?)(?:/|$)).+$"
+          }
+        },
+        "maxChangedBytes": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxTrials", "maxProposals", "timeoutMs"],
+      "properties": {
+        "maxTrials": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "maxProposals": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 3600000 },
+        "maxCost": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "bounded evaluator JSONL response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "requestId", "runId", "status", "valid", "metrics", "provenance"],
+  "properties": {
+    "format": { "const": "csm-autoresearch-evaluator-response/1" },
+    "requestId": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "runId": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "status": {
+      "enum": [
+        "ok",
+        "invalid",
+        "failed",
+        "timed_out",
+        "resource_exhausted",
+        "policy_violation",
+        "sandbox_unavailable",
+        "blocked",
+        "protocol_error"
+      ]
+    },
+    "valid": { "type": "boolean" },
+    "metrics": {
+      "type": "object",
+      "maxProperties": 50,
+      "additionalProperties": { "type": "number" }
+    },
+    "samples": { "type": "array", "maxItems": 10000, "items": { "type": "number" } },
+    "diagnostics": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "type": "string", "maxLength": 2000 }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluatorHash", "environmentHash", "limits", "redacted"],
+      "properties": {
+        "evaluatorHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "environmentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "limits": { "type": "object" },
+        "redacted": { "const": true },
+        "sandboxProvider": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "ok" } } },
+      "then": { "properties": { "valid": { "const": true } } }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "invalid",
+              "failed",
+              "timed_out",
+              "resource_exhausted",
+              "policy_violation",
+              "sandbox_unavailable",
+              "blocked",
+              "protocol_error"
+            ]
+          }
+        }
+      },
+      "then": { "properties": { "valid": { "const": false } } }
+    }
+  ]
+}

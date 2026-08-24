@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "csm-autoresearch append-only ledger event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "sequence", "timestamp", "runId", "event", "provenance"],
+  "properties": {
+    "format": { "const": "csm-autoresearch-ledger/1" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "event": {
+      "enum": [
+        "intake",
+        "baseline",
+        "proposal",
+        "screen",
+        "evaluation",
+        "validation",
+        "decision",
+        "quarantine",
+        "approval",
+        "promotion",
+        "rollback",
+        "stopped",
+        "blocked"
+      ]
+    },
+    "candidateId": { "type": "string", "maxLength": 100 },
+    "parentId": { "type": ["string", "null"], "maxLength": 100 },
+    "decision": {
+      "enum": [
+        "keep",
+        "reject",
+        "archive",
+        "quarantine",
+        "pending",
+        "promote",
+        "rollback",
+        "blocked"
+      ]
+    },
+    "payload": { "type": "object", "maxProperties": 50 },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractHash", "redacted"],
+      "properties": {
+        "contractHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "evaluatorHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "environmentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "redacted": { "const": true }
+      }
+    }
+  }
+}

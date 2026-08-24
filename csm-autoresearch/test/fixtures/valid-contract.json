@@ -1,0 +1,13 @@
+{
+  "format": "csm-autoresearch-contract/1",
+  "runId": "run-001",
+  "source": {
+    "mode": "registered",
+    "id": "pkg.fn",
+    "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "metric": { "name": "latency", "unit": "ms", "direction": "minimize", "aggregation": "median" },
+  "mutation": { "mode": "diff", "allowedPaths": ["src/target.mjs"], "maxChangedBytes": 1000 },
+  "budget": { "maxTrials": 10, "maxProposals": 5, "timeoutMs": 1000 },
+  "policy": "policy-001"
+}

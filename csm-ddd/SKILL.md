@@ -16,7 +16,7 @@ asserts that a context has been proven.
 - Consumes: repository at a pinned commit, optional visible NORMS.md, optional approved question file
 - Produces: dated report at `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md` plus canonical graph at `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json`
 - Hands off: report and graph to the user; downstream csm-grill or csm-plan use stays human-mediated
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-deep-research, csm-grill, csm-make-tests, csm-plan, csm-review, csm-review-python, csm-scan, csm-upload
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-deep-research, csm-grill, csm-make-tests, csm-plan, csm-review, csm-review-python, csm-scan, csm-upload, csm-autoresearch
 
 ## Activation Boundary
 
