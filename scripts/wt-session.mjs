@@ -9,6 +9,8 @@
 //
 // Usage:
 //   node scripts/wt-session.mjs create <goal-slug> [--dir <base>] [--root <repo>]
+//       Creates the worktree and installs locked root/skill tooling by default.
+//       Use --no-setup for a Git-only worktree.
 //   node scripts/wt-session.mjs list [--root <repo>]
 //   node scripts/wt-session.mjs merge <goal-slug> [--push] [--root <repo>]
 //   node scripts/wt-session.mjs nuke <goal-slug> [--force] [--root <repo>]
@@ -47,7 +49,15 @@ function gitOk(repoRoot, args) {
 }
 
 function parseArgs(argv) {
-  const args = { action: null, slug: null, dir: null, root: null, push: false, force: false };
+  const args = {
+    action: null,
+    slug: null,
+    dir: null,
+    root: null,
+    push: false,
+    force: false,
+    setup: true,
+  };
   const rest = [];
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -55,6 +65,7 @@ function parseArgs(argv) {
     else if (a === "--root") args.root = argv[++i];
     else if (a === "--push") args.push = true;
     else if (a === "--force") args.force = true;
+    else if (a === "--no-setup") args.setup = false;
     else rest.push(a);
   }
   args.action = rest[0] || null;
@@ -90,6 +101,23 @@ export function createWorktree(root, slug, base) {
   }
   git(root, ["worktree", "add", dir, "-b", branch]);
   return { dir, branch };
+}
+
+function setupWorktree(dir) {
+  const env = { ...process.env, CI: process.env.CI || "true" };
+  const run = (cwd, args) => execFileSync("pnpm", args, { cwd, env, stdio: "inherit" });
+  if (!fs.existsSync(path.join(dir, "package.json")))
+    return { root: false, browse: false, hooks: false };
+  run(dir, ["install", "--frozen-lockfile", "--ignore-scripts"]);
+  const browse = fs.existsSync(path.join(dir, "csm-browse", "package.json"));
+  if (browse)
+    run(path.join(dir, "csm-browse"), ["install", "--frozen-lockfile", "--ignore-scripts"]);
+  execFileSync(process.execPath, ["scripts/install-hooks.mjs"], {
+    cwd: dir,
+    env,
+    stdio: "inherit",
+  });
+  return { root: true, browse, hooks: true };
 }
 
 export function listWorktrees(root) {
@@ -287,8 +315,10 @@ function main() {
       if (!args.slug || !SLUG_RE.test(args.slug))
         throw new Error("usage: wt-session create <goal-slug> (lowercase, hyphens)");
       const { dir, branch } = createWorktree(root, args.slug, worktreeBase(root, args.dir));
+      const setup = args.setup ? setupWorktree(dir) : { skipped: true };
       console.log(`created worktree: ${dir}`);
       console.log(`branch: ${branch}`);
+      console.log(`setup: ${args.setup ? JSON.stringify(setup) : "skipped (--no-setup)"}`);
       console.log(`run the goal inside the worktree:`);
       console.log(`  cd ${dir}`);
       console.log(`  opencode run "<goal>"   # or csm-grill/csm-plan/csm-build there`);
