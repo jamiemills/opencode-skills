@@ -108,6 +108,9 @@ function setupWorktree(dir) {
   const run = (cwd, args) => execFileSync("pnpm", args, { cwd, env, stdio: "inherit" });
   if (!fs.existsSync(path.join(dir, "package.json")))
     return { root: false, browse: false, hooks: false };
+  const major = Number(process.versions.node.split(".")[0]);
+  if (!Number.isInteger(major) || major < 22 || major >= 25)
+    throw new Error(`worktree setup requires Node >=22 <25 (found ${process.versions.node})`);
   run(dir, ["install", "--frozen-lockfile", "--ignore-scripts"]);
   const browse = fs.existsSync(path.join(dir, "csm-browse", "package.json"));
   if (browse)
