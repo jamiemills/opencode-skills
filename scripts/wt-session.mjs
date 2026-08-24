@@ -105,17 +105,20 @@ export function createWorktree(root, slug, base) {
 
 function setupWorktree(dir) {
   const env = { ...process.env, CI: process.env.CI || "true" };
-  const run = (cwd, args) => execFileSync("pnpm", args, { cwd, env, stdio: "inherit" });
+  const node22 = path.join(dir, "scripts", "with-node22.mjs");
+  const run = (cwd, args) =>
+    execFileSync(process.execPath, [node22, "--exec", "pnpm", ...args], {
+      cwd,
+      env,
+      stdio: "inherit",
+    });
   if (!fs.existsSync(path.join(dir, "package.json")))
     return { root: false, browse: false, hooks: false };
-  const major = Number(process.versions.node.split(".")[0]);
-  if (!Number.isInteger(major) || major < 22 || major >= 25)
-    throw new Error(`worktree setup requires Node >=22 <25 (found ${process.versions.node})`);
   run(dir, ["install", "--frozen-lockfile", "--ignore-scripts"]);
   const browse = fs.existsSync(path.join(dir, "csm-browse", "package.json"));
   if (browse)
     run(path.join(dir, "csm-browse"), ["install", "--frozen-lockfile", "--ignore-scripts"]);
-  execFileSync(process.execPath, ["scripts/install-hooks.mjs"], {
+  execFileSync(process.execPath, [node22, "--exec", "node", "scripts/install-hooks.mjs"], {
     cwd: dir,
     env,
     stdio: "inherit",
@@ -235,7 +238,7 @@ export function removeWorktree(root, slug, { force = false } = {}) {
   const merged = branchTip !== null && branchTip === git(root, ["rev-parse", "refs/heads/main"]);
   if (!merged && !force)
     throw new Error(`branch ${branch} is not merged into main — merge it first or pass --force`);
-  git(root, ["worktree", "remove", entry.dir]);
+  git(root, ["worktree", "remove", ...(force ? ["--force"] : []), entry.dir]);
   // Branch second (git refuses to delete a checked-out branch). If this step
   // fails, the state is recoverable: rerunning nuke takes the branch-only
   // cleanup path above instead of dying on 'no worktree found'.
