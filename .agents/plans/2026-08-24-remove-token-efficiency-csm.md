@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: remove-token-efficiency
-- Status: blocked
-- Current CSM state: BLOCKED
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T18:00:00+0000 token removal/live audit complete; full suite blocked by unrelated csm-scan renderer baseline mismatch.
+- Last checkpoint: 2026-08-24T18:20:00+0000 final verification passed after repairing the unrelated csm-scan renderer baseline.
 - Last model/run: primary csm-plan session 2026-08-24
-- Next transition: BLOCKED -> RECOVER
+- Next transition: none
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -162,7 +162,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Repair attempts: 0
    - Recovery note: any unexpected payload change returns to T002/T004 for source review.
 
-6. [blocked] Run final removal audit and full verification
+6. [completed] Run final removal audit and full verification
    - Task ID: T006
    - Depends on: T005
    - Parallel group: G3
@@ -174,7 +174,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Acceptance signal: `make lint && make check && make test && node --test tests/check-suite.test.mjs tests/cache-health.test.mjs` all exit 0, followed by the live-reference audit command with zero output and exit 0.
    - Validation: `git diff --check`; `bash -euc '! rg -n "token.?efficiency|token efficiency|WORD_BUDGET|VOLATILE_DESC_RE|volatile/budget|isEnabled|parseToggle|findToggleFile" AGENTS.md README.md .lefthook.yml .oxfmtignore scripts tests'` must produce zero output; separately assert the two retired `.agents/docs` files contain the exact retirement banner. Historical plans/research/approaches/reviews are archive evidence and are not scanned as live code.
    - Acceptance evidence: full command outputs and final reference-audit result.
-   - Repair attempts: 0
+    - Repair attempts: 1 (unrelated csm-scan renderer baseline regenerated after deep investigation)
    - Recovery note: any live match becomes an explicit repair task rather than an ignored grep result.
 
 ## Verification Strategy
@@ -223,7 +223,9 @@ Delete/rewrite tasks use focused syntax/tests first. T002 and T003 run targeted 
 | 2026-08-24T16:35:00+0000 | 0 | CHECKPOINT | T001,T002,T003,T004 | Toggle surfaces deleted; cache-health 8 tests pass; live docs retired; check-suite branches removed. Deleted tracked config will clear after checkpoint commit; next T005. | SELECT |
 | 2026-08-24T17:00:00+0000 | 0 | CHECKPOINT | T001,T002,T003,T004,T005 | Removal checkpoint committed as 7681648; hooks and check-suite pass at 1113 checks; generated/matrix/format checks pass. | VERIFY |
 | 2026-08-24T18:00:00+0000 | 0 | BLOCKED | T006 | Live-reference audit is empty; cache-health 8 tests, lint, formatting, generators, and check-suite pass. `make test` fails in unrelated `csm-scan/test/expansion-baseline.test.mjs:49` because committed Markdown table padding differs from current renderer output. | BLOCKED |
+| 2026-08-24T18:15:00+0000 | 0 | BLOCKED -> REPAIR | T006 | User explicitly authorized deep investigation and repair of the csm-scan renderer baseline mismatch. | REPAIR |
+| 2026-08-24T18:20:00+0000 | 0 | REPAIR -> COMPLETE | T006 | Regenerated the stale csm-scan renderer golden and excluded the deterministic baseline from formatter rewrites. `make test-scan` passed 1282 tests; `make test`, final live-reference audit, retirement-banner checks, and `git diff --check` passed. | COMPLETE |
 
 ## Completion Review
 
-Completion Review: token-efficiency runtime/config/test/fixture surfaces are removed; cache-health is unconditional; live docs are clean and current references are marked retired; generators, lint, formatting, and conformance pass; live-reference audit is empty. Overall plan is blocked only by the unrelated csm-scan renderer baseline mismatch in `T201 fixed-input renderer output matches the deterministic Markdown baseline`. The token-removal checkpoint is committed as `7681648`; fixing that scanner golden is outside this plan.
+Completion Review: token-efficiency runtime/config/test/fixture surfaces are removed; cache-health is unconditional; live docs are clean and current references are marked retired; generators, lint, formatting, conformance, and the full test battery pass; live-reference audit is empty. The unrelated csm-scan renderer baseline was regenerated to match current deterministic output and excluded from formatter rewrites. Token-removal implementation is committed as `7681648`; final verification checkpoint is `36d4717` plus the scanner baseline repair changes in the working tree.

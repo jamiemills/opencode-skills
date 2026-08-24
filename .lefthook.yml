@@ -22,9 +22,9 @@ pre-commit:
           # re-padding/wrapping fights the emitted form.
           files=$(git diff --cached --name-only --diff-filter=ACM -- . ':(exclude).agents' ':(exclude)README.md')
           if [ -n "$files" ]; then
-            ./node_modules/.bin/oxfmt --write --ignore-path=.oxfmtignore $files
+            ./node_modules/.bin/oxfmt --write --no-error-on-unmatched-pattern --ignore-path=.oxfmtignore $files
             git add $files
-            ./node_modules/.bin/oxfmt --check --ignore-path=.oxfmtignore $files
+            ./node_modules/.bin/oxfmt --check --no-error-on-unmatched-pattern --ignore-path=.oxfmtignore $files
           fi
         else
           echo "pre-commit: oxfmt not installed — run 'make install' first"
