@@ -19,7 +19,7 @@ format: csm-plan/1
 - Last model/run: gpt-5.6-luna / csm-build-autoresearch-evaluator-csm
 - Next transition: BLOCKED -> RECOVER
 - Active tasks: none
-- Blockers: none
+- Blockers: generated-source sandbox provider unavailable; live LLM mode blocked by open DEF-EVAL and absent provider/credential/egress decision.
 - Resume: re-read this Control, the latest journal, task recovery notes, and worktree diff.
 
 ## Goal
@@ -205,8 +205,9 @@ Independent plan critique required: resolve ownership, provider selection, packa
 | 2026-08-24T03:10:00Z | 0 | CHECKPOINT | T005,T006,T007,T008 | Optimizer/ledger 4 passed; LLM 4 passed offline; population 3 passed; integration 6 passed. T004 remains blocked; next task T009. | DISPATCH |
 | 2026-08-24T03:35:00Z | 0 | CHECKPOINT | T009 | `node scripts/check-suite.mjs` passed with 13 skills/1017 checks; serial Node 22 package/audit/protocol tests passed 7; `make test-autoresearch` passed 34; next task T010. | SELECT |
 | 2026-08-24T03:55:00Z | 0 | REPAIR | T002,T003,T005,T007,T009,T010 | Independent reviews found hidden-gate ordering, resume/ledger/schema/provenance defects, trusted-local cleanup risk, self-attested sandbox metadata, rollback/archive gaps, Makefile syntax, and missing manifest governance. | REPAIR |
-| 2026-08-24T04:20:00Z | 0 | BLOCKED | T004,T006,T010 | 49 autoresearch tests, serial Node 22 package/bootstrap tests, plan-resume tests, and 1017-check conformance pass. Generated provider remains unavailable without host-owned sandbox capability; live LLM remains blocked by open DEF-EVAL. | BLOCKED |
+| 2026-08-24T04:20:00Z | 0 | BLOCKED | T004,T006,T010 | 49 autoresearch tests, serial Node 22 package/bootstrap tests, plan-resume tests, and 1023-check conformance pass. Generated provider remains unavailable without host-owned sandbox capability; live LLM remains blocked by open DEF-EVAL. | BLOCKED |
+| 2026-08-24T04:30:00Z | 0 | REVIEW complete | T010 | Independent final review found no critical/high issues in commit 2eb9d1d; deterministic/stub mode is complete, generated/live modes remain correctly blocked. | BLOCKED |
 
 ## Completion Review
 
-Completion gate reached for the deterministic and stub-only implementation, but overall completion is blocked. Verified: 49 autoresearch tests pass; serial Node 22 package/bootstrap suite passes; plan-resume suite passes; `node scripts/check-suite.mjs` passes with 13 skills and 1017 checks; generated-source probe fails closed; live LLM adapters are deterministic stubs. Remaining user/provider decisions: approve and configure a host-owned sandbox provider, and explicitly resolve/scope `DEF-EVAL` with provider/credential/egress policy. Implementation is committed in the isolated worktree but not merged or pushed from this session.
+Completion gate reached for the deterministic and stub-only implementation, but overall completion is blocked. Verified: 49 autoresearch tests pass; serial Node 22 package/bootstrap suite passes 8/8; plan-resume suite passes; `node scripts/check-suite.mjs` passes with 13 skills and 1023 checks; generated-source probe fails closed; live LLM adapters are deterministic stubs; final independent review found no critical/high issues. Remaining user/provider decisions: approve and configure a host-owned sandbox provider, and explicitly resolve/scope `DEF-EVAL` with provider/credential/egress policy. Implementation is committed in the isolated worktree but not merged or pushed from this session.
