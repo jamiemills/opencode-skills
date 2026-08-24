@@ -41,6 +41,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-remove-token-efficiency-csm.md` — 2026-08-24 — remove the token-efficiency flag, gate, fixtures, tests, and live documentation — status: ready
 - `2026-08-24-optional-progress-tracker-csm.md` — 2026-08-24 — add an optional horizontal progress tracker to every skill except upload and browse — status: ready
 - `2026-08-24-ddd-clean-code-csm-gates-csm.md` — 2026-08-24 — conditionally apply DDD and clean-code design gates in csm-plan/csm-build — status: ready
+- `2026-08-24-improve-csm-deep-research-skill-csm.md` — 2026-08-24 — improve csm-deep-research evidence contract and corpus validation — status: complete
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 
 ## docs/

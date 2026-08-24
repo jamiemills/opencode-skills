@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { dirname } from "node:path";
 import test, { after, before } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // F-003 harness: exercises the REAL check-suite gate against complete minimal
 // temp corpora (repo copy excluding .git/node_modules), planting one violation
@@ -130,6 +130,114 @@ test('clean corpus exits 0 with the "check-suite: OK" banner', () => {
     const r = runGate(dir);
     assert.equal(r.status, 0, combined(r));
     assert.match(combined(r), /check-suite: OK/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const RESEARCH_FIXTURE = ".agents/research/2026-08-20-csm-deep-research-skill-research.md";
+
+function addResearchReference(content, id, entry) {
+  const marker = "## References\n";
+  assert.ok(content.includes(marker), "fixture: research references section");
+  return content.replace(marker, `${marker}\n[${id}] ${entry}\n`);
+}
+
+test("research corpus: extra H2 heading fails exact document shape", () => {
+  const dir = clonePristine();
+  try {
+    const content = read(dir, RESEARCH_FIXTURE);
+    write(dir, RESEARCH_FIXTURE, `${content}\n## Unexpected Section\n`);
+    assertGateFails(dir, /requires exactly the ordered H2 sections/, "research-shape");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("research corpus: dangling inline citation fails reference resolution", () => {
+  const dir = clonePristine();
+  try {
+    const content = read(dir, RESEARCH_FIXTURE);
+    write(dir, RESEARCH_FIXTURE, content.replace("## TL;DR", "## TL;DR\n\n[R999]"));
+    assertGateFails(dir, /inline citation \[R999\] has no reference entry/, "research-citation");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("research corpus: duplicate reference IDs fail deterministically", () => {
+  const dir = clonePristine();
+  try {
+    const content = addResearchReference(
+      read(dir, RESEARCH_FIXTURE),
+      "R1",
+      "https://example.invalid/duplicate — retrieved 2026-08-24",
+    );
+    write(dir, RESEARCH_FIXTURE, content);
+    assertGateFails(dir, /\[R1\] duplicate reference entry/, "research-duplicate");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("research corpus: citation-looking inline code is ignored", () => {
+  const dir = clonePristine();
+  try {
+    const content = read(dir, RESEARCH_FIXTURE).replace(
+      "## TL;DR",
+      "## TL;DR\n\nThe literal token `[R996]` is an example, not a citation.",
+    );
+    write(dir, RESEARCH_FIXTURE, content);
+    const result = runGate(dir);
+    assert.equal(result.status, 0, combined(result));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("research corpus: portable file URL reference resolves inside the corpus", () => {
+  const dir = clonePristine();
+  try {
+    let content = read(dir, RESEARCH_FIXTURE);
+    content = content.replace("## TL;DR", "## TL;DR\n\n[R995]");
+    content = addResearchReference(
+      content,
+      "R995",
+      `${pathToFileURL(path.join(dir, "README.md")).href} — retrieved 2026-08-24`,
+    );
+    write(dir, RESEARCH_FIXTURE, content);
+    const result = runGate(dir);
+    assert.equal(result.status, 0, combined(result));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("research corpus: reference without retrieval date fails provenance check", () => {
+  const dir = clonePristine();
+  try {
+    let content = read(dir, RESEARCH_FIXTURE);
+    content = content.replace("## TL;DR", "## TL;DR\n\n[R998]");
+    content = addResearchReference(content, "R998", "https://example.invalid/source");
+    write(dir, RESEARCH_FIXTURE, content);
+    assertGateFails(dir, /\[R998\].*has no retrieval date/, "research-date");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("research corpus: missing local file reference fails local-source validation", () => {
+  const dir = clonePristine();
+  try {
+    let content = read(dir, RESEARCH_FIXTURE);
+    content = content.replace("## TL;DR", "## TL;DR\n\n[R997]");
+    content = addResearchReference(
+      content,
+      "R997",
+      "file:///definitely/missing/research-source.md — retrieved 2026-08-24",
+    );
+    write(dir, RESEARCH_FIXTURE, content);
+    assertGateFails(dir, /\[R997\].*local source does not exist/, "research-local");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

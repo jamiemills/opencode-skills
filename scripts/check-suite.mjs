@@ -214,6 +214,104 @@ function h2Titles(lines, inFence) {
   return out;
 }
 
+function researchReferenceEntries(lines, inFence, range) {
+  const entries = new Map();
+  const duplicates = [];
+  const start = range ? range[0] : 0;
+  const end = range ? range[1] : lines.length;
+  for (let i = start; i < end; i += 1) {
+    if (inFence[i]) continue;
+    const match = lines[i].match(/^\s*(?:-\s*)?(?:\*\*)?\[R(\d+)\](?:\*\*)?(?::\s*|\s+)(.+)$/);
+    if (!match) continue;
+    const id = `R${match[1]}`;
+    if (entries.has(id)) duplicates.push({ id, line: i + 1 });
+    else entries.set(id, { text: match[2], line: i + 1 });
+  }
+  return { entries, duplicates };
+}
+
+function researchInlineCitationIds(lines, inFence, referenceLines) {
+  const ids = new Set();
+  for (let i = 0; i < lines.length; i += 1) {
+    if (inFence[i] || referenceLines.has(i)) continue;
+    const prose = lines[i].replace(/`[^`]*`/g, "");
+    for (const match of prose.matchAll(/\[R(\d+)\]/g)) ids.add(`R${match[1]}`);
+  }
+  return ids;
+}
+
+function validateResearchReferences(lines, inFence, researchPath, referenceRange, rootDir) {
+  const findings = [];
+  const { entries: references, duplicates } = researchReferenceEntries(
+    lines,
+    inFence,
+    referenceRange,
+  );
+  for (const duplicate of duplicates) {
+    findings.push(
+      `${researchPath}: [${duplicate.id}] duplicate reference entry at line ${duplicate.line}`,
+    );
+  }
+  const firstReferenceLine = [...references.values()]
+    .map((entry) => entry.line - 1)
+    .toSorted((a, b) => a - b)[0];
+  const referenceText = referenceRange
+    ? lines.slice(referenceRange[0], firstReferenceLine ?? referenceRange[1]).join("\n")
+    : "";
+  const sectionRetrieved = /\bretrieved\s+(?:from\s+[^\d\n]+\s+)?\d{4}-\d{2}-\d{2}\b/i.test(
+    referenceText,
+  );
+  const referenceLines = new Set();
+  if (referenceRange) {
+    for (let i = referenceRange[0]; i < referenceRange[1]; i += 1) referenceLines.add(i);
+  }
+  for (const id of researchInlineCitationIds(lines, inFence, referenceLines)) {
+    if (!references.has(id)) findings.push(`inline citation [${id}] has no reference entry`);
+  }
+  for (const [id, entry] of references) {
+    if (/\b(?:example\.invalid|invalid\.example)\b/i.test(entry.text)) {
+      findings.push(`[${id}] line ${entry.line} uses a placeholder URL`);
+    }
+    const urls = [...entry.text.matchAll(/\b(?:https?|file):\/\/\S+/gi)];
+    const localEvidence = urls.length === 0 || /\b(?:repository|local)\s+file\b/i.test(entry.text);
+    const localPaths = localEvidence
+      ? [...entry.text.matchAll(/`([^`]+)`/g)]
+          .map((match) => match[1])
+          .filter((candidate) => candidate.startsWith("/") || candidate.startsWith("."))
+      : [];
+    const absolutePaths = localEvidence
+      ? (entry.text.match(/\/(?:home|tmp|workspace|repo)[^\s,;)>]+/g) ?? [])
+      : [];
+    if (urls.length === 0 && localPaths.length === 0 && absolutePaths.length === 0) {
+      findings.push(`[${id}] line ${entry.line} has no URL or local source path`);
+    }
+    if (
+      !sectionRetrieved &&
+      !/\bretrieved(?:\s+from[^\d\n]+)?\s+\d{4}-\d{2}-\d{2}\b/i.test(entry.text)
+    ) {
+      findings.push(`[${id}] line ${entry.line} has no retrieval date`);
+    }
+    for (const match of entry.text.matchAll(/file:\/\/\S+/gi)) {
+      const raw = match[0].replace(/[.,;)>]+$/, "");
+      try {
+        const localPath = fileURLToPath(new URL(raw));
+        if (!fs.existsSync(localPath)) {
+          findings.push(`[${id}] line ${entry.line} local source does not exist: ${localPath}`);
+        }
+      } catch {
+        findings.push(`[${id}] line ${entry.line} has invalid local source URL: ${raw}`);
+      }
+    }
+    for (const candidate of [...localPaths, ...absolutePaths]) {
+      const localPath = path.isAbsolute(candidate) ? candidate : path.resolve(rootDir, candidate);
+      if (!fs.existsSync(localPath)) {
+        findings.push(`[${id}] line ${entry.line} local source does not exist: ${localPath}`);
+      }
+    }
+  }
+  return findings.map((finding) => `${researchPath}: ${finding}`);
+}
+
 function sectionRange(lines, inFence, title) {
   let start = -1;
   for (let i = 0; i < lines.length; i += 1) {
@@ -1295,12 +1393,25 @@ function main() {
     );
     const lines = splitLines(content);
     const inFence = fenceMap(lines);
-    const titles = h2Titles(lines, inFence).map((x) => x.title);
-    const gap = subsequenceGap(titles, researchTemplate);
     check(
-      gap === null,
-      `research corpus .agents/research/${f}: missing/out-of-order required section "## ${gap}"`,
+      countH1(lines, inFence) === 1,
+      `research corpus .agents/research/${f}: requires exactly one H1 outside fenced blocks`,
     );
+    const titles = h2Titles(lines, inFence).map((x) => x.title);
+    check(
+      titles.length === researchTemplate.length &&
+        titles.every((title, index) => title === researchTemplate[index]),
+      `research corpus .agents/research/${f}: requires exactly the ordered H2 sections ${researchTemplate.map((title) => `## ${title}`).join(", ")}`,
+    );
+    const referenceRange = sectionRange(lines, inFence, "References");
+    for (const finding of validateResearchReferences(
+      lines,
+      inFence,
+      `.agents/research/${f}`,
+      referenceRange,
+      root,
+    ))
+      check(false, finding);
     const journal = content.match(
       /^\[\S+\]\s+[A-Z_]+(?:\s*->\s*[A-Z_]+)+\s*::\s*cycle\s+\d+\s*::/m,
     );
