@@ -17,7 +17,7 @@ format: csm-plan/1
 - Cycle: 0
 - Commits: allowed
 - Last checkpoint: 2026-08-24 — T001-T004 complete; all focused, conformance, formatting, and full test gates pass.
-- Last model/run: gpt-5.6-luna — csm-build-improve-deep-research-skill
+- Last model/run: gpt-5.6-luna — csm-build-improve-deep-research-skill; implementation commit `fdf61c6`
 - Next transition: COMPLETE -> terminal
 - Active tasks: none
 - Blockers: pre-existing `.agents/README.md` index omissions cause `check-suite` and one existing test to fail; plan excludes README changes.
@@ -255,3 +255,4 @@ Run independent read-only review tracks in parallel after implementation: contra
 - Independent review: contract and checker review findings were resolved; no material findings remain.
 - Pre-existing research artifacts remain outside the implementation scope and were not modified or staged.
 - Final changed implementation scope: `.agents/README.md` required plan index entry, `.agents/plans/2026-08-24-improve-csm-deep-research-skill-csm.md`, both csm-deep-research skill copies, `scripts/check-suite.mjs`, `tests/check-suite.test.mjs`, and generated `bootstrap/payload-index.json`.
+- Implementation commit: `fdf61c6` (`build: improve deep research evidence contract`).
