@@ -1,0 +1,55 @@
+[
+  {
+    "id": "boundary-1",
+    "parentId": "baseline",
+    "contentHash": "sha256:boundary-1",
+    "behaviorCategory": "boundary",
+    "island": "left",
+    "metrics": { "score": 10 },
+    "hardGatesPassed": true
+  },
+  {
+    "id": "robust-1",
+    "parentId": "baseline",
+    "contentHash": "sha256:robust-1",
+    "behaviorCategory": "robust",
+    "island": "right",
+    "metrics": { "score": 9 },
+    "hardGatesPassed": true
+  },
+  {
+    "id": "speed-1",
+    "parentId": "baseline",
+    "contentHash": "sha256:speed-1",
+    "behaviorCategory": "speed",
+    "island": "right",
+    "metrics": { "score": 8 },
+    "hardGatesPassed": true
+  },
+  {
+    "id": "unsafe",
+    "parentId": "baseline",
+    "contentHash": "sha256:unsafe",
+    "behaviorCategory": "unsafe",
+    "metrics": { "score": 100 },
+    "hardGatesPassed": false
+  },
+  {
+    "id": "speed-2",
+    "parentId": "speed-1",
+    "contentHash": "sha256:speed-2",
+    "behaviorCategory": "speed",
+    "island": "right",
+    "metrics": { "score": 7 },
+    "hardGatesPassed": true
+  },
+  {
+    "id": "boundary-2",
+    "parentId": "boundary-1",
+    "contentHash": "sha256:boundary-2",
+    "behaviorCategory": "boundary",
+    "island": "left",
+    "metrics": { "score": 9 },
+    "hardGatesPassed": true
+  }
+]

@@ -167,6 +167,20 @@ const MANIFEST = {
     norms: true,
     machine: { section: "Analysis State Machine", entryExit: false },
   },
+  "csm-autoresearch": {
+    sections: [
+      "Interface",
+      "Activation Boundary",
+      "Core Rules",
+      "Autoresearch State Machine",
+      "Artifact Contracts",
+      "Never-Invoke Boundary",
+      "Done Criteria",
+    ],
+    tmux: false,
+    norms: false,
+    machine: { section: "Autoresearch State Machine", entryExit: false },
+  },
 };
 
 const CONTRACTS = [
@@ -370,6 +384,31 @@ const INTERFACES = {
       "question/answer nodes",
     ],
   },
+  "csm-autoresearch": {
+    entryConditions: [
+      "explicit autoresearch or evaluator-optimization request",
+      "declared target and metric",
+    ],
+    consumes: [
+      "versioned run contract",
+      "declared mutation boundary",
+      "immutable evaluator policy",
+      "bounded datasets",
+    ],
+    produces: [
+      "bounded JSONL evaluator exchanges",
+      "append-only trial ledger",
+      "atomic report artifact",
+    ],
+    handoff: ["artifact set to the user for separate approval or later explicit skill invocation"],
+    midPipeline: [
+      "baseline",
+      "proposal screening",
+      "hard-gate evaluation",
+      "target or hill-climb decision",
+      "quarantine and rollback",
+    ],
+  },
 };
 
 // NORMS.md authenticity uses one shared any-of rule across the suite: a
@@ -388,6 +427,14 @@ const FORMAT_VERSIONS = {
   "csm-review-python": 1,
   "csm-ddd-report": 1,
   "csm-ddd-graph": 1,
+  "csm-autoresearch-contract": 1,
+  "csm-autoresearch-policy": 1,
+  "csm-autoresearch-evaluator-request": 1,
+  "csm-autoresearch-evaluator-response": 1,
+  "csm-autoresearch-ledger": 1,
+  "csm-autoresearch-report": 1,
+  "csm-autoresearch-manifest": 1,
+  "csm-autoresearch-llm-adapter": 1,
 };
 
 // Universal never-invoke matrix (explicit literal, not a shorthand): every
@@ -416,6 +463,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-browse": {
     "csm-bdd-tdd": true,
@@ -429,6 +477,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-build": {
     "csm-bdd-tdd": true,
@@ -442,6 +491,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-grill": {
     "csm-bdd-tdd": true,
@@ -456,6 +506,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-plan": {
     "csm-bdd-tdd": true,
@@ -470,6 +521,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-review": {
     "csm-bdd-tdd": true,
@@ -483,6 +535,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": false,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-scan": {
     "csm-bdd-tdd": true,
@@ -496,6 +549,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-upload": {
     "csm-bdd-tdd": true,
@@ -509,6 +563,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-deep-research": {
     "csm-bdd-tdd": true,
@@ -523,6 +578,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-make-tests": {
     "csm-bdd-tdd": true,
@@ -537,6 +593,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": false,
     "csm-review-python": true,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-review-python": {
     "csm-bdd-tdd": true,
@@ -551,6 +608,7 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": false,
     "csm-ddd": true,
+    "csm-autoresearch": true,
   },
   "csm-ddd": {
     "csm-bdd-tdd": true,
@@ -565,6 +623,22 @@ const NEVER_INVOKE = {
     "csm-make-tests": true,
     "csm-review-python": true,
     "csm-ddd": false,
+    "csm-autoresearch": true,
+  },
+  "csm-autoresearch": {
+    "csm-bdd-tdd": true,
+    "csm-browse": true,
+    "csm-build": true,
+    "csm-grill": true,
+    "csm-plan": true,
+    "csm-review": true,
+    "csm-scan": true,
+    "csm-upload": true,
+    "csm-deep-research": true,
+    "csm-make-tests": true,
+    "csm-review-python": true,
+    "csm-ddd": true,
+    "csm-autoresearch": false,
   },
 };
 

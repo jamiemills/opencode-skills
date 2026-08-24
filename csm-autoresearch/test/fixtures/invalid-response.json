@@ -1,0 +1,14 @@
+{
+  "format": "csm-autoresearch-evaluator-response/1",
+  "requestId": "req-001",
+  "runId": "run-001",
+  "status": "timed_out",
+  "valid": true,
+  "metrics": {},
+  "provenance": {
+    "evaluatorHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "environmentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "limits": {},
+    "redacted": true
+  }
+}

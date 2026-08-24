@@ -29,7 +29,7 @@ Run first — before any scan, test, or analysis command or other sections. Not 
 - Consumes: repository path(s), strictly read-only
 - Produces: a single NORMS.md capturing 17 evidence dimensions
 - Hands off: NORMS.md is consumed as a file by csm-plan, csm-bdd-tdd, csm-build, and csm-review — never via skill invocation
-- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-upload, csm-make-tests, csm-review-python, csm-ddd
+- Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Dimensions
 

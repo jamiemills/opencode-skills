@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "bounded evaluator JSONL request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "requestId", "runId", "candidate", "limits"],
+  "properties": {
+    "format": { "const": "csm-autoresearch-evaluator-request/1" },
+    "requestId": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "runId": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parentId", "sourceHash", "patchHash"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "parentId": { "type": ["string", "null"], "maxLength": 100 },
+        "sourceHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "patchHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeoutMs", "maxOutputBytes", "network"],
+      "properties": {
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 3600000 },
+        "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "network": { "const": "disabled" },
+        "maxMemoryMb": { "type": "integer", "minimum": 1 },
+        "maxProcesses": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "input": { "type": ["object", "array", "string", "number", "boolean", "null"] }
+  }
+}

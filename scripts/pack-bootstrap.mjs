@@ -40,6 +40,7 @@ const skillDirs = [
   "csm-review",
   "csm-scan",
   "csm-upload",
+  "csm-autoresearch",
 ];
 
 const mapping = {
@@ -80,6 +81,18 @@ const mapping = {
       srcDir: join("csm-review-python", "artifact"),
       destDir: join("payload", "skills", "csm-review-python", "artifact"),
     },
+    {
+      srcDir: join("csm-autoresearch", "lib"),
+      destDir: join("payload", "skills", "csm-autoresearch", "lib"),
+    },
+    {
+      srcDir: join("csm-autoresearch", "schemas"),
+      destDir: join("payload", "skills", "csm-autoresearch", "schemas"),
+    },
+    {
+      src: join("csm-autoresearch", "scripts", "evaluate.mjs"),
+      dest: join("payload", "skills", "csm-autoresearch", "scripts", "evaluate.mjs"),
+    },
   ],
   helperBins: [],
   metadata: [{ src: "LICENSE", dest: "LICENSE" }],
@@ -90,6 +103,7 @@ const decisions = [
   "csm-scan scripts plus the lib/scan closure and csm-upload scripts are bundled as supporting files: dependency-free node built-ins code",
   "helperBins ships empty in 0.1.0: optional runtime helpers stay out until each has a dependency-free closure",
   "csm-make-tests references/ bundled as supporting files: dependency-free markdown depth files loaded on demand by the skill",
+  "csm-autoresearch lib/schemas/evaluator helper bundled as dependency-free supporting files; generated sandbox and live provider capabilities remain gated",
   "package.json and payload-index.json are not indexed: the manifest is audit-checked and the index cannot contain its own digest; both are bound by the recorded tarball shasum",
 ];
 
@@ -260,7 +274,7 @@ function parseTar(gzip) {
   return entries;
 }
 
-async function packBootstrap() {
+async function packBootstrapOnce() {
   await syncPayload();
   const dir = await mkdtemp("/tmp/csm-pack-");
   const cache = await mkdtemp("/tmp/csm-pack-cache-");
@@ -289,6 +303,18 @@ async function packBootstrap() {
   } finally {
     await rm(cache, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+// Packing regenerates the shared committed payload/index before staging. Keep
+// concurrent callers from observing one another's partially regenerated state.
+let packQueue = Promise.resolve();
+function packBootstrap() {
+  const run = packQueue.then(packBootstrapOnce, packBootstrapOnce);
+  packQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 async function main() {

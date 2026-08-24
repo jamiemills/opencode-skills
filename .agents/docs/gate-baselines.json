@@ -295,9 +295,23 @@
   },
   {
     "gate": "check-suite",
-    "passCount": 966,
-    "wallMs": 4200,
+    "passCount": 1023,
+    "wallMs": 3270,
     "nodeVersion": "v20.20.2",
-    "ts": "2026-08-24T09:28:58.072Z"
+    "ts": "2026-08-24T07:57:01.501Z"
+  },
+  {
+    "gate": "check-suite",
+    "passCount": 1027,
+    "wallMs": 4900,
+    "nodeVersion": "v20.20.2",
+    "ts": "2026-08-24T09:00:19.358Z"
+  },
+  {
+    "gate": "check-suite",
+    "passCount": 1043,
+    "wallMs": 4000,
+    "nodeVersion": "v20.20.2",
+    "ts": "2026-08-24T11:41:04.559Z"
   }
 ]

@@ -82,7 +82,7 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 - Consumes: a saved non-BDD CSM plan; optional repository conventions from a NORMS.md artifact
 - Produces: a formal spec, executable Gherkin scenarios, unit test designs, and the mutated `*-bdd-csm.md` plan with a `Superseded for BDD/TDD` pointer in the source plan
 - Hands off: the mutated plan and specs folder wait for an explicit csm-build invocation (human-mediated)
-- Never invokes: csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd
+- Never invokes: csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Pipeline
 

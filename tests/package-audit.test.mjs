@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import { packBootstrap } from "../scripts/pack-bootstrap.mjs";
+import { FORMAT_VERSIONS } from "../scripts/lib/contracts.mjs";
 
 const execFileAsync = promisify(execFile);
 const skillNames = [
+  "csm-autoresearch",
   "csm-bdd-tdd",
   "csm-browse",
   "csm-build",
@@ -112,6 +114,7 @@ test("two isolated packs are deterministic and the packed artifact passes the au
     assert.equal(index.package.name, "@jamiemills/csm-skills-bootstrap");
     assert.equal(index.package.version, "0.1.0");
     assert.equal(index.package.bin, "csm-skills-bootstrap");
+    assert.equal(FORMAT_VERSIONS["csm-autoresearch-manifest"], 1);
     assert.deepEqual(index.classes.helperBins, []);
     const indexed = [
       ...index.classes.skills,
@@ -135,7 +138,7 @@ test("two isolated packs are deterministic and the packed artifact passes the au
     }
 
     const skillEntries = index.classes.skills.filter((entry) => entry.path.endsWith("/SKILL.md"));
-    assert.equal(skillEntries.length, 12);
+    assert.equal(skillEntries.length, 13);
     for (const skill of skillNames) {
       const entry = skillEntries.find(
         (candidate) => candidate.path === `payload/skills/${skill}/SKILL.md`,
@@ -191,6 +194,29 @@ test("two isolated packs are deterministic and the packed artifact passes the au
     assert.equal(verified.verification.ok, true);
     assert.equal(verified.verification.failures.length, 0);
     assert.ok(verified.verification.verified >= 119);
+
+    const helperRequest = {
+      format: "csm-autoresearch-evaluator-request/1",
+      requestId: "package-audit",
+      runId: "package-audit-run",
+      candidate: {
+        id: "candidate",
+        parentId: null,
+        sourceHash: `sha256:${"a".repeat(64)}`,
+        patchHash: `sha256:${"b".repeat(64)}`,
+      },
+      limits: { timeoutMs: 1000, maxOutputBytes: 1000, network: "disabled" },
+      input: { value: 1 },
+    };
+    const helperOutput = execFileSync(
+      process.execPath,
+      [join(auditDir, "package", "payload/skills/csm-autoresearch/scripts/evaluate.mjs")],
+      { input: `${JSON.stringify(helperRequest)}\n`, encoding: "utf8" },
+    );
+    const helperResponse = JSON.parse(helperOutput);
+    assert.equal(helperResponse.format, "csm-autoresearch-evaluator-response/1");
+    assert.equal(helperResponse.status, "blocked");
+    assert.equal(helperResponse.valid, false);
 
     const tamperedDir = await mkdtemp("/tmp/csm-tamper-");
     dirs.push(tamperedDir);

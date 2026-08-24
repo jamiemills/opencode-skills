@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { EXIT_CODES, PROTOCOL_STATES, runProtocol } from "./engine.mjs";
 import { loadReportSchema, validateSchema } from "./report-schema.mjs";
+import { FORMAT_VERSIONS } from "../../scripts/lib/contracts.mjs";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const packageRoot = join(root, "bootstrap/package");
@@ -69,6 +70,10 @@ test("F-043 conformance: the protocol state table in protocol.md derives from th
   assert.ok(PROTOCOL_STATES.includes("MATERIALIZE"));
 });
 
+test("autoresearch artifact manifest format is registered at the emitted version", () => {
+  assert.equal(FORMAT_VERSIONS["csm-autoresearch-manifest"], 1);
+});
+
 test("capable agent materializes verified payload copies and emits a schema-valid report", async () => {
   const sandbox = await mkdtemp("/tmp/csm-protocol-");
   await chmod(sandbox, 0o700);
@@ -86,6 +91,7 @@ test("capable agent materializes verified payload copies and emits a schema-vali
     );
     assert.ok(result.report.states.every((state) => state.refusal === null));
     assert.deepEqual(result.report.skillsPlaced, [
+      "csm-autoresearch",
       "csm-bdd-tdd",
       "csm-browse",
       "csm-build",

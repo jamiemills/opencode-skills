@@ -1,0 +1,13 @@
+{
+  "format": "csm-autoresearch-contract/1",
+  "runId": "run-002",
+  "source": {
+    "mode": "generated",
+    "id": "candidate",
+    "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "metric": { "name": "score", "unit": "points", "direction": "maximize", "aggregation": "max" },
+  "mutation": { "mode": "diff", "allowedPaths": ["src/target.mjs"] },
+  "budget": { "maxTrials": 1, "maxProposals": 1, "timeoutMs": 1000 },
+  "policy": "policy-001"
+}

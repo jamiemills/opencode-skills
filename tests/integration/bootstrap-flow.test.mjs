@@ -9,6 +9,7 @@ import test from "node:test";
 import { packBootstrap } from "../../scripts/pack-bootstrap.mjs";
 import { runProtocol } from "../protocol/engine.mjs";
 import { loadReportSchema, validateSchema } from "../protocol/report-schema.mjs";
+import { FORMAT_VERSIONS } from "../../scripts/lib/contracts.mjs";
 import {
   checkArgv,
   checkSpec,
@@ -21,6 +22,7 @@ import {
 const execFileAsync = promisify(execFile);
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const skillNames = [
+  "csm-autoresearch",
   "csm-bdd-tdd",
   "csm-browse",
   "csm-build",
@@ -76,8 +78,9 @@ test("pack, payload audit, capable install, offline boundary, malicious refusal,
     assert.equal(index.package.name, grammar.package.name);
     assert.equal(index.package.version, grammar.package.version);
     assert.equal(index.package.bin, grammar.package.bin);
+    assert.equal(FORMAT_VERSIONS["csm-autoresearch-manifest"], 1);
     const skillEntries = index.classes.skills.filter((entry) => entry.path.endsWith("/SKILL.md"));
-    assert.equal(skillEntries.length, 12);
+    assert.equal(skillEntries.length, 13);
     for (const skill of skillNames)
       assert.ok(
         skillEntries.some((entry) => entry.path === `payload/skills/${skill}/SKILL.md`),
