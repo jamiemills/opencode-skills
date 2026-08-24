@@ -11,13 +11,13 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: remove-token-efficiency
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: CHECKPOINT
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T10:12:12+0000 inventory scout complete; no implementation started
+- Last checkpoint: 2026-08-24T16:35:00+0000 T001/T003/T004/T002 integrated; targeted deletion/cache/docs checks pass, check-suite awaits committed deletions and plan metadata correction.
 - Last model/run: primary csm-plan session 2026-08-24
-- Next transition: NOT_STARTED -> RECOVER
+- Next transition: CHECKPOINT -> SELECT
 - Active tasks: none
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff
@@ -87,7 +87,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
 
 ## Numbered Plan
 
-1. [pending] Remove toggle/config/fixture/test surfaces
+1. [completed] Remove toggle/config/fixture/test surfaces
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -102,7 +102,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Repair attempts: 0
    - Recovery note: deletion is isolated and reversible through the build commit if required.
 
-2. [pending] Remove token-efficiency branches from check-suite
+2. [completed] Remove token-efficiency branches from check-suite
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -117,7 +117,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Repair attempts: 0
    - Recovery note: compare the diff against the pre-removal check-suite to ensure unrelated checks remain.
 
-3. [pending] Make cache-health unconditional
+3. [completed] Make cache-health unconditional
    - Task ID: T003
    - Depends on: T001
    - Parallel group: G1
@@ -132,7 +132,7 @@ Remove the repository’s token-efficiency flag and its live behavior completely
    - Repair attempts: 0
    - Recovery note: only the gate around existing behavior should change.
 
-4. [pending] Remove active documentation and retire current references
+4. [completed] Remove active documentation and retire current references
    - Task ID: T004
    - Depends on: T001, T002
    - Parallel group: G1
@@ -218,6 +218,9 @@ Delete/rewrite tasks use focused syntax/tests first. T002 and T003 run targeted 
 | 2026-08-24T10:25:00+0000 | 0 | DRAFT -> CRITIQUE | T001-T006 | hostile critique found 2 blockers, 7 majors, 5 minors | CRITIQUE |
 | 2026-08-24T10:30:00+0000 | 0 | CRITIQUE -> REMEDIATE | T001-T006 | corrected traceability, dependency order, exact shell signals, cache-health no-toggle proof, archive policy, and generated-output ownership | REMEDIATE |
 | 2026-08-24T10:35:00+0000 | 0 | REMEDIATE -> VERIFY | T001-T006 | primary verification: all critique items resolved; all tasks have runnable signals, risks, anti-scope, and historical/live disposition | VERIFY |
+| 2026-08-24T16:00:00+0000 | 0 | SAVED -> RECOVER | none | Explicit csm-build requested; isolated worktree created and root/csm-browse tooling bootstrapped. | VALIDATE |
+| 2026-08-24T16:10:00+0000 | 0 | RECOVER -> VALIDATE -> SELECT -> DISPATCH | T001,T003,T004 | Baseline check-suite passed 1114 checks; G1 independent removal/cache/docs tasks dispatched. | DISPATCH |
+| 2026-08-24T16:35:00+0000 | 0 | CHECKPOINT | T001,T002,T003,T004 | Toggle surfaces deleted; cache-health 8 tests pass; live docs retired; check-suite branches removed. Deleted tracked config will clear after checkpoint commit; next T005. | SELECT |
 
 ## Completion Review
 

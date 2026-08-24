@@ -17,9 +17,6 @@ async function runMain(args = [], { output = "", fail = false } = {}) {
   const sandbox = await mkdtemp(join(root, "tests", ".cache-health-main-"));
   const bin = join(sandbox, "bin");
   const log = join(sandbox, "args.log");
-  await mkdir(join(sandbox, ".git"), { recursive: true });
-  await mkdir(join(sandbox, ".agents"), { recursive: true });
-  await writeFile(join(sandbox, ".agents", "token-efficiency.json"), '{"enabled":true}\n');
   await mkdir(bin);
   const fake = join(bin, "opencode");
   const body = fail
@@ -136,11 +133,12 @@ test("renderReport makes the fixed model scope explicit", () => {
   assert.match(text, /^cache-health: model=deepseek-v4-flash cache hit report/);
 });
 
-test("CLI main constructs the bounded SQL and renders queried rows", async () => {
+test("CLI main invokes the fake DB without a toggle and renders queried rows", async () => {
   const result = await runMain(["--days", "7"], {
     output: "id\tsunny-cactus\tagent\t1787224866048\t10\t20\t0\t0.5\n",
   });
   assert.equal(result.stderr, "");
+  assert.match(result.sqlArgs, /^db\n/);
   assert.match(result.sqlArgs, /from session where model LIKE '%deepseek-v4-flash%'/);
   assert.match(result.sqlArgs, /time_created >= \d+/);
   assert.match(result.sqlArgs, /order by time_created desc/);

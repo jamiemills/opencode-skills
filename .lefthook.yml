@@ -20,7 +20,7 @@ pre-commit:
           # README.md is excluded: its composition-matrix region is
           # generator-owned (scripts/gen-readme-matrix.mjs) and oxfmt's table
           # re-padding/wrapping fights the emitted form.
-          files=$(git diff --cached --name-only --diff-filter=ACM -- . ':(exclude).agents' ':(exclude)tests/fixtures/token-efficiency/malformed' ':(exclude)README.md')
+          files=$(git diff --cached --name-only --diff-filter=ACM -- . ':(exclude).agents' ':(exclude)README.md')
           if [ -n "$files" ]; then
             ./node_modules/.bin/oxfmt --write --ignore-path=.oxfmtignore $files
             git add $files

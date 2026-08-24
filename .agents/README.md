@@ -46,11 +46,11 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 - `csm-suite-performance-baseline-2026-08-15.md` — 2026-08-15 — performance baseline for the csm-scan suite — status: reference
 - `csm-suite-review-2026-08-15.md` — 2026-08-15 — three-pass hostile review of the csm-suite-improvements build — status: reference
-- `cache-token-efficiency-2026-08-20.md` — 2026-08-20 — cache maximization and token efficiency reference (DeepSeek caching, measured ratios, docs-only config block, monitor, toggle) — status: reference
+- `cache-token-efficiency-2026-08-20.md` — 2026-08-20 — cache maximization and token efficiency reference (DeepSeek caching, measured ratios, docs-only config block, monitor, toggle) — status: retired
 - `gate-baselines.json` — 2026-08-20 — machine-recorded gate pass counts for check-suite (source for journal numbers) — status: reference
 - `journal-lessons.md` — 2026-08-20 — 43 mined journal themes grouped by class with embracing mechanisms — status: reference
 - `deferred.md` — 2026-08-20 — deferred-work ledger (5 carried records: CI/audit, sandbox, README plan, eval harness, publication) cited by `[DEF:<slug>]` in non-COMPLETE plans — status: reference
-- `csm-ddd-token-efficiency-liability.md` — 2026-08-23 — deferred liability: csm-ddd description vs the token-efficiency budget (reconciled by WORD_BUDGET re-pin 2026-08-23) — status: reference
+- `csm-ddd-token-efficiency-liability.md` — 2026-08-23 — deferred liability: csm-ddd description vs the token-efficiency budget (reconciled by WORD_BUDGET re-pin 2026-08-23) — status: retired
 - `csm-deep-research-skill-review-2026-08-20.md` — 2026-08-20 — csm-review audit of the csm-deep-research skill — status: reference
 
 ## reviews/

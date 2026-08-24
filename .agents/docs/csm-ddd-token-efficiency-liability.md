@@ -1,3 +1,5 @@
+Retired reference: token-efficiency feature removed
+
 # Deferred liability: csm-ddd description vs the token-efficiency budget
 
 The AGENTS.md stable-prefix regime budgets skill frontmatter descriptions at a

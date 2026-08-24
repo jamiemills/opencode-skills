@@ -1,3 +1,5 @@
+Retired reference: token-efficiency feature removed
+
 # Cache Maximization And Token Efficiency — 2026-08-20
 
 Reference for the cache/token-efficiency layer of this repository: how

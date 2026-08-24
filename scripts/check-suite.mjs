@@ -17,7 +17,6 @@ import {
   FORMAT_VERSIONS,
   NORMS_PHRASES,
 } from "./lib/contracts.mjs";
-import { isEnabled } from "./lib/token-efficiency.mjs";
 import { checkDrift } from "./sync-skill-boilerplate.mjs";
 import { checkDrift as checkMatrixDrift } from "./gen-readme-matrix.mjs";
 import { lintPlanSignals } from "./check-plan-signals.mjs";
@@ -49,17 +48,6 @@ for (let i = 0; i < args.length; i += 1) {
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NEVER_CLAUSE_RE =
   /\bnever\b[^.]{0,120}\b(only|beyond|elsewhere|writes?|runs?|invok\w*|starts?|plans?|planning|implement\w*|fix\w*|patch\w*|review\w*|execut\w*|push\w*|targets?)\b/i;
-// Volatile content in skill descriptions would silently invalidate DeepSeek
-// prefix-cache units. Deliberately NOT a bare \d{4}: csm-browse's stable port
-// "9222" must pass. Rejects ISO dates, bare 20xx years, dotted versions,
-// v-prefixed versions, $ENV vars, and absolute paths.
-const VOLATILE_DESC_RE =
-  /(\d{4}-\d{2}-\d{2}|\b20\d{2}\b|\b\d+\.\d+(\.\d+)?\b|v\d+(\.\d+)+|\$[A-Z][A-Z0-9_]*|\/home\/|\/Users\/|\/tmp|\/etc\/|\/opt\/|\/usr\/|\/var\/)/;
-// Frontmatter budget (re-pinned 2026-08-23 per review HF-01): the twelve
-// descriptions total exactly 329 whitespace-separated tokens today (em-dashes
-// count). Recompute on any frontmatter edit before re-pinning; the check
-// guards regression only, and the disabled gate still reports live drift.
-const WORD_BUDGET = 329;
 const NORMS_PHRASE_RE = new RegExp(
   NORMS_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
 );
@@ -725,19 +713,6 @@ function main() {
   // visible to the corpus checks.
   const tracked = loadTrackedFiles(root);
 
-  // Repo-local efficiency toggle: OFF by default (absent/malformed =
-  // disabled); only an explicit {"enabled": true} runs the two additive
-  // efficiency checks below. A malformed toggle surfaces a visible warning.
-  const eff = isEnabled(root);
-  if (!eff.enabled) {
-    console.log(
-      `note: token efficiency disabled (${eff.source})${eff.warning !== null ? ` — ${eff.warning}` : ""} — volatile/budget checks skipped`,
-    );
-  } else if (eff.warning !== null) {
-    console.log(`note: ${eff.warning}`);
-  }
-  let descWordTotal = 0;
-
   for (const skill of skillDirs) {
     check(
       Object.prototype.hasOwnProperty.call(MANIFEST, skill),
@@ -782,16 +757,6 @@ function main() {
       NEVER_CLAUSE_RE.test(desc),
       `${skill}/SKILL.md description lacks a Never-X clause (e.g. "never plans or implements")`,
     );
-
-    if (eff.enabled) {
-      const volatileHit = desc.match(VOLATILE_DESC_RE);
-      check(
-        volatileHit === null,
-        `${skill}/SKILL.md description contains volatile token "${volatileHit ? volatileHit[0] : ""}" (dates/years/versions/$ENV/absolute paths break prefix-cache units)`,
-      );
-    }
-    // Accumulated unconditionally so the disabled-state drift note stays live.
-    descWordTotal += desc.trim().split(/\s+/).filter(Boolean).length;
 
     const h1 = countH1(lines, inFence);
     check(h1 === 1, `${skill}/SKILL.md has ${h1} H1 titles outside fences (want exactly 1)`);
@@ -893,20 +858,6 @@ function main() {
       "ordinal",
       ordinalFailures,
       `${skill}/SKILL.md state-section ordinal sequencing`,
-    );
-  }
-
-  if (eff.enabled) {
-    check(
-      descWordTotal <= WORD_BUDGET,
-      `description word total ${descWordTotal} (> ${WORD_BUDGET}) across ${skillDirs.length} skills (frontmatter budget regression)`,
-    );
-    console.log(
-      `note: token efficiency enabled — description budget ${descWordTotal}/${WORD_BUDGET} (${descWordTotal - WORD_BUDGET >= 0 ? "+" : ""}${descWordTotal - WORD_BUDGET} drift)`,
-    );
-  } else {
-    console.log(
-      `note: token efficiency disabled — description budget ${descWordTotal}/${WORD_BUDGET} (${descWordTotal - WORD_BUDGET >= 0 ? "+" : ""}${descWordTotal - WORD_BUDGET} drift; not enforced)`,
     );
   }
 
@@ -1195,8 +1146,8 @@ function main() {
   }
 
   // .agents artifact-index rule (review F1-07, journal-lessons F7/J7): every
-  // tracked artifact under .agents/ (except the index itself and the
-  // token-efficiency toggle) must have an index line in .agents/README.md.
+  // tracked artifact under .agents/ except the index itself must have an index
+  // line in .agents/README.md.
   // Same-commit indexing is the gate's teeth: adding an artifact without its
   // index line fails the next run. Untracked drafts never brick the gate.
   {
@@ -1206,7 +1157,7 @@ function main() {
     } else if (tracked === null) {
       console.log("note: git unavailable — artifact-index check skipped");
     } else {
-      const AGENTS_INDEX_EXEMPT = new Set([".agents/README.md", ".agents/token-efficiency.json"]);
+      const AGENTS_INDEX_EXEMPT = new Set([".agents/README.md"]);
       const agentsArtifacts = [...tracked].filter(
         (t) => t.startsWith(".agents/") && !AGENTS_INDEX_EXEMPT.has(t),
       );

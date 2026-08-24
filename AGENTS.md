@@ -1,27 +1,3 @@
-# AGENTS.md — cache/token efficiency rules
-
-Applies only while token efficiency is enabled for the working directory —
-OFF by default everywhere (see
-`.agents/docs/cache-token-efficiency-2026-08-20.md`). Only an explicit
-`.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for
-that repo or directory; disabled directories follow default behavior.
-
-## Stable-prefix discipline
-
-- Never add dates, years, versions, `$ENV` values, or absolute paths to skill
-  frontmatter descriptions. Volatility breaks DeepSeek prefix-cache units; the
-  lint (check-suite volatile/budget checks) enforces this — a volatile token or
-  a frontmatter total above the pinned budget fails the gate.
-- Frontmatter descriptions carry a word budget pinned in
-  `scripts/check-suite.mjs` (`WORD_BUDGET`, re-pinned to the measured total
-  2026-08-23; see `.agents/docs/csm-ddd-token-efficiency-liability.md`). Any
-  edit that changes wording re-budgets it; a drift above the pin fails the
-  gate while token efficiency is enabled, and the disabled gate still reports
-  the live drift on every run.
-- No new skills without re-budgeting: every skill description is injected into
-  every session's prefix, so an additional skill regresses the budget and the
-  cache-friendly prefix. Guidance goes to AGENTS.md/docs, not a new SKILL.md.
-
 ## Fresh-session resume over long transcripts
 
 - Plan files under `.agents/plans/` are the durable record. A fresh session
@@ -32,24 +8,9 @@ that repo or directory; disabled directories follow default behavior.
 ## Compaction and history
 
 - When context approaches limits, compact recall-first: keep durable rules,
-  instructions, and evidence in files and re-read them rather than relying on a
-  long in-context transcript.
-- Append-only history: never rewrite earlier turns in a session. Cache prefix
-  units require full match; mutating prior context invalidates them.
-
-## Monitor
-
-- `node scripts/cache-health.mjs [--days N]` — per-session and per-day cache
-  hit ratios and cost for deepseek-v4-flash (reads the live opencode DB
-  read-only via the bundled `opencode db` CLI). Refuses with a notice when token
-  efficiency is disabled for the directory.
-
-## Toggle
-
-- The rules above apply only while `.agents/token-efficiency.json` resolves to
-  enabled for the directory being worked in — OFF by default everywhere; only
-  an explicit `{"enabled": true}` in that file enables the rules for the repo
-  or directory. This repo commits `{"enabled": false}`.
+  instructions, and evidence in files and re-read them rather than relying on
+  a long in-context transcript.
+- Append-only history: never rewrite earlier turns in a session.
 
 ## Parallel sessions (worktrees)
 

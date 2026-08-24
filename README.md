@@ -385,7 +385,7 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 │   └── tests/         # e2e + fixtures (requires Docker)
 ├── csm-upload/        # evidence upload to GitHub Pages
 │   └── scripts/       # upload.mjs
-├── tests/             # suite conformance: trust, package audit, protocol, offline, integration, resume semantics, cache health, token efficiency, worktree sessions, check-suite
+├── tests/             # suite conformance: trust, package audit, protocol, offline, integration, resume semantics, cache health, worktree sessions, check-suite
 ├── scripts/           # suite tooling
 │   ├── check-suite.mjs            # repo-wide conformance gate (frontmatter, sections, interfaces, corpora, README integrity, payload drift, lint)
 │   ├── check-plan-signals.mjs     # plan acceptance-signal lint
@@ -404,7 +404,6 @@ Beyond running in-place, the collection can be installed by any capable agent fr
 │       ├── contracts.mjs          # MANIFEST, CONTRACTS, INTERFACES, NEVER_INVOKE, FORMAT_VERSIONS, NORMS_PHRASES
 │       ├── boilerplate.mjs        # canonical tmux-bootstrap + resilience templates
 │       ├── plan-validation.mjs    # plan corpus validation rules
-│       └── token-efficiency.mjs   # cache/token-efficiency toggle parsing (OFF by default)
 ├── .agents/           # process artifacts: plans/, approaches/, reviews/, research/ (+ artifacts/), docs/ (indexed in .agents/README.md)
 ├── .lefthook.yml      # pre-commit gate definition (unstaged guard, gate baseline, check-suite, syntax, staged oxlint, browse check)
 ├── package.json       # root tooling manifest: lefthook + oxfmt + oxlint devDeps, packageManager pnpm@10.34.5
@@ -453,7 +452,7 @@ Direct commands (what the targets invoke):
   node scripts/pack-bootstrap.mjs
   ```
 
-- **Suite-tooling tests** — `node --test tests/check-suite.test.mjs tests/token-efficiency.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs`
+- **Suite-tooling tests** — `node --test tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs`
 - **csm-scan** — zero-dependency `node:test` suite, run from the skill directory:
 
   ```bash
@@ -478,8 +477,6 @@ Direct commands (what the targets invoke):
 - The orchestration skills (`csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review`, `csm-review-python`, `csm-deep-research`) are instruction/reference skills with no conventional unit suite; validate them through their documented state-machine gates and representative invocations.
 - **Parallel sessions (worktrees)** — one goal per worktree: from the main checkout run `node scripts/wt-session.mjs create <goal-slug>`. Creation now installs frozen root tooling, `csm-browse` tooling when present, and the forced custom-path Lefthook hook; use `--no-setup` only for a Git-only worktree. Run the session inside the worktree, then `merge` (rebase + ff-only to main) and `nuke` when done. Each worktree has its own index and staging area — sibling sessions cannot sweep, block, or red each other's commits or gates. The main checkout stays on `main` (it is the live skills dir); merge worktree branches serially and re-run the gate after merging. The only expected merge conflict is the `.agents/README.md` index line — resolve by keeping both lines.
 - **Commit style** — short imperative messages, frequently skill-prefixed (e.g. `csm-browse: ...`, `add csm-scan skill: ...`). The pre-commit hook demands a fully staged tree (unstaged-guard) — use pathspec commits for partial work or `--no-verify` to bypass.
-- **Cache & token hygiene** — the suite's sessions rely on model-provider automatic prefix caching. `AGENTS.md` at the repo root holds the working rules (stable-prefix discipline, fresh-session resume, compaction recall-first, append-only history); the full reference is `.agents/docs/cache-token-efficiency-2026-08-20.md`; measure real hit ratios and cost with `node scripts/cache-health.mjs [--days N]`. The layer is **OFF by default everywhere** — only an explicit `.agents/token-efficiency.json` `{"enabled": true}` turns the rules on for a repo or directory.
-
 ### Dependency policy
 
 Dependency updates are manual: review both manifests and both lockfiles quarterly, and before a Node or pnpm major upgrade. The lockfiles are authoritative and `make install` always uses frozen lockfiles; an isolated clean install with redirected `HOME`, `XDG_CONFIG_HOME`, and `TMPDIR` is the release check. Do not add Dependabot or Renovate configuration.

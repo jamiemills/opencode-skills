@@ -8,14 +8,9 @@
 // dependencies, no DB writes, no DB copies, no log parsing (logs are unusable
 // — A2/R1), no pricing tables (cost comes from the DB cost column — A5).
 //
-// Honors the per-repo/per-directory token-efficiency toggle (A9) BEFORE any DB
-// query: when disabled for the working directory it prints the notice and
-// exits 0 without touching the DB. The resolver is T001's
-// scripts/lib/token-efficiency.mjs (imported, never modified).
-//
 // Parsing and aggregation are PURE functions (parseSessionRows /
-// aggregateReport / renderReport) so hermetic tests run on TSV fixture strings
-// with no DB.
+// aggregateReport / renderReport) so hermetic tests run on TSV strings with no
+// DB.
 //
 // time_created is epoch milliseconds; `--days N` filters
 // `time_created >= now - N * 86400000`.
@@ -25,8 +20,6 @@ import path from "node:path";
 import process from "node:process";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-
-import { isEnabled } from "./lib/token-efficiency.mjs";
 
 const MODEL_FILTER = "%deepseek-v4-flash%";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -184,13 +177,6 @@ function main() {
   if (args.help) {
     console.log("usage: node scripts/cache-health.mjs [--days N]");
     console.log(`model scope: ${MODEL_FILTER.slice(1, -1)} (fixed filter)`);
-    process.exit(0);
-  }
-
-  const toggle = isEnabled(process.cwd());
-  if (toggle.warning !== null) console.error(`note: ${toggle.warning}`);
-  if (!toggle.enabled) {
-    console.log(`token efficiency disabled for this directory (${toggle.source})`);
     process.exit(0);
   }
 
