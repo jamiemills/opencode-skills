@@ -15,7 +15,7 @@ format: csm-plan/1
 - Current CSM state: BLOCKED
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-24T04:20:00Z — repairs verified; deterministic/stub implementation is green, but generated sandbox and live LLM gates remain blocked.
+- Last checkpoint: 2026-08-24T09:05:00Z — README composition guidance expanded and committed; deterministic/stub implementation remains green, generated sandbox/live LLM gates remain blocked.
 - Last model/run: gpt-5.6-luna / csm-build-autoresearch-evaluator-csm
 - Next transition: BLOCKED -> RECOVER
 - Active tasks: none
@@ -207,6 +207,7 @@ Independent plan critique required: resolve ownership, provider selection, packa
 | 2026-08-24T03:55:00Z | 0 | REPAIR | T002,T003,T005,T007,T009,T010 | Independent reviews found hidden-gate ordering, resume/ledger/schema/provenance defects, trusted-local cleanup risk, self-attested sandbox metadata, rollback/archive gaps, Makefile syntax, and missing manifest governance. | REPAIR |
 | 2026-08-24T04:20:00Z | 0 | BLOCKED | T004,T006,T010 | 49 autoresearch tests, serial Node 22 package/bootstrap tests, plan-resume tests, and 1023-check conformance pass. Generated provider remains unavailable without host-owned sandbox capability; live LLM remains blocked by open DEF-EVAL. | BLOCKED |
 | 2026-08-24T04:30:00Z | 0 | REVIEW complete | T010 | Independent final review found no critical/high issues in commit 2eb9d1d; deterministic/stub mode is complete, generated/live modes remain correctly blocked. | BLOCKED |
+| 2026-08-24T09:05:00Z | 0 | CHECKPOINT | T009,T010 | README now preserves existing sections and progressive disclosure while documenting autoresearch placement after csm-build and composition with csm-make-tests, csm-review, csm-scan, csm-ddd, and csm-deep-research; commit 9ceb097. | BLOCKED |
 
 ## Completion Review
 
