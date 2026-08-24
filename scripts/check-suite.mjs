@@ -32,6 +32,8 @@ import {
   validateOrdinalSequencing,
   validateTemplateFormatMarkers,
   validateInterfaceArtifactPatterns,
+  validatePlanApplicability,
+  validatePlanTaskCompleteness,
 } from "./lib/plan-validation.mjs";
 
 const args = process.argv.slice(2);
@@ -1146,6 +1148,22 @@ function main() {
       for (const msg of consistencyFailures) {
         check(false, `plan corpus .agents/plans/${f}: ${msg}`);
       }
+    }
+
+    const applicabilityFailures = validatePlanApplicability(content, root);
+    if (applicabilityFailures.length === 0) {
+      check(true, `plan corpus .agents/plans/${f} applicability OK`);
+    } else {
+      for (const msg of applicabilityFailures) {
+        check(false, `plan corpus .agents/plans/${f}: ${msg}`);
+      }
+    }
+
+    const taskFailures = validatePlanTaskCompleteness(content);
+    if (taskFailures.length === 0) {
+      check(true, `plan corpus .agents/plans/${f} task identity/acceptance completeness OK`);
+    } else {
+      for (const msg of taskFailures) check(false, `plan corpus .agents/plans/${f}: ${msg}`);
     }
 
     const deferred = checkDeferredCitations(f, content, deferredLedgerIds);

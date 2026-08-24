@@ -126,6 +126,8 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 3. Identify unresolved product decisions separately from technical uncertainties.
 4. Ask concise numbered questions only for decisions that cannot be established safely through discovery or R&D.
 5. Optional-input triage: if the brief explicitly references csm-ddd artifacts (report and/or graph under `.agents/ddd/`), load them as evidence — validate the graph with the shipped validator (`node csm-ddd/lib/ddd/validate.mjs graph <path>`), confirm report and graph share one runId, and treat every claim as a hypothesis (status/basis/confidence), never ground truth. Cite loaded seams/hypotheses in Current-State Evidence; let slice-ordering ranks inform task sequencing; and for plans whose tasks alter module or service boundaries, include parity-baseline and rollback-criteria tasks per the DDD research doctrine. Absent an explicit reference, do nothing.
+6. Make the applicability decision before selecting planning depth. Use risk-first signals, not size, LOC, or file count: `boundary_change`, `public_contract`, `ownership_or_persistence`, `invariant_or_consistency`, `external_side_effect`, `migration_or_rollback`, `cross_boundary_coordination`, `architecture_or_refactor`, and `security_or_authority`. An explicit DDD, architecture, or refactor request is `warranted`; any matched high-consequence signal is `warranted`; no signal is `lightweight`; task-level results containing both paths are `mixed`. Record the matched signal and evidence rather than relying on intuition.
+7. An explicit opt-in may make otherwise signal-free work `warranted`. A `lightweight-bypass` is valid only when no high-consequence signal matches and its rationale explains why an apparent signal is non-operative. For mixed scope, put warranted and lightweight task IDs in separate applicability lists and apply obligations only to the warranted slices. A lightweight decision records a cheap exemption and retains the existing quick path.
 
 ### 2. DISCOVER
 
@@ -137,6 +139,7 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
    - conflicts or ambiguities;
    - concrete, safe experiments or inspections that would resolve each item;
    - risk and impact if an item remains unresolved.
+4. Complete the risk-first applicability record from INTAKE against repository evidence. Persist the decision in the `### Applicability` block under Current-State Evidence. For `warranted` or `mixed` work, identify the affected boundary, owner, contract, invariant, observable behavior, seam, parity, rollback/recovery, and unresolved-risk obligations; mark each `required`, `satisfied`, `missing`, `not_applicable`, or `unverified`. Do not infer absence from a missing or capped DDD result, and do not silently invoke csm-ddd when artifacts were not explicitly referenced.
 
 ### 3. RESEARCH
 
@@ -159,6 +162,10 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 ### 4. DRAFT
 
 Draft the implementation plan using the required document format below. Make tasks atomic enough to validate and resume, but avoid meaningless micro-steps. Keep the design and task list as simple as the acceptance criteria allow: fewer moving parts, fewer tasks, no speculative structure. Explicitly model dependencies and parallel groups. Every task must name a runnable acceptance signal — the exact command or test whose pass objectively proves the task done — a risk classification, and explicit anti-scope. Where uncertainty could not be resolved during planning, annotate the task with a concrete spike question and safe isolation expectations; never let unresolved uncertainty ship silently as a plain pending task — resolve it, annotate it, or record it as a blocker.
+
+For `warranted` and `mixed` plans, map matched signals to obligation IDs in the Applicability record and reflect each obligation in numbered work and acceptance evidence. Maintain a DDD evidence register for every explicitly referenced artifact: relative path, format, run ID pairing, claim status/basis/confidence, seams, coverage gaps, parity baseline, rollback/recovery option, and observable-behavior constraints. DDD artifacts remain hypotheses; `context_hypothesis`, inferred, unverified, not-detected, or capped coverage cannot prove absence. For boundary changes, require a before/after parity baseline, rollback or forward-recovery criteria, and checks of observable behavior, including errors and side effects.
+
+Operationalize clean-code guidance as evidence, not a score. Name repository-configured mechanical checks when available, such as formatter/linter/type checks, diff-scoped complexity/coupling/duplication diagnostics, test wiring, artifact/schema synchronization, and existing repository gates. Report unavailable or unconfigured checks as such; do not invent universal thresholds. Keep heuristic review prompts separate and cited: responsibility/owner, dependency direction, side effects and error behavior, naming/domain language, cohesion, abstraction necessity, comment intent, test seam, invariant, and rollback rationale.
 
 The plan must define these states for a future, separately invoked `csm-build` session:
 
@@ -191,6 +198,10 @@ The primary agent must personally review the complete plan. Do not delegate this
 - assumptions and unresolved decisions are explicit;
 - a fresh agent can recover state and identify the exact next action after interruption;
 - completion requires observed evidence rather than task-status claims.
+- the Applicability block is exactly one valid `csm-applicability/1` JSON record, its decision matches the recorded signals and task slices, and `warranted`/`mixed` work has no missing required obligation;
+- explicit opt-in, lightweight bypass, and mixed-scope rules are applied without using LOC or file count, and legacy plans without the block remain accepted;
+- every explicitly referenced DDD artifact has a registered relative path, validated format/run-ID relationship, hypothesis status/basis/confidence, and disclosed coverage gaps; no `not_detected`, inferred, unverified, or capped result is treated as proof of absence;
+- boundary changes include cited parity-baseline, rollback or forward-recovery, and observable-behavior evidence, while configured mechanical checks are distinguished from heuristic clean-code prompts and no subjective score or universal threshold is used.
 
 Address every issue found. Cycle back as needed; do not approve a plan merely because the requested review stages ran.
 
@@ -206,7 +217,7 @@ In the final response, scale the display to the ask: small/quick runs finish wit
 
 Use this structure:
 
-```markdown
+````markdown
 format: csm-plan/1
 
 # <Goal> CSM Plan
@@ -242,6 +253,35 @@ format: csm-plan/1
 ## Current-State Evidence
 
 - <observation with file:line, command result, schema, or source>
+
+### Applicability
+
+New plans must include exactly one fenced JSON applicability record here. Legacy plans without this subsection remain valid and retain the existing lightweight behavior. The record is evidence of the planning decision, not a claim that DDD inference is ground truth.
+
+```json csm-applicability/1
+{
+  "format": "csm-applicability/1",
+  "decision": "lightweight",
+  "mode": "risk-first",
+  "matchedSignals": [],
+  "evidence": [
+    {
+      "source": "brief",
+      "locator": "request",
+      "observation": "No high-consequence signal detected"
+    }
+  ],
+  "obligations": [],
+  "taskApplicability": { "warranted": [], "lightweight": [] },
+  "dddArtifacts": [],
+  "unresolvedRisks": [],
+  "bypass": { "requested": false, "rationale": null }
+}
+```
+
+Use only the enumerated signals from INTAKE. Precedence is deterministic: mixed task slices take precedence and yield `mixed`; otherwise explicit opt-in or an explicit DDD/architecture/refactor request, then any high-consequence signal, yields `warranted`; no signal yields `lightweight`; a valid `lightweight-bypass` remains lightweight. Never use LOC or file count as a signal. A bypass must have a rationale and no matched high-consequence signal. A malformed or duplicate block is invalid; an absent block is the legacy compatibility path.
+
+When `dddArtifacts` is non-empty, each item is an object with relative `report` and `graph` paths plus `runId`, `reportRunId`, and `graphRunId`; all IDs must match. The graph must be machine-valid and the Markdown report must expose the `csm-ddd-report/1` frontmatter envelope, coverage limitations, and matching IDs. Claims retain status, basis, and confidence; missing or capped evidence creates an obligation or uncertainty, never a synthesized seam.
 
 ## Assumptions And Decisions
 
@@ -303,6 +343,6 @@ format: csm-plan/1
 ## Completion Review
 
 <filled by csm-build when all criteria are verified>
-```
+````
 
 Use stable task IDs even if numbering changes. Status values are `pending`, `in_progress`, `completed`, or `blocked`, but every implementation task must be `pending` in a newly created plan. Keep enough evidence in the document for another agent to resume without relying on chat history. `Repair attempts` starts at 0; csm-build increments it and maintains Control, Discovered Requirements, Progress Journal, and Completion Review during execution.

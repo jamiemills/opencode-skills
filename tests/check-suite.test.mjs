@@ -171,6 +171,188 @@ test("corpus family (plan): a marker-less plan exits 1 with the format-marker me
   }
 });
 
+function withApplicability(content, json) {
+  const marker = "## Current-State Evidence\n";
+  assert.ok(content.includes(marker), "fixture: plan has Current-State Evidence");
+  return content.replace(marker, `${marker}\n### Applicability\n\n${json}\n`);
+}
+
+const APPLICABILITY_FIXTURE = ".agents/plans/2026-08-23-csm-plan-build-ddd-intake-csm.md";
+
+test("applicability family: malformed, unknown-key, contradictory, and missing-obligation blocks fail", () => {
+  const cases = [
+    {
+      name: "malformed",
+      block: "```json csm-applicability/1\n{\n```",
+      message: /Applicability JSON is malformed/,
+    },
+    {
+      name: "unknown-key",
+      block: `
+\`\`\`json csm-applicability/1
+${JSON.stringify(
+  {
+    format: "csm-applicability/1",
+    decision: "lightweight",
+    mode: "risk-first",
+    matchedSignals: [],
+    evidence: [],
+    obligations: [],
+    taskApplicability: { warranted: [], lightweight: [] },
+    dddArtifacts: [],
+    unresolvedRisks: [],
+    bypass: { requested: false, rationale: null },
+    unexpected: true,
+  },
+  null,
+  2,
+)}
+\`\`\``.trim(),
+      message: /Applicability has unknown key "unexpected"/,
+    },
+    {
+      name: "contradictory",
+      block: `
+\`\`\`json csm-applicability/1
+${JSON.stringify(
+  {
+    format: "csm-applicability/1",
+    decision: "lightweight",
+    mode: "lightweight-bypass",
+    matchedSignals: ["boundary_change"],
+    evidence: [],
+    obligations: [],
+    taskApplicability: { warranted: [], lightweight: [] },
+    dddArtifacts: [],
+    unresolvedRisks: [],
+    bypass: { requested: true, rationale: "The boundary signal is not operative for this plan." },
+  },
+  null,
+  2,
+)}
+\`\`\``.trim(),
+      message: /lightweight bypass is not allowed with a matched high-consequence signal/,
+    },
+    {
+      name: "missing-obligation",
+      block: `
+\`\`\`json csm-applicability/1
+${JSON.stringify(
+  {
+    format: "csm-applicability/1",
+    decision: "warranted",
+    mode: "risk-first",
+    matchedSignals: ["public_contract"],
+    evidence: [],
+    obligations: [],
+    taskApplicability: { warranted: ["T1"], lightweight: [] },
+    dddArtifacts: [],
+    unresolvedRisks: [],
+    bypass: { requested: false, rationale: null },
+  },
+  null,
+  2,
+)}
+\`\`\``.trim(),
+      message: /Applicability is warranted but required obligation "contract" is missing/,
+    },
+  ];
+
+  for (const { name, block, message } of cases) {
+    const dir = clonePristine();
+    try {
+      const fixtureDir = path.join(dir, "tests", "fixtures", "ddd-consumer");
+      fs.mkdirSync(fixtureDir, { recursive: true });
+      for (const fixtureName of ["matching-report.md", "matching-graph.json"]) {
+        fs.copyFileSync(
+          path.join(REPO, "tests", "fixtures", "ddd-consumer", fixtureName),
+          path.join(fixtureDir, fixtureName),
+        );
+      }
+      const content = read(dir, APPLICABILITY_FIXTURE);
+      write(dir, ".agents/plans/zz-applicability-csm.md", withApplicability(content, block));
+      assertGateFails(dir, message, `applicability-${name}`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("applicability family: a valid lightweight bypass passes the corpus gate", () => {
+  const dir = clonePristine();
+  try {
+    const content = read(dir, APPLICABILITY_FIXTURE);
+    const block = `
+\`\`\`json csm-applicability/1
+${JSON.stringify(
+  {
+    format: "csm-applicability/1",
+    decision: "lightweight",
+    mode: "lightweight-bypass",
+    matchedSignals: [],
+    evidence: [{ source: "plan", locator: "Goal", observation: "Documentation-only scope." }],
+    obligations: [],
+    taskApplicability: { warranted: [], lightweight: ["T001"] },
+    dddArtifacts: [],
+    unresolvedRisks: [],
+    bypass: {
+      requested: true,
+      rationale: "Documentation-only scope has no behavioral boundary to validate.",
+    },
+  },
+  null,
+  2,
+)}
+\`\`\``.trim();
+    write(dir, ".agents/plans/zz-lightweight-bypass-csm.md", withApplicability(content, block));
+    const run = runGate(dir);
+    assert.equal(run.status, 0, combined(run));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("applicability family: check-suite resolves object DDD references from repository root", () => {
+  const dir = clonePristine();
+  try {
+    const fixtureDir = path.join(dir, "tests", "fixtures", "ddd-consumer");
+    fs.mkdirSync(fixtureDir, { recursive: true });
+    for (const name of ["matching-report.md", "matching-graph.json"]) {
+      fs.copyFileSync(
+        path.join(REPO, "tests", "fixtures", "ddd-consumer", name),
+        path.join(fixtureDir, name),
+      );
+    }
+    const content = read(dir, APPLICABILITY_FIXTURE);
+    const value = {
+      format: "csm-applicability/1",
+      decision: "lightweight",
+      mode: "risk-first",
+      matchedSignals: [],
+      evidence: [],
+      obligations: [],
+      taskApplicability: { warranted: [], lightweight: [] },
+      dddArtifacts: [
+        {
+          report: "tests/fixtures/ddd-consumer/matching-report.md",
+          graph: "tests/fixtures/ddd-consumer/matching-graph.json",
+          runId: "run-consumer-fixed",
+          reportRunId: "run-consumer-fixed",
+          graphRunId: "run-consumer-fixed",
+        },
+      ],
+      unresolvedRisks: [],
+      bypass: { requested: false, rationale: null },
+    };
+    const block = `\`\`\`json csm-applicability/1\n${JSON.stringify(value, null, 2)}\n\`\`\``;
+    write(dir, ".agents/plans/zz-ddd-reference-csm.md", withApplicability(content, block));
+    const run = runGate(dir);
+    assert.equal(run.status, 0, combined(run));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("corpus family (review): a marker-less review exits 1 with the format-marker message", () => {
   const dir = clonePristine();
   try {

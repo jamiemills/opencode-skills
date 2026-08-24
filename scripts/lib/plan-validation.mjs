@@ -1,5 +1,9 @@
 "use strict";
 
+import fs from "node:fs";
+import path from "node:path";
+import { validateSchema } from "../../csm-ddd/lib/ddd/validate.mjs";
+
 // Plan/suite validation checks extracted into an importable module (T006).
 //
 // Pure functions over parsed text so the behavioral test suite (T007) can
@@ -465,6 +469,604 @@ export function validateJournalControlConsistency(content) {
         `Active plan (Status ${control.status}) but the last journal row Next-state is "${last.next}" (PAUSED requires Status paused)`,
       );
     }
+  }
+  return failures;
+}
+
+// ---------------------------------------------------------------------------
+// Applicability contract (T001)
+// ---------------------------------------------------------------------------
+
+export const APPLICABILITY_SIGNALS = [
+  "boundary_change",
+  "public_contract",
+  "ownership_or_persistence",
+  "invariant_or_consistency",
+  "external_side_effect",
+  "migration_or_rollback",
+  "cross_boundary_coordination",
+  "architecture_or_refactor",
+  "security_or_authority",
+];
+
+export const APPLICABILITY_DECISIONS = ["lightweight", "warranted", "mixed"];
+export const APPLICABILITY_MODES = ["risk-first", "explicit-opt-in", "lightweight-bypass"];
+export const OBLIGATION_STATUSES = [
+  "required",
+  "satisfied",
+  "missing",
+  "not_applicable",
+  "unverified",
+];
+export const OBLIGATION_IDS = [
+  "boundary",
+  "ownership",
+  "contract",
+  "invariant",
+  "observable_behavior",
+  "seam",
+  "parity",
+  "rollback_recovery",
+  "unresolved_risks",
+];
+
+const APPLICABILITY_KEYS = [
+  "format",
+  "decision",
+  "mode",
+  "matchedSignals",
+  "evidence",
+  "obligations",
+  "taskApplicability",
+  "dddArtifacts",
+  "unresolvedRisks",
+  "bypass",
+  "reclassificationHistory",
+];
+
+const SIGNAL_OBLIGATIONS = {
+  boundary_change: ["boundary", "observable_behavior", "seam"],
+  public_contract: ["contract", "parity", "observable_behavior"],
+  ownership_or_persistence: ["ownership", "invariant", "rollback_recovery"],
+  invariant_or_consistency: ["invariant", "observable_behavior"],
+  external_side_effect: ["boundary", "observable_behavior", "rollback_recovery"],
+  migration_or_rollback: ["parity", "rollback_recovery", "unresolved_risks"],
+  cross_boundary_coordination: ["boundary", "ownership", "seam"],
+  architecture_or_refactor: ["boundary", "ownership", "seam", "unresolved_risks"],
+  security_or_authority: ["boundary", "contract", "unresolved_risks"],
+};
+
+function applicabilitySubsection(content) {
+  const lines = splitLines(content);
+  const inFence = fenceMap(lines);
+  const current = sectionRange(lines, inFence, "Current-State Evidence");
+  if (!current) return null;
+  const starts = [];
+  for (let i = current[0] + 1; i < current[1]; i += 1) {
+    if (!inFence[i] && lines[i].trim() === "### Applicability") {
+      starts.push(i);
+    }
+  }
+  if (starts.length === 0) return null;
+  const start = starts[0];
+  let end = current[1];
+  for (let i = start + 1; i < current[1]; i += 1) {
+    if (!inFence[i] && /^###\s/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  return { lines, inFence, start, end, duplicateHeadings: starts.length - 1 };
+}
+
+function applicabilityFences(lines, inFence, start, end) {
+  const blocks = [];
+  for (let i = start + 1; i < end; i += 1) {
+    if (!inFence[i]) continue;
+    const open = lines[i].match(FENCE_OPEN_RE);
+    if (!open) continue;
+    const body = [];
+    let closed = false;
+    for (let j = i + 1; j < end; j += 1) {
+      const close = lines[j].match(FENCE_OPEN_RE);
+      if (
+        close &&
+        close[1][0] === open[1][0] &&
+        close[1].length >= open[1].length &&
+        close[2].trim() === ""
+      ) {
+        blocks.push({ opener: open[2].trim(), body, line: i + 1, closed: true });
+        closed = true;
+        i = j;
+        break;
+      }
+      body.push(lines[j]);
+    }
+    if (!closed) blocks.push({ opener: open[2].trim(), body, line: i + 1, closed: false });
+  }
+  return blocks;
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function nonEmptyString(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function safeRelativePath(value) {
+  if (!nonEmptyString(value) || path.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value))
+    return false;
+  const parts = value.replaceAll("\\", "/").split("/");
+  return parts.length > 0 && !parts.some((part) => part === ".." || part === "");
+}
+
+function reportFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return null;
+  const fields = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const field = line.match(/^([A-Za-z][A-Za-z0-9]*):\s*(.*?)\s*$/);
+    if (field) fields[field[1]] = field[2];
+  }
+  return fields;
+}
+
+function validateDddArtifact(ref, root, index) {
+  const failures = [];
+  if (!isObject(ref)) return [`Applicability dddArtifacts[${index}] must be a report/graph object`];
+  const keys = Object.keys(ref);
+  const allowed = ["report", "graph", "runId", "reportRunId", "graphRunId"];
+  if (keys.some((key) => !allowed.includes(key))) {
+    failures.push(`Applicability dddArtifacts[${index}] has unknown metadata`);
+    return failures;
+  }
+  if (
+    !safeRelativePath(ref.report) ||
+    !safeRelativePath(ref.graph) ||
+    ![ref.runId, ref.reportRunId, ref.graphRunId].every(nonEmptyString)
+  ) {
+    failures.push(
+      `Applicability dddArtifacts[${index}] requires relative report/graph paths and run IDs`,
+    );
+    return failures;
+  }
+  if (ref.runId !== ref.reportRunId || ref.runId !== ref.graphRunId)
+    failures.push(`Applicability dddArtifacts[${index}] run IDs must match`);
+  const reportPath = path.resolve(root, ref.report);
+  const graphPath = path.resolve(root, ref.graph);
+  let report;
+  let graph;
+  try {
+    report = fs.readFileSync(reportPath, "utf8");
+  } catch {
+    failures.push(`Applicability DDD report is missing: ${ref.report}`);
+  }
+  try {
+    graph = JSON.parse(fs.readFileSync(graphPath, "utf8"));
+  } catch {
+    failures.push(`Applicability DDD graph is missing or malformed: ${ref.graph}`);
+  }
+  if (!report || !isObject(graph)) return failures;
+  const frontmatter = reportFrontmatter(report);
+  if (!frontmatter)
+    failures.push(`Applicability DDD report has missing or malformed metadata: ${ref.report}`);
+  else {
+    if (frontmatter.format !== "csm-ddd-report/1")
+      failures.push("Applicability DDD report format must be csm-ddd-report/1");
+    if (
+      !nonEmptyString(frontmatter.runId) ||
+      !nonEmptyString(frontmatter.graphRunId) ||
+      !nonEmptyString(frontmatter.generatedAt)
+    )
+      failures.push(
+        "Applicability DDD report metadata requires runId, graphRunId, and generatedAt",
+      );
+    if (frontmatter.runId !== frontmatter.graphRunId)
+      failures.push("Applicability DDD report runId and graphRunId must match");
+    if (!/coverage|unverified|not_detected|capped/i.test(report))
+      failures.push("Applicability DDD report must disclose coverage metadata");
+  }
+  if (
+    graph.format !== "csm-ddd-graph/1" ||
+    !nonEmptyString(graph.runId) ||
+    !nonEmptyString(graph.generatedAt)
+  )
+    failures.push("Applicability DDD graph metadata requires format, runId, and generatedAt");
+  if (nonEmptyString(ref.runId) && frontmatter?.runId && ref.runId !== frontmatter.runId)
+    failures.push("Applicability reference runId must match the report runId");
+  if (nonEmptyString(ref.runId) && graph.runId && ref.runId !== graph.runId)
+    failures.push("Applicability reference runId must match the graph runId");
+  try {
+    const schema = JSON.parse(
+      fs.readFileSync(path.resolve(root, "csm-ddd/schemas/ddd-graph.schema.json"), "utf8"),
+    );
+    const schemaResult = validateSchema(graph, schema);
+    if (!schemaResult.ok)
+      failures.push(
+        `Applicability DDD graph schema invalid: ${schemaResult.errors.slice(0, 3).join("; ")}`,
+      );
+  } catch (error) {
+    failures.push(`Applicability DDD graph schema unavailable: ${error.message}`);
+  }
+  if (frontmatter?.graphRunId && graph.runId && frontmatter.graphRunId !== graph.runId)
+    failures.push("Applicability DDD report and graph run IDs must match");
+  for (const [claimIndex, claim] of (Array.isArray(graph.claims) ? graph.claims : []).entries()) {
+    if (
+      !isObject(claim) ||
+      !nonEmptyString(claim.status) ||
+      !nonEmptyString(claim.basis) ||
+      !nonEmptyString(claim.confidence)
+    ) {
+      failures.push(
+        `Applicability DDD graph claim[${claimIndex}] lacks status, basis, or confidence metadata`,
+      );
+    } else if (
+      ![
+        "observed",
+        "inferred",
+        "not_detected",
+        "unsupported",
+        "unverified",
+        "not_applicable",
+      ].includes(claim.status) ||
+      !["static_analysis", "git_history", "norms_md", "user_provided"].includes(claim.basis) ||
+      !["low", "medium", "high"].includes(claim.confidence)
+    ) {
+      failures.push(
+        `Applicability DDD graph claim[${claimIndex}] has malformed status, basis, or confidence metadata`,
+      );
+    }
+  }
+  if (
+    !["nodes", "edges", "claims", "evidence", "questions", "answers"].every((key) =>
+      Array.isArray(graph[key]),
+    )
+  ) {
+    failures.push("Applicability DDD graph is missing array coverage metadata");
+  }
+  return failures;
+}
+
+function requiredObligationIds(signals) {
+  return [...new Set(signals.flatMap((signal) => SIGNAL_OBLIGATIONS[signal] || []))];
+}
+
+/** Parse the optional applicability block. `present: false` is legacy behavior. */
+export function parsePlanApplicability(content) {
+  const subsection = applicabilitySubsection(content);
+  if (!subsection) return { present: false, value: null, failures: [] };
+  const blocks = applicabilityFences(
+    subsection.lines,
+    subsection.inFence,
+    subsection.start,
+    subsection.end,
+  );
+  const failures = [];
+  if (subsection.duplicateHeadings > 0) {
+    failures.push(
+      `Applicability heading must be unique (found ${subsection.duplicateHeadings + 1})`,
+    );
+  }
+  if (blocks.length !== 1) {
+    failures.push(
+      `Applicability must contain exactly one fenced JSON block (found ${blocks.length})`,
+    );
+    return { present: true, value: null, failures };
+  }
+  const block = blocks[0];
+  if (
+    !/^json(?:\s+csm-applicability\/1)?$/.test(block.opener) &&
+    block.opener !== "csm-applicability/1"
+  ) {
+    failures.push(`Applicability fence ${block.line} must be a JSON csm-applicability/1 fence`);
+  }
+  if (!block.closed) failures.push(`Applicability fence ${block.line} is not closed`);
+  let value = null;
+  try {
+    value = JSON.parse(block.body.join("\n"));
+  } catch (error) {
+    failures.push(`Applicability JSON is malformed: ${error.message}`);
+  }
+  return { present: true, value, failures };
+}
+
+/** Validate the optional block, returning failure strings like the existing checks. */
+export function validatePlanApplicability(content, root = process.cwd()) {
+  const parsed = parsePlanApplicability(content);
+  if (!parsed.present) return [];
+  const failures = [...parsed.failures];
+  const value = parsed.value;
+  if (!isObject(value)) return [...failures, "Applicability JSON must be an object"];
+
+  for (const key of Object.keys(value)) {
+    if (!APPLICABILITY_KEYS.includes(key)) failures.push(`Applicability has unknown key "${key}"`);
+  }
+  for (const key of APPLICABILITY_KEYS.slice(0, 10)) {
+    if (!(key in value)) failures.push(`Applicability lacks required key "${key}"`);
+  }
+  if (value.format !== "csm-applicability/1")
+    failures.push('Applicability format must be "csm-applicability/1"');
+  if (!APPLICABILITY_DECISIONS.includes(value.decision))
+    failures.push(`Applicability decision "${value.decision}" is invalid`);
+  if (!APPLICABILITY_MODES.includes(value.mode))
+    failures.push(`Applicability mode "${value.mode}" is invalid`);
+  if (!Array.isArray(value.matchedSignals))
+    failures.push("Applicability matchedSignals must be an array");
+  else {
+    const seen = new Set();
+    for (const signal of value.matchedSignals) {
+      if (!APPLICABILITY_SIGNALS.includes(signal))
+        failures.push(`Applicability signal "${signal}" is invalid`);
+      if (seen.has(signal)) failures.push(`Applicability signal "${signal}" is duplicated`);
+      seen.add(signal);
+    }
+  }
+  if (!Array.isArray(value.evidence)) failures.push("Applicability evidence must be an array");
+  else
+    for (const [index, item] of value.evidence.entries()) {
+      if (
+        !isObject(item) ||
+        Object.keys(item).some((key) => !["source", "locator", "observation"].includes(key))
+      ) {
+        failures.push(`Applicability evidence[${index}] has an invalid shape`);
+      } else if (
+        !["brief", "plan", "repository", "ddd"].includes(item.source) ||
+        !nonEmptyString(item.locator) ||
+        !nonEmptyString(item.observation)
+      ) {
+        failures.push(
+          `Applicability evidence[${index}] has an invalid source, locator, or observation`,
+        );
+      }
+    }
+  if (!Array.isArray(value.obligations))
+    failures.push("Applicability obligations must be an array");
+  else {
+    const seen = new Set();
+    for (const [index, item] of value.obligations.entries()) {
+      if (!isObject(item) || Object.keys(item).some((key) => !["id", "status"].includes(key))) {
+        failures.push(`Applicability obligation[${index}] has an invalid shape`);
+        continue;
+      }
+      if (!OBLIGATION_IDS.includes(item.id))
+        failures.push(`Applicability obligation ID "${item.id}" is unknown`);
+      if (seen.has(item.id))
+        failures.push(`Applicability obligation ID "${item.id}" is duplicated`);
+      seen.add(item.id);
+      if (!OBLIGATION_STATUSES.includes(item.status))
+        failures.push(`Applicability obligation status "${item.status}" is invalid`);
+    }
+  }
+  if (
+    !isObject(value.taskApplicability) ||
+    Object.keys(value.taskApplicability).some((key) => !["warranted", "lightweight"].includes(key))
+  ) {
+    failures.push(
+      "Applicability taskApplicability must contain only warranted and lightweight arrays",
+    );
+  } else if (
+    !Array.isArray(value.taskApplicability.warranted) ||
+    !Array.isArray(value.taskApplicability.lightweight) ||
+    [...value.taskApplicability.warranted, ...value.taskApplicability.lightweight].some(
+      (task) => !nonEmptyString(task),
+    )
+  ) {
+    failures.push("Applicability taskApplicability values must be arrays of non-empty task IDs");
+  } else {
+    const warranted = value.taskApplicability.warranted;
+    const lightweight = value.taskApplicability.lightweight;
+    const seen = new Set();
+    for (const task of [...warranted, ...lightweight]) {
+      if (seen.has(task))
+        failures.push(`Applicability task ID "${task}" is duplicated or overlaps scopes`);
+      seen.add(task);
+    }
+  }
+  if (!Array.isArray(value.dddArtifacts))
+    failures.push("Applicability dddArtifacts must be an array");
+  else
+    value.dddArtifacts.forEach((ref, index) =>
+      failures.push(...validateDddArtifact(ref, root, index)),
+    );
+  if (
+    !Array.isArray(value.unresolvedRisks) ||
+    value.unresolvedRisks.some((risk) => !nonEmptyString(risk))
+  )
+    failures.push("Applicability unresolvedRisks must be an array of non-empty strings");
+  if (
+    !isObject(value.bypass) ||
+    Object.keys(value.bypass).some((key) => !["requested", "rationale"].includes(key)) ||
+    typeof value.bypass.requested !== "boolean" ||
+    (value.bypass.rationale !== null && !nonEmptyString(value.bypass.rationale))
+  ) {
+    failures.push("Applicability bypass has an invalid shape");
+  }
+  if (
+    value.reclassificationHistory !== undefined &&
+    (!Array.isArray(value.reclassificationHistory) ||
+      value.reclassificationHistory.some(
+        (entry) =>
+          !isObject(entry) ||
+          Object.keys(entry).some((key) => !["from", "to", "reason"].includes(key)) ||
+          !APPLICABILITY_DECISIONS.includes(entry.from) ||
+          !APPLICABILITY_DECISIONS.includes(entry.to) ||
+          !nonEmptyString(entry.reason),
+      ))
+  ) {
+    failures.push("Applicability reclassificationHistory has an invalid shape");
+  }
+
+  if (Array.isArray(value.matchedSignals) && isObject(value.bypass) && value.bypass.requested) {
+    if (value.matchedSignals.length > 0)
+      failures.push("lightweight bypass is not allowed with a matched high-consequence signal");
+    if (!nonEmptyString(value.bypass.rationale))
+      failures.push("lightweight bypass requires a rationale");
+    if (value.mode !== "lightweight-bypass" || value.decision !== "lightweight")
+      failures.push("lightweight bypass must use lightweight-bypass/lightweight");
+  }
+  if (isObject(value.bypass) && !value.bypass.requested && value.bypass.rationale !== null)
+    failures.push("a non-requested bypass must have a null rationale");
+  if (value.mode === "explicit-opt-in" && value.decision !== "warranted")
+    failures.push("explicit-opt-in mode must produce a warranted decision");
+  if (value.mode === "lightweight-bypass" && value.decision !== "lightweight")
+    failures.push("lightweight-bypass mode must produce a lightweight decision");
+  if (
+    value.mode === "lightweight-bypass" &&
+    (!value.bypass?.requested || !nonEmptyString(value.bypass?.rationale))
+  )
+    failures.push("lightweight-bypass mode requires a requested bypass and rationale");
+  if (value.decision === "mixed" && value.mode !== "risk-first")
+    failures.push("mixed applicability must use risk-first mode");
+  const hasSignals = Array.isArray(value.matchedSignals) && value.matchedSignals.length > 0;
+  const hasWarrantedTasks =
+    isObject(value.taskApplicability) &&
+    Array.isArray(value.taskApplicability.warranted) &&
+    value.taskApplicability.warranted.length > 0;
+  const hasLightweightTasks =
+    isObject(value.taskApplicability) &&
+    Array.isArray(value.taskApplicability.lightweight) &&
+    value.taskApplicability.lightweight.length > 0;
+  const hasMixedTasks = hasWarrantedTasks && hasLightweightTasks;
+  if (hasMixedTasks && value.decision !== "mixed")
+    failures.push("mixed task applicability must use a mixed decision");
+  if (hasSignals && value.decision === "lightweight")
+    failures.push("matched signals cannot produce a lightweight decision");
+  if (hasWarrantedTasks && value.decision === "lightweight")
+    failures.push("warranted tasks cannot produce a lightweight decision");
+  if (
+    value.decision === "warranted" &&
+    !hasSignals &&
+    !hasWarrantedTasks &&
+    value.mode !== "explicit-opt-in"
+  )
+    failures.push("warranted applicability requires a signal, warranted task, or explicit opt-in");
+  if (value.mode === "explicit-opt-in" && hasSignals)
+    failures.push("explicit-opt-in cannot include matched signals");
+  if (value.mode === "explicit-opt-in" && hasMixedTasks)
+    failures.push("explicit-opt-in cannot contain mixed task applicability");
+  if (value.mode === "lightweight-bypass" && (hasWarrantedTasks || hasSignals))
+    failures.push("lightweight-bypass cannot contain warranted scope");
+  if (
+    !hasMixedTasks &&
+    hasWarrantedTasks &&
+    hasLightweightTasks === false &&
+    value.decision !== "warranted"
+  )
+    failures.push("warranted task scope requires a warranted decision");
+  if (
+    !hasMixedTasks &&
+    hasLightweightTasks &&
+    !hasWarrantedTasks &&
+    (hasSignals || value.mode === "explicit-opt-in") &&
+    value.decision !== "mixed"
+  )
+    failures.push("lightweight task scope contradicts warranted signals or opt-in");
+  if (
+    Array.isArray(value.obligations) &&
+    Array.isArray(value.matchedSignals) &&
+    ["warranted", "mixed"].includes(value.decision)
+  ) {
+    const present = new Map(value.obligations.map((item) => [item.id, item.status]));
+    for (const id of requiredObligationIds(value.matchedSignals)) {
+      if (!present.has(id) || present.get(id) === "missing")
+        failures.push(
+          `Applicability is ${value.decision} but required obligation "${id}" is missing`,
+        );
+    }
+  }
+  if (
+    value.decision === "mixed" &&
+    isObject(value.taskApplicability) &&
+    (!value.taskApplicability.warranted?.length || !value.taskApplicability.lightweight?.length)
+  )
+    failures.push("mixed applicability requires both warranted and lightweight tasks");
+  if (isObject(value.taskApplicability)) {
+    const taskIds = new Set();
+    const lines = splitLines(content);
+    const inFence = fenceMap(lines);
+    const range = sectionRange(lines, inFence, "Numbered Plan");
+    if (range) {
+      for (let i = range[0] + 1; i < range[1]; i += 1) {
+        if (!inFence[i]) {
+          const match = lines[i].match(/^\s*-\s*Task ID:\s*(T\d{3})\s*$/);
+          if (match) taskIds.add(match[1]);
+        }
+      }
+    }
+    for (const task of [
+      ...(value.taskApplicability.warranted ?? []),
+      ...(value.taskApplicability.lightweight ?? []),
+    ]) {
+      if (!/^T\d{3}$/.test(task) || (taskIds.size > 0 && !taskIds.has(task)))
+        failures.push(`Applicability task ID "${task}" does not resolve to a numbered task`);
+    }
+  }
+  return failures;
+}
+
+/** Deterministically classify supplied signal/task evidence without scoring. */
+export function classifyApplicability({
+  matchedSignals = [],
+  explicitOptIn = false,
+  bypassRequested = false,
+  bypassRationale = "",
+  taskApplicability = null,
+} = {}) {
+  const signals = [
+    ...new Set(matchedSignals.filter((signal) => APPLICABILITY_SIGNALS.includes(signal))),
+  ];
+  if (
+    taskApplicability &&
+    taskApplicability.warranted?.length &&
+    taskApplicability.lightweight?.length
+  )
+    return { decision: "mixed", mode: "risk-first", matchedSignals: signals };
+  if (taskApplicability?.warranted?.length)
+    return {
+      decision: "warranted",
+      mode: explicitOptIn && signals.length === 0 ? "explicit-opt-in" : "risk-first",
+      matchedSignals: signals,
+    };
+  if (taskApplicability?.lightweight?.length)
+    return { decision: "lightweight", mode: "risk-first", matchedSignals: signals };
+  if (signals.length > 0 || explicitOptIn)
+    return {
+      decision: "warranted",
+      mode: explicitOptIn && signals.length === 0 ? "explicit-opt-in" : "risk-first",
+      matchedSignals: signals,
+    };
+  if (bypassRequested && nonEmptyString(bypassRationale))
+    return { decision: "lightweight", mode: "lightweight-bypass", matchedSignals: signals };
+  return { decision: "lightweight", mode: "risk-first", matchedSignals: signals };
+}
+
+/** New plans must give every numbered task a stable identity and executable acceptance signal. */
+export function validatePlanTaskCompleteness(content) {
+  if (!parsePlanApplicability(content).present) return [];
+  const lines = splitLines(content);
+  const inFence = fenceMap(lines);
+  const range = sectionRange(lines, inFence, "Numbered Plan");
+  if (!range) return ['new plan lacks "## Numbered Plan" section'];
+  const starts = [];
+  for (let i = range[0] + 1; i < range[1]; i += 1)
+    if (!inFence[i] && /^\d+\.\s+/.test(lines[i])) starts.push(i);
+  if (starts.length === 0) return ["new plan has no numbered tasks"];
+  const failures = [];
+  const ids = new Set();
+  for (const [index, start] of starts.entries()) {
+    const end = starts[index + 1] ?? range[1];
+    const body = lines.slice(start, end).join("\n");
+    const taskIds = [...body.matchAll(/^\s*-\s*Task ID:\s*(\S+)\s*$/gm)].map((match) => match[1]);
+    if (taskIds.length !== 1)
+      failures.push(`numbered task ${index + 1} must contain exactly one Task ID`);
+    else if (!/^T\d{3}$/.test(taskIds[0]))
+      failures.push(`task ${taskIds[0]} has invalid identity (want T###)`);
+    else if (ids.has(taskIds[0])) failures.push(`task ID ${taskIds[0]} is duplicated`);
+    else ids.add(taskIds[0]);
+    if (!/^\s*-\s*Acceptance signal:\s*\S.+$/m.test(body))
+      failures.push(`numbered task ${index + 1} lacks a non-empty Acceptance signal`);
   }
   return failures;
 }

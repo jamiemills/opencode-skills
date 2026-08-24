@@ -37,6 +37,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-22-csm-make-tests-skill-build-csm.md` — 2026-08-22 — build the csm-make-tests skill — status: complete
 - `2026-08-22-csm-python-doctrine-review-skill-build-csm.md` — 2026-08-22 — build the csm-review-python skill — status: complete
 - `2026-08-23-fix-high-medium-findings-csm.md` — 2026-08-23 — fix all high and medium findings from the 2026-08-23 review (22 tasks) — status: in_progress
+- `2026-08-24-ddd-clean-code-csm-gates-csm.md` — 2026-08-24 — conditionally apply DDD and clean-code design gates in csm-plan/csm-build — status: complete
 
 ## docs/
 
