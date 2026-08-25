@@ -1,0 +1,25 @@
+{
+  "producer": "csm-deep-research",
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactKind": "research-finding",
+  "authority": "json",
+  "legacyMarkdown": "projection-or-history-only",
+  "canonicalPath": ".agents/research/<date>-<slug>-<run-id>-research.json",
+  "legacyPath": ".agents/research/<date>-<slug>-research.md",
+  "legacyStatus": "history-only",
+  "projectionProfile": "csm-research-human/1",
+  "fixedSections": [
+    "tldr",
+    "executiveSummary",
+    "keyFindings",
+    "detailSections",
+    "recommendation",
+    "unverifiedClaims",
+    "references",
+    "processAppendix"
+  ],
+  "consumers": ["csm-grill", "csm-plan"],
+  "citationRule": "claims cite reference IDs; references require URL, publisher, and retrieval date",
+  "resumeRule": "only non-terminal artifacts with matching run identity may resume"
+}

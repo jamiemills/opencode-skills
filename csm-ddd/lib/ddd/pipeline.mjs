@@ -1,7 +1,7 @@
 "use strict";
 
 import { createHash, randomUUID } from "node:crypto";
-import { basename, dirname, isAbsolute, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { extractRepository } from "./extract.mjs";
 import { synthesize } from "./synthesize.mjs";
 import {
@@ -11,8 +11,22 @@ import {
   nonInteractiveGaps,
   preflightQuestionFileText,
 } from "./clarify.mjs";
-import { buildGraphEnvelopeObject, parseReport, renderReport } from "./render.mjs";
-import { serializeGraph } from "./contracts.mjs";
+import {
+  buildGraphEnvelopeObject,
+  buildReportEnvelopeObject,
+  parseReport,
+  renderReport,
+  serializeReport,
+} from "./render.mjs";
+import {
+  assertReportContract,
+  assertPairRunId,
+  buildPairDescriptor,
+  DDD_PRODUCER_DESCRIPTOR,
+  serializeGraph,
+  validateGraphReferences,
+} from "./contracts.mjs";
+import { validateGraph, validateReport } from "./validate.mjs";
 
 export async function analyzeRepository(options = {}) {
   const root = options.root;
@@ -94,14 +108,35 @@ export async function analyzeRepository(options = {}) {
     synthesis,
     clarification,
   });
-  return {
+  const reportObject = buildReportEnvelopeObject({
     runId,
     generatedAt,
     repoName,
+    extraction,
+    synthesis,
+    clarification,
+  });
+  const reportJson = serializeReport(reportObject);
+  const reportCheck = await validateReport(reportObject);
+  const graphCheck = await validateGraph(graphObject);
+  if (!reportCheck.ok || !graphCheck.ok) {
+    throw new Error(
+      `DDD producer generated an invalid pair: ${[...reportCheck.errors, ...graphCheck.errors].join("; ")}`,
+    );
+  }
+  assertReportContract(reportObject, graphObject);
+  return {
+    runId,
+    rootPath: resolve(root),
+    generatedAt,
+    repoName,
     reportMarkdown,
+    reportObject,
+    reportJson,
     graphObject,
     graphJson: serializeGraph(graphObject),
     parsedReport: parseReport(reportMarkdown),
+    producerDescriptor: DDD_PRODUCER_DESCRIPTOR,
     questions,
     gaps,
     clarification,
@@ -117,7 +152,7 @@ export function defaultArtifactPaths(root, runId = "current") {
     throw new Error("runId is not safe for a DDD artifact path");
   const identity = runId;
   return {
-    outReport: join(root, ".agents", "ddd", `${date}-${slug}-${identity}-ddd-report.md`),
+    outReport: join(root, ".agents", "ddd", `${date}-${slug}-${identity}-ddd-report.json`),
     outGraph: join(root, ".agents", "ddd", `${date}-${slug}-${identity}-ddd-graph.json`),
   };
 }
@@ -134,6 +169,59 @@ export function publicationPaths(outReport, outGraph) {
   };
 }
 
+async function assertContainedOutputPaths(root, outputPaths) {
+  if (!root || typeof root !== "string") throw new Error("analyzed repository root is required");
+  const rootPath = resolve(root);
+  const { lstat, realpath } = await import("node:fs/promises");
+  const realRoot = await realpath(rootPath);
+  const checked = new Set();
+  for (const outputPath of outputPaths) {
+    if (typeof outputPath !== "string" || !isAbsolute(outputPath))
+      throw new Error("publication paths must be absolute");
+    const lexicalRelative = relative(rootPath, resolve(outputPath));
+    if (
+      !lexicalRelative ||
+      isAbsolute(lexicalRelative) ||
+      lexicalRelative === ".." ||
+      lexicalRelative.startsWith(`..${sep}`)
+    )
+      throw new Error("publication output paths must be contained in the analyzed repository");
+
+    let current = rootPath;
+    for (const part of lexicalRelative.split(sep)) {
+      current = join(current, part);
+      if (checked.has(current)) continue;
+      checked.add(current);
+      let info;
+      try {
+        info = await lstat(current);
+      } catch (error) {
+        if (error.code === "ENOENT") break;
+        throw error;
+      }
+      if (info.isSymbolicLink())
+        throw new Error("publication output paths must not traverse symlinks");
+    }
+  }
+  let existingParent = dirname(outputPaths[0]);
+  while (true) {
+    try {
+      await lstat(existingParent);
+      break;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      const parent = dirname(existingParent);
+      if (parent === existingParent)
+        throw new Error("publication output parent does not exist", { cause: error });
+      existingParent = parent;
+    }
+  }
+  const realOutputRoot = await realpath(existingParent);
+  const realRelative = relative(realRoot, realOutputRoot);
+  if (isAbsolute(realRelative) || realRelative === ".." || realRelative.startsWith(`..${sep}`))
+    throw new Error("publication output paths must resolve inside the analyzed repository");
+}
+
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 async function readJson(file) {
@@ -141,11 +229,13 @@ async function readJson(file) {
   return JSON.parse(await readFile(file, "utf8"));
 }
 
-export async function readPublishedPair(outReport, outGraph) {
+export async function readPublishedPair(outReport, outGraph, root = null) {
   const { lstat, readFile } = await import("node:fs/promises");
   const paths = publicationPaths(outReport, outGraph);
   const fail = (message) => ({ ok: false, errors: [message], paths });
   try {
+    if (root)
+      await assertContainedOutputPaths(root, [outReport, outGraph, ...Object.values(paths)]);
     if (dirname(outReport) !== dirname(outGraph))
       return fail("published output pair must use one directory");
     const pointerInfo = await lstat(paths.pointer);
@@ -177,6 +267,13 @@ export async function readPublishedPair(outReport, outGraph) {
     )
       return fail("publication manifest and pointer digests do not match");
     if (
+      manifest.producer?.format !== "csm-ddd-producer/1" ||
+      manifest.producer.runId !== manifest.runId ||
+      manifest.producer.report?.sha256 !== manifest.reportSha256 ||
+      manifest.producer.graph?.sha256 !== manifest.graphSha256
+    )
+      return fail("publication producer descriptor does not match pair identity or digests");
+    if (
       typeof manifest.generation !== "string" ||
       isAbsolute(manifest.generation) ||
       manifest.generation.includes("..") ||
@@ -204,7 +301,37 @@ export async function readPublishedPair(outReport, outGraph) {
       sha256(generationGraph) !== manifest.graphSha256
     )
       return fail("immutable generation digest does not match its manifest");
-    return { ok: true, pointer, manifest, report: generationReport, graph: generationGraph, paths };
+    const report = JSON.parse(generationReport.toString("utf8"));
+    const graph = JSON.parse(generationGraph.toString("utf8"));
+    try {
+      assertPairRunId(manifest.runId, report, graph);
+    } catch (error) {
+      return fail(`published artifacts do not match manifest runId: ${error.message}`);
+    }
+    const [reportCheck, graphCheck] = await Promise.all([
+      validateReport(report),
+      validateGraph(graph),
+    ]);
+    if (!reportCheck.ok || !graphCheck.ok)
+      return fail("published generation contains a schema-invalid report/graph");
+    const references = validateGraphReferences(graph);
+    if (!references.ok)
+      return fail(`published graph has dangling references: ${references.errors.join("; ")}`);
+    try {
+      assertReportContract(report, graph);
+    } catch (error) {
+      return fail(`published report references are invalid: ${error.message}`);
+    }
+    return {
+      ok: true,
+      pointer,
+      manifest,
+      report: generationReport,
+      graph: generationGraph,
+      reportObject: report,
+      graphObject: graph,
+      paths,
+    };
   } catch (error) {
     return fail(`published output pair is not valid: ${error.message}`);
   }
@@ -221,6 +348,11 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
 
   if (!isAbsolute(outReport) || !isAbsolute(outGraph))
     throw new Error("publication paths must be absolute");
+  await assertContainedOutputPaths(analysis.rootPath ?? options.root, [
+    outReport,
+    outGraph,
+    ...Object.values(paths),
+  ]);
   await mkdir(reportDir, { recursive: true });
   await mkdir(graphDir, { recursive: true });
   const token = randomUUID();
@@ -305,10 +437,24 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
     runId: analysis.runId,
     report: basename(outReport),
     graph: basename(outGraph),
-    reportSha256: sha256(analysis.reportMarkdown),
+    reportSha256: sha256(analysis.reportJson),
     graphSha256: sha256(analysis.graphJson),
     generation: relative(reportDir, generation),
   };
+  try {
+    assertPairRunId(analysis.runId, analysis.reportObject, analysis.graphObject);
+  } catch (error) {
+    throw new Error(`DDD publication identity mismatch: ${error.message}`, { cause: error });
+  }
+  const descriptor = buildPairDescriptor({
+    runId: analysis.runId,
+    report: basename(outReport),
+    graph: basename(outGraph),
+    reportSha256: pairManifest.reportSha256,
+    graphSha256: pairManifest.graphSha256,
+    manifest: relative(reportDir, manifestPath),
+  });
+  pairManifest.producer = descriptor;
   const backups = [`${outReport}.prior-${token}`, `${outGraph}.prior-${token}`];
   const installed = [];
 
@@ -326,12 +472,12 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
   const priorPair =
     (await exists(outReport)) &&
     (await exists(outGraph)) &&
-    (await readPublishedPair(outReport, outGraph)).ok;
+    (await readPublishedPair(outReport, outGraph, analysis.rootPath ?? options.root)).ok;
 
   try {
     await mkdir(paths.generationRoot, { recursive: true });
     await mkdir(generation);
-    await writeFile(stagedReport, analysis.reportMarkdown);
+    await writeFile(stagedReport, analysis.reportJson);
     await writeFile(stagedGraph, analysis.graphJson);
     await writeFile(manifestPath, `${JSON.stringify(pairManifest, null, 2)}\n`);
     inject("after-generation");
@@ -371,7 +517,14 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
     const pointerTemp = `${paths.pointer}.next-${token}`;
     await writeFile(pointerTemp, `${JSON.stringify(pointer, null, 2)}\n`);
     await rename(pointerTemp, paths.pointer);
-    return { outReport, outGraph, pointer: paths.pointer, manifest: manifestPath, generation };
+    return {
+      outReport,
+      outGraph,
+      pointer: paths.pointer,
+      manifest: manifestPath,
+      generation,
+      descriptor,
+    };
   } catch (error) {
     const { copyFile: restore, rm } = await import("node:fs/promises");
     for (const target of installed) await rm(target, { force: true });

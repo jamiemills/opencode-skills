@@ -1,0 +1,65 @@
+{
+  "schema": "csm-review-findings/1",
+  "schemaRevision": 1,
+  "artifact": {
+    "artifactId": "art-review-demo-1",
+    "owner": "csm-review",
+    "runId": "run-review-1",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "createdAt": "2026-08-25T12:00:00Z",
+    "terminal": true
+  },
+  "source": { "commitSha": "abcdef1234567", "repository": "demo" },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Example finding",
+      "dimension": "correctness",
+      "category": "bug",
+      "anchorRef": null,
+      "severity": "high",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "locations": [{ "path": "src/app.js", "line": 12, "symbol": "run" }],
+      "quotedSnippets": ["return safeValue;"],
+      "commitSha": "abcdef1234567",
+      "explanation": "The cited path permits an invalid result.",
+      "impact": "Users can receive incorrect output.",
+      "remediationSketch": "Validate the result before returning it.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-one",
+          "challenger": "agent-reviewer",
+          "verdict": "agree",
+          "rationale": "The citation reproduces the issue.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Challenge confirmed.",
+      "corroborators": [],
+      "sortKey": "3:2:2:F-001"
+    }
+  ],
+  "verificationStatus": {
+    "format": "csm-verification-status/1",
+    "status": "VERIFIED",
+    "unresolved": []
+  },
+  "redaction": {
+    "status": "passed",
+    "rules": ["secrets", "personal-data", "absolute-paths"],
+    "redactedFields": 0
+  },
+  "sortOrder": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true },
+  "ownership": {
+    "owner": "csm-review",
+    "runId": "run-review-1",
+    "collisionPolicy": "reject-owner-mismatch-or-terminal",
+    "terminalPolicy": "immutable"
+  },
+  "projection": { "authority": "json", "formats": ["markdown", "html"] }
+}

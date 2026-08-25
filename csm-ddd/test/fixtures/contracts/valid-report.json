@@ -4,8 +4,23 @@
   "graphRunId": "run-fixed-0001",
   "generatedAt": "2026-08-23T00:00:00.000Z",
   "title": "DDD repository analysis",
+  "repository": { "name": "fixture" },
   "sections": [
-    { "heading": "Capabilities", "body": "Observed capability inventory." },
-    { "heading": "Context hypotheses", "body": "Hypotheses only; nothing is proven." }
+    {
+      "id": "capabilities",
+      "kind": "capabilities",
+      "heading": "Capabilities",
+      "summary": "Observed capability inventory.",
+      "findings": [],
+      "data": {}
+    },
+    {
+      "id": "context-hypotheses",
+      "kind": "context_hypotheses",
+      "heading": "Context hypotheses",
+      "summary": "Hypotheses only; nothing is proven.",
+      "findings": [],
+      "data": {}
+    }
   ]
 }

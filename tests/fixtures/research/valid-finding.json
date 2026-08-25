@@ -1,0 +1,70 @@
+{
+  "title": "Fixture Research Finding",
+  "sections": {
+    "tldr": { "id": "tldr", "content": "Use the typed finding as the authoritative artifact." },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "The producer emits one validated JSON object."
+    },
+    "keyFindings": { "id": "keyFindings", "content": "Claims remain linked to dated references." },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "Typed fields preserve the research shape."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Adopt the JSON artifact at stage boundaries."
+    },
+    "unverifiedClaims": { "id": "unverifiedClaims", "content": "None." },
+    "references": { "id": "references", "content": "Reference records carry retrieval dates." },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "The journal is resumable before SAVED."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-authority",
+      "section": "keyFindings",
+      "statement": "JSON is authoritative.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [{ "referenceId": "ref-schema", "locator": "section 1", "quote": "contract" }]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-schema",
+      "url": "https://example.com/schema",
+      "publisher": "Example",
+      "retrievedAt": "2026-08-25",
+      "sourcePosture": "methodological-authority"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "run started",
+      "occurredAt": "2026-08-25T00:00:00.000Z",
+      "cycle": 0,
+      "trigger": "new run"
+    }
+  ],
+  "declaredArtifacts": [
+    {
+      "artifactId": "art-evidence",
+      "path": ".agents/research/artifacts/2026-08-25-fixture-evidence.json",
+      "schema": { "id": "csm-evidence/1", "revision": 1 },
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "relation": "supports"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-08-25T00:00:00.000Z",
+    "sourceDigests": ["sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]
+  }
+}

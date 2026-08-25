@@ -1,0 +1,28 @@
+{
+  "schema": "csm-doctrine-findings/1",
+  "schemaRevision": 1,
+  "artifact": {
+    "artifactId": "art-doctrine-demo-1",
+    "owner": "csm-review-python",
+    "runId": "run-doctrine-1",
+    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "createdAt": "2026-08-25T12:00:00Z",
+    "terminal": true
+  },
+  "source": { "commitSha": "abcdef1234567", "repository": "python-demo" },
+  "findings": [],
+  "verificationStatus": {
+    "format": "csm-verification-status/1",
+    "status": "VERIFIED",
+    "unresolved": []
+  },
+  "redaction": { "status": "passed", "rules": ["secrets"], "redactedFields": 0 },
+  "sortOrder": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true },
+  "ownership": {
+    "owner": "csm-review-python",
+    "runId": "run-doctrine-1",
+    "collisionPolicy": "reject-owner-mismatch-or-terminal",
+    "terminalPolicy": "immutable"
+  },
+  "projection": { "authority": "json", "formats": ["markdown"] }
+}

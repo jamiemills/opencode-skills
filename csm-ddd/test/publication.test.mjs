@@ -23,7 +23,7 @@ import {
 const fixtureRepo = join(import.meta.dirname, "fixtures", "repos", "sample-repo");
 
 function outputDirectory() {
-  return mkdtempSync(join(tmpdir(), "csm-ddd-publication-"));
+  return mkdtempSync(join(fixtureRepo, ".csm-ddd-publication-"));
 }
 
 test("publishes a complete pair through one generation boundary", async () => {
@@ -280,6 +280,41 @@ test("publication requires report and graph outputs in one directory", async () 
   } finally {
     rmSync(directory, { recursive: true, force: true });
     rmSync(otherDirectory, { recursive: true, force: true });
+  }
+});
+
+test("publication rejects output paths outside the analyzed repository before creating parents", async () => {
+  const directory = outputDirectory();
+  const outside = mkdtempSync(join(tmpdir(), "csm-ddd-outside-"));
+  try {
+    const analysis = await analyzeRepository({ root: fixtureRepo, runId: "run-outside" });
+    await assert.rejects(
+      writeArtifacts(analysis, join(outside, "report.json"), join(outside, "graph.json")),
+      /contained in the analyzed repository/,
+    );
+    assert.equal(readdirSync(outside).length, 0);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("publication rejects output paths that escape through a symlink", async () => {
+  const directory = outputDirectory();
+  const outside = mkdtempSync(join(tmpdir(), "csm-ddd-symlink-target-"));
+  const link = join(fixtureRepo, ".csm-ddd-output-link");
+  try {
+    symlinkSync(outside, link);
+    const analysis = await analyzeRepository({ root: fixtureRepo, runId: "run-symlink-escape" });
+    await assert.rejects(
+      writeArtifacts(analysis, join(link, "report.json"), join(link, "graph.json")),
+      /must not traverse symlinks/,
+    );
+    assert.equal(readdirSync(outside).length, 0);
+  } finally {
+    rmSync(link, { force: true });
+    rmSync(directory, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
   }
 });
 

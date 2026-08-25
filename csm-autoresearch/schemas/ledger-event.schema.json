@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-ledger-event/1",
   "title": "csm-autoresearch append-only ledger event",
   "type": "object",
   "additionalProperties": false,
@@ -26,6 +27,11 @@
         "blocked"
       ]
     },
+    "previousHash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "recordHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "candidateId": { "type": "string", "maxLength": 100 },
     "parentId": { "type": ["string", "null"], "maxLength": 100 },
     "decision": {
@@ -49,6 +55,7 @@
         "contractHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "evaluatorHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "environmentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "policyHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "redacted": { "const": true }
       }
     }

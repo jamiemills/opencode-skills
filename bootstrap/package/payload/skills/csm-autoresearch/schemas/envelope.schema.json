@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-envelope/1",
+  "title": "csm-autoresearch shared envelope registration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifact",
+    "run",
+    "lifecycleStatus",
+    "verificationStatus",
+    "payloadSchema",
+    "payload",
+    "contentType"
+  ],
+  "properties": {
+    "schema": { "const": "csm-envelope/1" },
+    "schemaRevision": { "const": 1 },
+    "artifact": { "$ref": "csm-autoresearch-artifact-descriptor/1#/$defs/artifact" },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "startedAt"],
+      "properties": {
+        "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "lifecycleStatus": {
+      "enum": ["active", "completed", "failed", "blocked", "superseded", "quarantined"]
+    },
+    "verificationStatus": { "enum": ["unverified", "incomplete", "verified", "rejected"] },
+    "payloadSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": { "id": { "const": "csm-artifact" }, "revision": { "const": 1 } }
+    },
+    "payload": { "$ref": "csm-autoresearch-artifact-descriptor/1#" },
+    "contentType": { "const": "application/json" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "producedAt", "nativeRunId", "sourceDigests"],
+      "properties": {
+        "producer": { "const": "csm-autoresearch" },
+        "producerVersion": { "type": "string", "minLength": 1 },
+        "producedAt": { "type": "string", "format": "date-time" },
+        "nativeRunId": { "type": "string", "minLength": 1 },
+        "sourceDigests": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

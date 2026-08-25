@@ -1,0 +1,11 @@
+{
+  "format": "csm-autoresearch-report/1",
+  "runId": "legacy-run",
+  "status": "completed",
+  "mode": "target",
+  "sourceMode": "registered",
+  "baseline": { "metrics": { "score": 1 }, "status": "ok" },
+  "trials": [],
+  "gates": { "hardPassed": true, "failed": [] },
+  "artifactRefs": [".agents/autoresearch/legacy-ledger.jsonl"]
+}

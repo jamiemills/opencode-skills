@@ -72,6 +72,10 @@ const mapping = {
       dest: join("payload", "skills", "csm-ddd", "scripts", "ddd.mjs"),
     },
     {
+      src: join("csm-ddd", "producer.json"),
+      dest: join("payload", "skills", "csm-ddd", "producer.json"),
+    },
+    {
       srcDir: join("csm-ddd", "lib", "ddd"),
       destDir: join("payload", "skills", "csm-ddd", "lib", "ddd"),
     },
@@ -98,6 +102,46 @@ const mapping = {
     {
       srcDir: join("csm-autoresearch", "schemas"),
       destDir: join("payload", "skills", "csm-autoresearch", "schemas"),
+    },
+    {
+      src: join("csm-deep-research", "research-producer.json"),
+      dest: join("payload", "skills", "csm-deep-research", "research-producer.json"),
+    },
+    {
+      srcDir: join("csm-deep-research", "lib"),
+      destDir: join("payload", "skills", "csm-deep-research", "lib"),
+    },
+    {
+      srcDir: join("csm-deep-research", "schemas"),
+      destDir: join("payload", "skills", "csm-deep-research", "schemas"),
+    },
+    {
+      src: join("csm-review", "producer.json"),
+      dest: join("payload", "skills", "csm-review", "producer.json"),
+    },
+    {
+      srcDir: join("csm-review", "lib"),
+      destDir: join("payload", "skills", "csm-review", "lib"),
+    },
+    {
+      srcDir: join("csm-review", "schemas"),
+      destDir: join("payload", "skills", "csm-review", "schemas"),
+    },
+    {
+      src: join("csm-review-python", "producer.json"),
+      dest: join("payload", "skills", "csm-review-python", "producer.json"),
+    },
+    {
+      srcDir: join("csm-review-python", "lib"),
+      destDir: join("payload", "skills", "csm-review-python", "lib"),
+    },
+    {
+      srcDir: join("csm-review-python", "schemas"),
+      destDir: join("payload", "skills", "csm-review-python", "schemas"),
+    },
+    {
+      src: join("csm-autoresearch", "producer.json"),
+      dest: join("payload", "skills", "csm-autoresearch", "producer.json"),
     },
     {
       src: join("csm-autoresearch", "scripts", "evaluate.mjs"),

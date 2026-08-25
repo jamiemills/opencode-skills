@@ -24,7 +24,7 @@ Inspect Python repositories without changing their source, dependencies, configu
 ## Interface
 
 - Consumes: a target Python repository checkout at a pinned commit, optional change-surface scope, optional NORMS.md, and the bundled idiomatic-Python rules artifact
-- Produces: `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md`. Legacy compatibility path `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md` is read-only history.
+- Produces: authoritative `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json`; legacy compatibility path `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md` is read-only history and Markdown is otherwise a projection.
 - Hands off: the single doctrine report to the user or a dispatching csm-review; terminal otherwise
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-make-tests, csm-ddd, csm-autoresearch
 
@@ -32,7 +32,7 @@ Inspect Python repositories without changing their source, dependencies, configu
 
 Each analyzer invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. The report records the ID and binds the target git root, normalized repository slug, artifact type, and run ID. Date and slug alone never establish ownership.
 
-The report path is `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md`. This analyzer is intentionally non-resumable before `REPORT`: every invocation gets a new run ID, and an existing terminal report or any path ownership mismatch is an explicit collision refusal. It never replaces, deletes, renames, or aliases a terminal artifact; legacy date/slug reports remain read-only history. The report is the only target write and is owned exclusively by this analyzer, including when csm-review records the handoff.
+The report path is `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json`. This analyzer is intentionally non-resumable before `REPORT`: every invocation gets a new run ID, and an existing terminal artifact or any path ownership mismatch is an explicit collision refusal. It never replaces, deletes, renames, or aliases a terminal artifact; legacy Markdown reports remain read-only history. The JSON artifact is the only target write and is owned exclusively by this analyzer, including when csm-review records the handoff.
 
 Same-day duplicate slugs require a new run ID; the legacy date/slug path is never reused, and no mutable `latest` alias is created.
 
@@ -66,7 +66,7 @@ Run first — before INTAKE, any analysis tool use, or any other section. Not an
 
 ## Write Discipline And File Allowlist
 
-- Within the target repository, the allowlist is exactly the run-owned `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md` and the required parent directory. No other target path may be created or modified.
+- Within the target repository, the allowlist is exactly the run-owned `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json` and the required parent directory. No other target path may be created or modified.
 - Put all scratch notes, command output, logs, temporary reports, and caches outside the target under a run-specific temporary directory, normally `/tmp/csm-review-python-<run-id>`.
 - Redirect `UV_CACHE_DIR`, `PIPX_HOME`, and `XDG_CACHE_HOME` to directories under that temporary directory. Also use each tool's no-cache or explicit cache-dir option.
 - Do not write target source, tests, documentation, pyproject/config files, dependencies, lockfiles, virtual environments, generated files, `.git`, or git metadata. Do not run mutating package-manager or git commands.
@@ -124,7 +124,7 @@ Exit: scans are complete, or every unavailable, failed, and not-run check is dis
 
 Entry: SCAN exit with mechanical evidence and disclosed gaps.
 
-- Inputs: evidence pack, repository tree/configuration, optional NORMS.md, bundled `artifact/python-idiomatic-reviewer-rules.json`, and `.agents/research/2026-08-22-pep20-idiomatic-python-consolidated-research.md`.
+- Inputs: evidence pack, repository tree/configuration, optional NORMS.md, bundled `artifact/python-idiomatic-reviewer-rules.json`, and a registered JSON research/reference artifact. The historical Markdown research file is not an input.
 - Actions: apply the PEP 20 architecture checklist: pyproject-only metadata where appropriate; coherent src layout and packaging boundaries; library/app dependency and lock discipline; validation at untrusted-data boundaries; Protocols or narrow interfaces at seams; EAFP and flat error handling; composition/data modeling over needless inheritance; sync-first concurrency unless I/O demands async; and a useful unit/integration/E2E test pyramid. Treat the 140-rule artifact as the review corpus, not a replacement for judgment, and respect project configuration and runtime targets.
 - Outputs: observations linked to file/line evidence, research playbook steps, artifact rule IDs, and candidate findings; separate architecture, mechanical, semantic-static, and judgment buckets.
 
@@ -145,8 +145,8 @@ Exit: findings are evidence-grounded, severity-mapped, non-duplicative, and read
 Entry: JUDGE exit with ordered findings.
 
 - Inputs: final findings, run record, tool transcript metadata, limitations, and baseline.
-- Actions: write exactly one allowlisted markdown report. Put human-readable context and findings first, then the agent-actionable fix guide at the end. Include the tool/consent header, exact pins and versions, commands/results, target commit, scope, norms disposition, analysis mode, explicit limitations, and target-diff verification. Never write a second summary or update any other target path.
-- Outputs: `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md` and a verification record showing the target delta.
+- Actions: write exactly one allowlisted JSON report. Store the tool/consent header, exact pins and versions, commands/results, target commit, scope, norms disposition, analysis mode, typed findings, explicit limitations, and target-diff verification as data. Human-readable Markdown is a separate on-demand projection and is never the authority or a machine input.
+- Outputs: `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json` and a verification record showing the target delta.
 
 Exit: exactly one report exists, its package is complete, and no non-allowlisted target change is present.
 
@@ -162,7 +162,9 @@ Exit: analysis is terminated and no further skill action is taken.
 
 ## Required Report Package
 
-Emit one markdown file only. Its required order is:
+The authoritative producer contract is `csm-review-python/schemas/csm-doctrine-findings.schema.json` with descriptor `csm-review-python/producer.json`. Emit typed fix actions in each finding rather than Markdown checkboxes. The bundled research Markdown remains read-only historical/reference material and is not a machine input; only a registered JSON research/reference artifact may be consumed.
+
+Emit one JSON artifact only. Its typed sections are rendered on demand as Markdown or HTML:
 
 1. Human-readable title, run date/ID, target repository, pinned commit, scope, norms disposition, and report path.
 2. Tool/consent header: runner choice, exact tool pins and observed versions, explicit consent result, cache redirection, analysis mode, command results, and unrun checks.
@@ -175,7 +177,7 @@ The report also carries a `csm-verification-status/1` record from
 `BLOCKED` when required checks, evidence, cleanup, or anchor reachability are
 unresolved; `VERIFIED` is reserved for a complete, reproducible evidence set.
 
-Reference the bundled `artifact/python-idiomatic-reviewer-rules.json` and bundled `artifact/pep20-idiomatic-python-consolidated-research.md` as read-only inputs; the source path is provenance only. Never write either.
+Reference the bundled `artifact/python-idiomatic-reviewer-rules.json` as a read-only input. The historical Markdown research file is provenance/history only and MUST NOT be parsed as machine input; consume only a registered JSON research/reference artifact with its schema ID, revision, artifact ID, digest, source, and retrieval metadata. Never write either bundled artifact.
 
 ## Anti-Patterns
 
@@ -191,7 +193,7 @@ Reference the bundled `artifact/python-idiomatic-reviewer-rules.json` and bundle
 
 - The target repository and commit are pinned, the baseline is recorded, and scope/norms disposition are disclosed.
 - Tool availability, explicit consent, exact pins/versions, cache isolation, commands, exit codes, and degraded or unrun checks are recorded.
-- The bundled 140-rule artifact and consolidated PEP 20 research are referenced without modification.
+- The bundled 140-rule artifact and the registered JSON research/reference artifact are referenced without modification; historical Markdown remains read-only provenance.
 - Every finding has a stable ID, permitted severity, what, why, evidence path/rule or playbook citation, recommendation, confidence, and verification hint.
 - The report has human-readable first sections and a final agent-actionable fix guide with checkboxes.
 - Exactly one allowlisted target file was written; no source/config/dependency/lock/git path changed; scratch and caches stayed outside the target.

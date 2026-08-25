@@ -1,0 +1,17 @@
+{
+  "format": "csm-producer-descriptor/1",
+  "producer": "csm-ddd",
+  "schemas": ["csm-ddd-report/1", "csm-ddd-graph/1"],
+  "authority": "json",
+  "legacyMarkdown": "projection-or-history-only",
+  "canonicalPaths": {
+    "report": ".agents/ddd/<date>-<repo-slug>-<run-id>-ddd-report.json",
+    "graph": ".agents/ddd/<date>-<repo-slug>-<run-id>-ddd-graph.json"
+  },
+  "legacyPaths": {
+    "report": ".agents/ddd/<date>-<repo-slug>-<run-id>-ddd-report.md"
+  },
+  "legacyStatus": "history-only",
+  "terminal": "immutable",
+  "collision": "reject-owner-mismatch-or-terminal"
+}

@@ -1,6 +1,6 @@
 ---
 name: csm-ddd
-description: Read-only DDD repository analyzer producing a dated Markdown report and a canonical JSON graph of capabilities, context hypotheses, seams, and candidate refactoring slices. Never writes target repositories, executes target code, or implements refactors.
+description: Read-only DDD repository analyzer producing authoritative JSON report and graph artifacts with Markdown projections. Never writes target repositories, executes target code, or implements refactors.
 ---
 
 # CSM DDD
@@ -28,7 +28,8 @@ asserts that a context has been proven.
 ## Interface
 
 - Consumes: repository at a pinned commit, optional visible NORMS.md, optional approved question file
-- Produces: dated report at `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md` plus canonical graph at `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json`
+- Produces: authoritative JSON report at `.agents/ddd/<date>-<repo-slug>-<run-id>-ddd-report.json` plus canonical graph at `.agents/ddd/<date>-<repo-slug>-<run-id>-ddd-graph.json`; Markdown is an explicit projection or history-only record.
+- Legacy history paths `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md` and `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json` are not machine inputs.
 - Hands off: report and graph to the user; downstream csm-grill or csm-plan use stays human-mediated
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-deep-research, csm-grill, csm-make-tests, csm-plan, csm-review, csm-review-python, csm-scan, csm-upload, csm-autoresearch
 
@@ -70,8 +71,8 @@ not_applicable`; `context_hypothesis` claims may never claim `observed`.
 
 The analyzer writes exactly two artifact classes per run and nothing else:
 
-1. `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md`
-2. `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json`
+1. `.agents/ddd/<date>-<repo-slug>-<run-id>-ddd-report.json`
+2. `.agents/ddd/<date>-<repo-slug>-<run-id>-ddd-graph.json`
 
 `.agents/ddd/artifacts/` is reserved for declared run artifacts (schemas,
 validation notes). Publication owns an output-pair lock, an immutable generation
@@ -141,8 +142,7 @@ static claims.
 
 ### 6. RENDER
 
-Emit the Markdown report (human-oriented, references the graph run ID) and the
-canonical JSON graph (byte-stable ordering). Validate both against the shipped
+Emit the authoritative JSON report and canonical JSON graph (byte-stable ordering). Render Markdown only as an explicit human projection and validate both JSON artifacts against the shipped
 schemas before writing.
 
 ### 7. SAVED
@@ -213,7 +213,7 @@ skills repository uses the real pipeline with default output paths.
 - Letting user answers silently overwrite static evidence.
 - Reporting capped searches as absence.
 - Writing anything outside `.agents/ddd/**`.
-- Parsing the Markdown report as a machine API — the JSON graph is the only
+- Parsing Markdown projections as a machine API — the registered JSON report and graph are the only
   machine contract.
 
 ## Done Criteria

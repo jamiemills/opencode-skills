@@ -7,7 +7,7 @@ import {
   readPublishedPair,
   writeArtifacts,
 } from "../lib/ddd/pipeline.mjs";
-import { assertReportMatchesGraph } from "../lib/ddd/contracts.mjs";
+import { assertPairRunId, assertReportMatchesGraph } from "../lib/ddd/contracts.mjs";
 import {
   validateGraph,
   validateGraphFile,
@@ -23,7 +23,7 @@ function usage() {
       "options:",
       "  --repo ROOT            target repository (required)",
       "  --norms PATH           explicit NORMS.md path (default: ROOT/NORMS.md when present)",
-      "  --out-report PATH      report output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-report.md)",
+      "  --out-report PATH      JSON report output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-report.json)",
       "  --out-graph PATH       graph output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-graph.json)",
       "  --question-file PATH   JSON file with an answers array for deterministic replay",
       "  --non-interactive      never prompt; unresolved questions become disclosed gaps",
@@ -107,7 +107,7 @@ async function main(argv) {
   }
   const { paths } = published;
 
-  const reportCheck = await validateReportEnvelope(analysis.parsedReport);
+  const reportCheck = await validateReportEnvelope(analysis.reportObject);
   if (!reportCheck.ok) {
     process.stderr.write("internal error: rendered report failed schema validation\n");
     return 1;
@@ -137,10 +137,11 @@ async function main(argv) {
 export async function publishArtifacts(analysis, outReport, outGraph) {
   const graphCheck = await validateGraph(analysis.graphObject);
   if (!graphCheck.ok) return { ok: false, kind: "graph", errors: graphCheck.errors };
-  const reportCheck = await validateReport(analysis.parsedReport);
+  const reportCheck = await validateReport(analysis.reportObject);
   if (!reportCheck.ok) return { ok: false, kind: "report", errors: reportCheck.errors };
   try {
-    assertReportMatchesGraph(analysis.parsedReport, analysis.graphObject);
+    assertReportMatchesGraph(analysis.reportObject, analysis.graphObject);
+    assertPairRunId(analysis.runId, analysis.reportObject, analysis.graphObject);
   } catch (error) {
     return {
       ok: false,

@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-ddd-report/1",
   "title": "csm-ddd analysis report envelope",
   "type": "object",
   "required": ["format", "runId", "graphRunId", "generatedAt", "title", "sections"],
@@ -10,16 +11,65 @@
     "graphRunId": { "type": "string", "minLength": 1 },
     "generatedAt": { "type": "string" },
     "title": { "type": "string", "minLength": 1 },
+    "repository": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": { "name": { "type": "string", "minLength": 1 } }
+    },
     "sections": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["heading", "body"],
+        "required": ["id", "kind", "heading", "summary", "findings", "data"],
         "additionalProperties": false,
         "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
           "heading": { "type": "string", "minLength": 1 },
-          "body": { "type": "string" }
+          "summary": { "type": "string" },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "subject",
+                "status",
+                "basis",
+                "confidence",
+                "evidenceIds",
+                "summary"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "claimId": { "type": "string", "minLength": 1 },
+                "subject": { "type": "string", "minLength": 1 },
+                "status": {
+                  "enum": [
+                    "observed",
+                    "inferred",
+                    "not_detected",
+                    "unsupported",
+                    "unverified",
+                    "not_applicable"
+                  ]
+                },
+                "basis": {
+                  "enum": ["static_analysis", "git_history", "norms_md", "user_provided"]
+                },
+                "confidence": { "enum": ["low", "medium", "high"] },
+                "evidenceIds": {
+                  "type": "array",
+                  "items": { "type": "string", "pattern": "^ev-[0-9a-f]{24}$" }
+                },
+                "summary": { "type": "string" }
+              }
+            }
+          },
+          "data": { "type": "object" }
         }
       }
     }

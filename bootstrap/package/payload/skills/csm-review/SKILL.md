@@ -53,7 +53,7 @@ Run first — before `INTAKE`, any review tool use, or any other section. Not a 
 
 ## Write Discipline And File Allowlist
 
-- The complete csm-review write allowlist is exactly: (1) the run-owned report file `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md` and its directory at the target root; (2) the run-specific temp sandbox `/tmp/opencode/csm-review-<run-id>/` and OS temp directories; and (3) a single commit staging only this report when explicitly requested. `.agents/doctrine/` is not in this allowlist: it may be written only by the separately and explicitly human-dispatched csm-review-python analyzer.
+- The complete csm-review write allowlist is exactly: (1) the run-owned report file `.agents/reviews/<date>-<repo-slug>-<run-id>-review.json` and its directory at the target root; (2) the run-specific temp sandbox `/tmp/opencode/csm-review-<run-id>/` and OS temp directories; and (3) a single commit staging only this report when explicitly requested. `.agents/doctrine/` is not in this allowlist: it may be written only by the separately and explicitly human-dispatched csm-review-python analyzer.
 - Nothing else may be written anywhere in the reviewed repository or on the host.
 - Git operations against the reviewed repo's state are read-only (`rev-parse`, `status`, `log`, `show`, `grep`); `git clone --depth 1` (file://, reviewed repo as source, target in the temp sandbox) is permitted for the remote/clone intake.
 - By default nothing is committed and SAVED reports "not committed (write discipline)".
@@ -80,7 +80,7 @@ Every finding and every verification records the rung it ran at. Posture is sele
 ## Interface
 
 - Consumes: a target repository (local path or remote URL); optional NORMS.md artifact
-- Produces: one run-ID-suffixed findings report at `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md`. Legacy compatibility path `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md` is read-only history.
+- Produces: one run-ID-suffixed authoritative JSON findings artifact at `.agents/reviews/<date>-<repo-slug>-<run-id>-review.json`. Legacy compatibility path `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md` is read-only history; Markdown/HTML are projections.
 - Hands off: findings feed a future explicit csm-plan or csm-grill invocation (human-mediated); a human may separately and explicitly dispatch csm-review-python for Python doctrine analysis, and that analyzer owns its `.agents/doctrine/` report write.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload, csm-make-tests, csm-ddd, csm-autoresearch
 
@@ -88,7 +88,7 @@ Every finding and every verification records the rung it ran at. Posture is sele
 
 Each review invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. The report records the ID and binds the reviewed git root, normalized repository slug, artifact type, and run ID. Date and slug alone never establish ownership.
 
-The report path is `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md`. Resume is allowed only for that exact owner-matching report while its state is before `SAVED`. A terminal report is immutable: intake refuses replacement, deletion, renaming, or a mutable `latest` alias. Same-day same-slug reviews require a new run ID; legacy date/slug reports remain read-only history. The parent review never writes `.agents/doctrine/`; csm-review-python owns its separate run-ID-suffixed report and csm-review records that handoff only as read-only evidence.
+The report path is `.agents/reviews/<date>-<repo-slug>-<run-id>-review.json`. Resume is allowed only for that exact owner-matching report while its state is before `SAVED`. A terminal report is immutable: intake refuses replacement, deletion, renaming, or a mutable `latest` alias. Same-day same-slug reviews require a new run ID; legacy date/slug Markdown reports remain read-only history and JSON is the only machine authority. The parent review never writes `.agents/doctrine/`; csm-review-python owns its separate run-ID-suffixed report and csm-review records that handoff only as read-only evidence.
 
 ## Review State Machine
 
@@ -122,7 +122,7 @@ Entry: activation (explicit review/audit request or csm-review invoked by name);
 3. Decide the posture: state the rung menu and ask which rungs the user accepts; silence means R0. Detect/validate NORMS.md.
 4. Pin the commit SHA. All evidence cites it; if the worktree is dirty or diverged, citations come from `git show <SHA>:<path>` / `git grep <pattern> <SHA>` rather than the worktree.
 5. Record a baseline of the reviewed repository in the Control journal (`git -C <repo> status --short`; if not a git repo, a top-level file listing).
-6. Create the report scaffold with the Control journal at `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md` (git root of the reviewed repo, else cwd; create only this run-owned file).
+6. Create the JSON report scaffold with its typed Control journal at `.agents/reviews/<date>-<repo-slug>-<run-id>-review.json` (git root of the reviewed repo, else cwd; create only this run-owned file).
 
 Exit: repo pinned, scale set, resume handled, report scaffold written.
 
@@ -248,6 +248,8 @@ Exit: terminal; nothing executes after STOP.
 Dimension rows group for finder assignment: quality (1–4), security (5–7, 9, 11), concurrency (8), resilience (10), tests (12–14), supply chain (15–16), operations (17–18).
 
 ## Finding Record
+
+The authoritative producer payload is `csm-review/schemas/csm-review-findings.schema.json` and the descriptor is `csm-review/producer.json`. Emit JSON before any projection. Stable IDs, severity, confidence, evidence class, locations, challenges, dissents, status, verification status, redaction result, and `sortKey` are data fields, not Markdown conventions. A terminal artifact is immutable and a path collision is rejected unless the run owner matches and the artifact is non-terminal.
 
 **Severity spine**: critical/high/medium/low/info (rank 4–0). CVSS v4.0 CVSS-B overlay (score AND vector AND assumptions[], FIRST disclosure rule; worst-case per library guidance with re-score-per-call-site note) applies to dependency/CVE findings and tool-verified exploitation findings; other security findings use the spine alone unless the primary justifies a vector with explicit assumptions.
 

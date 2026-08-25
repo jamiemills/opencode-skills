@@ -1,8 +1,8 @@
 "use strict";
 
-import { lstat, open, readdir } from "node:fs/promises";
+import { lstat, open, readdir, realpath } from "node:fs/promises";
 import { O_NOFOLLOW, O_RDONLY } from "node:constants";
-import { join, relative, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { buildClaim, buildEvidence } from "./contracts.mjs";
 import { redactEvidenceRecords, redactText } from "./redact.mjs";
 import * as gitProbe from "./git.mjs";
@@ -119,7 +119,37 @@ function collectSignals(rel, text) {
 }
 
 async function loadNorms(root, normsPath, claims, evidence, makeClaim) {
-  const candidate = normsPath ?? join(root, "NORMS.md");
+  const rootPath = resolve(root);
+  const candidate =
+    normsPath === null || normsPath === undefined ? join(rootPath, "NORMS.md") : resolve(normsPath);
+  if (normsPath !== null && normsPath !== undefined) {
+    const lexicalRelative = relative(rootPath, candidate);
+    if (
+      !lexicalRelative ||
+      isAbsolute(lexicalRelative) ||
+      lexicalRelative === ".." ||
+      lexicalRelative.startsWith(`..${sep}`)
+    ) {
+      throw new Error("explicit norms path must be contained in the analyzed repository");
+    }
+    try {
+      const [realRoot, realCandidate] = await Promise.all([
+        realpath(rootPath),
+        realpath(candidate),
+      ]);
+      const realRelative = relative(realRoot, realCandidate);
+      if (
+        !realRelative ||
+        isAbsolute(realRelative) ||
+        realRelative === ".." ||
+        realRelative.startsWith(`..${sep}`)
+      ) {
+        throw new Error("explicit norms path must resolve inside the analyzed repository");
+      }
+    } catch (error) {
+      if (error.message.includes("must resolve inside")) throw error;
+    }
+  }
   let text;
   try {
     text = await readStableText(candidate);

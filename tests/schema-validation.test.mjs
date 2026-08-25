@@ -9,6 +9,7 @@ const timestamp = "2026-08-25T12:00:00Z";
 const validEnvelope = {
   schema: "csm-envelope/1",
   schemaRevision: 1,
+  contentType: "application/json",
   artifact: {
     artifactId: "art-output-1",
     kind: "report",

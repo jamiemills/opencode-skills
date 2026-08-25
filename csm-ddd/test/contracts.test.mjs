@@ -90,6 +90,16 @@ test("runtime vocabulary enums stay synchronized with the graph schema", async (
   assert.deepEqual(schema.properties.claims.items.properties.confidence.enum, [...CONFIDENCES]);
 });
 
+test("report finding vocabulary stays synchronized with the graph contract", async () => {
+  const schema = JSON.parse(
+    await readFile(new URL("../schemas/ddd-report.schema.json", import.meta.url), "utf8"),
+  );
+  const finding = schema.properties.sections.items.properties.findings.items.properties;
+  assert.deepEqual(finding.status.enum, [...STATUSES]);
+  assert.deepEqual(finding.basis.enum, [...BASES]);
+  assert.deepEqual(finding.confidence.enum, [...CONFIDENCES]);
+});
+
 test("evidence IDs are deterministic and path-guarded", () => {
   const input = {
     claimId: "cl-x-0001",

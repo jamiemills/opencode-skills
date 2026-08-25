@@ -1,0 +1,14 @@
+{
+  "format": "csm-producer-descriptor/1",
+  "producer": "csm-autoresearch",
+  "schema": "csm-autoresearch-report/1",
+  "schemaRevision": 1,
+  "artifactKind": "autoresearch-report",
+  "authority": "json",
+  "legacyMarkdown": "projection-or-history-only",
+  "canonicalPath": ".agents/autoresearch/<yyyy-mm-dd>-<run-id>-report.json",
+  "legacyPath": ".agents/autoresearch/<yyyy-mm-dd>-<run-id>-report.md",
+  "legacyStatus": "history-only",
+  "terminal": "immutable",
+  "collision": "reject-owner-mismatch-or-terminal"
+}

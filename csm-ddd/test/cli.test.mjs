@@ -43,9 +43,9 @@ function runCli(args) {
 }
 
 test("end-to-end CLI run writes schema-valid artifacts with shared run ID", async () => {
-  const { dir, repo } = freshSandbox();
-  const outReport = join(dir, "out", "report.md");
-  const outGraph = join(dir, "out", "graph.json");
+  const { repo } = freshSandbox();
+  const outReport = join(repo, "out", "report.md");
+  const outGraph = join(repo, "out", "graph.json");
   const result = await runCli([
     "--repo",
     repo,
@@ -58,7 +58,7 @@ test("end-to-end CLI run writes schema-valid artifacts with shared run ID", asyn
   assert.equal(result.code, 0, result.stderr);
   const reportText = readFileSync(outReport, "utf8");
   const graphText = readFileSync(outGraph, "utf8");
-  const runId = /runId: (\S+)/.exec(reportText)?.[1];
+  const runId = JSON.parse(reportText).runId;
   assert.ok(runId);
   assert.match(reportText, new RegExp(runId));
   assert.equal(JSON.parse(graphText).runId, runId);
@@ -84,13 +84,13 @@ test("omitted output flags default under the sandbox repo root .agents/ddd/", as
   const { repo } = freshSandbox();
   const defaults = defaultArtifactPaths(repo, "current");
   assert.ok(defaults.outReport.startsWith(join(repo, ".agents", "ddd")));
-  assert.match(defaults.outReport, /-ddd-report\.md$/);
+  assert.match(defaults.outReport, /-ddd-report\.json$/);
   const result = await runCli(["--repo", repo, "--non-interactive"]);
   assert.equal(result.code, 0, result.stderr);
   const reportPath = result.stdout.match(/^report: (.+)$/m)?.[1];
   assert.ok(reportPath);
   const written = readFileSync(reportPath, "utf8");
-  assert.match(written, /# DDD repository analysis/);
+  assert.equal(JSON.parse(written).format, "csm-ddd-report/1");
 });
 
 test("run-specific default paths do not collide", () => {
@@ -103,8 +103,8 @@ test("run-specific default paths do not collide", () => {
 });
 
 test("explicit output flags are honored verbatim within one output directory; caps disclose unverified coverage", async () => {
-  const { dir, repo } = freshSandbox();
-  const outputDir = join(dir, "deep", "nested");
+  const { repo } = freshSandbox();
+  const outputDir = join(repo, "deep", "nested");
   const weird = join(outputDir, "graph.json");
   const reportPath = join(outputDir, "report.md");
   const result = await runCli([
@@ -122,14 +122,14 @@ test("explicit output flags are honored verbatim within one output directory; ca
   const inventoryClaim = graph.claims.find((c) => c.subject === "repository-inventory");
   assert.equal(inventoryClaim.status, "unverified");
   assert.match(inventoryClaim.note, /coverage capped at maxFiles=2/);
-  assert.match(readFileSync(reportPath, "utf8"), /TRUNCATED, coverage unverified/);
+  assert.equal(JSON.parse(readFileSync(reportPath, "utf8")).sections[4].kind, "coverage");
 });
 
 test("--norms and --max-bytes are applied and disclosed by the CLI", async () => {
-  const { dir, repo } = freshSandbox();
-  const norms = join(dir, "authoritative-NORMS.md");
-  const reportPath = join(dir, "report.md");
-  const graphPath = join(dir, "graph.json");
+  const { repo } = freshSandbox();
+  const norms = join(repo, "authoritative-NORMS.md");
+  const reportPath = join(repo, "report.md");
+  const graphPath = join(repo, "graph.json");
   cpSync(join(fixtureRepo, "NORMS.md"), norms);
   const result = await runCli([
     "--repo",
@@ -147,12 +147,20 @@ test("--norms and --max-bytes are applied and disclosed by the CLI", async () =>
   assert.equal(result.code, 0, result.stderr);
   const report = readFileSync(reportPath, "utf8");
   const graph = JSON.parse(readFileSync(graphPath, "utf8"));
-  assert.match(report, /maxBytes=1/);
-  assert.match(report, /TRUNCATED, coverage unverified/);
-  assert.match(report, /NORMS\.md: loaded as authentic scan output/);
+  const reportData = JSON.parse(report);
+  assert.equal(reportData.sections[4].data.caps.truncatedByBytes, true);
+  assert.equal(reportData.sections[4].data.norms.authentic, true);
   assert.equal(
     graph.claims.find((claim) => claim.subject === "repository-inventory").status,
     "unverified",
+  );
+});
+
+test("explicit norms paths cannot traverse outside the analyzed repository", async () => {
+  const { repo } = freshSandbox();
+  await assert.rejects(
+    analyzeRepository({ root: repo, normsPath: join(repo, "..", "outside-NORMS.md") }),
+    /contained in the analyzed repository/,
   );
 });
 
@@ -163,9 +171,9 @@ test("non-interactive gaps are disclosed and --fail-on-gaps exits 3", async () =
     "--repo",
     a.repo,
     "--out-report",
-    join(a.dir, "r.md"),
+    join(a.repo, "r.md"),
     "--out-graph",
-    join(a.dir, "g.json"),
+    join(a.repo, "g.json"),
     "--question-file",
     questionFile,
     "--non-interactive",
@@ -175,9 +183,9 @@ test("non-interactive gaps are disclosed and --fail-on-gaps exits 3", async () =
     "--repo",
     b.repo,
     "--out-report",
-    join(b.dir, "r.md"),
+    join(b.repo, "r.md"),
     "--out-graph",
-    join(b.dir, "g.json"),
+    join(b.repo, "g.json"),
     "--non-interactive",
     "--fail-on-gaps",
   ]);
@@ -186,14 +194,14 @@ test("non-interactive gaps are disclosed and --fail-on-gaps exits 3", async () =
 });
 
 test("--fail-on-gaps implies non-interactive mode", async () => {
-  const { dir, repo } = freshSandbox();
+  const { repo } = freshSandbox();
   const result = await runCli([
     "--repo",
     repo,
     "--out-report",
-    join(dir, "r.md"),
+    join(repo, "r.md"),
     "--out-graph",
-    join(dir, "g.json"),
+    join(repo, "g.json"),
     "--fail-on-gaps",
   ]);
   assert.equal(result.code, 3);
@@ -279,28 +287,38 @@ test("renderReport directly preserves section order and git cap disclosure", () 
 });
 
 test("publication rejects a report and graph cross-link mismatch", async () => {
-  const { dir, repo } = freshSandbox();
+  const { repo } = freshSandbox();
   const analysis = await analyzeRepository({ root: repo, runId: "run-cross-link" });
-  analysis.parsedReport.graphRunId = "run-other";
-  const result = await publishArtifacts(analysis, join(dir, "r.md"), join(dir, "g.json"));
+  analysis.reportObject.graphRunId = "run-other";
+  const result = await publishArtifacts(analysis, join(repo, "r.md"), join(repo, "g.json"));
+  assert.equal(result.ok, false);
+  assert.equal(result.kind, "cross-link");
+  assert.match(result.errors.join("\n"), /does not reference graph runId/);
+});
+
+test("publication rejects report or graph run IDs that do not match the analysis run", async () => {
+  const { repo } = freshSandbox();
+  const analysis = await analyzeRepository({ root: repo, runId: "run-analysis" });
+  analysis.graphObject.runId = "run-other";
+  const result = await publishArtifacts(analysis, join(repo, "r.json"), join(repo, "g.json"));
   assert.equal(result.ok, false);
   assert.equal(result.kind, "cross-link");
   assert.match(result.errors.join("\n"), /does not reference graph runId/);
 });
 
 test("payload-index error path refuses invalid graph artifacts before writing", async () => {
-  const { dir, repo } = freshSandbox();
+  const { repo } = freshSandbox();
   const analysis = await analyzeRepository({ root: repo, runId: "run-payload-index-error" });
   analysis.graphObject.format = "csm-ddd-graph/invalid-index";
-  const result = await publishArtifacts(analysis, join(dir, "r.md"), join(dir, "g.json"));
+  const result = await publishArtifacts(analysis, join(repo, "r.md"), join(repo, "g.json"));
   assert.equal(result.ok, false);
   assert.equal(result.kind, "graph");
   assert.ok(result.errors.length > 0);
 });
 
 test("schema-invalid analysis aborts before writeArtifacts leaving zero bytes at output paths", async () => {
-  const { dir, repo } = freshSandbox();
-  const outDir = join(dir, "out");
+  const { repo } = freshSandbox();
+  const outDir = join(repo, "out");
   const outReport = join(outDir, "report.md");
   const outGraph = join(outDir, "graph.json");
   const analysis = await analyzeRepository({
@@ -326,7 +344,7 @@ test("schema-invalid analysis aborts before writeArtifacts leaving zero bytes at
   assert.equal(existsSync(outDir), false);
 
   analysis.graphObject.format = graphFormat;
-  analysis.parsedReport.format = "csm-ddd-report/bogus";
+  analysis.reportObject.format = "csm-ddd-report/bogus";
   const reportBad = await publishArtifacts(analysis, outReport, outGraph);
   assert.equal(reportBad.ok, false);
   assert.equal(reportBad.kind, "report");

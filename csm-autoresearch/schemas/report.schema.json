@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-report/1",
   "title": "csm-autoresearch report",
   "type": "object",
   "additionalProperties": false,
@@ -61,6 +62,11 @@
       "minItems": 1,
       "items": { "type": "string", "pattern": "^(?!/).+" }
     },
+    "artifactDescriptors": {
+      "type": "array",
+      "items": { "$ref": "csm-autoresearch-artifact-descriptor/1#" }
+    },
+    "envelope": { "$ref": "csm-autoresearch-envelope/1#" },
     "approval": { "type": "object" },
     "rollback": { "type": "object" }
   }

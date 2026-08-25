@@ -10,6 +10,12 @@ import {
   validateReport,
 } from "../ledger/index.mjs";
 import { readFile } from "node:fs/promises";
+import {
+  createArtifactDescriptor,
+  createArtifactEnvelope,
+  digestBytes,
+  validateProducerArtifacts,
+} from "../artifacts/index.mjs";
 
 const finiteMetrics = (metrics) =>
   metrics &&
@@ -153,6 +159,37 @@ async function optimize(options) {
   const lease = await ledger.acquireRunLease();
   try {
     const previous = await ledger.open();
+    const terminalStatuses = new Set([
+      "stopped",
+      "completed",
+      "blocked",
+      "approval_pending",
+      "promoted",
+      "rolled_back",
+    ]);
+    let existingReport;
+    try {
+      existingReport = JSON.parse(await readFile(paths.report, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (existingReport?.runId !== undefined && existingReport.runId !== contract.runId)
+      throw new Error("refusing report collision with another run");
+    if (terminalStatuses.has(existingReport?.status)) {
+      const persisted = await validateProducerArtifacts({
+        ledgerPath: paths.ledger,
+        reportPath: paths.report,
+        manifestPath: paths.manifest,
+        runId: contract.runId,
+      });
+      return {
+        report: persisted.report,
+        manifest: persisted.manifest,
+        paths,
+        incumbent: null,
+        reportPersisted: false,
+      };
+    }
     await ledger.append("intake", { payload: { mode: policy.mode, resumed: previous.length > 0 } });
     const metric = contract.metric;
     const baselineRecord = previous.find((record) => record.event === "baseline");
@@ -162,11 +199,40 @@ async function optimize(options) {
       const manifest = {
         format: "csm-autoresearch-manifest/1",
         runId: contract.runId,
+        nativeRunId: contract.runId,
         runHash: hash(report),
         ledger: paths.ledger.replace(/^\//, ""),
         report: paths.report.replace(/^\//, ""),
         redacted: true,
       };
+      const createdAt = now.toISOString();
+      const ledgerBytes = await readFile(paths.ledger);
+      const ledgerDescriptor = createArtifactDescriptor({
+        runId: contract.runId,
+        kind: "autoresearch-ledger",
+        digest: digestBytes(ledgerBytes),
+        location: paths.ledger.replace(/^\//, ""),
+        contentType: "application/jsonl",
+        lifecycleStatus: report.status === "blocked" ? "blocked" : "completed",
+        createdAt,
+      });
+      const reportDescriptor = createArtifactDescriptor({
+        runId: contract.runId,
+        kind: "autoresearch-report",
+        digest: digestBytes(Buffer.from(`${JSON.stringify(report, null, 2)}\n`)),
+        location: paths.report.replace(/^\//, ""),
+        contentType: "application/json",
+        lifecycleStatus: report.status === "blocked" ? "blocked" : "completed",
+        createdAt,
+        sourceArtifactIds: [ledgerDescriptor.artifact.artifactId],
+      });
+      manifest.artifactDescriptors = [ledgerDescriptor, reportDescriptor];
+      manifest.envelope = createArtifactEnvelope(reportDescriptor, {
+        nativeRunId: contract.runId,
+        startedAt: createdAt,
+        endedAt: createdAt,
+        sourceDigests: Object.values(provenance),
+      });
       let reportPersisted = true;
       try {
         const existing = JSON.parse(await readFile(paths.report, "utf8"));
@@ -189,6 +255,12 @@ async function optimize(options) {
       if (reportPersisted) {
         await atomicJson(paths.report, report);
         await atomicJson(paths.manifest, manifest);
+        await validateProducerArtifacts({
+          ledgerPath: paths.ledger,
+          reportPath: paths.report,
+          manifestPath: paths.manifest,
+          runId: contract.runId,
+        });
       }
       return { report, manifest, paths, incumbent, reportPersisted };
     };

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-doctrine-findings/1",
+  "title": "CSM Python doctrine findings payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifact",
+    "source",
+    "findings",
+    "verificationStatus",
+    "redaction",
+    "sortOrder",
+    "ownership"
+  ],
+  "properties": {
+    "schema": { "const": "csm-doctrine-findings/1" },
+    "schemaRevision": { "const": 1 },
+    "artifact": { "$ref": "#/$defs/artifact" },
+    "source": {
+      "type": "object",
+      "required": ["commitSha"],
+      "properties": {
+        "commitSha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+        "repository": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "verificationStatus": { "$ref": "#/$defs/verificationStatus" },
+    "redaction": { "$ref": "#/$defs/redaction" },
+    "sortOrder": {
+      "const": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true }
+    },
+    "ownership": { "$ref": "#/$defs/ownership" },
+    "projection": {
+      "type": "object",
+      "required": ["authority", "formats"],
+      "properties": {
+        "authority": { "const": "json" },
+        "formats": { "type": "array", "items": { "enum": ["markdown", "html"] } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "owner", "runId", "digest", "createdAt", "terminal"],
+      "properties": {
+        "artifactId": { "type": "string", "pattern": "^art-doctrine-[a-z0-9-]+$" },
+        "owner": { "const": "csm-review-python" },
+        "runId": { "type": "string", "pattern": "^run-[a-z0-9-]+$" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "terminal": { "type": "boolean" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "dimension",
+        "category",
+        "severity",
+        "confidence",
+        "evidenceClass",
+        "locations",
+        "quotedSnippets",
+        "commitSha",
+        "explanation",
+        "impact",
+        "remediationSketch",
+        "fixActions",
+        "challenges",
+        "dissents",
+        "status",
+        "statusNote",
+        "sortKey"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F-[0-9]{3,}$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "dimension": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "anchorRef": { "type": ["string", "null"] },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+        "confidence": { "enum": ["verified", "high", "medium", "low"] },
+        "evidenceClass": { "enum": ["E1", "E2", "E3", "E4"] },
+        "locations": { "type": "array", "minItems": 1 },
+        "quotedSnippets": {
+          "type": "array",
+          "maxItems": 3,
+          "items": { "type": "string", "maxLength": 200 }
+        },
+        "commitSha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+        "explanation": { "type": "string", "minLength": 1 },
+        "impact": { "type": "string", "minLength": 1 },
+        "remediationSketch": { "type": "string", "minLength": 1 },
+        "fixActions": { "type": "array" },
+        "verification": { "type": ["object", "null"] },
+        "challenges": { "type": "array" },
+        "dissents": { "type": "array" },
+        "status": { "enum": ["upheld", "downgraded", "retracted"] },
+        "statusNote": { "type": "string", "minLength": 1 },
+        "sortKey": { "type": "string", "pattern": "^[0-4]:[0-3]:[0-3]:F-[0-9]{3,}$" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "evidenceClass": { "const": "E1" } } },
+          "then": {
+            "required": ["verification"],
+            "properties": { "verification": { "type": "object" } }
+          }
+        },
+        {
+          "if": { "properties": { "evidenceClass": { "const": "E2" } } },
+          "then": { "required": ["challenges"], "properties": { "challenges": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "evidenceClass": { "const": "E3" } } },
+          "then": {
+            "required": ["anchorRef"],
+            "properties": { "anchorRef": { "type": "string", "minLength": 1 } }
+          }
+        },
+        {
+          "if": { "properties": { "severity": { "enum": ["critical", "high"] } } },
+          "then": { "required": ["challenges"], "properties": { "challenges": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "verificationStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "status", "unresolved"],
+      "properties": {
+        "format": { "const": "csm-verification-status/1" },
+        "status": { "enum": ["VERIFIED", "INCOMPLETE", "BLOCKED"] },
+        "unresolved": { "type": "array" }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rules", "redactedFields"],
+      "properties": {
+        "status": { "const": "passed" },
+        "rules": { "type": "array", "minItems": 1 },
+        "redactedFields": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "runId", "collisionPolicy", "terminalPolicy"],
+      "properties": {
+        "owner": { "const": "csm-review-python" },
+        "runId": { "type": "string", "pattern": "^run-[a-z0-9-]+$" },
+        "collisionPolicy": { "const": "reject-owner-mismatch-or-terminal" },
+        "terminalPolicy": { "const": "immutable" }
+      }
+    }
+  }
+}

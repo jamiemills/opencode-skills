@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 9
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T011 committed as `8cfc3b4`; csm-scan passed 1283 tests, norms contract passed 5 tests, bootstrap/package parity passed, `make check` passed 1189 checks, formatting/lint passed, and T011 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T012-T015 integrated and repaired; DDD/autoresearch/research/review producer suites and combined contracts pass, root/bootstrap registry parity passes, and `make check` passes 1189 checks.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T012, T013, T014, T015
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -430,7 +430,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Revert only the scan/consumer resolver changes if replay fails; keep foundation/renderers intact and preserve old `NORMS.md` history.
 
-12. [in_progress] Migrate csm-ddd report/graph JSON pair and plan/build DDD consumers.
+12. [completed] Migrate csm-ddd report/graph JSON pair and plan/build DDD consumers.
    - Task ID: T012
    - Depends on: T010
    - Parallel group: G5
@@ -445,7 +445,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Keep the prior DDD pointer authoritative until both JSON artifacts and both consumers pass; never expose a mixed generation.
 
-13. [in_progress] Migrate csm-deep-research JSON finding and research consumers.
+13. [completed] Migrate csm-deep-research JSON finding and research consumers.
    - Task ID: T013
    - Depends on: T010
    - Parallel group: G5
@@ -460,7 +460,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If a fixed-section requirement cannot be represented, block only the research consumer cutover and retain JSON schema/profile work without reverting unrelated producers.
 
-14. [in_progress] Migrate csm-review and csm-review-python findings with plan/grill consumers.
+14. [completed] Migrate csm-review and csm-review-python findings with plan/grill consumers.
    - Task ID: T014
    - Depends on: T010
    - Parallel group: G5
@@ -475,7 +475,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Keep review output in its old path only for pre-cutover history; new review runs must not create Markdown authority.
 
-15. [in_progress] Preserve and envelope csm-autoresearch JSON/JSONL contracts.
+15. [completed] Preserve and envelope csm-autoresearch JSON/JSONL contracts.
    - Task ID: T015
    - Depends on: T010
    - Parallel group: G5
@@ -767,6 +767,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 8 | REVIEW -> CHECKPOINT | T011 | T011 is complete; T012-T015 may migrate standalone producers with no downstream shared resolver edits. | CHECKPOINT |
 | 2026-08-25 | 9 | CHECKPOINT -> SELECT | T012-T015 | T011 commit `8cfc3b4` passed hook gates; four standalone producer migrations are dependency-ready with disjoint ownership. | SELECT |
 | 2026-08-25 | 9 | SELECT -> DISPATCH | T012-T015 | DDD, research, review/doctrine, and autoresearch producer tasks dispatched in parallel; no plan/build consumer files assigned. | DISPATCH |
+| 2026-08-25 | 9 | DISPATCH -> INTEGRATE | T012-T015 | Producer workers returned local schemas/runtime/tests; actual diffs were inspected before shared integration. | INTEGRATE |
+| 2026-08-25 | 9 | INTEGRATE -> VERIFY | T012-T015 | Producer suites passed: DDD 73, autoresearch 70, research/review contracts 24; root registry/bootstrap parity and `make check` passed 1189 checks. | VERIFY |
+| 2026-08-25 | 9 | VERIFY -> REVIEW | T012-T015 | Producer-local and shared integration invariants are reproducible; no downstream consumer edits were included. | REVIEW |
+| 2026-08-25 | 9 | REVIEW -> REPAIR | T012-T015 | Combined review found DDD containment/determinism, research status/schema, review semantics, autoresearch identity, and shared test fixture issues; repairs were integrated. | REPAIR |
+| 2026-08-25 | 9 | REPAIR -> VERIFY | T012-T015 | Repaired producer suites, shared schema tests, bootstrap package tests, and conformance passed. | VERIFY |
+| 2026-08-25 | 9 | VERIFY -> REVIEW | T012-T015 | Final integrated review approved all four producers; residual work is consumer cutover. | REVIEW |
+| 2026-08-25 | 9 | REVIEW -> CHECKPOINT | T012-T015 | Standalone producer wave is complete; T016/T017 now own grill/plan consumer integration serially. | CHECKPOINT |
 
 ## Completion Review
 

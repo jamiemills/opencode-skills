@@ -1,12 +1,13 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { hash } from "../lib/ledger/index.mjs";
 import { optimize, evaluateHardGates, targetPassed } from "../lib/optimizer/index.mjs";
+import { validateProducerArtifacts } from "../lib/artifacts/index.mjs";
 import { candidates, evaluate, validate } from "./fixtures/synthetic-optimizer.mjs";
 
 const contract = (runId = "synthetic-run") => ({
@@ -116,7 +117,7 @@ test("hidden validation is required, finite, and represented in gate diagnostics
   assert.deepEqual(result.report.trials[0].diagnostics, ["hidden"]);
 });
 
-test("resume reconstructs the prior incumbent and trial count", async () => {
+test("terminal resume preserves the prior incumbent and trial count", async () => {
   const root = await mkdtemp(join(tmpdir(), "csm-optimizer-"));
   const options = {
     contract: contract("resume-run"),
@@ -130,8 +131,8 @@ test("resume reconstructs the prior incumbent and trial count", async () => {
   const first = await optimize(options);
   const second = await optimize({ ...options, candidates: [candidates[0], candidates[1]] });
   assert.equal(first.incumbent.id, "candidate-low");
-  assert.equal(second.incumbent.id, "candidate-best");
-  assert.equal(second.report.trials.filter((trial) => trial.decision === "keep").length, 2);
+  assert.equal(second.incumbent, null);
+  assert.equal(second.report.trials.filter((trial) => trial.decision === "keep").length, 1);
 });
 
 test("sandbox and policy failures are terminal blocked runs, not evaluated trials", async () => {
@@ -286,7 +287,32 @@ test("terminal report files are immutable during an exact-owner resume", async (
   };
   const first = await optimize(options);
   const before = await readFile(first.paths.report, "utf8");
+  const ledgerBefore = await readFile(first.paths.ledger, "utf8");
   const second = await optimize({ ...options, candidates: [{ id: "other", value: 0 }] });
   assert.equal(second.reportPersisted, false);
   assert.equal(await readFile(first.paths.report, "utf8"), before);
+  assert.equal(await readFile(first.paths.ledger, "utf8"), ledgerBefore);
+});
+
+test("producer contract rejects a report digest mismatch", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-optimizer-digest-"));
+  const result = await optimize({
+    contract: contract("digest-run"),
+    policy,
+    ledgerRoot: root,
+    evaluate,
+    baseline: { id: "baseline", value: 5 },
+    candidates: [],
+  });
+  await writeFile(result.paths.report, `${await readFile(result.paths.report, "utf8")}tampered`);
+  await assert.rejects(
+    () =>
+      validateProducerArtifacts({
+        ledgerPath: result.paths.ledger,
+        reportPath: result.paths.report,
+        manifestPath: result.paths.manifest,
+        runId: "digest-run",
+      }),
+    /JSON|manifest|digest|report/,
+  );
 });

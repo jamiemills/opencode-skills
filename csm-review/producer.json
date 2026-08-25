@@ -1,0 +1,15 @@
+{
+  "format": "csm-producer-descriptor/1",
+  "producer": "csm-review",
+  "schema": "csm-review-findings/1",
+  "schemaRevision": 1,
+  "artifactKind": "review-findings",
+  "authority": "json",
+  "legacyMarkdown": "projection-or-history-only",
+  "canonicalPath": ".agents/reviews/<date>-<repo-slug>-<run-id>-review.json",
+  "legacyPath": ".agents/reviews/<date>-<repo-slug>-review.md",
+  "legacyStatus": "history-only",
+  "projectionProfile": "csm-review-human/1",
+  "terminal": "immutable",
+  "collision": "reject-owner-mismatch-or-terminal"
+}

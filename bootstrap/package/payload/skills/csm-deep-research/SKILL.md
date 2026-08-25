@@ -34,7 +34,8 @@ The corpus location is part of the contract. Findings land under `.agents/resear
 ## Interface
 
 - Consumes: a research question or topic; retrievable sources (repository, docs, web); browser-rendered retrieval of JS-only pages via the csm-browse fallback
-- Produces: one run-ID-suffixed research document at `.agents/research/<date>-<slug>-<run-id>-research.md`; optional declared run artifacts at `.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>` (e.g. a .json schema the run was asked to emit). Legacy compatibility pattern `.agents/research/<yyyy-mm-dd>-<slug>-research.md` is read-only history.
+- Produces: one authoritative run-ID-suffixed JSON finding at `.agents/research/<date>-<slug>-<run-id>-research.json`; optional declared run artifacts at `.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>`. Markdown is an explicit projection, and legacy Markdown is read-only history.
+- Legacy history path `.agents/research/<yyyy-mm-dd>-<slug>-research.md` is retained only for compatibility and is not a machine input.
 - Hands off: the research document and any declared run artifacts to the user; csm-grill and csm-plan may dispatch deep-research runs for cited external findings and cite them (invocation-mediated; the only skill this run may invoke is csm-browse, for the Browser Retrieval Fallback)
 - Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
@@ -42,7 +43,7 @@ The corpus location is part of the contract. Findings land under `.agents/resear
 
 Every invocation has one validated `run-id`, either supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. The ID is immutable for the run and is recorded in the document Control journal. The artifact owner binds the invocation git root, normalized slug, artifact type, and run ID together; date and slug alone never establish ownership.
 
-The primary finding path is `.agents/research/<date>-<slug>-<run-id>-research.md`. Declared artifacts use `.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>`. A run may resume only when the existing path has a matching format, root, slug, artifact type, and run ID and its state is before `SAVED`; otherwise intake refuses the collision. A terminal `SAVED` finding or declared artifact is immutable: replacement, deletion, rename, or a mutable `latest` alias is refused. A new invocation gets a new run ID and path, even for the same day and slug.
+The primary finding path is `.agents/research/<date>-<slug>-<run-id>-research.json`. Declared artifacts use `.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>`. A run may resume only when the existing JSON path has a matching format, root, slug, artifact type, and run ID and its state is before `SAVED`; otherwise intake refuses the collision. A terminal `SAVED` finding or declared artifact is immutable: replacement, deletion, rename, or a mutable `latest` alias is refused. A new invocation gets a new run ID and path, even for the same day and slug.
 
 Subagents never write persistent artifacts. The synthesizer owns the finding and declared artifacts; the parent `csm-plan` or `csm-grill` owns neither path. A delegated parent records the exact handoff path and run ID, then verifies the saved artifact read-only; it must not create, rename, delete, or replace the delegated files. The finding records every declared artifact it owns, and VERIFY checks that the recorded pathset is unchanged except for that run's files.
 

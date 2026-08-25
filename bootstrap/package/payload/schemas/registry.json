@@ -11,7 +11,7 @@
       "immutable": true,
       "unknownFieldPolicy": "opaque-extension",
       "opaqueExtensionPoints": ["/payload"],
-      "schemaContentDigest": "sha256:49ce9d85d420c862e2f9ab20c6ba717b0b2342112e70d59b031ad1e83b924e3b"
+      "schemaContentDigest": "sha256:e14593dc6fe6e6254a252db3944f2b84a903b8e2cd4bb092db34f444cd390374"
     },
     {
       "id": "csm-artifact/1",
@@ -76,6 +76,132 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:6ddc585f70397d9ad076f756ec7eb5d83430bff62a0f81cb7465c33563b960fa"
+    },
+    {
+      "id": "csm-research/1",
+      "revision": 1,
+      "schemaPath": "csm-deep-research/schemas/csm-research.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:cdbd4b9b334273203123b01d7a86bbdeb49d8ec40fd7623a0335d5dcfb9634f9"
+    },
+    {
+      "id": "csm-ddd-report/1",
+      "revision": 1,
+      "schemaPath": "csm-ddd/schemas/ddd-report.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:72d63b73a09604a5f1fb898bc2d7904f262b6342b881cc2a9a0f2aec6370c8d8"
+    },
+    {
+      "id": "csm-ddd-graph/1",
+      "revision": 1,
+      "schemaPath": "csm-ddd/schemas/ddd-graph.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:ec8cc1d6cbb00d9d073975a68a0f3cc64bc47e031bbd9af08353ae2c9f052efc"
+    },
+    {
+      "id": "csm-review-findings/1",
+      "revision": 1,
+      "schemaPath": "csm-review/schemas/csm-review-findings.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:935c9de8cc14c910950b50edf570233af8ad44576e6babba21e6eedf5e8e7c5e"
+    },
+    {
+      "id": "csm-doctrine-findings/1",
+      "revision": 1,
+      "schemaPath": "csm-review-python/schemas/csm-doctrine-findings.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:1f5a595d93d0ea8ee7f489f16d2325d8c728df55756c74487451a2f75f35f528"
+    },
+    {
+      "id": "csm-autoresearch-contract/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/run-contract.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:2d544dcf760fa11925c52a3f2baa66c40025b0436e559aa726a6a9967f638d73"
+    },
+    {
+      "id": "csm-autoresearch-policy/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/policy.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:d9b31cd6cb63a60ac32212afe22b7c62d366777a179a3a561ba531a4f247008d"
+    },
+    {
+      "id": "csm-autoresearch-evaluator-request/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/evaluator-request.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:ed1f888a500d57da05640096d541b1f65d30743ee10cb777ff14101810f9d9fb"
+    },
+    {
+      "id": "csm-autoresearch-evaluator-response/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/evaluator-response.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:4a26dfdd62397571570e988d8924524a038c5eef4ac64a3fa9468b571810f47e"
+    },
+    {
+      "id": "csm-autoresearch-ledger-event/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/ledger-event.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:517eb6ea882d20580bc77ece6a6a4a56df073af7e3f86206685b618a2ea6eec9"
+    },
+    {
+      "id": "csm-autoresearch-report/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/report.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:0864d91b9218cd972a945f9a49207b8f22eea39df247fb762deb56eece0ba94c"
+    },
+    {
+      "id": "csm-autoresearch-llm-adapter/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/llm-adapter.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:d6e4e8f2665d3e483d1b65cc5c9064c1adf4699258ff549ef0582f914a94a82a"
+    },
+    {
+      "id": "csm-autoresearch-artifact-descriptor/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/artifact-descriptor.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:2d694c8f7e1ef30bc263da272b258396bf310290560846d17aff1cfdb7113093"
+    },
+    {
+      "id": "csm-autoresearch-envelope/1",
+      "revision": 1,
+      "schemaPath": "csm-autoresearch/schemas/envelope.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:d5227b3c5bba9a20c3ce997abc9f38b5edb6a544be33ee28974062cfaa31f48b"
     }
   ]
 }

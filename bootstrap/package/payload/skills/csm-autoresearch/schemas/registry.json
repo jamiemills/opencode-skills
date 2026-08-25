@@ -1,0 +1,22 @@
+{
+  "format": "csm-autoresearch-schema-registry/1",
+  "revisionPolicy": "immutable",
+  "unknownRevisionPolicy": "reject",
+  "entries": [
+    { "id": "csm-autoresearch-contract/1", "schemaPath": "run-contract.schema.json" },
+    { "id": "csm-autoresearch-policy/1", "schemaPath": "policy.schema.json" },
+    { "id": "csm-autoresearch-evaluator-request/1", "schemaPath": "evaluator-request.schema.json" },
+    {
+      "id": "csm-autoresearch-evaluator-response/1",
+      "schemaPath": "evaluator-response.schema.json"
+    },
+    { "id": "csm-autoresearch-ledger-event/1", "schemaPath": "ledger-event.schema.json" },
+    { "id": "csm-autoresearch-report/1", "schemaPath": "report.schema.json" },
+    { "id": "csm-autoresearch-llm-adapter/1", "schemaPath": "llm-adapter.schema.json" },
+    {
+      "id": "csm-autoresearch-artifact-descriptor/1",
+      "schemaPath": "artifact-descriptor.schema.json"
+    },
+    { "id": "csm-autoresearch-envelope/1", "schemaPath": "envelope.schema.json" }
+  ]
+}

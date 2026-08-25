@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-evaluator-request/1",
   "title": "bounded evaluator JSONL request",
   "type": "object",
   "additionalProperties": false,

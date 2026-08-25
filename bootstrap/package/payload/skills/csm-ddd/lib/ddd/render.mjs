@@ -1,6 +1,6 @@
 "use strict";
 
-import { GRAPH_FORMAT, REPORT_FORMAT } from "./contracts.mjs";
+import { GRAPH_FORMAT, REPORT_FORMAT, buildReportEnvelope } from "./contracts.mjs";
 import { serializePrivacy } from "./redact.mjs";
 
 const SECTION_ORDER = [
@@ -126,6 +126,7 @@ function renderCoverage(extraction, _synthesis, clarification) {
 }
 
 export function parseReport(markdown) {
+  if (typeof markdown === "object" && markdown !== null) return structuredClone(markdown);
   const text = String(markdown);
   const fence = /^---\n([\s\S]*?)\n---\n/.exec(text);
   if (!fence) throw new Error("report missing front matter");
@@ -151,6 +152,102 @@ export function parseReport(markdown) {
     title: (text.match(/^# (.+)$/m)?.[1] ?? "").trim(),
     sections,
   };
+}
+
+function findingForClaim(claim) {
+  return {
+    id: `finding-${claim.id}`,
+    claimId: claim.id,
+    subject: claim.subject,
+    status: claim.status,
+    basis: claim.basis,
+    confidence: claim.confidence,
+    evidenceIds: [...claim.evidenceIds].toSorted(),
+    summary: claim.note,
+  };
+}
+
+function typedSection({ id, kind, heading, summary, claims, data }) {
+  return {
+    id,
+    kind,
+    heading,
+    summary,
+    findings: claims.map(findingForClaim).toSorted((a, b) => a.id.localeCompare(b.id)),
+    data: serializePrivacy(data),
+  };
+}
+
+export function buildReportEnvelopeObject({
+  runId,
+  generatedAt,
+  repoName,
+  extraction,
+  synthesis,
+  clarification,
+}) {
+  const graphClaims = [
+    ...extraction.claims,
+    ...synthesis.claims,
+    ...(clarification?.claims ?? []),
+    ...(clarification?.gaps ?? []),
+  ];
+  const byKind = (kind) => graphClaims.filter((claim) => claim.claimKind === kind);
+  const report = buildReportEnvelope({ runId, generatedAt, title: "DDD repository analysis" });
+  report.repository = { name: serializePrivacy(repoName) };
+  report.sections = [
+    typedSection({
+      id: "capabilities",
+      kind: "capabilities",
+      heading: "Capabilities",
+      summary: "Observed capability inventory and bounded-context candidates.",
+      claims: byKind("capability"),
+      data: { capabilities: synthesis.capabilities },
+    }),
+    typedSection({
+      id: "context-hypotheses",
+      kind: "context_hypotheses",
+      heading: "Context hypotheses",
+      summary: "Bounded-context candidates remain hypotheses and require validation.",
+      claims: byKind("context_hypothesis"),
+      data: { hypotheses: synthesis.contextHypotheses, relationships: synthesis.edges },
+    }),
+    typedSection({
+      id: "terminology",
+      kind: "terminology",
+      heading: "Terminology and conflicts",
+      summary: "Terms and possible competing meanings found by static analysis.",
+      claims: byKind("term"),
+      data: { terms: synthesis.terms, ambiguities: synthesis.ambiguities },
+    }),
+    typedSection({
+      id: "seams",
+      kind: "seams",
+      heading: "Seams and candidate slices",
+      summary: "Redirectable seams, observable behavior, and rollback options.",
+      claims: [...byKind("seam"), ...byKind("ordering")],
+      data: { seams: synthesis.seams, slices: synthesis.slices, ordering: synthesis.ordering },
+    }),
+    typedSection({
+      id: "coverage",
+      kind: "coverage",
+      heading: "Coverage and open questions",
+      summary: "Bounded scan coverage and unresolved questions are explicitly disclosed.",
+      claims: [...byKind("workflow"), ...byKind("invariant"), ...(clarification?.gaps ?? [])],
+      data: {
+        caps: extraction.caps,
+        norms: extraction.norms,
+        questions: clarification?.questions ?? [],
+        answers: clarification?.answers ?? [],
+        gaps: clarification?.gaps ?? [],
+      },
+    }),
+  ];
+  return report;
+}
+
+export function serializeReport(report) {
+  return `${JSON.stringify(report, null, 2)}\n`;
 }
 
 export function buildGraphEnvelopeObject({

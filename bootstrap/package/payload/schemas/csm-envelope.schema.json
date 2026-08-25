@@ -157,6 +157,7 @@
       "properties": {
         "producer": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
         "producerVersion": { "type": "string", "minLength": 1 },
+        "nativeRunId": { "type": "string", "minLength": 1 },
         "producedAt": { "type": "string", "format": "date-time" },
         "sourceDigests": {
           "type": "array",

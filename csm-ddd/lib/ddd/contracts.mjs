@@ -4,6 +4,28 @@ import { createHash } from "node:crypto";
 
 export const GRAPH_FORMAT = "csm-ddd-graph/1";
 export const REPORT_FORMAT = "csm-ddd-report/1";
+export const PRODUCER_DESCRIPTOR_FORMAT = "csm-ddd-producer/1";
+
+export const DDD_PRODUCER_DESCRIPTOR = Object.freeze({
+  format: PRODUCER_DESCRIPTOR_FORMAT,
+  producer: "csm-ddd",
+  report: { format: REPORT_FORMAT, schema: "ddd-report.schema.json", authoritative: true },
+  graph: { format: GRAPH_FORMAT, schema: "ddd-graph.schema.json", authoritative: true },
+  pair: { format: "csm-ddd-publication/1", atomic: true },
+  projections: { markdown: "explicit-only", html: "explicit-only" },
+});
+
+export function buildPairDescriptor({ runId, report, graph, reportSha256, graphSha256, manifest }) {
+  requireId(runId, "pair.runId");
+  return Object.freeze({
+    ...DDD_PRODUCER_DESCRIPTOR,
+    runId,
+    report: { ...DDD_PRODUCER_DESCRIPTOR.report, path: report, sha256: reportSha256 },
+    graph: { ...DDD_PRODUCER_DESCRIPTOR.graph, path: graph, sha256: graphSha256 },
+    manifest,
+    rollback: "last-complete-pointer",
+  });
+}
 
 export const STATUSES = Object.freeze([
   "observed",
@@ -187,6 +209,43 @@ export function buildReportEnvelope({ runId, generatedAt, title }) {
     title: title ?? "DDD repository analysis",
     sections: [],
   };
+}
+
+export function assertReportContract(report, graph) {
+  if (report.format !== REPORT_FORMAT) throw new ContractError("report has an unsupported format");
+  if (report.runId !== graph.runId || report.graphRunId !== graph.runId) {
+    throw new ContractError("report and graph run IDs do not match");
+  }
+  if (!Array.isArray(report.sections) || report.sections.length === 0) {
+    throw new ContractError("report must contain typed sections");
+  }
+  for (const section of report.sections) {
+    if (!Array.isArray(section.findings))
+      throw new ContractError("report sections require findings");
+    for (const finding of section.findings) {
+      if (finding.claimId && !graph.claims.some((claim) => claim.id === finding.claimId)) {
+        throw new ContractError(
+          `report finding ${finding.id} references missing claim ${finding.claimId}`,
+        );
+      }
+      for (const evidenceId of finding.evidenceIds ?? []) {
+        if (!graph.evidence.some((evidence) => evidence.id === evidenceId)) {
+          throw new ContractError(
+            `report finding ${finding.id} references missing evidence ${evidenceId}`,
+          );
+        }
+      }
+    }
+  }
+  return true;
+}
+
+export function assertPairRunId(runId, report, graph) {
+  requireId(runId, "pair.runId");
+  if (report?.runId !== runId || report?.graphRunId !== runId || graph?.runId !== runId) {
+    throw new ContractError("published report and graph run IDs must match the pair run ID");
+  }
+  return true;
 }
 
 const ID_COLLECTIONS = ["nodes", "evidence", "questions", "answers"];

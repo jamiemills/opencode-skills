@@ -1,0 +1,16 @@
+{
+  "format": "csm-producer-descriptor/1",
+  "producer": "csm-review-python",
+  "schema": "csm-doctrine-findings/1",
+  "schemaRevision": 1,
+  "artifactKind": "python-doctrine-findings",
+  "authority": "json",
+  "legacyMarkdown": "projection-or-history-only",
+  "canonicalPath": ".agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json",
+  "legacyPath": ".agents/doctrine/<date>-<repo-slug>-python-doctrine-review.md",
+  "legacyStatus": "history-only",
+  "projectionProfile": "csm-review-python-human/1",
+  "terminal": "immutable",
+  "collision": "reject-owner-mismatch-or-terminal",
+  "researchInput": "registered-json-only"
+}

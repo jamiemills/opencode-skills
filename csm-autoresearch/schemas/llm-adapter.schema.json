@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-llm-adapter/1",
   "title": "provider-neutral csm-autoresearch LLM adapter",
   "type": "object",
   "additionalProperties": false,
