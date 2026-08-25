@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 7
+- Current CSM state: DISPATCH
+- Cycle: 8
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T010 integrated and repaired; focused resolver acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T010 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T010 committed as `eb43b0c`; focused resolver acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T010 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T011
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -415,7 +415,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If an active downstream depends on a legacy path, leave the global resolver unchanged and record the edge as pending; only the edge-specific consumer task may enable JSON resolution after replay passes.
 
-11. [pending] Migrate csm-scan norms output and its four downstream consumers.
+11. [in_progress] Migrate csm-scan norms output and its four downstream consumers.
    - Task ID: T011
    - Depends on: T010
    - Parallel group: G5
@@ -756,6 +756,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 7 | REPAIR -> VERIFY | T010 | Repaired focused suite passed 12 tests and all required checks passed. | VERIFY |
 | 2026-08-25 | 7 | VERIFY -> REVIEW | T010 | Final independent review returned PROCEED; residual risk is lack of timing-based race injection only. | REVIEW |
 | 2026-08-25 | 7 | REVIEW -> CHECKPOINT | T010 | T010 is complete; T011 will migrate csm-scan norms and its downstream consumers. | CHECKPOINT |
+| 2026-08-25 | 8 | CHECKPOINT -> SELECT | T011 | T010 commit `eb43b0c` passed hook gates; T011 is the only ready producer migration task. | SELECT |
+| 2026-08-25 | 8 | SELECT -> DISPATCH | T011 | csm-scan producer ownership is isolated; downstream plan/build/review/BDD resolvers remain owned by later tasks. | DISPATCH |
 
 ## Completion Review
 
