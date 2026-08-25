@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 2
+- Current CSM state: DISPATCH
+- Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T004 integrated and repaired; focused compatibility acceptance passed 14 tests, `make fmt-check` passed, `make check` passed 1189 checks, and full `make test` passed 1283 tests.
+- Last checkpoint: 2026-08-25 T004 committed as `86f2cd0`; focused compatibility acceptance passed 14 tests, `make fmt-check` passed, `make check` passed 1189 checks, and full `make test` passed 1283 tests.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T005
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -325,7 +325,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If a pair fails, leave its current producer/consumer untouched and mark the edge blocked; never weaken the gate to continue.
 
-5. [pending] Extend canonical-to-bootstrap packaging and drift verification for the foundation.
+5. [in_progress] Extend canonical-to-bootstrap packaging and drift verification for the foundation.
    - Task ID: T005
    - Depends on: T003, T004
    - Parallel group: G2
@@ -711,6 +711,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 2 | REPAIR -> VERIFY | T004 | Repaired focused suite passed 14 tests and full `make test` passed 1283 tests. | VERIFY |
 | 2026-08-25 | 2 | VERIFY -> REVIEW | T004 | Final independent review returned PROCEED; no material blocker remains for T005. | REVIEW |
 | 2026-08-25 | 2 | REVIEW -> CHECKPOINT | T004 | T004 is complete and ready for checkpoint commit; compatibility remains matrix/adapter controlled. | CHECKPOINT |
+| 2026-08-25 | 3 | CHECKPOINT -> SELECT | T005 | T004 commit `86f2cd0` passed hook gates; T005 is the only dependency-ready task and owns packer mappings/parity. | SELECT |
+| 2026-08-25 | 3 | SELECT -> DISPATCH | T005 | Packaging ownership is serialized; renderer and skill migration tasks remain undispatched. | DISPATCH |
 
 ## Completion Review
 
