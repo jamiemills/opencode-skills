@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 3
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T004 committed as `86f2cd0`; focused compatibility acceptance passed 14 tests, `make fmt-check` passed, `make check` passed 1189 checks, and full `make test` passed 1283 tests.
+- Last checkpoint: 2026-08-25 T005 integrated and repaired; pinned packaging acceptance passed 10 tests, `make fmt-check` and `make lint` passed, `make check` passed 1189 checks, and current full `make test` passed 1283 tests.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T005
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -325,7 +325,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If a pair fails, leave its current producer/consumer untouched and mark the edge blocked; never weaken the gate to continue.
 
-5. [in_progress] Extend canonical-to-bootstrap packaging and drift verification for the foundation.
+5. [completed] Extend canonical-to-bootstrap packaging and drift verification for the foundation.
    - Task ID: T005
    - Depends on: T003, T004
    - Parallel group: G2
@@ -713,6 +713,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 2 | REVIEW -> CHECKPOINT | T004 | T004 is complete and ready for checkpoint commit; compatibility remains matrix/adapter controlled. | CHECKPOINT |
 | 2026-08-25 | 3 | CHECKPOINT -> SELECT | T005 | T004 commit `86f2cd0` passed hook gates; T005 is the only dependency-ready task and owns packer mappings/parity. | SELECT |
 | 2026-08-25 | 3 | SELECT -> DISPATCH | T005 | Packaging ownership is serialized; renderer and skill migration tasks remain undispatched. | DISPATCH |
+| 2026-08-25 | 3 | DISPATCH -> INTEGRATE | T005 | Worker returned packer output-root isolation, shared foundation mappings, generated payloads, and packaging tests; actual diff was inspected. | INTEGRATE |
+| 2026-08-25 | 3 | INTEGRATE -> VERIFY | T005 | Primary rerun passed pinned packaging tests (10), package/bootstrap/deterministic gates, `make check`, formatting/lint, and current full `make test` (1283). | VERIFY |
+| 2026-08-25 | 3 | VERIFY -> REVIEW | T005 | T005 parity, source/destination containment, generated ownership, and staging behavior are reproducible. | REVIEW |
+| 2026-08-25 | 3 | REVIEW -> REPAIR | T005 | Independent review found output-root source containment and missing current generated/full-suite evidence; repair and commit sequencing completed. | REPAIR |
+| 2026-08-25 | 3 | REPAIR -> VERIFY | T005 | Nested canonical-source root regression passed; current full `make test` passed 1283 tests. | VERIFY |
+| 2026-08-25 | 3 | VERIFY -> REVIEW | T005 | Final independent review returned PROCEED; residual risks are Node 22 wrapper requirement and external browser/publication scope. | REVIEW |
+| 2026-08-25 | 3 | REVIEW -> CHECKPOINT | T005 | T005 is complete and ready for checkpoint commit; renderer packaging will extend the canonical mapping in a later phase. | CHECKPOINT |
 
 ## Completion Review
 

@@ -370,6 +370,10 @@ async function packBootstrapOnce({ outputRoot = bootstrapDir } = {}) {
   const targetBootstrapDir = resolve(outputRoot);
   if (targetBootstrapDir === root)
     throw new Error("pack refused: output root cannot be the canonical source root");
+  if (targetBootstrapDir !== bootstrapDir && targetBootstrapDir.startsWith(`${root}${sep}`))
+    throw new Error(
+      "pack refused: output root must be the canonical bootstrap directory or external to the canonical source root",
+    );
   await assertNoSymlinkPath(targetBootstrapDir, "output root");
   const packageDir = join(targetBootstrapDir, "package");
   await mkdir(targetBootstrapDir, { recursive: true });

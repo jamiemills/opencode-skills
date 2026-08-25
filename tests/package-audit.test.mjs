@@ -82,6 +82,23 @@ test("packer refuses an output-root symlink without modifying canonical bootstra
   }
 });
 
+test("packer refuses a nested source output root without mutation", async () => {
+  const beforeIndex = await readFile(join(bootstrapDir, "payload-index.json"));
+  const beforePackage = await readFile(
+    join(bootstrapDir, "package", "bin", "csm-skills-bootstrap.js"),
+  );
+  const outputRoot = join(bootstrapDir, "package");
+  await assert.rejects(
+    () => packBootstrap({ outputRoot }),
+    /external to the canonical source root/,
+  );
+  assert.deepEqual(await readFile(join(bootstrapDir, "payload-index.json")), beforeIndex);
+  assert.deepEqual(
+    await readFile(join(bootstrapDir, "package", "bin", "csm-skills-bootstrap.js")),
+    beforePackage,
+  );
+});
+
 test("packer refuses a symlinked destination parent inside an isolated output root", async () => {
   const dir = await mkdtemp(join(tmpdir(), "csm-pack-destination-link-"));
   const outputRoot = join(dir, "output");
