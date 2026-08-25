@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 7
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T009 committed as `5676ba5`; focused publication acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T009 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T010 integrated and repaired; focused resolver acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T010 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T010
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -400,7 +400,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If export cleanup cannot be proven, default to no persistence and return the projection transiently only.
 
-10. [in_progress] Freeze legacy history and add the JSON artifact resolver/migration-required boundary.
+10. [completed] Freeze legacy history and add the JSON artifact resolver/migration-required boundary.
    - Task ID: T010
    - Depends on: T004, T009
    - Parallel group: G4
@@ -749,6 +749,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 6 | REVIEW -> CHECKPOINT | T009 | T009 is complete; T010 will add the edge-scoped artifact resolver and legacy boundary. | CHECKPOINT |
 | 2026-08-25 | 7 | CHECKPOINT -> SELECT | T010 | T009 commit `5676ba5` passed hook gates; T010 is the only ready history/resolver task. | SELECT |
 | 2026-08-25 | 7 | SELECT -> DISPATCH | T010 | Edge-scoped resolver and legacy classification ownership is serialized before producer migration. | DISPATCH |
+| 2026-08-25 | 7 | DISPATCH -> INTEGRATE | T010 | Worker returned edge-scoped resolver, legacy classifier, and focused tests; actual diff was inspected. | INTEGRATE |
+| 2026-08-25 | 7 | INTEGRATE -> VERIFY | T010 | Primary rerun passed resolver/legacy tests (12), `make check` (1189), `make fmt-check`, and `make lint`. | VERIFY |
+| 2026-08-25 | 7 | VERIFY -> REVIEW | T010 | Resolver discovery, legacy, path, digest, owner, terminal, JSONL, and compatibility behavior are reproducible. | REVIEW |
+| 2026-08-25 | 7 | REVIEW -> REPAIR | T010 | Independent review found discovery fail-open, symlink/TOCTOU, duplicate-key, empty JSONL, legacy traversal, mixed-owner, and opened-path gaps; repairs were integrated. | REPAIR |
+| 2026-08-25 | 7 | REPAIR -> VERIFY | T010 | Repaired focused suite passed 12 tests and all required checks passed. | VERIFY |
+| 2026-08-25 | 7 | VERIFY -> REVIEW | T010 | Final independent review returned PROCEED; residual risk is lack of timing-based race injection only. | REVIEW |
+| 2026-08-25 | 7 | REVIEW -> CHECKPOINT | T010 | T010 is complete; T011 will migrate csm-scan norms and its downstream consumers. | CHECKPOINT |
 
 ## Completion Review
 
