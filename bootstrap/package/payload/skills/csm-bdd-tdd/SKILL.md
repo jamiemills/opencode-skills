@@ -260,7 +260,7 @@ Address every issue; cycle back to `SCENARIOS` or `TEST_DESIGN` as needed.
 
 ### 8. SAVED
 
-Unless the user explicitly requested no commit, commit the full output — the specs folder, the mutated plan, and the source plan's pointer line — in a single commit with a concise message referencing the source plan. Stage only files this skill created or modified, and never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
+Commit only when the user explicitly authorizes a commit in the current invocation; otherwise do not invoke Git commit. When authorized, define the owned pathset as the specs folder, mutated plan, and source plan pointer, verify the staged and post-commit pathsets, and use `git commit --only -- <owned paths>` with no bare `git commit`. Unrelated staged paths must remain outside the commit and must not be cleared. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
 
 Display: the mutated plan path, specs folder path, scenario and task counts, validation summary (execution + strictness), the commit hash or the reason the commit was skipped, `ready` or `blocked` status, and any user decisions required. State explicitly that no implementation was started and that execution requires a separate, explicit `csm-build` invocation naming the **new** plan. Then stop.
 

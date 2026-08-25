@@ -1,0 +1,15 @@
+{
+  "format": "csm-verification-status/1",
+  "status": "BLOCKED",
+  "unresolved": ["required anchor could not be reached"],
+  "evidence": [],
+  "anchors": [
+    {
+      "id": "owasp-asvs",
+      "url": "https://owasp.org/www-project-application-security-verification-standard/",
+      "version": "5.0.0",
+      "retrievedAt": "2026-08-24T00:00:00Z",
+      "reachability": "unreachable"
+    }
+  ]
+}

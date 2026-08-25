@@ -6,6 +6,10 @@ import { readManifest } from "./shared/manifest.mjs";
 import { detectEcosystems } from "./shared/ecosystem.mjs";
 import { commandBroker } from "./shared/command.mjs";
 
+function safeReporter(reporter) {
+  return typeof reporter === "function" ? reporter : console.log;
+}
+
 const LANG_SIGNALS = {
   JavaScript: { exts: [".js", ".jsx", ".mjs", ".cjs"], configs: ["package.json"], weight: 3 },
   TypeScript: { exts: [".ts", ".tsx", ".mts", ".cts"], configs: ["tsconfig.json"], weight: 5 },
@@ -76,8 +80,8 @@ function basenameOf(repoPath) {
   return norm.split("/").pop() || String(repoPath);
 }
 
-export async function survey(repoPath, broker = commandBroker) {
-  console.log(`  [SURVEY] Scanning ${repoPath}...`);
+export async function survey(repoPath, broker = commandBroker, reporter = console.log) {
+  safeReporter(reporter)("  [SURVEY] Scanning <redacted-path>...");
 
   const { files, extCounts, totalFiles, totalBytes, gitTracked } = await enumerate(
     repoPath,

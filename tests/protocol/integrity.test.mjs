@@ -14,11 +14,23 @@ import {
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { EXIT_CODES, runProtocol } from "./engine.mjs";
+import { EXIT_CODES, runProtocol as engineRunProtocol } from "./engine.mjs";
 import { loadReportSchema, validateSchema } from "./report-schema.mjs";
+import { canonicalJson } from "./trust-policy.mjs";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
+const runProtocol = async (input) => {
+  if (Object.hasOwn(input, "envelope")) return engineRunProtocol(input);
+  const envelope = JSON.parse(await readFile(join(root, "bootstrap/fixtures/valid.json"), "utf8"));
+  envelope.payload_index_sha256 = sha256(
+    input.index === undefined
+      ? await readFile(join(root, "bootstrap/payload-index.json"))
+      : canonicalJson(input.index),
+  );
+  delete envelope.signature;
+  return engineRunProtocol({ ...input, envelope });
+};
 const capable = {
   hasNpx: true,
   hasFileWrite: true,

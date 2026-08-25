@@ -172,8 +172,11 @@ test("malformed, oversized, timed-out, and resource-exhausted candidates fail cl
 test("redacted report, manifest, and ledger retain verifiable artifact linkage", async () => {
   const root = await mkdtemp(join(tmpdir(), "csm-integration-artifacts-"));
   const result = await optimize({
-    contract: { ...contract, runId: "artifact-run" },
-    policy: { ...policy, hardGates: [{ id: "valid", kind: "valid" }] },
+    contract: {
+      ...contract,
+      runId: "artifact-run",
+      policy: { ...policy, hardGates: [{ id: "valid", kind: "valid" }] },
+    },
     ledgerRoot: root,
     baseline: { id: "baseline", value: 1 },
     candidates: [],

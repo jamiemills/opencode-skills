@@ -1,0 +1,22 @@
+{
+  "schema": "csm-trace/1",
+  "traceId": "tr-invalid-correlation",
+  "runId": "run-invalid-correlation",
+  "manifest": {
+    "schema": "csm-skill-manifest/1",
+    "version": 1,
+    "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "outcome": "artifact-correctness",
+  "events": [{ "eventId": "ev-only", "sequence": 0, "type": "trajectory", "status": "completed" }],
+  "artifacts": [
+    {
+      "artifactId": "art-orphan",
+      "kind": "report",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "producedByEventId": "ev-missing"
+    }
+  ],
+  "reproducibility": { "fixtureId": "bad-correlation", "seed": "fixed", "deterministic": true },
+  "redaction": { "mode": "default-deny", "omitted": ["raw-prompt", "secrets", "full-tool-results"] }
+}

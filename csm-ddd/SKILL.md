@@ -74,9 +74,13 @@ The analyzer writes exactly two artifact classes per run and nothing else:
 2. `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json`
 
 `.agents/ddd/artifacts/` is reserved for declared run artifacts (schemas,
-validation notes). Writes land via temp-file-plus-rename so partial runs leave
-no partial files. In CLI mode explicit `--out-*` paths are honored verbatim for
-sandboxed testing; instruction mode always uses the contract paths above.
+validation notes). Publication uses a disposable generation directory containing
+both outputs and a `csm-ddd-publication/1` manifest. Only a manifest-complete
+generation is installed; installation rolls back both output paths if either
+rename fails, and removes the generation and backups. Therefore a failed run
+leaves neither artifact for a new pair, or preserves the prior complete pair.
+In CLI mode explicit `--out-*` paths are honored verbatim for sandboxed testing;
+instruction mode always uses the contract paths above.
 
 ## Repository Norms (NORMS.md)
 
@@ -139,6 +143,10 @@ Both artifacts exist under the allowlisted paths, schema-valid, cross-linked
 by the run ID. Disclose unresolved questions and coverage gaps in the report.
 Terminal; handoff to planning skills happens only via a separate human
 decision.
+
+Publication recovery: an incomplete generation is disposable and is never a
+successful artifact pair. A prior pair is retained until the replacement
+generation is complete; interrupted replacement restores that pair.
 
 ## Required Report And Graph
 

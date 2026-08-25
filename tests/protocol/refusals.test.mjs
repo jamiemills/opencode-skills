@@ -4,8 +4,9 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { EXIT_CODES, runProtocol } from "./engine.mjs";
+import { EXIT_CODES, runProtocol as engineRunProtocol } from "./engine.mjs";
 import { loadReportSchema, validateSchema } from "./report-schema.mjs";
+import { canonicalJson } from "./trust-policy.mjs";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
@@ -25,8 +26,20 @@ const capableInput = (overrides) => ({
 });
 const loadIndex = async () =>
   JSON.parse(await readFile(join(root, "bootstrap/payload-index.json"), "utf8"));
-const loadEnvelope = async () =>
-  JSON.parse(await readFile(join(root, "bootstrap/fixtures/valid.json"), "utf8"));
+const loadEnvelope = async (indexInput) => {
+  const envelope = JSON.parse(await readFile(join(root, "bootstrap/fixtures/valid.json"), "utf8"));
+  envelope.payload_index_sha256 = sha256(
+    indexInput === undefined
+      ? await readFile(join(root, "bootstrap/payload-index.json"))
+      : canonicalJson(indexInput),
+  );
+  delete envelope.signature;
+  return envelope;
+};
+const runProtocol = async (input) => {
+  if (Object.hasOwn(input, "envelope")) return engineRunProtocol(input);
+  return engineRunProtocol({ ...input, envelope: await loadEnvelope(input.index) });
+};
 
 test("missing npx or file-write capability refuses before any mutation", async () => {
   const sandbox = await mkdtemp("/tmp/csm-protocol-");

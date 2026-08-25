@@ -1,6 +1,7 @@
 # Universal Agent Skills Bootstrap Protocol
 
 Protocol ID: `csm-skills-bootstrap/1`
+Trust note: trusted envelopes must bind `payload_index_sha256` to the exact payload index used. `steps_markdown` is advisory text only; its shell-word check is a heuristic refusal, not a host execution or shell-safety guarantee.
 Report schema: `csm-agent-report/1` (see `bootstrap/agent-report.schema.json`)
 Consumes: a validated `csm-bootstrap/2` envelope (trust boundary defined by the envelope spec and its trusted keyring) and a `csm-payload-index/1` payload index shipped inside the fixed package `@jamiemills/csm-skills-bootstrap@0.1.0` (bin `csm-skills-bootstrap`).
 
@@ -61,7 +62,7 @@ The state chain is exactly:
 
 - Inputs: the state trace, placement results, capabilities, availability flags.
 - Agent-owned: delivering the report to the user; honestly reporting limitations.
-- Machine-guaranteed: the report validates against `bootstrap/agent-report.schema.json`; refusal reports carry the refusal code and state; success reports carry the destination, skills placed, per-file placed hashes with verification results, and availability flags marked as reported, not guaranteed.
+- Machine-guaranteed: the report validates against `bootstrap/agent-report.schema.json`; success reports contain the complete state chain, while refusal reports end at one terminal refusal with no later states. Refusal reports carry the refusal code and state; success reports carry the destination, skills placed, per-file placed hashes with verification results, and availability flags marked as reported, not guaranteed.
 - Failure codes: none — the report is always emitted; the exit code carries the outcome.
 
 ## Capability Input

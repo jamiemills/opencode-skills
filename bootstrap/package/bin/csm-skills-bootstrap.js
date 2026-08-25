@@ -142,6 +142,7 @@ function validateEnvelope(envelope, keyring, { now = new Date(), indexSha256 } =
     "schema",
     "steps_markdown",
     "steps_sha256",
+    "payload_index_sha256",
   ];
   for (const field of required)
     if (!Object.prototype.hasOwnProperty.call(envelope, field))
@@ -176,13 +177,19 @@ function validateEnvelope(envelope, keyring, { now = new Date(), indexSha256 } =
     } catch {
       reject("SCHEMA", "allowed_origin is not a URL");
     }
-    if (allowedOrigin && allowedOrigin.protocol !== "https:")
-      reject("SCHEMA", "allowed_origin must be https");
+    if (
+      allowedOrigin &&
+      (allowedOrigin.protocol !== "https:" ||
+        allowedOrigin.username !== "" ||
+        allowedOrigin.password !== "" ||
+        allowedOrigin.search !== "" ||
+        allowedOrigin.hash !== "")
+    )
+      reject("SCHEMA", "allowed_origin must be a bare https URL");
   }
   if (
-    Object.prototype.hasOwnProperty.call(envelope, "payload_index_sha256") &&
-    (typeof envelope.payload_index_sha256 !== "string" ||
-      !/^[a-f0-9]{64}$/.test(envelope.payload_index_sha256))
+    typeof envelope.payload_index_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(envelope.payload_index_sha256)
   ) {
     reject("SCHEMA", "payload_index_sha256 must be a sha256 hex digest");
   }
@@ -204,16 +211,12 @@ function validateEnvelope(envelope, keyring, { now = new Date(), indexSha256 } =
   if (typeof envelope.steps_markdown !== "string" || envelope.steps_markdown.length > 4096)
     reject("SCHEMA", "steps_markdown out of bounds");
   if (checkStepsShellPolicy(envelope.steps_markdown))
-    reject("SHELL_POLICY", "steps cannot define executable policy");
+    reject("SHELL_POLICY", "steps contain shell-like advisory text");
   if (sha256(envelope.steps_markdown) !== envelope.steps_sha256)
     reject("STEPS_DIGEST", "steps digest mismatch");
   if (!checkFixedPackagePolicy(envelope.policy?.package))
     reject("PACKAGE_POLICY", "package policy is not fixed");
-  if (
-    indexSha256 !== undefined &&
-    Object.prototype.hasOwnProperty.call(envelope, "payload_index_sha256") &&
-    indexSha256 !== envelope.payload_index_sha256
-  ) {
+  if (indexSha256 !== undefined && indexSha256 !== envelope.payload_index_sha256) {
     reject("PAYLOAD_INDEX_MISMATCH", "payload index digest mismatch");
   }
   const hasSignature = Object.prototype.hasOwnProperty.call(envelope, "signature");

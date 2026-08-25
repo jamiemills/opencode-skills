@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-verification-status/1",
+  "title": "CSM verification status and retained evidence",
+  "type": "object",
+  "required": ["format", "status", "unresolved", "evidence", "anchors"],
+  "properties": {
+    "format": { "const": "csm-verification-status/1" },
+    "status": { "enum": ["VERIFIED", "INCOMPLETE", "BLOCKED"] },
+    "unresolved": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "anchors": { "type": "array", "items": { "$ref": "#/$defs/anchor" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "VERIFIED" } } },
+      "then": {
+        "properties": { "unresolved": { "maxItems": 0 } },
+        "allOf": [
+          {
+            "not": {
+              "properties": {
+                "evidence": {
+                  "contains": { "properties": { "retention": { "const": "unavailable" } } }
+                }
+              }
+            }
+          },
+          {
+            "not": {
+              "properties": {
+                "anchors": {
+                  "contains": {
+                    "properties": { "reachability": { "enum": ["unreachable", "not-checked"] } }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["id", "kind", "retention"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "retention": { "enum": ["retained", "embedded", "unavailable"] },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "summary": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "retention": { "const": "retained" } } },
+          "then": { "required": ["path", "sha256"] }
+        },
+        {
+          "if": { "properties": { "retention": { "const": "embedded" } } },
+          "then": { "required": ["sha256", "summary"] }
+        },
+        {
+          "if": { "properties": { "retention": { "const": "unavailable" } } },
+          "then": { "required": ["reason"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "anchor": {
+      "type": "object",
+      "required": ["id", "url", "retrievedAt", "reachability"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "version": { "type": "string", "minLength": 1 },
+        "edition": { "type": "string", "minLength": 1 },
+        "retrievedAt": { "type": "string", "format": "date-time" },
+        "reachability": { "enum": ["reachable", "unreachable", "not-checked"] },
+        "httpStatus": { "type": "integer", "minimum": 100, "maximum": 599 }
+      },
+      "additionalProperties": false,
+      "oneOf": [{ "required": ["version"] }, { "required": ["edition"] }]
+    }
+  },
+  "additionalProperties": false
+}

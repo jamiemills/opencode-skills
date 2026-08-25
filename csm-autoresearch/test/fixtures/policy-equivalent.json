@@ -1,0 +1,15 @@
+{
+  "execution": {
+    "isolation": "trusted-in-process",
+    "evaluatorAssets": "isolated",
+    "credentials": "none",
+    "network": "disabled"
+  },
+  "population": { "maxArchive": 2, "activateAfterStagnantTrials": 2, "enabled": false },
+  "hardGates": [
+    { "kind": "valid", "id": "valid" },
+    { "kind": "build", "id": "build" }
+  ],
+  "mode": "hill-climb",
+  "format": "csm-autoresearch-policy/1"
+}

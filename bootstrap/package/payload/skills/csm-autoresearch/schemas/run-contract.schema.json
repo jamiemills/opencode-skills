@@ -11,7 +11,7 @@
     "metric": { "$ref": "#/$defs/metric" },
     "mutation": { "$ref": "#/$defs/mutation" },
     "budget": { "$ref": "#/$defs/budget" },
-    "policy": { "type": "string", "minLength": 1 }
+    "policy": { "$ref": "policy.schema.json" }
   },
   "$defs": {
     "source": {

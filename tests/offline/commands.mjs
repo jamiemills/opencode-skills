@@ -80,6 +80,7 @@ function checkArgv(argv, { offline = false } = {}) {
   const allowed = new Set([
     grammar.executor,
     ...grammar.requiredFlags,
+    ...(offline ? [] : (grammar.onlineFlags ?? [])),
     ...(offline ? grammar.offlineFlags : []),
     grammar.package.bin,
     ...allowedSubcommands,
@@ -111,6 +112,10 @@ function checkArgv(argv, { offline = false } = {}) {
     for (const flag of grammar.offlineFlags)
       if (!argv.includes(flag))
         return { ok: false, reason: "extra-flags", detail: `missing ${flag}` };
+      else
+        for (const onlineFlag of grammar.onlineFlags ?? [])
+          if (!argv.includes(onlineFlag))
+            return { ok: false, reason: "extra-flags", detail: `missing ${onlineFlag}` };
   if (!packageSeen) return { ok: false, reason: "extra-flags", detail: "missing --package=<spec>" };
   if (!binSeen) return { ok: false, reason: "missing-bin" };
   return { ok: true, reason: null };

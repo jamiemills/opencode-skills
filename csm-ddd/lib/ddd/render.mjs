@@ -1,6 +1,7 @@
 "use strict";
 
 import { GRAPH_FORMAT, REPORT_FORMAT } from "./contracts.mjs";
+import { serializePrivacy } from "./redact.mjs";
 
 const SECTION_ORDER = [
   ["Capabilities", renderCapabilities],
@@ -10,6 +11,16 @@ const SECTION_ORDER = [
   ["Coverage and open questions", renderCoverage],
 ];
 
+const SAFE_RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+function assertSafeRunId(runId) {
+  if (typeof runId !== "string" || !SAFE_RUN_ID_RE.test(runId)) {
+    throw new TypeError(
+      "runId must be 1-100 characters starting with a letter or digit and contain only letters, digits, '.', '_' or '-'.",
+    );
+  }
+}
+
 export function renderReport({
   runId,
   generatedAt,
@@ -18,6 +29,7 @@ export function renderReport({
   synthesis,
   clarification,
 }) {
+  assertSafeRunId(runId);
   const lines = [];
   lines.push("---");
   lines.push(`format: ${REPORT_FORMAT}`);
@@ -26,7 +38,7 @@ export function renderReport({
   lines.push(`generatedAt: ${generatedAt}`);
   lines.push("---");
   lines.push("");
-  lines.push(`# DDD repository analysis: ${repoName}`);
+  lines.push(`# DDD repository analysis: ${serializePrivacy(repoName)}`);
   lines.push("");
   lines.push("All context claims below are hypotheses with an explicit basis and confidence.");
   lines.push(`Machine-readable companion graph run: \`${runId}\`.`);
@@ -34,7 +46,7 @@ export function renderReport({
   for (const [heading, renderer] of SECTION_ORDER) {
     lines.push(`## ${heading}`);
     lines.push("");
-    lines.push(renderer(extraction, synthesis, clarification));
+    lines.push(serializePrivacy(renderer(extraction, synthesis, clarification)));
     lines.push("");
   }
   return `${lines.join("\n").trimEnd()}\n`;
@@ -148,28 +160,31 @@ export function buildGraphEnvelopeObject({
   synthesis,
   clarification,
 }) {
+  assertSafeRunId(runId);
   const evidence = [...extraction.evidence, ...(synthesis.evidence ?? [])];
   const claims = [...extraction.claims, ...synthesis.claims];
   if (clarification?.claims) claims.push(...clarification.claims);
   if (clarification?.evidence) evidence.push(...clarification.evidence);
   if (clarification?.gaps) claims.push(...clarification.gaps);
-  const nodes = synthesis.nodes.map((n) => ({ ...n }));
-  const edges = synthesis.edges.map((e) => ({ ...e }));
-  const answers = (clarification?.answers ?? []).map((a) => ({
-    questionId: a.questionId,
-    subject: a.subject,
-    value: a.value,
-    providedBy: a.providedBy,
-  }));
+  const nodes = serializePrivacy(synthesis.nodes);
+  const edges = serializePrivacy(synthesis.edges);
+  const answers = serializePrivacy(
+    (clarification?.answers ?? []).map((a) => ({
+      questionId: a.questionId,
+      subject: a.subject,
+      value: a.value,
+      providedBy: a.providedBy,
+    })),
+  );
   return {
     format: GRAPH_FORMAT,
     runId,
     generatedAt,
     nodes,
     edges,
-    claims,
-    evidence,
-    questions: clarification?.questions ?? [],
+    claims: serializePrivacy(claims),
+    evidence: serializePrivacy(evidence),
+    questions: serializePrivacy(clarification?.questions ?? []),
     answers,
   };
 }

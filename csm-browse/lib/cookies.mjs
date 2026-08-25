@@ -21,10 +21,11 @@ const ACCEPT_TEXTS = [
 const WALL_SRC_RE = /cmpv2|sourcepoint|privacy-mgmt|consent|didomi|onetrust|cookielaw|tcf|sp-prod/i;
 
 export async function dismissCookies(client, sessionId) {
+  const audit = [];
   // Pattern 1: OneTrust — remove banner/consent elements
   for (const sel of ONETRUST_SELECTORS) {
     try {
-      await client.send(
+      const response = await client.send(
         "Runtime.evaluate",
         {
           expression: `(function(){var e=document.querySelector('${sel}');if(e){e.remove();return'removed'}return'not found'})()`,
@@ -32,12 +33,13 @@ export async function dismissCookies(client, sessionId) {
         },
         sessionId,
       );
+      audit.push({ label: `remove:${sel}`, result: response?.result?.value ?? null });
     } catch {}
   }
 
   // Pattern 2: Sourcepoint — hide parent of consent iframe
   try {
-    await client.send(
+    const response = await client.send(
       "Runtime.evaluate",
       {
         expression: `(function(){var e=document.querySelector('iframe[src*="sourcepoint"],iframe[src*="privacy-mgmt"]');if(e){var p=e;while(p&&p!==document.body){p.style.display='none';p=p.parentElement}return'hidden'}return'not found'})()`,
@@ -45,6 +47,7 @@ export async function dismissCookies(client, sessionId) {
       },
       sessionId,
     );
+    audit.push({ label: "hide:known-consent-iframe", result: response?.result?.value ?? null });
   } catch {}
 
   // Pattern 3: Generic — click visible accept buttons
@@ -52,11 +55,12 @@ export async function dismissCookies(client, sessionId) {
     const { result } = await client.send(
       "Runtime.evaluate",
       {
-        expression: `(function(){var texts=[${ACCEPT_TEXTS.map((t) => `"${t}"`).join(",")}];var buttons=document.querySelectorAll('button,[role="button"],a.button');for(var i=0;i<buttons.length;i++){var b=buttons[i];var t=b.textContent.toLowerCase().trim();var r=b.getBoundingClientRect();if(r.width>0&&r.height>0&&r.top<window.innerHeight&&texts.some(function(x){return t===x||t.includes(x)})){b.click();return'clicked: '+t.substring(0,30)} }return'no match'})()`,
+        expression: `(function(){var texts=[${ACCEPT_TEXTS.map((t) => `"${t}"`).join(",")}];var buttons=document.querySelectorAll('button,[role="button"],a.button');for(var i=0;i<buttons.length;i++){var b=buttons[i];var t=b.textContent.toLowerCase().trim();var owner=b.closest('[id*="cookie" i],[id*="consent" i],[class*="cookie" i],[class*="consent" i],[class*="privacy" i]');var r=b.getBoundingClientRect();if(owner&&r.width>0&&r.height>0&&r.top<window.innerHeight&&texts.some(function(x){return t===x})){b.click();return'clicked: '+t.substring(0,30)} }return'no match'})()`,
         returnByValue: true,
       },
       sessionId,
     );
+    audit.push({ label: "click:consent-button", result: result?.value ?? null });
     if (result && result.value && result.value !== "no match") {
       await new Promise((r) => setTimeout(r, 1000)); // let click settle
     }
@@ -64,14 +68,15 @@ export async function dismissCookies(client, sessionId) {
 
   // Pattern 4: Fixed privacy overlays — remove position:fixed elements mentioning privacy
   try {
-    await client.send(
+    const { result } = await client.send(
       "Runtime.evaluate",
       {
-        expression: `(function(){var all=document.querySelectorAll('*');for(var i=0;i<all.length;i++){var e=all[i];var s=getComputedStyle(e);if((s.position==='fixed'||s.position==='sticky')&&e.offsetHeight>0&&e.offsetHeight<window.innerHeight){var t=e.textContent.toLowerCase();if(/\\b(?:privacy|consent|cookie)s?\\b/i.test(t)){e.remove()}}}})()`,
+        expression: `(function(){var all=document.querySelectorAll('#onetrust-banner-sdk,#onetrust-consent-sdk,.ot-sdk-container');var n=0;for(var i=0;i<all.length;i++){var e=all[i],s=getComputedStyle(e);if((s.position==='fixed'||s.position==='sticky')&&e.offsetHeight>0){e.remove();n++}}return'removed='+n})()`,
         returnByValue: true,
       },
       sessionId,
     );
+    audit.push({ label: "remove:known-consent-overlay", result: result?.value ?? null });
   } catch {}
 
   // Pattern 5: full-viewport consent-wall iframes (Sourcepoint cmpv2 and similar)
@@ -96,9 +101,9 @@ export async function dismissCookies(client, sessionId) {
       sessionId,
     );
     const walls = (found && found.value) || [];
-    if (walls.length === 0) return;
+    if (walls.length === 0) return audit;
   } catch {
-    return;
+    return audit;
   }
 
   // Pattern 6: try clicking an accept button inside the wall's own execution context
@@ -141,7 +146,7 @@ export async function dismissCookies(client, sessionId) {
               var b=all[i];
               var t=(b.textContent||'').toLowerCase().trim();
               var r=b.getBoundingClientRect();
-              if(r.width>0&&r.height>0&&texts.some(function(x){return t===x||t.includes(x)})){
+              if (r.width > 0 && r.height > 0 && texts.some(function(x){return t===x})) {
                 b.click(); return 'clicked';
               }
             }
@@ -153,6 +158,7 @@ export async function dismissCookies(client, sessionId) {
           sessionId,
         );
         clicked = !!(result && result.value === "clicked");
+        audit.push({ label: "click:consent-wall", result: result?.value ?? null });
       }
     } finally {
       client.off("Runtime.executionContextCreated", onCtx);
@@ -164,7 +170,7 @@ export async function dismissCookies(client, sessionId) {
 
   // Pattern 7: fallback — remove any remaining full-viewport wall iframes and unlock scroll
   try {
-    await client.send(
+    const { result } = await client.send(
       "Runtime.evaluate",
       {
         expression: `(function(){
@@ -191,5 +197,7 @@ export async function dismissCookies(client, sessionId) {
       },
       sessionId,
     );
+    audit.push({ label: "remove:consent-wall", result: result?.value ?? null });
   } catch {}
+  return audit;
 }

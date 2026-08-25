@@ -262,7 +262,7 @@ const INTERFACES = {
       "optional csm-ddd analysis artifacts when the plan cites them",
     ],
     produces: ["verified implementation", "delivery evidence"],
-    handoff: ["delivery to csm-browse"],
+    handoff: ["delivery evidence to a separately invoked csm-browse"],
     midPipeline: ["task dependencies", "checkpoints", "review findings", "repair evidence"],
   },
   "csm-review": {
@@ -286,14 +286,14 @@ const INTERFACES = {
     entryConditions: ["need to drive a headful Chromium browser"],
     consumes: ["browser session", "CDP verbs", "delivery target"],
     produces: ["screenshots", "videos", "DOM, console, network, or performance evidence"],
-    handoff: ["evidence files to csm-upload"],
+    handoff: ["evidence files to a separately invoked csm-upload"],
     midPipeline: ["isolated Chromium session", "session verbs", "session cleanup"],
   },
   "csm-upload": {
     entryConditions: ["evidence files ready", "configured GitHub Pages destination"],
     consumes: ["screenshots, videos, or evidence files", "GitHub configuration"],
     produces: ["dated GitHub Pages demo page"],
-    handoff: ["published evidence URL to the user"],
+    handoff: ["expected evidence URL to the user; verify Pages deployment separately"],
     midPipeline: ["clone or pull", "copy files", "generate index", "commit and push"],
   },
   "csm-deep-research": {

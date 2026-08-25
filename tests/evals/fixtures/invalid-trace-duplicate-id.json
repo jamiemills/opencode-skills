@@ -1,0 +1,18 @@
+{
+  "schema": "csm-trace/1",
+  "traceId": "tr-eval-001",
+  "runId": "run-eval-001",
+  "manifest": {
+    "schema": "csm-skill-manifest/1",
+    "version": 1,
+    "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "outcome": "recovery",
+  "events": [
+    { "eventId": "ev-recover", "sequence": 0, "type": "recovery", "status": "recovered" },
+    { "eventId": "ev-recover", "sequence": 1, "type": "recovery", "status": "recovered" }
+  ],
+  "artifacts": [],
+  "reproducibility": { "fixtureId": "recovery-001", "seed": "fixed-seed", "deterministic": true },
+  "redaction": { "mode": "default-deny", "omitted": ["secrets"] }
+}

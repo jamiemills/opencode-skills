@@ -42,6 +42,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-optional-progress-tracker-csm.md` — 2026-08-24 — add an optional horizontal progress tracker to every skill except upload and browse — status: ready
 - `2026-08-24-ddd-clean-code-csm-gates-csm.md` — 2026-08-24 — conditionally apply DDD and clean-code design gates in csm-plan/csm-build — status: ready
 - `2026-08-24-improve-csm-deep-research-skill-csm.md` — 2026-08-24 — improve csm-deep-research evidence contract and corpus validation — status: complete
+- `2026-08-24-agent-harness-remediation-csm.md` — 2026-08-24 — remediate agent-harness, skills-framework, lifecycle, runtime, packaging, evaluation, documentation, and CI findings — status: complete
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 
 ## docs/
@@ -62,6 +63,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-21-skills-review.md` — 2026-08-21 — adversarial review of the skills suite — status: remediated by `plans/2026-08-21-review-remediation-csm.md`
 - `2026-08-21-skills-review-2.md` — 2026-08-21 — follow-up review (second pass) — status: remediated by `plans/2026-08-21-review-remediation-csm.md`
 - `2026-08-23-skills-review.md` — 2026-08-23 — comprehensive skills-suite review — status: reference
+- `2026-08-24-opencode-skills-review.md` — 2026-08-24 — parallel full static review of skills, runtime, packaging, README, and release surfaces — status: reference
 
 ## research/
 
@@ -77,6 +79,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-23-llm-hill-climbing-autoresearch-skill-research.md` — 2026-08-23 — LLM-guided hill-climbing and autoresearch skill architecture — status: reference
 - `2026-08-24-headless-360-salesforce-research.md` — 2026-08-24 — Salesforce Headless 360 research finding — status: reference
 - `2026-08-24-improve-csm-deep-research-skill-research.md` — 2026-08-24 — evidence-backed csm-deep-research improvement research — status: reference
+- `2026-08-24-agent-harness-skills-framework-review-research.md` — 2026-08-24 — agent harness and skills framework comparison with repository remediation findings — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-us-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ US creative-assets schema artifact — status: reference

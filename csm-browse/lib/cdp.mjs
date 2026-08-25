@@ -1,6 +1,8 @@
 import CDP from "chrome-remote-interface";
+import { validateState } from "./security.mjs";
 
 export async function connect(state) {
+  validateState(state);
   const client = await CDP({ target: state.wsUrl });
   return client;
 }

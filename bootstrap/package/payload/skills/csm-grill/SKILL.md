@@ -59,7 +59,7 @@ SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only resea
 - Create one fresh isolated temp dir per session (e.g. `mktemp -d /tmp/csm-grill-XXXXXX`) for scratch notes and research journals; never create temp files in the repo.
 - Delete the temp dir before STOP. When a session resumes after interruption, clean up any leftover temp dir from the earlier session on a best-effort basis.
 - Research subagents are read-only and receive the same rule: return findings as text, never write files.
-- The optional approach-document commit at SAVED (skipped when the user declines or the directory is not a git repo) is the only sanctioned git mutation and is not a write-discipline violation.
+- The approach-document commit at SAVED is permitted only after explicit authorization in the current invocation. Without authorization, do not invoke Git commit. An authorized commit is the only sanctioned git mutation and is not a write-discipline violation.
 
 ## Interface
 
@@ -95,6 +95,14 @@ Brief-step mapping:
 | save the agreed approach to a single dated document in `.agents/approaches/`                     | SAVED                                                            |
 
 Quota note: grill persists nothing until SAVED. On hard quota exhaustion, stop cleanly and tell the user the interview is NOT mid-session resumable — it restarts from the user's answers (the one-question-at-a-time state is cheap to rebuild).
+
+### Lifecycle and Resume Contract
+
+Grill is intentionally non-resumable before `SAVED`: it has no durable cursor,
+checkpoint, or recovery artifact. It therefore does not claim
+`BLOCKED -> RECOVER -> VALIDATE` or `REVIEW -> CHECKPOINT`; a quota or
+user-decision stop restarts from the user's answers. The approach document is
+created only at `SAVED` and is not an interruption cursor.
 
 ### 1. INTAKE
 
@@ -149,7 +157,7 @@ Exit: user explicitly agrees.
 ### 7. SAVED
 
 1. Write `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md` at the git root, or cwd if not a git repo. Create only the approach directory and file.
-2. Unless the user declined, commit the new file in a single commit staging only that file, and never push unless explicitly requested; skip the commit when not a git repo and note why.
+2. Commit only when the user explicitly authorizes it in the current invocation. Before committing, verify the owned pathset is exactly the new approach file and use `git commit --only -- <approach path>`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Never push unless explicitly requested; skip the commit when not a git repo and note why.
 3. Delete the temp dir.
 4. Display the document scale-gated: for small/quick runs show a summary, the saved path, and evidence highlights; for large runs display the complete document. Report the commit hash or the reason the commit was skipped, and any parked open questions. Then stop — never invoke csm-plan or csm-build.
 

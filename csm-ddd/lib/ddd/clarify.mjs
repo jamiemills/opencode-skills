@@ -8,6 +8,20 @@ import {
   buildQuestion,
   ContractError,
 } from "./contracts.mjs";
+import { PRIVACY_LIMITS, serializePrivacy } from "./redact.mjs";
+
+const MAX_QUESTIONS = 200;
+const MAX_ANSWERS = 100;
+const MAX_ANSWER_BYTES = 4096;
+const MAX_ANSWER_TOTAL_BYTES = 64 * 1024;
+
+function requiredText(value, label, maxBytes = MAX_ANSWER_BYTES) {
+  if (typeof value !== "string" || value.length === 0)
+    throw new ContractError(`${label} must be a non-empty string`);
+  if (Buffer.byteLength(value, "utf8") > maxBytes)
+    throw new ContractError(`${label} exceeds ${maxBytes} bytes`);
+  return value;
+}
 
 function nextId(seq, prefix) {
   return `${prefix}-${String(seq).padStart(4, "0")}`;
@@ -51,21 +65,37 @@ export function deriveQuestions(synthesis) {
       }),
     );
   }
-  return questions;
+  if (questions.length > MAX_QUESTIONS)
+    throw new ContractError("clarification question count exceeds limit");
+  return serializePrivacy(questions, { maxCollectionItems: MAX_QUESTIONS });
 }
 
 export function applyQuestionFile(questions, fileData, existingClaims, evidencePathHint) {
-  if (!fileData || !Array.isArray(fileData.answers)) {
+  if (!fileData || typeof fileData !== "object" || !Array.isArray(fileData.answers)) {
     throw new ContractError("question file must carry an answers array");
   }
+  if (fileData.answers.length > MAX_ANSWERS)
+    throw new ContractError(`answer count exceeds ${MAX_ANSWERS}`);
   const knownIds = new Set(questions.map((q) => q.id));
   const applied = [];
   const rejected = [];
+  let answerBytes = 0;
   for (const entry of fileData.answers) {
+    if (!entry || typeof entry !== "object")
+      throw new ContractError("answer entries must be objects");
+    const questionId = requiredText(entry.questionId, "answer.questionId", 256);
+    const subject = requiredText(entry.subject ?? questionId, "answer.subject");
+    const value = requiredText(entry.value, "answer.value");
+    answerBytes +=
+      Buffer.byteLength(questionId, "utf8") +
+      Buffer.byteLength(subject, "utf8") +
+      Buffer.byteLength(value, "utf8");
+    if (answerBytes > MAX_ANSWER_TOTAL_BYTES)
+      throw new ContractError(`answers exceed ${MAX_ANSWER_TOTAL_BYTES} bytes`);
     const answer = buildAnswer({
-      questionId: entry.questionId ?? "",
-      subject: entry.subject,
-      value: String(entry.value ?? ""),
+      questionId,
+      subject,
+      value,
     });
     if (!knownIds.has(answer.questionId)) {
       rejected.push({ questionId: answer.questionId, reason: "unknown question ID" });
@@ -73,10 +103,10 @@ export function applyQuestionFile(questions, fileData, existingClaims, evidenceP
     }
     try {
       assertAnswerDoesNotOverwriteStatic(existingClaims, answer);
-      applied.push({ ...answer, status: "accepted" });
+      applied.push(serializePrivacy({ ...answer, status: "accepted" }, PRIVACY_LIMITS));
     } catch (error) {
       applied.push({
-        ...answer,
+        ...serializePrivacy(answer, PRIVACY_LIMITS),
         status: "recorded-as-alternative",
         note: error instanceof ContractError ? error.message : "conflict",
       });
@@ -110,23 +140,28 @@ export function applyQuestionFile(questions, fileData, existingClaims, evidenceP
       }),
     );
   }
-  return { applied, rejected, claims, evidence };
+  return serializePrivacy({ applied, rejected, claims, evidence });
 }
 
 export function nonInteractiveGaps(questions, answers) {
-  const answered = new Set((answers ?? []).map((a) => a.questionId));
-  return questions
-    .filter((q) => !answered.has(q.id))
-    .map((q, index) =>
-      buildClaim({
-        id: `cl-gap-${String(index + 1).padStart(4, "0")}`,
-        claimKind: "invariant",
-        status: "unverified",
-        subject: q.subject ?? q.text,
-        basis: "static_analysis",
-        confidence: "low",
-        evidenceIds: [],
-        note: `OPEN QUESTION (unresolved in non-interactive mode): ${q.text}`,
-      }),
-    );
+  const answered = new Set(
+    (answers ?? []).filter((a) => a && typeof a.questionId === "string").map((a) => a.questionId),
+  );
+  return serializePrivacy(
+    questions
+      .filter((q) => !answered.has(q.id))
+      .map((q, index) =>
+        buildClaim({
+          id: `cl-gap-${String(index + 1).padStart(4, "0")}`,
+          claimKind: "invariant",
+          status: "unverified",
+          subject: q.subject ?? q.text,
+          basis: "static_analysis",
+          confidence: "low",
+          evidenceIds: [],
+          note: `OPEN QUESTION (unresolved in non-interactive mode): ${q.text}`,
+        }),
+      ),
+    { maxCollectionItems: MAX_QUESTIONS },
+  );
 }

@@ -29,12 +29,15 @@ function createRegisteredProvider({
   environmentHash,
   limits,
   approval: approvalMetadata,
+  isolation = "trusted-in-process",
 } = {}) {
   if (!registry || typeof registry !== "object")
     throw new TypeError("registered registry is required");
   if (!HASH.test(evaluatorHash ?? "") || !HASH.test(environmentHash ?? ""))
     throw new TypeError("provider hashes must be sha256");
   const approved = approval(approvalMetadata);
+  if (isolation !== "trusted-in-process")
+    throw new TypeError("registered callables require the explicit trusted-in-process posture");
   const entries = new Map(
     Object.entries(registry).map(([id, entry]) => {
       if (!entry || typeof entry.callable !== "function" || !HASH.test(entry.sourceHash ?? ""))
@@ -58,7 +61,13 @@ function createRegisteredProvider({
           limits,
         );
       try {
-        const result = await entry.callable(request.input);
+        // Registered callables are trusted code, not a sandbox. Freeze the input and
+        // keep the trust claim explicit so this provider cannot be mistaken for host isolation.
+        const input =
+          request.input && typeof request.input === "object"
+            ? Object.freeze(request.input)
+            : request.input;
+        const result = await entry.callable(input);
         const metrics = typeof result === "number" ? { score: result } : result;
         if (
           !metrics ||
@@ -111,7 +120,7 @@ function response(
     provenance: {
       evaluatorHash,
       environmentHash,
-      limits: { ...limits, trust: "registered-in-process" },
+      limits: { ...limits, trust: "trusted-in-process-no-os-isolation" },
       redacted: true,
     },
   };

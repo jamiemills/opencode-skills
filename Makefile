@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help install lint fmt fmt-check fmt-staged check test test-hooks test-bootstrap test-scan test-browse test-browse-unit test-upload test-ddd test-autoresearch test-e2e analyze
+.PHONY: help install lint fmt fmt-check fmt-staged check test test-hooks test-bootstrap test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-ddd test-autoresearch test-e2e analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -40,6 +40,19 @@ test-bootstrap: ## bootstrap suites (serial; self-pack) + resume-semantics corpu
 	  tests/protocol/*.test.mjs tests/offline/*.test.mjs tests/integration/*.test.mjs \
 	  tests/resume-semantics.test.mjs
 
+test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, and worktree sessions)
+	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs
+
+test-package-index: ## package and payload-index validation tests
+	node --test --test-concurrency=1 tests/package-audit.test.mjs
+
+test-deterministic: ## deterministic package summary and offline evaluation suites
+	@set -eu; first=$$(mktemp); second=$$(mktemp); trap 'rm -f "$$first" "$$second"' EXIT; \
+		node scripts/pack-bootstrap.mjs | awk '/^(sha256|bytes|files):/{print}' >"$$first"; \
+		node scripts/pack-bootstrap.mjs | awk '/^(sha256|bytes|files):/{print}' >"$$second"; \
+		cmp "$$first" "$$second"
+	node --test --test-concurrency=1 tests/evals/*.test.mjs
+
 test-scan: ## csm-scan authoritative suite (serial only — ~2min)
 	cd csm-scan && node --test --test-concurrency=1
 
@@ -55,12 +68,12 @@ test-browse: ## csm-browse fast sanity (no Docker)
 test-browse-unit: ## csm-browse unit suite (offline-safe; needs pnpm install in csm-browse)
 	@if [ ! -d csm-browse/node_modules/ws ]; then \
 	  echo "csm-browse deps missing — run: cd csm-browse && pnpm install --frozen-lockfile" >&2; exit 1; fi
-	cd csm-browse && node --test --test-concurrency=1 tests/unit/
+	cd csm-browse && npm test
 
 test-upload: ## csm-upload upload-script tests (offline; stubbed git/gh)
 	node --test csm-upload/tests/upload.test.mjs
 
-test-e2e: ## csm-browse e2e (requires chromium-vnc container)
+test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs
 
-test: test-hooks test-bootstrap test-browse test-browse-unit test-upload test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; suite-tooling battery via tests/*.test.mjs documented in README)
+test: test-hooks test-bootstrap test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; browser E2E and live/external gates remain separate)

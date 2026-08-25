@@ -124,40 +124,26 @@ test("generic click pattern embeds every accept text", async () => {
   }
 });
 
-test("fixed privacy-overlay removal pattern is emitted", async () => {
+test("only known consent overlays are removed", async () => {
   const client = makeClient();
   await dismissCookies(client, "s");
   assert.ok(
     evaluates(client).some(
       (c) =>
-        c.params.expression.includes("position==='fixed'") &&
-        c.params.expression.includes("privacy"),
+        c.params.expression.includes("#onetrust-banner-sdk") &&
+        c.params.expression.includes("return'removed='+n"),
     ),
   );
 });
 
-test("overlay removal keywords are word-boundary scoped: 'database docs' survives, 'cookie consent' is removed", async () => {
+test("overlay removal does not inspect unrelated page text", async () => {
   const client = makeClient();
   await dismissCookies(client, "s");
-  const overlay = evaluates(client).find(
-    (c) =>
-      c.params.expression.includes("position==='fixed'") && c.params.expression.includes("privacy"),
+  const overlay = evaluates(client).find((c) =>
+    c.params.expression.includes("#onetrust-banner-sdk"),
   );
   assert.ok(overlay, "fixed overlay removal pattern missing");
-  assert.ok(
-    !overlay.params.expression.includes("includes('data')"),
-    "bare-substring 'data' matching must not remain in the overlay pattern",
-  );
-  const m = overlay.params.expression.match(/\/(.+?)\/([a-z]*)\.test\(/);
-  assert.ok(m, "keyword regex not found in overlay pattern");
-  const keyword = new RegExp(m[1], m[2]);
-  assert.equal(keyword.test("database docs"), false, "'database docs' chrome must survive");
-  assert.equal(keyword.test("cookie consent"), true, "'cookie consent' banner must be removed");
-  assert.equal(
-    keyword.test("we value your data"),
-    false,
-    "bare 'data' alone must not trigger removal",
-  );
+  assert.ok(!overlay.params.expression.includes("querySelectorAll('*')"));
 });
 
 test("no consent wall found: returns early, no context work, no wall removal", async () => {
@@ -196,7 +182,9 @@ test("consent wall path: frame context click + scroll-unlock removal", async () 
   assert.ok(ctxEval, "in-context accept click evaluate missing");
   assert.equal(ctxEval.params.contextId, 42);
   assert.equal(ctxEval.sessionId, "sess-w");
-  const removal = evaluates(client).find((c) => c.params.expression.includes("'removed='+n"));
+  const removal = evaluates(client).find(
+    (c) => c.params.expression.includes("'removed='+n") && c.params.expression.includes("overflow"),
+  );
   assert.ok(removal, "wall-iframe removal pattern missing");
   assert.ok(removal.params.expression.includes("overflow"));
   // listener registered during the pattern is removed afterwards

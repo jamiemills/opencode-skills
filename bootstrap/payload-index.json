@@ -16,8 +16,8 @@
   ],
   "fixedBin": {
     "path": "bin/csm-skills-bootstrap.js",
-    "sha256": "8b36b47f1aceb10cfbb10328f2a1b750714e7da1952baa490622d8c072b8f630",
-    "bytes": 14469,
+    "sha256": "2ba8896a14b6a1fb276300b7d74a085793f408f45995a1c9ef2b03a7939be24d",
+    "bytes": 14515,
     "mode": "0755"
   },
   "classes": {
@@ -30,8 +30,8 @@
       },
       {
         "path": "payload/skills/csm-bdd-tdd/SKILL.md",
-        "sha256": "f7c96005ccfc5f7327050086b3a10fac7d0070a62c71fde166d85c83549b8eab",
-        "bytes": 22725,
+        "sha256": "e1ee6c81bb863a61d00a8226562909809578556a3e17f28f2c307a263dc0be79",
+        "bytes": 22868,
         "mode": "0644"
       },
       {
@@ -42,50 +42,50 @@
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "d755d42fad9810673221a8f2f2baa6d3a27ef9c298ae28d006c7b734f94ac748",
-        "bytes": 32516,
+        "sha256": "71b9ca9f89405d5ff0aa48bab464585de2c9c276bf2f9658e3eb90401c25c0b1",
+        "bytes": 33937,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/SKILL.md",
-        "sha256": "9baeae98867dfcca71d2d1635ca8975e42db219e8bc19b782c5088726a840f32",
-        "bytes": 9688,
+        "sha256": "d1c7ca7d776395aa18946a2564ae0624551ee7243e6bce475adadca12a1985cc",
+        "bytes": 10200,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-deep-research/SKILL.md",
-        "sha256": "9a4586ce04414135854a5569fe9f3ab8c4763cd75d93da10f3abc02dd9ddba87",
-        "bytes": 59814,
+        "sha256": "0af8812678156e537406031065ae2f1e06681efae8ee81831e4e5ba705961361",
+        "bytes": 61111,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-grill/SKILL.md",
-        "sha256": "c029256a7662d3fa3dd9dbc1d2868d30a961b9df074fee8a2ae3182fe7b2b68a",
-        "bytes": 15686,
+        "sha256": "1b24391598c17e1d81c17761bafac32c677249bbb47a46c25819beddbe59d1d3",
+        "bytes": 16353,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-make-tests/SKILL.md",
-        "sha256": "9e4ba54f10e9669f2acdcbe79cfdd28d6959e94a1ab5959df33f5675cd1713d5",
-        "bytes": 24523,
+        "sha256": "d21c2162aa3e60e0662dc4bd2ea225771f5c58aefa198241911d84d992e04fe3",
+        "bytes": 26407,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "a04f5d96036f7b289e2f5d25b2d04739aabe84d68c40ddd67f800c60e05a44a0",
-        "bytes": 32696,
+        "sha256": "c308c48272563f34e4b7b826fba647c9aff137bd31e01dbf2edb2337a153d7e3",
+        "bytes": 32889,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-review-python/SKILL.md",
-        "sha256": "38356f03cc4d606e393b1e9c098e5e5b62cee706337020a2f6ba1c21ddee7a6b",
-        "bytes": 15509,
+        "sha256": "bea4cd912782c1c95fc78e975571f6bc05569fc68070d48036b2bf395a3c12e9",
+        "bytes": 16672,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "95f4da462a2caa8cd552e33be03bc0b6c85b91513839d8f477a390b1127daa20",
-        "bytes": 37400,
+        "sha256": "0ad2519e346f9eb7340c26447f79d46a0c488db878988568f9b803573e1e1538",
+        "bytes": 38438,
         "mode": "0644"
       },
       {
@@ -96,16 +96,16 @@
       },
       {
         "path": "payload/skills/csm-upload/SKILL.md",
-        "sha256": "7ca541d3de1d7ff0ce432ddf9ccc2ed81638cbcbca243e047494d47c52e43c50",
-        "bytes": 2471,
+        "sha256": "090e7321d4a89d0267900f09fc513e47ec3af876b68312032f1771b2a115a60d",
+        "bytes": 2659,
         "mode": "0644"
       }
     ],
     "supportingFiles": [
       {
         "path": "payload/skills/csm-autoresearch/lib/ledger/index.mjs",
-        "sha256": "62e01b09f5f339e4b5cf956d4ad4ae7df1d88c90875cc941de0e7f6cfd00c3c6",
-        "bytes": 9201,
+        "sha256": "fee0b8867f732a279bcb1b5f76dbcbaec6c1c2e7532ece735872c8b85f03c237",
+        "bytes": 9609,
         "mode": "0644"
       },
       {
@@ -116,8 +116,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/lib/optimizer/index.mjs",
-        "sha256": "2d7bc22fab037abfef394dbbdb1b42c29cef43d39c8453ec09a2db13b6fa5c27",
-        "bytes": 13106,
+        "sha256": "2af1773a305347842562f26294937e4d643788881259a3f6187d38786c5ab235",
+        "bytes": 15624,
         "mode": "0644"
       },
       {
@@ -128,8 +128,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/lib/protocol/index.mjs",
-        "sha256": "6ad083b4bee2a8587eec8aaa6daf5ae60ba0675da9d94b2df7c6db4b9a628526",
-        "bytes": 5647,
+        "sha256": "c06899eced0eae3e7a1e0299df364669b5cb0368eb4a0e1f11689d621005e68b",
+        "bytes": 5638,
         "mode": "0644"
       },
       {
@@ -140,8 +140,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/lib/providers/registered.mjs",
-        "sha256": "a9b653a98915f01a5edf53daf588657460553b216a2a4f627bdc0e9d05295595",
-        "bytes": 3475,
+        "sha256": "aec435e05c4778f8d6d2647355c6840c15608f33396522ce9b2b95e94cf06613",
+        "bytes": 3993,
         "mode": "0644"
       },
       {
@@ -158,8 +158,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/schemas/evaluator-request.schema.json",
-        "sha256": "d6ef5d1f018ae4305ea8c4022fd50cdea53e549ed7862844c36b76fdc1b653ba",
-        "bytes": 1532,
+        "sha256": "96a55d23ca125283e0909948110bec67ff2853d29b0a2fd17465c14fb855f65a",
+        "bytes": 1500,
         "mode": "0644"
       },
       {
@@ -182,8 +182,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/schemas/policy.schema.json",
-        "sha256": "ffc97ec3b85c4318d53661a9711b4aff07edb03e29a1835a38edd58bac776705",
-        "bytes": 1894,
+        "sha256": "31d284c60fe1b6802399e0a1831dff71742f5dd3d12a067ccd3839a3f998db4d",
+        "bytes": 2738,
         "mode": "0644"
       },
       {
@@ -194,8 +194,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/schemas/run-contract.schema.json",
-        "sha256": "ae515789110dc3927cd515323144ec889a45548899e9978187f04007f9bdbf56",
-        "bytes": 2826,
+        "sha256": "c4550de85937a83e79820942052c58ed96b8587a91062f90f4606833186a8dbe",
+        "bytes": 2822,
         "mode": "0644"
       },
       {
@@ -206,8 +206,8 @@
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/clarify.mjs",
-        "sha256": "e59edb5484a59f97ecb73ab9719d6de1ccd29e2de56b76fe195f19de575c726d",
-        "bytes": 4103,
+        "sha256": "e71a4aaabe3d05ad2cd1ddd5fe2e7fe5cb8d64753d24962b05153588a35792ec",
+        "bytes": 5747,
         "mode": "0644"
       },
       {
@@ -230,20 +230,20 @@
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/pipeline.mjs",
-        "sha256": "1e5aef19940ba6d922fb545b42ee51587fe98846364c7cfa94fb6cd801ef9f81",
-        "bytes": 3341,
+        "sha256": "907d084364c9e08de0a8c1450bd3e9d761e4587012a942102ab05c23b5ec3604",
+        "bytes": 5550,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/redact.mjs",
-        "sha256": "eb17fcb6e3fbd445c41a11b11eb0345aab8c1a61238c5cee84880022baa6e0d0",
-        "bytes": 1631,
+        "sha256": "b4309be881133ab1ea8766e6daf9b247bae3a4cc037583589f29b2bea9f1891c",
+        "bytes": 3113,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/render.mjs",
-        "sha256": "6e5094bd4bcc973c5b701d9411617a7ae1d28494e1eac7420fba9c79a722d4c0",
-        "bytes": 6253,
+        "sha256": "bbb00395c05e1f1c0407e8ce365103d92586fa390f8d63bd792fd1d15f8b66c3",
+        "bytes": 6812,
         "mode": "0644"
       },
       {
@@ -956,8 +956,8 @@
       },
       {
         "path": "payload/skills/csm-scan/lib/scan/survey.mjs",
-        "sha256": "cb332620c09151044e179e6d3187888f771f9135c39d1b379f849a67f76376ac",
-        "bytes": 4688,
+        "sha256": "55845767249bb3f4b477439de2e852b7033102e415fbb69824cdb07000a456c1",
+        "bytes": 4830,
         "mode": "0644"
       },
       {
@@ -980,8 +980,8 @@
       },
       {
         "path": "payload/skills/csm-upload/scripts/upload.mjs",
-        "sha256": "aeaded1759140cfa0558d50b3e4f943b79d04641d46425c4c6dcdf4fca1e6447",
-        "bytes": 16027,
+        "sha256": "fd91cc48a5f07d69fba74d71b8fd6b43bbda3827e95de591a3e23f90fccf0e7f",
+        "bytes": 21210,
         "mode": "0644"
       }
     ],

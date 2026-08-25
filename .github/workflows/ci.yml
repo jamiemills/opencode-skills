@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-install:
+    name: Frozen install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies without lifecycle scripts
+        run: make install
+
+  gates:
+    name: Repository gates
+    needs: frozen-install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies without lifecycle scripts
+        run: make install
+      - name: Check formatting
+        run: make fmt-check
+      - name: Run lint
+        run: make lint
+      - name: Validate repository contracts
+        run: make check
+      - name: Validate package and payload index
+        run: make test-package-index
+      - name: Run deterministic suites
+        run: make test-deterministic
+      - name: Run default test suites
+        run: make test
+      - name: Check patch whitespace
+        run: git diff --check

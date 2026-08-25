@@ -89,6 +89,12 @@ test("budgets, policies, artifacts, and adapters expose required safety controls
   const policy = await json(new URL("./schemas/policy.schema.json", root));
   assert.deepEqual(policy.properties.mode.enum, ["target", "hill-climb"]);
   assert.equal(policy.properties.population.properties.enabled.type, "boolean");
+  assert.deepEqual(policy.properties.execution.required, [
+    "network",
+    "credentials",
+    "evaluatorAssets",
+    "isolation",
+  ]);
   const adapter = await json(new URL("./schemas/llm-adapter.schema.json", root));
   assert.equal(adapter.properties.response.properties.advisory.const, true);
   assert.equal(adapter.allOf[0].then.properties.defEval.const, "resolved");

@@ -1,0 +1,10 @@
+{
+  "schema": "csm-trace/1",
+  "traceId": "tr-invalid-prompt",
+  "rawPrompt": "do not persist this",
+  "manifest": {
+    "schema": "csm-skill-manifest/1",
+    "version": 1,
+    "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

@@ -9,5 +9,17 @@
   "metric": { "name": "latency", "unit": "ms", "direction": "minimize", "aggregation": "median" },
   "mutation": { "mode": "diff", "allowedPaths": ["src/target.mjs"], "maxChangedBytes": 1000 },
   "budget": { "maxTrials": 10, "maxProposals": 5, "timeoutMs": 1000 },
-  "policy": "policy-001"
+  "policy": {
+    "format": "csm-autoresearch-policy/1",
+    "mode": "hill-climb",
+    "hardGates": [{ "id": "valid", "kind": "valid" }],
+    "population": { "enabled": false, "activateAfterStagnantTrials": 2, "maxArchive": 2 },
+    "execution": {
+      "network": "disabled",
+      "credentials": "none",
+      "evaluatorAssets": "isolated",
+      "isolation": "trusted-in-process",
+      "limits": { "timeoutMs": 1000, "maxOutputBytes": 10000 }
+    }
+  }
 }

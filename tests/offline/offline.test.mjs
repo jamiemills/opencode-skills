@@ -77,6 +77,7 @@ test("warm cache then offline replay against a dead registry both print the fixe
   const sandbox = await makeSandbox();
   try {
     const warmArgs = [
+      ...grammar.onlineFlags,
       ...grammar.requiredFlags,
       `--package=file:${pack.tarball}`,
       grammar.package.bin,

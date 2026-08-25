@@ -10,6 +10,7 @@
     "result",
     "exitCode",
     "states",
+    "refusal",
     "capabilities",
     "availability",
     "limitations"
@@ -20,7 +21,7 @@
     "result": { "enum": ["placed", "refused"] },
     "exitCode": { "type": "integer", "minimum": 0, "maximum": 13 },
     "refusal": {
-      "type": "object",
+      "type": ["object", "null"],
       "additionalProperties": false,
       "required": ["code", "state"],
       "properties": {

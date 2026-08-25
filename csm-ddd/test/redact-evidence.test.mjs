@@ -41,11 +41,7 @@ test("evidence-record funnel sanitizes hostile locators and matched keys", () =>
   assert.equal(redacted[0].path, records[0].path);
 });
 
-// Canary documenting the intentional scope boundary (F4-09-adjacent residual):
-// redactEvidenceRecords maps locator/matchedKey ONLY. Content planted in any other
-// record field (path here) survives serialization by design — widening the redaction
-// vocabulary is F4-09 territory and deliberately out of scope for this funnel.
-test("canary: fields other than locator/matchedKey pass through unredacted by design", () => {
+test("evidence serializer sanitizes every persisted record field", () => {
   const record = buildEvidence({
     claimId: "cl-canary-0003",
     sourceKind: "walk",
@@ -56,5 +52,5 @@ test("canary: fields other than locator/matchedKey pass through unredacted by de
   const [out] = redactEvidenceRecords([record]);
   assert.equal(out.locator, "<redacted-path>");
   assert.equal(out.matchedKey, "<redacted-path>");
-  assert.equal(out.path, `docs/${GHP_TOKEN}-runbook.md`);
+  assert.doesNotMatch(out.path, new RegExp(GHP_TOKEN));
 });

@@ -225,6 +225,24 @@ export function validateContainerSessionDir(path, sid = null) {
 }
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,128}$/;
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1"]);
+
+function assertLoopbackEndpoint(value, key) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`Invalid session ${key}`);
+  }
+  if (!LOOPBACK_HOSTS.has(url.hostname) || url.username || url.password || !url.port) {
+    throw new Error(`Invalid session ${key}: loopback host and explicit port required`);
+  }
+  const port = Number(url.port);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error(`Invalid session ${key}: unexpected port`);
+  }
+  return url;
+}
 
 export function validateState(state, sid = null) {
   if (!state || typeof state !== "object" || Array.isArray(state))
@@ -232,31 +250,15 @@ export function validateState(state, sid = null) {
   if (sid !== null && state.sid !== undefined && state.sid !== sid)
     throw new Error("Session state sid mismatch");
   if (state.wsUrl !== undefined) {
-    let url;
-    try {
-      url = new URL(state.wsUrl);
-    } catch {
-      throw new Error("Invalid session wsUrl");
-    }
-    // Query strings (incl. ?token=) are allowed; userinfo is not.
-    if (!["ws:", "wss:"].includes(url.protocol) || !url.hostname || url.username || url.password)
-      throw new Error("Invalid session wsUrl");
+    const url = assertLoopbackEndpoint(state.wsUrl, "wsUrl", state.publicPort);
+    if (url.protocol !== "ws:") throw new Error("Invalid session wsUrl");
   }
   if (state.cdpUrl !== undefined) {
-    let url;
-    try {
-      url = new URL(state.cdpUrl);
-    } catch {
-      throw new Error("Invalid session cdpUrl");
-    }
-    if (
-      !["http:", "https:"].includes(url.protocol) ||
-      !url.hostname ||
-      url.username ||
-      url.password
-    )
-      throw new Error("Invalid session cdpUrl");
+    const url = assertLoopbackEndpoint(state.cdpUrl, "cdpUrl", state.publicPort);
+    if (url.protocol !== "http:") throw new Error("Invalid session cdpUrl");
   }
+  if (state.wsUrl && state.cdpUrl && new URL(state.wsUrl).port !== new URL(state.cdpUrl).port)
+    throw new Error("Invalid session CDP endpoint port mismatch");
   if (state.token !== undefined) {
     if (typeof state.token !== "string" || !TOKEN_RE.test(state.token))
       throw new Error("Invalid session token");

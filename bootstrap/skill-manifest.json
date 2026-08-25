@@ -1,0 +1,25 @@
+{
+  "schema": "csm-skill-manifest/1",
+  "version": 1,
+  "contentDigest": "sha256",
+  "compatibility": { "node": ">=22 <25" },
+  "permissions": [],
+  "entrypoints": [],
+  "eval": { "mode": "deterministic-fixtures" },
+  "trace": { "mode": "redacted" },
+  "skills": [
+    "csm-autoresearch",
+    "csm-bdd-tdd",
+    "csm-browse",
+    "csm-build",
+    "csm-ddd",
+    "csm-deep-research",
+    "csm-grill",
+    "csm-make-tests",
+    "csm-plan",
+    "csm-review-python",
+    "csm-review",
+    "csm-scan",
+    "csm-upload"
+  ]
+}

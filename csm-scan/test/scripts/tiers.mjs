@@ -36,6 +36,7 @@ export const S = [
   "test/ignore.test.mjs",
   "test/manifest.test.mjs",
   "test/parse.test.mjs",
+  "test/privacy.test.mjs",
   "test/remediation-f002-gitleaks.test.mjs",
   "test/remediation-f022-f023-f062-reads.test.mjs",
   "test/remediation-f024-escape.test.mjs",

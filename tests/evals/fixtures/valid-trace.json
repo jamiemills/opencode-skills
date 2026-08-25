@@ -1,0 +1,46 @@
+{
+  "schema": "csm-trace/1",
+  "traceId": "tr-eval-001",
+  "runId": "run-eval-001",
+  "manifest": {
+    "schema": "csm-skill-manifest/1",
+    "version": 1,
+    "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "outcome": "recovery",
+  "events": [
+    {
+      "eventId": "ev-activate",
+      "sequence": 0,
+      "type": "activation",
+      "status": "completed",
+      "inputDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "eventId": "ev-trajectory",
+      "sequence": 1,
+      "type": "trajectory",
+      "status": "completed",
+      "toolName": "inspect"
+    },
+    {
+      "eventId": "ev-refuse",
+      "sequence": 2,
+      "type": "refusal",
+      "status": "refused",
+      "toolName": "commit",
+      "errorCode": "AUTH_REQUIRED"
+    },
+    { "eventId": "ev-recover", "sequence": 3, "type": "recovery", "status": "recovered" }
+  ],
+  "artifacts": [
+    {
+      "artifactId": "art-result",
+      "kind": "evaluation-result",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "producedByEventId": "ev-recover"
+    }
+  ],
+  "reproducibility": { "fixtureId": "recovery-001", "seed": "fixed-seed", "deterministic": true },
+  "redaction": { "mode": "default-deny", "omitted": ["raw-prompt", "secrets", "full-tool-results"] }
+}

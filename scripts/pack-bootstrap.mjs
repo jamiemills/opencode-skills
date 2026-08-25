@@ -21,27 +21,32 @@ import { dirname, join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
+import skillManifest from "../bootstrap/skill-manifest.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const bootstrapDir = join(root, "bootstrap");
 const packageDir = join(bootstrapDir, "package");
 const fixedTime = new Date("2026-08-18T00:00:00.000Z");
-const skillDirs = [
-  "csm-bdd-tdd",
-  "csm-browse",
-  "csm-build",
-  "csm-ddd",
-  "csm-deep-research",
-  "csm-make-tests",
-  "csm-grill",
-  "csm-plan",
-  "csm-review-python",
-  "csm-review",
-  "csm-scan",
-  "csm-upload",
-  "csm-autoresearch",
-];
+const skillDirs = skillManifest.skills;
+
+function assertSkillManifest() {
+  if (
+    skillManifest.schema !== "csm-skill-manifest/1" ||
+    skillManifest.version !== 1 ||
+    skillManifest.contentDigest !== "sha256" ||
+    !skillManifest.compatibility ||
+    !skillManifest.permissions ||
+    !skillManifest.entrypoints ||
+    !skillManifest.eval ||
+    !skillManifest.trace ||
+    new Set(skillManifest.skills).size !== skillManifest.skills.length
+  )
+    throw new Error("skill manifest is malformed");
+  return true;
+}
+
+assertSkillManifest();
 
 const mapping = {
   skills: skillDirs.map((name) => ({
@@ -347,6 +352,7 @@ export {
   packBootstrap,
   parseTar,
   syncPayload,
+  skillManifest,
   validateReleaseKeyring,
   walk,
 };

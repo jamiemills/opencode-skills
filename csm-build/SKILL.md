@@ -50,7 +50,7 @@ Run first — before `Activation Boundary` work, locating the plan, or any execu
 - Scale ceremony to risk. Small, low-risk batches may use a lightweight path — primary-agent self-review instead of review subagents — but journaling and transition records are never reduced, and security, privacy, data integrity, destructive, or public-interface work always receives full independent review.
 - Do not mutate external services, production infrastructure, live data, or persistent environments unless the plan explicitly requires it and the user has explicitly approved it. Prefer local fixtures, mocks, dry runs, and disposable environments for validation.
 - Do not push, deploy, publish, migrate real data, or perform destructive cleanup unless explicitly requested.
-- Commit at meaningful moments — at minimum each checkpoint with verified work and the completion gate — unless the plan or the user's prompt explicitly states no commits. The primary agent owns all commits; stage only files changed by this execution, use concise messages referencing the plan and cycle, and never push unless explicitly requested.
+- Commit only when the user explicitly authorizes a commit in the current invocation; otherwise do not invoke Git commit. The primary agent owns authorized commits: verify the exact owned pathset before and after committing, use `git commit --only -- <owned paths>` with no bare `git commit`, and leave unrelated staged work untouched. Never push unless explicitly requested.
 - Update the plan after every state transition and completed dispatch group. It must always contain enough evidence and an exact next transition for a fresh agent to resume.
 - Record `Last model/run:` in Control at each checkpoint so a resumed or model-switched run can re-verify prior evidence instead of trusting status labels.
 - Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`. The only sanctioned exception is the `PAUSED` stop under Pause On Quota.
@@ -158,6 +158,23 @@ From `CHECKPOINT`, transition to `SELECT`, `COMPLETE`, or `BLOCKED`. On quota ex
 
 Record every transition in `Control` and `Progress Journal` before proceeding. Increment the cycle when moving from `CHECKPOINT` back to `SELECT`.
 
+### Lifecycle and Resume Contract
+
+`BLOCKED` is a recoverable stop, not a terminal success state. A blocker
+checkpoint records the blocker, evidence, attempted resolutions, the exact
+decision needed, and the first safe transition; after unblocking the only
+entry is `BLOCKED -> RECOVER -> VALIDATE`. `REVIEW` has one clean success exit:
+`REVIEW -> CHECKPOINT`. It never skips the checkpoint to select, complete, or
+publish work.
+
+When resumability is claimed, `Control` is the durable cursor. It must contain
+`Current CSM state`, `Cycle`, `Last checkpoint`, `Last model/run`, `Next
+transition`, and `Resume`, while the latest journal row records the same
+transition and its evidence. A cursor identifies the task or batch, step, and
+artifact/checkpoint being resumed; a label such as "in progress" is not a
+cursor. Recovery writes a new checkpoint before retiring or deleting older
+temporary state and resumes from the last durable cursor.
+
 ### 1. RECOVER
 
 Reconstruct reality before continuing:
@@ -173,6 +190,10 @@ Reconstruct reality before continuing:
 9. Applicability check: if the optional `### Applicability` block exists, parse and validate the single JSON record, including required obligations for the decision and task slices. Validate every explicitly cited DDD graph/report pair, its relative paths, format/run-ID envelope, claim status/basis/confidence, and disclosed coverage gaps. Preserve plans without the block as legacy lightweight behavior; do not dispatch or silently redesign scope from a malformed or incomplete record.
 
 **Resume block.** When resuming (including from `PAUSED`), re-read Control `Last checkpoint`, the latest journal row, the Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff. When `Last model/run:` differs from the current run, re-verify acceptance evidence authored by the previous run instead of trusting status labels.
+
+If the prior state was `BLOCKED`, recover only after the recorded decision or
+prerequisite is present; then run `RECOVER -> VALIDATE` again. Do not resume
+from an unjournaled in-memory step or from retired temporary state.
 
 ### 2. VALIDATE
 
@@ -313,7 +334,7 @@ Then learn from the cycle before moving on. Scan the cycle's failures and review
 
 Keep the working tree and plan recoverable. Do not use chat history as the only record of progress.
 
-Unless the plan or the user's prompt explicitly states no commits, commit the verified batch together with the updated plan before choosing the next transition. Stage only files changed by this execution, use a concise message referencing the plan, cycle, and batch, and never push unless explicitly requested.
+If and only if the user explicitly authorizes a commit in the current invocation, commit the verified batch together with the updated plan before choosing the next transition. Verify the owned pathset before and after using `git commit --only -- <owned paths>`; never use a bare commit, include unrelated staged paths, or clear unrelated staged work. Never push unless explicitly requested. Without authorization, record the verified work as intentionally uncommitted.
 
 Then immediately choose:
 
@@ -333,7 +354,7 @@ The primary agent must personally perform the final gate; do not delegate it. Ve
 5. The implementation matches the user's goal rather than merely matching task wording.
 6. Documentation, migrations, configuration, and recovery steps are complete where relevant.
 7. Repository status contains no unexplained changes from this execution.
-8. All execution work is committed, unless the plan or the user's prompt explicitly stated no commits; nothing has been pushed without an explicit request.
+8. All execution work is committed only when the user explicitly authorized a commit; otherwise the intentionally uncommitted state is recorded, and nothing has been pushed without an explicit request.
 
 If any gate fails, create repair work and continue the cycle. If all pass, set `Status: complete`, set `Current CSM state: COMPLETE`, fill `Completion Review`, add the final journal entry, and report the result and verification evidence. Quota exhaustion is not a gate failure — it pauses via the `PAUSED` stop (Pause On Quota), and the paused checkpoint becomes the resume point.
 
@@ -359,7 +380,7 @@ On a quota signal:
 
 1. Record the exact error in the journal as evidence.
 2. Integrate only already-returned, safe in-flight subagent results.
-3. Run the full `CHECKPOINT` block including the commit.
+3. Run the full `CHECKPOINT` block, including a commit only if explicitly authorized.
 4. Set Control `Status: paused`, `Current CSM state: PAUSED`, `Next transition: PAUSED -> RECOVER`.
 5. Stop cleanly.
 

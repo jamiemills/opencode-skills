@@ -85,5 +85,35 @@ function validate(instance, schema, path, errors) {
 export function validateSchema(instance, schema) {
   const errors = [];
   validate(instance, schema, "$", errors);
+  if (schema?.$id?.includes("csm-agent-report-1.json")) validateReportContract(instance, errors);
   return errors;
+}
+
+function validateReportContract(report, errors) {
+  if (!report || typeof report !== "object" || !Array.isArray(report.states)) return;
+  const chain = [
+    "DISCOVER",
+    "TRUST",
+    "PLAN_DESTINATION",
+    "CONFIRM_IF_NEEDED",
+    "MATERIALIZE",
+    "VERIFY",
+    "REPORT",
+  ];
+  const states = report.states;
+  const expected = chain.slice(0, states.length);
+  if (states.some((entry, index) => entry?.state !== expected[index]))
+    errors.push("$.states: entries must be an exact prefix of the protocol state chain");
+  const refusalIndex = states.findIndex((entry) => entry?.refusal !== null);
+  if (refusalIndex !== -1) {
+    if (refusalIndex !== states.length - 1)
+      errors.push("$.states: refusal must be the final trace entry");
+    if (report.result !== "refused") errors.push("$.result: refusal trace requires refused result");
+    if (report.refusal?.state !== states[refusalIndex]?.state)
+      errors.push("$.refusal.state: must match the terminal refusal trace state");
+  } else if (report.result === "refused") {
+    errors.push("$.states: refused result requires a terminal refusal trace entry");
+  } else if (report.result === "placed" && states.length !== chain.length) {
+    errors.push("$.states: placed result requires the complete protocol state chain");
+  }
 }

@@ -11,7 +11,8 @@
     "key",
     "policy",
     "steps_markdown",
-    "steps_sha256"
+    "steps_sha256",
+    "payload_index_sha256"
   ],
   "properties": {
     "schema": { "const": "csm-bootstrap/2" },

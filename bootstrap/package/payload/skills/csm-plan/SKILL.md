@@ -223,7 +223,7 @@ Address every issue found. Cycle back as needed; do not approve a plan merely be
 
 Save the final plan under `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md` at the repository root. If a `.draft` sidecar exists, rename it to this final path; otherwise write the plan directly. Create only the plan directory and file. Do not overwrite an unrelated existing plan.
 
-Unless the user explicitly requested no commit, commit the new plan file in a single commit with a concise message referencing the goal; stage only the plan file, and never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
+Commit only when the user explicitly authorizes it in the current invocation; otherwise do not invoke Git commit. When authorized, verify the owned pathset is exactly the new plan file and use `git commit --only -- <plan path>` with no bare `git commit`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
 
 In the final response, scale the display to the ask: small/quick runs finish with a summary, the saved path, and evidence highlights; large runs display the complete final plan, not only a summary or path. Also report the saved path, the commit hash or the reason the commit was skipped, the plan's `ready` or `blocked` status, and any user decisions still required. Explicitly state that implementation was not started. Then stop; do not invoke another skill or execute the first transition.
 

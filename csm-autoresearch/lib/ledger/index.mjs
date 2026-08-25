@@ -130,6 +130,16 @@ class AppendOnlyLedger {
         records.push(record);
         previous = record.recordHash;
       }
+      const recordedProvenance = records[0]?.provenance;
+      if (recordedProvenance) {
+        for (const key of ["contractHash", "evaluatorHash", "environmentHash", "policyHash"]) {
+          if (
+            this.provenance[key] !== undefined &&
+            recordedProvenance[key] !== this.provenance[key]
+          )
+            throw new Error(`resume provenance mismatch: ${key}`);
+        }
+      }
       const state = await this.readState();
       this.status = state?.status ?? "ready";
       this.sequence = records.length;

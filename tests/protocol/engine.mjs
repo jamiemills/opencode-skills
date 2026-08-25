@@ -250,7 +250,13 @@ async function readJsonOrNull(path) {
 
 export async function runProtocol(input) {
   const trace = [];
-  const push = (state, action, refusal = null) => trace.push({ state, action, refusal });
+  const push = (state, action, refusal = null) => {
+    const expected = PROTOCOL_STATES[trace.length];
+    if (state !== expected) throw new Error(`invalid protocol state order: ${state}`);
+    if (trace.some((entry) => entry.refusal !== null))
+      throw new Error("protocol trace cannot continue after refusal");
+    trace.push({ state, action, refusal });
+  };
   const capabilities = normalizeCapabilities(input?.capabilities);
   const now = input?.now !== undefined ? new Date(input.now) : new Date();
   // F-047 test seam: the temp-write name defaults to a fresh crypto-random hex
@@ -277,13 +283,9 @@ export async function runProtocol(input) {
     if (envelope === null || typeof envelope !== "object" || Array.isArray(envelope))
       refuse("TRUST", "E_UNTRUSTED", "envelope is missing");
     const keyring = await loadKeyring();
-    // R6: payload_index_sha256 binds a FILE-BYTE digest — the exact bytes of
-    // the shipped payload-index.json (the same convention the shipped bin's
-    // verify subcommand uses). When the index is supplied as an OBJECT the
-    // engine hashes the deterministic canonical serialization (canonicalJson),
-    // i.e. the same byte string a signer must produce via the shared signing
-    // tooling; a signer binding an object-form index must serialize canonically
-    // (see protocol.md for the documented limitation).
+    // R6: payload_index_sha256 binds the exact payload-index bytes. The
+    // caller must provide that binding explicitly; the engine never mutates
+    // the envelope or strips its signature.
     const indexSha256 = indexJson !== null ? sha256(indexJson) : sha256(canonicalJson(indexInput));
     try {
       validateEnvelope(envelope, keyring, { now, indexSha256 });
@@ -528,6 +530,7 @@ export async function runProtocol(input) {
         protocol: "csm-skills-bootstrap/1",
         result: "placed",
         exitCode: EXIT_CODES.PLACED,
+        refusal: null,
         states: trace,
         destination,
         skillsPlaced: skillDirs,
@@ -557,7 +560,24 @@ export async function runProtocol(input) {
     if (!capabilities.knowsReload) limitations.push("reload-unknown");
     if (!capabilities.supportsLock) limitations.push("locking-unavailable");
     if (restoreFailed) limitations.push("restore-failed");
-    push(error.state, "refused", error.code);
+    const terminal = trace.at(-1);
+    if (terminal?.state === error.state) {
+      terminal.action = "refused";
+      terminal.refusal = error.code;
+    } else if (
+      error.state === "MATERIALIZE" &&
+      terminal?.state === "VERIFY" &&
+      trace.at(-2)?.state === "MATERIALIZE"
+    ) {
+      trace.pop();
+      trace.at(-1).action = "refused";
+      trace.at(-1).refusal = error.code;
+    } else {
+      const expected = PROTOCOL_STATES[trace.length];
+      if (expected !== error.state)
+        throw new Error(`invalid refusal state: ${error.state}`, { cause: error });
+      trace.push({ state: error.state, action: "refused", refusal: error.code });
+    }
     return {
       exitCode: error.exitCode,
       report: {

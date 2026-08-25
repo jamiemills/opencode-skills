@@ -1,0 +1,12 @@
+{
+  "schema": "csm-skill-manifest/1",
+  "version": 1,
+  "contentDigest": "sha256",
+  "compatibility": { "node": ">=22 <25" },
+  "permissions": [],
+  "entrypoints": [],
+  "eval": { "mode": "deterministic-fixtures" },
+  "trace": { "mode": "redacted" },
+  "skills": ["csm-build"],
+  "unexpected": true
+}

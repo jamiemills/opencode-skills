@@ -109,6 +109,11 @@ function copyRepo(dest) {
   if (fs.existsSync(dependencyPolicy)) {
     fs.copyFileSync(dependencyPolicy, path.join(dest, "scripts/lib/dependency-policy.mjs"));
   }
+  const skillManifest = path.join(REPO, "bootstrap/skill-manifest.json");
+  if (fs.existsSync(skillManifest)) {
+    fs.mkdirSync(path.join(dest, "bootstrap"), { recursive: true });
+    fs.copyFileSync(skillManifest, path.join(dest, "bootstrap/skill-manifest.json"));
+  }
 }
 
 function setup() {

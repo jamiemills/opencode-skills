@@ -169,6 +169,20 @@ function toPosix(value) {
   return value.split(path.sep).join("/");
 }
 
+function fileSha256(file) {
+  return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
+function loadSkillManifest(rootDir) {
+  try {
+    return JSON.parse(
+      fs.readFileSync(path.join(rootDir, "bootstrap", "skill-manifest.json"), "utf8"),
+    );
+  } catch (err) {
+    return { error: `skill manifest unreadable: ${err.message}` };
+  }
+}
+
 // Parses a leading frontmatter block and returns { kind, version } from a
 // `format: <kind>/<version>` line, or null when absent/malformed. Accepts two
 // forms: YAML frontmatter delimiters (`---\nformat: ...\n---`) and the bare
@@ -636,8 +650,9 @@ function walkRelFiles(dir, base = dir) {
 // package root) is out of scope.
 function buildPayloadSrcMap(rootDir) {
   const map = new Map();
-  for (const item of mapping.skills) {
-    map.set(toPosix(item.dest), toPosix(item.src));
+  const manifest = loadSkillManifest(rootDir);
+  for (const skill of manifest.skills ?? []) {
+    map.set(`payload/skills/${skill}/SKILL.md`, `${skill}/SKILL.md`);
   }
   for (const item of mapping.supportingFiles) {
     if (item.srcDir) {
@@ -651,6 +666,62 @@ function buildPayloadSrcMap(rootDir) {
     }
   }
   return map;
+}
+
+function checkCommittedPayloadIndex(rootDir) {
+  const issues = [];
+  const manifest = loadSkillManifest(rootDir);
+  if (manifest.error) return [manifest.error];
+  const names = manifest.skills ?? [];
+  if (
+    manifest.schema !== "csm-skill-manifest/1" ||
+    manifest.version !== 1 ||
+    manifest.contentDigest !== "sha256" ||
+    !manifest.compatibility ||
+    !manifest.permissions ||
+    !manifest.entrypoints ||
+    !manifest.eval ||
+    !manifest.trace
+  )
+    issues.push("skill manifest schema or metadata mismatch");
+  if (new Set(names).size !== names.length) issues.push("skill manifest contains duplicate names");
+
+  let index;
+  try {
+    index = JSON.parse(
+      fs.readFileSync(path.join(rootDir, "bootstrap", "payload-index.json"), "utf8"),
+    );
+  } catch (err) {
+    return [`payload index unreadable: ${err.message}`];
+  }
+  const indexed = [
+    ...(index.classes?.skills ?? []),
+    ...(index.classes?.supportingFiles ?? []),
+    ...(index.classes?.helperBins ?? []),
+    ...(index.classes?.metadata ?? []),
+    ...(index.fixedBin ? [index.fixedBin] : []),
+  ];
+  const byPath = new Map(indexed.map((entry) => [entry.path, entry]));
+  if (byPath.size !== indexed.length) issues.push("INDEX_DUPLICATE_PATH");
+  const packageRoot = path.join(rootDir, "bootstrap", "package");
+  const packageFiles = walkRelFiles(packageRoot).filter(
+    (file) => file !== "package.json" && file !== "payload-index.json",
+  );
+  for (const entry of indexed) {
+    const file = path.join(packageRoot, entry.path.split("/").join(path.sep));
+    if (!fs.existsSync(file)) issues.push(`INDEX-TO-FILES missing ${entry.path}`);
+    else if (fileSha256(file) !== entry.sha256)
+      issues.push(`INDEX-TO-FILES digest mismatch ${entry.path}`);
+  }
+  for (const file of packageFiles)
+    if (!byPath.has(file)) issues.push(`FILES-TO-INDEX omitted ${file}`);
+  const expectedSkills = names.map((name) => `payload/skills/${name}/SKILL.md`).toSorted();
+  const actualSkills = (index.classes?.skills ?? []).map((entry) => entry.path).toSorted();
+  if (JSON.stringify(expectedSkills) !== JSON.stringify(actualSkills))
+    issues.push(
+      `manifest/index skill mismatch (manifest ${expectedSkills.length}, index ${actualSkills.length})`,
+    );
+  return issues;
 }
 
 // Payload-drift gate (journal-learnings T001): every file under
@@ -803,6 +874,7 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
 
 function main() {
   const skillDirs = discoverSkillDirs();
+  const skillManifest = loadSkillManifest(root);
   const plansDir = path.join(root, ".agents", "plans");
 
   // F-053 (corpus half, D15): when a `.git` exists at the corpus root, the
@@ -821,6 +893,14 @@ function main() {
     check(
       skillDirs.includes(key),
       `MANIFEST key "${key}" has no matching skill directory (dead registry key)`,
+    );
+  }
+  if (skillManifest.error) check(false, skillManifest.error);
+  else {
+    const manifestSkills = [...(skillManifest.skills ?? [])].toSorted();
+    check(
+      JSON.stringify(manifestSkills) === JSON.stringify([...skillDirs].toSorted()),
+      `skill manifest/discovery mismatch (manifest ${manifestSkills.join(",")}; discovery ${skillDirs.join(",")})`,
     );
   }
 
@@ -1502,6 +1582,7 @@ function main() {
   for (const issue of payloadDriftIssues) {
     check(false, `payload drift: ${issue}`);
   }
+  for (const issue of checkCommittedPayloadIndex(root)) check(false, `payload index: ${issue}`);
 
   // F-004 early-warning gate: the scan tier manifest must cover every
   // test/*.test.mjs on disk, otherwise every `run-tier` invocation dies at
@@ -1608,4 +1689,6 @@ export {
   githubAnchor,
   containsOutsideFences,
   README_PATH_RE,
+  checkCommittedPayloadIndex,
+  loadSkillManifest,
 };

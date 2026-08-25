@@ -68,6 +68,18 @@ function cloneInto(src, dest) {
 function buildCorpus({ withGit = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "check-suite-"));
   cloneInto(REPO, dir);
+  // The inventory is intentionally exercised before a commit in local runs.
+  // Keep the corpus complete even when git ls-files cannot see this new file.
+  fs.mkdirSync(path.join(dir, "bootstrap"), { recursive: true });
+  fs.copyFileSync(
+    path.join(REPO, "bootstrap", "skill-manifest.json"),
+    path.join(dir, "bootstrap", "skill-manifest.json"),
+  );
+  fs.mkdirSync(path.join(dir, "csm-scan", "test"), { recursive: true });
+  fs.copyFileSync(
+    path.join(REPO, "csm-scan", "test", "privacy.test.mjs"),
+    path.join(dir, "csm-scan", "test", "privacy.test.mjs"),
+  );
   if (withGit) {
     const git = (args) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
     const init = git(["init", "-q"]);
@@ -557,6 +569,43 @@ test('payload-drift family: a byte mutation in a payload file exits 1 with "payl
   }
 });
 
+test("payload-index family: stale committed index fails without regeneration", () => {
+  const dir = clonePristine();
+  try {
+    const index = JSON.parse(read(dir, "bootstrap/payload-index.json"));
+    index.classes.skills[0].sha256 = "0".repeat(64);
+    write(dir, "bootstrap/payload-index.json", `${JSON.stringify(index, null, 2)}\n`);
+    assertGateFails(dir, /payload index: INDEX-TO-FILES digest mismatch/, "stale-index");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("payload-index family: omitted index and manifest skills fail in both directions", () => {
+  const dir = clonePristine();
+  try {
+    const index = JSON.parse(read(dir, "bootstrap/payload-index.json"));
+    index.classes.skills.pop();
+    write(dir, "bootstrap/payload-index.json", `${JSON.stringify(index, null, 2)}\n`);
+    assertGateFails(
+      dir,
+      /payload index: (FILES-TO-INDEX omitted|manifest\/index skill mismatch)/,
+      "omitted-index",
+    );
+
+    const manifest = JSON.parse(read(dir, "bootstrap/skill-manifest.json"));
+    manifest.skills.pop();
+    write(dir, "bootstrap/skill-manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
+    assertGateFails(
+      dir,
+      /(skill manifest\/discovery mismatch|payload index: manifest\/index skill mismatch)/,
+      "omitted-manifest",
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("DEFERRED-citation family: a non-COMPLETE plan with an uncited DEFERRED task exits 1", () => {
   const dir = clonePristine();
   try {
@@ -783,4 +832,14 @@ test("F-052: containsOutsideFences / README path-class boundary / anchor generat
     "GitHub keeps one hyphen per removed-char space",
   );
   assert.equal(githubAnchor("Repository layout"), "repository-layout");
+});
+
+test("default Makefile gate includes the deterministic evaluation suite", () => {
+  const makefile = fs.readFileSync(path.join(REPO, "Makefile"), "utf8");
+  assert.match(makefile, /^test:.*\btest-deterministic\b/m);
+  assert.match(makefile, /^test-deterministic:.*$/m);
+  assert.match(
+    makefile,
+    /test-deterministic:[\s\S]*?node --test --test-concurrency=1 tests\/evals\/\*\.test\.mjs/,
+  );
 });

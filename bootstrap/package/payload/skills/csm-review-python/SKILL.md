@@ -50,6 +50,8 @@ Run first — before INTAKE, any analysis tool use, or any other section. Not an
 - Audit the target at the resolved pinned commit. Record the commit and protected-state baseline before analysis.
 - Never auto-install. Offer explicitly pinned isolated `uvx` tools or a `pipx` fallback only after explicit user consent. No consent means static-only analysis.
 - Never claim an unrun check is green. Disclose missing dependencies, unavailable tools, checker limitations, and environment/tool noise, including import-resolution noise from isolated mypy runs.
+- The report status is `VERIFIED`, `INCOMPLETE`, or `BLOCKED`; an unavailable or unresolved check cannot be reported as `VERIFIED`. Retain or embed report-referenced evidence, or record it as explicitly `unavailable` with a reason rather than retaining a deleted temporary path.
+- External doctrine anchors use typed URL/version-or-edition/retrieval/reachability records. `unreachable` and `not-checked` anchors remain limitations, not verification evidence.
 - Keep credentials, tokens, and sensitive source values out of commands, logs, findings, and the report.
 - Use severity `C` (convention), `R` (refactor), `W` (warning), `E` (error/probable bug), `F` (fatal), and `Nit` only. Every finding states what, why it matters, evidence, and a recommendation.
 - Separate mechanical tool evidence from PEP 20 doctrine judgment. Cite a rule ID or a doctrine playbook step for every finding.
@@ -71,6 +73,14 @@ NORMS.md is optional. Detect an explicit user path, then `<git-root>/NORMS.md`, 
 `INTAKE -> PROVISION -> SCAN -> ANALYZE -> JUDGE -> REPORT -> STOP`
 
 Record every transition, trigger, command, and evidence path in temporary run notes. Scratch state never enters the target repository.
+
+### Lifecycle and Resume Contract
+
+This analyzer is intentionally non-resumable before `REPORT`: temporary run
+notes are disposable and no durable cursor or checkpoint is written to the
+target. An interruption restarts at `INTAKE` against a newly pinned baseline;
+it does not claim `BLOCKED -> RECOVER -> VALIDATE` or `REVIEW -> CHECKPOINT`.
+The allowlisted report is a terminal handoff, not a resume record.
 
 ### 1. INTAKE
 
@@ -151,6 +161,11 @@ Emit one markdown file only. Its required order is:
 3. Executive summary and explicit limitations, including missing dependencies, import-resolution noise, unavailable tools, timeouts, and static-only degradation.
 4. Findings table and detail sections. Each stable ID includes severity (`C/R/W/E/F/Nit`), what, why, confidence, evidence path and line, artifact rule ID or doctrine playbook step, recommendation, and verification hint.
 5. `## Agent Fix Guide` at the end: findings ordered by dependency and severity, each with stable ID and machine-readable checkbox items such as `- [ ] F-001: ...`; include a verification command or human verification action for each item.
+
+The report also carries a `csm-verification-status/1` record from
+`schemas/verification-status.schema.json`. It must use `INCOMPLETE` or
+`BLOCKED` when required checks, evidence, cleanup, or anchor reachability are
+unresolved; `VERIFIED` is reserved for a complete, reproducible evidence set.
 
 Reference the bundled `artifact/python-idiomatic-reviewer-rules.json` and bundled `artifact/pep20-idiomatic-python-consolidated-research.md` as read-only inputs; the source path is provenance only. Never write either.
 

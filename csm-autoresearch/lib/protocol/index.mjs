@@ -65,15 +65,15 @@ function validateRequest(value) {
   object(value.limits, "request.limits");
   noUnknown(
     value.limits,
-    new Set(["timeoutMs", "maxOutputBytes", "network", "maxMemoryMb", "maxProcesses"]),
+    new Set(["timeoutMs", "maxOutputBytes", "network", "maxWorkspaceBytes"]),
     "request.limits",
   );
   integer(value.limits.timeoutMs, "request.limits.timeoutMs", 1, 3600000);
   integer(value.limits.maxOutputBytes, "request.limits.maxOutputBytes", 1, 10485760);
   if (value.limits.network !== "disabled")
     fail("network must be disabled", "request.limits.network");
-  for (const key of ["maxMemoryMb", "maxProcesses"])
-    if (key in value.limits) integer(value.limits[key], `request.limits.${key}`, 1);
+  if ("maxWorkspaceBytes" in value.limits)
+    integer(value.limits.maxWorkspaceBytes, "request.limits.maxWorkspaceBytes", 1, 1073741824);
   return value;
 }
 

@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "node --test \"tests/unit/*.test.mjs\"",
+    "test": "node --test tests/unit/*.test.mjs",
     "check": "node scripts/check-skill.mjs"
   },
   "dependencies": {

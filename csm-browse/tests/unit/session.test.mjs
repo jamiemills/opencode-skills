@@ -56,7 +56,7 @@ test("sessionDir lives under the env-overridden root", () => {
 test("saveState is atomic (tmp+rename) and round-trips via loadState", async () => {
   const state = {
     sid: "rt-1",
-    wsUrl: "ws://127.0.0.1:1/x",
+    wsUrl: "ws://127.0.0.1:9224/x",
     internalPort: 9224,
     publicPort: 9225,
     nested: { a: [1, 2, 3] },
@@ -72,7 +72,7 @@ test("saveState is atomic (tmp+rename) and round-trips via loadState", async () 
 test("saveState concurrent writers use distinct temporary claims", async () => {
   const states = [1, 2, 3, 4].map((version) => ({
     sid: "atomic-race",
-    wsUrl: "ws://127.0.0.1:1/x",
+    wsUrl: "ws://127.0.0.1:9224/x",
     internalPort: 9224,
     publicPort: 9225,
     version,

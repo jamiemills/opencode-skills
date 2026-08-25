@@ -4,13 +4,25 @@ import { chmod, lstat, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { EXIT_CODES, PROTOCOL_STATES, runProtocol } from "./engine.mjs";
+import { EXIT_CODES, PROTOCOL_STATES, runProtocol as engineRunProtocol } from "./engine.mjs";
 import { loadReportSchema, validateSchema } from "./report-schema.mjs";
+import { canonicalJson } from "./trust-policy.mjs";
 import { FORMAT_VERSIONS } from "../../scripts/lib/contracts.mjs";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const packageRoot = join(root, "bootstrap/package");
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
+const bindFixture = async (input) => {
+  if (Object.hasOwn(input, "envelope")) return input;
+  const envelope = JSON.parse(await readFile(join(root, "bootstrap/fixtures/valid.json"), "utf8"));
+  envelope.payload_index_sha256 =
+    input.index === undefined
+      ? sha256(await readFile(join(root, "bootstrap/payload-index.json")))
+      : sha256(canonicalJson(input.index));
+  delete envelope.signature;
+  return { ...input, envelope };
+};
+const runProtocol = async (input) => engineRunProtocol(await bindFixture(input));
 const capable = {
   hasNpx: true,
   hasFileWrite: true,
@@ -72,6 +84,29 @@ test("F-043 conformance: the protocol state table in protocol.md derives from th
 
 test("autoresearch artifact manifest format is registered at the emitted version", () => {
   assert.equal(FORMAT_VERSIONS["csm-autoresearch-manifest"], 1);
+});
+
+test("normal engine rejects an envelope that omits the payload binding", async () => {
+  const sandbox = await mkdtemp("/tmp/csm-protocol-");
+  await chmod(sandbox, 0o700);
+  try {
+    const envelope = JSON.parse(
+      await readFile(join(root, "bootstrap/fixtures/valid.json"), "utf8"),
+    );
+    delete envelope.payload_index_sha256;
+    const result = await runProtocol(
+      capableInput({
+        destination: join(sandbox, "skills"),
+        sandbox,
+        envelope,
+      }),
+    );
+    assert.equal(result.exitCode, EXIT_CODES.E_UNTRUSTED);
+    assert.deepEqual(result.report.refusal, { code: "E_UNTRUSTED", state: "TRUST" });
+    assert.deepEqual((await readdir(sandbox)).toSorted(), []);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
 });
 
 test("capable agent materializes verified payload copies and emits a schema-valid report", async () => {
@@ -190,7 +225,13 @@ test("unapproved trust root asks the user and refuses without confirmation, proc
   await chmod(sandbox, 0o700);
   try {
     const destination = join(sandbox, "skills");
-    const base = { capabilities: capable, trustRootApproved: false, now, destination, sandbox };
+    const base = {
+      capabilities: capable,
+      trustRootApproved: false,
+      now,
+      destination,
+      sandbox,
+    };
     const refused = await runProtocol(base);
     assert.equal(refused.exitCode, 5);
     assert.equal(refused.report.refusal.code, "E_UNTRUSTED");

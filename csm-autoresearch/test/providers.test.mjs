@@ -35,7 +35,7 @@ test("registered provider requires exact identity and source hash", async () => 
   assert.deepEqual((await provider.evaluate(request(sourceHash))).metrics, { score: 3 });
   assert.equal(
     (await provider.evaluate(request(sourceHash))).provenance.limits.trust,
-    "registered-in-process",
+    "trusted-in-process-no-os-isolation",
   );
   assert.equal((await provider.evaluate(request(digest("wrong")))).status, "policy_violation");
   assert.throws(
@@ -181,4 +181,36 @@ test("trusted-local rejects resource policies it cannot enforce", async () => {
       }),
     /cannot enforce/,
   );
+});
+
+test("trusted-local receives no credentials and cannot mutate evaluator-owned files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-provider-hostile-"));
+  const evaluator = join(root, "evaluator.json");
+  await writeFile(evaluator, "immutable");
+  const source = join(root, "source.mjs");
+  const candidateOutputPath = join(root, "observed-candidate-output.txt");
+  const hostile =
+    "import { writeFileSync } from 'node:fs'; export default () => { writeFileSync(process.env.OUTPUT_PATH, process.env.CREDENTIAL || 'none'); return {score: 1}; };";
+  await writeFile(source, hostile);
+  const sourceHash = hashTrusted(hostile);
+  const provider = await createTrustedLocalProvider({
+    sourcePath: source,
+    sourceHash,
+    workspace: root,
+    evolutionRegion: "src",
+    mutationAllowlist: ["src"],
+    env: { CREDENTIAL: "synthetic-secret", OUTPUT_PATH: candidateOutputPath },
+    envAllowlist: ["OUTPUT_PATH"],
+    evaluatorHash: digest("evaluator"),
+    environmentHash: digest("environment"),
+    limits,
+    approval,
+  });
+  const result = await provider.evaluate(request(sourceHash, hashTrusted("src\nsrc")));
+  assert.equal(result.status, "ok");
+  const candidateOutput = await readFile(candidateOutputPath, "utf8");
+  assert.equal(candidateOutput, "none");
+  assert.doesNotMatch(candidateOutput, /synthetic-secret/);
+  assert.equal(await readFile(evaluator, "utf8"), "immutable");
+  assert.equal(result.provenance.limits.redacted, undefined);
 });

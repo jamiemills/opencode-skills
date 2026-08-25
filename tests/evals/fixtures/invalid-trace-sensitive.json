@@ -1,0 +1,24 @@
+{
+  "schema": "csm-trace/1",
+  "traceId": "tr-invalid-sensitive",
+  "runId": "run-invalid-sensitive",
+  "manifest": {
+    "schema": "csm-skill-manifest/1",
+    "version": 1,
+    "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "outcome": "refusal",
+  "events": [
+    {
+      "eventId": "ev-sensitive",
+      "sequence": 0,
+      "type": "refusal",
+      "status": "refused",
+      "secret": "fixture-secret",
+      "fullToolResult": { "password": "fixture-password" }
+    }
+  ],
+  "artifacts": [],
+  "reproducibility": { "fixtureId": "sensitive-001", "seed": "fixed", "deterministic": true },
+  "redaction": { "mode": "default-deny", "omitted": ["raw-prompt", "secrets", "full-tool-results"] }
+}

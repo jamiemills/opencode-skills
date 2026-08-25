@@ -49,6 +49,38 @@ Run first — before INTAKE, locating the plan, or any generation work. Not a ge
 - Clarifications: resolve ambiguity by recorded assumption unless the invocation sets an ask-first flag; only genuinely user-owned decisions block.
 - Fresh sessions resume through artifacts, not chat history: the ledger, the audit table, and the verification report carry enough state to re-enter at MAINTAIN without replaying any transcript.
 
+### Lifecycle and Resume Contract
+
+`BLOCKED` is recoverable only through `BLOCKED -> RECOVER -> VALIDATE`; after
+an unblock, re-pin the target and re-check the recorded scope before generating
+anything. A clean review/checkpoint boundary is `REVIEW -> CHECKPOINT`; it
+must not bypass the checkpoint.
+
+MAINTAIN resumability requires a durable run cursor in the ledger or
+verification report: pinned commit, scope, mode, current state, cycle, last
+completed artifact, next transition, and the reason for any blocked or skipped
+step. Temporary working notes may accelerate recovery but never define it. If
+that cursor is absent or inconsistent, restart at `INTAKE` rather than
+guessing the generation position.
+
+### Verification Status And Evidence Retention
+
+The verification report is a durable receipt, not a claim that disappears
+with the temporary run directory. Emit a `csm-verification-status/1` record
+for every report. Its top-level `status` is `VERIFIED`, `INCOMPLETE`, or
+`BLOCKED`; unresolved checks, missing evidence, and cleanup failures force
+`INCOMPLETE` or `BLOCKED`, never `VERIFIED`. Keep report-referenced evidence
+as a retained file with its digest, embed a bounded deterministic summary, or
+record it explicitly as `unavailable` with the reason. A deleted or missing
+path is not available evidence.
+
+Performance evidence follows the same rule: retain the profile/baseline,
+embed its digest and summary, or mark it unavailable. Reports must not retain
+a path into the disposable temp directory as if that path were durable.
+Every external anchor uses a typed record with `url`, `version` or `edition`,
+retrieval time, and `reachability` (`reachable`, `unreachable`, or
+`not-checked`).
+
 ## Core Rules
 
 - AUDIT before generating: inventory every existing test, coverage figure, and suite-health signal; generation targets the audited delta, never duplicates blindly.
@@ -286,7 +318,7 @@ format: csm-make-tests/1
 ## Phase-0 Recommendations
 ```
 
-Both artifacts are the durable contract between runs: MAINTAIN reads the previous ledger to compute drift and re-approval queues, and the verification report is the only place protection claims are made.
+Both artifacts are the durable contract between runs: MAINTAIN reads the previous ledger to compute drift and re-approval queues, and the verification report is the only place protection claims are made. The report also carries the `csm-verification-status/1` status record and retained or explicitly unavailable evidence records defined in `schemas/verification-status.schema.json`.
 
 ## Anti-Patterns
 

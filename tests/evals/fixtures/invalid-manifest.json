@@ -1,0 +1,5 @@
+{
+  "schema": "csm-skill-manifest/9",
+  "version": 9,
+  "skills": ["csm-build"]
+}

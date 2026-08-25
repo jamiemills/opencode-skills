@@ -115,14 +115,16 @@ test("SIGTERM stops clone, commit, and push children and removes temporary clone
         const path = require('node:path');
         const args = process.argv.slice(2);
         const phase = process.env.CSM_STUB_PHASE;
-        const operation = args.includes('clone') ? 'clone' : args.includes('status') ? 'status' : args.includes('commit') ? 'commit' : args.includes('push') ? 'push' : 'other';
+         const operation = args.includes('clone') ? 'clone' : args.includes('remote') ? 'remote' : args.includes('status') ? 'status' : args.includes('commit') ? 'commit' : args.includes('push') ? 'push' : 'other';
         const mark = name => fs.writeFileSync(path.join(process.env.TMPDIR, name), String(process.pid));
         if (operation === 'clone') {
           const destination = args.at(-1);
           fs.mkdirSync(path.join(destination, '.git'), { recursive: true });
           fs.writeFileSync(process.env.CSM_CLONE_PATH, destination);
           if (phase === 'clone') mark('clone.ready');
-        } else if (operation === 'status') {
+         } else if (operation === 'remote') {
+           process.stdout.write('https://github.com/nobody/nowhere.git\\n');
+         } else if (operation === 'status') {
           process.stdout.write(' M synthetic\\n');
         } else if (operation === phase) {
           mark(phase + '.ready');
@@ -142,7 +144,17 @@ test("SIGTERM stops clone, commit, and push children and removes temporary clone
       const env = baseEnv(sandbox, { CSM_STUB_PHASE: phase, CSM_CLONE_PATH: clonePath });
       const child = spawn(
         process.execPath,
-        [SCRIPT, "--label", `signal-${phase}`, "--github", "nobody", "--repo", "nowhere", input],
+        [
+          SCRIPT,
+          "--label",
+          `signal-${phase}`,
+          "--github",
+          "nobody",
+          "--repo",
+          "nowhere",
+          "--confirm-permanent",
+          input,
+        ],
         { env, stdio: ["ignore", "pipe", "pipe"] },
       );
       let stderr = "";
@@ -263,7 +275,7 @@ test("F-064: uploaded svg is never embedded as an <img> (link bucket only)", asy
   }
 });
 
-test("F-068: real-remote happy-path upload against a local bare stub remote (url.insteadOf, no network)", async () => {
+test("F-068: redirected Git remote is refused before publication (no network)", async () => {
   const sandbox = await makeSandbox("csm-upload-push-");
   try {
     const bin = join(sandbox, "bin");
@@ -275,36 +287,42 @@ test("F-068: real-remote happy-path upload against a local bare stub remote (url
     const remotesBase = join(sandbox, "remotes");
     const bareRepo = join(remotesBase, "nobody", "nowhere.git");
     await mkdir(dirname(bareRepo), { recursive: true });
-    const env = baseEnv(sandbox, { GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" });
+    const env = baseEnv(sandbox, {
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_TERMINAL_PROMPT: "0",
+      CSM_UPLOAD_GIT_CONFIG: join(sandbox, "isolated.gitconfig"),
+    });
     await execFileAsync("git", ["init", "--bare", bareRepo], { env });
 
     const gitconfig = `[user]\n\tname = csm-upload test\n\temail = upload@test.local\n[url "file://${remotesBase}/"]\n\tinsteadOf = https://github.com/\n`;
     await mkdir(join(sandbox, "home"), { recursive: true });
-    await writeFile(join(sandbox, "home", ".gitconfig"), gitconfig, "utf8");
+    await writeFile(join(sandbox, "isolated.gitconfig"), gitconfig, "utf8");
 
     const input = join(sandbox, "input.png");
     await writeFile(input, "synthetic", "utf8");
 
     const result = await runNode(
-      [SCRIPT, "--label", "happy", "--github", "nobody", "--repo", "nowhere", input],
+      [
+        SCRIPT,
+        "--label",
+        "happy",
+        "--github",
+        "nobody",
+        "--repo",
+        "nowhere",
+        "--confirm-permanent",
+        input,
+      ],
       env,
     );
-    assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stdout, /Pushed/);
+    assert.equal(result.code, 1, result.stderr);
+    assert.match(result.stderr, /redirected Git remote/);
 
     const configDir = join(sandbox, "home", ".agents");
     const configFile = join(configDir, "csm-upload.json");
     assert.equal((await stat(configDir)).mode & 0o777, 0o700, "config dir must be 0700");
     assert.equal((await stat(configFile)).mode & 0o777, 0o600, "config file must be 0600");
     assert.equal(JSON.parse(await readFile(configFile, "utf8")).github, "nobody");
-
-    const checkout = join(sandbox, "checkout");
-    await execFileAsync("git", ["clone", bareRepo, checkout], { env });
-    const demo = `demo-${new Date().toISOString().split("T")[0]}-happy`;
-    const html = await readFile(join(checkout, demo, "index.html"), "utf8");
-    assert.match(html, /<img src="input\.png"/);
-    assert.ok((await stat(join(checkout, demo, "input.png"))).isFile());
-    assert.match(result.stdout, new RegExp(`https://nobody\\.github\\.io/nowhere/${demo}/`));
   } finally {
     await rm(sandbox, { recursive: true, force: true });
   }
@@ -357,7 +375,11 @@ test("F8-07: malformed config with --repo override proceeds with warning and nev
     await writeFile(ghStub, '#!/usr/bin/env node\nprocess.stdout.write("nobody\\n");\n', "utf8");
     await chmod(ghStub, 0o700);
     const gitStub = join(bin, "git");
-    await writeFile(gitStub, "#!/usr/bin/env node\nprocess.exit(0);\n", "utf8");
+    await writeFile(
+      gitStub,
+      "#!/usr/bin/env node\nif (process.argv.includes('remote')) process.stdout.write('https://github.com/nobody/nowhere.git\\n');\nprocess.exit(0);\n",
+      "utf8",
+    );
     await chmod(gitStub, 0o700);
 
     const input = join(sandbox, "input.png");
@@ -369,7 +391,7 @@ test("F8-07: malformed config with --repo override proceeds with warning and nev
     await writeFile(configFile, malformed, "utf8");
 
     const result = await runNode(
-      [SCRIPT, "--label", "override", "--repo", "nowhere", input],
+      [SCRIPT, "--label", "override", "--repo", "nowhere", "--confirm-permanent", input],
       baseEnv(sandbox),
     );
     assert.equal(result.code, 0, result.stderr);
@@ -400,5 +422,174 @@ test("F8-07: parseable non-object configs are rejected without clobbering", asyn
     } finally {
       await rm(sandbox, { recursive: true, force: true });
     }
+  }
+});
+
+test("publication requires explicit permanence confirmation", async () => {
+  const sandbox = await makeSandbox("csm-upload-confirm-");
+  try {
+    await makeCommandStubs(sandbox, "process.stdout.write('nobody\\n');");
+    const input = join(sandbox, "shot.png");
+    await writeFile(input, "synthetic", "utf8");
+    const result = await runNode(
+      [SCRIPT, "--label", "confirm", "--github", "nobody", "--repo", "nowhere", input],
+      baseEnv(sandbox),
+    );
+    assert.equal(result.code, 0);
+    assert.match(result.stderr, /--confirm-permanent/);
+    assert.match(result.stdout, /pushed=false deployed=unverified verified=unverified/);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("sensitive artifact names are refused before Git activity", async () => {
+  const sandbox = await makeSandbox("csm-upload-sensitive-");
+  try {
+    const input = join(sandbox, "session-token.env");
+    await writeFile(input, "synthetic", "utf8");
+    const result = await runNode(
+      [
+        SCRIPT,
+        "--label",
+        "sensitive",
+        "--github",
+        "nobody",
+        "--repo",
+        "nowhere",
+        "--confirm-permanent",
+        input,
+      ],
+      baseEnv(sandbox),
+    );
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Sensitive artifact refused/);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("supported text with credentials or absolute paths is refused before preview", async () => {
+  const sandbox = await makeSandbox("csm-upload-content-");
+  try {
+    const input = join(sandbox, "notes.md");
+    await writeFile(input, "token=synthetic-secret\n/home/alice/private", "utf8");
+    const result = await runNode(
+      [SCRIPT, "--label", "content", "--github", "nobody", "--repo", "nowhere", "--dry-run", input],
+      baseEnv(sandbox),
+    );
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Content scan refused/);
+    assert.doesNotMatch(result.stderr, /synthetic-secret|alice/);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("supported text scanning rejects quoted keys and non-POSIX absolute paths", async () => {
+  for (const content of [
+    '{"api_key": "synthetic-secret"}',
+    "C:\\\\Users\\alice\\private",
+    "\\\\server\\share\\private",
+    "file:///home/alice/private",
+  ]) {
+    const sandbox = await makeSandbox("csm-upload-content-shapes-");
+    try {
+      const input = join(sandbox, "notes.txt");
+      await writeFile(input, content, "utf8");
+      const result = await runNode(
+        [
+          SCRIPT,
+          "--label",
+          "content-shapes",
+          "--github",
+          "nobody",
+          "--repo",
+          "nowhere",
+          "--dry-run",
+          input,
+        ],
+        baseEnv(sandbox),
+      );
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /Content scan refused/);
+    } finally {
+      await rm(sandbox, { recursive: true, force: true });
+    }
+  }
+});
+
+test("description credentials and absolute paths are refused before index generation", async () => {
+  for (const description of [
+    "access_token=synthetic-secret",
+    "private notes: /home/alice/project",
+    '{"api_key": "synthetic-secret"}',
+    "private notes: C:\\\\Users\\alice\\project",
+    "private notes: \\\\server\\share\\project",
+    "private notes: file:///home/alice/project",
+  ]) {
+    const sandbox = await makeSandbox("csm-upload-description-");
+    try {
+      await makeCommandStubs(sandbox, "process.exit(0);");
+      const input = join(sandbox, "shot.png");
+      await writeFile(input, "synthetic", "utf8");
+      const result = await runNode(
+        [
+          SCRIPT,
+          "--label",
+          "description",
+          "--desc",
+          description,
+          "--github",
+          "nobody",
+          "--repo",
+          "nowhere",
+          "--dry-run",
+          input,
+        ],
+        baseEnv(sandbox),
+      );
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /Description scan refused/);
+      assert.doesNotMatch(result.stderr, /synthetic-secret|alice/);
+      assert.doesNotMatch(result.stdout, /Local preview written/);
+    } finally {
+      await rm(sandbox, { recursive: true, force: true });
+    }
+  }
+});
+
+test("SVG active content and oversized supported text are refused", async () => {
+  const sandbox = await makeSandbox("csm-upload-content-limits-");
+  try {
+    const svg = join(sandbox, "asset.svg");
+    await writeFile(svg, '<svg onload="alert(1)"></svg>', "utf8");
+    const svgResult = await runNode(
+      [SCRIPT, "--label", "svg", "--github", "nobody", "--repo", "nowhere", "--dry-run", svg],
+      baseEnv(sandbox),
+    );
+    assert.equal(svgResult.code, 1);
+    assert.match(svgResult.stderr, /Content scan refused/);
+
+    const metadata = join(sandbox, "metadata.json");
+    await writeFile(metadata, "x".repeat(1024 * 1024 + 1), "utf8");
+    const metadataResult = await runNode(
+      [
+        SCRIPT,
+        "--label",
+        "metadata",
+        "--github",
+        "nobody",
+        "--repo",
+        "nowhere",
+        "--dry-run",
+        metadata,
+      ],
+      baseEnv(sandbox),
+    );
+    assert.equal(metadataResult.code, 1);
+    assert.match(metadataResult.stderr, /supported text limit/);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
   }
 });

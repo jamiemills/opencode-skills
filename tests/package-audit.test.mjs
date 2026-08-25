@@ -7,23 +7,10 @@ import { promisify } from "node:util";
 import test from "node:test";
 import { packBootstrap } from "../scripts/pack-bootstrap.mjs";
 import { FORMAT_VERSIONS } from "../scripts/lib/contracts.mjs";
+import skillManifest from "../bootstrap/skill-manifest.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
-const skillNames = [
-  "csm-autoresearch",
-  "csm-bdd-tdd",
-  "csm-browse",
-  "csm-build",
-  "csm-ddd",
-  "csm-deep-research",
-  "csm-grill",
-  "csm-make-tests",
-  "csm-plan",
-  "csm-review-python",
-  "csm-review",
-  "csm-scan",
-  "csm-upload",
-];
+const skillNames = skillManifest.skills;
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const parseFrontmatter = (text) => {
   const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
@@ -138,7 +125,7 @@ test("two isolated packs are deterministic and the packed artifact passes the au
     }
 
     const skillEntries = index.classes.skills.filter((entry) => entry.path.endsWith("/SKILL.md"));
-    assert.equal(skillEntries.length, 13);
+    assert.equal(skillEntries.length, skillNames.length);
     for (const skill of skillNames) {
       const entry = skillEntries.find(
         (candidate) => candidate.path === `payload/skills/${skill}/SKILL.md`,

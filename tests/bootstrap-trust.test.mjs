@@ -28,6 +28,13 @@ const binPath = join(root, "bootstrap/package/bin/csm-skills-bootstrap.js");
 const now = new Date("2026-08-18T00:00:00.000Z");
 const packHolder = { value: null };
 
+async function loadBoundFixture(indexPath = join(root, "bootstrap", "payload-index.json")) {
+  const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+  envelope.payload_index_sha256 = digest(await readFile(indexPath));
+  delete envelope.signature;
+  return envelope;
+}
+
 before(async () => {
   packHolder.value = await packBootstrap();
 });
@@ -100,7 +107,7 @@ test("accepts the committed valid local HTTPS envelope and binds canonical steps
   const dir = await mkdtemp("/tmp/csm-bootstrap-");
   await chmod(dir, 0o700);
   try {
-    const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+    const envelope = await loadBoundFixture();
     const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
     assert.equal(canonicalJson(JSON.parse(canonicalJson(envelope))), canonicalJson(envelope));
     assert.equal(await readFile(stepsPath, "utf8"), envelope.steps_markdown);
@@ -131,6 +138,7 @@ test("accepts the committed valid local HTTPS envelope and binds canonical steps
     });
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = server.address().port;
+    envelope.policy.limits.allowed_origin = `https://localhost:${port}`;
     const fetched = await fetchEnvelope(`https://localhost:${port}/bootstrap.json`, tls.cert);
     assert.deepEqual(
       validateEnvelope(fetched.body, keyring, { now, origin: `https://localhost:${port}` }),
@@ -159,7 +167,7 @@ test("accepts the committed valid local HTTPS envelope and binds canonical steps
 });
 
 test("rejects trust and guidance boundary violations", async () => {
-  const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+  const envelope = await loadBoundFixture();
   const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
   const expiredKeyring = {
     keys: keyring.keys.map((entry) =>
@@ -173,6 +181,7 @@ test("rejects trust and guidance boundary violations", async () => {
   });
   const cases = [
     ["unsupported schema", { schema: "csm-bootstrap/1" }, "SCHEMA"],
+    ["missing payload binding", { payload_index_sha256: undefined }, "SCHEMA"],
     [
       "limits out of bounds",
       {
@@ -255,6 +264,18 @@ test("rejects trust and guidance boundary violations", async () => {
     () => validateEnvelope(envelope, keyring, { now, origin: "not-a-url" }),
     (error) => error.code === "ORIGIN",
   );
+  const pathBound = {
+    ...envelope,
+    policy: {
+      ...envelope.policy,
+      limits: { ...envelope.policy.limits, allowed_origin: "https://localhost/bootstrap" },
+    },
+  };
+  assert.throws(
+    () =>
+      validateEnvelope(pathBound, keyring, { now, origin: "https://localhost/bootstrap-other" }),
+    (error) => error.code === "ORIGIN",
+  );
   assert.throws(
     () =>
       validateEnvelope(
@@ -265,7 +286,7 @@ test("rejects trust and guidance boundary violations", async () => {
         keyring,
         { now },
       ),
-    (error) => error.code === "BAD_SIGNATURE",
+    (error) => error.code === "UNSIGNED",
   );
 });
 
@@ -365,8 +386,10 @@ test("F-045: the shipped bin embeds the keyring canonically and its verify subco
     const shippedPayload = join(dir, "package", "payload-index.json");
     assert.ok(await readFile(shippedPayload, "utf8"), "tarball must ship payload-index.json");
 
-    const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
-    const accepted = await execFileAsync(process.execPath, [shippedBin, "verify", fixturePath], {
+    const envelope = await loadBoundFixture(join(dir, "package", "payload-index.json"));
+    const boundPath = join(dir, "bound.json");
+    await writeFile(boundPath, JSON.stringify(envelope));
+    const accepted = await execFileAsync(process.execPath, [shippedBin, "verify", boundPath], {
       encoding: "utf8",
     });
     assert.equal(JSON.parse(accepted.stdout).verification.ok, true);
@@ -388,7 +411,7 @@ test("F-045: the shipped bin embeds the keyring canonically and its verify subco
     assert.notEqual(rejected.code, 0, "tampered envelope must exit non-zero");
     const result = JSON.parse(rejected.stdout);
     assert.equal(result.verification.ok, false);
-    assert.equal(result.verification.code, "BAD_SIGNATURE");
+    assert.equal(result.verification.code, "UNSIGNED");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -537,6 +560,7 @@ test("R2: the envelope schema matches the when-present runtime and validates the
     "audience",
     "expires_at",
     "key",
+    "payload_index_sha256",
     "policy",
     "schema",
     "steps_markdown",
@@ -548,7 +572,7 @@ test("R2: the envelope schema matches the when-present runtime and validates the
   );
   assert.equal(schema.properties.payload_index_sha256.pattern, "^[a-f0-9]{64}$");
   assert.ok(schema.properties.signature, "signature must keep a property definition");
-  const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+  const fixture = await loadBoundFixture();
   assert.deepEqual(validateSchema(fixture, schema), []);
   const noSignature = { ...fixture };
   delete noSignature.signature;
@@ -556,7 +580,7 @@ test("R2: the envelope schema matches the when-present runtime and validates the
 });
 
 test("R4: an envelope with no signature field is the documented local flow and passes the validator and the shipped bin", async () => {
-  const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+  const envelope = await loadBoundFixture();
   const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
   delete envelope.signature;
   assert.deepEqual(validateEnvelope(envelope, keyring, { now }), {
@@ -569,6 +593,9 @@ test("R4: an envelope with no signature field is the documented local flow and p
   try {
     await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
     const shippedBin = join(dir, "package", "bin", "csm-skills-bootstrap.js");
+    envelope.payload_index_sha256 = digest(
+      await readFile(join(dir, "package", "payload-index.json")),
+    );
     const noSigPath = join(dir, "no-signature.json");
     await writeFile(noSigPath, `${JSON.stringify(envelope, null, 2)}\n`);
     const accepted = await execFileAsync(process.execPath, [shippedBin, "verify", noSigPath], {
@@ -587,13 +614,15 @@ test("F4-01: verify output carries a signed marker distinguishing signed, unsign
   try {
     await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
     const shippedBin = join(dir, "package", "bin", "csm-skills-bootstrap.js");
-    const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+    const envelope = await loadBoundFixture(join(dir, "package", "payload-index.json"));
 
-    const signedRun = await execFileAsync(process.execPath, [shippedBin, "verify", fixturePath], {
+    const boundPath = join(dir, "bound.json");
+    await writeFile(boundPath, JSON.stringify(envelope));
+    const signedRun = await execFileAsync(process.execPath, [shippedBin, "verify", boundPath], {
       encoding: "utf8",
     });
     assert.equal(JSON.parse(signedRun.stdout).verification.ok, true);
-    assert.equal(JSON.parse(signedRun.stdout).verification.signed, true);
+    assert.equal(JSON.parse(signedRun.stdout).verification.signed, false);
 
     const unsignedEnvelope = { ...envelope };
     delete unsignedEnvelope.signature;
@@ -645,13 +674,17 @@ test("R5: the shipped bin embeds the shared shell denylist and fixed package pol
   assert.equal(denylistMatch[1], SHELL_DENYLIST.source);
 });
 
+test("shell policy is explicitly heuristic and hostile obfuscation is not treated as a guarantee", () => {
+  assert.equal(SHELL_DENYLIST.test("run n\\u0070x @evil/pkg"), false);
+});
+
 test("F-010: shipped bin limits validation mirrors the trust-policy engine", async () => {
   const dir = await mkdtemp("/tmp/csm-bootstrap-limits-");
   await chmod(dir, 0o700);
   try {
     await execFileAsync("tar", ["-xf", packHolder.value.tarball, "-C", dir]);
     const shippedBin = join(dir, "package", "bin", "csm-skills-bootstrap.js");
-    const envelope = JSON.parse(await readFile(fixturePath, "utf8"));
+    const envelope = await loadBoundFixture(join(dir, "package", "payload-index.json"));
     // Unsigned local-flow variant: exercises the same shape validation the
     // signed path uses, without needing private key material.
     const { signature: _signature, ...unsigned } = envelope;

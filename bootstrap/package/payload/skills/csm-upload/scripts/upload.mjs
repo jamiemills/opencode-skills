@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { accessSync, constants as fsc } from "node:fs";
+import { accessSync, constants as fsc, statSync } from "node:fs";
 import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, open } from "node:fs/promises";
 import { once } from "node:events";
 import { join, basename, dirname } from "node:path";
@@ -21,6 +21,82 @@ function escapeHtml(value) {
 // F-052: uploaded file names must stay inside the demo directory — no path
 // separators, no traversal, no hostile HTML in the generated index.
 const SAFE_FILENAME_RE = /^[A-Za-z0-9._-]+$/;
+const CONTENT_SCAN_MAX_BYTES = 1024 * 1024;
+const SCANNED_TEXT_EXTENSIONS = new Set([
+  "cjs",
+  "css",
+  "csv",
+  "html",
+  "htm",
+  "ini",
+  "js",
+  "json",
+  "log",
+  "md",
+  "mjs",
+  "properties",
+  "svg",
+  "toml",
+  "ts",
+  "tsx",
+  "txt",
+  "vtt",
+  "webmanifest",
+  "xml",
+  "yaml",
+  "yml",
+]);
+const CONTENT_SECRET_RE =
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----|Bearer\s+|[A-Za-z0-9_.-]*(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|secret|password|credential|private[_-]?key)\s*[=:]\s*[^\s"'<>]+|sk-[A-Za-z0-9]{16,}|gh[pousr]_\w{16,}|AKIA[0-9A-Z]{16}/i;
+const QUOTED_SECRET_KEY_RE =
+  /["'](?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|secret|password|credential|private[_-]?key)["']\s*:\s*["']?[^\s"'<>]+/i;
+const CONTENT_PATH_RE = /(?:^|[\s"'(=])(?:\/(?!\/)|[A-Za-z]:[\\/]|\\\\|file:\/\/)[^\s"'<>]+/m;
+const ACTIVE_SVG_RE = /<script\b|\bon[a-z]+\s*=|javascript\s*:/i;
+
+async function scanSupportedContent(path) {
+  const extension = basename(path).split(".").pop()?.toLowerCase() ?? "";
+  if (!SCANNED_TEXT_EXTENSIONS.has(extension)) return;
+  const size = statSync(path).size;
+  if (size > CONTENT_SCAN_MAX_BYTES) {
+    throw new Error(
+      `Content scan refused: "${basename(path)}" exceeds the ${CONTENT_SCAN_MAX_BYTES}-byte supported text limit.`,
+    );
+  }
+  const content = await readFile(path);
+  if (content.includes(0)) {
+    throw new Error(`Content scan refused: "${basename(path)}" is not supported text.`);
+  }
+  const text = content.toString("utf8");
+  if (
+    CONTENT_SECRET_RE.test(text) ||
+    QUOTED_SECRET_KEY_RE.test(text) ||
+    CONTENT_PATH_RE.test(text)
+  ) {
+    throw new Error(
+      `Content scan refused: "${basename(path)}" contains a credential or absolute path.`,
+    );
+  }
+  if (extension === "svg" && ACTIVE_SVG_RE.test(text)) {
+    throw new Error(`Content scan refused: "${basename(path)}" contains active SVG content.`);
+  }
+}
+
+function scanDescription(description) {
+  const text = String(description);
+  if (Buffer.byteLength(text, "utf8") > CONTENT_SCAN_MAX_BYTES) {
+    throw new Error("Description scan refused: description exceeds the supported text limit.");
+  }
+  if (
+    text.includes("\0") ||
+    CONTENT_SECRET_RE.test(text) ||
+    QUOTED_SECRET_KEY_RE.test(text) ||
+    CONTENT_PATH_RE.test(text)
+  ) {
+    throw new Error(
+      "Description scan refused: description contains a credential or absolute path.",
+    );
+  }
+}
 
 function assertSafeFilename(name) {
   if (!SAFE_FILENAME_RE.test(name) || name === "." || name === "..") {
@@ -28,7 +104,30 @@ function assertSafeFilename(name) {
       `Unsafe filename rejected: "${name}". Filenames may only contain [A-Za-z0-9._-] (no path separators, no special characters).`,
     );
   }
+  if (
+    /(^|[._-])(env|credentials?|secrets?|tokens?|cookies?|private[-_]?key)([._-]|$)/i.test(name) ||
+    /\.(pem|key|p12|pfx|kdbx)$/i.test(name)
+  ) {
+    throw new Error(
+      `Sensitive artifact refused: "${name}". Remove credentials or use a redacted fixture.`,
+    );
+  }
 }
+
+function redactDiagnostic(value) {
+  return String(value)
+    .replace(/(token|password|secret|api[-_]?key|authorization)=?[^\s&]+/gi, "$1=[REDACTED]")
+    .replace(/\/tmp\/csm-(?:pages|upload-preview)-[^\s/]+/g, "[TEMP_PATH]");
+}
+
+const isolatedGitEnv = () => ({
+  ...process.env,
+  GIT_CONFIG_NOSYSTEM: "1",
+  // Tests may provide a disposable config explicitly; ambient user config is
+  // never consulted.
+  GIT_CONFIG_GLOBAL: process.env.CSM_UPLOAD_GIT_CONFIG || "/dev/null",
+  GIT_TERMINAL_PROMPT: "0",
+});
 
 // F-048: github/pagesRepo are interpolated into the clone URL and BASE_URL —
 // validate both against their real-world charsets and construct the clone URL
@@ -64,6 +163,7 @@ let description = "";
 let ghOverride = "";
 let repoOverride = "";
 let dryRun = false;
+let confirmPermanent = false;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--label" && i + 1 < args.length) label = args[++i];
@@ -71,17 +171,19 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === "--github" && i + 1 < args.length) ghOverride = args[++i];
   else if (args[i] === "--repo" && i + 1 < args.length) repoOverride = args[++i];
   else if (args[i] === "--dry-run") dryRun = true;
+  else if (args[i] === "--confirm-permanent") confirmPermanent = true;
   else if (!args[i].startsWith("--")) files.push(args[i]);
 }
 
 if (!label) {
   console.error(
-    "Usage: node scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--dry-run] <file1> [file2...]",
+    "Usage: node scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--dry-run] [--confirm-permanent] <file1> [file2...]",
   );
   console.error(
     "Creates demo-YYYY-MM-DD-<label>/ on your GitHub Pages site with the uploaded files.",
   );
   console.error("--dry-run builds the index.html locally and performs no git/gh operations.");
+  console.error("--confirm-permanent is required before a real commit and push.");
   process.exit(1);
 }
 
@@ -336,6 +438,13 @@ async function main() {
     process.exit(1);
   }
 
+  try {
+    scanDescription(description);
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+
   // F-052: validate every basename before any copy, config write, or network
   // operation — a hostile name is rejected with a clear error up front.
   for (const f of files) {
@@ -355,6 +464,10 @@ async function main() {
       process.exit(1);
     }
   }
+
+  // Only bounded, recognizable text formats are inspected. Binary media and
+  // metadata embedded inside binary containers remain outside this guarantee.
+  for (const f of files) await scanSupportedContent(f);
 
   // Dry-run never contacts gh and never writes the config file.
   const config = await loadConfig({ probe: !dryRun });
@@ -403,6 +516,14 @@ async function main() {
     process.exit(1);
   }
 
+  if (!confirmPermanent) {
+    console.error(
+      "Refusing permanent publication: pass --confirm-permanent after reviewing the local artifact and destination.",
+    );
+    console.log("Status: pushed=false deployed=unverified verified=unverified");
+    return;
+  }
+
   await createTrackedTempDir("csm-pages-", (path) => {
     pagesDir = path;
   });
@@ -416,23 +537,64 @@ async function main() {
         throw new Error(`Conflict: ${pagesDir} is not empty. Refusing to clone into it.`);
       }
       console.log(`Cloning pages repo: ${PAGES_REPO}...`);
-      await execFileTracked("git", ["clone", PAGES_REPO, pagesDir], { timeout: 120000 });
+      await execFileTracked("git", ["clone", PAGES_REPO, pagesDir], {
+        timeout: 120000,
+        env: isolatedGitEnv(),
+      });
       console.log("Cloned");
     }
 
     async function gitCommit() {
-      await execFileTracked("git", ["-C", pagesDir, "add", "-A"], { timeout: 60000 });
+      const gitOptions = { timeout: 60000, env: isolatedGitEnv() };
+      const { stdout: effectiveRemote } = await execFileTracked(
+        "git",
+        ["-C", pagesDir, "remote", "get-url", "origin"],
+        gitOptions,
+      );
+      if (effectiveRemote.trim() !== PAGES_REPO) {
+        throw new Error(
+          `Refusing redirected Git remote: effective origin is ${redactDiagnostic(effectiveRemote.trim())}`,
+        );
+      }
+      await execFileTracked(
+        "git",
+        [
+          "-C",
+          pagesDir,
+          "-c",
+          "user.name=csm-upload",
+          "-c",
+          "user.email=csm-upload@localhost",
+          "add",
+          "-A",
+        ],
+        gitOptions,
+      );
       const { stdout } = await execFileTracked("git", ["-C", pagesDir, "status", "--porcelain"], {
         timeout: 60000,
+        env: isolatedGitEnv(),
       });
       if (stdout.trim()) {
-        await execFileTracked("git", ["-C", pagesDir, "commit", "-m", `upload ${demoDir}`], {
-          timeout: 60000,
-        });
-        await execFileTracked("git", ["-C", pagesDir, "push"], { timeout: 60000 });
-        console.log("Pushed");
+        await execFileTracked(
+          "git",
+          [
+            "-C",
+            pagesDir,
+            "-c",
+            "user.name=csm-upload",
+            "-c",
+            "user.email=csm-upload@localhost",
+            "commit",
+            "-m",
+            `upload ${demoDir}`,
+          ],
+          gitOptions,
+        );
+        await execFileTracked("git", ["-C", pagesDir, "push"], gitOptions);
+        console.log("Status: pushed=true deployed=unverified verified=unverified");
+        console.log("Pages deployment is not verified; inspect the published URL separately.");
       } else {
-        console.log("No changes to push");
+        console.log("Status: pushed=false deployed=unverified verified=unverified");
       }
     }
 
@@ -480,11 +642,11 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err.message);
+  console.error(redactDiagnostic(err.message));
   // F-053: git/gh failures put their diagnostics in err.stderr — never drop them.
   if (err.stderr) {
     const text = Buffer.isBuffer(err.stderr) ? err.stderr.toString() : String(err.stderr);
-    if (text.trim()) console.error(text.trim());
+    if (text.trim()) console.error(redactDiagnostic(text.trim()));
   }
   process.exit(1);
 });

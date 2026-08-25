@@ -1,0 +1,5 @@
+{
+  "fixture": "retained-performance-profile",
+  "runner": "node-test-fixture",
+  "summary": "deterministic retained evidence fixture"
+}

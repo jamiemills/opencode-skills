@@ -9,6 +9,7 @@
     "bin": "csm-skills-bootstrap"
   },
   "requiredFlags": ["--yes", "--ignore-scripts", "--no-audit", "--no-fund"],
+  "onlineFlags": ["--yes"],
   "offlineFlags": ["--offline", "--no-install"],
   "argvTemplates": {
     "online": [
@@ -42,7 +43,7 @@
     "rules": {
       "git": "git+, git:, github:, and #semver: specs are rejected; runtime deliverables are registry literals only",
       "url": "http and https tarball URL specs are rejected",
-      "file": "file: specs are build-time-only, not a runtime deliverable form",
+      "file": "file: specs are fixture-only local replay; they are never a runtime deliverable form",
       "range": "semver ranges, wildcards, x-ranges, and comparator sets are rejected",
       "dist-tag": "dist-tags such as latest are rejected",
       "missing-version": "a package name without an exact x.y.z version is rejected",
@@ -58,7 +59,8 @@
     }
   },
   "notes": [
-    "offline is cache-warmed only: npx --offline --no-install replays a previously verified warm invocation and fails closed when the required bytes are absent, with no network fallback",
+    "offline registry replay is cache-warmed only: npx --offline --no-install replays a previously verified registry invocation and fails closed when the required bytes are absent, with no network fallback",
+    "fixture-only local replay uses a packed file: tarball in an isolated test sandbox and must not be reported as registry replay",
     "the npx cache is not durable or portable (D6): offline support is conditional on a verified warm cache plus recorded node/npm/platform metadata in the cache manifest",
     "real-registry offline replay is deferred to the release stage because publication is deferred (D8): first-release offline validation runs at the packed-artifact plus manifest layer against an isolated cache"
   ]

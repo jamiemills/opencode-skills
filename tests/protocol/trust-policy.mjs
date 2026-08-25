@@ -35,6 +35,7 @@ export const ALLOWED_ENVELOPE_KEYS = [
   "signature",
   "steps_markdown",
   "steps_sha256",
+  "payload_index_sha256",
 ];
 export const REQUIRED_ENVELOPE_KEYS = [
   "audience",
@@ -98,9 +99,8 @@ export function validateEnvelopeShape(envelope) {
     if (!ALLOWED_ENVELOPE_KEYS.includes(present))
       reject("UNEXPECTED_FIELD", `unsigned field ${present} is not allowed`);
   if (
-    Object.prototype.hasOwnProperty.call(envelope, "payload_index_sha256") &&
-    (typeof envelope.payload_index_sha256 !== "string" ||
-      !/^[a-f0-9]{64}$/.test(envelope.payload_index_sha256))
+    typeof envelope.payload_index_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(envelope.payload_index_sha256)
   ) {
     reject("SCHEMA", "payload_index_sha256 must be a sha256 hex digest");
   }
@@ -156,7 +156,16 @@ export function validateEnvelope(
     } catch {
       reject("ORIGIN", "origin is not a URL");
     }
-    if (parsed.protocol !== "https:" || parsed.hostname !== allowedOrigin.hostname)
+    if (
+      parsed.protocol !== allowedOrigin.protocol ||
+      parsed.hostname !== allowedOrigin.hostname ||
+      parsed.port !== allowedOrigin.port ||
+      parsed.pathname !== allowedOrigin.pathname ||
+      parsed.username !== "" ||
+      parsed.password !== "" ||
+      parsed.search !== "" ||
+      parsed.hash !== ""
+    )
       reject("ORIGIN", "origin is not allowed");
   }
   const key = keyring?.keys?.find((candidate) => candidate.id === envelope.key?.id);
@@ -174,16 +183,12 @@ export function validateEnvelope(
   if (typeof envelope.steps_markdown !== "string" || envelope.steps_markdown.length > 4096)
     reject("SCHEMA", "steps_markdown out of bounds");
   if (checkStepsShellPolicy(envelope.steps_markdown))
-    reject("SHELL_POLICY", "steps cannot define executable policy");
+    reject("SHELL_POLICY", "steps contain shell-like advisory text");
   if (digest(envelope.steps_markdown) !== envelope.steps_sha256)
     reject("STEPS_DIGEST", "steps digest mismatch");
   if (!checkFixedPackagePolicy(envelope.policy?.package))
     reject("PACKAGE_POLICY", "package policy is not fixed");
-  if (
-    indexSha256 !== undefined &&
-    Object.prototype.hasOwnProperty.call(envelope, "payload_index_sha256") &&
-    indexSha256 !== envelope.payload_index_sha256
-  ) {
+  if (indexSha256 !== undefined && indexSha256 !== envelope.payload_index_sha256) {
     reject("PAYLOAD_INDEX_MISMATCH", "payload index digest mismatch");
   }
   const hasSignature = Object.prototype.hasOwnProperty.call(envelope, "signature");

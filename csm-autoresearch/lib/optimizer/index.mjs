@@ -14,6 +14,57 @@ const finiteMetrics = (metrics) =>
   metrics &&
   Object.values(metrics).every((value) => typeof value === "number" && Number.isFinite(value));
 const TERMINAL_BLOCKED = new Set(["sandbox_unavailable", "blocked", "policy_violation"]);
+const HASH = /^sha256:[a-f0-9]{64}$/;
+
+function validatePolicy(policy) {
+  if (!policy || typeof policy !== "object" || Array.isArray(policy))
+    throw new TypeError("policy must be an object");
+  if (policy.format !== "csm-autoresearch-policy/1") throw new TypeError("invalid policy format");
+  if (!["target", "hill-climb"].includes(policy.mode)) throw new TypeError("invalid policy mode");
+  if (!Array.isArray(policy.hardGates) || policy.hardGates.length === 0)
+    throw new TypeError("policy hardGates are required");
+  if (!policy.population || typeof policy.population.enabled !== "boolean")
+    throw new TypeError("policy population is required");
+  if (
+    !policy.execution ||
+    policy.execution.network !== "disabled" ||
+    policy.execution.credentials !== "none" ||
+    policy.execution.evaluatorAssets !== "isolated"
+  )
+    throw new TypeError(
+      "policy execution must be networkless, credentialless, and evaluator-isolated",
+    );
+  if (
+    !["trusted-in-process", "snapshot-process", "verified-sandbox"].includes(
+      policy.execution.isolation,
+    )
+  )
+    throw new TypeError("unsupported policy isolation");
+  if (policy.mode === "target" && (!policy.target || typeof policy.target.value !== "number"))
+    throw new TypeError("target policy requires a numeric target");
+  return policy;
+}
+
+function validateContract(contract) {
+  if (
+    !contract ||
+    typeof contract !== "object" ||
+    !contract.runId ||
+    !contract.source ||
+    !contract.metric ||
+    !contract.budget
+  )
+    throw new TypeError("invalid run contract");
+  if (!HASH.test(contract.source.sourceHash ?? ""))
+    throw new TypeError("invalid contract source hash");
+  if (
+    !Number.isInteger(contract.budget.maxTrials) ||
+    !Number.isInteger(contract.budget.maxProposals)
+  )
+    throw new TypeError("invalid contract budget");
+  validatePolicy(contract.policy);
+  return contract;
+}
 function better(value, incumbent, direction, margin = 0) {
   return direction === "minimize" ? value < incumbent - margin : value > incumbent + margin;
 }
@@ -66,20 +117,30 @@ async function establishBaseline({
 async function optimize(options) {
   const {
     contract,
-    policy = contract.policy,
+    policy: executionPolicy,
     evaluate,
     candidates = [],
     ledgerRoot = ".agents/autoresearch",
     now = new Date(),
     retryLimit = 0,
   } = options;
-  if (!contract?.runId || typeof evaluate !== "function")
-    throw new TypeError("runId and evaluate are required");
+  validateContract(contract);
+  const contractPolicy = validatePolicy(contract.policy);
+  if (executionPolicy !== undefined) validatePolicy(executionPolicy);
+  const suppliedPolicyHash = options.policyHash;
+  const contractPolicyHash = hash(contractPolicy);
+  if (suppliedPolicyHash !== undefined && suppliedPolicyHash !== contractPolicyHash)
+    throw new Error("execution policy hash mismatch");
+  if (executionPolicy !== undefined && hash(executionPolicy) !== contractPolicyHash)
+    throw new Error("execution policy mismatch");
+  const policy = contractPolicy;
+  if (typeof evaluate !== "function") throw new TypeError("evaluate is required");
   const paths = artifactPaths(ledgerRoot, contract.runId, now.toISOString().slice(0, 10));
   const provenance = {
     contractHash: options.contractHash ?? hash(contract),
     evaluatorHash: options.evaluatorHash ?? hash("deterministic-evaluator"),
     environmentHash: options.environmentHash ?? hash("deterministic-environment"),
+    policyHash: contractPolicyHash,
   };
   for (const [name, value] of Object.entries(provenance)) evidenceHash(value, name);
   const ledger = new AppendOnlyLedger(paths.ledger, { runId: contract.runId, provenance });
@@ -346,4 +407,12 @@ async function optimize(options) {
   return { report, manifest, paths, incumbent };
 }
 
-export { establishBaseline, evaluateHardGates, better, targetPassed, optimize };
+export {
+  establishBaseline,
+  evaluateHardGates,
+  better,
+  targetPassed,
+  optimize,
+  validateContract,
+  validatePolicy,
+};

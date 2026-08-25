@@ -1,0 +1,22 @@
+{
+  "format": "csm-verification-status/1",
+  "status": "INCOMPLETE",
+  "unresolved": ["performance profile was deleted during cleanup"],
+  "evidence": [
+    {
+      "id": "perf-profile",
+      "kind": "performance-profile",
+      "retention": "unavailable",
+      "reason": "temporary profile was not retained"
+    }
+  ],
+  "anchors": [
+    {
+      "id": "google-testing",
+      "url": "https://testing.googleblog.com/",
+      "version": "current",
+      "retrievedAt": "2026-08-24T00:00:00Z",
+      "reachability": "not-checked"
+    }
+  ]
+}

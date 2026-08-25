@@ -113,3 +113,23 @@ test("unsupported command capabilities are not enabled by fallback", async () =>
   });
   assert.equal(unsupported.status, "policy_violation");
 });
+
+test("network and unbounded process claims fail before hostile code runs", async () => {
+  const root = await temp();
+  let executed = false;
+  const result = await executeCandidate({
+    command: node,
+    args: ["-e", "process.env.CREDENTIAL = 'leaked'; process.stdout.write('executed')"],
+    cwd: root,
+    network: "disabled",
+    maxProcesses: 2,
+    env: { CREDENTIAL: "synthetic-secret" },
+    envAllowlist: ["CREDENTIAL"],
+    workspace: root,
+  });
+  executed = result.stdout === "executed";
+  assert.equal(result.status, "policy_violation");
+  assert.equal(executed, false);
+  assert.equal(result.stdout, "");
+  await cleanupWorkspace(root);
+});
