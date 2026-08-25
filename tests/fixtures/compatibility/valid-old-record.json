@@ -1,0 +1,15 @@
+{
+  "schema": "csm-artifact/1",
+  "artifact": {
+    "artifactId": "art-supported-old-fixture",
+    "kind": "compatibility.fixture",
+    "owner": "csm-build",
+    "runId": "run-supported-old-fixture",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "createdAt": "2026-08-25T00:00:00.000Z",
+    "revision": 1
+  },
+  "contentType": "application/json",
+  "location": "tests/fixtures/compatibility/valid-old-record.json",
+  "lifecycleStatus": "completed"
+}

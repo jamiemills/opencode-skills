@@ -1,6 +1,11 @@
 {
   "format": "csm-compatibility-matrix/1",
   "policy": "unknown revisions fail closed; incompatible revisions require an explicit adapter",
+  "schemaDiffPolicy": {
+    "same": "matrix-entry-required",
+    "additive": "matrix-entry-required",
+    "breaking": "explicit-adapter-required"
+  },
   "entries": [
     {
       "schema": "csm-envelope",
