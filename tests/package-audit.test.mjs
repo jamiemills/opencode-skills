@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
@@ -10,6 +11,7 @@ import { FORMAT_VERSIONS } from "../scripts/lib/contracts.mjs";
 import skillManifest from "../bootstrap/skill-manifest.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
+const bootstrapDir = join(import.meta.dirname, "..", "bootstrap");
 const skillNames = skillManifest.skills;
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const parseFrontmatter = (text) => {
@@ -67,12 +69,43 @@ test("packer refuses symlink sources and does not stage their target", async () 
   }
 });
 
+test("packer refuses an output-root symlink without modifying canonical bootstrap", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "csm-pack-output-link-"));
+  const before = await readFile(join(bootstrapDir, "payload-index.json"));
+  try {
+    const outputRoot = join(dir, "output");
+    await symlink(bootstrapDir, outputRoot);
+    await assert.rejects(() => packBootstrap({ outputRoot }), /symlinked output root/);
+    assert.deepEqual(await readFile(join(bootstrapDir, "payload-index.json")), before);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("packer refuses a symlinked destination parent inside an isolated output root", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "csm-pack-destination-link-"));
+  const outputRoot = join(dir, "output");
+  const escapeRoot = join(dir, "escape");
+  try {
+    await mkdir(outputRoot);
+    await mkdir(escapeRoot);
+    await symlink(escapeRoot, join(outputRoot, "package"));
+    await assert.rejects(() => packBootstrap({ outputRoot }), /symlinked destination/);
+    assert.deepEqual(await readdir(escapeRoot), []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("two isolated packs are deterministic and the packed artifact passes the audit", async () => {
   const dirs = [];
   const originalUmask = process.umask(0o022);
   try {
-    const first = await packBootstrap();
-    const second = await packBootstrap();
+    const firstRoot = await mkdtemp(join(tmpdir(), "csm-pack-output-"));
+    const secondRoot = await mkdtemp(join(tmpdir(), "csm-pack-output-"));
+    dirs.push(firstRoot, secondRoot);
+    const first = await packBootstrap({ outputRoot: firstRoot });
+    const second = await packBootstrap({ outputRoot: secondRoot });
     dirs.push(first.dir, second.dir);
     const firstBytes = await readFile(first.tarball);
     const secondBytes = await readFile(second.tarball);

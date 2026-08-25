@@ -1,0 +1,54 @@
+{
+  "format": "csm-schema-registry/1",
+  "revisionPolicy": "immutable",
+  "unknownRevisionPolicy": "reject",
+  "entries": [
+    {
+      "id": "csm-envelope/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-envelope.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "opaque-extension",
+      "opaqueExtensionPoints": ["/payload"],
+      "schemaContentDigest": "sha256:0e733243be00433f83fca0464c322dfe3bd47701c2d37e915cd4124a28df8e8d"
+    },
+    {
+      "id": "csm-artifact/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-artifact.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:f7510d5685125b5e5eba0022f43babda60118f5ae1961439e5a07e28d852e22b"
+    },
+    {
+      "id": "csm-journal-event/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-journal-event.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "opaque-extension",
+      "opaqueExtensionPoints": ["/data"],
+      "schemaContentDigest": "sha256:8a55026d3d5729314054a3035d70744d04a4e2f3d42996fb83d57a237c67be1d"
+    },
+    {
+      "id": "csm-diagnostics/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-diagnostics.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:c59c983e53db79ae3d94aeef9e6cdff0bea6787085026475565fd41d75c728c8"
+    },
+    {
+      "id": "csm-projection/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-projection.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:937fd8027cf73d7ae39002303c0265979789857b91a763fe648c9c1be797703c"
+    }
+  ]
+}

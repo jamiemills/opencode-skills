@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-skill-manifest/1",
+  "title": "CSM skill manifest",
+  "description": "Host-owned discovery and evaluation metadata. This contract is not a runtime security boundary.",
+  "type": "object",
+  "required": [
+    "schema",
+    "version",
+    "contentDigest",
+    "compatibility",
+    "permissions",
+    "entrypoints",
+    "eval",
+    "trace",
+    "skills"
+  ],
+  "properties": {
+    "schema": { "const": "csm-skill-manifest/1" },
+    "version": { "const": 1 },
+    "contentDigest": { "const": "sha256" },
+    "compatibility": {
+      "type": "object",
+      "required": ["node"],
+      "properties": { "node": { "type": "string", "minLength": 1 } },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "entrypoints": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "eval": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": { "mode": { "const": "deterministic-fixtures" } },
+      "additionalProperties": false
+    },
+    "trace": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": { "mode": { "const": "redacted" } },
+      "additionalProperties": false
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^csm-[a-z0-9-]+$" },
+      "uniqueItems": true,
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}

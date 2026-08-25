@@ -28,7 +28,6 @@ import skillManifest from "../bootstrap/skill-manifest.json" with { type: "json"
 const execFileAsync = promisify(execFile);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const bootstrapDir = join(root, "bootstrap");
-const packageDir = join(bootstrapDir, "package");
 const fixedTime = new Date("2026-08-18T00:00:00.000Z");
 const skillDirs = skillManifest.skills;
 
@@ -102,7 +101,15 @@ const mapping = {
     },
   ],
   helperBins: [],
-  metadata: [{ src: "LICENSE", dest: "LICENSE" }],
+  metadata: [
+    { src: "LICENSE", dest: "LICENSE" },
+    { srcDir: "schemas", destDir: join("payload", "schemas") },
+    { srcDir: join("lib", "schema-runtime"), destDir: join("payload", "lib", "schema-runtime") },
+    {
+      srcDir: join("lib", "compatibility-runtime"),
+      destDir: join("payload", "lib", "compatibility-runtime"),
+    },
+  ],
 };
 
 const decisions = [
@@ -148,6 +155,22 @@ const modeOf = (mode) => (mode & 0o777).toString(8).padStart(4, "0");
 const toPosix = (value) => value.split(sep).join("/");
 const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 
+async function assertNoSymlinkPath(path, label = "destination") {
+  const absolute = resolve(path);
+  let current = sep;
+  for (const component of absolute.split(sep).filter(Boolean)) {
+    current = join(current, component);
+    try {
+      if ((await lstat(current)).isSymbolicLink())
+        throw new Error(`pack refused: symlinked ${label} path component: ${current}`);
+    } catch (err) {
+      if (err?.code === "ENOENT") return true;
+      throw err;
+    }
+  }
+  return true;
+}
+
 async function walk(dir, prefix = "") {
   const out = [];
   for (const entry of (await readdir(dir, { withFileTypes: true })).toSorted((a, b) =>
@@ -175,13 +198,14 @@ async function expandMapping() {
   return entries;
 }
 
-async function entryFor(dest) {
+async function entryFor(packageDir, dest) {
   const target = join(packageDir, dest);
   const [data, info] = await Promise.all([readFile(target), stat(target)]);
   return { path: toPosix(dest), sha256: sha256(data), bytes: data.length, mode: modeOf(info.mode) };
 }
 
 async function copyVerified(source, destination) {
+  await assertNoSymlinkPath(destination);
   const sourceInfo = await lstat(source);
   if (!sourceInfo.isFile())
     throw new Error(`pack refused: source is not a regular file: ${source}`);
@@ -209,23 +233,24 @@ async function copyVerified(source, destination) {
     } finally {
       await destinationHandle.close();
     }
+    await assertNoSymlinkPath(destination);
     await chmod(destination, sourceInfo.mode & 0o777);
   } finally {
     await sourceHandle.close();
   }
 }
 
-async function buildIndex(entries) {
+async function buildIndex(entries, targetBootstrapDir, packageDir) {
   // L20: the manifest is the single version source — a hand-synced literal
   // here used to drift from bootstrap/package.json until tests caught it.
-  const pkgManifest = JSON.parse(await readFile(join(bootstrapDir, "package.json"), "utf8"));
+  const pkgManifest = JSON.parse(await readFile(join(targetBootstrapDir, "package.json"), "utf8"));
   const classes = { skills: [], supportingFiles: [], helperBins: [], metadata: [] };
   for (const className of Object.keys(classes)) {
     classes[className] = (
       await Promise.all(
         entries
           .filter((entry) => entry.className === className)
-          .map((entry) => entryFor(entry.dest)),
+          .map((entry) => entryFor(packageDir, entry.dest)),
       )
     ).toSorted(byPath);
   }
@@ -238,10 +263,12 @@ async function buildIndex(entries) {
     },
     generatedBy: "scripts/pack-bootstrap.mjs",
     decisions,
-    fixedBin: await entryFor(join("bin", "csm-skills-bootstrap.js")),
+    fixedBin: await entryFor(packageDir, join("bin", "csm-skills-bootstrap.js")),
     classes,
   };
-  await writeFile(join(bootstrapDir, "payload-index.json"), `${JSON.stringify(index, null, 2)}\n`);
+  const indexPath = join(targetBootstrapDir, "payload-index.json");
+  await assertNoSymlinkPath(indexPath);
+  await writeFile(indexPath, `${JSON.stringify(index, null, 2)}\n`);
   return index;
 }
 
@@ -254,13 +281,31 @@ async function pruneEmptyDirs(dir) {
   }
 }
 
-async function syncPayload() {
+async function verifyPayloadParity({ outputRoot = bootstrapDir } = {}) {
+  const targetPackageDir = join(resolve(outputRoot), "package");
+  const entries = await expandMapping();
+  for (const entry of entries) {
+    const source = await readFile(join(root, entry.src));
+    const generated = await readFile(join(targetPackageDir, entry.dest));
+    if (sha256(source) !== sha256(generated) || !source.equals(generated))
+      throw new Error(`pack refused: generated payload mismatch: ${entry.dest}`);
+  }
+  return true;
+}
+
+async function syncPayload({ outputRoot = bootstrapDir } = {}) {
+  const targetBootstrapDir = resolve(outputRoot);
+  const packageDir = join(targetBootstrapDir, "package");
+  await assertNoSymlinkPath(targetBootstrapDir, "output root");
+  await assertNoSymlinkPath(packageDir, "destination");
   const entries = await expandMapping();
   await mkdir(packageDir, { recursive: true });
   for (const entry of entries) {
-    await mkdir(dirname(join(packageDir, entry.dest)), { recursive: true });
-    await copyVerified(join(root, entry.src), join(packageDir, entry.dest));
-    await chmod(join(packageDir, entry.dest), 0o644);
+    const destination = join(packageDir, entry.dest);
+    await assertNoSymlinkPath(dirname(destination), "destination");
+    await mkdir(dirname(destination), { recursive: true });
+    await copyVerified(join(root, entry.src), destination);
+    await chmod(destination, 0o644);
   }
   const desired = new Set([
     ...entries.map((entry) => entry.dest),
@@ -269,14 +314,20 @@ async function syncPayload() {
   for (const rel of await walk(packageDir))
     if (!desired.has(rel)) await rm(join(packageDir, rel), { force: true });
   await pruneEmptyDirs(packageDir);
-  await chmod(join(packageDir, "bin", "csm-skills-bootstrap.js"), 0o755);
-  return buildIndex(entries);
+  const fixedBin = join(packageDir, "bin", "csm-skills-bootstrap.js");
+  await assertNoSymlinkPath(fixedBin);
+  await chmod(fixedBin, 0o755);
+  const index = await buildIndex(entries, targetBootstrapDir, packageDir);
+  await verifyPayloadParity({ outputRoot: targetBootstrapDir });
+  return index;
 }
 
 async function copyTree(src, dest) {
   for (const rel of await walk(src)) {
-    await mkdir(dirname(join(dest, rel)), { recursive: true });
-    await copyVerified(join(src, rel), join(dest, rel));
+    const destination = join(dest, rel);
+    await assertNoSymlinkPath(dirname(destination), "destination");
+    await mkdir(dirname(destination), { recursive: true });
+    await copyVerified(join(src, rel), destination);
   }
 }
 
@@ -315,13 +366,29 @@ function parseTar(gzip) {
   return entries;
 }
 
-async function packBootstrapOnce() {
-  await syncPayload();
+async function packBootstrapOnce({ outputRoot = bootstrapDir } = {}) {
+  const targetBootstrapDir = resolve(outputRoot);
+  if (targetBootstrapDir === root)
+    throw new Error("pack refused: output root cannot be the canonical source root");
+  await assertNoSymlinkPath(targetBootstrapDir, "output root");
+  const packageDir = join(targetBootstrapDir, "package");
+  await mkdir(targetBootstrapDir, { recursive: true });
+  if (targetBootstrapDir !== bootstrapDir) {
+    await copyVerified(
+      join(bootstrapDir, "package.json"),
+      join(targetBootstrapDir, "package.json"),
+    );
+    await copyTree(join(bootstrapDir, "package", "bin"), join(packageDir, "bin"));
+  }
+  await syncPayload({ outputRoot: targetBootstrapDir });
   const dir = await mkdtemp("/tmp/csm-pack-");
   const cache = await mkdtemp("/tmp/csm-pack-cache-");
   try {
-    await copyVerified(join(bootstrapDir, "package.json"), join(dir, "package.json"));
-    await copyVerified(join(bootstrapDir, "payload-index.json"), join(dir, "payload-index.json"));
+    await copyVerified(join(targetBootstrapDir, "package.json"), join(dir, "package.json"));
+    await copyVerified(
+      join(targetBootstrapDir, "payload-index.json"),
+      join(dir, "payload-index.json"),
+    );
     await copyTree(packageDir, dir);
     await fixTimes(dir);
     const { stdout } = await execFileAsync("npm", ["pack", "--json"], {
@@ -359,8 +426,11 @@ function resolvePackTarball(stagingDir, filename) {
 // Packing regenerates the shared committed payload/index before staging. Keep
 // concurrent callers from observing one another's partially regenerated state.
 let packQueue = Promise.resolve();
-function packBootstrap() {
-  const run = packQueue.then(packBootstrapOnce, packBootstrapOnce);
+function packBootstrap(options = {}) {
+  const run = packQueue.then(
+    () => packBootstrapOnce(options),
+    () => packBootstrapOnce(options),
+  );
   packQueue = run.then(
     () => undefined,
     () => undefined,
@@ -370,7 +440,9 @@ function packBootstrap() {
 
 async function main() {
   if (process.argv.includes("--release")) await assertReleaseKeyring();
-  const { dir, tarball, sha256: pkgSha256, bytes, entries } = await packBootstrap();
+  const outputArg = process.argv.find((arg) => arg.startsWith("--output-root="));
+  const outputRoot = outputArg ? outputArg.slice("--output-root=".length) : bootstrapDir;
+  const { dir, tarball, sha256: pkgSha256, bytes, entries } = await packBootstrap({ outputRoot });
   const files = entries.filter((entry) => entry.type === "0" || entry.type === "\0");
   console.log(`tarball: ${tarball}`);
   console.log(`sha256: ${pkgSha256}`);
@@ -395,11 +467,13 @@ export {
   assertReleaseKeyring,
   copyVerified,
   decisions,
+  expandMapping,
   mapping,
   packBootstrap,
   parseTar,
   resolvePackTarball,
   syncPayload,
+  verifyPayloadParity,
   skillManifest,
   validateReleaseKeyring,
   walk,

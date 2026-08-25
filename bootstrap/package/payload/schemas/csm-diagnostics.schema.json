@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-diagnostics/1",
+  "title": "CSM structured diagnostics",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "valid", "boundary", "diagnostics"],
+  "properties": {
+    "schema": { "const": "csm-diagnostics/1" },
+    "valid": { "type": "boolean" },
+    "boundary": { "enum": ["envelope", "payload", "registry", "reference", "projection"] },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+    "sourceSchema": { "$ref": "#/$defs/schemaRef" }
+  },
+  "$defs": {
+    "schemaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]*/[1-9][0-9]*$" },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "boundary"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]+$" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "boundary": { "enum": ["envelope", "payload", "registry", "reference", "projection"] },
+        "path": { "type": "string", "pattern": "^(|(/[A-Za-z0-9_~-]+)*)$" },
+        "details": { "type": "object" }
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "format": "csm-compatibility-matrix/1",
+  "policy": "unknown revisions fail closed; incompatible revisions require an explicit adapter",
+  "schemaDiffPolicy": {
+    "same": "matrix-entry-required",
+    "additive": "matrix-entry-required",
+    "breaking": "explicit-adapter-required"
+  },
+  "entries": [
+    {
+      "schema": "csm-envelope",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-artifact",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-journal-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-diagnostics",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-projection",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    }
+  ],
+  "adapters": []
+}
