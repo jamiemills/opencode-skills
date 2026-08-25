@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 3
+- Current CSM state: DISPATCH
+- Cycle: 4
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T005 integrated and repaired; pinned packaging acceptance passed 10 tests, `make fmt-check` and `make lint` passed, `make check` passed 1189 checks, and current full `make test` passed 1283 tests.
+- Last checkpoint: 2026-08-25 T005 committed as `1023a91`; pinned packaging acceptance passed 10 tests, `make check` passed 1189 checks, and current full `make test` passed 1283 tests.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T006
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -340,7 +340,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If packaging writes outside the staging root, stop and fix isolation before adding more generated files.
 
-6. [pending] Define render profiles, typed render model, and projection descriptor behavior.
+6. [in_progress] Define render profiles, typed render model, and projection descriptor behavior.
    - Task ID: T006
    - Depends on: T003
    - Parallel group: G3
@@ -720,6 +720,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 3 | REPAIR -> VERIFY | T005 | Nested canonical-source root regression passed; current full `make test` passed 1283 tests. | VERIFY |
 | 2026-08-25 | 3 | VERIFY -> REVIEW | T005 | Final independent review returned PROCEED; residual risks are Node 22 wrapper requirement and external browser/publication scope. | REVIEW |
 | 2026-08-25 | 3 | REVIEW -> CHECKPOINT | T005 | T005 is complete and ready for checkpoint commit; renderer packaging will extend the canonical mapping in a later phase. | CHECKPOINT |
+| 2026-08-25 | 4 | CHECKPOINT -> SELECT | T006 | T005 commit `1023a91` passed hook gates; T006 is the only ready renderer foundation task. | SELECT |
+| 2026-08-25 | 4 | SELECT -> DISPATCH | T006 | Render profile/model ownership is serialized before Markdown/HTML renderer implementation. | DISPATCH |
 
 ## Completion Review
 
