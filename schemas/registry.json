@@ -11,7 +11,7 @@
       "immutable": true,
       "unknownFieldPolicy": "opaque-extension",
       "opaqueExtensionPoints": ["/payload"],
-      "schemaContentDigest": "sha256:0e733243be00433f83fca0464c322dfe3bd47701c2d37e915cd4124a28df8e8d"
+      "schemaContentDigest": "sha256:49ce9d85d420c862e2f9ab20c6ba717b0b2342112e70d59b031ad1e83b924e3b"
     },
     {
       "id": "csm-artifact/1",
@@ -67,6 +67,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:7a30749d9bd395ba6e920b77fa652ea0545765f4b9e213b037128de1784e2328"
+    },
+    {
+      "id": "csm-norms/1",
+      "revision": 1,
+      "schemaPath": "csm-scan/schemas/csm-norms.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:6ddc585f70397d9ad076f756ec7eb5d83430bff62a0f81cb7465c33563b960fa"
     }
   ]
 }

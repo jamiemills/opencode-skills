@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { assertCanonicalOutputPath } from "../lib/scan/write.mjs";
 import { commandBroker } from "../lib/scan/shared/command.mjs";
 import { openVerboseTrace, createVerboseReporter } from "../lib/scan/report/verbose-trace.mjs";
 import {
@@ -15,13 +16,13 @@ import {
 const USAGE = [
   "Usage: scan.mjs [--repos <path>...] [--out <path>] [--verbose]",
   "",
-  "Scan one or more repositories and write a NORMS.md report.",
+  "Scan one or more repositories and write a canonical NORMS.json artifact.",
   "With no --repos, the current working directory is scanned.",
-  "With no --out, the report is written to NORMS.md in the current directory.",
+  "With no --out, the artifact is written to NORMS.json in the current directory.",
   "",
   "Options:",
   "  --repos <path>...  Repositories to scan (default: current working directory).",
-  "  --out <path>       Output file (default: NORMS.md in the current directory).",
+  "  --out <path>       Output file (default: NORMS.json in the current directory).",
   "  --verbose          Write an unredacted local diagnostic trace (reporter lines +",
   "                     per-stage durations) to a per-run-unique .csm-scan-debug-*.log",
   "                     next to --out (or the OS temp dir) — never to stdout. Delete it",
@@ -83,7 +84,7 @@ function parseArgs(argv, cwd) {
   }
   return {
     repos: repos.length > 0 ? repos : [cwd],
-    out: out ? resolve(cwd, out) : join(cwd, "NORMS.md"),
+    out: out ? resolve(cwd, out) : join(cwd, "NORMS.json"),
     help,
     version,
     verbose,
@@ -165,6 +166,13 @@ async function main() {
     printStdout(`csm-scan ${await resolveVersion()}`);
     return;
   }
+  try {
+    assertCanonicalOutputPath(out);
+  } catch (error) {
+    printCliError(JSON.stringify({ code: error.code, message: error.message, outputPath: out }));
+    process.exitCode = 2;
+    return;
+  }
   if (errors.length > 0) {
     for (const error of errors) printCliError(error);
     printCliError(USAGE_HINT);
@@ -197,7 +205,7 @@ async function main() {
   const reporter = debug !== null ? createVerboseReporter(baseReporter, debug) : baseReporter;
   try {
     await runExpandedPipeline({ repos, out, reporter });
-    reporter.progress(`NORMS.md written to ${out}`);
+    reporter.progress(`NORMS.json written to ${out}`);
   } catch (error) {
     reporter.error(formatError(error));
     process.exitCode = 1;

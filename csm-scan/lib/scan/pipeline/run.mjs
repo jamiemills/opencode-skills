@@ -9,7 +9,13 @@ import { assertLegacyPrivacySafe, assertPrivacySafe } from "../shared/privacy.mj
 import { enumerate } from "../shared/enum.mjs";
 import { survey } from "../survey.mjs";
 import { validate } from "../validate.mjs";
-import { writeNORMS, WRITE_RENDER_CONTEXT } from "../write.mjs";
+import {
+  assertCanonicalOutputPath,
+  renderNORMS,
+  writeNORMS,
+  writeNormsArtifact,
+  WRITE_RENDER_CONTEXT,
+} from "../write.mjs";
 import { synthesizeCrossRepository } from "../cross-repo/edges.mjs";
 import { createCrossRepositoryRenderer } from "../cross-repo/render.mjs";
 import { DIMENSION_REGISTRY } from "../registry/dimensions.mjs";
@@ -54,6 +60,9 @@ export const MAX_RETRIES = 2;
 
 export const DEFAULT_CLOCK = () => new Date().toISOString().split("T")[0];
 
+// The exported legacy sink remains available for projection-only callers. The
+// pipeline selects the canonical JSON writer whenever its default sink and a
+// .json destination are used; the CLI rejects non-JSON persistence targets.
 export const DEFAULT_SINK = writeNORMS;
 
 export class PipelineError extends TypeError {
@@ -964,6 +973,8 @@ export async function runExpandedPipeline({
   if (!Array.isArray(repos) || repos.length === 0) {
     throw new TypeError("runExpandedPipeline requires a non-empty repos array");
   }
+  if (sink === DEFAULT_SINK && typeof out === "string" && /\.json$/i.test(out))
+    assertCanonicalOutputPath(out);
   const generated = clock();
   const context = createScanContext({ commandRunner, clock, pluginRegistry });
   const broker = resolveBroker(commandRunner);
@@ -980,12 +991,22 @@ export async function runExpandedPipeline({
   const trace = [];
   const semantic = [];
   const perRepoCoverage = [];
+  const sourceCommits = [];
   let providerCapped = false;
 
   if (reporter) reporter.phase(`[CSM] survey phase`);
   for (const [index, rawPath] of repos.entries()) {
     const resolvedPath = resolve(rawPath);
     const overview = await survey(resolvedPath, broker);
+    let sourceCommit = null;
+    try {
+      const commitResult = await broker.execute("git:log-oneline-50", { cwd: resolvedPath });
+      const first = String(commitResult.stdout ?? "")
+        .trim()
+        .split(/\s+/, 1)[0];
+      if (/^[0-9a-f]{4,40}$/i.test(first)) sourceCommit = first.toLowerCase();
+    } catch {}
+    sourceCommits.push(sourceCommit);
     if (reporter) reporter.progress(`[CSM] survey complete — repository ${overview.name}`);
     if (reporter)
       reporter.progress(`  Languages: ${overview.languages.join(", ") || "none detected"}`);
@@ -1078,11 +1099,26 @@ export async function runExpandedPipeline({
     );
   }
 
-  const markdown = await sink(findings, out, compositeRenderer(renderRegistry, globalRenderer));
+  const canonicalOutput = sink === DEFAULT_SINK;
+  const renderer = compositeRenderer(renderRegistry, globalRenderer);
+  let output;
+  let markdown = null;
+  let projection = null;
+  if (canonicalOutput && typeof out === "string" && !/\.json$/i.test(out)) {
+    markdown = renderNORMS(findings, renderer);
+    projection = { mode: "projection-only", code: "unsupported-output-format", outputPath: out };
+  } else if (canonicalOutput) {
+    output = await writeNormsArtifact(findings, out, { sourceCommits });
+  } else {
+    output = await sink(findings, out, renderer);
+  }
   return {
     generated,
     repos: repoResults,
-    markdown,
+    markdown: canonicalOutput ? markdown : output,
+    json: canonicalOutput && output ? output.content : null,
+    artifact: canonicalOutput && output ? output.artifact : null,
+    projection,
     trace,
     semantic,
     context,

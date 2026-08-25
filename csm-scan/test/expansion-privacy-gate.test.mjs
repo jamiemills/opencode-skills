@@ -40,6 +40,7 @@ import { test } from "node:test";
 
 import { makeFixture, cleanupFixture } from "./harness.mjs";
 import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { createReporter, formatError, sanitizeText } from "../lib/scan/report/reporter.mjs";
 import { assertPrivacySafe, PrivacyError, redactText } from "../lib/scan/shared/privacy.mjs";
 import { makeGitRepo, cleanupGitRepo } from "./helpers/git-fixture.mjs";
@@ -112,13 +113,9 @@ test("T227 privacy: structured findings, global snapshot, and rendered Markdown 
       repos: [repo],
       out: join(outDir, "NORMS.md"),
       clock: FIXED_CLOCK,
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
     });
-    const markdown = await readFile(join(outDir, "NORMS.md"), "utf8");
-    assert.equal(
-      markdown,
-      result.markdown,
-      "the written Markdown must equal the returned markdown",
-    );
+    const markdown = result.markdown;
 
     const findingsBlob = `${JSON.stringify(result.findings)}\n${JSON.stringify(result.global)}`;
     const markdownBlob = markdown;
@@ -134,12 +131,13 @@ test("T227/T005 privacy: script bodies, description secrets, and the fixture roo
   const repo = makeFixture("t005-privacy-manifest", canaryFiles());
   const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t005-privacy-manifest-"));
   try {
-    await runExpandedPipeline({
+    const result = await runExpandedPipeline({
       repos: [repo],
       out: join(outDir, "NORMS.md"),
       clock: FIXED_CLOCK,
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
     });
-    const markdown = await readFile(join(outDir, "NORMS.md"), "utf8");
+    const markdown = result.markdown;
     for (const canary of SCRIPTS_DESCRIPTION_CANARIES) {
       assert.equal(
         markdown.includes(canary),
@@ -208,7 +206,7 @@ test("T227 privacy: CLI stdout, stderr, and Markdown carry zero canaries over a 
     remote: "https://alice:secret@github.com/acme/privacy-canary.git",
   });
   const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t227-privacy-cli-"));
-  const outputPath = join(outDir, "NORMS.md");
+  const outputPath = join(outDir, "NORMS.json");
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
@@ -216,10 +214,10 @@ test("T227 privacy: CLI stdout, stderr, and Markdown carry zero canaries over a 
       { cwd: ROOT },
     );
     assert.equal(stderr, "", "a successful CLI run must produce no stderr");
-    const markdown = await readFile(outputPath, "utf8");
+    const artifact = await readFile(outputPath, "utf8");
     assertZeroLeaks("CLI stdout", stdout);
     assertZeroLeaks("CLI stderr", stderr);
-    assertZeroLeaks("CLI Markdown", markdown);
+    assertZeroLeaks("CLI JSON", artifact);
     // The sanitized stdio guard must redact the scanned root and the output path.
     assert.equal(
       stdout.includes(gitRepo),
@@ -250,7 +248,7 @@ test("T227 privacy: CLI error output echoes user-typed paths but leaks no canari
     await assert.rejects(
       execFileAsync(
         process.execPath,
-        [SCAN_SCRIPT, "--repos", missing, "--out", join(outDir, "NORMS.md")],
+        [SCAN_SCRIPT, "--repos", missing, "--out", join(outDir, "NORMS.json")],
         { cwd: ROOT },
       ),
       (error) => {
@@ -348,8 +346,9 @@ test("T227 privacy: zero leaks across every sink in one combined run", async () 
       out: join(outDir, "NORMS.md"),
       clock: FIXED_CLOCK,
       reporter,
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
     });
-    const markdown = await readFile(join(outDir, "NORMS.md"), "utf8");
+    const markdown = result.markdown;
     const everySink = [
       JSON.stringify(result.findings),
       JSON.stringify(result.global),

@@ -19,13 +19,12 @@
 // Seeded fixtures only (no host state): every input is written by this test.
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename } from "node:path";
 import { test } from "node:test";
 
 import { makeFixture, cleanupFixture } from "./harness.mjs";
 import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { makeGitRepo, cleanupGitRepo } from "./helpers/git-fixture.mjs";
 
 const FIXED_CLOCK = () => "2026-08-16";
@@ -57,17 +56,12 @@ function manifestFixtureFiles() {
 }
 
 async function scanToMarkdown(repo) {
-  const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t005-write-"));
-  try {
-    await runExpandedPipeline({
-      repos: [repo],
-      out: join(outDir, "NORMS.md"),
-      clock: FIXED_CLOCK,
-    });
-    return await readFile(join(outDir, "NORMS.md"), "utf8");
-  } finally {
-    await rm(outDir, { recursive: true, force: true });
-  }
+  const result = await runExpandedPipeline({
+    repos: [repo],
+    clock: FIXED_CLOCK,
+    sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
+  });
+  return result.markdown;
 }
 
 test("T005 write path renders relative Path, basename gitRoot, redacted description, and no script bodies", async () => {

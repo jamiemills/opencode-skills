@@ -724,6 +724,7 @@ test("T222 inert: no production module imports the registry or the builtin index
   const activatedConsumers = new Set([
     join(LIB_ROOT, "scan", "pipeline", "run.mjs"),
     join(LIB_ROOT, "scan", "enrich.mjs"),
+    join(LIB_ROOT, "scan", "norms.mjs"),
   ]);
   const consumers = [];
   for (const file of await libScanFiles()) {

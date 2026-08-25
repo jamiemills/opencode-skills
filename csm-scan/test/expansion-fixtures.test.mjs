@@ -25,13 +25,14 @@
 // production, baseline, contract, or locked fixture is edited.
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
 import { makeFixture, cleanupFixture } from "./harness.mjs";
 import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { synthesizeCrossRepository } from "../lib/scan/cross-repo/edges.mjs";
 import { CLAIM_STATUSES } from "../lib/scan/contracts/dimension.mjs";
 import { DIMENSION_REGISTRY } from "../lib/scan/registry/dimensions.mjs";
@@ -1192,18 +1193,22 @@ test("T226 determinism: fixed clock produces byte-identical repeated runs", asyn
       repos: [repoPath],
       clock: () => "2026-08-03",
     };
-    const first = await runExpandedPipeline({ ...options, out: join(outDir, "first.md") });
-    const second = await runExpandedPipeline({ ...options, out: join(outDir, "second.md") });
+    const first = await runExpandedPipeline({
+      ...options,
+      out: join(outDir, "first.md"),
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
+    });
+    const second = await runExpandedPipeline({
+      ...options,
+      out: join(outDir, "second.md"),
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
+    });
     assert.equal(
       first.markdown,
       second.markdown,
       `${name}: repeated runs on the same fixture must be byte-identical`,
     );
     assert.equal(first.generated, "2026-08-03");
-    assert.equal(
-      await readFile(join(outDir, "first.md"), "utf8"),
-      await readFile(join(outDir, "second.md"), "utf8"),
-    );
   }
   const crossA = makeFixture("t226-det-cross-a", repoA);
   const crossB = makeFixture("t226-det-cross-b", repoB);

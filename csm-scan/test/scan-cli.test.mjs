@@ -31,7 +31,7 @@ test("CLI reports factual cross-observations and detection coverage", async () =
     "test/app.test.js": "export const recognizedTestFile = true;\n",
   });
   const outputDir = mkdtempSync(join(tmpdir(), "csm-scan-cli-output-"));
-  const outputPath = join(outputDir, "NORMS.md");
+  const outputPath = join(outputDir, "NORMS.json");
 
   try {
     const { stdout, stderr } = await execFileAsync(
@@ -78,13 +78,12 @@ test("CLI reports factual cross-observations and detection coverage", async () =
       /\b(?:signal|gap|confidence|quality|weak|cohesiveness|contradiction|conflict)\b/i,
     );
 
-    const markdown = readFileSync(outputPath, "utf8");
-    assert.match(markdown, /> Coverage: \d+% of scanner fields reported · basis: /);
-    assert.match(
-      markdown,
-      /## Cross-observations[\s\S]*testing framework reported as "unknown"; test files present/,
-    );
-    assert.doesNotMatch(markdown, /^#{1,6}\s+(?:Contradictions|Conflicts)\b/im);
+    const artifact = JSON.parse(readFileSync(outputPath, "utf8"));
+    assert.equal(artifact.schema, "csm-envelope/1");
+    assert.equal(artifact.contentType, "application/json");
+    assert.equal(artifact.payloadSchema.id, "csm-norms/1");
+    assert.equal(artifact.lifecycleStatus, "completed");
+    assert.equal(artifact.verificationStatus, "verified");
 
     const source = readFileSync(SCAN_SCRIPT, "utf8");
     for (const legacySourceLabel of [

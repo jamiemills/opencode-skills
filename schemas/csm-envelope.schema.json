@@ -13,7 +13,8 @@
     "lifecycleStatus",
     "verificationStatus",
     "payloadSchema",
-    "payload"
+    "payload",
+    "contentType"
   ],
   "properties": {
     "schema": { "const": "csm-envelope/1" },
@@ -32,6 +33,7 @@
       "description": "Payload-owned fields are validated by payloadSchema; envelope validation does not silently claim them.",
       "additionalProperties": true
     },
+    "contentType": { "const": "application/json" },
     "delegation": { "$ref": "#/$defs/delegation" },
     "inputArtifacts": {
       "type": "array",

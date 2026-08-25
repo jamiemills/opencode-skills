@@ -48,6 +48,7 @@ import {
 } from "../lib/scan/render/registry.mjs";
 import { DIMENSION_REGISTRY } from "../lib/scan/registry/dimensions.mjs";
 import { writeNORMS } from "../lib/scan/write.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { enrich } from "../lib/scan/enrich.mjs";
 import { validate } from "../lib/scan/validate.mjs";
 import { loadPlugins } from "../lib/scan/plugins/loader.mjs";
@@ -69,19 +70,6 @@ const SIX_NEW_HEADINGS = [
   "## Maintainability",
   "## Governance & Ownership",
   "## Assurance & Supply Chain",
-];
-
-const TEN_HEADINGS = [
-  "## Repository Structure",
-  "## Technology Stack",
-  "## Configuration",
-  "## Testing",
-  "## Code Conventions",
-  "## Git Practices",
-  "## Architecture",
-  "## Documentation",
-  "## Security",
-  "## Operations",
 ];
 
 function digest(value) {
@@ -133,7 +121,7 @@ test("T224 CLI: multi-repo run renders all 16 dimensions, the global section, an
   const fixtureA = makeFixture("t224-cli-a", pythonFiles);
   const fixtureB = makeFixture("t224-cli-b", crossRepoFixtureFiles());
   const outputDir = mkdtempSync(join(tmpdir(), "csm-scan-t224-cli-out-"));
-  const outputPath = join(outputDir, "NORMS.md");
+  const outputPath = join(outputDir, "NORMS.json");
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
@@ -153,14 +141,11 @@ test("T224 CLI: multi-repo run renders all 16 dimensions, the global section, an
     assert.match(stdout, /Detection coverage:/);
     assert.match(stdout, /Expected claim coverage:/);
 
-    const markdown = readFileSync(outputPath, "utf8");
-    for (const heading of [...TEN_HEADINGS, ...SIX_NEW_HEADINGS]) {
-      assert.ok(markdown.includes(heading), `${heading} must render in the expanded output`);
-    }
-    assert.match(markdown, /> Scanned repos: /);
-    assert.match(markdown, /## Cross-repository Architecture/);
-    assert.match(markdown, /### Repository identities/);
-    assert.deepEqual(readdirSync(outputDir), ["NORMS.md"], "exactly one output file per run");
+    const artifact = JSON.parse(readFileSync(outputPath, "utf8"));
+    assert.equal(artifact.schema, "csm-envelope/1");
+    assert.equal(artifact.payloadSchema.id, "csm-norms/1");
+    assert.equal(artifact.payload.repositories.length, 2);
+    assert.deepEqual(readdirSync(outputDir), ["NORMS.json"], "exactly one output file per run");
   } finally {
     cleanupFixture(fixtureA);
     cleanupFixture(fixtureB);
@@ -178,7 +163,7 @@ test("T224 CLI: stdout/stderr are privacy-clean even when the repository contain
     "src/config.js": `export default { token: '${CANARY_TOKEN}' };\n`,
   });
   const outputDir = mkdtempSync(join(tmpdir(), "csm-scan-t224-canary-out-"));
-  const outputPath = join(outputDir, "NORMS.md");
+  const outputPath = join(outputDir, "NORMS.json");
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
@@ -203,7 +188,7 @@ test("T224 CLI: an unreadable repository aborts with a sanitized error and no ou
   // invariant (no write on failure) is unchanged.
   const missing = join(tmpdir(), `csm-scan-t224-missing-${process.pid}-${Date.now()}`);
   const outputDir = mkdtempSync(join(tmpdir(), "csm-scan-t224-missing-out-"));
-  const outputPath = join(outputDir, "NORMS.md");
+  const outputPath = join(outputDir, "NORMS.json");
   try {
     await assert.rejects(
       execFileAsync(process.execPath, [SCAN_SCRIPT, "--repos", missing, "--out", outputPath], {
@@ -390,6 +375,7 @@ test("T224 five fixtures: ten-dimension bytes are preserved; the six new section
           repos: [repoPath],
           out: join(expandedRoot, "NORMS.md"),
           clock: () => "2026-01-01",
+          sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
         });
         const expandedSha = digest(`${canonicalize(expanded.markdown, repoPath)}\n`);
         for (const heading of SIX_NEW_HEADINGS) {
@@ -571,17 +557,15 @@ test("T224 determinism: fixed clock produces byte-identical repeated runs", asyn
           repos: [a, b],
           out: join(root, "first.md"),
           clock: () => "2026-06-30",
+          sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
         });
         const second = await runExpandedPipeline({
           repos: [a, b],
           out: join(root, "second.md"),
           clock: () => "2026-06-30",
+          sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
         });
         assert.equal(first.markdown, second.markdown, "expanded pipeline must be byte-identical");
-        assert.equal(
-          await readFile(join(root, "first.md"), "utf8"),
-          await readFile(join(root, "second.md"), "utf8"),
-        );
         assert.equal(first.generated, "2026-06-30");
       });
     });

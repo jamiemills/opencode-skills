@@ -1,0 +1,14 @@
+{
+  "producer": "csm-scan",
+  "schema": "csm-norms/1",
+  "schemaRevision": 1,
+  "artifactKind": "norms",
+  "canonicalPath": "NORMS.json",
+  "legacyPath": "NORMS.md",
+  "legacyStatus": "history-only",
+  "consumers": ["csm-plan", "csm-build", "csm-review", "csm-bdd-tdd"],
+  "dimensionCount": 17,
+  "ordering": "DIMENSION_REGISTRY order, then provider/plugin observation key order",
+  "privacy": "validated before persistence",
+  "digest": "sha256 over canonical JSON with artifactDigest null"
+}

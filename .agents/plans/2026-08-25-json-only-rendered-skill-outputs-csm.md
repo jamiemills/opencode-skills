@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 8
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T010 committed as `eb43b0c`; focused resolver acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T010 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T011 integrated and repaired; csm-scan passed 1283 tests, norms contract passed 5 tests, bootstrap/package parity passed, `make check` passed 1189 checks, formatting/lint passed, and T011 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T011
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -415,7 +415,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If an active downstream depends on a legacy path, leave the global resolver unchanged and record the edge as pending; only the edge-specific consumer task may enable JSON resolution after replay passes.
 
-11. [in_progress] Migrate csm-scan norms output and its four downstream consumers.
+11. [completed] Migrate csm-scan norms output and its four downstream consumers.
    - Task ID: T011
    - Depends on: T010
    - Parallel group: G5
@@ -758,6 +758,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 7 | REVIEW -> CHECKPOINT | T010 | T010 is complete; T011 will migrate csm-scan norms and its downstream consumers. | CHECKPOINT |
 | 2026-08-25 | 8 | CHECKPOINT -> SELECT | T011 | T010 commit `eb43b0c` passed hook gates; T011 is the only ready producer migration task. | SELECT |
 | 2026-08-25 | 8 | SELECT -> DISPATCH | T011 | csm-scan producer ownership is isolated; downstream plan/build/review/BDD resolvers remain owned by later tasks. | DISPATCH |
+| 2026-08-25 | 8 | DISPATCH -> INTEGRATE | T011 | Worker returned norms payload/envelope/schema, projection-only writer behavior, tests, registry/packer updates, and generated payloads; actual diffs were inspected. | INTEGRATE |
+| 2026-08-25 | 8 | INTEGRATE -> VERIFY | T011 | Primary rerun passed `make test-scan` (1283), norms contract tests (5), package/bootstrap parity, `make check` (1189), formatting, and lint. | VERIFY |
+| 2026-08-25 | 8 | VERIFY -> REVIEW | T011 | Norms envelope, registry/Ajv validation, dimension/source ordering, privacy/digests, JSON-only persistence, and generated parity are reproducible. | REVIEW |
+| 2026-08-25 | 8 | REVIEW -> REPAIR | T011 | Independent review found missing shared registration/envelope shape, weak validation/dimension semantics, and Markdown default persistence; repairs and packaging regeneration were integrated. | REPAIR |
+| 2026-08-25 | 8 | REPAIR -> VERIFY | T011 | Repaired scan suite, norms contract, package parity, and conformance gates passed. | VERIFY |
+| 2026-08-25 | 8 | VERIFY -> REVIEW | T011 | Final independent review returned PROCEED; downstream consumers must use `csm-envelope/1` with `payloadSchema: csm-norms/1`. | REVIEW |
+| 2026-08-25 | 8 | REVIEW -> CHECKPOINT | T011 | T011 is complete; T012-T015 may migrate standalone producers with no downstream shared resolver edits. | CHECKPOINT |
 
 ## Completion Review
 

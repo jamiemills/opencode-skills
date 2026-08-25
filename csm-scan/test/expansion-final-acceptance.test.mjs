@@ -78,6 +78,7 @@ import { collectTestNames } from "./helpers/collect-test-names.mjs";
 
 import { runExpandedPipeline, assertFindingsPrivacy } from "../lib/scan/pipeline/run.mjs";
 import { writeNORMS } from "../lib/scan/write.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { createCommandBroker, defaultRunner } from "../lib/scan/shared/command.mjs";
 import { rgIgnoreArgs } from "../lib/scan/shared/ignore.mjs";
 import {
@@ -212,6 +213,7 @@ async function runFixture(t, name, files, options = {}) {
     repos: [repoPath],
     out: join(outDir, "NORMS.md"),
     clock: FIXED_CLOCK,
+    sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
     ...options,
   });
   return { result, repoPath, outDir };
@@ -346,7 +348,7 @@ test("T228 AC1 command boundary: sole broker, registered rg/git argv, zero targe
   const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t228-ac1-out-"));
   t.after(() => rm(outDir, { recursive: true, force: true }));
 
-  await runExpandedPipeline({
+  const result = await runExpandedPipeline({
     repos: [repo, gitRepo],
     out: join(outDir, "NORMS.md"),
     clock: FIXED_CLOCK,
@@ -367,7 +369,7 @@ test("T228 AC1 command boundary: sole broker, registered rg/git argv, zero targe
   }
   const targetCalls = calls.filter((call) => TARGET_EXECUTABLES.has(call.executable));
   assert.equal(targetCalls.length, 0, `no target command may execute (saw ${targetCalls.length})`);
-  assert.equal(await readFile(join(outDir, "NORMS.md"), "utf8").then(() => true), true);
+  assert.ok(result.markdown.length > 0, "the in-memory Markdown projection must be returned");
 
   // The broker registry itself is closed: only rg and read-only git.
   const sources = await productionSources();
@@ -1389,10 +1391,9 @@ test("T228 AC17: structured findings, global snapshot, rendered Markdown, and re
     },
   };
   const reporter = createReporter({ out: capture, err: capture });
-  const { result, outDir } = await runFixture(t, "privacy", canaryFiles(), { reporter });
+  const { result } = await runFixture(t, "privacy", canaryFiles(), { reporter });
 
-  const markdown = await readFile(join(outDir, "NORMS.md"), "utf8");
-  assert.equal(markdown, result.markdown, "the written Markdown must equal the returned markdown");
+  const markdown = result.markdown;
 
   const findingsBlob = `${JSON.stringify(result.findings)}\n${JSON.stringify(result.global)}`;
   assertZeroLeaks("structured findings/global", findingsBlob);
@@ -1430,7 +1431,7 @@ test("T228 AC17: CLI stdout, stderr, and Markdown carry zero canaries and saniti
   t.after(() => cleanupGitRepo(gitRepo));
   const outDir = await mkdtemp(join(tmpdir(), "csm-scan-t228-privacy-cli-"));
   t.after(() => rm(outDir, { recursive: true, force: true }));
-  const outputPath = join(outDir, "NORMS.md");
+  const outputPath = join(outDir, "NORMS.json");
 
   const { stdout, stderr } = await execFileAsync(
     process.execPath,
@@ -1472,13 +1473,17 @@ test("T228 AC18: fixed clock, repeated runs, insertion-order permutations, and r
     const repo = makeFixture(`t228-det-${name}`, files);
     t.after(() => cleanupFixture(repo));
     const options = { repos: [repo], clock: FIXED_CLOCK };
-    const first = await runExpandedPipeline({ ...options, out: join(outDir, `${name}-1.md`) });
-    const second = await runExpandedPipeline({ ...options, out: join(outDir, `${name}-2.md`) });
+    const first = await runExpandedPipeline({
+      ...options,
+      out: join(outDir, `${name}-1.md`),
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
+    });
+    const second = await runExpandedPipeline({
+      ...options,
+      out: join(outDir, `${name}-2.md`),
+      sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
+    });
     assert.equal(first.markdown, second.markdown, `${name}: repeated runs must be byte-identical`);
-    assert.equal(
-      await readFile(join(outDir, `${name}-1.md`), "utf8"),
-      await readFile(join(outDir, `${name}-2.md`), "utf8"),
-    );
     assert.equal(first.generated, "2026-08-03");
     assert.equal(first.markdown.includes("\r"), false, `${name}: LF line endings only`);
     assert.equal(first.markdown.endsWith("\n"), true, `${name}: one terminal newline`);

@@ -21,13 +21,14 @@
 // edited.
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 
 import { makeFixture, cleanupFixture } from "./harness.mjs";
 import { runExpandedPipeline, providerObservationSortKey } from "../lib/scan/pipeline/run.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { compareAscii } from "../lib/scan/contracts/evidence.mjs";
 import { DIMENSION_REGISTRY } from "../lib/scan/registry/dimensions.mjs";
 
@@ -47,6 +48,7 @@ async function runToFile(repoPaths, out) {
     repos: repoPaths,
     out,
     clock: FIXED_CLOCK,
+    sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
   });
 }
 
@@ -73,11 +75,6 @@ test("T227 determinism: fixed-clock repeated expanded-pipeline runs are byte-ide
         const result = await runToFile([repo], out);
         markdowns.push(result.markdown);
         assert.equal(result.generated, "2026-08-03", `${name}: fixed clock must be reported`);
-        assert.equal(
-          await readFile(out, "utf8"),
-          result.markdown,
-          `${name}: the written file must equal the returned markdown`,
-        );
       }
       assert.equal(markdowns[0], markdowns[1], `${name}: second run must be byte-identical`);
       assert.equal(markdowns[1], markdowns[2], `${name}: third run must be byte-identical`);

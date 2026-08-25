@@ -5,6 +5,7 @@ import { basename, isAbsolute, relative, sep } from "node:path";
 import { createRenderContext, finalizeMarkdown } from "./render/base.mjs";
 import { DEFAULT_EXISTING_TEN_RENDERER } from "./render/existing-ten.mjs";
 import { sanitizeStructuredText, sanitizeText } from "./report/reporter.mjs";
+import { createNormsArtifact, createNormsEnvelope, serializeNormsArtifact } from "./norms.mjs";
 
 // T005 privacy cutover, R1 threading: WRITE_RENDER_CONTEXT is passed into
 // every deep renderer (write.mjs render call and the pipeline's render
@@ -16,6 +17,39 @@ import { sanitizeStructuredText, sanitizeText } from "./report/reporter.mjs";
 // token-shaped substrings anywhere are still redacted. Script bodies remain
 // dropped by the stack renderer; Path/Git render relative/basename below.
 export const WRITE_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeStructuredText });
+
+async function writeAtomic(outPath, content) {
+  const tmpPath = `${outPath}.tmp-${process.pid}-${Date.now().toString(36)}`;
+  try {
+    await writeFile(tmpPath, content, "utf-8");
+    await rename(tmpPath, outPath);
+  } catch (error) {
+    try {
+      await unlink(tmpPath);
+    } catch {
+      // Temp cleanup is best-effort; the original failure is what matters.
+    }
+    throw error;
+  }
+}
+
+export async function writeNormsArtifact(findings, outPath, options = {}) {
+  assertCanonicalOutputPath(outPath);
+  const artifact = createNormsArtifact(findings, options);
+  const envelope = await createNormsEnvelope(artifact);
+  const content = serializeNormsArtifact(envelope);
+  await writeAtomic(outPath, content);
+  return { artifact, envelope, content };
+}
+
+export function assertCanonicalOutputPath(outPath) {
+  if (typeof outPath !== "string" || !/\.json$/i.test(outPath)) {
+    const error = new TypeError("csm-scan canonical output must use a .json path");
+    error.code = "unsupported-output-format";
+    error.outputPath = outPath ?? null;
+    throw error;
+  }
+}
 
 // Repo-controlled free text (overview description, cross-observation
 // descriptions) keeps the full T224 sanitizer: owner handles and identities
@@ -85,9 +119,9 @@ function crossObservationsSection(contradictions) {
   return lines.join("\n");
 }
 
-export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_TEN_RENDERER) {
+export function renderNORMS(findings, renderer = DEFAULT_EXISTING_TEN_RENDERER) {
   if (renderer === null || renderer === undefined || typeof renderer.render !== "function") {
-    throw new TypeError("writeNORMS requires a renderer with a render(deep) method");
+    throw new TypeError("renderNORMS requires a renderer with a render(deep) method");
   }
   const lines = [];
   const firstRepo = findings.repos[0];
@@ -143,22 +177,15 @@ export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_
     if (globalSection) lines.push(globalSection);
   }
 
-  const content = finalizeMarkdown(lines);
+  return finalizeMarkdown(lines);
+}
+
+// Explicit projection writer. The pipeline uses renderNORMS for human-facing
+// compatibility output and reserves persistence for the canonical JSON writer.
+export async function writeNORMS(findings, outPath, renderer = DEFAULT_EXISTING_TEN_RENDERER) {
+  const content = renderNORMS(findings, renderer);
   // F-065-b: atomic write — content lands in a same-directory temp file that is
-  // renamed over the target only after the full write succeeded, so a crash or
-  // a concurrent run can never leave a torn NORMS.md behind. The temp name is
-  // per-run unique; on failure the temp file is removed and the error rethrown.
-  const tmpPath = `${outPath}.tmp-${process.pid}-${Date.now().toString(36)}`;
-  try {
-    await writeFile(tmpPath, content, "utf-8");
-    await rename(tmpPath, outPath);
-  } catch (error) {
-    try {
-      await unlink(tmpPath);
-    } catch {
-      // Temp cleanup is best-effort; the original failure is what matters.
-    }
-    throw error;
-  }
+  // renamed over the target only after the full write succeeded.
+  await writeAtomic(outPath, content);
   return content;
 }

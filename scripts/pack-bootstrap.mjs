@@ -64,6 +64,10 @@ const mapping = {
       destDir: join("payload", "skills", "csm-scan", "lib", "scan"),
     },
     {
+      srcDir: join("csm-scan", "schemas"),
+      destDir: join("payload", "skills", "csm-scan", "schemas"),
+    },
+    {
       src: join("csm-ddd", "scripts", "ddd.mjs"),
       dest: join("payload", "skills", "csm-ddd", "scripts", "ddd.mjs"),
     },

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-norms/1",
+  "title": "csm-scan norms payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifactDigest",
+    "provenance",
+    "source",
+    "repositories",
+    "plugins",
+    "privacy",
+    "crossObservations",
+    "global"
+  ],
+  "properties": {
+    "schema": { "const": "csm-norms/1" },
+    "schemaRevision": { "const": 1 },
+    "artifactDigest": { "$ref": "#/$defs/digest" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "producerRevision", "generated"],
+      "properties": {
+        "producer": { "const": "csm-scan" },
+        "producerRevision": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "generated": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryCount"],
+      "properties": { "repositoryCount": { "type": "integer", "minimum": 1 } }
+    },
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "dimensions"],
+        "properties": {
+          "source": { "$ref": "#/$defs/repositorySource" },
+          "dimensions": {
+            "type": "array",
+            "minItems": 17,
+            "maxItems": 17,
+            "items": { "$ref": "#/$defs/dimension" }
+          }
+        }
+      }
+    },
+    "plugins": { "type": "array", "items": { "$ref": "#/$defs/plugin" } },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "outcomes"],
+      "properties": {
+        "status": { "const": "passed" },
+        "outcomes": { "type": "array", "items": { "$ref": "#/$defs/privacyOutcome" } }
+      }
+    },
+    "crossObservations": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "global": { "type": ["object", "null"] }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "repositorySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "name", "rootIdentity", "commit"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string", "minLength": 1 },
+        "rootIdentity": { "type": "string", "pattern": "^root-[a-f0-9]{24}$" },
+        "commit": { "type": ["string", "null"], "pattern": "^[0-9a-f]{4,40}$" }
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "id", "dimension", "signal", "confidence", "coverage", "findings"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "id": { "type": "string", "pattern": "^DIM-[a-z0-9-]+-v1$" },
+        "dimension": { "type": "string", "minLength": 1 },
+        "signal": { "type": "string" },
+        "confidence": { "type": "string" },
+        "coverage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "findings": { "type": "object" }
+      }
+    },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "observations"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "observations": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "privacyOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "status"],
+      "properties": {
+        "scope": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["passed", "not_applicable"] }
+      }
+    }
+  }
+}

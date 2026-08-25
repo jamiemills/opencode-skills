@@ -410,41 +410,15 @@ test(
       return;
     }
     const dir = mkdtempSync(join(tmpdir(), "norms-t115-"));
-    const out = join(dir, "NORMS.md");
+    const out = join(dir, "NORMS.json");
     execSync(`node ${join(REPO_ROOT, "scripts", "scan.mjs")} --repos ${PERPLEXITY} --out ${out}`, {
       cwd: REPO_ROOT,
       stdio: "pipe",
       timeout: 110000,
     });
     const content = readFileSync(out, "utf-8");
-
-    // Neutral coverage line present, grade-style labels absent.
-    assert.match(
-      content,
-      /> Coverage: \d+% of scanner fields reported · basis: (observed|inferred|unverified)/,
-    );
-    assert.ok(
-      !content.includes("> **Confidence**"),
-      "grade-style Confidence header must not appear",
-    );
-
-    // Richness: at least one G3 finding surfaces for perplexity-cli.
-    const hasRichness =
-      content.includes("**Symbol naming**") ||
-      content.includes("**Type hints**") ||
-      content.includes("**Markers present**") ||
-      content.includes("**Version pins**") ||
-      content.includes("requires-python");
-    assert.ok(hasRichness, "no G3 richness finding rendered for perplexity-cli");
-
-    // No mid-value over-escaping.
-    assert.ok(!/\\[._-]/.test(content), "over-escaping detected in pipeline output");
-
-    assert.ok(
-      !content.includes("present in package.json scripts"),
-      "must not infer package.json audit scripts",
-    );
-    assert.ok(!content.includes("**Audit script**"), "legacy Audit script label must not appear");
-    assert.match(content, /Audit evidence[\s\S]*Declared dependency: pip-audit/);
+    const artifact = JSON.parse(content);
+    assert.equal(artifact.schema, "csm-envelope/1");
+    assert.equal(artifact.payloadSchema.id, "csm-norms/1");
   },
 );

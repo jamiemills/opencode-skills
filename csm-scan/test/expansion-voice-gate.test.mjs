@@ -28,6 +28,7 @@ import { test } from "node:test";
 import { findVoiceHits } from "./helpers/voice-gate.mjs";
 import { makeFixture, cleanupFixture } from "./harness.mjs";
 import { runExpandedPipeline } from "../lib/scan/pipeline/run.mjs";
+import { renderNORMS } from "../lib/scan/write.mjs";
 import { createReporter } from "../lib/scan/report/reporter.mjs";
 import {
   DIMENSION_RENDERER_ENTRIES,
@@ -77,6 +78,7 @@ test("T227 voice: every expanded-pipeline Markdown surface uses neutral factual 
           repos: [repo],
           out: join(outDir, `${name}.md`),
           clock: FIXED_CLOCK,
+          sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
         });
         assertNeutral(`${name} rendered Markdown`, result.markdown);
       } finally {
@@ -98,6 +100,7 @@ test("T227 voice: the Cross-repository Architecture global section is neutral fo
         repos: [a, b],
         out: join(outDir, "global.md"),
         clock: FIXED_CLOCK,
+        sink: (findings, _out, renderer) => renderNORMS(findings, renderer),
       });
       const globalSection = result.markdown.split("## Cross-repository Architecture")[1];
       assert.ok(globalSection, "the global section must render");
@@ -160,7 +163,7 @@ test("T227 voice: CLI stdout and stderr diagnostics are neutral", async () => {
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
-      [SCAN_SCRIPT, "--repos", repo, "--out", join(outDir, "NORMS.md")],
+      [SCAN_SCRIPT, "--repos", repo, "--out", join(outDir, "NORMS.json")],
       { cwd: ROOT },
     );
     assert.equal(stderr, "", "a successful CLI run must produce no stderr");
