@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 6
+- Current CSM state: DISPATCH
+- Cycle: 7
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T009 integrated and repaired; focused publication acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T009 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T009 committed as `5676ba5`; focused publication acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T009 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T010
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -400,7 +400,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If export cleanup cannot be proven, default to no persistence and return the projection transiently only.
 
-10. [pending] Freeze legacy history and add the JSON artifact resolver/migration-required boundary.
+10. [in_progress] Freeze legacy history and add the JSON artifact resolver/migration-required boundary.
    - Task ID: T010
    - Depends on: T004, T009
    - Parallel group: G4
@@ -747,6 +747,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 6 | REPAIR -> VERIFY | T009 | Repaired focused suite passed 12 tests and all required checks passed. | VERIFY |
 | 2026-08-25 | 6 | VERIFY -> REVIEW | T009 | Final independent review returned PROCEED; residual risks are recorded and do not block T010. | REVIEW |
 | 2026-08-25 | 6 | REVIEW -> CHECKPOINT | T009 | T009 is complete; T010 will add the edge-scoped artifact resolver and legacy boundary. | CHECKPOINT |
+| 2026-08-25 | 7 | CHECKPOINT -> SELECT | T010 | T009 commit `5676ba5` passed hook gates; T010 is the only ready history/resolver task. | SELECT |
+| 2026-08-25 | 7 | SELECT -> DISPATCH | T010 | Edge-scoped resolver and legacy classification ownership is serialized before producer migration. | DISPATCH |
 
 ## Completion Review
 
