@@ -108,6 +108,7 @@ still cited (the remediation plan and baselines reference them).
 - `2026-08-22-csm-python-doctrine-review-approach.md` — 2026-08-22 — grill approach for the csm-review-python skill — status: complete
 - `2026-08-22-ddd-repository-analyzer-approach.md` — 2026-08-22 — grill approach for the DDD repository analyzer (became csm-ddd) — status: complete
 - `2026-08-23-autoresearch-evaluator-csm-approach.md` — 2026-08-23 — agreed CSM approach for the autoresearch evaluator skill — status: agreed
+- `2026-08-25-json-only-rendered-skill-outputs-approach.md` — 2026-08-25 — agreed suite-wide JSON-only outputs with Markdown/HTML projections — status: agreed
 ## ddd/
 
 - `2026-08-23-opencode-skills-ddd-report.md` — 2026-08-23 — csm-ddd self-analysis of this repository — status: complete
