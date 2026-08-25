@@ -13,15 +13,15 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: `json-only-rendered-skill-outputs`
-- Status: ready
-- Current CSM state: NOT_STARTED
+- Status: in_progress
+- Current CSM state: DISPATCH
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-25 plan drafted from the agreed grill approach, repository evidence, and four independent planning research tracks.
-- Last model/run: gpt-5.6-luna planning run 2026-08-25.
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
-- Blockers: none at planning time; T002, T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
+- Last checkpoint: 2026-08-25 VALIDATE passed `make check` with 1189 checks after correcting the control transition token; no implementation task had been dispatched before this checkpoint.
+- Last model/run: gpt-5.6-luna build run 2026-08-25.
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T001, T002
+- Blockers: none; T002, T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
 ## Goal
@@ -264,7 +264,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
 
 ## Numbered Plan
 
-1. [pending] Establish characterization baselines and the migration ledger.
+1. [in_progress] Establish characterization baselines and the migration ledger.
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -279,7 +279,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If partial, keep only fixture/ledger changes; rerun inventory from the last recorded edge and do not begin schema migration.
 
-2. [pending] Select and prove the suite validator and canonical JSON serializer.
+2. [in_progress] Select and prove the suite validator and canonical JSON serializer.
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G1
@@ -680,6 +680,10 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 0 | CRITIQUE -> REMEDIATE | T001-T024 | Independent critique findings resolved in the plan: validator spike, legacy boundary, DDD pairing, bootstrap isolation, E2E availability, and producer/consumer cutover gates. | REMEDIATE |
 | 2026-08-25 | 0 | REMEDIATE -> VERIFY | T001-T024 | Remediation incorporated; no implementation or mutating experiment performed. | VERIFY |
 | 2026-08-25 | 0 | VERIFY -> SAVED | T001-T024 | Primary verification confirmed exact applicability JSON, all tasks pending, producer/consumer ownership serialization, explicit artifact inventory, edge-scoped legacy behavior, acceptance signals, rollback/recovery, renderer security, bootstrap parity, and final environment preflight. | SAVED |
+| 2026-08-25 | 0 | SAVED -> RECOVER | none | Explicit user request authorized execution of this saved plan; repository is clean at `6e3847e`. | RECOVER |
+| 2026-08-25 | 0 | RECOVER -> VALIDATE | none | Plan format `csm-plan/1` and warranted applicability record were found; no root NORMS.md exists; current branch is `main`; no DDD artifacts are explicitly referenced. | VALIDATE |
+| 2026-08-25 | 0 | VALIDATE -> SELECT | none | `make check` passed with 1189 checks; applicability obligations are present; T001 and T002 are the only dependency-ready implementation tasks. | SELECT |
+| 2026-08-25 | 0 | SELECT -> DISPATCH | T001,T002 | Independent write scopes: characterization fixtures/ledger versus isolated validator/serializer implementation and tests. | DISPATCH |
 
 ## Completion Review
 
