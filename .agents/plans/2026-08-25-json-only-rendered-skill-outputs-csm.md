@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 5
+- Current CSM state: DISPATCH
+- Cycle: 6
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T007/T008 integrated and repaired; combined renderer/model acceptance passed 31 tests, `make check` passed 1189 checks, formatting/lint passed, and both renderers received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T007/T008 committed as `a854088`; combined renderer/model acceptance passed 31 tests, `make check` passed 1189 checks, formatting/lint passed, and both renderers received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T009
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -385,7 +385,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If sanitizer or browser compatibility is unresolved, disable HTML projection while leaving JSON and Markdown renderer work intact; do not publish unsafe HTML.
 
-9. [pending] Implement publication, interaction-mode, approval, transient export, and projection-discovery boundaries.
+9. [in_progress] Implement publication, interaction-mode, approval, transient export, and projection-discovery boundaries.
    - Task ID: T009
    - Depends on: T007, T008
    - Parallel group: G4
@@ -738,6 +738,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 5 | REPAIR -> VERIFY | T007,T008 | Repaired combined renderer/model suite passed 31 tests and all required checks passed. | VERIFY |
 | 2026-08-25 | 5 | VERIFY -> REVIEW | T007,T008 | Final independent review returned PROCEED for both renderers; browser-level E2E remains a later residual risk. | REVIEW |
 | 2026-08-25 | 5 | REVIEW -> CHECKPOINT | T007,T008 | T007/T008 are complete; publication protocol T009 will own projection storage/approval lifecycle. | CHECKPOINT |
+| 2026-08-25 | 6 | CHECKPOINT -> SELECT | T009 | T007/T008 commit `a854088` passed hook gates; T009 is the only ready publication task. | SELECT |
+| 2026-08-25 | 6 | SELECT -> DISPATCH | T009 | Publication/interaction/export ownership is serialized before any skill migration. | DISPATCH |
 
 ## Completion Review
 
