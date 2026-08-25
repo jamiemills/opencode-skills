@@ -1,0 +1,16 @@
+{
+  "format": "csm-producer-descriptor/1",
+  "producer": "csm-grill",
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "artifactKind": "approach",
+  "authority": "json",
+  "legacyMarkdown": "projection-or-history-only",
+  "canonicalPath": ".agents/approaches/<date>-<slug>-<run-id>-approach.json",
+  "legacyPath": ".agents/approaches/<date>-<slug>-approach.md",
+  "legacyStatus": "history-only",
+  "projectionProfile": "csm-grill-human/1",
+  "terminal": "immutable",
+  "collision": "reject-owner-mismatch-or-terminal",
+  "consumers": ["csm-plan"]
+}

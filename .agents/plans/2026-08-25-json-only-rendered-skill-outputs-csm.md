@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 10
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T012-T015 producer wave committed as `a347990`; producer suites and combined contracts pass, root/bootstrap registry parity passes, and `make check` passes 1189 checks.
+- Last checkpoint: 2026-08-25 T016 integrated and repaired; grill/plan input acceptance passed 5 tests, shared schema tests passed, `make check` passed 1189 checks, formatting/lint passed, and T016 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T016
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -490,7 +490,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If envelope fields would alter record hashes, preserve ledger-native identity and link it through an outer artifact descriptor instead.
 
-16. [in_progress] Migrate csm-grill approach output and its csm-plan input.
+16. [completed] Migrate csm-grill approach output and its csm-plan input.
    - Task ID: T016
    - Depends on: T013, T014
    - Parallel group: G6
@@ -776,6 +776,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 9 | REVIEW -> CHECKPOINT | T012-T015 | Standalone producer wave is complete; T016/T017 now own grill/plan consumer integration serially. | CHECKPOINT |
 | 2026-08-25 | 10 | CHECKPOINT -> SELECT | T016 | Producer wave commit `a347990` passed hook gates; T016 is the only ready consumer-chain task. | SELECT |
 | 2026-08-25 | 10 | SELECT -> DISPATCH | T016 | csm-grill producer and csm-plan approach-input ownership is serialized before csm-plan persistence migration. | DISPATCH |
+| 2026-08-25 | 10 | DISPATCH -> INTEGRATE | T016 | Worker returned approach schema/runtime, csm-plan JSON input resolver, registry entry, and focused tests; actual diff was inspected. | INTEGRATE |
+| 2026-08-25 | 10 | INTEGRATE -> VERIFY | T016 | Primary rerun passed grill/plan replay tests (5), shared schema tests (22), `make check` (1189), formatting, and lint. | VERIFY |
+| 2026-08-25 | 10 | VERIFY -> REVIEW | T016 | Approach validation, phase/decision traceability, JSON input replay, legacy/projection rejection, path/digest safety, and non-resumable behavior are reproducible. | REVIEW |
+| 2026-08-25 | 10 | REVIEW -> REPAIR | T016 | Independent review found malformed validation, phase dependency, and resolver path/digest gaps; repairs were integrated. | REPAIR |
+| 2026-08-25 | 10 | REPAIR -> VERIFY | T016 | Repaired focused and shared schema suites passed; conformance remained green. | VERIFY |
+| 2026-08-25 | 10 | VERIFY -> REVIEW | T016 | Final independent review returned PROCEED; T017 may own csm-plan persistence/output. | REVIEW |
+| 2026-08-25 | 10 | REVIEW -> CHECKPOINT | T016 | T016 is complete; csm-plan persistence migration is next. | CHECKPOINT |
 
 ## Completion Review
 
