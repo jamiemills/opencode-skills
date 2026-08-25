@@ -229,3 +229,64 @@ test("mismatched execution policy refuses before evaluator execution", async () 
   );
   assert.equal(calls, 0);
 });
+
+test("a run lease rejects duplicate active optimize calls and releases after failure", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-optimizer-lease-"));
+  let release;
+  const active = new Promise((resolve) => {
+    release = resolve;
+  });
+  const options = {
+    contract: contract("leased-run"),
+    policy,
+    ledgerRoot: root,
+    baseline: { id: "baseline", value: 5 },
+    candidates: [],
+    evaluate: async () => {
+      await active;
+      return { status: "ok", valid: true, metrics: { loss: 5 } };
+    },
+  };
+  const first = optimize(options);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await assert.rejects(() => optimize(options), /run lock is held/);
+  release();
+  await first;
+  await assert.doesNotReject(() => optimize(options));
+});
+
+test("ambiguous run IDs are rejected before artifact paths are constructed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-optimizer-run-id-"));
+  await assert.rejects(
+    () =>
+      optimize({
+        contract: contract("same/day"),
+        policy,
+        ledgerRoot: root,
+        baseline: { id: "baseline", value: 5 },
+        candidates: [],
+        evaluate,
+      }),
+    /canonical path-safe identifier/,
+  );
+});
+
+test("terminal report files are immutable during an exact-owner resume", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-optimizer-terminal-"));
+  const options = {
+    contract: {
+      ...contract("terminal-run"),
+      budget: { maxTrials: 1, maxProposals: 1, timeoutMs: 1000 },
+    },
+    policy,
+    ledgerRoot: root,
+    evaluate,
+    baseline: { id: "baseline", value: 5 },
+    candidates: [{ id: "candidate", value: 1 }],
+  };
+  const first = await optimize(options);
+  const before = await readFile(first.paths.report, "utf8");
+  const second = await optimize({ ...options, candidates: [{ id: "other", value: 0 }] });
+  assert.equal(second.reportPersisted, false);
+  assert.equal(await readFile(first.paths.report, "utf8"), before);
+});

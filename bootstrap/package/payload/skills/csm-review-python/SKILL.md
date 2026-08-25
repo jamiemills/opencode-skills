@@ -24,9 +24,17 @@ Inspect Python repositories without changing their source, dependencies, configu
 ## Interface
 
 - Consumes: a target Python repository checkout at a pinned commit, optional change-surface scope, optional NORMS.md, and the bundled idiomatic-Python rules artifact
-- Produces: `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md`
+- Produces: `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md`. Legacy compatibility path `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md` is read-only history.
 - Hands off: the single doctrine report to the user or a dispatching csm-review; terminal otherwise
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-make-tests, csm-ddd, csm-autoresearch
+
+## Durable Artifact Identity
+
+Each analyzer invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. The report records the ID and binds the target git root, normalized repository slug, artifact type, and run ID. Date and slug alone never establish ownership.
+
+The report path is `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md`. This analyzer is intentionally non-resumable before `REPORT`: every invocation gets a new run ID, and an existing terminal report or any path ownership mismatch is an explicit collision refusal. It never replaces, deletes, renames, or aliases a terminal artifact; legacy date/slug reports remain read-only history. The report is the only target write and is owned exclusively by this analyzer, including when csm-review records the handoff.
+
+Same-day duplicate slugs require a new run ID; the legacy date/slug path is never reused, and no mutable `latest` alias is created.
 
 ## Tmux Session Bootstrap
 
@@ -58,7 +66,7 @@ Run first — before INTAKE, any analysis tool use, or any other section. Not an
 
 ## Write Discipline And File Allowlist
 
-- Within the target repository, the allowlist is exactly `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md` and the required parent directory. No other target path may be created or modified.
+- Within the target repository, the allowlist is exactly the run-owned `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md` and the required parent directory. No other target path may be created or modified.
 - Put all scratch notes, command output, logs, temporary reports, and caches outside the target under a run-specific temporary directory, normally `/tmp/csm-review-python-<run-id>`.
 - Redirect `UV_CACHE_DIR`, `PIPX_HOME`, and `XDG_CACHE_HOME` to directories under that temporary directory. Also use each tool's no-cache or explicit cache-dir option.
 - Do not write target source, tests, documentation, pyproject/config files, dependencies, lockfiles, virtual environments, generated files, `.git`, or git metadata. Do not run mutating package-manager or git commands.
@@ -87,7 +95,7 @@ The allowlisted report is a terminal handoff, not a resume record.
 Entry: explicit standalone activation or csm-review dispatch.
 
 - Inputs: invocation context, target path or repository URL, optional scope, current date, and user tool-consent status.
-- Actions: resolve the git root; confirm it is a Python repository; resolve and record the pinned commit; create a run ID and outside-target temporary directory; identify the allowlisted report path, norms disposition, and protected-state baseline; reject an unpinned target rather than guessing.
+- Actions: resolve the git root; confirm it is a Python repository; resolve and record the pinned commit; create and validate one run ID; refuse an existing terminal or mismatched report path; create the outside-target temporary directory; identify the run-owned report path, norms disposition, and protected-state baseline; reject an unpinned target rather than guessing.
 - Outputs: intake record containing target, commit, scope, run ID, baseline, norms path/status, report path, and redacted environment facts.
 
 Exit: target and scope are pinned and the protected-state baseline is recorded.
@@ -138,7 +146,7 @@ Entry: JUDGE exit with ordered findings.
 
 - Inputs: final findings, run record, tool transcript metadata, limitations, and baseline.
 - Actions: write exactly one allowlisted markdown report. Put human-readable context and findings first, then the agent-actionable fix guide at the end. Include the tool/consent header, exact pins and versions, commands/results, target commit, scope, norms disposition, analysis mode, explicit limitations, and target-diff verification. Never write a second summary or update any other target path.
-- Outputs: `.agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md` and a verification record showing the target delta.
+- Outputs: `.agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.md` and a verification record showing the target delta.
 
 Exit: exactly one report exists, its package is complete, and no non-allowlisted target change is present.
 

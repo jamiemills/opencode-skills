@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { clickCoords, waitForSelector, evalInPage, waitForLoad } from "../../lib/cdp.mjs";
+import {
+  clickCoords,
+  waitForSelector,
+  evalInPage,
+  waitForLoad,
+  MAX_EVAL_RESULT_BYTES,
+} from "../../lib/cdp.mjs";
 
 function recordingClient(handler) {
   const calls = [];
@@ -42,9 +48,52 @@ test("evalInPage exception without position still names the exception text", asy
 });
 
 test("evalInPage enforces the 1MB result cap", async () => {
-  const big = { type: "string", value: "x".repeat(1024 * 1024) };
+  const big = { type: "string", value: "x".repeat(MAX_EVAL_RESULT_BYTES) };
   const client = recordingClient(() => ({ result: big }));
   await assert.rejects(evalInPage(client, "s", "'x'"), /exceeds 1MB cap/);
+});
+
+test("evalInPage passes a deadline and bounds a hung CDP request", async () => {
+  const client = recordingClient((method) => {
+    if (method === "Runtime.terminateExecution") return {};
+    return new Promise(() => {});
+  });
+  await assert.rejects(
+    evalInPage(client, "s", "await new Promise(() => {})", { timeoutMs: 20 }),
+    /timed out after 20ms/,
+  );
+  assert.equal(client.calls[0].params.timeout, 20);
+  assert.equal(client.calls[1].method, "Runtime.terminateExecution");
+});
+
+test("evalInPage closes the client after cancelling a timed-out evaluation", async () => {
+  let closed = false;
+  const client = recordingClient((method) => {
+    if (method === "Runtime.terminateExecution") return {};
+    return new Promise(() => {});
+  });
+  client.close = async () => {
+    closed = true;
+  };
+  await assert.rejects(
+    evalInPage(client, "s", "await new Promise(() => {})", { timeoutMs: 20 }),
+    /timed out after 20ms/,
+  );
+  assert.equal(closed, true);
+});
+
+test("evalInPage closes the session when CDP cancellation fails", async () => {
+  let closed = false;
+  const client = recordingClient(() => new Promise(() => {}));
+  client.close = async () => {
+    closed = true;
+  };
+  await assert.rejects(
+    evalInPage(client, "s", "await new Promise(() => {})", { timeoutMs: 20 }),
+    /timed out after 20ms; cancellation timed out, CDP session closed/,
+  );
+  assert.equal(closed, true);
+  assert.equal(client.calls[1].method, "Runtime.terminateExecution");
 });
 
 test("evalInPage returns the serialized result unchanged under the cap", async () => {

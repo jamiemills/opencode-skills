@@ -8,6 +8,15 @@ import { tmpdir } from "node:os";
 
 const POSIX = process.platform !== "win32";
 const DEFAULT_OUTPUT_BYTES = 1024 * 1024;
+const RUNTIME_CAPABILITIES = Object.freeze({
+  timeout: true,
+  output: true,
+  workspace: true,
+  network: false,
+  memory: false,
+  processes: false,
+  descendants: false,
+});
 
 function sha256(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -28,6 +37,7 @@ async function cleanupWorkspace(workspace) {
     return {
       supported: false,
       verifiable: false,
+      descendantContainment: "unverified",
       cleaned: false,
       reason: "process-group cleanup unsupported on this platform",
     };
@@ -42,8 +52,11 @@ async function cleanupWorkspace(workspace) {
   return {
     supported: true,
     verifiable: true,
+    descendantContainment: "unverified",
     cleaned,
-    reason: cleaned ? undefined : "workspace remains after cleanup",
+    reason: cleaned
+      ? "workspace removal verified; descendant containment is not provided"
+      : "workspace remains after cleanup",
   };
 }
 
@@ -97,6 +110,7 @@ async function executeCandidate({
   maxMemoryMb,
   maxProcesses,
   network,
+  requireDescendantContainment = false,
   signal,
   workspace,
 }) {
@@ -142,6 +156,16 @@ async function executeCandidate({
       stderr: "",
       diagnostics: ["declared memory, process, or network limits are not enforced by this runtime"],
     };
+  if (requireDescendantContainment)
+    return {
+      status: "policy_violation",
+      valid: false,
+      stdout: "",
+      stderr: "",
+      diagnostics: [
+        "unsupported_capability: descendant containment is not provided by this runtime",
+      ],
+    };
   if (!Array.isArray(envAllowlist) || envAllowlist.some((key) => typeof key !== "string"))
     return {
       status: "policy_violation",
@@ -153,6 +177,36 @@ async function executeCandidate({
   const allowedEnv = Object.fromEntries(
     envAllowlist.filter((key) => Object.hasOwn(env, key)).map((key) => [key, String(env[key])]),
   );
+  if (workspace) {
+    if (!Number.isInteger(maxWorkspaceBytes) || maxWorkspaceBytes < 1)
+      return {
+        status: "policy_violation",
+        valid: false,
+        stdout: "",
+        stderr: "",
+        diagnostics: ["invalid workspace limit"],
+      };
+    let bytes;
+    try {
+      bytes = await workspaceBytes(workspace);
+    } catch {
+      return {
+        status: "blocked",
+        valid: false,
+        stdout: "",
+        stderr: "",
+        diagnostics: ["workspace inspection failed before execution"],
+      };
+    }
+    if (bytes > maxWorkspaceBytes)
+      return {
+        status: "resource_exhausted",
+        valid: false,
+        stdout: "",
+        stderr: "",
+        diagnostics: ["workspace limit exceeded before execution"],
+      };
+  }
   const child = spawn(command, args, {
     cwd,
     env: allowedEnv,
@@ -162,35 +216,66 @@ async function executeCandidate({
   });
   let stdout = Buffer.alloc(0);
   let stderr = Buffer.alloc(0);
+  let outputBytes = 0;
   let exhausted = false;
   const collect = (stream, which) =>
-    new Promise((resolveStream) =>
+    new Promise((resolveStream) => {
+      let settled = false;
+      const finish = () => {
+        if (!settled) {
+          settled = true;
+          resolveStream();
+        }
+      };
       stream
         .on("data", (chunk) => {
           if (exhausted) return;
           const next = Buffer.concat([which === "stdout" ? stdout : stderr, chunk]);
-          if (next.length > maxOutputBytes) {
+          const remaining = maxOutputBytes - outputBytes;
+          outputBytes += chunk.length;
+          if (outputBytes > maxOutputBytes) {
+            const bounded = chunk.subarray(0, Math.max(remaining, 0));
+            const boundedNext = Buffer.concat([which === "stdout" ? stdout : stderr, bounded]);
+            if (which === "stdout") stdout = boundedNext;
+            else stderr = boundedNext;
             exhausted = true;
             killGroup(child);
+            stopCollecting();
             return;
           }
           if (which === "stdout") stdout = next;
           else stderr = next;
         })
-        .on("end", resolveStream),
-    );
+        .on("end", finish)
+        .on("close", finish)
+        .on("error", finish);
+    });
   let timedOut = false;
   let cancelled = false;
+  let resolveDeadline;
+  const deadline = new Promise((resolveDeadlineValue) => {
+    resolveDeadline = resolveDeadlineValue;
+  });
+  function stopCollecting() {
+    child.stdout?.removeAllListeners("data");
+    child.stderr?.removeAllListeners("data");
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+  }
   const timer = setTimeout(() => {
     timedOut = true;
     killGroup(child);
+    stopCollecting();
+    resolveDeadline({ code: null, signal: "SIGKILL" });
   }, timeoutMs);
   const onAbort = () => {
     cancelled = true;
     killGroup(child);
+    stopCollecting();
+    resolveDeadline({ code: null, signal: "SIGKILL" });
   };
   signal?.addEventListener("abort", onAbort, { once: true });
-  const [exit] = await Promise.all([
+  const normalCompletion = Promise.all([
     new Promise((resolveExit) => {
       child.once("error", (error) => resolveExit({ code: null, signal: null, error }));
       child.once("close", (code, signalName) => resolveExit({ code, signal: signalName }));
@@ -198,6 +283,7 @@ async function executeCandidate({
     collect(child.stdout, "stdout"),
     collect(child.stderr, "stderr"),
   ]);
+  const [exit] = await Promise.race([normalCompletion, deadline.then((value) => [value])]);
   clearTimeout(timer);
   signal?.removeEventListener("abort", onAbort);
   let status = "ok";
@@ -273,6 +359,7 @@ async function readBoundedFile(path, maxBytes) {
 
 export {
   POSIX,
+  RUNTIME_CAPABILITIES,
   cleanupWorkspace,
   createWorkspace,
   executeCandidate,

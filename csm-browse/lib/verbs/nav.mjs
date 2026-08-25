@@ -14,6 +14,29 @@ export function parseUrlArgs(args) {
   return url;
 }
 
+export function assertAllowedNavigationUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("Invalid URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Navigation protocol is not allowed: ${parsed.protocol}`);
+  }
+  return parsed.href;
+}
+
+export function redactNavigationOutputUrl(url) {
+  const parsed = new URL(url);
+  parsed.username = "";
+  parsed.password = "";
+  parsed.pathname = "/";
+  parsed.search = "";
+  parsed.hash = "";
+  return parsed.href;
+}
+
 export async function run({ args, state, verb }) {
   if (verb === "open" || verb === "navigate") {
     const url = parseUrlArgs(args);
@@ -23,26 +46,24 @@ export async function run({ args, state, verb }) {
       process.exit(1);
     }
 
-    const client = await connect(state);
-    const sessionId = await getSession(client);
-
-    const load = waitForLoad(client, sessionId);
-    await client.send("Page.navigate", { url }, sessionId);
-    await load;
-
-    const { result } = await client.send(
-      "Runtime.evaluate",
-      {
-        expression: "document.title",
-        returnByValue: true,
-      },
-      sessionId,
-    );
-
-    const title = result && result.value ? result.value : "";
-    console.log(JSON.stringify({ url, title }));
-
-    await client.close();
+    const safeUrl = assertAllowedNavigationUrl(url);
+    let client;
+    try {
+      client = await connect(state);
+      const sessionId = await getSession(client);
+      const load = waitForLoad(client, sessionId);
+      await client.send("Page.navigate", { url: safeUrl }, sessionId);
+      await load;
+      const { result } = await client.send(
+        "Runtime.evaluate",
+        { expression: "document.title", returnByValue: true },
+        sessionId,
+      );
+      const title = result && result.value ? result.value : "";
+      console.log(JSON.stringify({ url: redactNavigationOutputUrl(safeUrl), title }));
+    } finally {
+      await client?.close?.().catch(() => {});
+    }
     return;
   }
 
@@ -67,14 +88,15 @@ export async function run({ args, state, verb }) {
     }
     const timeout = args[1] ? parseInt(args[1], 10) : 5000;
 
-    const client = await connect(state);
-    const sessionId = await getSession(client);
-
-    await waitForSelector(client, sessionId, sel, timeout);
-
-    console.log(JSON.stringify({ found: sel }));
-
-    await client.close();
+    let client;
+    try {
+      client = await connect(state);
+      const sessionId = await getSession(client);
+      await waitForSelector(client, sessionId, sel, timeout);
+      console.log(JSON.stringify({ found: sel }));
+    } finally {
+      await client?.close?.().catch(() => {});
+    }
     return;
   }
 }

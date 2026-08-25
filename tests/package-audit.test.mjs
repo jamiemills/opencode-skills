@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
-import { packBootstrap } from "../scripts/pack-bootstrap.mjs";
+import { copyVerified, packBootstrap, resolvePackTarball } from "../scripts/pack-bootstrap.mjs";
 import { FORMAT_VERSIONS } from "../scripts/lib/contracts.mjs";
 import skillManifest from "../bootstrap/skill-manifest.json" with { type: "json" };
 
@@ -40,6 +40,31 @@ test("integration tier: pinned toolchain floor — node >= 22", () => {
     major >= 22,
     `this integration suite requires node >= 22 (got ${process.versions.node})`,
   );
+});
+
+test("packer keeps npm tarball filenames inside its staging directory", () => {
+  assert.equal(resolvePackTarball("/tmp/csm-pack", "package.tgz"), "/tmp/csm-pack/package.tgz");
+  for (const filename of ["../package.tgz", "/tmp/elsewhere.tgz", ""]) {
+    assert.throws(
+      () => resolvePackTarball("/tmp/csm-pack", filename),
+      /tarball filename|no tarball filename/,
+    );
+  }
+});
+
+test("packer refuses symlink sources and does not stage their target", async () => {
+  const dir = await mkdtemp("/tmp/csm-pack-source-");
+  try {
+    const target = join(dir, "target.txt");
+    const source = join(dir, "source.txt");
+    const destination = join(dir, "destination.txt");
+    await writeFile(target, "secret\n");
+    await symlink(target, source);
+    await assert.rejects(() => copyVerified(source, destination), /regular file/);
+    await assert.rejects(() => lstat(destination));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("two isolated packs are deterministic and the packed artifact passes the audit", async () => {

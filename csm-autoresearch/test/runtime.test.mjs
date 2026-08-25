@@ -1,7 +1,7 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -131,5 +131,92 @@ test("network and unbounded process claims fail before hostile code runs", async
   assert.equal(result.status, "policy_violation");
   assert.equal(executed, false);
   assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "");
+  assert.doesNotMatch(JSON.stringify(result), /synthetic-secret/);
+  await cleanupWorkspace(root);
+});
+
+test("runtime refuses descendant containment claims and preflights workspace bytes", async () => {
+  const root = await temp();
+  await writeFile(join(root, "oversized"), "123456789");
+  const preflight = await executeCandidate({
+    command: node,
+    args: ["-e", "process.stdout.write('executed')"],
+    cwd: root,
+    timeoutMs: 1000,
+    maxOutputBytes: 100,
+    maxWorkspaceBytes: 3,
+    workspace: root,
+  });
+  assert.equal(preflight.status, "resource_exhausted");
+  assert.equal(preflight.stdout, "");
+  const unsupported = await executeCandidate({
+    command: node,
+    args: ["-e", "process.stdout.write('executed')"],
+    cwd: root,
+    timeoutMs: 1000,
+    maxOutputBytes: 100,
+    requireDescendantContainment: true,
+    workspace: root,
+  });
+  assert.equal(unsupported.status, "policy_violation");
+  assert.match(unsupported.diagnostics[0], /descendant containment/);
+  await cleanupWorkspace(root);
+});
+
+test("output limit aggregates stdout and stderr", async () => {
+  const root = await temp();
+  const result = await executeCandidate({
+    command: node,
+    args: ["-e", "process.stdout.write('123456'); process.stderr.write('789012')"],
+    cwd: root,
+    timeoutMs: 1000,
+    maxOutputBytes: 10,
+    workspace: root,
+  });
+  assert.equal(result.status, "resource_exhausted");
+  assert.ok(Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr) <= 10);
+  await cleanupWorkspace(root);
+});
+
+test("timeout performs bounded process-group descendant cleanup", async () => {
+  const root = await temp();
+  const markerRoot = await temp();
+  const marker = join(markerRoot, "descendant-marker");
+  const script = [
+    "const {spawn}=require('node:child_process');",
+    "spawn(process.execPath,['-e',`setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(marker)},'leaked'),250)`]);",
+    "setTimeout(()=>{},1000);",
+  ].join("");
+  const result = await executeCandidate({
+    command: node,
+    args: ["-e", script],
+    cwd: root,
+    timeoutMs: 30,
+    maxOutputBytes: 100,
+    workspace: root,
+  });
+  assert.equal(result.status, "timed_out");
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  await assert.rejects(() => readFile(marker), /ENOENT/);
+  await cleanupWorkspace(markerRoot);
+});
+
+test("hard timeout does not wait for a detached pipe descendant", async () => {
+  const root = await temp();
+  const started = Date.now();
+  const result = await executeCandidate({
+    command: node,
+    args: [
+      "-e",
+      "const {spawn}=require('node:child_process'); spawn(process.execPath,['-e','setTimeout(()=>{},2000)'],{detached:true,stdio:['ignore','pipe','pipe'}); setTimeout(()=>{},2000);",
+    ],
+    cwd: root,
+    timeoutMs: 30,
+    maxOutputBytes: 100,
+    workspace: root,
+  });
+  assert.equal(result.status, "timed_out");
+  assert.ok(Date.now() - started < 500);
   await cleanupWorkspace(root);
 });

@@ -1,7 +1,12 @@
 "use strict";
 
 import process from "node:process";
-import { analyzeRepository, defaultArtifactPaths, writeArtifacts } from "../lib/ddd/pipeline.mjs";
+import {
+  analyzeRepository,
+  defaultArtifactPaths,
+  readPublishedPair,
+  writeArtifacts,
+} from "../lib/ddd/pipeline.mjs";
 import { assertReportMatchesGraph } from "../lib/ddd/contracts.mjs";
 import {
   validateGraph,
@@ -18,8 +23,8 @@ function usage() {
       "options:",
       "  --repo ROOT            target repository (required)",
       "  --norms PATH           explicit NORMS.md path (default: ROOT/NORMS.md when present)",
-      "  --out-report PATH      report output path (default: ROOT/.agents/ddd/<date>-<slug>-ddd-report.md)",
-      "  --out-graph PATH       graph output path (default: ROOT/.agents/ddd/<date>-<slug>-ddd-graph.json)",
+      "  --out-report PATH      report output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-report.md)",
+      "  --out-graph PATH       graph output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-graph.json)",
       "  --question-file PATH   JSON file with an answers array for deterministic replay",
       "  --non-interactive      never prompt; unresolved questions become disclosed gaps",
       "  --fail-on-gaps         exit 3 when unresolved gaps remain (default: disclose and exit 0)",
@@ -87,7 +92,7 @@ async function main(argv) {
   }
 
   const analysis = await analyzeRepository({ ...opts, root: opts.repo });
-  const defaults = defaultArtifactPaths(opts.repo);
+  const defaults = defaultArtifactPaths(opts.repo, analysis.runId);
   const published = await publishArtifacts(
     analysis,
     opts.outReport ?? defaults.outReport,
@@ -110,6 +115,11 @@ async function main(argv) {
   const graphCheck = await validateGraphFile(paths.outGraph);
   if (!graphCheck.ok) {
     process.stderr.write("internal error: rendered graph failed schema validation\n");
+    return 1;
+  }
+  const pairCheck = await readPublishedPair(paths.outReport, paths.outGraph);
+  if (!pairCheck.ok) {
+    process.stderr.write(`published pair validation failed: ${pairCheck.errors.join("; ")}\n`);
     return 1;
   }
   process.stdout.write(
@@ -138,7 +148,14 @@ export async function publishArtifacts(analysis, outReport, outGraph) {
       errors: [error instanceof Error ? error.message : String(error)],
     };
   }
-  const paths = await writeArtifacts(analysis, outReport, outGraph);
+  let paths;
+  try {
+    paths = await writeArtifacts(analysis, outReport, outGraph);
+  } catch (error) {
+    return { ok: false, kind: "publication", errors: [error.message] };
+  }
+  const pair = await readPublishedPair(outReport, outGraph);
+  if (!pair.ok) return { ok: false, kind: "publication", errors: pair.errors };
   return { ok: true, paths };
 }
 

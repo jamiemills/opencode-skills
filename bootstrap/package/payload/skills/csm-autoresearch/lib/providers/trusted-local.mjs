@@ -1,18 +1,31 @@
 "use strict";
 
 import { createHash } from "node:crypto";
-import { lstat, readFile, realpath } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
-import {
-  cleanupWorkspace,
-  createWorkspace,
-  executeCandidate,
-  snapshotWorkspace,
-} from "../runtime/index.mjs";
+import { cleanupWorkspace, createWorkspace, executeCandidate } from "../runtime/index.mjs";
 import { validateRequest, validateResponse } from "../protocol/index.mjs";
 
 const HASH = /^sha256:[0-9a-f]{64}$/;
 const FORBIDDEN = /^(?:evaluator|tests?|fixtures?|policy|credentials?)$/i;
+const BUILTIN = new Set([
+  "assert",
+  "buffer",
+  "child_process",
+  "crypto",
+  "fs",
+  "fs/promises",
+  "module",
+  "os",
+  "path",
+  "process",
+  "stream",
+  "url",
+  "util",
+]);
+const IMPORT =
+  /(?:\bimport\s*(?:[^"']*?\sfrom\s*)?|\bexport\s+[^"']*?\sfrom\s*|\bimport\s*\(\s*)["']([^"']+)["']/g;
+const DEFAULT_MAX_WORKSPACE_BYTES = 10 * 1024 * 1024;
 
 function hash(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -47,6 +60,61 @@ async function noSymlink(path, label, { mustExist = true } = {}) {
   }
   return realpath(absolute);
 }
+async function copyAllowlistedPath(source, destination, root, label, state) {
+  const info = await lstat(source);
+  if (info.isSymbolicLink()) throw new TypeError(`${label} symlink is not allowed`);
+  if (!inside(root, resolve(source)))
+    throw new TypeError(`${label} is outside the trusted workspace`);
+  if (info.isDirectory()) {
+    await mkdir(destination, { mode: 0o700 });
+    for (const entry of await readdir(source, { withFileTypes: true })) {
+      safeRelative(relative(root, resolve(source, entry.name)), label);
+      await copyAllowlistedPath(
+        resolve(source, entry.name),
+        resolve(destination, entry.name),
+        root,
+        label,
+        state,
+      );
+    }
+    return;
+  }
+  if (!info.isFile()) throw new TypeError(`${label} must contain regular files only`);
+  const bytes = await readFile(source);
+  state.bytes += bytes.length;
+  if (state.bytes > state.maxBytes) throw new RangeError("workspace snapshot exceeds byte limit");
+  await mkdir(resolve(destination, ".."), { recursive: true, mode: 0o700 });
+  await writeFile(destination, bytes, { mode: 0o600, flag: "wx" });
+}
+function declaredPath(path, allowlist, root) {
+  return allowlist.some((entry) => {
+    const base = resolve(root, entry);
+    return path === base || inside(base, path);
+  });
+}
+async function validateImports(files, dependencyAllowlist, root) {
+  for (const file of files) {
+    const source = (await readFile(file)).toString("utf8");
+    for (const match of source.matchAll(IMPORT)) {
+      const specifier = match[1];
+      if (BUILTIN.has(specifier) || specifier.startsWith("node:")) continue;
+      if (!specifier.startsWith("."))
+        throw new TypeError(`undeclared workspace dependency: ${specifier}`);
+      const imported = resolve(file, "..", specifier);
+      if (!inside(root, imported) || !declaredPath(imported, dependencyAllowlist, root))
+        throw new TypeError(`undeclared workspace dependency: ${specifier}`);
+    }
+  }
+}
+async function regularFiles(path) {
+  const info = await lstat(path);
+  if (info.isFile()) return [path];
+  if (!info.isDirectory()) throw new TypeError("dependency must contain regular files only");
+  const files = [];
+  for (const entry of await readdir(path, { withFileTypes: true }))
+    files.push(...(await regularFiles(resolve(path, entry.name))));
+  return files;
+}
 function approval(value) {
   if (
     !value ||
@@ -76,7 +144,12 @@ function response(
     valid: status === "ok",
     metrics,
     diagnostics,
-    provenance: { evaluatorHash, environmentHash, limits: { ...limits }, redacted: true },
+    provenance: {
+      evaluatorHash,
+      environmentHash,
+      limits: { ...limits, trust: "trusted-process-no-os-isolation" },
+      redacted: true,
+    },
   };
   validateResponse(value);
   return value;
@@ -88,6 +161,7 @@ async function createTrustedLocalProvider({
   workspace,
   evolutionRegion,
   mutationAllowlist,
+  dependencyAllowlist,
   env = {},
   envAllowlist,
   evaluatorHash,
@@ -103,6 +177,8 @@ async function createTrustedLocalProvider({
     throw new TypeError("provider hashes must be sha256");
   if (!Array.isArray(mutationAllowlist) || mutationAllowlist.length === 0)
     throw new TypeError("mutation allowlist is required");
+  if (!Array.isArray(dependencyAllowlist))
+    throw new TypeError("explicit dependency allowlist is required");
   if (!Array.isArray(envAllowlist) || envAllowlist.some((key) => typeof key !== "string"))
     throw new TypeError("explicit environment allowlist is required");
   if (
@@ -119,6 +195,14 @@ async function createTrustedLocalProvider({
   const sourceBytes = await readFile(source);
   if (hash(sourceBytes) !== sourceHash) throw new TypeError("trusted source hash mismatch");
   const region = safeRelative(evolutionRegion, "evolution region");
+  const dependencies = [];
+  for (const dependency of dependencyAllowlist) {
+    const relativePath = safeRelative(dependency, "dependency path");
+    const dependencyPath = await noSymlink(resolve(root, relativePath), "dependency path");
+    if (!inside(root, dependencyPath))
+      throw new TypeError("dependency is outside the trusted workspace");
+    dependencies.push(relativePath);
+  }
   for (const path of mutationAllowlist) {
     const relativePath = safeRelative(path, "mutation path");
     if (!inside(root, resolve(root, relativePath)))
@@ -127,12 +211,20 @@ async function createTrustedLocalProvider({
   }
   if (!inside(root, resolve(root, region)))
     throw new TypeError("evolution region is outside the trusted workspace");
+  const snapshotFiles = [source, ...dependencies.map((path) => resolve(root, path))];
+  await validateImports(
+    (await Promise.all(snapshotFiles.map((path) => regularFiles(path)))).flat(),
+    dependencies,
+    root,
+  );
   return Object.freeze({
     mode: "trusted-local",
+    trust: "trusted-process-no-os-isolation",
     approval: approved,
     sourceHash,
     evolutionRegion: region,
     mutationAllowlist: [...mutationAllowlist],
+    dependencyAllowlist: [...dependencies],
     envAllowlist: [...envAllowlist],
     async evaluate(request) {
       validateRequest(request);
@@ -156,7 +248,48 @@ async function createTrustedLocalProvider({
         );
       const trial = await createWorkspace(undefined, "csm-autoresearch-trial-");
       try {
-        await snapshotWorkspace(root, trial);
+        const snapshotPaths = [relative(root, source), ...dependencies, ...mutationAllowlist];
+        const state = {
+          bytes: 0,
+          maxBytes: limits.maxWorkspaceBytes ?? DEFAULT_MAX_WORKSPACE_BYTES,
+        };
+        const copied = new Set();
+        try {
+          for (const path of snapshotPaths) {
+            const relativePath = safeRelative(path, "snapshot path");
+            if (
+              [...copied].some(
+                (existing) =>
+                  relativePath === existing || relativePath.startsWith(`${existing}${sep}`),
+              )
+            )
+              continue;
+            copied.add(relativePath);
+            const snapshotPath = resolve(root, relativePath);
+            try {
+              await noSymlink(snapshotPath, "snapshot path");
+            } catch (error) {
+              if (error.code === "ENOENT" && mutationAllowlist.includes(relativePath)) continue;
+              throw error;
+            }
+            await copyAllowlistedPath(
+              snapshotPath,
+              resolve(trial, relativePath),
+              root,
+              "snapshot path",
+              state,
+            );
+          }
+        } catch (error) {
+          return response(
+            request,
+            error instanceof RangeError ? "resource_exhausted" : "policy_violation",
+            [error.message],
+            evaluatorHash,
+            environmentHash,
+            limits,
+          );
+        }
         const trialSource = resolve(trial, relative(root, source));
         const result = await executeCandidate({
           command: process.execPath,

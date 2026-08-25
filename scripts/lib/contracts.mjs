@@ -261,7 +261,10 @@ const INTERFACES = {
       "BDD/TDD package when present",
       "optional csm-ddd analysis artifacts when the plan cites them",
     ],
-    produces: ["verified implementation", "delivery evidence"],
+    produces: [
+      "verified implementation",
+      "delivery evidence; commit only with explicit authorization",
+    ],
     handoff: ["delivery evidence to a separately invoked csm-browse"],
     midPipeline: ["task dependencies", "checkpoints", "review findings", "repair evidence"],
   },
@@ -308,11 +311,11 @@ const INTERFACES = {
       "browser-rendered retrieval via csm-browse fallback (JS-only pages)",
     ],
     produces: [
-      "dated research document at .agents/research/<yyyy-mm-dd>-<slug>-research.md",
-      "optional declared run artifacts at .agents/research/artifacts/<yyyy-mm-dd>-<slug>-<name>.<ext> (e.g. a JSON schema)",
+      "run-ID-suffixed research document at .agents/research/<date>-<slug>-<run-id>-research.md",
+      "optional declared run artifacts under .agents/research/artifacts/",
     ],
     handoff: [
-      "research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan",
+      "research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan; parent records and verifies the handoff without writing artifacts",
     ],
     midPipeline: ["subagent dispatches", "findings ledger", "synthesis"],
   },

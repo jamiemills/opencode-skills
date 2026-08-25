@@ -27,7 +27,7 @@ Run first — before `INTAKE`, any planning tool use, or any other section. Not 
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-plan-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-plan-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-plan-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-plan-<goal-slug>` (use a suffix such as `-2` or `-3` if that name is already taken): `tmux new-session -d -s csm-plan-<goal-slug> 'opencode run "<original planning request>"'` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: `tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"`; verify the launched invocation received the exact request before ending this invocation.
 4. Print the active session name and attach command: `tmux attach-session -t csm-plan-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the planning from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the planning workflow without renaming or starting tmux.
 
@@ -48,8 +48,8 @@ Run first — before `INTAKE`, any planning tool use, or any other section. Not 
 - Base conclusions on repository evidence, authoritative documentation, schemas, and safe experiments with real tools. Clearly distinguish observations from inferences.
 - Prefer simple, pragmatic plans. Design the smallest solution that satisfies the acceptance criteria; plan for the stated ask, not hypothetical futures; favor boring, proven approaches and existing repository patterns over novel abstractions; and use the fewest tasks that remain atomic and independently validatable. Reject speculative generality, unrequested configurability, and elaborate designs that a simpler one would satisfy.
 - Obey all repository instructions. Ask the user only when an ambiguity represents a product choice, changes scope materially, or cannot be resolved safely from evidence.
-- The only persistent project changes allowed during planning are the plan directory and saved plan document. Do not edit project source, configuration, dependencies, infrastructure, or real data.
-- Persist planning state to a disposable sidecar after every state transition: `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.draft.md` (same template structure plus the progress journal). A resumed planning invocation checks for the `.draft` file first and continues from its recorded state. At `SAVED`, rename the `.draft` to the final `.md`. The `.draft` is disposable; only the final plan file is the plan.
+- The only persistent project changes allowed during planning are the run-owned plan directory and saved plan document. Do not edit project source, configuration, dependencies, infrastructure, or real data.
+- Persist planning state to `.agents/plans/<date>-<goal-slug>-<run-id>-csm.draft.md` after every state transition. Resume only that exact owner-matching draft. At `SAVED`, promote only when `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md` is absent; otherwise refuse the collision and preserve both artifacts.
 - Temporary writes are explicitly allowed for safe planning R&D. Use an isolated OS temporary directory such as a newly created directory under `/tmp`; verify the resolved path is outside the repository and is not linked to a real system or data location before writing.
 - Temporary R&D may create throwaway prototypes, synthetic fixtures, generated artifacts, local test databases, or copied code fragments needed to answer planning questions. Treat all such output as disposable evidence, never as implementation deliverables, and never move or copy it into the project working tree.
 - Keep R&D non-destructive and non-impactful. The write allowlist contains exactly the isolated temporary sandbox, the `.draft` sidecar, and the saved plan path. Do not install dependencies into the project or system, write anywhere else, invoke mutating APIs, contact production services, use live credentials, or alter persistent systems or real data.
@@ -121,9 +121,19 @@ Temporary sandbox mutation and the intentional creation or update of the plan do
 ## Interface
 
 - Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched; optional csm-ddd analysis artifacts when explicitly referenced
-- Produces: one saved, verified CSM plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md`
+- Produces: one saved, verified CSM plan at `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md`. Legacy compatibility path `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md` is read-only history.
 - Hands off: the saved plan waits for a later, explicit csm-build invocation (human-mediated)
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
+
+## Durable Artifact Identity
+
+Each planning invocation has one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. It is recorded in Control and binds the invocation git root, normalized goal slug, artifact type, and run ID. Date and slug alone never establish ownership.
+
+The draft path is `.agents/plans/<date>-<goal-slug>-<run-id>-csm.draft.md`; promotion targets `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md`. A draft resumes only when its owner fields match and its state is pre-`SAVED`. Promotion or creation refuses an existing final artifact, including one from the same run ID; it never overwrites, deletes, renames, or creates a mutable `latest` alias. Same-day same-slug planning requires a new run ID. Existing date/slug plans remain read-only history and are not silently migrated.
+
+A terminal plan is immutable; replacement is refused even when the requested slug and date match.
+
+When this skill delegates csm-deep-research, the delegated run owns its `.agents/research/` finding and declared artifact paths. This plan records the exact handoff path, delegated run ID, and verification result as read-only evidence; it does not include those files in its own write allowlist and must not create, rename, delete, replace, or clean them up. A failed or colliding handoff blocks the dependent decision rather than falling back to an unowned write.
 
 ## Planning State Machine
 
@@ -159,7 +169,7 @@ Transitions from `CRITIQUE`, `REMEDIATE`, or `VERIFY` may return to `RESEARCH` w
 
 1. Convert the uncertainty report into independent research tracks.
 2. Run a current-knowledge check first: each track must retrieve current, authoritative sources for every technology the plan touches, using named read-only tools available in the environment (e.g. `webfetch`, or an installed docs-search MCP such as `cloudflare-docs search`). The Mandatory R&D Safety Gate already permits read-only retrieval (item 6) — reference it rather than restating it. Flag any source older than 30 days (staleness rule at Repository Norms) instead of relying on it.
-3. csm-deep-research dispatch: when a track turns on an external spec, standard, or factual claim whose answer must be verifiable by citation (or the brief already carries a research question), dispatch a csm-deep-research run by name instead of a plain track — the skill is standalone, writes only to `.agents/research/`, and returns an exhaustively cited finding (plus declared run artifacts such as schemas). Consume its research document and artifacts, and cite them in the plan. Dispatch it only when the plan's own read-only retrieval cannot settle the question with evidence; never for questions answerable from the repository, docs, or a single source.
+3. csm-deep-research dispatch: when a track turns on an external spec, standard, or factual claim whose answer must be verifiable by citation (or the brief already carries a research question), dispatch a csm-deep-research run by name instead of a plain track. The delegated skill owns its run-ID-suffixed `.agents/research/` finding and declared artifacts; this plan records the exact handoff path and verifies it read-only. Never copy, rename, delete, or overwrite delegated output, and never treat a collision refusal as permission to write locally. Dispatch it only when the plan's own read-only retrieval cannot settle the question with evidence; never for questions answerable from the repository, docs, or a single source.
 4. Launch as many independent tracks in parallel as safely possible. Use different subagents when tracks can proceed independently.
 5. Require each research agent to use real tools and return:
    - question or hypothesis;
@@ -221,7 +231,7 @@ Address every issue found. Cycle back as needed; do not approve a plan merely be
 
 ### 8. SAVED
 
-Save the final plan under `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md` at the repository root. If a `.draft` sidecar exists, rename it to this final path; otherwise write the plan directly. Create only the plan directory and file. Do not overwrite an unrelated existing plan.
+Save the final plan under the exact run-owned path `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md` at the repository root. Promote the matching draft only with a no-replace operation; if the destination exists, refuse and preserve both artifacts. A missing or mismatched draft is not inferred from date/slug and cannot be silently replaced.
 
 Commit only when the user explicitly authorizes it in the current invocation; otherwise do not invoke Git commit. When authorized, verify the owned pathset is exactly the new plan file and use `git commit --only -- <plan path>` with no bare `git commit`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
 

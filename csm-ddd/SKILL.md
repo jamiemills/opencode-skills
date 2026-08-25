@@ -74,11 +74,19 @@ The analyzer writes exactly two artifact classes per run and nothing else:
 2. `.agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json`
 
 `.agents/ddd/artifacts/` is reserved for declared run artifacts (schemas,
-validation notes). Publication uses a disposable generation directory containing
-both outputs and a `csm-ddd-publication/1` manifest. Only a manifest-complete
-generation is installed; installation rolls back both output paths if either
-rename fails, and removes the generation and backups. Therefore a failed run
-leaves neither artifact for a new pair, or preserves the prior complete pair.
+validation notes). Publication owns an output-pair lock, an immutable generation
+directory containing both outputs and a `csm-ddd-publication/1` manifest, and a
+`csm-ddd-publication-pointer/1` pointer. The pointer is authoritative: readers
+must validate its run ID, manifest, and both output digests before consuming the
+pair. The CLI is the bundled reader and `readPublishedPair()` is the library
+reader used by callers.
+
+Only a manifest-complete generation is installed. A failed replacement leaves
+the last complete pointer and pair authoritative; a partial prior pair is
+renamed to uniquely named `partial-evidence` files, never deleted. Lock files
+record their owner. An abandoned lock may be explicitly archived with
+`recoverAbandonedLock`; active or malformed locks are refused and retained.
+Generations, prior copies, and abandoned-lock records are immutable evidence.
 In CLI mode explicit `--out-*` paths are honored verbatim for sandboxed testing;
 instruction mode always uses the contract paths above.
 
@@ -144,9 +152,9 @@ by the run ID. Disclose unresolved questions and coverage gaps in the report.
 Terminal; handoff to planning skills happens only via a separate human
 decision.
 
-Publication recovery: an incomplete generation is disposable and is never a
-successful artifact pair. A prior pair is retained until the replacement
-generation is complete; interrupted replacement restores that pair.
+Publication recovery: an incomplete generation is never a successful artifact
+pair and remains available for diagnosis. A prior pair is retained until the
+replacement generation is complete; interrupted replacement restores that pair.
 
 ## Required Report And Graph
 

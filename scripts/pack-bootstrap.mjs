@@ -4,11 +4,13 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
+import { O_CREAT, O_NOFOLLOW, O_RDONLY, O_TRUNC, O_WRONLY } from "node:constants";
 import {
   chmod,
-  copyFile,
   mkdir,
   mkdtemp,
+  lstat,
+  open,
   readdir,
   readFile,
   rm,
@@ -179,6 +181,40 @@ async function entryFor(dest) {
   return { path: toPosix(dest), sha256: sha256(data), bytes: data.length, mode: modeOf(info.mode) };
 }
 
+async function copyVerified(source, destination) {
+  const sourceInfo = await lstat(source);
+  if (!sourceInfo.isFile())
+    throw new Error(`pack refused: source is not a regular file: ${source}`);
+  const sourceHandle = await open(source, O_RDONLY | O_NOFOLLOW);
+  try {
+    const openedInfo = await sourceHandle.stat();
+    if (openedInfo.dev !== sourceInfo.dev || openedInfo.ino !== sourceInfo.ino)
+      throw new Error(`pack refused: source changed before copy: ${source}`);
+    const data = await sourceHandle.readFile();
+    const finalInfo = await sourceHandle.stat();
+    if (
+      finalInfo.dev !== openedInfo.dev ||
+      finalInfo.ino !== openedInfo.ino ||
+      finalInfo.size !== data.length
+    )
+      throw new Error(`pack refused: source changed during copy: ${source}`);
+
+    const destinationHandle = await open(
+      destination,
+      O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW,
+      0o644,
+    );
+    try {
+      await destinationHandle.writeFile(data);
+    } finally {
+      await destinationHandle.close();
+    }
+    await chmod(destination, sourceInfo.mode & 0o777);
+  } finally {
+    await sourceHandle.close();
+  }
+}
+
 async function buildIndex(entries) {
   // L20: the manifest is the single version source — a hand-synced literal
   // here used to drift from bootstrap/package.json until tests caught it.
@@ -223,7 +259,7 @@ async function syncPayload() {
   await mkdir(packageDir, { recursive: true });
   for (const entry of entries) {
     await mkdir(dirname(join(packageDir, entry.dest)), { recursive: true });
-    await copyFile(join(root, entry.src), join(packageDir, entry.dest));
+    await copyVerified(join(root, entry.src), join(packageDir, entry.dest));
     await chmod(join(packageDir, entry.dest), 0o644);
   }
   const desired = new Set([
@@ -240,7 +276,7 @@ async function syncPayload() {
 async function copyTree(src, dest) {
   for (const rel of await walk(src)) {
     await mkdir(dirname(join(dest, rel)), { recursive: true });
-    await copyFile(join(src, rel), join(dest, rel));
+    await copyVerified(join(src, rel), join(dest, rel));
   }
 }
 
@@ -284,8 +320,8 @@ async function packBootstrapOnce() {
   const dir = await mkdtemp("/tmp/csm-pack-");
   const cache = await mkdtemp("/tmp/csm-pack-cache-");
   try {
-    await copyFile(join(bootstrapDir, "package.json"), join(dir, "package.json"));
-    await copyFile(join(bootstrapDir, "payload-index.json"), join(dir, "payload-index.json"));
+    await copyVerified(join(bootstrapDir, "package.json"), join(dir, "package.json"));
+    await copyVerified(join(bootstrapDir, "payload-index.json"), join(dir, "payload-index.json"));
     await copyTree(packageDir, dir);
     await fixTimes(dir);
     const { stdout } = await execFileAsync("npm", ["pack", "--json"], {
@@ -295,7 +331,7 @@ async function packBootstrapOnce() {
     });
     const filename = JSON.parse(stdout.slice(stdout.indexOf("["), stdout.lastIndexOf("]") + 1))[0]
       .filename;
-    const tarball = join(dir, filename);
+    const tarball = resolvePackTarball(dir, filename);
     const data = await readFile(tarball);
     return { dir, tarball, sha256: sha256(data), bytes: data.length, entries: parseTar(data) };
   } catch (err) {
@@ -308,6 +344,16 @@ async function packBootstrapOnce() {
   } finally {
     await rm(cache, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+function resolvePackTarball(stagingDir, filename) {
+  if (typeof filename !== "string" || filename.length === 0)
+    throw new Error("pack refused: npm returned no tarball filename");
+  const staging = resolve(stagingDir);
+  const tarball = resolve(staging, filename);
+  if (!tarball.startsWith(`${staging}${sep}`))
+    throw new Error("pack refused: tarball filename escapes staging directory");
+  return tarball;
 }
 
 // Packing regenerates the shared committed payload/index before staging. Keep
@@ -347,10 +393,12 @@ if (isMain) await main();
 
 export {
   assertReleaseKeyring,
+  copyVerified,
   decisions,
   mapping,
   packBootstrap,
   parseTar,
+  resolvePackTarball,
   syncPayload,
   skillManifest,
   validateReleaseKeyring,

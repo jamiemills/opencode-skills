@@ -1,13 +1,15 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
   AppendOnlyLedger,
   atomicJson,
+  artifactPaths,
+  canonicalRunId,
   hash,
   redact,
   validateReport,
@@ -127,6 +129,71 @@ test("ledger classifies sequence corruption separately from hash corruption", as
     JSON.parse(await readFile(`${path}.state.json`, "utf8")).reason,
     "sequence-mismatch",
   );
+});
+
+test("lock cleanup is ownership-safe and stale recovery is explicit", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-ledger-"));
+  const path = join(root, "run.jsonl");
+  const ledger = new AppendOnlyLedger(path, {
+    runId: "run",
+    provenance: { contractHash: hash("c") },
+  });
+  await ledger.open();
+  await writeFile(`${path}.lock`, JSON.stringify({ token: "other" }));
+  await assert.rejects(() => ledger.append("intake"), /lock is held/);
+  assert.match(await readFile(`${path}.lock`, "utf8"), /other/);
+  await assert.rejects(() => ledger.recoverStaleLock(), /force: true/);
+  await assert.rejects(
+    () => ledger.recoverStaleLock({ force: true, expectedToken: "wrong" }),
+    /owner token changed/,
+  );
+  assert.equal(
+    await ledger.recoverStaleLock({
+      force: true,
+      expectedToken: "other",
+    }),
+    true,
+  );
+  assert.equal(
+    (await readdir(root)).some((name) => name.includes("quarantine")),
+    true,
+  );
+});
+
+test("lock recovery requires an observed token and preserves replacement ownership", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-ledger-"));
+  const path = join(root, "run.jsonl");
+  const ledger = new AppendOnlyLedger(path, {
+    runId: "run",
+    provenance: { contractHash: hash("c") },
+  });
+  const owner = await ledger.acquireLock();
+  await owner.handle.close();
+  await rename(path + ".lock", path + ".lock.original");
+  await writeFile(path + ".lock", JSON.stringify({ token: "replacement" }));
+  await assert.rejects(() => ledger.releaseLock(owner), /ownership changed/);
+  assert.equal(
+    (await readdir(root)).some((name) => name.includes("recovered-") || name.includes("release-")),
+    true,
+  );
+  assert.throws(() => canonicalRunId("run/id"), /canonical/);
+  assert.throws(() => artifactPaths(root, "run/id"), /canonical/);
+});
+
+test("initial recovery runs under the append lock and preserves corrupt bytes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-ledger-"));
+  const path = join(root, "run.jsonl");
+  const ledger = new AppendOnlyLedger(path, {
+    runId: "run",
+    provenance: { contractHash: hash("c") },
+  });
+  await ledger.open();
+  await ledger.append("intake");
+  const corrupt = `${await readFile(path, "utf8")}not-json\n`;
+  await writeFile(path, corrupt);
+  await new AppendOnlyLedger(path, { runId: "run", provenance: ledger.provenance }).open();
+  const quarantine = (await readdir(root)).find((name) => name.includes("corrupt-ledger"));
+  assert.equal(await readFile(join(root, quarantine), "utf8"), "not-json\n");
 });
 
 test("report validation is fail-closed", () => {

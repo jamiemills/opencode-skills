@@ -27,7 +27,7 @@ Run first — before `INTAKE`, any review tool use, or any other section. Not a 
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-review-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-review-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-review-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-review-<goal-slug>` (use a suffix such as `-2` or `-3` if that name is already taken): `tmux new-session -d -s csm-review-<goal-slug> 'opencode run "<original review request>"'` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: `tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"`; verify the launched invocation received the exact request before ending this invocation.
 4. Print the active session name and attach command: `tmux attach-session -t csm-review-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the review from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the review workflow without renaming or starting tmux.
 
@@ -53,7 +53,7 @@ Run first — before `INTAKE`, any review tool use, or any other section. Not a 
 
 ## Write Discipline And File Allowlist
 
-- The complete csm-review write allowlist is exactly: (1) the report file `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md` and the creation of its `.agents/reviews/` directory (creating an absent parent `.agents/` if needed) — for local targets at the reviewed repo's git root, for remote-URL targets at the invocation cwd's `.agents/reviews/` (never inside the evaporable sandbox) — the embedded Control journal lives inside this file; (2) the temp sandbox `/tmp/opencode/csm-review-<run-id>/` and OS temp directories, including the remote-URL clone target, redirected HOME/TMPDIR/XDG paths, and redacted copies of files passed to challengers; and (3) a single commit staging only the report file, when the user explicitly requests one in the invocation. `.agents/doctrine/` is not in this allowlist: it may be written only by the separately and explicitly human-dispatched csm-review-python analyzer.
+- The complete csm-review write allowlist is exactly: (1) the run-owned report file `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md` and its directory at the target root; (2) the run-specific temp sandbox `/tmp/opencode/csm-review-<run-id>/` and OS temp directories; and (3) a single commit staging only this report when explicitly requested. `.agents/doctrine/` is not in this allowlist: it may be written only by the separately and explicitly human-dispatched csm-review-python analyzer.
 - Nothing else may be written anywhere in the reviewed repository or on the host.
 - Git operations against the reviewed repo's state are read-only (`rev-parse`, `status`, `log`, `show`, `grep`); `git clone --depth 1` (file://, reviewed repo as source, target in the temp sandbox) is permitted for the remote/clone intake.
 - By default nothing is committed and SAVED reports "not committed (write discipline)".
@@ -80,9 +80,15 @@ Every finding and every verification records the rung it ran at. Posture is sele
 ## Interface
 
 - Consumes: a target repository (local path or remote URL); optional NORMS.md artifact
-- Produces: one dated findings report at `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md`
+- Produces: one run-ID-suffixed findings report at `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md`. Legacy compatibility path `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md` is read-only history.
 - Hands off: findings feed a future explicit csm-plan or csm-grill invocation (human-mediated); a human may separately and explicitly dispatch csm-review-python for Python doctrine analysis, and that analyzer owns its `.agents/doctrine/` report write.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload, csm-make-tests, csm-ddd, csm-autoresearch
+
+## Durable Artifact Identity
+
+Each review invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. The report records the ID and binds the reviewed git root, normalized repository slug, artifact type, and run ID. Date and slug alone never establish ownership.
+
+The report path is `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md`. Resume is allowed only for that exact owner-matching report while its state is before `SAVED`. A terminal report is immutable: intake refuses replacement, deletion, renaming, or a mutable `latest` alias. Same-day same-slug reviews require a new run ID; legacy date/slug reports remain read-only history. The parent review never writes `.agents/doctrine/`; csm-review-python owns its separate run-ID-suffixed report and csm-review records that handoff only as read-only evidence.
 
 ## Review State Machine
 
@@ -111,12 +117,12 @@ Quota note: hard quota exhaustion stops the run cleanly once the transition is j
 
 Entry: activation (explicit review/audit request or csm-review invoked by name); or resume from a report Control journal recording a state before SAVED.
 
-1. If the report file exists and its Control journal records a state before SAVED, read the journal, restore machine state, and continue from that state — do not re-scaffold.
+1. Resolve the git root, slug, and immutable run ID, then inspect only the exact run-owned report path. If it exists with matching ownership and a state before `SAVED`, read the journal and resume; a terminal report, mismatched owner, or same-day same-slug report with another run ID is an explicit collision refusal, never a “most recent” candidate.
 2. Classify QUICK vs FULL and resolve the target: local path or cwd, or a remote URL cloned `--depth 1` into the sandbox.
 3. Decide the posture: state the rung menu and ask which rungs the user accepts; silence means R0. Detect/validate NORMS.md.
 4. Pin the commit SHA. All evidence cites it; if the worktree is dirty or diverged, citations come from `git show <SHA>:<path>` / `git grep <pattern> <SHA>` rather than the worktree.
 5. Record a baseline of the reviewed repository in the Control journal (`git -C <repo> status --short`; if not a git repo, a top-level file listing).
-6. Create the report scaffold with the Control journal at `.agents/reviews/<yyyy-mm-dd>-<repo-slug>-review.md` (git root of the reviewed repo, else cwd; create only this directory and file).
+6. Create the report scaffold with the Control journal at `.agents/reviews/<date>-<repo-slug>-<run-id>-review.md` (git root of the reviewed repo, else cwd; create only this run-owned file).
 
 Exit: repo pinned, scale set, resume handled, report scaffold written.
 

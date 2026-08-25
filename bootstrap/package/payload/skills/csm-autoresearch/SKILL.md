@@ -47,8 +47,10 @@ The three source modes are intentionally different:
 
 - `registered`: a pre-registered callable identified by stable ID and hash;
   deterministic execution may run without a sandbox, subject to policy.
-- `trusted-local`: a user-declared local source snapshot; execute only in the
-  allowlisted workspace with no evaluator or policy writes and record its hash.
+- `trusted-local`: a user-declared local source snapshot; execute only from an
+  explicit source/dependency/mutation allowlist, reject undeclared workspace
+  imports and symlinks, enforce the snapshot byte cap during copying, and keep
+  evaluator or policy files outside the candidate boundary.
 - `generated`: hostile candidate source; remain blocked unless a verified
   sandbox provider and explicit generated-mode gate are present. Never fall back
   to an ordinary subprocess.

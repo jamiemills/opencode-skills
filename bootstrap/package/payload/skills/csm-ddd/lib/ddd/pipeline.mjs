@@ -1,10 +1,16 @@
 "use strict";
 
 import { createHash, randomUUID } from "node:crypto";
-import { basename, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { extractRepository } from "./extract.mjs";
 import { synthesize } from "./synthesize.mjs";
-import { applyQuestionFile, deriveQuestions, nonInteractiveGaps } from "./clarify.mjs";
+import {
+  applyQuestionFile,
+  deriveQuestions,
+  MAX_QUESTION_FILE_BYTES,
+  nonInteractiveGaps,
+  preflightQuestionFileText,
+} from "./clarify.mjs";
 import { buildGraphEnvelopeObject, parseReport, renderReport } from "./render.mjs";
 import { serializeGraph } from "./contracts.mjs";
 
@@ -27,8 +33,27 @@ export async function analyzeRepository(options = {}) {
   let appliedRecords = [];
   let rejectedRecords = [];
   if (options.questionFilePath) {
-    const { readFile } = await import("node:fs/promises");
-    const fileData = JSON.parse(await readFile(options.questionFilePath, "utf8"));
+    const { open, stat } = await import("node:fs/promises");
+    const questionStat = await stat(options.questionFilePath);
+    if (!questionStat.isFile()) throw new Error("question file must be a regular file");
+    if (questionStat.size > MAX_QUESTION_FILE_BYTES)
+      throw new Error(`question file exceeds ${MAX_QUESTION_FILE_BYTES} bytes`);
+    const questionHandle = await open(options.questionFilePath, "r");
+    let fileText;
+    try {
+      const currentStat = await questionHandle.stat();
+      if (!currentStat.isFile()) throw new Error("question file must be a regular file");
+      if (currentStat.size > MAX_QUESTION_FILE_BYTES)
+        throw new Error(`question file exceeds ${MAX_QUESTION_FILE_BYTES} bytes`);
+      const buffer = Buffer.allocUnsafe(MAX_QUESTION_FILE_BYTES + 1);
+      const { bytesRead } = await questionHandle.read(buffer, 0, buffer.length, 0);
+      if (bytesRead > MAX_QUESTION_FILE_BYTES)
+        throw new Error(`question file exceeds ${MAX_QUESTION_FILE_BYTES} bytes`);
+      fileText = preflightQuestionFileText(buffer.subarray(0, bytesRead).toString("utf8"));
+    } finally {
+      await questionHandle.close();
+    }
+    const fileData = JSON.parse(fileText);
     const replay = applyQuestionFile(
       questions,
       fileData,
@@ -85,26 +110,193 @@ export async function analyzeRepository(options = {}) {
   };
 }
 
-export function defaultArtifactPaths(root) {
+export function defaultArtifactPaths(root, runId = "current") {
   const date = new Date().toISOString().slice(0, 10);
   const slug = basename(root);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(runId))
+    throw new Error("runId is not safe for a DDD artifact path");
+  const identity = runId;
   return {
-    outReport: join(root, ".agents", "ddd", `${date}-${slug}-ddd-report.md`),
-    outGraph: join(root, ".agents", "ddd", `${date}-${slug}-ddd-graph.json`),
+    outReport: join(root, ".agents", "ddd", `${date}-${slug}-${identity}-ddd-report.md`),
+    outGraph: join(root, ".agents", "ddd", `${date}-${slug}-${identity}-ddd-graph.json`),
   };
 }
 
+export function publicationPaths(outReport, outGraph) {
+  const reportDir = dirname(outReport);
+  return {
+    pointer: join(reportDir, ".ddd-publication.json"),
+    lock: join(reportDir, ".ddd-publication.lock"),
+    recoveryLock: join(reportDir, ".ddd-publication.recovery.lock"),
+    generationRoot: join(reportDir, ".ddd-generations"),
+    outReport,
+    outGraph,
+  };
+}
+
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+async function readJson(file) {
+  const { readFile } = await import("node:fs/promises");
+  return JSON.parse(await readFile(file, "utf8"));
+}
+
+export async function readPublishedPair(outReport, outGraph) {
+  const { lstat, readFile } = await import("node:fs/promises");
+  const paths = publicationPaths(outReport, outGraph);
+  const fail = (message) => ({ ok: false, errors: [message], paths });
+  try {
+    if (dirname(outReport) !== dirname(outGraph))
+      return fail("published output pair must use one directory");
+    const pointerInfo = await lstat(paths.pointer);
+    if (pointerInfo.isSymbolicLink() || !pointerInfo.isFile())
+      return fail("publication pointer must be a regular file");
+    const pointer = await readJson(paths.pointer);
+    if (pointer.format !== "csm-ddd-publication-pointer/1")
+      return fail("publication pointer has an unsupported format");
+    if (pointer.report !== basename(outReport) || pointer.graph !== basename(outGraph))
+      return fail("publication pointer output pair does not match requested paths");
+    if (
+      typeof pointer.manifest !== "string" ||
+      isAbsolute(pointer.manifest) ||
+      pointer.manifest.includes("..")
+    )
+      return fail("publication pointer manifest path is unsafe");
+    const manifestPath = join(dirname(paths.pointer), pointer.manifest);
+    const manifestInfo = await lstat(manifestPath);
+    if (manifestInfo.isSymbolicLink() || !manifestInfo.isFile())
+      return fail("publication manifest must be a regular file");
+    const manifest = await readJson(manifestPath);
+    if (manifest.format !== "csm-ddd-publication/1" || manifest.runId !== pointer.runId)
+      return fail("publication manifest and pointer runId do not match");
+    if (manifest.report !== basename(outReport) || manifest.graph !== basename(outGraph))
+      return fail("publication manifest output pair does not match requested paths");
+    if (
+      manifest.reportSha256 !== pointer.reportSha256 ||
+      manifest.graphSha256 !== pointer.graphSha256
+    )
+      return fail("publication manifest and pointer digests do not match");
+    if (
+      typeof manifest.generation !== "string" ||
+      isAbsolute(manifest.generation) ||
+      manifest.generation.includes("..") ||
+      !manifest.generation.startsWith(".ddd-generations/")
+    )
+      return fail("publication manifest generation path is unsafe");
+    const generationDir = join(dirname(paths.pointer), manifest.generation);
+    for (const file of [
+      generationDir,
+      join(generationDir, "report.artifact"),
+      join(generationDir, "graph.artifact"),
+    ]) {
+      const info = await lstat(file);
+      if (
+        info.isSymbolicLink() ||
+        (!info.isDirectory() && file === generationDir) ||
+        (!info.isFile() && file !== generationDir)
+      )
+        return fail("immutable generation contains an unsafe file type");
+    }
+    const generationReport = await readFile(join(generationDir, "report.artifact"));
+    const generationGraph = await readFile(join(generationDir, "graph.artifact"));
+    if (
+      sha256(generationReport) !== manifest.reportSha256 ||
+      sha256(generationGraph) !== manifest.graphSha256
+    )
+      return fail("immutable generation digest does not match its manifest");
+    return { ok: true, pointer, manifest, report: generationReport, graph: generationGraph, paths };
+  } catch (error) {
+    return fail(`published output pair is not valid: ${error.message}`);
+  }
+}
+
 export async function writeArtifacts(analysis, outReport, outGraph, options = {}) {
-  const { access, mkdir, rename, rm, writeFile } = await import("node:fs/promises");
-  const { dirname } = await import("node:path");
+  const { access, copyFile, lstat, mkdir, rename, writeFile } = await import("node:fs/promises");
+  const paths = publicationPaths(outReport, outGraph);
   const reportDir = dirname(outReport);
   const graphDir = dirname(outGraph);
-  await mkdir(reportDir, { recursive: true });
-  await mkdir(graphDir, { recursive: true });
 
   if (outReport === outGraph) throw new Error("report and graph paths must differ");
+  if (reportDir !== graphDir) throw new Error("publication output pair must use one directory");
 
-  const generation = join(reportDir, `.ddd-generation-${analysis.runId}-${randomUUID()}`);
+  if (!isAbsolute(outReport) || !isAbsolute(outGraph))
+    throw new Error("publication paths must be absolute");
+  await mkdir(reportDir, { recursive: true });
+  await mkdir(graphDir, { recursive: true });
+  const token = randomUUID();
+  let recoveryHandle;
+  let lockHandle;
+  let recoveryStat;
+  let lockStat;
+  try {
+    const { open } = await import("node:fs/promises");
+    recoveryHandle = await open(paths.recoveryLock, "wx");
+    recoveryStat = await lstat(paths.recoveryLock);
+    await recoveryHandle.writeFile(
+      `${JSON.stringify({ format: "csm-ddd-recovery-lock/1", token })}\n`,
+    );
+    lockHandle = await open(paths.lock, "wx");
+    lockStat = await lstat(paths.lock);
+    await lockHandle.writeFile(
+      `${JSON.stringify({ format: "csm-ddd-publication-lock/1", token, runId: analysis.runId, pid: process.pid, createdAt: new Date().toISOString() })}\n`,
+    );
+  } catch (error) {
+    const hadRecoveryHandle = Boolean(recoveryHandle);
+    if (recoveryHandle && !lockHandle) {
+      await recoveryHandle.close().catch(() => {});
+      await (await import("node:fs/promises")).rm(paths.recoveryLock, { force: true });
+      recoveryHandle = undefined;
+    }
+    if (error.code === "EEXIST" && hadRecoveryHandle && options.recoverAbandonedLock) {
+      const lock = await readJson(paths.lock).catch(() => null);
+      const age = lock?.createdAt ? Date.now() - Date.parse(lock.createdAt) : 0;
+      if (lock && age >= (options.staleLockMs ?? 60_000)) {
+        await options.beforeStaleLockRecheck?.(lock);
+        const candidate = `${paths.lock}.stale-candidate-${randomUUID()}`;
+        try {
+          // Claim the exact inode before any replacement owner can be archived.
+          await rename(paths.lock, candidate);
+        } catch (claimError) {
+          throw new Error(`DDD publication lock changed during stale recovery: ${paths.lock}`, {
+            cause: claimError,
+          });
+        }
+        await options.afterStaleLockClaim?.({ candidate, lock });
+        const claimed = await readJson(candidate).catch(() => null);
+        if (!claimed || claimed.token !== lock.token) {
+          if (
+            !(await access(paths.lock).then(
+              () => true,
+              () => false,
+            ))
+          )
+            await rename(candidate, paths.lock);
+          throw new Error(`DDD publication lock changed during stale recovery: ${paths.lock}`, {
+            cause: error,
+          });
+        }
+        await rename(candidate, `${paths.lock}.abandoned-${Date.now()}-${randomUUID()}`);
+        if (
+          await access(paths.lock).then(
+            () => true,
+            () => false,
+          )
+        ) {
+          throw new Error(`DDD publication lock changed during stale recovery: ${paths.lock}`, {
+            cause: error,
+          });
+        }
+        return writeArtifacts(analysis, outReport, outGraph, {
+          ...options,
+          recoverAbandonedLock: false,
+        });
+      }
+    }
+    throw new Error(`DDD publication lock is owned by another or abandoned writer: ${paths.lock}`, {
+      cause: error,
+    });
+  }
+  const generation = join(paths.generationRoot, `${analysis.runId}-${token}`);
   const stagedReport = join(generation, "report.artifact");
   const stagedGraph = join(generation, "graph.artifact");
   const manifestPath = join(generation, "manifest.json");
@@ -113,13 +305,11 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
     runId: analysis.runId,
     report: basename(outReport),
     graph: basename(outGraph),
-    reportSha256: createHash("sha256").update(analysis.reportMarkdown).digest("hex"),
-    graphSha256: createHash("sha256").update(analysis.graphJson).digest("hex"),
+    reportSha256: sha256(analysis.reportMarkdown),
+    graphSha256: sha256(analysis.graphJson),
+    generation: relative(reportDir, generation),
   };
-  const backups = [
-    `${outReport}.backup-${analysis.runId}-${randomUUID()}`,
-    `${outGraph}.backup-${analysis.runId}-${randomUUID()}`,
-  ];
+  const backups = [`${outReport}.prior-${token}`, `${outGraph}.prior-${token}`];
   const installed = [];
 
   const exists = async (path) => {
@@ -133,41 +323,85 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
   const inject = (point) => {
     if (options.failureAt === point) throw new Error(`injected publication failure at ${point}`);
   };
-  const priorPair = (await exists(outReport)) && (await exists(outGraph));
+  const priorPair =
+    (await exists(outReport)) &&
+    (await exists(outGraph)) &&
+    (await readPublishedPair(outReport, outGraph)).ok;
 
   try {
+    await mkdir(paths.generationRoot, { recursive: true });
     await mkdir(generation);
     await writeFile(stagedReport, analysis.reportMarkdown);
     await writeFile(stagedGraph, analysis.graphJson);
     await writeFile(manifestPath, `${JSON.stringify(pairManifest, null, 2)}\n`);
     inject("after-generation");
+    await options.afterGeneration?.({ generation, manifestPath });
 
     for (let i = 0; i < 2; i += 1) {
       const target = i === 0 ? outReport : outGraph;
       if (await exists(target)) await rename(target, backups[i]);
     }
+    if (!priorPair) {
+      for (const backup of backups) {
+        if (await exists(backup)) {
+          const partial = `${backup}.partial-evidence`;
+          await rename(backup, partial);
+        }
+      }
+    }
     inject("after-backup");
 
-    await rename(stagedReport, outReport);
+    await copyFile(stagedReport, outReport);
     installed.push(outReport);
     inject("after-report");
-    await rename(stagedGraph, outGraph);
+    await copyFile(stagedGraph, outGraph);
     installed.push(outGraph);
     inject("after-graph");
+    await options.beforePointer?.({ generation, manifestPath });
 
-    await rm(generation, { recursive: true, force: true });
-    for (const backup of backups) await rm(backup, { force: true });
-    return { outReport, outGraph };
+    const pointer = {
+      format: "csm-ddd-publication-pointer/1",
+      runId: analysis.runId,
+      report: basename(outReport),
+      graph: basename(outGraph),
+      manifest: relative(reportDir, manifestPath),
+      reportSha256: pairManifest.reportSha256,
+      graphSha256: pairManifest.graphSha256,
+    };
+    const pointerTemp = `${paths.pointer}.next-${token}`;
+    await writeFile(pointerTemp, `${JSON.stringify(pointer, null, 2)}\n`);
+    await rename(pointerTemp, paths.pointer);
+    return { outReport, outGraph, pointer: paths.pointer, manifest: manifestPath, generation };
   } catch (error) {
-    await rm(generation, { recursive: true, force: true });
+    const { copyFile: restore, rm } = await import("node:fs/promises");
     for (const target of installed) await rm(target, { force: true });
     for (let i = 0; i < 2; i += 1) {
       if (priorPair && (await exists(backups[i]))) {
         const target = i === 0 ? outReport : outGraph;
-        await rename(backups[i], target);
+        await restore(backups[i], target);
       }
-      await rm(backups[i], { force: true });
     }
     throw error;
+  } finally {
+    await lockHandle?.close();
+    const currentLock = await readJson(paths.lock).catch(() => null);
+    const currentLockStat = await lstat(paths.lock).catch(() => null);
+    if (
+      currentLock?.token === token &&
+      currentLockStat?.isFile() &&
+      currentLockStat.dev === lockStat?.dev &&
+      currentLockStat.ino === lockStat?.ino
+    )
+      await (await import("node:fs/promises")).rm(paths.lock, { force: true });
+    await recoveryHandle?.close();
+    const currentRecoveryLock = await readJson(paths.recoveryLock).catch(() => null);
+    const currentRecoveryStat = await lstat(paths.recoveryLock).catch(() => null);
+    if (
+      currentRecoveryLock?.token === token &&
+      currentRecoveryStat?.isFile() &&
+      currentRecoveryStat.dev === recoveryStat?.dev &&
+      currentRecoveryStat.ino === recoveryStat?.ino
+    )
+      await (await import("node:fs/promises")).rm(paths.recoveryLock, { force: true });
   }
 }

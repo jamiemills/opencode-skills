@@ -1,5 +1,9 @@
 import { connect, getSession, clickCoords } from "../cdp.mjs";
 
+export function typedResult(selector) {
+  return { typed: true, selector };
+}
+
 const KEY_CODES = {
   Enter: { code: "Enter", key: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 },
   Tab: { code: "Tab", key: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 },
@@ -64,12 +68,13 @@ export async function run({ args, state, verb }) {
     const index = args[1] ? parseInt(args[1], 10) : 0;
 
     const client = await connect(state);
-    const sessionId = await getSession(client);
-
-    await clickCoords(client, sessionId, sel, index);
-    console.log(JSON.stringify({ clicked: sel, index }));
-
-    await client.close();
+    try {
+      const sessionId = await getSession(client);
+      await clickCoords(client, sessionId, sel, index);
+      console.log(JSON.stringify({ clicked: sel, index }));
+    } finally {
+      await client.close().catch(() => {});
+    }
     return;
   }
 
@@ -82,28 +87,20 @@ export async function run({ args, state, verb }) {
     }
 
     const client = await connect(state);
-    const sessionId = await getSession(client);
-
-    await clickCoords(client, sessionId, sel);
-
     try {
-      await client.send("Input.insertText", { text }, sessionId);
-    } catch {
-      for (const ch of text) {
-        await client.send(
-          "Input.dispatchKeyEvent",
-          {
-            type: "char",
-            text: ch,
-          },
-          sessionId,
-        );
+      const sessionId = await getSession(client);
+      await clickCoords(client, sessionId, sel);
+      try {
+        await client.send("Input.insertText", { text }, sessionId);
+      } catch {
+        for (const ch of text) {
+          await client.send("Input.dispatchKeyEvent", { type: "char", text: ch }, sessionId);
+        }
       }
+      console.log(JSON.stringify(typedResult(sel)));
+    } finally {
+      await client.close().catch(() => {});
     }
-
-    console.log(JSON.stringify({ typed: text, selector: sel }));
-
-    await client.close();
     return;
   }
 
@@ -116,39 +113,27 @@ export async function run({ args, state, verb }) {
     }
 
     const client = await connect(state);
-    const sessionId = await getSession(client);
-
-    await clickCoords(client, sessionId, sel);
-
-    const keyDef = resolveKey(key);
-
-    await client.send(
-      "Input.dispatchKeyEvent",
-      {
-        type: "rawKeyDown",
-        key: keyDef.key,
-        code: keyDef.code,
-        windowsVirtualKeyCode: keyDef.windowsVirtualKeyCode,
-        nativeVirtualKeyCode: keyDef.nativeVirtualKeyCode,
-      },
-      sessionId,
-    );
-
-    await client.send(
-      "Input.dispatchKeyEvent",
-      {
-        type: "keyUp",
-        key: keyDef.key,
-        code: keyDef.code,
-        windowsVirtualKeyCode: keyDef.windowsVirtualKeyCode,
-        nativeVirtualKeyCode: keyDef.nativeVirtualKeyCode,
-      },
-      sessionId,
-    );
-
-    console.log(JSON.stringify({ pressed: key, selector: sel }));
-
-    await client.close();
+    try {
+      const sessionId = await getSession(client);
+      await clickCoords(client, sessionId, sel);
+      const keyDef = resolveKey(key);
+      for (const type of ["rawKeyDown", "keyUp"]) {
+        await client.send(
+          "Input.dispatchKeyEvent",
+          {
+            type,
+            key: keyDef.key,
+            code: keyDef.code,
+            windowsVirtualKeyCode: keyDef.windowsVirtualKeyCode,
+            nativeVirtualKeyCode: keyDef.nativeVirtualKeyCode,
+          },
+          sessionId,
+        );
+      }
+      console.log(JSON.stringify({ pressed: key, selector: sel }));
+    } finally {
+      await client.close().catch(() => {});
+    }
     return;
   }
 }

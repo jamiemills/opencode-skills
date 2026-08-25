@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { accessSync, constants as fsc, statSync } from "node:fs";
-import { writeFile, mkdir, copyFile, readFile, rm, mkdtemp, readdir, open } from "node:fs/promises";
+import { constants as fsc } from "node:fs";
+import { writeFile, mkdir, readFile, rm, mkdtemp, readdir, open, lstat } from "node:fs/promises";
 import { once } from "node:events";
 import { join, basename, dirname } from "node:path";
 import { homedir, tmpdir } from "node:os";
@@ -22,6 +22,8 @@ function escapeHtml(value) {
 // separators, no traversal, no hostile HTML in the generated index.
 const SAFE_FILENAME_RE = /^[A-Za-z0-9._-]+$/;
 const CONTENT_SCAN_MAX_BYTES = 1024 * 1024;
+const MAX_INPUT_FILES = 32;
+const MAX_INPUT_BYTES = 64 * 1024 * 1024;
 const SCANNED_TEXT_EXTENSIONS = new Set([
   "cjs",
   "css",
@@ -53,16 +55,15 @@ const QUOTED_SECRET_KEY_RE =
 const CONTENT_PATH_RE = /(?:^|[\s"'(=])(?:\/(?!\/)|[A-Za-z]:[\\/]|\\\\|file:\/\/)[^\s"'<>]+/m;
 const ACTIVE_SVG_RE = /<script\b|\bon[a-z]+\s*=|javascript\s*:/i;
 
-async function scanSupportedContent(path) {
+async function scanSupportedContent(path, content) {
   const extension = basename(path).split(".").pop()?.toLowerCase() ?? "";
   if (!SCANNED_TEXT_EXTENSIONS.has(extension)) return;
-  const size = statSync(path).size;
+  const size = content.byteLength;
   if (size > CONTENT_SCAN_MAX_BYTES) {
     throw new Error(
       `Content scan refused: "${basename(path)}" exceeds the ${CONTENT_SCAN_MAX_BYTES}-byte supported text limit.`,
     );
   }
-  const content = await readFile(path);
   if (content.includes(0)) {
     throw new Error(`Content scan refused: "${basename(path)}" is not supported text.`);
   }
@@ -98,6 +99,63 @@ function scanDescription(description) {
   }
 }
 
+async function snapshotInputs(paths) {
+  if (paths.length > MAX_INPUT_FILES) {
+    throw new Error(`Upload refused: at most ${MAX_INPUT_FILES} input files are allowed.`);
+  }
+
+  const snapshots = [];
+  let totalBytes = 0;
+  for (const path of paths) {
+    const name = basename(path);
+    const entry = await lstat(path);
+    if (entry.isSymbolicLink()) {
+      throw new Error(`Upload refused: source symlinks are not allowed ("${name}").`);
+    }
+    if (!entry.isFile()) {
+      throw new Error(`Upload refused: "${name}" is not a regular file.`);
+    }
+    const handle = await open(path, fsc.O_RDONLY | (fsc.O_NOFOLLOW ?? 0));
+    try {
+      const before = await handle.stat();
+      if (!before.isFile()) {
+        throw new Error(`Upload refused: "${name}" is not a regular file.`);
+      }
+      totalBytes += before.size;
+      if (totalBytes > MAX_INPUT_BYTES) {
+        throw new Error(
+          `Upload refused: aggregate input size exceeds the ${MAX_INPUT_BYTES}-byte limit.`,
+        );
+      }
+      const content = await handle.readFile();
+      const after = await handle.stat();
+      if (
+        before.dev !== after.dev ||
+        before.ino !== after.ino ||
+        before.size !== after.size ||
+        before.mtimeNs !== after.mtimeNs
+      ) {
+        throw new Error(`Upload refused: source "${name}" changed during validation.`);
+      }
+      await scanSupportedContent(path, content);
+      snapshots.push({
+        name,
+        content,
+        ext: name.split(".").pop().toLowerCase(),
+        scanned: SCANNED_TEXT_EXTENSIONS.has(name.split(".").pop()?.toLowerCase() ?? ""),
+      });
+    } finally {
+      await handle.close();
+    }
+  }
+  if (snapshots.some((snapshot) => !snapshot.scanned) && !acknowledgeUnscannedBinary) {
+    throw new Error(
+      "Upload refused: binary content is unscanned; pass --ack-unscanned-binary to acknowledge no OCR or metadata scan.",
+    );
+  }
+  return snapshots;
+}
+
 function assertSafeFilename(name) {
   if (!SAFE_FILENAME_RE.test(name) || name === "." || name === "..") {
     throw new Error(
@@ -123,6 +181,7 @@ function redactDiagnostic(value) {
 const isolatedGitEnv = () => ({
   ...process.env,
   GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_SYSTEM: "/dev/null",
   // Tests may provide a disposable config explicitly; ambient user config is
   // never consulted.
   GIT_CONFIG_GLOBAL: process.env.CSM_UPLOAD_GIT_CONFIG || "/dev/null",
@@ -164,6 +223,7 @@ let ghOverride = "";
 let repoOverride = "";
 let dryRun = false;
 let confirmPermanent = false;
+let acknowledgeUnscannedBinary = false;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--label" && i + 1 < args.length) label = args[++i];
@@ -172,18 +232,23 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === "--repo" && i + 1 < args.length) repoOverride = args[++i];
   else if (args[i] === "--dry-run") dryRun = true;
   else if (args[i] === "--confirm-permanent") confirmPermanent = true;
+  else if (args[i] === "--ack-unscanned-binary" || args[i] === "--ack-unscanned-binary-content")
+    acknowledgeUnscannedBinary = true;
   else if (!args[i].startsWith("--")) files.push(args[i]);
 }
 
 if (!label) {
   console.error(
-    "Usage: node scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--dry-run] [--confirm-permanent] <file1> [file2...]",
+    "Usage: node scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--dry-run] [--confirm-permanent] [--ack-unscanned-binary] <file1> [file2...]",
   );
   console.error(
     "Creates demo-YYYY-MM-DD-<label>/ on your GitHub Pages site with the uploaded files.",
   );
   console.error("--dry-run builds the index.html locally and performs no git/gh operations.");
   console.error("--confirm-permanent is required before a real commit and push.");
+  console.error(
+    "--ack-unscanned-binary acknowledges that binary files receive no OCR or metadata scan.",
+  );
   process.exit(1);
 }
 
@@ -456,18 +521,15 @@ async function main() {
     }
   }
 
-  for (const f of files) {
-    try {
-      accessSync(f, fsc.R_OK);
-    } catch {
-      console.error(`File not found or not readable: ${f}`);
-      process.exit(1);
-    }
+  let snapshots;
+  try {
+    snapshots = await snapshotInputs(files);
+  } catch (err) {
+    console.error(
+      err.code === "ELOOP" ? "Upload refused: source symlinks are not allowed." : err.message,
+    );
+    process.exit(1);
   }
-
-  // Only bounded, recognizable text formats are inspected. Binary media and
-  // metadata embedded inside binary containers remain outside this guarantee.
-  for (const f of files) await scanSupportedContent(f);
 
   // Dry-run never contacts gh and never writes the config file.
   const config = await loadConfig({ probe: !dryRun });
@@ -489,12 +551,11 @@ async function main() {
   if (dryRun) {
     // F-052/F-053 dry-run: build the exact index.html locally (escaped), copy
     // nothing, run no git/gh commands — just print what WOULD be uploaded.
-    const uploaded = files.map((f) => {
-      const name = basename(f);
+    const uploaded = snapshots.map(({ name, ext }) => {
       return {
         name,
         path: `${BASE_URL}/${demoDir}/${name}`,
-        ext: name.split(".").pop().toLowerCase(),
+        ext,
       };
     });
 
@@ -546,16 +607,77 @@ async function main() {
 
     async function gitCommit() {
       const gitOptions = { timeout: 60000, env: isolatedGitEnv() };
-      const { stdout: effectiveRemote } = await execFileTracked(
-        "git",
-        ["-C", pagesDir, "remote", "get-url", "origin"],
-        gitOptions,
-      );
-      if (effectiveRemote.trim() !== PAGES_REPO) {
-        throw new Error(
-          `Refusing redirected Git remote: effective origin is ${redactDiagnostic(effectiveRemote.trim())}`,
+      async function validateRemotes() {
+        const { stdout: effectiveFetch } = await execFileTracked(
+          "git",
+          ["-C", pagesDir, "remote", "get-url", "origin"],
+          gitOptions,
         );
+        const { stdout: effectivePush } = await execFileTracked(
+          "git",
+          ["-C", pagesDir, "remote", "get-url", "--push", "origin"],
+          gitOptions,
+        );
+        if (effectiveFetch.trim() !== PAGES_REPO || effectivePush.trim() !== PAGES_REPO) {
+          throw new Error(
+            `Refusing redirected Git remote: effective fetch=${redactDiagnostic(effectiveFetch.trim())} push=${redactDiagnostic(effectivePush.trim())}`,
+          );
+        }
+        let configOutput = "";
+        try {
+          ({ stdout: configOutput } = await execFileTracked(
+            "git",
+            [
+              "-C",
+              pagesDir,
+              "config",
+              "--get-regexp",
+              "^(remote\\.origin\\.pushurl|url\\..*\\.(insteadOf|pushInsteadOf))$",
+            ],
+            gitOptions,
+          ));
+        } catch {}
+        if (configOutput.trim()) {
+          throw new Error("Refusing Git pushurl or URL rewrite configuration for publication.");
+        }
       }
+
+      async function sanitizeLocalRewriteConfig() {
+        await execFileTracked(
+          "git",
+          ["-C", pagesDir, "config", "--local", "--unset-all", "remote.origin.pushurl"],
+          gitOptions,
+        ).catch(() => {});
+        let output = "";
+        await execFileTracked(
+          "git",
+          [
+            "-C",
+            pagesDir,
+            "config",
+            "--local",
+            "--get-regexp",
+            "^url\\..*\\.(insteadOf|pushInsteadOf)$",
+          ],
+          gitOptions,
+        )
+          .then(({ stdout }) => {
+            output = stdout;
+          })
+          .catch(() => {});
+        for (const line of output.split("\n")) {
+          const key = line.trim().split(/\s+/, 1)[0];
+          if (key)
+            await execFileTracked(
+              "git",
+              ["-C", pagesDir, "config", "--local", "--unset-all", key],
+              gitOptions,
+            );
+        }
+      }
+
+      await sanitizeLocalRewriteConfig();
+      await validateRemotes();
       await execFileTracked(
         "git",
         [
@@ -590,7 +712,12 @@ async function main() {
           ],
           gitOptions,
         );
-        await execFileTracked("git", ["-C", pagesDir, "push"], gitOptions);
+        // Re-check after commit and immediately before the side effect. This
+        // prevents a changed local remote from redirecting the push.
+        await validateRemotes();
+        // Pass the validated destination explicitly. Do not let a changed
+        // origin, pushurl, or refspec select the final publication target.
+        await execFileTracked("git", ["-C", pagesDir, "push", PAGES_REPO, "HEAD"], gitOptions);
         console.log("Status: pushed=true deployed=unverified verified=unverified");
         console.log("Pages deployment is not verified; inspect the published URL separately.");
       } else {
@@ -603,14 +730,14 @@ async function main() {
       await ensureRepo();
       await mkdir(demoPath, { recursive: true });
 
-      for (const f of files) {
-        const name = basename(f);
+      for (const snapshot of snapshots) {
+        const { name } = snapshot;
         const dest = join(demoPath, name);
-        await copyFile(f, dest);
+        await writeFile(dest, snapshot.content, { flag: "wx" });
         uploaded.push({
           name,
           path: `${BASE_URL}/${demoDir}/${name}`,
-          ext: name.split(".").pop().toLowerCase(),
+          ext: snapshot.ext,
         });
         console.log(`Copied: ${name}`);
       }

@@ -7,7 +7,12 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { extractRepository } from "../lib/ddd/extract.mjs";
 import { synthesize } from "../lib/ddd/synthesize.mjs";
-import { applyQuestionFile, deriveQuestions, nonInteractiveGaps } from "../lib/ddd/clarify.mjs";
+import {
+  applyQuestionFile,
+  deriveQuestions,
+  nonInteractiveGaps,
+  preflightQuestionFileText,
+} from "../lib/ddd/clarify.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureRepo = join(here, "fixtures", "repos", "sample-repo");
@@ -91,4 +96,25 @@ test("missing answers surface as unverified gaps, never silence", () => {
   const gapsOne = nonInteractiveGaps(questions, [{ questionId: "q-a" }]);
   assert.equal(gapsOne.length, 1);
   assert.equal(gapsOne[0].subject, "beta");
+});
+
+test("question files are bounded before parsing and reject extra or nested values", () => {
+  assert.throws(() => preflightQuestionFileText('{"answers":[' + "{".repeat(8)), /nesting|invalid/);
+  assert.throws(() => preflightQuestionFileText("x".repeat(256 * 1024 + 1)), /exceeds/);
+
+  const questions = [{ id: "q-1", subject: "alpha", text: "?", dependsOn: [] }];
+  assert.throws(
+    () => applyQuestionFile(questions, { answers: [], unexpected: "value" }, [], "fixture"),
+    /only contain the answers property/,
+  );
+  assert.throws(
+    () =>
+      applyQuestionFile(
+        questions,
+        { answers: [{ questionId: "q-1", value: "safe", extra: { unbounded: true } }] },
+        [],
+        "fixture",
+      ),
+    /unsupported properties/,
+  );
 });

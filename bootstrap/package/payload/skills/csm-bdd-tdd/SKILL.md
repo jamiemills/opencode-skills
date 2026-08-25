@@ -27,7 +27,7 @@ Run first — before `INTAKE`, any pipeline tool use, or any other section. Not 
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-bdd-tdd-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-bdd-tdd-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-bdd-tdd-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-bdd-tdd-<goal-slug>` (use a suffix such as `-2` or `-3` if that name is already taken): `tmux new-session -d -s csm-bdd-tdd-<goal-slug> 'opencode run "<original BDD/TDD request>"'` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: `tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"`; verify the launched invocation received the exact request before ending this invocation.
 4. Print the active session name and attach command: `tmux attach-session -t csm-bdd-tdd-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the mutation from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the pipeline workflow without renaming or starting tmux.
 
@@ -59,7 +59,7 @@ When NORMS.md is loaded:
 ## Inputs
 
 1. **Source plan**: path supplied by the user; otherwise locate under `.agents/plans/` at the repository root, considering only base plans (non-BDD `*-csm.md` files) — never mutate an existing BDD/TDD mutation. If a BDD/TDD mutation already exists for the selected base plan, ask whether to re-mutate (producing the next version). If multiple plausible base plans exist, ask; do not guess.
-2. **Specs folder**: path supplied in the prompt; otherwise `specs/<goal-slug>/` in the current working directory. All spec artifacts live under it. If the resolved folder already contains artifacts for a different plan, ask before proceeding. Record the resolved absolute or repo-relative path — the mutated plan must state it unambiguously.
+2. **Specs folder**: path supplied in the prompt; otherwise `<git-root>/specs/<goal-slug>/`, resolved from the repository's git root rather than the caller's current working directory. All spec artifacts live under it and all paths recorded in the mutated plan are repository-relative (for example, `specs/<goal-slug>/spec.md`). If the resolved folder already contains artifacts for a different plan, ask before proceeding. Record the git-root-relative path in the mutated plan unambiguously.
 3. Read the complete source plan, applicable repository instructions, and referenced evidence before writing anything.
 
 ## Non-Negotiable Rules
@@ -106,7 +106,7 @@ At INTAKE, check the base plan's `format:` marker (e.g. `format: csm-plan/1`); o
 
 Transitions from `VALIDATE` or `VERIFY` may return to `SPEC`, `SCENARIOS`, or `TEST_DESIGN` when artifacts are wrong or superficial. Continue until the gate passes or a genuine user decision blocks progress.
 
-Record every pipeline transition in `specs/control.md` (state, timestamp, artifact status, next action) as it happens. On start, if `specs/control.md` already exists in the resolved specs folder, resume from its recorded state instead of restarting. When quota stops a mutation mid-pipeline, `Status: paused` and `Next transition: PAUSED -> RECOVER` are valid control values and the resume rule above covers continuation — same rules as csm-build's `## Pause On Quota`.
+Record every pipeline transition in `<git-root>/specs/<goal-slug>/control.md` (state, timestamp, artifact status, next action) as it happens. On start, if `control.md` already exists in the resolved specs folder, resume from its recorded state instead of restarting. When quota stops a mutation mid-pipeline, `Status: paused` and `Next transition: PAUSED -> RECOVER` are valid control values and the resume rule above covers continuation — same rules as csm-build's `## Pause On Quota`.
 
 ### 1. INTAKE
 
@@ -197,10 +197,10 @@ Rules: one assertion focus per test; fast, isolated, deterministic by design; mo
 
 ### 6. MUTATE_PLAN (Primary Agent)
 
-1. Write a new plan at `.agents/plans/<yyyy-mm-dd>-<goal-slug>-bdd-csm.md`. Never overwrite the source plan or an existing BDD plan; on re-runs insert a version marker before `-bdd` — `<yyyy-mm-dd>-<goal-slug>-v2-bdd-csm.md`, `-v3-`, and so on — keeping the `-bdd-csm.md` ending that `csm-build` looks for.
+1. Write a new run-ID-suffixed plan at the repository root under `.agents/plans/<date>-<goal-slug>-<run-id>-bdd-csm.md`. Never overwrite the source plan or an existing BDD plan; on re-runs use a new run ID and refuse any terminal collision, keeping the `-bdd-csm.md` ending that `csm-build` looks for.
 2. Use the required `csm-plan` document structure — same sections, with the task block below derived from the base template (Spike candidate intentionally dropped for BDD plans; Scenario and Unit test designs added) — so `csm-build` consumes it without new machinery, with these additions:
    - Open the plan, immediately after the title, with a provenance line: `> This is a BDD/TDD plan based upon an earlier plan. See <source plan path>.` This is the plan's only reference to the source plan — do not repeat it in Control or elsewhere.
-   - **How To Execute** and **Control** must both state `Specs folder: <path>`; every task references scenario and test-design paths under it.
+   - **How To Execute** and **Control** must both state `Specs folder: <git-root-relative path>`; every task references scenario and test-design paths under it.
    - Carry Control policy values forward from the source plan (e.g., `Commits: disabled`) unless the user directs otherwise; set a fresh Plan ID, `Current CSM state: NOT_STARTED`, and `Cycle: 0`.
    - Tasks derive from approved scenarios only: one task per scenario unless scenarios are tightly coupled.
    - A **Traceability** section mapping: scenario id + feature file → task id → unit test design ids + files.
@@ -267,7 +267,7 @@ Display: the mutated plan path, specs folder path, scenario and task counts, val
 ## Specs Folder Contract
 
 ```text
-specs/<goal-slug>/         (or prompt-specified location)
+<git-root>/specs/<goal-slug>/ (or prompt-specified repository-relative location)
   control.md               pipeline journal: state, progress, resume point
   spec.md                  formal intent and constraints
   features/*.feature       executable behavior specs (BDD)

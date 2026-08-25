@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help install lint fmt fmt-check fmt-staged check test test-hooks test-bootstrap test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-ddd test-autoresearch test-e2e analyze
+.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-ddd test-autoresearch test-e2e analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -26,6 +26,9 @@ fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
 	  pnpm exec oxfmt --check --ignore-path=.oxfmtignore $$files; \
 	fi
 
+audit: ## non-mutating dependency audit; high/critical or unavailable advisories fail
+	pnpm audit --audit-level=high
+
 check: ## repo conformance gate
 	node scripts/check-suite.mjs
 
@@ -44,7 +47,7 @@ test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, a
 	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs
 
 test-package-index: ## package and payload-index validation tests
-	node --test --test-concurrency=1 tests/package-audit.test.mjs
+	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/package-audit.test.mjs
 
 test-deterministic: ## deterministic package summary and offline evaluation suites
 	@set -eu; first=$$(mktemp); second=$$(mktemp); trap 'rm -f "$$first" "$$second"' EXIT; \

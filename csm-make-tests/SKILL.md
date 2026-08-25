@@ -24,9 +24,15 @@ Turn a repository into a fully tested one: audit what exists, capture what the c
 ## Interface
 
 - Consumes: a target repository checkout at a pinned commit with optional change-surface scope; optional NORMS.md conventions; cited research findings under `.agents/research/`
-- Produces: executable test files, goldens/fixtures, and benchmark files in the target repository; `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md`; `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md`
+- Produces: executable test files, goldens/fixtures, and benchmark files in the target repository; run-owned `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` and `-verification.md`. Legacy compatibility paths `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` and `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md` are read-only history.
 - Hands off: verified suite plus ledger and verification report to the user or a later explicit csm-build run
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-review-python, csm-ddd, csm-autoresearch
+
+## Durable Artifact Identity
+
+Each generation or maintenance invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. It is recorded in both durable artifacts and binds the target git root, normalized repository slug, artifact type, and run ID. Date, slug, or the existence of any prior ledger alone never proves ownership.
+
+The run-owned paths are `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` and `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md`. MAINTAIN resumes only from those exact paths when their embedded root, slug, artifact type, run ID, and cursor match and the run is nonterminal. A terminal `OUTPUT` artifact is immutable; replacement, deletion, renaming, and a mutable `latest` alias are refused. A same-day duplicate slug starts only under a new run ID and cannot reuse the prior run's paths. Legacy date/slug artifacts remain read-only history and are not silently migrated.
 
 ## Tmux Session Bootstrap
 
@@ -41,7 +47,7 @@ Run first — before INTAKE, locating the plan, or any generation work. Not a ge
 ## Activation Boundary
 
 - Activate when the user asks to generate, add, complete, or maintain tests for a repository, or invokes csm-make-tests by name.
-- Target intake: a local repository checkout at a pinned commit; scope defaults to the whole tree and narrows to whatever change surface the user names. An existing ledger under `.agents/tests/` switches INTAKE into MAINTAIN mode instead of starting over.
+- Target intake: a local repository checkout at a pinned commit; scope defaults to the whole tree and narrows to whatever change surface the user names. An exact owner-matching run artifact switches INTAKE into MAINTAIN mode instead of starting over.
 - Generation-only: produces test files, goldens/fixtures, benchmarks, ledgers, and verification reports. Never plans work (csm-plan's job), never implements production features or fixes bugs found during capture (document and ledger them; fixing is the user's later call), never reviews a repo adversarially (csm-review's job), never mutates BDD specs (csm-bdd-tdd's job).
 - Words such as "build" in the user's request describe generating tests for future code as well as existing code; they never authorize modifying production behavior.
 - OUTPUT is the terminal state: after it, display the verification report and ledger summary, then stop. Handoff to csm-build is a separate, explicit human invocation.
@@ -98,9 +104,9 @@ retrieval time, and `reachability` (`reachable`, `unreachable`, or
 
 ## Write Discipline And File Allowlist
 
-- Persistent writes inside the target repository: generated test files, golden/fixture files, benchmark files, configuration snippets the tests require (e.g. pytest plugin registration), plus exactly two artifacts:
-  - `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` — append-only approval and maintenance ledger (shape pinned in Required Test Package).
-  - `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md` — final verification report (shape pinned in Required Test Package).
+- Persistent writes inside the target repository: generated test files, golden/fixture files, benchmark files, configuration snippets the tests require (e.g. pytest plugin registration), plus exactly two run-owned artifacts:
+- `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` — append-only approval and maintenance ledger (shape pinned in Required Test Package).
+- `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md` — final verification report (shape pinned in Required Test Package).
 - Everything else (scratch notes, captured outputs under review, dry-run copies, audit tables) lives in one disposable temp dir created with `mktemp -d /tmp/csm-make-tests-XXXXXX`, deleted at OUTPUT.
 - Nothing else may be written anywhere in the target repository or on the host: no production source edits, no build/CI/doc changes beyond test-required configuration snippets, no commits unless the user explicitly authorizes committing generated tests.
 - Never touch credentials, `.env` values, or secrets — scrubbed placeholders only in goldens.
@@ -133,7 +139,7 @@ Entry: activation request; or a fresh session resuming an interrupted run via pr
 
 1. Pin the target: resolve the repository root and commit SHA; note a dirty or diverged worktree (later citations and captures come from the worktree as found — never stash, clean, or repair).
 2. Record scope: whole tree or the change-surface paths named by the user.
-3. Detect prior ledgers under `.agents/tests/`; if one exists, enter MAINTAIN mode and plan delta-only work; otherwise FRESH mode.
+3. Resolve the run ID and exact run-owned ledger/report paths. Enter MAINTAIN only when those paths contain a matching nonterminal cursor; an unrelated or terminal artifact is a collision refusal, not a resume candidate. Legacy date/slug artifacts are read-only history.
 4. Create the disposable temp dir with `mktemp -d /tmp/csm-make-tests-XXXXXX`.
 5. Detect NORMS.md per the Repository Norms section.
 
@@ -254,8 +260,8 @@ Exit: performance continuity gates exist wherever service/CLI surfaces warrant t
 
 Entry: PERF exit.
 
-1. Write the verification report to `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md` in the exact Required Test Package shape: scope, stacks, counts, verification commands and results, verbatim pre-existing failures, known-defect summary, mutation scores, perf baselines, not-run items with reasons, phase-0 recommendations.
-2. Finalize the append-only ledger at `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` in its exact shape.
+1. Write the verification report to the exact run-owned path `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md` in the exact Required Test Package shape: scope, stacks, counts, verification commands and results, verbatim pre-existing failures, known-defect summary, mutation scores, perf baselines, not-run items with reasons, phase-0 recommendations.
+2. Finalize the append-only ledger at `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` in its exact shape; refuse finalization if either terminal destination already exists.
 3. Delete the temp dir; display the report summary and next-step guidance (re-approval workflow, differential wiring during refactors).
 
 Exit: both artifacts written; scratch removed; summary displayed.
@@ -270,7 +276,7 @@ Exit: terminal; nothing executes after STOP.
 
 Every completed run emits exactly two persistent artifacts plus the generated tests. Their shapes are fixed; MAINTAIN mode parses them, so drift breaks resume.
 
-1. **Tests ledger** `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` — append-only; rows never rewritten or deleted:
+1. **Tests ledger** `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` — append-only; rows never rewritten or deleted:
 
 ```markdown
 # Tests Ledger — <repo> @ <short-sha>
@@ -288,7 +294,7 @@ Statuses: approved | pending | known-defect.
 KNOWN-DEFECT rows persist until the user fixes production and a re-capture supersedes them.
 ```
 
-2. **Verification report** `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md` — exactly these sections, in this order:
+2. **Verification report** `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md` — exactly these sections, in this order:
 
 ```markdown
 # Verification Report — <repo> @ <short-sha> (<date>)

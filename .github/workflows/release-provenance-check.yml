@@ -1,0 +1,102 @@
+name: Release provenance prerequisites
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_path:
+        description: Relative path to the pre-built artifact under .release-staging/
+        required: true
+        type: string
+      approved_artifact_digest:
+        description: Approved SHA-256 digest for the exact release artifact
+        required: true
+        type: string
+
+# This workflow is deliberately a manual, protected prerequisite check. It
+# does not publish, request an OIDC token, or fall back to token publication.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-provenance-check
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify approved release artifact
+    environment:
+      name: release
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Verify clean checkout
+        run: test -z "$(git status --porcelain)"
+      - name: Verify artifact digest
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          ARTIFACT_PATH: ${{ inputs.artifact_path }}
+          APPROVED_ARTIFACT_DIGEST: ${{ inputs.approved_artifact_digest }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require("node:child_process");
+          const { lstatSync } = require("node:fs");
+          const { isAbsolute, join, relative, resolve, sep } = require("node:path");
+
+          const workspace = resolve(process.env.GITHUB_WORKSPACE);
+          const staging = join(workspace, ".release-staging");
+          const input = process.env.ARTIFACT_PATH;
+          const digest = process.env.APPROVED_ARTIFACT_DIGEST;
+          if (!input || isAbsolute(input) || input.split(/[\\/]/).includes(".."))
+            throw new Error("artifact_path must be a non-empty relative path without traversal");
+          if (!/^[a-f0-9]{64}$/.test(digest ?? ""))
+            throw new Error("approved_artifact_digest must be exactly 64 lowercase SHA-256 hex characters");
+
+          const artifact = resolve(workspace, input);
+          const within = relative(staging, artifact);
+          if (!within || within === ".." || within.startsWith(`..${sep}`) || isAbsolute(within))
+            throw new Error("artifact_path must be beneath GITHUB_WORKSPACE/.release-staging");
+
+          // Check every existing path component so a symlink cannot redirect the boundary.
+          const components = relative(workspace, artifact).split(sep);
+          let current = workspace;
+          for (const component of components) {
+            current = join(current, component);
+            if (lstatSync(current).isSymbolicLink()) throw new Error("artifact_path cannot contain symlinks");
+          }
+          const artifactStat = lstatSync(artifact);
+          if (!artifactStat.isFile()) throw new Error("artifact_path must name a regular file");
+
+          const actual = execFileSync("sha256sum", [artifact], { encoding: "utf8" }).trim().split(/\s+/)[0];
+          if (actual !== digest) throw new Error("artifact digest does not match approved SHA-256");
+
+          const listing = execFileSync("tar", ["-tzf", artifact], { encoding: "utf8" })
+            .split("\n").filter(Boolean);
+          const entries = new Set(listing);
+          const required = [
+            "package/package.json",
+            "package/bin/csm-skills-bootstrap.js",
+            "package/payload-index.json",
+            "package/LICENSE",
+          ];
+          if (listing.some((entry) => isAbsolute(entry) || entry.split("/").includes("..") || !entry.startsWith("package/")))
+            throw new Error("artifact contains an unsafe path or unexpected top-level entry");
+          for (const entry of required) if (!entries.has(entry)) throw new Error(`artifact is missing ${entry}`);
+          if (!listing.some((entry) => entry.startsWith("package/payload/")))
+            throw new Error("artifact is missing the payload tree");
+          if (execFileSync("tar", ["-tvzf", artifact], { encoding: "utf8" }).split("\n").some((line) => /^[lh]/.test(line)))
+            throw new Error("artifact must not contain symlink or hardlink entries");
+
+          const packageJson = JSON.parse(execFileSync("tar", ["-xOzf", artifact, "package/package.json"], { encoding: "utf8" }));
+          if (packageJson.name !== "@jamiemills/csm-skills-bootstrap" || packageJson.version !== "0.1.0")
+            throw new Error("artifact package name/version is not the approved release");
+          if (packageJson.bin?.["csm-skills-bootstrap"] !== "bin/csm-skills-bootstrap.js" || packageJson.type !== "module")
+            throw new Error("artifact package structure metadata is not approved");
+          console.log(`verified ${artifact} (${actual})`);
+          NODE

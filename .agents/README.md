@@ -1,5 +1,9 @@
 # .agents/ — process artifacts index
 
+## Durable Artifact Identity
+
+Instruction-led durable artifacts use a validated immutable run ID, generated once per invocation or supplied explicitly, in addition to date and normalized slug. Canonical paths are `<date>-<slug>-<run-id>-<artifact-type>`. The run ID binds the git root, slug, and artifact type; date/slug alone never establish ownership. Only an exact owner-matching nonterminal artifact may resume. Terminal artifacts are immutable and replacement, deletion, renaming, and mutable `latest` aliases are refused. Same-day duplicate slugs require a new run ID, while legacy date/slug artifacts remain read-only history. Delegated research is written only by csm-deep-research; parent skills record and verify the exact handoff path but do not write, rename, delete, or replace delegated artifacts. csm-review-python exclusively owns its doctrine report.
+
 Index of CSM process artifacts. One line per artifact: date, goal, status
 (`superseded-by` only where applicable).
 
@@ -43,6 +47,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-ddd-clean-code-csm-gates-csm.md` — 2026-08-24 — conditionally apply DDD and clean-code design gates in csm-plan/csm-build — status: ready
 - `2026-08-24-improve-csm-deep-research-skill-csm.md` — 2026-08-24 — improve csm-deep-research evidence contract and corpus validation — status: complete
 - `2026-08-24-agent-harness-remediation-csm.md` — 2026-08-24 — remediate agent-harness, skills-framework, lifecycle, runtime, packaging, evaluation, documentation, and CI findings — status: complete
+- `2026-08-25-hardening-remediation-csm.md` — 2026-08-25 — remediate security, concurrency, artifact, browser/upload, CI, and release-trust findings — status: complete
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 
 ## docs/

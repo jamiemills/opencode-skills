@@ -2,7 +2,16 @@
   "name": "@jamiemills/csm-skills-bootstrap",
   "version": "0.1.0",
   "description": "Neutral agent-skills payload with a hash-verifying bootstrap bin",
+  "homepage": "https://github.com/jamiemills/opencode-skills/tree/main/bootstrap",
+  "bugs": {
+    "url": "https://github.com/jamiemills/opencode-skills/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamiemills/opencode-skills.git",
+    "directory": "bootstrap"
+  },
   "bin": {
     "csm-skills-bootstrap": "bin/csm-skills-bootstrap.js"
   },
@@ -13,6 +22,9 @@
     "LICENSE"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=22 <25"
   }

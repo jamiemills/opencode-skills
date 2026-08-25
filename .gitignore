@@ -1,3 +1,4 @@
 node_modules/
 .e2e-summary.json
 .csm-scan-debug*.log
+.env

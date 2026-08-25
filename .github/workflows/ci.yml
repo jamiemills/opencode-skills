@@ -13,15 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version-file: .node-version
       - name: Enable pnpm
         run: corepack enable
+      - name: Install pinned pnpm through Corepack
+        env:
+          COREPACK_DEFAULT_TO_LATEST: 0
+        run: |
+          corepack install --global pnpm@10.34.5
+          test "$(pnpm --version)" = "10.34.5"
       - name: Install dependencies without lifecycle scripts
         run: make install
+      - name: Audit dependencies
+        run: make audit
 
   gates:
     name: Repository gates
@@ -29,15 +37,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version-file: .node-version
       - name: Enable pnpm
         run: corepack enable
+      - name: Install pinned pnpm through Corepack
+        env:
+          COREPACK_DEFAULT_TO_LATEST: 0
+        run: |
+          corepack install --global pnpm@10.34.5
+          test "$(pnpm --version)" = "10.34.5"
       - name: Install dependencies without lifecycle scripts
         run: make install
+      - name: Audit dependencies
+        run: make audit
       - name: Check formatting
         run: make fmt-check
       - name: Run lint

@@ -63,6 +63,7 @@ test("trusted-local pins source, region, allowlist, and explicit environment", a
     workspace: root,
     evolutionRegion: "src",
     mutationAllowlist: ["src"],
+    dependencyAllowlist: [],
     env: { VISIBLE: "yes", HIDDEN: "no" },
     envAllowlist: ["VISIBLE"],
     evaluatorHash: digest("evaluator"),
@@ -72,6 +73,7 @@ test("trusted-local pins source, region, allowlist, and explicit environment", a
   });
   assert.deepEqual((await provider.evaluate(request(sourceHash, patchHash))).metrics, { score: 6 });
   assert.deepEqual(provider.envAllowlist, ["VISIBLE"]);
+  assert.equal(provider.trust, "trusted-process-no-os-isolation");
 });
 
 test("trusted-local rejects traversal, symlinks, protected paths, and unapproved metadata", async () => {
@@ -84,6 +86,7 @@ test("trusted-local rejects traversal, symlinks, protected paths, and unapproved
     workspace: root,
     evolutionRegion: "src",
     mutationAllowlist: ["src"],
+    dependencyAllowlist: [],
     envAllowlist: [],
     evaluatorHash: digest("e"),
     environmentHash: digest("env"),
@@ -136,6 +139,7 @@ test("trusted-local evaluates a snapshot and never removes the caller workspace"
     workspace: root,
     evolutionRegion: "src",
     mutationAllowlist: ["src"],
+    dependencyAllowlist: [],
     envAllowlist: [],
     evaluatorHash: digest("e"),
     environmentHash: digest("env"),
@@ -160,6 +164,7 @@ test("trusted-local rejects resource policies it cannot enforce", async () => {
     workspace: root,
     evolutionRegion: "src",
     mutationAllowlist: ["src"],
+    dependencyAllowlist: [],
     envAllowlist: [],
     evaluatorHash: digest("e"),
     environmentHash: digest("env"),
@@ -199,6 +204,7 @@ test("trusted-local receives no credentials and cannot mutate evaluator-owned fi
     workspace: root,
     evolutionRegion: "src",
     mutationAllowlist: ["src"],
+    dependencyAllowlist: [],
     env: { CREDENTIAL: "synthetic-secret", OUTPUT_PATH: candidateOutputPath },
     envAllowlist: ["OUTPUT_PATH"],
     evaluatorHash: digest("evaluator"),
@@ -213,4 +219,63 @@ test("trusted-local receives no credentials and cannot mutate evaluator-owned fi
   assert.doesNotMatch(candidateOutput, /synthetic-secret/);
   assert.equal(await readFile(evaluator, "utf8"), "immutable");
   assert.equal(result.provenance.limits.redacted, undefined);
+  assert.equal(result.provenance.limits.trust, "trusted-process-no-os-isolation");
+});
+
+test("trusted-local requires and copies declared source dependencies only", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-provider-dependencies-"));
+  const source = join(root, "source.mjs");
+  const dependency = join(root, "dependency.mjs");
+  await writeFile(dependency, "export default 4;");
+  const sourceText =
+    "import value from './dependency.mjs'; export default () => ({ score: value });";
+  await writeFile(source, sourceText);
+  const sourceHash = hashTrusted(sourceText);
+  const common = {
+    sourcePath: source,
+    sourceHash,
+    workspace: root,
+    evolutionRegion: "src",
+    mutationAllowlist: ["src"],
+    envAllowlist: [],
+    evaluatorHash: digest("e"),
+    environmentHash: digest("env"),
+    limits,
+    approval,
+  };
+  await assert.rejects(
+    () => createTrustedLocalProvider({ ...common, dependencyAllowlist: [] }),
+    /undeclared workspace dependency/,
+  );
+  const provider = await createTrustedLocalProvider({
+    ...common,
+    dependencyAllowlist: ["dependency.mjs"],
+  });
+  assert.deepEqual(
+    (await provider.evaluate(request(sourceHash, hashTrusted("src\nsrc")))).metrics,
+    { score: 4 },
+  );
+});
+
+test("trusted-local enforces the snapshot byte cap while copying", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-provider-size-"));
+  const source = join(root, "source.mjs");
+  await writeFile(source, "export default () => ({ score: 1 });");
+  const sourceHash = hashTrusted(await readFile(source));
+  const provider = await createTrustedLocalProvider({
+    sourcePath: source,
+    sourceHash,
+    workspace: root,
+    evolutionRegion: "src",
+    mutationAllowlist: ["src"],
+    dependencyAllowlist: [],
+    envAllowlist: [],
+    evaluatorHash: digest("e"),
+    environmentHash: digest("env"),
+    limits: { ...limits, maxWorkspaceBytes: 1 },
+    approval,
+  });
+  const result = await provider.evaluate(request(sourceHash, hashTrusted("src\nsrc")));
+  assert.equal(result.status, "resource_exhausted");
+  assert.match(result.diagnostics[0], /snapshot exceeds byte limit/);
 });

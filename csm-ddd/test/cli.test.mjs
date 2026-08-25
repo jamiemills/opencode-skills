@@ -82,19 +82,31 @@ test("second identical run is byte-identical modulo injected run metadata", asyn
 
 test("omitted output flags default under the sandbox repo root .agents/ddd/", async () => {
   const { repo } = freshSandbox();
-  const defaults = defaultArtifactPaths(repo);
+  const defaults = defaultArtifactPaths(repo, "current");
   assert.ok(defaults.outReport.startsWith(join(repo, ".agents", "ddd")));
   assert.match(defaults.outReport, /-ddd-report\.md$/);
   const result = await runCli(["--repo", repo, "--non-interactive"]);
   assert.equal(result.code, 0, result.stderr);
-  const written = readFileSync(defaults.outReport, "utf8");
+  const reportPath = result.stdout.match(/^report: (.+)$/m)?.[1];
+  assert.ok(reportPath);
+  const written = readFileSync(reportPath, "utf8");
   assert.match(written, /# DDD repository analysis/);
 });
 
-test("explicit output flags are honored verbatim at any path; caps disclose unverified coverage", async () => {
+test("run-specific default paths do not collide", () => {
+  const { repo } = freshSandbox();
+  const first = defaultArtifactPaths(repo, "run-a");
+  const second = defaultArtifactPaths(repo, "run-b");
+  assert.notEqual(first.outReport, second.outReport);
+  assert.notEqual(first.outGraph, second.outGraph);
+  assert.throws(() => defaultArtifactPaths(repo, "run/a"), /not safe/);
+});
+
+test("explicit output flags are honored verbatim within one output directory; caps disclose unverified coverage", async () => {
   const { dir, repo } = freshSandbox();
-  const weird = join(dir, "deep", "nested", "graph.json");
-  const reportPath = join(dir, "deep", "report.md");
+  const outputDir = join(dir, "deep", "nested");
+  const weird = join(outputDir, "graph.json");
+  const reportPath = join(outputDir, "report.md");
   const result = await runCli([
     "--repo",
     repo,

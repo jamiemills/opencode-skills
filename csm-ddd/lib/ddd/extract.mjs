@@ -1,6 +1,7 @@
 "use strict";
 
-import { readdir, readFile, stat } from "node:fs/promises";
+import { lstat, open, readdir } from "node:fs/promises";
+import { O_NOFOLLOW, O_RDONLY } from "node:constants";
 import { join, relative, sep } from "node:path";
 import { buildClaim, buildEvidence } from "./contracts.mjs";
 import { redactEvidenceRecords, redactText } from "./redact.mjs";
@@ -32,14 +33,42 @@ async function walkFiles(root, limits, state) {
       continue;
     }
     if (!entry.isFile()) continue;
-    const info = await stat(full);
+    let info;
+    try {
+      info = await lstat(full);
+    } catch {
+      continue;
+    }
+    if (!info.isFile()) continue;
     if (info.size > limits.maxFileBytes) {
       state.skippedOversizeFiles += 1;
       continue;
     }
     state.bytes += info.size;
     state.files.push(full);
+    state.identities.set(full, { dev: info.dev, ino: info.ino, size: info.size });
     if (state.bytes >= limits.maxBytes || state.files.length >= limits.maxFiles) return;
+  }
+}
+
+function sameIdentity(actual, expected) {
+  return (
+    !expected ||
+    (actual.dev === expected.dev && actual.ino === expected.ino && actual.size === expected.size)
+  );
+}
+
+async function readStableText(path, expected = null) {
+  const handle = await open(path, O_RDONLY | O_NOFOLLOW);
+  try {
+    const before = await handle.stat();
+    if (!before.isFile() || !sameIdentity(before, expected)) return null;
+    const text = await handle.readFile("utf8");
+    const after = await handle.stat();
+    if (!sameIdentity(after, before)) return null;
+    return text;
+  } finally {
+    await handle.close();
   }
 }
 
@@ -93,7 +122,8 @@ async function loadNorms(root, normsPath, claims, evidence, makeClaim) {
   const candidate = normsPath ?? join(root, "NORMS.md");
   let text;
   try {
-    text = await readFile(candidate, "utf8");
+    text = await readStableText(candidate);
+    if (text === null) return { loaded: false, path: relPath(root, candidate), authentic: false };
   } catch {
     return { loaded: false, path: relPath(root, candidate), authentic: false };
   }
@@ -126,7 +156,7 @@ export async function extractRepository(options = {}) {
   const root = options.root;
   if (!root || typeof root !== "string") throw new ExtractLimits("root is required");
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
-  const state = { files: [], bytes: 0, skippedOversizeFiles: 0 };
+  const state = { files: [], identities: new Map(), bytes: 0, skippedOversizeFiles: 0 };
   await walkFiles(root, limits, state);
   const truncatedByFiles = state.files.length >= limits.maxFiles;
   const truncatedByBytes = state.bytes >= limits.maxBytes;
@@ -159,7 +189,8 @@ export async function extractRepository(options = {}) {
     const rel = relFiles[i];
     let text;
     try {
-      text = await readFile(full, "utf8");
+      text = await readStableText(full, state.identities.get(full));
+      if (text === null) continue;
     } catch {
       continue;
     }

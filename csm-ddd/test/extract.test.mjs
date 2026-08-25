@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -141,4 +141,19 @@ test("non-git targets report unavailable history without fabricating it", async 
   const result = await extractRepository({ root: bare });
   assert.equal(result.git.available, false);
   assert.equal(result.git.reason, "not-a-git-repository");
+});
+
+test("extraction ignores symlink files instead of dereferencing them", async () => {
+  const root = mkdtempSync(join(tmpdir(), "csm-ddd-symlink-"));
+  gitRoots.push(root);
+  writeFileSync(join(root, "real.mjs"), "export const secret = 1;\n");
+  symlinkSync("real.mjs", join(root, "linked.mjs"));
+  const result = await extractRepository({ root });
+  assert.ok(result.files.includes("real.mjs"));
+  assert.ok(!result.files.includes("linked.mjs"));
+  assert.ok(
+    !result.inventory.declarations.some(
+      (decl) => decl.name === "secret" && decl.path === "linked.mjs",
+    ),
+  );
 });

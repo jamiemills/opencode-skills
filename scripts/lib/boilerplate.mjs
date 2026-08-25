@@ -5,12 +5,15 @@
 // Done Criteria — those are deliberately per-skill.
 
 function tmuxBootstrap(p) {
+  const launch = p.argvSafe
+    ? `write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: \`tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"\`; verify the launched invocation received the exact request before ending this invocation`
+    : `launch this same agent invocation in a new detached session named \`${p.skill}-<goal-slug>\` (use a suffix such as \`-2\` or \`-3\` if that name is already taken): \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\` (adapt to the agent CLI)`;
   return `
 ${p.prelude}
 
 1. Derive a tmux-safe \`<goal-slug>\` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is \`${p.skill}-<goal-slug>\`.
 2. If already in tmux (\`TMUX\` env set, or \`tmux display-message -p '#session_name'\` succeeds), rename the current session to \`${p.skill}-<goal-slug>\` with \`tmux rename-session -t "$(tmux display-message -p '#S')" "${p.skill}-<goal-slug>"\`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named \`${p.skill}-<goal-slug>\` (use a suffix such as \`-2\` or \`-3\` if that name is already taken): \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, ${launch}.
 4. Print the active session name and attach command: \`tmux attach-session -t ${p.skill}-<goal-slug>\`. If a new detached session was launched, end the invocation — tmux does the ${p.activity} from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the ${p.workflow} workflow without renaming or starting tmux.
 `;
@@ -25,6 +28,7 @@ const TMUX_PARAMS = {
     request: "planning",
     activity: "planning",
     workflow: "planning",
+    argvSafe: true,
   },
   "csm-build": {
     prelude:
@@ -34,6 +38,7 @@ const TMUX_PARAMS = {
     request: "build",
     activity: "build",
     workflow: "execution",
+    argvSafe: true,
   },
   "csm-bdd-tdd": {
     prelude:
@@ -43,6 +48,7 @@ const TMUX_PARAMS = {
     request: "BDD/TDD",
     activity: "mutation",
     workflow: "pipeline",
+    argvSafe: true,
   },
   "csm-scan": {
     prelude:
@@ -61,6 +67,7 @@ const TMUX_PARAMS = {
     request: "review",
     activity: "review",
     workflow: "review",
+    argvSafe: true,
   },
   "csm-deep-research": {
     prelude: "Run first — before any research work or other sections. Not a research state.",

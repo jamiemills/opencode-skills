@@ -8,6 +8,7 @@ import { startFakeCdp } from "./helpers/fake-cdp-server.mjs";
 
 const root = await freshSessionsRoot("csm-browse-status-");
 const status = await import("../../lib/verbs/status.mjs");
+const input = await import("../../lib/verbs/input.mjs");
 
 after(async () => {
   await removeRoot(root);
@@ -44,7 +45,8 @@ test("status reports browser info, ports and artifactCount from the tmp session 
   const report = await runStatus(state);
   assert.equal(report.version, "Chrome/99.0.0");
   assert.equal(report.userAgent, "UA-test");
-  assert.equal(report.currentUrl, "http://page/one");
+  assert.equal(report.currentUrl, "http://page/");
+  assert.doesNotMatch(JSON.stringify(report), /page\/one/);
   assert.equal(report.daemonAlive, false);
   assert.deepEqual(report.ports, { internal: 9224, public: 9225 });
   assert.equal(report.artifactCount, 3);
@@ -52,6 +54,52 @@ test("status reports browser info, ports and artifactCount from the tmp session 
   await rm(join(sDir, "artifacts"), { recursive: true, force: true });
   const report2 = await runStatus(state);
   assert.equal(report2.artifactCount, 0);
+  await server.stop();
+});
+
+test("status closes the CDP client when a browser request fails", async () => {
+  const server = await startFakeCdp({
+    responses: {
+      "Browser.getVersion": () => {
+        throw new Error("synthetic failure");
+      },
+    },
+  });
+  const state = {
+    wsUrl: server.url,
+    sid: "st-error",
+    sessionDir: join(root, "st-error"),
+    internalPort: 9228,
+    publicPort: 9229,
+  };
+  await assert.rejects(() => status.run({ args: [], state, verb: "status" }), /synthetic failure/);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(server.connections[0].readyState, server.connections[0].CLOSED);
+  await server.stop();
+});
+
+test("input closes the CDP client when attaching to a page fails", async () => {
+  const server = await startFakeCdp({
+    responses: {
+      "Target.getTargets": () => ({ targetInfos: [{ type: "page", targetId: "page-1" }] }),
+      "Target.attachToTarget": () => {
+        throw new Error("attach failed");
+      },
+    },
+  });
+  const state = {
+    wsUrl: server.url,
+    sid: "st-input-error",
+    sessionDir: join(root, "st-input-error"),
+    internalPort: 9230,
+    publicPort: 9231,
+  };
+  await assert.rejects(
+    () => input.run({ args: ["#submit"], state, verb: "click" }),
+    /attach failed/,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(server.connections[0].readyState, server.connections[0].CLOSED);
   await server.stop();
 });
 

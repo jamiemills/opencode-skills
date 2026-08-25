@@ -14,6 +14,52 @@ const MAX_QUESTIONS = 200;
 const MAX_ANSWERS = 100;
 const MAX_ANSWER_BYTES = 4096;
 const MAX_ANSWER_TOTAL_BYTES = 64 * 1024;
+export const MAX_QUESTION_FILE_BYTES = 256 * 1024;
+export const MAX_QUESTION_FILE_DEPTH = 8;
+
+function isRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+// Scan the raw file before JSON.parse so hostile nesting and size cannot reach the parser.
+export function preflightQuestionFileText(text) {
+  if (typeof text !== "string") throw new ContractError("question file must be UTF-8 text");
+  const bytes = Buffer.byteLength(text, "utf8");
+  if (bytes > MAX_QUESTION_FILE_BYTES)
+    throw new ContractError(`question file exceeds ${MAX_QUESTION_FILE_BYTES} bytes`);
+
+  let depth = 0;
+  let objects = 0;
+  let inString = false;
+  let escaped = false;
+  for (const character of text) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+    } else if (character === "{" || character === "[") {
+      depth += 1;
+      if (depth > MAX_QUESTION_FILE_DEPTH)
+        throw new ContractError(`question file nesting exceeds ${MAX_QUESTION_FILE_DEPTH}`);
+      if (character === "{") {
+        objects += 1;
+        if (objects > MAX_ANSWERS + 1)
+          throw new ContractError("question file object count exceeds limit");
+      }
+    } else if (character === "}" || character === "]") {
+      depth -= 1;
+      if (depth < 0) throw new ContractError("question file has invalid nesting");
+    }
+  }
+  if (inString || depth !== 0) throw new ContractError("question file has invalid nesting");
+  return text;
+}
 
 function requiredText(value, label, maxBytes = MAX_ANSWER_BYTES) {
   if (typeof value !== "string" || value.length === 0)
@@ -71,9 +117,12 @@ export function deriveQuestions(synthesis) {
 }
 
 export function applyQuestionFile(questions, fileData, existingClaims, evidencePathHint) {
-  if (!fileData || typeof fileData !== "object" || !Array.isArray(fileData.answers)) {
+  if (!isRecord(fileData)) throw new ContractError("question file must be an object");
+  const fileKeys = Object.keys(fileData);
+  if (fileKeys.length !== 1 || fileKeys[0] !== "answers")
+    throw new ContractError("question file may only contain the answers property");
+  if (!Array.isArray(fileData.answers))
     throw new ContractError("question file must carry an answers array");
-  }
   if (fileData.answers.length > MAX_ANSWERS)
     throw new ContractError(`answer count exceeds ${MAX_ANSWERS}`);
   const knownIds = new Set(questions.map((q) => q.id));
@@ -81,8 +130,14 @@ export function applyQuestionFile(questions, fileData, existingClaims, evidenceP
   const rejected = [];
   let answerBytes = 0;
   for (const entry of fileData.answers) {
-    if (!entry || typeof entry !== "object")
-      throw new ContractError("answer entries must be objects");
+    if (!isRecord(entry)) throw new ContractError("answer entries must be objects");
+    const entryKeys = Object.keys(entry);
+    if (
+      entryKeys.some((key) => !["questionId", "subject", "value"].includes(key)) ||
+      !entryKeys.includes("questionId") ||
+      !entryKeys.includes("value")
+    )
+      throw new ContractError("answer entries contain unsupported properties");
     const questionId = requiredText(entry.questionId, "answer.questionId", 256);
     const subject = requiredText(entry.subject ?? questionId, "answer.subject");
     const value = requiredText(entry.value, "answer.value");

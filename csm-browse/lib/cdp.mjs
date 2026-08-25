@@ -1,6 +1,10 @@
 import CDP from "chrome-remote-interface";
 import { validateState } from "./security.mjs";
 
+export const DEFAULT_EVAL_TIMEOUT_MS = 5000;
+export const MAX_EVAL_RESULT_BYTES = 1024 * 1024;
+const EVAL_CANCEL_TIMEOUT_MS = 250;
+
 export async function connect(state) {
   validateState(state);
   const client = await CDP({ target: state.wsUrl });
@@ -128,16 +132,80 @@ export async function waitForSelector(client, sessionId, sel, timeoutMs = 5000) 
   throw new Error(`waitForSelector timed out after ${timeoutMs}ms for "${sel}"`);
 }
 
-export async function evalInPage(client, sessionId, expression) {
-  const { result, exceptionDetails } = await client.send(
+export function assertOutputCap(value, label = "output") {
+  if (Buffer.byteLength(String(value), "utf8") > MAX_EVAL_RESULT_BYTES) {
+    throw new Error(`${label} exceeds 1MB cap`);
+  }
+}
+
+export async function evalInPage(
+  client,
+  sessionId,
+  expression,
+  { timeoutMs = DEFAULT_EVAL_TIMEOUT_MS } = {},
+) {
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("Evaluation timeout must be a positive integer");
+  }
+
+  let timer;
+  const evaluation = client.send(
     "Runtime.evaluate",
     {
       expression,
       returnByValue: true,
       awaitPromise: true,
+      timeout: timeoutMs,
     },
     sessionId,
   );
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const timeoutMessage = `Page evaluation timed out after ${timeoutMs}ms`;
+      const cancellation = Promise.resolve()
+        .then(() => client.send("Runtime.terminateExecution", {}, sessionId))
+        .then(
+          async () => {
+            try {
+              await client.close?.();
+            } catch {}
+            reject(new Error(timeoutMessage));
+            return "cancelled";
+          },
+          async (error) => {
+            // A timed-out evaluation must not remain usable if CDP cannot
+            // terminate it. Closing the session is the fail-closed fallback.
+            try {
+              await client.close?.();
+            } catch {}
+            reject(
+              new Error(
+                `${timeoutMessage}; unable to cancel evaluation, CDP session closed: ${String(error.message || error)}`,
+              ),
+            );
+            return "failed";
+          },
+        );
+      void Promise.race([
+        cancellation,
+        new Promise((resolve) => setTimeout(resolve, EVAL_CANCEL_TIMEOUT_MS)),
+      ]).then((outcome) => {
+        if (outcome === undefined) {
+          void Promise.resolve(client.close?.()).catch(() => {});
+          reject(new Error(`${timeoutMessage}; cancellation timed out, CDP session closed`));
+        }
+      });
+    }, timeoutMs);
+  });
+
+  let response;
+  try {
+    response = await Promise.race([evaluation, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const { result, exceptionDetails } = response;
 
   if (exceptionDetails) {
     let where = "";
@@ -156,10 +224,7 @@ export async function evalInPage(client, sessionId, expression) {
     );
   }
 
-  const json = JSON.stringify(result);
-  if (json.length > 1024 * 1024) {
-    throw new Error("eval result exceeds 1MB cap");
-  }
+  assertOutputCap(JSON.stringify(result), "eval result");
 
   return result;
 }

@@ -75,3 +75,45 @@ test("deep research persists a cursor and constrains every research role by sour
   assert.match(normalized, /`web` permits web sources and forbids repository reads/);
   assert.match(normalized, /Browser retrieval is a web mechanism and is forbidden in `local` mode/);
 });
+
+test("instruction-led durable artifacts use run identity and refuse terminal collisions", async () => {
+  const contracts = [
+    ["csm-deep-research", "research", "research.md"],
+    ["csm-make-tests", "tests", "tests-ledger.md"],
+    ["csm-plan", "plans", "csm.draft.md"],
+    ["csm-review", "reviews", "review.md"],
+    ["csm-review-python", "doctrine", "python-doctrine-review.md"],
+  ];
+  for (const [name, directory, suffix] of contracts) {
+    const content = await skill(name);
+    assert.match(content, /validated (?:immutable )?`run-id`/);
+    assert.match(content, /yyyymmddthhmmssz-<12 lowercase hex>/);
+    assert.match(content, /\^\[a-z0-9\]\[a-z0-9-\]\{7,63\}\$/);
+    const escapedSuffix = suffix.replaceAll(".", "\\.");
+    assert.match(
+      content,
+      new RegExp(`\\.agents/${directory}/<date>-[^\\n]*<run-id>[^\\n]*${escapedSuffix}`),
+    );
+    assert.match(
+      content,
+      /match(?:es|ing)[^\n]*(?:owner|cursor)|owner-matching|matching ownership|ownership mismatch/,
+    );
+    assert.match(content, /terminal/i);
+    assert.match(content, /immutable|refus/i);
+    assert.match(content, /same-day[^\n]*same-slug|same-day duplicate slug/i);
+    assert.match(content, /latest/);
+    assert.match(
+      content,
+      /collision refusal|explicit collision refusal|never replaces|never overwrite/i,
+    );
+  }
+});
+
+test("delegated research ownership is explicit at both sides of the handoff", async () => {
+  const plan = await skill("csm-plan");
+  const research = await skill("csm-deep-research");
+  assert.match(plan, /delegated skill owns its run-ID-suffixed/);
+  assert.match(plan, /must not create, rename, delete, replace/);
+  assert.match(research, /Subagents never write persistent artifacts/);
+  assert.match(research, /parent `csm-plan` or `csm-grill` owns neither path/);
+});

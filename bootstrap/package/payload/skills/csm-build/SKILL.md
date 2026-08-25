@@ -27,7 +27,7 @@ Run first — before `Activation Boundary` work, locating the plan, or any execu
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-build-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-build-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-build-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, launch this same agent invocation in a new detached session named `csm-build-<goal-slug>` (use a suffix such as `-2` or `-3` if that name is already taken): `tmux new-session -d -s csm-build-<goal-slug> 'opencode run "<original build request>"'` (adapt to the agent CLI).
+3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: `tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"`; verify the launched invocation received the exact request before ending this invocation.
 4. Print the active session name and attach command: `tmux attach-session -t csm-build-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the build from the start.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the execution workflow without renaming or starting tmux.
 
@@ -334,7 +334,7 @@ Then learn from the cycle before moving on. Scan the cycle's failures and review
 
 Keep the working tree and plan recoverable. Do not use chat history as the only record of progress.
 
-If and only if the user explicitly authorizes a commit in the current invocation, commit the verified batch together with the updated plan before choosing the next transition. Verify the owned pathset before and after using `git commit --only -- <owned paths>`; never use a bare commit, include unrelated staged paths, or clear unrelated staged work. Never push unless explicitly requested. Without authorization, record the verified work as intentionally uncommitted.
+If and only if the user explicitly authorizes a commit in the current invocation, commit the verified batch together with the updated plan before choosing the next transition. Verify the owned pathset before and after using `git commit --only -- <owned paths>`; never use a bare commit, include unrelated staged paths, or clear unrelated staged work. Never push unless explicitly requested. Without authorization, record the verified work as intentionally uncommitted and report that no commit was created, rather than implying a commit exists.
 
 Then immediately choose:
 
@@ -354,7 +354,7 @@ The primary agent must personally perform the final gate; do not delegate it. Ve
 5. The implementation matches the user's goal rather than merely matching task wording.
 6. Documentation, migrations, configuration, and recovery steps are complete where relevant.
 7. Repository status contains no unexplained changes from this execution.
-8. All execution work is committed only when the user explicitly authorized a commit; otherwise the intentionally uncommitted state is recorded, and nothing has been pushed without an explicit request.
+8. All execution work is committed only when the user explicitly authorized a commit; otherwise the intentionally uncommitted state is recorded, the result says `not committed (user authorization not provided)`, and nothing has been pushed without an explicit request.
 
 If any gate fails, create repair work and continue the cycle. If all pass, set `Status: complete`, set `Current CSM state: COMPLETE`, fill `Completion Review`, add the final journal entry, and report the result and verification evidence. Quota exhaustion is not a gate failure — it pauses via the `PAUSED` stop (Pause On Quota), and the paused checkpoint becomes the resume point.
 
