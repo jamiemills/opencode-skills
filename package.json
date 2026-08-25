@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "devDependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "lefthook": "2.1.10",
     "oxfmt": "0.64.0",
     "oxlint": "1.79.0"

@@ -1,0 +1,186 @@
+{
+  "format": "csm-json-migration-fixtures/1",
+  "synthetic": true,
+  "redacted": true,
+  "cases": [
+    {
+      "id": "valid-envelope",
+      "kind": "valid",
+      "status": "complete",
+      "payload": {
+        "format": "csm-envelope/1",
+        "artifactId": "art-valid",
+        "schemaRevision": "skill/1"
+      },
+      "consumerInput": { "sourceArtifactId": "art-valid", "sourceDigest": "sha256:valid" },
+      "ownership": { "runId": "run-valid", "owner": "csm-producer", "terminal": false },
+      "provenance": {
+        "sourceDigest": "sha256:valid",
+        "producerRevision": "producer/1",
+        "consumerRevision": "consumer/1"
+      },
+      "rollbackAction": "retain prior complete artifact until replay passes",
+      "observable": "consumer receives typed payload and matching source digest",
+      "rollback": "retain prior complete artifact until replay passes"
+    },
+    {
+      "id": "error-envelope",
+      "kind": "error",
+      "status": "rejected",
+      "payload": {
+        "format": "csm-envelope/1",
+        "artifactId": "art-error",
+        "errorCode": "E_SCHEMA_INVALID",
+        "instancePath": "/payload"
+      },
+      "consumerInput": { "sourceArtifactId": "art-error", "sourceDigest": "sha256:error" },
+      "ownership": { "runId": "run-error", "owner": "csm-producer", "terminal": false },
+      "provenance": {
+        "sourceDigest": "sha256:error",
+        "producerRevision": "producer/1",
+        "consumerRevision": "consumer/1"
+      },
+      "rollbackAction": "quarantine incomplete output and preserve prior pointer",
+      "observable": "malformed input returns structured error and no cutover",
+      "rollback": "quarantine incomplete output and preserve prior pointer"
+    },
+    {
+      "id": "resume-envelope",
+      "kind": "resume",
+      "status": "paused",
+      "payload": {
+        "format": "csm-envelope/1",
+        "artifactId": "art-resume",
+        "runId": "run-resume",
+        "cursor": { "sequence": 3, "state": "PAUSED" }
+      },
+      "consumerInput": { "sourceArtifactId": "art-resume", "sourceDigest": "sha256:resume" },
+      "ownership": { "runId": "run-resume", "owner": "csm-producer", "terminal": false },
+      "provenance": {
+        "sourceDigest": "sha256:resume",
+        "producerRevision": "producer/1",
+        "consumerRevision": "consumer/1"
+      },
+      "rollbackAction": "restore the last complete checkpoint before retry",
+      "observable": "resume uses the recorded run and cursor without skipping an event",
+      "rollback": "restore the last complete checkpoint before retry"
+    },
+    {
+      "id": "collision-envelope",
+      "kind": "collision",
+      "status": "rejected",
+      "payload": { "format": "csm-envelope/1", "artifactId": "art-terminal", "owner": "other-run" },
+      "consumerInput": { "sourceArtifactId": "art-terminal", "sourceDigest": "sha256:terminal" },
+      "ownership": { "runId": "run-collision", "owner": "other-run", "terminal": true },
+      "provenance": {
+        "sourceDigest": "sha256:terminal",
+        "producerRevision": "producer/1",
+        "consumerRevision": "consumer/1"
+      },
+      "rollbackAction": "leave the existing destination authoritative",
+      "observable": "existing terminal destination is immutable and ownership mismatch is refused",
+      "rollback": "leave the existing destination authoritative"
+    },
+    {
+      "id": "terminal-envelope",
+      "kind": "terminal",
+      "status": "complete",
+      "payload": {
+        "format": "csm-envelope/1",
+        "artifactId": "art-terminal",
+        "terminal": true,
+        "sourceDigest": "sha256:terminal"
+      },
+      "consumerInput": { "sourceArtifactId": "art-terminal", "sourceDigest": "sha256:terminal" },
+      "ownership": { "runId": "run-terminal", "owner": "csm-producer", "terminal": true },
+      "provenance": {
+        "sourceDigest": "sha256:terminal",
+        "producerRevision": "producer/1",
+        "consumerRevision": "consumer/1"
+      },
+      "rollbackAction": "restore the prior resolver or disable projection generation only",
+      "observable": "terminal artifact records provenance and cannot be replaced by a late write",
+      "rollback": "restore the prior resolver or disable projection generation only"
+    }
+  ],
+  "contracts": {
+    "csm-scan": {
+      "jsonRevision": "norms/1",
+      "legacyMarkdown": "NORMS.md",
+      "stateModel": "terminal",
+      "inputPolicy": "json-only"
+    },
+    "csm-grill": {
+      "jsonRevision": "approach/1",
+      "legacyMarkdown": "approach.md",
+      "stateModel": "non-resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-plan": {
+      "jsonRevision": "plan/1",
+      "legacyMarkdown": "*-csm.md",
+      "stateModel": "resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-deep-research": {
+      "jsonRevision": "finding/1",
+      "legacyMarkdown": "*-research.md",
+      "stateModel": "resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-review": {
+      "jsonRevision": "review/1",
+      "legacyMarkdown": "*-review.md",
+      "stateModel": "resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-review-python": {
+      "jsonRevision": "doctrine/1",
+      "legacyMarkdown": "*-python-doctrine-review.md",
+      "stateModel": "non-resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-ddd": {
+      "jsonRevision": "ddd-pair/1",
+      "legacyMarkdown": "*-ddd-report.md",
+      "stateModel": "paired-atomic",
+      "inputPolicy": "json-only"
+    },
+    "csm-bdd-tdd": {
+      "jsonRevision": "package/1",
+      "legacyMarkdown": "*-bdd-csm.md",
+      "stateModel": "resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-make-tests": {
+      "jsonRevision": "test-ledger/1",
+      "legacyMarkdown": "*-tests-ledger.md",
+      "stateModel": "resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-build": {
+      "jsonRevision": "build-state/1",
+      "legacyMarkdown": "plan Control/journal",
+      "stateModel": "resumable",
+      "inputPolicy": "json-only"
+    },
+    "csm-browse": {
+      "jsonRevision": "session/1",
+      "legacyMarkdown": "none",
+      "stateModel": "session",
+      "inputPolicy": "json-only"
+    },
+    "csm-upload": {
+      "jsonRevision": "publication/1",
+      "legacyMarkdown": "none",
+      "stateModel": "terminal",
+      "inputPolicy": "json-only"
+    },
+    "csm-autoresearch": {
+      "jsonRevision": "report/1",
+      "legacyMarkdown": "none",
+      "stateModel": "append-only",
+      "inputPolicy": "json-only"
+    }
+  }
+}

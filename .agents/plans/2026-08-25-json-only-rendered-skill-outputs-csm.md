@@ -14,14 +14,14 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 0
 - Commits: allowed
-- Last checkpoint: 2026-08-25 VALIDATE passed `make check` with 1189 checks after correcting the control transition token; no implementation task had been dispatched before this checkpoint.
+- Last checkpoint: 2026-08-25 T001/T002 repaired and integrated; focused acceptance passed 10 tests and `make check` passed 1189 checks. Temporary spike evidence was folded into this plan and removed from the repository.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T001, T002
-- Blockers: none; T002, T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
+- Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
 ## Goal
@@ -158,7 +158,7 @@ Exclusions:
 | ID | Question | Method/tool | Isolation and no-change evidence | Observation | Plan implication |
 | --- | --- | --- | --- | --- | --- |
 | R1 | What is the exact migration topology? | Read-only inspection of all skill contracts, schemas, tests, packer, Makefile, and artifact index; four independent research tracks. | No edits, installs, generators, or mutating commands; clean baseline at `c129e19`. | Fan-out edges are scan->four consumers, plan->BDD/build, DDD->plan/build, research->grill/plan/make-tests, browse->upload, plus human-mediated outputs. | Serialize migrations by producer/consumer edge; do not perform a global flip. |
-| R2 | Can existing validators serve as the shared Draft 2020-12 validator? | Read-only inspection of DDD validator, eval validator, and autoresearch runtime checks. | No execution; source inspection only. | Validators are partial and divergent; none is a safe suite-wide implementation without capability proof. | T002 must select or build one validated path in isolation and retain domain-specific semantic checks. |
+| R2 | Can existing validators serve as the shared Draft 2020-12 validator? | Isolated implementation and capability test using Ajv 8.20.0, ajv-formats 3.0.1, and a repository-owned canonical serializer. | No live services or external mutations; focused tests and `make check` passed; temporary spike evidence was folded into this plan and removed. | Ajv 2020-12 supports `$ref`, `$defs`, `oneOf`, conditionals, `unevaluatedProperties`, and configured formats; sorted-key SHA-256 canonicalization is deterministic; duplicate textual keys are rejected before parse. RFC 8785 number canonicalization and domain semantics remain outside this runtime. | T003 may build on `lib/schema-runtime/index.mjs`; retain DDD/autoresearch semantic validators and hash rules as domain-specific layers. |
 | R3 | What can be reused for rendering? | Read-only inspection of DDD/scan renderers and renderer tests. | No renderer execution or writes. | Existing Markdown escaping and deterministic ordering are reusable ideas, but no shared JSON renderer or HTML path exists. | T006-T008 create a shared seam without moving domain renderers until parity tests exist. |
 | R4 | How can bootstrap remain safe? | Read-only inspection of `scripts/pack-bootstrap.mjs`, package/index tests, and canonical/bootstrap trees. | No packer execution because current targets mutate the worktree. | Packer must be extended to include shared schemas, registry, validator, renderers, and profiles; drift is already gated. | T005 owns generated mapping/parity; T023 owns skill contract/index updates; T024 runs package gates only after controlled staging behavior is proven. |
 | R5 | How should legacy Markdown be handled? | Read-only inspection of lifecycle/resume tests and existing artifact policy. | No migration or rewriting. | Markdown is embedded in current journals and plans, but user decision prohibits auto-conversion and machine consumption. | T010 freezes history and defines structured migration-required errors; no Markdown parser is added to new consumers. |
@@ -173,6 +173,7 @@ Exclusions:
 - Canonical skill files are the source for bootstrap payload copies; generated payload and `bootstrap/payload-index.json` drift must fail.
 - Existing DDD report/graph publication is a paired atomic contract; migration must preserve matching `runId`, digest, pointer, and last-complete-pair behavior.
 - Existing autoresearch JSONL hash-chain, lock, quarantine, and redaction behavior is a compatibility baseline, not a reason to rewrite the ledger format without fixtures.
+- T002 selected `ajv@8.20.0` and `ajv-formats@3.0.1`; the shared runtime does not claim full RFC 8785 number canonicalization, and domain semantic validators remain separate.
 - Existing plan, research, review, and test resume semantics are Markdown-specific; JSON journals must be introduced and characterized before their Markdown cursors are retired.
 - `csm-browse` E2E may skip when Docker is unavailable; unit and local protocol tests cannot be reported as browser E2E proof.
 - `csm-upload` has external side effects; tests must use stubs and no live push unless a separate explicit authorization exists.
@@ -264,7 +265,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
 
 ## Numbered Plan
 
-1. [in_progress] Establish characterization baselines and the migration ledger.
+1. [completed] Establish characterization baselines and the migration ledger.
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -279,7 +280,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If partial, keep only fixture/ledger changes; rerun inventory from the last recorded edge and do not begin schema migration.
 
-2. [in_progress] Select and prove the suite validator and canonical JSON serializer.
+2. [completed] Select and prove the suite validator and canonical JSON serializer.
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G1
@@ -684,6 +685,14 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 0 | RECOVER -> VALIDATE | none | Plan format `csm-plan/1` and warranted applicability record were found; no root NORMS.md exists; current branch is `main`; no DDD artifacts are explicitly referenced. | VALIDATE |
 | 2026-08-25 | 0 | VALIDATE -> SELECT | none | `make check` passed with 1189 checks; applicability obligations are present; T001 and T002 are the only dependency-ready implementation tasks. | SELECT |
 | 2026-08-25 | 0 | SELECT -> DISPATCH | T001,T002 | Independent write scopes: characterization fixtures/ledger versus isolated validator/serializer implementation and tests. | DISPATCH |
+| 2026-08-25 | 0 | DISPATCH -> INTEGRATE | T001,T002 | Both workers returned changes with focused acceptance results; actual diffs were inspected and no out-of-scope skill/consumer edits were found. | INTEGRATE |
+| 2026-08-25 | 0 | INTEGRATE -> VERIFY | T001,T002 | Primary rerun passed `node --test --test-concurrency=1 tests/json-migration-characterization.test.mjs tests/schema-runtime-selection.test.mjs` (9 tests) and `make check` (1189 checks). | VERIFY |
+| 2026-08-25 | 0 | VERIFY -> REVIEW | T001,T002 | T001/T002 acceptance evidence is reproducible; T002 limitations are recorded and domain semantic validators remain separate. | REVIEW |
+| 2026-08-25 | 0 | REVIEW -> CHECKPOINT | T001,T002 | Primary review found no material regression; temporary spike note was folded into the plan and removed; package/runtime changes remain scoped to T002. | CHECKPOINT |
+| 2026-08-25 | 0 | CHECKPOINT -> REPAIR | T001,T002 | Independent review found strict validation gaps, sparse-array canonicalization, and insufficient executable characterization coverage. | REPAIR |
+| 2026-08-25 | 0 | REPAIR -> VERIFY | T001,T002 | Added strict-schema compatibility settings, sparse-array rejection, truthful format metadata, schema fixtures, and executable replay assertions; focused acceptance now passes 10 tests. | VERIFY |
+| 2026-08-25 | 0 | VERIFY -> REVIEW | T001,T002 | Fresh review confirmed prior findings resolved; residual risks are limited to domain semantic validation and non-RFC-8785 number canonicalization. | REVIEW |
+| 2026-08-25 | 0 | REVIEW -> CHECKPOINT | T001,T002 | Foundation batch is ready for checkpoint commit; no temporary spike artifact remains and no unrelated paths changed. | CHECKPOINT |
 
 ## Completion Review
 

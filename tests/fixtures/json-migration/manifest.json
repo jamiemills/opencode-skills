@@ -1,0 +1,228 @@
+{
+  "format": "csm-json-migration-characterization/1",
+  "fixtureSet": "tests/fixtures/json-migration/fixtures.json",
+  "synthetic": true,
+  "redacted": true,
+  "declaredProducerConsumerEdges": [
+    {
+      "id": "csm-scan->csm-plan",
+      "producer": "csm-scan",
+      "consumer": "csm-plan",
+      "artifact": "norms"
+    },
+    {
+      "id": "csm-scan->csm-bdd-tdd",
+      "producer": "csm-scan",
+      "consumer": "csm-bdd-tdd",
+      "artifact": "norms"
+    },
+    {
+      "id": "csm-scan->csm-build",
+      "producer": "csm-scan",
+      "consumer": "csm-build",
+      "artifact": "norms"
+    },
+    {
+      "id": "csm-scan->csm-review",
+      "producer": "csm-scan",
+      "consumer": "csm-review",
+      "artifact": "norms"
+    },
+    {
+      "id": "csm-plan->csm-bdd-tdd",
+      "producer": "csm-plan",
+      "consumer": "csm-bdd-tdd",
+      "artifact": "plan"
+    },
+    {
+      "id": "csm-plan->csm-build",
+      "producer": "csm-plan",
+      "consumer": "csm-build",
+      "artifact": "plan"
+    },
+    {
+      "id": "csm-ddd->csm-plan",
+      "producer": "csm-ddd",
+      "consumer": "csm-plan",
+      "artifact": "ddd-pair"
+    },
+    {
+      "id": "csm-ddd->csm-build",
+      "producer": "csm-ddd",
+      "consumer": "csm-build",
+      "artifact": "ddd-pair"
+    },
+    {
+      "id": "csm-deep-research->csm-grill",
+      "producer": "csm-deep-research",
+      "consumer": "csm-grill",
+      "artifact": "finding"
+    },
+    {
+      "id": "csm-deep-research->csm-plan",
+      "producer": "csm-deep-research",
+      "consumer": "csm-plan",
+      "artifact": "finding"
+    },
+    {
+      "id": "csm-deep-research->csm-make-tests",
+      "producer": "csm-deep-research",
+      "consumer": "csm-make-tests",
+      "artifact": "finding"
+    },
+    {
+      "id": "csm-review->csm-plan",
+      "producer": "csm-review",
+      "consumer": "csm-plan",
+      "artifact": "review"
+    },
+    {
+      "id": "csm-review->csm-grill",
+      "producer": "csm-review",
+      "consumer": "csm-grill",
+      "artifact": "review"
+    },
+    {
+      "id": "csm-grill->csm-plan",
+      "producer": "csm-grill",
+      "consumer": "csm-plan",
+      "artifact": "approach"
+    },
+    {
+      "id": "csm-bdd-tdd->csm-build",
+      "producer": "csm-bdd-tdd",
+      "consumer": "csm-build",
+      "artifact": "package"
+    },
+    {
+      "id": "csm-make-tests->csm-build",
+      "producer": "csm-make-tests",
+      "consumer": "csm-build",
+      "artifact": "test-ledger"
+    },
+    {
+      "id": "csm-browse->csm-upload",
+      "producer": "csm-browse",
+      "consumer": "csm-upload",
+      "artifact": "evidence"
+    }
+  ],
+  "terminalHandoffs": [
+    "csm-review-python->human",
+    "csm-autoresearch->human-approval",
+    "csm-build->human",
+    "csm-upload->human"
+  ],
+  "baselineCommands": [
+    {
+      "command": "node --test --test-concurrency=1 tests/json-migration-characterization.test.mjs",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "command": "node --check tests/json-migration-characterization.test.mjs",
+      "status": "passed"
+    },
+    { "command": "git diff --check", "status": "passed" }
+  ],
+  "requiredCaseKinds": ["valid", "error", "resume", "collision", "terminal"],
+  "skillBaselines": {
+    "csm-scan": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-grill": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-plan": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-deep-research": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-review": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-review-python": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-ddd": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-bdd-tdd": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-make-tests": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-build": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-browse": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-upload": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ],
+    "csm-autoresearch": [
+      "valid-envelope",
+      "error-envelope",
+      "resume-envelope",
+      "collision-envelope",
+      "terminal-envelope"
+    ]
+  },
+  "rollbackCheckpoints": {
+    "before-write": "prior complete artifact and pointer remain authoritative",
+    "after-validation-before-cutover": "quarantine failed output and retain prior artifact",
+    "after-consumer-replay": "enable edge only after replay; otherwise restore prior resolver",
+    "terminal-collision": "never overwrite an existing terminal destination"
+  }
+}
