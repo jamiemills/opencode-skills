@@ -73,6 +73,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 ## research/
 
+- `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
 - `2026-08-20-csm-deep-research-skill-research.md` — 2026-08-20 — seed research document for the csm-deep-research corpus — status: reference
 - `2026-08-20-characterization-testing-research.md` — 2026-08-20 — repo behavior-continuity (characterization) testing techniques — status: reference
 - `2026-08-20-disney-plus-turkish-us-creative-assets-research.md` — 2026-08-20 — Disney+ Turkish and US creative assets research — status: reference
