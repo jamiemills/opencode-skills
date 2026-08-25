@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-render-profile/1",
+  "title": "CSM versioned render profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "profile", "sourceSchema", "fields", "sections", "urlPolicy"],
+  "properties": {
+    "schema": { "const": "csm-render-profile/1" },
+    "profile": { "$ref": "#/$defs/ref" },
+    "sourceSchema": { "$ref": "#/$defs/ref" },
+    "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+    "sections": { "type": "array", "items": { "$ref": "#/$defs/section" } },
+    "urlPolicy": { "$ref": "#/$defs/urlPolicy" },
+    "unsupported": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*/[1-9][0-9]*$" },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "label", "visibility", "order"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^$|^(/([^~]|~[01])*)+$" },
+        "kind": {
+          "enum": ["text", "number", "boolean", "date", "table", "list", "code", "link", "redacted"]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "visibility": { "enum": ["always", "if-present", "never"] },
+        "order": { "type": "integer", "minimum": 0 },
+        "section": { "type": "string", "minLength": 1 },
+        "accessibleLabel": { "type": "string", "minLength": 1 },
+        "redaction": { "enum": ["marker", "omit"] },
+        "link": { "enum": ["text-and-url", "text-only"] },
+        "codeLanguage": { "type": "string", "pattern": "^[a-z0-9+.-]+$" }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "order"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "label": { "type": "string", "minLength": 1 },
+        "order": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "urlPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "schemes"],
+      "properties": {
+        "mode": { "enum": ["deny", "allowlist"] },
+        "schemes": { "type": "array", "items": { "enum": ["http", "https"] }, "uniqueItems": true }
+      }
+    }
+  }
+}

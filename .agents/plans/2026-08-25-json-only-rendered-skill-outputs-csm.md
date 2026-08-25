@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 4
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T005 committed as `1023a91`; pinned packaging acceptance passed 10 tests, `make check` passed 1189 checks, and current full `make test` passed 1283 tests.
+- Last checkpoint: 2026-08-25 T006 integrated and repaired; focused render-profile acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T006 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T006
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -340,7 +340,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If packaging writes outside the staging root, stop and fix isolation before adding more generated files.
 
-6. [in_progress] Define render profiles, typed render model, and projection descriptor behavior.
+6. [completed] Define render profiles, typed render model, and projection descriptor behavior.
    - Task ID: T006
    - Depends on: T003
    - Parallel group: G3
@@ -722,6 +722,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 3 | REVIEW -> CHECKPOINT | T005 | T005 is complete and ready for checkpoint commit; renderer packaging will extend the canonical mapping in a later phase. | CHECKPOINT |
 | 2026-08-25 | 4 | CHECKPOINT -> SELECT | T006 | T005 commit `1023a91` passed hook gates; T006 is the only ready renderer foundation task. | SELECT |
 | 2026-08-25 | 4 | SELECT -> DISPATCH | T006 | Render profile/model ownership is serialized before Markdown/HTML renderer implementation. | DISPATCH |
+| 2026-08-25 | 4 | DISPATCH -> INTEGRATE | T006 | Worker returned render profile/model schemas, runtime, registry updates, and focused tests; actual diff was inspected. | INTEGRATE |
+| 2026-08-25 | 4 | INTEGRATE -> VERIFY | T006 | Primary rerun passed render-profile tests (12), `make check` (1189), `make fmt-check`, and `make lint`. | VERIFY |
+| 2026-08-25 | 4 | VERIFY -> REVIEW | T006 | T006 identity, typed values, redaction, URL/order behavior, and model validation are reproducible. | REVIEW |
+| 2026-08-25 | 4 | REVIEW -> REPAIR | T006 | Independent review found omit, typed-kind, URL, registry, source-schema, and no-op gaps; repairs were integrated. | REPAIR |
+| 2026-08-25 | 4 | REPAIR -> VERIFY | T006 | Repaired focused suite passed 12 tests and all required checks passed. | VERIFY |
+| 2026-08-25 | 4 | VERIFY -> REVIEW | T006 | Final independent review returned PROCEED; T007 may consume only validated render models. | REVIEW |
+| 2026-08-25 | 4 | REVIEW -> CHECKPOINT | T006 | T006 is complete; bootstrap synchronization for render files remains T023/T005 packaging extension work. | CHECKPOINT |
 
 ## Completion Review
 

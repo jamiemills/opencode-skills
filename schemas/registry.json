@@ -49,6 +49,24 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:937fd8027cf73d7ae39002303c0265979789857b91a763fe648c9c1be797703c"
+    },
+    {
+      "id": "csm-render-profile/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-render-profile.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:a16020a895c9b27ffe1734749f5e5b6fcc9c0723f116027ad2b837417b9eec1c"
+    },
+    {
+      "id": "csm-render-model/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-render-model.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:7a30749d9bd395ba6e920b77fa652ea0545765f4b9e213b037128de1784e2328"
     }
   ]
 }

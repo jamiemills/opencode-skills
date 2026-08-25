@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-render-model/1",
+  "title": "CSM typed render model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "profile", "source", "sections"],
+  "properties": {
+    "schema": { "const": "csm-render-model/1" },
+    "profile": { "$ref": "#/$defs/ref" },
+    "source": { "$ref": "#/$defs/ref" },
+    "sections": { "type": "array", "items": { "$ref": "#/$defs/section" } }
+  },
+  "$defs": {
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": { "id": { "type": "string" }, "revision": { "type": "integer", "minimum": 1 } }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "items"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/item" } }
+      }
+    },
+    "itemBase": {
+      "type": "object",
+      "required": ["path", "kind", "label", "accessibleLabel"],
+      "properties": {
+        "path": { "type": "string" },
+        "kind": {},
+        "label": { "type": "string" },
+        "accessibleLabel": { "type": "string" },
+        "value": {},
+        "url": { "type": "string", "format": "uri" },
+        "language": { "type": "string" },
+        "redacted": { "const": true },
+        "presentation": { "enum": ["text-and-url", "text-only"] }
+      }
+    },
+    "item": {
+      "unevaluatedProperties": false,
+      "oneOf": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": { "kind": { "const": "text" }, "value": { "type": "string" } },
+              "required": ["value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": { "kind": { "const": "date" }, "value": { "type": "string" } },
+              "required": ["value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": {
+                "kind": { "const": "code" },
+                "value": { "type": "string" },
+                "language": { "type": "string" }
+              },
+              "required": ["value", "language"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": { "kind": { "const": "number" }, "value": { "type": "number" } },
+              "required": ["value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": { "kind": { "const": "boolean" }, "value": { "type": "boolean" } },
+              "required": ["value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": { "kind": { "const": "list" }, "value": { "type": "array" } },
+              "required": ["value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": {
+                "kind": { "const": "table" },
+                "value": {
+                  "type": "array",
+                  "items": { "anyOf": [{ "type": "array" }, { "type": "object" }] }
+                }
+              },
+              "required": ["value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": {
+                "kind": { "const": "link" },
+                "value": { "type": "string" },
+                "url": { "type": "string", "format": "uri" },
+                "presentation": { "const": "text-and-url" }
+              },
+              "required": ["value", "url", "presentation"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": {
+                "kind": { "const": "link" },
+                "value": { "type": "string" },
+                "presentation": { "const": "text-only" }
+              },
+              "required": ["value", "presentation"],
+              "not": { "required": ["url"] }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": {
+                "kind": { "const": "redacted" },
+                "redacted": { "const": true },
+                "value": { "const": "[REDACTED]" }
+              },
+              "required": ["redacted", "value"]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/itemBase" },
+            {
+              "properties": { "kind": { "const": "redacted" }, "redacted": { "const": true } },
+              "required": ["redacted"],
+              "not": { "required": ["value"] }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
