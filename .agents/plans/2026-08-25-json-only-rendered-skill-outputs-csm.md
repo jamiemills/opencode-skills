@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 10
+- Current CSM state: DISPATCH
+- Cycle: 11
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T016 integrated and repaired; grill/plan input acceptance passed 5 tests, shared schema tests passed, `make check` passed 1189 checks, formatting/lint passed, and T016 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T016 committed as `171bb14`; grill/plan input acceptance passed 5 tests, shared schema tests passed, and `make check` passed 1189 checks.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T017
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -505,7 +505,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If plan cannot consume a JSON approach without Markdown assumptions, stop before T017 and fix the typed phase-brief payload.
 
-17. [pending] Migrate csm-plan JSON output, journals, and csm-bdd-tdd/csm-build consumers.
+17. [in_progress] Migrate csm-plan JSON output, journals, and csm-bdd-tdd/csm-build consumers.
    - Task ID: T017
    - Depends on: T011, T012, T013, T014, T016
    - Parallel group: G6
@@ -783,6 +783,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 10 | REPAIR -> VERIFY | T016 | Repaired focused and shared schema suites passed; conformance remained green. | VERIFY |
 | 2026-08-25 | 10 | VERIFY -> REVIEW | T016 | Final independent review returned PROCEED; T017 may own csm-plan persistence/output. | REVIEW |
 | 2026-08-25 | 10 | REVIEW -> CHECKPOINT | T016 | T016 is complete; csm-plan persistence migration is next. | CHECKPOINT |
+| 2026-08-25 | 11 | CHECKPOINT -> SELECT | T017 | T016 commit `171bb14` passed hook gates; T017 is the only ready persistence/plan task. | SELECT |
+| 2026-08-25 | 11 | SELECT -> DISPATCH | T017 | csm-plan persistence/control/journal ownership is serialized before BDD/build migration. | DISPATCH |
 
 ## Completion Review
 
