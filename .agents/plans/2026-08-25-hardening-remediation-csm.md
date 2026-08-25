@@ -614,7 +614,6 @@ The design is split into five ownership domains:
 | 2026-08-25 | 1 | DISPATCH -> REVIEW | T023 | Browse 205, DDD 68, package audit 4, formatting/lint/check and deterministic pack passed. | REVIEW |
 | 2026-08-25 | 1 | REVIEW -> CHECKPOINT | T014,T020,T023 | Final independent security review found no actionable findings; full `make test` passed; protected-state/path ownership and completion evidence recorded. | CHECKPOINT |
 | 2026-08-25 | 1 | CHECKPOINT -> COMPLETE | T024 | All tasks complete, acceptance evidence recorded, residual risks explicit, and commit-only staging prepared. | COMPLETE |
-| 2026-08-25 | 1 | CHECKPOINT -> SELECT | T022 | T022 implemented atomic stale-lock claiming with owner/token-safe archival, one-directory output identity, pointer/manifest symlink rejection, and a deterministic writer/reader barrier handshake. `make test-ddd`, syntax checks, and `make check` passed; canonical packer synchronized derived payloads. | SELECT |
 
 ## Completion Review
 
@@ -624,4 +623,5 @@ Implementation complete; no live publication, deployment, key rotation, registry
 - Payload evidence: final deterministic pack SHA-256 `0bbcb40d5c44cf225730c6c053ef3d7fcd0134f1341cd189e10fd1183e8e7f4a`, 648201 bytes, 164 files; repeated pack matched; source/payload pathset compared 160 with zero issues; excluded runtime/test surfaces remained excluded.
 - T014/T020/T023 evidence: independent final security review found no actionable severity findings. Accepted residuals are documented: trusted-local is not hostile-process isolation; DOM/eval remains explicitly powerful; binary media requires acknowledgment without OCR/metadata inspection; production release-environment protection and provenance execution remain external.
 - Protected state: all changes are confined to the plan-owned source, tests, docs, CI/release, generated payload/index, and plan artifact. The pre-existing review/research artifacts remain uncommitted and were not included in the implementation commit.
-- Commit requirement: stage only the intended implementation and plan files; do not stage `.agents/reviews/2026-08-25-opencode-skills-review.md` or `.agents/research/2026-08-25-repo-issues-deep-research-research.md`.
+- Implementation commit: `47d7ce7` (`harden skill execution and publication boundaries`).
+- Commit scope: intended implementation, generated payloads, tests, docs, workflow, and this plan; `.agents/reviews/2026-08-25-opencode-skills-review.md` and `.agents/research/2026-08-25-repo-issues-deep-research-research.md` remain uncommitted evidence artifacts.
