@@ -69,6 +69,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-21-skills-review-2.md` — 2026-08-21 — follow-up review (second pass) — status: remediated by `plans/2026-08-21-review-remediation-csm.md`
 - `2026-08-23-skills-review.md` — 2026-08-23 — comprehensive skills-suite review — status: reference
 - `2026-08-24-opencode-skills-review.md` — 2026-08-24 — parallel full static review of skills, runtime, packaging, README, and release surfaces — status: reference
+- `2026-08-25-opencode-skills-review.md` — 2026-08-25 — full static hardening review of skills, runtime, packaging, README, and release surfaces — status: reference
 
 ## research/
 
@@ -85,6 +86,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-headless-360-salesforce-research.md` — 2026-08-24 — Salesforce Headless 360 research finding — status: reference
 - `2026-08-24-improve-csm-deep-research-skill-research.md` — 2026-08-24 — evidence-backed csm-deep-research improvement research — status: reference
 - `2026-08-24-agent-harness-skills-framework-review-research.md` — 2026-08-24 — agent harness and skills framework comparison with repository remediation findings — status: reference
+- `2026-08-25-repo-issues-deep-research-research.md` — 2026-08-25 — deep hybrid validation of repository hardening and additional security/concurrency issues — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-us-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ US creative-assets schema artifact — status: reference
