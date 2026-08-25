@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 8
+- Current CSM state: DISPATCH
+- Cycle: 9
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T011 integrated and repaired; csm-scan passed 1283 tests, norms contract passed 5 tests, bootstrap/package parity passed, `make check` passed 1189 checks, formatting/lint passed, and T011 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T011 committed as `8cfc3b4`; csm-scan passed 1283 tests, norms contract passed 5 tests, bootstrap/package parity passed, `make check` passed 1189 checks, formatting/lint passed, and T011 received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T012, T013, T014, T015
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -430,7 +430,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Revert only the scan/consumer resolver changes if replay fails; keep foundation/renderers intact and preserve old `NORMS.md` history.
 
-12. [pending] Migrate csm-ddd report/graph JSON pair and plan/build DDD consumers.
+12. [in_progress] Migrate csm-ddd report/graph JSON pair and plan/build DDD consumers.
    - Task ID: T012
    - Depends on: T010
    - Parallel group: G5
@@ -445,7 +445,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Keep the prior DDD pointer authoritative until both JSON artifacts and both consumers pass; never expose a mixed generation.
 
-13. [pending] Migrate csm-deep-research JSON finding and research consumers.
+13. [in_progress] Migrate csm-deep-research JSON finding and research consumers.
    - Task ID: T013
    - Depends on: T010
    - Parallel group: G5
@@ -460,7 +460,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If a fixed-section requirement cannot be represented, block only the research consumer cutover and retain JSON schema/profile work without reverting unrelated producers.
 
-14. [pending] Migrate csm-review and csm-review-python findings with plan/grill consumers.
+14. [in_progress] Migrate csm-review and csm-review-python findings with plan/grill consumers.
    - Task ID: T014
    - Depends on: T010
    - Parallel group: G5
@@ -475,7 +475,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Keep review output in its old path only for pre-cutover history; new review runs must not create Markdown authority.
 
-15. [pending] Preserve and envelope csm-autoresearch JSON/JSONL contracts.
+15. [in_progress] Preserve and envelope csm-autoresearch JSON/JSONL contracts.
    - Task ID: T015
    - Depends on: T010
    - Parallel group: G5
@@ -765,6 +765,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 8 | REPAIR -> VERIFY | T011 | Repaired scan suite, norms contract, package parity, and conformance gates passed. | VERIFY |
 | 2026-08-25 | 8 | VERIFY -> REVIEW | T011 | Final independent review returned PROCEED; downstream consumers must use `csm-envelope/1` with `payloadSchema: csm-norms/1`. | REVIEW |
 | 2026-08-25 | 8 | REVIEW -> CHECKPOINT | T011 | T011 is complete; T012-T015 may migrate standalone producers with no downstream shared resolver edits. | CHECKPOINT |
+| 2026-08-25 | 9 | CHECKPOINT -> SELECT | T012-T015 | T011 commit `8cfc3b4` passed hook gates; four standalone producer migrations are dependency-ready with disjoint ownership. | SELECT |
+| 2026-08-25 | 9 | SELECT -> DISPATCH | T012-T015 | DDD, research, review/doctrine, and autoresearch producer tasks dispatched in parallel; no plan/build consumer files assigned. | DISPATCH |
 
 ## Completion Review
 
