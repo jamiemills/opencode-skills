@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 5
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T006 committed as `44f1af4`; focused render-profile acceptance passed 12 tests, `make check` passed 1189 checks, formatting/lint passed, and T006 received independent PROCEED approval.
+- Last checkpoint: 2026-08-25 T007/T008 integrated and repaired; combined renderer/model acceptance passed 31 tests, `make check` passed 1189 checks, formatting/lint passed, and both renderers received independent PROCEED approval.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T007, T008
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -355,7 +355,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If a current report cannot be represented without embedding Markdown authority, classify it as a profile gap and do not migrate that producer yet.
 
-7. [in_progress] Build and verify the JSON-to-Markdown renderer.
+7. [completed] Build and verify the JSON-to-Markdown renderer.
    - Task ID: T007
    - Depends on: T006
    - Parallel group: G3
@@ -370,7 +370,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If output differs from a legacy human golden, compare semantic content and record intentional formatting differences; never make legacy Markdown authoritative again.
 
-8. [in_progress] Build and verify the direct JSON-to-HTML renderer.
+8. [completed] Build and verify the direct JSON-to-HTML renderer.
    - Task ID: T008
    - Depends on: T006
    - Parallel group: G3
@@ -731,6 +731,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 4 | REVIEW -> CHECKPOINT | T006 | T006 is complete; bootstrap synchronization for render files remains T023/T005 packaging extension work. | CHECKPOINT |
 | 2026-08-25 | 5 | CHECKPOINT -> SELECT | T007,T008 | T006 commit `44f1af4` passed hook gates; T007/T008 are independent renderer tasks ready on the validated render model. | SELECT |
 | 2026-08-25 | 5 | SELECT -> DISPATCH | T007,T008 | Disjoint ownership: Markdown renderer/tests versus HTML renderer/security/accessibility/tests. | DISPATCH |
+| 2026-08-25 | 5 | DISPATCH -> INTEGRATE | T007,T008 | Workers returned Markdown/HTML renderer modules, security policy, fixtures, and tests; actual diffs were inspected. | INTEGRATE |
+| 2026-08-25 | 5 | INTEGRATE -> VERIFY | T007,T008 | Primary rerun passed combined renderer/model tests (31), `make check` (1189), `make fmt-check`, and `make lint`. | VERIFY |
+| 2026-08-25 | 5 | VERIFY -> REVIEW | T007,T008 | Renderer output, projection descriptors, URL/HTML/Markdown safety, and direct-model boundaries are reproducible. | REVIEW |
+| 2026-08-25 | 5 | REVIEW -> REPAIR | T007,T008 | Independent review found provenance, URL, newline, profile-policy, and ID uniqueness gaps; repairs were integrated. | REPAIR |
+| 2026-08-25 | 5 | REPAIR -> VERIFY | T007,T008 | Repaired combined renderer/model suite passed 31 tests and all required checks passed. | VERIFY |
+| 2026-08-25 | 5 | VERIFY -> REVIEW | T007,T008 | Final independent review returned PROCEED for both renderers; browser-level E2E remains a later residual risk. | REVIEW |
+| 2026-08-25 | 5 | REVIEW -> CHECKPOINT | T007,T008 | T007/T008 are complete; publication protocol T009 will own projection storage/approval lifecycle. | CHECKPOINT |
 
 ## Completion Review
 

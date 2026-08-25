@@ -319,6 +319,7 @@ test("link presentation and canonical URL handling are explicit", () => {
   for (const url of [
     "https://user:pass@example.test/a",
     "https:///missing-host",
+    "http://..",
     "javascript:alert(1)",
   ]) {
     assert.throws(

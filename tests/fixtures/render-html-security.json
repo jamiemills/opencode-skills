@@ -1,0 +1,8 @@
+{
+  "xssText": "<script>alert('xss')</script>&\"",
+  "unsafeUrl": "javascript:alert(1)",
+  "credentialUrl": "https://user:pass@example.test/private",
+  "domClobberingId": "__proto__",
+  "sourceArtifactId": "art-render-html-security",
+  "sourceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
