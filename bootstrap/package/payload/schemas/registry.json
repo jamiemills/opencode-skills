@@ -96,6 +96,15 @@
       "schemaContentDigest": "sha256:72d63b73a09604a5f1fb898bc2d7904f262b6342b881cc2a9a0f2aec6370c8d8"
     },
     {
+      "id": "csm-approach/1",
+      "revision": 1,
+      "schemaPath": "csm-grill/schemas/csm-approach.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:7abb43438df9cbc2151149fba4f27bc926108ca925a1ec9b99039e98c91a8599"
+    },
+    {
       "id": "csm-ddd-graph/1",
       "revision": 1,
       "schemaPath": "csm-ddd/schemas/ddd-graph.schema.json",
@@ -121,6 +130,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:1f5a595d93d0ea8ee7f489f16d2325d8c728df55756c74487451a2f75f35f528"
+    },
+    {
+      "id": "csm-plan/1",
+      "revision": 1,
+      "schemaPath": "csm-plan/schemas/csm-plan.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:bf06c4b0495e481242caa15040427fe21e47e3b7cae0f51b4107470dc07b1cf0"
     },
     {
       "id": "csm-autoresearch-contract/1",

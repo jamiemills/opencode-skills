@@ -41,6 +41,7 @@ function meaningful(overrides = {}) {
       { id: "observable_behavior", status: "satisfied" },
       { id: "invariant", status: "required" },
     ],
+    taskApplicability: { warranted: ["T001"], lightweight: [] },
     ...overrides,
   };
 }
@@ -58,6 +59,8 @@ test("applicability fixture matrix", async (t) => {
         evidence: [
           { source: "brief", locator: "request", observation: "User explicitly requests DDD" },
         ],
+        obligations: [{ id: "unresolved_risks", status: "required" }],
+        taskApplicability: { warranted: ["T001"], lightweight: [] },
       },
       false,
     ],

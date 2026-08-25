@@ -78,22 +78,22 @@ test("deep research persists a cursor and constrains every research role by sour
 
 test("instruction-led durable artifacts use run identity and refuse terminal collisions", async () => {
   const contracts = [
-    ["csm-deep-research", "research", "research.md"],
-    ["csm-make-tests", "tests", "tests-ledger.md"],
-    ["csm-plan", "plans", "csm.draft.md"],
-    ["csm-review", "reviews", "review.md"],
-    ["csm-review-python", "doctrine", "python-doctrine-review.md"],
+    ["csm-deep-research", "research", "research.json", true],
+    ["csm-make-tests", "tests", "tests-ledger.md", true],
+    ["csm-plan", "plans", "csm.json", false],
+    ["csm-review", "reviews", "review.json", true],
+    ["csm-review-python", "doctrine", "python-doctrine-review.json", true],
   ];
-  for (const [name, directory, suffix] of contracts) {
+  for (const [name, directory, suffix, includesRunId] of contracts) {
     const content = await skill(name);
     assert.match(content, /validated (?:immutable )?`run-id`/);
     assert.match(content, /yyyymmddthhmmssz-<12 lowercase hex>/);
     assert.match(content, /\^\[a-z0-9\]\[a-z0-9-\]\{7,63\}\$/);
     const escapedSuffix = suffix.replaceAll(".", "\\.");
-    assert.match(
-      content,
-      new RegExp(`\\.agents/${directory}/<date>-[^\\n]*<run-id>[^\\n]*${escapedSuffix}`),
-    );
+    const pathPattern = includesRunId
+      ? `\\.agents/${directory}/<date>-[^\\n]*<run-id>[^\\n]*${escapedSuffix}`
+      : `\\.agents/${directory}/<date>-[^\\n]*${escapedSuffix}`;
+    assert.match(content, new RegExp(pathPattern));
     assert.match(
       content,
       /match(?:es|ing)[^\n]*(?:owner|cursor)|owner-matching|matching ownership|ownership mismatch/,

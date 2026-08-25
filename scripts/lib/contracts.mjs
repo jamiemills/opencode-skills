@@ -186,20 +186,20 @@ const MANIFEST = {
 const CONTRACTS = [
   {
     id: "plan-save-path",
-    source: { skill: "csm-plan", needle: ".agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md" },
+    source: { skill: "csm-plan", needle: ".agents/plans/<date>-<goal-slug>-csm.json" },
     consumers: [{ skill: "csm-build", needle: ".agents/plans/" }],
     rule: "prefix",
   },
   {
     id: "bdd-plan-suffix",
-    source: { skill: "csm-bdd-tdd", needle: "-bdd-csm.md" },
-    consumers: [{ skill: "csm-build", needle: "-bdd-csm.md" }],
+    source: { skill: "csm-bdd-tdd", needle: "-bdd-csm.json" },
+    consumers: [{ skill: "csm-build", needle: "-bdd-csm.json" }],
     rule: "exact",
   },
   {
-    id: "superseded-pointer",
-    source: { skill: "csm-bdd-tdd", needle: "Superseded for BDD/TDD" },
-    consumers: [{ skill: "csm-build", needle: "Superseded for BDD/TDD" }],
+    id: "bdd-json-supersession",
+    source: { skill: "csm-bdd-tdd", needle: "typed supersession pointer" },
+    consumers: [{ skill: "csm-build", needle: "typed supersession pointer" }],
     rule: "exact",
   },
   {

@@ -131,11 +131,14 @@ When loaded:
 
 ## Locate The Plan
 
-Plans may come from `csm-plan` (base plans) or `csm-bdd-tdd` (BDD/TDD mutations, named `*-bdd-csm.md`). Resolve which to use as follows:
+Plans come from the canonical `csm-plan/1` JSON artifact (`.agents/plans/<date>-<goal-slug>-csm.json`) or a JSON BDD/TDD descriptor ending in `-bdd-csm.json`. Markdown plans and projections are legacy history, not machine inputs, and return `migration-required`.
+Legacy `Superseded for BDD/TDD` pointers are history markers; JSON descriptors carry supersession explicitly.
+
+Resolve the plan as follows:
 
 1. A plan path explicitly supplied by the user, or established in the conversation, always wins.
-2. Otherwise inspect `.agents/plans/` at the repository root. When both a base plan and a BDD/TDD mutation exist for the same goal, prefer the BDD/TDD plan — it supersedes the base plan by default; when several BDD/TDD versions exist, prefer the highest version.
-3. Check the selected plan for a `Superseded for BDD/TDD` pointer line. If present, and the user has not explicitly asked to run that original plan, follow the pointer and use the referenced BDD/TDD plan instead.
+2. Otherwise inspect `.agents/plans/` at the repository root for `.json` descriptors only. When both a base plan and a BDD/TDD mutation exist for the same goal, prefer the BDD/TDD descriptor — it supersedes the base plan by default; when several versions exist, prefer the highest version.
+3. Check the selected JSON descriptor for its typed supersession pointer. If present, and the user has not explicitly asked to run that original plan, follow the pointer and use the referenced descriptor instead.
 4. If multiple plausible plans remain, ask the user to choose; do not guess.
 5. Read the complete plan, applicable repository instructions, and referenced evidence before changing state. For a BDD/TDD plan, also absorb the specs folder path and Traceability section: scenario and unit-test-design paths under the specs folder are part of every task's evidence.
 

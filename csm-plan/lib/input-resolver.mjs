@@ -3,8 +3,10 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSchemaRegistry, digest, parseJson } from "../../lib/schema-runtime/index.mjs";
 import { assertMachineInput } from "../../lib/publication/index.mjs";
+import { validatePlanArtifact } from "./plan.mjs";
 
 const INPUTS = Object.freeze({
+  plan: { schema: "csm-plan/1", owner: "csm-plan" },
   approach: { schema: "csm-approach/1", owner: "csm-grill" },
   research: { schema: "csm-research/1", owner: "csm-deep-research" },
   review: { schema: "csm-review-findings/1", owner: "csm-review" },
@@ -150,6 +152,14 @@ export async function resolvePlanInput(
       path: loaded.path,
       errors: validation.errors,
     });
+  if (kind === "plan") {
+    const planValidation = validatePlanArtifact(value);
+    if (!planValidation.valid)
+      return rejected("schema-invalid", "input does not validate as csm-plan/1", {
+        path: loaded.path,
+        errors: planValidation.errors,
+      });
+  }
   if (!verifyDigests(value))
     return rejected("digest-mismatch", "input digest does not match its payload", {
       path: loaded.path,

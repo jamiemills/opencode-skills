@@ -94,7 +94,8 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 ## Interface
 
 - Consumes: a saved non-BDD CSM plan; optional repository conventions from a NORMS.md artifact
-- Produces: a formal spec, executable Gherkin scenarios, unit test designs, and the mutated `*-bdd-csm.md` plan with a `Superseded for BDD/TDD` pointer in the source plan
+- Produces: a formal spec, executable Gherkin scenarios, unit test designs, and a JSON `*-bdd-csm.json` plan descriptor with a typed supersession pointer
+- The typed supersession pointer is stored in the JSON plan descriptor; legacy Markdown supersession is migration-required history only.
 - Hands off: the mutated plan and specs folder wait for an explicit csm-build invocation (human-mediated)
 - Never invokes: csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
@@ -197,7 +198,7 @@ Rules: one assertion focus per test; fast, isolated, deterministic by design; mo
 
 ### 6. MUTATE_PLAN (Primary Agent)
 
-1. Write a new run-ID-suffixed plan at the repository root under `.agents/plans/<date>-<goal-slug>-<run-id>-bdd-csm.md`. Never overwrite the source plan or an existing BDD plan; on re-runs use a new run ID and refuse any terminal collision, keeping the `-bdd-csm.md` ending that `csm-build` looks for.
+1. Write a new JSON BDD/TDD plan descriptor at the repository root under `.agents/plans/<date>-<goal-slug>-<run-id>-bdd-csm.json`. Never overwrite the source plan or an existing BDD descriptor; on re-runs use a new run ID and refuse any terminal collision. Do not migrate the BDD package or build state in this phase.
 2. Use the required `csm-plan` document structure — same sections, with the task block below derived from the base template (Spike candidate intentionally dropped for BDD plans; Scenario and Unit test designs added) — so `csm-build` consumes it without new machinery, with these additions:
    - Open the plan, immediately after the title, with a provenance line: `> This is a BDD/TDD plan based upon an earlier plan. See <source plan path>.` This is the plan's only reference to the source plan — do not repeat it in Control or elsewhere.
    - **How To Execute** and **Control** must both state `Specs folder: <git-root-relative path>`; every task references scenario and test-design paths under it.
@@ -225,15 +226,14 @@ Rules: one assertion focus per test; fast, isolated, deterministic by design; mo
    - Recovery note: <how to detect partial work and resume safely>
 ```
 
-4. Append a final pointer line to the end of the source plan directing its readers to the mutated plan:
+4. Record supersession in the new JSON descriptor, using a typed pointer containing the source JSON plan path and the mutated JSON plan path. Do not create or update a Markdown supersession pointer. Legacy Markdown plans may retain their historical pointer, but it is migration-required and is never machine input:
 
-```markdown
+```json
 ---
-
-> **Superseded for BDD/TDD:** this is the original plan, now mutated to use strict BDD and TDD. Read the mutated plan here: <path to mutated plan> (specs live in <specs folder path>).
+{"type":"csm-plan-supersession/1","source":"<source JSON plan path>","target":"<mutated JSON plan path>","reason":"bdd-tdd"}
 ```
 
-If a pointer line from an earlier run already exists in the source plan, replace it with the new target instead of appending a duplicate. Apart from this line, do not modify the source plan.
+The source JSON plan is immutable. If a legacy Markdown projection contains a `Superseded for BDD/TDD` line, leave it as history and require migration before machine consumption.
 
 ### 7. VERIFY
 

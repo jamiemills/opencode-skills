@@ -100,9 +100,9 @@ export const JOURNAL_TERMINALS = ["closed", "completion gate"];
 // carries a full path shape (csm-plan/csm-grill/csm-review) are matched at
 // shape level; the rest are smoke-checked at directory/name level.
 export const ARTIFACT_PATTERNS = {
-  "csm-plan": [/\.agents\/plans\/<yyyy-mm-dd>-<goal-slug>-csm\.md/, /NORMS\.md/],
+  "csm-plan": [/\.agents\/plans\/<date>-<goal-slug>-csm\.json/, /NORMS\.md/],
   "csm-build": [/\.agents\/plans\//, /NORMS\.md/],
-  "csm-bdd-tdd": [/NORMS\.md/, /\*-bdd-csm\.md/],
+  "csm-bdd-tdd": [/NORMS\.md/, /\*-bdd-csm\.json/],
   "csm-grill": [/\.agents\/approaches\/<yyyy-mm-dd>-<idea-slug>-approach\.md/],
   "csm-review": [/NORMS\.md/, /\.agents\/reviews\/<yyyy-mm-dd>-<repo-slug>-review\.md/],
   "csm-scan": [/NORMS\.md/],
@@ -969,12 +969,22 @@ export function validatePlanApplicability(content, root = process.cwd()) {
     ["warranted", "mixed"].includes(value.decision)
   ) {
     const present = new Map(value.obligations.map((item) => [item.id, item.status]));
+    if (value.obligations.length === 0)
+      failures.push(`Applicability is ${value.decision} but has no obligations`);
     for (const id of requiredObligationIds(value.matchedSignals)) {
       if (!present.has(id) || present.get(id) === "missing")
         failures.push(
           `Applicability is ${value.decision} but required obligation "${id}" is missing`,
         );
     }
+  }
+  if (["warranted", "mixed"].includes(value.decision)) {
+    const warranted = value.taskApplicability?.warranted;
+    const lightweight = value.taskApplicability?.lightweight;
+    if (!Array.isArray(warranted) || warranted.length === 0)
+      failures.push(`Applicability is ${value.decision} but has no warranted task slices`);
+    if (value.decision === "mixed" && (!Array.isArray(lightweight) || lightweight.length === 0))
+      failures.push("Applicability mixed scope has no lightweight task slices");
   }
   if (
     value.decision === "mixed" &&
@@ -1029,7 +1039,7 @@ export function classifyApplicability({
       mode: explicitOptIn && signals.length === 0 ? "explicit-opt-in" : "risk-first",
       matchedSignals: signals,
     };
-  if (taskApplicability?.lightweight?.length)
+  if (taskApplicability?.lightweight?.length && signals.length === 0 && !explicitOptIn)
     return { decision: "lightweight", mode: "risk-first", matchedSignals: signals };
   if (signals.length > 0 || explicitOptIn)
     return {

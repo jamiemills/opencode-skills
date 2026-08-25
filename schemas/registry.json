@@ -132,6 +132,15 @@
       "schemaContentDigest": "sha256:1f5a595d93d0ea8ee7f489f16d2325d8c728df55756c74487451a2f75f35f528"
     },
     {
+      "id": "csm-plan/1",
+      "revision": 1,
+      "schemaPath": "csm-plan/schemas/csm-plan.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:bf06c4b0495e481242caa15040427fe21e47e3b7cae0f51b4107470dc07b1cf0"
+    },
+    {
       "id": "csm-autoresearch-contract/1",
       "revision": 1,
       "schemaPath": "csm-autoresearch/schemas/run-contract.schema.json",

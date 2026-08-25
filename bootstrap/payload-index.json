@@ -30,8 +30,8 @@
       },
       {
         "path": "payload/skills/csm-bdd-tdd/SKILL.md",
-        "sha256": "a17c76d5fa4f936a4bb23432724e179ad08ff16b4e20b5c898a2e182e2a3b567",
-        "bytes": 23069,
+        "sha256": "329fec17a94a1b21ae76bedc2710bbe19003961ba73bdf58270257329aea925b",
+        "bytes": 23340,
         "mode": "0644"
       },
       {
@@ -42,8 +42,8 @@
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "22ab729342cf278266fc6621b1f24d5b2f6cc050e74f93b93b3172b7278dfd17",
-        "bytes": 34090,
+        "sha256": "873a183b2f3ea9545ffbcc70fb9ab1833c12aaa222ac669fe609037538e5ef70",
+        "bytes": 34383,
         "mode": "0644"
       },
       {
@@ -72,8 +72,8 @@
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "bd29e21d769b2d6cbc5c6ef630819112de67733b0a4d30dc1e6a403ee514007b",
-        "bytes": 34529,
+        "sha256": "26c34a83bd94052d8e526ccc83203769f798c390fc2e033f22b2e4c876135c26",
+        "bytes": 34718,
         "mode": "0644"
       },
       {
@@ -1169,8 +1169,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "f73dba3ec572005c7e7b4ca3bf63377db01160abafabf8bf946621b82bf2953c",
-        "bytes": 7430,
+        "sha256": "e82c09ad98efc48059ffd1f9f7a3f1a09a0c39d5f51af3318a940696dec02a65",
+        "bytes": 8055,
         "mode": "0644"
       },
       {

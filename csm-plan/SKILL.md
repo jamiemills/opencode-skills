@@ -49,7 +49,7 @@ Run first — before `INTAKE`, any planning tool use, or any other section. Not 
 - Prefer simple, pragmatic plans. Design the smallest solution that satisfies the acceptance criteria; plan for the stated ask, not hypothetical futures; favor boring, proven approaches and existing repository patterns over novel abstractions; and use the fewest tasks that remain atomic and independently validatable. Reject speculative generality, unrequested configurability, and elaborate designs that a simpler one would satisfy.
 - Obey all repository instructions. Ask the user only when an ambiguity represents a product choice, changes scope materially, or cannot be resolved safely from evidence.
 - The only persistent project changes allowed during planning are the run-owned plan directory and saved plan document. Do not edit project source, configuration, dependencies, infrastructure, or real data.
-- Persist planning state to `.agents/plans/<date>-<goal-slug>-<run-id>-csm.draft.md` after every state transition. Resume only that exact owner-matching draft. At `SAVED`, promote only when `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md` is absent; otherwise refuse the collision and preserve both artifacts.
+- Persist planning state to the canonical JSON descriptor `.agents/plans/<date>-<goal-slug>-csm.json` after every state transition. Resume only that exact owner-matching artifact. Creation refuses an existing final JSON artifact and preserves legacy Markdown history.
 - Temporary writes are explicitly allowed for safe planning R&D. Use an isolated OS temporary directory such as a newly created directory under `/tmp`; verify the resolved path is outside the repository and is not linked to a real system or data location before writing.
 - Temporary R&D may create throwaway prototypes, synthetic fixtures, generated artifacts, local test databases, or copied code fragments needed to answer planning questions. Treat all such output as disposable evidence, never as implementation deliverables, and never move or copy it into the project working tree.
 - Keep R&D non-destructive and non-impactful. The write allowlist contains exactly the isolated temporary sandbox, the `.draft` sidecar, and the saved plan path. Do not install dependencies into the project or system, write anywhere else, invoke mutating APIs, contact production services, use live credentials, or alter persistent systems or real data.
@@ -121,17 +121,21 @@ Temporary sandbox mutation and the intentional creation or update of the plan do
 ## Interface
 
 - Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched; optional csm-ddd analysis artifacts when explicitly referenced
-- Produces: one saved, verified CSM plan at `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md`. Legacy compatibility path `.agents/plans/<yyyy-mm-dd>-<goal-slug>-csm.md` is read-only history.
-- Hands off: the saved plan waits for a later, explicit csm-build invocation (human-mediated)
+- Produces: one saved, verified canonical JSON CSM plan at `.agents/plans/<date>-<goal-slug>-csm.json`. Markdown is a generated human projection; existing `.md` plans are read-only history and require migration.
+- Hands off: the saved JSON plan waits for a later, explicit csm-build invocation (human-mediated)
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Durable Artifact Identity
 
+The authoritative plan is `csm-plan/1` JSON. It embeds control, append-only journal, applicability, current-state evidence, decisions, tasks, completion review, and validated input descriptors. Unknown revisions, malformed JSON, duplicate task IDs, journal sequence collisions, terminal replacement, and legacy Markdown inputs fail closed. Markdown is rendered from JSON and is never a machine input.
+
 Each planning invocation has one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. It is recorded in Control and binds the invocation git root, normalized goal slug, artifact type, and run ID. Date and slug alone never establish ownership.
 
-The draft path is `.agents/plans/<date>-<goal-slug>-<run-id>-csm.draft.md`; promotion targets `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md`. A draft resumes only when its owner fields match and its state is pre-`SAVED`. Promotion or creation refuses an existing final artifact, including one from the same run ID; it never overwrites, deletes, renames, or creates a mutable `latest` alias. Same-day same-slug planning requires a new run ID. Existing date/slug plans remain read-only history and are not silently migrated.
+The canonical artifact path is `.agents/plans/<date>-<goal-slug>-csm.json`. Creation refuses an existing final artifact and never creates a mutable `latest` alias. Existing Markdown plans remain read-only history and are not silently migrated.
 
 A terminal plan is immutable; replacement is refused even when the requested slug and date match.
+
+Same-day duplicate slug requests are refused unless the exact owner-matching JSON artifact is being resumed; existing Markdown history never establishes ownership.
 
 When this skill delegates csm-deep-research, the delegated run owns its `.agents/research/` finding and declared artifact paths. This plan records the exact handoff path, delegated run ID, and verification result as read-only evidence; it does not include those files in its own write allowlist and must not create, rename, delete, replace, or clean them up. A failed or colliding handoff blocks the dependent decision rather than falling back to an unowned write.
 
@@ -231,7 +235,7 @@ Address every issue found. Cycle back as needed; do not approve a plan merely be
 
 ### 8. SAVED
 
-Save the final plan under the exact run-owned path `.agents/plans/<date>-<goal-slug>-<run-id>-csm.md` at the repository root. Promote the matching draft only with a no-replace operation; if the destination exists, refuse and preserve both artifacts. A missing or mismatched draft is not inferred from date/slug and cannot be silently replaced.
+Save the final plan under `.agents/plans/<date>-<goal-slug>-csm.json` at the repository root. Validate before atomic no-replace publication; if the destination exists, refuse and preserve both artifacts. Legacy Markdown is history and cannot be used as machine input.
 
 Commit only when the user explicitly authorizes it in the current invocation; otherwise do not invoke Git commit. When authorized, verify the owned pathset is exactly the new plan file and use `git commit --only -- <plan path>` with no bare `git commit`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
 
