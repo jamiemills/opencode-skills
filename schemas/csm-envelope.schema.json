@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-envelope/1",
+  "title": "CSM shared protocol envelope",
+  "description": "Stable protocol metadata owned by the shared contract. Payload fields are owned and validated by the declared payload schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifact",
+    "run",
+    "lifecycleStatus",
+    "verificationStatus",
+    "payloadSchema",
+    "payload"
+  ],
+  "properties": {
+    "schema": { "const": "csm-envelope/1" },
+    "schemaRevision": { "const": 1 },
+    "artifact": { "$ref": "#/$defs/artifactIdentity" },
+    "run": { "$ref": "#/$defs/runIdentity" },
+    "lifecycleStatus": {
+      "enum": ["active", "completed", "failed", "blocked", "superseded", "quarantined"]
+    },
+    "verificationStatus": {
+      "enum": ["unverified", "incomplete", "verified", "rejected"]
+    },
+    "payloadSchema": { "$ref": "#/$defs/schemaRef" },
+    "payload": {
+      "type": "object",
+      "description": "Payload-owned fields are validated by payloadSchema; envelope validation does not silently claim them.",
+      "additionalProperties": true
+    },
+    "delegation": { "$ref": "#/$defs/delegation" },
+    "inputArtifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactReference" },
+      "uniqueItems": true
+    },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "journal": {
+      "type": "array",
+      "description": "Append-only journal events conform to csm-journal-event/1 at the JSONL boundary.",
+      "items": { "type": "object" },
+      "uniqueItems": true
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" },
+      "uniqueItems": true
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" },
+      "uniqueItems": true
+    },
+    "errors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/error" },
+      "uniqueItems": true
+    },
+    "crossReferences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/crossReference" },
+      "uniqueItems": true
+    },
+    "rollbackArtifactId": { "$ref": "#/$defs/artifactId" }
+  },
+  "$defs": {
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "schemaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]*/[1-9][0-9]*$" },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "artifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "kind", "owner", "runId", "digest", "createdAt", "revision"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/artifactId" },
+        "kind": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,63}$" },
+        "owner": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "runId": { "$ref": "#/$defs/runId" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "runIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "startedAt"],
+      "properties": {
+        "runId": { "$ref": "#/$defs/runId" },
+        "parentRunId": { "$ref": "#/$defs/runId" },
+        "delegatedFromRunId": { "$ref": "#/$defs/runId" },
+        "delegationId": { "type": "string", "pattern": "^del-[a-z0-9][a-z0-9-]{1,127}$" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "delegation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delegationId", "fromRunId", "toRunId"],
+      "properties": {
+        "delegationId": { "type": "string", "pattern": "^del-[a-z0-9][a-z0-9-]{1,127}$" },
+        "fromRunId": { "$ref": "#/$defs/runId" },
+        "toRunId": { "$ref": "#/$defs/runId" },
+        "rule": { "type": "string", "minLength": 1 }
+      }
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "schema", "digest", "relation"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/artifactId" },
+        "schema": { "$ref": "#/$defs/schemaRef" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "relation": { "enum": ["input", "derived-from", "supports", "supersedes", "rollback"] },
+        "owner": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "kind", "digest", "retention"],
+      "properties": {
+        "evidenceId": { "type": "string", "pattern": "^ev-[a-z0-9][a-z0-9-]{1,127}$" },
+        "kind": { "enum": ["test", "fixture", "observation", "reference", "diagnostic"] },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "retention": { "enum": ["embedded", "retained", "unavailable"] },
+        "uri": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "producedAt"],
+      "properties": {
+        "producer": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "producerVersion": { "type": "string", "minLength": 1 },
+        "producedAt": { "type": "string", "format": "date-time" },
+        "sourceDigests": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "boundary"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]+$" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "boundary": { "enum": ["envelope", "payload", "registry", "reference", "projection"] },
+        "path": { "type": "string", "pattern": "^(|(/[A-Za-z0-9_~-]+)*)$" },
+        "details": { "type": "object" }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errorId", "code", "message", "boundary", "retryable"],
+      "properties": {
+        "errorId": { "type": "string", "pattern": "^err-[a-z0-9][a-z0-9-]{1,127}$" },
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]+$" },
+        "message": { "type": "string", "minLength": 1 },
+        "boundary": { "enum": ["envelope", "payload", "registry", "reference", "projection"] },
+        "retryable": { "type": "boolean" },
+        "causeErrorId": { "type": "string", "pattern": "^err-[a-z0-9][a-z0-9-]{1,127}$" },
+        "details": { "type": "object" }
+      }
+    },
+    "crossReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["referenceId", "relation", "target"],
+      "properties": {
+        "referenceId": { "type": "string", "pattern": "^ref-[a-z0-9][a-z0-9-]{1,127}$" },
+        "relation": {
+          "enum": ["parent", "child", "supports", "derived-from", "blocks", "supersedes"]
+        },
+        "target": { "$ref": "#/$defs/artifactReference" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
+- Current CSM state: CHECKPOINT
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-25 foundation batch committed as `6a2af8d`; T001/T002 repaired and integrated, focused acceptance passed 10 tests, and `make check` passed 1189 checks.
+- Last checkpoint: 2026-08-25 T003 integrated and repaired through four independent review cycles; focused contract acceptance passed 23 tests and `make check` passed 1189 checks.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T003
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -295,7 +295,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If no candidate satisfies the required capability, stop before T003 and record the unresolved blocker; do not silently use a partial validator.
 
-3. [in_progress] Define shared envelopes, schema registry, artifact identity, journals, diagnostics, and render metadata.
+3. [completed] Define shared envelopes, schema registry, artifact identity, journals, diagnostics, and render metadata.
    - Task ID: T003
    - Depends on: T002
    - Parallel group: G2
@@ -695,6 +695,13 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 0 | REVIEW -> CHECKPOINT | T001,T002 | Foundation batch is ready for checkpoint commit; no temporary spike artifact remains and no unrelated paths changed. | CHECKPOINT |
 | 2026-08-25 | 1 | CHECKPOINT -> SELECT | T003 | T001/T002 commit `6a2af8d` passed hook gates; T003 is the only ready task and owns canonical shared contracts. | SELECT |
 | 2026-08-25 | 1 | SELECT -> DISPATCH | T003 | Shared schema/registry ownership is serialized; no renderer, bootstrap, or skill migration task is dispatched concurrently. | DISPATCH |
+| 2026-08-25 | 1 | DISPATCH -> INTEGRATE | T003 | Worker returned shared schemas, registry, runtime semantics, and focused tests; actual diff was inspected. | INTEGRATE |
+| 2026-08-25 | 1 | INTEGRATE -> VERIFY | T003 | Primary rerun passed `node --test --test-concurrency=1 tests/schema-registry.test.mjs tests/schema-validation.test.mjs` (23 tests) and `make check` (1189 checks). | VERIFY |
+| 2026-08-25 | 1 | VERIFY -> REVIEW | T003 | T003 acceptance, registry integrity, payload dispatch, lineage, journals, projections, and malformed-input behavior are reproducible. | REVIEW |
+| 2026-08-25 | 1 | REVIEW -> REPAIR | T003 | Independent review cycles found and repaired registry/envelope/journal/projection/lineage/revision fail-open cases. | REPAIR |
+| 2026-08-25 | 1 | REPAIR -> VERIFY | T003 | Repaired focused suite passed 23 tests and `make check` passed 1189 checks. | VERIFY |
+| 2026-08-25 | 1 | VERIFY -> REVIEW | T003 | Final independent review returned PROCEED; no material blocker remains for T004. | REVIEW |
+| 2026-08-25 | 1 | REVIEW -> CHECKPOINT | T003 | T003 is complete; residual risk is limited to compatibility enforcement in T004 and full-suite verification later. | CHECKPOINT |
 
 ## Completion Review
 

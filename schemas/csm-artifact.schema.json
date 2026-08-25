@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-artifact/1",
+  "title": "CSM durable artifact record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "artifact", "contentType", "location", "lifecycleStatus"],
+  "properties": {
+    "schema": { "const": "csm-artifact/1" },
+    "artifact": { "$ref": "#/$defs/artifactIdentity" },
+    "contentType": { "enum": ["application/json", "application/jsonl"] },
+    "location": { "type": "string", "minLength": 1 },
+    "lifecycleStatus": {
+      "enum": ["active", "completed", "failed", "blocked", "superseded", "quarantined"]
+    },
+    "sourceArtifactIds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactId" },
+      "uniqueItems": true
+    },
+    "rollbackArtifactId": { "$ref": "#/$defs/artifactId" }
+  },
+  "$defs": {
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "artifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "kind", "owner", "runId", "digest", "createdAt", "revision"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/artifactId" },
+        "kind": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,63}$" },
+        "owner": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "runId": { "$ref": "#/$defs/runId" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

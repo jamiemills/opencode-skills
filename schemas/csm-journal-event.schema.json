@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-journal-event/1",
+  "title": "CSM append-only JSON journal event",
+  "description": "JSONL is reserved for append-only events and ledgers; each event has immutable identity and revision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "eventId",
+    "runId",
+    "sequence",
+    "eventType",
+    "occurredAt",
+    "lifecycleStatus"
+  ],
+  "properties": {
+    "schema": { "const": "csm-journal-event/1" },
+    "eventId": { "type": "string", "pattern": "^evt-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "$ref": "#/$defs/runId" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "eventType": {
+      "enum": [
+        "run.started",
+        "run.completed",
+        "run.failed",
+        "artifact.created",
+        "artifact.verified",
+        "artifact.quarantined",
+        "delegation.started",
+        "delegation.completed"
+      ]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "lifecycleStatus": {
+      "enum": ["active", "completed", "failed", "blocked", "superseded", "quarantined"]
+    },
+    "artifactId": { "$ref": "#/$defs/artifactId" },
+    "parentEventId": { "type": "string", "pattern": "^evt-[a-z0-9][a-z0-9-]{1,127}$" },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" },
+      "uniqueItems": true
+    },
+    "data": { "type": "object" }
+  },
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "boundary"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]+$" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "boundary": { "enum": ["envelope", "payload", "registry", "reference", "projection"] },
+        "path": { "type": "string", "pattern": "^(|(/[A-Za-z0-9_~-]+)*)$" },
+        "details": { "type": "object" }
+      }
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-projection/1",
+  "title": "CSM disposable projection descriptor",
+  "description": "A projection is derived presentation metadata, never a machine-input artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "projectionId",
+    "source",
+    "sourceRunId",
+    "sourceOwner",
+    "mediaType",
+    "renderer",
+    "profile",
+    "rendererDigest",
+    "profileDigest",
+    "generatedAt",
+    "outputDigest",
+    "status",
+    "approval"
+  ],
+  "properties": {
+    "schema": { "const": "csm-projection/1" },
+    "projectionId": { "type": "string", "pattern": "^proj-[a-z0-9][a-z0-9-]{1,127}$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "digest", "schema"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/artifactId" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "schema": { "$ref": "#/$defs/schemaRef" }
+      }
+    },
+    "sourceRunId": { "$ref": "#/$defs/runId" },
+    "sourceOwner": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "mediaType": { "enum": ["text/markdown", "text/html"] },
+    "renderer": { "$ref": "#/$defs/schemaRef" },
+    "profile": { "$ref": "#/$defs/schemaRef" },
+    "rendererDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "profileDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "outputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "status": { "const": "untrusted-presentation" },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding", "status"],
+      "properties": {
+        "binding": { "$ref": "#/$defs/approvalBinding" },
+        "status": { "enum": ["pending", "approved", "rejected", "expired"] },
+        "approvedBy": { "type": "string", "minLength": 1 },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "location": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "schemaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*/[1-9][0-9]*$" },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "approvalBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "sourceRunId",
+        "sourceOwner",
+        "renderer",
+        "rendererDigest",
+        "profile",
+        "profileDigest",
+        "outputDigest"
+      ],
+      "properties": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifactId", "schema", "digest"],
+          "properties": {
+            "artifactId": { "$ref": "#/$defs/artifactId" },
+            "schema": { "$ref": "#/$defs/schemaRef" },
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        },
+        "sourceRunId": { "$ref": "#/$defs/runId" },
+        "sourceOwner": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "renderer": { "$ref": "#/$defs/schemaRef" },
+        "rendererDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "profile": { "$ref": "#/$defs/schemaRef" },
+        "profileDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "outputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    }
+  }
+}
