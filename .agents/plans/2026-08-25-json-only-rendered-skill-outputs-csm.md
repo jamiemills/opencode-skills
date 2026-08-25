@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
-- Cycle: 1
+- Current CSM state: DISPATCH
+- Cycle: 2
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T003 integrated and repaired through four independent review cycles; focused contract acceptance passed 23 tests and `make check` passed 1189 checks.
+- Last checkpoint: 2026-08-25 T003 committed as `b48591d`; focused contract acceptance passed 23 tests and `make check` passed 1189 checks after integrity repairs.
 - Last model/run: gpt-5.6-luna build run 2026-08-25.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T004
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -310,7 +310,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If envelope ownership is ambiguous, do not migrate a skill; revise only the foundation and rerun the registry tests.
 
-4. [pending] Implement compatibility negotiation, adapters, and replay infrastructure.
+4. [in_progress] Implement compatibility negotiation, adapters, and replay infrastructure.
    - Task ID: T004
    - Depends on: T003
    - Parallel group: G2
@@ -702,6 +702,8 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 1 | REPAIR -> VERIFY | T003 | Repaired focused suite passed 23 tests and `make check` passed 1189 checks. | VERIFY |
 | 2026-08-25 | 1 | VERIFY -> REVIEW | T003 | Final independent review returned PROCEED; no material blocker remains for T004. | REVIEW |
 | 2026-08-25 | 1 | REVIEW -> CHECKPOINT | T003 | T003 is complete; residual risk is limited to compatibility enforcement in T004 and full-suite verification later. | CHECKPOINT |
+| 2026-08-25 | 2 | CHECKPOINT -> SELECT | T004 | T003 commit `b48591d` passed hook gates; T004 is the only dependency-ready task. | SELECT |
+| 2026-08-25 | 2 | SELECT -> DISPATCH | T004 | Compatibility registry/adapter ownership is serialized before bootstrap or renderer work. | DISPATCH |
 
 ## Completion Review
 
