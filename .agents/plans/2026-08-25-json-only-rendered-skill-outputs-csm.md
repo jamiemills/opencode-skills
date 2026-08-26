@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: DISPATCH
-- Cycle: 12
+- Current CSM state: CHECKPOINT
+- Cycle: 13
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T017 committed as `85488c1`; full suite passed 1283 tests, `make check` passed 1189 checks, lint and formatting passed, and Node-22 package tests passed.
-- Last model/run: gpt-5.6-luna build run 2026-08-25, current cycle 12.
-- Next transition: DISPATCH -> INTEGRATE
-- Active tasks: none; T020 is next
+- Last checkpoint: 2026-08-26 T020 focused JSON control/input replay, schema registry, bootstrap parity, lint, and formatting checks passed; package audit was environment-blocked by Node 20.
+- Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 13.
+- Next transition: CHECKPOINT -> SELECT
+- Active tasks: none; T021 is next
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -550,7 +550,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: Preserve prior ledger files as history; never rewrite them to satisfy the new JSON schema.
 
-20. [pending] Migrate csm-build state, completion, and downstream artifact descriptors.
+20. [completed] Migrate csm-build state, completion, and downstream artifact descriptors.
    - Task ID: T020
    - Depends on: T012, T017, T018, T019
    - Parallel group: G8
@@ -798,6 +798,11 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 12 | VERIFY -> REVIEW | T018,T019 | BDD/TDD traceability, lifecycle recovery, source-plan lineage, test ledger recovery, verification evidence, and terminal handoff behavior are covered by replay fixtures. | REVIEW |
 | 2026-08-25 | 12 | REVIEW -> CHECKPOINT | T018,T019 | Final repairs are integrated; checkpoint is ready after commit. Full `make test` must be rerun from the committed state because the prior hook stage inspected an uncommitted baseline. | CHECKPOINT |
 | 2026-08-25 | 13 | CHECKPOINT -> SELECT | T020 | T018/T019 are complete; csm-build control/state and downstream descriptor migration is the next ready task. | SELECT |
+| 2026-08-26 | 13 | SELECT -> DISPATCH | T020 | Implemented canonical build control/state, input validation, typed evidence descriptors, and JSON-only projection rejection with exact T020 tests. | DISPATCH |
+| 2026-08-26 | 13 | DISPATCH -> INTEGRATE | T020 | Integrated csm-build state schema/runtime, registry mapping, bootstrap mapping, and build replay tests; no implementation task execution was added. | INTEGRATE |
+| 2026-08-26 | 13 | INTEGRATE -> VERIFY | T020 | Focused T020, BDD/test replay, registry, bootstrap parity/package, lifecycle, lint, and formatting checks passed; Node-20 package-floor check remains unavailable. | VERIFY |
+| 2026-08-26 | 13 | VERIFY -> REVIEW | T020 | Primary review confirmed terminal immutability, append-only journal, refusal-before-dispatch, source lineage, descriptor digest binding, and Markdown/HTML rejection. | REVIEW |
+| 2026-08-26 | 13 | REVIEW -> CHECKPOINT | T020 | T020 acceptance evidence is complete; T021 remains the next ready task. | CHECKPOINT |
 
 ## Completion Review
 

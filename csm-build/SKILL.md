@@ -5,6 +5,18 @@ description: Implement CSM plans; use ONLY on explicit start/execute/continue/re
 
 # CSM Build
 
+## Canonical JSON Control
+
+Durable build control is `csm-build-state/1` JSON. `RECOVER`, `VALIDATE`, `SELECT`,
+`DISPATCH`, `INTEGRATE`, `VERIFY`, `REVIEW`, `REPAIR`, and `CHECKPOINT` are recorded
+as append-only transitions; `COMPLETE` and `BLOCKED` are terminal and immutable.
+Build dispatch is refused until the plan, BDD package, test package, and required
+DDD/norms inputs are validated JSON with matching source lineage. Commit and
+rollback evidence are descriptors, not execution authorization. This skill never
+executes implementation tasks during the planning migration. Markdown and HTML
+remain human-only projections and are rejected as machine inputs; legacy Markdown
+is not automatically converted.
+
 ## Optional Progress Tracker
 
 The progress tracker is OFF by default. Include no tracker text in intermediate or final output unless the user explicitly requests progress tracking or supplies `--progress`; otherwise preserve existing output unchanged. When enabled, declare 3–6 skill-appropriate milestones and expected weights totaling 100% before work begins.

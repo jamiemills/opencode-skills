@@ -19,7 +19,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:9ea2cde70d10b3fe1a5c58663f9462bb497e0f1cd88093fb0a686dd0ae0697f1"
+      "schemaContentDigest": "sha256:bfd396c5f337fa723c483545b471d3ef93f91f2c2629e2d430de47274ec779ab"
     },
     {
       "id": "csm-test-package/1",
@@ -28,7 +28,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:9218e4d89cac2844a8df5ba45abdcf6082824ec2f2f3188db730ee9635983b76"
+      "schemaContentDigest": "sha256:308966a33986468bdfa867169d4c868a0b7341091e22a5d2a065c9f0f85ad021"
     },
     {
       "id": "csm-envelope/1",
@@ -174,7 +174,16 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:83252d589f938fa9d8dcd65b9d2b5613acb8501684284e0ffb4469d8e5bac7c0"
+      "schemaContentDigest": "sha256:006f35c7f1df99300358a898344576a821bf6316843b917d6c66f4119a361468"
+    },
+    {
+      "id": "csm-build-state/1",
+      "revision": 1,
+      "schemaPath": "csm-build/schemas/state.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:7485eae53f5d053362c45f15e5d0ab5b333eac641c3e585fd497263c94d27bb3"
     },
     {
       "id": "csm-autoresearch-contract/1",

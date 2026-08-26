@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-build-state/1",
+  "title": "Canonical csm-build control and completion state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifactId",
+    "runId",
+    "owner",
+    "status",
+    "control",
+    "inputs",
+    "journal",
+    "artifacts",
+    "completion",
+    "provenance",
+    "projection"
+  ],
+  "properties": {
+    "schema": { "const": "csm-build-state/1" },
+    "schemaRevision": { "const": 1 },
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "owner": { "const": "csm-build" },
+    "status": { "enum": ["ready", "in_progress", "paused", "blocked", "complete", "failed"] },
+    "control": { "$ref": "#/$defs/control" },
+    "inputs": { "type": "array", "items": { "$ref": "#/$defs/input" } },
+    "journal": { "type": "array", "items": { "$ref": "#/$defs/event" } },
+    "artifacts": { "type": "array", "items": { "$ref": "#/$defs/descriptor" } },
+    "completion": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["status", "verifiedAt", "evidence", "commit", "rollback"],
+      "properties": {
+        "status": { "enum": ["pending", "complete", "blocked"] },
+        "verifiedAt": { "type": "string", "format": "date-time" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/descriptor" } },
+        "commit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "sha", "message", "files"],
+          "properties": {
+            "status": { "enum": ["not-requested", "recorded", "verified"] },
+            "sha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{7,64}$" },
+            "message": { "type": "string" },
+            "files": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "checkpoint", "action"],
+          "properties": {
+            "status": { "enum": ["not-needed", "available", "used", "unavailable"] },
+            "checkpoint": { "type": ["string", "null"] },
+            "action": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourcePlan", "sourceDigests"],
+      "properties": {
+        "sourcePlan": { "type": "string", "minLength": 1 },
+        "sourceDigests": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceOnly", "allowed"],
+      "properties": {
+        "sourceOnly": { "const": true },
+        "allowed": { "type": "array", "items": { "enum": ["markdown", "html"] } }
+      }
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentState",
+        "cycle",
+        "nextTransition",
+        "activeTasks",
+        "blockers",
+        "lastCheckpoint",
+        "lastModelRun"
+      ],
+      "properties": {
+        "currentState": {
+          "enum": [
+            "RECOVER",
+            "VALIDATE",
+            "SELECT",
+            "DISPATCH",
+            "INTEGRATE",
+            "VERIFY",
+            "REVIEW",
+            "REPAIR",
+            "CHECKPOINT",
+            "COMPLETE",
+            "BLOCKED",
+            "PAUSED"
+          ]
+        },
+        "cycle": { "type": "integer", "minimum": 0 },
+        "nextTransition": { "type": "string", "minLength": 1 },
+        "activeTasks": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^T[0-9]{3}$" },
+          "uniqueItems": true
+        },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "lastCheckpoint": { "type": "string" },
+        "lastModelRun": { "type": "string" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "artifactId", "schema", "runId", "owner", "digest", "path", "status"],
+      "properties": {
+        "name": { "enum": ["plan", "bdd", "tests", "ddd", "norms"] },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "pattern": "^csm-[a-z0-9-]+/[0-9]+$" },
+        "runId": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "path": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["resolved", "rejected"] }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "timestamp", "from", "to", "evidence"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 0 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "evidence": { "type": "string", "minLength": 1 },
+        "inputDigests": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "artifactId",
+        "kind",
+        "runId",
+        "owner",
+        "digest",
+        "path",
+        "contentType",
+        "lifecycleStatus",
+        "sourceArtifactIds",
+        "descriptorDigest"
+      ],
+      "properties": {
+        "schema": { "const": "csm-build-artifact/1" },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "path": { "type": "string", "minLength": 1 },
+        "contentType": {
+          "enum": [
+            "application/json",
+            "application/jsonl",
+            "text/markdown",
+            "text/html",
+            "application/octet-stream"
+          ]
+        },
+        "lifecycleStatus": {
+          "enum": ["active", "completed", "failed", "superseded", "quarantined"]
+        },
+        "sourceArtifactIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "rollbackArtifactId": { "type": ["string", "null"] },
+        "descriptorDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    }
+  }
+}
