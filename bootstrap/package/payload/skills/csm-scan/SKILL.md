@@ -19,7 +19,7 @@ Milestones
 
 The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. This supplements, never replaces, the skill state machine, acceptance evidence, and final result.
 
-Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract evidence across all 17 dimensions — Repository Structure, Technology Stack, Configuration, Testing, Code Conventions, Git Practices, Architecture, Documentation, Security, Operations, API Surface, Data Architecture, Deployment Topology, Maintainability, Governance & Ownership, Assurance & Supply Chain, and Development Practices — producing a single `NORMS.md` output file. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed.
+Read-only multi-ecosystem, multi-repo analysis tool. Scans one or more repositories to extract evidence across all 17 dimensions — Repository Structure, Technology Stack, Configuration, Testing, Code Conventions, Git Practices, Architecture, Documentation, Security, Operations, API Surface, Data Architecture, Deployment Topology, Maintainability, Governance & Ownership, Assurance & Supply Chain, and Development Practices — producing an authoritative JSON norms artifact. When more than one repository is scanned, the output also includes a global **Cross-repository Architecture** section. All runtime, build, test, and deployment findings come from committed static declarations; target commands are never executed. `NORMS.md` is generated only as a human projection or retained legacy history.
 
 ## Tmux Session Bootstrap
 
@@ -41,8 +41,8 @@ Run first — before any scan, test, or analysis command or other sections. Not 
 ## Interface
 
 - Consumes: repository path(s), strictly read-only
-- Produces: a single NORMS.md capturing 17 evidence dimensions
-- Hands off: NORMS.md is consumed as a file by csm-plan, csm-bdd-tdd, csm-build, and csm-review — never via skill invocation
+- Produces: one authoritative JSON norms artifact at `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json`, validated by `csm-scan/schemas/csm-norms.schema.json`; `NORMS.md` is a disposable projection or legacy history
+- Hands off: the registered JSON norms artifact is consumed by csm-plan, csm-bdd-tdd, csm-build, and csm-review; Markdown projections and legacy history are never machine inputs
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Dimensions
@@ -174,21 +174,21 @@ Identical immutable inputs, a fixed clock, the same plugin set, and the same rep
 ## Constraints (non-negotiable)
 
 - **Read-only**: Never modifies scanned repos — only the broker's registered `rg`/Git read-only argv forms execute; target commands and shell execution are absent
-- **Single output file**: Publish exactly one final `NORMS.md`; the implementation uses a same-directory temporary file plus rename for atomic publication and removes it on failure.
+- **Single authoritative output**: Publish exactly one final `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json`, validated by `csm-scan/schemas/csm-norms.schema.json`; use a same-directory temporary file plus rename for atomic publication and remove it on failure.
 - **Zero npm dependencies**: Node.js built-ins only (`node:fs`, `node:path`, `node:child_process`)
 - **No installs, no builds**: Never installs dependencies or runs build commands in scanned repos
 - **Deterministic**: Fixed inputs produce byte-identical output
 
 ## Output
 
-A single `NORMS.md` file beginning with a `format: csm-norms/1` frontmatter marker, containing one section per scanned repository with the 17 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** section when facts from its scanned dimensions coexist in a relationship reported by enrichment.
+The JSON norms artifact contains one typed record per scanned repository with the 17 dimensions above, in canonical order, followed by the global **Cross-repository Architecture** section. Each repository also receives a **Cross-observations** record when facts from its scanned dimensions coexist in a relationship reported by enrichment. A Markdown projection may render these records for people but is not durable authority or machine input.
 
 Enrichment metadata records factual detection coverage and the observed, inferred, unverified, unsupported, or not-applicable basis of findings. The rendered `### Coverage Basis` table summarizes observed, inferred, and unverified top-level scanner fields; claim status vocabulary also includes unsupported and not-applicable.
 
 ## Typical workflow
 
 1. Run `csm-scan` against the target repo(s)
-2. Review `NORMS.md` for architecture, conventions, tooling, and the additional evidence dimensions
+2. Review the JSON norms artifact, or its explicit Markdown projection, for architecture, conventions, tooling, and the additional evidence dimensions
 3. Feed findings into `csm-plan` for a new CSM plan
 
 ## CLI
@@ -199,9 +199,9 @@ Enrichment metadata records factual detection coverage and the observed, inferre
 node scripts/scan.mjs [--repos <path>...] [--out <path>] [--verbose]
 ```
 
-- **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the report is written to `NORMS.md` in the current directory.
+- **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the authoritative JSON report is written to `.agents/norms/` at the repository root.
 - `--repos <path>...` — one or more repository paths to scan (default: current working directory).
-- `--out <path>` — output file (default: `NORMS.md` in the current directory).
+- `--out <path>` — authoritative JSON output file (default: `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json`).
 - `--verbose` — write an unredacted local diagnostic trace (reporter lines + per-stage durations) to a per-run-unique `.csm-scan-debug-<pid>-<time>.log` next to `--out` (or the OS temp dir) — never to stdout. The trace is gitignored and never part of the report; delete it after debugging.
 - `--help` — print the full usage text and exit 0.
 - `--version` — print the version (package.json `version`, else the git commit hash, else `csm-scan`) and exit 0.

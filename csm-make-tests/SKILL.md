@@ -26,14 +26,14 @@ Turn a repository into a fully tested one: audit what exists, capture what the c
 - Consumes: a target repository checkout at a pinned commit with optional change-surface scope; optional NORMS.md conventions; cited research findings under `.agents/research/`
 - Produces: executable test files, goldens/fixtures, benchmark files, and canonical JSON package artifacts validated by `csm-make-tests-ledger/1`, `csm-make-tests-verification/1`, and `csm-test-package/1`. Legacy Markdown ledger/report paths remain read-only history.
 - Hands off: a verified JSON test-package descriptor to a later explicit csm-build run; Markdown projections are never machine inputs.
-- Legacy history patterns remain recognized for read-only compatibility: `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` and `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md`.
+- Legacy history patterns remain recognized for read-only compatibility: `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` and `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md`; they are never machine inputs.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Durable Artifact Identity
 
 Each generation or maintenance invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. It is recorded in both durable artifacts and binds the target git root, normalized repository slug, artifact type, and run ID. Date, slug, or the existence of any prior ledger alone never proves ownership.
 
-The run-owned paths are `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` and `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md`. MAINTAIN resumes only from those exact paths when their embedded root, slug, artifact type, run ID, and cursor match and the run is nonterminal. A terminal `OUTPUT` artifact is immutable; replacement, deletion, renaming, and a mutable `latest` alias are refused. A same-day duplicate slug starts only under a new run ID and cannot reuse the prior run's paths. Legacy date/slug artifacts remain read-only history and are not silently migrated.
+The run-owned paths are `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl`, `.agents/tests/<date>-<repo-slug>-<run-id>-verification.json`, and `.agents/tests/<date>-<repo-slug>-<run-id>-test-package.json`. MAINTAIN resumes only from those exact paths when their embedded root, slug, artifact type, run ID, and cursor match and the run is nonterminal. A terminal `OUTPUT` artifact is immutable; replacement, deletion, renaming, and a mutable `latest` alias are refused. A same-day duplicate slug starts only under a new run ID and cannot reuse the prior run's paths. Legacy date/slug Markdown artifacts remain read-only history and are not silently migrated.
 
 ## Tmux Session Bootstrap
 
@@ -99,15 +99,15 @@ retrieval time, and `reachability` (`reachable`, `unreachable`, or
 - Determinism discipline: control time, randomness, environment, network, filesystem, and concurrency; prefer dependency injection over regex scrubbing; seed everything.
 - Performance honesty: profile before load; on shared CI runners use wide trend-based gates, never bare small-percentage absolutes; record runner class with every benchmark baseline.
 - Residual uncertainty guards: where a documented uncertainty affects an action, apply the guard from `references/known-uncertainties.md` (e.g. locate pitest reports by glob, never hardcode `mutations.xml`; check `pact-broker help` before scripting broker gates; check `randoop --help` for `--specifications` before using it).
-- Ledger primacy: the two `.agents/tests/` artifacts are the durable record between runs — approvals, defect classifications, mutation scores, and baselines live there, never only in session context.
+- Ledger primacy: the JSONL ledger, JSON verification receipt, and JSON test-package descriptor under `.agents/tests/` are the durable record between runs — approvals, defect classifications, mutation scores, and baselines live there, never only in session context.
 - Division of labor: subagents may draft tests, seed inputs, or parse tool output in parallel; the primary owns TRIAGE adjudication, APPROVE batching, and the VERIFY gate, and never delegates those decisions.
 - Repository instructions win on conventions (test dirs, frameworks, naming); this skill wins on safety rules above.
 
 ## Write Discipline And File Allowlist
 
 - Persistent writes inside the target repository: generated test files, golden/fixture files, benchmark files, configuration snippets the tests require (e.g. pytest plugin registration), plus exactly two run-owned artifacts:
-- `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` — append-only approval and maintenance ledger (shape pinned in Required Test Package).
-- `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md` — final verification report (shape pinned in Required Test Package).
+- `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl` — append-only typed approval and maintenance ledger (shape pinned in Required Test Package).
+- `.agents/tests/<date>-<repo-slug>-<run-id>-verification.json` — final typed verification receipt (shape pinned in Required Test Package).
 - Everything else (scratch notes, captured outputs under review, dry-run copies, audit tables) lives in one disposable temp dir created with `mktemp -d /tmp/csm-make-tests-XXXXXX`, deleted at OUTPUT.
 - Nothing else may be written anywhere in the target repository or on the host: no production source edits, no build/CI/doc changes beyond test-required configuration snippets, no commits unless the user explicitly authorizes committing generated tests.
 - Never touch credentials, `.env` values, or secrets — scrubbed placeholders only in goldens.

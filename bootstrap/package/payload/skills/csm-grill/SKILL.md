@@ -64,8 +64,9 @@ SCOUT and DEEP_DIVE dispatches must never silently degrade to primary-only resea
 ## Interface
 
 - Consumes: a rough idea from the user, plus read-only research evidence gathered by subagents; optional csm-deep-research findings when dispatched
-- Produces: one agreed phased approach document saved at `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md`
-- Hands off: phase briefs inside the approach document wait for future, separately invoked csm-plan runs (human-mediated)
+- Produces: one authoritative JSON approach at `.agents/approaches/<date>-<idea-slug>-<run-id>-approach.json`, validated by `csm-grill/schemas/csm-approach.schema.json`; Markdown is a disposable projection or legacy history
+- Legacy approach history path `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md` remains read-only and is not a machine input.
+- Hands off: phase briefs from the JSON approach wait for future, separately invoked csm-plan runs; projections and legacy Markdown are never machine inputs
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Grilling State Machine
@@ -156,7 +157,7 @@ Exit: user explicitly agrees.
 
 ### 7. SAVED
 
-1. Write `.agents/approaches/<yyyy-mm-dd>-<idea-slug>-approach.md` at the git root, or cwd if not a git repo. Create only the approach directory and file.
+1. Write `.agents/approaches/<date>-<idea-slug>-<run-id>-approach.json` at the git root, or cwd if not a git repo. Create only the approach directory and file.
 2. Commit only when the user explicitly authorizes it in the current invocation. Before committing, verify the owned pathset is exactly the new approach file and use `git commit --only -- <approach path>`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Never push unless explicitly requested; skip the commit when not a git repo and note why.
 3. Delete the temp dir.
 4. Display the document scale-gated: for small/quick runs show a summary, the saved path, and evidence highlights; for large runs display the complete document. Report the commit hash or the reason the commit was skipped, and any parked open questions. Then stop — never invoke csm-plan or csm-build.

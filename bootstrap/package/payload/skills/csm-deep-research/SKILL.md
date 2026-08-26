@@ -113,8 +113,8 @@ These structures are conditional and remain within the fixed nine-part document 
 
 ## Write Discipline And File Allowlist
 
-- The persistent writes are the single research document at SAVED and any declared run artifacts. Never write plans, specs, code, or docs beyond declared artifacts.
-- The complete write allowlist is exactly: (1) the run-owned research document `.agents/research/<date>-<slug>-<run-id>-research.md` and its directory at the invocation git root — never inside the temp dir; (2) declared run artifacts, named `.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>` — every artifact must be referenced from the finding; (3) one fresh isolated temp dir per session; and (4) a single commit staging only this run's document and declared artifacts, performed at SAVED unless the user explicitly requested no commit.
+- The persistent writes are the single JSON research finding at SAVED and any declared run artifacts. Never write plans, specs, code, or docs beyond declared artifacts; Markdown is generated only as a human projection.
+- The complete write allowlist is exactly: (1) the run-owned research finding `.agents/research/<date>-<slug>-<run-id>-research.json` and its directory at the invocation git root — never inside the temp dir; (2) declared run artifacts, named `.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>` — every artifact must be referenced from the finding; (3) one fresh isolated temp dir per session; and (4) a single commit staging only this run's JSON finding and declared artifacts, performed at SAVED unless the user explicitly requested no commit.
 - Research subagents are read-only and receive the same rule: return findings as text, never write files.
 - Nothing else may be written anywhere in the researched repository or on the host. The single declared host-state exception is a transient csm-browse session directory (under `$XDG_RUNTIME_DIR/csm-browse/<sid>` or `~/.local/state/csm-browse/<sid>`) created by the Browser Retrieval Fallback — self-swept after 10 minutes idle, never inside the researched repository or the run's temp dir, and explicitly closed before SAVED.
 - Git operations against the researched repo's state are read-only (`rev-parse`, `status`, `log`, `show`, `grep`).
@@ -183,7 +183,7 @@ Because the machine is a state machine, any state before SAVED is a resumable po
 
 ### 1. INTAKE
 
-Resume check: resolve the git root, slug, and immutable run ID first; inspect only the exact run-owned path `.agents/research/<date>-<slug>-<run-id>-research.md`. A matching pre-`SAVED` document resumes; a matching terminal document, a mismatched owner, or any same-day same-slug path with another run ID is an explicit collision refusal, never a “most recent” guess. Otherwise scaffold the new run-owned path. Record the exact run ID and artifact paths (`.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>`) in the journal at INTAKE or SYNTHESIZE so resume and VERIFY know the complete write surface; legacy date/slug artifacts are read-only history.
+Resume check: resolve the git root, slug, and immutable run ID first; inspect only the exact run-owned path `.agents/research/<date>-<slug>-<run-id>-research.json`. A matching pre-`SAVED` artifact resumes; a matching terminal artifact, a mismatched owner, or any same-day same-slug path with another run ID is an explicit collision refusal, never a “most recent” guess. Otherwise scaffold the new run-owned path. Record the exact run ID and artifact paths (`.agents/research/artifacts/<date>-<slug>-<run-id>-<name>.<ext>`) in the journal at INTAKE or SYNTHESIZE so resume and VERIFY know the complete write surface; legacy date/slug Markdown artifacts are read-only history.
 
 The protected-state baseline captures the researched repository exactly as found: `git -C <repo> status --short`, or a top-level file listing when the cwd is not a git repo. It is the reference for the VERIFY re-run and the critical-incident check at SAVED. The research document scaffold is the only file created here, and its Control journal is the durable record that carries the run across interruptions.
 
@@ -266,13 +266,13 @@ The protected-state re-run is a hard check, not a formality. It compares the cur
 
 ### 9. SAVED
 
-Write the run-owned research document and declared artifacts under `.agents/research/`; refuse any existing terminal destination and never overwrite unrelated files. Commit unless the user explicitly requested no commit — `git commit --only <research-doc> <artifacts...>` — then delete the recorded temp dir, display the finding, and stop.
+Write the run-owned JSON research finding and declared artifacts under `.agents/research/`; refuse any existing terminal destination and never overwrite unrelated files. Commit unless the user explicitly requested no commit — `git commit --only <research-json> <artifacts...>` — then delete the recorded temp dir, render Markdown only for display if requested, and stop.
 
-The save is the run's persistent write: the research document (and any declared artifacts) land in `.agents/research/` and the temp dir is deleted, leaving the repository exactly as the baseline showed except for those files. The display is scale-gated: a summary for QUICK, a summary plus Key Findings and Recommendation for STANDARD, and the full document for DEEP. The run then ends — SAVED is reached only from VERIFY, and nothing executes after it.
+The save is the run's persistent write: the JSON research finding (and any declared artifacts) land in `.agents/research/` and the temp dir is deleted, leaving the repository exactly as the baseline showed except for those files. The display is scale-gated: a summary for QUICK, a summary plus Key Findings and Recommendation for STANDARD, and the full JSON or an explicit Markdown projection for DEEP. The run then ends — SAVED is reached only from VERIFY, and nothing executes after it.
 
 The commit stages only the research document and its declared artifacts and never pushes; everything else stays untracked. The final report to the user includes the saved path, every artifact path, the commit hash (or "not committed (user request)" when skipped), the finding scale-gated for the tier, and any parked open questions. SAVED does not ask whether to proceed to implementation, does not suggest a follow-up skill, and does not continue the research — the finding and its artifacts are the answer, and the run is over.
 
-The research document is written to `.agents/research/<date>-<slug>-<run-id>-research.md` with its `format: csm-deep-research/1` marker intact, matching the Required Research Document template. A commit is a single `git commit --only <research-doc> <artifacts...>` pathspec for this run; no push happens unless separately asked, and the recorded temp dir is always deleted.
+The authoritative research artifact is written to `.agents/research/<date>-<slug>-<run-id>-research.json` and validated against `csm-deep-research/schemas/csm-research.schema.json`. A Markdown projection may be generated for human sharing, but is not persisted as authority or accepted as input. A commit is a single `git commit --only <research-json> <artifacts...>` pathspec for this run; no push happens unless separately asked, and the recorded temp dir is always deleted.
 
 ## Required Research Document
 

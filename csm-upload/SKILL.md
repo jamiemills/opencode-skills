@@ -7,9 +7,9 @@ description: Upload evidence to a GitHub Pages demo site. Never pushes elsewhere
 
 ## Interface
 
-- Consumes: local evidence files and the `~/.agents/csm-upload.json` configuration
-- Produces: a dated demo directory with index.html in the GitHub Pages repository, plus explicit pushed/deployed/verified statuses
-- Hands off: terminal — the published URL returns to the user
+- Consumes: validated JSON evidence/publication descriptors and referenced local binary evidence, plus the `~/.agents/csm-upload.json` configuration; Markdown/HTML projections are rejected as machine inputs
+- Produces: an authoritative JSON publication receipt at `.agents/upload/<date>-<run-id>-publication.json`; a dated demo directory with `index.html` is an external projection, plus explicit pushed/deployed/verified statuses
+- Hands off: terminal — the JSON publication receipt and any published URL return to the user
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Requirements

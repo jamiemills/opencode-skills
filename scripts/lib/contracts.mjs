@@ -227,51 +227,63 @@ const INTERFACES = {
     consumes: [
       "rough idea",
       "repository and research evidence",
-      "optional csm-deep-research findings when dispatched",
+      "optional registered csm-deep-research JSON findings when dispatched",
     ],
-    produces: ["agreed phased approach document"],
-    handoff: ["phase briefs to a separately invoked csm-plan"],
+    produces: [
+      "validated JSON approach at .agents/approaches/<date>-<idea-slug>-<run-id>-approach.json (csm-grill/schemas/csm-approach.schema.json)",
+    ],
+    handoff: [
+      "phase briefs from the JSON approach to a separately invoked csm-plan; Markdown is projection/history only",
+    ],
     midPipeline: ["user decisions", "research findings", "explicit agreement"],
   },
   "csm-plan": {
     entryConditions: ["brief or phase brief", "explicit planning request"],
     consumes: [
       "idea or phase brief",
-      "repository conventions",
-      "review findings",
-      "optional csm-deep-research findings when dispatched",
-      "optional csm-ddd analysis artifacts when explicitly referenced",
+      "registered JSON repository norms",
+      "registered JSON review findings",
+      "optional registered JSON csm-deep-research findings when dispatched",
+      "optional registered JSON csm-ddd artifacts when explicitly referenced",
     ],
-    produces: ["saved, verified CSM plan"],
-    handoff: ["saved plan to csm-bdd-tdd or csm-build"],
+    produces: [
+      "validated JSON CSM plan at .agents/plans/<date>-<goal-slug>-<run-id>-csm.json (csm-plan/schemas/csm-plan.schema.json)",
+    ],
+    handoff: ["saved JSON plan to csm-bdd-tdd or csm-build; Markdown is projection/history only"],
     midPipeline: ["research evidence", "critique findings", "verified plan state"],
   },
   "csm-bdd-tdd": {
     entryConditions: ["saved CSM plan", "explicit BDD/TDD mutation request"],
-    consumes: ["saved plan", "repository conventions"],
-    produces: ["formal spec", "Gherkin scenarios", "unit test designs", "mutated CSM plan"],
-    handoff: ["mutated plan to csm-build"],
+    consumes: ["validated JSON plan", "registered JSON repository norms"],
+    produces: [
+      "specs/<goal-slug>/package.json validated by csm-bdd-tdd/schemas/package.schema.json",
+      "typed scenario and test-design records",
+      "mutated JSON CSM plan",
+    ],
+    handoff: ["mutated JSON plan/package to csm-build; Gherkin and Markdown are projections only"],
     midPipeline: ["spec", "approved scenarios", "validation report", "test designs"],
   },
   "csm-build": {
     entryConditions: ["saved CSM plan", "explicit implementation request"],
     consumes: [
-      "saved plan",
-      "optional NORMS.md",
+      "validated JSON plan",
+      "optional registered JSON norms",
       "BDD/TDD package when present",
-      "optional csm-ddd analysis artifacts when the plan cites them",
+      "optional registered JSON csm-ddd artifacts when the plan cites them",
     ],
     produces: [
       "verified implementation",
-      "delivery evidence; commit only with explicit authorization",
+      "typed JSON delivery and completion descriptors; commit only with explicit authorization",
     ],
     handoff: ["delivery evidence to a separately invoked csm-browse"],
     midPipeline: ["task dependencies", "checkpoints", "review findings", "repair evidence"],
   },
   "csm-review": {
     entryConditions: ["repository target", "explicit review, audit, or assessment request"],
-    consumes: ["repository at a pinned commit", "optional NORMS.md"],
-    produces: ["dated findings report"],
+    consumes: ["repository at a pinned commit", "optional registered JSON norms"],
+    produces: [
+      "authoritative JSON findings at .agents/reviews/<date>-<repo-slug>-<run-id>-review.json",
+    ],
     handoff: [
       "review findings to a subsequent csm-plan run",
       "separate human-mediated dispatch to csm-review-python",
@@ -281,21 +293,28 @@ const INTERFACES = {
   "csm-scan": {
     entryConditions: ["repository target", "scan or conventions-analysis request"],
     consumes: ["committed repository declarations"],
-    produces: ["NORMS.md"],
-    handoff: ["optional conventions input to csm-plan, csm-bdd-tdd, csm-build, or csm-review"],
+    produces: ["authoritative JSON norms at .agents/norms/<date>-<repo-slug>-<run-id>-norms.json"],
+    handoff: [
+      "optional registered JSON norms input to csm-plan, csm-bdd-tdd, csm-build, or csm-review; NORMS.md is projection/history only",
+    ],
     midPipeline: ["survey", "deep dimension scans", "enrichment", "deterministic render"],
   },
   "csm-browse": {
     entryConditions: ["need to drive a headful Chromium browser"],
     consumes: ["browser session", "CDP verbs", "delivery target"],
-    produces: ["screenshots", "videos", "DOM, console, network, or performance evidence"],
-    handoff: ["evidence files to a separately invoked csm-upload"],
+    produces: ["validated JSON session/event/evidence descriptors plus referenced binary evidence"],
+    handoff: ["JSON evidence descriptors to a separately invoked csm-upload"],
     midPipeline: ["isolated Chromium session", "session verbs", "session cleanup"],
   },
   "csm-upload": {
     entryConditions: ["evidence files ready", "configured GitHub Pages destination"],
-    consumes: ["screenshots, videos, or evidence files", "GitHub configuration"],
-    produces: ["dated GitHub Pages demo page"],
+    consumes: [
+      "validated JSON evidence/publication descriptors and referenced binary evidence",
+      "GitHub configuration",
+    ],
+    produces: [
+      "authoritative JSON publication receipt at .agents/upload/<date>-<run-id>-publication.json and external Pages projection",
+    ],
     handoff: ["expected evidence URL to the user; verify Pages deployment separately"],
     midPipeline: ["clone or pull", "copy files", "generate index", "commit and push"],
   },
@@ -311,7 +330,7 @@ const INTERFACES = {
       "browser-rendered retrieval via csm-browse fallback (JS-only pages)",
     ],
     produces: [
-      "run-ID-suffixed research document at .agents/research/<date>-<slug>-<run-id>-research.md",
+      "run-ID-suffixed JSON research finding at .agents/research/<date>-<slug>-<run-id>-research.json",
       "optional declared run artifacts under .agents/research/artifacts/",
     ],
     handoff: [
@@ -323,13 +342,14 @@ const INTERFACES = {
     entryConditions: ["repository checkout at a pinned commit", "optional change-surface scope"],
     consumes: [
       "repository working tree",
-      "optional NORMS.md conventions",
+      "optional registered JSON norms",
       "cited research findings under .agents/research/",
     ],
     produces: [
       "executable test files and goldens in the target repository",
-      ".agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md",
-      ".agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md",
+      ".agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl",
+      ".agents/tests/<date>-<repo-slug>-<run-id>-verification.json",
+      ".agents/tests/<date>-<repo-slug>-<run-id>-test-package.json",
     ],
     handoff: [
       "verified suite, ledger, and verification report to the user or a later explicit csm-build run",
@@ -349,10 +369,10 @@ const INTERFACES = {
     ],
     consumes: [
       "repository working tree (read-only)",
-      "optional NORMS.md conventions",
+      "optional registered JSON norms",
       "bundled artifacts artifact/python-idiomatic-reviewer-rules.json and artifact/pep20-idiomatic-python-consolidated-research.md",
     ],
-    produces: [".agents/doctrine/<yyyy-mm-dd>-<repo-slug>-python-doctrine-review.md"],
+    produces: [".agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json"],
     handoff: [
       "single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise",
     ],
@@ -370,12 +390,12 @@ const INTERFACES = {
     ],
     consumes: [
       "repository at a pinned commit",
-      "optional visible NORMS.md",
+      "optional registered JSON norms",
       "optional approved question file",
     ],
     produces: [
-      ".agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-report.md",
-      ".agents/ddd/<yyyy-mm-dd>-<repo-slug>-ddd-graph.json",
+      ".agents/ddd/<date>-<repo-slug>-<run-id>-ddd-report.json",
+      ".agents/ddd/<date>-<repo-slug>-<run-id>-ddd-graph.json",
     ],
     handoff: [
       "report and graph to the user; downstream csm-grill or csm-plan use stays human-mediated",

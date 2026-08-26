@@ -58,6 +58,7 @@ test("JSONL is opt-in and uses compatibility negotiation when requested", async 
     schemaRegistry,
     compatibility,
     edge: { id: "journal-edge", enabled: true },
+    requireSourceDigest: false,
   });
   const result = await resolver.resolve("journal.jsonl", { consumerRevision: 1 });
   assert.equal(result.status, "resolved");

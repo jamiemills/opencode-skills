@@ -120,9 +120,9 @@ Temporary sandbox mutation and the intentional creation or update of the plan do
 
 ## Interface
 
-- Consumes: a brief (or a csm-grill phase brief); optional repository conventions from a NORMS.md artifact; optional review findings; optional csm-deep-research findings when dispatched; optional csm-ddd analysis artifacts when explicitly referenced
+- Consumes: a brief or validated JSON phase brief; optional registered JSON norms, review, research, and DDD artifacts; legacy `NORMS.md` and other Markdown history are accepted only for explicit human reconstruction, never as machine inputs
 - Produces: one saved, verified canonical JSON CSM plan at `.agents/plans/<date>-<goal-slug>-csm.json`. Markdown is a generated human projection; existing `.md` plans are read-only history and require migration.
-- Hands off: the saved JSON plan waits for a later, explicit csm-build invocation (human-mediated)
+- Hands off: the saved JSON plan, validated against `csm-plan/schemas/csm-plan.schema.json`, waits for a later, explicit csm-build invocation; Markdown is a disposable projection
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Durable Artifact Identity

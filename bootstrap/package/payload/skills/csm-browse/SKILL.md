@@ -12,8 +12,8 @@ Use `csm-browse` whenever you need to drive a headful Chromium browser inside th
 ## Interface
 
 - Consumes: a browsing/evidence task and the `chromium-vnc` Docker container
-- Produces: screenshots, videos, and DOM/console/network/performance evidence in per-session artifact directories
-- Hands off: evidence file paths return to the human; publishing via the csm-upload CLI is a separate user action
+- Produces: validated JSON session/event/evidence descriptors under `.agents/browse/<session-id>/state.json` and `events.jsonl`, with screenshots/videos/binary evidence referenced by digest; projections are disposable
+- Hands off: JSON evidence descriptors and referenced files return to the human; publishing via the csm-upload CLI is a separate user action and accepts descriptors, not Markdown/HTML projections
 - Never invokes: csm-bdd-tdd, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## One-time setup

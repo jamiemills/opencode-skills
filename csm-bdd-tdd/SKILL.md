@@ -93,10 +93,10 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 
 ## Interface
 
-- Consumes: a saved non-BDD CSM plan; optional repository conventions from a NORMS.md artifact
-- Produces: a formal spec, executable Gherkin scenarios, unit test designs, and a JSON `*-bdd-csm.json` plan descriptor with a typed supersession pointer
+- Consumes: a validated JSON `csm-plan/1` descriptor and optional registered JSON norms artifact; legacy `NORMS.md` and Markdown plans, specs, scenarios, and projections are rejected as machine inputs unless explicitly reconstructed by a human
+- Produces: `specs/<goal-slug>/package.json` validated by `csm-bdd-tdd/schemas/package.schema.json`, with typed control, scenario, and test-design records, plus a JSON `*-bdd-csm.json` plan descriptor with a typed supersession pointer; Gherkin/Markdown are disposable projections
 - The typed supersession pointer is stored in the JSON plan descriptor; legacy Markdown supersession is migration-required history only.
-- Hands off: the mutated plan and specs folder wait for an explicit csm-build invocation (human-mediated)
+- Hands off: the mutated JSON plan and package wait for an explicit csm-build invocation (human-mediated); legacy Markdown remains read-only history
 - Never invokes: csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Pipeline

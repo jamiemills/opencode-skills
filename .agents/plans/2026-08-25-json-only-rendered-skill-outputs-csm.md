@@ -816,6 +816,12 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-26 | 15 | INTEGRATE -> VERIFY | T022 | Focused cutover/replay suite passed 23 tests, final focused rerun passed 15 tests, `make fmt-check`, `make lint`, `make check`, `make test-bootstrap`, and `make test-package-index` passed. | VERIFY |
 | 2026-08-26 | 15 | VERIFY -> REVIEW | T022 | Primary review found and repaired shared-loader symlink-code preservation and bootstrap import closure; legacy Markdown remains history-only and interactive publication defaults are unchanged. | REVIEW |
 | 2026-08-26 | 15 | REVIEW -> CHECKPOINT | T022 | T022 acceptance evidence is complete; T023 remains next. No commit/push performed per user request. | CHECKPOINT |
+| 2026-08-26 | 15 | CHECKPOINT -> SELECT | T023 | T022 is complete; T023 contract/documentation synchronization is dependency-ready. | SELECT |
+| 2026-08-26 | 15 | SELECT -> DISPATCH | T023 | Primary-owned canonical contracts, registry/README mappings, artifact index, and pack-bootstrap regeneration; no generated payload hand editing. | DISPATCH |
+| 2026-08-26 | 15 | DISPATCH -> INTEGRATE | T023 | Updated canonical contracts and registry, regenerated README matrix and bootstrap payload/index, and updated the plan artifact index. One JSONL compatibility fixture was aligned with the explicit journal compatibility boundary. | INTEGRATE |
+| 2026-08-26 | 15 | INTEGRATE -> VERIFY | T023 | Focused JSON cutover/compatibility tests passed (10), `make fmt-check`, `make lint`, `make check` (1193 checks), `make test-suite-tooling` (48), `make test-package-index`, and boilerplate parity passed. | VERIFY |
+| 2026-08-26 | 15 | VERIFY -> REVIEW | T023 | Review scan found no stale authoritative Markdown claims in canonical interfaces, README matrices/deep dives, or generated skill payloads; remaining Markdown references are explicitly labeled history/projection or instruction syntax. | REVIEW |
+| 2026-08-26 | 15 | REVIEW -> CHECKPOINT | T023 | T023 acceptance evidence is complete; T024 is next. No commit/push performed per user request. | CHECKPOINT |
 
 ## Completion Review
 

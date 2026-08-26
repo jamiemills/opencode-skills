@@ -156,9 +156,9 @@ Resolve the plan as follows:
 
 ## Interface
 
-- Consumes: a saved CSM plan (explicit path or discovered in `.agents/plans/`, BDD/TDD mutation preferred); optional NORMS.md artifact; optional csm-ddd analysis artifacts when the plan cites them
-- Produces: a verified implementation with commits, plus the updated plan document (Control, journal, Completion Review)
-- Hands off: terminal executor — delivery returns to the human; evidence capture via csm-browse is a separate user action
+- Consumes: a validated JSON CSM plan (explicit path or discovered in `.agents/plans/`, BDD/TDD mutation preferred); optional registered JSON norms and DDD artifacts when the plan cites them; legacy `NORMS.md`, Markdown projections, and other history are rejected with `migration-required`
+- Produces: a verified implementation with typed JSON delivery, checkpoint, completion, and artifact descriptors; the plan-owned JSON control/journal is updated in place
+- Hands off: terminal executor — JSON delivery evidence returns to the human; evidence capture via csm-browse is a separate user action, and Markdown/HTML are explicit projections only
 - Never invokes: csm-bdd-tdd, csm-browse, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Execution State Machine
