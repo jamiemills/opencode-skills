@@ -1,4 +1,4 @@
-import { digest, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { digest, parseJson } from "../../../lib/schema-runtime/index.mjs";
 import { readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { validatePlanArtifact } from "../../csm-plan/lib/plan.mjs";

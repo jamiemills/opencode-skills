@@ -1,6 +1,6 @@
 import { readFile, realpath } from "node:fs/promises";
 import { resolve, isAbsolute, relative, sep } from "node:path";
-import { createSchemaValidator, digest, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator, digest, parseJson } from "../../../lib/schema-runtime/index.mjs";
 import schema from "../../csm-make-tests/schemas/test-package.schema.json" with { type: "json" };
 import { validatePlanArtifact } from "../../csm-plan/lib/plan.mjs";
 import { assertVerification } from "../../csm-make-tests/lib/verification.mjs";

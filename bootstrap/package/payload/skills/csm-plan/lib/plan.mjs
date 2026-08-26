@@ -6,7 +6,7 @@ import {
   canonicalize,
   digest,
   parseJson,
-} from "../../lib/schema-runtime/index.mjs";
+} from "../../../lib/schema-runtime/index.mjs";
 import schema from "../schemas/csm-plan.schema.json" with { type: "json" };
 
 export const PLAN_SCHEMA = "csm-plan/1";

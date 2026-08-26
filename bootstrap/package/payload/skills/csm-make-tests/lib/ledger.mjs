@@ -1,5 +1,5 @@
 import { appendFile, readFile, stat, open, unlink } from "node:fs/promises";
-import { createSchemaValidator, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator, parseJson } from "../../../lib/schema-runtime/index.mjs";
 import schema from "../schemas/ledger.schema.json" with { type: "json" };
 
 export const LEDGER_SCHEMA = "csm-make-tests-ledger/1";

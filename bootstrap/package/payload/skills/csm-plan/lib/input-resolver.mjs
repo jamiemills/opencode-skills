@@ -1,7 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSchemaRegistry, digest, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaRegistry, digest, parseJson } from "../../../lib/schema-runtime/index.mjs";
 import { assertMachineInput } from "../../lib/publication/index.mjs";
 import { validatePlanArtifact } from "./plan.mjs";
 

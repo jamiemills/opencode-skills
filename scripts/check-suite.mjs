@@ -729,6 +729,19 @@ function checkCommittedPayloadIndex(rootDir) {
 // source per the pack-bootstrap mapping. Mirrors checkDrift: collects issues
 // and reports the comparison dynamically ({compared:N, issues:[]}); any issue
 // is a hard failure.
+function transformBootstrapPayload(content, rel) {
+  const rewritten = ["csm-bdd-tdd", "csm-build", "csm-make-tests", "csm-plan"].some((skill) =>
+    rel.startsWith(`${skill}/`),
+  );
+  if (!rewritten || !rel.endsWith(".mjs")) return content;
+  return Buffer.from(
+    content
+      .toString("utf8")
+      .replaceAll('"../../lib/schema-runtime/', '"../../../lib/schema-runtime/')
+      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/'),
+  );
+}
+
 function checkPayloadDrift(rootDir) {
   const payloadRoot = path.join(rootDir, "bootstrap", "package", "payload", "skills");
   const srcMap = buildPayloadSrcMap(rootDir);
@@ -759,6 +772,7 @@ function checkPayloadDrift(rootDir) {
         continue;
       }
       const payloadContent = fs.readFileSync(path.join(payloadRoot, rel.split("/").join(path.sep)));
+      srcContent = transformBootstrapPayload(srcContent, rel);
       if (
         createHash("sha256").update(payloadContent).digest("hex") !==
         createHash("sha256").update(srcContent).digest("hex")

@@ -1,6 +1,6 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { createSchemaValidator, digest, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator, digest, parseJson } from "../../../lib/schema-runtime/index.mjs";
 import schema from "../schemas/package.schema.json" with { type: "json" };
 
 const validator = createSchemaValidator({ schemas: [schema] });

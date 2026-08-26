@@ -124,14 +124,6 @@ const mapping = {
       destDir: join("payload", "skills", "csm-bdd-tdd", "lib"),
     },
     {
-      srcDir: join("lib", "schema-runtime"),
-      destDir: join("payload", "skills", "lib", "schema-runtime"),
-    },
-    {
-      srcDir: join("lib", "compatibility-runtime"),
-      destDir: join("payload", "skills", "lib", "compatibility-runtime"),
-    },
-    {
       srcDir: join("csm-plan", "lib"),
       destDir: join("payload", "skills", "csm-plan", "lib"),
     },
@@ -286,6 +278,20 @@ async function expandMapping() {
   return entries;
 }
 
+function payloadData(data, destination) {
+  const normalized = destination.split(sep).join("/");
+  const rewritten = ["csm-bdd-tdd", "csm-build", "csm-make-tests", "csm-plan"].some((skill) =>
+    normalized.includes(`/skills/${skill}/`),
+  );
+  if (!rewritten || !normalized.endsWith(".mjs")) return data;
+  const text = data.toString("utf8");
+  return Buffer.from(
+    text
+      .replaceAll('"../../lib/schema-runtime/', '"../../../lib/schema-runtime/')
+      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/'),
+  );
+}
+
 async function entryFor(packageDir, dest) {
   const target = join(packageDir, dest);
   const [data, info] = await Promise.all([readFile(target), stat(target)]);
@@ -302,12 +308,13 @@ async function copyVerified(source, destination) {
     const openedInfo = await sourceHandle.stat();
     if (openedInfo.dev !== sourceInfo.dev || openedInfo.ino !== sourceInfo.ino)
       throw new Error(`pack refused: source changed before copy: ${source}`);
-    const data = await sourceHandle.readFile();
+    const sourceData = await sourceHandle.readFile();
+    const data = payloadData(sourceData, destination);
     const finalInfo = await sourceHandle.stat();
     if (
       finalInfo.dev !== openedInfo.dev ||
       finalInfo.ino !== openedInfo.ino ||
-      finalInfo.size !== data.length
+      finalInfo.size !== sourceData.length
     )
       throw new Error(`pack refused: source changed during copy: ${source}`);
 
@@ -373,7 +380,7 @@ async function verifyPayloadParity({ outputRoot = bootstrapDir } = {}) {
   const targetPackageDir = join(resolve(outputRoot), "package");
   const entries = await expandMapping();
   for (const entry of entries) {
-    const source = await readFile(join(root, entry.src));
+    const source = payloadData(await readFile(join(root, entry.src)), entry.dest);
     const generated = await readFile(join(targetPackageDir, entry.dest));
     if (sha256(source) !== sha256(generated) || !source.equals(generated))
       throw new Error(`pack refused: generated payload mismatch: ${entry.dest}`);

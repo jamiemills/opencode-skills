@@ -1,4 +1,4 @@
-import { createSchemaValidator } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator } from "../../../lib/schema-runtime/index.mjs";
 import schema from "../schemas/verification.schema.json" with { type: "json" };
 
 export const VERIFICATION_SCHEMA = "csm-make-tests-verification/1";
