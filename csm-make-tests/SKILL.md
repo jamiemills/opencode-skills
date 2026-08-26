@@ -24,8 +24,9 @@ Turn a repository into a fully tested one: audit what exists, capture what the c
 ## Interface
 
 - Consumes: a target repository checkout at a pinned commit with optional change-surface scope; optional NORMS.md conventions; cited research findings under `.agents/research/`
-- Produces: executable test files, goldens/fixtures, and benchmark files in the target repository; run-owned `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` and `-verification.md`. Legacy compatibility paths `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` and `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md` are read-only history.
-- Hands off: verified suite plus ledger and verification report to the user or a later explicit csm-build run
+- Produces: executable test files, goldens/fixtures, benchmark files, and canonical JSON package artifacts validated by `csm-make-tests-ledger/1`, `csm-make-tests-verification/1`, and `csm-test-package/1`. Legacy Markdown ledger/report paths remain read-only history.
+- Hands off: a verified JSON test-package descriptor to a later explicit csm-build run; Markdown projections are never machine inputs.
+- Legacy history patterns remain recognized for read-only compatibility: `.agents/tests/<yyyy-mm-dd>-<repo-slug>-tests-ledger.md` and `.agents/tests/<yyyy-mm-dd>-<repo-slug>-verification.md`.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Durable Artifact Identity
@@ -260,8 +261,8 @@ Exit: performance continuity gates exist wherever service/CLI surfaces warrant t
 
 Entry: PERF exit.
 
-1. Write the verification report to the exact run-owned path `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md` in the exact Required Test Package shape: scope, stacks, counts, verification commands and results, verbatim pre-existing failures, known-defect summary, mutation scores, perf baselines, not-run items with reasons, phase-0 recommendations.
-2. Finalize the append-only ledger at `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` in its exact shape; refuse finalization if either terminal destination already exists.
+1. Write the verification receipt to the exact run-owned JSON path `.agents/tests/<date>-<repo-slug>-<run-id>-verification.json` and emit the JSON test-package descriptor.
+2. Finalize the append-only ledger at `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl`; refuse finalization if either terminal JSON destination already exists.
 3. Delete the temp dir; display the report summary and next-step guidance (re-approval workflow, differential wiring during refactors).
 
 Exit: both artifacts written; scratch removed; summary displayed.
@@ -276,7 +277,7 @@ Exit: terminal; nothing executes after STOP.
 
 Every completed run emits exactly two persistent artifacts plus the generated tests. Their shapes are fixed; MAINTAIN mode parses them, so drift breaks resume.
 
-1. **Tests ledger** `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.md` — append-only; rows never rewritten or deleted:
+1. **Tests ledger** `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl` — append-only typed rows; rows never rewritten or deleted. Historical `.md` ledgers remain untouched:
 
 ```markdown
 # Tests Ledger — <repo> @ <short-sha>
@@ -294,7 +295,7 @@ Statuses: approved | pending | known-defect.
 KNOWN-DEFECT rows persist until the user fixes production and a re-capture supersedes them.
 ```
 
-2. **Verification report** `.agents/tests/<date>-<repo-slug>-<run-id>-verification.md` — exactly these sections, in this order:
+2. **Verification receipt** `.agents/tests/<date>-<repo-slug>-<run-id>-verification.json` — typed evidence and `csm-verification-status/1`; any Markdown report is a disposable projection:
 
 ```markdown
 # Verification Report — <repo> @ <short-sha> (<date>)

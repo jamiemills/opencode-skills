@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-make-tests-verification/1",
+  "title": "csm-make-tests verification receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "artifactId",
+    "owner",
+    "runId",
+    "sourcePlan",
+    "status",
+    "verificationStatus",
+    "evidence",
+    "replay",
+    "unresolved"
+  ],
+  "properties": {
+    "schema": { "const": "csm-make-tests-verification/1" },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "owner": { "const": "csm-make-tests" },
+    "runId": { "type": "string", "minLength": 1 },
+    "sourcePlan": { "$ref": "#/definitions/lineage" },
+    "status": { "enum": ["VERIFIED", "INCOMPLETE", "BLOCKED"] },
+    "verificationStatus": { "$ref": "#/definitions/verificationStatus" },
+    "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "replay": { "type": "array", "items": { "$ref": "#/definitions/reference" } },
+    "mutation": { "$ref": "#/definitions/evidence" },
+    "performance": { "$ref": "#/definitions/evidence" },
+    "unresolved": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "VERIFIED" } } },
+      "then": { "properties": { "unresolved": { "maxItems": 0 } } }
+    }
+  ],
+  "definitions": {
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planId", "taskId", "planDigest"],
+      "properties": {
+        "planId": { "type": "string", "minLength": 1 },
+        "taskId": { "type": "string", "pattern": "^T[0-9]{3}$" },
+        "planPath": { "type": "string", "minLength": 1 },
+        "planDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "status": { "enum": ["verified", "stale", "missing", "unavailable"] },
+        "reason": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "references"],
+      "properties": {
+        "status": { "enum": ["verified", "stale", "missing", "unavailable"] },
+        "references": { "type": "array", "items": { "$ref": "#/definitions/reference" } },
+        "summary": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "verificationStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "status", "unresolved"],
+      "properties": {
+        "format": { "const": "csm-verification-status/1" },
+        "status": { "enum": ["VERIFIED", "INCOMPLETE", "BLOCKED"] },
+        "unresolved": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

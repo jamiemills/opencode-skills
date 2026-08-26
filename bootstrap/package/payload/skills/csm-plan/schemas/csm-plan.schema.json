@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-plan/1",
+  "title": "Canonical CSM plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifactId",
+    "runId",
+    "planId",
+    "status",
+    "control",
+    "goal",
+    "acceptanceCriteria",
+    "currentStateEvidence",
+    "assumptionsAndDecisions",
+    "design",
+    "executionGraph",
+    "tasks",
+    "verificationStrategy",
+    "risksAndRecovery",
+    "journal",
+    "completionReview",
+    "provenance",
+    "projection"
+  ],
+  "properties": {
+    "schema": { "const": "csm-plan/1" },
+    "schemaRevision": { "const": 1 },
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "planId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$" },
+    "status": { "enum": ["ready", "in_progress", "paused", "blocked", "complete"] },
+    "control": { "$ref": "#/$defs/control" },
+    "goal": { "type": "object", "additionalProperties": true },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "currentStateEvidence": { "type": "object", "additionalProperties": true },
+    "applicability": { "type": ["object", "null"], "additionalProperties": true },
+    "assumptionsAndDecisions": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "rdRecord": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "discoveredRequirements": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "design": { "type": "object", "additionalProperties": true },
+    "executionGraph": { "type": "object", "additionalProperties": true },
+    "tasks": { "type": "array", "items": { "$ref": "#/$defs/task" } },
+    "verificationStrategy": { "type": "object", "additionalProperties": true },
+    "risksAndRecovery": { "type": "object", "additionalProperties": true },
+    "critiqueResolution": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "journal": { "type": "array", "items": { "$ref": "#/$defs/journal" } },
+    "completionReview": { "type": ["object", "null"], "additionalProperties": true },
+    "inputs": { "type": "array", "items": { "$ref": "#/$defs/input" } },
+    "provenance": { "type": "object", "additionalProperties": true },
+    "projection": { "type": "object", "additionalProperties": true },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "owner": { "type": "string", "minLength": 1 },
+    "path": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "currentState",
+        "cycle",
+        "nextTransition",
+        "activeTasks",
+        "blockers",
+        "resume"
+      ],
+      "properties": {
+        "status": { "enum": ["ready", "in_progress", "paused", "blocked", "complete"] },
+        "currentState": { "type": "string", "pattern": "^[A-Z_]+$" },
+        "cycle": { "type": "integer", "minimum": 0 },
+        "commits": { "enum": ["allowed", "disabled"] },
+        "lastCheckpoint": { "type": "string" },
+        "lastModelRun": { "type": "string" },
+        "nextTransition": { "type": "string", "minLength": 1 },
+        "activeTasks": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^T[0-9]{3}$" },
+          "uniqueItems": true
+        },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "resume": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["taskId", "ordinal", "status", "acceptanceSignal"],
+      "properties": {
+        "taskId": { "type": "string", "pattern": "^T[0-9]{3}$" },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["pending", "in_progress", "completed", "blocked"] },
+        "acceptanceSignal": { "type": "string", "minLength": 1 },
+        "repairAttempts": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "journal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["sequence", "timestamp", "cycle", "transition", "nextState", "evidence"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 0 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "cycle": { "type": "integer", "minimum": 0 },
+        "transition": { "type": "string", "minLength": 1 },
+        "tasks": { "type": "array", "items": { "type": "string" } },
+        "evidence": { "type": "string", "minLength": 1 },
+        "nextState": { "type": "string", "minLength": 1 }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "schema", "digest", "owner", "path"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "pattern": "^csm-[a-z0-9-]+/[0-9]+$" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "owner": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

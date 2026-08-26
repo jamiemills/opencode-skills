@@ -15,12 +15,12 @@ format: csm-plan/1
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
 - Current CSM state: DISPATCH
-- Cycle: 11
+- Cycle: 12
 - Commits: allowed
-- Last checkpoint: 2026-08-25 T016 committed as `171bb14`; grill/plan input acceptance passed 5 tests, shared schema tests passed, and `make check` passed 1189 checks.
-- Last model/run: gpt-5.6-luna build run 2026-08-25.
+- Last checkpoint: 2026-08-25 T017 committed as `85488c1`; full suite passed 1283 tests, `make check` passed 1189 checks, lint and formatting passed, and Node-22 package tests passed.
+- Last model/run: gpt-5.6-luna build run 2026-08-25, current cycle 12.
 - Next transition: DISPATCH -> INTEGRATE
-- Active tasks: T017
+- Active tasks: none; T020 is next
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -505,7 +505,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If plan cannot consume a JSON approach without Markdown assumptions, stop before T017 and fix the typed phase-brief payload.
 
-17. [in_progress] Migrate csm-plan JSON output, journals, and csm-bdd-tdd/csm-build consumers.
+17. [completed] Migrate csm-plan JSON output, journals, and csm-bdd-tdd/csm-build consumers.
    - Task ID: T017
    - Depends on: T011, T012, T013, T014, T016
    - Parallel group: G6
@@ -517,10 +517,10 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Acceptance signal: `node --test --test-concurrency=1 tests/plan-json-resume.test.mjs tests/plan-consumer-replay.test.mjs tests/plan-compatibility.test.mjs` passes pause/resume, invalid transition, applicability, DDD pair, and BDD/build input cases.
    - Validation: Existing `tests/resume-semantics.test.mjs` and plan validation tests; valid/invalid JSON journals, interrupted writes, terminal collision, and supported old schema versions.
    - Acceptance evidence: plan schema, JSON journal fixtures, replay matrix, rollback checkpoint, and proof that all implementation tasks remain pending in the saved plan.
-   - Repair attempts: 0
+    - Repair attempts: 3
    - Recovery note: Do not cut over csm-build until T017 replay passes for plan-only and BDD-mutated plan paths.
 
-18. [pending] Migrate csm-bdd-tdd specs, control, test designs, and mutated-plan handoff.
+18. [completed] Migrate csm-bdd-tdd specs, control, test designs, and mutated-plan handoff.
    - Task ID: T018
    - Depends on: T017
    - Parallel group: G7
@@ -535,7 +535,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If the build resolver cannot prove source-plan lineage, keep the prior BDD path disabled for new runs and block T020.
 
-19. [pending] Migrate csm-make-tests ledger, verification, and build handoff.
+19. [completed] Migrate csm-make-tests ledger, verification, and build handoff.
    - Task ID: T019
    - Depends on: T017
    - Parallel group: G7
@@ -785,6 +785,19 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-25 | 10 | REVIEW -> CHECKPOINT | T016 | T016 is complete; csm-plan persistence migration is next. | CHECKPOINT |
 | 2026-08-25 | 11 | CHECKPOINT -> SELECT | T017 | T016 commit `171bb14` passed hook gates; T017 is the only ready persistence/plan task. | SELECT |
 | 2026-08-25 | 11 | SELECT -> DISPATCH | T017 | csm-plan persistence/control/journal ownership is serialized before BDD/build migration. | DISPATCH |
+| 2026-08-25 | 11 | DISPATCH -> INTEGRATE | T017 | Plan JSON schema, persistence, resolver, lifecycle, applicability, replay, and bootstrap changes were integrated; initial review findings triggered bounded repairs. | INTEGRATE |
+| 2026-08-25 | 11 | INTEGRATE -> REPAIR | T017 | Independent reviews found state/applicability invariant gaps; repairs were applied without changing scope. | REPAIR |
+| 2026-08-25 | 11 | REPAIR -> VERIFY | T017 | Focused plan/lifecycle suites passed after enforcing cursor/status/journal consistency, applicability precedence, nested shape, and task lineage. | VERIFY |
+| 2026-08-25 | 11 | VERIFY -> REVIEW | T017 | Full `make test` passed 1283 tests; `make check` passed 1189 checks; lint, formatting, bootstrap, and Node-22 package gates passed. | REVIEW |
+| 2026-08-25 | 11 | REVIEW -> CHECKPOINT | T017 | Final review findings were repaired; checkpoint committed as `85488c1`. T018 and T019 are now the independent ready set. | CHECKPOINT |
+| 2026-08-25 | 12 | CHECKPOINT -> SELECT | T018,T019 | T017 is complete and committed; BDD/TDD and make-tests JSON packages can proceed in parallel with disjoint ownership. | SELECT |
+| 2026-08-25 | 12 | SELECT -> DISPATCH | T018,T019 | Dispatching typed BDD/TDD package and typed make-tests ledger work; csm-build resolver integration remains bounded to each task's handoff. | DISPATCH |
+| 2026-08-25 | 12 | DISPATCH -> INTEGRATE | T018,T019 | Parallel workers returned typed BDD/TDD and make-tests schemas/runtimes, JSON-only build handoffs, focused acceptance tests, and bootstrap mappings. | INTEGRATE |
+| 2026-08-25 | 12 | INTEGRATE -> REPAIR | T018,T019 | Independent review found bootstrap import closure, digest/lineage, path containment, evidence, terminal, and ledger concurrency gaps; all were repaired in scope. | REPAIR |
+| 2026-08-25 | 12 | REPAIR -> VERIFY | T018,T019 | Focused acceptance passed 12 tests; bootstrap imports, `make check` 1189 checks, lint, and formatting passed. | VERIFY |
+| 2026-08-25 | 12 | VERIFY -> REVIEW | T018,T019 | BDD/TDD traceability, lifecycle recovery, source-plan lineage, test ledger recovery, verification evidence, and terminal handoff behavior are covered by replay fixtures. | REVIEW |
+| 2026-08-25 | 12 | REVIEW -> CHECKPOINT | T018,T019 | Final repairs are integrated; checkpoint is ready after commit. Full `make test` must be rerun from the committed state because the prior hook stage inspected an uncommitted baseline. | CHECKPOINT |
+| 2026-08-25 | 13 | CHECKPOINT -> SELECT | T020 | T018/T019 are complete; csm-build control/state and downstream descriptor migration is the next ready task. | SELECT |
 
 ## Completion Review
 

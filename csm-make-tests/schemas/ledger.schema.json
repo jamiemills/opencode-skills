@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-make-tests-ledger/1",
+  "title": "csm-make-tests append-only ledger row",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "rowType", "ledger", "sourcePlan", "recordedAt"],
+  "properties": {
+    "schema": { "const": "csm-make-tests-ledger/1" },
+    "rowType": { "enum": ["entry", "maintenance", "cursor"] },
+    "ledger": { "$ref": "#/$defs/ledger" },
+    "entry": { "$ref": "#/$defs/entry" },
+    "maintenance": { "$ref": "#/$defs/maintenance" },
+    "cursor": { "$ref": "#/$defs/cursor" },
+    "sourcePlan": { "$ref": "#/$defs/lineage" },
+    "recordedAt": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "rowType": { "const": "entry" } } },
+      "then": { "required": ["entry"] }
+    },
+    {
+      "if": { "properties": { "rowType": { "const": "maintenance" } } },
+      "then": { "required": ["maintenance"] }
+    },
+    {
+      "if": { "properties": { "rowType": { "const": "cursor" } } },
+      "then": { "required": ["cursor"] }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,127}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planId", "taskId", "planDigest"],
+      "properties": {
+        "planId": { "$ref": "#/$defs/id" },
+        "taskId": { "type": "string", "pattern": "^T[0-9]{3}$" },
+        "planPath": { "$ref": "#/$defs/path" },
+        "planDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "owner", "runId", "commitSha", "terminal"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/id" },
+        "owner": { "const": "csm-make-tests" },
+        "runId": { "$ref": "#/$defs/id" },
+        "commitSha": { "type": "string", "pattern": "^[a-f0-9]{7,64}$" },
+        "terminal": { "type": "boolean" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "status", "digest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["test", "fixture", "mutation", "performance", "verification"] },
+        "status": { "enum": ["verified", "stale", "missing", "unavailable"] },
+        "path": { "$ref": "#/$defs/path" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "sourceDigest": { "$ref": "#/$defs/digest" },
+        "summary": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["stale", "missing", "unavailable"] } } },
+          "then": { "required": ["reason"] }
+        }
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entryId", "artifact", "kind", "approval", "verification", "evidence"],
+      "properties": {
+        "entryId": { "$ref": "#/$defs/id" },
+        "artifact": { "$ref": "#/$defs/path" },
+        "testName": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["golden", "intent", "contract", "perf", "amplified"] },
+        "approval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {
+            "state": { "enum": ["approved", "pending", "known-defect", "rejected"] },
+            "approver": { "type": "string", "minLength": 1 },
+            "approvedAt": { "type": "string", "format": "date-time" },
+            "notes": { "type": "string" }
+          }
+        },
+        "verification": { "enum": ["verified", "pending", "failed", "not-run"] },
+        "mutation": { "$ref": "#/$defs/evidence" },
+        "performance": { "$ref": "#/$defs/evidence" },
+        "fixtures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" },
+          "uniqueItems": true
+        },
+        "benchmarks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" },
+          "uniqueItems": true
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "maintenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "artifact", "result"],
+      "properties": {
+        "action": { "enum": ["append", "recover", "reapprove", "quarantine"] },
+        "artifact": { "$ref": "#/$defs/path" },
+        "result": { "enum": ["accepted", "recovered", "rejected"] },
+        "reason": { "type": "string" }
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "cycle", "lastEntryId", "nextTransition"],
+      "properties": {
+        "state": {
+          "enum": [
+            "INTAKE",
+            "AUDIT",
+            "SCAN",
+            "CAPTURE",
+            "TRIAGE",
+            "APPROVE",
+            "VERIFY",
+            "AMPLIFY",
+            "DIFFERENTIAL",
+            "LAYER",
+            "PERF",
+            "OUTPUT",
+            "STOP",
+            "BLOCKED"
+          ]
+        },
+        "cycle": { "type": "integer", "minimum": 0 },
+        "lastEntryId": { "type": ["string", "null"] },
+        "nextTransition": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "format": "csm-producer-descriptor/1",
+  "producer": "csm-make-tests",
+  "schema": "csm-test-package/1",
+  "schemaRevision": 1,
+  "artifactKind": "test-package",
+  "authority": "json",
+  "ledgerSchema": "csm-make-tests-ledger/1",
+  "verificationSchema": "csm-make-tests-verification/1",
+  "canonicalPath": ".agents/tests/<date>-<repo-slug>-<run-id>-test-package.json",
+  "legacyPaths": [
+    ".agents/tests/<date>-<repo-slug>-tests-ledger.md",
+    ".agents/tests/<date>-<repo-slug>-verification.md"
+  ],
+  "legacyStatus": "history-only",
+  "terminal": "immutable",
+  "collision": "reject-owner-mismatch-or-terminal",
+  "buildInput": "json-only"
+}

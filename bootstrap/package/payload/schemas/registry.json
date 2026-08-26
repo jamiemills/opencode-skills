@@ -4,6 +4,33 @@
   "unknownRevisionPolicy": "reject",
   "entries": [
     {
+      "id": "csm-make-tests-ledger/1",
+      "revision": 1,
+      "schemaPath": "csm-make-tests/schemas/ledger.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:b002cc07a218a152140162e15bc5d2988b7b2b68bd6b5dc958ff5fdd1fe975ca"
+    },
+    {
+      "id": "csm-make-tests-verification/1",
+      "revision": 1,
+      "schemaPath": "csm-make-tests/schemas/verification.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:9ea2cde70d10b3fe1a5c58663f9462bb497e0f1cd88093fb0a686dd0ae0697f1"
+    },
+    {
+      "id": "csm-test-package/1",
+      "revision": 1,
+      "schemaPath": "csm-make-tests/schemas/test-package.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:9218e4d89cac2844a8df5ba45abdcf6082824ec2f2f3188db730ee9635983b76"
+    },
+    {
       "id": "csm-envelope/1",
       "revision": 1,
       "schemaPath": "schemas/csm-envelope.schema.json",
@@ -139,6 +166,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:bf06c4b0495e481242caa15040427fe21e47e3b7cae0f51b4107470dc07b1cf0"
+    },
+    {
+      "id": "csm-bdd-tdd-package/1",
+      "revision": 1,
+      "schemaPath": "csm-bdd-tdd/schemas/package.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:83252d589f938fa9d8dcd65b9d2b5613acb8501684284e0ffb4469d8e5bac7c0"
     },
     {
       "id": "csm-autoresearch-contract/1",

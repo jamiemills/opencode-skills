@@ -92,6 +92,18 @@ const mapping = {
       destDir: join("payload", "skills", "csm-make-tests", "references"),
     },
     {
+      srcDir: join("csm-make-tests", "schemas"),
+      destDir: join("payload", "skills", "csm-make-tests", "schemas"),
+    },
+    {
+      srcDir: join("csm-make-tests", "lib"),
+      destDir: join("payload", "skills", "csm-make-tests", "lib"),
+    },
+    {
+      src: join("csm-make-tests", "producer.json"),
+      dest: join("payload", "skills", "csm-make-tests", "producer.json"),
+    },
+    {
       srcDir: join("csm-review-python", "artifact"),
       destDir: join("payload", "skills", "csm-review-python", "artifact"),
     },
@@ -102,6 +114,34 @@ const mapping = {
     {
       srcDir: join("csm-autoresearch", "schemas"),
       destDir: join("payload", "skills", "csm-autoresearch", "schemas"),
+    },
+    {
+      srcDir: join("csm-bdd-tdd", "schemas"),
+      destDir: join("payload", "skills", "csm-bdd-tdd", "schemas"),
+    },
+    {
+      srcDir: join("csm-bdd-tdd", "lib"),
+      destDir: join("payload", "skills", "csm-bdd-tdd", "lib"),
+    },
+    {
+      srcDir: join("lib", "schema-runtime"),
+      destDir: join("payload", "skills", "lib", "schema-runtime"),
+    },
+    {
+      srcDir: join("lib", "compatibility-runtime"),
+      destDir: join("payload", "skills", "lib", "compatibility-runtime"),
+    },
+    {
+      srcDir: join("csm-plan", "lib"),
+      destDir: join("payload", "skills", "csm-plan", "lib"),
+    },
+    {
+      srcDir: join("csm-plan", "schemas"),
+      destDir: join("payload", "skills", "csm-plan", "schemas"),
+    },
+    {
+      srcDir: join("csm-build", "lib"),
+      destDir: join("payload", "skills", "csm-build", "lib"),
     },
     {
       src: join("csm-deep-research", "research-producer.json"),

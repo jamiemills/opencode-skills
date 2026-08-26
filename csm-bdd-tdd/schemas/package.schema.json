@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-bdd-tdd-package/1",
+  "title": "Canonical BDD and TDD package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "artifactId",
+    "runId",
+    "owner",
+    "status",
+    "sourcePlan",
+    "objective",
+    "scope",
+    "criteria",
+    "risks",
+    "spec",
+    "scenarios",
+    "testDesigns",
+    "control",
+    "journal",
+    "traceability",
+    "provenance",
+    "projection"
+  ],
+  "properties": {
+    "schema": { "const": "csm-bdd-tdd-package/1" },
+    "schemaRevision": { "const": 1 },
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "owner": { "const": "csm-bdd-tdd" },
+    "status": { "enum": ["ready", "in_progress", "paused", "blocked", "complete"] },
+    "sourcePlan": { "$ref": "#/$defs/sourcePlan" },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in", "out"],
+      "properties": {
+        "in": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "out": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "criteria": { "type": "array", "items": { "$ref": "#/$defs/criterion" }, "minItems": 1 },
+    "risks": { "type": "array", "items": { "$ref": "#/$defs/risk" } },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "featurePath"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "featurePath": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" }
+      }
+    },
+    "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenario" }, "minItems": 1 },
+    "testDesigns": { "type": "array", "items": { "$ref": "#/$defs/testDesign" }, "minItems": 1 },
+    "control": { "$ref": "#/$defs/control" },
+    "journal": { "type": "array", "items": { "$ref": "#/$defs/journal" }, "minItems": 1 },
+    "traceability": { "type": "array", "items": { "$ref": "#/$defs/trace" }, "minItems": 1 },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["createdAt", "sourceDigest"],
+      "properties": {
+        "createdAt": { "type": "string", "format": "date-time" },
+        "sourceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "sourceOnly"],
+      "properties": {
+        "allowed": { "type": "array", "items": { "enum": ["gherkin", "markdown"] } },
+        "sourceOnly": { "const": true }
+      }
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "sourcePlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "runId", "schema", "path", "digest"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "schema": { "const": "csm-plan/1" },
+        "path": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC-[0-9]{3}$" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "severity", "mitigation"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["low", "standard", "high", "critical"] },
+        "mitigation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioId", "title", "featurePath", "given", "when", "then"],
+      "properties": {
+        "scenarioId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{3}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "featurePath": { "type": "string", "minLength": 1 },
+        "given": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "when": { "type": "string", "minLength": 1 },
+        "then": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "criteria": { "type": "array", "items": { "type": "string", "pattern": "^AC-[0-9]{3}$" } }
+      }
+    },
+    "testDesign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["testId", "scenarioId", "path", "purpose", "given", "when", "then", "tdd"],
+      "properties": {
+        "testId": { "type": "string", "pattern": "^TST-[0-9]{3}$" },
+        "scenarioId": { "type": "string" },
+        "path": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 },
+        "given": { "type": "array", "items": { "type": "string" } },
+        "when": { "type": "array", "items": { "type": "string" } },
+        "then": { "type": "array", "items": { "type": "string" } },
+        "tdd": { "const": ["red", "green", "refactor"] }
+      }
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "cycle", "nextTransition", "cursor", "recovery"],
+      "properties": {
+        "state": {
+          "enum": [
+            "INTAKE",
+            "SPEC",
+            "SCENARIOS",
+            "VALIDATE",
+            "TEST_DESIGN",
+            "MUTATE_PLAN",
+            "VERIFY",
+            "SAVED",
+            "STOP",
+            "RECOVER",
+            "PAUSED",
+            "BLOCKED"
+          ]
+        },
+        "cycle": { "type": "integer", "minimum": 0 },
+        "nextTransition": { "type": "string", "minLength": 1 },
+        "cursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["step", "artifact"],
+          "properties": {
+            "step": { "type": "string", "minLength": 1 },
+            "artifact": { "type": "string", "minLength": 1 }
+          }
+        },
+        "recovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["resumeFrom", "checkpoint", "temporaryState"],
+          "properties": {
+            "resumeFrom": { "type": "string", "minLength": 1 },
+            "checkpoint": { "type": "string", "minLength": 1 },
+            "temporaryState": { "enum": ["none", "quarantined", "retained"] }
+          }
+        }
+      }
+    },
+    "journal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "runId", "timestamp", "transition", "state", "evidence"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 0 },
+        "runId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "transition": { "type": "string", "minLength": 1 },
+        "state": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "string", "minLength": 1 }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioId", "featurePath", "testIds", "testPaths"],
+      "properties": {
+        "scenarioId": { "type": "string" },
+        "featurePath": { "type": "string", "minLength": 1 },
+        "testIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^TST-[0-9]{3}$" },
+          "minItems": 1
+        },
+        "testPaths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      }
+    }
+  }
+}
