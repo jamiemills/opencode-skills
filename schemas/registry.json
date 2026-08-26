@@ -141,6 +141,15 @@
       "schemaContentDigest": "sha256:ec8cc1d6cbb00d9d073975a68a0f3cc64bc47e031bbd9af08353ae2c9f052efc"
     },
     {
+      "id": "csm-ddd-pair/1",
+      "revision": 1,
+      "schemaPath": "csm-ddd/schemas/ddd-pair.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:29d38e6a719ee31f831820659abb2a62bd37d0b902958f99315f27c760978b12"
+    },
+    {
       "id": "csm-review-findings/1",
       "revision": 1,
       "schemaPath": "csm-review/schemas/csm-review-findings.schema.json",

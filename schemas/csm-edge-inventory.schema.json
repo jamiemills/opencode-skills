@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-edge-inventory/1",
+  "title": "CSM producer-consumer edge inventory",
+  "description": "Authoritative T001 descriptor for persisted and generic skill handoffs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "inventoryId", "revision", "edges"],
+  "properties": {
+    "schema": { "const": "csm-edge-inventory/1" },
+    "inventoryId": { "const": "consumer-edge-inventory" },
+    "revision": { "const": 1 },
+    "edges": {
+      "type": "array",
+      "minItems": 17,
+      "maxItems": 17,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/edge" }
+    }
+  },
+  "$defs": {
+    "skill": { "type": "string", "pattern": "^csm-[a-z0-9-]+$" },
+    "schemaRef": {
+      "type": "string",
+      "pattern": "^csm-[a-z0-9-]+/[1-9][0-9]*$"
+    },
+    "digestField": {
+      "enum": ["fileDigest", "payloadDigest", "sourceDigest", "descriptorDigest"]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "producer",
+        "consumer",
+        "classification",
+        "caller",
+        "schema",
+        "owner",
+        "runIdentity",
+        "digestFields",
+        "path",
+        "terminalBehavior",
+        "recoveryBehavior",
+        "rollback"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^csm-[a-z0-9-]+->csm-[a-z0-9-]+$" },
+        "producer": { "$ref": "#/$defs/skill" },
+        "consumer": { "$ref": "#/$defs/skill" },
+        "classification": {
+          "enum": ["existing-persisted", "required-persisted-generic"]
+        },
+        "caller": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["producerEntryPoint", "consumerEntryPoint"],
+          "properties": {
+            "producerEntryPoint": { "type": "string", "minLength": 1 },
+            "consumerEntryPoint": { "type": "string", "minLength": 1 }
+          }
+        },
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["producer", "consumer"],
+          "properties": {
+            "producer": { "$ref": "#/$defs/schemaRef" },
+            "consumer": { "$ref": "#/$defs/schemaRef" }
+          }
+        },
+        "owner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["producer", "consumer"],
+          "properties": {
+            "producer": { "$ref": "#/$defs/skill" },
+            "consumer": { "$ref": "#/$defs/skill" }
+          }
+        },
+        "runIdentity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["producerField", "consumerField", "continuity"],
+          "properties": {
+            "producerField": { "type": "string", "minLength": 1 },
+            "consumerField": { "type": "string", "minLength": 1 },
+            "continuity": { "enum": ["same-run", "source-lineage"] }
+          }
+        },
+        "digestFields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "optional"],
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/digestField" },
+              "uniqueItems": true
+            },
+            "optional": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/digestField" },
+              "uniqueItems": true
+            }
+          }
+        },
+        "path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["producer", "consumer", "artifact"],
+          "properties": {
+            "producer": { "type": "string", "minLength": 1 },
+            "consumer": { "type": "string", "minLength": 1 },
+            "artifact": { "type": "string", "minLength": 1 }
+          }
+        },
+        "terminalBehavior": { "type": "string", "minLength": 1 },
+        "recoveryBehavior": { "type": "string", "minLength": 1 },
+        "rollback": { "type": "boolean" }
+      }
+    }
+  }
+}

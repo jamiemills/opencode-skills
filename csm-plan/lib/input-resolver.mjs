@@ -5,6 +5,7 @@ import { createSchemaRegistry, digest, parseJson } from "../../lib/schema-runtim
 import { loadMachineInput } from "../../lib/publication/index.mjs";
 import { resolveArtifactFile } from "../../lib/artifact-resolver/index.mjs";
 import { validatePlanArtifact } from "./plan.mjs";
+import { resolveConsumerInput } from "../../lib/consumer-adapters/index.mjs";
 
 const INPUTS = Object.freeze({
   plan: { schema: "csm-plan/1", owner: "csm-plan" },
@@ -13,6 +14,7 @@ const INPUTS = Object.freeze({
   review: { schema: "csm-review-findings/1", owner: "csm-review" },
   doctrine: { schema: "csm-doctrine-findings/1", owner: "csm-review-python" },
   norms: { schema: "csm-norms/1", owner: "csm-scan" },
+  ddd: { schema: "csm-ddd-graph/1", owner: "csm-ddd" },
 });
 
 function rejected(code, message, details = {}) {
@@ -49,7 +51,8 @@ async function load(input, { root = process.cwd() } = {}) {
       schemaRegistry: await registry(),
       consumerRevision: 1,
     });
-    if (resolved.status !== "resolved") return resolved;
+    if (resolved.status !== "resolved")
+      return resolved.code === "symlink" ? { ...resolved, code: "symlink-path" } : resolved;
     return { value: resolved.value, path: resolved.path };
   }
   const loaded = await loadMachineInput(input, { root });
@@ -84,12 +87,31 @@ export async function resolvePlanInput(
 ) {
   const expected = INPUTS[kind];
   if (!expected) return rejected("unknown-input-kind", `unknown plan input kind: ${kind}`);
+  if (kind === "ddd") {
+    const adapted = await resolveConsumerInput("ddd->plan", input, { root });
+    if (adapted.status !== "resolved") return adapted;
+    return Object.freeze({
+      status: "resolved",
+      kind,
+      schema: expected.schema,
+      path: adapted.path,
+      value: adapted.value,
+      owner: adapted.owner,
+      runId: adapted.runId,
+      sourceDigest: adapted.sourceDigest,
+      lineage: adapted.lineage,
+      pair: adapted.pair,
+      terminal: adapted.terminal,
+      rollback: adapted.rollback,
+    });
+  }
   const loaded = await load(input, { root });
   if (loaded.status) return loaded;
   const value = loaded.value;
   if (!value || typeof value !== "object" || Array.isArray(value))
     return rejected("invalid-json", "plan machine input must be an object", { path: loaded.path });
-  if (value.schema !== expected.schema)
+  const actualSchema = value.schema;
+  if (actualSchema !== expected.schema)
     return rejected("unknown-or-mismatched-schema", `expected ${expected.schema}`, {
       path: loaded.path,
     });
@@ -114,10 +136,11 @@ export async function resolvePlanInput(
     });
   const owner =
     value.artifact?.owner ?? value.owner ?? value.ownership?.owner ?? value.provenance?.producer;
-  if (expectedOwner && owner !== expectedOwner)
+  const dddOwner = kind === "ddd" && value.format === "csm-ddd-graph/1" ? "csm-ddd" : owner;
+  if (expectedOwner && dddOwner !== expectedOwner)
     return rejected("ownership-mismatch", `expected owner ${expectedOwner}`, {
       path: loaded.path,
-      owner,
+      owner: dddOwner,
     });
   return Object.freeze({
     status: "resolved",
@@ -134,27 +157,39 @@ export async function resolvePlanInputs({
   reviews = [],
   doctrine = [],
   norms = [],
+  ddd = [],
+  root = process.cwd(),
 } = {}) {
+  const dddInputs = Array.isArray(ddd) ? ddd : ddd === undefined ? [] : [ddd];
   const entries = [
     ["approach", approach],
+    ...dddInputs.map((value) => ["ddd", value]),
     ...research.map((value) => ["research", value]),
     ...reviews.map((value) => ["review", value]),
     ...doctrine.map((value) => ["doctrine", value]),
     ...norms.map((value) => ["norms", value]),
   ];
-  const resolved = await Promise.all(entries.map(([kind, value]) => resolvePlanInput(kind, value)));
+  const resolved = await Promise.all(
+    entries.map(([kind, value]) => resolvePlanInput(kind, value, { root })),
+  );
   const rejectedInput = resolved.find((result) => result.status !== "resolved");
   if (rejectedInput) return rejectedInput;
   return Object.freeze({
     status: "resolved",
     approach: resolved[0],
-    research: resolved.slice(1, research.length + 1),
-    reviews: resolved.slice(research.length + 1, research.length + reviews.length + 1),
-    doctrine: resolved.slice(
-      research.length + reviews.length + 1,
-      research.length + reviews.length + doctrine.length + 1,
+    ddd: resolved.slice(1, dddInputs.length + 1),
+    research: resolved.slice(dddInputs.length + 1, dddInputs.length + research.length + 1),
+    reviews: resolved.slice(
+      dddInputs.length + research.length + 1,
+      dddInputs.length + research.length + reviews.length + 1,
     ),
-    norms: resolved.slice(research.length + reviews.length + doctrine.length + 1),
+    doctrine: resolved.slice(
+      dddInputs.length + research.length + reviews.length + 1,
+      dddInputs.length + research.length + reviews.length + doctrine.length + 1,
+    ),
+    norms: resolved.slice(
+      dddInputs.length + research.length + reviews.length + doctrine.length + 1,
+    ),
   });
 }
 

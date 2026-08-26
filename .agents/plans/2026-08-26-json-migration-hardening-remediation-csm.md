@@ -12,14 +12,14 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: json-migration-hardening-remediation
-- Status: ready
-- Current CSM state: NOT_STARTED
-- Cycle: 0
+- Status: in_progress
+- Current CSM state: REPAIR
+- Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-26 plan drafted from the implementation assessment, four local research tracks, adversarial challenge, and judge remediation; no implementation started.
-- Last model/run: gpt-5.6-luna csm-plan run 2026-08-26.
-- Next transition: On a future explicit csm-build invocation, NOT_STARTED -> RECOVER
-- Active tasks: none
+- Last checkpoint: 2026-08-26 T002 initial implementation was independently reviewed and found incomplete; repair is required before T003.
+- Last model/run: gpt-5.6-luna csm-build run 2026-08-26 cycle 1 T002.
+- Next transition: REPAIR -> DISPATCH
+- Active tasks: T002
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -201,7 +201,7 @@ T001-T007 -----------------> T008 final receipt and completion gates
 
 ## Numbered Plan
 
-1. [pending] Establish the authoritative producer-consumer edge inventory and replay contract.
+1. [completed] Establish the authoritative producer-consumer edge inventory and replay contract.
    - Task ID: T001
    - Depends on: none
    - Parallel group: G1
@@ -214,9 +214,10 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Validation: inspect all resolver call sites; verify no edge is silently classified human-only; run existing plan/BDD/test replay tests.
    - Acceptance evidence: versioned edge inventory, caller map, required/unsupported classification, and rollback flag per edge.
    - Repair attempts: 0
+   - Completion evidence: `tests/consumer-edge-inventory.test.mjs` passed 4/4; independent review returned PROCEED; all 17 edges and five required generic handoffs are represented in `tests/fixtures/json-migration/edge-inventory.json`.
    - Recovery note: If an edge has no actual runtime entry point, preserve its rejection fixture and record the user-approved removal decision before proceeding.
 
-2. [pending] Make JSON norms authoritative for DDD and implement missing persisted consumer handoffs.
+2. [in_progress] Make JSON norms authoritative for DDD and implement missing persisted consumer handoffs.
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -228,8 +229,8 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Acceptance signal: `node --test --test-concurrency=1 tests/ddd-norms-json-contract.test.mjs tests/consumer-edge-adapter.test.mjs csm-ddd/test/cli.test.mjs csm-ddd/test/extract.test.mjs` passes adapter contracts without owning the full replay matrix.
    - Validation: valid JSON norms, wrong owner, unknown revision, stale digest, Markdown path, projection input, and legacy history cases.
    - Acceptance evidence: DDD JSON norms contract, five adapter contracts, exact rejection codes, and preserved Markdown history fixtures.
-   - Repair attempts: 0
-   - Recovery note: Keep each new adapter disabled until its source schema, owner, run, digest, and terminal behavior pass T001 fixtures.
+      - Repair attempts: 2
+    - Recovery note: Keep each new adapter disabled until its source schema, owner, run, digest, and terminal behavior pass T001 fixtures.
 
 3. [pending] Add positive producer-output replay and semantic preservation coverage.
    - Task ID: T003
@@ -365,6 +366,18 @@ T001-T007 -----------------> T008 final receipt and completion gates
 | 2026-08-26T00:00:00Z | 0 | DRAFT -> CRITIQUE | plan | Eight pending implementation tasks drafted with dependencies and acceptance signals. | CRITIQUE |
 | 2026-08-26T00:00:00Z | 0 | CRITIQUE -> REMEDIATE | plan | Independent critique found overlapping ownership, duplicated acceptance, circular receipt binding, and underspecified DDD/durability/resource behavior. | REMEDIATE |
 | 2026-08-26T00:00:00Z | 0 | REMEDIATE -> VERIFY | plan | Plan corrected with inventory-only T001, T003-owned positive replay, serialized T005/T006, explicit DDD JSON contract, deterministic limits, fsync policy, and two-SHA receipt binding. | VERIFY |
+| 2026-08-26T00:00:00Z | 1 | NOT_STARTED -> RECOVER | T001 | Explicit csm-build execution began; plan marker, repository status, prior assessment, and untracked artifacts were inspected. | RECOVER |
+| 2026-08-26T00:00:00Z | 1 | RECOVER -> VALIDATE | T001 | Baseline validation is next; unrelated untracked research artifacts remain outside this execution scope. | VALIDATE |
+| 2026-08-26T00:00:00Z | 1 | VALIDATE -> SELECT | T001 | Focused resolver/replay tests, lint, formatting, and protected-state checks passed; `make check` required plan index registration, which was added. | SELECT |
+| 2026-08-26T00:00:00Z | 1 | SELECT -> DISPATCH | T001 | T001 is the only ready task; edge inventory ownership is isolated from downstream adapters and hardening modules. | DISPATCH |
+| 2026-08-26T00:00:00Z | 1 | DISPATCH -> INTEGRATE | T001 | Versioned edge inventory schema, fixture, and contract tests returned; actual files inspected. | INTEGRATE |
+| 2026-08-26T00:00:00Z | 1 | INTEGRATE -> VERIFY | T001 | Inventory acceptance passed 4/4 and duplicate-key safety was verified. | VERIFY |
+| 2026-08-26T00:00:00Z | 1 | VERIFY -> REVIEW | T001 | Independent review returned PROCEED with no classification or metadata findings. | REVIEW |
+| 2026-08-26T00:00:00Z | 1 | REVIEW -> CHECKPOINT | T001 | T001 is complete; T002 is next and owns DDD JSON norms plus the five persisted consumer handoffs. | CHECKPOINT |
+| 2026-08-26T02:00:00Z | 1 | CHECKPOINT -> SELECT | T002 | T001 checkpoint is ready; T002 is the only dependency-ready implementation task. | SELECT |
+| 2026-08-26T02:00:00Z | 1 | SELECT -> DISPATCH | T002 | Dispatching DDD norms and edge adapter implementation with T003 replay deferred until adapter contracts pass. | DISPATCH |
+| 2026-08-26T03:00:00Z | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Added JSON-authoritative DDD norms loading and five edge adapters; focused contracts cover valid input, owner/revision/digest failures, Markdown/projection rejection, lineage, terminal, and rollback. Lint and format checks pass; T003 positive replay remains excluded. | SELECT |
+| 2026-08-26T03:15:00Z | 1 | CHECKPOINT -> SELECT -> DISPATCH | T002 | Second independent review found canonical norms envelope versus payload mismatch, DDD pair lineage handling, missing plan DDD aggregation, and insufficient positive-success coverage; fresh-eyes repair dispatched. | DISPATCH |
 
 ## Completion Review
 

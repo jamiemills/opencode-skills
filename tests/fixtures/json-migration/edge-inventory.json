@@ -1,0 +1,500 @@
+{
+  "schema": "csm-edge-inventory/1",
+  "inventoryId": "consumer-edge-inventory",
+  "revision": 1,
+  "edges": [
+    {
+      "id": "csm-scan->csm-plan",
+      "producer": "csm-scan",
+      "consumer": "csm-plan",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-scan/scripts/scan.mjs",
+        "consumerEntryPoint": "csm-plan/lib/input-resolver.mjs"
+      },
+      "schema": { "producer": "csm-norms/1", "consumer": "csm-norms/1" },
+      "owner": { "producer": "csm-scan", "consumer": "csm-plan" },
+      "runIdentity": {
+        "producerField": "provenance.producerRevision",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/norms/<date>-<repo>-<run>-norms.json",
+        "consumer": "registered JSON input",
+        "artifact": "norms"
+      },
+      "terminalBehavior": "consumer rejects invalid or projection input before dispatch",
+      "recoveryBehavior": "retain the last complete norms artifact and retry from its source lineage",
+      "rollback": true
+    },
+    {
+      "id": "csm-scan->csm-bdd-tdd",
+      "producer": "csm-scan",
+      "consumer": "csm-bdd-tdd",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-scan/scripts/scan.mjs",
+        "consumerEntryPoint": "csm-bdd-tdd/lib/package.mjs"
+      },
+      "schema": { "producer": "csm-norms/1", "consumer": "csm-norms/1" },
+      "owner": { "producer": "csm-scan", "consumer": "csm-bdd-tdd" },
+      "runIdentity": {
+        "producerField": "provenance.producerRevision",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/norms/<date>-<repo>-<run>-norms.json",
+        "consumer": "registered JSON input",
+        "artifact": "norms"
+      },
+      "terminalBehavior": "consumer rejects invalid or projection input before mutation",
+      "recoveryBehavior": "preserve the prior package and resume only from a verified norms artifact",
+      "rollback": true
+    },
+    {
+      "id": "csm-scan->csm-build",
+      "producer": "csm-scan",
+      "consumer": "csm-build",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-scan/scripts/scan.mjs",
+        "consumerEntryPoint": "csm-build/lib/state.mjs"
+      },
+      "schema": { "producer": "csm-norms/1", "consumer": "csm-norms/1" },
+      "owner": { "producer": "csm-scan", "consumer": "csm-build" },
+      "runIdentity": {
+        "producerField": "provenance.producerRevision",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/norms/<date>-<repo>-<run>-norms.json",
+        "consumer": "registered JSON input",
+        "artifact": "norms"
+      },
+      "terminalBehavior": "build refuses untyped or invalid norms before execution",
+      "recoveryBehavior": "resume from the last complete build checkpoint with the prior norms lineage",
+      "rollback": true
+    },
+    {
+      "id": "csm-scan->csm-review",
+      "producer": "csm-scan",
+      "consumer": "csm-review",
+      "classification": "required-persisted-generic",
+      "caller": {
+        "producerEntryPoint": "csm-scan/scripts/scan.mjs",
+        "consumerEntryPoint": "csm-review/lib/findings-validator.mjs"
+      },
+      "schema": { "producer": "csm-norms/1", "consumer": "csm-norms/1" },
+      "owner": { "producer": "csm-scan", "consumer": "csm-review" },
+      "runIdentity": {
+        "producerField": "provenance.producerRevision",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/norms/<date>-<repo>-<run>-norms.json",
+        "consumer": ".agents/reviews/<date>-<repo>-<run>-review.json input",
+        "artifact": "norms"
+      },
+      "terminalBehavior": "review rejects missing or untyped persisted norms before analysis",
+      "recoveryBehavior": "leave the prior review report authoritative and retry with the same norms artifact",
+      "rollback": true
+    },
+    {
+      "id": "csm-plan->csm-bdd-tdd",
+      "producer": "csm-plan",
+      "consumer": "csm-bdd-tdd",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-plan/lib/plan.mjs",
+        "consumerEntryPoint": "csm-bdd-tdd/lib/package.mjs"
+      },
+      "schema": { "producer": "csm-plan/1", "consumer": "csm-plan/1" },
+      "owner": { "producer": "csm-plan", "consumer": "csm-bdd-tdd" },
+      "runIdentity": {
+        "producerField": "control.runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/plans/<date>-<goal>-<run>-csm.json",
+        "consumer": "validated JSON plan input",
+        "artifact": "plan"
+      },
+      "terminalBehavior": "mutation refuses a terminal or invalid plan",
+      "recoveryBehavior": "resume the plan from its durable control state without replacing a terminal plan",
+      "rollback": true
+    },
+    {
+      "id": "csm-plan->csm-build",
+      "producer": "csm-plan",
+      "consumer": "csm-build",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-plan/lib/plan.mjs",
+        "consumerEntryPoint": "csm-build/lib/state.mjs"
+      },
+      "schema": { "producer": "csm-plan/1", "consumer": "csm-plan/1" },
+      "owner": { "producer": "csm-plan", "consumer": "csm-build" },
+      "runIdentity": {
+        "producerField": "control.runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/plans/<date>-<goal>-<run>-csm.json",
+        "consumer": "validated JSON plan input",
+        "artifact": "plan"
+      },
+      "terminalBehavior": "build refuses an invalid or incompatible plan before execution",
+      "recoveryBehavior": "resume from the last complete build checkpoint and preserve the plan pointer",
+      "rollback": true
+    },
+    {
+      "id": "csm-ddd->csm-plan",
+      "producer": "csm-ddd",
+      "consumer": "csm-plan",
+      "classification": "required-persisted-generic",
+      "caller": {
+        "producerEntryPoint": "csm-ddd/scripts/ddd.mjs",
+        "consumerEntryPoint": "csm-plan/lib/input-resolver.mjs"
+      },
+      "schema": { "producer": "csm-ddd-report/1", "consumer": "csm-ddd-report/1" },
+      "owner": { "producer": "csm-ddd", "consumer": "csm-plan" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/ddd/<date>-<repo>-<run>-ddd-report.json + ddd-graph.json",
+        "consumer": "explicit registered DDD pair input",
+        "artifact": "ddd-pair"
+      },
+      "terminalBehavior": "plan rejects an unpaired, stale, or projection DDD input",
+      "recoveryBehavior": "retain the prior plan and rerun against a matching report/graph pair",
+      "rollback": true
+    },
+    {
+      "id": "csm-ddd->csm-build",
+      "producer": "csm-ddd",
+      "consumer": "csm-build",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-ddd/scripts/ddd.mjs",
+        "consumerEntryPoint": "csm-build/lib/state.mjs"
+      },
+      "schema": { "producer": "csm-ddd-report/1", "consumer": "csm-ddd-report/1" },
+      "owner": { "producer": "csm-ddd", "consumer": "csm-build" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/ddd/<date>-<repo>-<run>-ddd-report.json + ddd-graph.json",
+        "consumer": "explicit registered DDD pair input",
+        "artifact": "ddd-pair"
+      },
+      "terminalBehavior": "build refuses an unpaired or stale DDD input before execution",
+      "recoveryBehavior": "resume from the build checkpoint while retaining the matching DDD pair",
+      "rollback": true
+    },
+    {
+      "id": "csm-deep-research->csm-grill",
+      "producer": "csm-deep-research",
+      "consumer": "csm-grill",
+      "classification": "required-persisted-generic",
+      "caller": {
+        "producerEntryPoint": "csm-deep-research/lib/research.mjs",
+        "consumerEntryPoint": "csm-grill/lib/approach.mjs"
+      },
+      "schema": { "producer": "csm-research/1", "consumer": "csm-research/1" },
+      "owner": { "producer": "csm-deep-research", "consumer": "csm-grill" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/research/<date>-<slug>-<run>-research.json",
+        "consumer": "registered JSON finding input",
+        "artifact": "finding"
+      },
+      "terminalBehavior": "grill rejects an unregistered or stale research finding",
+      "recoveryBehavior": "keep the last approach state and retry with the same research run",
+      "rollback": true
+    },
+    {
+      "id": "csm-deep-research->csm-plan",
+      "producer": "csm-deep-research",
+      "consumer": "csm-plan",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-deep-research/lib/research.mjs",
+        "consumerEntryPoint": "csm-plan/lib/input-resolver.mjs"
+      },
+      "schema": { "producer": "csm-research/1", "consumer": "csm-research/1" },
+      "owner": { "producer": "csm-deep-research", "consumer": "csm-plan" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/research/<date>-<slug>-<run>-research.json",
+        "consumer": "registered JSON finding input",
+        "artifact": "finding"
+      },
+      "terminalBehavior": "plan rejects an unregistered or stale research finding",
+      "recoveryBehavior": "preserve the plan checkpoint and retry against the same finding digest",
+      "rollback": true
+    },
+    {
+      "id": "csm-deep-research->csm-make-tests",
+      "producer": "csm-deep-research",
+      "consumer": "csm-make-tests",
+      "classification": "required-persisted-generic",
+      "caller": {
+        "producerEntryPoint": "csm-deep-research/lib/research.mjs",
+        "consumerEntryPoint": "csm-make-tests/lib/verification.mjs"
+      },
+      "schema": { "producer": "csm-research/1", "consumer": "csm-research/1" },
+      "owner": { "producer": "csm-deep-research", "consumer": "csm-make-tests" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/research/<date>-<slug>-<run>-research.json",
+        "consumer": "registered JSON finding input",
+        "artifact": "finding"
+      },
+      "terminalBehavior": "test generation rejects unregistered or stale research input",
+      "recoveryBehavior": "retain the prior ledger/package and rerun from the verified finding",
+      "rollback": true
+    },
+    {
+      "id": "csm-review->csm-plan",
+      "producer": "csm-review",
+      "consumer": "csm-plan",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-review/lib/findings-validator.mjs",
+        "consumerEntryPoint": "csm-plan/lib/input-resolver.mjs"
+      },
+      "schema": { "producer": "csm-review-findings/1", "consumer": "csm-review-findings/1" },
+      "owner": { "producer": "csm-review", "consumer": "csm-plan" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/reviews/<date>-<repo>-<run>-review.json",
+        "consumer": "registered JSON review input",
+        "artifact": "review"
+      },
+      "terminalBehavior": "plan rejects invalid or unregistered review findings",
+      "recoveryBehavior": "retain the prior plan and retry with the same review report",
+      "rollback": true
+    },
+    {
+      "id": "csm-review->csm-grill",
+      "producer": "csm-review",
+      "consumer": "csm-grill",
+      "classification": "required-persisted-generic",
+      "caller": {
+        "producerEntryPoint": "csm-review/lib/findings-validator.mjs",
+        "consumerEntryPoint": "csm-grill/lib/approach.mjs"
+      },
+      "schema": { "producer": "csm-review-findings/1", "consumer": "csm-review-findings/1" },
+      "owner": { "producer": "csm-review", "consumer": "csm-grill" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/reviews/<date>-<repo>-<run>-review.json",
+        "consumer": "registered JSON review input",
+        "artifact": "review"
+      },
+      "terminalBehavior": "grill rejects invalid or unregistered review findings",
+      "recoveryBehavior": "leave the prior approach authoritative and retry from the verified review run",
+      "rollback": true
+    },
+    {
+      "id": "csm-grill->csm-plan",
+      "producer": "csm-grill",
+      "consumer": "csm-plan",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-grill/lib/approach.mjs",
+        "consumerEntryPoint": "csm-plan/lib/input-resolver.mjs"
+      },
+      "schema": { "producer": "csm-approach/1", "consumer": "csm-approach/1" },
+      "owner": { "producer": "csm-grill", "consumer": "csm-plan" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/approaches/<date>-<slug>-<run>-approach.json",
+        "consumer": "registered JSON approach input",
+        "artifact": "approach"
+      },
+      "terminalBehavior": "plan rejects an invalid or projection approach",
+      "recoveryBehavior": "retain the prior plan and retry with the same approach descriptor",
+      "rollback": true
+    },
+    {
+      "id": "csm-bdd-tdd->csm-build",
+      "producer": "csm-bdd-tdd",
+      "consumer": "csm-build",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-bdd-tdd/lib/package.mjs",
+        "consumerEntryPoint": "csm-build/lib/bdd-input-resolver.mjs"
+      },
+      "schema": { "producer": "csm-bdd-tdd-package/1", "consumer": "csm-bdd-tdd-package/1" },
+      "owner": { "producer": "csm-bdd-tdd", "consumer": "csm-build" },
+      "runIdentity": {
+        "producerField": "control.runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": "specs/<goal>/package.json",
+        "consumer": "validated BDD package input",
+        "artifact": "package"
+      },
+      "terminalBehavior": "build rejects an invalid or incompatible BDD package",
+      "recoveryBehavior": "resume build from its checkpoint and preserve the last valid package",
+      "rollback": true
+    },
+    {
+      "id": "csm-make-tests->csm-build",
+      "producer": "csm-make-tests",
+      "consumer": "csm-build",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-make-tests/lib/verification.mjs",
+        "consumerEntryPoint": "csm-build/lib/test-package.mjs"
+      },
+      "schema": { "producer": "csm-test-package/1", "consumer": "csm-test-package/1" },
+      "owner": { "producer": "csm-make-tests", "consumer": "csm-build" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": ".agents/tests/<date>-<repo>-<run>-test-package.json",
+        "consumer": "validated test package input",
+        "artifact": "test-ledger"
+      },
+      "terminalBehavior": "build rejects an invalid or terminal test package",
+      "recoveryBehavior": "retain the prior test package and resume from the build checkpoint",
+      "rollback": true
+    },
+    {
+      "id": "csm-browse->csm-upload",
+      "producer": "csm-browse",
+      "consumer": "csm-upload",
+      "classification": "existing-persisted",
+      "caller": {
+        "producerEntryPoint": "csm-browse/lib/json-contract.mjs",
+        "consumerEntryPoint": "csm-upload/lib/publication.mjs"
+      },
+      "schema": { "producer": "csm-browse-evidence/1", "consumer": "csm-upload-publication/1" },
+      "owner": { "producer": "csm-browse", "consumer": "csm-upload" },
+      "runIdentity": {
+        "producerField": "runId",
+        "consumerField": "sourceRunId",
+        "continuity": "source-lineage"
+      },
+      "digestFields": {
+        "required": ["sourceDigest"],
+        "optional": ["fileDigest", "payloadDigest", "descriptorDigest"]
+      },
+      "path": {
+        "producer": "browser session evidence descriptor",
+        "consumer": ".agents/upload/<date>-<run>-publication.json",
+        "artifact": "evidence"
+      },
+      "terminalBehavior": "upload refuses invalid evidence and never replaces a terminal publication",
+      "recoveryBehavior": "retain the prior publication receipt and retry staging without external cutover",
+      "rollback": true
+    }
+  ]
+}

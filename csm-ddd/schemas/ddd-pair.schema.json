@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-ddd-pair/1",
+  "title": "Published DDD report and graph pair descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "producer", "runId", "report", "graph", "pair", "manifest", "rollback"],
+  "properties": {
+    "format": { "const": "csm-ddd-producer/1" },
+    "producer": { "const": "csm-ddd" },
+    "runId": { "type": "string", "minLength": 1 },
+    "manifest": { "type": "string", "minLength": 1 },
+    "rollback": { "const": "last-complete-pointer" },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "atomic"],
+      "properties": {
+        "format": { "const": "csm-ddd-publication/1" },
+        "atomic": { "const": true }
+      }
+    },
+    "report": { "$ref": "#/$defs/artifact" },
+    "graph": { "$ref": "#/$defs/artifact" }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "schema", "authoritative", "path", "sha256"],
+      "properties": {
+        "format": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "minLength": 1 },
+        "authoritative": { "const": true },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

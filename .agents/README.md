@@ -49,6 +49,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-agent-harness-remediation-csm.md` — 2026-08-24 — remediate agent-harness, skills-framework, lifecycle, runtime, packaging, evaluation, documentation, and CI findings — status: complete
 - `2026-08-25-hardening-remediation-csm.md` — 2026-08-25 — remediate security, concurrency, artifact, browser/upload, CI, and release-trust findings — status: complete
 - `2026-08-25-json-only-rendered-skill-outputs-csm.md` — 2026-08-25 — implement JSON-only skill outputs with compatibility-controlled Markdown/HTML projections — status: in progress (T023 contract/bootstrap synchronization)
+- `2026-08-26-json-migration-hardening-remediation-csm.md` — 2026-08-26 — harden JSON migration consumer edges, integrity, concurrency, and final evidence — status: in progress
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 
 ## docs/

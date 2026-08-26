@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -149,7 +149,7 @@ test("--norms and --max-bytes are applied and disclosed by the CLI", async () =>
   const graph = JSON.parse(readFileSync(graphPath, "utf8"));
   const reportData = JSON.parse(report);
   assert.equal(reportData.sections[4].data.caps.truncatedByBytes, true);
-  assert.equal(reportData.sections[4].data.norms.authentic, true);
+  assert.equal(reportData.sections[4].data.norms.authoritative, false);
   assert.equal(
     graph.claims.find((claim) => claim.subject === "repository-inventory").status,
     "unverified",
@@ -161,6 +161,17 @@ test("explicit norms paths cannot traverse outside the analyzed repository", asy
   await assert.rejects(
     analyzeRepository({ root: repo, normsPath: join(repo, "..", "outside-NORMS.md") }),
     /contained in the analyzed repository/,
+  );
+});
+
+test("explicit JSON norms paths reject symlinked ancestors", async () => {
+  const { repo } = freshSandbox();
+  const outside = mkdtempSync(join(tmpdir(), "csm-ddd-outside-"));
+  const link = join(repo, "linked");
+  symlinkSync(outside, link, "dir");
+  await assert.rejects(
+    analyzeRepository({ root: repo, normsPath: join(link, "NORMS.json") }),
+    /must (?:resolve inside the analyzed repository|not contain symlinks)/,
   );
 });
 

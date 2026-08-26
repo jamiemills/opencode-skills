@@ -27,6 +27,7 @@ import {
   validateGraphReferences,
 } from "./contracts.mjs";
 import { validateGraph, validateReport } from "./validate.mjs";
+import { loadSchemaRegistry } from "../../../lib/schema-runtime/index.mjs";
 
 export async function analyzeRepository(options = {}) {
   const root = options.root;
@@ -119,9 +120,17 @@ export async function analyzeRepository(options = {}) {
   const reportJson = serializeReport(reportObject);
   const reportCheck = await validateReport(reportObject);
   const graphCheck = await validateGraph(graphObject);
-  if (!reportCheck.ok || !graphCheck.ok) {
+  const registeredGraphCheck = (await loadSchemaRegistry()).validate(
+    "csm-ddd-graph/1",
+    graphObject,
+  );
+  if (!reportCheck.ok || !graphCheck.ok || !registeredGraphCheck.valid) {
     throw new Error(
-      `DDD producer generated an invalid pair: ${[...reportCheck.errors, ...graphCheck.errors].join("; ")}`,
+      `DDD producer generated an invalid pair: ${[
+        ...reportCheck.errors,
+        ...graphCheck.errors,
+        ...registeredGraphCheck.errors,
+      ].join("; ")}`,
     );
   }
   assertReportContract(reportObject, graphObject);
@@ -448,11 +457,11 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
   }
   const descriptor = buildPairDescriptor({
     runId: analysis.runId,
-    report: basename(outReport),
-    graph: basename(outGraph),
+    report: relative(analysis.rootPath ?? options.root, outReport),
+    graph: relative(analysis.rootPath ?? options.root, outGraph),
     reportSha256: pairManifest.reportSha256,
     graphSha256: pairManifest.graphSha256,
-    manifest: relative(reportDir, manifestPath),
+    manifest: relative(analysis.rootPath ?? options.root, manifestPath),
   });
   pairManifest.producer = descriptor;
   const backups = [`${outReport}.prior-${token}`, `${outGraph}.prior-${token}`];
