@@ -14,13 +14,13 @@ format: csm-plan/1
 
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
-- Current CSM state: CHECKPOINT
+- Current CSM state: REPAIR
 - Cycle: 15
 - Commits: allowed
 - Last checkpoint: 2026-08-26 T022 shared-resolver cutover, executable consumer replay, bootstrap regeneration, focused tests, formatting, and conformance passed; live E2E and external publication were intentionally not run.
 - Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 15.
 - Next transition: CHECKPOINT -> SELECT
-- Active tasks: none
+- Active tasks: T022
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -580,7 +580,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
     - Repair attempts: 1
    - Recovery note: If publication validation fails, keep the JSON evidence descriptor and do not push or delete remote content.
 
-22. [completed] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
+22. [in_progress] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
    - Task ID: T022
    - Depends on: T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021
    - Parallel group: G9

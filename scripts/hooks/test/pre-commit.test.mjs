@@ -93,16 +93,10 @@ function copyRepo(dest) {
       return false;
     },
   });
-  for (const rel of [
-    "tests",
-    "csm-browse/lib",
-    "csm-browse/tests",
-    "csm-scan/test",
-    "csm-upload/tests",
-  ]) {
+  for (const rel of ["tests", "csm-browse/tests", "csm-scan/test", "csm-upload/tests"]) {
     fs.rmSync(path.join(dest, rel), { recursive: true, force: true });
   }
-  for (const rel of ["tests", "csm-browse/lib", "csm-browse/tests", "csm-scan/test"]) {
+  for (const rel of ["tests", "csm-browse/tests", "csm-scan/test"]) {
     fs.mkdirSync(path.join(dest, rel), { recursive: true });
   }
   const dependencyPolicy = path.join(REPO, "scripts/lib/dependency-policy.mjs");
