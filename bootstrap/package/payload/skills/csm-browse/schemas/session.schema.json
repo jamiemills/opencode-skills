@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-browse-session/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "artifactId",
+    "runId",
+    "owner",
+    "sid",
+    "status",
+    "statePath",
+    "eventsPath",
+    "evidence",
+    "bounds",
+    "createdAt",
+    "updatedAt",
+    "descriptorDigest"
+  ],
+  "properties": {
+    "schema": { "const": "csm-browse-session/1" },
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "owner": { "const": "csm-browse" },
+    "sid": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$" },
+    "status": { "enum": ["active", "completed", "failed", "closed"] },
+    "statePath": { "type": "string", "minLength": 1 },
+    "eventsPath": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxEvents", "maxEvidenceBytes"],
+      "properties": {
+        "maxEvents": { "type": "integer", "minimum": 1 },
+        "maxEvidenceBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "descriptorDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

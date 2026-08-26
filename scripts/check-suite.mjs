@@ -730,9 +730,14 @@ function checkCommittedPayloadIndex(rootDir) {
 // and reports the comparison dynamically ({compared:N, issues:[]}); any issue
 // is a hard failure.
 function transformBootstrapPayload(content, rel) {
-  const rewritten = ["csm-bdd-tdd", "csm-build", "csm-make-tests", "csm-plan"].some((skill) =>
-    rel.startsWith(`${skill}/`),
-  );
+  const rewritten = [
+    "csm-bdd-tdd",
+    "csm-build",
+    "csm-make-tests",
+    "csm-plan",
+    "csm-browse",
+    "csm-upload",
+  ].some((skill) => rel.startsWith(`${skill}/`));
   if (!rewritten || !rel.endsWith(".mjs")) return content;
   return Buffer.from(
     content

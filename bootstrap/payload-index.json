@@ -247,6 +247,168 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-browse/lib/cdp.mjs",
+        "sha256": "eb710a9ad244c5402a238331d36bed704da3bff9deb13cb2417c6d792d9794ab",
+        "bytes": 6642,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/cleanup.mjs",
+        "sha256": "f264598ceb5b861b65ed6bf03ba34224891f8f47dc09715c061e79f383e6bf10",
+        "bytes": 4949,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/collectors.mjs",
+        "sha256": "9267ec88182a8703928422c31da28eef6847f0c6ff8ac2056348f37d0c7a7faf",
+        "bytes": 4876,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/constants.mjs",
+        "sha256": "e94db4db01a67ba90af285925033b1c8426522a81fa44e873d0cf9343678724d",
+        "bytes": 6684,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/cookies.mjs",
+        "sha256": "aa4e41b2525f25c050c637ef70ede400913a30282979ffcefb0f2953a2dcca31",
+        "bytes": 7327,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/daemon-core.mjs",
+        "sha256": "6415965d38fb3d67bde4a60a37233eb9f4125643f8e82c2da7c8340d575060c4",
+        "bytes": 10803,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/daemon-log.mjs",
+        "sha256": "509912a328b3866c707b43bd4c5013115ec1ae531d93c64683a7e912bcd346eb",
+        "bytes": 1913,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/docker.mjs",
+        "sha256": "5277ad9cc42fa621c73de9105df3a8f7b64ced1fa7649700ef04a66a78b54f8b",
+        "bytes": 10258,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/fetch.mjs",
+        "sha256": "38c998175866271ff05a223891eeb2a6cd4b699fad1c976b56badf014ec12aea",
+        "bytes": 1493,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/json-contract.mjs",
+        "sha256": "676e518d09cbf179187fca2f77c29d92fab1d90016064b4bb349bf23bd602e27",
+        "bytes": 8057,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/pid-identity.mjs",
+        "sha256": "c4569400cee6dfa79363545e7b64b8d5f111d5ee9958ad278f513ee2f5ae3766",
+        "bytes": 1953,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/ports.mjs",
+        "sha256": "d4bdd2ac44338738d17987c55ecd98e8c627511aa8a510a5a09b74f704ec1ae7",
+        "bytes": 8458,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/recorder.mjs",
+        "sha256": "ec7f3873221ef4a462bf70a03d56119d15914193cbb0cc24d01bf8f1580fa7de",
+        "bytes": 13498,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/security.mjs",
+        "sha256": "2d9336c84b23081b05a94c4909eff73c7e0be5689eb62cbe87e0d5bd4ce59983",
+        "bytes": 16598,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/session.mjs",
+        "sha256": "7767b822aabae836b28caeb3b90c6622655084625c2edc54e4fde0c1a59c4f91",
+        "bytes": 4370,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/sweep.mjs",
+        "sha256": "3d720cfa895e67db33eadce6babd7caaddf8682229891127e09f75e9969667a5",
+        "bytes": 18010,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/capture.mjs",
+        "sha256": "177310fb9542e147ec6d86c2c68b0a572851736bbe7bd44fdbe4e003955c01a6",
+        "bytes": 9533,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/close.mjs",
+        "sha256": "acdf15bf21862fec424b2de0487c2266f038409ca2daf7c1c5ec231846f8a212",
+        "bytes": 3558,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/dom.mjs",
+        "sha256": "998636c7d099afa4bbcbe4df8c7108fdfa7d640140f9e5721681e2e11fce0429",
+        "bytes": 3491,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/input.mjs",
+        "sha256": "c2dfab31122f354fe5efc41bdc79b1b5497488290633815a795c642649bde4f8",
+        "bytes": 3889,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/log.mjs",
+        "sha256": "cbfd0d10a319c2d91d850fbff7b65fb0cd6ad4e9c4a3b65c3155276b04b5e477",
+        "bytes": 8302,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/nav.mjs",
+        "sha256": "e81e640640b901bd14246758c82c48096b08f68f630aa048164b8b4682eef27e",
+        "bytes": 2844,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/record.mjs",
+        "sha256": "ee02d981ce4fffbe27a6586defa785a29229baed0e766be853b141355de5186c",
+        "bytes": 3777,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/lib/verbs/status.mjs",
+        "sha256": "6a7d1d48154470ee3c8c15cc0ce3de4d36050d5e1897bd5749b4f9c72b654049",
+        "bytes": 1898,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/schemas/event.schema.json",
+        "sha256": "bfeef17dd5fe487a1d4bb6d80108fb5c709a2edfeb6c7af8ffbb0be6d19cfcbc",
+        "bytes": 950,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/schemas/evidence.schema.json",
+        "sha256": "2db636159c0bab8ecafa1d371d3fbb0436c9a4128b64df0d53279fd242df5e33",
+        "bytes": 1555,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-browse/schemas/session.schema.json",
+        "sha256": "3e20113fe47c5c82f028ede0f478c354d27169b72eafd8ffce03591589aa395e",
+        "bytes": 1532,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-build/lib/bdd-input-resolver.mjs",
         "sha256": "798cc7a7f1cb7d4c43b20b32b1f733a06f70ee8a25981fb735f71e431bec2b20",
         "bytes": 3684,
@@ -364,6 +526,12 @@
         "path": "payload/skills/csm-deep-research/schemas/csm-research.schema.json",
         "sha256": "70504eb3529060d914e03690b0661289f3157a05867a971bde8c8c040d551b94",
         "bytes": 7567,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-grill/schemas/csm-approach.schema.json",
+        "sha256": "c65061bb0e2a0bbfe473858883efba80a21c63bb1e34e026c5279ae754ca92c5",
+        "bytes": 3610,
         "mode": "0644"
       },
       {
@@ -1171,6 +1339,18 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-upload/lib/publication.mjs",
+        "sha256": "1acf99531d442065e73d0d7b3c72106672358d36ab5899fa0c69be4ce42c1e11",
+        "bytes": 6564,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-upload/schemas/publication.schema.json",
+        "sha256": "b55f58f29273f52c675a06a74430bbf193cf96115a5861b30feee734b382ec30",
+        "bytes": 3458,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-upload/scripts/upload.mjs",
         "sha256": "c1beb859a8d0999995ccfd0ebe96ff91694fe74fa2555e409631304141b2c559",
         "bytes": 25569,
@@ -1193,8 +1373,8 @@
       },
       {
         "path": "payload/lib/schema-runtime/index.mjs",
-        "sha256": "5a991de3eb9f442c30521aef8130f8dc67afae82b634430435cc3a3378118b47",
-        "bytes": 18738,
+        "sha256": "ac5c6038c7cf8d3b167b77a1715df6de291c2f31b855dc859be1d90743d58445",
+        "bytes": 18983,
         "mode": "0644"
       },
       {
@@ -1259,8 +1439,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "2278de51a29b9c78e0d901932d8a7b2fd876683e8bf4a396c79b095ef048e11a",
-        "bytes": 9677,
+        "sha256": "c05ea645fb6658735879a3a5ff35bede1a0427408b0bdef581c4df697ce42931",
+        "bytes": 10959,
         "mode": "0644"
       },
       {

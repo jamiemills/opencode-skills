@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-browse-event/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "eventId", "runId", "owner", "sequence", "occurredAt", "type", "data"],
+  "properties": {
+    "schema": { "const": "csm-browse-event/1" },
+    "eventId": { "type": "string", "pattern": "^event-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "owner": { "const": "csm-browse" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "type": {
+      "enum": [
+        "navigation",
+        "input",
+        "dom",
+        "screenshot",
+        "video",
+        "console",
+        "network",
+        "performance",
+        "status",
+        "error",
+        "close"
+      ]
+    },
+    "data": { "type": "object", "additionalProperties": true }
+  }
+}

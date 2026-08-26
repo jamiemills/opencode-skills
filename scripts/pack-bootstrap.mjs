@@ -88,6 +88,22 @@ const mapping = {
       dest: join("payload", "skills", "csm-upload", "scripts", "upload.mjs"),
     },
     {
+      srcDir: join("csm-browse", "lib"),
+      destDir: join("payload", "skills", "csm-browse", "lib"),
+    },
+    {
+      srcDir: join("csm-browse", "schemas"),
+      destDir: join("payload", "skills", "csm-browse", "schemas"),
+    },
+    {
+      srcDir: join("csm-upload", "lib"),
+      destDir: join("payload", "skills", "csm-upload", "lib"),
+    },
+    {
+      srcDir: join("csm-upload", "schemas"),
+      destDir: join("payload", "skills", "csm-upload", "schemas"),
+    },
+    {
       srcDir: join("csm-make-tests", "references"),
       destDir: join("payload", "skills", "csm-make-tests", "references"),
     },
@@ -118,6 +134,10 @@ const mapping = {
     {
       srcDir: join("csm-bdd-tdd", "schemas"),
       destDir: join("payload", "skills", "csm-bdd-tdd", "schemas"),
+    },
+    {
+      srcDir: join("csm-grill", "schemas"),
+      destDir: join("payload", "skills", "csm-grill", "schemas"),
     },
     {
       srcDir: join("csm-bdd-tdd", "lib"),
@@ -284,9 +304,14 @@ async function expandMapping() {
 
 function payloadData(data, destination) {
   const normalized = destination.split(sep).join("/");
-  const rewritten = ["csm-bdd-tdd", "csm-build", "csm-make-tests", "csm-plan"].some((skill) =>
-    normalized.includes(`/skills/${skill}/`),
-  );
+  const rewritten = [
+    "csm-bdd-tdd",
+    "csm-build",
+    "csm-make-tests",
+    "csm-plan",
+    "csm-browse",
+    "csm-upload",
+  ].some((skill) => normalized.includes(`/skills/${skill}/`));
   if (!rewritten || !normalized.endsWith(".mjs")) return data;
   const text = data.toString("utf8");
   return Buffer.from(

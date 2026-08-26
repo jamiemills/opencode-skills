@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-approach/1",
+  "title": "CSM grill approach payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "runId",
+    "ideaSlug",
+    "status",
+    "ideaStatement",
+    "decisions",
+    "researchSynthesis",
+    "phases",
+    "projection",
+    "provenance"
+  ],
+  "properties": {
+    "schema": { "const": "csm-approach/1" },
+    "schemaRevision": { "const": 1 },
+    "artifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "ideaSlug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$" },
+    "status": { "const": "agreed" },
+    "ideaStatement": { "type": "string", "minLength": 1 },
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" }, "minItems": 1 },
+    "researchSynthesis": { "type": "string", "minLength": 1 },
+    "phases": { "type": "array", "items": { "$ref": "#/$defs/phase" }, "minItems": 1 },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "legacyMarkdownStatus"],
+      "properties": {
+        "profile": { "const": "csm-grill-human/1" },
+        "legacyMarkdownStatus": { "const": "history-only" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "producerVersion", "producedAt"],
+      "properties": {
+        "producer": { "const": "csm-grill" },
+        "producerVersion": { "type": "string", "minLength": 1 },
+        "producedAt": { "format": "date-time" },
+        "sourceDigests": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decisionId", "question", "answer", "rationale", "traceability"],
+      "properties": {
+        "decisionId": { "type": "string", "pattern": "^D[1-9][0-9]*$" },
+        "question": { "type": "string", "minLength": 1 },
+        "answer": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "traceability": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phaseId",
+        "title",
+        "goal",
+        "deliverables",
+        "scope",
+        "outOfScope",
+        "constraints",
+        "acceptanceHints",
+        "dependencies",
+        "context"
+      ],
+      "properties": {
+        "phaseId": { "type": "string", "pattern": "^P[1-9][0-9]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "goal": { "type": "string", "minLength": 1 },
+        "deliverables": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "scope": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "outOfScope": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "constraints": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "acceptanceHints": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^P[1-9][0-9]*$" }
+        },
+        "context": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

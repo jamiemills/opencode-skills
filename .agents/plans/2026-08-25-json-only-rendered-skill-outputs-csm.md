@@ -17,10 +17,10 @@ format: csm-plan/1
 - Current CSM state: CHECKPOINT
 - Cycle: 13
 - Commits: allowed
-- Last checkpoint: 2026-08-26 T020 focused JSON control/input replay, schema registry, bootstrap parity, lint, and formatting checks passed; package audit was environment-blocked by Node 20.
-- Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 13.
+- Last checkpoint: 2026-08-26 T021 focused browse/upload JSON descriptor, binary safety, recovery, stub publication, registry/bootstrap parity, lint, and formatting checks passed; live E2E and external publication were intentionally not run.
+- Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 14.
 - Next transition: CHECKPOINT -> SELECT
-- Active tasks: none; T021 is next
+- Active tasks: none; T022 is next
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -565,7 +565,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If a build state cannot be recovered from JSON, do not enable the new resolver; leave the previous build contract available only for untouched pre-cutover plans.
 
-21. [pending] Migrate csm-browse evidence and csm-upload publication descriptors.
+21. [completed] Migrate csm-browse evidence and csm-upload publication descriptors.
    - Task ID: T021
    - Depends on: T009, T010
    - Parallel group: G8
@@ -577,7 +577,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Acceptance signal: `make test-browse && make test-upload && node --test --test-concurrency=1 tests/browse-upload-json-contract.test.mjs` passes local protocol, binary descriptor, stub publication, symlink/path, and failure cleanup cases.
    - Validation: Run E2E only when `CSM_BROWSE_E2E_REQUIRE=1` and the environment explicitly provides the container; otherwise record E2E as unavailable, not passed.
    - Acceptance evidence: evidence schema, descriptor fixtures, stub publication result, cleanup record, and explicit E2E availability status.
-   - Repair attempts: 0
+    - Repair attempts: 1
    - Recovery note: If publication validation fails, keep the JSON evidence descriptor and do not push or delete remote content.
 
 22. [pending] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
@@ -803,6 +803,12 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-26 | 13 | INTEGRATE -> VERIFY | T020 | Focused T020, BDD/test replay, registry, bootstrap parity/package, lifecycle, lint, and formatting checks passed; Node-20 package-floor check remains unavailable. | VERIFY |
 | 2026-08-26 | 13 | VERIFY -> REVIEW | T020 | Primary review confirmed terminal immutability, append-only journal, refusal-before-dispatch, source lineage, descriptor digest binding, and Markdown/HTML rejection. | REVIEW |
 | 2026-08-26 | 13 | REVIEW -> CHECKPOINT | T020 | T020 acceptance evidence is complete; T021 remains the next ready task. | CHECKPOINT |
+| 2026-08-26 | 14 | CHECKPOINT -> SELECT | T021 | T020 is complete; browse/upload descriptor migration is dependency-ready with isolated local-stub and synthetic-file scope. | SELECT |
+| 2026-08-26 | 14 | SELECT -> DISPATCH | T021 | Implemented browse evidence/session/event schemas and upload publication descriptor runtime/tests; no live Docker, GitHub, network, or remote mutation. | DISPATCH |
+| 2026-08-26 | 14 | DISPATCH -> INTEGRATE | T021 | Integrated binary digest/path safety, source-run ownership, JSONL recovery, destination/confirmation/snapshot/binary checks, cleanup handling, registry, and bootstrap mappings. | INTEGRATE |
+| 2026-08-26 | 14 | INTEGRATE -> VERIFY | T021 | `make test-browse`, `make test-upload`, focused browse-upload contract tests (4), registry resolution, `make check`, `make lint`, and `make fmt-check` passed. | VERIFY |
+| 2026-08-26 | 14 | VERIFY -> REVIEW | T021 | Review scope confirms legacy raw upload behavior remains unchanged until T022; new descriptor readers reject Markdown/HTML/projection inputs and publication status is not reported published without an executor. | REVIEW |
+| 2026-08-26 | 14 | REVIEW -> CHECKPOINT | T021 | T021 acceptance evidence is complete; T022 is next. Live browser E2E and live publication remain unavailable by explicit scope. | CHECKPOINT |
 
 ## Completion Review
 

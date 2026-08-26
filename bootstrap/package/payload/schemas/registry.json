@@ -186,6 +186,42 @@
       "schemaContentDigest": "sha256:7485eae53f5d053362c45f15e5d0ab5b333eac641c3e585fd497263c94d27bb3"
     },
     {
+      "id": "csm-browse-evidence/1",
+      "revision": 1,
+      "schemaPath": "csm-browse/schemas/evidence.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:6638a367f8dc4ddc083f06b44c7657155635138b1dd8fffcbc160101f7e56ac4"
+    },
+    {
+      "id": "csm-browse-session/1",
+      "revision": 1,
+      "schemaPath": "csm-browse/schemas/session.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:e7fcfa63cdf3484f78dd71e43de456d89fc4f7b9d59d5b7197109d918a0f6197"
+    },
+    {
+      "id": "csm-browse-event/1",
+      "revision": 1,
+      "schemaPath": "csm-browse/schemas/event.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:bdd9cbcc00de94a1912fae2b4c3735a0c9502a623f7aedc7c1c10323ccf614b2"
+    },
+    {
+      "id": "csm-upload-publication/1",
+      "revision": 1,
+      "schemaPath": "csm-upload/schemas/publication.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:12677d2ee93123db3ae0ef2cefc8f464c2fd3b7b42144b0234c684a162a34f55"
+    },
+    {
       "id": "csm-autoresearch-contract/1",
       "revision": 1,
       "schemaPath": "csm-autoresearch/schemas/run-contract.schema.json",
