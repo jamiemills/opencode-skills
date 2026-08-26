@@ -1,9 +1,10 @@
-import { readFile, realpath } from "node:fs/promises";
-import { resolve, isAbsolute, relative, sep } from "node:path";
-import { createSchemaValidator, digest, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { isAbsolute } from "node:path";
+import { createSchemaValidator, digest } from "../../lib/schema-runtime/index.mjs";
+import { loadSchemaRegistry } from "../../lib/schema-runtime/index.mjs";
 import schema from "../../csm-make-tests/schemas/test-package.schema.json" with { type: "json" };
 import { validatePlanArtifact } from "../../csm-plan/lib/plan.mjs";
 import { assertVerification } from "../../csm-make-tests/lib/verification.mjs";
+import { resolveArtifactFile } from "../../lib/artifact-resolver/index.mjs";
 
 export const TEST_PACKAGE_SCHEMA = "csm-test-package/1";
 const validator = createSchemaValidator({ schemas: [schema] });
@@ -24,11 +25,14 @@ export async function resolveTestPackage(
       path.split(/[\\/]/).some((part) => part === "..")
     )
       throw new Error("path must be relative and contained");
-    const base = await realpath(root);
-    const target = await realpath(resolve(root, path));
-    const rel = relative(base, target);
-    if (isAbsolute(rel) || rel.split(sep).includes("..")) throw new Error("path escapes root");
-    return parseJson(await readFile(target, "utf8"));
+    const result = await resolveArtifactFile(path, {
+      root,
+      schemaRegistry: await loadSchemaRegistry(),
+      consumerRevision: 1,
+    });
+    if (result.status !== "resolved")
+      throw Object.assign(new Error(result.message), { code: result.code });
+    return result.value;
   };
   if (typeof input === "string") {
     if (isAbsolute(input) || /\.md$|\.html?$/i.test(input))

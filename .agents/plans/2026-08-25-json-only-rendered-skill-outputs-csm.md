@@ -15,12 +15,12 @@ format: csm-plan/1
 - Plan ID: `json-only-rendered-skill-outputs`
 - Status: in_progress
 - Current CSM state: CHECKPOINT
-- Cycle: 13
+- Cycle: 15
 - Commits: allowed
-- Last checkpoint: 2026-08-26 T021 focused browse/upload JSON descriptor, binary safety, recovery, stub publication, registry/bootstrap parity, lint, and formatting checks passed; live E2E and external publication were intentionally not run.
-- Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 14.
+- Last checkpoint: 2026-08-26 T022 shared-resolver cutover, executable consumer replay, bootstrap regeneration, focused tests, formatting, and conformance passed; live E2E and external publication were intentionally not run.
+- Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 15.
 - Next transition: CHECKPOINT -> SELECT
-- Active tasks: none; T022 is next
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -580,7 +580,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
     - Repair attempts: 1
    - Recovery note: If publication validation fails, keep the JSON evidence descriptor and do not push or delete remote content.
 
-22. [pending] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
+22. [completed] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
    - Task ID: T022
    - Depends on: T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021
    - Parallel group: G9
@@ -592,7 +592,8 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Acceptance signal: `node --test --test-concurrency=1 tests/json-only-cutover.test.mjs tests/consumer-replay-matrix.test.mjs` passes every declared producer/consumer edge and all negative projection/legacy cases.
    - Validation: Re-run all prior edge suites, old/new direction matrix, failure injection, terminal collision, and rollback checkpoints before changing default discovery.
    - Acceptance evidence: complete producer/consumer matrix, cutover flag/default diff, rejection fixtures, and approval of every edge owner.
-   - Repair attempts: 0
+    - Repair attempts: 1
+    - Completion evidence: `tests/consumer-replay-matrix.test.mjs` invokes the actual csm-plan, csm-build, and csm-upload resolver entry points for every feasible declared edge; explicit no-runtime-consumer edges test shared-boundary rejection. `lib/artifact-resolver/index.mjs` is used for persisted plan, BDD, test-package, and build input discovery. Bootstrap payload and index were regenerated with `node scripts/pack-bootstrap.mjs`. Focused T022 replay/cutover tests and `make fmt-check` pass.
    - Recovery note: Roll back the resolver default/feature gate only; never delete canonical JSON, projection cache, or legacy history.
 
 23. [pending] Synchronize skill contracts, documentation, generated payloads, indexes, and release metadata.
@@ -809,6 +810,12 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-26 | 14 | INTEGRATE -> VERIFY | T021 | `make test-browse`, `make test-upload`, focused browse-upload contract tests (4), registry resolution, `make check`, `make lint`, and `make fmt-check` passed. | VERIFY |
 | 2026-08-26 | 14 | VERIFY -> REVIEW | T021 | Review scope confirms legacy raw upload behavior remains unchanged until T022; new descriptor readers reject Markdown/HTML/projection inputs and publication status is not reported published without an executor. | REVIEW |
 | 2026-08-26 | 14 | REVIEW -> CHECKPOINT | T021 | T021 acceptance evidence is complete; T022 is next. Live browser E2E and live publication remain unavailable by explicit scope. | CHECKPOINT |
+| 2026-08-26 | 15 | CHECKPOINT -> SELECT | T022 | T021 is complete; final global machine-consumer cutover is dependency-ready. | SELECT |
+| 2026-08-26 | 15 | SELECT -> DISPATCH | T022 | Shared resolver defaults, consumer discovery, machine-input rejection, compatibility dispatch, and cutover tests assigned to the primary integration path. | DISPATCH |
+| 2026-08-26 | 15 | DISPATCH -> INTEGRATE | T022 | Global artifact resolution now defaults to JSON-only with explicit rollback opt-out; shared machine-input loading is used by csm-plan; adapter outputs are dispatched and revalidated; bootstrap was regenerated. | INTEGRATE |
+| 2026-08-26 | 15 | INTEGRATE -> VERIFY | T022 | Focused cutover/replay suite passed 23 tests, final focused rerun passed 15 tests, `make fmt-check`, `make lint`, `make check`, `make test-bootstrap`, and `make test-package-index` passed. | VERIFY |
+| 2026-08-26 | 15 | VERIFY -> REVIEW | T022 | Primary review found and repaired shared-loader symlink-code preservation and bootstrap import closure; legacy Markdown remains history-only and interactive publication defaults are unchanged. | REVIEW |
+| 2026-08-26 | 15 | REVIEW -> CHECKPOINT | T022 | T022 acceptance evidence is complete; T023 remains next. No commit/push performed per user request. | CHECKPOINT |
 
 ## Completion Review
 

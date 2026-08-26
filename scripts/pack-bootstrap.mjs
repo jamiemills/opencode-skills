@@ -213,6 +213,11 @@ const mapping = {
       srcDir: join("lib", "compatibility-runtime"),
       destDir: join("payload", "lib", "compatibility-runtime"),
     },
+    { srcDir: join("lib", "publication"), destDir: join("payload", "lib", "publication") },
+    {
+      srcDir: join("lib", "artifact-resolver"),
+      destDir: join("payload", "lib", "artifact-resolver"),
+    },
   ],
 };
 
@@ -317,7 +322,9 @@ function payloadData(data, destination) {
   return Buffer.from(
     text
       .replaceAll('"../../lib/schema-runtime/', '"../../../lib/schema-runtime/')
-      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/'),
+      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/')
+      .replaceAll('"../../lib/publication/', '"../../../lib/publication/')
+      .replaceAll('"../../lib/artifact-resolver/', '"../../../lib/artifact-resolver/'),
   );
 }
 

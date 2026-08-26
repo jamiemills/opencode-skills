@@ -1,8 +1,9 @@
-import { digest, parseJson } from "../../lib/schema-runtime/index.mjs";
-import { readFile, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { digest } from "../../lib/schema-runtime/index.mjs";
+import { loadSchemaRegistry } from "../../lib/schema-runtime/index.mjs";
+import { isAbsolute } from "node:path";
 import { validatePlanArtifact } from "../../csm-plan/lib/plan.mjs";
 import { validateBddPackage } from "../../csm-bdd-tdd/lib/package.mjs";
+import { resolveArtifactFile } from "../../lib/artifact-resolver/index.mjs";
 
 const assertContainedPath = (path) => {
   if (
@@ -30,13 +31,14 @@ export async function resolveBddInput(
       throw Object.assign(new Error("path must be relative and contained"), {
         code: "unsafe-path",
       });
-    const target = resolve(root, path);
-    const rootReal = await realpath(root);
-    const targetReal = await realpath(target);
-    const escape = relative(rootReal, targetReal).split(sep).includes("..");
-    if (escape || isAbsolute(relative(rootReal, targetReal)))
-      throw Object.assign(new Error("path escapes resolver root"), { code: "unsafe-path" });
-    return parseJson(await readFile(targetReal, "utf8"));
+    const result = await resolveArtifactFile(path, {
+      root,
+      schemaRegistry: await loadSchemaRegistry(),
+      consumerRevision: 1,
+    });
+    if (result.status !== "resolved")
+      throw Object.assign(new Error(result.message), { code: result.code });
+    return result.value;
   };
   let value;
   try {

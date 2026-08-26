@@ -402,6 +402,7 @@ export function createPlanArtifact(input, { producerVersion = "csm-plan/1" } = {
     },
     projection: { profile: "csm-plan-human/1", legacyMarkdownStatus: "history-only" },
   };
+  payload.digest = digest(payload);
   const result = validatePlanArtifact(payload);
   if (!result.valid) throw new TypeError(`invalid plan artifact: ${result.errors.join(", ")}`);
   return payload;

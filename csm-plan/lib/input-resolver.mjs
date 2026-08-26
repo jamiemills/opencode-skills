@@ -1,8 +1,9 @@
-import { lstat, readFile } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSchemaRegistry, digest, parseJson } from "../../lib/schema-runtime/index.mjs";
-import { assertMachineInput } from "../../lib/publication/index.mjs";
+import { loadMachineInput } from "../../lib/publication/index.mjs";
+import { resolveArtifactFile } from "../../lib/artifact-resolver/index.mjs";
 import { validatePlanArtifact } from "./plan.mjs";
 
 const INPUTS = Object.freeze({
@@ -11,6 +12,7 @@ const INPUTS = Object.freeze({
   research: { schema: "csm-research/1", owner: "csm-deep-research" },
   review: { schema: "csm-review-findings/1", owner: "csm-review" },
   doctrine: { schema: "csm-doctrine-findings/1", owner: "csm-review-python" },
+  norms: { schema: "csm-norms/1", owner: "csm-scan" },
 });
 
 function rejected(code, message, details = {}) {
@@ -40,74 +42,20 @@ function descriptorPath(input) {
   return input && typeof input === "object" && !Array.isArray(input) ? input.path : undefined;
 }
 
-function safePath(root, input) {
-  if (typeof input !== "string" || input.length === 0 || isAbsolute(input))
-    throw Object.assign(new Error("machine input path must be relative to its root"), {
-      code: "path-traversal",
-    });
-  const normalized = input.replaceAll("\\", "/");
-  if (normalized.split("/").some((part) => part === ".."))
-    throw Object.assign(new Error("machine input path must not traverse its root"), {
-      code: "path-traversal",
-    });
-  const absolute = resolve(root, normalized);
-  const outside = relative(resolve(root), absolute);
-  if (outside === ".." || outside.startsWith(`..${sep}`) || isAbsolute(outside))
-    throw Object.assign(new Error("machine input path must remain within its root"), {
-      code: "path-traversal",
-    });
-  return absolute;
-}
-
-async function assertSafeFile(root, path) {
-  const rootPath = resolve(root);
-  const rootInfo = await lstat(rootPath);
-  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink())
-    throw Object.assign(new Error("machine input root must be a real directory"), {
-      code: "invalid-root",
-    });
-  let current = rootPath;
-  for (const part of relative(rootPath, path).split(sep).filter(Boolean)) {
-    current = resolve(current, part);
-    const info = await lstat(current);
-    if (info.isSymbolicLink())
-      throw Object.assign(new Error("machine input paths must not contain symlinks"), {
-        code: "symlink-path",
-      });
-  }
-  const info = await lstat(path);
-  if (!info.isFile())
-    throw Object.assign(new Error("machine input path must be a regular file"), {
-      code: "not-regular-file",
-    });
-}
-
 async function load(input, { root = process.cwd() } = {}) {
-  if (typeof input === "string") {
-    if (/\.(?:md|html?)$/i.test(input))
-      return rejected(
-        "migration-required",
-        "legacy Markdown/HTML input requires explicit JSON reconstruction",
-        { path: input },
-      );
-    if (!input.endsWith(".json"))
-      return rejected("unsupported-format", "machine inputs must be JSON", { path: input });
-    try {
-      const path = safePath(root, input);
-      await assertSafeFile(root, path);
-      return { value: parseJson(await readFile(path, "utf8")), path: input };
-    } catch (error) {
-      return rejected(error.code ?? "invalid-json", error.message, { path: input });
-    }
+  if (typeof input === "string" && /\.jsonl?$/i.test(input)) {
+    const resolved = await resolveArtifactFile(input, {
+      root,
+      schemaRegistry: await registry(),
+      consumerRevision: 1,
+    });
+    if (resolved.status !== "resolved") return resolved;
+    return { value: resolved.value, path: resolved.path };
   }
-  if (input?.schema === "csm-projection/1")
-    return rejected("projection-input", "projection descriptors are not machine inputs");
-  try {
-    assertMachineInput(input);
-  } catch (error) {
-    return rejected(error.code ?? "machine-input-rejected", error.message);
-  }
-  return { value: candidateValue(input), path: descriptorPath(input) };
+  const loaded = await loadMachineInput(input, { root });
+  if (loaded.status !== "loaded") return loaded;
+  const value = candidateValue(loaded.value);
+  return { value, path: loaded.path ?? descriptorPath(input) };
 }
 
 function verifyDigests(value) {
@@ -185,12 +133,14 @@ export async function resolvePlanInputs({
   research = [],
   reviews = [],
   doctrine = [],
+  norms = [],
 } = {}) {
   const entries = [
     ["approach", approach],
     ...research.map((value) => ["research", value]),
     ...reviews.map((value) => ["review", value]),
     ...doctrine.map((value) => ["doctrine", value]),
+    ...norms.map((value) => ["norms", value]),
   ];
   const resolved = await Promise.all(entries.map(([kind, value]) => resolvePlanInput(kind, value)));
   const rejectedInput = resolved.find((result) => result.status !== "resolved");
@@ -200,7 +150,11 @@ export async function resolvePlanInputs({
     approach: resolved[0],
     research: resolved.slice(1, research.length + 1),
     reviews: resolved.slice(research.length + 1, research.length + reviews.length + 1),
-    doctrine: resolved.slice(research.length + reviews.length + 1),
+    doctrine: resolved.slice(
+      research.length + reviews.length + 1,
+      research.length + reviews.length + doctrine.length + 1,
+    ),
+    norms: resolved.slice(research.length + reviews.length + doctrine.length + 1),
   });
 }
 

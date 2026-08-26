@@ -743,7 +743,9 @@ function transformBootstrapPayload(content, rel) {
     content
       .toString("utf8")
       .replaceAll('"../../lib/schema-runtime/', '"../../../lib/schema-runtime/')
-      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/'),
+      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/')
+      .replaceAll('"../../lib/publication/', '"../../../lib/publication/')
+      .replaceAll('"../../lib/artifact-resolver/', '"../../../lib/artifact-resolver/'),
   );
 }
 

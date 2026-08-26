@@ -6,9 +6,9 @@ import {
 import schema from "../schemas/state.schema.json" with { type: "json" };
 import { resolveBddInput } from "./bdd-input-resolver.mjs";
 import { resolveTestPackage } from "./test-package.mjs";
+import { resolveArtifactFile } from "../../lib/artifact-resolver/index.mjs";
 import { validatePlanArtifact } from "../../csm-plan/lib/plan.mjs";
-import { readFile, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute } from "node:path";
 
 export const BUILD_SCHEMA = "csm-build-state/1";
 export const BUILD_STATES = Object.freeze([
@@ -251,17 +251,14 @@ async function validateInput(name, input, options) {
     const inputPath = input;
     if (isAbsolute(input) || input.split(/[\\/]/).some((part) => part === ".."))
       return reject("unsafe-path", `${name} input path is not contained`);
-    try {
-      const base = await realpath(options.root ?? process.cwd());
-      const target = await realpath(resolve(options.root ?? process.cwd(), input));
-      const rel = relative(base, target);
-      if (isAbsolute(rel) || rel.split(sep).includes(".."))
-        return reject("unsafe-path", `${name} input path escapes root`);
-      input = JSON.parse(await readFile(target, "utf8"));
-      path = inputPath;
-    } catch (error) {
-      return reject("invalid-json", `${name} input is not valid JSON: ${error.message}`);
-    }
+    const loaded = await resolveArtifactFile(inputPath, {
+      root: options.root ?? process.cwd(),
+      schemaRegistry: options.schemaRegistry ?? (await loadSchemaRegistry()),
+      consumerRevision: 1,
+    });
+    if (loaded.status !== "resolved") return loaded;
+    input = loaded.value;
+    path = loaded.path;
   }
   const value = input?.value ?? input;
   if (!value || value.schema === "csm-projection/1")

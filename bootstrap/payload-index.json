@@ -410,20 +410,20 @@
       },
       {
         "path": "payload/skills/csm-build/lib/bdd-input-resolver.mjs",
-        "sha256": "798cc7a7f1cb7d4c43b20b32b1f733a06f70ee8a25981fb735f71e431bec2b20",
-        "bytes": 3684,
+        "sha256": "7b9ae8fa7ba1af0692f6deb374ff70ce4affd266afe449a07792f9560e816192",
+        "bytes": 3620,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-build/lib/state.mjs",
-        "sha256": "382c62c271fd7ae00c07f9166453138559249b7cc7a3b4027c10d2adf993f9b0",
-        "bytes": 13052,
+        "sha256": "9c62913f8212d15b3c94232573e8f066b95c89a6ee0e5e4461bd66f32f0753e2",
+        "bytes": 12835,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-build/lib/test-package.mjs",
-        "sha256": "0065b54788b0b3173afec6a1d53895b2ba240674f620e5d3fba027bc2ae01020",
-        "bytes": 3899,
+        "sha256": "e512d4776251d53309905965ec2cc77308d0f000c2af20914cc42e8bc195eb6b",
+        "bytes": 3970,
         "mode": "0644"
       },
       {
@@ -608,14 +608,14 @@
       },
       {
         "path": "payload/skills/csm-plan/lib/input-resolver.mjs",
-        "sha256": "c1af1a1ecb987e25990613a3f46bed8945878e7e127218d83df108ceb7ce610c",
-        "bytes": 7750,
+        "sha256": "d347a7f8b5be7bd9deb22f1c4062caa0f16ac7107e9439b29fec7caab58e1c30",
+        "bytes": 5999,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-plan/lib/plan.mjs",
-        "sha256": "32eba29635f18cd7afd2cd161f709ce8709d84ba7fea55bbeaa58981a23d824d",
-        "bytes": 25954,
+        "sha256": "20c829249f6525d62e58eb174a4af77720bd75273b011ca564716901e1dfdba2",
+        "bytes": 25990,
         "mode": "0644"
       },
       {
@@ -1366,9 +1366,21 @@
         "mode": "0644"
       },
       {
+        "path": "payload/lib/artifact-resolver/index.mjs",
+        "sha256": "fd0fb03e873eb18058e2a74bab4e184d57099f2415e386540c4f9cc091e2a5dd",
+        "bytes": 14798,
+        "mode": "0644"
+      },
+      {
         "path": "payload/lib/compatibility-runtime/index.mjs",
         "sha256": "86e440ac2532971f1c9d9f4f52c64734d38e163f4f63850bf9ba7d68a59013dd",
         "bytes": 12695,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/lib/publication/index.mjs",
+        "sha256": "a1c58f2ed63421b470903337b827135b195ecb6c405062186849e92e648a3053",
+        "bytes": 23851,
         "mode": "0644"
       },
       {
