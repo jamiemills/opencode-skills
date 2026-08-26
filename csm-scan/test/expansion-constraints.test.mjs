@@ -289,6 +289,13 @@ test("T201 filesystem capabilities are closed to reads and one exact writer", as
   let writerImports = 0;
   for (const { relativePath, source } of sources) {
     for (const statement of staticModuleStatements(source)) {
+      if (
+        relativePath === writer.path &&
+        normalizeImportQuotes(statement.text) === normalizeImportQuotes(writer.import)
+      ) {
+        writerImports++;
+        continue;
+      }
       if (!baseline.filesystem.modules.includes(statement.specifier)) continue;
       // The single exact writer import (F-065-b: tmp+rename atomic write) is
       // allowed wholesale; every other filesystem import must be a read API or

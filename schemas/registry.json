@@ -47,7 +47,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:301d5fdb21529fe61493d071c86e9ef81b02a4b69df9fa14b00a3c9065914658"
+      "schemaContentDigest": "sha256:78db02c4d5ea1b2040be703c23a1de9e38eacd6d6bf98c919c5e03395f28b92e"
     },
     {
       "id": "csm-digest-taxonomy/1",

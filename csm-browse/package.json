@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/unit/*.test.mjs",
+    "test": "for test_file in tests/unit/*.test.mjs; do node --test --test-concurrency=1 \"$test_file\" || exit 1; done",
     "check": "node scripts/check-skill.mjs"
   },
   "dependencies": {

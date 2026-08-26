@@ -69,10 +69,10 @@
     ],
     "writer": {
       "path": "lib/scan/write.mjs",
-      "module": "node:fs/promises",
-      "apis": ["rename", "unlink", "writeFile"],
-      "import": "import { rename, unlink, writeFile } from 'node:fs/promises';",
-      "call": "await writeFile(tmpPath, content, 'utf-8');"
+      "module": "../../../lib/durable-json/index.mjs",
+      "apis": ["atomicWrite"],
+      "import": "import { atomicWrite } from '../../../lib/durable-json/index.mjs';",
+      "call": "await atomicWrite(outPath, content, { mode: 0o600, quarantine: false });"
     },
     "cli": {
       "path": "scripts/scan.mjs",

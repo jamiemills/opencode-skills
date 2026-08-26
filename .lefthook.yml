@@ -17,14 +17,21 @@ pre-commit:
     - name: oxfmt
       run: |
         if [ -x ./node_modules/.bin/oxfmt ]; then
+          common_dir=$(git rev-parse --path-format=absolute --git-common-dir)
+          config_root=$(dirname "$common_dir")
+          oxfmt_config="$config_root/.oxfmtrc.json"
+          if [ ! -f "$oxfmt_config" ]; then
+            echo "pre-commit: missing shared Oxfmt config: $oxfmt_config"
+            exit 1
+          fi
           # README.md is excluded: its composition-matrix region is
           # generator-owned (scripts/gen-readme-matrix.mjs) and oxfmt's table
           # re-padding/wrapping fights the emitted form.
           files=$(git diff --cached --name-only --diff-filter=ACM -- . ':(exclude).agents' ':(exclude)README.md')
           if [ -n "$files" ]; then
-            ./node_modules/.bin/oxfmt --write --no-error-on-unmatched-pattern --ignore-path=.oxfmtignore $files
+            ./node_modules/.bin/oxfmt --config="$oxfmt_config" --write --no-error-on-unmatched-pattern --ignore-path=.oxfmtignore $files
             git add $files
-            ./node_modules/.bin/oxfmt --check --no-error-on-unmatched-pattern --ignore-path=.oxfmtignore $files
+            ./node_modules/.bin/oxfmt --config="$oxfmt_config" --check --no-error-on-unmatched-pattern --ignore-path=.oxfmtignore $files
           fi
         else
           echo "pre-commit: oxfmt not installed — run 'make install' first"

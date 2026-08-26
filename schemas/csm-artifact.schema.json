@@ -31,7 +31,7 @@
     "artifactIdentity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifactId", "kind", "owner", "runId", "createdAt", "revision"],
+      "required": ["artifactId", "kind", "owner", "runId", "digest", "createdAt", "revision"],
       "properties": {
         "artifactId": { "$ref": "#/$defs/artifactId" },
         "kind": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,63}$" },

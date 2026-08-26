@@ -1433,8 +1433,8 @@
       },
       {
         "path": "payload/lib/schema-runtime/index.mjs",
-        "sha256": "ac5c6038c7cf8d3b167b77a1715df6de291c2f31b855dc859be1d90743d58445",
-        "bytes": 18983,
+        "sha256": "69e5b47438c79c5899596029203d5869eaea9a59062faccc8afb0f3135deef42",
+        "bytes": 19001,
         "mode": "0644"
       },
       {
@@ -1445,8 +1445,8 @@
       },
       {
         "path": "payload/schemas/csm-artifact.schema.json",
-        "sha256": "d8c383bea0bca8b78b0bc89c23094fdf53d9d3690687467016d03d075d0e0aa1",
-        "bytes": 2015,
+        "sha256": "1ea7117519d2251eaa7353f503a5350c5ad45a0dc9bba09b63a659c5a61ca611",
+        "bytes": 2025,
         "mode": "0644"
       },
       {
@@ -1517,7 +1517,7 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "eac79c5ed562d026a9138063851191db3aebadac4f999b84ad0e0de35a21182a",
+        "sha256": "e6d1221fd778023d7af2731c32ee2a861bc094297e5f0e719207309fed590bfc",
         "bytes": 11591,
         "mode": "0644"
       },

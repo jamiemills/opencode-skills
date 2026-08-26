@@ -93,6 +93,7 @@ function copyRepo(dest) {
       return false;
     },
   });
+  fs.symlinkSync(path.join(REPO, "node_modules"), path.join(dest, "node_modules"), "dir");
   for (const rel of ["tests", "csm-browse/tests", "csm-scan/test", "csm-upload/tests"]) {
     fs.rmSync(path.join(dest, rel), { recursive: true, force: true });
   }

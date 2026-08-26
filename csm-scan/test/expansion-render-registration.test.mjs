@@ -850,24 +850,21 @@ test("T223 inert: no production module imports the renderer registry and the wri
     "write must not reference the dimension registry",
   );
   assert.equal(writeSource.includes("cross-repo"), false, "write must not reference cross-repo");
-  // T010 (F-065-b reconciliation): the write seam is the atomic tmp+rename
-  // writer (exactly one temp write and one rename), not the old direct write.
+  // T010 (F-065-b reconciliation): the write seam delegates to the shared
+  // durable atomic writer, not the old direct write.
   assert.equal(
     normalizeQuotes(writeSource).split(
-      'import { rename, unlink, writeFile } from "node:fs/promises";',
+      'import { atomicWrite } from "../../../lib/durable-json/index.mjs";',
     ).length - 1,
     1,
     "the write seam must import exactly the atomic writer statement",
   );
   assert.equal(
-    normalizeQuotes(writeSource).split('await writeFile(tmpPath, content, "utf-8");').length - 1,
+    normalizeQuotes(writeSource).split(
+      "await atomicWrite(outPath, content, { mode: 0o600, quarantine: false });",
+    ).length - 1,
     1,
-    "the write seam must perform exactly one temp write",
-  );
-  assert.equal(
-    normalizeQuotes(writeSource).split("await rename(tmpPath, outPath);").length - 1,
-    1,
-    "the write seam must rename the temp file over the target exactly once",
+    "the write seam must delegate exactly once",
   );
 
   const existingTen = await readFile(

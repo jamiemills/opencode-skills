@@ -1,4 +1,6 @@
 SHELL := /bin/bash
+OXFMT_CONFIG := $(dir $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))).oxfmtrc.json
+OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 .PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-ddd test-autoresearch test-e2e analyze
 
 help: ## show all targets
@@ -13,17 +15,17 @@ lint: ## oxlint repo-wide, warnings fail (quality bar: .oxlintrc.json correctnes
 	pnpm exec oxlint --deny-warnings
 
 fmt: ## format repo-wide with oxfmt
-	pnpm exec oxfmt --ignore-path=.oxfmtignore .
+	pnpm exec oxfmt $(OXFMT_ARGS) .
 
 fmt-check: ## verify formatting, no writes (CI gate)
-	pnpm exec oxfmt --check --ignore-path=.oxfmtignore .
+	pnpm exec oxfmt $(OXFMT_ARGS) --check .
 
 fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
 	files=$$(git diff --cached --name-only --diff-filter=ACM); \
 	if [ -n "$$files" ]; then \
-	  pnpm exec oxfmt --write --ignore-path=.oxfmtignore $$files && \
+	  pnpm exec oxfmt $(OXFMT_ARGS) --write $$files && \
 	  git add $$files && \
-	  pnpm exec oxfmt --check --ignore-path=.oxfmtignore $$files; \
+	  pnpm exec oxfmt $(OXFMT_ARGS) --check $$files; \
 	fi
 
 audit: ## non-mutating dependency audit; high/critical or unavailable advisories fail

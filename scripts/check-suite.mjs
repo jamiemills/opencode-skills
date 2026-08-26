@@ -1651,10 +1651,21 @@ function main() {
   // installed so the gate stays runnable on fresh clones without node_modules.
   const oxlintBin = path.join(root, "node_modules", ".bin", "oxlint");
   if (fs.existsSync(oxlintBin)) {
-    const lint = spawnSync(oxlintBin, ["--deny-warnings", "--no-error-on-unmatched-pattern"], {
-      cwd: root,
-      encoding: "utf8",
-    });
+    const trackedFiles = spawnSync(
+      "git",
+      ["ls-files", "*.js", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts"],
+      { cwd: root, encoding: "utf8" },
+    );
+    const lintFiles =
+      trackedFiles.status === 0 ? trackedFiles.stdout.split(/\r?\n/).filter(Boolean) : [];
+    const lint = spawnSync(
+      oxlintBin,
+      ["--deny-warnings", "--no-error-on-unmatched-pattern", ...lintFiles],
+      {
+        cwd: root,
+        encoding: "utf8",
+      },
+    );
     if (lint.status === null) {
       check(
         false,

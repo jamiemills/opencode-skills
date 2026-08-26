@@ -41,7 +41,7 @@ function scanJsonForDuplicateKeys(text) {
       return;
     }
     const start = offset;
-    while (!/[\s,\]}]/.test(text[offset] ?? "")) offset += 1;
+    while (offset < text.length && !/[\s,\]}]/.test(text[offset])) offset += 1;
     if (start === offset) throw new SyntaxError(`expected JSON value at ${offset}`);
   }
 

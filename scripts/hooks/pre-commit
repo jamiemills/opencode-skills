@@ -10,6 +10,14 @@ fi
 
 call_lefthook()
 {
+  if test -z "$LEFTHOOK_CONFIG"
+  then
+    common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+    if test -n "$common_dir" && test -f "$(dirname "$common_dir")/.lefthook.yml"
+    then
+      export LEFTHOOK_CONFIG="$(dirname "$common_dir")/.lefthook.yml"
+    fi
+  fi
   if test -n "$LEFTHOOK_BIN"
   then
     "$LEFTHOOK_BIN" "$@"
