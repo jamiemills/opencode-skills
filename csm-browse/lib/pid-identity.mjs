@@ -1,4 +1,5 @@
 import { readFile, unlink } from "node:fs/promises";
+import { readDurableJson, writeDurableJson } from "../../lib/durable-json/index.mjs";
 
 // F-012: creator identity for lock/pid artifacts. A recycled PID owned by an
 // unrelated process must never pass a liveness probe. Identity is the
@@ -22,8 +23,7 @@ export async function currentIdentity() {
 }
 
 export async function writeCreatorArtifact(artifactPath) {
-  const { writeFile } = await import("node:fs/promises");
-  await writeFile(`${artifactPath}.creator`, JSON.stringify(await currentIdentity()));
+  await writeDurableJson(`${artifactPath}.creator`, await currentIdentity(), { mode: 0o600 });
 }
 
 export async function clearCreatorArtifact(artifactPath) {
@@ -38,7 +38,7 @@ export async function clearCreatorArtifact(artifactPath) {
 export async function holderIdentityMatches(artifactPath, pid) {
   let identity;
   try {
-    identity = JSON.parse(await readFile(`${artifactPath}.creator`, "utf8"));
+    identity = await readDurableJson(`${artifactPath}.creator`);
   } catch {
     return true;
   }

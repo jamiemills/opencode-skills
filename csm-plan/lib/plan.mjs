@@ -1,12 +1,8 @@
-import { readFile, writeFile, link, unlink, mkdir, lstat } from "node:fs/promises";
+import { lstat, mkdir } from "node:fs/promises";
 import { dirname, extname, isAbsolute, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
-import {
-  createSchemaValidator,
-  canonicalize,
-  digest,
-  parseJson,
-} from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator, canonicalize, digest } from "../../lib/schema-runtime/index.mjs";
+import { atomicWrite, readDurableJson } from "../../lib/durable-json/index.mjs";
 import schema from "../schemas/csm-plan.schema.json" with { type: "json" };
 
 export const PLAN_SCHEMA = "csm-plan/1";
@@ -446,11 +442,9 @@ export async function writePlanArtifact(path, value) {
     }
   }
   await mkdir(dirname(absolute), { recursive: true });
-  const temp = `${absolute}.${process.pid}.tmp`;
-  await writeFile(temp, serializePlanArtifact(value), { flag: "wx" });
   try {
     try {
-      const existing = JSON.parse(await readFile(absolute, "utf8"));
+      const existing = await readDurableJson(absolute);
       if (existing.status === "complete")
         throw Object.assign(new Error("terminal plan cannot be replaced"), {
           code: "terminal-replacement",
@@ -459,12 +453,12 @@ export async function writePlanArtifact(path, value) {
       if (error.code !== "ENOENT" && error.code !== "terminal-replacement") throw error;
       if (error.code === "terminal-replacement") throw error;
     }
-    await link(temp, absolute);
-    await unlink(temp);
+    await atomicWrite(absolute, serializePlanArtifact(value), {
+      root,
+      exclusive: true,
+      mode: 0o600,
+    });
   } catch (error) {
-    try {
-      await unlink(temp);
-    } catch {}
     if (error.code === "EEXIST") error.code = "collision";
     throw error;
   }
@@ -477,7 +471,7 @@ export async function readPlanArtifact(path) {
       new Error("legacy Markdown plan requires migration-required reconstruction"),
       { code: "migration-required" },
     );
-  const value = parseJson(await readFile(path, "utf8"));
+  const value = await readDurableJson(path);
   const result = validatePlanArtifact(value);
   if (!result.valid)
     throw Object.assign(new Error(result.errors.join(", ")), {

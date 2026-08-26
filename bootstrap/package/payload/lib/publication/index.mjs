@@ -1,9 +1,10 @@
 "use strict";
 
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { canonicalize, parseJson } from "../schema-runtime/index.mjs";
+import { atomicWrite, readDurableJson, writeDurableJson } from "../durable-json/index.mjs";
 
 const SHARES = new Set(["none", "markdown", "html", "both"]);
 const MODES = new Set(["interactive", "non-interactive", "unknown"]);
@@ -328,19 +329,19 @@ export class DisposableExportStore {
     let createdOutput = false;
     let createdMeta = false;
     try {
-      await writeFile(file, output, { flag: "wx", mode: 0o600 });
+      await atomicWrite(file, output, { mode: 0o600, exclusive: true, root: this.root });
       createdOutput = true;
-      await writeFile(
+      await writeDurableJson(
         `${file}.meta`,
-        JSON.stringify({
+        {
           key,
           sourceDigest,
           schema,
           mediaType,
           outputDigest,
           expiresAt: new Date(expiry).toISOString(),
-        }),
-        { flag: "wx", mode: 0o600 },
+        },
+        { mode: 0o600, exclusive: true, root: this.root },
       );
       createdMeta = true;
     } catch (error) {
@@ -361,7 +362,7 @@ export class DisposableExportStore {
     await assertNoSymlink(this.root, metaPath);
     let metadata;
     try {
-      metadata = JSON.parse(await readFile(metaPath, "utf8"));
+      metadata = await readDurableJson(metaPath, { root: this.root });
     } catch (error) {
       if (error.code === "ENOENT" || error instanceof SyntaxError) return null;
       throw error;
@@ -419,7 +420,7 @@ export class DisposableExportStore {
         const key = relativeMetaPath.slice(0, -1).join("/");
         let metadata;
         try {
-          metadata = JSON.parse(await readFile(metaPath, "utf8"));
+          metadata = await readDurableJson(metaPath, { root: this.root });
         } catch {
           continue;
         }

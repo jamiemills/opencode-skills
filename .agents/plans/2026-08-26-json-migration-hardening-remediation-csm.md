@@ -13,13 +13,13 @@ format: csm-plan/1
 
 - Plan ID: json-migration-hardening-remediation
 - Status: in_progress
-- Current CSM state: REPAIR
+- Current CSM state: DISPATCH
 - Cycle: 1
 - Commits: allowed
-- Last checkpoint: 2026-08-26 T002 initial implementation was independently reviewed and found incomplete; repair is required before T003.
-- Last model/run: gpt-5.6-luna csm-build run 2026-08-26 cycle 1 T002.
-- Next transition: REPAIR -> DISPATCH
-- Active tasks: T002
+- Last checkpoint: 2026-08-26 T007 bootstrap closure/parity/import tests passed; generated package contains 252 files and `make check` passes 1208 checks.
+- Last model/run: gpt-5.6-luna csm-build run 2026-08-26 cycle 1 T005.
+- Next transition: DISPATCH -> INTEGRATE
+- Active tasks: T008
 - Blockers: none
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -213,11 +213,11 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Acceptance signal: `node --test --test-concurrency=1 tests/consumer-edge-inventory.test.mjs` validates the inventory and exact required edge list without claiming positive replay.
    - Validation: inspect all resolver call sites; verify no edge is silently classified human-only; run existing plan/BDD/test replay tests.
    - Acceptance evidence: versioned edge inventory, caller map, required/unsupported classification, and rollback flag per edge.
-   - Repair attempts: 0
+    - Repair attempts: 0
    - Completion evidence: `tests/consumer-edge-inventory.test.mjs` passed 4/4; independent review returned PROCEED; all 17 edges and five required generic handoffs are represented in `tests/fixtures/json-migration/edge-inventory.json`.
    - Recovery note: If an edge has no actual runtime entry point, preserve its rejection fixture and record the user-approved removal decision before proceeding.
 
-2. [in_progress] Make JSON norms authoritative for DDD and implement missing persisted consumer handoffs.
+2. [completed] Make JSON norms authoritative for DDD and implement missing persisted consumer handoffs.
    - Task ID: T002
    - Depends on: T001
    - Parallel group: G2
@@ -230,9 +230,10 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Validation: valid JSON norms, wrong owner, unknown revision, stale digest, Markdown path, projection input, and legacy history cases.
    - Acceptance evidence: DDD JSON norms contract, five adapter contracts, exact rejection codes, and preserved Markdown history fixtures.
       - Repair attempts: 2
+      - Completion evidence: T002 focused/adjacent tests passed 31/31; DDD CLI/extract tests passed; independent review returned PROCEED after envelope, DDD pair, plan aggregation, and symlink repairs; checkpoint committed as `702d078`.
     - Recovery note: Keep each new adapter disabled until its source schema, owner, run, digest, and terminal behavior pass T001 fixtures.
 
-3. [pending] Add positive producer-output replay and semantic preservation coverage.
+3. [completed] Add positive producer-output replay and semantic preservation coverage.
    - Task ID: T003
    - Depends on: T001, T002
    - Parallel group: G3
@@ -244,10 +245,11 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Acceptance signal: `node --test --test-concurrency=1 tests/consumer-replay-matrix.test.mjs tests/bdd-build-replay.test.mjs tests/make-tests-build-replay.test.mjs tests/plan-consumer-replay.test.mjs` passes with positive producer artifacts.
    - Validation: mutate each digest/owner/run/schema/path independently; verify rejection codes and no fallback to Markdown.
    - Acceptance evidence: producer-to-consumer matrix with observed values, not only status assertions; mutation and recovery results.
-   - Repair attempts: 0
+    - Repair attempts: 1
+   - Completion evidence: T003 acceptance passed 39/39 with actual consumer paths, positive DDD pair publication/replay, lineage/digest/identity assertions, rollback, and lifecycle negatives; independent review findings were repaired.
    - Recovery note: If a producer cannot emit a stable fixture without external services, record `unavailable` and keep the edge blocked rather than substituting a weaker pass.
 
-4. [pending] Standardize digest taxonomy and descriptor-to-file binding.
+4. [completed] Standardize digest taxonomy and descriptor-to-file binding.
    - Task ID: T004
    - Depends on: T001
    - Parallel group: G2
@@ -259,10 +261,11 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Acceptance signal: `node --test --test-concurrency=1 tests/artifact-resolver.test.mjs tests/plan-compatibility.test.mjs tests/build-json-control.test.mjs tests/browse-upload-json-contract.test.mjs` passes all digest mutation cases.
    - Validation: whitespace/key-order, byte mutation, embedded payload, source run/artifact, descriptor metadata, and terminal replacement cases.
    - Acceptance evidence: digest taxonomy table, schema changes, positive/negative matrix, and compatibility replay output.
-   - Repair attempts: 0
+    - Repair attempts: 1
+    - Completion evidence: T004 acceptance and affected resolver suites passed 23/23; fileDigest is externally verified against serialized bytes through expectedFileDigest, payloadDigest and descriptorDigest are canonical, source lineage is explicit, ambiguous legacy aliases require migration mode, taxonomy is registered, and adapted records are revalidated.
    - Recovery note: Reject ambiguous legacy records with structured migration errors; do not reinterpret an old digest silently.
 
-5. [pending] Harden durable parsing, atomic writes, locks, and crash recovery.
+5. [completed] Harden durable parsing, atomic writes, locks, and crash recovery.
    - Task ID: T005
    - Depends on: T004
    - Parallel group: G3
@@ -274,10 +277,10 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Acceptance signal: `node --test --test-concurrency=1 tests/publication-protocol.test.mjs tests/artifact-resolver.test.mjs tests/make-tests-json-contract.test.mjs tests/browse-upload-json-contract.test.mjs` passes interruption, collision, duplicate-key, lock, and recovery cases.
    - Validation: isolated concurrent writers, symlink races, partial writes, stale lock ownership, and unchanged prior artifact checks.
    - Acceptance evidence: failure-injection log, lock/recovery matrix, duplicate-key matrix, and rollback-preservation evidence.
-   - Repair attempts: 0
+     - Repair attempts: 2
    - Recovery note: Never delete a prior complete artifact; interrupted state remains diagnosable and either resumes or quarantines explicitly.
 
-6. [pending] Add bounded artifact discovery and deterministic resource-failure behavior.
+6. [completed] Add bounded artifact discovery and deterministic resource-failure behavior.
    - Task ID: T006
    - Depends on: T004, T005
    - Parallel group: G3
@@ -289,10 +292,10 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Acceptance signal: `node --test --test-concurrency=1 tests/artifact-resolver-limits.test.mjs tests/artifact-resolver.test.mjs` passes oversized tree, oversized JSONL, depth, concurrency, symlink, and deterministic error cases.
    - Validation: repeated runs produce identical result/error codes; normal repositories remain below defaults.
    - Acceptance evidence: limit policy, synthetic stress results, normal-path replay, and no-resource-leak evidence.
-   - Repair attempts: 0
+    - Repair attempts: 1
    - Recovery note: A capped result must be visible as bounded uncertainty and cannot authorize a missing-artifact or absence claim.
 
-7. [pending] Make bootstrap import closure explicit and executable-tested.
+7. [completed] Make bootstrap import closure explicit and executable-tested.
    - Task ID: T007
    - Depends on: T002, T004, T005, T006
    - Parallel group: G4
@@ -307,7 +310,7 @@ T001-T007 -----------------> T008 final receipt and completion gates
    - Repair attempts: 0
    - Recovery note: If closure fails, keep the prior payload mapping active and do not enable new consumers.
 
-8. [pending] Capture authoritative environment and final-gate receipt.
+8. [in_progress] Capture authoritative environment and final-gate receipt.
    - Task ID: T008
    - Depends on: T001, T002, T003, T004, T005, T006, T007
    - Parallel group: G5
@@ -378,6 +381,43 @@ T001-T007 -----------------> T008 final receipt and completion gates
 | 2026-08-26T02:00:00Z | 1 | SELECT -> DISPATCH | T002 | Dispatching DDD norms and edge adapter implementation with T003 replay deferred until adapter contracts pass. | DISPATCH |
 | 2026-08-26T03:00:00Z | 1 | DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT | T002 | Added JSON-authoritative DDD norms loading and five edge adapters; focused contracts cover valid input, owner/revision/digest failures, Markdown/projection rejection, lineage, terminal, and rollback. Lint and format checks pass; T003 positive replay remains excluded. | SELECT |
 | 2026-08-26T03:15:00Z | 1 | CHECKPOINT -> SELECT -> DISPATCH | T002 | Second independent review found canonical norms envelope versus payload mismatch, DDD pair lineage handling, missing plan DDD aggregation, and insufficient positive-success coverage; fresh-eyes repair dispatched. | DISPATCH |
+| 2026-08-26T03:30:00Z | 1 | DISPATCH -> INTEGRATE | T002 | Fresh-eyes repair implemented strict envelope inputs, pair-aware DDD-to-plan resolution, DDD norms authority, and deterministic plan aggregation. | INTEGRATE |
+| 2026-08-26T03:30:00Z | 1 | INTEGRATE -> VERIFY | T002 | Focused and adjacent tests passed 31/31 after explicit JSON symlink containment repair. | VERIFY |
+| 2026-08-26T03:30:00Z | 1 | VERIFY -> REVIEW | T002 | Independent review returned PROCEED with no remaining concrete findings. | REVIEW |
+| 2026-08-26T03:30:00Z | 1 | REVIEW -> CHECKPOINT | T002 | T002 complete and committed as `702d078`; T003 is next. | CHECKPOINT |
+| 2026-08-26T03:30:00Z | 1 | CHECKPOINT -> SELECT | T003 | T003 positive replay is dependency-ready after the inventory and adapter contracts passed. | SELECT |
+| 2026-08-26T03:30:00Z | 1 | SELECT -> DISPATCH | T003 | Dispatching producer-output replay fixture work with no production semantic changes. | DISPATCH |
+| 2026-08-26T04:00:00Z | 1 | DISPATCH -> INTEGRATE | T003 | Positive replay fixtures and matrix returned; independent review found incorrect make-tests mapping, missing DDD pair replay, inconsistent review lineage, and schema-only coverage. | INTEGRATE |
+| 2026-08-26T04:00:00Z | 1 | INTEGRATE -> REPAIR | T003 | Replay matrix requires fixture and consumer-execution repair before T004. | REPAIR |
+| 2026-08-26T04:30:00Z | 1 | REPAIR -> VERIFY | T003 | Repaired positive matrix passed 39/39 with actual plan/BDD/test/build/adapter/upload and DDD pair paths plus lifecycle, rollback, and mutation cases. | VERIFY |
+| 2026-08-26T04:30:00Z | 1 | VERIFY -> REVIEW | T003 | Independent review findings were addressed; make-check bootstrap drift is explicitly deferred to T007. | REVIEW |
+| 2026-08-26T04:30:00Z | 1 | REVIEW -> CHECKPOINT | T003 | T003 is complete and T004 is next; no production semantic changes were made by T003. | CHECKPOINT |
+| 2026-08-26T04:30:00Z | 1 | CHECKPOINT -> SELECT | T004 | T004 is dependency-ready after the positive replay contract passed. | SELECT |
+| 2026-08-26T04:30:00Z | 1 | SELECT -> DISPATCH | T004 | Dispatching digest taxonomy and descriptor/file binding; T005/T006 remain blocked until T004. | DISPATCH |
+| 2026-08-26T05:00:00Z | 1 | DISPATCH -> INTEGRATE -> VERIFY | T004 | Added explicit digest taxonomy helpers, artifact schema fields, resolver byte/source bindings, and isolated mutation tests. Scoped acceptance passed 22/22; schema regressions passed 23/23. | VERIFY |
+| 2026-08-26T05:00:00Z | 1 | VERIFY -> REVIEW -> CHECKPOINT | T004 | Final scope review found no T002/T003/T005/T006/T007/T008 ownership violations. No commit created per user instruction; T005 is next. | SELECT |
+| 2026-08-26T05:15:00Z | 1 | REVIEW -> REPAIR | T004 | Independent review found default legacy digest aliases, optional persisted taxonomy bindings, missing registry reachability, and insufficient resolver-level mutation coverage. | REPAIR |
+| 2026-08-26T05:30:00Z | 1 | REPAIR -> VERIFY | T004 | Legacy aliases now require explicit migration mode, taxonomy is registry-reachable, resolver-level missing/incorrect digest mutations are covered, and fileDigest is explicitly external to avoid self-hashing circularity. | VERIFY |
+| 2026-08-26T05:30:00Z | 1 | VERIFY -> REVIEW | T004 | Review concerns are resolved or explicitly bounded by the digest taxonomy; T004 remains disjoint from T005/T006. | REVIEW |
+| 2026-08-26T05:30:00Z | 1 | REVIEW -> CHECKPOINT | T004 | T004 complete; T005 is next. | CHECKPOINT |
+| 2026-08-26T05:30:00Z | 1 | CHECKPOINT -> SELECT -> DISPATCH | T005 | T005 durable parsing and atomic-write hardening is dependency-ready. | DISPATCH |
+| 2026-08-26T06:00:00Z | 1 | DISPATCH -> INTEGRATE | T005 | Shared durable JSON/JSONL helper and integration repairs returned; affected suites passed 93/93. | INTEGRATE |
+| 2026-08-26T06:00:00Z | 1 | INTEGRATE -> VERIFY | T005 | Durable safety, autoresearch, DDD publication, artifact, make-tests, browse, and publication suites passed; DDD final-file interleaving was repaired with independent final copies. | VERIFY |
+| 2026-08-26T06:00:00Z | 1 | VERIFY -> REVIEW | T005 | Independent review findings were repaired; remaining residual is environment-dependent power-loss simulation. | REVIEW |
+| 2026-08-26T06:00:00Z | 1 | REVIEW -> CHECKPOINT | T005 | T005 complete; T006 is next and owns discovery limits only. | CHECKPOINT |
+| 2026-08-26T06:00:00Z | 1 | CHECKPOINT -> SELECT -> DISPATCH | T006 | T006 bounded discovery is dependency-ready after durable reader/writer hardening. | DISPATCH |
+| 2026-08-26T06:30:00Z | 1 | DISPATCH -> INTEGRATE | T006 | Bounded resolver discovery and resource tests returned; directory no-follow, actual byte accounting, worker bounds, and deterministic repeated failures were integrated. | INTEGRATE |
+| 2026-08-26T06:30:00Z | 1 | INTEGRATE -> VERIFY | T006 | T006 acceptance passed 15/15; integrated resolver/replay regressions passed 26/26 after explicit sourceDigest fixture alignment. | VERIFY |
+| 2026-08-26T06:30:00Z | 1 | VERIFY -> REVIEW | T006 | Review findings were addressed; T006 remains limited to discovery bounds and preserves T004/T005 semantics. | REVIEW |
+| 2026-08-26T06:30:00Z | 1 | REVIEW -> CHECKPOINT | T006 | T006 complete; T007 bootstrap import closure is next. | CHECKPOINT |
+| 2026-08-26T06:30:00Z | 1 | CHECKPOINT -> SELECT -> DISPATCH | T007 | T007 is dependency-ready; generated payloads are stale from T002-T006 source changes. | DISPATCH |
+| 2026-08-26T06:45:00Z | 1 | DISPATCH -> INTEGRATE | T007 | Canonical/bootstrap mapping and import-closure test changes returned; generated payload/index regenerated. | INTEGRATE |
+| 2026-08-26T06:45:00Z | 1 | INTEGRATE -> VERIFY | T007 | Bootstrap closure/import/parity tests passed 21/21, `make check` passed 1208 checks, lint and formatting passed; Node-22 package checks require the wrapper. | VERIFY |
+| 2026-08-26T06:45:00Z | 1 | VERIFY -> REVIEW | T007 | Independent review found and repair-verified stale payload bytes, bounded override gaps, and dynamic import closure coverage. | REVIEW |
+| 2026-08-26T06:45:00Z | 1 | REVIEW -> CHECKPOINT | T007 | T007 complete; T008 final receipt/preflight is next. | CHECKPOINT |
+| 2026-08-26T06:45:00Z | 1 | CHECKPOINT -> SELECT -> DISPATCH | T008 | T008 is dependency-ready; final receipt will bind the tested source SHA and later receipt SHA separately. | DISPATCH |
+| 2026-08-26T06:00:00Z | 1 | DISPATCH -> INTEGRATE -> VERIFY | T005 | Shared durable JSON helper and scoped migrations integrated; required focused acceptance plus durable safety tests passed 29/29; autoresearch ledger tests passed through lock/recovery coverage; DDD/upload/scan suites passed. | VERIFY |
+| 2026-08-26T06:05:00Z | 1 | VERIFY -> REVIEW -> CHECKPOINT | T005 | Primary review found and repaired symlink-start validation and autoresearch missing-state await handling. No T006 discovery-limit, T004 taxonomy, T007 bootstrap, T008 receipt, adapter, replay-fixture, or unrelated hook/Makefile/research edits were introduced by T005. | CHECKPOINT |
 
 ## Completion Review
 

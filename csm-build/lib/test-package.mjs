@@ -18,7 +18,7 @@ export async function resolveTestPackage(
   input,
   { root = process.cwd(), expectedPlanDigest, replay = false } = {},
 ) {
-  const load = async (path) => {
+  const load = async (path, requireSourceDigest = true) => {
     if (
       typeof path !== "string" ||
       isAbsolute(path) ||
@@ -29,6 +29,7 @@ export async function resolveTestPackage(
       root,
       schemaRegistry: await loadSchemaRegistry(),
       consumerRevision: 1,
+      requireSourceDigest,
     });
     if (result.status !== "resolved")
       throw Object.assign(new Error(result.message), { code: result.code });
@@ -38,7 +39,7 @@ export async function resolveTestPackage(
     if (isAbsolute(input) || /\.md$|\.html?$/i.test(input))
       return reject("json-only-input", "test package input must be canonical JSON");
     try {
-      input = await load(input);
+      input = await load(input, false);
     } catch {
       return reject("invalid-json", "test package input is not valid JSON");
     }
@@ -52,7 +53,7 @@ export async function resolveTestPackage(
     return reject("lineage-required", "expected source plan digest is required");
   let sourcePlan;
   try {
-    sourcePlan = await load(input.sourcePlan.planPath);
+    sourcePlan = await load(input.sourcePlan.planPath, false);
   } catch (error) {
     return reject("source-plan-invalid", error.message);
   }
@@ -74,7 +75,7 @@ export async function resolveTestPackage(
     return reject("performance-evidence", "performance evidence is stale or missing");
   let verification;
   try {
-    verification = await load(input.verification.path);
+    verification = await load(input.verification.path, false);
     assertVerification(verification);
   } catch (error) {
     return reject("verification-invalid", error.message);

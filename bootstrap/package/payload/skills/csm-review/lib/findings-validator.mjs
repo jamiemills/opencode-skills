@@ -2,7 +2,7 @@
 
 import reviewSchema from "../schemas/csm-review-findings.schema.json" with { type: "json" };
 import doctrineSchema from "../../csm-review-python/schemas/csm-doctrine-findings.schema.json" with { type: "json" };
-import { createSchemaValidator } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator } from "../../../lib/schema-runtime/index.mjs";
 
 const schemas = [reviewSchema, doctrineSchema];
 const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };

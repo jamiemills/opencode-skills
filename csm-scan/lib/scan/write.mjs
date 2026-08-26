@@ -1,6 +1,5 @@
-import { rename, unlink, writeFile } from "node:fs/promises";
-
 import { basename, isAbsolute, relative, sep } from "node:path";
+import { atomicWrite } from "../../../lib/durable-json/index.mjs";
 
 import { createRenderContext, finalizeMarkdown } from "./render/base.mjs";
 import { DEFAULT_EXISTING_TEN_RENDERER } from "./render/existing-ten.mjs";
@@ -19,18 +18,7 @@ import { createNormsArtifact, createNormsEnvelope, serializeNormsArtifact } from
 export const WRITE_RENDER_CONTEXT = createRenderContext({ privacyHook: sanitizeStructuredText });
 
 async function writeAtomic(outPath, content) {
-  const tmpPath = `${outPath}.tmp-${process.pid}-${Date.now().toString(36)}`;
-  try {
-    await writeFile(tmpPath, content, "utf-8");
-    await rename(tmpPath, outPath);
-  } catch (error) {
-    try {
-      await unlink(tmpPath);
-    } catch {
-      // Temp cleanup is best-effort; the original failure is what matters.
-    }
-    throw error;
-  }
+  await atomicWrite(outPath, content, { mode: 0o600, quarantine: false });
 }
 
 export async function writeNormsArtifact(findings, outPath, options = {}) {

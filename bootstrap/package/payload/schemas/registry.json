@@ -47,7 +47,16 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:f7510d5685125b5e5eba0022f43babda60118f5ae1961439e5a07e28d852e22b"
+      "schemaContentDigest": "sha256:301d5fdb21529fe61493d071c86e9ef81b02a4b69df9fa14b00a3c9065914658"
+    },
+    {
+      "id": "csm-digest-taxonomy/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-digest-taxonomy.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:833ecb1f70850d11660f1084217b7276557bc19fde2e1450706bd084dcc79a8a"
     },
     {
       "id": "csm-journal-event/1",
@@ -139,6 +148,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:ec8cc1d6cbb00d9d073975a68a0f3cc64bc47e031bbd9af08353ae2c9f052efc"
+    },
+    {
+      "id": "csm-ddd-pair/1",
+      "revision": 1,
+      "schemaPath": "csm-ddd/schemas/ddd-pair.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:bb382b58a185ddbd82eb7a2747dae041547ab0c9c674d9f0e617f99550658861"
     },
     {
       "id": "csm-review-findings/1",

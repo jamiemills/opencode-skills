@@ -28,6 +28,12 @@ import {
 } from "./contracts.mjs";
 import { validateGraph, validateReport } from "./validate.mjs";
 import { loadSchemaRegistry } from "../../../lib/schema-runtime/index.mjs";
+import {
+  atomicWrite,
+  readDurableBytes,
+  readDurableJson,
+  syncDirectory,
+} from "../../../lib/durable-json/index.mjs";
 
 export async function analyzeRepository(options = {}) {
   const root = options.root;
@@ -68,7 +74,8 @@ export async function analyzeRepository(options = {}) {
     } finally {
       await questionHandle.close();
     }
-    const fileData = JSON.parse(fileText);
+    const { parseJson } = await import("../../../lib/schema-runtime/index.mjs");
+    const fileData = parseJson(fileText);
     const replay = applyQuestionFile(
       questions,
       fileData,
@@ -234,12 +241,11 @@ async function assertContainedOutputPaths(root, outputPaths) {
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 async function readJson(file) {
-  const { readFile } = await import("node:fs/promises");
-  return JSON.parse(await readFile(file, "utf8"));
+  return readDurableJson(file);
 }
 
 export async function readPublishedPair(outReport, outGraph, root = null) {
-  const { lstat, readFile } = await import("node:fs/promises");
+  const { lstat } = await import("node:fs/promises");
   const paths = publicationPaths(outReport, outGraph);
   const fail = (message) => ({ ok: false, errors: [message], paths });
   try {
@@ -303,15 +309,16 @@ export async function readPublishedPair(outReport, outGraph, root = null) {
       )
         return fail("immutable generation contains an unsafe file type");
     }
-    const generationReport = await readFile(join(generationDir, "report.artifact"));
-    const generationGraph = await readFile(join(generationDir, "graph.artifact"));
+    const generationReport = await readDurableBytes(join(generationDir, "report.artifact"));
+    const generationGraph = await readDurableBytes(join(generationDir, "graph.artifact"));
     if (
       sha256(generationReport) !== manifest.reportSha256 ||
       sha256(generationGraph) !== manifest.graphSha256
     )
       return fail("immutable generation digest does not match its manifest");
-    const report = JSON.parse(generationReport.toString("utf8"));
-    const graph = JSON.parse(generationGraph.toString("utf8"));
+    const { parseJson } = await import("../../../lib/schema-runtime/index.mjs");
+    const report = parseJson(generationReport.toString("utf8"));
+    const graph = parseJson(generationGraph.toString("utf8"));
     try {
       assertPairRunId(manifest.runId, report, graph);
     } catch (error) {
@@ -347,7 +354,7 @@ export async function readPublishedPair(outReport, outGraph, root = null) {
 }
 
 export async function writeArtifacts(analysis, outReport, outGraph, options = {}) {
-  const { access, copyFile, lstat, mkdir, rename, writeFile } = await import("node:fs/promises");
+  const { access, lstat, mkdir, rename } = await import("node:fs/promises");
   const paths = publicationPaths(outReport, outGraph);
   const reportDir = dirname(outReport);
   const graphDir = dirname(outGraph);
@@ -486,9 +493,13 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
   try {
     await mkdir(paths.generationRoot, { recursive: true });
     await mkdir(generation);
-    await writeFile(stagedReport, analysis.reportJson);
-    await writeFile(stagedGraph, analysis.graphJson);
-    await writeFile(manifestPath, `${JSON.stringify(pairManifest, null, 2)}\n`);
+    await atomicWrite(stagedReport, analysis.reportJson, { root: reportDir });
+    await atomicWrite(stagedGraph, analysis.graphJson, { root: reportDir });
+    await atomicWrite(manifestPath, `${JSON.stringify(pairManifest, null, 2)}\n`, {
+      root: reportDir,
+    });
+    await syncDirectory(generation);
+    await syncDirectory(paths.generationRoot);
     inject("after-generation");
     await options.afterGeneration?.({ generation, manifestPath });
 
@@ -506,10 +517,10 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
     }
     inject("after-backup");
 
-    await copyFile(stagedReport, outReport);
+    await atomicWrite(outReport, await readDurableBytes(stagedReport), { root: reportDir });
     installed.push(outReport);
     inject("after-report");
-    await copyFile(stagedGraph, outGraph);
+    await atomicWrite(outGraph, await readDurableBytes(stagedGraph), { root: reportDir });
     installed.push(outGraph);
     inject("after-graph");
     await options.beforePointer?.({ generation, manifestPath });
@@ -523,9 +534,7 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
       reportSha256: pairManifest.reportSha256,
       graphSha256: pairManifest.graphSha256,
     };
-    const pointerTemp = `${paths.pointer}.next-${token}`;
-    await writeFile(pointerTemp, `${JSON.stringify(pointer, null, 2)}\n`);
-    await rename(pointerTemp, paths.pointer);
+    await atomicWrite(paths.pointer, `${JSON.stringify(pointer, null, 2)}\n`, { root: reportDir });
     return {
       outReport,
       outGraph,
@@ -535,14 +544,15 @@ export async function writeArtifacts(analysis, outReport, outGraph, options = {}
       descriptor,
     };
   } catch (error) {
-    const { copyFile: restore, rm } = await import("node:fs/promises");
+    const { rm } = await import("node:fs/promises");
     for (const target of installed) await rm(target, { force: true });
     for (let i = 0; i < 2; i += 1) {
       if (priorPair && (await exists(backups[i]))) {
         const target = i === 0 ? outReport : outGraph;
-        await restore(backups[i], target);
+        await rename(backups[i], target);
       }
     }
+    await syncDirectory(reportDir);
     throw error;
   } finally {
     await lockHandle?.close();

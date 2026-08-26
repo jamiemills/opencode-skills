@@ -1,7 +1,6 @@
 "use strict";
 
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { atomicWrite, readDurableJson } from "../../../lib/durable-json/index.mjs";
 import { hash as stableHash } from "../ledger/index.mjs";
 
 const hash = (value) => stableHash(value);
@@ -118,8 +117,6 @@ class PopulationArchive {
   }
   async save(path = this.path) {
     if (!path) throw new TypeError("archive path is required");
-    await mkdir(dirname(path), { recursive: true });
-    const temporary = `${path}.${process.pid}.tmp`;
     const records = this.snapshot();
     const lineageRecords = lineage(this.lineageRecords.length ? this.lineageRecords : records);
     const provenance = structuredClone(this.provenance);
@@ -132,13 +129,12 @@ class PopulationArchive {
       lineageHash: hash(lineageRecords),
       provenanceHash: hash(provenance),
     };
-    await writeFile(temporary, `${JSON.stringify(archive, null, 2)}\n`, { mode: 0o600 });
-    await rename(temporary, path);
+    await atomicWrite(path, `${JSON.stringify(archive, null, 2)}\n`, { mode: 0o600 });
     this.path = path;
     return this.snapshot();
   }
   static async load(path, options = {}) {
-    const value = JSON.parse(await readFile(path, "utf8"));
+    const value = await readDurableJson(path);
     if (
       value?.format !== "csm-autoresearch-archive/1" ||
       !Array.isArray(value.records) ||

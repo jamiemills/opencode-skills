@@ -22,7 +22,7 @@ function usage() {
       "",
       "options:",
       "  --repo ROOT            target repository (required)",
-      "  --norms PATH           explicit NORMS.md path (default: ROOT/NORMS.md when present)",
+      "  --norms PATH           explicit NORMS.json path (NORMS.md is history-only)",
       "  --out-report PATH      JSON report output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-report.json)",
       "  --out-graph PATH       graph output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-graph.json)",
       "  --question-file PATH   JSON file with an answers array for deterministic replay",

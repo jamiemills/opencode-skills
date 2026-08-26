@@ -144,6 +144,10 @@ const mapping = {
       destDir: join("payload", "skills", "csm-bdd-tdd", "lib"),
     },
     {
+      srcDir: join("csm-grill", "lib"),
+      destDir: join("payload", "skills", "csm-grill", "lib"),
+    },
+    {
       srcDir: join("csm-plan", "lib"),
       destDir: join("payload", "skills", "csm-plan", "lib"),
     },
@@ -217,6 +221,18 @@ const mapping = {
     {
       srcDir: join("lib", "artifact-resolver"),
       destDir: join("payload", "lib", "artifact-resolver"),
+    },
+    {
+      srcDir: join("lib", "consumer-adapters"),
+      destDir: join("payload", "lib", "consumer-adapters"),
+    },
+    {
+      srcDir: join("lib", "durable-json"),
+      destDir: join("payload", "lib", "durable-json"),
+    },
+    {
+      srcDir: join("lib", "digest-taxonomy"),
+      destDir: join("payload", "lib", "digest-taxonomy"),
     },
   ],
 };
@@ -309,22 +325,16 @@ async function expandMapping() {
 
 function payloadData(data, destination) {
   const normalized = destination.split(sep).join("/");
-  const rewritten = [
-    "csm-bdd-tdd",
-    "csm-build",
-    "csm-make-tests",
-    "csm-plan",
-    "csm-browse",
-    "csm-upload",
-  ].some((skill) => normalized.includes(`/skills/${skill}/`));
-  if (!rewritten || !normalized.endsWith(".mjs")) return data;
+  const rewritten = normalized.includes("payload/skills/");
+  const sharedRuntime = normalized.includes("payload/lib/");
+  if ((!rewritten && !sharedRuntime) || !normalized.endsWith(".mjs")) return data;
   const text = data.toString("utf8");
   return Buffer.from(
     text
-      .replaceAll('"../../lib/schema-runtime/', '"../../../lib/schema-runtime/')
-      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/')
-      .replaceAll('"../../lib/publication/', '"../../../lib/publication/')
-      .replaceAll('"../../lib/artifact-resolver/', '"../../../lib/artifact-resolver/'),
+      .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../../lib/")
+      .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../lib/")
+      .replaceAll(/(["'])\.\.\/\.\.\/lib\//g, "$1../../../lib/")
+      .replaceAll(/(["'])\.\.\/\.\.\/csm-ddd\//g, "$1../../skills/csm-ddd/"),
   );
 }
 
@@ -334,7 +344,7 @@ async function entryFor(packageDir, dest) {
   return { path: toPosix(dest), sha256: sha256(data), bytes: data.length, mode: modeOf(info.mode) };
 }
 
-async function copyVerified(source, destination) {
+async function copyVerified(source, destination, { rewrite = true } = {}) {
   await assertNoSymlinkPath(destination);
   const sourceInfo = await lstat(source);
   if (!sourceInfo.isFile())
@@ -345,7 +355,7 @@ async function copyVerified(source, destination) {
     if (openedInfo.dev !== sourceInfo.dev || openedInfo.ino !== sourceInfo.ino)
       throw new Error(`pack refused: source changed before copy: ${source}`);
     const sourceData = await sourceHandle.readFile();
-    const data = payloadData(sourceData, destination);
+    const data = rewrite ? payloadData(sourceData, destination) : sourceData;
     const finalInfo = await sourceHandle.stat();
     if (
       finalInfo.dev !== openedInfo.dev ||
@@ -458,7 +468,7 @@ async function copyTree(src, dest) {
     const destination = join(dest, rel);
     await assertNoSymlinkPath(dirname(destination), "destination");
     await mkdir(dirname(destination), { recursive: true });
-    await copyVerified(join(src, rel), destination);
+    await copyVerified(join(src, rel), destination, { rewrite: false });
   }
 }
 
@@ -606,6 +616,7 @@ export {
   mapping,
   packBootstrap,
   parseTar,
+  payloadData,
   resolvePackTarball,
   syncPayload,
   verifyPayloadParity,

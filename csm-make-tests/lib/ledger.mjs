@@ -1,5 +1,6 @@
-import { appendFile, readFile, stat, open, unlink } from "node:fs/promises";
-import { createSchemaValidator, parseJson } from "../../lib/schema-runtime/index.mjs";
+import { createSchemaValidator } from "../../lib/schema-runtime/index.mjs";
+import { stat } from "node:fs/promises";
+import { acquireLock, atomicWrite, readJsonLines } from "../../lib/durable-json/index.mjs";
 import schema from "../schemas/ledger.schema.json" with { type: "json" };
 
 export const LEDGER_SCHEMA = "csm-make-tests-ledger/1";
@@ -21,18 +22,19 @@ export function assertLedgerRow(row) {
 }
 
 export async function readLedger(path) {
-  const text = await readFile(path, "utf8");
-  const rows = [];
-  for (const [index, line] of text.split(/\r?\n/).entries()) {
-    if (!line.trim()) continue;
-    try {
-      rows.push(assertLedgerRow(parseJson(line)));
-    } catch (error) {
-      throw Object.assign(new Error(`ledger recovery failed at line ${index + 1}`), {
-        code: "ledger-corrupt",
-        cause: error,
-      });
-    }
+  let rows;
+  try {
+    rows = (
+      await readJsonLines(path, {
+        identity: (value) => value?.entry?.entryId ?? value?.cursor?.state,
+      })
+    ).map(assertLedgerRow);
+  } catch (error) {
+    if (error.code === "ENOENT") throw error;
+    throw Object.assign(new Error("ledger recovery failed"), {
+      code: "ledger-corrupt",
+      cause: error,
+    });
   }
   if (!rows.length) throw Object.assign(new Error("ledger is empty"), { code: "ledger-empty" });
   const identity = JSON.stringify({ ledger: rows[0].ledger, sourcePlan: rows[0].sourcePlan });
@@ -49,17 +51,10 @@ export async function appendLedgerRow(path, row, { owner = "csm-make-tests" } = 
   assertLedgerRow(row);
   if (row.ledger.owner !== owner)
     throw Object.assign(new Error("ledger owner mismatch"), { code: "owner-mismatch" });
-  const lockPath = `${path}.lock`;
-  let lock;
-  try {
-    lock = await open(lockPath, "wx");
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    const stale = Date.now() - (await stat(lockPath)).mtimeMs > 5 * 60 * 1000;
-    if (!stale) throw Object.assign(new Error("ledger is locked"), { code: "ledger-locked" });
-    await unlink(lockPath);
-    lock = await open(lockPath, "wx");
-  }
+  const lock = await acquireLock(`${path}.lock`).catch((error) => {
+    if (error.code === "durable-locked") error.code = "ledger-locked";
+    throw error;
+  });
   try {
     let rows = [];
     try {
@@ -79,11 +74,15 @@ export async function appendLedgerRow(path, row, { owner = "csm-make-tests" } = 
         JSON.stringify({ ledger: row.ledger, sourcePlan: row.sourcePlan })
     )
       throw Object.assign(new Error("ledger identity mismatch"), { code: "ledger-collision" });
-    await appendFile(path, `${JSON.stringify(row)}\n`, { flag: "a" });
+    const content =
+      rows
+        .map((entry) => JSON.stringify(entry))
+        .concat(JSON.stringify(row))
+        .join("\n") + "\n";
+    await atomicWrite(path, content, { mode: 0o600 });
     return row;
   } finally {
-    await lock.close();
-    await unlink(lockPath).catch(() => {});
+    await lock.release();
   }
 }
 

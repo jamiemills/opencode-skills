@@ -730,22 +730,15 @@ function checkCommittedPayloadIndex(rootDir) {
 // and reports the comparison dynamically ({compared:N, issues:[]}); any issue
 // is a hard failure.
 function transformBootstrapPayload(content, rel) {
-  const rewritten = [
-    "csm-bdd-tdd",
-    "csm-build",
-    "csm-make-tests",
-    "csm-plan",
-    "csm-browse",
-    "csm-upload",
-  ].some((skill) => rel.startsWith(`${skill}/`));
+  const rewritten = rel.length > 0;
   if (!rewritten || !rel.endsWith(".mjs")) return content;
   return Buffer.from(
     content
       .toString("utf8")
-      .replaceAll('"../../lib/schema-runtime/', '"../../../lib/schema-runtime/')
-      .replaceAll('"../../lib/compatibility-runtime/', '"../../../lib/compatibility-runtime/')
-      .replaceAll('"../../lib/publication/', '"../../../lib/publication/')
-      .replaceAll('"../../lib/artifact-resolver/', '"../../../lib/artifact-resolver/'),
+      .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../../lib/")
+      .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../lib/")
+      .replaceAll(/(["'])\.\.\/\.\.\/lib\//g, "$1../../../lib/")
+      .replaceAll(/(["'])\.\.\/\.\.\/csm-ddd\//g, "$1../../skills/csm-ddd/"),
   );
 }
 

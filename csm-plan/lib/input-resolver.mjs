@@ -44,12 +44,13 @@ function descriptorPath(input) {
   return input && typeof input === "object" && !Array.isArray(input) ? input.path : undefined;
 }
 
-async function load(input, { root = process.cwd() } = {}) {
+async function load(input, { root = process.cwd(), kind } = {}) {
   if (typeof input === "string" && /\.jsonl?$/i.test(input)) {
     const resolved = await resolveArtifactFile(input, {
       root,
       schemaRegistry: await registry(),
       consumerRevision: 1,
+      requireSourceDigest: kind !== "plan",
     });
     if (resolved.status !== "resolved")
       return resolved.code === "symlink" ? { ...resolved, code: "symlink-path" } : resolved;
@@ -105,7 +106,7 @@ export async function resolvePlanInput(
       rollback: adapted.rollback,
     });
   }
-  const loaded = await load(input, { root });
+  const loaded = await load(input, { root, kind });
   if (loaded.status) return loaded;
   const value = loaded.value;
   if (!value || typeof value !== "object" || Array.isArray(value))

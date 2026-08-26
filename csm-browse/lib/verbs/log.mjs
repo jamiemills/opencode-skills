@@ -1,7 +1,7 @@
-import { readFileSync, existsSync, createReadStream } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { createInterface } from "node:readline";
+import { readJsonLines } from "../../../lib/durable-json/index.mjs";
 import { attachFirstPage, connect } from "../cdp.mjs";
 import { isSessionDaemon } from "../cleanup.mjs";
 
@@ -41,17 +41,9 @@ async function readEvents(sessionDir) {
   }
 
   for (const file of files) {
-    const rl = createInterface({
-      input: createReadStream(file),
-      crlfDelay: Infinity,
-    });
-    for await (const line of rl) {
-      if (line.trim()) {
-        try {
-          events.push(JSON.parse(line));
-        } catch {}
-      }
-    }
+    try {
+      events.push(...(await readJsonLines(file, { identity: (value) => value?.eventId })));
+    } catch {}
   }
 
   return events;

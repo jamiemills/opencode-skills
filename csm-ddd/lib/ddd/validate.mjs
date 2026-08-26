@@ -5,6 +5,8 @@ import { realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
+import { parseJson } from "../../../lib/schema-runtime/index.mjs";
+import { readDurableJson } from "../../../lib/durable-json/index.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const schemasDir = join(here, "..", "..", "schemas");
@@ -88,12 +90,12 @@ export function validateSchema(instance, schema) {
 }
 
 async function loadSchema(name) {
-  return JSON.parse(await readFile(join(schemasDir, name), "utf8"));
+  return parseJson(await readFile(join(schemasDir, name), "utf8"));
 }
 
 export async function validateGraphFile(file) {
   const schema = await loadSchema("ddd-graph.schema.json");
-  const instance = JSON.parse(await readFile(file, "utf8"));
+  const instance = await readDurableJson(file);
   const result = validateSchema(instance, schema);
   if (!result.ok) {
     for (const line of result.errors) process.stderr.write(`${line}\n`);
@@ -108,7 +110,7 @@ export async function validateReportEnvelope(envelope) {
 
 export async function validateReportFile(file) {
   const schema = await loadSchema("ddd-report.schema.json");
-  const instance = JSON.parse(await readFile(file, "utf8"));
+  const instance = await readDurableJson(file);
   const result = validateSchema(instance, schema);
   if (!result.ok) {
     for (const line of result.errors) process.stderr.write(`${line}\n`);

@@ -12,10 +12,11 @@ import { createProviderResult } from "../providers/base.mjs";
 import { descriptorFor } from "./ecosystem.mjs";
 import { parseToml } from "./parse.mjs";
 import { expandRepositoryDirectoryPatterns } from "./glob.mjs";
+import { parseJson } from "../../../../../lib/schema-runtime/index.mjs";
 
 function readJSON(path) {
   try {
-    return JSON.parse(readFileSync(path, "utf-8"));
+    return parseJson(readFileSync(path, "utf-8"));
   } catch {
     return null;
   }

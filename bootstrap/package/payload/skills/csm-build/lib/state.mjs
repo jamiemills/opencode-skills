@@ -255,6 +255,7 @@ async function validateInput(name, input, options) {
       root: options.root ?? process.cwd(),
       schemaRegistry: options.schemaRegistry ?? (await loadSchemaRegistry()),
       consumerRevision: 1,
+      requireSourceDigest: name !== "plan",
     });
     if (loaded.status !== "resolved") return loaded;
     input = loaded.value;

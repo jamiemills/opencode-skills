@@ -9,7 +9,7 @@ import {
   redact,
   validateReport,
 } from "../ledger/index.mjs";
-import { readFile } from "node:fs/promises";
+import { readDurableBytes, readDurableJson } from "../../../lib/durable-json/index.mjs";
 import {
   createArtifactDescriptor,
   createArtifactEnvelope,
@@ -169,7 +169,7 @@ async function optimize(options) {
     ]);
     let existingReport;
     try {
-      existingReport = JSON.parse(await readFile(paths.report, "utf8"));
+      existingReport = await readDurableJson(paths.report);
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -206,7 +206,7 @@ async function optimize(options) {
         redacted: true,
       };
       const createdAt = now.toISOString();
-      const ledgerBytes = await readFile(paths.ledger);
+      const ledgerBytes = await readDurableBytes(paths.ledger);
       const ledgerDescriptor = createArtifactDescriptor({
         runId: contract.runId,
         kind: "autoresearch-ledger",
@@ -235,7 +235,7 @@ async function optimize(options) {
       });
       let reportPersisted = true;
       try {
-        const existing = JSON.parse(await readFile(paths.report, "utf8"));
+        const existing = await readDurableJson(paths.report);
         if (existing.runId !== contract.runId)
           throw new Error("refusing report collision with another run");
         if (

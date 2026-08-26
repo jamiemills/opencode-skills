@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { O_APPEND, O_CREAT, O_NOFOLLOW, O_WRONLY } from "node:constants";
-import { lstat, readFile, mkdir, realpath, open, unlink } from "node:fs/promises";
+import { lstat, readFile, mkdir, realpath, open } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { digest, loadSchemaRegistry } from "../../lib/schema-runtime/index.mjs";
+import { acquireLock, readDurableJson, readJsonLines } from "../../lib/durable-json/index.mjs";
 
 const registry = await loadSchemaRegistry();
 
@@ -119,53 +120,27 @@ export async function appendEvent(path, event, { root = process.cwd(), sourceRun
   const existing = await lstat(resolved).catch(() => null);
   if (existing?.isSymbolicLink()) fail("unsafe-path", "event path is symlinked");
   const lockPath = `${resolved}.lock`;
-  let lock;
+  const lock = await acquireLock(lockPath, { staleMs: 5 * 60 * 1000 });
   try {
-    lock = await open(lockPath, "wx");
-    await lock.writeFile(`${process.pid}\n`);
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    const owner = Number.parseInt(await readFile(lockPath, "utf8"), 10);
-    if (Number.isInteger(owner)) {
-      try {
-        process.kill(owner, 0);
+    const prior = await readJsonLines(resolved, { identity: (value) => value?.eventId }).catch(
+      (error) => {
+        if (error.code === "ENOENT") return [];
         throw error;
-      } catch (probeError) {
-        if (probeError === error || probeError.code !== "ESRCH") throw error;
-      }
-    }
-    await unlink(lockPath);
-    lock = await open(lockPath, "wx");
-    await lock.writeFile(`${process.pid}\n`);
-  }
-  try {
-    let sequence = 0;
-    try {
-      const text = await readFile(resolved, "utf8");
-      sequence = text.trim() ? text.trim().split("\n").length : 0;
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
+      },
+    );
+    const sequence = prior.length;
     const next = { ...event, sequence };
-    const existingIds = new Set();
-    try {
-      for (const line of (await readFile(resolved, "utf8")).trim().split("\n"))
-        if (line) existingIds.add(JSON.parse(line).eventId);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-    if (existingIds.has(next.eventId)) fail("event-duplicate", "browse eventId already exists");
     validateEvent(next, { sourceRunId, sequence });
     const output = await open(resolved, O_APPEND | O_CREAT | O_WRONLY | O_NOFOLLOW, 0o600);
     try {
       await output.writeFile(`${JSON.stringify(next)}\n`);
+      await output.sync();
     } finally {
       await output.close();
     }
     return next;
   } finally {
-    await lock.close();
-    await unlink(lockPath).catch(() => {});
+    await lock.release();
   }
 }
 
@@ -180,18 +155,9 @@ export async function recoverEvents(path, { root = process.cwd(), sourceRunId } 
   const existing = await lstat(resolved).catch(() => null);
   if (existing?.isSymbolicLink()) fail("unsafe-path", "event path is symlinked");
   try {
-    const text = await readFile(resolved, "utf8");
-    const events = text.trim()
-      ? text
-          .trim()
-          .split("\n")
-          .map((line) => JSON.parse(line))
-      : [];
-    const ids = new Set();
+    const events = await readJsonLines(resolved, { identity: (value) => value?.eventId });
     events.forEach((event, sequence) => {
       validateEvent(event, { sourceRunId, sequence });
-      if (ids.has(event.eventId)) fail("events-corrupt", "browse event IDs must be unique");
-      ids.add(event.eventId);
     });
     return { status: "recoverable", events };
   } catch (error) {
@@ -204,7 +170,7 @@ export async function readEvidenceDescriptor(path, options = {}) {
   if (!path.endsWith(".json")) fail("json-only", "browse machine inputs must be JSON descriptors");
   let value;
   try {
-    value = JSON.parse(await readFile(path, "utf8"));
+    value = await readDurableJson(path);
   } catch (error) {
     fail("json-only", `browse descriptor is not valid JSON: ${error.message}`);
   }

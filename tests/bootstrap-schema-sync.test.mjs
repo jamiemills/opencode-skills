@@ -4,7 +4,12 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { expandMapping, packBootstrap, verifyPayloadParity } from "../scripts/pack-bootstrap.mjs";
+import {
+  expandMapping,
+  packBootstrap,
+  payloadData,
+  verifyPayloadParity,
+} from "../scripts/pack-bootstrap.mjs";
 
 const root = join(import.meta.dirname, "..");
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
@@ -22,7 +27,7 @@ test("foundation mapping generates byte-identical canonical/bootstrap files and 
     for (const entry of entries.filter(
       ({ src }) => src.startsWith("schemas/") || src.startsWith("lib/"),
     )) {
-      const canonical = await readFile(join(root, entry.src));
+      const canonical = payloadData(await readFile(join(root, entry.src)), entry.dest);
       const generated = await readFile(join(outputRoot, "package", entry.dest));
       const indexedEntry = indexed.get(entry.dest.replaceAll("\\", "/"));
       assert.deepEqual(generated, canonical, entry.dest);

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { readFile, rename, unlink } from "node:fs/promises";
+import { rename, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
+import { readDurableJson } from "../../../lib/durable-json/index.mjs";
 import { CMD_TIMEOUT_MS } from "../constants.mjs";
 import { ensurePrivateDir, secureWrite } from "../security.mjs";
 
@@ -79,8 +80,7 @@ export async function run({ args, state, verb }) {
 
   while (Date.now() - start < CMD_TIMEOUT_MS) {
     try {
-      const raw = await readFile(outPath, "utf-8");
-      result = JSON.parse(raw);
+      result = await readDurableJson(outPath);
       break;
     } catch {
       await setTimeout(200);

@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-final-receipt/1",
+  "title": "Immutable final verification receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "immutable",
+    "receiptId",
+    "createdAt",
+    "binding",
+    "environment",
+    "commands",
+    "identity",
+    "replay",
+    "review",
+    "live",
+    "residualRisks",
+    "status"
+  ],
+  "properties": {
+    "format": { "const": "csm-final-receipt/1" },
+    "immutable": { "const": true },
+    "receiptId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["testedSourceSha", "receiptCommitSha"],
+      "properties": {
+        "testedSourceSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "receiptCommitSha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" }
+      }
+    },
+    "environment": { "$ref": "#/$defs/checks" },
+    "commands": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/command" } },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "payload"],
+      "properties": {
+        "package": { "$ref": "#/$defs/identity" },
+        "payload": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "replay": { "$ref": "#/$defs/resultSet" },
+    "review": { "$ref": "#/$defs/resultSet" },
+    "live": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["browser", "publication"],
+      "properties": {
+        "browser": { "$ref": "#/$defs/status" },
+        "publication": { "$ref": "#/$defs/status" }
+      }
+    },
+    "residualRisks": { "type": "array", "items": { "type": "string" } },
+    "status": { "enum": ["verified", "incomplete", "blocked"] }
+  },
+  "$defs": {
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "detail"],
+      "properties": {
+        "status": { "enum": ["verified", "unavailable", "not-run", "session-observed"] },
+        "detail": { "type": "string" }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "patternProperties": { ".+": { "$ref": "#/$defs/status" } }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "identity", "status", "exitStatus", "count", "durationMs"],
+      "properties": {
+        "id": { "type": "string" },
+        "identity": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["verified", "unavailable", "not-run"] },
+        "exitStatus": { "type": ["integer", "null"], "minimum": 0 },
+        "count": { "type": ["integer", "null"], "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "detail": { "type": "string" }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "files", "digest"],
+      "properties": {
+        "status": { "enum": ["verified", "unavailable", "not-run"] },
+        "files": { "type": "integer", "minimum": 0 },
+        "digest": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "resultSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "results"],
+      "properties": {
+        "status": { "enum": ["verified", "unavailable", "not-run"] },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "status"],
+            "properties": {
+              "id": { "type": "string" },
+              "status": { "enum": ["verified", "unavailable", "not-run"] },
+              "detail": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

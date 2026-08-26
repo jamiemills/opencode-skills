@@ -7,7 +7,7 @@ import {
   createSchemaRegistry,
   digest as schemaDigest,
   parseJson,
-} from "../../lib/schema-runtime/index.mjs";
+} from "../../../lib/schema-runtime/index.mjs";
 
 export const RESEARCH_SCHEMA = "csm-research/1";
 export const RESEARCH_SCHEMA_REVISION = 1;

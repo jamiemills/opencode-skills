@@ -1,5 +1,6 @@
 import { readdir, readFile, rename, stat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { readDurableJson } from "../../lib/durable-json/index.mjs";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import {
@@ -186,7 +187,7 @@ export async function sweep({
     let publicPort = null;
     let state = null;
     try {
-      state = validateState(JSON.parse(await readFile(statePath, "utf-8")), sid);
+      state = validateState(await readDurableJson(statePath), sid);
       publicPort = state.publicPort || null;
     } catch {
       // Read-missing or unparseable/invalid: nothing trusted to revoke or to
@@ -359,7 +360,7 @@ export async function sweep({
     const recPath = join(sessionDir(sid), "recorder.json");
     if (!existsSync(recPath)) continue;
     try {
-      const rec = JSON.parse(await readFile(recPath, "utf-8"));
+      const rec = await readDurableJson(recPath);
       if (rec.running !== true) continue;
       let alive = false;
       const pidFile = join(sessionDir(sid), "daemon.pid");

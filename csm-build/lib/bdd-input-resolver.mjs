@@ -22,7 +22,7 @@ export async function resolveBddInput(
 ) {
   if (typeof packageInput === "string" && /\.(?:md|html?)$/i.test(packageInput))
     return { status: "rejected", code: "migration-required", path: packageInput };
-  const load = async (path) => {
+  const load = async (path, requireSourceDigest = true) => {
     if (
       typeof path !== "string" ||
       isAbsolute(path) ||
@@ -35,6 +35,7 @@ export async function resolveBddInput(
       root,
       schemaRegistry: await loadSchemaRegistry(),
       consumerRevision: 1,
+      requireSourceDigest,
     });
     if (result.status !== "resolved")
       throw Object.assign(new Error(result.message), { code: result.code });
@@ -44,7 +45,7 @@ export async function resolveBddInput(
   try {
     value =
       typeof packageInput === "string"
-        ? await load(packageInput)
+        ? await load(packageInput, false)
         : (packageInput?.value ?? packageInput);
   } catch (error) {
     return { status: "rejected", code: "invalid-json", message: error.message };
@@ -69,7 +70,7 @@ export async function resolveBddInput(
     return { status: "rejected", code: "source-plan-collision" };
   let planValue;
   try {
-    planValue = typeof source === "string" ? await load(source) : (source.value ?? source);
+    planValue = typeof source === "string" ? await load(source, false) : (source.value ?? source);
   } catch (error) {
     return { status: "rejected", code: "source-plan-invalid", message: error.message };
   }

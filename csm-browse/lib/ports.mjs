@@ -16,6 +16,7 @@ import {
   holderIdentityMatches,
   writeCreatorArtifact,
 } from "./pid-identity.mjs";
+import { readDurableJson } from "../../lib/durable-json/index.mjs";
 
 const LOCK_FILE = join(SESSIONS_ROOT, ".ports.lock");
 const LOCK_STALE_MS = 5000;
@@ -171,14 +172,14 @@ export async function claimedPortSet() {
   for (const d of dirs) {
     if (d.startsWith(".")) continue;
     try {
-      const state = JSON.parse(await readFile(join(SESSIONS_ROOT, d, "state.json"), "utf-8"));
+      const state = await readDurableJson(join(SESSIONS_ROOT, d, "state.json"));
       validateState(state);
       if (state && typeof state.internalPort === "number") claimed.add(state.internalPort);
       if (state && typeof state.publicPort === "number") claimed.add(state.publicPort);
     } catch {}
     try {
       const markerPath = join(SESSIONS_ROOT, d, "creating.marker");
-      const marker = JSON.parse(await readFile(markerPath, "utf-8"));
+      const marker = await readDurableJson(markerPath);
       if (!marker) continue;
       // F-013: a marker-only dir from a CRASHED creator must not strand its
       // port pair until the next sweep. When the marker is older than the

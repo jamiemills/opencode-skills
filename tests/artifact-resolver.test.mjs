@@ -29,7 +29,13 @@ async function fixture(value = base, name = "artifact.json") {
   return { root, name };
 }
 const resolver = (root, enabled = true, owner = "csm-test") =>
-  createArtifactResolver({ root, schemaRegistry, edge: { id: "test-edge", enabled }, owner });
+  createArtifactResolver({
+    root,
+    schemaRegistry,
+    edge: { id: "test-edge", enabled },
+    owner,
+    migrationMode: true,
+  });
 
 test("resolves registered JSON and checks digest, owner, and terminal status", async () => {
   const item = await fixture();
@@ -131,6 +137,7 @@ test("rejects empty and mixed-owner JSONL while allowing an ownerless journal", 
       schemaRegistry: ownershipRegistry,
       edge: { id: "ownership-edge", enabled: true },
       owner: expectedOwner,
+      migrationMode: true,
     });
   const first = { ...base, contentType: "application/jsonl", artifact: { ...base.artifact } };
   const second = {

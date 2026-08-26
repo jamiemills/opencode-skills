@@ -1,18 +1,14 @@
 "use strict";
 
-import {
-  appendFile,
-  link,
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  rename,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { link, lstat, mkdir, open, rename, unlink } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
+import {
+  appendDurableJsonLine,
+  atomicWrite,
+  readDurableJson,
+  readJsonLines,
+} from "../../../../lib/durable-json/index.mjs";
 
 const HASH = (value) => `sha256:${createHash("sha256").update(canonical(value)).digest("hex")}`;
 function canonical(value) {
@@ -91,10 +87,7 @@ function corruptionReason(error) {
 }
 
 async function atomicJson(path, value) {
-  await mkdir(dirname(path), { recursive: true });
-  const temporary = `${path}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(redact(value), null, 2)}\n`, { mode: 0o600 });
-  await rename(temporary, path);
+  await atomicWrite(path, `${JSON.stringify(redact(value), null, 2)}\n`, { mode: 0o600 });
 }
 
 class AppendOnlyLedger {
@@ -119,68 +112,62 @@ class AppendOnlyLedger {
   }
   async openUnlocked() {
     await mkdir(dirname(this.path), { recursive: true });
+    const records = [];
+    let previous = null;
+    let partialTail;
     try {
-      const raw = await readFile(this.path, "utf8");
-      const complete = raw.endsWith("\n") ? raw : raw.slice(0, raw.lastIndexOf("\n") + 1);
-      if (complete !== raw) {
-        await this.quarantine(raw.slice(complete.length), "torn-tail");
-        await writeFile(this.path, complete, { mode: 0o600 });
+      await readJsonLines(this.path, {
+        identity: (record) => `${record.runId}:${record.sequence}`,
+        quarantine: false,
+        recoverPartialTail: true,
+        onRecord: (record) => records.push(record),
+        onPartialTail: (tail) => {
+          partialTail = tail;
+        },
+      });
+      if (partialTail) {
+        await this.quarantine(partialTail, "torn-tail");
+        await atomicWrite(
+          this.path,
+          records.length ? `${records.map((record) => JSON.stringify(record)).join("\n")}\n` : "",
+          { mode: 0o600 },
+        );
       }
-      const lines = complete.split("\n").filter(Boolean);
-      const records = [];
-      let previous = null;
-      let offset = 0;
-      for (let index = 0; index < lines.length; index++) {
-        const lineEnd = complete.indexOf("\n", offset);
-        const line = complete.slice(offset, lineEnd < 0 ? complete.length : lineEnd);
-        offset = lineEnd < 0 ? complete.length : lineEnd + 1;
-        let record;
-        try {
-          record = JSON.parse(line);
-        } catch (error) {
-          return this.markCorrupt(
-            records,
-            complete.slice(offset - line.length - 1),
-            "invalid-record",
-            error,
-          );
-        }
-        try {
-          validateLedgerRecord(record, index, this.runId, previous);
-        } catch (error) {
-          return this.markCorrupt(
-            records,
-            complete.slice(offset - line.length - 1),
-            corruptionReason(error),
-            error,
-          );
-        }
-        records.push(record);
-        previous = record.recordHash;
-      }
-      const recordedProvenance = records[0]?.provenance;
-      if (recordedProvenance) {
-        for (const key of ["contractHash", "evaluatorHash", "environmentHash", "policyHash"]) {
-          if (
-            this.provenance[key] !== undefined &&
-            recordedProvenance[key] !== this.provenance[key]
-          )
-            throw new Error(`resume provenance mismatch: ${key}`);
-        }
-      }
-      const state = await this.readState();
-      this.status = state?.status ?? "ready";
-      this.sequence = records.length;
-      this.previousHash = previous;
-      return records;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-      return [];
+      if (error.code === "ENOENT") return [];
+      if (error.code === "duplicate-identity")
+        return this.markCorrupt(records, error.line ?? "", "sequence-mismatch", error);
+      return this.markCorrupt(records, error.line ?? "", "invalid-record", error);
     }
+    for (const [index, record] of records.entries()) {
+      try {
+        validateLedgerRecord(record, index, this.runId, previous);
+      } catch (error) {
+        return this.markCorrupt(
+          records.slice(0, index),
+          JSON.stringify(record),
+          corruptionReason(error),
+          error,
+        );
+      }
+      previous = record.recordHash;
+    }
+    const recordedProvenance = records[0]?.provenance;
+    if (recordedProvenance) {
+      for (const key of ["contractHash", "evaluatorHash", "environmentHash", "policyHash"]) {
+        if (this.provenance[key] !== undefined && recordedProvenance[key] !== this.provenance[key])
+          throw new Error(`resume provenance mismatch: ${key}`);
+      }
+    }
+    const state = await this.readState();
+    this.status = state?.status ?? "ready";
+    this.sequence = records.length;
+    this.previousHash = previous;
+    return records;
   }
   async readState() {
     try {
-      return JSON.parse(await readFile(this.statePath, "utf8"));
+      return await readDurableJson(this.statePath);
     } catch (error) {
       if (error.code === "ENOENT") return null;
       throw error;
@@ -188,7 +175,7 @@ class AppendOnlyLedger {
   }
   async markCorrupt(records, content, reason, error) {
     await this.quarantine(content, "corrupt-ledger");
-    await writeFile(
+    await atomicWrite(
       this.path,
       records.length ? `${records.map((record) => JSON.stringify(record)).join("\n")}\n` : "",
       { mode: 0o600 },
@@ -216,7 +203,7 @@ class AppendOnlyLedger {
       provenance: { ...this.provenance, redacted: true },
     });
     marker.recordHash = recordHash(marker);
-    await appendFile(this.path, `${JSON.stringify(marker)}\n`, { mode: 0o600 });
+    await appendDurableJsonLine(this.path, marker);
     this.sequence++;
     this.previousHash = marker.recordHash;
     records.push(marker);
@@ -225,7 +212,7 @@ class AppendOnlyLedger {
   async quarantine(content, reason) {
     if (!content) return;
     const quarantine = `${this.path}.${reason}.${Date.now()}.quarantine`;
-    await writeFile(quarantine, content, { mode: 0o600 });
+    await atomicWrite(quarantine, content, { mode: 0o600 });
   }
   async append(event, fields = {}) {
     if (!this.runId) throw new TypeError("runId is required");
@@ -250,7 +237,7 @@ class AppendOnlyLedger {
         provenance: { ...this.provenance, redacted: true },
       });
       record.recordHash = recordHash(record);
-      await appendFile(this.path, `${JSON.stringify(record)}\n`, { mode: 0o600 });
+      await appendDurableJsonLine(this.path, record);
       this.sequence++;
       this.previousHash = record.recordHash;
       result = record;
@@ -308,9 +295,11 @@ class AppendOnlyLedger {
     }
     let metadata;
     try {
-      metadata = JSON.parse(await readFile(retired, "utf8"));
+      metadata = await readDurableJson(retired);
     } catch (error) {
-      await rename(retired, owner.path).catch(() => {});
+      if (!(await lstat(owner.path).catch(() => null)))
+        await rename(retired, owner.path).catch(() => {});
+      else await unlink(retired).catch(() => {});
       throw new Error(`refusing to remove ${owner.path}: lock metadata is invalid`, {
         cause: error,
       });
@@ -345,7 +334,7 @@ class AppendOnlyLedger {
     const path = kind === "run" ? this.leasePath : this.lockPath;
     let metadata;
     try {
-      metadata = JSON.parse(await readFile(path, "utf8"));
+      metadata = await readDurableJson(path);
     } catch (error) {
       if (error.code === "ENOENT") return false;
       throw new Error("stale-lock recovery refused invalid lock metadata", { cause: error });
@@ -353,8 +342,21 @@ class AppendOnlyLedger {
     if (metadata.token !== expectedToken)
       throw new Error("stale-lock recovery refused: owner token changed");
     const quarantine = `${path}.${Date.now()}.${randomUUID()}.quarantine`;
-    await rename(path, quarantine);
-    const moved = JSON.parse(await readFile(quarantine, "utf8"));
+    const before = await lstat(path);
+    await link(path, quarantine);
+    const after = await lstat(path);
+    const archived = await lstat(quarantine);
+    if (
+      before.dev !== after.dev ||
+      before.ino !== after.ino ||
+      after.dev !== archived.dev ||
+      after.ino !== archived.ino
+    ) {
+      await unlink(quarantine).catch(() => {});
+      throw new Error("stale-lock recovery refused: owner changed during archival");
+    }
+    await unlink(path);
+    const moved = await readDurableJson(quarantine);
     if (moved.token !== expectedToken)
       throw new Error("stale-lock recovery refused: owner token changed during recovery");
     await atomicJson(`${quarantine}.json`, {

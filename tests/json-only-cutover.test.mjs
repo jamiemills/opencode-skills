@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { loadMachineInput } from "../lib/publication/index.mjs";
 import { loadSchemaRegistry, digest } from "../lib/schema-runtime/index.mjs";
+import { payloadDigest, descriptorDigest } from "../lib/digest-taxonomy/index.mjs";
 
 const registry = await loadSchemaRegistry();
 const artifact = {
@@ -21,8 +22,11 @@ const artifact = {
   },
   contentType: "application/json",
   location: "artifact.json",
+  sourceDigest: digest({ source: "source-lineage" }),
   lifecycleStatus: "completed",
 };
+artifact.payloadDigest = payloadDigest(artifact);
+artifact.descriptorDigest = descriptorDigest(artifact);
 
 test("global discovery resolves registered JSON by default and requires source provenance", async () => {
   const root = await mkdtemp(join(tmpdir(), "csm-cutover-"));
@@ -45,7 +49,7 @@ test("global discovery resolves registered JSON by default and requires source p
         "missing-digest.json",
       )
     ).code,
-    "schema-invalid",
+    "payload-digest-mismatch",
   );
 });
 

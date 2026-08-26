@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { assertLegacyPrivacySafe } from "./shared/privacy.mjs";
 import { DIMENSION_REGISTRY } from "./registry/dimensions.mjs";
-import { loadSchemaRegistry } from "../../../lib/schema-runtime/index.mjs";
+import { loadSchemaRegistry } from "../../../../lib/schema-runtime/index.mjs";
 
 export const NORMS_SCHEMA = "csm-norms/1";
 export const NORMS_SCHEMA_REVISION = 1;

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { constants as fsc } from "node:fs";
-import { writeFile, mkdir, readFile, rm, mkdtemp, readdir, open, lstat } from "node:fs/promises";
+import { writeFile, mkdir, rm, mkdtemp, readdir, open, lstat } from "node:fs/promises";
 import { once } from "node:events";
 import { join, basename, dirname } from "node:path";
 import { homedir, tmpdir } from "node:os";
+import { readDurableJson, writeDurableJson } from "../../lib/durable-json/index.mjs";
 
 const CONFIG_PATH = join(homedir(), ".agents", "csm-upload.json");
 
@@ -256,8 +257,7 @@ async function loadConfig({ probe = true } = {}) {
   let config = {};
   let configError = null;
   try {
-    const raw = await readFile(CONFIG_PATH, "utf-8");
-    config = JSON.parse(raw);
+    config = await readDurableJson(CONFIG_PATH);
   } catch (err) {
     config = {};
     // F8-07: a missing config (ENOENT) is the normal first-run state —
@@ -343,10 +343,7 @@ async function loadConfig({ probe = true } = {}) {
   // F8-07: never persist a rebuilt config over an unreadable/malformed file.
   if (!configError) {
     await mkdir(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
-    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), {
-      encoding: "utf-8",
-      mode: 0o600,
-    });
+    await writeDurableJson(CONFIG_PATH, config, { mode: 0o600 });
   }
   return config;
 }

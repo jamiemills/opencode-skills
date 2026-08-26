@@ -18,6 +18,11 @@
       "items": { "$ref": "#/$defs/artifactId" },
       "uniqueItems": true
     },
+    "sourceRunId": { "$ref": "#/$defs/runId" },
+    "fileDigest": { "$ref": "#/$defs/digest" },
+    "payloadDigest": { "$ref": "#/$defs/digest" },
+    "sourceDigest": { "$ref": "#/$defs/digest" },
+    "descriptorDigest": { "$ref": "#/$defs/digest" },
     "rollbackArtifactId": { "$ref": "#/$defs/artifactId" }
   },
   "$defs": {
@@ -26,7 +31,7 @@
     "artifactIdentity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifactId", "kind", "owner", "runId", "digest", "createdAt", "revision"],
+      "required": ["artifactId", "kind", "owner", "runId", "createdAt", "revision"],
       "properties": {
         "artifactId": { "$ref": "#/$defs/artifactId" },
         "kind": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,63}$" },
@@ -36,6 +41,10 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "revision": { "type": "integer", "minimum": 1 }
       }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
     }
   }
 }

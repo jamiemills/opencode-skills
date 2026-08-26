@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import {
   appendLedgerRow,
+  ledgerExists,
   recoverLedger,
   validateLedgerRow,
 } from "../csm-make-tests/lib/ledger.mjs";
@@ -124,4 +125,12 @@ test("ledger refuses an appended identity mutation", async () => {
     () => appendLedgerRow(path, { ...row("cursor"), ledger: { ...ledger(), runId: "run-other" } }),
     { code: "ledger-collision" },
   );
+});
+
+test("ledger existence reports missing and present files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-make-tests-exists-"));
+  const path = join(root, "ledger.jsonl");
+  assert.equal(await ledgerExists(path), false);
+  await writeFile(path, "");
+  assert.equal(await ledgerExists(path), true);
 });

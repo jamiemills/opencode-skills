@@ -6,6 +6,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { buildClaim, buildEvidence } from "./contracts.mjs";
 import { redactEvidenceRecords, redactText } from "./redact.mjs";
 import * as gitProbe from "./git.mjs";
+import { digest, loadSchemaRegistry, parseJson } from "../../../../lib/schema-runtime/index.mjs";
 
 const SKIP_DIRS = new Set([".git", "node_modules", ".venv", "__pycache__", "dist", "build"]);
 const CODE_EXTS = new Set([".mjs", ".js", ".ts", ".py", ".go", ".rs"]);
@@ -120,18 +121,133 @@ function collectSignals(rel, text) {
 
 async function loadNorms(root, normsPath, claims, evidence, makeClaim) {
   const rootPath = resolve(root);
-  const candidate =
-    normsPath === null || normsPath === undefined ? join(rootPath, "NORMS.md") : resolve(normsPath);
+  const rejectSymlinkComponents = async (target) => {
+    let current = rootPath;
+    for (const component of relative(rootPath, target).split(sep).filter(Boolean)) {
+      current = join(current, component);
+      const info = await lstat(current).catch(() => null);
+      if (info?.isSymbolicLink()) throw new Error("explicit norms path must not contain symlinks");
+    }
+  };
   if (normsPath !== null && normsPath !== undefined) {
-    const lexicalRelative = relative(rootPath, candidate);
+    const requested = resolve(normsPath);
+    const lexicalRelative = relative(rootPath, requested);
     if (
       !lexicalRelative ||
       isAbsolute(lexicalRelative) ||
       lexicalRelative === ".." ||
       lexicalRelative.startsWith(`..${sep}`)
-    ) {
+    )
       throw new Error("explicit norms path must be contained in the analyzed repository");
+  }
+  const jsonCandidate =
+    normsPath === null || normsPath === undefined
+      ? join(rootPath, "NORMS.json")
+      : resolve(normsPath);
+  if (normsPath !== null && normsPath !== undefined && /\.json$/i.test(normsPath)) {
+    try {
+      await rejectSymlinkComponents(jsonCandidate);
+      const [realRoot, realCandidate] = await Promise.all([
+        realpath(rootPath),
+        realpath(jsonCandidate),
+      ]);
+      const realRelative = relative(realRoot, realCandidate);
+      if (
+        !realRelative ||
+        isAbsolute(realRelative) ||
+        realRelative === ".." ||
+        realRelative.startsWith(`..${sep}`)
+      )
+        throw new Error("explicit norms path must resolve inside the analyzed repository");
+    } catch (error) {
+      if (
+        error.message.includes("must resolve inside") ||
+        error.message.includes("must not contain symlinks")
+      )
+        throw error;
     }
+  }
+  if (normsPath === null || normsPath === undefined || /\.json$/i.test(normsPath)) {
+    try {
+      const text = await readStableText(jsonCandidate);
+      if (text !== null) {
+        const value = parseJson(text);
+        const registry = await loadSchemaRegistry();
+        const result = registry.validate("csm-envelope/1", value);
+        if (!result.valid)
+          return {
+            loaded: false,
+            authoritative: false,
+            path: relPath(root, jsonCandidate),
+            code: "schema-invalid",
+          };
+        if (value.payloadSchema?.id !== "csm-norms/1" || value.payloadSchema.revision !== 1)
+          return {
+            loaded: false,
+            authoritative: false,
+            path: relPath(root, jsonCandidate),
+            code: "schema-invalid",
+          };
+        const payload = value.payload;
+        const expected = value.artifact.digest;
+        const copy = structuredClone(payload);
+        copy.artifactDigest = null;
+        if (expected !== digest(payload) && expected !== digest(copy))
+          return {
+            loaded: false,
+            authoritative: false,
+            path: relPath(root, jsonCandidate),
+            code: "digest-mismatch",
+          };
+        const id = makeClaim("norms-loaded", {
+          claimKind: "term",
+          status: "observed",
+          subject: "NORMS.json",
+          basis: "static_analysis",
+          confidence: "high",
+          note: "registered csm-norms/1 JSON is authoritative machine input",
+        });
+        evidence.push(
+          buildEvidence({
+            claimId: id,
+            sourceKind: "norms-json",
+            path: relPath(root, jsonCandidate),
+            locator: "file",
+            matchedKey: "csm-norms/1",
+          }),
+        );
+        return {
+          loaded: true,
+          authoritative: true,
+          path: relPath(root, jsonCandidate),
+          schema: "csm-norms/1",
+          owner: value.artifact.owner,
+          runId: value.run.runId,
+          digest: expected,
+        };
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT")
+        return {
+          loaded: false,
+          authoritative: false,
+          path: relPath(root, jsonCandidate),
+          code: error.code ?? "invalid-json",
+        };
+    }
+  }
+  if (normsPath !== null && normsPath !== undefined && /\.md$/i.test(normsPath))
+    return {
+      loaded: false,
+      authoritative: false,
+      historyOnly: true,
+      migrationRequired: true,
+      path: relPath(root, resolve(normsPath)),
+      code: "migration-required",
+    };
+  const candidate =
+    normsPath === null || normsPath === undefined ? join(rootPath, "NORMS.md") : resolve(normsPath);
+  if (normsPath !== null && normsPath !== undefined) {
     try {
       const [realRoot, realCandidate] = await Promise.all([
         realpath(rootPath),
@@ -179,7 +295,13 @@ async function loadNorms(root, normsPath, claims, evidence, makeClaim) {
     }),
   );
   void claims;
-  return { loaded: true, path: relPath(root, candidate), authentic };
+  return {
+    loaded: true,
+    authoritative: false,
+    path: relPath(root, candidate),
+    authentic,
+    historyOnly: true,
+  };
 }
 
 export async function extractRepository(options = {}) {

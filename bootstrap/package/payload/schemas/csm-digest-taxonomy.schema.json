@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-digest-taxonomy/1",
+  "title": "CSM digest taxonomy",
+  "description": "fileDigest is exact serialized bytes; payloadDigest is canonical JSON excluding payloadDigest; sourceDigest is upstream lineage; descriptorDigest is canonical descriptor excluding descriptorDigest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fileDigest", "payloadDigest", "sourceDigest", "descriptorDigest"],
+  "properties": {
+    "fileDigest": { "$ref": "#/$defs/digest" },
+    "payloadDigest": { "$ref": "#/$defs/digest" },
+    "sourceDigest": { "$ref": "#/$defs/digest" },
+    "descriptorDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

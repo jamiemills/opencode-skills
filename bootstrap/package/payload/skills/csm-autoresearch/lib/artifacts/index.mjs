@@ -1,7 +1,7 @@
 "use strict";
 
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readDurableBytes, readDurableJson } from "../../../../lib/durable-json/index.mjs";
 import { isAbsolute } from "node:path";
 import { hash, validateReport, AppendOnlyLedger } from "../ledger/index.mjs";
 
@@ -158,7 +158,7 @@ async function replayLedger(path, runId, provenance = {}) {
 }
 
 async function replayReport(path, runId) {
-  const report = JSON.parse(await readFile(path, "utf8"));
+  const report = await readDurableJson(path);
   return validateReport(report, runId);
 }
 
@@ -171,9 +171,9 @@ async function validateProducerArtifacts({
 }) {
   const native = resolveNativeRunId({ nativeRunId: suppliedNativeRunId, runId });
   const records = await replayLedger(ledgerPath, native);
-  const reportBytes = await readFile(reportPath);
-  const report = validateReport(JSON.parse(reportBytes), native);
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const report = validateReport(await readDurableJson(reportPath), native);
+  const reportBytes = await readDurableBytes(reportPath);
+  const manifest = await readDurableJson(manifestPath);
   if (
     manifest.format !== "csm-autoresearch-manifest/1" ||
     manifest.runId !== native ||
@@ -197,7 +197,7 @@ async function validateProducerArtifacts({
   validateDescriptor(ledgerDescriptor);
   validateDescriptor(reportDescriptor);
   if (
-    ledgerDescriptor.artifact.digest !== digestBytes(await readFile(ledgerPath)) ||
+    ledgerDescriptor.artifact.digest !== digestBytes(await readDurableBytes(ledgerPath)) ||
     reportDescriptor.artifact.digest !== digestBytes(reportBytes) ||
     reportDescriptor.sourceArtifactIds?.[0] !== ledgerDescriptor.artifact.artifactId
   )

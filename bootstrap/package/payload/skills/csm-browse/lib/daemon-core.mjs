@@ -1,10 +1,11 @@
-import { readFile, rename, readdir, unlink, stat } from "node:fs/promises";
+import { rename, readdir, unlink, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { CMD_POLL_INTERVAL_MS, CMD_TIMEOUT_MS } from "./constants.mjs";
 import { listPageTargets } from "./cdp.mjs";
 import { dismissCookies } from "./cookies.mjs";
 import { ensurePrivateDir, secureWrite } from "./security.mjs";
+import { readDurableJson } from "../../../lib/durable-json/index.mjs";
 
 // Accepts both the ts-prefixed form (`<epoch-ms>-<uuid>.json`, written by the
 // record verb) and the legacy bare-UUID form so commands enqueued before an
@@ -54,8 +55,7 @@ async function executeCommand(cmd, client, sessionId, sessionDir) {
     const recorderJsonPath = join(sessionDir, "recorder.json");
     let recorderState = null;
     try {
-      const raw = await readFile(recorderJsonPath, "utf-8");
-      recorderState = JSON.parse(raw);
+      recorderState = await readDurableJson(recorderJsonPath);
     } catch {}
 
     if (recorderState && recorderState.running) {
@@ -165,7 +165,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
       for (const entry of candidates) {
         let ts = "";
         try {
-          const cmd = JSON.parse(await readFile(join(cmdDir, entry), "utf-8"));
+          const cmd = await readDurableJson(join(cmdDir, entry));
           if (typeof cmd.ts === "string") ts = cmd.ts;
         } catch {}
         stamped.push({ entry, ts });
@@ -212,8 +212,7 @@ export async function startQueueLoop(client, sessionId, sessionDir) {
 
         let cmd;
         try {
-          const raw = await readFile(runningPath, "utf-8");
-          cmd = JSON.parse(raw);
+          cmd = await readDurableJson(runningPath);
         } catch {
           const malformed = {
             ok: false,

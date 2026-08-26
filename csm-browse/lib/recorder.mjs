@@ -1,5 +1,5 @@
 import { spawn, execFile as execFileCb } from "node:child_process";
-import { readFile, unlink, stat } from "node:fs/promises";
+import { unlink, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { promisify } from "node:util";
@@ -13,6 +13,7 @@ import {
   SPEED_PRESETS,
 } from "./constants.mjs";
 import { ensurePrivateDir, ensurePrivateFile, secureAppend, secureWrite } from "./security.mjs";
+import { readDurableJson } from "../../lib/durable-json/index.mjs";
 
 const execFile = promisify(execFileCb);
 
@@ -53,7 +54,7 @@ export async function reconcileRecorder(sessionDir) {
   const recorderJsonPath = join(sessionDir, "recorder.json");
   let state;
   try {
-    state = JSON.parse(await readFile(recorderJsonPath, "utf-8"));
+    state = await readDurableJson(recorderJsonPath);
   } catch {
     return null;
   }

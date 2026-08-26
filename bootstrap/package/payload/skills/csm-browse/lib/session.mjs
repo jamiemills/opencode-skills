@@ -1,14 +1,14 @@
-import { readFile, rename, rm, mkdir, chmod } from "node:fs/promises";
+import { rm, mkdir, chmod } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import { readDurableJson, writeDurableJson } from "../../../lib/durable-json/index.mjs";
 import { SID_REGEX, SESSIONS_ROOT } from "./constants.mjs";
 import {
   assertContained,
   assertRuntimeRoot,
   ensurePrivateFile,
   prepareRuntimeRoot,
-  secureWrite,
   validateState,
 } from "./security.mjs";
 
@@ -100,8 +100,7 @@ export async function loadState(sid) {
   const statePath = join(dir, "state.json");
   if (!existsSync(statePath)) return null;
   await ensurePrivateFile(statePath);
-  const raw = await readFile(statePath, "utf-8");
-  return validateState(JSON.parse(raw), sid);
+  return validateState(await readDurableJson(statePath, { root: SESSIONS_ROOT }), sid);
 }
 
 export async function saveState(sid, state) {
@@ -111,9 +110,7 @@ export async function saveState(sid, state) {
   await chmod(dir, 0o700);
   validateState(state, sid);
   const statePath = join(dir, "state.json");
-  const tmpPath = join(dir, `state.json.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
-  await secureWrite(tmpPath, JSON.stringify(state, null, 2), { encoding: "utf-8" });
-  await rename(tmpPath, statePath);
+  await writeDurableJson(statePath, state, { root: SESSIONS_ROOT });
   await chmod(statePath, 0o600);
 }
 

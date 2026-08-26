@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, writeFile, realpath } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { loadSchemaRegistry, digest } from "../../../lib/schema-runtime/index.mjs";
+import { readDurableJson, writeDurableJson } from "../../../lib/durable-json/index.mjs";
 
 const registry = await loadSchemaRegistry();
 
@@ -65,7 +66,7 @@ export async function readPublicationDescriptor(path) {
     );
   let value;
   try {
-    value = JSON.parse(await readFile(path, "utf8"));
+    value = await readDurableJson(path);
   } catch (cause) {
     throw Object.assign(error("json-only", "publication input is not valid JSON"), { cause });
   }
@@ -163,9 +164,5 @@ export async function publishPublicationDescriptor(
 
 export async function writePublicationDescriptor(path, descriptor) {
   validatePublicationDescriptor(descriptor);
-  await writeFile(
-    path,
-    `${JSON.stringify({ ...descriptor, descriptorDigest: digest(descriptor) }, null, 2)}\n`,
-    { mode: 0o600 },
-  );
+  await writeDurableJson(path, { ...descriptor, descriptorDigest: digest(descriptor) });
 }
