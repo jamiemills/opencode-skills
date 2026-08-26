@@ -13,14 +13,14 @@ format: csm-plan/1
 ## Control
 
 - Plan ID: `json-only-rendered-skill-outputs`
-- Status: in_progress
-- Current CSM state: REPAIR
+- Status: complete
+- Current CSM state: COMPLETE
 - Cycle: 15
 - Commits: allowed
-- Last checkpoint: 2026-08-26 T022 shared-resolver cutover, executable consumer replay, bootstrap regeneration, focused tests, formatting, and conformance passed; live E2E and external publication were intentionally not run.
+- Last checkpoint: 2026-08-26 T024 final compatibility, bootstrap, hook, package, and full-suite gates passed; live E2E and external publication were intentionally not run.
 - Last model/run: gpt-5.6-luna build run 2026-08-26, current cycle 15.
-- Next transition: CHECKPOINT -> SELECT
-- Active tasks: T022
+- Next transition: none (terminal)
+- Active tasks: none
 - Blockers: none; T006, T008, and T009 contain implementation-time spikes that must resolve before their dependents can activate.
 - Resume: re-read Last checkpoint, latest journal row, Recovery notes of all non-COMPLETE tasks, Discovered Requirements, and the working-tree diff.
 
@@ -580,7 +580,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
     - Repair attempts: 1
    - Recovery note: If publication validation fails, keep the JSON evidence descriptor and do not push or delete remote content.
 
-22. [in_progress] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
+22. [completed] Enable the final JSON-only machine-consumer cutover and projection rejection guard.
    - Task ID: T022
    - Depends on: T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021
    - Parallel group: G9
@@ -596,7 +596,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
     - Completion evidence: `tests/consumer-replay-matrix.test.mjs` invokes the actual csm-plan, csm-build, and csm-upload resolver entry points for every feasible declared edge; explicit no-runtime-consumer edges test shared-boundary rejection. `lib/artifact-resolver/index.mjs` is used for persisted plan, BDD, test-package, and build input discovery. Bootstrap payload and index were regenerated with `node scripts/pack-bootstrap.mjs`. Focused T022 replay/cutover tests and `make fmt-check` pass.
    - Recovery note: Roll back the resolver default/feature gate only; never delete canonical JSON, projection cache, or legacy history.
 
-23. [pending] Synchronize skill contracts, documentation, generated payloads, indexes, and release metadata.
+23. [completed] Synchronize skill contracts, documentation, generated payloads, indexes, and release metadata.
    - Task ID: T023
    - Depends on: T022
    - Parallel group: G9
@@ -611,7 +611,7 @@ Every durable writer keeps the prior complete artifact until the new JSON artifa
    - Repair attempts: 0
    - Recovery note: If generated parity fails, regenerate from canonical sources; never manually patch the packaged copy.
 
-24. [pending] Establish the final build environment and run compatibility, security, parity, recovery, and full repository gates.
+24. [completed] Establish the final build environment and run compatibility, security, parity, recovery, and full repository gates.
    - Task ID: T024
    - Depends on: T023
    - Parallel group: G9
@@ -822,7 +822,14 @@ Parallel validation is allowed only for tests with disjoint output roots and no 
 | 2026-08-26 | 15 | INTEGRATE -> VERIFY | T023 | Focused JSON cutover/compatibility tests passed (10), `make fmt-check`, `make lint`, `make check` (1193 checks), `make test-suite-tooling` (48), `make test-package-index`, and boilerplate parity passed. | VERIFY |
 | 2026-08-26 | 15 | VERIFY -> REVIEW | T023 | Review scan found no stale authoritative Markdown claims in canonical interfaces, README matrices/deep dives, or generated skill payloads; remaining Markdown references are explicitly labeled history/projection or instruction syntax. | REVIEW |
 | 2026-08-26 | 15 | REVIEW -> CHECKPOINT | T023 | T023 acceptance evidence is complete; T024 is next. No commit/push performed per user request. | CHECKPOINT |
+| 2026-08-26 | 15 | CHECKPOINT -> SELECT | T024 | T023 is complete and committed; final environment, compatibility, parity, recovery, and full-suite verification is ready. | SELECT |
+| 2026-08-26 | 15 | SELECT -> DISPATCH | T024 | Final gates run with Node 22 wrapper where required; live browser/publication checks remain explicitly unavailable. | DISPATCH |
+| 2026-08-26 | 15 | DISPATCH -> INTEGRATE | T024 | Full compatibility, bootstrap, package, protocol, resume, producer, consumer, and repository suites were executed from the committed state. | INTEGRATE |
+| 2026-08-26 | 15 | INTEGRATE -> VERIFY | T024 | `make test` passed 1283/1283; `make check` passed 1193 checks; lint, formatting, hook tests, bootstrap/package gates, and targeted replay suites passed. | VERIFY |
+| 2026-08-26 | 15 | VERIFY -> REVIEW | T024 | Final review residuals are limited to intentionally unavailable live browser E2E and external publication; no material local regression remains. | REVIEW |
+| 2026-08-26 | 15 | REVIEW -> CHECKPOINT | T024 | All numbered tasks are complete and committed; legacy Markdown remains read-only history/instructions, and no external publication or push occurred. | CHECKPOINT |
+| 2026-08-26 | 15 | CHECKPOINT -> COMPLETE | T024 | Final completion gate passed. | COMPLETE |
 
 ## Completion Review
 
-Filled by `csm-build` after all tasks and acceptance evidence are complete. Planning intentionally leaves this section unexecuted.
+All 24 tasks completed across commits `6e3847e` through `1324805`. Durable outputs and machine handoffs now use registered JSON schemas with compatibility and replay coverage; Markdown/HTML remain projections, instructions, or immutable history. Final local evidence: `1283/1283` full tests, `1193` conformance checks, lint, formatting, hooks, bootstrap/package, deterministic, protocol, resume, producer, consumer, DDD, autoresearch, scan, browse, and upload suites passed. Live browser E2E and external GitHub publication were not run by explicit scope and remain residual operational evidence gaps. No push or external mutation was performed.
