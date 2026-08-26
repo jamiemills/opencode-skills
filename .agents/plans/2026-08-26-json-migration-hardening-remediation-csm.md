@@ -128,6 +128,9 @@ New plans must include exactly one fenced JSON applicability record here. The re
 | D4 | The threat model includes hostile same-user concurrency, symlink races, interruption, resource exhaustion, and recovery. | user-confirmed decision | User selected concurrent/crash-hostile hardening during planning. | decided |
 | D5 | Existing migration commits remain the baseline; this plan fixes only assessment findings and evidence gaps. | scope constraint | Assessment and prior completion record. | decided |
 | D6 | Existing live browser/publication success is observed evidence, not a substitute for a retained final receipt. | safety constraint | Assessment R9 and live session result. | decided |
+| D7 | The final receipt records the tested source commit and is committed afterward; its own commit is recorded separately. | planning decision | Avoids circular self-hashing while retaining an immutable receipt. | decided |
+| D8 | Authoritative writes use unique exclusive temporary files, file and directory flush where supported, atomic rename, and explicit recovery evidence. | planning decision | Required by the concurrent/crash-hostile threat model. | decided |
+| D9 | Artifact discovery defaults are depth 8, 256 files, 64 MiB total bytes, 8 MiB per file, 1024 JSONL records, and 8 in-flight reads; breaches fail closed with `resource-limit`. | planning decision | Deterministic bounded policy above normal generated artifacts. | decided |
 
 ## R&D Record
 
@@ -275,7 +278,7 @@ T001-T007 -----------------> T008 final receipt and completion gates
 
 6. [pending] Add bounded artifact discovery and deterministic resource-failure behavior.
    - Task ID: T006
-   - Depends on: T004
+   - Depends on: T004, T005
    - Parallel group: G3
    - Risk: high
    - Owned scope: shared artifact discovery limits, traversal scheduler, capped/unverified result model, and resource-limit tests.
