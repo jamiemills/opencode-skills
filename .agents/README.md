@@ -89,6 +89,9 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-improve-csm-deep-research-skill-research.md` — 2026-08-24 — evidence-backed csm-deep-research improvement research — status: reference
 - `2026-08-24-agent-harness-skills-framework-review-research.md` — 2026-08-24 — agent harness and skills framework comparison with repository remediation findings — status: reference
 - `2026-08-25-repo-issues-deep-research-research.md` — 2026-08-25 — deep hybrid validation of repository hardening and additional security/concurrency issues — status: reference
+- `2026-08-25-agent-friendly-repository-architecture-20260825t220516z-a1b2c3d4e5f6-research.md` — 2026-08-25 — agent-friendly repository architecture research finding — status: reference
+- `2026-08-26-agent-friendly-repository-architecture-20260826t095339z-a1b2c3d4e5f6-research.json` — 2026-08-26 — deeper agent-friendly repository architecture research finding — status: reference
+- `2026-08-26-json-migration-implementation-assessment-research.md` — 2026-08-26 — JSON migration implementation assessment — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-us-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ US creative-assets schema artifact — status: reference

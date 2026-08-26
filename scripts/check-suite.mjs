@@ -306,7 +306,7 @@ function validateResearchReferences(lines, inFence, researchPath, referenceRange
       findings.push(`[${id}] line ${entry.line} has no retrieval date`);
     }
     for (const match of entry.text.matchAll(/file:\/\/\S+/gi)) {
-      const raw = match[0].replace(/[.,;)>]+$/, "");
+      const raw = match[0].replace(/[.,;)>`]+$/, "");
       try {
         const localPath = fileURLToPath(new URL(raw));
         if (!fs.existsSync(localPath)) {
