@@ -123,6 +123,7 @@ still cited (the remediation plan and baselines reference them).
 - `2026-08-23-autoresearch-evaluator-csm-approach.md` — 2026-08-23 — agreed CSM approach for the autoresearch evaluator skill — status: agreed
 - `2026-08-25-json-only-rendered-skill-outputs-approach.md` — 2026-08-25 — agreed suite-wide JSON-only outputs with Markdown/HTML projections — status: agreed
 - `2026-08-26-csm-orchestrate-approach.md` — 2026-08-26 — agreed csm-orchestrate outer-loop approach — status: agreed
+- `2026-08-27-all-skills-config-production-assurance-approach.md` — 2026-08-27 — agreed all-skills configuration and production-assurance approach — status: agreed
 
 ## builds/
 
