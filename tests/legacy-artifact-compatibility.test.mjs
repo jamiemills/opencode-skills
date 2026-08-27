@@ -7,9 +7,14 @@ import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import compatibilityMatrix from "../schemas/compatibility-matrix.json" with { type: "json" };
 import { createCompatibilityRuntime } from "../lib/compatibility-runtime/index.mjs";
+import { ORCHESTRATE_COMPATIBILITY_ADAPTERS } from "../csm-orchestrate/lib/compatibility.mjs";
 
 const schemaRegistry = await loadSchemaRegistry();
-const compatibility = createCompatibilityRuntime({ schemaRegistry, matrix: compatibilityMatrix });
+const compatibility = createCompatibilityRuntime({
+  schemaRegistry,
+  matrix: compatibilityMatrix,
+  adapters: ORCHESTRATE_COMPATIBILITY_ADAPTERS,
+});
 
 test("Markdown is immutable history and returns a migration-required result without parsing", async () => {
   const root = await mkdtemp(join(tmpdir(), "csm-legacy-"));

@@ -2,7 +2,11 @@
 
 import { digest } from "../../../lib/schema-runtime/index.mjs";
 import { compileApproach } from "./phase-compiler.mjs";
-import { createHostInvocationAdapter, validateDurableTerminalRecords } from "./invocation.mjs";
+import {
+  createHostInvocationAdapter,
+  validateDurableTerminalRecords,
+  validateHandoffRef,
+} from "./invocation.mjs";
 import {
   aggregateGates,
   reconcileChildArtifacts,
@@ -15,11 +19,13 @@ import {
 } from "./adversarial-final-review.mjs";
 import {
   classifyResume,
+  classifyConcurrency,
   createParentCursor,
   loadCursor,
   persistTerminalReceipt,
   persistCursor,
   retryDecision,
+  projectChildStatus,
 } from "./recovery.mjs";
 import { assertSchema } from "./contracts.mjs";
 
@@ -35,6 +41,10 @@ const slug = (value) =>
       : `${normalized.slice(0, 98)}-${digest(normalized).slice(7, 19)}`;
   })();
 const unique = (values) => [...new Set(values.filter(Boolean))];
+const invocationApproval = (approval) =>
+  approval?.schema === "csm-orchestrate-approval/1"
+    ? { ...approval, schema: "csm-orchestrate-approval/2" }
+    : approval;
 const receiptApproval = (approval) =>
   approval && Array.isArray(approval.scope) && typeof approval.approvalId === "string"
     ? {
@@ -57,7 +67,7 @@ function terminalReceipt(
   extra = {},
 ) {
   return Object.freeze({
-    schema: "csm-orchestrate-receipt/1",
+    schema: "csm-orchestrate-receipt/2",
     receiptId: `receipt-${slug(runId)}-${slug(phaseId)}`,
     runId,
     phaseId,
@@ -72,7 +82,7 @@ function terminalReceipt(
     },
     statuses: {
       route: status === "BLOCKED" || status === "REFUSED" ? "blocked" : "complete",
-      child: childReceipts.some((item) => item.status === "failed") ? "failed" : "completed",
+      child: projectChildStatus(childReceipts),
       artifact: childReceipts.length ? "completed" : "none",
       verification:
         status === "VERIFIED" ? "verified" : status === "INCOMPLETE" ? "incomplete" : "rejected",
@@ -100,7 +110,7 @@ function childReceipt(result, node, childRunId) {
   };
 }
 
-function normalizeEvidence(result, node, childRunId, requirementIds) {
+function normalizeEvidence(result, node, childRunId) {
   return (result?.evidence ?? []).map((item) => {
     if (item.runId !== childRunId || item.owner !== node.skill)
       throw new TypeError("child evidence identity does not match invocation");
@@ -111,13 +121,78 @@ function normalizeEvidence(result, node, childRunId, requirementIds) {
       status: item.status ?? "current",
       owner: item.owner,
       runId: item.runId,
-      requirementIds: unique([...(item.requirementIds ?? []), ...requirementIds]),
+      ...(item.requirementIds ? { requirementIds: unique(item.requirementIds) } : {}),
     };
   });
 }
 
 function defaultGate(result, kind) {
   return result?.[kind] ?? [];
+}
+
+function upstreamRefsFor(node, phase, outputsByNode) {
+  return phase.handoffEdges
+    .filter((edge) => edge.consumerNodeId === node.nodeId)
+    .flatMap((edge) => {
+      const refs = outputsByNode.get(edge.producerNodeId) ?? [];
+      const compatible = refs.filter(
+        (ref) =>
+          ref.outputName === edge.producerOutput &&
+          !validateHandoffRef(ref, {
+            owner: edge.producerSkill,
+            schema: edge.schema,
+            schemaRevision: edge.schemaRevision,
+          }),
+      );
+      if (!compatible.length) throw new TypeError(`missing compatible handoff for ${edge.edgeId}`);
+      return compatible.map(({ outputName: _outputName, ...ref }) => ref);
+    });
+}
+
+async function externalRefsFor(node, refs, artifactResolver, schemaRegistry) {
+  const relevant = refs.filter((ref) =>
+    node.inputs.some(
+      (input) =>
+        (ref.inputName ?? ref.name) === input.name &&
+        (ref.kind ?? "artifact") === input.kind &&
+        (!input.schema || ref.schema === input.schema),
+    ),
+  );
+  for (const ref of relevant) {
+    const input = node.inputs.find(
+      (candidate) =>
+        (ref.inputName ?? ref.name) === candidate.name &&
+        (ref.kind ?? "artifact") === candidate.kind &&
+        (!candidate.schema || ref.schema === candidate.schema),
+    );
+    const error = validateHandoffRef(ref, {
+      owner: ref.sourceOwner,
+      runId: ref.sourceRunId,
+      artifactId: ref.sourceArtifactId,
+      schema: input.schema ?? undefined,
+      schemaRevision: input.schemaRevision ?? undefined,
+    });
+    if (error)
+      throw new TypeError(`invalid external input ${ref.sourceArtifactId ?? ref.name}: ${error}`);
+    if (!schemaRegistry?.resolve || !artifactResolver?.resolve)
+      throw new TypeError("resolver-backed external inputs are required");
+    schemaRegistry.resolve(ref.schema, ref.schemaRevision);
+    const resolved = await artifactResolver.resolve(ref.path, {
+      expectedOwner: ref.sourceOwner,
+      expectedSourceRunId: ref.sourceRunId,
+      expectedArtifactId: ref.sourceArtifactId,
+      expectedFileDigest: ref.digest,
+    });
+    if (
+      resolved?.status !== "resolved" ||
+      resolved.owner !== ref.sourceOwner ||
+      resolved.fileDigest !== ref.digest ||
+      resolved.value?.artifactId !== ref.sourceArtifactId ||
+      resolved.value?.sourceRunId !== ref.sourceRunId
+    )
+      throw new TypeError(`external input resolver identity mismatch: ${ref.sourceArtifactId}`);
+  }
+  return relevant;
 }
 
 async function reconcileResult(result, node, childRunId, artifactResolver, schemaRegistry) {
@@ -136,6 +211,7 @@ async function reconcileResult(result, node, childRunId, artifactResolver, schem
         sourceRunId: item.sourceRunId ?? item.runId,
         fileDigest: item.source?.digest ?? item.digest,
         requirementIds: item.requirementIds,
+        ...(item.acceptanceSignalId ? { acceptanceSignalId: item.acceptanceSignalId } : {}),
       })),
     );
   const resolver = artifactResolver;
@@ -189,7 +265,19 @@ async function reconcileResult(result, node, childRunId, artifactResolver, schem
   });
 }
 
-async function saveCursor({ runId, phase, node, childRunId, attempt, state, store, now }) {
+async function saveCursor({
+  runId,
+  phase,
+  node,
+  childRunId,
+  attempt,
+  state,
+  store,
+  now,
+  approval,
+  idempotencyKey,
+  terminalIntent,
+}) {
   if (!store) return;
   await persistCursor(
     createParentCursor({
@@ -203,7 +291,19 @@ async function saveCursor({ runId, phase, node, childRunId, attempt, state, stor
         state === "dispatching" ? "selected" : state === "validated" ? "collecting" : state,
       checkpointState: state === "validated" ? "validated" : "saved",
       attempt,
-      idempotencyKey: phase.idempotency.key,
+      idempotencyKey: idempotencyKey ?? phase.idempotency.key,
+      ...(approval
+        ? {
+            approvalBinding: {
+              approvalId: approval.approvalId,
+              parentRunId: runId,
+              childRunId,
+              phaseId: phase.phaseId,
+              edgeId: `edge-${slug(node?.nodeId ?? "phase")}`,
+            },
+          }
+        : {}),
+      ...(terminalIntent ? { terminalIntent } : {}),
       updatedAt: new Date(now()).toISOString(),
     }),
     store,
@@ -257,395 +357,695 @@ async function runOrchestrationInternal({
     parentPhaseId,
     phaseIdOverride,
   });
-  const adapter = createHostInvocationAdapter({ host, capabilities, now });
+  const adapter = createHostInvocationAdapter({
+    host,
+    capabilities,
+    artifactResolver,
+    schemaRegistry,
+    now,
+  });
   const childReceipts = [];
   const allEvidence = [];
   const phaseResults = [];
   const completedNodeIds = new Set();
+  const validatedOutputs = new Map();
   let activeGraph = graph;
   let terminalApproval = null;
+  let phaseIndex = 0;
+  const reviewIds = [];
+  const remediationLineage = [];
+  const receiptExtensions = () => ({
+    schema: "csm-orchestrate-receipt-extension/2",
+    graphRevision: activeGraph.graphRevision,
+    phaseSummaries: phaseResults.map(({ phase, gate, review }) => ({
+      phaseId: phase.phaseId,
+      parentPhaseId: phase.parentPhaseId,
+      graphRevision: phase.graphRevision,
+      gateStatus: gate.status,
+      reviewStatus: review.status,
+    })),
+    remediationLineage,
+    reviewIds: unique(reviewIds),
+    evidenceRefs: unique(allEvidence.map((item) => item.evidenceId)),
+    acceptanceRefs: unique([
+      ...allEvidence.map((item) => item.evidenceId),
+      ...phaseResults.flatMap(({ phase }) => phase.requirementIds),
+    ]),
+    childReceipts: [...childReceipts],
+    sourceLineage: allEvidence.map((item) => item.source).filter(Boolean),
+    phaseContracts: phaseResults.map(({ phase }) => phase),
+    phaseResults: phaseResults.map(({ gate, review }) => ({ gate, review })),
+  });
 
-  for (let index = 0; index < activeGraph.phases.length; index += 1) {
-    const phase = activeGraph.phases[index];
-    let phaseEvidence = [];
-    let phaseTechnical = [];
-    let phaseFunctional = [];
-    let phaseFailure = null;
-    for (const node of phase.routeNodes) {
-      const cursorId = `cursor-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.nodeId)}`;
-      const savedCursor = await loadCursor(cursorId, cursorStore, {
-        runId,
-        phaseId: phase.phaseId,
-        routeNodeId: node.nodeId,
-        edgeId: `edge-${slug(node.nodeId)}`,
-      });
-      const childRunId =
-        savedCursor?.childRunId ??
-        `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}`;
-      const terminalRecords =
-        typeof cursorStore.loadTerminalRecords === "function"
-          ? await cursorStore.loadTerminalRecords(childRunId)
-          : [];
-      const approval =
-        typeof approvals === "function"
-          ? await approvals({ phase, node, childRunId })
-          : (approvals?.[node.skill] ?? approvals);
-      terminalApproval = approval;
-      const request = {
-        schema: "csm-orchestrate-invocation/1",
-        invocationId: `invocation-${slug(childRunId)}`,
-        parentRunId: runId,
-        childRunId,
-        phaseId: phase.phaseId,
-        edgeId: `edge-${slug(node.nodeId)}`,
-        skill: node.skill,
-        skillDigest: node.capabilityDigest,
-        inputArtifactRefs,
-        outputArtifactRefs: [],
-        permissions: node.approvalScope.length ? node.approvalScope : ["read"],
-        approval,
-        timeoutMs,
-        cancellation: { requested: false },
-        retry: { attempt: 0, idempotencyKey: `${phase.idempotency.key}:${node.nodeId}` },
-        status: "ready",
+  while (true) {
+    while (phaseIndex < activeGraph.phases.length) {
+      const index = phaseIndex;
+      phaseIndex += 1;
+      const phase = activeGraph.phases[index];
+      let phaseEvidence = [];
+      let phaseTechnical = [];
+      let phaseFunctional = [];
+      let phaseFailure = null;
+      const executeNode = async (node) => {
+        const cursorId = `cursor-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.nodeId)}`;
+        const savedCursor = await loadCursor(cursorId, cursorStore, {
+          runId,
+          phaseId: phase.phaseId,
+          routeNodeId: node.nodeId,
+          edgeId: `edge-${slug(node.nodeId)}`,
+        });
+        const childRunId =
+          savedCursor?.childRunId ??
+          `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}`;
+        const terminalRecords =
+          typeof cursorStore.loadTerminalRecords === "function"
+            ? await cursorStore.loadTerminalRecords(childRunId)
+            : [];
+        const approval =
+          typeof approvals === "function"
+            ? await approvals({ phase, node, childRunId })
+            : (approvals?.[node.skill] ?? approvals);
+        let upstreamArtifactRefs;
+        let nodeInputArtifactRefs;
+        try {
+          upstreamArtifactRefs = upstreamRefsFor(node, phase, validatedOutputs);
+          nodeInputArtifactRefs = await externalRefsFor(
+            node,
+            inputArtifactRefs,
+            artifactResolver,
+            schemaRegistry,
+          );
+        } catch (error) {
+          return {
+            node,
+            approval,
+            failure: {
+              status: "blocked",
+              failure: {
+                class: "policy",
+                code: "invalid-upstream-handoff",
+                message: error.message,
+              },
+            },
+          };
+        }
+        const request = {
+          schema: "csm-orchestrate-invocation/2",
+          invocationId: `invocation-${slug(childRunId)}`,
+          parentRunId: runId,
+          childRunId,
+          phaseId: phase.phaseId,
+          edgeId: `edge-${slug(node.nodeId)}`,
+          skill: node.skill,
+          skillDigest: node.capabilityDigest,
+          inputArtifactRefs: nodeInputArtifactRefs,
+          upstreamArtifactRefs,
+          acceptanceSignalIds: phase.acceptanceSignalIds,
+          outputArtifactRefs: [],
+          permissions: node.approvalScope.length ? node.approvalScope : ["read"],
+          approval: invocationApproval(approval),
+          timeoutMs,
+          cancellation: { requested: false },
+          retry: {
+            attempt: savedCursor?.attempt ?? 0,
+            idempotencyKey:
+              savedCursor?.idempotencyKey ?? `${phase.idempotency.key}:${node.nodeId}`,
+          },
+          status: "ready",
+        };
+        const durableError = await validateDurableTerminalRecords(terminalRecords, request);
+        if (durableError)
+          return {
+            node,
+            approval,
+            failure: {
+              status: "blocked",
+              failure: {
+                class: "policy",
+                code: "invalid-durable-terminal-child",
+                message: durableError,
+              },
+            },
+          };
+        const resume = savedCursor
+          ? classifyResume({ cursor: savedCursor, phase, child: node, terminalRecords })
+          : { action: "restart", reason: "no-cursor" };
+        if (["blocked"].includes(resume.action))
+          return {
+            node,
+            approval,
+            failure: { status: "blocked", failure: { class: "policy", code: resume.reason } },
+          };
+        await saveCursor({
+          runId,
+          phase,
+          node,
+          childRunId,
+          attempt: 0,
+          state: "dispatching",
+          store: cursorStore,
+          now,
+          approval,
+        });
+        let result =
+          resume.action === "reconcile"
+            ? terminalRecords.find((record) => record.status === "completed")?.result
+            : null;
+        if (!result && resume.action === "reconcile")
+          return {
+            node,
+            approval,
+            failure: {
+              status: "incomplete",
+              failure: { class: "missing", code: "terminal-child-result-missing" },
+            },
+          };
+        result ??= await adapter.invoke(request);
+        let attempt = savedCursor?.attempt ?? 0;
+        let invocationChildRunId = childRunId;
+        while (result.status === "failed" || result.status === "incomplete") {
+          const decision = retryDecision({
+            failure: result.failure,
+            attempt,
+            maxAttempts,
+            retryability: node.sideEffects.every((effect) => effect === "read-only")
+              ? "safe"
+              : "bounded",
+            idempotencyMode: node.idempotency.mode,
+            sideEffects: node.sideEffects,
+          });
+          if (decision.action !== "retry") break;
+          attempt = decision.nextAttempt;
+          const retryChild = `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}-${attempt}`;
+          const retryApproval =
+            typeof approvals === "function"
+              ? await approvals({ phase, node, childRunId: retryChild, attempt })
+              : (approvals?.[node.skill] ?? approvals);
+          const retryIdempotencyKey = `${phase.idempotency.key}:${node.nodeId}:${attempt}`;
+          await saveCursor({
+            runId,
+            phase,
+            node,
+            childRunId: retryChild,
+            attempt,
+            state: "dispatching",
+            store: cursorStore,
+            now,
+            approval: invocationApproval(retryApproval),
+            idempotencyKey: retryIdempotencyKey,
+            terminalIntent: {
+              state: "retry-selected",
+              childRunId: retryChild,
+              attempt,
+              idempotencyKey: retryIdempotencyKey,
+            },
+          });
+          result = await adapter.invoke({
+            ...request,
+            childRunId: retryChild,
+            invocationId: `invocation-${slug(retryChild)}`,
+            approval: invocationApproval(retryApproval),
+            retry: {
+              attempt,
+              idempotencyKey: retryIdempotencyKey,
+            },
+          });
+          invocationChildRunId = retryChild;
+          terminalApproval = retryApproval;
+        }
+        const receipt = childReceipt(result, node, invocationChildRunId);
+        let failure =
+          result.status === "completed" && !receipt
+            ? { status: "blocked", failure: { class: "policy", code: "child-identity-mismatch" } }
+            : result.status === "completed"
+              ? null
+              : result;
+        const evidence = normalizeEvidence(result, node, invocationChildRunId);
+        let outputRefs = [];
+        if (result.status === "completed") {
+          try {
+            outputRefs = (result.outputArtifactRefs ?? []).map((ref) => {
+              const declared = node.outputs.find(
+                (output) =>
+                  output.name === (ref.outputName ?? ref.name) && output.kind === ref.kind,
+              );
+              if (!declared) throw new TypeError("undeclared child output ref");
+              const error = validateHandoffRef(ref, {
+                owner: node.skill,
+                runId: invocationChildRunId,
+                schema: declared.schema,
+                schemaRevision: declared.schemaRevision,
+              });
+              if (error) throw new TypeError(error);
+              return { ...ref, outputName: ref.outputName ?? ref.name };
+            });
+          } catch (error) {
+            failure = {
+              status: "blocked",
+              failure: { class: "policy", code: "undeclared-child-output", message: error.message },
+            };
+          }
+        }
+        const reconciliation =
+          result.status === "completed" && !failure
+            ? await reconcileResult(
+                result,
+                node,
+                invocationChildRunId,
+                artifactResolver,
+                schemaRegistry,
+              )
+            : { evidence: [], failures: [] };
+        if (reconciliation.failures.length)
+          failure = { status: "incomplete", failure: reconciliation.failures[0] };
+        const technical = [
+          ...(technicalGate
+            ? await technicalGate({ phase, node, result })
+            : defaultGate(result, "technical")),
+        ];
+        const functional = [
+          ...(functionalGate
+            ? await functionalGate({ phase, node, result })
+            : defaultGate(result, "functional")),
+        ];
+        const reconciledEvidence = reconciliation.evidence ?? [];
+        if (!failure && result.status === "completed")
+          await saveCursor({
+            runId,
+            phase,
+            node,
+            childRunId: invocationChildRunId,
+            attempt,
+            state: "validated",
+            store: cursorStore,
+            now,
+          });
+        return {
+          node,
+          approval,
+          result,
+          receipt,
+          evidence: [...evidence, ...reconciledEvidence],
+          technical,
+          functional,
+          outputRefs,
+          failure,
+        };
       };
-      const durableError = await validateDurableTerminalRecords(terminalRecords, request);
-      if (durableError)
-        return terminalReceipt(runId, phase.phaseId, null, "BLOCKED", childReceipts, [], {
-          reason: "invalid-durable-terminal-child",
-          detail: durableError,
-        });
-      const resume = savedCursor
-        ? classifyResume({ cursor: savedCursor, phase, child: node, terminalRecords })
-        : { action: "restart", reason: "no-cursor" };
-      if (["blocked"].includes(resume.action))
-        return terminalReceipt(runId, phase.phaseId, null, "BLOCKED", childReceipts, [], {
-          reason: resume.reason,
-        });
-      if ((node.dependencies ?? []).some((dependency) => !completedNodeIds.has(dependency)))
-        return terminalReceipt(runId, phase.phaseId, null, "BLOCKED", childReceipts, [], {
-          reason: "route-dependency-incomplete",
-        });
-      await saveCursor({
+      const pending = new Map(phase.routeNodes.map((node) => [node.nodeId, node]));
+      while (pending.size && !phaseFailure) {
+        const ready = [...pending.values()]
+          .filter((node) =>
+            (node.dependencies ?? []).every((dependency) => completedNodeIds.has(dependency)),
+          )
+          .toSorted((a, b) => a.ordering - b.ordering);
+        if (!ready.length) {
+          phaseFailure = {
+            status: "blocked",
+            failure: { class: "policy", code: "route-dependency-incomplete" },
+          };
+          break;
+        }
+        const concurrency = classifyConcurrency(ready);
+        const batch =
+          concurrency.mode === "parallel-independent-read-only"
+            ? ready.slice(0, 4)
+            : ready.slice(0, 1);
+        const results = (await Promise.all(batch.map(executeNode))).toSorted(
+          (a, b) => a.node.ordering - b.node.ordering,
+        );
+        for (const item of results) {
+          pending.delete(item.node.nodeId);
+          terminalApproval = item.approval;
+          if (item.receipt) childReceipts.push(item.receipt);
+          phaseEvidence.push(...(item.evidence ?? []));
+          phaseTechnical.push(...(item.technical ?? []));
+          phaseFunctional.push(...(item.functional ?? []));
+          if (!item.failure && item.result?.status === "completed") {
+            completedNodeIds.add(item.node.nodeId);
+            validatedOutputs.set(item.node.nodeId, item.outputRefs);
+          } else if (!phaseFailure) {
+            phaseFailure = item.failure ?? item.result;
+          }
+        }
+      }
+      allEvidence.push(...phaseEvidence);
+      const ledger = {
+        schema: "csm-orchestrate-requirement/2",
+        ledgerId: `ledger-${slug(runId)}-${slug(phase.phaseId)}`,
+        requirements: phase.requirementIds.map((requirementId) => ({
+          requirementId,
+          criticality: "critical",
+          statement: phase.acceptanceSignals.join("; "),
+          acceptanceSignalIds: [...phase.acceptanceSignalIds],
+          status: "open",
+          evidenceRefs: phaseEvidence
+            .filter((item) => item.requirementIds?.includes(requirementId))
+            .map((item) => ({
+              evidenceId: item.evidenceId,
+              kind: item.kind,
+              requirementId,
+              status: item.status === "current" ? "available" : item.status,
+              digest: item.digest,
+              ...(item.acceptanceSignalId ? { acceptanceSignalId: item.acceptanceSignalId } : {}),
+            })),
+        })),
+      };
+      const requirementResult = reconcileRequirementEvidence(
+        ledger,
+        {
+          evidence: phaseEvidence,
+          failures: phaseFailure
+            ? [phaseFailure.failure]
+                .filter(Boolean)
+                .map((item) =>
+                  [
+                    "missing",
+                    "stale",
+                    "contradicted",
+                    "unavailable",
+                    "infrastructure",
+                    "technical",
+                    "functional",
+                    "policy",
+                  ].includes(item.class)
+                    ? item
+                    : { ...item, class: "infrastructure" },
+                )
+            : [],
+        },
+        { now: now() },
+      );
+      const requirements = requirementResult.requirements;
+      const gate = aggregateGates({
         runId,
-        phase,
-        node,
-        childRunId,
-        attempt: 0,
-        state: "dispatching",
-        store: cursorStore,
-        now,
+        phaseId: phase.phaseId,
+        technical: phaseTechnical,
+        functional: phaseFunctional,
+        evidence: phaseEvidence,
+        requirementResult,
       });
-      let result =
-        resume.action === "reconcile"
-          ? terminalRecords.find((record) => record.status === "completed")?.result
-          : null;
-      if (!result && resume.action === "reconcile")
+      await assertSchema("csm-orchestrate-gate/1", gate);
+      const review = adversarialReview
+        ? await adversarialReview({ phase, evidence: phaseEvidence, gate, childReceipts })
+        : reviewAcceptance({
+            runId,
+            requirements,
+            claims: phaseEvidence.map((item) => ({
+              ...(item.requirementIds ? { requirementIds: item.requirementIds } : {}),
+              evidenceRefs: [
+                {
+                  evidenceId: item.evidenceId,
+                  ...(item.acceptanceSignalId
+                    ? { acceptanceSignalId: item.acceptanceSignalId }
+                    : {}),
+                },
+              ],
+            })),
+            evidence: phaseEvidence,
+            technical: phaseTechnical,
+            functional: phaseFunctional,
+            completion: !phaseFailure && gate.status === "VERIFIED",
+          });
+      await assertSchema("csm-orchestrate-adversarial-review/2", review);
+      phaseResults.push({ phase, gate, review });
+      if (review?.reviewId) reviewIds.push(review.reviewId);
+      if (phaseFailure)
         return terminalReceipt(
           runId,
           phase.phaseId,
           terminalApproval,
-          "INCOMPLETE",
+          phaseFailure.status === "blocked"
+            ? "BLOCKED"
+            : phaseFailure.status === "incomplete"
+              ? "INCOMPLETE"
+              : "FAILED",
           childReceipts,
-          [],
+          phaseEvidence.map((item) => item.evidenceId),
           {
-            reason: "terminal-child-result-missing",
+            gate,
+            review,
+            reason: phaseFailure.failure?.code ?? "child-failure",
+            extensions: receiptExtensions(),
           },
         );
-      result ??= await adapter.invoke(request);
-      let attempt = savedCursor?.attempt ?? 0;
-      let invocationChildRunId = childRunId;
-      while (result.status === "failed" || result.status === "incomplete") {
-        const decision = retryDecision({
-          failure: result.failure,
-          attempt,
-          maxAttempts,
-          retryability: node.sideEffects.every((effect) => effect === "read-only")
-            ? "safe"
-            : "bounded",
-          idempotencyMode: node.idempotency.mode,
-          sideEffects: node.sideEffects,
-        });
-        if (decision.action !== "retry") break;
-        attempt = decision.nextAttempt;
-        const retryChild = `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}-${attempt}`;
-        const retryApproval =
-          typeof approvals === "function"
-            ? await approvals({ phase, node, childRunId: retryChild, attempt })
-            : (approvals?.[node.skill] ?? approvals);
-        result = await adapter.invoke({
-          ...request,
-          childRunId: retryChild,
-          invocationId: `invocation-${slug(retryChild)}`,
-          approval: retryApproval,
-          retry: { attempt, idempotencyKey: `${phase.idempotency.key}:${node.nodeId}:${attempt}` },
-        });
-        invocationChildRunId = retryChild;
-        terminalApproval = retryApproval;
-      }
-      const receipt = childReceipt(result, node, invocationChildRunId);
-      if (result.status === "completed" && !receipt)
-        phaseFailure = {
-          status: "blocked",
-          failure: { class: "policy", code: "child-identity-mismatch" },
-        };
-      if (receipt) childReceipts.push(receipt);
-      phaseEvidence.push(
-        ...normalizeEvidence(result, node, invocationChildRunId, phase.requirementIds),
-      );
-      if (result.status === "completed") {
-        const reconciliation = await reconcileResult(
-          result,
-          node,
-          invocationChildRunId,
-          artifactResolver,
-          schemaRegistry,
-        );
-        if (reconciliation.failures.length)
-          phaseFailure = { status: "incomplete", failure: reconciliation.failures[0] };
-        phaseEvidence.push(
-          ...reconciliation.evidence.filter(
-            (item) => !phaseEvidence.some((existing) => existing.evidenceId === item.evidenceId),
-          ),
-        );
-      }
-      phaseTechnical.push(
-        ...(technicalGate
-          ? await technicalGate({ phase, node, result })
-          : defaultGate(result, "technical")),
-      );
-      phaseFunctional.push(
-        ...(functionalGate
-          ? await functionalGate({ phase, node, result })
-          : defaultGate(result, "functional")),
-      );
-      if (result.status !== "completed") {
-        phaseFailure = result;
-        break;
-      }
-      completedNodeIds.add(node.nodeId);
-      await saveCursor({
-        runId,
-        phase,
-        node,
-        childRunId: invocationChildRunId,
-        attempt,
-        state: "validated",
-        store: cursorStore,
-        now,
-      });
-    }
-    allEvidence.push(...phaseEvidence);
-    const ledger = {
-      schema: "csm-orchestrate-requirement/1",
-      ledgerId: `ledger-${slug(runId)}-${slug(phase.phaseId)}`,
-      requirements: phase.requirementIds.map((requirementId) => ({
-        requirementId,
-        criticality: "critical",
-        statement: phase.acceptanceSignals.join("; "),
-        status: "open",
-        evidenceRefs: phaseEvidence.map((item) => ({
-          evidenceId: item.evidenceId,
-          kind: item.kind,
-          status: item.status === "current" ? "available" : item.status,
-          digest: item.digest,
-        })),
-      })),
-    };
-    const requirementResult = reconcileRequirementEvidence(
-      ledger,
-      {
-        evidence: phaseEvidence,
-        failures: phaseFailure
-          ? [phaseFailure.failure]
-              .filter(Boolean)
-              .map((item) =>
-                [
-                  "missing",
-                  "stale",
-                  "contradicted",
-                  "unavailable",
-                  "infrastructure",
-                  "technical",
-                  "functional",
-                  "policy",
-                ].includes(item.class)
-                  ? item
-                  : { ...item, class: "infrastructure" },
-              )
-          : [],
-      },
-      { now: now() },
-    );
-    const requirements = requirementResult.requirements;
-    const gate = aggregateGates({
-      runId,
-      phaseId: phase.phaseId,
-      technical: phaseTechnical,
-      functional: phaseFunctional,
-      evidence: phaseEvidence,
-      requirementResult,
-    });
-    await assertSchema("csm-orchestrate-gate/1", gate);
-    const review = adversarialReview
-      ? await adversarialReview({ phase, evidence: phaseEvidence, gate, childReceipts })
-      : reviewAcceptance({
+      if (gate.status !== "VERIFIED" || review.status !== "ACCEPTED")
+        return terminalReceipt(
           runId,
-          requirements,
-          claims: phaseEvidence.map((item) => ({
-            requirementIds: item.requirementIds,
-            evidenceRefs: [item.evidenceId],
-          })),
-          evidence: phaseEvidence,
-          technical: phaseTechnical,
-          functional: phaseFunctional,
-          completion: !phaseFailure && gate.status === "VERIFIED",
-        });
-    await assertSchema("csm-orchestrate-adversarial-review/1", review);
-    phaseResults.push({ phase, gate, review });
-    if (phaseFailure)
-      return terminalReceipt(
-        runId,
-        phase.phaseId,
-        terminalApproval,
-        phaseFailure.status === "blocked"
-          ? "BLOCKED"
-          : phaseFailure.status === "incomplete"
-            ? "INCOMPLETE"
-            : "FAILED",
-        childReceipts,
-        phaseEvidence.map((item) => item.evidenceId),
-        { gate, review },
-      );
-    if (gate.status !== "VERIFIED" || review.status !== "ACCEPTED")
-      return terminalReceipt(
-        runId,
-        phase.phaseId,
-        terminalApproval,
-        gate.status === "BLOCKED" ? "BLOCKED" : gate.status === "FAILED" ? "FAILED" : "INCOMPLETE",
-        childReceipts,
-        phaseEvidence.map((item) => item.evidenceId),
-        { gate, review },
-      );
-  }
+          phase.phaseId,
+          terminalApproval,
+          gate.status === "BLOCKED"
+            ? "BLOCKED"
+            : gate.status === "FAILED"
+              ? "FAILED"
+              : "INCOMPLETE",
+          childReceipts,
+          phaseEvidence.map((item) => item.evidenceId),
+          { gate, review, extensions: receiptExtensions() },
+        );
+    }
 
-  if (!finalReview)
-    return terminalReceipt(
-      runId,
-      phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
-      terminalApproval,
-      "REQUIRES_REVIEW",
-      childReceipts,
-      allEvidence.map((item) => item.evidenceId),
-      { reason: "independent-final-review-required", phases: phaseResults },
-    );
-  const final = finalReview
-    ? await finalReview({
-        phase: phaseResults.at(-1)?.phase,
-        graph: activeGraph,
-        phaseResults,
-        evidence: allEvidence,
-        childReceipts,
-      })
-    : null;
-  await assertSchema("csm-orchestrate-adversarial-review/1", final);
-  if (finalReview && final.status === "ACCEPTED") {
-    const contextual = validateInjectedFinalReview({
-      review: final,
-      runId,
-      phaseResults,
-      evidence: allEvidence,
-    });
-    if (!contextual.valid)
+    if (!finalReview && typeof host.invokeReview !== "function")
       return terminalReceipt(
         runId,
         phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
         terminalApproval,
-        "BLOCKED",
+        "REQUIRES_REVIEW",
+        childReceipts,
+        allEvidence.map((item) => item.evidenceId),
+        { reason: "independent-final-review-required", phases: phaseResults },
+      );
+    const reviewInvocation = {
+      parentRunId: runId,
+      phase: phaseResults.at(-1)?.phase,
+      phaseId: phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+      edgeId: "edge-final-review",
+      graphRevision: activeGraph.graphRevision,
+      phaseResults,
+      evidence: allEvidence,
+      childReceipts,
+    };
+    const hostReview =
+      typeof adapter.invokeReview === "function"
+        ? await adapter.invokeReview(reviewInvocation)
+        : null;
+    if (hostReview?.status === "completed" && hostReview.review) {
+      const final = hostReview.review;
+      await assertSchema("csm-orchestrate-adversarial-review/2", final);
+      if (final?.reviewId) reviewIds.push(final.reviewId);
+      const coordinated = coordinateFinalReview({
+        graph: activeGraph,
+        review: final,
+        remediation: remediationFactory
+          ? await remediationFactory({ graph: activeGraph, review: final, phaseResults })
+          : null,
+        completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
+      });
+      await assertSchema("csm-orchestrate-final-review/2", coordinated);
+      if (coordinated.status === "REMEDIATION_REQUIRED") {
+        const rawRemediation = coordinated.graph.phases.at(-1);
+        const remediationGraph = await compileApproach(
+          {
+            schema: "csm-approach/1",
+            schemaRevision: 1,
+            status: "agreed",
+            runId,
+            ideaSlug: "remediation",
+            phases: [
+              {
+                phaseId: "P1",
+                title: rawRemediation.outcome?.title ?? "Remediate review finding",
+                goal: rawRemediation.outcome?.goal ?? rawRemediation.acceptanceSignals.join("; "),
+                deliverables: rawRemediation.outcome?.deliverables ?? ["review gap closed"],
+                scope: rawRemediation.scope?.include ?? ["declared review gap"],
+                outOfScope: rawRemediation.scope?.exclude ?? [],
+                constraints: [],
+                acceptanceHints: rawRemediation.acceptanceSignals,
+                context: [],
+                dependencies: [],
+              },
+            ],
+          },
+          {
+            capabilities,
+            signals: { ...signals, capabilities: [rawRemediation.route] },
+            graphRevision: coordinated.graph.graphRevision,
+            parentPhaseId: rawRemediation.parentPhaseId,
+            phaseIdOverride: rawRemediation.phaseId,
+          },
+        );
+        activeGraph = {
+          ...coordinated.graph,
+          phases: [
+            ...coordinated.graph.phases.slice(0, -1),
+            Object.freeze({
+              ...rawRemediation,
+              ...remediationGraph.phases[0],
+              graphRevision: rawRemediation.graphRevision,
+              parentPhaseId: rawRemediation.parentPhaseId,
+              insertion: rawRemediation.insertion,
+              requirementDelta: rawRemediation.requirementDelta,
+              reviewFindings: rawRemediation.reviewFindings,
+              sourceReviewId: rawRemediation.sourceReviewId,
+              acceptanceContract: rawRemediation.acceptanceContract,
+            }),
+          ],
+        };
+        const remediationPhase = activeGraph.phases.at(-1);
+        remediationLineage.push({
+          sourceReviewId: remediationPhase.sourceReviewId,
+          findings: remediationPhase.reviewFindings,
+          requirementDelta: remediationPhase.requirementDelta,
+          phaseId: remediationPhase.phaseId,
+          parentPhaseId: remediationPhase.parentPhaseId,
+          acceptanceContract: remediationPhase.acceptanceContract,
+        });
+        continue;
+      }
+      return terminalReceipt(
+        runId,
+        activeGraph.phases.at(-1).phaseId,
+        terminalApproval,
+        coordinated.status,
         childReceipts,
         allEvidence.map((item) => item.evidenceId),
         {
-          reason: "untrusted-final-review",
-          reviewFailures: contextual.failures,
+          finalReview: coordinated.finalReview,
+          phases: phaseResults,
+          extensions: receiptExtensions(),
         },
       );
-  }
-  const coordinated = coordinateFinalReview({
-    graph: activeGraph,
-    review: final,
-    remediation: remediationFactory
-      ? await remediationFactory({ graph: activeGraph, review: final, phaseResults })
-      : null,
-    completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
-    injected: Boolean(finalReview),
-  });
-  await assertSchema("csm-orchestrate-final-review/1", coordinated);
-  if (coordinated.status === "REMEDIATION_REQUIRED") {
-    activeGraph = coordinated.graph;
-    const remediationPhase = activeGraph.phases.at(-1);
-    const remediationReceipt = await runOrchestrationInternal({
-      approach: {
-        schema: "csm-approach/1",
-        schemaRevision: 1,
-        status: "agreed",
+    }
+    const final = finalReview
+      ? await finalReview({
+          phase: phaseResults.at(-1)?.phase,
+          graph: activeGraph,
+          phaseResults,
+          evidence: allEvidence,
+          childReceipts,
+        })
+      : null;
+    if (!final)
+      return terminalReceipt(
         runId,
-        ideaSlug: "remediation",
-        phases: [
+        phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+        terminalApproval,
+        "INCOMPLETE",
+        childReceipts,
+        allEvidence.map((item) => item.evidenceId),
+        { reason: "invalid-final-review" },
+      );
+    await assertSchema("csm-orchestrate-adversarial-review/2", final);
+    if (final?.reviewId) reviewIds.push(final.reviewId);
+    if (finalReview && final.status === "ACCEPTED") {
+      const contextual = validateInjectedFinalReview({
+        review: final,
+        runId,
+        phaseResults,
+        evidence: allEvidence,
+      });
+      if (!contextual.valid)
+        return terminalReceipt(
+          runId,
+          phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+          terminalApproval,
+          "BLOCKED",
+          childReceipts,
+          allEvidence.map((item) => item.evidenceId),
           {
-            phaseId: "P1",
-            title: remediationPhase.outcome?.title ?? "Remediate review finding",
-            goal: remediationPhase.outcome?.goal ?? remediationPhase.acceptanceSignals.join("; "),
-            deliverables: remediationPhase.outcome?.deliverables ?? ["review gap closed"],
-            scope: remediationPhase.scope?.include ?? ["declared review gap"],
-            outOfScope: remediationPhase.scope?.exclude ?? [],
-            constraints: [],
-            acceptanceHints: remediationPhase.acceptanceSignals,
-            context: [],
-            dependencies: [],
+            reason: "untrusted-final-review",
+            reviewFailures: contextual.failures,
           },
-        ],
-      },
-      runId,
-      host,
-      capabilities,
-      signals: { ...signals, capabilities: [remediationPhase.route] },
-      approvals,
-      now,
-      cursorStore,
-      technicalGate,
-      functionalGate,
-      adversarialReview,
-      finalReview,
-      remediationFactory: null,
-      maxAttempts,
-      timeoutMs,
-      inputArtifactRefs,
-      artifactResolver,
-      schemaRegistry,
-      parentPhaseId: remediationPhase.parentPhaseId,
-      phaseIdOverride: remediationPhase.phaseId,
+        );
+    }
+    const coordinated = coordinateFinalReview({
+      graph: activeGraph,
+      review: final,
+      remediation: remediationFactory
+        ? await remediationFactory({ graph: activeGraph, review: final, phaseResults })
+        : null,
+      completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
+      injected: Boolean(finalReview),
     });
-    return Object.freeze({
-      ...remediationReceipt,
-      remediationLineage: {
+    await assertSchema("csm-orchestrate-final-review/2", coordinated);
+    if (coordinated.status === "REMEDIATION_REQUIRED") {
+      const rawRemediation = coordinated.graph.phases.at(-1);
+      const remediationGraph = await compileApproach(
+        {
+          schema: "csm-approach/1",
+          schemaRevision: 1,
+          status: "agreed",
+          runId,
+          ideaSlug: "remediation",
+          phases: [
+            {
+              phaseId: "P1",
+              title: coordinated.graph.phases.at(-1).outcome?.title ?? "Remediate review finding",
+              goal:
+                coordinated.graph.phases.at(-1).outcome?.goal ??
+                coordinated.graph.phases.at(-1).acceptanceSignals.join("; "),
+              deliverables: coordinated.graph.phases.at(-1).outcome?.deliverables ?? [
+                "review gap closed",
+              ],
+              scope: coordinated.graph.phases.at(-1).scope?.include ?? ["declared review gap"],
+              outOfScope: coordinated.graph.phases.at(-1).scope?.exclude ?? [],
+              constraints: [],
+              acceptanceHints: coordinated.graph.phases.at(-1).acceptanceSignals,
+              context: [],
+              dependencies: [],
+            },
+          ],
+        },
+        {
+          capabilities,
+          signals: { ...signals, capabilities: [coordinated.graph.phases.at(-1).route] },
+          graphRevision: coordinated.graph.graphRevision,
+          parentPhaseId: coordinated.graph.phases.at(-1).parentPhaseId,
+          phaseIdOverride: coordinated.graph.phases.at(-1).phaseId,
+        },
+      );
+      activeGraph = {
+        ...coordinated.graph,
+        phases: [
+          ...coordinated.graph.phases.slice(0, -1),
+          Object.freeze({
+            ...rawRemediation,
+            ...remediationGraph.phases[0],
+            graphRevision: rawRemediation.graphRevision,
+            parentPhaseId: rawRemediation.parentPhaseId,
+            insertion: rawRemediation.insertion,
+            requirementDelta: rawRemediation.requirementDelta,
+            reviewFindings: rawRemediation.reviewFindings,
+            sourceReviewId: rawRemediation.sourceReviewId,
+            acceptanceContract: rawRemediation.acceptanceContract,
+          }),
+        ],
+      };
+      const remediationPhase = activeGraph.phases.at(-1);
+      remediationLineage.push({
         sourceReviewId: remediationPhase.sourceReviewId,
         findings: remediationPhase.reviewFindings,
         requirementDelta: remediationPhase.requirementDelta,
         phaseId: remediationPhase.phaseId,
         parentPhaseId: remediationPhase.parentPhaseId,
         acceptanceContract: remediationPhase.acceptanceContract,
+      });
+      continue;
+    }
+    return terminalReceipt(
+      runId,
+      activeGraph.phases.at(-1).phaseId,
+      terminalApproval,
+      coordinated.status,
+      childReceipts,
+      allEvidence.map((item) => item.evidenceId),
+      {
+        finalReview: coordinated.finalReview,
+        phases: phaseResults,
+        extensions: receiptExtensions(),
       },
-    });
+    );
   }
-  return terminalReceipt(
-    runId,
-    activeGraph.phases.at(-1).phaseId,
-    terminalApproval,
-    coordinated.status,
-    childReceipts,
-    allEvidence.map((item) => item.evidenceId),
-    { finalReview: coordinated.finalReview, phases: phaseResults },
-  );
 }
 
 export async function orchestrate(options) {
@@ -655,13 +1055,22 @@ export async function orchestrate(options) {
     receiptId: result.receiptId,
     runId: result.runId,
     phaseId: result.phaseId,
-    childReceipts: result.childReceipts,
+    childReceipts: [...(result.childReceipts ?? [])],
     approval: result.approval,
     statuses: result.statuses,
     outcome: result.outcome,
     idempotencyKey: result.idempotencyKey,
+    ...(result.extensions
+      ? {
+          extensions: {
+            ...result.extensions,
+            phaseResults: result.phases ?? [],
+            finalReview: result.finalReview ?? null,
+          },
+        }
+      : {}),
   };
-  await assertSchema("csm-orchestrate-receipt/1", durable);
+  await assertSchema("csm-orchestrate-receipt/2", durable);
   if (options?.cursorStore?.saveTerminalReceipt)
     await persistTerminalReceipt(durable, options.cursorStore);
   return result;

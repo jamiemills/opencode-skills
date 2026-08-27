@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { digest } from "../lib/schema-runtime/index.mjs";
 import { loadCapabilities, SUPPORTED_SKILLS } from "../csm-orchestrate/lib/capabilities.mjs";
@@ -44,6 +47,8 @@ function fixture({ outcome = {}, evidence = true } = {}) {
             owner: request.skill,
             runId: request.childRunId,
             digest: `sha256:${"a".repeat(64)}`,
+            requirementIds: ["req-e2e-p1", "req-remediation-p1"],
+            acceptanceSignalId: request.acceptanceSignalIds?.[0],
             source: {
               path: `fixture-${calls}.json`,
               artifactId: `art-result-${calls}`,
@@ -75,7 +80,17 @@ function fixture({ outcome = {}, evidence = true } = {}) {
       };
     },
     artifactResolver: {
-      async resolve(path) {
+      async resolve(path, expected = {}) {
+        if (path.startsWith("review-"))
+          return {
+            status: "resolved",
+            owner: expected.expectedOwner,
+            fileDigest: expected.expectedFileDigest,
+            value: {
+              artifactId: expected.expectedArtifactId,
+              sourceRunId: expected.expectedSourceRunId,
+            },
+          };
         const item = artifacts.get(path);
         if (!item)
           return { status: "missing", code: "missing", message: `missing artifact: ${path}` };
@@ -114,58 +129,126 @@ async function approvalFor({ phase, node, childRunId }) {
   };
 }
 
-const options = async (host, extra = {}) => ({
-  approach: approach(),
+const defaultReview = async ({ phaseResults, evidence }) => ({
+  schema: "csm-orchestrate-adversarial-review/1",
+  reviewId: "review-e2e-final",
   runId,
-  host,
-  capabilities: await loadCapabilities(),
-  signals: { capabilities: ["csm-build"], inputs: ["plan"] },
-  approvals: approvalFor,
-  now: () => new Date("2026-08-27T12:00:00Z"),
-  cursorStore: {
-    cursors: new Map(),
-    async saveCursor(cursor) {
-      this.cursors.set(cursor.cursorId, cursor);
-    },
-    async loadCursor(cursorId) {
-      return this.cursors.get(cursorId) ?? null;
-    },
-  },
-  artifactResolver: host.artifactResolver,
-  schemaRegistry: {
-    resolve() {},
-    validate() {
-      return { valid: true, errors: [] };
+  status: "ACCEPTED",
+  independent: true,
+  provenance: {
+    mode: "host-backed",
+    reviewer: "csm-test-host",
+    owner: "csm-test-host",
+    reviewerChildRunId: "run-review-e2e",
+    receipt: { digest: `sha256:${"c".repeat(64)}` },
+    artifact: { digest: `sha256:${"d".repeat(64)}` },
+    approval: {
+      approvalId: "approval-review-e2e",
+      edgeId: "edge-review-e2e",
+      parentRunId: runId,
+      reviewerChildRunId: "run-review-e2e",
     },
   },
-  finalReview: async ({ phaseResults, evidence }) => ({
-    schema: "csm-orchestrate-adversarial-review/1",
-    reviewId: "review-e2e-final",
-    runId,
-    status: "ACCEPTED",
-    independent: true,
-    requirementCoverage: phaseResults.flatMap(({ phase }) =>
-      phase.requirementIds.map((requirementId) => ({
-        requirementId,
-        evidenceRefs: evidence
-          .filter(
-            (item) => item.requirementIds?.includes(requirementId) && item.status === "current",
-          )
-          .map((item) => item.evidenceId),
-      })),
-    ),
-    evidenceEntailment: "supported",
-    technical: [{ status: "pass" }],
-    functional: [{ status: "pass" }],
-    findings: [],
-  }),
-  ...extra,
+  requirementCoverage: phaseResults.flatMap(({ phase }) =>
+    phase.requirementIds.map((requirementId) => ({
+      requirementId,
+      evidenceRefs: evidence
+        .filter((item) => item.requirementIds?.includes(requirementId) && item.status === "current")
+        .map((item) => item.evidenceId),
+    })),
+  ),
+  evidenceEntailment: "supported",
+  technical: [{ status: "pass" }],
+  functional: [{ status: "pass" }],
+  findings: [],
 });
+
+const options = async (host, extra = {}) => {
+  const reviewProvider = Object.hasOwn(extra, "finalReview") ? extra.finalReview : defaultReview;
+  const reviewHost =
+    reviewProvider && extra.hostReview !== false
+      ? {
+          ...host,
+          async invokeReview(request) {
+            const review = await reviewProvider(request);
+            review.schema = "csm-orchestrate-adversarial-review/2";
+            review.phaseId = request.phaseId;
+            review.provenance = {
+              ...review.provenance,
+              receipt: {
+                artifactId: "art-review-receipt",
+                runId: review.provenance.reviewerChildRunId,
+                digest: review.provenance.receipt?.digest ?? `sha256:${"c".repeat(64)}`,
+                owner: review.provenance.owner,
+                schema: "csm-review-receipt/1",
+                path: "review-receipt.json",
+                resolution: "fixture",
+              },
+              artifact: {
+                artifactId: "art-review",
+                runId: review.provenance.reviewerChildRunId,
+                digest: review.provenance.artifact?.digest ?? `sha256:${"d".repeat(64)}`,
+                owner: review.provenance.owner,
+                schema: "csm-review/1",
+                path: "review-artifact.json",
+                resolution: "fixture",
+              },
+              approval: {
+                ...review.provenance.approval,
+                phaseId: request.phaseId,
+                edgeId: request.edgeId,
+                parentRunId: runId,
+                reviewerChildRunId: review.provenance.reviewerChildRunId,
+                approvedDigest: review.provenance.artifact?.digest ?? `sha256:${"d".repeat(64)}`,
+              },
+            };
+            return {
+              review,
+              reviewReceipt: review.provenance.receipt,
+              reviewArtifact: review.provenance.artifact,
+            };
+          },
+        }
+      : host;
+  return {
+    approach: approach(),
+    runId,
+    host: reviewHost,
+    capabilities: await loadCapabilities(),
+    signals: { capabilities: ["csm-build"], inputs: ["plan"] },
+    approvals: approvalFor,
+    now: () => new Date("2026-08-27T12:00:00Z"),
+    cursorStore: {
+      cursors: new Map(),
+      async saveCursor(cursor) {
+        this.cursors.set(cursor.cursorId, cursor);
+      },
+      async loadCursor(cursorId) {
+        return this.cursors.get(cursorId) ?? null;
+      },
+    },
+    artifactResolver: host.artifactResolver,
+    schemaRegistry: {
+      resolve() {},
+      validate() {
+        return { valid: true, errors: [] };
+      },
+    },
+    ...extra,
+    finalReview: extra.hostReview === false ? extra.finalReview : undefined,
+  };
+};
 
 test("one-shot asks produce a verified final receipt", async () => {
   const result = await orchestrate(await options(fixture()));
   assert.equal(result.finalReview?.status, "ACCEPTED", JSON.stringify(result));
   assert.equal(result.outcome.status, "VERIFIED");
+  assert.deepEqual(
+    result.extensions.phaseSummaries.map((phase) => phase.phaseId),
+    ["phase-e2e-p1"],
+  );
+  assert.equal(result.extensions.graphRevision, 1);
+  assert.ok(result.extensions.reviewIds.includes("review-e2e-final"));
   assert.equal(result.outcome.accepted, true);
 });
 
@@ -176,10 +259,92 @@ test("normal completion without an independent final review requires review", as
   assert.equal(result.reason, "independent-final-review-required");
 });
 
+test("caller-supplied host provenance cannot create VERIFIED without host invocation", async () => {
+  const result = await orchestrate(
+    await options(fixture(), {
+      finalReview: async () => ({
+        schema: "csm-orchestrate-adversarial-review/2",
+        reviewId: "review-forged",
+        runId,
+        status: "ACCEPTED",
+        independent: true,
+        provenance: {
+          mode: "host-backed",
+          reviewer: "forged",
+          owner: "csm-review",
+          reviewerChildRunId: "run-review-forged",
+          receipt: { artifactId: "forged", runId, digest: `sha256:${"a".repeat(64)}` },
+          artifact: { artifactId: "forged", runId, digest: `sha256:${"a".repeat(64)}` },
+          approval: {
+            approvalId: "approval-forged",
+            edgeId: "edge-final-review",
+            parentRunId: runId,
+            reviewerChildRunId: "run-review-forged",
+            phaseId: "phase-e2e-p1",
+            approvedDigest: `sha256:${"a".repeat(64)}`,
+          },
+        },
+        requirementCoverage: [],
+        evidenceEntailment: "supported",
+        technical: [{ status: "pass" }],
+        functional: [{ status: "pass" }],
+        findings: [],
+      }),
+    }),
+  );
+  assert.notEqual(result.outcome.status, "VERIFIED");
+});
+
 test("conditional routing invokes only the declared route", async () => {
   const host = fixture();
   await orchestrate(await options(host));
   assert.equal(host.calls, 1);
+});
+
+test("unrelated external artifact refs are excluded from each node request", async () => {
+  const base = fixture();
+  const requests = [];
+  const host = {
+    async invokeSiblingSkill(request, context) {
+      requests.push(request);
+      return base.invokeSiblingSkill(request, context);
+    },
+  };
+  const external = {
+    name: "plan",
+    kind: "artifact",
+    artifactId: "artifact-plan",
+    sourceOwner: "csm-plan",
+    sourceRunId: "run-external-plan",
+    sourceArtifactId: "artifact-plan",
+    schema: "csm-plan/1",
+    schemaRevision: 1,
+    path: "external-plan.json",
+    resolution: "fixture",
+    digest: `sha256:${"e".repeat(64)}`,
+  };
+  const result = await orchestrate(
+    await options(host, {
+      inputArtifactRefs: [external, { ...external, name: "unrelated", sourceArtifactId: "other" }],
+      artifactResolver: {
+        async resolve(path, expected) {
+          if (path !== external.path && !path.startsWith("review-"))
+            return base.artifactResolver.resolve(path, expected);
+          return {
+            status: "resolved",
+            owner: expected.expectedOwner,
+            fileDigest: expected.expectedFileDigest,
+            value: {
+              artifactId: expected.expectedArtifactId,
+              sourceRunId: expected.expectedSourceRunId,
+            },
+          };
+        },
+      },
+    }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
+  assert.deepEqual(requests[0].inputArtifactRefs, [external]);
 });
 
 test("conditional all-skill routing remains declared and ordered", async () => {
@@ -225,6 +390,20 @@ test("final review can create a bounded remediation phase", async () => {
               runId,
               status: "ACCEPTED",
               independent: true,
+              provenance: {
+                mode: "host-backed",
+                reviewer: "csm-test-host",
+                owner: "csm-test-host",
+                reviewerChildRunId: "run-review-remediation",
+                receipt: { digest: `sha256:${"c".repeat(64)}` },
+                artifact: { digest: `sha256:${"d".repeat(64)}` },
+                approval: {
+                  approvalId: "approval-review-remediation",
+                  edgeId: "edge-review-remediation",
+                  parentRunId: runId,
+                  reviewerChildRunId: "run-review-remediation",
+                },
+              },
               requirementCoverage: phaseResults.flatMap(({ phase: resultPhase }) =>
                 resultPhase.requirementIds.map((requirementId) => ({
                   requirementId,
@@ -244,6 +423,20 @@ test("final review can create a bounded remediation phase", async () => {
               runId,
               status: "REJECTED",
               independent: true,
+              provenance: {
+                mode: "host-backed",
+                reviewer: "csm-test-host",
+                owner: "csm-test-host",
+                reviewerChildRunId: "run-review-initial",
+                receipt: { digest: `sha256:${"c".repeat(64)}` },
+                artifact: { digest: `sha256:${"d".repeat(64)}` },
+                approval: {
+                  approvalId: "approval-review-initial",
+                  edgeId: "edge-review-initial",
+                  parentRunId: runId,
+                  reviewerChildRunId: "run-review-initial",
+                },
+              },
               findings: [{ code: "gap", severity: "high" }],
             },
       remediationFactory: async ({ graph }) => ({
@@ -263,6 +456,14 @@ test("final review can create a bounded remediation phase", async () => {
     }),
   );
   assert.equal(result.outcome.status, "VERIFIED");
+  assert.deepEqual(
+    result.extensions.phaseSummaries.map((phase) => phase.phaseId),
+    ["phase-e2e-p1", "phase-remediation-e2e"],
+  );
+  assert.equal(result.extensions.remediationLineage[0].sourceReviewId, "review-initial-e2e");
+  assert.ok(result.extensions.reviewIds.includes("review-initial-e2e"));
+  assert.ok(result.extensions.reviewIds.includes("review-remediation-e2e"));
+  assert.ok(result.extensions.childReceipts.length >= 2);
 });
 
 test("transport interruption retries with a new child identity", async () => {
@@ -280,7 +481,7 @@ test("transport interruption retries with a new child identity", async () => {
   const result = await orchestrate(
     await options(host, { artifactResolver: base.artifactResolver }),
   );
-  assert.equal(result.outcome.status, "VERIFIED");
+  assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
 });
 
 test("approval denial and host absence fail closed", async () => {
@@ -380,4 +581,97 @@ test("receipt IDs remain deterministic for a fixed fixture", async () => {
   const second = await orchestrate(await options(fixture()));
   assert.equal(first.receiptId, second.receiptId);
   assert.equal(digest(first.outcome), digest(second.outcome));
+});
+
+test("dependency-ready read-only nodes overlap but never exceed four", async () => {
+  const base = fixture();
+  const selected = ["csm-ddd", "csm-deep-research", "csm-review", "csm-review-python", "csm-scan"];
+  const directory = await mkdtemp(join(tmpdir(), "csm-orchestrate-cursors-"));
+  const cursorStore = {
+    async saveCursor(cursor) {
+      await writeFile(join(directory, cursor.cursorId), JSON.stringify(cursor));
+    },
+    async loadCursor(cursorId) {
+      try {
+        return JSON.parse(await readFile(join(directory, cursorId), "utf8"));
+      } catch (error) {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      }
+    },
+  };
+  let active = 0;
+  let maximum = 0;
+  const started = [];
+  const host = {
+    artifactResolver: base.artifactResolver,
+    async invokeSiblingSkill(request) {
+      started.push(request.skill);
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      active -= 1;
+      return base.invokeSiblingSkill(request);
+    },
+  };
+  try {
+    const result = await orchestrate(
+      await options(host, {
+        cursorStore,
+        signals: { capabilities: selected, inputs: ["plan", "research question"] },
+      }),
+    );
+    assert.equal(result.outcome.status, "VERIFIED");
+    assert.ok(maximum > 1);
+    assert.ok(maximum <= 4);
+    assert.equal(started.length, selected.length);
+    assert.deepEqual(
+      result.childReceipts.map((receipt) => receipt.owner),
+      selected,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("a read-only failure stops later batches and retains running outcomes", async () => {
+  const base = fixture();
+  const selected = ["csm-ddd", "csm-deep-research", "csm-review", "csm-review-python", "csm-scan"];
+  const calls = [];
+  const host = {
+    artifactResolver: base.artifactResolver,
+    async invokeSiblingSkill(request) {
+      calls.push(request.skill);
+      if (request.skill === "csm-review")
+        return {
+          status: "failed",
+          failure: { class: "child", code: "fixture-failure" },
+          technical: [],
+          functional: [],
+          evidence: [],
+          childReceipt: {
+            receiptId: "receipt-child-failure",
+            schema: "csm-fixture-receipt/1",
+            runId: request.childRunId,
+            digest: `sha256:${"b".repeat(64)}`,
+            owner: request.skill,
+            status: "failed",
+          },
+        };
+      return base.invokeSiblingSkill(request);
+    },
+  };
+  const result = await orchestrate(
+    await options(host, {
+      maxAttempts: 0,
+      signals: { capabilities: selected, inputs: ["plan", "research question"] },
+    }),
+  );
+  assert.equal(result.outcome.status, "FAILED");
+  assert.equal(calls.length, 4);
+  assert.ok(!calls.includes("csm-scan"));
+  assert.deepEqual(
+    result.childReceipts.map((receipt) => receipt.owner),
+    selected.slice(0, 4).filter((skill) => skill !== "csm-review"),
+  );
 });

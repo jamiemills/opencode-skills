@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createHostInvocationAdapter } from "../csm-orchestrate/lib/invocation.mjs";
+import {
+  createHostInvocationAdapter,
+  validateHandoffRef,
+} from "../csm-orchestrate/lib/invocation.mjs";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const capabilities = { skills: [{ skill: "csm-build", digest }] };
@@ -162,4 +165,76 @@ test("unknown and rejected child statuses fail closed", async () => {
     ).failure.code,
     "invalid-child-result",
   );
+});
+
+test("typed upstream handoffs reject incomplete and identity-mismatched refs before dispatch", async () => {
+  const ref = {
+    sourceOwner: "csm-build",
+    sourceRunId: "run-upstream-20260827",
+    sourceArtifactId: "artifact-plan",
+    schema: "csm-plan/1",
+    schemaRevision: 1,
+    path: "plans/plan.json",
+    resolution: "sha256:resolution",
+    digest,
+  };
+  assert.equal(validateHandoffRef(ref, { owner: "csm-build", runId: ref.sourceRunId }), null);
+  assert.equal(
+    validateHandoffRef({ ...ref, sourceOwner: "csm-review" }, { owner: "csm-build" }),
+    "handoff source owner mismatch",
+  );
+  assert.equal(
+    validateHandoffRef({ ...ref, digest: `sha256:${"b".repeat(64)}` }, { digest }),
+    "handoff digest mismatch",
+  );
+  let calls = 0;
+  const adapter = createHostInvocationAdapter({
+    ...adapterOptions({
+      invokeSiblingSkill: async (_request) => {
+        calls += 1;
+        return { status: "completed" };
+      },
+    }),
+  });
+  const result = await adapter.invoke(
+    base({ upstreamArtifactRefs: [{ ...ref, digest: "not-a-digest" }] }),
+  );
+  assert.equal(result.failure.code, "invalid-invocation");
+  assert.equal(calls, 0);
+});
+
+test("review provenance cannot be forged through the host review boundary", async () => {
+  const adapter = createHostInvocationAdapter({
+    ...adapterOptions({
+      invokeReview: async () => ({
+        review: {
+          runId: "run-parent-20260827",
+          phaseId: "phase-test",
+          status: "ACCEPTED",
+          provenance: {
+            mode: "host-backed",
+            reviewer: "forged-reviewer",
+            owner: "csm-review",
+            reviewerChildRunId: "run-parent-20260827",
+            receipt: { artifactId: "forged", runId: "run-parent-20260827", digest },
+            artifact: { artifactId: "forged", runId: "run-parent-20260827", digest },
+            approval: {
+              approvalId: "approval-forged",
+              edgeId: "edge-test",
+              parentRunId: "run-parent-20260827",
+              reviewerChildRunId: "run-parent-20260827",
+              phaseId: "phase-test",
+              approvedDigest: digest,
+            },
+          },
+        },
+      }),
+    }),
+  });
+  const result = await adapter.invokeReview({
+    parentRunId: "run-parent-20260827",
+    phaseId: "phase-test",
+    edgeId: "edge-test",
+  });
+  assert.equal(result.failure.code, "invalid-review-provenance");
 });

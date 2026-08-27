@@ -3,6 +3,7 @@ import { createSchemaValidator, parseJson } from "../../lib/schema-runtime/index
 
 const SCHEMA_FILES = [
   "approval.schema.json",
+  "approval.v2.schema.json",
   "invocation.schema.json",
   "receipt.schema.json",
   "evidence.schema.json",
@@ -12,6 +13,14 @@ const SCHEMA_FILES = [
   "phase.schema.json",
   "requirement.schema.json",
   "cursor.schema.json",
+  "invocation.v2.schema.json",
+  "receipt.v2.schema.json",
+  "evidence.v2.schema.json",
+  "adversarial-review.v2.schema.json",
+  "phase.v2.schema.json",
+  "requirement.v2.schema.json",
+  "final-review.v2.schema.json",
+  "cursor.v2.schema.json",
 ];
 let validatorPromise;
 
@@ -23,13 +32,29 @@ export async function orchestrateValidator() {
   ).then((schemas) => {
     const byId = new Map(schemas.map((schema) => [schema.$id, schema]));
     for (const schema of schemas) {
-      if (schema.$id === "csm-orchestrate-invocation/1") {
-        const approval = { ...byId.get("csm-orchestrate-approval/1") };
+      if (
+        schema.$id === "csm-orchestrate-invocation/1" ||
+        schema.$id === "csm-orchestrate-invocation/2"
+      ) {
+        const approval = {
+          ...byId.get(
+            schema.$id.endsWith("/2") ? "csm-orchestrate-approval/2" : "csm-orchestrate-approval/1",
+          ),
+        };
         delete approval.$id;
         schema.properties.approval = approval;
       }
-      if (schema.$id === "csm-orchestrate-final-review/1") {
-        const review = { ...byId.get("csm-orchestrate-adversarial-review/1") };
+      if (
+        schema.$id === "csm-orchestrate-final-review/1" ||
+        schema.$id === "csm-orchestrate-final-review/2"
+      ) {
+        const review = {
+          ...byId.get(
+            schema.$id.endsWith("/2")
+              ? "csm-orchestrate-adversarial-review/2"
+              : "csm-orchestrate-adversarial-review/1",
+          ),
+        };
         delete review.$id;
         schema.properties.finalReview = review;
       }

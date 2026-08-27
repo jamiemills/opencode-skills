@@ -39,6 +39,26 @@ test("foundation mapping generates byte-identical canonical/bootstrap files and 
   }
 });
 
+test("committed csm-orchestrate payload mirrors canonical source and registry entries", async () => {
+  const entries = (await expandMapping()).filter(({ dest }) =>
+    dest.startsWith("payload/skills/csm-orchestrate/"),
+  );
+  const index = JSON.parse(await readFile(join(root, "bootstrap", "payload-index.json"), "utf8"));
+  const indexed = new Map(
+    [...Object.values(index.classes).flat(), index.fixedBin].map((entry) => [entry.path, entry]),
+  );
+
+  assert.ok(entries.length > 0);
+  for (const entry of entries) {
+    const canonical = payloadData(await readFile(join(root, entry.src)), entry.dest);
+    const committed = await readFile(join(root, "bootstrap", "package", entry.dest));
+    const indexedEntry = indexed.get(entry.dest.replaceAll("\\", "/"));
+    assert.deepEqual(committed, canonical, entry.dest);
+    assert.equal(sha256(committed), indexedEntry?.sha256, entry.dest);
+    assert.equal(committed.length, indexedEntry?.bytes, entry.dest);
+  }
+});
+
 test("isolated packaging preserves the canonical bootstrap manifest and fixed binary", async () => {
   const outputRoot = await mkdtemp(join(tmpdir(), "csm-bootstrap-input-parity-"));
   try {

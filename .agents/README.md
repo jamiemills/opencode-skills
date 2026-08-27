@@ -52,6 +52,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-26-json-migration-hardening-remediation-csm.md` — 2026-08-26 — harden JSON migration consumer edges, integrity, concurrency, and final evidence — status: in progress
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 - `2026-08-27-csm-orchestrate-csm.json` — 2026-08-27 — implement csm-orchestrate outer-loop controller — status: ready
+- `2026-08-27-csm-orchestrate-remediation-csm.json` — 2026-08-27 — remediate csm-orchestrate approach-review findings — status: complete
 
 ## docs/
 
@@ -73,6 +74,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-23-skills-review.md` — 2026-08-23 — comprehensive skills-suite review — status: reference
 - `2026-08-24-opencode-skills-review.md` — 2026-08-24 — parallel full static review of skills, runtime, packaging, README, and release surfaces — status: reference
 - `2026-08-25-opencode-skills-review.md` — 2026-08-25 — full static hardening review of skills, runtime, packaging, README, and release surfaces — status: reference
+- `2026-08-27-csm-orchestrate-approach-review-20260827t130000z-a1b2c3d4e5f6-review.json` — 2026-08-27 — focused csm-orchestrate approach-fidelity and remediation review — status: complete
 
 ## research/
 
@@ -96,6 +98,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-26-csm-orchestrate-skill-architecture-20260826t180032z-a1b2c3d4e5f6-research.json` — 2026-08-26 — csm-orchestrate skill architecture research finding — status: reference
 - `2026-08-26-csm-orchestrate-adversarial-assurance-20260826t200041z-a1b2c3d4e5f6-research.json` — 2026-08-26 — csm-orchestrate adversarial assurance research finding — status: reference
 - `2026-08-27-csm-orchestrate-approach-review-20260827t055059z-a1b2c3d4e5f6-research.json` — 2026-08-27 — csm-orchestrate approach review finding — status: reference
+- `2026-08-27-claude-code-dynamic-workflows-oss-expansion-20260827t130000z-e3f4a5b6c7d8-research.json` — 2026-08-27 — Claude Code dynamic workflows OSS expansion research — status: reference
+- `2026-08-27-claude-code-dynamic-workflows-skills-20260827t120000z-d7e8f9a0b1c2-research.json` — 2026-08-27 — Claude Code dynamic workflows skills research — status: reference
 - `2026-08-26-json-migration-implementation-assessment-research.md` — 2026-08-26 — JSON migration implementation assessment — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
@@ -119,6 +123,11 @@ still cited (the remediation plan and baselines reference them).
 - `2026-08-23-autoresearch-evaluator-csm-approach.md` — 2026-08-23 — agreed CSM approach for the autoresearch evaluator skill — status: agreed
 - `2026-08-25-json-only-rendered-skill-outputs-approach.md` — 2026-08-25 — agreed suite-wide JSON-only outputs with Markdown/HTML projections — status: agreed
 - `2026-08-26-csm-orchestrate-approach.md` — 2026-08-26 — agreed csm-orchestrate outer-loop approach — status: agreed
+
+## builds/
+
+- `2026-08-27-csm-orchestrate-remediation-build.json` — 2026-08-27 — execute csm-orchestrate remediation plan — status: complete
+
 ## ddd/
 
 - `2026-08-23-opencode-skills-ddd-report.md` — 2026-08-23 — csm-ddd self-analysis of this repository — status: complete

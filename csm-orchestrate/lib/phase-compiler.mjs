@@ -16,6 +16,14 @@ const slug = (value) =>
       : `${normalized.slice(0, 98)}-${digest(normalized).slice(7, 19)}`;
   })();
 const unique = (values) => [...new Set(values)];
+const signalId = (phaseId, signal) => `sig-${slug(phaseId)}-${digest(String(signal)).slice(7, 19)}`;
+const schemaRevision = (schema) =>
+  Number.parseInt(
+    String(schema ?? "")
+      .split("/")
+      .at(-1),
+    10,
+  ) || null;
 
 function fail(message) {
   throw new TypeError(`invalid approach phase graph: ${message}`);
@@ -162,10 +170,38 @@ function routeNodes(phase, capabilities, signals, completedEffects) {
           ...capability.outputs.map((output) => `typed ${output.name}`),
         ]),
       ),
+      acceptanceSignalIds: Object.freeze(
+        unique([
+          ...phase.acceptanceHints,
+          ...capability.outputs.map((output) => `typed ${output.name}`),
+        ]).map((signal) => signalId(phase.phaseId, signal)),
+      ),
       approvalScope: Object.freeze([...capability.permissions]),
       evidence: Object.freeze(
         capability.outputs.map((output) =>
           Object.freeze({ schema: output.schema ?? null, kind: output.kind }),
+        ),
+      ),
+      inputs: Object.freeze(
+        capability.inputs.map((input) =>
+          Object.freeze({
+            name: input.name,
+            kind: input.kind,
+            schema: input.schema ?? null,
+            schemaRevision: schemaRevision(input.schema),
+            required: input.required,
+          }),
+        ),
+      ),
+      outputs: Object.freeze(
+        capability.outputs.map((output) =>
+          Object.freeze({
+            name: output.name,
+            kind: output.kind,
+            schema: output.schema ?? null,
+            schemaRevision: schemaRevision(output.schema),
+            terminal: output.terminal,
+          }),
         ),
       ),
       sideEffects: Object.freeze(effects),
@@ -174,6 +210,51 @@ function routeNodes(phase, capabilities, signals, completedEffects) {
         mode: capability.idempotency.mode,
       }),
     });
+  });
+  const byNodeId = new Map(nodes.map((node) => [node.nodeId, node]));
+  const edges = nodes.flatMap((consumer) =>
+    consumer.dependencies.flatMap((producerNodeId) => {
+      const producer = byNodeId.get(producerNodeId);
+      if (!producer) fail(`unknown route producer ${producerNodeId}`);
+      const available = new Set(["request", "repository", "host", ...(signals?.inputs ?? [])]);
+      const matches = producer.outputs.flatMap((output) =>
+        consumer.inputs
+          .filter(
+            (input) =>
+              input.kind === output.kind &&
+              input.schema === output.schema &&
+              input.schemaRevision === output.schemaRevision &&
+              !available.has(input.kind) &&
+              !available.has(input.name),
+          )
+          .map((input) => ({ output, input })),
+      );
+      if (matches.some(({ output }) => output.schema === null))
+        fail(`schema-less output cannot be handed off from ${producer.skill} to ${consumer.skill}`);
+      const requiredExternalInput = consumer.inputs.some(
+        (input) => input.required && !available.has(input.kind) && !available.has(input.name),
+      );
+      if (!matches.length && requiredExternalInput)
+        fail(`no compatible handoff from ${producer.skill} to ${consumer.skill}`);
+      return matches.map(({ output, input }) =>
+        Object.freeze({
+          edgeId: `edge-${slug(producer.nodeId)}-${slug(consumer.nodeId)}-${slug(output.name)}`,
+          producerNodeId: producer.nodeId,
+          producerSkill: producer.skill,
+          producerOutput: output.name,
+          consumerNodeId: consumer.nodeId,
+          consumerSkill: consumer.skill,
+          consumerInput: input.name,
+          kind: output.kind,
+          schema: output.schema,
+          schemaRevision: output.schemaRevision,
+        }),
+      );
+    }),
+  );
+  Object.defineProperty(nodes, "handoffEdges", {
+    value: Object.freeze(edges),
+    enumerable: false,
   });
   return Object.freeze(nodes);
 }
@@ -248,7 +329,7 @@ export async function compileApproach(
     const requirements = [`req-${slug(approach.ideaSlug)}-${slug(phase.phaseId)}`];
     const effects = unique(nodes.flatMap((node) => node.sideEffects));
     return Object.freeze({
-      schema: "csm-orchestrate-phase/1",
+      schema: "csm-orchestrate-phase/2",
       phaseId: phaseIdOverride ?? `phase-${slug(approach.ideaSlug)}-${slug(phase.phaseId)}`,
       parentPhaseId,
       runId: approach.runId,
@@ -268,6 +349,7 @@ export async function compileApproach(
       owner: "csm-orchestrate",
       route: nodes[0].skill,
       routeNodes: nodes,
+      handoffEdges: nodes.handoffEdges,
       dependencies: Object.freeze(
         phase.dependencies.map(
           (dependency) => `phase-${slug(approach.ideaSlug)}-${slug(dependency)}`,
@@ -276,6 +358,11 @@ export async function compileApproach(
       requirementIds: Object.freeze(requirements),
       acceptanceSignals: Object.freeze(
         unique([...phase.acceptanceHints, `accepted outcome for ${phase.phaseId}`]),
+      ),
+      acceptanceSignalIds: Object.freeze(
+        unique([...phase.acceptanceHints, `accepted outcome for ${phase.phaseId}`]).map((signal) =>
+          signalId(phase.phaseId, signal),
+        ),
       ),
       approvalScope: Object.freeze(unique(nodes.flatMap((node) => node.approvalScope))),
       evidence: Object.freeze(nodes.flatMap((node) => node.evidence)),

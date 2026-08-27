@@ -11,9 +11,24 @@ import {
 const digest = `sha256:${"a".repeat(64)}`;
 const base = {
   runId: "run-review-test",
-  requirements: [{ requirementId: "req-outcome", criticality: "critical" }],
-  claims: [{ requirementIds: ["req-outcome"], evidenceRefs: ["ev-result"] }],
-  evidence: [{ evidenceId: "ev-result", status: "current" }],
+  requirements: [
+    { requirementId: "req-outcome", criticality: "critical", acceptanceSignalIds: ["sig-outcome"] },
+  ],
+  claims: [
+    {
+      requirementIds: ["req-outcome"],
+      acceptanceSignalId: "sig-outcome",
+      evidenceRefs: [{ evidenceId: "ev-result", acceptanceSignalId: "sig-outcome" }],
+    },
+  ],
+  evidence: [
+    {
+      evidenceId: "ev-result",
+      status: "current",
+      requirementIds: ["req-outcome"],
+      acceptanceSignalId: "sig-outcome",
+    },
+  ],
   artifacts: [
     { artifactId: "artifact-result", path: "result.json", digest, runId: "run-review-test" },
   ],
@@ -89,6 +104,57 @@ test("accepted injected review without contextual evidence cannot verify the par
     injected: true,
   });
   assert.equal(result.status, "INCOMPLETE");
+});
+
+test("same-process independent flag cannot produce VERIFIED", () => {
+  const result = coordinateFinalReview({
+    graph: { runId: "run-review-test", graphRevision: 1, phases: [] },
+    review: { ...reviewAcceptance(base), status: "ACCEPTED" },
+    injected: true,
+  });
+  assert.equal(result.status, "INCOMPLETE");
+  assert.equal(result.routing.reason, "untrusted-review-provenance");
+});
+
+test("host-backed review requires distinct child identity and bound provenance", () => {
+  const review = {
+    ...reviewAcceptance(base),
+    status: "ACCEPTED",
+    phaseId: "phase-root",
+    provenance: {
+      mode: "host-backed",
+      reviewer: "independent-reviewer",
+      owner: "csm-review",
+      reviewerChildRunId: "run-review-child",
+      receipt: { artifactId: "art-review-receipt", runId: "run-review-child", digest },
+      artifact: { artifactId: "art-review", runId: "run-review-child", digest },
+      approval: {
+        approvalId: "approval-review",
+        edgeId: "edge-review",
+        parentRunId: "run-review-test",
+        reviewerChildRunId: "run-review-child",
+        phaseId: "phase-root",
+        approvedDigest: digest,
+      },
+    },
+  };
+  assert.equal(
+    coordinateFinalReview({
+      graph: { runId: "run-review-test", graphRevision: 1, phases: [] },
+      review,
+    }).status,
+    "INCOMPLETE",
+  );
+  assert.equal(
+    coordinateFinalReview({
+      graph: { runId: "run-review-test", graphRevision: 1, phases: [] },
+      review: {
+        ...review,
+        provenance: { ...review.provenance, reviewerChildRunId: "run-review-test" },
+      },
+    }).status,
+    "INCOMPLETE",
+  );
 });
 
 test("injected acceptance must cover every critical parent requirement with matching current evidence", () => {
@@ -168,7 +234,14 @@ test("review artifacts are registered and schema-valid", async () => {
   );
   const checked = createSchemaRegistry({ registry, schemas });
   assert.equal(
-    checked.validate("csm-orchestrate-adversarial-review/1", reviewAcceptance(base)).valid,
+    checked.validate("csm-orchestrate-adversarial-review/2", reviewAcceptance(base)).valid,
     true,
+  );
+  assert.equal(
+    checked.validate("csm-orchestrate-adversarial-review/1", {
+      ...reviewAcceptance(base),
+      provenance: undefined,
+    }).valid,
+    false,
   );
 });

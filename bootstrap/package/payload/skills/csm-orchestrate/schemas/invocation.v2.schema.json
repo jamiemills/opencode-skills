@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-invocation/2",
+  "title": "CSM orchestrate host invocation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "invocationId",
+    "parentRunId",
+    "childRunId",
+    "phaseId",
+    "edgeId",
+    "skill",
+    "skillDigest",
+    "inputArtifactRefs",
+    "outputArtifactRefs",
+    "permissions",
+    "approval",
+    "timeoutMs",
+    "cancellation",
+    "retry",
+    "status"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-invocation/2" },
+    "invocationId": { "type": "string", "pattern": "^invocation-[a-z0-9][a-z0-9-]{1,127}$" },
+    "parentRunId": { "$ref": "#/$defs/runId" },
+    "childRunId": { "$ref": "#/$defs/runId" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "edgeId": { "type": "string", "pattern": "^edge-[a-z0-9][a-z0-9-]{1,127}$" },
+    "skill": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+    "skillDigest": { "$ref": "#/$defs/digest" },
+    "inputArtifactRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactRef" },
+      "uniqueItems": true
+    },
+    "upstreamArtifactRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/handoffRef" },
+      "uniqueItems": true
+    },
+    "acceptanceSignalIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^sig-[a-z0-9][a-z0-9-]{1,127}$" }
+    },
+    "outputArtifactRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactRef" },
+      "uniqueItems": true
+    },
+    "permissions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "approval": { "$ref": "csm-orchestrate-approval/2" },
+    "timeoutMs": { "type": "integer", "minimum": 1 },
+    "cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested"],
+      "properties": { "requested": { "type": "boolean" } }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt", "idempotencyKey"],
+      "properties": {
+        "attempt": { "type": "integer", "minimum": 0 },
+        "idempotencyKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "status": {
+      "enum": ["ready", "dispatched", "completed", "failed", "blocked", "incomplete", "rejected"]
+    }
+  },
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "schema", "digest"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "inputName": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]*/[1-9][0-9]*$" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "sourceOwner": { "type": "string", "minLength": 1 },
+        "sourceRunId": { "$ref": "#/$defs/runId" },
+        "sourceArtifactId": { "type": "string", "minLength": 1 },
+        "schemaRevision": { "type": "integer", "minimum": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "resolution": { "type": "string", "minLength": 1 }
+      }
+    },
+    "handoffRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceOwner",
+        "sourceRunId",
+        "sourceArtifactId",
+        "schema",
+        "schemaRevision",
+        "path",
+        "resolution",
+        "digest"
+      ],
+      "properties": {
+        "sourceOwner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+        "sourceRunId": { "$ref": "#/$defs/runId" },
+        "sourceArtifactId": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]*/[1-9][0-9]*$" },
+        "schemaRevision": { "type": "integer", "minimum": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "resolution": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

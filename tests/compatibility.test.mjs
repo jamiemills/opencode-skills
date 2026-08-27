@@ -8,9 +8,14 @@ import {
   classifySchemaDiff,
 } from "../lib/compatibility-runtime/index.mjs";
 import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
+import { ORCHESTRATE_COMPATIBILITY_ADAPTERS } from "../csm-orchestrate/lib/compatibility.mjs";
 
 const schemaRegistry = await loadSchemaRegistry();
-const compatibility = createCompatibilityRuntime({ schemaRegistry, matrix });
+const compatibility = createCompatibilityRuntime({
+  schemaRegistry,
+  matrix,
+  adapters: ORCHESTRATE_COMPATIBILITY_ADAPTERS,
+});
 
 test("registered exact same-revision pairs are compatible only through the matrix", () => {
   const result = compatibility.negotiate("csm-envelope", 1, 1);
@@ -28,6 +33,7 @@ test("registered exact same-revision pairs are compatible only through the matri
       ...matrix,
       entries: matrix.entries.filter((entry) => entry.schema !== "csm-envelope"),
     },
+    adapters: ORCHESTRATE_COMPATIBILITY_ADAPTERS,
   });
   assert.throws(
     () => withoutEnvelope.negotiate("csm-envelope", 1, 1),

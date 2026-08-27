@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-adversarial-review/2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "reviewId", "runId", "status", "independent", "findings", "provenance"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-adversarial-review/2" },
+    "reviewId": { "type": "string", "pattern": "^review-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "status": { "enum": ["ACCEPTED", "REJECTED"] },
+    "independent": { "const": true },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "reviewer", "reviewerChildRunId"],
+      "properties": {
+        "mode": { "enum": ["local-test-seam", "host-backed"] },
+        "reviewer": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+        "reviewerChildRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "receipt": {
+          "type": "object",
+          "required": ["artifactId", "runId", "digest"],
+          "properties": {
+            "artifactId": { "type": "string", "minLength": 1 },
+            "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        },
+        "artifact": {
+          "type": "object",
+          "required": ["artifactId", "runId", "digest"],
+          "properties": {
+            "artifactId": { "type": "string", "minLength": 1 },
+            "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        },
+        "approval": {
+          "type": "object",
+          "required": ["approvalId", "edgeId", "parentRunId", "reviewerChildRunId"],
+          "properties": {
+            "approvalId": { "type": "string", "minLength": 1 },
+            "edgeId": { "type": "string", "minLength": 1 },
+            "parentRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+            "reviewerChildRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" }
+          }
+        }
+      }
+    },
+    "requirementCoverage": { "type": "array" },
+    "evidenceEntailment": { "enum": ["supported", "failed"] },
+    "artifactIdentity": { "enum": ["verified", "failed"] },
+    "omissions": { "type": "array" },
+    "assumptions": { "type": "array" },
+    "scope": { "type": "object" },
+    "staleDuplicateOutputs": { "type": "array" },
+    "unsafeActions": { "type": "array" },
+    "technical": { "type": "array" },
+    "functional": { "type": "array" },
+    "falseCompletion": { "type": "boolean" },
+    "findings": { "type": "array" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "provenance": { "properties": { "mode": { "const": "host-backed" } } } }
+      },
+      "then": {
+        "properties": {
+          "provenance": { "required": ["owner", "receipt", "artifact", "approval"] }
+        }
+      }
+    }
+  ]
+}

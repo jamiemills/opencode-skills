@@ -8,7 +8,10 @@ import { compileApproach, selectRoutes } from "../csm-orchestrate/lib/phase-comp
 const capabilityManifest = await loadCapabilities();
 const capabilities = capabilityManifest.skills;
 const phaseSchema = parseJson(
-  await readFile(new URL("../csm-orchestrate/schemas/phase.schema.json", import.meta.url), "utf8"),
+  await readFile(
+    new URL("../csm-orchestrate/schemas/phase.v2.schema.json", import.meta.url),
+    "utf8",
+  ),
 );
 const validator = createSchemaValidator({ schemas: [phaseSchema] });
 const approach = (phases) => ({
@@ -57,7 +60,7 @@ test("canonical approach compilation is deterministic, immutable, and schema-val
   });
   assert.deepEqual(first, second);
   assert.equal(Object.isFrozen(first.phases[0]), true);
-  assert.equal(validator.validate("csm-orchestrate-phase/1", first.phases[0]).valid, true);
+  assert.equal(validator.validate("csm-orchestrate-phase/2", first.phases[0]).valid, true);
   assert.equal(first.phases[0].routeNodes[0].skill, "csm-build");
   assert.deepEqual(first.phases[0].dependencies, []);
 });

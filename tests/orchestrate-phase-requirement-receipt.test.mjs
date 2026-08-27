@@ -41,13 +41,36 @@ const phase = (phaseId, parentPhaseId = null) => ({
   requirementIds: ["req-output"],
   acceptanceSignals: ["node --test"],
   approvalScope: ["read"],
+  routeNodes: [
+    {
+      nodeId: "node-phase-root-csm-build",
+      skill: "csm-build",
+      capabilityDigest: digest,
+      dependencies: [],
+      ordering: 0,
+      parallelGroup: null,
+      requirementIds: ["req-output"],
+      acceptanceSignals: ["node --test"],
+      approvalScope: ["read"],
+      evidence: [{ schema: null, kind: "implementation" }],
+      sideEffects: ["read-only"],
+      idempotency: { key: "phase-root", mode: "read-only" },
+    },
+  ],
   idempotency: { key: phaseId, mode: "read-only" },
   remediationBudget: 1,
   status: "planned",
 });
 const ledger = (
   status = "verified",
-  evidenceRefs = [{ evidenceId: "ev-test", kind: "technical", status: "available", digest }],
+  evidenceRefs = [
+    {
+      evidenceId: "ev-test",
+      kind: "technical",
+      status: "available",
+      digest,
+    },
+  ],
 ) => ({
   schema: "csm-orchestrate-requirement/1",
   ledgerId: "ledger-test",

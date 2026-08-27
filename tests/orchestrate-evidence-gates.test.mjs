@@ -5,6 +5,7 @@ import {
   reconcileChildArtifacts,
   reconcileRequirementEvidence,
 } from "../csm-orchestrate/lib/evidence-gates.mjs";
+import { reviewAcceptance } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const schemaRegistry = {
@@ -16,6 +17,48 @@ const schemaRegistry = {
     };
   },
 };
+
+test("acceptance evidence requires the exact declared signal", () => {
+  const base = {
+    runId: "run-signal-test",
+    requirements: [
+      { requirementId: "req-signal", criticality: "critical", acceptanceSignalIds: ["sig-exact"] },
+    ],
+    claims: [
+      {
+        requirementIds: ["req-signal"],
+        acceptanceSignalId: "sig-wrong",
+        evidenceRefs: [{ evidenceId: "ev-signal", acceptanceSignalId: "sig-wrong" }],
+      },
+    ],
+    evidence: [
+      {
+        evidenceId: "ev-signal",
+        status: "current",
+        requirementIds: ["req-signal"],
+        acceptanceSignalId: "sig-wrong",
+      },
+    ],
+    technical: [{ status: "pass" }],
+    functional: [{ status: "pass" }],
+    completion: true,
+  };
+  assert.equal(reviewAcceptance(base).status, "REJECTED");
+  assert.equal(
+    reviewAcceptance({
+      ...base,
+      claims: [
+        {
+          ...base.claims[0],
+          acceptanceSignalId: "sig-exact",
+          evidenceRefs: [{ evidenceId: "ev-signal", acceptanceSignalId: "sig-exact" }],
+        },
+      ],
+      evidence: [{ ...base.evidence[0], acceptanceSignalId: "sig-exact" }],
+    }).status,
+    "ACCEPTED",
+  );
+});
 
 test("technical and functional results remain separate and functional failure is not masked", () => {
   const receipt = aggregateGates({
@@ -57,15 +100,78 @@ test("critical requirements require current evidence, not narrative completion",
           statement: "the outcome works",
           status: "verified",
           evidenceRefs: [
-            { evidenceId: "ev-stale", kind: "functional", status: "available", digest },
+            {
+              evidenceId: "ev-stale",
+              kind: "functional",
+              requirementId: "req-critical",
+              status: "available",
+              digest,
+            },
           ],
         },
       ],
     },
-    { evidence: [{ evidenceId: "ev-stale", status: "stale", digest }], failures: [] },
+    {
+      evidence: [
+        { evidenceId: "ev-stale", status: "stale", digest, requirementIds: ["req-critical"] },
+      ],
+      failures: [],
+    },
   );
   assert.equal(result.requirements[0].status, "unverified");
   assert.equal(result.failures[0].class, "stale");
+});
+
+test("critical evidence requires a declared exact signal", () => {
+  const ledger = {
+    schema: "csm-orchestrate-requirement/2",
+    ledgerId: "ledger-signal-binding",
+    requirements: [
+      {
+        requirementId: "req-signal-binding",
+        criticality: "critical",
+        acceptanceSignalIds: ["sig-declared"],
+        evidenceRefs: [
+          {
+            evidenceId: "ev-signal-binding",
+            requirementId: "req-signal-binding",
+            digest,
+            acceptanceSignalId: "sig-forged",
+          },
+        ],
+      },
+    ],
+  };
+  const evidence = {
+    evidence: [
+      {
+        evidenceId: "ev-signal-binding",
+        status: "current",
+        digest,
+        requirementIds: ["req-signal-binding"],
+        acceptanceSignalId: "sig-forged",
+      },
+    ],
+    failures: [],
+  };
+  const rejected = reconcileRequirementEvidence(ledger, evidence);
+  assert.equal(rejected.requirements[0].status, "unverified");
+  assert.equal(rejected.failures[0].code, "acceptance-signal-mismatch");
+  const accepted = reconcileRequirementEvidence(
+    {
+      ...ledger,
+      requirements: [
+        {
+          ...ledger.requirements[0],
+          evidenceRefs: [
+            { ...ledger.requirements[0].evidenceRefs[0], acceptanceSignalId: "sig-declared" },
+          ],
+        },
+      ],
+    },
+    { ...evidence, evidence: [{ ...evidence.evidence[0], acceptanceSignalId: "sig-declared" }] },
+  );
+  assert.equal(accepted.requirements[0].status, "verified");
 });
 
 test("waiver is explicit and does not turn a stale artifact into current evidence", () => {
@@ -208,4 +314,38 @@ test("resolved artifact values are rejected when their registered schema does no
     },
   });
   assert.equal(result.failures[0].code, "schema-invalid");
+});
+
+test("unrelated current evidence cannot satisfy a critical requirement", () => {
+  const result = reconcileRequirementEvidence(
+    {
+      schema: "csm-orchestrate-requirement/1",
+      ledgerId: "ledger-unrelated",
+      requirements: [
+        {
+          requirementId: "req-critical",
+          criticality: "critical",
+          statement: "the critical behavior works",
+          status: "open",
+          evidenceRefs: [
+            {
+              evidenceId: "ev-unrelated",
+              kind: "functional",
+              requirementId: "req-other",
+              status: "available",
+              digest,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      evidence: [
+        { evidenceId: "ev-unrelated", status: "current", digest, requirementIds: ["req-other"] },
+      ],
+      failures: [],
+    },
+  );
+  assert.equal(result.requirements[0].status, "unverified");
+  assert.equal(result.failures[0].code, "requirement-binding-mismatch");
 });

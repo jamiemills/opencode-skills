@@ -69,6 +69,24 @@ function currentStatus(ref, record) {
   return "current";
 }
 
+function bindingFailure(requirementId, ref, item) {
+  if (ref.requirementId !== requirementId)
+    return failure(
+      "policy",
+      "requirement-binding-mismatch",
+      `evidence reference is not bound to requirement: ${requirementId}`,
+      { requirementId, evidenceId: ref.evidenceId },
+    );
+  if (!item.requirementIds?.includes(requirementId))
+    return failure(
+      "policy",
+      "evidence-binding-mismatch",
+      `evidence is not explicitly bound to requirement: ${requirementId}`,
+      { requirementId, evidenceId: ref.evidenceId },
+    );
+  return null;
+}
+
 function artifactFailure(ref, code, message) {
   return failure("policy", code, message, { evidenceId: ref.evidenceId, path: ref.path });
 }
@@ -209,6 +227,7 @@ export async function reconcileChildArtifacts({
         ...(record.sourceRunId ? { sourceRunId: record.sourceRunId } : {}),
       },
       ...(ref.requirementIds ? { requirementIds: ref.requirementIds } : {}),
+      ...(ref.acceptanceSignalId ? { acceptanceSignalId: ref.acceptanceSignalId } : {}),
       resolution,
     };
     if (status !== "current")
@@ -251,7 +270,29 @@ export function reconcileRequirementEvidence(ledger, evidenceResult, { now = new
     const refs = requirement.evidenceRefs.map((ref) => {
       const item = byId.get(ref.evidenceId);
       if (!item) return { ...ref, status: "missing" };
+      const binding = bindingFailure(requirement.requirementId, ref, item);
+      if (binding) {
+        failures.push(binding);
+        return { ...ref, status: "contradicted" };
+      }
       if (ref.digest !== item.digest) return { ...ref, status: "contradicted" };
+      const declaredSignals = requirement.acceptanceSignalIds ?? [];
+      if (
+        requirement.criticality === "critical" &&
+        declaredSignals.length > 0 &&
+        (!declaredSignals.includes(ref.acceptanceSignalId) ||
+          item.acceptanceSignalId !== ref.acceptanceSignalId)
+      ) {
+        failures.push(
+          failure(
+            "policy",
+            "acceptance-signal-mismatch",
+            `evidence signal is not declared for requirement: ${requirement.requirementId}`,
+            { requirementId: requirement.requirementId, evidenceId: ref.evidenceId },
+          ),
+        );
+        return { ...ref, status: "contradicted" };
+      }
       return { ...ref, status: item.status === "current" ? "available" : item.status };
     });
     const current = refs.some((ref) => ref.status === "available");

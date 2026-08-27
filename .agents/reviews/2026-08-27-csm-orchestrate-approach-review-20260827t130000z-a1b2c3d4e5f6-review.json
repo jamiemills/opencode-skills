@@ -1,0 +1,269 @@
+{
+  "schema": "csm-review-findings/1",
+  "schemaRevision": 1,
+  "artifact": {
+    "artifactId": "art-review-csm-orchestrate-approach-20260827t130000z-a1b2c3d4e5f6",
+    "owner": "csm-review",
+    "runId": "run-20260827t130000z-a1b2c3d4e5f6",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "createdAt": "2026-08-27T13:00:00Z",
+    "terminal": true
+  },
+  "source": {
+    "commitSha": "96590b8",
+    "repository": "opencode-skills"
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Every phase evidence item is treated as proof of the whole critical requirement",
+      "dimension": "correctness",
+      "category": "acceptance-ledger",
+      "anchorRef": "ISO/IEC 25010:2023 functional suitability",
+      "severity": "high",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "locations": [
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 394, "symbol": "normalizeEvidence" },
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 443, "symbol": "ledger" }
+      ],
+      "quotedSnippets": [
+        "...normalizeEvidence(result, node, invocationChildRunId, phase.requirementIds)",
+        "evidenceRefs: phaseEvidence.map((item) => ({"
+      ],
+      "commitSha": "96590b8",
+      "explanation": "The orchestrator appends the phase requirement ID to every child evidence item and then uses every phase evidence item as a requirement reference. It does not require a child claim to entail a specific acceptance signal. A single unrelated current artifact can therefore verify the phase's sole critical requirement.",
+      "impact": "The controller can emit VERIFIED while the actual user outcome or one of its acceptance signals is unproven.",
+      "remediationSketch": "Require explicit claim-to-requirement and signal-to-evidence mappings, reject evidence that is merely current but not entailing, and keep uncovered critical rows unresolved.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f001-primary",
+          "challenger": "agent-csm-review-primary",
+          "verdict": "agree",
+          "rationale": "Quick-pass primary challenge confirmed that requirement IDs are injected before reconciliation and no entailment predicate is evaluated.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Primary-led challenge; confidence remains medium because this focused review did not dispatch an independent challenger.",
+      "corroborators": [],
+      "sortKey": "3:1:1:F-001"
+    },
+    {
+      "id": "F-002",
+      "title": "Default adversarial review self-attests independence",
+      "dimension": "security-control-verification",
+      "category": "review-independence",
+      "anchorRef": "OWASP ASVS v5.0.0",
+      "severity": "high",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "locations": [
+        { "path": "csm-orchestrate/lib/adversarial-final-review.mjs", "line": 150, "symbol": "reviewAcceptance" },
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 490, "symbol": "adversarialReview" }
+      ],
+      "quotedSnippets": [
+        "independent: true,",
+        "reviewAcceptance({"
+      ],
+      "commitSha": "96590b8",
+      "explanation": "When no adversarialReview callback is injected, the orchestrator calls reviewAcceptance in the same process and that function unconditionally sets independent to true. No fresh context, separate reviewer identity, or host-dispatched csm-review execution is established by this path.",
+      "impact": "The default path can satisfy the schema while allowing the producer-side controller to judge its own evidence, contrary to the agreed independent adversarial-review boundary.",
+      "remediationSketch": "Make independent review a required host-backed capability for VERIFIED outcomes; label local deterministic checks as non-independent and keep them separate from the adversarial-review result.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f002-primary",
+          "challenger": "agent-csm-review-primary",
+          "verdict": "agree",
+          "rationale": "The default review constructor itself supplies the independence claim; the caller does not prove reviewer separation.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Primary-led challenge; confidence remains medium because this focused review did not dispatch an independent challenger.",
+      "corroborators": [],
+      "sortKey": "3:1:1:F-002"
+    },
+    {
+      "id": "F-003",
+      "title": "Dependent route nodes receive no prior node outputs",
+      "dimension": "correctness",
+      "category": "typed-handoff",
+      "anchorRef": "ISO/IEC 25010:2023 functional suitability",
+      "severity": "high",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "locations": [
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 294, "symbol": "request" },
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 376, "symbol": "retry request" }
+      ],
+      "quotedSnippets": [
+        "inputArtifactRefs,",
+        "outputArtifactRefs: [],"
+      ],
+      "commitSha": "96590b8",
+      "explanation": "Every node request uses the same top-level inputArtifactRefs and an empty outputArtifactRefs array. Results from earlier nodes are accumulated for the parent but are not converted into typed inputs for later dependent nodes.",
+      "impact": "A phase spanning several skills cannot implement the approach's required artifact handoff chain; downstream skills may run without the artifact they depend on or receive only the original request context.",
+      "remediationSketch": "Resolve and pass the prior node's declared output references into the next node's input refs, with schema compatibility and ownership checks at each edge.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f003-primary",
+          "challenger": "agent-csm-review-primary",
+          "verdict": "agree",
+          "rationale": "The execution loop never mutates inputArtifactRefs from a completed result and never constructs an edge-specific handoff.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Primary-led challenge; confidence remains medium because this focused review did not dispatch an independent challenger.",
+      "corroborators": [],
+      "sortKey": "3:1:1:F-003"
+    },
+    {
+      "id": "F-004",
+      "title": "Independent read-only parallelism is declared but never executed",
+      "dimension": "concurrency",
+      "category": "parallelism",
+      "severity": "medium",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "CWE-362",
+      "locations": [
+        { "path": "csm-orchestrate/lib/phase-compiler.mjs", "line": 139, "symbol": "independent" },
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 274, "symbol": "route loop" }
+      ],
+      "quotedSnippets": [
+        "parallelGroup: independent ? \"read-only\" : null,",
+        "for (const node of phase.routeNodes) {"
+      ],
+      "commitSha": "96590b8",
+      "explanation": "The compiler marks eligible nodes with a read-only parallel group, but the runtime always iterates them sequentially. The recovery helper can classify concurrency, yet the orchestrator does not use that result to launch independent nodes concurrently.",
+      "impact": "The implementation does not meet the approach's selective-parallelism behavior and can add unnecessary latency; the declared execution model is misleading to operators.",
+      "remediationSketch": "Partition route nodes into dependency-safe parallel groups and run only independent read-only groups concurrently, preserving per-node cursors and deterministic aggregation.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f004-primary",
+          "challenger": "agent-csm-review-primary",
+          "verdict": "agree",
+          "rationale": "No Promise.all or equivalent scheduling path exists in the orchestration loop.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Primary-led challenge; confidence remains medium because this focused review did not dispatch an independent challenger.",
+      "corroborators": [],
+      "sortKey": "2:1:1:F-004"
+    },
+    {
+      "id": "F-005",
+      "title": "Successful remediation returns a receipt that omits prior phase lineage",
+      "dimension": "error-handling-and-resilience",
+      "category": "remediation-lineage",
+      "severity": "medium",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "ISO/IEC 25010:2023 reliability",
+      "locations": [
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 586, "symbol": "remediation recursion" },
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 628, "symbol": "remediationReceipt" }
+      ],
+      "quotedSnippets": [
+        "const remediationReceipt = await runOrchestrationInternal({",
+        "return Object.freeze({ ...remediationReceipt,"
+      ],
+      "commitSha": "96590b8",
+      "explanation": "After final-review remediation, the runtime recursively executes a new one-phase orchestration and returns that nested receipt. The returned childReceipts, phases, and acceptance references are therefore those of the remediation run rather than the complete original graph.",
+      "impact": "A successful final receipt can be unable to demonstrate which original phases passed, weakening durable auditability and replay lineage.",
+      "remediationSketch": "Continue from the active graph in one parent run, append remediation results to the existing phase and child ledgers, and emit one receipt covering every phase and review cycle.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f005-primary",
+          "challenger": "agent-csm-review-primary",
+          "verdict": "agree",
+          "rationale": "The recursive return object spreads only the nested receipt and adds remediationLineage; it does not merge original phase results or child receipts.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Primary-led challenge; confidence remains medium because this focused review did not dispatch an independent challenger.",
+      "corroborators": [],
+      "sortKey": "2:1:1:F-005"
+    },
+    {
+      "id": "F-006",
+      "title": "Parent receipt child status can report completed for blocked runs",
+      "dimension": "correctness",
+      "category": "status-projection",
+      "severity": "medium",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "ISO/IEC 25010:2023 functional suitability",
+      "locations": [
+        { "path": "csm-orchestrate/lib/index.mjs", "line": 73, "symbol": "terminalReceipt" }
+      ],
+      "quotedSnippets": [
+        "child: childReceipts.some((item) => item.status === \"failed\") ? \"failed\" : \"completed\","
+      ],
+      "commitSha": "96590b8",
+      "explanation": "The parent receipt maps child status to completed unless one collected child receipt has status failed. Blocked and incomplete children do not affect this projection, and early blocked outcomes commonly have no child receipts.",
+      "impact": "Consumers reading the typed receipt can see parent outcome BLOCKED or INCOMPLETE alongside statuses.child COMPLETED, producing contradictory machine-readable state.",
+      "remediationSketch": "Aggregate child status with the full taxonomy and preserve blocked, incomplete, and not-started states instead of defaulting the absence of failure to completed.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f006-primary",
+          "challenger": "agent-csm-review-primary",
+          "verdict": "agree",
+          "rationale": "The projection condition distinguishes only failed from all other cases.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Primary-led challenge; confidence remains medium because this focused review did not dispatch an independent challenger.",
+      "corroborators": [],
+      "sortKey": "2:1:1:F-006"
+    }
+  ],
+  "verificationStatus": {
+    "format": "csm-verification-status/1",
+    "status": "INCOMPLETE",
+    "unresolved": [
+      "Focused review used static inspection and existing tests; no independent challenger was dispatched.",
+      "No live production host adapter or real sibling artifact handoff was exercised.",
+      "The review did not assess all 18 repository review dimensions.",
+      "Existing unrelated untracked research artifact was preserved and not reviewed."
+    ]
+  },
+  "redaction": {
+    "status": "passed",
+    "rules": ["no absolute paths", "no credentials", "snippets limited to reviewed source"],
+    "redactedFields": 0
+  },
+  "sortOrder": {
+    "algorithm": "severity:confidence:evidenceClass:id",
+    "stable": true
+  },
+  "ownership": {
+    "owner": "csm-review",
+    "runId": "run-20260827t130000z-a1b2c3d4e5f6",
+    "collisionPolicy": "immutable-run-owned-artifact",
+    "terminalPolicy": "terminal-report-immutable"
+  }
+}

@@ -3,6 +3,7 @@
 import { digest } from "../../lib/schema-runtime/index.mjs";
 
 const PHASE_ID = /^phase-[a-z0-9][a-z0-9-]{1,127}$/;
+import { HOST_REVIEW } from "./review-token.mjs";
 const unique = (values) => [...new Set(values.filter(Boolean))];
 
 function finding(code, message, severity = "high", details = {}) {
@@ -22,7 +23,25 @@ function checkEvidence(requirements, claims, evidence) {
       list(claim.requirementIds).includes(requirement.requirementId),
     );
     const refs = unique(related.flatMap((claim) => list(claim.evidenceRefs)));
-    const usable = refs.filter((id) => byId.get(id)?.status === "current");
+    const requiredSignals = new Set(
+      list(requirement.acceptanceSignalIds ?? [requirement.acceptanceSignalId]).filter(Boolean),
+    );
+    const usable = refs.filter((ref) => {
+      const id = typeof ref === "string" ? ref : ref?.evidenceId;
+      const claim = related.find((item) =>
+        list(item.evidenceRefs).some(
+          (candidate) => (typeof candidate === "string" ? candidate : candidate?.evidenceId) === id,
+        ),
+      );
+      const signal = typeof ref === "object" ? ref.acceptanceSignalId : claim?.acceptanceSignalId;
+      const item = byId.get(id);
+      return (
+        item?.status === "current" &&
+        item?.requirementIds?.includes(requirement.requirementId) &&
+        requiredSignals.has(signal) &&
+        (item.acceptanceSignalId === signal || item.validation?.signalId === signal)
+      );
+    });
     coverage.push({
       requirementId: requirement.requirementId,
       evidenceRefs: refs,
@@ -37,13 +56,56 @@ function checkEvidence(requirements, claims, evidence) {
           { requirementId: requirement.requirementId },
         ),
       );
-    for (const id of refs) {
+    for (const ref of refs) {
+      const id = typeof ref === "string" ? ref : ref?.evidenceId;
       const item = byId.get(id);
       if (!item)
         failures.push(
           finding("missing-evidence", `claim cites missing evidence: ${id}`, "high", {
             evidenceId: id,
           }),
+        );
+      else if (!item.requirementIds?.includes(requirement.requirementId))
+        failures.push(
+          finding(
+            "evidence-binding-mismatch",
+            `evidence is not bound to requirement: ${id}`,
+            "critical",
+            { evidenceId: id, requirementId: requirement.requirementId },
+          ),
+        );
+      else if (!requiredSignals.size || (!item.acceptanceSignalId && !item.validation?.signalId))
+        failures.push(
+          finding(
+            "missing-acceptance-signal",
+            `claim lacks a bound acceptance signal: ${id}`,
+            "critical",
+            { evidenceId: id },
+          ),
+        );
+      else if (
+        typeof ref === "object" &&
+        ref.acceptanceSignalId !== undefined &&
+        !requiredSignals.has(ref.acceptanceSignalId)
+      )
+        failures.push(
+          finding(
+            "acceptance-signal-mismatch",
+            `claim signal does not match requirement: ${id}`,
+            "critical",
+            { evidenceId: id },
+          ),
+        );
+      else if (typeof ref === "object" && ref.digest !== undefined && ref.digest !== item.digest)
+        failures.push(
+          finding(
+            "evidence-digest-mismatch",
+            `claim digest does not match evidence: ${id}`,
+            "critical",
+            {
+              evidenceId: id,
+            },
+          ),
         );
       else if (item.status !== "current")
         failures.push(
@@ -148,11 +210,16 @@ export function reviewAcceptance({
       ),
     );
   return Object.freeze({
-    schema: "csm-orchestrate-adversarial-review/1",
+    schema: "csm-orchestrate-adversarial-review/2",
     reviewId: `review-${digest({ runId, requirements, claims, evidence, artifacts }).slice(7, 39)}`,
     runId,
     status: failures.length ? "REJECTED" : "ACCEPTED",
     independent: true,
+    provenance: {
+      mode: "local-test-seam",
+      reviewer: "csm-orchestrate",
+      reviewerChildRunId: runId,
+    },
     requirementCoverage: checked.coverage,
     evidenceEntailment: checked.failures.length ? "failed" : "supported",
     artifactIdentity: failures.filter((item) => item.code.includes("artifact")).length
@@ -188,6 +255,7 @@ export function validateInjectedFinalReview({
     failures.push("final review functional acceptance evidence is required");
   if (review?.evidenceEntailment !== "supported")
     failures.push("final review evidence entailment is not supported");
+  failures.push(...validateReviewProvenance(review, runId));
   if (!Array.isArray(review?.requirementCoverage) || !review.requirementCoverage.length)
     failures.push("final review requirement coverage is required");
   const evidenceById = new Map(evidence.map((item) => [item.evidenceId, item]));
@@ -199,16 +267,32 @@ export function validateInjectedFinalReview({
   );
   for (const requirementId of criticalRequirementIds) {
     const item = coverage.get(requirementId);
-    const current = (item?.evidenceRefs ?? []).filter(
-      (id) => evidenceById.get(id)?.status === "current",
-    );
+    const current = (item?.evidenceRefs ?? []).filter((ref) => {
+      const id = typeof ref === "string" ? ref : ref?.evidenceId;
+      const evidenceItem = evidenceById.get(id);
+      const phase = phaseResults.find((result) =>
+        list(result.phase?.requirementIds).includes(requirementId),
+      )?.phase;
+      const signals = list(phase?.acceptanceSignalIds);
+      const signal =
+        typeof ref === "object" ? ref.acceptanceSignalId : evidenceItem?.acceptanceSignalId;
+      return (
+        evidenceItem?.status === "current" &&
+        evidenceItem?.requirementIds?.includes(requirementId) &&
+        signals.length > 0 &&
+        signals.includes(signal) &&
+        (evidenceItem.acceptanceSignalId === signal || evidenceItem.validation?.signalId === signal)
+      );
+    });
     if (!item || !current.length)
       failures.push(
         `final review lacks current evidence for critical requirement: ${requirementId}`,
       );
-    for (const evidenceId of current)
+    for (const ref of current) {
+      const evidenceId = typeof ref === "string" ? ref : ref.evidenceId;
       if (!(evidenceById.get(evidenceId).requirementIds ?? []).includes(requirementId))
         failures.push(`final review evidence requirement ID does not match: ${evidenceId}`);
+    }
   }
   for (const requirementId of coverage.keys())
     if (!criticalRequirementIds.has(requirementId))
@@ -229,6 +313,30 @@ export function validateInjectedFinalReview({
   if (review.status === "ACCEPTED" && failures.length)
     failures.push("accepted self-attested review rejected");
   return { valid: failures.length === 0, failures };
+}
+
+export function validateReviewProvenance(review, parentRunId) {
+  const provenance = review?.provenance;
+  const failures = [];
+  if (!provenance || provenance.mode !== "host-backed")
+    return ["final review lacks host-backed provenance"];
+  if (!provenance.reviewer || !provenance.owner || !provenance.reviewerChildRunId)
+    failures.push("final review reviewer identity is incomplete");
+  if (provenance.reviewerChildRunId === parentRunId)
+    failures.push("final review reviewer child run must differ from parent run");
+  for (const field of ["receipt", "artifact"])
+    if (!provenance[field]?.digest) failures.push(`final review ${field} provenance is required`);
+  if (!provenance.approval?.approvalId || !provenance.approval?.edgeId)
+    failures.push("final review approval edge binding is required");
+  if (provenance.approval?.parentRunId !== parentRunId)
+    failures.push("final review approval is not bound to the parent run");
+  if (provenance.approval?.reviewerChildRunId !== provenance.reviewerChildRunId)
+    failures.push("final review approval is not bound to reviewer child run");
+  if (provenance.approval?.phaseId !== review?.phaseId)
+    failures.push("final review approval is not bound to phase");
+  if (provenance.approval?.approvedDigest !== provenance.artifact?.digest)
+    failures.push("final review approval is not bound to review artifact digest");
+  return failures;
 }
 
 function assertInsertion(graph, phase, existingEffects) {
@@ -311,32 +419,41 @@ export function coordinateFinalReview({
   remediation,
   completedEffects = new Set(),
   route = "csm-review",
-  injected = false,
+  _injected = false,
 } = {}) {
-  if (!review || review.independent !== true)
-    throw new TypeError("independent final review is required");
+  const provenanceFailures = validateReviewProvenance(review, graph?.runId);
+  if (review?.status === "ACCEPTED" && review[HOST_REVIEW] !== true)
+    provenanceFailures.push("review was not produced by the host review invocation path");
+  if (review?.status === "ACCEPTED" && provenanceFailures.length)
+    return Object.freeze({
+      schema: "csm-orchestrate-final-review/2",
+      status: "INCOMPLETE",
+      finalReview: review,
+      graph,
+      routing: { route, reason: "untrusted-review-provenance", domainAudit: false },
+    });
   if (
     review.status === "ACCEPTED" &&
-    (!injected ||
-      (review.runId === graph?.runId &&
-        Array.isArray(review.findings) &&
-        Array.isArray(review.technical) &&
-        review.technical.length > 0 &&
-        Array.isArray(review.functional) &&
-        review.functional.length > 0 &&
-        review.evidenceEntailment === "supported" &&
-        Array.isArray(review.requirementCoverage) &&
-        review.requirementCoverage.length > 0))
+    review.provenance?.mode === "host-backed" &&
+    review.runId === graph?.runId &&
+    Array.isArray(review.findings) &&
+    Array.isArray(review.technical) &&
+    review.technical.length > 0 &&
+    Array.isArray(review.functional) &&
+    review.functional.length > 0 &&
+    review.evidenceEntailment === "supported" &&
+    Array.isArray(review.requirementCoverage) &&
+    review.requirementCoverage.length > 0
   )
     return Object.freeze({
-      schema: "csm-orchestrate-final-review/1",
+      schema: "csm-orchestrate-final-review/2",
       status: "VERIFIED",
       finalReview: review,
       graph,
     });
   if (review.status === "ACCEPTED")
     return Object.freeze({
-      schema: "csm-orchestrate-final-review/1",
+      schema: "csm-orchestrate-final-review/2",
       status: "INCOMPLETE",
       finalReview: review,
       graph,
@@ -344,7 +461,7 @@ export function coordinateFinalReview({
     });
   if (!remediation)
     return Object.freeze({
-      schema: "csm-orchestrate-final-review/1",
+      schema: "csm-orchestrate-final-review/2",
       status: "INCOMPLETE",
       finalReview: review,
       graph,
@@ -375,7 +492,7 @@ export function coordinateFinalReview({
     ? "critical"
     : "high";
   return Object.freeze({
-    schema: "csm-orchestrate-final-review/1",
+    schema: "csm-orchestrate-final-review/2",
     status: "REMEDIATION_REQUIRED",
     finalReview: review,
     graph: nextGraph,

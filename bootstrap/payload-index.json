@@ -650,8 +650,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/adversarial-final-review.mjs",
-        "sha256": "2e7ad21798bf4098e749c51e6b7e55d08cdf1960e72d5ac02cdefd1866008bf0",
-        "bytes": 14782,
+        "sha256": "89e7949f85311d17ed5e2036b5f33a91b02e14607428405c6e869f5776371b5e",
+        "bytes": 19823,
         "mode": "0644"
       },
       {
@@ -661,39 +661,51 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/compatibility.mjs",
+        "sha256": "cb736960c0d1c5534e7fd65c9c007fa7631d72e599a8cb4b52151c3a1c84cbf6",
+        "bytes": 3230,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/contracts.mjs",
-        "sha256": "53c25014e8c5162037e897091c66307b3a9ff964474c467ee62cb66a1594f8d6",
-        "bytes": 3767,
+        "sha256": "44b2becc22ac23e8608d3dbbf5adffa777344e99bb6319518e7757d530054c5d",
+        "bytes": 4433,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/evidence-gates.mjs",
-        "sha256": "b6a05f67fbd3e969f50d5631b4eb43006038dae7274c93dc8a676afd41452857",
-        "bytes": 13914,
+        "sha256": "1bc82815e9a88cb9e53ce87d206332af016132118349eb79d7f61b2c95d6d2ac",
+        "bytes": 15441,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "0ab9e2fede8b996631de4083caa32b0cb053d8f6bfefa5b232542321aac09e4e",
-        "bytes": 22109,
+        "sha256": "4af3f13019fe55b1df1b4b3a29760d73100d1cd3b95a8bdb3f6c4e304f7f77ee",
+        "bytes": 37546,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/invocation.mjs",
-        "sha256": "2c9deedd22b5f9a40dcb433ee6b2da91fae132fbc9c3d1309c47a7ffc4f8fd1e",
-        "bytes": 11854,
+        "sha256": "78a56e26ad1fb95916df4a5c6d47205a9a644df4e9734ca2b10c2612360c122d",
+        "bytes": 16961,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/phase-compiler.mjs",
-        "sha256": "863e942bcc52dc65de874a0d7980cdb12b80cf2d9ca36a989a92b7d5ca1c64fe",
-        "bytes": 11353,
+        "sha256": "ab793cae7c3a4da698a11cbf86e6436dd454ae51dc05eda9e162784c08e56198",
+        "bytes": 14691,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/recovery.mjs",
-        "sha256": "c5fe875162c7ff99de3ee957109193c840fac555c5865ad4a15a8a022818f736",
-        "bytes": 12897,
+        "sha256": "a06f0870e513df38270f9475c1d71c560252e68e72781db1913000949b6fa424",
+        "bytes": 13964,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/lib/review-token.mjs",
+        "sha256": "fabe277974ff1d4dbe29f7b3692bd37caa7acf98e2a3293a2865f4885574f86e",
+        "bytes": 155,
         "mode": "0644"
       },
       {
@@ -703,8 +715,20 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/adversarial-review.v2.schema.json",
+        "sha256": "dc98e999620b02a86a7633e4e264b5773f428eeeec8f7ac88c7d7544cdae6777",
+        "bytes": 3278,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/approval.schema.json",
         "sha256": "e57a2796e86fe10881975821966f93bbcef6d1afb3d6f35acc40e3d722df648c",
+        "bytes": 1699,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/approval.v2.schema.json",
+        "sha256": "5ffbb56adaacd3ec0ee48595bfb76c327b70ee25f4884a64db72f755b5d0a1a4",
         "bytes": 1699,
         "mode": "0644"
       },
@@ -721,14 +745,32 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/cursor.v2.schema.json",
+        "sha256": "0ecf9a297b1f34dc05b727c5866e125b9dc3d765dbbea256e75577ff303bb3b4",
+        "bytes": 1907,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/evidence.schema.json",
         "sha256": "543b226db536f501d03b2f2ded12595f134d0c1cbeb3e33df5feccf5061f4ad1",
         "bytes": 1689,
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/evidence.v2.schema.json",
+        "sha256": "82657f3dcd816e46f5801f3669775dcb7ec9d605fb2b4b9421d537bdd633db78",
+        "bytes": 2107,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/final-review.schema.json",
         "sha256": "4aedfa78a3a00401747f9e9e1074eadc1fce8eac51375b0f4f4812ab103e8ad3",
+        "bytes": 556,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/final-review.v2.schema.json",
+        "sha256": "c2f218e597568eb2b0ad5a825613cd37acbe33ae71bf370d6892ae1d68553a1a",
         "bytes": 556,
         "mode": "0644"
       },
@@ -745,15 +787,33 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/invocation.v2.schema.json",
+        "sha256": "a98b9b4aac5bbae2771874316a4d6549517d7e700eb0c8b0e1f20ddc13702824",
+        "bytes": 4412,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/phase.schema.json",
         "sha256": "6f887b427cbba28a71cd59166f185ae0297430345bfaceb244f29dd519938271",
         "bytes": 6494,
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/phase.v2.schema.json",
+        "sha256": "36b5f58a63f2dc3a51f7232cb9cf56e9928bb541c491e5adf19757f5071fff4e",
+        "bytes": 9398,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/receipt.schema.json",
         "sha256": "d5f5df799aa754c2a0e1a7a21d9f99304314af4c340157f9465c5638cbc24aab",
         "bytes": 3600,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/receipt.v2.schema.json",
+        "sha256": "cc8ad4506742134deeea77d5f7b470bacf35940bf2368542438d897bf676914c",
+        "bytes": 5529,
         "mode": "0644"
       },
       {
@@ -766,6 +826,12 @@
         "path": "payload/skills/csm-orchestrate/schemas/requirement.schema.json",
         "sha256": "1171c1f5c3ebb2ceffc8deeea594e51186f72ee656ccde373a56141a0408bf80",
         "bytes": 1942,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/requirement.v2.schema.json",
+        "sha256": "5a45011a4c42b7cde99de431a7df53e6fe29372405acb29d60f389bddab896ac",
+        "bytes": 2607,
         "mode": "0644"
       },
       {
@@ -1583,8 +1649,8 @@
       },
       {
         "path": "payload/schemas/compatibility-matrix.json",
-        "sha256": "73f7998c27ea2d8dc06e96cb00e272748ae1ab11a8104c6f36a47d4fb176c37d",
-        "bytes": 1115,
+        "sha256": "e0cec1c1b95256e9c4c7c77a94091627509bb5dc4d41ccd7f6fce1ae152dba38",
+        "bytes": 2717,
         "mode": "0644"
       },
       {
@@ -1661,8 +1727,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "5a4d5834474211c422770c263e105264e6e4e4082432dc8309e78a8a660fe4c0",
-        "bytes": 15910,
+        "sha256": "902906825ed55bbf30675390f2bf9da03f0e5a70d3c3fadf078a3c96a0a238b2",
+        "bytes": 18999,
         "mode": "0644"
       },
       {

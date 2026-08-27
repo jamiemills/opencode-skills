@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-final-review/2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "finalReview"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-final-review/2" },
+    "status": { "enum": ["VERIFIED", "INCOMPLETE", "REMEDIATION_REQUIRED"] },
+    "finalReview": { "$ref": "csm-orchestrate-adversarial-review/2" },
+    "routing": { "type": "object" },
+    "remediation": { "type": "object" },
+    "graph": { "type": "object" }
+  }
+}

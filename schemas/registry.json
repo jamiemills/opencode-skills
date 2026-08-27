@@ -13,6 +13,15 @@
       "schemaContentDigest": "sha256:dd86b2971102e83a6851f75d6258d6727b4ec6199e98a562f3b98ff7563b113b"
     },
     {
+      "id": "csm-orchestrate-approval/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/approval.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:1ffc1d320c552ae5e962e685d9a774baa5f1d8120e804b56419881340ae577f0"
+    },
+    {
       "id": "csm-orchestrate-invocation/1",
       "revision": 1,
       "schemaPath": "csm-orchestrate/schemas/invocation.schema.json",
@@ -20,6 +29,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:5b3ceffe4a4d0d2574c1bd3329c4bec7c68486c3c9734c786133ec7ff02f4f36"
+    },
+    {
+      "id": "csm-orchestrate-invocation/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/invocation.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:6627cf9af0c7164522aabe466a783de60ec53fc5b49b8b5ad407ea4ce41d58d8"
     },
     {
       "id": "csm-orchestrate-capabilities/1",
@@ -40,6 +58,15 @@
       "schemaContentDigest": "sha256:8eeedf66f13e3a60fa290ea57ff08f333df0e47b51882c13667d22c7fcf4dc64"
     },
     {
+      "id": "csm-orchestrate-phase/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/phase.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:24571d25905a8ca17e68c42374d072aa95e8e6e4cb655a1f9f28536e1240a65f"
+    },
+    {
       "id": "csm-orchestrate-requirement/1",
       "revision": 1,
       "schemaPath": "csm-orchestrate/schemas/requirement.schema.json",
@@ -49,6 +76,15 @@
       "schemaContentDigest": "sha256:f855fc77524fe179900184988c0a45d246e2cc187cd61f0fa434f169d9a78468"
     },
     {
+      "id": "csm-orchestrate-requirement/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/requirement.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:cca9b0b3998ba944bfeaa11c69334ac6828ea4f1d20efd236775d95dd17a40bd"
+    },
+    {
       "id": "csm-orchestrate-cursor/1",
       "revision": 1,
       "schemaPath": "csm-orchestrate/schemas/cursor.schema.json",
@@ -56,6 +92,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:1f329c507a4696a5196eace9a8492a20f3e1386397292e6f2ba86ee713c39ddb"
+    },
+    {
+      "id": "csm-orchestrate-cursor/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/cursor.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:32e6630b7c94f9198086e6524265bfcf68df4432cb33aad5b2e74a5107b0c9a4"
     },
     {
       "id": "csm-orchestrate-replay/1",
@@ -81,8 +126,18 @@
       "schemaPath": "csm-orchestrate/schemas/receipt.schema.json",
       "aliases": [],
       "immutable": true,
-      "unknownFieldPolicy": "reject",
+      "unknownFieldPolicy": "opaque-extension",
+      "opaqueExtensionPoints": ["extensions"],
       "schemaContentDigest": "sha256:717ceed59fa54a9e567af6dbc6f43c1a60b6d19f695a33fe56b833d3d28c3f64"
+    },
+    {
+      "id": "csm-orchestrate-receipt/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/receipt.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:30614e2353b59a13c202900077d548ef7d425d701a89d20e1a7f28ef4d088a1a"
     },
     {
       "id": "csm-orchestrate-evidence/1",
@@ -92,6 +147,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:db752379f63caa8c0096ac4e9d56cd2d866464f051793f9c14349062ed583eb7"
+    },
+    {
+      "id": "csm-orchestrate-evidence/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/evidence.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:05fac9594c80f041d7ba9ff5b62fccd0dc7b0e970a8c593519a7d9649cabdc80"
     },
     {
       "id": "csm-orchestrate-gate/1",
@@ -112,6 +176,15 @@
       "schemaContentDigest": "sha256:27b5c3014fdd82fd98e172f3e221aa525bd1c7c6639f28abff8d8c898709ec56"
     },
     {
+      "id": "csm-orchestrate-adversarial-review/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/adversarial-review.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:6a3e973375e4736cea8156fd51a330ba18c00ec9adb50a8b75fcdb9aa9ccecf0"
+    },
+    {
       "id": "csm-orchestrate-final-review/1",
       "revision": 1,
       "schemaPath": "csm-orchestrate/schemas/final-review.schema.json",
@@ -119,6 +192,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:eb2cb924a71352f5dfbcedf55c6abf41578e46e3109709845cda34f114111bb1"
+    },
+    {
+      "id": "csm-orchestrate-final-review/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/final-review.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:ea179edd43528d31cf9c600e9095fdf1eaa4f9cd6240941435cf8e81a1508e88"
     },
     {
       "id": "csm-make-tests-ledger/1",

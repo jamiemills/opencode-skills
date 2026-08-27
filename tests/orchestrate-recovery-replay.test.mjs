@@ -9,6 +9,8 @@ import {
   detectDuplicate,
   persistCursor,
   persistTerminalReceipt,
+  loadTerminalReceipt,
+  projectChildStatus,
   reconcileSideEffects,
   replayRoute,
   retryDecision,
@@ -59,7 +61,7 @@ test("cursor lookup rejects a record bound to another route", async () => {
 test("durable cursor and terminal receipt records must pass runtime schemas", async () => {
   await assert.rejects(
     persistCursor({ ...cursor(), unexpected: true }, { saveCursor: async () => {} }),
-    /invalid csm-orchestrate-cursor\/1/,
+    /invalid csm-orchestrate-cursor\/2/,
   );
   await assert.rejects(
     persistTerminalReceipt(
@@ -67,6 +69,74 @@ test("durable cursor and terminal receipt records must pass runtime schemas", as
       { saveTerminalReceipt: async () => {} },
     ),
     /invalid csm-orchestrate-receipt\/1/,
+  );
+});
+
+test("child status projection is truthful for empty and every terminal child state", () => {
+  assert.equal(projectChildStatus([]), "not-started");
+  assert.equal(projectChildStatus([{ status: "blocked" }]), "blocked");
+  assert.equal(projectChildStatus([{ status: "incomplete" }]), "blocked");
+  assert.equal(projectChildStatus([{ status: "failed" }]), "failed");
+  assert.equal(projectChildStatus([{ status: "completed" }]), "completed");
+  assert.equal(projectChildStatus([{ status: "completed" }, { status: "blocked" }]), "blocked");
+});
+
+test("extended receipt lineage survives durable round-trip", async () => {
+  const receipt = {
+    schema: "csm-orchestrate-receipt/2",
+    receiptId: "receipt-parent-roundtrip",
+    runId: ids.runId,
+    phaseId: ids.phaseId,
+    childReceipts: [],
+    approval: {
+      approvalId: "approval-test",
+      scope: ["read"],
+      approvedDigest: `sha256:${"a".repeat(64)}`,
+      approvedAt: "2026-08-27T00:00:00Z",
+      expiresAt: "2099-08-27T00:00:00Z",
+      status: "approved",
+    },
+    statuses: {
+      route: "complete",
+      child: "not-started",
+      artifact: "none",
+      verification: "verified",
+      parent: "verified",
+    },
+    outcome: { status: "VERIFIED", accepted: true, acceptanceRefs: ["req-test"] },
+    idempotencyKey: "roundtrip-key",
+    extensions: {
+      schema: "csm-orchestrate-receipt-extension/2",
+      graphRevision: 2,
+      phaseSummaries: [
+        {
+          phaseId: ids.phaseId,
+          graphRevision: 1,
+          gateStatus: "VERIFIED",
+          reviewStatus: "ACCEPTED",
+        },
+      ],
+      remediationLineage: [],
+      reviewIds: ["review-test"],
+      evidenceRefs: ["ev-test"],
+      acceptanceRefs: ["req-test"],
+      childReceipts: [],
+      sourceLineage: [{ artifactId: "artifact-test" }],
+    },
+  };
+  let saved;
+  const store = {
+    async saveTerminalReceipt(value) {
+      saved = structuredClone(value);
+    },
+    async loadTerminalReceipt() {
+      return saved;
+    },
+  };
+  await persistTerminalReceipt(receipt, store);
+  assert.deepEqual(
+    (await loadTerminalReceipt(receipt.receiptId, store)).extensions,
+    receipt.extensions,
   );
 });
 
@@ -95,6 +165,43 @@ test("stale evidence is replayed, while a duplicate side effect is blocked", () 
       sideEffects: ["publication"],
     }).reason,
     "non-idempotent-side-effect",
+  );
+});
+
+test("retry intent is durable before restart reconciliation", async () => {
+  const retryChild = "run-child-20260827-retry";
+  const retryKey = "phase-build-key:1";
+  let saved;
+  await persistCursor(
+    cursor({
+      childRunId: retryChild,
+      attempt: 1,
+      idempotencyKey: retryKey,
+      terminalIntent: {
+        state: "retry-selected",
+        childRunId: retryChild,
+        attempt: 1,
+        idempotencyKey: retryKey,
+      },
+      approvalBinding: {
+        approvalId: "approval-retry",
+        parentRunId: ids.runId,
+        childRunId: retryChild,
+        phaseId: ids.phaseId,
+        edgeId: ids.edgeId,
+      },
+    }),
+    { saveCursor: async (value) => (saved = value) },
+  );
+  assert.equal(saved.terminalIntent.childRunId, retryChild);
+  assert.deepEqual(
+    classifyResume({
+      cursor: saved,
+      terminalRecords: [
+        { childRunId: retryChild, status: "completed", result: { status: "completed" } },
+      ],
+    }),
+    { action: "reconcile", reason: "durable-terminal-child" },
   );
 });
 
@@ -228,6 +335,13 @@ test("only dependency-free read-only nodes are classified for concurrency", () =
         sideEffects: ["read-only"],
         dependencies: [],
       },
+    ]).mode,
+    "parallel-independent-read-only",
+  );
+  assert.equal(
+    classifyConcurrency([
+      { nodeId: "compiled-a", parallelGroup: "read-only", sideEffects: [], dependencies: [] },
+      { nodeId: "compiled-b", parallelGroup: "read-only", sideEffects: [], dependencies: [] },
     ]).mode,
     "parallel-independent-read-only",
   );

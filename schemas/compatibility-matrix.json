@@ -41,7 +41,64 @@
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-invocation",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-invocation-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-approval",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-approval-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-evidence",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-evidence-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-requirement",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-requirement-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-receipt",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-receipt-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-phase",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-phase-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-cursor",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-cursor-1-to-2"
     }
   ],
-  "adapters": []
+  "adapters": [
+    "orchestrate-invocation-1-to-2",
+    "orchestrate-approval-1-to-2",
+    "orchestrate-evidence-1-to-2",
+    "orchestrate-requirement-1-to-2",
+    "orchestrate-receipt-1-to-2",
+    "orchestrate-phase-1-to-2",
+    "orchestrate-cursor-1-to-2"
+  ]
 }

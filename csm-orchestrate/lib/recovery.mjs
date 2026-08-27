@@ -10,6 +10,16 @@ const CURSOR_ID = /^cursor-[a-z0-9][a-z0-9-]{1,127}$/;
 const READ_ONLY = new Set(["read-only"]);
 const TERMINAL_CHILD_CLASSES = new Set(["child", "policy", "evaluator"]);
 const RETRYABLE_FAILURES = new Set(["transport", "timeout", "incomplete"]);
+const cursorWriteQueues = new WeakMap();
+
+export function projectChildStatus(childReceipts = []) {
+  if (!childReceipts.length) return "not-started";
+  if (childReceipts.some((item) => item.status === "failed")) return "failed";
+  if (childReceipts.some((item) => item.status === "blocked" || item.status === "incomplete"))
+    return "blocked";
+  if (childReceipts.some((item) => item.status === "running")) return "running";
+  return "completed";
+}
 
 const fail = (message) => {
   throw new TypeError(`invalid recovery contract: ${message}`);
@@ -43,10 +53,12 @@ export function createParentCursor({
   sideEffects = [],
   materialFingerprint = null,
   terminalBlocker = null,
+  approvalBinding = null,
+  terminalIntent = null,
   updatedAt = new Date().toISOString(),
 } = {}) {
   const cursor = {
-    schema: "csm-orchestrate-cursor/1",
+    schema: "csm-orchestrate-cursor/2",
     cursorId,
     runId,
     phaseId,
@@ -61,6 +73,8 @@ export function createParentCursor({
     ...(sideEffects.length ? { sideEffects: [...new Set(sideEffects)] } : {}),
     ...(materialFingerprint ? { materialFingerprint } : {}),
     ...(terminalBlocker ? { terminalBlocker } : {}),
+    ...(approvalBinding ? { approvalBinding } : {}),
+    ...(terminalIntent ? { terminalIntent } : {}),
     updatedAt,
   };
   assertIdentity(cursor);
@@ -71,10 +85,16 @@ export function createParentCursor({
 
 export async function persistCursor(cursor, store) {
   assertIdentity(cursor);
-  await assertSchema("csm-orchestrate-cursor/1", cursor);
+  await assertSchema(cursor.schema, cursor);
   if (!store || typeof store.saveCursor !== "function")
     throw new TypeError("durable cursor store is required; memory is not durable");
-  const saved = await store.saveCursor(cursor);
+  const previous = cursorWriteQueues.get(store) ?? Promise.resolve();
+  const write = previous.then(() => store.saveCursor(cursor));
+  cursorWriteQueues.set(
+    store,
+    write.catch(() => {}),
+  );
+  const saved = await write;
   if (saved === false) throw new Error("durable cursor store rejected checkpoint");
   return cursor;
 }
@@ -85,7 +105,7 @@ export async function loadCursor(cursorId, store, expected = {}) {
   const cursor = await store.loadCursor(cursorId);
   if (!cursor) return null;
   assertIdentity(cursor);
-  await assertSchema("csm-orchestrate-cursor/1", cursor);
+  await assertSchema(cursor.schema, cursor);
   if (
     cursor.cursorId !== cursorId ||
     (expected.runId && cursor.runId !== expected.runId) ||
@@ -105,13 +125,19 @@ export async function persistTerminalReceipt(receipt, store) {
     receiptId: receipt.receiptId,
     runId: receipt.runId,
     phaseId: receipt.phaseId,
-    childReceipts: receipt.childReceipts,
+    childReceipts: [...(receipt.childReceipts ?? [])],
     approval: receipt.approval,
     statuses: receipt.statuses,
     outcome: receipt.outcome,
     idempotencyKey: receipt.idempotencyKey,
+    ...(receipt.extensions ? { extensions: receipt.extensions } : {}),
   };
-  await assertSchema("csm-orchestrate-receipt/1", durable);
+  await assertSchema(
+    durable.schema === "csm-orchestrate-receipt/1"
+      ? "csm-orchestrate-receipt/1"
+      : "csm-orchestrate-receipt/2",
+    durable,
+  );
   const saved = await store.saveTerminalReceipt(durable);
   if (saved === false) throw new Error("durable terminal receipt store rejected receipt");
   return receipt;
@@ -122,7 +148,7 @@ export async function loadTerminalReceipt(receiptId, store) {
     throw new TypeError("durable terminal receipt store is required");
   const receipt = await store.loadTerminalReceipt(receiptId);
   if (!receipt) return null;
-  await assertSchema("csm-orchestrate-receipt/1", receipt);
+  await assertSchema(receipt.schema ?? "csm-orchestrate-receipt/1", receipt);
   if (receipt.receiptId !== receiptId)
     fail("loaded terminal receipt does not match requested lookup");
   return receipt;
@@ -251,7 +277,9 @@ export function classifyConcurrency(nodes = []) {
     nodes.length > 0 &&
     nodes.every(
       (node) =>
-        node.parallelism === "independent-read-only" &&
+        (node.parallelism ??
+          (node.parallelGroup === "read-only" ? "independent-read-only" : "serial")) ===
+          "independent-read-only" &&
         (node.sideEffects ?? []).every((effect) => READ_ONLY.has(effect)) &&
         (node.dependencies ?? []).length === 0,
     );

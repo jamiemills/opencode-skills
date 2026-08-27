@@ -1,6 +1,11 @@
 "use strict";
 
 import { assertSchema, validSchema } from "./contracts.mjs";
+import {
+  validateInjectedFinalReview,
+  validateReviewProvenance,
+} from "./adversarial-final-review.mjs";
+import { HOST_REVIEW } from "./review-token.mjs";
 
 const FAILURE_CLASSES = Object.freeze([
   "transport",
@@ -11,6 +16,37 @@ const FAILURE_CLASSES = Object.freeze([
   "incomplete",
 ]);
 const ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
+const DIGEST = /^sha256:[a-f0-9]{64}$/;
+
+export function validateHandoffRef(
+  ref,
+  { owner, runId, artifactId, schema, schemaRevision, path, resolution, digest } = {},
+) {
+  if (!ref || typeof ref !== "object") return "handoff ref must be an object";
+  if (
+    !ref.sourceOwner ||
+    !ref.sourceRunId ||
+    !ref.sourceArtifactId ||
+    !ref.schema ||
+    !Number.isInteger(ref.schemaRevision) ||
+    !ref.path ||
+    !ref.resolution ||
+    !DIGEST.test(ref.digest ?? "")
+  )
+    return "handoff ref is incomplete";
+  if (owner !== undefined && ref.sourceOwner !== owner) return "handoff source owner mismatch";
+  if (runId !== undefined && ref.sourceRunId !== runId) return "handoff source run mismatch";
+  if (artifactId !== undefined && ref.sourceArtifactId !== artifactId)
+    return "handoff source artifact mismatch";
+  if (schema !== undefined && ref.schema !== schema) return "handoff schema mismatch";
+  if (schemaRevision !== undefined && ref.schemaRevision !== schemaRevision)
+    return "handoff schema revision mismatch";
+  if (path !== undefined && ref.path !== path) return "handoff path mismatch";
+  if (resolution !== undefined && ref.resolution !== resolution)
+    return "handoff resolution mismatch";
+  if (digest !== undefined && ref.digest !== digest) return "handoff digest mismatch";
+  return null;
+}
 
 function failure(status, failureClass, code, message) {
   return { status, failure: { class: failureClass, code, message } };
@@ -41,7 +77,12 @@ async function assertRequest(request) {
   )
     throw new TypeError("parent and child run IDs must be distinct canonical run IDs");
   if (!request.retry.idempotencyKey) throw new TypeError("idempotency key is required");
-  if (request.approval) await assertSchema("csm-orchestrate-invocation/1", request);
+  for (const ref of request.upstreamArtifactRefs ?? []) {
+    const error = validateHandoffRef(ref);
+    if (error) throw new TypeError(error);
+  }
+  if (request.approval)
+    await assertSchema(request.schema ?? "csm-orchestrate-invocation/1", request);
 }
 
 function approvalFailure(approval, request, now, consumed) {
@@ -124,15 +165,14 @@ export async function validateChildResult(result, request) {
   }
   for (const item of result.evidence ?? []) {
     const evidence = {
-      schema: "csm-orchestrate-evidence/1",
+      schema: item.acceptanceSignalId ? "csm-orchestrate-evidence/2" : "csm-orchestrate-evidence/1",
       ...item,
       source: {
         ...item.source,
         sourceRunId: item.source?.sourceRunId ?? item.runId,
       },
     };
-    if (!(await validSchema("csm-orchestrate-evidence/1", evidence)))
-      return "invalid child evidence";
+    if (!(await validSchema(evidence.schema, evidence))) return "invalid child evidence";
   }
   return null;
 }
@@ -163,6 +203,8 @@ export async function validateDurableTerminalRecords(records, request) {
 export function createHostInvocationAdapter({
   host,
   capabilities,
+  artifactResolver,
+  schemaRegistry,
   now = () => new Date(),
   terminalInvocations = new Map(),
 } = {}) {
@@ -303,6 +345,85 @@ export function createHostInvocationAdapter({
           error?.message ?? "host transport failed",
         );
       }
+    },
+    async invokeReview(request) {
+      if (!host || typeof host.invokeReview !== "function")
+        return failure(
+          "blocked",
+          "transport",
+          "unavailable-review-host",
+          "host review API is unavailable",
+        );
+      const result = await host.invokeReview(Object.freeze({ ...request, status: "ready" }));
+      const review = result?.review;
+      const receipt = result?.reviewReceipt;
+      const artifact = result?.reviewArtifact;
+      const failures = validateReviewProvenance(review, request.parentRunId);
+      if (review?.runId !== request.parentRunId || review?.phaseId !== request.phaseId)
+        failures.push("host review is not bound to the requested parent phase");
+      if (review?.provenance?.approval?.edgeId !== request.edgeId)
+        failures.push("host review approval is not bound to the requested edge");
+      if (
+        !receipt ||
+        !artifact ||
+        review?.provenance?.receipt?.artifactId !== receipt.artifactId ||
+        review?.provenance?.receipt?.digest !== receipt.digest ||
+        review?.provenance?.artifact?.artifactId !== artifact.artifactId ||
+        review?.provenance?.artifact?.digest !== artifact.digest
+      )
+        failures.push("host review receipt and artifact records are not bound to provenance");
+      for (const record of [receipt, artifact]) {
+        if (
+          !record?.owner ||
+          record.owner !== review?.provenance?.owner ||
+          record.runId !== review?.provenance?.reviewerChildRunId ||
+          !record.artifactId ||
+          !record.schema ||
+          !record.digest ||
+          !record.path ||
+          !record.resolution
+        ) {
+          failures.push("host review record identity is incomplete");
+          continue;
+        }
+        if (artifactResolver?.resolve) {
+          const resolved = await artifactResolver.resolve(record.path, {
+            expectedFileDigest: record.digest,
+            expectedArtifactId: record.artifactId,
+            expectedOwner: record.owner,
+            expectedSourceRunId: record.runId,
+          });
+          if (
+            resolved?.status !== "resolved" ||
+            resolved.owner !== record.owner ||
+            resolved.fileDigest !== record.digest ||
+            resolved.value?.artifactId !== record.artifactId ||
+            resolved.value?.sourceRunId !== record.runId
+          )
+            failures.push("host review artifact could not be resolver-validated");
+        } else failures.push("host review artifact resolver is required");
+        try {
+          schemaRegistry.resolve(
+            record.schema,
+            record.schemaRevision ?? Number(record.schema.split("/").at(-1)),
+          );
+        } catch {
+          failures.push("host review artifact schema is not registered");
+        }
+      }
+      if (review?.status === "ACCEPTED") {
+        const contextual = validateInjectedFinalReview({
+          review,
+          runId: request.parentRunId,
+          phaseResults: request.phaseResults,
+          evidence: request.evidence,
+        });
+        failures.push(...contextual.failures);
+      }
+      if (failures.length)
+        return failure("blocked", "policy", "invalid-review-provenance", failures.join("; "));
+      Object.defineProperty(review, HOST_REVIEW, { value: true });
+      return { status: "completed", review };
     },
   });
 }
