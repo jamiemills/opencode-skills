@@ -332,11 +332,12 @@ function validateResearchReferences(lines, inFence, researchPath, referenceRange
       }
     }
     for (const candidate of [...localPaths, ...absolutePaths]) {
-      const localPath = path.isAbsolute(candidate)
-        ? portableResearchPath(candidate, rootDir)
-        : path.resolve(rootDir, candidate);
+      const cleanCandidate = candidate.replace(/[.,;)>`]+$/, "");
+      const localPath = path.isAbsolute(cleanCandidate)
+        ? portableResearchPath(cleanCandidate, rootDir)
+        : path.resolve(rootDir, cleanCandidate);
       if (!fs.existsSync(localPath)) {
-        findings.push(`[${id}] line ${entry.line} local source does not exist: ${localPath}`);
+        findings.push(`[${id}] line ${entry.line} local source does not exist: ${cleanCandidate}`);
       }
     }
   }
