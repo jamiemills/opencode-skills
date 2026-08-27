@@ -303,7 +303,7 @@
     "status": "complete",
     "verifiedAt": "2026-08-27T23:00:00Z",
     "evidence": ["73 orchestrator tests", "full make test", "make test-hooks", "make check", "final independent review: no material findings"],
-    "commit": { "status": "not-requested", "sha": null, "message": "", "files": [] },
+    "commit": { "status": "verified", "sha": "2517f65", "message": "build: harden csm-orchestrate contracts", "files": ["complete validated workset"] },
     "residualRisks": ["Production host review, resolver, and durable storage backends remain external; synthetic fixtures cover controller boundaries only."]
   },
   "provenance": {

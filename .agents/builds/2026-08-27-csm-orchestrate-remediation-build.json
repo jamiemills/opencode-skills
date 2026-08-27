@@ -247,8 +247,8 @@
         "descriptorDigest": "sha256:9534d3aaf3c4b620c2e0c975db6318aee478f6a43e718cb055a3fb5cc1ffb8a4"
       }
     ],
-    "commit": { "status": "not-requested", "sha": null, "message": "", "files": [] },
-    "rollback": { "status": "not-needed", "checkpoint": null, "action": "No rollback required; changes remain in the working tree for explicit user-controlled commit." }
+    "commit": { "status": "verified", "sha": "2517f65", "message": "build: harden csm-orchestrate contracts", "files": ["complete validated workset"] },
+    "rollback": { "status": "not-needed", "checkpoint": null, "action": "No rollback required; validated workset is committed and pushed." }
   },
   "provenance": {
     "sourcePlan": "art-csm-orchestrate-remediation-plan-20260827-a1b2c3d4e5f6",
