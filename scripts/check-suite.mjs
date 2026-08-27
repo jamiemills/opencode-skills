@@ -308,9 +308,20 @@ function validateResearchReferences(lines, inFence, researchPath, referenceRange
     for (const match of entry.text.matchAll(/file:\/\/\S+/gi)) {
       const raw = match[0].replace(/[.,;)>`]+$/, "");
       try {
-        const localPath = fileURLToPath(new URL(raw));
+        const referencedPath = fileURLToPath(new URL(raw));
+        // Research written on one checkout can carry an absolute workspace
+        // path. Resolve the repository-relative suffix on another checkout
+        // while retaining strict existence checks for unrelated paths.
+        const marker = `${path.sep}.config${path.sep}opencode${path.sep}skills${path.sep}`;
+        const markerIndex = referencedPath.indexOf(marker);
+        const localPath =
+          markerIndex >= 0
+            ? path.join(rootDir, referencedPath.slice(markerIndex + marker.length))
+            : referencedPath;
         if (!fs.existsSync(localPath)) {
-          findings.push(`[${id}] line ${entry.line} local source does not exist: ${localPath}`);
+          findings.push(
+            `[${id}] line ${entry.line} local source does not exist: ${referencedPath}`,
+          );
         }
       } catch {
         findings.push(`[${id}] line ${entry.line} has invalid local source URL: ${raw}`);
