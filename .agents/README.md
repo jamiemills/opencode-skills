@@ -51,6 +51,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-25-json-only-rendered-skill-outputs-csm.md` — 2026-08-25 — implement JSON-only skill outputs with compatibility-controlled Markdown/HTML projections — status: in progress (T023 contract/bootstrap synchronization)
 - `2026-08-26-json-migration-hardening-remediation-csm.md` — 2026-08-26 — harden JSON migration consumer edges, integrity, concurrency, and final evidence — status: in progress
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
+- `2026-08-27-csm-orchestrate-csm.json` — 2026-08-27 — implement csm-orchestrate outer-loop controller — status: ready
 
 ## docs/
 
@@ -92,6 +93,9 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-25-repo-issues-deep-research-research.md` — 2026-08-25 — deep hybrid validation of repository hardening and additional security/concurrency issues — status: reference
 - `2026-08-25-agent-friendly-repository-architecture-20260825t220516z-a1b2c3d4e5f6-research.md` — 2026-08-25 — agent-friendly repository architecture research finding — status: reference
 - `2026-08-26-agent-friendly-repository-architecture-20260826t095339z-a1b2c3d4e5f6-research.json` — 2026-08-26 — deeper agent-friendly repository architecture research finding — status: reference
+- `2026-08-26-csm-orchestrate-skill-architecture-20260826t180032z-a1b2c3d4e5f6-research.json` — 2026-08-26 — csm-orchestrate skill architecture research finding — status: reference
+- `2026-08-26-csm-orchestrate-adversarial-assurance-20260826t200041z-a1b2c3d4e5f6-research.json` — 2026-08-26 — csm-orchestrate adversarial assurance research finding — status: reference
+- `2026-08-27-csm-orchestrate-approach-review-20260827t055059z-a1b2c3d4e5f6-research.json` — 2026-08-27 — csm-orchestrate approach review finding — status: reference
 - `2026-08-26-json-migration-implementation-assessment-research.md` — 2026-08-26 — JSON migration implementation assessment — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
@@ -114,6 +118,7 @@ still cited (the remediation plan and baselines reference them).
 - `2026-08-22-ddd-repository-analyzer-approach.md` — 2026-08-22 — grill approach for the DDD repository analyzer (became csm-ddd) — status: complete
 - `2026-08-23-autoresearch-evaluator-csm-approach.md` — 2026-08-23 — agreed CSM approach for the autoresearch evaluator skill — status: agreed
 - `2026-08-25-json-only-rendered-skill-outputs-approach.md` — 2026-08-25 — agreed suite-wide JSON-only outputs with Markdown/HTML projections — status: agreed
+- `2026-08-26-csm-orchestrate-approach.md` — 2026-08-26 — agreed csm-orchestrate outer-loop approach — status: agreed
 ## ddd/
 
 - `2026-08-23-opencode-skills-ddd-report.md` — 2026-08-23 — csm-ddd self-analysis of this repository — status: complete

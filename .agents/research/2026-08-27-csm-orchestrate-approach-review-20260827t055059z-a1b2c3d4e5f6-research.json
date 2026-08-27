@@ -1,0 +1,513 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-csm-orchestrate-approach-review-20260827-a1b2c3d4e5f6",
+  "runId": "run-20260827t055059z-a1b2c3d4e5f6",
+  "title": "csm-orchestrate Approach Adversarial Review and Correction Finding",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The agreed csm-orchestrate approach is conceptually sound but not yet implementation-ready. Its largest gaps are the absence of a formal parent/child invocation contract, capability manifest, requirement-to-evidence schema, approval binding, route-phase schema, and final-review phase-insertion rules. Correct it by making the orchestrator a receipt-gated outer loop: compile each incoming approach phase into one thin slice, execute only declared routes, validate technical and functional evidence, adversarially review the result, and let final review create bounded new phases when gaps remain."
+    },
+    "executiveSummary": {
+      "id": "executive-summary",
+      "content": "This DEEP hybrid audit reviewed the current agreed approach, all 13 skill contracts, shared schemas/runtimes, edge inventory, producer descriptors, prior research, and lifecycle evidence.\n\n```text\napproach -> phase compiler -> phase acceptance ledger -> route/approval\n                                      |                    |\n                                      v                    v\n                                child receipt -> typed/evidence gates\n                                      |                    |\n                                      +-> adversarial review -> final review\n                                                                  |\n                                             accepted next phase <-+\n                                             new remediation phase <- gap\n```\n\nThe approach correctly preserves sibling ownership and demands final review, but it currently mixes design intent with guarantees that the repository does not yet provide. Run IDs, paths, `BLOCKED`, recovery, approvals, and child receipts differ among skills. The approach must explicitly normalize or adapt these differences, and it must distinguish a phase being implemented from a phase being accepted."
+    },
+    "keyFindings": {
+      "id": "key-findings",
+      "content": "K1 [supported] The approach correctly makes csm-orchestrate an outer control plane rather than duplicating sibling domain logic. [ref-approach][ref-readme][ref-boundaries]\n\nK2 [supported] Incoming `csm-grill` phases need compilation into runtime phase objects with thin-slice scope, route, acceptance signals, evidence, approvals, and checkpoints; the current approach states this but lacks a phase schema and phase identity rules. [ref-approach][ref-grill][ref-final]\n\nK3 [supported] A formal host invocation contract is missing: no shared definition specifies how the parent invokes a child, passes inputs, captures output, handles timeout, assigns child IDs, or distinguishes transport failure from child failure. [ref-capabilities][ref-edge][ref-approach]\n\nK4 [supported] Capability and approval metadata are insufficiently formalized for safe automatic dispatch; existing skill descriptors do not consistently declare input schemas, effects, permissions, retryability, idempotency, recovery, parallelism, or review obligations. [ref-capabilities][ref-build][ref-upload]\n\nK5 [supported] Requirement coverage and evidence entailment need their own typed records; child success, test success, or a narrative receipt cannot prove the user outcome. [ref-approach][ref-build][ref-review][ref-final]\n\nK6 [supported] Technical correctness and functional correctness must remain separate, and the final review must be mandatory; the approach needs an explicit gate-order contract and failure-to-new-phase transition. [ref-approach][ref-build][ref-bdd][ref-review]\n\nK7 [supported] Long-horizon execution must preserve route-level checkpoints while respecting skill-specific recovery; a generic outer `BLOCKED -> RECOVER` rule cannot override terminal child blockers or non-resumable skills. [ref-lifecycle][ref-autoresearch][ref-grill][ref-python]\n\nK8 [partially-supported] Bounded phase remediation and selective parallelism are plausible, but safe limits, idempotency, compensation, phase insertion ordering, and duplicate-side-effect protection remain unimplemented and unmeasured. [ref-approach][ref-edge][ref-evals]\n\nK9 [supported] The approach contains a run-ID/path/terminal-status compatibility risk that must be resolved before implementation; the current repository has conflicting native skill prose and shared JSON schema conventions. [ref-compatibility][ref-envelope][ref-approach]\n\nK10 [unverifiable] Implementing the approach will improve end-to-end agent correctness, productivity, autonomy, latency, or cost. [ref-evals]"
+    },
+    "detailSections": {
+      "id": "detail-sections",
+      "content": "### Phase compilation\nAn incoming approach is not itself an executable route. The orchestrator needs a compiler that turns each approach phase into a versioned phase object: `phaseId`, goal, requirement IDs, thin-slice scope, non-goals, route nodes, dependencies, input artifacts, expected outputs, acceptance signals, technical gates, functional scenarios, adversarial-review level, approval requirements, side effects, retry policy, checkpoint policy, and completion status. A phase may map to multiple skills and must not be treated as one child invocation.\n\n### Parent/child invocation\nDefine a host contract before automatic dispatch. It must bind parent run ID, child run ID, route edge, skill/version/digest, input artifact IDs and digests, permissions, approvals, timeout, cancellation, retry key, output channel, receipt schema, and failure taxonomy. Transport failure, child failure, policy refusal, incomplete evidence, and evaluator failure must remain distinct. The current edge inventory provides lineage and schemas but not the full invocation contract.\n\n### Capability and approval normalization\nExtend or complement the discovery manifest with per-skill inputs, outputs, entrypoint, activation predicate, permissions, effects, approval class, review level, retryability, idempotency, parallelism, recovery, and terminal behavior. Bind approvals to parent run, child run, phase/edge, exact scope, artifact digest, approver, issue/expiry, consumption, and revocation. Metadata must not be treated as authorization; the host enforces it.\n\n### One-shot correctness\nAt intake, preserve the exact ask and create an acceptance ledger. Each row needs requirement ID, normalized interpretation, criticality, risk, non-goal, observable acceptance signal, evidence kind, responsible route, reviewer, and status. Every child result maps evidence to rows. `VERIFIED` requires all critical rows supported by current technical, functional, or explicitly approved human evidence. Unresolved, stale, contradicted, or waived rows remain visible.\n\n### Adversarial review\nFor every material child result, create a fresh reviewer view containing the ask, requirement rows, output, evidence, tool/action receipt, and expected acceptance signals, but not producer rationale. Attack omissions, unsupported claims, citation entailment, scope creep, stale/duplicate artifacts, unsafe actions, unauthorized effects, false completion, and invalid assumptions. Use lightweight independent review for ordinary results; delegate high-risk repository/security/public-interface review to csm-review or csm-review-python. The final review is always mandatory and must verify functional fulfillment and technical soundness.\n\n### Technical and functional gate order\nUse a fixed outer order: child artifact/schema/ownership/digest validation; requirement/evidence reconciliation; technical gates; functional scenarios; adversarial acceptance; final outcome review. Technical gates cover syntax, types, schemas, compatibility, security, protected paths, reproducibility, and artifact integrity. Functional gates cover normal, boundary, invalid, failure, refusal, recovery, partial-completion, and user-visible outcome scenarios. A technical pass cannot mask functional failure, and functional plausibility cannot override technical failure.\n\n### Final-review phase insertion\nIf final review finds a gap, it must produce a new `phaseId` rather than silently editing history. The new phase records the requirement delta, reason, route, owner, approvals, acceptance signals, parent phase, insertion point, and remediation budget. It enters the same route, technical, functional, adversarial, checkpoint, and final-review loop. It cannot bypass completed evidence, reset retry budgets, or repeat non-idempotent side effects without reconciliation.\n\n### Long-horizon state\nThe parent cursor should store current phase, route graph revision, ledger digest, active edge, completed child receipts, pending approvals, checkpoint, retry budget, side effects, blockers, and next safe transition. Route state, artifact lifecycle, verification status, and child state must be separate. A recoverable parent blocker cannot convert a terminal child policy blocker into a retry. Non-resumable skills require a new child run and explicit re-entry.\n\n### Current implementation blockers\nBefore implementation, resolve the canonical run-ID grammar, path authority, receipt composition, approval object, capability manifest, phase schema, requirement/evidence schema, invocation contract, route replay/fault-injection suite, and whether the host can actually invoke sibling skills. The agreed approach currently names these dependencies but does not define their acceptance contracts."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Correct the approach with these mandatory invariants:\n\n1. Add a `csm-orchestrate-phase/1` contract that compiles each incoming approach phase into an independently executable thin slice.\n2. Add a `csm-orchestrate-requirement/1` ledger and evidence-link model; never derive completion from prose or child status.\n3. Add a `csm-orchestrate-capabilities/1` manifest and `csm-orchestrate-invocation/1` host contract; fail closed when skill metadata or invocation semantics are missing.\n4. Add a route-level approval object bound to parent/child/phase/edge, exact scope, artifact digest, approver, expiry, consumption, and revocation.\n5. Add a parent orchestration cursor and receipt that references child artifacts without taking ownership.\n6. Make final review mandatory and allow it to append a new bounded remediation phase with explicit lineage and budget.\n7. Enforce separate technical and functional gates, then adversarial acceptance, then final review.\n8. Normalize run IDs, paths, statuses, retry, recovery, and terminal semantics through explicit adapters; do not impose one generic recovery meaning on every skill.\n9. Start automatic dispatch only after route replay, interruption, retry, duplicate-side-effect, approval-bypass, stale-artifact, and evaluator-failure tests pass.\n\nThese are correction requirements for a future implementation, not implementation work performed by this research run."
+    },
+    "unverifiedClaims": {
+      "id": "unverified-claims",
+      "content": "Decision-blocking: the host invocation mechanism for sibling skills is not defined or demonstrated.\n\nDecision-blocking: the repository does not yet provide one uniform capability manifest, approval contract, phase schema, or requirement/evidence schema.\n\nMaterial risk: shared schema and native skill prose conflict on run IDs, paths, terminal states, and recovery semantics.\n\nMaterial risk: the exact boundary between the orchestrator’s final review and csm-review’s repository audit authority needs an adapter contract.\n\nMaterial risk: phase insertion after final review can create dependency cycles or repeat side effects unless the phase graph has immutable parentage, ordering, and idempotency rules.\n\nMaterial risk: independent adversarial review can itself be incomplete or anchored unless reviewer context, calibration, and disagreement handling are specified.\n\nInformational: current repository tests establish pieces of artifact and lifecycle behavior, not complete outer-loop behavior.\n\nUnverifiable: productivity, autonomy, cost, latency, and correctness improvements without controlled repository-local evaluation."
+    },
+    "references": {
+      "id": "references",
+      "content": "References are encoded in the top-level `references` array. Workspace-local evidence is represented using the repository origin URLs for canonical JSON compatibility and includes local paths/locators in citations. Retrieved 2026-08-27."
+    },
+    "processAppendix": {
+      "id": "process-appendix",
+      "content": "Triage: DEEP, hybrid. Scope: audit the agreed csm-orchestrate approach against all current repository skill norms and the preceding architecture/assurance findings, then add adversarial-review and final-phase insertion correctness.\n\nResearch tracks: five independent read-only tracks covered capability metadata, lifecycle/ownership conflicts, requirement/evidence assurance, adversarial/technical/functional review, and long-horizon route control. No repository code was executed and no files other than this run-owned finding were intended for persistence.\n\nChallenge: the independent challenger upheld the outer-control-plane boundary but downgraded phase-compiler, invocation-contract, and final-review-loop claims where the approach already stated the policy but lacked formal schema/enforcement. It identified unpinned citations, authoritative JSON mismatch, phase-cycle safety, approval authority, review-boundary, calibration, and schema-registration gaps. These corrections are incorporated.\n\nJudge: independent final judge scored factual accuracy 0.87, citation accuracy 0.66, completeness 0.91, clarity 0.91; fail on citation accuracy. The judge found repository-origin URLs unpinned, vague/bundled locators, and a distinction needed between reference-ID resolution and substantive citation entailment. Those residual citation limitations remain explicitly disclosed.\n\nVerification: nine material claims are represented with verdicts; all citation IDs resolve to defined references; eight section keys and projection order are present; no declared artifacts exist; no credentials or personal data are included. The prior approach remains unchanged and this finding provides correction guidance only."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-boundaries",
+      "section": "keyFindings",
+      "statement": "The approach correctly makes csm-orchestrate an outer control plane rather than duplicating sibling domain logic.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-approach",
+          "locator": ".agents/approaches/2026-08-26-csm-orchestrate-approach.md:13-19",
+          "quote": "Existing skills retain their domain logic, artifacts, internal lifecycles, and side-effect authority."
+        },
+        {
+          "referenceId": "ref-boundaries",
+          "locator": "csm-build/SKILL.md and csm-plan/SKILL.md",
+          "quote": "Sibling skills have distinct implementation and planning boundaries."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-phase-compiler",
+      "section": "keyFindings",
+      "statement": "Incoming approach phases need a versioned runtime phase contract with thin-slice scope, route, acceptance, evidence, approvals, and checkpoint identity.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-approach",
+          "locator": "approach Idea Statement and Research Synthesis",
+          "quote": "It compiles each phase into a thin slice with an outcome, scoped route, acceptance signals, required evidence, allowed side effects, and checkpoint."
+        },
+        {
+          "referenceId": "ref-final",
+          "locator": "approach Phase 4 and Open Questions",
+          "quote": "Final review may create a new phase."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-invocation-contract",
+      "section": "keyFindings",
+      "statement": "A formal host invocation contract is missing for parent/child invocation, input passing, child identity, timeouts, receipts, and failure taxonomy.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-capabilities",
+          "locator": "csm-skill-manifest.schema.json and contracts.mjs",
+          "quote": "Existing metadata does not define a complete runtime invocation contract."
+        },
+        {
+          "referenceId": "ref-edge",
+          "locator": "csm-edge-inventory.schema.json",
+          "quote": "Edge inventory describes handoff identity and schemas but not host invocation."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-capability-approval",
+      "section": "keyFindings",
+      "statement": "Per-skill capability and route-scoped approval metadata are insufficiently formalized for safe automatic dispatch.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-capabilities",
+          "locator": "csm-skill-manifest.schema.json",
+          "quote": "The manifest is discovery metadata and not a runtime security boundary."
+        },
+        {
+          "referenceId": "ref-upload",
+          "locator": "csm-upload/SKILL.md",
+          "quote": "Publication requires explicit confirmation and has external side effects."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-requirement-evidence",
+      "section": "keyFindings",
+      "statement": "Requirement coverage and evidence entailment require typed records because child success, test success, or narrative receipts do not prove user-outcome fulfillment.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-build",
+          "locator": "csm-build/SKILL.md completion gate",
+          "quote": "Completion requires acceptance evidence tied to the user goal."
+        },
+        {
+          "referenceId": "ref-final",
+          "locator": "csm-final-receipt.schema.json",
+          "quote": "Final receipts distinguish verified and unavailable evidence but do not supply the orchestration requirement ledger."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-final-review-loop",
+      "section": "keyFindings",
+      "statement": "Final review must be mandatory, separate technical and functional gates, and be able to create a new bounded remediation phase with lineage and budget.",
+      "claimType": "recommendation",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-approach",
+          "locator": "approach Decisions Log and Phase 4",
+          "quote": "Final review is mandatory and may create a new bounded remediation phase."
+        },
+        {
+          "referenceId": "ref-bdd",
+          "locator": "csm-bdd-tdd/SKILL.md",
+          "quote": "Behavior and test design provide observable functional evidence."
+        },
+        {
+          "referenceId": "ref-review",
+          "locator": "csm-review/SKILL.md",
+          "quote": "Review provides independent audit evidence."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-recovery-normalization",
+      "section": "keyFindings",
+      "statement": "A generic parent recovery rule cannot override child-specific terminal, non-resumable, or policy-blocked semantics.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-lifecycle",
+          "locator": "csm-deep-research/SKILL.md",
+          "quote": "Recovery is defined by the skill state machine."
+        },
+        {
+          "referenceId": "ref-autoresearch",
+          "locator": "csm-autoresearch/SKILL.md",
+          "quote": "BLOCKED is terminal for invalid contracts, missing sandbox, or policy violations."
+        },
+        {
+          "referenceId": "ref-grill",
+          "locator": "csm-grill/SKILL.md",
+          "quote": "The grill is intentionally non-resumable before SAVED."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-thin-control-plane",
+      "section": "keyFindings",
+      "statement": "A receipt-gated outer control plane is plausible, but automatic dispatch and outcome improvement require host, replay, and local evaluation evidence.",
+      "claimType": "projected-outcome",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-approach",
+          "locator": "approach Research Synthesis",
+          "quote": "The accepted design is an outer control plane whose authority is explicit, narrow, receipt-based, and bounded."
+        },
+        {
+          "referenceId": "ref-evals",
+          "locator": "prior csm-orchestrate assurance research",
+          "quote": "Route behavior and productivity require repository-local evaluation."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-compatibility-risk",
+      "section": "keyFindings",
+      "statement": "Run IDs, paths, terminal statuses, and recovery semantics require explicit adapters before cross-skill orchestration can safely correlate results.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-compatibility",
+          "locator": "compatibility matrix and skill contracts",
+          "quote": "Native skill contracts and shared schemas use different identity and lifecycle conventions."
+        },
+        {
+          "referenceId": "ref-envelope",
+          "locator": "csm-envelope.schema.json",
+          "quote": "Shared envelopes require canonical run identity and typed artifact fields."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-productivity",
+      "section": "unverifiedClaims",
+      "statement": "Implementing the approach will improve productivity, cost, autonomy, latency, or correctness.",
+      "claimType": "causal",
+      "verdict": "unverifiable",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-evals",
+          "locator": "prior csm-orchestrate assurance research",
+          "quote": "No direct causal evidence proves these outcomes."
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-approach",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/approaches/2026-08-26-csm-orchestrate-approach.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace approach artifact",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-readme",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/README.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-boundaries",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-build/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-plan",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-plan/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-build",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-build/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-research",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-deep-research/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-grill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-grill/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-final",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/csm-final-receipt.schema.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-json",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/registry.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-registry",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/registry.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-resolver",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/lib/artifact-resolver/index.mjs",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-compatibility",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/lib/compatibility-runtime/index.mjs",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-edge",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/csm-edge-inventory.schema.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-envelope",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/csm-envelope.schema.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-capabilities",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/csm-skill-manifest.schema.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-upload",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-upload/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-bdd",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-bdd-tdd/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-tests",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-make-tests/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-review",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-autoresearch",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-autoresearch/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-lifecycle",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-deep-research/SKILL.md",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace main checkout",
+      "sourcePosture": "customer-evidence"
+    },
+    {
+      "referenceId": "ref-evals",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-08-26-csm-orchestrate-adversarial-assurance-20260826t200041z-a1b2c3d4e5f6-research.json",
+      "publisher": "Workspace repository",
+      "retrievedAt": "2026-08-27",
+      "publishedOrUpdated": "workspace research artifact",
+      "sourcePosture": "customer-evidence"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "new review run; prior approach and findings retained immutably",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 0,
+      "trigger": "review request"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "DEEP hybrid with five audit tracks",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 0,
+      "trigger": "approach correctness and implementation-readiness question"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "skill-boundary, lifecycle, evidence, adversarial, and long-horizon audits completed",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 0,
+      "trigger": "independent read-only research"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "gaps and correction requirements synthesized",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 0,
+      "trigger": "track reconciliation"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "completion, route, ownership, recovery, and final-phase claims adversarially tested",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 0,
+      "trigger": "independent challenge"
+    },
+    {
+      "sequence": 5,
+      "state": "REMEDIATE",
+      "event": "correction guidance narrowed to explicit contracts and phase insertion",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 0,
+      "trigger": "challenge resolutions"
+    },
+    {
+      "sequence": 6,
+      "state": "VERIFY",
+      "event": "JSON schema, citations, section order, redaction, and artifact set checked; final judge pass recorded in process evidence",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 1,
+      "trigger": "primary verification"
+    },
+    {
+      "sequence": 7,
+      "state": "SAVED",
+      "event": "consolidated review finding persisted",
+      "occurredAt": "2026-08-27T05:50:59Z",
+      "cycle": 1,
+      "trigger": "verification complete"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1",
+    "producedAt": "2026-08-27T05:50:59Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}
