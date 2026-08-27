@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-replay/1",
+  "title": "CSM orchestrate route replay result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "replayId", "runId", "phaseId", "status", "events"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-replay/1" },
+    "replayId": { "type": "string", "pattern": "^replay-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "status": { "enum": ["replayable", "resumed", "blocked", "incomplete"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "events": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

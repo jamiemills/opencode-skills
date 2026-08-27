@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-gate/1",
+  "title": "CSM orchestrate technical and functional gate receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "gateId",
+    "runId",
+    "phaseId",
+    "technical",
+    "functional",
+    "status",
+    "failures",
+    "sourceLineage"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-gate/1" },
+    "gateId": { "type": "string", "pattern": "^gate-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "technical": { "$ref": "#/$defs/result" },
+    "functional": { "$ref": "#/$defs/result" },
+    "status": { "enum": ["VERIFIED", "INCOMPLETE", "BLOCKED", "FAILED", "REQUIRES_REVIEW"] },
+    "failures": { "type": "array", "items": { "$ref": "#/$defs/failure" } },
+    "sourceLineage": { "type": "array", "items": { "$ref": "#/$defs/source" } }
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scenarioIds", "evidenceRefs"],
+      "properties": {
+        "status": { "enum": ["pass", "fail", "incomplete", "blocked", "unavailable"] },
+        "scenarioIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^ev-[a-z0-9][a-z0-9-]{1,127}$" }
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "code", "message"],
+      "properties": {
+        "class": {
+          "enum": [
+            "missing",
+            "stale",
+            "contradicted",
+            "unavailable",
+            "infrastructure",
+            "technical",
+            "functional",
+            "policy"
+          ]
+        },
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "requirementId": { "type": "string" },
+        "evidenceId": { "type": "string" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "path", "digest", "owner", "schema"],
+      "properties": {
+        "evidenceId": { "type": "string" },
+        "path": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "owner": { "type": "string" },
+        "schema": { "type": "string" },
+        "sourceDigest": { "type": "string" },
+        "sourceRunId": { "type": "string" }
+      }
+    }
+  }
+}

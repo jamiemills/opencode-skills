@@ -181,6 +181,12 @@ const MANIFEST = {
     norms: false,
     machine: { section: "Autoresearch State Machine", entryExit: false },
   },
+  "csm-orchestrate": {
+    sections: ["Contract", "Operator Handoff"],
+    tmux: false,
+    norms: false,
+    machine: null,
+  },
 };
 
 const CONTRACTS = [
@@ -219,6 +225,23 @@ const UPLOAD_SCRIPT_REF = {
 };
 
 const INTERFACES = {
+  "csm-orchestrate": {
+    entryConditions: ["canonical agreed approach artifact", "explicit orchestration request"],
+    consumes: [
+      "canonical JSON approach",
+      "capability manifest",
+      "host invocation adapter",
+      "scoped approvals",
+    ],
+    produces: ["typed parent receipt"],
+    handoff: ["typed child receipts and evidence to the operator or future csm-build handoff"],
+    midPipeline: [
+      "thin-slice phase",
+      "checkpoint",
+      "technical and functional gates",
+      "final review",
+    ],
+  },
   "csm-grill": {
     entryConditions: [
       "idea shared",
@@ -474,6 +497,22 @@ const FORMAT_VERSIONS = {
 // Third asymmetry: the review->analyzer false cell is present because csm-review
 // may hand off a separate, human-mediated csm-review-python dispatch.
 const NEVER_INVOKE = {
+  "csm-orchestrate": {
+    "csm-bdd-tdd": false,
+    "csm-browse": false,
+    "csm-build": false,
+    "csm-grill": false,
+    "csm-plan": false,
+    "csm-review": false,
+    "csm-scan": false,
+    "csm-upload": false,
+    "csm-deep-research": false,
+    "csm-make-tests": false,
+    "csm-review-python": false,
+    "csm-ddd": false,
+    "csm-autoresearch": false,
+    "csm-orchestrate": true,
+  },
   "csm-bdd-tdd": {
     "csm-bdd-tdd": false,
     "csm-browse": true,

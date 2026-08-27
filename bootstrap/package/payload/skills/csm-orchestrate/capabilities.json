@@ -1,0 +1,409 @@
+{
+  "schema": "csm-orchestrate-capabilities/1",
+  "version": 1,
+  "contentDigest": "sha256:998806d5ead391b6f3421d5bc56cbbaf8e50df1874e647dd0fbfccd911b6f016",
+  "coordinator": {
+    "skill": "csm-orchestrate",
+    "version": "1",
+    "role": "coordinator",
+    "entrypoint": "csm-orchestrate/index.mjs"
+  },
+  "skills": [
+    {
+      "skill": "csm-autoresearch",
+      "version": "1",
+      "digest": "sha256:21fa59eef2126aeca667933d799432549a00798494a4e7b8b8acfe60b1ba8127",
+      "source": {
+        "skillPath": "csm-autoresearch/SKILL.md",
+        "producerPath": "csm-autoresearch/producer.json"
+      },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "explicit callable or evolution region with trusted source and evaluator"
+      },
+      "inputs": [
+        {
+          "name": "run contract",
+          "kind": "configuration",
+          "schema": "csm-autoresearch-contract/1",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "report",
+          "kind": "artifact",
+          "schema": "csm-autoresearch-report/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "write", "execute"],
+      "effects": ["workspace-write"],
+      "approvalClass": "human-and-host",
+      "retryability": "bounded",
+      "idempotency": { "mode": "required", "key": "runId+attempt" },
+      "recovery": "terminal",
+      "parallelism": "serial",
+      "reviewLevel": "adversarial",
+      "terminal": {
+        "behavior": "stopped, rejected, quarantined, or approval-ready report",
+        "statuses": ["STOPPED", "BLOCKED", "APPROVAL_REQUIRED"]
+      }
+    },
+    {
+      "skill": "csm-bdd-tdd",
+      "version": "1",
+      "digest": "sha256:ff39fd96c1332a154f3af2ef58dbf94514374c42030d6f65964ddebb8f11b76e",
+      "source": { "skillPath": "csm-bdd-tdd/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "explicit validated plan requires BDD or TDD package"
+      },
+      "inputs": [{ "name": "plan", "kind": "artifact", "schema": "csm-plan/1", "required": true }],
+      "outputs": [
+        {
+          "name": "test package",
+          "kind": "artifact",
+          "schema": "csm-bdd-tdd-package/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "write"],
+      "effects": ["workspace-write"],
+      "approvalClass": "human",
+      "retryability": "bounded",
+      "idempotency": { "mode": "natural", "key": "planDigest+goalSlug" },
+      "recovery": "resume",
+      "parallelism": "serial",
+      "reviewLevel": "standard",
+      "terminal": {
+        "behavior": "hands off JSON package for explicit build",
+        "statuses": ["SAVED", "BLOCKED", "INCOMPLETE"]
+      }
+    },
+    {
+      "skill": "csm-browse",
+      "version": "1",
+      "digest": "sha256:4fb4deaf2eadbe90034a9c1b58258a1c720b343071429c5b2d0ce600fb971062",
+      "source": { "skillPath": "csm-browse/SKILL.md", "producerPath": null },
+      "activation": { "mode": "conditional", "predicate": "explicit browser evidence task" },
+      "inputs": [{ "name": "browser task", "kind": "request", "required": true }],
+      "outputs": [
+        {
+          "name": "evidence",
+          "kind": "evidence",
+          "schema": "csm-browse-evidence/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "write", "browser"],
+      "effects": ["browser-session", "workspace-write"],
+      "approvalClass": "human-and-host",
+      "retryability": "never",
+      "idempotency": { "mode": "required", "key": "sessionId+eventId" },
+      "recovery": "restart",
+      "parallelism": "serial",
+      "reviewLevel": "standard",
+      "terminal": {
+        "behavior": "returns JSON evidence descriptors and referenced files",
+        "statuses": ["COMPLETED", "BLOCKED", "INCOMPLETE"]
+      }
+    },
+    {
+      "skill": "csm-build",
+      "version": "1",
+      "digest": "sha256:be88db5db4bbede8b0d284d0c6d61238c7b0ff1461d0cb9a1f1aa23fca6e6f1a",
+      "source": { "skillPath": "csm-build/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "explicit",
+        "predicate": "explicit approved build invocation with validated JSON plan"
+      },
+      "inputs": [{ "name": "plan", "kind": "artifact", "schema": "csm-plan/1", "required": true }],
+      "outputs": [{ "name": "implementation", "kind": "implementation", "terminal": true }],
+      "permissions": ["read", "write", "execute"],
+      "effects": ["workspace-write"],
+      "approvalClass": "human-and-host",
+      "retryability": "bounded",
+      "idempotency": { "mode": "required", "key": "planId+taskId+attempt" },
+      "recovery": "resume",
+      "parallelism": "serial",
+      "reviewLevel": "standard",
+      "terminal": {
+        "behavior": "terminal executor returns typed delivery evidence",
+        "statuses": ["VERIFIED", "INCOMPLETE", "BLOCKED", "FAILED"]
+      }
+    },
+    {
+      "skill": "csm-ddd",
+      "version": "1",
+      "digest": "sha256:c239a758431817a2e64db44d3efbe35c4492d2d4d164e15f007aebe440f1b7e5",
+      "source": { "skillPath": "csm-ddd/SKILL.md", "producerPath": "csm-ddd/producer.json" },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "repository structure or dependency uncertainty requires DDD"
+      },
+      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "outputs": [
+        {
+          "name": "report and graph",
+          "kind": "artifact",
+          "schema": "csm-ddd-graph/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "execute"],
+      "effects": ["read-only"],
+      "approvalClass": "none",
+      "retryability": "safe",
+      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "recovery": "restart",
+      "parallelism": "independent-read-only",
+      "reviewLevel": "standard",
+      "terminal": {
+        "behavior": "returns immutable report and graph",
+        "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      }
+    },
+    {
+      "skill": "csm-deep-research",
+      "version": "1",
+      "digest": "sha256:822c874f6fff205e9b202224ee7799db53403b0649b2bc2fa8adc7dc553b8442",
+      "source": { "skillPath": "csm-deep-research/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "question needs external, repository, or documentation evidence"
+      },
+      "inputs": [{ "name": "research question", "kind": "request", "required": true }],
+      "outputs": [
+        { "name": "finding", "kind": "artifact", "schema": "csm-research/1", "terminal": true }
+      ],
+      "permissions": ["read", "network", "browser"],
+      "effects": ["read-only"],
+      "approvalClass": "none",
+      "retryability": "safe",
+      "idempotency": { "mode": "natural", "key": "question+sourceSnapshot" },
+      "recovery": "resume",
+      "parallelism": "independent-read-only",
+      "reviewLevel": "adversarial",
+      "terminal": {
+        "behavior": "returns one cited JSON finding",
+        "statuses": ["COMPLETED", "BLOCKED", "INCOMPLETE"]
+      }
+    },
+    {
+      "skill": "csm-grill",
+      "version": "1",
+      "digest": "sha256:8271cdc69b67597982872f2b3fe884dcce929f26f8de5ed8a8e1846b6e452305",
+      "source": { "skillPath": "csm-grill/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "explicit",
+        "predicate": "rough idea needs adversarial approach framing"
+      },
+      "inputs": [{ "name": "idea", "kind": "request", "required": true }],
+      "outputs": [
+        { "name": "approach", "kind": "artifact", "schema": "csm-approach/1", "terminal": true }
+      ],
+      "permissions": ["read", "write"],
+      "effects": ["workspace-write"],
+      "approvalClass": "human",
+      "retryability": "bounded",
+      "idempotency": { "mode": "natural", "key": "idea+runId" },
+      "recovery": "resume",
+      "parallelism": "serial",
+      "reviewLevel": "adversarial",
+      "terminal": {
+        "behavior": "saves verified JSON approach for later plan",
+        "statuses": ["SAVED", "BLOCKED", "INCOMPLETE"]
+      }
+    },
+    {
+      "skill": "csm-make-tests",
+      "version": "1",
+      "digest": "sha256:dda9e90463f314d79c31bcf8712683186dfeb1aa53d82fa015def8811dae8a8d",
+      "source": {
+        "skillPath": "csm-make-tests/SKILL.md",
+        "producerPath": "csm-make-tests/producer.json"
+      },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "coverage, characterization, or mutation tests are required"
+      },
+      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "outputs": [
+        {
+          "name": "test package",
+          "kind": "artifact",
+          "schema": "csm-test-package/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "write", "execute"],
+      "effects": ["workspace-write"],
+      "approvalClass": "human",
+      "retryability": "bounded",
+      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "recovery": "resume",
+      "parallelism": "serial",
+      "reviewLevel": "adversarial",
+      "terminal": {
+        "behavior": "returns executable tests and verified JSON package",
+        "statuses": ["COMPLETED", "BLOCKED", "INCOMPLETE"]
+      }
+    },
+    {
+      "skill": "csm-plan",
+      "version": "1",
+      "digest": "sha256:58ed13e2db5c9a1946af1958689bff14fbaac795096335b6157f452d72a1ded9",
+      "source": { "skillPath": "csm-plan/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "explicit",
+        "predicate": "accepted brief or approach phase needs a canonical plan"
+      },
+      "inputs": [
+        { "name": "brief", "kind": "request", "schema": "csm-approach/1", "required": true }
+      ],
+      "outputs": [{ "name": "plan", "kind": "artifact", "schema": "csm-plan/1", "terminal": true }],
+      "permissions": ["read", "write"],
+      "effects": ["workspace-write"],
+      "approvalClass": "human",
+      "retryability": "bounded",
+      "idempotency": { "mode": "natural", "key": "goalSlug+sourceDigest" },
+      "recovery": "resume",
+      "parallelism": "serial",
+      "reviewLevel": "adversarial",
+      "terminal": {
+        "behavior": "saves verified JSON plan awaiting explicit build",
+        "statuses": ["SAVED", "BLOCKED", "INCOMPLETE"]
+      }
+    },
+    {
+      "skill": "csm-review",
+      "version": "1",
+      "digest": "sha256:c859db6798752120a7d88c335ea7871c5626cd7e4cbbed452d29bc578fa459f4",
+      "source": { "skillPath": "csm-review/SKILL.md", "producerPath": "csm-review/producer.json" },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "independent repository audit is required"
+      },
+      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "outputs": [
+        {
+          "name": "findings",
+          "kind": "artifact",
+          "schema": "csm-review-findings/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "execute"],
+      "effects": ["read-only"],
+      "approvalClass": "none",
+      "retryability": "safe",
+      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "recovery": "restart",
+      "parallelism": "independent-read-only",
+      "reviewLevel": "final",
+      "terminal": {
+        "behavior": "returns immutable findings artifact",
+        "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      }
+    },
+    {
+      "skill": "csm-review-python",
+      "version": "1",
+      "digest": "sha256:982e191cbefc7b082c468a56d3c77f15f10165c018236f42c45a9f0ef5f289a4",
+      "source": {
+        "skillPath": "csm-review-python/SKILL.md",
+        "producerPath": "csm-review-python/producer.json"
+      },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "target repository is Python and doctrine review is requested"
+      },
+      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "outputs": [
+        {
+          "name": "doctrine findings",
+          "kind": "artifact",
+          "schema": "csm-doctrine-findings/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "execute"],
+      "effects": ["read-only"],
+      "approvalClass": "none",
+      "retryability": "safe",
+      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "recovery": "restart",
+      "parallelism": "independent-read-only",
+      "reviewLevel": "final",
+      "terminal": {
+        "behavior": "returns one immutable doctrine report",
+        "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      }
+    },
+    {
+      "skill": "csm-scan",
+      "version": "1",
+      "digest": "sha256:445b20f813cf1b7302b3f3a4c6822fdba15b2fac56e059be3767e06ad1f9aaf9",
+      "source": { "skillPath": "csm-scan/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "repository conventions are needed before planning or review"
+      },
+      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "outputs": [
+        { "name": "norms", "kind": "artifact", "schema": "csm-norms/1", "terminal": true }
+      ],
+      "permissions": ["read", "execute"],
+      "effects": ["read-only"],
+      "approvalClass": "none",
+      "retryability": "safe",
+      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "recovery": "restart",
+      "parallelism": "independent-read-only",
+      "reviewLevel": "standard",
+      "terminal": {
+        "behavior": "returns immutable JSON norms artifact",
+        "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      }
+    },
+    {
+      "skill": "csm-upload",
+      "version": "1",
+      "digest": "sha256:838a4fb0f26aeead009d58ac50c2d63b4626a89dabefce1cf8005debd97f7438",
+      "source": { "skillPath": "csm-upload/SKILL.md", "producerPath": null },
+      "activation": {
+        "mode": "explicit",
+        "predicate": "user explicitly requests publication of validated evidence"
+      },
+      "inputs": [
+        {
+          "name": "publication descriptor",
+          "kind": "artifact",
+          "schema": "csm-browse-evidence/1",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "publication receipt",
+          "kind": "receipt",
+          "schema": "csm-upload-publication/1",
+          "terminal": true
+        }
+      ],
+      "permissions": ["read", "write", "network", "credentials", "publish"],
+      "effects": ["publication", "external-side-effect", "credential-use"],
+      "approvalClass": "human-and-host",
+      "retryability": "never",
+      "idempotency": { "mode": "required", "key": "publicationDigest" },
+      "recovery": "blocked",
+      "parallelism": "serial",
+      "reviewLevel": "standard",
+      "terminal": {
+        "behavior": "returns JSON publication receipt and URL",
+        "statuses": ["PUBLISHED", "BLOCKED", "FAILED"]
+      }
+    }
+  ]
+}

@@ -132,6 +132,22 @@ const mapping = {
       destDir: join("payload", "skills", "csm-autoresearch", "schemas"),
     },
     {
+      src: join("csm-orchestrate", "index.mjs"),
+      dest: join("payload", "skills", "csm-orchestrate", "index.mjs"),
+    },
+    {
+      src: join("csm-orchestrate", "capabilities.json"),
+      dest: join("payload", "skills", "csm-orchestrate", "capabilities.json"),
+    },
+    {
+      srcDir: join("csm-orchestrate", "lib"),
+      destDir: join("payload", "skills", "csm-orchestrate", "lib"),
+    },
+    {
+      srcDir: join("csm-orchestrate", "schemas"),
+      destDir: join("payload", "skills", "csm-orchestrate", "schemas"),
+    },
+    {
       srcDir: join("csm-bdd-tdd", "schemas"),
       destDir: join("payload", "skills", "csm-bdd-tdd", "schemas"),
     },
@@ -323,18 +339,29 @@ async function expandMapping() {
   return entries;
 }
 
+function rewritePayloadSpecifier(specifier) {
+  return specifier
+    .replace(/^\.\.\/\.\.\/\.\.\/\.\.\/lib\//, "../../../../../lib/")
+    .replace(/^\.\.\/\.\.\/\.\.\/lib\//, "../../../../lib/")
+    .replace(/^\.\.\/\.\.\/lib\//, "../../../lib/")
+    .replace(/^\.\.\/\.\.\/csm-ddd\//, "../../skills/csm-ddd/");
+}
+
 function payloadData(data, destination) {
   const normalized = destination.split(sep).join("/");
   const rewritten = normalized.includes("payload/skills/");
   const sharedRuntime = normalized.includes("payload/lib/");
   if ((!rewritten && !sharedRuntime) || !normalized.endsWith(".mjs")) return data;
   const text = data.toString("utf8");
+  const rewriteMatch = (match, prefix, quote, specifier) =>
+    `${prefix}${quote}${rewritePayloadSpecifier(specifier)}${quote}`;
   return Buffer.from(
     text
-      .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../../lib/")
-      .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../lib/")
-      .replaceAll(/(["'])\.\.\/\.\.\/lib\//g, "$1../../../lib/")
-      .replaceAll(/(["'])\.\.\/\.\.\/csm-ddd\//g, "$1../../skills/csm-ddd/"),
+      .replace(
+        /(\b(?:import|export)\s+(?:[^"';]*?\s+from\s+)?)(["'])(\.\.?\/[^"']+)\2/g,
+        rewriteMatch,
+      )
+      .replace(/(\bimport\s*\(\s*)(["'])(\.\.?\/[^"']+)\2/g, rewriteMatch),
   );
 }
 

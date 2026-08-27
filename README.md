@@ -1,10 +1,10 @@
 # opencode-skills
 
-A collection of **thirteen agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
+A collection of **fourteen agent-agnostic AI skills** built around the **CSM (cyclic state machine)** workflow — a disciplined way for an AI agent to research, plan, and build software with receipts at every step.
 
 ## Quick install
 
-This repository contains thirteen practical AI skills for research, planning, implementation, testing, review, browser evidence, optimization, and publishing. The skill directories are runtime-agnostic, but installation locations are runtime-specific. The command below installs them for OpenCode at `~/.config/opencode/skills`; Claude Code and other Agent Skills runtimes use their documented per-user or project skill directories. If the destination already exists, use that checkout instead of cloning over it, or choose another empty destination.
+This repository contains fourteen practical AI skills for research, planning, implementation, testing, review, browser evidence, optimization, orchestration, and publishing. The skill directories are runtime-agnostic, but installation locations are runtime-specific. The command below installs them for OpenCode at `~/.config/opencode/skills`; Claude Code and other Agent Skills runtimes use their documented per-user or project skill directories. If the destination already exists, use that checkout instead of cloning over it, or choose another empty destination.
 
 ```bash
 dest="$HOME/.config/opencode/skills"
@@ -22,7 +22,7 @@ Restart or reload your agent runtime and verify that a skill such as `csm-plan` 
 
 - [What this is](#what-this-is)
 - [Install](#install)
-- [The thirteen skills at a glance](#the-thirteen-skills-at-a-glance)
+- [The fourteen skills at a glance](#the-fourteen-skills-at-a-glance)
 - [Composition matrix](#composition-matrix)
 - [Quickstart](#quickstart)
 - [Skill deep dives](#skill-deep-dives)
@@ -78,13 +78,13 @@ Start with the smallest useful action: research one question, scan one repositor
 
 ### Requirements
 
-Thirteen skills, three roles:
+Fourteen skills, three roles:
 
 Core prerequisites are Git, Node `>=22 <25`, pnpm, make, and an Agent Skills-compatible runtime. `csm-browse` additionally needs Docker, a prepared `chromium-vnc` container, and its one-time dependencies; ffmpeg is optional for stitching and video. `csm-upload` additionally needs an authenticated `gh` CLI and a Pages-enabled destination repository. The OpenCode destination is `~/.config/opencode/skills`; Claude Code and other Agent Skills runtimes use their documented per-user or project skill directories. If an installation directory already exists, inspect and update that checkout rather than overwriting it, or select an empty destination.
 
 | Role                                             | Skills                                                                                                                                            |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Orchestration** (invoked by name in a session) | `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review`, `csm-review-python`, `csm-autoresearch` |
+| **Orchestration** (invoked by name in a session) | `csm-orchestrate`, `csm-deep-research`, `csm-grill`, `csm-plan`, `csm-bdd-tdd`, `csm-make-tests`, `csm-build`, `csm-review`, `csm-review-python`, `csm-autoresearch` |
 | **Tooling** (repository analyzers with a CLI)    | `csm-scan`, `csm-ddd`                                                                                                                             |
 | **Evidence** (capture & publish)                 | `csm-browse`, `csm-upload`                                                                                                                        |
 
@@ -111,7 +111,7 @@ flowchart LR
     autoresearch -.->|"manual approval-ready diff"| review
 ```
 
-> **Edge semantics:** every arrow is a documented handoff, not an automatic dispatch. Dashed edges are optional, human-invoked inputs; all cross-skill handoffs require a separate explicit invocation. Research runs **first — or in parallel with the grill** — when the idea rests on external facts, specs, or standards that must be verifiable by citation: `csm-deep-research` answers them, the cited findings feed the grill (which may dispatch follow-up questions) and the plan, and the finding lands in `.agents/research/`. `csm-scan` feeds `NORMS.md` conventions into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`. `csm-autoresearch` is an optional post-build optimization edge that requires a declared numeric evaluator and never replaces correctness tests or review. `review -.-> plan` is a **manual human-in-the-loop** feed of review findings into a subsequent plan run — never an automatic edge. `csm-build` does not invoke `csm-browse`, and `csm-browse` does not invoke `csm-upload`. A csm-ddd analysis (report + graph under `.agents/ddd/`) can likewise be referenced by a planning brief or cited by a saved plan as an optional evidence input.
+> **Edge semantics:** every arrow is a documented handoff, not an automatic dispatch, except when an explicit `csm-orchestrate` outer-loop run is authorized and its host/capability/approval contracts pass. Dashed edges are optional inputs; outside csm-orchestrate they remain separate explicit invocations. Research runs **first — or in parallel with the grill** — when the idea rests on external facts, specs, or standards that must be verifiable by citation: `csm-deep-research` answers them, the cited findings feed the grill (which may dispatch follow-up questions) and the plan, and the finding lands in `.agents/research/`. `csm-scan` feeds `NORMS.md` conventions into `csm-plan`, `csm-bdd-tdd`, `csm-build`, or `csm-review`. `csm-autoresearch` is an optional post-build optimization edge that requires a declared numeric evaluator and never replaces correctness tests or review. `review -.-> plan` remains a **manual human-in-the-loop** feed outside an authorized orchestrator route. `csm-build` does not independently invoke `csm-browse`, and `csm-browse` does not independently invoke `csm-upload`; csm-orchestrate may coordinate those edges only with their declared approvals and receipts. A csm-ddd analysis (report + graph under `.agents/ddd/`) can likewise be referenced by a planning brief or cited by a saved plan as an optional evidence input.
 
 Each stage is a separate, explicitly invoked skill — planning never silently becomes implementation, and execution starts from a saved plan on disk. Every stage is terminal: it writes its artifact and stops; handoff to the next stage is a fresh, explicit invocation.
 
@@ -120,6 +120,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | Skill               | Primary output                                                                                                            |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `csm-grill`         | `.agents/approaches/<date>-<idea-slug>-approach.md`                                                                        |
+| `csm-orchestrate`   | typed parent receipt and child receipts/evidence from an authorized outer-loop run                                      |
 | `csm-plan`          | `.agents/plans/<date>-<goal-slug>-csm.md`                                                                                  |
 | `csm-bdd-tdd`       | mutated plan `<date>-<goal>-bdd-csm.md` + spec/scenario/test designs                                                       |
 | `csm-make-tests`    | `.agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl` + `-verification.json` + `-test-package.json`          |
@@ -133,7 +134,7 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-ddd`           | `.agents/ddd/<date>-<repo-slug>-ddd-report.md` + `.agents/ddd/<date>-<repo-slug>-ddd-graph.json`                           |
 | `csm-autoresearch`  | `.agents/autoresearch/<date>-<run-id>-ledger.jsonl` + atomic report/manifest                                               |
 
-## The thirteen skills at a glance
+## The fourteen skills at a glance
 
 | Skill               | In one sentence                                                                                                                                                                             | Reference                                                |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -150,8 +151,9 @@ Each stage is a separate, explicitly invoked skill — planning never silently b
 | `csm-browse`        | Drives an isolated Chromium in Docker via CDP: navigate, click, type, log in, screenshot, record video, inspect DOM/network/console.                                                        | [csm-browse/SKILL.md](csm-browse/SKILL.md)               |
 | `csm-upload`        | Publishes evidence files to a GitHub Pages demo site under a unique dated page name.                                                                                                        | [csm-upload/SKILL.md](csm-upload/SKILL.md)               |
 | `csm-autoresearch`  | Runs bounded evaluator-owned hill climbing over declared functions or evolution regions, with gated LLM proposals and durable trial provenance.                                             | [csm-autoresearch/SKILL.md](csm-autoresearch/SKILL.md)   |
+| `csm-orchestrate`   | Coordinates an agreed approach through conditional routes, typed evidence, gates, review, approvals, remediation, and recovery; it does not replace sibling lifecycles. | [csm-orchestrate/SKILL.md](csm-orchestrate/SKILL.md) |
 
-**How they compose** — see the [core-loop diagram and edge semantics in the Install section](#install); the artifact ledger there is the canonical one (all thirteen skills), indexed in [`.agents/README.md`](.agents/README.md).
+**How they compose** — see the [core-loop diagram and edge semantics in the Install section](#install); the artifact ledger there is the canonical one (all fourteen skills), indexed in [`.agents/README.md`](.agents/README.md).
 
 <!-- csm-matrix:start -->
 ## Composition matrix
@@ -160,6 +162,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 
 | Skill | Standalone entry | Consumes | Produces | Hands off |
 |---|---|---|---|---|
+| `csm-orchestrate` | canonical agreed approach artifact, explicit orchestration request | canonical JSON approach, capability manifest, host invocation adapter, scoped approvals | typed parent receipt | typed child receipts and evidence to the operator or future csm-build handoff |
 | `csm-grill` | idea shared, explicit request to be grilled, interviewed, or stress-tested | rough idea, repository and research evidence, optional registered csm-deep-research JSON findings when dispatched | validated JSON approach at .agents/approaches/<date>-<idea-slug>-<run-id>-approach.json (csm-grill/schemas/csm-approach.schema.json) | phase briefs from the JSON approach to a separately invoked csm-plan; Markdown is projection/history only |
 | `csm-plan` | brief or phase brief, explicit planning request | idea or phase brief, registered JSON repository norms, registered JSON review findings, optional registered JSON csm-deep-research findings when dispatched, optional registered JSON csm-ddd artifacts when explicitly referenced | validated JSON CSM plan at .agents/plans/<date>-<goal-slug>-<run-id>-csm.json (csm-plan/schemas/csm-plan.schema.json) | saved JSON plan to csm-bdd-tdd or csm-build; Markdown is projection/history only |
 | `csm-bdd-tdd` | saved CSM plan, explicit BDD/TDD mutation request | validated JSON plan, registered JSON repository norms | specs/<goal-slug>/package.json validated by csm-bdd-tdd/schemas/package.schema.json, typed scenario and test-design records, mutated JSON CSM plan | mutated JSON plan/package to csm-build; Gherkin and Markdown are projections only |
@@ -393,7 +396,7 @@ csm-deep-research -> csm-grill -> csm-plan -> csm-build
 - **tmux bootstrap** — `csm-plan`, `csm-build`, `csm-bdd-tdd`, `csm-make-tests`, `csm-scan`, `csm-review`, `csm-deep-research`, and `csm-review-python` derive a relevant `<skill>-<goal-slug>` session name from each invocation, rename the active tmux session when already inside one, or start a detached session when outside; say **"no tmux"** to disable this behavior. `csm-grill` is interactive by design and never detaches.
 - **Machine-validated artifacts** — lifecycle artifacts carry their documented format marker when applicable, and the repo-wide gate validates corpus shape (required sections in order, control journals, transition formats). Resume from artifacts only where the selected skill documents that behavior; `csm-review-python` transition notes are temporary.
 - **Write discipline** — write boundaries are skill-specific; read the selected skill's `Interface` and `Write Discipline` sections before running it.
-- **Standalone, terminal, never-invoking** — a skill that finishes stops. The only sanctioned runtime dispatches are `csm-grill`/`csm-plan` → `csm-deep-research` and `csm-deep-research` → `csm-browse` (browser-rendered retrieval of JS-only pages during a research run); all other edges are manual, separately invoked handoffs. `csm-build` does not invoke `csm-browse`, and `csm-browse` does not invoke `csm-upload` (enforced by the invoke matrix in `scripts/lib/contracts.mjs`).
+- **Standalone, terminal, never-invoking by default** — a skill that finishes stops. The only sanctioned skill-owned runtime dispatches are `csm-grill`/`csm-plan` → `csm-deep-research` and `csm-deep-research` → `csm-browse` (browser-rendered retrieval of JS-only pages during a research run). `csm-orchestrate` is the explicit outer-loop exception: it may coordinate declared sibling edges only through host invocation, capability, approval, receipt, and recovery contracts. Without that authorized outer-loop run, all other edges remain manual, separately invoked handoffs. (Enforced by the invoke matrix in `scripts/lib/contracts.mjs`.)
 
 ### The deep-research pipeline
 

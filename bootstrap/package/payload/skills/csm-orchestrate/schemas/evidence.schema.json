@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-evidence/1",
+  "title": "CSM orchestrate reconciled evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidenceId", "kind", "status", "owner", "runId", "digest", "source"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-evidence/1" },
+    "evidenceId": { "type": "string", "pattern": "^ev-[a-z0-9][a-z0-9-]{1,127}$" },
+    "kind": { "enum": ["technical", "functional", "review", "acceptance", "fixture"] },
+    "status": { "enum": ["current", "stale", "missing", "contradicted", "unavailable"] },
+    "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "artifactId", "digest", "schema"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "schema": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]*/[1-9][0-9]*$" },
+        "sourceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "sourceRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" }
+      }
+    },
+    "requirementIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^req-[a-z0-9][a-z0-9-]{1,127}$" }
+    },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

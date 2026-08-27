@@ -1,0 +1,310 @@
+"use strict";
+
+import { assertSchema, validSchema } from "./contracts.mjs";
+
+const FAILURE_CLASSES = Object.freeze([
+  "transport",
+  "child",
+  "policy",
+  "timeout",
+  "evaluator",
+  "incomplete",
+]);
+const ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
+
+function failure(status, failureClass, code, message) {
+  return { status, failure: { class: failureClass, code, message } };
+}
+
+async function assertRequest(request) {
+  if (!request || typeof request !== "object")
+    throw new TypeError("invocation request is required");
+  for (const field of [
+    "parentRunId",
+    "childRunId",
+    "phaseId",
+    "edgeId",
+    "skill",
+    "skillDigest",
+    "approval",
+    "permissions",
+    "timeoutMs",
+    "cancellation",
+    "retry",
+  ]) {
+    if (!(field in request)) throw new TypeError(`invocation request requires ${field}`);
+  }
+  if (
+    !ID.test(request.parentRunId) ||
+    !ID.test(request.childRunId) ||
+    request.parentRunId === request.childRunId
+  )
+    throw new TypeError("parent and child run IDs must be distinct canonical run IDs");
+  if (!request.retry.idempotencyKey) throw new TypeError("idempotency key is required");
+  if (request.approval) await assertSchema("csm-orchestrate-invocation/1", request);
+}
+
+function approvalFailure(approval, request, now, consumed) {
+  if (!approval) return ["missing-approval", "approval is required"];
+  if (approval.status === "revoked") return ["approval-revoked", "approval was revoked"];
+  if (approval.status === "consumed" || consumed.has(approval.approvalId))
+    return ["approval-consumed", "approval was already consumed"];
+  if (new Date(approval.expiresAt).getTime() <= now.getTime())
+    return ["approval-expired", "approval has expired"];
+  if (approval.status !== "approved") return ["approval-not-approved", "approval is not approved"];
+  if (approval.approvedDigest !== request.skillDigest)
+    return ["approval-digest-mismatch", "approval digest does not match skill digest"];
+  const expected = {
+    parentRunId: request.parentRunId,
+    childRunId: request.childRunId,
+    phaseId: request.phaseId,
+    edgeId: request.edgeId,
+  };
+  if (Object.keys(expected).some((key) => approval.binding?.[key] !== expected[key]))
+    return ["approval-binding-mismatch", "approval binding does not match invocation"];
+  if (
+    approval.scope.length !== request.permissions.length ||
+    request.permissions.some((permission) => !approval.scope.includes(permission))
+  )
+    return ["approval-scope-mismatch", "approval scope does not cover permissions"];
+  return null;
+}
+
+export function childIdentityFailure(result, request) {
+  const receipt = result?.childReceipt;
+  if (receipt && (receipt.runId !== request.childRunId || receipt.owner !== request.skill))
+    return "child receipt identity does not match invocation";
+  for (const item of result?.evidence ?? []) {
+    if (item.runId !== request.childRunId || item.owner !== request.skill)
+      return "child evidence identity does not match invocation";
+    if (item.source?.sourceRunId && item.source.sourceRunId !== request.childRunId)
+      return "child evidence source run does not match invocation";
+  }
+  for (const ref of result?.outputArtifactRefs ?? []) {
+    if (ref.sourceRunId && ref.sourceRunId !== request.childRunId)
+      return "child artifact source run does not match invocation";
+    if (ref.owner && ref.owner !== request.skill)
+      return "child artifact owner does not match invocation";
+  }
+  return null;
+}
+
+export async function validateChildResult(result, request) {
+  const statuses = new Set(["completed", "failed", "blocked", "incomplete"]);
+  if (!statuses.has(result?.status))
+    return result?.status === "rejected" ? "rejected child status" : "unknown child status";
+  if (result.childReceipt) {
+    if (result.childReceipt.status !== result.status) return "child receipt status mismatch";
+    if (!request.approval) return "invalid child receipt";
+    const receipt = {
+      schema: "csm-orchestrate-receipt/1",
+      receiptId: "receipt-validation",
+      runId: request.parentRunId,
+      phaseId: request.phaseId,
+      childReceipts: [result.childReceipt],
+      approval: {
+        approvalId: request.approval.approvalId,
+        scope: request.approval.scope,
+        approvedDigest: request.approval.approvedDigest,
+        approvedAt: request.approval.approvedAt,
+        expiresAt: request.approval.expiresAt,
+        status: request.approval.status,
+      },
+      statuses: {
+        route: "complete",
+        child: result.status === "completed" ? "completed" : result.status,
+        artifact: "none",
+        verification: "unverified",
+        parent: "active",
+      },
+      outcome: { status: "INCOMPLETE", accepted: false, acceptanceRefs: [] },
+      idempotencyKey: request.retry.idempotencyKey,
+    };
+    if (!(await validSchema("csm-orchestrate-receipt/1", receipt))) return "invalid child receipt";
+  }
+  for (const item of result.evidence ?? []) {
+    const evidence = {
+      schema: "csm-orchestrate-evidence/1",
+      ...item,
+      source: {
+        ...item.source,
+        sourceRunId: item.source?.sourceRunId ?? item.runId,
+      },
+    };
+    if (!(await validSchema("csm-orchestrate-evidence/1", evidence)))
+      return "invalid child evidence";
+  }
+  return null;
+}
+
+export async function validateDurableTerminalRecords(records, request) {
+  if (!Array.isArray(records)) return "terminal records must be an array";
+  const statuses = new Set(["completed", "failed", "blocked", "incomplete"]);
+  for (const record of records) {
+    if (!record || typeof record !== "object" || Array.isArray(record))
+      return "malformed durable terminal record";
+    if (
+      (record.childRunId !== undefined && record.childRunId !== request.childRunId) ||
+      (record.runId !== undefined && record.runId !== request.childRunId) ||
+      (record.childRunId === undefined && record.runId === undefined)
+    )
+      return "durable terminal record identity mismatch";
+    if (!statuses.has(record.status) || !record.result || typeof record.result !== "object")
+      return "malformed durable terminal record";
+    if (record.result.status !== record.status) return "durable terminal status mismatch";
+    const resultError = await validateChildResult(record.result, request);
+    if (resultError) return resultError;
+    const identityError = childIdentityFailure(record.result, request);
+    if (identityError) return identityError;
+  }
+  return null;
+}
+
+export function createHostInvocationAdapter({
+  host,
+  capabilities,
+  now = () => new Date(),
+  terminalInvocations = new Map(),
+} = {}) {
+  const consumedApprovals = new Set();
+  const manifest = Array.isArray(capabilities) ? capabilities : capabilities?.skills;
+  const capabilityBySkill = new Map((manifest ?? []).map((item) => [item.skill, item]));
+  return Object.freeze({
+    async invoke(request, { signal } = {}) {
+      try {
+        await assertRequest(request);
+      } catch (error) {
+        return failure("blocked", "policy", "invalid-invocation", error.message);
+      }
+      const capability = capabilityBySkill.get(request.skill);
+      if (!capability || request.skill === "csm-orchestrate")
+        return failure(
+          "blocked",
+          "policy",
+          "unauthorized-skill",
+          "skill is not an authorized sibling",
+        );
+      if (request.skillDigest !== capability.digest)
+        return failure(
+          "blocked",
+          "policy",
+          "skill-digest-mismatch",
+          "skill digest is not in the canonical capability manifest",
+        );
+      const key = request.retry.idempotencyKey;
+      if (terminalInvocations.has(key))
+        return failure(
+          "rejected",
+          "policy",
+          "duplicate-terminal-invocation",
+          "terminal invocation already exists",
+        );
+      const current = new Date(now());
+      const approvalError = approvalFailure(request.approval, request, current, consumedApprovals);
+      if (approvalError) return failure("blocked", "policy", approvalError[0], approvalError[1]);
+      if (!host || typeof host.invokeSiblingSkill !== "function")
+        return failure(
+          "blocked",
+          "transport",
+          "unavailable-host",
+          "host invocation API is unavailable",
+        );
+      if (request.cancellation.requested || signal?.aborted)
+        return failure(
+          "rejected",
+          "timeout",
+          "cancelled",
+          "invocation was cancelled before dispatch",
+        );
+      consumedApprovals.add(request.approval.approvalId);
+      const controller = new AbortController();
+      const cancellation = new Promise((_, reject) => {
+        signal?.addEventListener(
+          "abort",
+          () => {
+            controller.abort();
+            reject(Object.assign(new Error("invocation was cancelled"), { cancelled: true }));
+          },
+          { once: true },
+        );
+      });
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(Object.assign(new Error("child invocation timed out"), { timeout: true }));
+        }, request.timeoutMs);
+      });
+      try {
+        const result = await Promise.race([
+          host.invokeSiblingSkill(request, { signal: controller.signal }),
+          timeout,
+          cancellation,
+        ]);
+        clearTimeout(timer);
+        const resultError = await validateChildResult(result, request);
+        if (resultError) return failure("blocked", "policy", "invalid-child-result", resultError);
+        const status = result.status;
+        const identityError = childIdentityFailure(result, request);
+        if (identityError) {
+          const terminal = failure("blocked", "policy", "child-identity-mismatch", identityError);
+          terminalInvocations.set(key, terminal);
+          return terminal;
+        }
+        if (status === "failed" || status === "blocked") {
+          const klass = FAILURE_CLASSES.includes(result.failure?.class)
+            ? result.failure.class
+            : "child";
+          const terminal = {
+            status,
+            failure: {
+              class: klass,
+              code: result.failure?.code ?? "child-failed",
+              message: result.failure?.message ?? "child invocation failed",
+            },
+          };
+          terminalInvocations.set(key, terminal);
+          return terminal;
+        }
+        if (status === "incomplete")
+          return failure(
+            "incomplete",
+            "incomplete",
+            result.failure?.code ?? "child-incomplete",
+            result.failure?.message ?? "child evidence is incomplete",
+          );
+        const terminal = {
+          status: "completed",
+          outputArtifactRefs: result?.outputArtifactRefs ?? [],
+          childReceipt: result?.childReceipt ?? null,
+          evidence: result?.evidence ?? [],
+          technical: result?.technical ?? null,
+          functional: result?.functional ?? null,
+        };
+        terminalInvocations.set(key, terminal);
+        return terminal;
+      } catch (error) {
+        clearTimeout(timer);
+        if (error?.timeout)
+          return failure("failed", "timeout", "timeout", "child invocation timed out");
+        if (error?.cancelled)
+          return failure("rejected", "timeout", "cancelled", "invocation was cancelled");
+        if (FAILURE_CLASSES.includes(error?.failureClass))
+          return failure(
+            "failed",
+            error.failureClass,
+            error.code ?? `${error.failureClass}-failed`,
+            error.message ?? `${error.failureClass} failure`,
+          );
+        return failure(
+          "failed",
+          "transport",
+          "transport-failed",
+          error?.message ?? "host transport failed",
+        );
+      }
+    },
+  });
+}
+
+export { FAILURE_CLASSES };

@@ -116,7 +116,10 @@ test("registry declares complete interface and never-invoke boundaries", () => {
       Object.hasOwn(NEVER_INVOKE[skill], "csm-autoresearch"),
       `${skill} missing autoresearch column`,
     );
-    assert.equal(NEVER_INVOKE[skill]["csm-autoresearch"], skill !== "csm-autoresearch");
+    assert.equal(
+      NEVER_INVOKE[skill]["csm-autoresearch"],
+      skill === "csm-orchestrate" ? false : skill !== "csm-autoresearch",
+    );
   }
   assert.equal(CONTRACTS.length >= 4, true);
 });

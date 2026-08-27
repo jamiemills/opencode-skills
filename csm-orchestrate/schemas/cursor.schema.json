@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-cursor/1",
+  "title": "CSM orchestrate durable cursor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "cursorId",
+    "runId",
+    "phaseId",
+    "routeState",
+    "checkpointState",
+    "attempt",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-cursor/1" },
+    "cursorId": { "type": "string", "pattern": "^cursor-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "$ref": "#/$defs/runId" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "routeState": {
+      "enum": [
+        "not-selected",
+        "selected",
+        "dispatched",
+        "collecting",
+        "replay-required",
+        "blocked",
+        "complete"
+      ]
+    },
+    "checkpointState": { "enum": ["none", "validated", "stale", "saved"] },
+    "attempt": { "type": "integer", "minimum": 0 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "edgeId": { "type": "string", "pattern": "^edge-[a-z0-9][a-z0-9-]{1,127}$" },
+    "routeNodeId": { "type": "string", "minLength": 1 },
+    "childRunId": { "$ref": "#/$defs/runId" },
+    "childReceiptIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^receipt-[a-z0-9][a-z0-9-]{1,127}$" }
+    },
+    "sideEffects": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "materialFingerprint": { "type": ["string", "null"], "minLength": 1 },
+    "terminalBlocker": { "type": ["string", "null"], "minLength": 1 },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" } }
+}

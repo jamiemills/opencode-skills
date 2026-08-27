@@ -90,11 +90,17 @@ export async function startFakeCdp({ responses = {}, token = null } = {}) {
     messages,
     connections,
     closeAll() {
-      for (const ws of connections) {
+      const clients = new Set([...connections, ...wss.clients]);
+      for (const ws of clients) {
+        // Force the disconnect event so daemon tests cannot leave a child
+        // alive waiting on a graceful close handshake.
         try {
-          ws.close();
+          ws.terminate();
         } catch {}
       }
+      try {
+        httpServer.close();
+      } catch {}
     },
     stop() {
       return new Promise((res) => {

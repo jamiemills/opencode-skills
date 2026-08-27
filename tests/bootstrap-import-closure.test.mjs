@@ -3,7 +3,7 @@ import { mkdtemp, readFile, readdir, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import test from "node:test";
-import { expandMapping, packBootstrap } from "../scripts/pack-bootstrap.mjs";
+import { expandMapping, packBootstrap, payloadData } from "../scripts/pack-bootstrap.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const localImport =
@@ -97,10 +97,16 @@ test("generated entrypoints import in isolation without mutating canonical files
       "skills/csm-ddd/lib/ddd/pipeline.mjs",
       "skills/csm-grill/lib/approach.mjs",
       "skills/csm-make-tests/lib/ledger.mjs",
+      "skills/csm-orchestrate/index.mjs",
+      "skills/csm-orchestrate/lib/capabilities.mjs",
       "skills/csm-plan/lib/plan.mjs",
       "skills/csm-upload/lib/publication.mjs",
     ];
     for (const entry of entrypoints) await import(`${join(payload, entry)}?closure-test`);
+    const capabilities = JSON.parse(
+      await readFile(join(payload, "skills/csm-orchestrate/capabilities.json"), "utf8"),
+    );
+    assert.equal(capabilities.coordinator.entrypoint, "csm-orchestrate/index.mjs");
     for (const [source, bytes] of before)
       assert.deepEqual(
         await readFile(join(root, source)),
@@ -110,6 +116,19 @@ test("generated entrypoints import in isolation without mutating canonical files
   } finally {
     await rm(outputRoot, { recursive: true, force: true });
   }
+});
+
+test("payload rewriting only changes local import specifiers", () => {
+  const source = Buffer.from(
+    [
+      'import { digest } from "../../lib/schema-runtime/index.mjs";',
+      'const documentation = "../../lib/not-an-import.mjs";',
+      'export { digest } from "../../lib/schema-runtime/index.mjs";',
+    ].join("\n"),
+  );
+  const rewritten = payloadData(source, "payload/skills/csm-orchestrate/lib/index.mjs").toString();
+  assert.match(rewritten, /from "\.\.\/\.\.\/\.\.\/lib\/schema-runtime/);
+  assert.match(rewritten, /"\.\.\/\.\.\/lib\/not-an-import\.mjs"/);
 });
 
 test("canonical mappings and generated payload index have identical path sets", async () => {

@@ -4,125 +4,724 @@
   "artifactId": "art-csm-orchestrate-plan-20260827-a1b2c3d4e5f6",
   "runId": "run-20260827t060437z-a1b2c3d4e5f6",
   "planId": "2026-08-27-csm-orchestrate-csm",
-  "status": "ready",
+  "status": "complete",
   "control": {
-    "status": "ready",
-    "currentState": "NOT_STARTED",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-08-27T06:04:37Z: plan created; no implementation started",
-    "lastModelRun": "csm-plan intake/draft/verify",
-    "nextTransition": "Future explicit csm-build invocation: NOT_STARTED -> RECOVER",
+    "lastCheckpoint": "2026-08-27T12:00:00Z: T008 coordinator integrated; E2E 8/8, orchestrator 39/39, registry 14/14, formatting/lint passed",
+    "lastModelRun": "csm-build T008 run-current",
+    "nextTransition": "COMPLETE",
     "activeTasks": [],
     "blockers": [],
-    "resume": {"read":"Control, latest journal row, task recovery notes, discovered requirements, and worktree diff","rule":"all tasks are pending in this new plan"}
+    "resume": {
+      "read": "Control, latest journal row, task recovery notes, discovered requirements, and worktree diff",
+      "rule": "T008 evidence is recorded and reproducible; no pending task remains"
+    }
   },
   "goal": {
-    "title":"Implement csm-orchestrate as an active cross-skill CSM outer loop",
-    "outcome":"Coordinate all repository skills to deliver end-to-end outcomes through approach-phase compilation, thin-slice execution, typed evidence, adversarial review, final review, bounded remediation, and long-horizon recovery.",
-    "constraints":["Preserve sibling skill domain logic, artifacts, ownership, internal lifecycles, and side-effect authority.","Use canonical JSON artifacts and registered schemas; Markdown is never authoritative machine input.","Require explicit approval before mutation, commits, credentials, browser actions, publication, destructive work, or promotion.","Final review is mandatory and may create a new bounded remediation phase.","All implementation tasks remain pending until a separate explicit csm-build invocation."],
-    "exclusions":["Do not duplicate sibling skill logic.","Do not create an unrestricted autonomous agent loop.","Do not silently invoke every skill or flatten child states.","Do not claim productivity or correctness improvement without evaluation evidence."]
+    "title": "Implement csm-orchestrate as an active cross-skill CSM outer loop",
+    "outcome": "Coordinate all repository skills to deliver end-to-end outcomes through approach-phase compilation, thin-slice execution, typed evidence, adversarial review, final review, bounded remediation, and long-horizon recovery.",
+    "constraints": [
+      "Preserve sibling skill domain logic, artifacts, ownership, internal lifecycles, and side-effect authority.",
+      "Use canonical JSON artifacts and registered schemas; Markdown is never authoritative machine input.",
+      "Require explicit approval before mutation, commits, credentials, browser actions, publication, destructive work, or promotion.",
+      "Final review is mandatory and may create a new bounded remediation phase.",
+      "All implementation tasks remain pending until a separate explicit csm-build invocation."
+    ],
+    "exclusions": [
+      "Do not duplicate sibling skill logic.",
+      "Do not create an unrestricted autonomous agent loop.",
+      "Do not silently invoke every skill or flatten child states.",
+      "Do not claim productivity or correctness improvement without evaluation evidence."
+    ]
   },
-  "acceptanceCriteria":[
-    {"id":"AC1","statement":"An approach artifact can be compiled into immutable, ordered runtime phases with thin-slice scope, requirements, route, approvals, evidence, and checkpoint metadata.","evidence":"Phase schema validation and compiler tests pass."},
-    {"id":"AC2","statement":"All supported skills have machine-readable capability metadata and conditional route rules, with missing/contradictory metadata failing closed.","evidence":"Capability manifest and registry conformance tests pass for all skill directories."},
-    {"id":"AC3","statement":"Parent/child invocation and artifact handoffs preserve run IDs, ownership, schema revisions, digests, compatibility, permissions, and failure taxonomy.","evidence":"Invocation, resolver, compatibility, and replay tests pass."},
-    {"id":"AC4","statement":"A requirement is not accepted from narrative completion; critical requirements require technical evidence, functional evidence, or explicit user acceptance/waiver.","evidence":"Acceptance-ledger negative and positive tests pass."},
-    {"id":"AC5","statement":"Every completed phase and final outcome passes technical gates, functional scenarios, independent adversarial review, and mandatory final review.","evidence":"Gate aggregation and final-review tests pass, including failure paths."},
-    {"id":"AC6","statement":"Final review can insert a new phase with immutable identity, parentage, ordering, requirement delta, route, budget, and no graph cycle or duplicate side effect.","evidence":"Phase insertion and cycle/idempotency fault-injection tests pass."},
-    {"id":"AC7","statement":"Long-horizon interruption, retry, stale result, child blocker, approval expiry, and partial completion produce safe resumable, blocked, failed, or incomplete outcomes.","evidence":"Recovery/replay tests pass with durable cursor and receipt lineage."},
-    {"id":"AC8","statement":"Automatic dispatch is not enabled until host invocation, permissions, approvals, idempotency, route replay, and evaluation gates pass.","evidence":"Autonomy-enablement gate rejects incomplete prerequisites."}
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "statement": "An approach artifact can be compiled into immutable, ordered runtime phases with thin-slice scope, requirements, route, approvals, evidence, and checkpoint metadata.",
+      "evidence": "Phase schema validation and compiler tests pass."
+    },
+    {
+      "id": "AC2",
+      "statement": "All supported skills have machine-readable capability metadata and conditional route rules, with missing/contradictory metadata failing closed.",
+      "evidence": "Capability manifest and registry conformance tests pass for all skill directories."
+    },
+    {
+      "id": "AC3",
+      "statement": "Parent/child invocation and artifact handoffs preserve run IDs, ownership, schema revisions, digests, compatibility, permissions, and failure taxonomy.",
+      "evidence": "Invocation, resolver, compatibility, and replay tests pass."
+    },
+    {
+      "id": "AC4",
+      "statement": "A requirement is not accepted from narrative completion; critical requirements require technical evidence, functional evidence, or explicit user acceptance/waiver.",
+      "evidence": "Acceptance-ledger negative and positive tests pass."
+    },
+    {
+      "id": "AC5",
+      "statement": "Every completed phase and final outcome passes technical gates, functional scenarios, independent adversarial review, and mandatory final review.",
+      "evidence": "Gate aggregation and final-review tests pass, including failure paths."
+    },
+    {
+      "id": "AC6",
+      "statement": "Final review can insert a new phase with immutable identity, parentage, ordering, requirement delta, route, budget, and no graph cycle or duplicate side effect.",
+      "evidence": "Phase insertion and cycle/idempotency fault-injection tests pass."
+    },
+    {
+      "id": "AC7",
+      "statement": "Long-horizon interruption, retry, stale result, child blocker, approval expiry, and partial completion produce safe resumable, blocked, failed, or incomplete outcomes.",
+      "evidence": "Recovery/replay tests pass with durable cursor and receipt lineage."
+    },
+    {
+      "id": "AC8",
+      "statement": "Automatic dispatch is not enabled until host invocation, permissions, approvals, idempotency, route replay, and evaluation gates pass.",
+      "evidence": "Autonomy-enablement gate rejects incomplete prerequisites."
+    }
   ],
   "currentStateEvidence": {
-    "approach":".agents/approaches/2026-08-26-csm-orchestrate-approach.md",
-    "research":".agents/research/2026-08-27-csm-orchestrate-approach-review-20260827t055059z-a1b2c3d4e5f6-research.json",
-    "observations":["All 13 skills have distinct responsibilities but non-uniform IDs, paths, statuses, approvals, and recovery semantics.","schemas/registry.json, csm-edge-inventory, producer descriptors, artifact resolver, compatibility runtime, and verification-status contracts are reusable foundations.","No csm-orchestrate implementation, phase schema, requirement ledger schema, invocation contract, or route replay suite exists.","Existing skill contracts prohibit implicit sibling invocation and retain artifact ownership with producers.","The current worktree contains unrelated changes; csm-build must preserve them."],
-    "references":["README.md",".agents/README.md","schemas/registry.json","schemas/csm-edge-inventory.schema.json","lib/artifact-resolver/index.mjs","lib/compatibility-runtime/index.mjs","csm-deep-research/SKILL.md","csm-build/SKILL.md","csm-review/SKILL.md","csm-autoresearch/SKILL.md"]
+    "approach": ".agents/approaches/2026-08-26-csm-orchestrate-approach.md",
+    "research": ".agents/research/2026-08-27-csm-orchestrate-approach-review-20260827t055059z-a1b2c3d4e5f6-research.json",
+    "observations": [
+      "All 13 skills have distinct responsibilities but non-uniform IDs, paths, statuses, approvals, and recovery semantics.",
+      "schemas/registry.json, csm-edge-inventory, producer descriptors, artifact resolver, compatibility runtime, and verification-status contracts are reusable foundations.",
+      "No csm-orchestrate implementation, phase schema, requirement ledger schema, invocation contract, or route replay suite exists.",
+      "Existing skill contracts prohibit implicit sibling invocation and retain artifact ownership with producers.",
+      "The current worktree contains unrelated changes; csm-build must preserve them."
+    ],
+    "references": [
+      "README.md",
+      ".agents/README.md",
+      "schemas/registry.json",
+      "schemas/csm-edge-inventory.schema.json",
+      "lib/artifact-resolver/index.mjs",
+      "lib/compatibility-runtime/index.mjs",
+      "csm-deep-research/SKILL.md",
+      "csm-build/SKILL.md",
+      "csm-review/SKILL.md",
+      "csm-autoresearch/SKILL.md"
+    ]
   },
   "applicability": {
-    "format":"csm-applicability/1",
-    "decision":"warranted",
-    "mode":"risk-first",
-    "matchedSignals":["cross_boundary_coordination","public_contract","ownership_or_persistence","invariant_or_consistency","external_side_effect","migration_or_rollback","architecture_or_refactor","security_or_authority"],
-    "evidence":[{"source":"brief","locator":"agreed csm-orchestrate approach","observation":"Active cross-skill outer loop with approvals, receipts, final review, phase insertion, and recovery."},{"source":"repository","locator":"skill contracts and shared schemas","observation":"Cross-skill boundaries and non-uniform lifecycle/ownership semantics require explicit contracts."}],
-    "obligations":["capability-contract","phase-and-requirement-contract","invocation-and-approval-contract","artifact-lineage","technical-functional-assurance","phase-cycle-safety","recovery-idempotency","replay-and-evaluation"],
-    "taskApplicability":{"warranted":["T001","T002","T003","T004","T005","T006","T007","T008"],"lightweight":[]},
-    "dddArtifacts":[],
-    "unresolvedRisks":["host invocation mechanism","approval authority","canonical run/path compatibility","child receipt composition","route replay coverage"],
-    "bypass":{"requested":false,"rationale":null}
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": [
+      "cross_boundary_coordination",
+      "public_contract",
+      "ownership_or_persistence",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "migration_or_rollback",
+      "architecture_or_refactor",
+      "security_or_authority"
+    ],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "agreed csm-orchestrate approach",
+        "observation": "Active cross-skill outer loop with approvals, receipts, final review, phase insertion, and recovery."
+      },
+      {
+        "source": "repository",
+        "locator": "skill contracts and shared schemas",
+        "observation": "Cross-skill boundaries and non-uniform lifecycle/ownership semantics require explicit contracts."
+      }
+    ],
+    "obligations": [
+      "capability-contract",
+      "phase-and-requirement-contract",
+      "invocation-and-approval-contract",
+      "artifact-lineage",
+      "technical-functional-assurance",
+      "phase-cycle-safety",
+      "recovery-idempotency",
+      "replay-and-evaluation"
+    ],
+    "taskApplicability": {
+      "warranted": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"],
+      "lightweight": []
+    },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "host invocation mechanism",
+      "approval authority",
+      "canonical run/path compatibility",
+      "child receipt composition",
+      "route replay coverage"
+    ],
+    "bypass": { "requested": false, "rationale": null }
   },
-  "assumptionsAndDecisions":[
-    {"id":"D001","statement":"The outer loop can invoke all skills conditionally, but side effects remain approval-gated.","type":"user-dictated","evidence":"Approach decisions log","status":"accepted"},
-    {"id":"D002","statement":"Incoming csm-grill phases become runtime phases and are executed as independently accepted thin slices.","type":"user-dictated","evidence":"Approach runtime phase model","status":"accepted"},
-    {"id":"D003","statement":"Final review can append or insert new remediation phases and must re-run the normal gates.","type":"user-dictated","evidence":"Approach final-review role","status":"accepted"},
-    {"id":"D004","statement":"Canonical parent and child IDs use run-...; legacy formats require explicit adapters.","type":"prescribed","evidence":"Shared JSON schema and research conflict finding","status":"required"},
-    {"id":"D005","statement":"The implementation must use existing validators and ownership rules rather than duplicate artifact semantics.","type":"repository-norm","evidence":"Artifact resolver and .agents/README.md","status":"required"}
+  "assumptionsAndDecisions": [
+    {
+      "id": "D001",
+      "statement": "The outer loop can invoke all skills conditionally, but side effects remain approval-gated.",
+      "type": "user-dictated",
+      "evidence": "Approach decisions log",
+      "status": "accepted"
+    },
+    {
+      "id": "D002",
+      "statement": "Incoming csm-grill phases become runtime phases and are executed as independently accepted thin slices.",
+      "type": "user-dictated",
+      "evidence": "Approach runtime phase model",
+      "status": "accepted"
+    },
+    {
+      "id": "D003",
+      "statement": "Final review can append or insert new remediation phases and must re-run the normal gates.",
+      "type": "user-dictated",
+      "evidence": "Approach final-review role",
+      "status": "accepted"
+    },
+    {
+      "id": "D004",
+      "statement": "Canonical parent and child IDs use run-...; legacy formats require explicit adapters.",
+      "type": "prescribed",
+      "evidence": "Shared JSON schema and research conflict finding",
+      "status": "required"
+    },
+    {
+      "id": "D005",
+      "statement": "The implementation must use existing validators and ownership rules rather than duplicate artifact semantics.",
+      "type": "repository-norm",
+      "evidence": "Artifact resolver and .agents/README.md",
+      "status": "required"
+    }
   ],
-  "rdRecord":[
-    {"id":"R001","question":"Can the host invoke sibling skills and capture typed receipts?","method":"Inspect skill interfaces, descriptors, edge inventory, and runtime modules; no execution during planning.","isolation":"read-only repository inspection","observation":"No complete host invocation contract exists.","implication":"T003 must define and test it before automatic dispatch."},
-    {"id":"R002","question":"Can existing child lifecycles share one parent recovery model?","method":"Compare all 13 SKILL.md lifecycle and terminal/recovery sections.","isolation":"read-only repository inspection","observation":"Recovery and BLOCKED semantics differ by skill.","implication":"T007 must use route-specific adapters and separate parent/artifact/verification statuses."},
-    {"id":"R003","question":"How can final review add work without false completion or replay cycles?","method":"Inspect current approach and adversarial assurance research.","isolation":"read-only repository inspection","observation":"New phases need identity, parentage, ordering, requirement delta, cycle checks, and bounded budget.","implication":"T006 must implement phase insertion and fault-injection tests."}
+  "rdRecord": [
+    {
+      "id": "R001",
+      "question": "Can the host invoke sibling skills and capture typed receipts?",
+      "method": "Inspect skill interfaces, descriptors, edge inventory, and runtime modules; no execution during planning.",
+      "isolation": "read-only repository inspection",
+      "observation": "No complete host invocation contract exists.",
+      "implication": "T003 must define and test it before automatic dispatch."
+    },
+    {
+      "id": "R002",
+      "question": "Can existing child lifecycles share one parent recovery model?",
+      "method": "Compare all 13 SKILL.md lifecycle and terminal/recovery sections.",
+      "isolation": "read-only repository inspection",
+      "observation": "Recovery and BLOCKED semantics differ by skill.",
+      "implication": "T007 must use route-specific adapters and separate parent/artifact/verification statuses."
+    },
+    {
+      "id": "R003",
+      "question": "How can final review add work without false completion or replay cycles?",
+      "method": "Inspect current approach and adversarial assurance research.",
+      "isolation": "read-only repository inspection",
+      "observation": "New phases need identity, parentage, ordering, requirement delta, cycle checks, and bounded budget.",
+      "implication": "T006 must implement phase insertion and fault-injection tests."
+    }
   ],
-  "discoveredRequirements":[
-    {"id":"DR001","statement":"Canonical JSON plan must remain machine-authoritative and all tasks must be pending for csm-build.","evidence":"csm-plan schema and skill contract","status":"required"},
-    {"id":"DR002","statement":"Producer-owned terminal artifacts cannot be rewritten, renamed, or claimed by the orchestrator.","evidence":".agents/README.md durable artifact identity","status":"required"},
-    {"id":"DR003","statement":"Automatic parallelism is initially limited to independent read-only nodes.","evidence":"Agreed approach and skill lifecycle conflicts","status":"required"},
-    {"id":"DR004","statement":"No final VERIFIED status may contain unresolved critical requirements or unverified required evidence.","evidence":"Verification-status and final-receipt contracts","status":"required"}
+  "discoveredRequirements": [
+    {
+      "id": "DR001",
+      "statement": "Canonical JSON plan must remain machine-authoritative and all tasks must be pending for csm-build.",
+      "evidence": "csm-plan schema and skill contract",
+      "status": "required"
+    },
+    {
+      "id": "DR002",
+      "statement": "Producer-owned terminal artifacts cannot be rewritten, renamed, or claimed by the orchestrator.",
+      "evidence": ".agents/README.md durable artifact identity",
+      "status": "required"
+    },
+    {
+      "id": "DR003",
+      "statement": "Automatic parallelism is initially limited to independent read-only nodes.",
+      "evidence": "Agreed approach and skill lifecycle conflicts",
+      "status": "required"
+    },
+    {
+      "id": "DR004",
+      "statement": "No final VERIFIED status may contain unresolved critical requirements or unverified required evidence.",
+      "evidence": "Verification-status and final-receipt contracts",
+      "status": "required"
+    }
   ],
   "design": {
-    "boundary":"csm-orchestrate owns parent outcome, requirement ledger, route graph, child invocation, evidence reconciliation, approvals, checkpoints, adversarial acceptance, final review, and receipt; sibling skills own domain work and artifacts.",
-    "runtimeStates":["INTAKE","REQUIREMENTS","TRIAGE","ROUTE","VALIDATE_INPUTS","APPROVE","HANDOFF","COLLECT_RECEIPT","TECHNICAL_GATE","FUNCTIONAL_GATE","ADVERSARIAL_REVIEW","FINAL_REVIEW","CHECKPOINT","NEXT","REMEDIATE","BLOCKED","PAUSED","INCOMPLETE","FAILED","VERIFIED","SAVED"],
-    "thinSlice":"approach phase -> phase contract -> selected route -> one bounded increment -> typed receipt -> requirement/evidence mapping -> technical gate -> functional gate -> adversarial review -> final review -> checkpoint",
-    "phaseInsertion":"Final review creates a new phase only with unique phaseId, parentPhaseId, graph revision, insertedAfter, requirementDelta, owner/route, acceptance signals, approval scope, idempotency policy, and remediation budget. Cycle, duplicate, stale, and already-executed side-effect checks fail closed.",
-    "statusSeparation":"Keep route state, child lifecycle, artifact lifecycle, verification result, approval state, and parent outcome as separate fields.",
-    "authoritativeInputs":"Registered canonical JSON approach artifacts are authoritative; Markdown requires an explicit projection adapter with source identity/digest validation."
+    "boundary": "csm-orchestrate owns parent outcome, requirement ledger, route graph, child invocation, evidence reconciliation, approvals, checkpoints, adversarial acceptance, final review, and receipt; sibling skills own domain work and artifacts.",
+    "runtimeStates": [
+      "INTAKE",
+      "REQUIREMENTS",
+      "TRIAGE",
+      "ROUTE",
+      "VALIDATE_INPUTS",
+      "APPROVE",
+      "HANDOFF",
+      "COLLECT_RECEIPT",
+      "TECHNICAL_GATE",
+      "FUNCTIONAL_GATE",
+      "ADVERSARIAL_REVIEW",
+      "FINAL_REVIEW",
+      "CHECKPOINT",
+      "NEXT",
+      "REMEDIATE",
+      "BLOCKED",
+      "PAUSED",
+      "INCOMPLETE",
+      "FAILED",
+      "VERIFIED",
+      "SAVED"
+    ],
+    "thinSlice": "approach phase -> phase contract -> selected route -> one bounded increment -> typed receipt -> requirement/evidence mapping -> technical gate -> functional gate -> adversarial review -> final review -> checkpoint",
+    "phaseInsertion": "Final review creates a new phase only with unique phaseId, parentPhaseId, graph revision, insertedAfter, requirementDelta, owner/route, acceptance signals, approval scope, idempotency policy, and remediation budget. Cycle, duplicate, stale, and already-executed side-effect checks fail closed.",
+    "statusSeparation": "Keep route state, child lifecycle, artifact lifecycle, verification result, approval state, and parent outcome as separate fields.",
+    "authoritativeInputs": "Registered canonical JSON approach artifacts are authoritative; Markdown requires an explicit projection adapter with source identity/digest validation."
   },
   "executionGraph": {
-    "criticalPath":["T001","T002","T003","T004","T005","T006","T007","T008"],
-    "parallelGroups":[{"id":"G1","tasks":["T001","T003"],"constraint":"disjoint schema/host-contract ownership"},{"id":"G2","tasks":["T005","T006"],"constraint":"T002-T004 contracts available; no shared file ownership"},{"id":"G3","tasks":["T007","T008"],"constraint":"T004-T006 runtime and gates available"}],
-    "ordering":"T001 and T002 define contracts before T004 runtime; T003 is required before invocation; T005/T006 precede T007/T008; all tasks are independently verified before integration.",
-    "futureBuildStates":"RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT"
+    "criticalPath": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"],
+    "parallelGroups": [
+      {
+        "id": "G1",
+        "tasks": ["T001", "T003"],
+        "constraint": "disjoint schema/host-contract ownership"
+      },
+      {
+        "id": "G2",
+        "tasks": ["T005", "T006"],
+        "constraint": "T002-T004 contracts available; no shared file ownership"
+      },
+      {
+        "id": "G3",
+        "tasks": ["T007", "T008"],
+        "constraint": "T004-T006 runtime and gates available"
+      }
+    ],
+    "ordering": "T001 and T002 define contracts before T004 runtime; T003 is required before invocation; T005/T006 precede T007/T008; all tasks are independently verified before integration.",
+    "futureBuildStates": "RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT"
   },
-  "tasks":[
-    {"taskId":"T001","ordinal":1,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-capabilities.test.mjs","dependsOn":[],"parallelGroup":"G1","risk":"high","ownedScope":"csm-orchestrate capability schema/manifest and registry entries","notInScope":"Sibling domain logic or runtime permission enforcement","spikeCandidate":"Confirm every skill’s authoritative descriptor and adapter fields without assuming uniform paths.","actions":"Define and register per-skill capability metadata for activation, inputs, outputs, permissions, effects, approvals, retry, idempotency, recovery, parallelism, and review. Reuse producer descriptors and edge inventory.","validation":["schema validator rejects missing capability fields","registry rejects unknown revisions","all 13 skill descriptors resolve"],"acceptanceEvidence":"Manifest digest, registry entries, conformance output, and unresolved skill adapters.","recoveryNote":"If partially written, keep schema/manifest changes atomic and resume from the last registered revision."},
-    {"taskId":"T002","ordinal":2,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-phase-requirement-receipt.test.mjs","dependsOn":["T001"],"parallelGroup":"G0","risk":"high","ownedScope":"csm-orchestrate phase, requirement, cursor, receipt, approval schemas","notInScope":"Child artifact ownership or implementation of sibling receipts","spikeCandidate":"Determine whether csm-final-receipt can be wrapped without losing child lineage.","actions":"Define phase identity/parentage/insertion fields, atomic requirement ledger, evidence links, approval binding, parent cursor, child receipt references, status separation, and final outcome receipt.","validation":["critical requirement cannot be verified without evidence","phase cycles and duplicate IDs reject","approval expires or digest changes invalidate reuse"],"acceptanceEvidence":"Schema validation fixtures for positive, missing, stale, duplicate, cycle, and expired cases.","recoveryNote":"Resume from schema registry checkpoint; never replace terminal artifacts."},
-    {"taskId":"T003","ordinal":3,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-invocation-approval.test.mjs","dependsOn":["T001","T002"],"parallelGroup":"G1","risk":"high","ownedScope":"host invocation adapter, approval consumption, failure taxonomy","notInScope":"Host sandbox implementation outside the declared adapter boundary","spikeCandidate":"Verify the actual host API for invoking sibling skills, cancellation, streaming, and child receipt capture.","actions":"Implement parent/child run correlation, route-edge binding, input validation, timeout/cancellation, transport/child/policy/evaluator failure classes, approval authenticity/scope/expiry/consumption, and idempotency key handling.","validation":["missing approval blocks side effects","transport and child failures remain distinct","stale approval and changed digest block","duplicate terminal invocation is safely rejected"],"acceptanceEvidence":"Invocation receipts, approval decision fixtures, and host capability blocker if runtime API is unavailable.","recoveryNote":"On host uncertainty, leave dispatch blocked and preserve an explicit spike result."},
-    {"taskId":"T004","ordinal":4,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-phase-compiler.test.mjs","dependsOn":["T001","T002","T003"],"parallelGroup":"G0","risk":"high","ownedScope":"approach ingestion, phase compiler, conditional route selector, outer-loop state","notInScope":"Implementing any sibling skill or accepting Markdown without adapter validation","spikeCandidate":"Test canonical JSON approach ingestion and explicit Markdown projection provenance.","actions":"Compile approach phases into thin-slice runtime nodes; select conditional skill routes; enforce prerequisites; lock later phases until acceptance; support read-only parallel groups and ordered dependent edges.","validation":["approach phases compile deterministically","unmet prerequisites block","irrelevant skills are not selected","phase progress is distinct from child progress"],"acceptanceEvidence":"Compiled route graph, phase IDs, dependency edges, and route-selection replay fixtures.","recoveryNote":"Persist compiler output and resume from the current phase checkpoint, not the original prompt."},
-    {"taskId":"T005","ordinal":5,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-evidence-gates.test.mjs","dependsOn":["T002","T003","T004"],"parallelGroup":"G2","risk":"high","ownedScope":"artifact/evidence reconciliation and technical/functional gate aggregation","notInScope":"Replacing csm-review, csm-build, csm-make-tests, or csm-bdd-tdd domain checks","spikeCandidate":"Map each skill’s existing receipt and verification output to requirement evidence without copying ownership.","actions":"Resolve and validate child artifacts; reconcile requirement/evidence links; run technical gates and functional scenarios separately; classify missing, stale, contradicted, unavailable, and infrastructure evidence.","validation":["wrong owner/schema/digest blocks","technical pass cannot mask functional failure","missing critical evidence yields INCOMPLETE","all gate results retain source lineage"],"acceptanceEvidence":"Gate aggregation receipts and negative/positive evidence fixtures.","recoveryNote":"Preserve the last valid child receipt and re-run only the failed gate."},
-    {"taskId":"T006","ordinal":6,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-adversarial-final-review.test.mjs","dependsOn":["T002","T004","T005"],"parallelGroup":"G2","risk":"high","ownedScope":"fresh-context adversarial acceptance reviewer, final review, remediation phase insertion","notInScope":"Duplicating full csm-review dimensions or allowing producer self-approval","spikeCandidate":"Calibrate reviewer independence and determine when full csm-review is mandatory by risk class.","actions":"Review child claims, citations, omissions, assumptions, tool actions, scope, completion state, technical results, and functional outcome. Make final review mandatory; create a new bounded phase for gaps with parentage, ordering, budget, and cycle/idempotency checks.","validation":["producer rationale is withheld","unsupported completion is rejected","final-review failure identifies a route or creates a new phase","new phase re-enters all gates","budget exhaustion yields INCOMPLETE/FAILED"],"acceptanceEvidence":"Adversarial fixtures, final-review records, inserted-phase lineage, and remediation resolutions.","recoveryNote":"Never reset the remediation budget; resume the inserted phase or stop incomplete."},
-    {"taskId":"T007","ordinal":7,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-recovery-replay.test.mjs","dependsOn":["T003","T004","T005","T006"],"parallelGroup":"G3","risk":"high","ownedScope":"durable parent cursor, retry/idempotency, route-specific recovery, concurrency, trace events","notInScope":"Changing child skill recovery semantics or enabling unrestricted autonomy","spikeCandidate":"Fault-inject each side-effecting route and classify safe retry, compensation, or terminal stop.","actions":"Persist phase/checkpoint/child lineage; bound retries; detect stale and duplicate results; preserve terminal child blockers; allow only independent read-only parallelism; emit redacted correlated traces; add autonomy gate.","validation":["interruption resumes from validated edge","duplicate publication/mutation is blocked","terminal autoresearch blocker is not retried","approval expiry blocks","route replay catches cycles and lost evidence"],"acceptanceEvidence":"Fault-injection matrix, replay logs, cursor snapshots, and autonomy-gate result.","recoveryNote":"Use exact phase/edge/child/artifact identity to resume; create new child IDs after material changes."},
-    {"taskId":"T008","ordinal":8,"status":"pending","repairAttempts":0,"acceptanceSignal":"node --test tests/orchestrate-e2e.test.mjs","dependsOn":["T001","T002","T003","T004","T005","T006","T007"],"parallelGroup":"G3","risk":"high","ownedScope":"end-to-end evaluation fixtures, documentation, capability/route conformance","notInScope":"Claiming productivity improvement or deploying production autonomy","spikeCandidate":"Build representative one-shot, multi-phase, ambiguity, failure, and long-horizon task set with human-calibrated expected outcomes.","actions":"Run positive/negative route replays; validate all 13 skill integrations; test one-shot requirement coverage, technical/functional gates, adversarial review, final phase insertion, recovery, and human approvals; document operator and build handoff behavior.","validation":["all acceptance criteria have observed evidence","infrastructure failures are separate","final receipt matches original ask","full relevant suite and formatter/linter/conformance gates pass"],"acceptanceEvidence":"Versioned evaluation dataset, per-task receipts, final conformance output, and human review sample.","recoveryNote":"If an integration fails, return to the responsible task/phase rather than hiding it in the final receipt."}
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-capabilities.test.mjs",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": "csm-orchestrate capability schema/manifest and registry entries",
+      "notInScope": "Sibling domain logic or runtime permission enforcement",
+      "spikeCandidate": "Confirm every skill’s authoritative descriptor and adapter fields without assuming uniform paths.",
+      "actions": "Define and register per-skill capability metadata for activation, inputs, outputs, permissions, effects, approvals, retry, idempotency, recovery, parallelism, and review. Reuse producer descriptors and edge inventory.",
+      "validation": [
+        "schema validator rejects missing capability fields",
+        "registry rejects unknown revisions",
+        "all 13 skill descriptors resolve"
+      ],
+      "acceptanceEvidence": "Manifest digest, registry entries, focused test result 4/4, schema/registry/edge result 10/10, and conformance result 1210 checks.",
+      "recoveryNote": "If partially written, keep schema/manifest changes atomic and resume from the last registered revision."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-phase-requirement-receipt.test.mjs",
+      "dependsOn": ["T001"],
+      "parallelGroup": "G0",
+      "risk": "high",
+      "ownedScope": "csm-orchestrate phase, requirement, cursor, receipt, approval schemas",
+      "notInScope": "Child artifact ownership or implementation of sibling receipts",
+      "spikeCandidate": "Determine whether csm-final-receipt can be wrapped without losing child lineage.",
+      "actions": "Define phase identity/parentage/insertion fields, atomic requirement ledger, evidence links, approval binding, parent cursor, child receipt references, status separation, and final outcome receipt.",
+      "validation": [
+        "critical requirement cannot be verified without evidence",
+        "phase cycles and duplicate IDs reject",
+        "approval expires or digest changes invalidate reuse"
+      ],
+      "acceptanceEvidence": "Focused contract tests 4/4; registry conformance 6/6; suite conformance 1210 checks; positive, missing, stale, duplicate, cycle, and expired cases.",
+      "recoveryNote": "Resume from schema registry checkpoint; never replace terminal artifacts."
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-invocation-approval.test.mjs",
+      "dependsOn": ["T001", "T002"],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": "host invocation adapter, approval consumption, failure taxonomy",
+      "notInScope": "Host sandbox implementation outside the declared adapter boundary",
+      "spikeCandidate": "Verify the actual host API for invoking sibling skills, cancellation, streaming, and child receipt capture.",
+      "actions": "Implement parent/child run correlation, route-edge binding, input validation, timeout/cancellation, transport/child/policy/evaluator failure classes, approval authenticity/scope/expiry/consumption, and idempotency key handling.",
+      "validation": [
+        "missing approval blocks side effects",
+        "transport and child failures remain distinct",
+        "stale approval and changed digest block",
+        "duplicate terminal invocation is safely rejected"
+      ],
+      "acceptanceEvidence": "Focused invocation/approval tests 4/4; T002 tests 4/4; conformance 1210 checks; fail-closed unavailable-host, approval binding/expiry/consumption, idempotency, timeout, cancellation, and distinct failure fixtures."
+      "recoveryNote": "On host uncertainty, leave dispatch blocked and preserve an explicit spike result."
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-phase-compiler.test.mjs",
+      "dependsOn": ["T001", "T002", "T003"],
+      "parallelGroup": "G0",
+      "risk": "high",
+      "ownedScope": "approach ingestion, phase compiler, conditional route selector, outer-loop state",
+      "notInScope": "Implementing any sibling skill or accepting Markdown without adapter validation",
+      "spikeCandidate": "Test canonical JSON approach ingestion and explicit Markdown projection provenance.",
+      "actions": "Compile approach phases into thin-slice runtime nodes; select conditional skill routes; enforce prerequisites; lock later phases until acceptance; support read-only parallel groups and ordered dependent edges.",
+      "validation": [
+        "approach phases compile deterministically",
+        "unmet prerequisites block",
+        "irrelevant skills are not selected",
+        "phase progress is distinct from child progress"
+      ],
+      "acceptanceEvidence": "Focused phase-compiler tests 4/4; T001-T003 tests 12/12; conformance 1210 checks; deterministic route compilation, conditional selection, read-only grouping, dependency/cycle rejection, and replayed-effect rejection.",
+      "recoveryNote": "Persist compiler output and resume from the current phase checkpoint, not the original prompt."
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-evidence-gates.test.mjs",
+      "dependsOn": ["T002", "T003", "T004"],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": "artifact/evidence reconciliation and technical/functional gate aggregation",
+      "notInScope": "Replacing csm-review, csm-build, csm-make-tests, or csm-bdd-tdd domain checks",
+      "spikeCandidate": "Map each skill’s existing receipt and verification output to requirement evidence without copying ownership.",
+      "actions": "Resolve and validate child artifacts; reconcile requirement/evidence links; run technical gates and functional scenarios separately; classify missing, stale, contradicted, unavailable, and infrastructure evidence.",
+      "validation": [
+        "wrong owner/schema/digest blocks",
+        "technical pass cannot mask functional failure",
+        "missing critical evidence yields INCOMPLETE",
+        "all gate results retain source lineage"
+      ],
+      "acceptanceEvidence": "Focused evidence-gate tests 3/3; prior orchestration tests 16/16; schema/compatibility/conformance tests 15/15; separate technical/functional aggregation, stale/missing evidence, waiver, and source-lineage fixtures.",
+      "recoveryNote": "Preserve the last valid child receipt and re-run only the failed gate."
+    },
+    {
+      "taskId": "T006",
+      "ordinal": 6,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-adversarial-final-review.test.mjs",
+      "dependsOn": ["T002", "T004", "T005"],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": "fresh-context adversarial acceptance reviewer, final review, remediation phase insertion",
+      "notInScope": "Duplicating full csm-review dimensions or allowing producer self-approval",
+      "spikeCandidate": "Calibrate reviewer independence and determine when full csm-review is mandatory by risk class.",
+      "actions": "Review child claims, citations, omissions, assumptions, tool actions, scope, completion state, technical results, and functional outcome. Make final review mandatory; create a new bounded phase for gaps with parentage, ordering, budget, and cycle/idempotency checks.",
+      "validation": [
+        "producer rationale is withheld",
+        "unsupported completion is rejected",
+        "final-review failure identifies a route or creates a new phase",
+        "new phase re-enters all gates",
+        "budget exhaustion yields INCOMPLETE/FAILED"
+      ],
+      "acceptanceEvidence": "Focused adversarial/final-review tests 5/5; prior orchestration tests 24/24; conformance 1210 checks; fresh-context review, evidence/omission/safety/gate checks, risk routing, insertion cycle/budget/effect checks.",
+      "recoveryNote": "Never reset the remediation budget; resume the inserted phase or stop incomplete."
+    },
+    {
+      "taskId": "T007",
+      "ordinal": 7,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-recovery-replay.test.mjs",
+      "dependsOn": ["T003", "T004", "T005", "T006"],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": "durable parent cursor, retry/idempotency, route-specific recovery, concurrency, trace events",
+      "notInScope": "Changing child skill recovery semantics or enabling unrestricted autonomy",
+      "spikeCandidate": "Fault-inject each side-effecting route and classify safe retry, compensation, or terminal stop.",
+      "actions": "Persist phase/checkpoint/child lineage; bound retries; detect stale and duplicate results; preserve terminal child blockers; allow only independent read-only parallelism; emit redacted correlated traces; add autonomy gate.",
+      "validation": [
+        "interruption resumes from validated edge",
+        "duplicate publication/mutation is blocked",
+        "terminal autoresearch blocker is not retried",
+        "approval expiry blocks",
+        "route replay catches cycles and lost evidence"
+      ],
+      "acceptanceEvidence": "Recovery tests 7/7; all orchestrator tests 31/31; conformance 1210 checks; make fmt-check and make lint passed; cursor persistence requirement, stale/duplicate/replay, terminal blocker, approval expiry, concurrency, trace redaction, and autonomy-gate fixtures.",
+      "recoveryNote": "Use exact phase/edge/child/artifact identity to resume; create new child IDs after material changes."
+    },
+    {
+      "taskId": "T008",
+      "ordinal": 8,
+      "status": "completed",
+      "repairAttempts": 0,
+      "acceptanceSignal": "node --test tests/orchestrate-e2e.test.mjs",
+      "dependsOn": ["T001", "T002", "T003", "T004", "T005", "T006", "T007"],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": "end-to-end evaluation fixtures, documentation, capability/route conformance",
+      "notInScope": "Claiming productivity improvement or deploying production autonomy",
+      "spikeCandidate": "Build representative one-shot, multi-phase, ambiguity, failure, and long-horizon task set with human-calibrated expected outcomes.",
+      "actions": "Run positive/negative route replays; validate all 13 skill integrations; test one-shot requirement coverage, technical/functional gates, adversarial review, final phase insertion, recovery, and human approvals; document operator and build handoff behavior.",
+      "validation": [
+        "all acceptance criteria have observed evidence",
+        "infrastructure failures are separate",
+        "final receipt matches original ask",
+        "full relevant suite and formatter/linter/conformance gates pass"
+      ],
+      "acceptanceEvidence": "tests/orchestrate-e2e.test.mjs: 8/8; tests/orchestrate-*.test.mjs: 39/39; schema registry: 14/14; make fmt-check and make lint passed; check-suite reports no FAIL lines.",
+      "recoveryNote": "If an integration fails, return to the responsible task/phase rather than hiding it in the final receipt."
+    }
   ],
   "verificationStrategy": {
-    "order":["schema validation","unit/contract tests","resolver/compatibility tests","technical gates","functional scenarios","adversarial review","final review","fault-injection/replay","full repository gates"],
-    "perTask":"Every task has one primary acceptance signal and supporting negative tests; all task statuses remain pending until csm-build executes them.",
-    "final":"Require every critical requirement verified, no unresolved critical evidence, valid child lineage, passing technical and functional gates, adversarial acceptance, mandatory final review, and safe checkpoint/receipt publication.",
-    "commands":["node --test tests/orchestrate-*.test.mjs","node scripts/check-suite.mjs","make fmt-check","make lint"],
-    "environment":"Host invocation and side-effect tests must use isolated synthetic fixtures; no live credentials or production services."
+    "order": [
+      "schema validation",
+      "unit/contract tests",
+      "resolver/compatibility tests",
+      "technical gates",
+      "functional scenarios",
+      "adversarial review",
+      "final review",
+      "fault-injection/replay",
+      "full repository gates"
+    ],
+    "perTask": "Every task has one primary acceptance signal and supporting negative tests; all task statuses remain pending until csm-build executes them.",
+    "final": "Require every critical requirement verified, no unresolved critical evidence, valid child lineage, passing technical and functional gates, adversarial acceptance, mandatory final review, and safe checkpoint/receipt publication.",
+    "commands": [
+      "node --test tests/orchestrate-*.test.mjs",
+      "node scripts/check-suite.mjs",
+      "make fmt-check",
+      "make lint"
+    ],
+    "environment": "Host invocation and side-effect tests must use isolated synthetic fixtures; no live credentials or production services."
   },
   "risksAndRecovery": {
-    "risks":["Automatic dispatch could bypass sibling boundaries.","Conflicting native IDs/paths/statuses could corrupt lineage.","A final-review-created phase could form a cycle or repeat a side effect.","A child narrative could be mistaken for outcome evidence.","Retrying a non-idempotent action could duplicate external effects.","A model or reviewer could game an acceptance rubric.","Uncommitted concurrent work could be overwritten."],
-    "mitigations":["Capability manifest and host enforcement fail closed.","Adapters normalize IDs and preserve source identity.","Immutable phase parentage, graph revision, cycle detection, and idempotency keys.","Requirement ledger requires typed evidence.","Edge-specific retry/compensation and approval binding.","Fresh reviewer context, calibrated rubrics, hidden acceptance cases, and human review.","Build uses owned paths only and preserves unrelated worktree changes."],
-    "terminalOutcomes":["VERIFIED","INCOMPLETE","BLOCKED","FAILED","REFUSED","REQUIRES_REVIEW"],
-    "rollback":"Never rewrite producer artifacts. Revert or supersede only orchestrator-owned nonterminal state using new run/phase identity; external effects require route-specific compensation or human reconciliation."
+    "risks": [
+      "Automatic dispatch could bypass sibling boundaries.",
+      "Conflicting native IDs/paths/statuses could corrupt lineage.",
+      "A final-review-created phase could form a cycle or repeat a side effect.",
+      "A child narrative could be mistaken for outcome evidence.",
+      "Retrying a non-idempotent action could duplicate external effects.",
+      "A model or reviewer could game an acceptance rubric.",
+      "Uncommitted concurrent work could be overwritten."
+    ],
+    "mitigations": [
+      "Capability manifest and host enforcement fail closed.",
+      "Adapters normalize IDs and preserve source identity.",
+      "Immutable phase parentage, graph revision, cycle detection, and idempotency keys.",
+      "Requirement ledger requires typed evidence.",
+      "Edge-specific retry/compensation and approval binding.",
+      "Fresh reviewer context, calibrated rubrics, hidden acceptance cases, and human review.",
+      "Build uses owned paths only and preserves unrelated worktree changes."
+    ],
+    "terminalOutcomes": [
+      "VERIFIED",
+      "INCOMPLETE",
+      "BLOCKED",
+      "FAILED",
+      "REFUSED",
+      "REQUIRES_REVIEW"
+    ],
+    "rollback": "Never rewrite producer artifacts. Revert or supersede only orchestrator-owned nonterminal state using new run/phase identity; external effects require route-specific compensation or human reconciliation."
   },
-  "critiqueResolution":[
-    {"finding":"Approach phases need runtime execution semantics","severity":"high","resolution":"Added phase compiler, phase identity, thin-slice runtime role, and phase insertion requirements.","evidence":"Agreed approach update and csm-orchestrate approach review."},
-    {"finding":"Automatic dispatch lacks host contract","severity":"high","resolution":"Added T003 invocation/approval contract and automatic-dispatch prerequisite gate.","evidence":"Approach review finding and capability/lifecycle scout evidence."},
-    {"finding":"Technical and functional correctness were underspecified","severity":"high","resolution":"Added separate T005 technical/functional gates and T006 final review loop.","evidence":"Approach adversarial-assurance research."},
-    {"finding":"Long-horizon recovery is non-uniform","severity":"high","resolution":"Added route-specific recovery, bounded retry, idempotency, phase cursor, and replay task T007.","evidence":"Lifecycle compatibility matrix from planning research."},
-    {"finding":"Final review can create new work","severity":"high","resolution":"Added immutable phase insertion, requirement delta, ordering, cycle, duplicate, and budget acceptance criteria.","evidence":"Updated agreed approach."}
+  "critiqueResolution": [
+    {
+      "finding": "Approach phases need runtime execution semantics",
+      "severity": "high",
+      "resolution": "Added phase compiler, phase identity, thin-slice runtime role, and phase insertion requirements.",
+      "evidence": "Agreed approach update and csm-orchestrate approach review."
+    },
+    {
+      "finding": "Automatic dispatch lacks host contract",
+      "severity": "high",
+      "resolution": "Added T003 invocation/approval contract and automatic-dispatch prerequisite gate.",
+      "evidence": "Approach review finding and capability/lifecycle scout evidence."
+    },
+    {
+      "finding": "Technical and functional correctness were underspecified",
+      "severity": "high",
+      "resolution": "Added separate T005 technical/functional gates and T006 final review loop.",
+      "evidence": "Approach adversarial-assurance research."
+    },
+    {
+      "finding": "Long-horizon recovery is non-uniform",
+      "severity": "high",
+      "resolution": "Added route-specific recovery, bounded retry, idempotency, phase cursor, and replay task T007.",
+      "evidence": "Lifecycle compatibility matrix from planning research."
+    },
+    {
+      "finding": "Final review can create new work",
+      "severity": "high",
+      "resolution": "Added immutable phase insertion, requirement delta, ordering, cycle, duplicate, and budget acceptance criteria.",
+      "evidence": "Updated agreed approach."
+    }
   ],
-  "journal":[
-    {"sequence":0,"timestamp":"2026-08-27T06:04:37Z","cycle":0,"transition":"INTAKE -> DISCOVER","tasks":[],"evidence":"Agreed csm-orchestrate approach, consolidated research, and review findings loaded; implementation not started.","nextState":"RESEARCH"},
-    {"sequence":1,"timestamp":"2026-08-27T06:04:37Z","cycle":0,"transition":"DISCOVER -> RESEARCH","tasks":[],"evidence":"Repository skill boundaries, schemas, lifecycle conflicts, and approach gaps inspected through read-only research.","nextState":"DRAFT"},
-    {"sequence":2,"timestamp":"2026-08-27T06:04:37Z","cycle":0,"transition":"RESEARCH -> DRAFT","tasks":[],"evidence":"Plan maps the approach into eight pending implementation tasks with executable acceptance signals.","nextState":"CRITIQUE"},
-    {"sequence":3,"timestamp":"2026-08-27T06:04:37Z","cycle":0,"transition":"DRAFT -> CRITIQUE","tasks":[],"evidence":"Plan includes capability, phase, requirement, invocation, approval, evidence, review, recovery, replay, and final receipt contracts.","nextState":"VERIFY"},
-    {"sequence":4,"timestamp":"2026-08-27T06:04:37Z","cycle":0,"transition":"CRITIQUE -> VERIFY","tasks":[],"evidence":"Prior independent review findings are resolved in the plan; no implementation task was executed.","nextState":"SAVED"},
-    {"sequence":5,"timestamp":"2026-08-27T06:04:37Z","cycle":0,"transition":"VERIFY -> SAVED","tasks":[],"evidence":"Canonical plan fields, applicability, pending tasks, dependencies, and acceptance signals assembled; future csm-build handoff only.","nextState":"STOP"}
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-08-27T06:04:37Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER",
+      "tasks": [],
+      "evidence": "Agreed csm-orchestrate approach, consolidated research, and review findings loaded; implementation not started.",
+      "nextState": "RESEARCH"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-08-27T06:04:37Z",
+      "cycle": 0,
+      "transition": "DISCOVER -> RESEARCH",
+      "tasks": [],
+      "evidence": "Repository skill boundaries, schemas, lifecycle conflicts, and approach gaps inspected through read-only research.",
+      "nextState": "DRAFT"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-08-27T06:04:37Z",
+      "cycle": 0,
+      "transition": "RESEARCH -> DRAFT",
+      "tasks": [],
+      "evidence": "Plan maps the approach into eight pending implementation tasks with executable acceptance signals.",
+      "nextState": "CRITIQUE"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-08-27T06:04:37Z",
+      "cycle": 0,
+      "transition": "DRAFT -> CRITIQUE",
+      "tasks": [],
+      "evidence": "Plan includes capability, phase, requirement, invocation, approval, evidence, review, recovery, replay, and final receipt contracts.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-08-27T06:04:37Z",
+      "cycle": 0,
+      "transition": "CRITIQUE -> VERIFY",
+      "tasks": [],
+      "evidence": "Prior independent review findings are resolved in the plan; no implementation task was executed.",
+      "nextState": "SAVED"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-08-27T06:04:37Z",
+      "cycle": 0,
+      "transition": "VERIFY -> SAVED",
+      "tasks": [],
+      "evidence": "Canonical plan fields, applicability, pending tasks, dependencies, and acceptance signals assembled; future csm-build handoff only.",
+      "nextState": "STOP"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-08-27T06:15:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": [],
+      "evidence": "Explicit csm-build request; baseline commit 55d0e3a is pushed and unrelated artifacts are preserved outside the worktree.",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-08-27T06:25:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T001"],
+      "evidence": "T001 integrated: capability manifest, schema, loader, semantic validation, and focused tests 4/4; conformance remains green at 1210 checks.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-08-27T06:35:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T002"],
+      "evidence": "T002 integrated: phase, requirement, cursor, receipt, approval contracts and focused tests 4/4; conformance remains green at 1210 checks.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-08-27T06:45:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T003"],
+      "evidence": "T003 integrated: invocation and approval schemas/adapter; focused tests 4/4; conformance remains green at 1210 checks.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-08-27T07:00:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T004"],
+      "evidence": "T004 integrated: phase compiler and conditional route selector; focused tests 4/4; prior contract tests 12/12; conformance remains green at 1210 checks.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-08-27T07:15:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T005"],
+      "evidence": "T005 integrated: artifact reconciliation and separate technical/functional gates; focused tests 3/3; prior orchestration tests 16/16; conformance remains green at 1210 checks.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-08-27T07:30:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T006"],
+      "evidence": "T006 integrated: independent acceptance review, final review, and bounded remediation-phase insertion; focused tests 5/5; conformance remains green at 1210 checks.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-08-27T07:45:00Z",
+      "cycle": 0,
+      "transition": "INTEGRATE -> CHECKPOINT",
+      "tasks": ["T007"],
+      "evidence": "T007 integrated: durable cursor, route-specific recovery, bounded retry/idempotency, concurrency classification, replay, side-effect reconciliation, and redacted trace helpers; focused tests 7/7; all orchestrator tests 31/31; full formatting/lint/conformance passed.",
+      "nextState": "SELECT"
+    }
   ],
-  "completionReview": null,
-  "inputs":[{"artifactId":"art-csm-orchestrate-approach-20260826","schema":"csm-grill/1","digest":"sha256:e98fc2c33ca66e018c8de2ce00e3c380c36009e2b728aa53c890664f0556facf","owner":"csm-grill","path":".agents/approaches/2026-08-26-csm-orchestrate-approach.md"}],
-  "provenance":{"producer":"csm-plan","producerVersion":"1","producedAt":"2026-08-27T06:04:37Z","sourceDigests":["sha256:e98fc2c33ca66e018c8de2ce00e3c380c36009e2b728aa53c890664f0556facf"]},
-  "projection":{"profile":"csm-plan-human/1","sectionOrder":["control","goal","acceptanceCriteria","currentStateEvidence","assumptionsAndDecisions","rdRecord","discoveredRequirements","design","executionGraph","tasks","verificationStrategy","risksAndRecovery","critiqueResolution","journal","completionReview"],"legacyMarkdownStatus":"history-only"}
+  "completionReview": {
+    "status": "complete",
+    "evidence": ["node --test tests/orchestrate-e2e.test.mjs", "node --test tests/orchestrate-*.test.mjs", "node --test tests/schema-registry.test.mjs", "make fmt-check", "make lint", "node scripts/check-suite.mjs"],
+    "risks": ["Live host dispatch remains an integration responsibility; fixtures are deterministic and synthetic."],
+    "committed": false
+  },
+  "inputs": [
+    {
+      "artifactId": "art-csm-orchestrate-approach-20260826",
+      "schema": "csm-grill/1",
+      "digest": "sha256:e98fc2c33ca66e018c8de2ce00e3c380c36009e2b728aa53c890664f0556facf",
+      "owner": "csm-grill",
+      "path": ".agents/approaches/2026-08-26-csm-orchestrate-approach.md"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "1",
+    "producedAt": "2026-08-27T06:04:37Z",
+    "sourceDigests": ["sha256:e98fc2c33ca66e018c8de2ce00e3c380c36009e2b728aa53c890664f0556facf"]
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "sectionOrder": [
+      "control",
+      "goal",
+      "acceptanceCriteria",
+      "currentStateEvidence",
+      "assumptionsAndDecisions",
+      "rdRecord",
+      "discoveredRequirements",
+      "design",
+      "executionGraph",
+      "tasks",
+      "verificationStrategy",
+      "risksAndRecovery",
+      "critiqueResolution",
+      "journal",
+      "completionReview"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
 }

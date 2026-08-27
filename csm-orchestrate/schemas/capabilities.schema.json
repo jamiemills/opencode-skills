@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-capabilities/1",
+  "title": "CSM orchestrate capability manifest",
+  "description": "Immutable host discovery metadata for the supported CSM skills.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "contentDigest", "skills", "coordinator"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-capabilities/1" },
+    "version": { "const": 1 },
+    "contentDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "skills": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "coordinator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skill", "version", "role", "entrypoint"],
+      "properties": {
+        "skill": { "const": "csm-orchestrate" },
+        "version": { "type": "string", "minLength": 1 },
+        "role": { "const": "coordinator" },
+        "entrypoint": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "skill": { "type": "string", "pattern": "^csm-[a-z0-9-]+$" },
+    "schemaRef": { "type": "string", "pattern": "^csm-[a-z0-9-]+/[1-9][0-9]*$" },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skill",
+        "version",
+        "digest",
+        "source",
+        "activation",
+        "inputs",
+        "outputs",
+        "permissions",
+        "effects",
+        "approvalClass",
+        "retryability",
+        "idempotency",
+        "recovery",
+        "parallelism",
+        "reviewLevel",
+        "terminal"
+      ],
+      "properties": {
+        "skill": { "$ref": "#/$defs/skill" },
+        "version": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skillPath", "producerPath"],
+          "properties": {
+            "skillPath": { "type": "string", "minLength": 1 },
+            "producerPath": { "type": ["string", "null"] }
+          }
+        },
+        "activation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "predicate"],
+          "properties": {
+            "mode": { "enum": ["explicit", "conditional"] },
+            "predicate": { "type": "string", "minLength": 1 }
+          }
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "required"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["request", "artifact", "repository", "configuration", "host"] },
+              "schema": { "$ref": "#/$defs/schemaRef" },
+              "required": { "type": "boolean" }
+            }
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "terminal"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "kind": {
+                "enum": ["artifact", "receipt", "implementation", "evidence", "projection"]
+              },
+              "schema": { "$ref": "#/$defs/schemaRef" },
+              "terminal": { "type": "boolean" }
+            }
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "read",
+              "write",
+              "execute",
+              "network",
+              "credentials",
+              "browser",
+              "publish",
+              "destructive"
+            ]
+          }
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "read-only",
+              "workspace-write",
+              "external-side-effect",
+              "credential-use",
+              "browser-session",
+              "publication",
+              "destructive"
+            ]
+          }
+        },
+        "approvalClass": { "enum": ["none", "human", "host", "human-and-host"] },
+        "retryability": { "enum": ["never", "safe", "bounded"] },
+        "idempotency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "key"],
+          "properties": {
+            "mode": { "enum": ["not-applicable", "natural", "required", "forbidden"] },
+            "key": { "type": "string", "minLength": 1 }
+          }
+        },
+        "recovery": { "enum": ["resume", "restart", "terminal", "blocked"] },
+        "parallelism": { "enum": ["serial", "independent-read-only"] },
+        "reviewLevel": { "enum": ["none", "standard", "adversarial", "final"] },
+        "terminal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior", "statuses"],
+          "properties": {
+            "behavior": { "type": "string", "minLength": 1 },
+            "statuses": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

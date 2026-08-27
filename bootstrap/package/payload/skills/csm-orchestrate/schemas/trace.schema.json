@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-trace/1",
+  "title": "CSM orchestrate redacted trace event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "eventId", "at", "correlation", "event", "data"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-trace/1" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "at": { "type": "string", "format": "date-time" },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "phaseId"],
+      "properties": {
+        "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+        "edgeId": { "type": "string", "pattern": "^edge-[a-z0-9][a-z0-9-]{1,127}$" },
+        "cursorId": { "type": "string", "pattern": "^cursor-[a-z0-9][a-z0-9-]{1,127}$" }
+      }
+    },
+    "event": { "type": "string", "minLength": 1 },
+    "data": { "type": "object" }
+  }
+}
