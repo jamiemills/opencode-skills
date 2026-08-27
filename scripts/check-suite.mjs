@@ -254,6 +254,15 @@ function researchInlineCitationIds(lines, inFence, referenceLines) {
   return ids;
 }
 
+function portableResearchPath(candidate, rootDir) {
+  const referencedPath = path.resolve(candidate);
+  const marker = `${path.sep}.config${path.sep}opencode${path.sep}skills${path.sep}`;
+  const markerIndex = referencedPath.indexOf(marker);
+  return markerIndex >= 0
+    ? path.join(rootDir, referencedPath.slice(markerIndex + marker.length))
+    : referencedPath;
+}
+
 function validateResearchReferences(lines, inFence, researchPath, referenceRange, rootDir) {
   const findings = [];
   const { entries: references, duplicates } = researchReferenceEntries(
@@ -312,12 +321,7 @@ function validateResearchReferences(lines, inFence, researchPath, referenceRange
         // Research written on one checkout can carry an absolute workspace
         // path. Resolve the repository-relative suffix on another checkout
         // while retaining strict existence checks for unrelated paths.
-        const marker = `${path.sep}.config${path.sep}opencode${path.sep}skills${path.sep}`;
-        const markerIndex = referencedPath.indexOf(marker);
-        const localPath =
-          markerIndex >= 0
-            ? path.join(rootDir, referencedPath.slice(markerIndex + marker.length))
-            : referencedPath;
+        const localPath = portableResearchPath(referencedPath, rootDir);
         if (!fs.existsSync(localPath)) {
           findings.push(
             `[${id}] line ${entry.line} local source does not exist: ${referencedPath}`,
@@ -328,7 +332,9 @@ function validateResearchReferences(lines, inFence, researchPath, referenceRange
       }
     }
     for (const candidate of [...localPaths, ...absolutePaths]) {
-      const localPath = path.isAbsolute(candidate) ? candidate : path.resolve(rootDir, candidate);
+      const localPath = path.isAbsolute(candidate)
+        ? portableResearchPath(candidate, rootDir)
+        : path.resolve(rootDir, candidate);
       if (!fs.existsSync(localPath)) {
         findings.push(`[${id}] line ${entry.line} local source does not exist: ${localPath}`);
       }
