@@ -94,27 +94,11 @@ function copyRepo(dest) {
     },
   });
   fs.symlinkSync(path.join(REPO, "node_modules"), path.join(dest, "node_modules"), "dir");
-  for (const rel of ["tests", "csm-browse/tests", "csm-scan/test", "csm-upload/tests"]) {
+  for (const rel of ["csm-browse/tests", "csm-scan/test", "csm-upload/tests"]) {
     fs.rmSync(path.join(dest, rel), { recursive: true, force: true });
   }
-  for (const rel of ["tests", "csm-browse/tests", "csm-scan/test"]) {
+  for (const rel of ["csm-browse/tests", "csm-scan/test"]) {
     fs.mkdirSync(path.join(dest, rel), { recursive: true });
-  }
-  // The fixture prunes most tests, but the research corpus validates local
-  // citation targets while the hook runs. Preserve the tracked sources cited
-  // by those corpus entries without copying the full test suite.
-  for (const rel of [
-    "tests/plan-json-resume.test.mjs",
-    "tests/bdd-build-replay.test.mjs",
-    "tests/make-tests-build-replay.test.mjs",
-    "tests/build-json-control.test.mjs",
-    "tests/browse-upload-json-contract.test.mjs",
-    "tests/consumer-replay-matrix.test.mjs",
-  ]) {
-    const source = path.join(REPO, rel);
-    const target = path.join(dest, rel);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(source, target);
   }
   const dependencyPolicy = path.join(REPO, "scripts/lib/dependency-policy.mjs");
   if (fs.existsSync(dependencyPolicy)) {
