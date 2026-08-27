@@ -183,21 +183,22 @@ test("timeout performs bounded process-group descendant cleanup", async () => {
   const root = await temp();
   const markerRoot = await temp();
   const marker = join(markerRoot, "descendant-marker");
+  const childScript = `setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(marker)},'leaked'),1000)`;
   const script = [
     "const {spawn}=require('node:child_process');",
-    "spawn(process.execPath,['-e',`setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(marker)},'leaked'),250)`]);",
-    "setTimeout(()=>{},1000);",
+    `spawn(process.execPath,['-e',${JSON.stringify(childScript)}]);`,
+    "setTimeout(()=>{},2000);",
   ].join("");
   const result = await executeCandidate({
     command: node,
     args: ["-e", script],
     cwd: root,
-    timeoutMs: 30,
-    maxOutputBytes: 100,
+    timeoutMs: 500,
+    maxOutputBytes: 4096,
     workspace: root,
   });
   assert.equal(result.status, "timed_out");
-  await new Promise((resolve) => setTimeout(resolve, 350));
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   await assert.rejects(() => readFile(marker), /ENOENT/);
   await cleanupWorkspace(markerRoot);
 });
