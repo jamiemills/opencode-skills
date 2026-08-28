@@ -2,8 +2,8 @@
 
 Task reference: T010 of
 `.agents/plans/2026-08-27-all-skills-config-production-assurance-csm.json`.
-Date: 2026-08-28. Baseline commit: `389356a` (plus intentionally uncommitted
-T002–T010 working-tree deliverables).
+Date: 2026-08-28. Delivery commit: `8b759c0` (pushed to `origin/main`;
+CI run `33165277036` green).
 
 ## Verdict
 
@@ -58,7 +58,7 @@ with this table: the review would return `not promotable` today with
 | `make test-deterministic`                                                                       | PASS — two consecutive packs byte-identical; offline eval suites 17/17                                                                                              |
 | `git diff --check`                                                                              | PASS — no whitespace errors                                                                                                                                         |
 | `make test` (acceptance signal)                                                                 | PASS — full repository suite (hooks, bootstrap, orchestrate, suite tooling, deterministic, browse, upload, package index, ddd, autoresearch, scan)                  |
-| CI                                                                                              | Not exercised in this environment (no CI runner available); `make test` is the maximal local equivalent                                                             |
+| CI                                                                                              | **GREEN** — run `33165277036` on commit `8b759c0`; both jobs (frozen install + repository gates) passed, including `make test` full suite                           |
 
 ## Schema and payload synchronization
 
@@ -110,9 +110,8 @@ Deployment blockers (must be closed before autonomy):
    may persist resolved values into provenance records by explicit user
    decision; retention/access/export controls require privacy review before
    production status.
-8. **CI.** Not runnable in this environment; `make test` is the local
-   maximum. The working tree is intentionally uncommitted (no commit
-   authorization); committing and CI must follow before release.
+8. **CI.** Green on commit `8b759c0` (run `33165277036`); all jobs
+   passed including the full repository test suite.
 
 Residual risks (accepted with mitigations, monitored):
 
