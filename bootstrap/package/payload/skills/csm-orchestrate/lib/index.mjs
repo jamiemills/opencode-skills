@@ -73,6 +73,30 @@ const stepCapFailure = () => ({
   },
 });
 
+async function raceDeadline(promise, ms, code) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Object.assign(new Error(code), { timeout: true })), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const dispatchIntentFailure = (error) => ({
+  status: "blocked",
+  failure: {
+    class: "policy",
+    code:
+      error?.name === "ReconciliationRequiredError" ? "reconciliation-required" : "stale-writer",
+    message: error?.message ?? "durable dispatch intent could not be created",
+  },
+});
+
 function terminalReceipt(
   runId,
   phaseId,
@@ -349,6 +373,9 @@ async function runOrchestrationInternal({
   maxAttempts = 2,
   timeoutMs = 30_000,
   maxSteps = Infinity,
+  reviewTimeoutMs = 300_000,
+  maxOutputSize = 2 * 1024 * 1024,
+  retryBackoffMs = 1000,
   signal = null,
   telemetryEmitter = null,
   effectiveConfigDigest = null,
@@ -359,6 +386,8 @@ async function runOrchestrationInternal({
   phaseIdOverride = null,
 } = {}) {
   if (!RUN_ID.test(runId ?? "")) throw new TypeError("canonical parent runId is required");
+  if (telemetryEmitter && !effectiveConfigDigest)
+    effectiveConfigDigest = digest({ runId, timestamp: Date.now() });
   const emitTelemetry = (event) => {
     if (!telemetryEmitter || typeof telemetryEmitter.emit !== "function") return;
     try {
@@ -405,6 +434,7 @@ async function runOrchestrationInternal({
     capabilities,
     artifactResolver,
     schemaRegistry,
+    cursorStore,
     now,
   });
   const preflight = autonomyGate({
@@ -423,9 +453,50 @@ async function runOrchestrationInternal({
   let dispatchedSteps = 0;
   const dispatchBlocked = () =>
     signal?.aborted ? abortFailure() : dispatchedSteps >= maxSteps ? stepCapFailure() : null;
-  const invokeAdapter = async (request) => {
+  const beginDispatchIntent = async (cursorId, phaseId, childRunId) => {
+    if (typeof cursorStore?.createDispatchIntent !== "function") return null;
+    let fencingToken = 1;
+    if (typeof cursorStore.claimCursor === "function") {
+      const meta =
+        typeof cursorStore.getCursorMeta === "function"
+          ? await cursorStore.getCursorMeta(cursorId)
+          : null;
+      const claim = await cursorStore.claimCursor(cursorId, meta?.revision ?? 0, {
+        runId,
+        phaseId,
+        childRunId,
+      });
+      fencingToken = claim?.fencingToken ?? 1;
+    }
+    return cursorStore.createDispatchIntent(cursorId, childRunId, fencingToken);
+  };
+  const resolveDispatchIntent = async (intent, status) => {
+    if (!intent || typeof cursorStore?.resolveDispatchIntent !== "function") return;
+    try {
+      await cursorStore.resolveDispatchIntent(
+        intent.intentId,
+        status === "completed" ? "completed" : status === "failed" ? "failed" : "cancelled",
+      );
+    } catch {
+      /* resolution is advisory; the terminal receipt stays authoritative */
+    }
+  };
+  const capOutputSize = (result) =>
+    Buffer.byteLength(JSON.stringify(result)) > maxOutputSize
+      ? {
+          status: "failed",
+          failure: {
+            class: "policy",
+            code: "output-size-exceeded",
+            message: "result exceeded maxOutputSize",
+          },
+        }
+      : result;
+  const invokeAdapter = async (request, cursorId) => {
     dispatchedSteps += 1;
-    return adapter.invoke(request, signal ? { signal } : undefined);
+    const invocationOptions = cursorId ? { cursorId } : {};
+    if (signal) invocationOptions.signal = signal;
+    return adapter.invoke(request, invocationOptions);
   };
   const childReceipts = [];
   const allEvidence = [];
@@ -493,6 +564,13 @@ async function runOrchestrationInternal({
           typeof approvals === "function"
             ? await approvals({ phase, node, childRunId })
             : (approvals?.[node.skill] ?? approvals);
+        emitTelemetry({
+          phaseId: phase.phaseId,
+          edgeId: `edge-${slug(node.nodeId)}`,
+          childRunId,
+          eventType: "approval",
+          payload: { skill: node.skill, approvalId: approval?.approvalId ?? "denied" },
+        });
         let upstreamArtifactRefs;
         let nodeInputArtifactRefs;
         try {
@@ -564,6 +642,36 @@ async function runOrchestrationInternal({
             approval,
             failure: { status: "blocked", failure: { class: "policy", code: resume.reason } },
           };
+        if (savedCursor && typeof cursorStore.recordReconciliation === "function") {
+          if (resume.action === "reconcile") {
+            try {
+              await cursorStore.recordReconciliation(childRunId, "RESOLVED-COMPLETED", {
+                reason: resume.reason,
+              });
+            } catch {
+              /* already durably resolved; the terminal record remains authoritative */
+            }
+          } else if (!terminalRecords.length) {
+            try {
+              await cursorStore.recordReconciliation(childRunId, "UNKNOWN", {
+                reason: resume.reason,
+              });
+            } catch (error) {
+              return {
+                node,
+                approval,
+                failure: {
+                  status: "blocked",
+                  failure: {
+                    class: "policy",
+                    code: "reconciliation-required",
+                    message: error?.message ?? "durable reconciliation failed",
+                  },
+                },
+              };
+            }
+          }
+        }
         await saveCursor({
           runId,
           phase,
@@ -599,7 +707,14 @@ async function runOrchestrationInternal({
             attempt: request.retry.attempt,
             payload: { skill: request.skill, invocationId: request.invocationId },
           });
-          result = await invokeAdapter(request);
+          let dispatchIntent = null;
+          try {
+            dispatchIntent = await beginDispatchIntent(cursorId, phase.phaseId, childRunId);
+          } catch (error) {
+            return { node, approval, failure: dispatchIntentFailure(error) };
+          }
+          result = capOutputSize(await invokeAdapter(request, cursorId));
+          await resolveDispatchIntent(dispatchIntent, result.status);
         }
         let attempt = savedCursor?.attempt ?? 0;
         let invocationChildRunId = childRunId;
@@ -623,6 +738,13 @@ async function runOrchestrationInternal({
             typeof approvals === "function"
               ? await approvals({ phase, node, childRunId: retryChild, attempt })
               : (approvals?.[node.skill] ?? approvals);
+          emitTelemetry({
+            phaseId: phase.phaseId,
+            edgeId: `edge-${slug(node.nodeId)}`,
+            childRunId: retryChild,
+            eventType: "approval",
+            payload: { skill: node.skill, approvalId: retryApproval?.approvalId ?? "denied" },
+          });
           const retryIdempotencyKey = `${phase.idempotency.key}:${node.nodeId}:${attempt}`;
           await saveCursor({
             runId,
@@ -654,16 +776,32 @@ async function runOrchestrationInternal({
               priorFailureCode: result.failure?.code ?? null,
             },
           });
-          result = await invokeAdapter({
-            ...request,
-            childRunId: retryChild,
-            invocationId: `invocation-${slug(retryChild)}`,
-            approval: invocationApproval(retryApproval),
-            retry: {
-              attempt,
-              idempotencyKey: retryIdempotencyKey,
-            },
-          });
+          if (retryBackoffMs > 0)
+            await new Promise((resolve) =>
+              setTimeout(resolve, retryBackoffMs * Math.pow(2, attempt - 1)),
+            );
+          let retryIntent = null;
+          try {
+            retryIntent = await beginDispatchIntent(cursorId, phase.phaseId, retryChild);
+          } catch (error) {
+            return { node, approval, failure: dispatchIntentFailure(error) };
+          }
+          result = capOutputSize(
+            await invokeAdapter(
+              {
+                ...request,
+                childRunId: retryChild,
+                invocationId: `invocation-${slug(retryChild)}`,
+                approval: invocationApproval(retryApproval),
+                retry: {
+                  attempt,
+                  idempotencyKey: retryIdempotencyKey,
+                },
+              },
+              cursorId,
+            ),
+          );
+          await resolveDispatchIntent(retryIntent, result.status);
           invocationChildRunId = retryChild;
           terminalApproval = retryApproval;
         }
@@ -846,27 +984,55 @@ async function runOrchestrationInternal({
         requirementResult,
       });
       await assertSchema("csm-orchestrate-gate/1", gate);
-      const review = adversarialReview
-        ? await adversarialReview({ phase, evidence: phaseEvidence, gate, childReceipts })
-        : reviewAcceptance({
+      let review;
+      let reviewTimedOut = false;
+      if (adversarialReview) {
+        try {
+          review = await raceDeadline(
+            adversarialReview({ phase, evidence: phaseEvidence, gate, childReceipts }),
+            reviewTimeoutMs,
+            "review-timeout",
+          );
+        } catch (error) {
+          if (!error?.timeout) throw error;
+          reviewTimedOut = true;
+          review = {
+            schema: "csm-orchestrate-adversarial-review/2",
+            reviewId: `review-${slug(runId)}-${slug(phase.phaseId)}-timeout`,
             runId,
-            requirements,
-            claims: phaseEvidence.map((item) => ({
-              ...(item.requirementIds ? { requirementIds: item.requirementIds } : {}),
-              evidenceRefs: [
-                {
-                  evidenceId: item.evidenceId,
-                  ...(item.acceptanceSignalId
-                    ? { acceptanceSignalId: item.acceptanceSignalId }
-                    : {}),
-                },
-              ],
-            })),
-            evidence: phaseEvidence,
-            technical: phaseTechnical,
-            functional: phaseFunctional,
-            completion: !phaseFailure && gate.status === "VERIFIED",
-          });
+            phaseId: phase.phaseId,
+            status: "REJECTED",
+            independent: true,
+            provenance: {
+              mode: "local-test-seam",
+              reviewer: "race-deadline",
+              reviewerChildRunId: `run-${slug(runId)}-review-timeout`,
+            },
+            requirementCoverage: [],
+            evidenceEntailment: "failed",
+            technical: [],
+            functional: [],
+            findings: [{ code: "review-timeout", summary: "adversarial review timed out" }],
+          };
+        }
+      } else
+        review = reviewAcceptance({
+          runId,
+          requirements,
+          claims: phaseEvidence.map((item) => ({
+            ...(item.requirementIds ? { requirementIds: item.requirementIds } : {}),
+            evidenceRefs: [
+              {
+                evidenceId: item.evidenceId,
+                ...(item.acceptanceSignalId ? { acceptanceSignalId: item.acceptanceSignalId } : {}),
+              },
+            ],
+          })),
+          evidence: phaseEvidence,
+          technical: phaseTechnical,
+          functional: phaseFunctional,
+          completion: !phaseFailure && gate.status === "VERIFIED",
+        });
       await assertSchema("csm-orchestrate-adversarial-review/2", review);
       phaseResults.push({ phase, gate, review });
       if (review?.reviewId) reviewIds.push(review.reviewId);
@@ -902,7 +1068,12 @@ async function runOrchestrationInternal({
               : "INCOMPLETE",
           childReceipts,
           phaseEvidence.map((item) => item.evidenceId),
-          { gate, review, extensions: receiptExtensions() },
+          {
+            gate,
+            review,
+            ...(reviewTimedOut ? { reason: "review-timeout" } : {}),
+            extensions: receiptExtensions(),
+          },
         );
     }
 
@@ -936,21 +1107,43 @@ async function runOrchestrationInternal({
       phaseResults,
       evidence: allEvidence,
       childReceipts,
+      timeoutMs: reviewTimeoutMs,
     };
     const hostReview =
       typeof adapter.invokeReview === "function"
         ? await adapter.invokeReview(reviewInvocation)
         : null;
+    if (hostReview?.failure?.code === "review-timeout")
+      return emitTerminalReceipt(
+        runId,
+        phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+        terminalApproval,
+        "INCOMPLETE",
+        childReceipts,
+        allEvidence.map((item) => item.evidenceId),
+        { reason: "review-timeout", extensions: receiptExtensions() },
+      );
     if (hostReview?.status === "completed" && hostReview.review) {
       const final = hostReview.review;
       await assertSchema("csm-orchestrate-adversarial-review/2", final);
       if (final?.reviewId) reviewIds.push(final.reviewId);
+      let hostRemediation = null;
+      if (remediationFactory) {
+        try {
+          hostRemediation = await raceDeadline(
+            remediationFactory({ graph: activeGraph, review: final, phaseResults }),
+            reviewTimeoutMs,
+            "remediation-timeout",
+          );
+        } catch (error) {
+          if (!error?.timeout) throw error;
+          hostRemediation = null;
+        }
+      }
       const coordinated = coordinateFinalReview({
         graph: activeGraph,
         review: final,
-        remediation: remediationFactory
-          ? await remediationFactory({ graph: activeGraph, review: final, phaseResults })
-          : null,
+        remediation: hostRemediation,
         completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
       });
       await assertSchema("csm-orchestrate-final-review/2", coordinated);
@@ -1038,15 +1231,27 @@ async function runOrchestrationInternal({
         },
       );
     }
-    const final = finalReview
-      ? await finalReview({
-          phase: phaseResults.at(-1)?.phase,
-          graph: activeGraph,
-          phaseResults,
-          evidence: allEvidence,
-          childReceipts,
-        })
-      : null;
+    let final = null;
+    let finalTimedOut = false;
+    if (finalReview) {
+      try {
+        final = await raceDeadline(
+          finalReview({
+            phase: phaseResults.at(-1)?.phase,
+            graph: activeGraph,
+            phaseResults,
+            evidence: allEvidence,
+            childReceipts,
+          }),
+          reviewTimeoutMs,
+          "review-timeout",
+        );
+      } catch (error) {
+        if (!error?.timeout) throw error;
+        final = null;
+        finalTimedOut = true;
+      }
+    }
     if (!final)
       return emitTerminalReceipt(
         runId,
@@ -1055,7 +1260,7 @@ async function runOrchestrationInternal({
         "INCOMPLETE",
         childReceipts,
         allEvidence.map((item) => item.evidenceId),
-        { reason: "invalid-final-review" },
+        { reason: finalTimedOut ? "review-timeout" : "invalid-final-review" },
       );
     await assertSchema("csm-orchestrate-adversarial-review/2", final);
     if (final?.reviewId) reviewIds.push(final.reviewId);
@@ -1080,12 +1285,23 @@ async function runOrchestrationInternal({
           },
         );
     }
+    let remediation = null;
+    if (remediationFactory) {
+      try {
+        remediation = await raceDeadline(
+          remediationFactory({ graph: activeGraph, review: final, phaseResults }),
+          reviewTimeoutMs,
+          "remediation-timeout",
+        );
+      } catch (error) {
+        if (!error?.timeout) throw error;
+        remediation = null;
+      }
+    }
     const coordinated = coordinateFinalReview({
       graph: activeGraph,
       review: final,
-      remediation: remediationFactory
-        ? await remediationFactory({ graph: activeGraph, review: final, phaseResults })
-        : null,
+      remediation,
       completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
       injected: Boolean(finalReview),
     });

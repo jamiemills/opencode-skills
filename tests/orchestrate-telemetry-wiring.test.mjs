@@ -369,6 +369,22 @@ test("telemetry emitter failures never break the run", async () => {
   assert.equal(host.calls, 1);
 });
 
+test("telemetry auto-computes effectiveConfigDigest when not provided", async () => {
+  const transport = createMemoryTransport();
+  const telemetryEmitter = createTelemetryEmitter({ transport, runId: "run-telemetry-autodigest" });
+  const host = hostFixture();
+  const result = await orchestrate(
+    await orchestrateOptions(host, { runId: "run-telemetry-autodigest", telemetryEmitter }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
+  const events = transport.list();
+  assert.ok(events.length >= 2, "events are emitted instead of silently dropped");
+  assert.ok(
+    events.every((event) => /^sha256:[a-f0-9]{64}$/.test(event.effectiveConfigDigest ?? "")),
+    "every event carries an auto-computed effectiveConfigDigest",
+  );
+});
+
 test("makeAutonomousFunctionalGate returns pass for a valid artifact", async () => {
   const gate = makeAutonomousFunctionalGate([
     {

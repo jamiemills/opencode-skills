@@ -4,6 +4,11 @@ import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
 import { autonomyGate } from "../csm-orchestrate/lib/recovery.mjs";
+import {
+  createSqliteStore,
+  OrchestrationStoreError,
+  resolveSqliteDriver,
+} from "../lib/orchestration-store/index.mjs";
 
 const SHA_A = `sha256:${"a".repeat(64)}`;
 const SHA_B = `sha256:${"b".repeat(64)}`;
@@ -368,4 +373,166 @@ test("autonomy policy denies write skills and unverified read-only claims", asyn
     }),
     undefined,
   );
+});
+
+test("auto-approve set is exactly csm-ddd, csm-review-python, csm-scan", async () => {
+  const capabilities = await loadCapabilities();
+  const policy = createAutonomyPolicy(capabilities, { now: NOW });
+  const phase = { runId: "run-autonomy-strict", phaseId: "phase-autonomy-p1" };
+  const request = (skill) => ({
+    phase,
+    node: { skill, nodeId: `node-p1-${skill}`, sideEffects: ["read-only"] },
+    childRunId: `run-autonomy-strict-p1-${skill}`,
+  });
+  for (const skill of ["csm-ddd", "csm-review-python", "csm-scan"]) {
+    const approval = await policy(request(skill));
+    assert.ok(approval, `${skill} must be auto-approved`);
+    assert.equal(approval.status, "approved");
+    assert.equal(approval.approvalId, `approval-auto-run-autonomy-strict-p1-${skill}`);
+  }
+  for (const skill of ["csm-review", "csm-deep-research"]) {
+    assert.equal(
+      await policy(request(skill)),
+      undefined,
+      `${skill} must be denied by the strict auto-approve policy`,
+    );
+  }
+  for (const skill of ["csm-build", "csm-grill", "csm-plan", "csm-upload", "csm-browse"]) {
+    assert.equal(await policy(request(skill)), undefined, `${skill} must be denied`);
+  }
+});
+
+test("wal-mode store fails closed when node:sqlite is unavailable", (t) => {
+  if (resolveSqliteDriver().available)
+    return t.skip("node:sqlite available; throw path untestable");
+  assert.throws(
+    () => createSqliteStore({ mode: "wal" }),
+    (error) =>
+      error instanceof OrchestrationStoreError && /node:sqlite unavailable/.test(error.message),
+  );
+  const memory = createSqliteStore({ mode: "memory" });
+  memory.close();
+  const memoryJs = createSqliteStore({ driver: "memory-js" });
+  memoryJs.close();
+});
+
+test("hung injected finalReview times out into an INCOMPLETE receipt", async () => {
+  const host = hostFixture();
+  const options = await autonomyOptions(host, {
+    runId: "run-autonomy-review-timeout",
+    signals: { capabilities: ["csm-scan"] },
+    reviewTimeoutMs: 100,
+    finalReview: () => new Promise(() => {}),
+  });
+  options.host = host;
+  const result = await orchestrate(options);
+  assert.equal(result.outcome.status, "INCOMPLETE");
+  assert.match(result.reason, /timeout/);
+});
+
+test("oversized child results are replaced with a policy failure", async () => {
+  const blob = "x".repeat(3 * 1024 * 1024);
+  const host = hostFixture();
+  host.invokeSiblingSkill = async () => ({
+    status: "completed",
+    technical: [{ id: "technical", status: "pass", evidenceRefs: [], blob }],
+    functional: [],
+    evidence: [],
+    outputArtifactRefs: [],
+  });
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-oversized",
+      signals: { capabilities: ["csm-scan"] },
+      retryBackoffMs: 0,
+    }),
+  );
+  assert.equal(result.outcome.status, "FAILED");
+  assert.equal(result.reason, "output-size-exceeded");
+  assert.equal(result.statuses.verification, "rejected");
+});
+
+test("retry backoff creates a measurable delay before the retry dispatch", async () => {
+  const host = hostFixture();
+  const original = host.invokeSiblingSkill.bind(host);
+  const dispatchedAt = [];
+  let calls = 0;
+  host.invokeSiblingSkill = async (request) => {
+    calls += 1;
+    dispatchedAt.push(Date.now());
+    if (calls === 1)
+      return {
+        status: "failed",
+        failure: { class: "transport", code: "connection-reset", message: "transient" },
+      };
+    return original(request);
+  };
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-backoff",
+      signals: { capabilities: ["csm-scan"] },
+      retryBackoffMs: 150,
+    }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
+  assert.equal(calls, 2);
+  const elapsed = dispatchedAt[1] - dispatchedAt[0];
+  assert.ok(elapsed >= 150, `retry delay was ${elapsed}ms; expected >= 150ms`);
+});
+
+test("durable cursorStore consumes single-use approvals at dispatch", async () => {
+  const host = hostFixture();
+  const consumed = [];
+  const store = memoryCursorStore();
+  store.consumeApproval = async (approvalId, cursorId) => {
+    consumed.push({ approvalId, cursorId });
+  };
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-durable-approval",
+      signals: { capabilities: ["csm-scan"] },
+      cursorStore: store,
+    }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
+  assert.equal(consumed.length, 1);
+  assert.equal(consumed[0].approvalId, `approval-auto-${host.requests[0].childRunId}`);
+  assert.match(consumed[0].cursorId, /^cursor-run-autonomy-durable-approval-/);
+});
+
+test("durable store wiring records idempotency and dispatch intents around each invoke", async () => {
+  const host = hostFixture();
+  const calls = [];
+  const store = memoryCursorStore();
+  store.recordIdempotency = async (key, cursorId) => {
+    calls.push(["idempotency", key, cursorId]);
+  };
+  store.consumeApproval = async (approvalId, cursorId) => {
+    calls.push(["approval", approvalId, cursorId]);
+  };
+  store.createDispatchIntent = async (cursorId, childRunId, fencingToken) => {
+    calls.push(["intent-created", cursorId, childRunId, fencingToken]);
+    return { intentId: `intent-${childRunId}` };
+  };
+  store.resolveDispatchIntent = async (intentId, status) => {
+    calls.push(["intent-resolved", intentId, status]);
+  };
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-store-wiring",
+      signals: { capabilities: ["csm-scan"] },
+      cursorStore: store,
+    }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
+  const childRunId = host.requests[0].childRunId;
+  const cursorId = calls.find(([kind]) => kind === "idempotency")?.[2];
+  assert.ok(cursorId, "idempotency is recorded against the durable cursor id");
+  const created = calls.find(([kind]) => kind === "intent-created");
+  assert.deepEqual(created, ["intent-created", cursorId, childRunId, 1]);
+  const resolved = calls.find(([kind]) => kind === "intent-resolved");
+  assert.deepEqual(resolved, ["intent-resolved", `intent-${childRunId}`, "completed"]);
+  const approvalRecord = calls.find(([kind]) => kind === "approval");
+  assert.equal(approvalRecord[1], `approval-auto-${childRunId}`);
+  assert.equal(approvalRecord[2], cursorId);
 });

@@ -1,5 +1,6 @@
 "use strict";
 
+import { execFile } from "node:child_process";
 import { assertSchema, validSchema } from "./contracts.mjs";
 import {
   validateInjectedFinalReview,
@@ -50,6 +51,20 @@ export function validateHandoffRef(
 
 function failure(status, failureClass, code, message) {
   return { status, failure: { class: failureClass, code, message } };
+}
+
+async function raceDeadline(promise, ms, code) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Object.assign(new Error(code), { timeout: true })), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function assertRequest(request) {
@@ -205,6 +220,7 @@ export function createHostInvocationAdapter({
   capabilities,
   artifactResolver,
   schemaRegistry,
+  cursorStore = null,
   now = () => new Date(),
   terminalInvocations = new Map(),
 } = {}) {
@@ -212,7 +228,7 @@ export function createHostInvocationAdapter({
   const manifest = Array.isArray(capabilities) ? capabilities : capabilities?.skills;
   const capabilityBySkill = new Map((manifest ?? []).map((item) => [item.skill, item]));
   return Object.freeze({
-    async invoke(request, { signal } = {}) {
+    async invoke(request, { signal, cursorId } = {}) {
       try {
         await assertRequest(request);
       } catch (error) {
@@ -241,6 +257,21 @@ export function createHostInvocationAdapter({
           "duplicate-terminal-invocation",
           "terminal invocation already exists",
         );
+      const durableCursorId =
+        cursorId ??
+        `cursor-${request.parentRunId}-${request.phaseId}-${request.edgeId.replace(/^edge-/, "")}`;
+      if (cursorStore && typeof cursorStore.recordIdempotency === "function") {
+        try {
+          await cursorStore.recordIdempotency(key, durableCursorId);
+        } catch {
+          return failure(
+            "rejected",
+            "policy",
+            "duplicate-terminal-invocation",
+            "terminal invocation already exists",
+          );
+        }
+      }
       const current = new Date(now());
       const approvalError = approvalFailure(request.approval, request, current, consumedApprovals);
       if (approvalError) return failure("blocked", "policy", approvalError[0], approvalError[1]);
@@ -258,13 +289,37 @@ export function createHostInvocationAdapter({
           "cancelled",
           "invocation was cancelled before dispatch",
         );
+      if (cursorStore && typeof cursorStore.consumeApproval === "function") {
+        try {
+          await cursorStore.consumeApproval(request.approval.approvalId, durableCursorId);
+        } catch {
+          return failure("blocked", "policy", "approval-consumed", "approval was already consumed");
+        }
+      }
       consumedApprovals.add(request.approval.approvalId);
       const controller = new AbortController();
+      let childResult = null;
+      // Best-effort: tmux-detached grandchildren live in the tmux server's session;
+      // without pid-namespaces this cannot guarantee cleanup
+      const killTmuxSession = () => {
+        const sessionName = childResult?.tmuxSessionName;
+        if (typeof sessionName !== "string" || sessionName === "") return;
+        execFile("tmux", ["kill-session", "-t", sessionName], () => {});
+      };
+      const hostInvocation = host.invokeSiblingSkill(request, { signal: controller.signal });
+      Promise.resolve(hostInvocation).then(
+        (result) => {
+          childResult = result;
+          if (controller.signal.aborted) killTmuxSession();
+        },
+        () => {},
+      );
       const cancellation = new Promise((_, reject) => {
         signal?.addEventListener(
           "abort",
           () => {
             controller.abort();
+            killTmuxSession();
             reject(Object.assign(new Error("invocation was cancelled"), { cancelled: true }));
           },
           { once: true },
@@ -274,15 +329,12 @@ export function createHostInvocationAdapter({
       const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => {
           controller.abort();
+          killTmuxSession();
           reject(Object.assign(new Error("child invocation timed out"), { timeout: true }));
         }, request.timeoutMs);
       });
       try {
-        const result = await Promise.race([
-          host.invokeSiblingSkill(request, { signal: controller.signal }),
-          timeout,
-          cancellation,
-        ]);
+        const result = await Promise.race([hostInvocation, timeout, cancellation]);
         clearTimeout(timer);
         const resultError = await validateChildResult(result, request);
         if (resultError) return failure("blocked", "policy", "invalid-child-result", resultError);
@@ -354,7 +406,17 @@ export function createHostInvocationAdapter({
           "unavailable-review-host",
           "host review API is unavailable",
         );
-      const result = await host.invokeReview(Object.freeze({ ...request, status: "ready" }));
+      let result;
+      try {
+        result = await raceDeadline(
+          host.invokeReview(Object.freeze({ ...request, status: "ready" })),
+          request.timeoutMs || 30_000,
+          "review-timeout",
+        );
+      } catch (error) {
+        if (!error?.timeout) throw error;
+        return failure("blocked", "timeout", "review-timeout", "review invocation timed out");
+      }
       const review = result?.review;
       const receipt = result?.reviewReceipt;
       const artifact = result?.reviewArtifact;

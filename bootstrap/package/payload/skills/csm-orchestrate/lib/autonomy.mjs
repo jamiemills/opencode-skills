@@ -1,6 +1,15 @@
 "use strict";
 
-const readOnly = (effects) => (effects ?? []).every((effect) => effect === "read-only");
+const isAutoApprovable = (capability, skillName) => {
+  if (!capability) return false;
+  if (skillName === "csm-review") return false; // R0 posture includes network calls
+  if (skillName === "csm-deep-research") return false; // has network+browser permissions
+  const effects = capability.effects ?? [];
+  if (effects.length !== 1 || effects[0] !== "read-only") return false;
+  const perms = (capability.permissions ?? []).join(",");
+  if (perms !== "read" && perms !== "read,execute") return false;
+  return true;
+};
 
 export function createAutonomyPolicy(
   capabilities,
@@ -10,15 +19,11 @@ export function createAutonomyPolicy(
   const capabilityBySkill = new Map(manifest.map((capability) => [capability.skill, capability]));
   return async function autonomyApprovals({ phase, node, childRunId } = {}) {
     if (!phase || !node || !childRunId) return undefined;
-    if (!readOnly(node.sideEffects)) return undefined;
+    const nodeEffects = node.sideEffects ?? [];
+    if (nodeEffects.length !== 1 || nodeEffects[0] !== "read-only") return undefined;
     const capability = capabilityBySkill.get(node.skill);
-    if (!capability || !readOnly(capability.effects)) return undefined;
-    if (
-      !capability.digest ||
-      !Array.isArray(capability.permissions) ||
-      !capability.permissions.length
-    )
-      return undefined;
+    if (!isAutoApprovable(capability, node.skill)) return undefined;
+    if (!capability.digest) return undefined;
     const approvedAt = new Date(now());
     const expiresAt = new Date(approvedAt.getTime() + ttlMs);
     return Object.freeze({

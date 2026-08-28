@@ -1,5 +1,7 @@
 // T004 end-to-end autonomy test: one autonomous read-only run exercising every
-// safety component wired in T001-T003 plus the SQLite backup from T004.
+// safety component wired in T001-T003 — strict 3-skill auto-approve, durable
+// cursor/approval/idempotency store, approval+dispatch+terminal telemetry,
+// manifest-based git checkpoint/rollback — plus the SQLite backup from T004.
 // Git-backed fixtures build throwaway repositories under os.tmpdir(); nothing
 // in the real repository is touched.
 
@@ -12,7 +14,6 @@ import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
 import { createSqliteStore, resolveSqliteDriver } from "../lib/orchestration-store/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
@@ -25,6 +26,9 @@ const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const verifyScript = path.join(repoRoot, "scripts", "verify-orchestration-backup.mjs");
 
 const SQLITE_AVAILABLE = resolveSqliteDriver().available;
+// node:sqlite only exists on Node >= 22.13; resolve dynamically so this file
+// still loads (and its tests skip) on older runtimes.
+const { DatabaseSync } = resolveSqliteDriver();
 const SHA_A = `sha256:${"a".repeat(64)}`;
 const SHA_B = `sha256:${"b".repeat(64)}`;
 const SHA_C = `sha256:${"c".repeat(64)}`;
@@ -215,14 +219,14 @@ const withReviewHost = (host, runId) => ({
   },
 });
 
-const orchestrateOptions = async (host, { runId, cursorStore, telemetryEmitter }) => {
+const orchestrateOptions = async (host, { runId, cursorStore, telemetryEmitter, signals } = {}) => {
   const capabilities = await loadCapabilities();
   return {
     approach: approachFor(runId),
     runId,
     host: withReviewHost(host, runId),
     capabilities,
-    signals: { capabilities: ["csm-scan"] },
+    signals: signals ?? { capabilities: ["csm-scan"] },
     approvals: createAutonomyPolicy(capabilities, { now: NOW }),
     now: NOW,
     cursorStore,
@@ -255,12 +259,20 @@ test("end-to-end autonomous run: checkpoint, telemetry, durable receipt, restora
     now: STORE_NOW,
   });
   const transport = createJsonlTransport(path.join(workdir, `${runId}.jsonl`));
+  let checkpoint = null;
   try {
-    // 1. Git checkpoint on a dirty tree.
+    // 1. Git checkpoint on a dirty tree with a modified tracked file and an
+    //    untracked file: HEAD + branch + manifest shape (no stash).
     const repoDir = makeRepo(path.join(workdir, "repo"));
     fs.writeFileSync(path.join(repoDir, "seed.txt"), "dirty-before-run");
-    const checkpoint = await preAutonomyRun(runId, repoDir);
-    assert.deepEqual(checkpoint, { checkpointRef: "stash@{0}", wasDirty: true });
+    fs.writeFileSync(path.join(repoDir, "untracked.txt"), "untracked-before-run");
+    checkpoint = await preAutonomyRun(runId, repoDir);
+    assert.equal(checkpoint.wasDirty, true);
+    assert.equal(checkpoint.branch, "main");
+    assert.equal(checkpoint.head, git(repoDir, ["rev-parse", "HEAD"]));
+    assert.ok(checkpoint.checkpointDir, "dirty tree gets a snapshot directory");
+    assert.deepEqual(checkpoint.manifest.modified, ["seed.txt"]);
+    assert.deepEqual(checkpoint.manifest.untracked, ["untracked.txt"]);
 
     // 2. Autonomous orchestration with JSONL telemetry and the SQLite store.
     const telemetryEmitter = createTelemetryEmitter({
@@ -279,16 +291,23 @@ test("end-to-end autonomous run: checkpoint, telemetry, durable receipt, restora
       host.requests[0].approval.approvalId,
       `approval-auto-${host.requests[0].childRunId}`,
     );
+    const childRunId = host.requests[0].childRunId;
+    const approvalId = `approval-auto-${childRunId}`;
 
-    // 3. Telemetry file holds correlated dispatch and terminal events.
+    // 3. Telemetry file holds correlated approval, dispatch, and terminal events.
     const events = await transport.list();
-    assert.ok(events.length >= 2);
+    assert.ok(events.length >= 3);
     assert.ok(events.every((event) => event.runId === runId));
     assert.ok(events.every((event) => event.effectiveConfigDigest === CONFIG_DIGEST));
+    const approvalEvent = events.find((event) => event.eventType === "approval");
+    assert.equal(approvalEvent.phaseId, host.requests[0].phaseId);
+    assert.equal(approvalEvent.edgeId, host.requests[0].edgeId);
+    assert.equal(approvalEvent.childRunId, childRunId);
+    assert.deepEqual(approvalEvent.payload, { skill: "csm-scan", approvalId });
     const dispatch = events.find((event) => event.eventType === "dispatch");
     assert.equal(dispatch.phaseId, host.requests[0].phaseId);
     assert.equal(dispatch.edgeId, host.requests[0].edgeId);
-    assert.equal(dispatch.childRunId, host.requests[0].childRunId);
+    assert.equal(dispatch.childRunId, childRunId);
     const terminal = events.find((event) => event.eventType === "terminal");
     assert.equal(terminal.payload.receiptId, result.receiptId);
     assert.equal(terminal.payload.status, "VERIFIED");
@@ -298,10 +317,40 @@ test("end-to-end autonomous run: checkpoint, telemetry, durable receipt, restora
       "no telemetry loss: sequences are contiguous from 1",
     );
 
-    // 4. The SQLite store holds the terminal receipt.
+    // 4. The durable store holds the terminal receipt and the safety wiring:
+    //    approval consumption, idempotency, and dispatch intents are all
+    //    recorded against the run's cursors, not process-local state.
     const stored = await store.loadTerminalReceipt(result.receiptId);
     assert.equal(stored.runId, runId);
     assert.equal(stored.outcome.status, "VERIFIED");
+    const cursorIds = await store.listCursorIds(runId);
+    assert.ok(cursorIds.length > 0, "run persisted at least one cursor");
+    const history = (await Promise.all(cursorIds.map((id) => store.getHistory(id)))).flat();
+    assert.ok(
+      history.some(
+        (event) =>
+          event.eventType === "approval-consumed" && event.payload.approvalId === approvalId,
+      ),
+      "approval consumption is durable",
+    );
+    assert.ok(
+      history.some((event) => event.eventType === "idempotency-recorded"),
+      "idempotency key is durable",
+    );
+    assert.ok(
+      history.some(
+        (event) =>
+          event.eventType === "dispatch-intent-created" && event.payload.childRunId === childRunId,
+      ),
+      "dispatch intent created before invoke",
+    );
+    assert.ok(
+      history.some(
+        (event) =>
+          event.eventType === "dispatch-intent-resolved" && event.payload.status === "completed",
+      ),
+      "dispatch intent resolved after invoke",
+    );
 
     // 5. Backup is restorable and matches the live database.
     const backupPath = path.join(workdir, "backups", "orchestration-backup.db");
@@ -320,6 +369,11 @@ test("end-to-end autonomous run: checkpoint, telemetry, durable receipt, restora
       assert.equal(receipts[0].status, "completed");
       assert.ok(Number(restored.prepare("SELECT COUNT(*) AS n FROM cursors").get().n) > 0);
       assert.ok(Number(restored.prepare("SELECT COUNT(*) AS n FROM events").get().n) > 0);
+      const approvals = restored.prepare("SELECT approval_id FROM approvals").all();
+      assert.deepEqual(
+        approvals.map((row) => row.approval_id),
+        [approvalId],
+      );
     } finally {
       restored.close();
     }
@@ -327,15 +381,60 @@ test("end-to-end autonomous run: checkpoint, telemetry, durable receipt, restora
     assert.match(stdout, /^PASS: /m);
     assert.match(stdout, /terminal|cursors/);
 
-    // 6. Rollback restores the pre-run working tree.
-    const rollback = await rollbackToCheckpoint(repoDir);
+    // 6. The strict 3-skill approve set runs end-to-end: every auto-approved
+    //    skill dispatches with a minted approval and stores its receipt.
+    for (const skill of ["csm-ddd", "csm-review-python", "csm-scan"]) {
+      const skillRunId = `run-autonomy-e2e-${skill.replace("csm-", "")}`;
+      const skillHost = hostFixture();
+      const skillResult = await orchestrate(
+        await orchestrateOptions(skillHost, {
+          runId: skillRunId,
+          cursorStore: store,
+          signals: { capabilities: [skill] },
+        }),
+      );
+      assert.equal(
+        skillResult.outcome.status,
+        "VERIFIED",
+        `${skill}: ${JSON.stringify(skillResult)}`,
+      );
+      assert.equal(skillHost.calls, 1, `${skill} routes exactly one node`);
+      assert.equal(skillHost.requests[0].skill, skill);
+      assert.equal(
+        skillHost.requests[0].approval.approvalId,
+        `approval-auto-${skillHost.requests[0].childRunId}`,
+        `${skill} dispatches on a minted auto-approval`,
+      );
+      const skillStored = await store.loadTerminalReceipt(skillResult.receiptId);
+      assert.equal(skillStored.outcome.status, "VERIFIED", `${skill} receipt is durable`);
+    }
+
+    // 7. Rollback restores the pre-run working tree via the manifest-based
+    //    checkpoint: tracked modification, untracked file, and run-created
+    //    files are all handled.
+    fs.writeFileSync(path.join(repoDir, "seed.txt"), "clobbered-by-run");
+    fs.rmSync(path.join(repoDir, "untracked.txt"));
+    fs.writeFileSync(path.join(repoDir, "stray-run-artifact.txt"), "created-by-run");
+    const rollback = await rollbackToCheckpoint(checkpoint, repoDir);
     assert.deepEqual(rollback, { restored: true });
     assert.equal(fs.readFileSync(path.join(repoDir, "seed.txt"), "utf8"), "dirty-before-run");
-    assert.equal(git(repoDir, ["stash", "list"]), "", "stash consumed by rollback");
+    assert.equal(
+      fs.readFileSync(path.join(repoDir, "untracked.txt"), "utf8"),
+      "untracked-before-run",
+    );
+    assert.equal(fs.existsSync(path.join(repoDir, "stray-run-artifact.txt")), false);
+    assert.equal(
+      fs.existsSync(checkpoint.checkpointDir),
+      false,
+      "rollback cleans up the checkpoint snapshot",
+    );
+    checkpoint = null;
   } finally {
     store.close();
     // Drain queued JSONL appends so cleanup never races a late write.
     await transport.list().catch(() => {});
+    if (checkpoint?.checkpointDir)
+      fs.rmSync(checkpoint.checkpointDir, { recursive: true, force: true });
     await rm(workdir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   }
 });
