@@ -412,6 +412,38 @@ function assertInsertion(graph, phase, existingEffects) {
   }
 }
 
+function remediationBudgetState(graph) {
+  const previous = graph?.remediationBudget;
+  if (
+    previous &&
+    Number.isInteger(previous.total) &&
+    previous.total >= 0 &&
+    Number.isInteger(previous.consumed) &&
+    previous.consumed >= 0 &&
+    Number.isInteger(previous.cycles) &&
+    previous.cycles >= 0
+  )
+    return { total: previous.total, consumed: previous.consumed, cycles: previous.cycles };
+  const total = list(graph?.phases)
+    .filter((phase) => phase.insertion?.mode !== "insert")
+    .reduce(
+      (sum, phase) =>
+        sum + (Number.isInteger(phase.remediationBudget) ? phase.remediationBudget : 1),
+      0,
+    );
+  return { total, consumed: 0, cycles: 0 };
+}
+
+function budgetMetadata({ total, consumed, cycles }) {
+  return Object.freeze({
+    total,
+    consumed,
+    remaining: total - consumed,
+    cycles,
+    exhausted: cycles > total,
+  });
+}
+
 export function coordinateFinalReview({
   graph,
   phase: _phase,
@@ -467,25 +499,72 @@ export function coordinateFinalReview({
       graph,
       routing: { route, reason: "final-review-failed", domainAudit: false },
     });
+  const budget = remediationBudgetState(graph);
+  const budgetCost = remediation.remediationBudget;
+  if (Number.isInteger(budgetCost)) {
+    const nextCycles = budget.cycles + 1;
+    const nextConsumed = budget.consumed + budgetCost;
+    if (nextCycles > budget.total || nextConsumed > budget.total) {
+      const exhaustedGraph = {
+        ...graph,
+        remediationBudget: budgetMetadata({
+          total: budget.total,
+          consumed: nextConsumed,
+          cycles: nextCycles,
+        }),
+      };
+      return Object.freeze({
+        schema: "csm-orchestrate-final-review/2",
+        status: "BLOCKED",
+        finalReview: review,
+        graph: exhaustedGraph,
+        remediationBudget: exhaustedGraph.remediationBudget,
+        routing: {
+          route,
+          reason: "remediation-budget-exhausted",
+          riskClass: review.findings.some((item) => item.severity === "critical")
+            ? "critical"
+            : "high",
+          risk: review.findings.map((item) => item.code),
+          domainAudit: false,
+        },
+      });
+    }
+  }
   assertInsertion(graph, remediation, completedEffects);
+  const nextCycles = budget.cycles + 1;
+  const nextConsumed = budget.consumed + remediation.remediationBudget;
+  const phases = list(graph.phases);
+  const insertAt =
+    phases.findIndex((phase) => phase.phaseId === remediation.insertion.insertedAfter) + 1;
+  const insertedPhase = Object.freeze({
+    ...remediation,
+    reviewFindings: Object.freeze(list(review.findings)),
+    sourceReviewId: review.reviewId,
+    acceptanceContract: Object.freeze({
+      signals: Object.freeze(list(remediation.acceptanceSignals)),
+      requiresIndependentReview: true,
+      requiresTechnicalAndFunctionalGates: true,
+      evidenceRequired: true,
+    }),
+    insertion: { ...remediation.insertion, mode: "insert" },
+    order: insertAt,
+    status: "planned",
+  });
   const nextGraph = {
     ...graph,
     graphRevision: remediation.graphRevision,
+    remediationBudget: budgetMetadata({
+      total: budget.total,
+      consumed: nextConsumed,
+      cycles: nextCycles,
+    }),
     phases: [
-      ...graph.phases,
-      Object.freeze({
-        ...remediation,
-        reviewFindings: Object.freeze(list(review.findings)),
-        sourceReviewId: review.reviewId,
-        acceptanceContract: Object.freeze({
-          signals: Object.freeze(list(remediation.acceptanceSignals)),
-          requiresIndependentReview: true,
-          requiresTechnicalAndFunctionalGates: true,
-          evidenceRequired: true,
-        }),
-        insertion: { ...remediation.insertion, mode: "insert" },
-        status: "planned",
-      }),
+      ...phases.slice(0, insertAt),
+      insertedPhase,
+      ...phases
+        .slice(insertAt)
+        .map((phase, offset) => Object.freeze({ ...phase, order: insertAt + 1 + offset })),
     ],
   };
   const riskClass = review.findings.some((item) => item.severity === "critical")
@@ -496,7 +575,8 @@ export function coordinateFinalReview({
     status: "REMEDIATION_REQUIRED",
     finalReview: review,
     graph: nextGraph,
-    remediation: nextGraph.phases.at(-1),
+    remediation: insertedPhase,
+    remediationBudget: nextGraph.remediationBudget,
     routing: {
       route,
       riskClass,

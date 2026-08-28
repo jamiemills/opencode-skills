@@ -106,6 +106,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-27-csm-skills-sandbox-options-20260827t140000z-f4a5b6c7d8e9-research.json` — 2026-08-27 — local sandbox options research — status: reference
 - `2026-08-27-shared-all-skills-config-security-20260827t235900z-c7d8e9f0a1b2-research.md` — 2026-08-27 — shared all-skills configuration security research — status: reference
 - `2026-08-28-all-skills-config-production-assurance-20260827t020000z-d4e5f6a1b2c3-research.json` — 2026-08-28 — all-skills configuration and production assurance research — status: reference
+- `2026-08-28-skill-standards-packaging-20260828t055549z-9b7c6d5e4f3a-research.json` — 2026-08-28 — current standards, codification, packaging, and deployment for a skill suite (concurrent-session research; index line added by the T010 synchronization dispatch to satisfy the same-commit artifact-index gate) — status: reference
 - `2026-08-26-json-migration-implementation-assessment-research.md` — 2026-08-26 — JSON migration implementation assessment — status: reference
 - `2026-08-20-disney-plus-turkish-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ Turkish creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
@@ -135,6 +136,7 @@ still cited (the remediation plan and baselines reference them).
 ## builds/
 
 - `2026-08-27-csm-orchestrate-remediation-build.json` — 2026-08-27 — execute csm-orchestrate remediation plan — status: complete
+- `2026-08-28-all-skills-config-production-assurance-build.json` — 2026-08-28 — execute the all-skills config production-assurance plan (T001-T010 dispatch log; per-dispatch cycles recorded in the plan journal) — status: in progress
 
 ## ddd/
 

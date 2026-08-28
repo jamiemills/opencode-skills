@@ -1,0 +1,95 @@
+{
+  "format": "csm-eval-corpus/1",
+  "split": "validation",
+  "corpusId": "eval-orchestration-validation-2026-08-28",
+  "provenance": {
+    "createdAt": "2026-08-28T00:00:00.000Z",
+    "labelsFrozen": false,
+    "methodology": "docs/evaluation-corpus.md",
+    "notes": "Validation corpus: labels frozen for this evaluation round; used to check the harness and SLI plumbing before held-out execution. Not for threshold tuning."
+  },
+  "scenarios": [
+    {
+      "scenarioId": "eval-corr-006",
+      "name": "empty plan is rejected before dispatch",
+      "category": "correctness",
+      "riskClass": "low",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "empty-plan" }
+    },
+    {
+      "scenarioId": "eval-corr-008",
+      "name": "wrong-audience attestation is rejected",
+      "category": "correctness",
+      "riskClass": "medium",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "wrong-audience" }
+    },
+    {
+      "scenarioId": "eval-corr-009",
+      "name": "result without provenance is rejected",
+      "category": "correctness",
+      "riskClass": "medium",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "missing-provenance" }
+    },
+    {
+      "scenarioId": "eval-cfg-002",
+      "name": "per-run layer overrides user layer",
+      "category": "config-precedence",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "user": { "csm-plan": { "batchSize": 10 } },
+          "run": { "csm-plan": { "batchSize": 20 } }
+        },
+        "configExpectation": [{ "path": ["skills", "csm-plan", "batchSize"], "value": 20 }]
+      }
+    },
+    {
+      "scenarioId": "eval-auth-002",
+      "name": "config cannot widen maxParallelism beyond the schema ceiling",
+      "category": "authority-boundary",
+      "riskClass": "high",
+      "expected": { "outcome": "BLOCKED", "configRejected": true, "authorityPreserved": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "run": { "csm-orchestrate": { "maxParallelism": 9 } }
+        }
+      }
+    },
+    {
+      "scenarioId": "eval-rec-002",
+      "name": "timeout after effect reconciles via late result without duplicate effect",
+      "category": "recovery",
+      "riskClass": "high",
+      "expected": { "outcome": "VERIFIED", "recovered": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "timeout-after-effect",
+        "lateResult": "success"
+      }
+    },
+    {
+      "scenarioId": "eval-adv-003",
+      "name": "duplicate dispatch absorbed by idempotent sink still verifies",
+      "category": "adversarial",
+      "riskClass": "medium",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "duplicate-dispatch-idempotent" }
+    },
+    {
+      "scenarioId": "eval-adv-005",
+      "name": "remediation loop exhausts its budget and blocks",
+      "category": "adversarial",
+      "riskClass": "high",
+      "expected": { "outcome": "BLOCKED", "requiresReview": true },
+      "setup": { "approachPhases": 1, "hostBehavior": "remediation-loop", "remediationCycles": 3 }
+    }
+  ]
+}

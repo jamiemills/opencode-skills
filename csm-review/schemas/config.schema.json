@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-review-config/1",
+  "title": "CSM review suite config namespace",
+  "description": "Bounded, non-authority presentation settings for the csm-review namespace of csm-skills-config/1. Only verbosity is configurable; severity/evidence vocabulary, sandbox containment, report immutability, write discipline, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verbosity": {
+      "type": "string",
+      "enum": ["quiet", "normal", "verbose"],
+      "description": "Presentation verbosity of review reporting; never changes severity/evidence authority."
+    }
+  }
+}

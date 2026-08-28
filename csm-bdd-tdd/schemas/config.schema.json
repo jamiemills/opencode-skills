@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-bdd-tdd-config/1",
+  "title": "CSM bdd-tdd suite config namespace",
+  "description": "Bounded, non-authority presentation settings for the csm-bdd-tdd namespace of csm-skills-config/1. Only spec presentation is configurable; package ownership, spec/test artifact ownership, lifecycle, TDD ordering, credentials, commit/push authorization, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "outputStyle": {
+      "type": "string",
+      "enum": ["standard", "compact"],
+      "description": "Presentation style of generated spec/test designs; never changes package ownership, artifact schemas, or lifecycle."
+    },
+    "includeTraceability": {
+      "type": "boolean",
+      "description": "Whether generated designs render the traceability section; the traceability contract itself stays skill-owned."
+    }
+  }
+}

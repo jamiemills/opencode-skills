@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-upload-config/1",
+  "title": "CSM upload suite config namespace",
+  "description": "Additive, non-authoritative settings for the csm-upload namespace of csm-skills-config/1. The legacy ~/.agents/csm-upload.json file and CLI flags (--github/--repo/--label) remain the authoritative source for existing behavior; suite values apply only to fields the legacy file does not set and never rewrite or delete legacy configuration. Publication authority, destinations, credentials, confirmation gates, and lifecycle are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "github": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Default GitHub username preference; ignored when the legacy config or --github flag sets it."
+    },
+    "pagesRepo": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Default pages repo name preference; ignored when the legacy config or --repo flag sets it."
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Default demo label preference; ignored when the --label flag sets it."
+    }
+  }
+}

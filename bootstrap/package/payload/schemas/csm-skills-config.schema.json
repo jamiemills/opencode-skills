@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-skills-config/1",
+  "title": "CSM skills suite configuration envelope",
+  "description": "Closed transport envelope for suite-wide configuration. Objects merge recursively across layers, arrays replace wholesale, and null is an explicit value; semantic fields inside each namespace remain skill-owned (per-skill schemas tighten namespaces in later revisions).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "skills"],
+  "properties": {
+    "schema": { "const": "csm-skills-config/1" },
+    "version": { "const": 1 },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "csm-autoresearch": { "type": "object" },
+        "csm-bdd-tdd": { "type": "object" },
+        "csm-browse": { "type": "object" },
+        "csm-build": { "type": "object" },
+        "csm-ddd": { "type": "object" },
+        "csm-deep-research": { "type": "object" },
+        "csm-grill": { "type": "object" },
+        "csm-make-tests": { "type": "object" },
+        "csm-orchestrate": { "type": "object" },
+        "csm-plan": { "type": "object" },
+        "csm-review": { "type": "object" },
+        "csm-review-python": { "type": "object" },
+        "csm-scan": { "type": "object" },
+        "csm-upload": { "type": "object" }
+      }
+    }
+  }
+}

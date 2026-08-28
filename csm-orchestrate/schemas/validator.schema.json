@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-validator/1",
+  "title": "CSM orchestrate independent signal validator definition",
+  "description": "Executable signal-validator definition evaluated over immutable artifact snapshots. Producer-supplied result metadata is never authoritative; only predicate execution over the snapshot value counts. Cross-field predicate requirements (pattern for string-contains, expectedDigest for digest-match) are enforced by the runtime, which fails closed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "signalId",
+    "validatorId",
+    "version",
+    "inputSchema",
+    "predicate",
+    "policyDigest"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-validator/1" },
+    "signalId": { "type": "string", "pattern": "^signal-[a-z0-9][a-z0-9-]{1,127}$" },
+    "validatorId": { "type": "string", "pattern": "^validator-[a-z0-9][a-z0-9-]{1,127}$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "inputSchema": { "type": ["object", "boolean"] },
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["string-contains", "schema-valid", "digest-match"] },
+        "pattern": { "type": "string", "minLength": 1 },
+        "expectedDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "policyDigest": { "$ref": "#/$defs/digest" },
+    "validatorDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

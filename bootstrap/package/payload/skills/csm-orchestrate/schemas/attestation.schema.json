@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-attestation/1",
+  "title": "CSM orchestrate authenticated attestation envelope",
+  "description": "Host/reviewer/validator provenance envelope bound to canonical request, input-set, and policy digests with audience, nonce, expiry, and key epoch. Signature verification is a deployment concern; this contract pins the structural binding that any signature must cover.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "attestationId",
+    "kind",
+    "issuer",
+    "subject",
+    "audience",
+    "requestDigest",
+    "inputSetDigest",
+    "policyDigest",
+    "result",
+    "nonce",
+    "issuedAt",
+    "expiresAt",
+    "keyEpoch",
+    "attestationDigest"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-attestation/1" },
+    "attestationId": { "type": "string", "pattern": "^att-[a-z0-9][a-z0-9-]{1,127}$" },
+    "kind": { "enum": ["host", "reviewer", "validator"] },
+    "issuer": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "subject": {
+      "type": "string",
+      "pattern": "^(?:run|phase|edge|cursor)-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "audience": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "requestDigest": { "$ref": "#/$defs/digest" },
+    "inputSetDigest": { "$ref": "#/$defs/digest" },
+    "policyDigest": { "$ref": "#/$defs/digest" },
+    "result": {},
+    "nonce": { "type": "string", "minLength": 16, "maxLength": 128 },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "keyEpoch": { "type": "integer", "minimum": 1 },
+    "attestationDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

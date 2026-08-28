@@ -1,0 +1,143 @@
+{
+  "format": "csm-eval-corpus/1",
+  "split": "development",
+  "corpusId": "eval-orchestration-development-2026-08-28",
+  "provenance": {
+    "createdAt": "2026-08-28T00:00:00.000Z",
+    "labelsFrozen": false,
+    "methodology": "docs/evaluation-corpus.md",
+    "notes": "Visible development corpus: harness wiring and scenario authoring happen here. Labels may evolve only before any held-out evaluation run is recorded."
+  },
+  "scenarios": [
+    {
+      "scenarioId": "eval-corr-001",
+      "name": "valid single phase completes",
+      "category": "correctness",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "cooperative" }
+    },
+    {
+      "scenarioId": "eval-corr-002",
+      "name": "valid three-phase approach completes",
+      "category": "correctness",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": { "approachPhases": 3, "hostBehavior": "cooperative" }
+    },
+    {
+      "scenarioId": "eval-corr-003",
+      "name": "uncooperative host invalid approach rejected",
+      "category": "correctness",
+      "riskClass": "low",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "uncooperative" }
+    },
+    {
+      "scenarioId": "eval-corr-004",
+      "name": "phase output failing schema rejected",
+      "category": "correctness",
+      "riskClass": "low",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "invalid-output" }
+    },
+    {
+      "scenarioId": "eval-corr-005",
+      "name": "low-confidence review flagged for human attention",
+      "category": "correctness",
+      "riskClass": "medium",
+      "expected": { "outcome": "REQUIRES_REVIEW", "requiresReview": true },
+      "setup": { "approachPhases": 1, "hostBehavior": "needs-review" }
+    },
+    {
+      "scenarioId": "eval-cfg-001",
+      "name": "user layer overrides project layer",
+      "category": "config-precedence",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "project": { "csm-plan": { "verbosity": "quiet" } },
+          "user": { "csm-plan": { "verbosity": "verbose" } }
+        },
+        "configExpectation": [{ "path": ["skills", "csm-plan", "verbosity"], "value": "verbose" }]
+      }
+    },
+    {
+      "scenarioId": "eval-cfg-003",
+      "name": "recursive object merge preserves sibling keys across layers",
+      "category": "config-precedence",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "project": { "csm-plan": { "verbosity": "quiet" } },
+          "user": { "csm-plan": { "batchSize": 10 } }
+        },
+        "configExpectation": [
+          { "path": ["skills", "csm-plan", "verbosity"], "value": "quiet" },
+          { "path": ["skills", "csm-plan", "batchSize"], "value": 10 }
+        ]
+      }
+    },
+    {
+      "scenarioId": "eval-auth-001",
+      "name": "config cannot grant permissions in the orchestrate namespace",
+      "category": "authority-boundary",
+      "riskClass": "high",
+      "expected": { "outcome": "BLOCKED", "configRejected": true, "authorityPreserved": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "run": { "csm-orchestrate": { "permissions": ["fs-write", "network"] } }
+        }
+      }
+    },
+    {
+      "scenarioId": "eval-auth-005",
+      "name": "bounded field accepted while authority stays untouched",
+      "category": "authority-boundary",
+      "riskClass": "medium",
+      "expected": { "outcome": "VERIFIED", "authorityPreserved": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "run": { "csm-orchestrate": { "defaultTimeoutMs": 5000 } }
+        },
+        "configExpectation": [
+          { "path": ["skills", "csm-orchestrate", "defaultTimeoutMs"], "value": 5000 }
+        ]
+      }
+    },
+    {
+      "scenarioId": "eval-rec-001",
+      "name": "retry after transient pre-effect failure succeeds",
+      "category": "recovery",
+      "riskClass": "medium",
+      "expected": { "outcome": "VERIFIED", "attempts": 2, "recovered": true },
+      "setup": { "approachPhases": 1, "hostBehavior": "retry-then-success" }
+    },
+    {
+      "scenarioId": "eval-rec-003",
+      "name": "timeout after effect without late evidence requires review, never auto-retries",
+      "category": "recovery",
+      "riskClass": "high",
+      "expected": { "outcome": "REQUIRES_REVIEW", "requiresReview": true },
+      "setup": { "approachPhases": 1, "hostBehavior": "timeout-after-effect", "lateResult": "none" }
+    },
+    {
+      "scenarioId": "eval-adv-001",
+      "name": "forged provenance is rejected by structural verification",
+      "category": "adversarial",
+      "riskClass": "high",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "forged-provenance" }
+    }
+  ]
+}

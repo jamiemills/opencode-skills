@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-config/1",
+  "title": "CSM autoresearch suite config namespace",
+  "description": "Bounded, non-authority presentation and retention preferences for the csm-autoresearch namespace of csm-skills-config/1. Only logging verbosity and archive limits are configurable; live mode, sandbox policy, evaluator selection, evolution regions, budgets, and trust decisions are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "logVerbosity": {
+      "type": "string",
+      "enum": ["minimal", "standard", "detailed"],
+      "description": "Hill-climb log detail level; never changes evaluator authority, sandbox policy, or mode selection."
+    },
+    "archiveLimit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 100,
+      "description": "Maximum number of archived iterations retained per run directory; a bounded retention preference only."
+    }
+  }
+}

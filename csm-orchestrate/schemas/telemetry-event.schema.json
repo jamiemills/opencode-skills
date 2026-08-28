@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-telemetry-event/1",
+  "title": "CSM orchestrate correlated telemetry event",
+  "description": "Correlated lifecycle event for every orchestration edge, bound to run/phase/edge/child coordinates, attempt, effective-config digest, and fencing token. Payloads are redacted before emission; sensitive key families never appear raw.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "eventId",
+    "sequence",
+    "runId",
+    "eventType",
+    "timestamp",
+    "attempt",
+    "payload",
+    "effectiveConfigDigest",
+    "fencingToken"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-telemetry-event/1" },
+    "eventId": { "type": "string", "pattern": "^evt-[a-z0-9][a-z0-9-]{1,127}$" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": ["string", "null"], "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "edgeId": { "type": ["string", "null"], "pattern": "^edge-[a-z0-9][a-z0-9-]{1,127}$" },
+    "childRunId": { "type": ["string", "null"], "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "eventType": {
+      "enum": [
+        "dispatch",
+        "approval",
+        "cursor",
+        "retry",
+        "timeout",
+        "cancellation",
+        "review",
+        "remediation",
+        "reconciliation",
+        "terminal",
+        "config_resolution",
+        "telemetry_loss"
+      ]
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "attempt": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "object" },
+    "effectiveConfigDigest": { "$ref": "#/$defs/digest" },
+    "fencingToken": { "type": ["integer", "null"], "minimum": 1 }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

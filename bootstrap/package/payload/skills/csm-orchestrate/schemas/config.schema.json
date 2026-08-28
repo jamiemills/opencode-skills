@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-config/1",
+  "title": "CSM orchestrate suite config namespace",
+  "description": "Bounded, non-authority execution preferences for the csm-orchestrate namespace of csm-skills-config/1. Only default dispatch timing and bounded parallelism are configurable; host selection, capability grants, approvals, gates, trust roots, remediation budgets, and autonomy are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "defaultTimeoutMs": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 300000,
+      "default": 30000,
+      "description": "Default per-invocation timeout in milliseconds; a bounded ceiling only, never a safety-limit or host-policy change."
+    },
+    "maxParallelism": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "default": 4,
+      "description": "Maximum number of concurrently dispatched independent read-only route nodes; never changes approvals, capabilities, or write routing."
+    }
+  }
+}

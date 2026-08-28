@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-plan-config/1",
+  "title": "CSM plan suite config namespace",
+  "description": "Bounded, non-authority planning preferences for the csm-plan namespace of csm-skills-config/1. Only presentation verbosity and phase batching size are configurable; plan schema identity, activation boundaries, R&D sandbox containment, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verbosity": {
+      "type": "string",
+      "enum": ["quiet", "normal", "verbose"],
+      "description": "Presentation verbosity of plan reporting; never changes contracts or side effects."
+    },
+    "batchSize": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "description": "Preferred number of plan tasks grouped per planning batch (1-20)."
+    }
+  }
+}

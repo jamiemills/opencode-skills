@@ -32,7 +32,7 @@ const base = (overrides = {}) => ({
     scope: ["read"],
     approvedDigest: digest,
     approvedAt: "2026-08-27T00:00:00Z",
-    expiresAt: "2026-08-28T00:00:00Z",
+    expiresAt: "2099-08-28T00:00:00Z",
     status: "approved",
   },
   timeoutMs: 100,

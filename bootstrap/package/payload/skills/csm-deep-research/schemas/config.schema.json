@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-deep-research-config/1",
+  "title": "CSM deep research suite config namespace",
+  "description": "Bounded, non-authority research preferences for the csm-deep-research namespace of csm-skills-config/1. Only default triage tier and default source mode are configurable, and both remain per-run overridable by triage; citation discipline, role separation, browse verb allowlist, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "defaultTier": {
+      "type": "string",
+      "enum": ["QUICK", "STANDARD", "DEEP"],
+      "description": "Default research tier used when a run does not triage to one explicitly."
+    },
+    "defaultSourceMode": {
+      "type": "string",
+      "enum": ["local", "web", "hybrid"],
+      "description": "Default source mode used when a run does not declare one; local-only runs never browse."
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-grill-config/1",
+  "title": "CSM grill suite config namespace",
+  "description": "Bounded, non-authority presentation settings for the csm-grill namespace of csm-skills-config/1. Only verbosity is configurable; approach schema identity, decision/phase contracts, artifact ownership, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verbosity": {
+      "type": "string",
+      "enum": ["quiet", "normal", "verbose"],
+      "description": "Presentation verbosity of grill questioning; never changes contracts or side effects."
+    }
+  }
+}

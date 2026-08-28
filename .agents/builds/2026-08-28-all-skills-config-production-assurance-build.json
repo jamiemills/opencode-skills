@@ -1,0 +1,289 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-build-all-skills-config-production-assurance-20260828-a7b8c9d0e1f2",
+  "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "CHECKPOINT",
+    "cycle": 0,
+    "nextTransition": "CHECKPOINT -> SELECT (T006 next; SQLite driver/version spike must be recorded before dispatch)",
+    "activeTasks": [],
+    "blockers": [],
+    "lastCheckpoint": "T005 complete: csm-browse/csm-autoresearch/csm-build/csm-orchestrate config schemas+adapters (strict authority boundaries), 4 registry entries + final-review/2 BLOCKED+remediationBudget schema update, executable activation predicates, remediation budget consumption (BLOCKED on exhaustion), physical graph insertion ordering with executed-phase skip; tests/config-high-risk-adapters/ + 3 orchestrate feature files; docs T005 section; bootstrap repacked. Acceptance 116/116 incl. 73/73 orchestrator regressions; prerequisites test-browse + test-autoresearch 70/70; lint/check/fmt-check/package-index/deterministic/bootstrap gates green; check-suite.test.mjs pristine-hook transient (tracked-only corpus vs intentionally uncommitted files; full-copy corpus passes); intentionally uncommitted (user authorization not provided)",
+    "lastModelRun": "csm-build T005 run (opencode, glm-5.3)"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-all-skills-config-production-assurance-plan-20260827-d4e5f6a1b2c3",
+      "schema": "csm-plan/1",
+      "runId": "run-20260827t030000z-e5f6a1b2c3d4",
+      "owner": "csm-plan",
+      "digest": "sha256:ed7c58368c3a3ea15ca5013d65431f906578975d534d33be5aa203401e7a1672",
+      "path": ".agents/plans/2026-08-27-all-skills-config-production-assurance-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-08-28T05:00:00Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "Explicit user request authorized execution of the validated plan; worktree is clean.",
+      "inputDigests": [
+        "sha256:ed7c58368c3a3ea15ca5013d65431f906578975d534d33be5aa203401e7a1672"
+      ]
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-08-28T05:05:00Z",
+      "from": "RECOVER",
+      "to": "VALIDATE",
+      "evidence": "Plan schema and worktree verified; baseline make test-orchestrate passed with 0 failures.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-08-28T05:06:00Z",
+      "from": "VALIDATE",
+      "to": "SELECT",
+      "evidence": "T001 is the sole ready task with no unmet dependencies.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-08-28T05:07:00Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "T001 dispatched for inventory and baseline creation.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-08-27T22:15:00Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "Prior run's dispatch produced zero artifacts; T001 re-executed primary-led (no subagent dispatch tooling in this environment). Created docs/config-inventory.md and tests/config-baseline/{inventory,parity}.test.mjs only.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-08-27T22:15:00Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "oxfmt/oxlint clean on new files; fixed two VERIFY findings: formatted docs/config-inventory.md for the markdown formatter, stripped a stray U+200B; removed a false-green hazard where nested node --test silently skips files under an inherited NODE_TEST_CONTEXT (parity test now deletes it and asserts a real TAP summary).",
+      "inputDigests": []
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-08-27T22:15:00Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "node --test --test-concurrency=1 tests/config-baseline/*.test.mjs => 7 pass / 0 fail (~26s with real nested gates); baseline signal tests/orchestrate-*.test.mjs + tests/check-suite.test.mjs => 104 pass / 0 fail; git diff --check clean; 10 cited file:line refs spot-verified.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-08-27T22:15:00Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "Primary self-review (low-risk docs+tests batch): ownership limited to the two declared paths plus this state file and the plan record; no source/schema/runtime changes; env-var names only, values never recorded.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-08-28T06:40:00Z",
+      "from": "CHECKPOINT",
+      "to": "CHECKPOINT",
+      "evidence": "T004 cycle: SELECT->DISPATCH->INTEGRATE->VERIFY->REVIEW->CHECKPOINT recorded in plan journal seq 8; acceptance 31/31, prerequisite make test-upload 20/20, repo gates green.",
+      "inputDigests": []
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-08-28T08:30:00Z",
+      "from": "CHECKPOINT",
+      "to": "CHECKPOINT",
+      "evidence": "T005 cycle: SELECT->DISPATCH->INTEGRATE->VERIFY->REVIEW->CHECKPOINT recorded in plan journal seq 9; acceptance 116/116, prerequisites green, repo gates green; primary-led review with independence caveat (no subagent tooling).",
+      "inputDigests": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/config-inventory.md",
+      "kind": "inventory",
+      "owner": "T001"
+    },
+    {
+      "path": "tests/config-baseline/inventory.test.mjs",
+      "kind": "test",
+      "owner": "T001"
+    },
+    {
+      "path": "tests/config-baseline/parity.test.mjs",
+      "kind": "test",
+      "owner": "T001"
+    },
+    {
+      "path": "csm-bdd-tdd/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T004"
+    },
+    {
+      "path": "csm-bdd-tdd/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T004"
+    },
+    {
+      "path": "csm-make-tests/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T004"
+    },
+    {
+      "path": "csm-make-tests/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T004"
+    },
+    {
+      "path": "csm-upload/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T004"
+    },
+    {
+      "path": "csm-upload/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T004"
+    },
+    {
+      "path": "tests/config-artifact-adapters/",
+      "kind": "test",
+      "owner": "T004"
+    },
+    {
+      "path": "tests/legacy-artifact-compatibility.test.mjs",
+      "kind": "test",
+      "owner": "T004"
+    },
+    {
+      "path": "csm-browse/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-browse/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-autoresearch/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-autoresearch/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-build/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-build/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-orchestrate/schemas/config.schema.json",
+      "kind": "schema",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-orchestrate/lib/config.mjs",
+      "kind": "adapter",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-orchestrate/lib/index.mjs",
+      "kind": "source",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-orchestrate/lib/phase-compiler.mjs",
+      "kind": "source",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-orchestrate/lib/adversarial-final-review.mjs",
+      "kind": "source",
+      "owner": "T005"
+    },
+    {
+      "path": "csm-orchestrate/schemas/final-review.v2.schema.json",
+      "kind": "schema",
+      "owner": "T005"
+    },
+    {
+      "path": "schemas/registry.json",
+      "kind": "registry",
+      "owner": "T005"
+    },
+    {
+      "path": "tests/config-high-risk-adapters/",
+      "kind": "test",
+      "owner": "T005"
+    },
+    {
+      "path": "tests/orchestrate-activation-predicates.test.mjs",
+      "kind": "test",
+      "owner": "T005"
+    },
+    {
+      "path": "tests/orchestrate-remediation-budget.test.mjs",
+      "kind": "test",
+      "owner": "T005"
+    },
+    {
+      "path": "tests/orchestrate-insertion-ordering.test.mjs",
+      "kind": "test",
+      "owner": "T005"
+    },
+    {
+      "path": "tests/helpers-final-review.mjs",
+      "kind": "test",
+      "owner": "T005"
+    },
+    {
+      "path": "docs/config-inventory.md",
+      "kind": "inventory",
+      "owner": "T005"
+    },
+    {
+      "path": "bootstrap/package/**",
+      "kind": "payload",
+      "owner": "T005"
+    },
+    {
+      "path": "bootstrap/payload-index.json",
+      "kind": "payload",
+      "owner": "T005"
+    }
+  ],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-all-skills-config-production-assurance-plan-20260827-d4e5f6a1b2c3",
+    "sourceDigests": [
+      "sha256:ed7c58368c3a3ea15ca5013d65431f906578975d534d33be5aa203401e7a1672"
+    ]
+  },
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
+}

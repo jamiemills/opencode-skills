@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -8,6 +8,12 @@ import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import compatibilityMatrix from "../schemas/compatibility-matrix.json" with { type: "json" };
 import { createCompatibilityRuntime } from "../lib/compatibility-runtime/index.mjs";
 import { ORCHESTRATE_COMPATIBILITY_ADAPTERS } from "../csm-orchestrate/lib/compatibility.mjs";
+import {
+  completeBuild,
+  createBuildState,
+  transitionBuildState,
+  validateBuildState,
+} from "../csm-build/lib/state.mjs";
 
 const schemaRegistry = await loadSchemaRegistry();
 const compatibility = createCompatibilityRuntime({
@@ -68,4 +74,47 @@ test("JSONL is opt-in and uses compatibility negotiation when requested", async 
   const result = await resolver.resolve("journal.jsonl", { consumerRevision: 1 });
   assert.equal(result.status, "resolved");
   assert.equal(result.records.length, 1);
+});
+test("nested Markdown paths are still rejected as machine inputs without parsing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "csm-legacy-nested-"));
+  await mkdir(join(root, "docs"), { recursive: true });
+  await writeFile(join(root, "docs", "old-notes.md"), "# deeper legacy\n");
+  const resolver = createArtifactResolver({
+    root,
+    schemaRegistry,
+    compatibility,
+    edge: { id: "legacy-edge", enabled: true },
+    owner: "csm-test",
+  });
+  const result = await resolver.resolve("docs/old-notes.md");
+  assert.deepEqual(
+    { status: result.status, code: result.code, readOnly: result.readOnly },
+    { status: "migration-required", code: "legacy-markdown-history", readOnly: true },
+  );
+  assert.equal(result.path, "docs/old-notes.md");
+});
+test("terminal build artifacts remain immutable", async () => {
+  const plan = {
+    artifactId: "art-plan",
+    path: ".agents/plans/plan.json",
+    digest: "sha256:" + "a".repeat(64),
+  };
+  let state = createBuildState({ runId: "run-terminal", sourcePlan: plan });
+  state = transitionBuildState(state, "VALIDATE", { evidence: "validated" });
+  state = transitionBuildState(state, "SELECT", { evidence: "selected" });
+  state = transitionBuildState(state, "CHECKPOINT", { evidence: "checkpoint" });
+  const complete = completeBuild(state, { evidence: [] });
+  assert.equal(validateBuildState(complete).valid, true);
+  assert.equal(complete.control.currentState, "COMPLETE");
+  assert.equal(complete.control.nextTransition, "none (terminal)");
+  assert.throws(
+    () => transitionBuildState(complete, "SELECT", { evidence: "reopen attempt" }),
+    (error) => error.code === "terminal-immutable",
+  );
+  const blocked = transitionBuildState(state, "BLOCKED", { evidence: "blocked" });
+  assert.equal(validateBuildState(blocked).valid, true);
+  assert.throws(
+    () => transitionBuildState(blocked, "RECOVER", { evidence: "reopen attempt" }),
+    (error) => error.code === "terminal-immutable",
+  );
 });

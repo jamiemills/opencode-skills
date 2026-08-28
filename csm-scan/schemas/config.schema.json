@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-scan-config/1",
+  "title": "CSM scan suite config namespace",
+  "description": "Bounded, non-authority scan preferences for the csm-scan namespace of csm-skills-config/1. Only retry count and output format are configurable; outputFormat is pinned to JSON so configuration can never broaden the effective NORMS write scope, and redaction, deterministic render, single-write discipline, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "maxRetries": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5,
+      "description": "Maximum number of bounded scan retries (0-5)."
+    },
+    "outputFormat": {
+      "type": "string",
+      "enum": ["json"],
+      "description": "Canonical output format; JSON only — Markdown stays a disposable projection."
+    }
+  }
+}

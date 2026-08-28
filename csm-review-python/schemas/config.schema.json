@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-review-python-config/1",
+  "title": "CSM review python suite config namespace",
+  "description": "Bounded, non-authority analysis mode for the csm-review-python namespace of csm-skills-config/1. Only static versus tool-assisted doctrine analysis is configurable; doctrine ruleset content, non-resumability, collision refusal, report allowlist, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["static", "tool-assisted"],
+      "description": "Doctrine analysis mode; tool-assisted still never executes target repository code."
+    }
+  }
+}

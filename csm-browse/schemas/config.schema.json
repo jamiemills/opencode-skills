@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-browse-config/1",
+  "title": "CSM browse suite config namespace",
+  "description": "Bounded, non-authority browser-session preferences for the csm-browse namespace of csm-skills-config/1. Only presentation-level session preferences are configurable; ports, CDP endpoints, tokens, credentials, container settings, origins, cookies, network policy, and browser hardening are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "viewport": {
+      "type": "string",
+      "enum": ["default", "wide", "mobile"],
+      "description": "Preferred capture viewport profile; never changes container, network, or security settings."
+    },
+    "screenshotQuality": {
+      "type": "string",
+      "enum": ["standard", "high"],
+      "description": "Preferred screenshot quality; never changes destinations, retention contracts, or upload ownership."
+    },
+    "cleanupAgeHours": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 720,
+      "default": 24,
+      "description": "Maximum age in hours for session artifact cleanup sweeps; a bounded preference only, never a deletion authorization."
+    }
+  }
+}

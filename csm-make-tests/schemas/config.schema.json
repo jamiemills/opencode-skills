@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-make-tests-config/1",
+  "title": "CSM make-tests suite config namespace",
+  "description": "Bounded generation-preference settings for the csm-make-tests namespace of csm-skills-config/1. Only dimension selection and file budgets are configurable; write scope, ledger authority, approval ledgers, mutation gates, verification contracts, credentials, and lifecycle are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "testDimensions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["characterization", "property", "contract", "performance"]
+      },
+      "uniqueItems": true,
+      "description": "Which test dimensions to prioritize during generation; per-run intent and coverage requirements can still widen this. Arrays replace wholesale at the resolver layer."
+    },
+    "maxFiles": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "description": "Upper bound on generated test files per package; a ceiling preference, not a write-scope grant."
+    }
+  }
+}

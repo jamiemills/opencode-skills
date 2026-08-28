@@ -98,11 +98,94 @@ function textFor(phase) {
     .toLowerCase();
 }
 
+const PREDICATE_WORD = /^[a-z0-9][a-z0-9-]*$/;
+const PREDICATE_CONNECTORS = new Set(["or", "and"]);
+
+function tokenizePredicate(predicate) {
+  if (typeof predicate !== "string" || predicate.trim().length === 0) return null;
+  const words = predicate
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length || words.some((word) => !PREDICATE_WORD.test(word))) return null;
+  return words;
+}
+
+function parsePredicate(predicate) {
+  const words = tokenizePredicate(predicate);
+  if (!words) return null;
+  const terms = [];
+  const connectors = [];
+  let currentTerm = [];
+  let previousWasConnector = true;
+  const pushTerm = () => {
+    if (!currentTerm.length) return false;
+    terms.push(currentTerm);
+    currentTerm = [];
+    return true;
+  };
+  for (const word of words) {
+    if (PREDICATE_CONNECTORS.has(word)) {
+      if (previousWasConnector) return null;
+      if (!pushTerm()) return null;
+      connectors.push(word);
+      previousWasConnector = true;
+    } else {
+      currentTerm.push(word);
+      previousWasConnector = false;
+    }
+  }
+  if (previousWasConnector) return null;
+  if (!pushTerm()) return null;
+  const orArms = [[]];
+  terms.forEach((term, index) => {
+    const connector = index === 0 ? null : connectors[index - 1];
+    if (connector === "or" && (term.length >= 2 || term[0] === "explicit")) orArms.push([term]);
+    else orArms.at(-1).push(term);
+  });
+  if (orArms.some((arm) => !arm.length)) return null;
+  return orArms;
+}
+
+function phraseInText(words, text) {
+  return words.every((word) =>
+    new RegExp(`(^|[^a-z0-9-])${word.replace(/[-]/g, "\\-")}([^a-z0-9-]|$)`).test(text),
+  );
+}
+
+/**
+ * Evaluate a capability's `activation.predicate` as a simple condition when it
+ * is parseable: `or`/`and` combine terms, a term is a phrase of words, and a
+ * term starting with `explicit` is satisfied by an explicit skill request
+ * (remaining words stay advisory). Phrase terms require every word to appear
+ * in the phase text. A single-word `or` arm that is not `explicit`-led is
+ * treated as a continuation of the preceding phrase (for example the trailing
+ * "review" in "before planning or review") rather than a standalone
+ * activation arm. Returns `{ evaluable: false }` when no predicate is present
+ * or it cannot be parsed, so routing falls back to heuristic matching.
+ */
+export function evaluateActivationPredicate(capability, phase, signals) {
+  const words = parsePredicate(capability?.activation?.predicate);
+  if (!words) return { evaluable: false, activated: false };
+  const requested = signals?.capabilities ?? signals?.routes ?? [];
+  const explicit = requested.includes(capability.skill) || signals?.[capability.skill] === true;
+  const text = textFor(phase ?? {});
+  const termSatisfied = (term) => (term[0] === "explicit" ? explicit : phraseInText(term, text));
+  for (const arm of words) {
+    if (arm.every(termSatisfied)) return { evaluable: true, activated: true };
+  }
+  return { evaluable: true, activated: false };
+}
+
 function capabilityMatches(capability, phase, signals) {
   const requested = signals?.capabilities ?? signals?.routes ?? [];
   const explicit = requested.includes(capability.skill) || signals?.[capability.skill] === true;
   if (capability.activation.mode === "explicit") return explicit;
   if (explicit) return true;
+  const predicate = evaluateActivationPredicate(capability, phase, signals);
+  if (predicate.evaluable) return predicate.activated;
   const text = textFor(phase);
   const hints = {
     "csm-ddd": /\bdd\b|dependency|repository structure|uncertainty/,

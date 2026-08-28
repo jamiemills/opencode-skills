@@ -372,6 +372,7 @@ async function runOrchestrationInternal({
   let activeGraph = graph;
   let terminalApproval = null;
   let phaseIndex = 0;
+  const executedPhaseIds = new Set();
   const reviewIds = [];
   const remediationLineage = [];
   const receiptExtensions = () => ({
@@ -399,6 +400,10 @@ async function runOrchestrationInternal({
 
   while (true) {
     while (phaseIndex < activeGraph.phases.length) {
+      if (executedPhaseIds.has(activeGraph.phases[phaseIndex].phaseId)) {
+        phaseIndex += 1;
+        continue;
+      }
       const index = phaseIndex;
       phaseIndex += 1;
       const phase = activeGraph.phases[index];
@@ -770,6 +775,7 @@ async function runOrchestrationInternal({
       await assertSchema("csm-orchestrate-adversarial-review/2", review);
       phaseResults.push({ phase, gate, review });
       if (review?.reviewId) reviewIds.push(review.reviewId);
+      executedPhaseIds.add(phase.phaseId);
       if (phaseFailure)
         return terminalReceipt(
           runId,
@@ -843,7 +849,10 @@ async function runOrchestrationInternal({
       });
       await assertSchema("csm-orchestrate-final-review/2", coordinated);
       if (coordinated.status === "REMEDIATION_REQUIRED") {
-        const rawRemediation = coordinated.graph.phases.at(-1);
+        const rawRemediation = coordinated.remediation;
+        const insertAt = coordinated.graph.phases.findIndex(
+          (phase) => phase.phaseId === rawRemediation.phaseId,
+        );
         const remediationGraph = await compileApproach(
           {
             schema: "csm-approach/1",
@@ -877,21 +886,24 @@ async function runOrchestrationInternal({
         activeGraph = {
           ...coordinated.graph,
           phases: [
-            ...coordinated.graph.phases.slice(0, -1),
+            ...coordinated.graph.phases.slice(0, insertAt),
             Object.freeze({
               ...rawRemediation,
               ...remediationGraph.phases[0],
               graphRevision: rawRemediation.graphRevision,
               parentPhaseId: rawRemediation.parentPhaseId,
               insertion: rawRemediation.insertion,
+              order: rawRemediation.order,
+              remediationBudget: rawRemediation.remediationBudget,
               requirementDelta: rawRemediation.requirementDelta,
               reviewFindings: rawRemediation.reviewFindings,
               sourceReviewId: rawRemediation.sourceReviewId,
               acceptanceContract: rawRemediation.acceptanceContract,
             }),
+            ...coordinated.graph.phases.slice(insertAt + 1),
           ],
         };
-        const remediationPhase = activeGraph.phases.at(-1);
+        const remediationPhase = activeGraph.phases[insertAt];
         remediationLineage.push({
           sourceReviewId: remediationPhase.sourceReviewId,
           findings: remediationPhase.reviewFindings,
@@ -900,17 +912,21 @@ async function runOrchestrationInternal({
           parentPhaseId: remediationPhase.parentPhaseId,
           acceptanceContract: remediationPhase.acceptanceContract,
         });
+        phaseIndex = insertAt;
         continue;
       }
       return terminalReceipt(
         runId,
-        activeGraph.phases.at(-1).phaseId,
+        phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
         terminalApproval,
         coordinated.status,
         childReceipts,
         allEvidence.map((item) => item.evidenceId),
         {
           finalReview: coordinated.finalReview,
+          ...(coordinated.status === "BLOCKED"
+            ? { reason: coordinated.routing?.reason ?? "final-review-blocked" }
+            : {}),
           phases: phaseResults,
           extensions: receiptExtensions(),
         },
@@ -969,7 +985,10 @@ async function runOrchestrationInternal({
     });
     await assertSchema("csm-orchestrate-final-review/2", coordinated);
     if (coordinated.status === "REMEDIATION_REQUIRED") {
-      const rawRemediation = coordinated.graph.phases.at(-1);
+      const rawRemediation = coordinated.remediation;
+      const insertAt = coordinated.graph.phases.findIndex(
+        (phase) => phase.phaseId === rawRemediation.phaseId,
+      );
       const remediationGraph = await compileApproach(
         {
           schema: "csm-approach/1",
@@ -980,17 +999,13 @@ async function runOrchestrationInternal({
           phases: [
             {
               phaseId: "P1",
-              title: coordinated.graph.phases.at(-1).outcome?.title ?? "Remediate review finding",
-              goal:
-                coordinated.graph.phases.at(-1).outcome?.goal ??
-                coordinated.graph.phases.at(-1).acceptanceSignals.join("; "),
-              deliverables: coordinated.graph.phases.at(-1).outcome?.deliverables ?? [
-                "review gap closed",
-              ],
-              scope: coordinated.graph.phases.at(-1).scope?.include ?? ["declared review gap"],
-              outOfScope: coordinated.graph.phases.at(-1).scope?.exclude ?? [],
+              title: rawRemediation.outcome?.title ?? "Remediate review finding",
+              goal: rawRemediation.outcome?.goal ?? rawRemediation.acceptanceSignals.join("; "),
+              deliverables: rawRemediation.outcome?.deliverables ?? ["review gap closed"],
+              scope: rawRemediation.scope?.include ?? ["declared review gap"],
+              outOfScope: rawRemediation.scope?.exclude ?? [],
               constraints: [],
-              acceptanceHints: coordinated.graph.phases.at(-1).acceptanceSignals,
+              acceptanceHints: rawRemediation.acceptanceSignals,
               context: [],
               dependencies: [],
             },
@@ -998,30 +1013,33 @@ async function runOrchestrationInternal({
         },
         {
           capabilities,
-          signals: { ...signals, capabilities: [coordinated.graph.phases.at(-1).route] },
+          signals: { ...signals, capabilities: [rawRemediation.route] },
           graphRevision: coordinated.graph.graphRevision,
-          parentPhaseId: coordinated.graph.phases.at(-1).parentPhaseId,
-          phaseIdOverride: coordinated.graph.phases.at(-1).phaseId,
+          parentPhaseId: rawRemediation.parentPhaseId,
+          phaseIdOverride: rawRemediation.phaseId,
         },
       );
       activeGraph = {
         ...coordinated.graph,
         phases: [
-          ...coordinated.graph.phases.slice(0, -1),
+          ...coordinated.graph.phases.slice(0, insertAt),
           Object.freeze({
             ...rawRemediation,
             ...remediationGraph.phases[0],
             graphRevision: rawRemediation.graphRevision,
             parentPhaseId: rawRemediation.parentPhaseId,
             insertion: rawRemediation.insertion,
+            order: rawRemediation.order,
+            remediationBudget: rawRemediation.remediationBudget,
             requirementDelta: rawRemediation.requirementDelta,
             reviewFindings: rawRemediation.reviewFindings,
             sourceReviewId: rawRemediation.sourceReviewId,
             acceptanceContract: rawRemediation.acceptanceContract,
           }),
+          ...coordinated.graph.phases.slice(insertAt + 1),
         ],
       };
-      const remediationPhase = activeGraph.phases.at(-1);
+      const remediationPhase = activeGraph.phases[insertAt];
       remediationLineage.push({
         sourceReviewId: remediationPhase.sourceReviewId,
         findings: remediationPhase.reviewFindings,
@@ -1030,17 +1048,21 @@ async function runOrchestrationInternal({
         parentPhaseId: remediationPhase.parentPhaseId,
         acceptanceContract: remediationPhase.acceptanceContract,
       });
+      phaseIndex = insertAt;
       continue;
     }
     return terminalReceipt(
       runId,
-      activeGraph.phases.at(-1).phaseId,
+      phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
       terminalApproval,
       coordinated.status,
       childReceipts,
       allEvidence.map((item) => item.evidenceId),
       {
         finalReview: coordinated.finalReview,
+        ...(coordinated.status === "BLOCKED"
+          ? { reason: coordinated.routing?.reason ?? "final-review-blocked" }
+          : {}),
         phases: phaseResults,
         extensions: receiptExtensions(),
       },

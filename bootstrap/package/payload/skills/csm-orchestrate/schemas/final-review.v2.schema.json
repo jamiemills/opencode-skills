@@ -6,10 +6,13 @@
   "required": ["schema", "status", "finalReview"],
   "properties": {
     "schema": { "const": "csm-orchestrate-final-review/2" },
-    "status": { "enum": ["VERIFIED", "INCOMPLETE", "REMEDIATION_REQUIRED"] },
+    "status": {
+      "enum": ["VERIFIED", "INCOMPLETE", "REMEDIATION_REQUIRED", "BLOCKED"]
+    },
     "finalReview": { "$ref": "csm-orchestrate-adversarial-review/2" },
     "routing": { "type": "object" },
     "remediation": { "type": "object" },
+    "remediationBudget": { "type": "object" },
     "graph": { "type": "object" }
   }
 }

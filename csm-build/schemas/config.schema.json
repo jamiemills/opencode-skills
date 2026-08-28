@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-build-config/1",
+  "title": "CSM build suite config namespace",
+  "description": "Bounded, non-authority presentation preferences for the csm-build namespace of csm-skills-config/1. Only output presentation is configurable; dispatch decisions, write scope, commit/push authorization, lifecycle transitions, state authority, and repair policy are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verbosity": {
+      "type": "string",
+      "enum": ["normal", "quiet"],
+      "description": "Build narration level; never changes execution, validation, or lifecycle behavior."
+    },
+    "reportStyle": {
+      "type": "string",
+      "enum": ["standard", "compact"],
+      "description": "Style of build reports and receipts; never changes artifact ownership, schemas, or terminal-state rules."
+    }
+  }
+}

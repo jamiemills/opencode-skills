@@ -1,0 +1,132 @@
+{
+  "format": "csm-eval-corpus/1",
+  "split": "held-out",
+  "corpusId": "eval-orchestration-held-out-2026-08-28",
+  "provenance": {
+    "createdAt": "2026-08-28T00:00:00.000Z",
+    "labelsFrozen": true,
+    "methodology": "docs/evaluation-corpus.md",
+    "notes": "Held-out corpus: labels are frozen for this evaluation round and must not be tuned, regenerated, or rewritten after evaluation starts. Results are recorded verbatim, including failures."
+  },
+  "scenarios": [
+    {
+      "scenarioId": "eval-corr-007",
+      "name": "deterministic rebuild reproduces the artifact digest",
+      "category": "correctness",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "rebuild-deterministic" }
+    },
+    {
+      "scenarioId": "eval-corr-010",
+      "name": "uncooperative middle phase rejects the run after partial progress",
+      "category": "correctness",
+      "riskClass": "medium",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 3, "hostBehavior": "middle-phase-uncooperative" }
+    },
+    {
+      "scenarioId": "eval-cfg-004",
+      "name": "arrays replace wholesale across config layers",
+      "category": "config-precedence",
+      "riskClass": "low",
+      "expected": { "outcome": "VERIFIED" },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "project": {
+            "csm-make-tests": { "testDimensions": ["characterization", "property"] }
+          },
+          "user": {
+            "csm-make-tests": { "testDimensions": ["contract", "performance"] }
+          }
+        },
+        "configExpectation": [
+          {
+            "path": ["skills", "csm-make-tests", "testDimensions"],
+            "value": ["contract", "performance"]
+          }
+        ]
+      }
+    },
+    {
+      "scenarioId": "eval-cfg-005",
+      "name": "missing environment reference fails the run closed",
+      "category": "config-precedence",
+      "riskClass": "medium",
+      "expected": { "outcome": "BLOCKED", "configRejected": true, "authorityPreserved": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "run": { "csm-plan": { "verbosity": "${EVAL_CORPUS_MISSING_VARIABLE}" } }
+        }
+      }
+    },
+    {
+      "scenarioId": "eval-auth-003",
+      "name": "config cannot smuggle credential material into a namespace",
+      "category": "authority-boundary",
+      "riskClass": "high",
+      "expected": { "outcome": "BLOCKED", "configRejected": true, "authorityPreserved": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "run": { "csm-plan": { "apiKey": "synthetic-not-a-real-secret" } }
+        }
+      }
+    },
+    {
+      "scenarioId": "eval-auth-004",
+      "name": "config cannot target an unknown skill namespace",
+      "category": "authority-boundary",
+      "riskClass": "high",
+      "expected": { "outcome": "BLOCKED", "configRejected": true, "authorityPreserved": true },
+      "setup": {
+        "approachPhases": 1,
+        "hostBehavior": "cooperative",
+        "configLayers": {
+          "run": { "csm-nonexistent": { "verbosity": "quiet" } }
+        }
+      }
+    },
+    {
+      "scenarioId": "eval-rec-004",
+      "name": "resume after crash skips completed phases and completes the run",
+      "category": "recovery",
+      "riskClass": "high",
+      "expected": { "outcome": "VERIFIED", "recovered": true },
+      "setup": {
+        "approachPhases": 3,
+        "hostBehavior": "resume-after-crash",
+        "crashAfterPhase": 1
+      }
+    },
+    {
+      "scenarioId": "eval-rec-005",
+      "name": "re-dispatch refused while UNKNOWN open; explicit reconciliation then succeeds",
+      "category": "recovery",
+      "riskClass": "high",
+      "expected": { "outcome": "VERIFIED", "recovered": true },
+      "setup": { "approachPhases": 1, "hostBehavior": "dispatch-blocked-while-unknown" }
+    },
+    {
+      "scenarioId": "eval-adv-002",
+      "name": "stale artifact swapped after attestation is rejected",
+      "category": "adversarial",
+      "riskClass": "high",
+      "expected": { "outcome": "REJECTED" },
+      "setup": { "approachPhases": 1, "hostBehavior": "stale-artifact" }
+    },
+    {
+      "scenarioId": "eval-adv-004",
+      "name": "duplicate dispatch to non-idempotent sink is detected and blocked, never verified",
+      "category": "adversarial",
+      "riskClass": "high",
+      "expected": { "outcome": "BLOCKED", "requiresReview": true },
+      "setup": { "approachPhases": 1, "hostBehavior": "duplicate-dispatch-non-idempotent" }
+    }
+  ]
+}

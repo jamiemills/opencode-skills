@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-ddd-config/1",
+  "title": "CSM ddd suite config namespace",
+  "description": "Bounded, non-authority analysis caps for the csm-ddd namespace of csm-skills-config/1. Only read-scan file and byte ceilings are configurable and may only narrow within these hard bounds; report/graph artifact ownership, path containment, publication pointer/lock semantics, lifecycle, credentials, and write scope are never granted here. Unknown keys are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "maxFiles": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5000,
+      "description": "Maximum number of files the read-only repository scan may consider (1-5000)."
+    },
+    "maxBytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000,
+      "description": "Maximum total bytes the read-only repository scan may read (1-10000000)."
+    }
+  }
+}
