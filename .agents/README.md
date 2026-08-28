@@ -53,7 +53,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-23-autoresearch-evaluator-csm-csm.md` — 2026-08-23 — implement the agreed autoresearch evaluator CSM skill — status: ready
 - `2026-08-27-csm-orchestrate-csm.json` — 2026-08-27 — implement csm-orchestrate outer-loop controller — status: ready
 - `2026-08-27-csm-orchestrate-remediation-csm.json` — 2026-08-27 — remediate csm-orchestrate approach-review findings — status: complete
-- `2026-08-28-min-viable-autonomy-csm.json` — 2026-08-28 — minimum viable safe autonomy for csm-orchestrate — status: ready
+- `2026-08-28-min-viable-autonomy-csm.json` — 2026-08-28 — minimum viable safe autonomy for csm-orchestrate — status: complete
+- `2026-08-28-autonomy-safety-hardening-csm.json` — 2026-08-28 — close autonomy safety gaps from adversarial research — status: ready
 
 ## docs/
 

@@ -1,0 +1,218 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-autonomy-safety-hardening-plan-20260828-d0e1f2a3b4c5",
+  "runId": "run-20260828t180000z-d0e1f2a3b4c5",
+  "planId": "autonomy-safety-hardening",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-08-28T18:00:00Z: 8 safety fixes planned from adversarial research validation; no implementation started",
+    "lastModelRun": "csm-plan current run",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": "Control, latest journal row, task recovery notes, and working-tree diff",
+      "rule": "All implementation tasks remain pending until a separate explicit csm-build invocation"
+    }
+  },
+  "goal": {
+    "title": "Close all autonomy safety gaps identified by adversarial deep research",
+    "outcome": "Make the minimum-viable autonomy implementation actually safe by: failing closed on non-durable stores, restricting auto-approve to 3 truly safe skills, adding review/remediation timeouts, overhauling checkpoint to protect all file states, wiring durable CAS/fencing/idempotency into dispatch, fixing telemetry silent-drop, adding process-escape mitigation, and adding resource caps with retry backoff.",
+    "constraints": [
+      "Compose existing components; minimum new code",
+      "No enterprise infrastructure (signing, KMS, host daemon, canary)",
+      "Single-operator trust model unchanged",
+      "All existing tests must continue passing",
+      "Bootstrap payloads must be synchronized"
+    ],
+    "exclusions": [
+      "Do not build signing, KMS, mTLS, host daemon, or reviewer service",
+      "Do not change the 14 per-skill config schemas",
+      "Do not add production canary or blinded adjudication"
+    ]
+  },
+  "acceptanceCriteria": [
+    { "id": "AC1", "statement": "SQLite store throws when node:sqlite unavailable and mode=wal requested; e2e test dynamically imports node:sqlite and skips gracefully on Node < 22.", "evidence": "Store creation throws on Node 20 with wal mode; e2e test passes on both Node 20 and 22." },
+    { "id": "AC2", "statement": "Auto-approve set reduced to exactly csm-ddd, csm-review-python, csm-scan (read+execute only, no network/browser, csm-review excluded).", "evidence": "Test: csm-ddd approved, csm-review denied, csm-deep-research denied, csm-scan approved." },
+    { "id": "AC3", "statement": "All review/remediation callbacks wrapped in Promise.race with timeout; timeout produces clean INCOMPLETE/BLOCKED receipt, not an uncaught rejection.", "evidence": "Test: hung finalReview times out and produces INCOMPLETE receipt with reason review-timeout." },
+    { "id": "AC4", "statement": "Checkpoint captures HEAD, branch, untracked files, and ignored file manifest; rollback restores tracked+untracked or reports failure with reason.", "evidence": "Test: clean tree with untracked file, run modifies both, rollback restores both." },
+    { "id": "AC5", "statement": "Durable approval consumption and idempotency are wired: adapter calls cursorStore.consumeApproval and cursorStore.recordIdempotency; dispatch intent created before invoke and resolved after.", "evidence": "Test: two concurrent invokes with same idempotency key, one succeeds via durable store." },
+    { "id": "AC6", "statement": "Telemetry emitter throws if effectiveConfigDigest missing (or auto-computes from resolveSkillConfig); no silent event loss.", "evidence": "Test: emitter without digest either auto-computes or throws clearly." },
+    { "id": "AC7", "statement": "Child results capped at maxOutputSize (default 2MB); retry loop has exponential backoff.", "evidence": "Test: oversized result replaced with policy failure; retry has measurable delay." },
+    { "id": "AC8", "statement": "Autonomy guide corrected to reflect actual behavior: 3 auto-approved skills, honest telemetry/checkpoint/kill-switch claims, working example with cursorStore.", "evidence": "Guide example runs without error." }
+  ],
+  "currentStateEvidence": {
+    "seamMap": "Complete file:line map of all 8 fix locations verified at commit 519372f. Cross-cutting: fixes 2/4/6/8 all modify csm-orchestrate/lib/index.mjs and must be sequenced.",
+    "keyFindings": [
+      "lib/orchestration-store/index.mjs:578-582 silently degrades to memory-js on Node < 22",
+      "autonomy.mjs:3-15 has vacuous empty-effects pass and approves network/browser permissions",
+      "index.mjs:850,942,951,1041,1086 have no timeout on review/remediation callbacks",
+      "checkpoint.mjs:16-28 misses untracked/ignored files, stash@{0} races with parallel worktrees",
+      "invocation.mjs:209-211 uses process-local Set/Map for approval consumption and idempotency",
+      "index.mjs:354+362-375 silently drops all telemetry when effectiveConfigDigest is null",
+      "No output size caps on child results; no retry backoff; maxSteps defaults to Infinity",
+      "tmux-detached grandchildren escape AbortSignal and kill switch entirely"
+    ]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["security_or_authority", "invariant_or_consistency", "external_side_effect"],
+    "evidence": [{ "source": "brief", "locator": "request", "observation": "Closing safety gaps in autonomous operation authority, consistency, and side-effect control." }],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002", "T003", "T004"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": ["tmux escape mitigation is best-effort without pid-namespaces; documented as residual risk."],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    { "id": "D1", "statement": "Fail closed on non-durable store rather than warn.", "type": "design", "evidence": "Research: stderr invisible in detached tmux; silent degradation violates recovery contract.", "status": "accepted" },
+    { "id": "D2", "statement": "Auto-approve only csm-ddd, csm-review-python, csm-scan; exclude csm-review (R0 network) and csm-deep-research (network+browser).", "type": "design", "evidence": "Research: csm-review SKILL.md mandates OSV/endoflife.network calls; csm-deep-research has network/browser permissions.", "status": "accepted" },
+    { "id": "D3", "statement": "Review callbacks get separate reviewTimeoutMs (default 300s), not the child-dispatch timeoutMs.", "type": "design", "evidence": "Research: csm-review finder-challenger cycles are minutes-scale; 30s timeoutMs would cause spurious failures.", "status": "accepted" }
+  ],
+  "rdRecord": [
+    { "id": "R1", "question": "Are the 6 original fixes sufficient?", "method": "Adversarial deep research with code-level verification", "observation": "All 6 disproven or insufficient; 8 additional findings including dead-code durable APIs, process escapes, and telemetry silent-drop.", "implication": "Plan expanded to 8 fixes in 4 tasks.", "status": "resolved" },
+    { "id": "R2", "question": "Exact seams for each fix?", "method": "Read-only exploration with file:line verification and live reproduction", "observation": "Complete seam map produced; all changes concentrated in index.mjs (4 fixes), invocation.mjs (2), autonomy.mjs (1), checkpoint.mjs (1), orchestration-store (1).", "implication": "T002-T004 sequenced to avoid line-number churn in shared files.", "status": "resolved" }
+  ],
+  "discoveredRequirements": [
+    { "id": "DR1", "requirement": "All index.mjs changes (fixes 2/4/6/8) must be done in one pass to avoid line-number churn.", "evidence": "Seam map cross-cutting note", "status": "required" },
+    { "id": "DR2", "requirement": "e2e test asserts current checkpoint shape and telemetry digest; checkpoint and digest fixes will break assertions.", "evidence": "tests/orchestrate-autonomy-e2e.test.mjs:262-263,331-334,287", "status": "required" },
+    { "id": "DR3", "requirement": "Bootstrap payloads must be regenerated after any lib/ or csm-orchestrate/lib/ change.", "evidence": "Repository hooks enforce payload parity", "status": "required" }
+  ],
+  "design": {
+    "taskGrouping": "4 tasks: (T001) independent small fixes: store fail-closed + autonomy restriction + e2e dynamic import; (T002) checkpoint overhaul (standalone file); (T003) all index.mjs changes: review timeouts + durable store wiring + telemetry digest + resource caps + retry backoff; (T004) process escape + guide corrections + bootstrap sync + e2e integration test.",
+    "sequencing": "T001 and T002 can run in parallel (different files). T003 must follow T001 (autonomy policy changes affect index.mjs wiring). T004 must follow all others (e2e test exercises the full pipeline)."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T003", "T004"],
+    "parallelGroups": { "G1": ["T001", "T002"], "G2": ["T003"], "G3": ["T004"] },
+    "edges": [
+      { "from": "T001", "to": "T003", "reason": "autonomy policy affects index.mjs dispatch wiring" },
+      { "from": "T002", "to": "T004", "reason": "e2e test uses checkpoint" },
+      { "from": "T003", "to": "T004", "reason": "e2e test exercises the full pipeline" }
+    ]
+  },
+  "tasks": [
+    {
+      "taskId": "T001", "ordinal": 1, "status": "pending",
+      "title": "Fail-closed store, strict auto-approve, e2e dynamic import",
+      "dependsOn": [], "parallelGroup": "G1", "risk": "high",
+      "ownedScope": ["lib/orchestration-store/index.mjs (throw on non-durable wal)", "csm-orchestrate/lib/autonomy.mjs (strict permission check)", "tests/orchestrate-autonomy-e2e.test.mjs (dynamic import fix)", "tests/orchestrate-autonomy.test.mjs (update expectations)"],
+      "notInScope": ["index.mjs", "invocation.mjs", "checkpoint.mjs", "telemetry.mjs"],
+      "spikeCandidate": "None",
+      "actions": [
+        "In orchestration-store/index.mjs:578-582: replace silent memory-js fallback with throw when mode=wal and node:sqlite unavailable. Keep memory-js for explicit driver='memory-js' or mode='memory'.",
+        "In autonomy.mjs:3-21: replace readOnly() with strict check: effects must be exactly ['read-only'] (non-empty), permissions must be exactly ['read'] or ['read','execute'], and skill must not be 'csm-review'. This auto-approves only csm-ddd, csm-review-python, csm-scan.",
+        "In tests/orchestrate-autonomy-e2e.test.mjs:15: replace static `import { DatabaseSync } from 'node:sqlite'` with dynamic destructure from resolveSqliteDriver().",
+        "Update tests/orchestrate-autonomy.test.mjs: csm-deep-research now denied, csm-review now denied; add explicit assertions for the 3 approved skills."
+      ],
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autonomy.test.mjs tests/orchestrate-autonomy-e2e.test.mjs",
+      "validation": ["make test-orchestrate (regression)", "Store throws on Node 20 with mode=wal", "Exactly 3 skills approved"],
+      "acceptanceEvidence": "Test output confirms fail-closed store, 3-skill approve set, e2e graceful skip on Node < 22.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from autonomy.mjs if partially written; store throw is standalone."
+    },
+    {
+      "taskId": "T002", "ordinal": 2, "status": "pending",
+      "title": "Checkpoint overhaul: HEAD + untracked + ignored file protection",
+      "dependsOn": [], "parallelGroup": "G1", "risk": "standard",
+      "ownedScope": ["csm-orchestrate/lib/checkpoint.mjs (rewrite)", "tests/orchestrate-checkpoint.test.mjs (rewrite)"],
+      "notInScope": ["index.mjs", "autonomy.mjs", "orchestration-store"],
+      "spikeCandidate": "None",
+      "actions": [
+        "Rewrite preAutonomyRun to: record HEAD hash, current branch, git status --porcelain -z --untracked-files=all, git ls-files --others --ignored --exclude-standard -z, and git diff + git diff --cached patches. Save all to a temp directory (mode 0700). Copy untracked files to temp dir preserving relative paths. Return { checkpointDir, head, branch, manifest: { modified, staged, untracked, ignored }, wasDirty, createdAt }.",
+        "Rewrite rollbackToCheckpoint to: git reset --hard <head>, git clean -fd (not -fdx to preserve ignored), then restore untracked files from temp dir copy. Verify git status matches manifest. Return { restored: true } or { restored: false, reason } on mismatch.",
+        "Rewrite tests: clean tree with untracked file → run modifies both → rollback restores both. Dirty tree with staged+unstaged+untracked → rollback restores all. Concurrent stash (simulate) doesn't break rollback. Clean tree no-untracked → rollback is a no-op that succeeds."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-checkpoint.test.mjs",
+      "validation": ["make lint", "make fmt-check"],
+      "acceptanceEvidence": "All checkpoint scenarios pass: clean, dirty, untracked, ignored, rollback verification.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from checkpoint.mjs; standalone file."
+    },
+    {
+      "taskId": "T003", "ordinal": 3, "status": "pending",
+      "title": "Review timeouts, durable store wiring, telemetry digest, resource caps",
+      "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high",
+      "ownedScope": ["csm-orchestrate/lib/index.mjs (all changes: timeouts, store wiring, digest, caps, backoff)", "csm-orchestrate/lib/invocation.mjs (durable approval/idempotency wiring)"],
+      "notInScope": ["autonomy.mjs", "checkpoint.mjs", "orchestration-store"],
+      "spikeCandidate": "None; all seams mapped.",
+      "actions": [
+        "Add reviewTimeoutMs option (default 300_000). Create raceDeadline(promise, ms, code) helper. Wrap all 5 await sites for adversarialReview/invokeReview/remediationFactory/finalReview. On timeout: synthesize non-ACCEPTED review or null remediation; convert to INCOMPLETE/BLOCKED receipt.",
+        "Thread cursorStore into createHostInvocationAdapter. In adapter.invoke: replace process-local consumedApprovals Set with cursorStore.consumeApproval (catch ApprovalAlreadyConsumedError → blocked). Replace terminalInvocations Map check with cursorStore.recordIdempotency (catch DuplicateIdempotencyError → rejected).",
+        "In index.mjs before each adapter.invoke: call cursorStore.claimCursor (catch CasMismatchError → BLOCKED stale-writer) and cursorStore.createDispatchIntent. After result: cursorStore.resolveDispatchIntent.",
+        "Fix telemetry digest: if telemetryEmitter provided but effectiveConfigDigest null, either auto-compute from resolveSkillConfig or throw TypeError. Add emit calls for 'approval' event on each auto-approval mint.",
+        "Add maxOutputSize option (default 2MB): after each result from adapter.invoke, check JSON.stringify(result).length; on breach replace with policy failure. Add retryBackoffMs option (default 1000): before retry invoke, await exponential backoff delay."
+      ],
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autonomy.test.mjs tests/orchestrate-telemetry-wiring.test.mjs",
+      "validation": ["make test-orchestrate (regression)", "Hung review times out cleanly", "Concurrent same-key invoke: one succeeds", "Oversized result replaced with policy failure", "Retry has measurable delay"],
+      "acceptanceEvidence": "All index.mjs safety wiring verified by focused tests plus full regression.",
+      "repairAttempts": 0,
+      "recoveryNote": "This task touches the most code; resume from the last sub-action completed. All changes are additive options or wrapper calls."
+    },
+    {
+      "taskId": "T004", "ordinal": 4, "status": "pending",
+      "title": "Process escape, guide corrections, bootstrap sync, e2e integration",
+      "dependsOn": ["T002", "T003"], "parallelGroup": "G3", "risk": "standard",
+      "ownedScope": ["csm-orchestrate/lib/invocation.mjs (tmux kill-session on abort)", "docs/autonomy-guide.md (rewrite false claims)", "bootstrap/package/** (regenerate)", "tests/orchestrate-autonomy-e2e.test.mjs (update for new checkpoint shape + full pipeline)"],
+      "notInScope": ["index.mjs core logic", "autonomy.mjs", "checkpoint.mjs", "orchestration-store"],
+      "spikeCandidate": "None",
+      "actions": [
+        "In invocation.mjs abort/timeout handlers: if child result carries a tmuxSessionName field, execute tmux kill-session -t <name>. Document as best-effort (residual risk without pid-namespaces).",
+        "Rewrite docs/autonomy-guide.md: 3 approved skills (ddd, review-python, scan), 11 denied; working example WITH cursorStore; honest telemetry (dispatch/retry/terminal/approval events); honest checkpoint (HEAD+untracked+manifest-based); honest kill-switch (best-effort, review callbacks have timeout); maxSteps default Infinity recommendation to set explicitly.",
+        "Regenerate bootstrap: node scripts/pack-bootstrap.mjs.",
+        "Update tests/orchestrate-autonomy-e2e.test.mjs: use new checkpoint API (checkpointDir + manifest), verify 3-skill approve set, verify telemetry includes approval events, verify durable store wired (check approval consumed via store not just Set)."
+      ],
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autonomy-e2e.test.mjs",
+      "validation": ["make test (full suite)", "make check", "make test-bootstrap", "Guide example code runs without error"],
+      "acceptanceEvidence": "E2E test exercises full safe-autonomy pipeline; guide is accurate; all gates green.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from guide or e2e test; bootstrap regen is mechanical."
+    }
+  ],
+  "verificationStrategy": {
+    "order": ["focused autonomy tests", "checkpoint tests", "telemetry wiring tests", "e2e autonomy test", "full repository suite"],
+    "fastGates": ["per-task acceptance signals", "make lint", "make fmt-check"],
+    "batchGates": ["make test-orchestrate (regression)", "make test (full)", "make check"],
+    "parallelSafe": ["T001 and T002 (different files)"],
+    "environmentSensitive": ["Store fail-closed behavior differs between Node 20 and 22; test both", "e2e uses temp git repos and SQLite databases"],
+    "requiredIndependentReview": ["T001 permission restriction (security)", "T003 store wiring (concurrency safety)"]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Durable store wiring could deadlock if consumeApproval and createDispatchIntent are in the same transaction",
+      "Checkpoint temp-dir cleanup could fail on crash, leaving stale snapshots",
+      "Review timeout could produce false INCOMPLETE for legitimately slow reviews"
+    ],
+    "mitigations": [
+      "Store methods use BEGIN IMMEDIATE independently; test concurrent access explicitly",
+      "Checkpoint temp-dir uses OS tmpdir which is cleaned on reboot; add best-effort cleanup",
+      "reviewTimeoutMs defaults to 300s (5 minutes); configurable per-run"
+    ],
+    "rollback": "All changes are additive options or isolated modules; reverting the commit restores previous behavior."
+  },
+  "critiqueResolution": [],
+  "journal": [
+    { "sequence": 0, "timestamp": "2026-08-28T18:00:00Z", "cycle": 0, "transition": "INTAKE -> DISCOVER", "tasks": [], "evidence": "User requested plan from adversarial research findings.", "nextState": "DISCOVER" },
+    { "sequence": 1, "timestamp": "2026-08-28T18:05:00Z", "cycle": 0, "transition": "DISCOVER -> RESEARCH", "tasks": [], "evidence": "Adversarial deep research validated 8 fixes; complete seam map produced.", "nextState": "RESEARCH" },
+    { "sequence": 2, "timestamp": "2026-08-28T18:10:00Z", "cycle": 0, "transition": "RESEARCH -> DRAFT", "tasks": [], "evidence": "Research synthesized into 4 tasks covering all 8 fixes.", "nextState": "DRAFT" },
+    { "sequence": 3, "timestamp": "2026-08-28T18:15:00Z", "cycle": 0, "transition": "DRAFT -> VERIFY", "tasks": [], "evidence": "Primary review: plan is minimal, maps to exact seams, all acceptance signals runnable.", "nextState": "VERIFY" },
+    { "sequence": 4, "timestamp": "2026-08-28T18:20:00Z", "cycle": 0, "transition": "VERIFY -> NOT_STARTED", "tasks": [], "evidence": "validatePlan returned valid=true; all tasks pending.", "nextState": "NOT_STARTED" }
+  ],
+  "completionReview": null,
+  "provenance": { "producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-28T18:00:00Z", "sourceDigests": [] },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}
