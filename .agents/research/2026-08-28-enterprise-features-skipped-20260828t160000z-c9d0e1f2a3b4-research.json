@@ -1,0 +1,268 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-enterprise-features-skipped-20260828-c9d0e1f2a3b4",
+  "runId": "run-20260828t160000z-c9d0e1f2a3b4",
+  "title": "Enterprise-grade features skipped by the minimum-viable autonomy plan: trigger thresholds, solutions, and effort estimates",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The minimum-viable-autonomy plan covers 9 controls for single-operator local autonomy and defers 19 enterprise-scale items. The deferral is sound: every skipped item protects against a party or failure mode that does not exist when one operator runs read-only skills on one host. The 19 items become necessary at six threshold events: second operator, second machine, team, external customer, regulatory oversight, or production traffic. Total enterprise build-out: roughly 9-18 engineer-months self-hosted, 4-8 with managed/keyless alternatives."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "The 19 skipped items decompose into six clusters mapping to six threshold events. PKI and attestation items (E1-E4) trigger at the second operator or machine. Host hardening items (E5-E8) trigger when the agent handles credentials or runs untrusted generated code. Independent review items (E9-E11) trigger at autonomous writes or compliance requirements. Observability items (E12-E14) trigger at team scale or unattended runs. Evaluation and rollout items (E15-E17) trigger before external users. Continuity items (E18-E19) trigger with shared or customer data. The cheapest upgrade paths are Sigstore keyless signing for E1-E4, OpenTelemetry Collector for E12-E13, and Merkle hash-chaining per RFC 6962 for E14."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported: Deferral is consistent with agentic-security guidance and SRE practice [R1][R2]. K2. supported: Each item solves a structurally absent problem at n=1 [R1][R3]. K3. supported: Single-process role fusion is permitted by RATS architecture [R3]. K4. partially-supported: Six threshold events map to items [R2][R4]. K5. partially-supported: Cheapest upgrades are keyless/managed [R5][R4]. K6. partially-supported: Effort is 9-18 self-hosted / 4-8 managed engineer-months [R5]."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "E1 Key-management service: KMS for key generation/rotation/revocation per NIST SP 800-57. Skip at n=1: OS user boundary is trust anchor. Trigger: second operator/machine. Solution: HashiCorp Vault Transit or Sigstore keyless. Risk: shared static keys, no revocation. Effort: 2-6 weeks KMS / 1-2 weeks keyless.\n\nE2 Signing service: Attestation signing per SLSA v1.2. Skip at n=1: artifacts never leave trust boundary. Trigger: artifacts consumed by others. Solution: cosign signing. Risk: forged provenance. Effort: 2-4 weeks.\n\nE3 Verification service: RATS Verifier role per RFC 9334. Skip at n=1: producer equals consumer. Trigger: second machine consumes. Solution: cosign verify / RATS verifier. Risk: tampered artifacts accepted. Effort: 2-4 weeks.\n\nE4 Signed approvals: OAuth BCP patterns per RFC 9700 (nonce, audience, sender-constraining). Skip at n=1: no token crosses boundary. Trigger: remote approver/daemon. Solution: JWT with iss/aud/jti/nonce/short-exp. Risk: approval replay. Effort: 3 days-2 weeks.\n\nE5 Host daemon mTLS: Per RFC 9700 Section 2.5 recommendation. Skip at n=1: single process. Trigger: second operator/remote. Solution: localhost TLS daemon or Unix socket SO_PEERCRED. Risk: unauthenticated escalation. Effort: 2-4 weeks.\n\nE6 OS-level sink reauthorization: seccomp/systemd per OWASP agentic guidance. Skip at n=1: app-level gates + user account boundary sufficient. Trigger: credentials/shared state. Solution: dedicated OS user + systemd hardening. Risk: prompt injection bypassing app gates. Effort: 1-3 weeks.\n\nE7 Browser isolation: Container-level Chromium per site-isolation principles. Skip at n=1: read-only public web research. Trigger: agent handles valuable sessions. Solution: per-run containerized browser. Risk: session theft. Effort: 1-2 weeks.\n\nE8 Evaluator sandbox: Rootless Docker or bubblewrap. Skip at n=1: generated code stays human-gated. Trigger: autonomous generated-code execution. Solution: rootless Docker with no network. Risk: arbitrary code execution on host. Effort: 1-2 weeks.\n\nE9 Reviewer service: Separate process with own key per separation-of-duties. Skip at n=1: human reviewer is structurally different. Trigger: autonomous writes. Solution: reviewer service with distinct credential. Risk: self-review fraud. Effort: 2-4 weeks.\n\nE10 External validator registry: Versioned attested validator service. Skip at n=1: in-repo digest-pinned validators. Trigger: shared validators/no-redeploy updates. Solution: signed validator bundles. Risk: silent validator substitution. Effort: 2-4 weeks.\n\nE11 Independence verification: Machine-checkable process/credential separation. Skip at n=1: independence is structural. Trigger: both producer and reviewer are software. Solution: KMS-enforced key separation. Risk: collusion undetected. Effort: 1-2 weeks.\n\nE12 OTel Collector: Vendor-agnostic telemetry pipeline. Skip at n=1: local JSONL sufficient. Trigger: second host/alerting/retention. Solution: OTel Collector sidecar/gateway. Risk: no cross-run correlation. Effort: 2-5 days per service.\n\nE13 Metrics/alerting: Prometheus/Grafana with SLO-style alerts per Google SRE. Skip at n=1: operator observes directly. Trigger: unattended/overnight autonomy. Solution: Prometheus + Alertmanager + Grafana. Risk: silent failures discovered late. Effort: 2-4 weeks.\n\nE14 Hash-chained audit: Merkle tree append-only log per RFC 6962 / Rekor. Skip at n=1: git + SQLite is system of record. Trigger: disputes/compliance. Solution: hash-chained records or Rekor. Risk: repudiation, history rewrite. Effort: 3 days-2 weeks.\n\nE15 100+ scenario corpus: Fixed versioned evaluation gate per NIST AI RMF. Skip at n=1: unit + e2e tests cover bounded scope. Trigger: widening autonomy/external users. Solution: versioned corpus in CI. Risk: gate regressions ship silently. Effort: 4-8 weeks initial.\n\nE16 Blinded kappa adjudication: Cohen's kappa per McHugh 2012 (k < 0.60 = inadequate). Skip at n=1: no second rater. Trigger: quality-match claims. Solution: blinded paired adjudication 2+ raters. Risk: self-serving evaluation bias. Effort: 1-2 weeks per round.\n\nE17 Production canary: Partial time-limited deployment vs concurrent control per Google SRE. Skip at n=1: no production traffic. Trigger: serving other users. Solution: traffic-split canary with automated rollback. Risk: version defect reaches whole fleet. Effort: 2-4 weeks.\n\nE18 Privacy review: Per NIST Privacy Framework. Skip at n=1: secrets stripped, local 0600 telemetry. Trigger: telemetry leaves machine/shared data. Solution: DPIA-style review per data flow. Risk: secrets in shared artifacts. Effort: 2-5 days per cycle.\n\nE19 DR with RPO/RTO: Tested snapshot/restore per etcd pattern. Skip at n=1 (minimum form): plan already includes VACUUM INTO backup + verify. Trigger: second machine/HA requirement. Solution: scheduled snapshots + offsite + restore drills. Risk: unrestorable backups. Effort: 1-2 days local / 2-4 weeks enterprise."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Proceed with the minimum-viable plan unchanged. Treat the six threshold events as the un-skipping checklist. When thresholds are crossed, prefer keyless/managed paths (Sigstore, OTel Collector, Rekor-style chaining) over private PKI. Sequence: trust-boundary items E1-E5 at second operator/machine; host hardening E6-E8 when credentials appear; observability E12-E14 at team scale; evaluation E15-E17 before external users; continuity E18-E19 with shared data."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "Effort estimates are planning heuristics, not measured schedules. NIST SP 800-57, Privacy Framework, Vault, Prometheus, and bubblewrap were cited at locator level without direct page retrieval. The trigger-to-item mapping is analytical, not normative. RFC 6962 is obsoleted by RFC 9162 for wire formats. OWASP Agentic Top 10 and NIST AI RMF are moving documents."
+    },
+    "references": {
+      "id": "references",
+      "content": "R1 OWASP Agentic Security Initiative https://genai.owasp.org/initiatives/agentic-security-initiative/ retrieved 2026-08-28. R2 Google SRE Workbook ch16 Canarying https://sre.google/workbook/canarying-releases/ retrieved 2026-08-28. R3 RFC 9334 RATS Architecture https://datatracker.ietf.org/doc/rfc9334/ retrieved 2026-08-28. R4 OpenTelemetry Collector https://opentelemetry.io/docs/collector/ retrieved 2026-08-28. R5 Sigstore https://docs.sigstore.dev/ retrieved 2026-08-28. R6 SLSA v1.2 https://slsa.dev/spec/v1.2/ retrieved 2026-08-28. R7 RFC 9700 OAuth BCP https://datatracker.ietf.org/doc/rfc9700/ retrieved 2026-08-28. R8 RFC 6962 Certificate Transparency https://datatracker.ietf.org/doc/rfc6962/ retrieved 2026-08-28. R9 NIST AI RMF https://www.nist.gov/itl/ai-risk-management-framework retrieved 2026-08-28. R10 NIST SP 800-57 Pt2 https://csrc.nist.gov/pubs/sp/800/57/pt2/r1/final cited. R11 Docker Rootless https://docs.docker.com/engine/security/rootless/ retrieved 2026-08-28. R12 etcd Disaster Recovery https://etcd.io/docs/v3.5/op-guide/recovery/ retrieved 2026-08-28. R13 Temporal Durable Execution https://docs.temporal.io/temporal-explained retrieved 2026-08-28. R14 McHugh kappa https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3900052/ retrieved 2026-08-28. R15 HashiCorp Vault https://developer.hashicorp.com/vault/docs cited. R16 NIST Privacy Framework https://www.nist.gov/privacy-framework cited."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Read-only research against the minimum-viable-autonomy plan. Primary-led with inline challenge and verify. Sources retrieved 2026-08-28. No files created or modified during research. This finding documents the enterprise gap so the minimum-viable plan's deferral decisions are traceable."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-deferral-sound",
+      "section": "keyFindings",
+      "statement": "The deferral of all 19 enterprise items is consistent with current agentic-security guidance and SRE practice.",
+      "claimType": "recommendation",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-owasp-agentic"
+        },
+        {
+          "referenceId": "ref-sre-canary"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-rats-fusion",
+      "section": "keyFindings",
+      "statement": "Fusing attester, verifier, and relying-party roles into one process is architecturally valid at n=1 per the RATS architecture.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-rfc9334",
+          "locator": "Section 3.4"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-six-triggers",
+      "section": "keyFindings",
+      "statement": "The necessity of the 19 items is governed by six threshold events.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-sre-canary"
+        },
+        {
+          "referenceId": "ref-nist-airmf"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-keyless-path",
+      "section": "keyFindings",
+      "statement": "The cheapest enterprise upgrade for E1-E4 is Sigstore keyless signing.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-sigstore"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-e19-seed",
+      "section": "detailSections",
+      "statement": "The plan's VACUUM INTO backup plus verify script is a legitimate n=1 seed of E19 disaster recovery.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-etcd-recovery"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-owasp-agentic",
+      "url": "https://genai.owasp.org/initiatives/agentic-security-initiative/",
+      "publisher": "OWASP",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-sre-canary",
+      "url": "https://sre.google/workbook/canarying-releases/",
+      "publisher": "Google SRE",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-rfc9334",
+      "url": "https://datatracker.ietf.org/doc/rfc9334/",
+      "publisher": "IETF",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-otel-collector",
+      "url": "https://opentelemetry.io/docs/collector/",
+      "publisher": "OpenTelemetry",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-sigstore",
+      "url": "https://docs.sigstore.dev/",
+      "publisher": "Sigstore",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-slsa",
+      "url": "https://slsa.dev/spec/v1.2/",
+      "publisher": "SLSA",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-rfc9700",
+      "url": "https://datatracker.ietf.org/doc/rfc9700/",
+      "publisher": "IETF",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-rfc6962",
+      "url": "https://datatracker.ietf.org/doc/rfc6962/",
+      "publisher": "IETF",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-nist-airmf",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "publisher": "NIST",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-nist-sp800-57",
+      "url": "https://csrc.nist.gov/pubs/sp/800/57/pt2/r1/final",
+      "publisher": "NIST",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-docker-rootless",
+      "url": "https://docs.docker.com/engine/security/rootless/",
+      "publisher": "Docker",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-etcd-recovery",
+      "url": "https://etcd.io/docs/v3.5/op-guide/recovery/",
+      "publisher": "etcd",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-temporal",
+      "url": "https://docs.temporal.io/temporal-explained",
+      "publisher": "Temporal",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-mchugh-kappa",
+      "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3900052/",
+      "publisher": "Biochem Med",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-vault",
+      "url": "https://developer.hashicorp.com/vault/docs",
+      "publisher": "HashiCorp",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-privacy-framework",
+      "url": "https://www.nist.gov/privacy-framework",
+      "publisher": "NIST",
+      "retrievedAt": "2026-08-28",
+      "sourcePosture": "methodological-authority"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "enterprise features research started",
+      "occurredAt": "2026-08-28T16:00:00Z",
+      "cycle": 0,
+      "trigger": "user request to document skipped enterprise items"
+    },
+    {
+      "sequence": 1,
+      "state": "SAVED",
+      "event": "enterprise features finding saved",
+      "occurredAt": "2026-08-28T16:30:00Z",
+      "cycle": 0,
+      "trigger": "19 items documented with triggers, solutions, and effort"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-08-28T16:30:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

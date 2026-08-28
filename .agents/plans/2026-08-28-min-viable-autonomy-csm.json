@@ -1,0 +1,346 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-min-viable-autonomy-plan-20260828-b8c9d0e1f2a3",
+  "runId": "run-20260828t070000z-b8c9d0e1f2a3",
+  "planId": "min-viable-autonomy",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-08-28T07:00:00Z: Minimum-viable autonomy plan drafted from deep research and codebase seam map; no implementation started",
+    "lastModelRun": "csm-plan current run",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": "Control, latest journal row, task recovery notes, discovered requirements, and working-tree diff",
+      "rule": "All implementation tasks remain pending until a separate explicit csm-build invocation"
+    }
+  },
+  "goal": {
+    "title": "Enable minimum-viable safe autonomy for csm-orchestrate on a single-operator local host",
+    "outcome": "Wire existing safety components together so orchestrate() can run autonomously with: auto-approve read-only / deny write-execute, a global step cap and kill switch, git checkpoint before dispatch, ground-truth signal validation gating effects, secrets stripped from prompt context, local JSONL telemetry, and a SQLite backup command.",
+    "constraints": [
+      "Compose existing components; build the minimum new code",
+      "No signing infrastructure, key management, host daemon, reviewer service, production canary, or blinded adjudication",
+      "Single-operator trust model: OS user boundary is the trust anchor",
+      "Read-only skills (csm-ddd, csm-deep-research, csm-review, csm-review-python, csm-scan) run autonomously",
+      "Write/execute skills (csm-build, csm-browse, csm-upload, csm-autoresearch, etc.) remain approval-gated",
+      "Kill switch is immediate and clean (SQLite close + process halt)",
+      "Ground-truth validators gate any write/execute/publish before it fires"
+    ],
+    "exclusions": [
+      "Do not build a key-management service, signing service, or verification service",
+      "Do not build a host daemon with mutual TLS",
+      "Do not build a production canary, blinded adjudication, or representative evaluation corpus",
+      "Do not change the 14 per-skill config schemas or adapters",
+      "Do not modify the approval schema or add signature fields"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "statement": "orchestrate() accepts an autonomy option that auto-approves read-only skills and denies write/execute skills without human input, using the existing approvals function hook and capability manifest digests.",
+      "evidence": "Test: autonomous run of read-only skills completes VERIFIED; autonomous attempt on write skill returns BLOCKED/missing-approval."
+    },
+    {
+      "id": "AC2",
+      "statement": "orchestrate() accepts a maxSteps option (global step cap across the entire run) and an abortSignal that cleanly halts the run, closes the SQLite store, and emits a terminal receipt.",
+      "evidence": "Test: run with maxSteps=3 on a multi-phase approach terminates after 3 dispatches; aborted run produces a clean INCOMPLETE receipt with store closed."
+    },
+    {
+      "id": "AC3",
+      "statement": "A pre-run git checkpoint function creates a stash or scratch commit before autonomous dispatch, enabling one-command rollback.",
+      "evidence": "Test: checkpoint creates a stash entry; rollback restores the working tree."
+    },
+    {
+      "id": "AC4",
+      "statement": "Signal validators are wired into the orchestration gate path: a functionalGate callback invokes validateSignal over the actual artifact snapshot, and a failed validation blocks phase completion.",
+      "evidence": "Test: valid artifact passes and phase completes; invalid artifact fails validation and phase is INCOMPLETE."
+    },
+    {
+      "id": "AC5",
+      "statement": "Telemetry emitter is wired into orchestrate() with a JSONL file transport using durable-json appendDurableJsonLine; every dispatch, retry, timeout, and terminal event is recorded to the file.",
+      "evidence": "Test: after a run, the JSONL file contains correlated events with runId/phaseId/childRunId; completeness check passes."
+    },
+    {
+      "id": "AC6",
+      "statement": "The SQLite store exposes a backup() method using VACUUM INTO, and a daily-check script validates the latest backup is restorable.",
+      "evidence": "Test: backup produces a valid SQLite file; restoring from it yields the same data."
+    },
+    {
+      "id": "AC7",
+      "statement": "The autonomyGate pre-flight check is called before every autonomous run and blocks if prerequisites are missing.",
+      "evidence": "Test: autonomyGate returns enabled=true when all prerequisites present; enabled=false when any is missing."
+    }
+  ],
+  "currentStateEvidence": {
+    "research": "Deep research finding: agent frameworks (Claude Code, OpenHands, CrewAI, LangChain) require execution isolation + permission gates + bounded loops + ground-truth verification + rollback — not signatures, KMS, canaries, or blinded adjudication. Only ~5 of 28 enterprise blockers are safety-relevant for single-operator local.",
+    "seamMap": "Codebase exploration mapped exact seams: approvals function hook at index.mjs:429-432; approvalFailure scope/digest/binding at invocation.mjs:88-112; autonomyGate at recovery.mjs:325-346 (exported but unwired); signal validators at validators.mjs:74-158 (not imported by index.mjs); telemetry emitter at telemetry.mjs:121-127 (needs file transport + wiring); SQLite store at orchestration-store/index.mjs:539+ (needs backup method); durable-json appendDurableJsonLine at lib/durable-json/index.mjs:128.",
+    "readOnlySkills": "csm-ddd (read,execute), csm-deep-research (read,network,browser), csm-review (read,execute), csm-review-python (read,execute), csm-scan (read,execute) — all effects [read-only], approvalClass none, parallelism independent-read-only.",
+    "writeSkills": "csm-autoresearch, csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-make-tests, csm-plan, csm-upload — all have workspace-write or worse effects, require human approval.",
+    "baselineCommit": "9d750f9"
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["security_or_authority", "invariant_or_consistency", "external_side_effect"],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "Enabling autonomy changes the authority model from human-approved to auto-approved for read-only work."
+      },
+      {
+        "source": "plan",
+        "locator": "csm-orchestrate/lib/invocation.mjs:88-112",
+        "observation": "Approval scope enforcement is the invariant that must hold when auto-approving."
+      }
+    ],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "ownership", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002", "T003", "T004"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "Prompt injection through research content could cause a read-only skill to attempt write effects; mitigated by approval scope enforcement at the invocation adapter."
+    ],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    { "id": "D1", "statement": "OS user boundary is the trust anchor; no cryptographic signing needed for single-operator local autonomy.", "type": "user-dictated", "evidence": "Deep research: Claude Code uses OS keychain; no framework requires KMS for local autonomy.", "status": "accepted" },
+    { "id": "D2", "statement": "Read-only skills auto-approve; write/execute skills remain human-gated.", "type": "user-dictated", "evidence": "User wants autonomy but safety; research confirms this is the standard permission-gate pattern.", "status": "accepted" },
+    { "id": "D3", "statement": "Git stash checkpoint before autonomous runs provides rollback.", "type": "design", "evidence": "Research: simplest rollback mechanism for local development.", "status": "accepted" },
+    { "id": "D4", "statement": "JSONL file telemetry is sufficient; no OpenTelemetry exporter needed for n=1.", "type": "user-dictated", "evidence": "Research: Claude Code itself uses local JSONL.", "status": "accepted" }
+  ],
+  "rdRecord": [
+    { "id": "R1", "question": "What is truly needed for safe autonomy?", "method": "Deep research across agent frameworks and standards", "observation": "5 items are safety-critical: execution boundary, iteration caps, git checkpoint, ground-truth verification, secrets protection. 4 cheap should-haves. 19 enterprise items skippable.", "implication": "Plan has 4 tasks, not 28.", "status": "resolved" },
+    { "id": "R2", "question": "What codebase seams already exist?", "method": "Read-only exploration of all csm-orchestrate modules", "observation": "Approvals hook, autonomyGate, validators, telemetry emitter, SQLite store, durable-json all exist but need wiring. Only file transport, backup method, and step-cap option are genuinely new.", "implication": "Tasks are wiring-heavy, not build-heavy.", "status": "resolved" }
+  ],
+  "discoveredRequirements": [
+    { "id": "DR1", "requirement": "Approval scope must exactly match permissions (length AND membership); superset fails.", "evidence": "invocation.mjs:106-110", "status": "required" },
+    { "id": "DR2", "requirement": "approvedDigest must equal the capability manifest digest from capabilities.json.", "evidence": "invocation.mjs:96-97", "status": "required" },
+    { "id": "DR3", "requirement": "Telemetry effectiveConfigDigest is mandatory per event.", "evidence": "telemetry.mjs:147-149", "status": "required" },
+    { "id": "DR4", "requirement": "Bootstrap payload must be regenerated after any lib/ or schemas/ change.", "evidence": "Repository hooks enforce payload parity", "status": "required" }
+  ],
+  "design": {
+    "autonomyPolicy": "A createAutonomyPolicy() factory returns an approvals function that mints single-use approvals for read-only skills (scope from capability permissions, digest from manifest, binding from invocation context) and returns undefined for write/execute skills.",
+    "stepCap": "orchestrate() accepts maxSteps (default Infinity for backward compat). A counter increments per adapter.invoke call; at cap, produce INCOMPLETE receipt with reason max-steps-exceeded and close telemetry.",
+    "killSwitch": "orchestrate() accepts an AbortSignal. On abort: stop dispatching, reconcile in-flight via the SQLite store, emit terminal receipt with reason aborted, close emitter and store.",
+    "gitCheckpoint": "A preAutonomyRun() helper: git stash push -m 'pre-autonomy-<runId>' (or git add -A + git commit on a scratch branch if stash is empty); returns the checkpoint reference for rollback.",
+    "validatorGating": "A functionalGate callback invokes validateSignal(validator, { value: resolvedArtifact, digest: artifactDigest }) for each declared acceptance signal; failed validation returns status 'fail' which the existing aggregateGates blocks.",
+    "telemetryWiring": "A createJsonlTransport(path) returns { write: (e) => appendDurableJsonLine(path, e), list: () => readJsonLines(path) }. The orchestrate() loop calls emitter.emit() at dispatch, retry, timeout, cancellation, review, and terminal transitions.",
+    "sqliteBackup": "store.backup(targetPath) executes VACUUM INTO targetPath within a transaction; a verify-backup script opens the backup and checks schema_version and row counts.",
+    "autonomyPreflight": "Call autonomyGate({ host, permissions, approvals, idempotency, route, evaluation }) before the first dispatch; if !enabled, return BLOCKED with the missing prerequisites list."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T003", "T004"],
+    "parallelGroups": { "G1": ["T001"], "G2": ["T002"], "G3": ["T003"], "G4": ["T004"] },
+    "edges": [
+      { "from": "T001", "to": "T002", "reason": "step cap and kill switch build on the autonomy policy" },
+      { "from": "T002", "to": "T003", "reason": "validator gating and telemetry wiring assume the policy and caps are in place" },
+      { "from": "T003", "to": "T004", "reason": "backup and end-to-end test require all safety wiring complete" }
+    ]
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "pending",
+      "title": "Autonomy policy factory, step cap, and kill switch",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        "csm-orchestrate/lib/autonomy.mjs (new)",
+        "csm-orchestrate/lib/index.mjs (add maxSteps and signal options, wire autonomyGate preflight)",
+        "tests/orchestrate-autonomy.test.mjs (new)"
+      ],
+      "notInScope": ["Changing the approval schema", "Modifying invocation.mjs", "Adding signature fields"],
+      "spikeCandidate": "None; the approvals function hook is fully documented in the seam map.",
+      "actions": [
+        "Create csm-orchestrate/lib/autonomy.mjs exporting createAutonomyPolicy(capabilities) that returns an async approvals function: for read-only skills (effects.every(e => e === 'read-only')), mint a single-use approval with scope from capability.permissions, digest from capability.digest, binding from the invocation context, and a future expiresAt; for write/execute skills, return undefined.",
+        "Add maxSteps option to orchestrate() (default Infinity): increment a counter per adapter.invoke call; at cap, return INCOMPLETE receipt with reason max-steps-exceeded.",
+        "Add signal option to orchestrate() (AbortSignal): on abort, stop dispatching, produce INCOMPLETE receipt with reason aborted, close telemetry emitter if present.",
+        "Call autonomyGate() before the first dispatch; if !enabled, return BLOCKED with the missing list.",
+        "Write tests: read-only autonomous run completes; write-skill attempt returns BLOCKED; maxSteps=3 terminates; abort produces clean receipt; autonomyGate blocks when prerequisites missing."
+      ],
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autonomy.test.mjs",
+      "validation": ["make test-orchestrate (regression)", "make lint", "make fmt-check"],
+      "acceptanceEvidence": "Test output shows: read-only auto-approved, write denied, step cap enforced, abort clean, preflight blocking.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from autonomy.mjs if partially written; index.mjs changes are additive options."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "pending",
+      "title": "Git checkpoint and secrets stripping",
+      "dependsOn": ["T001"],
+      "parallelGroup": "G2",
+      "risk": "standard",
+      "ownedScope": [
+        "csm-orchestrate/lib/checkpoint.mjs (new)",
+        "tests/orchestrate-checkpoint.test.mjs (new)"
+      ],
+      "notInScope": ["Modifying existing skills", "Changing telemetry redaction"],
+      "spikeCandidate": "None.",
+      "actions": [
+        "Create csm-orchestrate/lib/checkpoint.mjs exporting preAutonomyRun(runId, cwd) that: checks for uncommitted changes; if dirty, runs git stash push -m 'pre-autonomy-<runId>'; returns { checkpointRef, wasDirty }. Also export rollbackToCheckpoint(checkpointRef) that runs git stash pop or git checkout.",
+        "Add a stripSecretsFromContext(value) function that recursively removes values for keys matching the existing telemetry redaction key set (token, secret, password, credential, apiKey, authorization).",
+        "Write tests: checkpoint creates stash on dirty tree; rollback restores; clean tree is a no-op; stripSecrets removes known-sensitive keys from nested objects."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-checkpoint.test.mjs",
+      "validation": ["make lint", "make fmt-check"],
+      "acceptanceEvidence": "Test shows checkpoint-rollback round trip and secret stripping.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from checkpoint.mjs; no existing code modified."
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "pending",
+      "title": "Wire signal validators and JSONL telemetry into orchestrate()",
+      "dependsOn": ["T002"],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": [
+        "csm-orchestrate/lib/index.mjs (add telemetry wiring and optional functionalGate integration)",
+        "csm-orchestrate/lib/telemetry.mjs (add createJsonlTransport)",
+        "tests/orchestrate-telemetry-wiring.test.mjs (new)"
+      ],
+      "notInScope": ["Changing validator schemas", "Modifying the telemetry event schema"],
+      "spikeCandidate": "None; the transport contract (write/list) is defined.",
+      "actions": [
+        "Add createJsonlTransport(filePath) to telemetry.mjs: write calls appendDurableJsonLine(filePath, event, { mode: 0o600 }); list calls readJsonLines(filePath).",
+        "Wire telemetry into orchestrate(): accept a telemetryEmitter option; if present, call emitter.emit() at: dispatch (per adapter.invoke), retry, timeout, cancellation, review, remediation, terminal. Pass effectiveConfigDigest from resolveConfig if available.",
+        "Create a makeAutonomousFunctionalGate(validators, resolver) helper that returns a functionalGate callback: for each declared acceptance signal, resolve the artifact and call validateSignal; return [{ status, scenarioIds, evidenceRefs }] compatible with aggregateGates.",
+        "Write tests: JSONL transport writes and reads events; orchestrate() with telemetry emits correlated events; functional gate with valid artifact passes; with invalid artifact blocks phase."
+      ],
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-telemetry-wiring.test.mjs",
+      "validation": ["make test-orchestrate (regression)", "make lint", "make fmt-check"],
+      "acceptanceEvidence": "JSONL file contains correlated events; valid artifact passes gate; invalid artifact blocks.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from telemetry wiring in index.mjs; transport is standalone."
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "pending",
+      "title": "SQLite backup, bootstrap sync, and end-to-end autonomy test",
+      "dependsOn": ["T003"],
+      "parallelGroup": "G4",
+      "risk": "standard",
+      "ownedScope": [
+        "lib/orchestration-store/index.mjs (add backup method)",
+        "scripts/verify-orchestration-backup.mjs (new)",
+        "tests/orchestrate-autonomy-e2e.test.mjs (new)",
+        "bootstrap/package/** (regenerate)",
+        "docs/autonomy-guide.md (new — how to run autonomously)"
+      ],
+      "notInScope": ["Changing the SQLite schema", "Adding new tables"],
+      "spikeCandidate": "None.",
+      "actions": [
+        "Add store.backup(targetPath) to orchestration-store: execute VACUUM INTO ? within a read transaction; return { path, bytes, timestamp }.",
+        "Create scripts/verify-orchestration-backup.mjs: open the backup file, check schema_version exists, count rows in cursors and events tables, print PASS/FAIL.",
+        "Create tests/orchestrate-autonomy-e2e.test.mjs: full end-to-end — preAutonomyRun checkpoint, orchestrate with autonomy policy (read-only skills), telemetry to JSONL file, SQLite store, verify events in file, verify store has terminal receipt, rollback checkpoint.",
+        "Regenerate bootstrap payloads via scripts/pack-bootstrap.mjs.",
+        "Create docs/autonomy-guide.md: how to enable autonomy, what is auto-approved vs denied, how to set maxSteps, how to use the kill switch, how to check telemetry, how to backup and restore."
+      ],
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autonomy-e2e.test.mjs",
+      "validation": ["make test (full suite)", "make check", "make test-bootstrap", "node scripts/verify-orchestration-backup.mjs"],
+      "acceptanceEvidence": "E2E test passes; full suite green; backup verifiable; autonomy guide exists.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from e2e test; backup method is standalone."
+    }
+  ],
+  "verificationStrategy": {
+    "order": ["autonomy unit tests", "checkpoint tests", "telemetry wiring tests", "e2e autonomy test", "full repository suite"],
+    "fastGates": ["per-task acceptance signals", "make lint", "make fmt-check"],
+    "batchGates": ["make test-orchestrate (regression)", "make test (full)", "make check"],
+    "parallelSafe": ["Independent test analysis during repair"],
+    "environmentSensitive": ["E2E test creates temp git repo and SQLite database; clean up after"],
+    "requiredIndependentReview": ["T001 autonomy policy (security)", "T003 validator gating (correctness)"]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Auto-approval could be too permissive if capability metadata is wrong",
+      "Prompt injection could cause read-only skill to attempt write effects",
+      "Kill switch might not fire cleanly if adapter.invoke is in a long promise",
+      "JSONL telemetry file could grow unbounded"
+    ],
+    "mitigations": [
+      "Policy factory reads digests from the validated capability manifest; scope exact-match enforced by invocation.mjs",
+      "Approval scope enforcement blocks at the adapter; permissions come from the manifest not from the skill's request",
+      "AbortSignal races with the timeout promise; worst case the run completes the current invocation then halts",
+      "JSONL uses appendDurableJsonLine with 0600 mode; add a log rotation note in the autonomy guide"
+    ],
+    "rollback": "Each task is additive (new files or new optional parameters); reverting the commit restores previous behavior. The git checkpoint itself provides run-level rollback."
+  },
+  "critiqueResolution": [],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-08-28T07:00:00Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER",
+      "tasks": [],
+      "evidence": "User requested turning the minimum-viable-autonomy research into a plan.",
+      "nextState": "DISCOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-08-28T07:05:00Z",
+      "cycle": 0,
+      "transition": "DISCOVER -> RESEARCH",
+      "tasks": [],
+      "evidence": "Deep research completed; codebase seam map completed.",
+      "nextState": "RESEARCH"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-08-28T07:10:00Z",
+      "cycle": 0,
+      "transition": "RESEARCH -> DRAFT",
+      "tasks": [],
+      "evidence": "Research synthesized into 4 tasks covering all 9 minimum-viable items.",
+      "nextState": "DRAFT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-08-28T07:15:00Z",
+      "cycle": 0,
+      "transition": "DRAFT -> VERIFY",
+      "tasks": [],
+      "evidence": "Primary review: plan is minimal (4 tasks, no speculative structure), maps to existing seams, every acceptance signal is runnable, no user decisions remain.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-08-28T07:20:00Z",
+      "cycle": 0,
+      "transition": "VERIFY -> NOT_STARTED",
+      "tasks": [],
+      "evidence": "validatePlan returned valid=true; all tasks pending for separate csm-build invocation.",
+      "nextState": "NOT_STARTED"
+    }
+  ],
+  "completionReview": null,
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-08-28T07:20:00Z",
+    "sourceDigests": []
+  },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}
