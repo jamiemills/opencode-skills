@@ -18,6 +18,7 @@ import {
   validateInjectedFinalReview,
 } from "./adversarial-final-review.mjs";
 import {
+  autonomyGate,
   classifyResume,
   classifyConcurrency,
   createParentCursor,
@@ -28,6 +29,7 @@ import {
   projectChildStatus,
 } from "./recovery.mjs";
 import { assertSchema } from "./contracts.mjs";
+import { validateSignal } from "./validators.mjs";
 
 const RUN_ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
 const slug = (value) =>
@@ -56,6 +58,20 @@ const receiptApproval = (approval) =>
         status: approval.status,
       }
     : null;
+
+const abortFailure = () => ({
+  status: "incomplete",
+  failure: { class: "timeout", code: "aborted", message: "run was aborted via kill switch" },
+});
+
+const stepCapFailure = () => ({
+  status: "incomplete",
+  failure: {
+    class: "policy",
+    code: "max-steps-exceeded",
+    message: "global step cap reached",
+  },
+});
 
 function terminalReceipt(
   runId,
@@ -332,6 +348,10 @@ async function runOrchestrationInternal({
   remediationFactory,
   maxAttempts = 2,
   timeoutMs = 30_000,
+  maxSteps = Infinity,
+  signal = null,
+  telemetryEmitter = null,
+  effectiveConfigDigest = null,
   inputArtifactRefs = [],
   artifactResolver,
   schemaRegistry,
@@ -339,8 +359,31 @@ async function runOrchestrationInternal({
   phaseIdOverride = null,
 } = {}) {
   if (!RUN_ID.test(runId ?? "")) throw new TypeError("canonical parent runId is required");
+  const emitTelemetry = (event) => {
+    if (!telemetryEmitter || typeof telemetryEmitter.emit !== "function") return;
+    try {
+      telemetryEmitter.emit({
+        runId,
+        attempt: 0,
+        effectiveConfigDigest: effectiveConfigDigest ?? undefined,
+        fencingToken: null,
+        ...event,
+      });
+    } catch {
+      return;
+    }
+  };
+  const emitTerminalReceipt = (...args) => {
+    const receipt = terminalReceipt(...args);
+    emitTelemetry({
+      phaseId: receipt.phaseId,
+      eventType: "terminal",
+      payload: { receiptId: receipt.receiptId, status: receipt.outcome.status },
+    });
+    return receipt;
+  };
   if (!host || typeof host.invokeSiblingSkill !== "function")
-    return terminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
+    return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
       reason: "unavailable-host",
     });
   if (
@@ -348,7 +391,7 @@ async function runOrchestrationInternal({
     typeof cursorStore.saveCursor !== "function" ||
     typeof cursorStore.loadCursor !== "function"
   )
-    return terminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
+    return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
       reason: "durable-cursor-required",
     });
   const graph = await compileApproach(approach, {
@@ -364,6 +407,26 @@ async function runOrchestrationInternal({
     schemaRegistry,
     now,
   });
+  const preflight = autonomyGate({
+    host,
+    permissions: graph.phases.flatMap((phase) => phase.approvalScope),
+    approvals,
+    idempotency: graph.phases.map((phase) => phase.idempotency),
+    route: graph.phases.flatMap((phase) => phase.routeNodes),
+    evaluation: { signals, technicalGate, functionalGate },
+  });
+  if (!preflight.enabled)
+    return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
+      reason: "autonomy-preflight-blocked",
+      missing: preflight.missing,
+    });
+  let dispatchedSteps = 0;
+  const dispatchBlocked = () =>
+    signal?.aborted ? abortFailure() : dispatchedSteps >= maxSteps ? stepCapFailure() : null;
+  const invokeAdapter = async (request) => {
+    dispatchedSteps += 1;
+    return adapter.invoke(request, signal ? { signal } : undefined);
+  };
   const childReceipts = [];
   const allEvidence = [];
   const phaseResults = [];
@@ -525,7 +588,19 @@ async function runOrchestrationInternal({
               failure: { class: "missing", code: "terminal-child-result-missing" },
             },
           };
-        result ??= await adapter.invoke(request);
+        if (!result) {
+          const blocked = dispatchBlocked();
+          if (blocked) return { node, approval, failure: blocked };
+          emitTelemetry({
+            phaseId: phase.phaseId,
+            edgeId: request.edgeId,
+            childRunId,
+            eventType: "dispatch",
+            attempt: request.retry.attempt,
+            payload: { skill: request.skill, invocationId: request.invocationId },
+          });
+          result = await invokeAdapter(request);
+        }
         let attempt = savedCursor?.attempt ?? 0;
         let invocationChildRunId = childRunId;
         while (result.status === "failed" || result.status === "incomplete") {
@@ -540,6 +615,8 @@ async function runOrchestrationInternal({
             sideEffects: node.sideEffects,
           });
           if (decision.action !== "retry") break;
+          const retryBlocked = dispatchBlocked();
+          if (retryBlocked) return { node, approval, failure: retryBlocked };
           attempt = decision.nextAttempt;
           const retryChild = `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}-${attempt}`;
           const retryApproval =
@@ -565,7 +642,19 @@ async function runOrchestrationInternal({
               idempotencyKey: retryIdempotencyKey,
             },
           });
-          result = await adapter.invoke({
+          emitTelemetry({
+            phaseId: phase.phaseId,
+            edgeId: request.edgeId,
+            childRunId: retryChild,
+            eventType: "retry",
+            attempt,
+            payload: {
+              skill: request.skill,
+              invocationId: `invocation-${slug(retryChild)}`,
+              priorFailureCode: result.failure?.code ?? null,
+            },
+          });
+          result = await invokeAdapter({
             ...request,
             childRunId: retryChild,
             invocationId: `invocation-${slug(retryChild)}`,
@@ -659,6 +748,11 @@ async function runOrchestrationInternal({
       };
       const pending = new Map(phase.routeNodes.map((node) => [node.nodeId, node]));
       while (pending.size && !phaseFailure) {
+        const blocked = dispatchBlocked();
+        if (blocked) {
+          phaseFailure = blocked;
+          break;
+        }
         const ready = [...pending.values()]
           .filter((node) =>
             (node.dependencies ?? []).every((dependency) => completedNodeIds.has(dependency)),
@@ -679,6 +773,7 @@ async function runOrchestrationInternal({
         const results = (await Promise.all(batch.map(executeNode))).toSorted(
           (a, b) => a.node.ordering - b.node.ordering,
         );
+        if (!phaseFailure && signal?.aborted) phaseFailure = abortFailure();
         for (const item of results) {
           pending.delete(item.node.nodeId);
           terminalApproval = item.approval;
@@ -777,7 +872,7 @@ async function runOrchestrationInternal({
       if (review?.reviewId) reviewIds.push(review.reviewId);
       executedPhaseIds.add(phase.phaseId);
       if (phaseFailure)
-        return terminalReceipt(
+        return emitTerminalReceipt(
           runId,
           phase.phaseId,
           terminalApproval,
@@ -796,7 +891,7 @@ async function runOrchestrationInternal({
           },
         );
       if (gate.status !== "VERIFIED" || review.status !== "ACCEPTED")
-        return terminalReceipt(
+        return emitTerminalReceipt(
           runId,
           phase.phaseId,
           terminalApproval,
@@ -811,8 +906,19 @@ async function runOrchestrationInternal({
         );
     }
 
+    if (signal?.aborted)
+      return emitTerminalReceipt(
+        runId,
+        phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+        terminalApproval,
+        "INCOMPLETE",
+        childReceipts,
+        allEvidence.map((item) => item.evidenceId),
+        { reason: "aborted", extensions: receiptExtensions() },
+      );
+
     if (!finalReview && typeof host.invokeReview !== "function")
-      return terminalReceipt(
+      return emitTerminalReceipt(
         runId,
         phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
         terminalApproval,
@@ -915,7 +1021,7 @@ async function runOrchestrationInternal({
         phaseIndex = insertAt;
         continue;
       }
-      return terminalReceipt(
+      return emitTerminalReceipt(
         runId,
         phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
         terminalApproval,
@@ -942,7 +1048,7 @@ async function runOrchestrationInternal({
         })
       : null;
     if (!final)
-      return terminalReceipt(
+      return emitTerminalReceipt(
         runId,
         phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
         terminalApproval,
@@ -961,7 +1067,7 @@ async function runOrchestrationInternal({
         evidence: allEvidence,
       });
       if (!contextual.valid)
-        return terminalReceipt(
+        return emitTerminalReceipt(
           runId,
           phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
           terminalApproval,
@@ -1051,7 +1157,7 @@ async function runOrchestrationInternal({
       phaseIndex = insertAt;
       continue;
     }
-    return terminalReceipt(
+    return emitTerminalReceipt(
       runId,
       phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
       terminalApproval,
@@ -1099,3 +1205,51 @@ export async function orchestrate(options) {
 }
 
 export const runOrchestration = orchestrate;
+
+export function makeAutonomousFunctionalGate(validatorBindings) {
+  if (!Array.isArray(validatorBindings)) throw new TypeError("validator bindings must be an array");
+  for (const binding of validatorBindings) {
+    if (!binding?.validator) throw new TypeError("each validator binding requires a validator");
+    if (typeof binding.artifactResolver !== "function")
+      throw new TypeError("each validator binding requires an artifactResolver function");
+  }
+  return async ({ phase, node, result } = {}) => {
+    const entries = [];
+    for (const binding of validatorBindings) {
+      const signalId = binding.signalId ?? binding.validator.signalId;
+      const evidenceId = binding.evidenceId ?? `ev-${String(signalId).replace(/^signal-/, "")}`;
+      try {
+        const resolved = await binding.artifactResolver({ phase, node, result });
+        const isSnapshot =
+          resolved !== null &&
+          typeof resolved === "object" &&
+          Object.hasOwn(resolved, "value") &&
+          typeof resolved.artifactId === "string";
+        const snapshot = isSnapshot
+          ? {
+              artifactId: resolved.artifactId,
+              value: resolved.value,
+              ...((resolved.fileDigest ?? resolved.digest)
+                ? { fileDigest: resolved.fileDigest ?? resolved.digest }
+                : {}),
+            }
+          : { artifactId: binding.artifactId, value: resolved };
+        const validation = validateSignal(binding.validator, snapshot);
+        entries.push({
+          status: validation.result === "pass" ? "pass" : "fail",
+          scenarioId: signalId,
+          scenarioIds: [signalId],
+          evidenceRefs: [evidenceId],
+        });
+      } catch {
+        entries.push({
+          status: "fail",
+          scenarioId: signalId,
+          scenarioIds: [signalId],
+          evidenceRefs: [],
+        });
+      }
+    }
+    return entries;
+  };
+}

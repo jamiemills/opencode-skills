@@ -1,6 +1,7 @@
 "use strict";
 
 import { randomUUID } from "node:crypto";
+import { appendDurableJsonLine, readJsonLines } from "../../../lib/durable-json/index.mjs";
 
 export const TELEMETRY_EVENT_SCHEMA_ID = "csm-orchestrate-telemetry-event/1";
 export const TELEMETRY_EVENT_TYPES = Object.freeze([
@@ -91,6 +92,25 @@ export function createMemoryTransport() {
     },
     list() {
       return events.slice();
+    },
+  };
+}
+
+export function createJsonlTransport(filePath) {
+  if (typeof filePath !== "string" || filePath.length < 1)
+    throw new TypeError("filePath must be a non-empty string");
+  const pendingWrites = [];
+  let writeQueue = Promise.resolve();
+  return {
+    write(event) {
+      writeQueue = writeQueue.then(() => appendDurableJsonLine(filePath, event, { mode: 0o600 }));
+      pendingWrites.push(writeQueue);
+      writeQueue.catch(() => {});
+      return writeQueue;
+    },
+    async list() {
+      while (pendingWrites.length) await pendingWrites.shift().catch(() => {});
+      return readJsonLines(filePath);
     },
   };
 }
@@ -258,5 +278,6 @@ export default {
   DEFAULT_REDACT_KEYS,
   redactPayload,
   createMemoryTransport,
+  createJsonlTransport,
   createTelemetryEmitter,
 };

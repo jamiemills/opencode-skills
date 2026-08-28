@@ -751,9 +751,21 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/autonomy.mjs",
+        "sha256": "f8ff80e17ff05fbbeef6ed986ca2180075826e8dd478fcf69ef99741a7859741",
+        "bytes": 1466,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/capabilities.mjs",
         "sha256": "52dcc82bd5f47b05f94676a1b2bc354e9efc06e0fa392bd65785afb33ed8ab05",
         "bytes": 3606,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/lib/checkpoint.mjs",
+        "sha256": "38035133ffa56c505229cace4599f9fd51bfc4d7fbfd294edf457875360c83a1",
+        "bytes": 1266,
         "mode": "0644"
       },
       {
@@ -782,8 +794,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "dc76cf9fafb9918d8af00fe4208e412e6eb9b63bccbbb587bc39990ec075694d",
-        "bytes": 38503,
+        "sha256": "e261a2a5e27c864b554ae9fdb8cd4768c3e8744efead3d6f2482941bfcfdc148",
+        "bytes": 43894,
         "mode": "0644"
       },
       {
@@ -812,8 +824,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/telemetry.mjs",
-        "sha256": "7478dfcea3225ec46c22f632714fa5d8168ef6fbec114b6a2705f812781f2b4c",
-        "bytes": 8872,
+        "sha256": "b9ecbbe666e85138119e9d40eb1ffa4f45e9559da562c33cd204590a78b441d0",
+        "bytes": 9611,
         "mode": "0644"
       },
       {
