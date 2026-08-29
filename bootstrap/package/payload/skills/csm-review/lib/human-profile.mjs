@@ -286,6 +286,11 @@ export const FINDINGS_FIELD_MAPPING = [
   ["verification.command", "Omitted: redacted verification command", "marker-only"],
   ["verification.result", "Omitted: redacted verification result", "marker-only"],
   ["fixActions.verification", "Omitted: potentially sensitive fix verification", "marker-only"],
+  ["verification.redacted", "Omitted: verification redaction flag", "metadata-only"],
   ["challenges.rationale", "Omitted: redacted challenge rationale", "marker-only"],
+  ["challenges.challenger", "Omitted: challenger identity", "metadata-only"],
+  ["challenges.redacted", "Omitted: challenge redaction flag", "metadata-only"],
   ["dissents.rationale", "Omitted: redacted dissent rationale", "marker-only"],
+  ["dissents.author", "Omitted: dissent author identity", "metadata-only"],
+  ["dissents.redacted", "Omitted: dissent redaction flag", "metadata-only"],
 ];
