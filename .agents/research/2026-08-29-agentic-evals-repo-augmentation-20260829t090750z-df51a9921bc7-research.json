@@ -1,0 +1,1140 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-research-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7",
+  "runId": "run-20260829t090750z-df51a9921bc7",
+  "title": "Evals for Agentic Engineering and Repo Augmentation",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Agent evals are a distinct discipline \u2014 environment-interactive tasks graded on outcomes (not prose), scored for reliability (pass^k) and cost \u2014 and eval-driven development (evals define capabilities before you build; automated evals gate every agent change and model upgrade in CI) is now vendor-recommended practice. This repo already runs a serious eval stack for one subsystem (frozen 30-scenario corpus with dev/validation/held-out splits, Wilson CIs, hard safety gates, blinded double adjudication) plus judge-like pipelines in five skills \u2014 but no skill has its own golden suite, there is no eval-runner CLI, and nothing re-evals on model/tool upgrades. Recommendation: adopt eval-driven development repo-wide in three waves \u2014 W1 thin runner CLI + per-skill golden suites minted from the .agents corpus for judge-heavy skills; W2 outcome-graded end-to-end suites + judge calibration for the in-house challenger/judge; defer live-model execution, dashboards, and monitoring until W1/W2 show signal."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: how are evals used in agentic engineering practice, and how can they augment this repo? -> Triage (DEEP, hybrid) -> 5 parallel researchers (taxonomy | practice | local inventory | tooling | failure modes) -> synthesis -> adversarial challenge -> judge -> remediate -> verified finding.\n\n```text\nexternal methodology (T1,T2,T4,T5)  --\\                        /--> challenger (disproof)\n                                    --> synthesis (draft 30 claims) --> judge (4-dim rubric)\nlocal repo inventory (T3)         --/                        \\--> per-claim verify -> SAVED\n```\n\nStrongest evidence: (a) Anthropic engineering guidance explicitly prescribes eval-driven development, two-suite regression/capability gating in CI/CD on every agent change and model upgrade, and outcome-over-trajectory grading [R-anthropic-demystifying]; (b) the repo's own orchestration/config eval stack already implements the textbook pattern \u2014 frozen splits, small-sample statistics, hard safety gates, blinded adjudication [R-local-eval-corpus, R-local-slo] \u2014 but only for one subsystem [R-local-eval-trace]; (c) Anthropic's Agent Skills guide demands 3+ eval scenarios per skill and ships no runner, so skill authors need exactly the runner this repo could factor out [R-claude-skills-bp]. Headline caveats: benchmark decay and judge bias are quantified and real (contamination, position/verbosity/self-preference bias), the small-n doctrine bounds initial investment (20-50 real failure cases, pass rate is a product decision), and one flagged source was relocated (404) and is listed unverified."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported: Agent evaluation is a recognized discipline distinct from chatbot evals \u2014 multi-step, tool-using agents in interactive environments, graded on task/environment outcomes, reliability across repeats (pass^k), and cost. [R-agent-eval-survey][R-tau-bench][R-agents-that-matter] -> D1\n\nK2. supported: Eval-driven development is the vendor-recommended practice: define target capabilities as evals before building; run automated evals in CI/CD on every agent change AND every model upgrade; keep a near-100% regression suite plus a growing capability suite that graduates into it. [R-anthropic-demystifying][R-hamel-evals] -> D2\n\nK3. supported: The small-n high-signal doctrine: start from 20-50 real failure cases and manual error analysis before infrastructure; pass-rate thresholds are product decisions, not a fixed 100%. [R-hamel-evals-faq][R-anthropic-demystifying][R-hamel-evals] -> D2, D6\n\nK4. supported: LLM-as-judge works only with calibration: position, verbosity, and self-preference biases are quantified; mitigations (position swap, reference-guided judging, different-model judge, rubrics, statistical debiasing) are measurably effective; track judge-vs-human precision/recall, not raw agreement. [R-mtbench][R-claude-develop-tests][R-hamel-evals][R-alpacaeval-lc][R-self-recognition] -> D6\n\nK5. supported: This repo already contains a textbook eval stack for the orchestration/config subsystem: deterministic runner with 16 fixtures wired to `make test-deterministic`; frozen-label corpus of 30 scenarios in dev(12)/validation(8)/held-out(10) splits; Wilson 95% CIs; hard gates (falseVerified==0, duplicateEffects==0); blinded double adjudication with Cohen's kappa. [R-local-eval-trace][R-local-eval-corpus][R-local-slo][R-local-runner] -> D3\n\nK6. supported: Judge-like machinery already pervades the skills: csm-deep-research challenger + 4-dimension rubric judge (<0.7 fail); csm-review challenger disproof; csm-review-python doctrine rubric with typed findings; csm-make-tests mutation validation + approval ledgers; csm-orchestrate typed-receipt evidence gates; csm-autoresearch evaluator-owned scoring. [R-local-deep-research][R-local-review][R-local-review-python][R-local-make-tests][R-local-orchestrate][R-local-autoresearch] -> D3\n\nK7. supported: The gaps are concentrated and enumerable: no per-skill scored eval suites (per-skill unit test suites exist; only orchestration/config has a scored corpus), no eval-runner CLI, no aggregate pass-rate reporting, no model/tool-version regression evals, no cross-version skill-output drift detection, no post-deployment monitoring. [R-local-eval-corpus][R-local-eval-trace] -> D4\n\nK8. supported: Anthropic's Agent Skills authoring guide prescribes evaluation-first skill development (build 3+ eval scenarios before skill docs) and provides no built-in runner \u2014 \"Users can create their own evaluation system\" \u2014 demand the repo's existing csm-eval-corpus/1 pattern can satisfy. [R-claude-skills-bp] -> D5\n\nK9. supported: Local-first tooling compatible with a git-only schema-driven repo exists: promptfoo (declarative asserts incl. JSON-Schema validation, GitHub Action before/after gating, fail thresholds), UK AISI Inspect (dataset/solver/scorer, JSON .eval logs, sandboxes), SWE-bench harness minting from own repos; hosted platforms (LangSmith, Braintrust, Weave) are optional, and OpenAI's Evals platform deprecation (read-only 2026-10-31) warns against vendor-locked eval formats. [R-promptfoo-intro][R-promptfoo-assertions][R-promptfoo-action][R-inspect][R-swebench-repo][R-openai-evals-guide] -> D5\n\nK10. supported: Static benchmarks decay and lie without controls: contamination inflates SWE-bench Verified scores; Arena-style private testing distorts leaderboards; harness/infra noise alone swung Terminal-Bench 2.0 by 6 points (distrust <3-point gaps); mitigations are fresh task streams, documented eval configuration, and reliability+cost reporting. [R-swe-rebench][R-arena-private][R-anthropic-infra-noise][R-swebench-live] -> D6\n\nK11. partially-supported: Highest-leverage repo changes: W1 \u2014 factor the existing runner/corpus pattern into a thin eval CLI and mint per-skill golden suites from the .agents corpus (~34 findings, 48 plans, 9 reviews; requires triage), starting with judge-heavy skills that emit typed JSON; W2 \u2014 outcome-graded end-to-end suites and judge-calibration for the in-house challenger/judge; W3 \u2014 defer live-model execution, dashboards, monitoring. [R-local-eval-corpus][R-anthropic-demystifying][R-hamel-evals-faq] -> D7"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1. What agent evals are (expands K1)\nOne-line: agents are evaluated on what they did in an environment, not what they said.\nSurveys now treat agent evaluation as its own field across five perspectives [R-agent-eval-survey]. AgentBench runs LLMs as agents across 8 interactive environments [R-agentbench]; GAIA pits models against tool/multimodal questions trivial for humans (92% vs 15% GPT-4+plugins) [R-gaia]; WebArena scores functional correctness on self-hosted sites (GPT-4 14.41% vs human 78.24%) [R-webarena]; OSWorld uses per-task execution scripts in real OSes [R-osworld]; tau-bench grades the final database state against an annotated goal state and introduced pass^k for consistency across repeats (gpt-4o retail pass^8 <25%) [R-tau-bench]; SWE-bench resolves real GitHub issues verified by fail-to-pass tests [R-swebench]. 'AI Agents That Matter' adds the cost axis: accuracy-only optimization produces needlessly costly agents [R-agents-that-matter]. METR's time-horizon methodology shows the right yardstick is task length at fixed reliability (50% horizon doubling ~7 months) [R-metr].\n\nD2. Agentic engineering practice (expands K2, K3)\nOne-line: write evals first, gate every change, mine production failures, grade outcomes.\nAnthropic recommends eval-driven development \u2014 \"build evals to define planned capabilities before agents can fulfill them\" \u2014 with automated evals in CI/CD as first line of defense on each agent change and model upgrade, a near-100% regression suite, and capability evals that graduate into it [R-anthropic-demystifying]. Claude Code itself moved to dedicated evals (concision, file edits, over-engineering) as it scaled. Task sourcing: mine bug trackers and support queues; start with 20-50 real failures [R-anthropic-demystifying][R-hamel-evals-faq]. Contradiction ledger: Anthropic prescribes eval-first development, while Hamel Husain's evals FAQ answers \"Should I practice eval-driven development? Generally no\" \u2014 the error-analysis-first school (manually review 20-50 real outputs before writing any tests) [R-hamel-evals-faq]. Resolution adopted in this finding: both schools demand durable eval suites; they differ on ordering and cost bounds. The repo's structure (typed skill outputs, existing corpus/runner pattern) makes Anthropic's eval-first order cheap to follow for skill authoring, and Hamel's small-n bounds (20-50 cases per suite, pass rate as a product decision) cap the investment regardless of ordering [R-hamel-evals-faq][R-hamel-evals]. Hamel's ladder \u2014 Level 1 asserts on every change, Level 2 model/human eval on cadence, Level 3 A/B after significant change \u2014 with pass rate as a product decision [R-hamel-evals]; Rechat ran hundreds of LLM unit tests in standard CI [R-hamel-evals]. The harness is itself the variable: SWE-agent's interface functions alone hit then-SOTA 12.5% [R-swe-agent]; SWE-bench scores vary significantly with scaffolding at fixed model [R-anthropic-swebench]; Aider's leaderboard fixes the harness and reports pass1/pass2 + cost [R-aider]. Standing harnesses catch silent model-upgrade regressions (Voiceflow: -10% intent accuracy caught on a silent gpt-3.5 swap; practitioner-reported) [R-yan].\n\nD3. What this repo already has (expands K5, K6)\nOne-line: the textbook pattern exists \u2014 for one subsystem \u2014 plus judge pipelines inside five skills.\n```text\nfrozen corpus (30 scenarios; dev 12 / val 8 / held-out 10; labelsFrozen)\n   -> deterministic runner (tests/evals/runner.mjs, 16 fixtures, make test-deterministic)\n   -> SLI/SLO metrics + Wilson 95% CI (INSUFFICIENT_DATA, never silent 0)\n   -> hard safety gates: falseVerified==0, duplicateEffects==0 (fault-injection tested)\n   -> blinded double adjudication (hidden verdicts, pairwise agreement + Cohen's kappa)\n```\nEvidence: [R-local-eval-trace][R-local-eval-corpus][R-local-slo][R-local-runner][R-local-safety-gate]. Precision note: the 16-fixture runner is wired to `make test-deterministic`; the 30-scenario corpus executes as node --test suites under tests/evals/orchestration/ and is not reachable via any make target. Judge-like machinery: csm-deep-research's challenger (uphold/downgrade/retract/suggest_new_claim) + judge scoring factual/citation accuracy, completeness, clarity 0-1 with <0.7 fail and reasoning-before-verdict [R-local-deep-research]; csm-review's independent challenger disproof of every C/H/M finding [R-local-review]; csm-review-python's fixed doctrine rubric emitting typed findings JSON [R-local-review-python]; csm-make-tests' mutation kill-scores as the protection metric in append-only approval ledgers [R-local-make-tests]; csm-orchestrate's typed receipts and technical/functional/adversarial/final gates [R-local-orchestrate]; csm-autoresearch's evaluator-owned hill-climbing with hard gates where candidates never own their score [R-local-autoresearch]. The schema registry is immutable, digest-pinned, and rejects unknown revisions \u2014 machine-checkable eval observations [R-local-registry].\n\nD4. Gap analysis (expands K7)\nOne-line: one subsystem is evaluated; the skills themselves \u2014 the repo's actual product \u2014 are not.\nThe only scored corpus targets orchestration/config assurance; glob of tests/evals/** finds no corpus for csm-plan, csm-grill, csm-review, csm-deep-research, csm-build, or any other skill [R-local-eval-corpus]. No eval-runner CLI exists (scripts/ holds 13 utilities, none eval-running; evals execute only as node --test suites) [R-local-eval-trace]. No model/tool-version regression evals (zero hits for model-version in tests/), no aggregate pass-rate dashboards, no post-deployment monitoring \u2014 the repo's own docs mark monitoring \"none yet\" and defer live model execution [R-local-eval-corpus]. Labeled failure cases exist only as fault-injection scenarios at the harness level [R-local-safety-gate]. The raw material for minting suites exists and is substantial: .agents/ holds ~34 dated research findings, 48 plans, and 9 typed reviews, though it mixes formats and includes exploratory outputs, so minting requires triage [R-local-make-tests].\n\nD5. Tooling fit and the skills-eval niche (expands K8, K9)\nOne-line: build on in-repo formats; borrow patterns (not lock-in) from promptfoo/Inspect; the skill-eval runner niche is unfilled by vendors.\npromptfoo runs entirely locally with declarative YAML asserts spanning equals/contains/regex/javascript/is-json + JSON-Schema validation and llm-rubric [R-promptfoo-intro][R-promptfoo-assertions]; its GitHub Action gates PRs with before/after comparisons [R-promptfoo-action] and CI can fail builds on thresholds [R-promptfoo-cicd]. Inspect composes Dataset+Solver+Scorer with sandboxed execution and writes JSON .eval logs \u2014 eval results as committed, diffable artifacts [R-inspect][R-inspect-logs]. SWE-bench's collection procedure can mint private tasks from your own repositories [R-swebench-repo]. Hosted options exist (LangSmith versioned datasets for CI pinning [R-langsmith]; Braintrust eval-action with reporter-controlled exit codes and smoke modes [R-braintrust]; W&B Weave versioned dataset objects [R-weave]) but require accounts/API keys [R-weave]. Vendor churn is real: OpenAI's Evals platform goes read-only 2026-10-31 [R-openai-evals-guide]. Most telling: Anthropic's own skill-authoring guide mandates 3+ eval scenarios per skill with a JSON fixture of query/files/expected_behavior, then states there is no built-in runner \u2014 users must build their own [R-claude-skills-bp]; its frontmatter constraints (name <=64 lowercase-hyphen, description <=1024) are a cheap deterministic pre-LLM gate [R-claude-skills-bp]. The repo's csm-eval-corpus/1 + runner + SLO gate pattern is exactly that missing runner, already schema-typed.\n\nD6. Failure modes, economics, governance (expands K3, K4, K10)\nOne-line: evals mislead via decay and biased judges; calibrate, keep them fresh, and pay for judges only where asserts cannot reach.\nDecay: contamination inflates some SWE-bench Verified scores; continuous decontaminated streams (SWE-rebench, 21k+ tasks) and live benchmarks (SWE-bench-Live, 1,319 post-2024 tasks) are the countermeasures [R-swe-rebench][R-swebench-live]. Gaming: undisclosed private testing on Arena (27 private Meta variants pre-Llama-4) with up to 112% relative gains from extra arena-distribution data [R-arena-private]. Noise: infra resourcing alone swung Terminal-Bench 2.0 by 6 points; distrust <3-point gaps unless configuration is matched [R-anthropic-infra-noise]. Judge bias: position (Claude-v1 favored first position 75% of cases, 23.8% swap-consistency), verbosity (repetitive-list attack defeated Claude-v1/GPT-3.5 91.3% of the time), self-preference linearly correlated with self-recognition [R-mtbench][R-self-recognition]; mitigations measured \u2014 position swap + reference-guided judging cut GPT-4 math-grading failures 70%->15%; length-controlled AlpacaEval raised human-rank correlation 0.94->0.98 [R-mtbench][R-alpacaeval-lc]; Anthropic directs using a different model to judge than to generate [R-claude-develop-tests] (Hamel's FAQ dissents on the default: judge-human alignment on a held-out labeled set is what matters, and he does not advocate a different judge model unless alignment fails [R-hamel-evals-faq]). Calibrate judges to named humans on 25-50-example batches with precision/recall, never raw agreement on imbalanced data [R-hamel-evals]. Economics: strong teams spend 60-80% of dev time on error analysis/evals; asserts are near-free, judges are expensive \u2014 reserve them for persistent high-value failure modes [R-hamel-evals-faq]. Governance exemplars: golden-answer sign-off apps, geo confinement, abuse-monitoring opt-out, no training on judge outputs [R-databricks]. Evals are experiments: report CIs and plan sample sizes [R-error-bars].\n\nD7. Change options for this repo (expands K11)\nOne-line: extend a proven in-repo pattern outward \u2014 runner, suites, calibration \u2014 before buying anything hosted.\n```text\nW1 (do now):  thin `eval` CLI over tests/evals runner pattern\n              + per-skill csm-eval-corpus/1 suites (start 20-50 cases each)\n              + mint cases from .agents corpus (~34 findings / 48 plans / 9 reviews; triage first)\n              + Makefile gate: pass-rate threshold = product decision; hard gates absolute\n              first skills: csm-review, csm-deep-research (typed JSON outputs = cheap deterministic scoring)\nW2 (pilot):   outcome-graded end-to-end task suites (tau-bench-style: grade final artifact state)\n              + judge calibration: challenger/judge verdicts vs human adjudication (precision/recall)\n              + re-eval trigger on model/tool version changes (registry-pinned versions)\nW3 (defer):   live-model execution, dashboards, post-deployment monitoring\nAvoid:        hosted lock-in for core formats; exact-trajectory gating (brittle); 100% pass-rate dogma;\n              chasing public benchmarks; judge-everything (asserts first)\n```\nConditions/measures: W1 needs only existing machinery (corpus schema, runner, Wilson gates) [R-local-eval-corpus][R-local-slo]; success measure = regression suite catches a seeded defect and a real regression before merge; W2 success measure = judge-human precision/recall reported per dimension with CIs [R-hamel-evals]; rollback = suites are additive files under tests/evals/, removable without touching skills. What would change this: if promptfoo's YAML ergonomics prove cheaper than extending csm-eval-corpus/1, adopt promptfoo as the runner and keep the corpus format as source of truth [R-promptfoo-intro]."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Adopt eval-driven development for the skills themselves, built on the repo's existing eval pattern rather than new tooling. Confidence: high for W1 (all components exist in-repo and the practice is vendor-recommended [R-anthropic-demystifying][R-local-eval-corpus]); medium for W2 (judge calibration is evidenced but its cost is real [R-hamel-evals-faq]); W3 deferred.\n\nDo now (W1): (1) factor tests/evals/runner.mjs into a thin eval-runner CLI with the corpus manifest as input; (2) mint per-skill golden suites of 20-50 real cases from the .agents corpus (triage first \u2014 it mixes formats and exploratory outputs), starting with csm-review and csm-deep-research because their typed JSON verdicts score deterministically without a judge; (3) wire a Makefile gate \u2014 pass-rate threshold set as an explicit product decision, hard safety gates absolute (the falseVerified==0 pattern) [R-local-slo][R-hamel-evals].\n\nPilot next (W2): outcome-graded end-to-end suites (grade the produced artifact/state, not the trajectory [R-anthropic-demystifying][R-tau-bench]); calibrate the in-house challenger/judge against human adjudication with precision/recall on 25-50-example batches [R-hamel-evals]; add re-eval triggers on model and tool version changes pinned via the schema registry [R-local-registry][R-yan].\n\nDefer (W3) live-model execution, dashboards, and monitoring until W1/W2 demonstrate catches; prefer promptfoo/Inspect patterns over adoption unless authoring ergonomics beat the in-repo format, and avoid hosted-only formats (OpenAI Evals deprecation shows the churn risk [R-openai-evals-guide]).\n\nCost of being wrong: over-investment is bounded by the small-n doctrine (stop at 20-50 cases/skill until a real regression is caught or missed); under-investment risks silent regressions on model upgrades, which are documented and reach 10% task-level drops [R-yan]. What would change the recommendation: evidence that .agents corpus cases cannot be converted to deterministic cases at reasonable cost would push W1 toward promptfoo-style rubric asserts instead."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "1. UNVERIFIED: Anthropic engineering post 'Developing an effective evals suite' \u2014 URL 404 via both fetcher and headful browser (relocated). Verify: locate current URL via anthropic.com engineering index/sitemap and re-fetch.\n2. UNVERIFIED: Voiceflow caught a 10% regression on a silent gpt-3.5-turbo-0301->1106 upgrade \u2014 secondary source (Eugene Yan); primary blog 404. Verify: locate Voiceflow engineering post or replace with a primary documented case.\n3. UNVERIFIED: promptfoo ships an Agent Skills integration and skill-used/trajectory:* assertion types \u2014 observed only in fetched navigation tables; dedicated page not retrieved. Verify: fetch https://www.promptfoo.dev/docs/agent-skills/ (or current equivalent).\n4. UNVERIFIED: .agents corpus counts (33 research findings, 48 plans, 9 reviews) \u2014 from `ls | wc -l`, file contents not individually verified. Verify: recount with git ls-files and sample-open.\n5. UNVERIFIED: whether lib/evals' deterministic orchestration model has drifted from the real orchestrate() \u2014 flagged as a known limitation by the repo's own evaluation-corpus doc. Verify: differential test between lib/evals model and csm-orchestrate behavior.\n6. UNVERIFIED: OpenAI Evals deprecation dates (read-only 2026-10-31, shutdown 2026-11-30) \u2014 from a fetched deprecation banner; re-verify before making tooling decisions on it.\n7. UNVERIFIED: MT-Bench judge-bias magnitudes measured on 2023-era judges (Claude-v1, GPT-3.5, GPT-4) \u2014 current frontier judges likely differ. Verify: re-run bias probes on current models before trusting specific percentages.\n8. UNVERIFIED: tau-bench repo self-describes as outdated in favor of tau3-bench \u2014 fetched README warning; current status unconfirmed. Verify: check sierra-research/tau-bench and tau3-bench repos.\n9. UNVERIFIED: Terminal-Bench 2.0 lineage/arXiv ID (2601.11868) \u2014 fetched and quoted, but the benchmark family's current versioning was not cross-checked. Verify: fetch tbench.ai leaderboard."
+    },
+    "references": {
+      "id": "references",
+      "content": "Authoritative machine-readable list is the references array of this JSON. Human-readable index: R-agent-eval-survey..R-databricks are web sources (arXiv papers, vendor docs, practitioner essays) retrieved 2026-08-29; R-local-* are workspace-local files (verified present on origin/main of github.com/jamiemills/opencode-skills), also retrieved 2026-08-29."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier: DEEP. Source mode: hybrid. Clarifications: OFF (recorded assumptions). Tmux session: csm-deep-research-agentic-evals.\n\nTracks and returns: T1 eval taxonomy (web, 16 claims); T2 agentic engineering practice (web, 16); T3 local repo inventory (local, 16); T4 tooling and integration (web, 16); T5 failure modes/economics/governance (web, 16). All 5 researchers returned; no resilience rungs consumed.\n\nBrowser retrieval fallback: 1 flagged URL (anthropic.com/engineering/developing-an-effective-evals-suite) retrieved by primary via csm-browse (sid=research-agentic-evals) \u2014 rendered 404 (post relocated); session closed 2026-08-29T09:19Z; claim left unverified. T2's openai.com SWE-bench-Verified 403 was covered by a secondary source and is cited as such.\n\nLocal-source convention: T3 file:// locators mirrored as GitHub blob URLs at origin/main (verified via git cat-file on all 13 cited files); publisher marked workspace-local.\n\nAssumptions recorded: (a) 'evals' read as evaluation suites for agents/skills, including benchmarks where they inform practice; (b) the repo's product = the skills and their assurance machinery; (c) OpenAI deprecation banner taken at face value and listed unverified.\n\nChallenger verdicts (independent, anti-anchored; 30 claims): uphold \u2014 claims 1-12, 14, 17, 19-24, 26-29 (24 total; all citations re-located and quotes verified, including local file reads for claims 5, 6, 7, 24, 26 and live-page re-fetches for claims 2, 8, 9, 10, 20, 22, 23, 28). downgrade \u2014 claim-13 (single 10% case, deprecation-driven upgrade not 'silent'; secondary source), claim-15 (cost-reporting mis-attributed to Error-Bars paper), claim-16 (70%->15% is reference-guided alone), claim-18 (METR page flags doubling-time as superseded by TH 1.1), claim-25 (counts: 34 findings not 33; corpus mixes formats, needs triage). claim-30 upheld as labeled synthesis with scope notes (triage caveat; judge-heavy start is a design choice). Cross-cutting: (1) doctrine conflict Anthropic eval-first vs Hamel error-analysis-first \u2014 surfaced with a contradiction ledger in D2; (2) precision notes applied (corpus not on a make target; scored suites vs unit suites; typed-receipt citation widened). Challenger output truncated at cross-cutting item 2; residual items unrecorded (process note).\n\nRemediation log (applied by primary): claim-13 rewritten (statement, verdict partially-supported retained); claim-15 rewritten + added ref-agents-that-matter citation; claim-16 corrected; claim-18 supersession note added; claim-25/K11/D4/recommendation counts corrected to ~34 + triage note; claim-30 scope notes added; K7 clarified (scored vs unit suites); D2 contradiction ledger added; D3 precision note added. All edits re-verified against the challenger's proposed wordings.\n\nJudge scores: factual accuracy 0.9, citation accuracy 0.9, completeness 0.95, clarity 0.9 \u2014 PASS (independent judge; reasoning-before-verdict; spot-checked load-bearing claims and re-counted corpus 34/48/9). Two non-blocking follow-ups were applied at REMEDIATE (D7 count fix; deprecation-banner quote). VERIFY scale: DEEP per-claim (verdicts recorded in claims array). Journal: see journal array (live Control journal)."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-agent-evals-distinct",
+      "section": "keyFindings",
+      "statement": "Agent evaluation is a recognized discipline distinct from chatbot evals: multi-step tool-using agents in interactive environments, graded on task/environment outcomes, reliability across repeats (pass^k), and cost.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-agent-eval-survey",
+          "locator": "abstract",
+          "quote": "This paper provides the first comprehensive survey of evaluation methods for these increasingly capable agents."
+        },
+        {
+          "referenceId": "ref-tau-bench",
+          "locator": "abstract",
+          "quote": "a benchmark emulating dynamic conversations between a user (simulated by language models) and a language agent provided with domain-specific API tools and policy guidelines"
+        },
+        {
+          "referenceId": "ref-agents-that-matter",
+          "locator": "abstract",
+          "quote": "First, there is a narrow focus on accuracy without attention to other metrics. As a result, SOTA agents are needlessly complex and costly"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-eval-driven-dev",
+      "section": "keyFindings",
+      "statement": "Anthropic recommends eval-driven development: define target capabilities as evals before agents can fulfill them; run automated evals in CI/CD on every agent change and every model upgrade; maintain a near-100% regression suite plus capability evals that graduate into it.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "We recommend practicing eval-driven development: build evals to define planned capabilities before agents can fulfill them, then iterate until the agent performs well."
+        },
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "Automated evals are especially useful pre-launch and in CI/CD, running on each agent change and model upgrade as the first line of defense against quality problems."
+        },
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "Regression evals ask, \"Does the agent still handle all the tasks it used to?\" and should have a nearly 100% pass rate."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-small-n-doctrine",
+      "section": "keyFindings",
+      "statement": "Practitioner consensus prescribes starting evals from 20-50 real failure cases with manual error analysis before building infrastructure; pass-rate thresholds are product decisions, not a fixed 100%.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-hamel-evals-faq",
+          "locator": "body",
+          "quote": "Spend 30 minutes manually reviewing 20-50 LLM outputs whenever you make significant changes."
+        },
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "Converting user-reported failures into test cases ensures your suite reflects actual usage; prioritizing by user impact helps you invest effort where it counts."
+        },
+        {
+          "referenceId": "ref-hamel-evals",
+          "locator": "body",
+          "quote": "unlike traditional unit tests, you don't necessarily need a 100% pass rate. Your pass rate is a product decision, depending on the failures you are willing to tolerate."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-judge-biases-mitigations",
+      "section": "keyFindings",
+      "statement": "LLM-as-judge exhibits quantified position, verbosity, and self-preference biases; mitigations (position swap, reference-guided judging, different-model judge, statistical debiasing) are measurably effective; judges must be calibrated against human labels using precision/recall rather than raw agreement.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-mtbench",
+          "locator": "abstract",
+          "quote": "We examine the usage and limitations of LLM-as-a-judge, including position, verbosity, and self-enhancement biases, as well as limited reasoning ability, and propose solutions to mitigate some of them."
+        },
+        {
+          "referenceId": "ref-claude-develop-tests",
+          "locator": "body",
+          "quote": "Generally best practice to use a different model to evaluate than the model used to generate the evaluated output"
+        },
+        {
+          "referenceId": "ref-hamel-evals",
+          "locator": "body",
+          "quote": "using raw agreement is generally not recommended and can be misleading when classes are imbalanced. Instead, you should typically measure precision and recall separately"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-repo-orchestration-eval-stack",
+      "section": "keyFindings",
+      "statement": "The repo contains a textbook eval stack for the orchestration/config subsystem: a dependency-free deterministic runner with 16 named fixtures wired to `make test-deterministic`; a frozen-label corpus of 30 scenarios in dev(12)/validation(8)/held-out(10) splits; Wilson 95% CIs; hard safety gates (falseVerified==0, duplicateEffects==0); blinded double adjudication with pairwise agreement and Cohen's kappa.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-local-eval-trace",
+          "locator": "line 17",
+          "quote": "`tests/evals/runner.mjs` is a dependency-free deterministic evaluator. The fixtures cover activation, trajectory, refusal, recovery, artifact correctness, reproducibility, legacy compatibility, invalid versions, raw-prompt rejection, and trace-to-artifact correlation."
+        },
+        {
+          "referenceId": "ref-local-eval-corpus",
+          "locator": "lines 16-21, 94-99",
+          "quote": "`labelsFrozen: true` \u2014 labels must not be tuned, regenerated, or rewritten after evaluation starts"
+        },
+        {
+          "referenceId": "ref-local-slo",
+          "locator": "lines 21-23, 99-104",
+          "quote": "Proportions carry a **Wilson 95% confidence interval** (z = 1.959963984540054, correct small-sample coverage including the 0/1 boundaries). Empty populations report `INSUFFICIENT_DATA`, never a silent 0."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-repo-judge-machinery",
+      "section": "keyFindings",
+      "statement": "Judge-like machinery pervades the skills: csm-deep-research runs an anti-anchored challenger plus a judge scoring a fixed 4-dimension rubric 0-1 with a <0.7 fail threshold; csm-review runs independent challenger disproof of findings; csm-review-python applies a fixed doctrine rubric emitting typed findings; csm-make-tests mutation-validates with append-only approval ledgers; csm-orchestrate enforces typed-receipt evidence gates; csm-autoresearch ships evaluator-owned scoring with hard gates.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-local-deep-research",
+          "locator": "JUDGE state line 243",
+          "quote": "The rubric is stable and explicit: factual accuracy \u2026 citation accuracy \u2026 completeness \u2026 and clarity \u2026 Each dimension is scored 0-1 \u2014 a dimension fails at < 0.7"
+        },
+        {
+          "referenceId": "ref-local-review",
+          "locator": "CHALLENGE state line 170",
+          "quote": "The challenger attempts disproof: re-locate the citation; check reachability/exploitability against actual call sites; look for mitigations the finder missed; check anchor applicability."
+        },
+        {
+          "referenceId": "ref-local-make-tests",
+          "locator": "line 213",
+          "quote": "Record per-module mutation scores in the ledger \u2014 this, not coverage percentage, is the protection metric."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-repo-eval-gaps",
+      "section": "keyFindings",
+      "statement": "The repo lacks: per-skill golden task suites (only the orchestration/config stack is scored), an eval-runner CLI, aggregate pass-rate reporting, model/tool-version regression evals, cross-version skill-output drift detection, and post-deployment monitoring.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-local-eval-trace",
+          "locator": "line 17",
+          "quote": "Live model execution, telemetry, dashboards, provider calls, and A2A are intentionally outside this gate."
+        },
+        {
+          "referenceId": "ref-local-eval-corpus",
+          "locator": "line 14, line 21",
+          "quote": "Corpora are separate JSON manifests under `tests/evals/orchestration/corpus/`, each declared as `csm-eval-corpus/1`"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-skills-eval-niche",
+      "section": "keyFindings",
+      "statement": "Anthropic's Agent Skills authoring guide prescribes evaluation-first skill development (build 3+ eval scenarios before skill docs) and provides no built-in runner, telling users to create their own evaluation system.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-claude-skills-bp",
+          "locator": "evaluation section",
+          "quote": "There is not currently a built-in way to run these evaluations. Users can create their own evaluation system."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-local-first-tooling",
+      "section": "keyFindings",
+      "statement": "Mature local-first eval tooling compatible with a git-only schema-driven repo exists: promptfoo (local execution, declarative asserts including JSON-Schema validation, GitHub Action before/after gating, CI fail thresholds), UK AISI Inspect (dataset/solver/scorer composition, sandboxed execution, JSON .eval logs), and SWE-bench harness procedures for minting private tasks from own repositories.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-promptfoo-intro",
+          "locator": "body",
+          "quote": "Private: This software runs completely locally. The evals run on your machine and talk directly with the LLM."
+        },
+        {
+          "referenceId": "ref-promptfoo-assertions",
+          "locator": "body",
+          "quote": "Different types of assertions can be used to validate the output in various ways, such as checking for equality, JSON structure, similarity, or custom functions."
+        },
+        {
+          "referenceId": "ref-inspect-logs",
+          "locator": "body",
+          "quote": "Inspect log files use JSON to represent the hierarchy of data produced by an evaluation."
+        },
+        {
+          "referenceId": "ref-swebench-repo",
+          "locator": "README",
+          "quote": "Run SWE-bench's data collection procedure on your own repositories, to make new SWE-Bench tasks."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-benchmark-decay",
+      "section": "keyFindings",
+      "statement": "Static benchmarks decay and mislead without controls: contamination inflates some SWE-bench Verified scores; undisclosed private leaderboard testing distorts rankings; harness/infra configuration alone swung Terminal-Bench 2.0 scores by 6 percentage points; mitigations include continuously refreshed task streams, documented eval configuration, and joint accuracy-cost reporting.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-swe-rebench",
+          "locator": "abstract",
+          "quote": "show that performance of some language models might be inflated due to contamination issues"
+        },
+        {
+          "referenceId": "ref-arena-private",
+          "locator": "abstract",
+          "quote": "At an extreme, we identify 27 private Llama-4 variants tested by Meta"
+        },
+        {
+          "referenceId": "ref-anthropic-infra-noise",
+          "locator": "body",
+          "quote": "In internal experiments, the gap between the most- and least-resourced setups on Terminal-Bench 2.0 was 6 percentage points (p < 0.01)."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-outcome-over-trajectory",
+      "section": "detailSections",
+      "statement": "Agent evals should grade outcomes rather than exact tool-call trajectories: exact-sequence checks are brittle; tau-bench grades final database state against an annotated goal state; pass^k measures reliability across repeated runs.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "it's often better to grade what the agent produced, not the path it took."
+        },
+        {
+          "referenceId": "ref-tau-bench",
+          "locator": "abstract",
+          "quote": "even state-of-the-art function calling agents (like gpt-4o) succeed on <50% of the tasks, and are quite inconsistent (pass^8 <25% in retail)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-harness-is-variable",
+      "section": "detailSections",
+      "statement": "The agent harness is a first-class eval variable: SWE-agent's purpose-built agent-computer interface alone reached then-SOTA 12.5% pass@1 on SWE-bench; SWE-bench performance varies significantly with scaffolding at fixed underlying model; Aider's leaderboard fixes the harness to compare models, reporting first/second-attempt pass rates and cost.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-swe-agent",
+          "locator": "abstract",
+          "quote": "SWE-agent's custom agent-computer interface (ACI) significantly enhances an agent's ability to create and edit code files, navigate entire repositories, and execute tests and other programs."
+        },
+        {
+          "referenceId": "ref-anthropic-swebench",
+          "locator": "body",
+          "quote": "The performance of an agent on SWE-bench can vary significantly based on this scaffolding, even when using the same underlying AI model."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-model-upgrade-regression",
+      "section": "detailSections",
+      "statement": "A documented model-version upgrade (gpt-3.5-turbo-0301 to gpt-3.5-turbo-1106) caused a 10% intent-classification regression that Voiceflow's standing eval harness caught (practitioner-reported, secondary source; primary blog 404); Anthropic prescribes model upgrades as a first-class CI/CD eval trigger.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-yan",
+          "locator": "case study",
+          "quote": "Voiceflow's eval harness for intent classification helped them catch a 10% performance drop when upgrading from the deprecating gpt-3.5-turbo-0301 to the more recent gpt-3.5-turbo-1106."
+        },
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "running on each agent change and model upgrade as the first line of defense against quality problems"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-eval-economics",
+      "section": "detailSections",
+      "statement": "Strong teams spend 60-80% of development time on error analysis and evaluation; assertions are near-free while LLM-judge evaluators carry heavy ongoing cost, so judges are reserved for persistent high-value failure modes; Level-1 asserts run on every change.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-hamel-evals-faq",
+          "locator": "body",
+          "quote": "we've spent 60-80% of our development time on error analysis and evaluation."
+        },
+        {
+          "referenceId": "ref-hamel-evals",
+          "locator": "body",
+          "quote": "I often run Level 1 evals on every code change, Level 2 on a set cadence and Level 3 only after significant product changes."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-evals-are-experiments",
+      "section": "detailSections",
+      "statement": "Evals are experiments subject to sampling noise: confidence intervals on scores and differences plus sample-size planning are the prescribed statistical practice (Adding Error Bars to Evals); joint accuracy-cost reporting is the separate prescription of AI Agents That Matter.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-error-bars",
+          "locator": "abstract",
+          "quote": "Fundamentally, evaluations are experiments; but the literature on evaluations has largely ignored the literature from other sciences on experiment analysis and planning."
+        },
+        {
+          "referenceId": "ref-agents-that-matter",
+          "locator": "abstract",
+          "quote": "a narrow focus on accuracy without attention to other metrics. As a result, SOTA agents are needlessly complex and costly"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-judge-bias-magnitudes",
+      "section": "detailSections",
+      "statement": "Judge-bias magnitudes are quantified: on near-identical pairs Claude-v1 favored the first position 75% of the time with 23.8% swap-consistency; a repetitive-list verbosity attack defeated Claude-v1/GPT-3.5 judges 91.3% of the time; answer reordering alone made Vicuna-13B 'beat' ChatGPT on 66/80 queries; reference-guided grading alone cut GPT-4 math-grading failure from 70% to 15% (position-swap is a separate mitigation for position bias).",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-mtbench",
+          "locator": "full text v4",
+          "quote": "The position bias can be very significant. Only GPT-4 outputs consistent results in more than 60% of cases."
+        },
+        {
+          "referenceId": "ref-judge-hack",
+          "locator": "abstract",
+          "quote": "Vicuna-13B could beat ChatGPT on 66 over 80 tested queries with ChatGPT as an evaluator."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-judge-debiasing-works",
+      "section": "detailSections",
+      "statement": "Statistical debiasing of judges works: length-controlled AlpacaEval improves robustness to verbosity manipulation and raised Spearman correlation with human Arena rankings from 0.94 to 0.98; self-preference is linearly correlated with self-recognition capability.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-alpacaeval-lc",
+          "locator": "abstract",
+          "quote": "increases the Spearman correlation with LMSYS Chatbot Arena from 0.94 to 0.98."
+        },
+        {
+          "referenceId": "ref-self-recognition",
+          "locator": "abstract",
+          "quote": "we discover a linear correlation between self-recognition capability and the strength of self-preference bias."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-metr-time-horizon",
+      "section": "detailSections",
+      "statement": "METR's methodology measures task length (expert human time) an agent completes at 50% reliability, finding the horizon doubling roughly every 7 months across six years (original March 2025 analysis; the page flags the doubling-time claim as superseded by updated Time Horizon 1.1 figures) \u2014 an exemplar of reliability-conditioned capability metrics.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-metr",
+          "locator": "post",
+          "quote": "The length of tasks (measured by how long they take human professionals) that generalist frontier model agents can complete autonomously with 50% reliability has been doubling approximately every 7 months for the last 6 years."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-terminal-bench",
+      "section": "detailSections",
+      "statement": "Terminal-Bench 2.0 is a curated benchmark of 89 hard terminal-environment tasks, each with a unique environment, human-written reference solution, and verification tests; frontier models scored under 65% at publication.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-terminal-bench",
+          "locator": "abstract",
+          "quote": "a carefully curated hard benchmark composed of 89 tasks in computer terminal environments inspired by problems from real workflows."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-openai-evals-deprecation",
+      "section": "detailSections",
+      "statement": "OpenAI's Evals platform is being deprecated (read-only 2026-10-31, shutdown 2026-11-30), steering users to Datasets \u2014 evidence of eval-tooling vendor churn and an argument for in-repo formats.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-openai-evals-guide",
+          "locator": "deprecation banner, fetched 2026-08-29 (quote re-verified by challenger)",
+          "quote": "Evals will become read-only for existing users on October 31, 2026, and the platform is scheduled to shut down on November 30, 2026"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-hosted-ci-tools",
+      "section": "detailSections",
+      "statement": "Hosted eval platforms provide CI integration patterns \u2014 LangSmith versioned datasets for CI pinning; Braintrust GitHub Action and bt eval with reporter-controlled exit codes and smoke modes; W&B Weave versioned dataset objects \u2014 but require hosted accounts/API keys.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-langsmith",
+          "locator": "evaluation concepts",
+          "quote": "Offline evaluations target examples from datasets: curated test cases with reference outputs that define what 'good' looks like."
+        },
+        {
+          "referenceId": "ref-braintrust",
+          "locator": "run-in-ci",
+          "quote": "Integrate evaluations into your CI/CD pipeline to catch regressions before they reach production."
+        },
+        {
+          "referenceId": "ref-weave",
+          "locator": "tutorial-eval",
+          "quote": "A Dataset is a collection of examples stored as a Weave object. Publishing the dataset to Weave versions it and makes it reusable across evaluation runs."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-anthropic-volume-grading",
+      "section": "detailSections",
+      "statement": "Anthropic's eval-building guidance prioritizes volume of automatically graded questions over few hand-graded ones, and recommends structuring questions for automated grading (multiple-choice, string match, code-graded, LLM-graded).",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-claude-develop-tests",
+          "locator": "body",
+          "quote": "Prioritize volume over quality: More questions with slightly lower signal automated grading is better than fewer questions with high-quality human hand-graded evals."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-skill-frontmatter-gate",
+      "section": "detailSections",
+      "statement": "SKILL.md frontmatter constraints (name <=64 chars lowercase/numbers/hyphens; description <=1024 chars, non-empty, no XML tags) are machine-checkable, making frontmatter schema validation a cheap deterministic pre-LLM eval gate.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-claude-skills-bp",
+          "locator": "frontmatter reference",
+          "quote": "name: Maximum 64 characters, lowercase letters/numbers/hyphens only, no XML tags, no reserved words"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-schema-registry",
+      "section": "detailSections",
+      "statement": "The repo's schemas/registry.json is an immutable, digest-pinned schema registry with reject-on-unknown-revision policy \u2014 machine-checkable eval observations.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-local-registry",
+          "locator": "lines 2-4",
+          "quote": "\"format\": \"csm-schema-registry/1\",\n  \"revisionPolicy\": \"immutable\",\n  \"unknownRevisionPolicy\": \"reject\""
+        }
+      ]
+    },
+    {
+      "claimId": "claim-corpus-raw-material",
+      "section": "detailSections",
+      "statement": "The .agents corpus holds ~34 dated research findings (moving target), 48 plans, and 9 typed reviews as of 2026-08-29 \u2014 substantial raw material for minting per-skill eval cases, though it mixes formats (.md legacy and .json) and includes exploratory outputs, so it requires triage.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-local-make-tests",
+          "locator": "line 22 and corpus listings",
+          "quote": "Grounded in the committed research finding `.agents/research/2026-08-22-characterization-skill-implementation-research.md`"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-fault-injection-regressions",
+      "section": "detailSections",
+      "statement": "Labeled failure cases exist in-repo as fault-injection regression scenarios: a deliberately lax provenance verifier must be caught by the false-verified gate and fail the report.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-local-safety-gate",
+          "locator": "lines 105, 116-117",
+          "quote": "assert.equal(laxResult.falseVerified, true); assert.equal(laxResult.details.injectedFault, \"lax-provenance-verifier\");"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-generic-evals-fail",
+      "section": "detailSections",
+      "statement": "Off-the-shelf/generic evals routinely fail for real applications because they barely correlate with application-specific performance; application/task-specific evals are required.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-yan",
+          "locator": "post",
+          "quote": "They barely correlate with application-specific performance and aren't discriminative enough to use in production."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-eval-governance-controls",
+      "section": "detailSections",
+      "statement": "Enterprise eval governance ships as product controls: human review apps for golden-answer sign-off, geo-confinement of judge processing, abuse-monitoring opt-outs so eval data is not retained by judge providers, and prohibitions on training models on judge outputs.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-databricks",
+          "locator": "agent-evaluation docs",
+          "quote": "For Azure OpenAI, Databricks has opted out of Abuse Monitoring so no prompts or responses are stored with Azure OpenAI."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-inspect-sandboxes",
+      "section": "detailSections",
+      "statement": "UK AISI Inspect includes a sandboxing system for running untrusted model-generated code during agent evals (Docker, Kubernetes, Modal, and others via an extension API).",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-inspect",
+          "locator": "homepage",
+          "quote": "A sandboxing system that supports running untrusted model code in Docker, Kubernetes, Modal, Proxmox, Vagrant, and other systems via an extension API."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-wave-plan",
+      "section": "recommendation",
+      "statement": "The repo's highest-leverage changes are: W1 \u2014 factor the existing runner/corpus pattern into a thin eval CLI and mint per-skill golden suites (20-50 cases) from the .agents corpus, starting with judge-heavy skills emitting typed JSON; W2 \u2014 outcome-graded end-to-end suites plus judge calibration (precision/recall vs human adjudication) and model-version re-eval triggers; W3 \u2014 defer live-model execution, dashboards, and monitoring. Scope notes: W1's corpus minting inherits the corpus-triage caveat (mixed formats, exploratory outputs); 'start judge-heavy typed-JSON skills' is a design choice, not an evidence-backed conclusion.",
+      "claimType": "recommendation",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-demystifying",
+          "locator": "body",
+          "quote": "Automated evals are especially useful pre-launch and in CI/CD, running on each agent change and model upgrade as the first line of defense against quality problems."
+        },
+        {
+          "referenceId": "ref-local-eval-corpus",
+          "locator": "lines 16-21",
+          "quote": "`labelsFrozen: true` \u2014 labels must not be tuned, regenerated, or rewritten after evaluation starts"
+        },
+        {
+          "referenceId": "ref-hamel-evals-faq",
+          "locator": "body",
+          "quote": "Spend 30 minutes manually reviewing 20-50 LLM outputs whenever you make significant changes."
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-agent-eval-survey",
+      "url": "https://arxiv.org/abs/2503.16416",
+      "publisher": "arXiv (Yehudai et al., ACL Findings 2025)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2025-03-20",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-agentbench",
+      "url": "https://arxiv.org/abs/2308.03688",
+      "publisher": "arXiv (AgentBench, ICLR 2024)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2023-08-07",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-gaia",
+      "url": "https://arxiv.org/abs/2311.12983",
+      "publisher": "arXiv (GAIA)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2023-11-21",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-tau-bench",
+      "url": "https://arxiv.org/abs/2406.12045",
+      "publisher": "arXiv (tau-bench)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-06-18",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-webarena",
+      "url": "https://arxiv.org/abs/2307.13854",
+      "publisher": "arXiv (WebArena)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2023-07-25",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-osworld",
+      "url": "https://arxiv.org/abs/2404.07972",
+      "publisher": "arXiv (OSWorld)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-04-11",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-swebench",
+      "url": "https://arxiv.org/abs/2310.06770",
+      "publisher": "arXiv (SWE-bench)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2023-10-10",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-swebench-repo",
+      "url": "https://github.com/SWE-bench/SWE-bench",
+      "publisher": "GitHub (SWE-bench org)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-swe-agent",
+      "url": "https://arxiv.org/abs/2405.15793",
+      "publisher": "arXiv (SWE-agent, NeurIPS 2024)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-05-24",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-swe-rebench",
+      "url": "https://arxiv.org/abs/2505.20411",
+      "publisher": "arXiv (SWE-rebench)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2025-05-26",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-swebench-live",
+      "url": "https://arxiv.org/abs/2505.23419",
+      "publisher": "arXiv (SWE-bench-Live, Microsoft)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2025-05-29",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-terminal-bench",
+      "url": "https://arxiv.org/abs/2601.11868",
+      "publisher": "arXiv (Terminal-Bench 2.0)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2026-01",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-arena-private",
+      "url": "https://arxiv.org/abs/2504.20879",
+      "publisher": "arXiv (The Leaderboard Illusion)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2025-04-28",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-mtbench",
+      "url": "https://arxiv.org/abs/2306.05685",
+      "publisher": "arXiv (Judging LLM-as-a-Judge, NeurIPS 2023)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2023-06-08 (v4 full text also retrieved)",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-judge-hack",
+      "url": "https://arxiv.org/abs/2305.17926",
+      "publisher": "arXiv (Large Language Models are not Fair Evaluators)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2023-05-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-alpacaeval-lc",
+      "url": "https://arxiv.org/abs/2404.04475",
+      "publisher": "arXiv (Length-Controlled AlpacaEval)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-04-06",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-self-recognition",
+      "url": "https://arxiv.org/abs/2404.13076",
+      "publisher": "arXiv (LLM Evaluators Recognize and Favor Their Own Generations)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-04-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-agents-that-matter",
+      "url": "https://arxiv.org/abs/2407.01502",
+      "publisher": "arXiv (AI Agents That Matter)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-07-01",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-error-bars",
+      "url": "https://arxiv.org/abs/2411.00640",
+      "publisher": "arXiv (Adding Error Bars to Evals, Anthropic)",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2024-11-01",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-anthropic-demystifying",
+      "url": "https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents",
+      "publisher": "Anthropic engineering blog",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-anthropic-swebench",
+      "url": "https://www.anthropic.com/engineering/swe-bench-sonnet",
+      "publisher": "Anthropic engineering blog",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-reported-outcome"
+    },
+    {
+      "referenceId": "ref-anthropic-infra-noise",
+      "url": "https://www.anthropic.com/engineering/infrastructure-noise",
+      "publisher": "Anthropic engineering blog",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-reported-outcome"
+    },
+    {
+      "referenceId": "ref-claude-develop-tests",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
+      "publisher": "Anthropic platform docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-claude-skills-bp",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices",
+      "publisher": "Anthropic platform docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-openai-evals-guide",
+      "url": "https://platform.openai.com/docs/guides/evals",
+      "publisher": "OpenAI platform docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-openai-evals-repo",
+      "url": "https://github.com/openai/evals",
+      "publisher": "GitHub (OpenAI)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-hamel-evals",
+      "url": "https://hamel.dev/blog/posts/evals/",
+      "publisher": "Hamel Husain (practitioner essay)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-hamel-evals-faq",
+      "url": "https://hamel.dev/blog/posts/evals-faq/",
+      "publisher": "Hamel Husain (practitioner FAQ)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-yan",
+      "url": "https://eugeneyan.com/writing/evals/",
+      "publisher": "Eugene Yan (practitioner essay)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-aider",
+      "url": "https://aider.chat/docs/leaderboards/",
+      "publisher": "Aider (leaderboard docs)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-metr",
+      "url": "https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/",
+      "publisher": "METR",
+      "retrievedAt": "2026-08-29",
+      "publishedOrUpdated": "2025-03-19",
+      "sourcePosture": "independent-analysis"
+    },
+    {
+      "referenceId": "ref-promptfoo-intro",
+      "url": "https://www.promptfoo.dev/docs/intro/",
+      "publisher": "promptfoo docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-promptfoo-assertions",
+      "url": "https://www.promptfoo.dev/docs/configuration/expected-outputs/",
+      "publisher": "promptfoo docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-promptfoo-action",
+      "url": "https://www.promptfoo.dev/docs/integrations/github-action/",
+      "publisher": "promptfoo docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-promptfoo-cicd",
+      "url": "https://www.promptfoo.dev/docs/integrations/ci-cd/",
+      "publisher": "promptfoo docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-inspect",
+      "url": "https://inspect.aisi.org.uk/",
+      "publisher": "UK AI Security Institute",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-inspect-logs",
+      "url": "https://inspect.aisi.org.uk/eval-logs.html",
+      "publisher": "UK AI Security Institute",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-langsmith",
+      "url": "https://docs.smith.langchain.com/evaluation",
+      "publisher": "LangChain (LangSmith docs)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-braintrust",
+      "url": "https://www.braintrust.dev/docs/evaluate/run-in-ci",
+      "publisher": "Braintrust docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-weave",
+      "url": "https://docs.wandb.ai/weave/tutorial-eval",
+      "publisher": "Weights & Biases docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-databricks",
+      "url": "https://docs.databricks.com/aws/en/generative-ai/agent-evaluation/",
+      "publisher": "Databricks docs",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-tau-bench-repo",
+      "url": "https://github.com/sierra-research/tau-bench",
+      "publisher": "GitHub (Sierra Research)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-local-make-tests",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-make-tests/SKILL.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-review",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/SKILL.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-review-python",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review-python/SKILL.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-deep-research",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-deep-research/SKILL.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-orchestrate",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/SKILL.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-autoresearch",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-autoresearch/SKILL.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-eval-trace",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/evaluation-trace.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-eval-corpus",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/evaluation-corpus.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-slo",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/slo-definitions.md",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-safety-gate",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/tests/evals/orchestration/safety-gate.test.mjs",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-registry",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/registry.json",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-local-runner",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/tests/evals/runner.mjs",
+      "publisher": "workspace-local: opencode-skills repo (file:// read; mirrored on GitHub)",
+      "retrievedAt": "2026-08-29",
+      "sourcePosture": "empirical-measurement"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Scaffolded run-owned finding. runId=run-20260829t090750z-df51a9921bc7. Git root=/home/jamiemills/.config/opencode/skills. Temp dir=/tmp/opencode/csm-deep-research-agentic-evals. Protected-state baseline (git status --short): '?? .agents/research/2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json' and '?? .agents/reviews/2026-08-29-opencode-skills-20260829t063809z-0916749aa6da-review.json' (pre-existing untracked, not owned by this run). No colliding same-day same-slug artifact. Write surface: this JSON only; no declared artifacts. Clarification mode OFF; tmux session renamed to csm-deep-research-agentic-evals.",
+      "occurredAt": "2026-08-29T09:08:00Z",
+      "cycle": 0,
+      "trigger": "fresh invocation: deep research into evals for agentic engineering practices and how evals can augment this repo"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "Tier=DEEP. Source mode=hybrid. Tracks: T1 eval taxonomy (web); T2 agentic engineering practice (web); T3 repo inventory (local); T4 tooling & integration (web); T5 failure modes/economics/governance (web). 5 dispatches planned.",
+      "occurredAt": "2026-08-29T09:09:00Z",
+      "cycle": 0,
+      "trigger": "TRIAGE classification; DEEP because the answer plausibly changes repo engineering practice"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "All 5 researchers returned (16 claims each, 80 total). Evidence pack saved to temp dir. One needs-browser-retrieval flag resolved by primary via csm-browse (sid=research-agentic-evals): anthropic.com/engineering/developing-an-effective-evals-suite renders 404 (relocated) \u2014 left unverified; session closed 2026-08-29T09:19Z. All 13 T3-cited local files verified present on origin/main (b69872e) so GitHub blob URLs are truthful locators.",
+      "occurredAt": "2026-08-29T09:20:00Z",
+      "cycle": 0,
+      "trigger": "RESEARCH complete"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "Draft written: 30 claims, 53 references, all 9 sections populated; provisional verdicts on Key Findings; 9 unverified claims recorded; local sources mirrored as GitHub blob URLs with workspace-local publisher marks.",
+      "occurredAt": "2026-08-29T09:26:00Z",
+      "cycle": 0,
+      "trigger": "SYNTHESIZE complete; draft frozen for CHALLENGE"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "Independent challenger returned verdicts on all 30 claims: 24 uphold; 5 downgrade (claim-13 model-upgrade-regression, claim-15 evals-are-experiments, claim-16 judge-bias-magnitudes, claim-18 metr-time-horizon, claim-25 corpus-raw-material); claim-30 upheld as labeled synthesis with scope notes (corpus needs triage; judge-heavy-typed-JSON start is a design choice). Cross-cutting: (1) doctrine conflict \u2014 Anthropic recommends eval-driven development while Hamel's FAQ answers 'Generally no' (error-analysis-first); must be surfaced and reconciled in D2; (2) precision notes: corpus scenarios run as node --test suites not reachable via make target; per-skill unit suites exist, gap is scored eval suites; typed-receipt claim supported by adjacent lines not 32-34 alone. Challenger output truncated mid cross-cutting list at item 2; items 3+ unrecorded (process note).",
+      "occurredAt": "2026-08-29T09:34:00Z",
+      "cycle": 0,
+      "trigger": "CHALLENGE complete; downgrade verdicts route to REMEDIATE"
+    },
+    {
+      "sequence": 5,
+      "state": "REMEDIATE",
+      "event": "Applied challenger fixes: rewrote claim-13 (single documented 10% upgrade regression, secondary source, deprecation-driven not 'silent'); split claim-15 (CIs+planning to error-bars paper; accuracy+cost to Agents-That-Matter, added citation); corrected claim-16 (reference-guided grading alone 70%->15%; swap separate); added TH-1.1 supersession note to claim-18; corrected corpus counts (34 findings, triage note) in claim-25/K11/D4/recommendation; scope notes on claim-30; added doctrine-contradiction paragraph (Anthropic eval-first vs Hamel error-analysis-first) to D2; added precision notes to D3 (corpus not on a make target) and D7/K7 (scored suites vs unit suites).",
+      "occurredAt": "2026-08-29T09:36:00Z",
+      "cycle": 0,
+      "trigger": "REMEDIATE complete; re-check via JUDGE"
+    },
+    {
+      "sequence": 6,
+      "state": "JUDGE",
+      "event": "Independent judge scored the remediated draft: factual accuracy 0.9, citation accuracy 0.9, completeness 0.95, clarity 0.9 \u2014 PASS (all >= 0.7, no failed dimension). Reasoning-before-verdict recorded; judge independently re-verified load-bearing claims (eval-driven-dev, orchestration-eval-stack, judge-machinery, eval-gaps, skills-eval-niche, benchmark-decay, wave-plan), confirmed the downgrades were properly applied, and re-counted .agents (34/48/9). Non-blocking follow-ups: (a) D7 W1 box retains '33 findings' vs '~34' elsewhere; (b) claim-openai-evals-deprecation quote lacks the deprecation dates.",
+      "occurredAt": "2026-08-29T09:42:00Z",
+      "cycle": 0,
+      "trigger": "JUDGE complete; minor remediation then VERIFY"
+    },
+    {
+      "sequence": 7,
+      "state": "REMEDIATE",
+      "event": "Judge follow-ups applied: D7 W1 box count fixed to ~34; claim-openai-evals-deprecation citation quote replaced with the challenger-verified banner text carrying the dates ('Evals will become read-only for existing users on October 31, 2026, and the platform is scheduled to shut down on November 30, 2026').",
+      "occurredAt": "2026-08-29T09:43:00Z",
+      "cycle": 0,
+      "trigger": "REMEDIATE complete; proceed to VERIFY"
+    },
+    {
+      "sequence": 8,
+      "state": "VERIFY",
+      "event": "Primary-personal DEEP verification: (1) load-bearing conclusion claims re-fetched personally \u2014 anthropic demystifying (all eval-driven-dev/regression-suite/CI-CD/outcome-grading/20-50 quotes verbatim; pass@k vs pass^k confirmed), hamel evals-faq ('Generally no' eval-driven-dev answer confirmed verbatim for the D2 ledger; 60-80% time; same-model-judge dissent added to D6), platform.claude skills best-practices ('no built-in way to run these evaluations' verbatim; 3-scenario eval-first; frontmatter constraints). (2) Local file claims (K5/K6/K7) confirmed against files read by researcher and judge with line locators. (3) JSON shape: 8 sections non-empty, correct order; 30 claims all cited, 54 refs all https+retrievedAt, no orphan links; verdicts 27 supported / 3 partially-supported. (4) Schema validated; sectionOrder const mismatch was a checker artifact (array identity), not a real violation. (5) Redaction scan: only false positive 'sk-specific' in 'task-specific'; no credentials/keys/tokens. (6) Protected-state re-run: git status --short shows exactly baseline (2 pre-existing untracked files) + this research JSON \u2014 no foreign writes. (7) VERIFY budget: 0 distinct failures. Proceeding to SAVED.",
+      "occurredAt": "2026-08-29T09:39:30Z",
+      "cycle": 0,
+      "trigger": "VERIFY complete with zero gate failures"
+    },
+    {
+      "sequence": 9,
+      "state": "SAVED",
+      "event": "Finding finalized and committed. Write surface: research JSON only (no declared artifacts). Temp dir /tmp/opencode/csm-deep-research-agentic-evals deleted. No follow-on handoff per standalone boundary.",
+      "occurredAt": "2026-08-29T09:39:38Z",
+      "cycle": 0,
+      "trigger": "SAVED terminal"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1",
+    "producedAt": "2026-08-29T09:26:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

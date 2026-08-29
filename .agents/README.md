@@ -81,6 +81,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 ## research/
 
+- `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
 - `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
 - `2026-08-20-csm-deep-research-skill-research.md` — 2026-08-20 — seed research document for the csm-deep-research corpus — status: reference
 - `2026-08-20-characterization-testing-research.md` — 2026-08-20 — repo behavior-continuity (characterization) testing techniques — status: reference
