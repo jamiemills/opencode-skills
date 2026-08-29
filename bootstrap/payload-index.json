@@ -90,8 +90,8 @@
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "c859db6798752120a7d88c335ea7871c5626cd7e4cbbed452d29bc578fa459f4",
-        "bytes": 39884,
+        "sha256": "197b72c4b9aa2a809aecbf413902f8e495cd1d4f8c5235a837a924cae9caa974",
+        "bytes": 41215,
         "mode": "0644"
       },
       {
@@ -728,7 +728,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "e790f24e95d8239e1d981c1448442e4e7a809d5c5421c878dc9108f46f446bbe",
+        "sha256": "ed062a327fd70f50cefa60d88e5a2d4a2e62ffea518d923e3ca380fb7b5fe019",
         "bytes": 14983,
         "mode": "0644"
       },
@@ -1069,9 +1069,27 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-review/lib/findings-render.mjs",
+        "sha256": "259e858753afe62fcab6bd7d0af07139a85023b22ba1afd4b23ce36e0133b572",
+        "bytes": 5060,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-review/lib/findings-validator.mjs",
         "sha256": "a09f5e34b199fb8e7612906396360e14e5e2356730c54d9da4f84ff26cf6f1de",
         "bytes": 4968,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-review/lib/human-profile.mjs",
+        "sha256": "5b0ae9767680a7691fef6caf9e5290ad319c724405fd280bb711cddc9ab44dd7",
+        "bytes": 6358,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-review/lib/human-projection.mjs",
+        "sha256": "a25d7655fd69e6b3c66e1a0f1cff84987fdab43ed73baacf33c7f9fd71711da8",
+        "bytes": 4189,
         "mode": "0644"
       },
       {
@@ -1082,8 +1100,8 @@
       },
       {
         "path": "payload/skills/csm-review/producer.json",
-        "sha256": "83f7e9e7beb3c27114faddc9bee148584e9f53e49aca80bb2123274c273fdff3",
-        "bytes": 542,
+        "sha256": "ea92dc53ae5bb57db4d3d23766016bb632329a0df761887b84c500052bf73f71",
+        "bytes": 596,
         "mode": "0644"
       },
       {
@@ -1843,6 +1861,30 @@
         "path": "payload/lib/publication/index.mjs",
         "sha256": "cb786c609416a3711760d15c372ee9b70bd3332a1d085a9c5318ee2bf00b1684",
         "bytes": 23985,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/lib/render-html/index.mjs",
+        "sha256": "d0decdd579c46af2e673034cd0ac7ab98b11e2bf36451547b1a219f3a44ebac8",
+        "bytes": 14996,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/lib/render-html/security-policy.mjs",
+        "sha256": "23156c369cb0f058b32868aa5f02801c53aa729f494f809861d3a5bf024cd084",
+        "bytes": 1628,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/lib/render-markdown/index.mjs",
+        "sha256": "3b4b1c28c72b0ff5e8c863189f4692c5e231719207751486f5df5af5a7addc5b",
+        "bytes": 10800,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/lib/render-model/index.mjs",
+        "sha256": "d787637a9338dde365d7a174be0223fb8d9eafa2a139d0c7b19a5607b0cd1427",
+        "bytes": 10923,
         "mode": "0644"
       },
       {

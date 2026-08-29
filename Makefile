@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 OXFMT_CONFIG := $(dir $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))).oxfmtrc.json
 OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
-.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-ddd test-autoresearch test-e2e analyze
+.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -84,7 +84,14 @@ test-browse-unit: ## csm-browse unit suite (offline-safe; needs pnpm install in 
 test-upload: ## csm-upload upload-script tests (offline; stubbed git/gh)
 	node --test csm-upload/tests/upload.test.mjs
 
+test-review-render: ## csm-review human Markdown/HTML projection tests
+	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 \
+	  csm-review/test/findings-render-profile.test.mjs \
+	  csm-review/test/findings-render.test.mjs \
+	  csm-review/test/human-projection.test.mjs \
+	  tests/review-render.test.mjs
+
 test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs
 
-test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; browser E2E and live/external gates remain separate)
+test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; browser E2E and live/external gates remain separate)

@@ -1,7 +1,7 @@
 {
   "schema": "csm-orchestrate-capabilities/1",
   "version": 1,
-  "contentDigest": "sha256:998806d5ead391b6f3421d5bc56cbbaf8e50df1874e647dd0fbfccd911b6f016",
+  "contentDigest": "sha256:f9b23d48321de18057688c660d87ef993008eedc8b508a2dbb2a32fc008f5b28",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -279,7 +279,7 @@
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:c859db6798752120a7d88c335ea7871c5626cd7e4cbbed452d29bc578fa459f4",
+      "digest": "sha256:197b72c4b9aa2a809aecbf413902f8e495cd1d4f8c5235a837a924cae9caa974",
       "source": { "skillPath": "csm-review/SKILL.md", "producerPath": "csm-review/producer.json" },
       "activation": {
         "mode": "conditional",

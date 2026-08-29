@@ -82,7 +82,7 @@ const model = {
   ],
 };
 
-function projectionInput(overrides = {}) {
+function projectionInput(overrides = {}, renderProfile = profile) {
   return {
     projectionId: "proj-render-html-fixture",
     source: {
@@ -93,19 +93,19 @@ function projectionInput(overrides = {}) {
     sourceRunId: "run-render-html-fixture",
     sourceOwner: "security-test",
     renderer: { id: "csm-render-html/1", revision: 1 },
-    profile: profile.profile,
+    profile: renderProfile.profile,
     rendererDigest: HTML_RENDERER_DIGEST,
-    profileDigest: digest(profile),
+    profileDigest: digest(renderProfile),
     generatedAt: "2026-08-25T00:00:00.000Z",
     ...overrides,
   };
 }
 
-function render(candidate = model, projection = projectionInput()) {
+function render(candidate = model, projection = projectionInput(), renderProfile = profile) {
   return renderHtml({
     model: candidate,
     schemaRegistry: runtime,
-    profile,
+    profile: renderProfile,
     projection,
     generatedAt: "2026-08-25T00:00:00.000Z",
   });
@@ -137,7 +137,8 @@ test("text, attributes, code, and typed values are escaped without raw HTML", ()
   assert.match(html, /&lt;\/code&gt;&lt;script&gt;/);
   assert.match(html, />true<|>3<|>2026-08-25</);
   assert.match(html, /<ul><li>a<\/li><li>b<\/li><\/ul>/);
-  assert.match(html, /<table>/);
+  assert.match(html, /<table[^>]*>/);
+  assert.match(html, /<table aria-labelledby="csm-label-proto-0-table-6">/);
 });
 
 test("URL policy rejects unsafe schemes and credentials", () => {
@@ -225,6 +226,56 @@ test("redaction, CSP, and accessibility structure are explicit", () => {
   assert.match(html, /<h2 id="csm-heading-proto-0-heading-0">&lt;Section&gt;<\/h2>/);
   assert.match(html, /aria-labelledby="csm-heading-proto-0-heading-0"/);
   assert.match(html, /role="status"/);
+});
+
+test("profile omit redaction suppresses its label and value while marker remains visible", () => {
+  const renderProfile = {
+    ...profile,
+    sections: [{ id: "main", label: "Main", order: 0 }],
+    fields: [
+      {
+        path: "/redacted",
+        kind: "redacted",
+        label: "Secret",
+        visibility: "always",
+        order: 0,
+        section: "main",
+        redaction: "omit",
+      },
+    ],
+  };
+  const redactedItem = model.sections[0].items[8];
+  const omitResult = render(
+    {
+      ...model,
+      sections: [
+        { ...model.sections[0], id: "main", items: [{ ...redactedItem, value: undefined }] },
+      ],
+    },
+    projectionInput({}, renderProfile),
+    renderProfile,
+  );
+  assert.doesNotMatch(omitResult.html, /Secret|\[REDACTED\]/);
+  assert.doesNotMatch(omitResult.html, /<dt|<dd/);
+
+  const markerProfile = {
+    ...renderProfile,
+    fields: [{ ...renderProfile.fields[0], redaction: "marker" }],
+  };
+  const markerResult = render(
+    { ...model, sections: [{ ...model.sections[0], id: "main", items: [redactedItem] }] },
+    projectionInput({}, markerProfile),
+    markerProfile,
+  );
+  assert.match(markerResult.html, /<dt[^>]*>Secret<\/dt>/);
+  assert.match(markerResult.html, /\[REDACTED\]/);
+});
+
+test("projection generatedAt is used consistently over the renderer default", () => {
+  const projectionGeneratedAt = "2026-08-29T12:34:56.000Z";
+  const result = render(model, projectionInput({ generatedAt: projectionGeneratedAt }));
+  assert.equal(result.metadata.generatedAt, projectionGeneratedAt);
+  assert.equal(result.projection.generatedAt, projectionGeneratedAt);
 });
 
 test("only a validated direct render model is accepted", () => {
