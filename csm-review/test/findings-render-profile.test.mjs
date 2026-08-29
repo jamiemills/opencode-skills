@@ -124,6 +124,19 @@ test("mapping matrix and nested redaction policy are explicit", () => {
   for (const field of [
     "verification.command",
     "verification.result",
+    "verification.redacted",
+    "challenges.rationale",
+    "challenges.challenger",
+    "challenges.redacted",
+    "dissents.rationale",
+    "dissents.author",
+    "dissents.redacted",
+  ]) {
+    assert.ok(FINDINGS_FIELD_MAPPING.some((row) => row[0] === field));
+  }
+  for (const field of [
+    "verification.command",
+    "verification.result",
     "challenges.rationale",
     "dissents.rationale",
   ]) {
