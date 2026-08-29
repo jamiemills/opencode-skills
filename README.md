@@ -481,9 +481,10 @@ Primary gates and suites have `make` targets; direct commands below are supporte
 - `make test-browse` # csm-browse fast sanity (no Docker)
 - `make test-browse-unit` # csm-browse unit suite (offline-safe; runs the package's `node --test` unit target, needs `pnpm install` in csm-browse)
 - `make test-upload` # csm-upload upload-script tests (offline; stubbed git/gh)
+- `make test-review-render` # csm-review human Markdown/HTML projection tests
 - `make test-ddd` # csm-ddd unit tests (serial; fixtures + contracts)
 - `make test-autoresearch` # csm-autoresearch unit and integration tests (offline; generated mode fails closed without sandbox)
-- `make test` # test-hooks + test-bootstrap + test-browse + test-browse-unit + test-upload + test-ddd + test-autoresearch + test-scan (primary suites, fast -> slow; the suite-tooling battery below runs separately)
+- `make test` # primary suites including test-review-render (fast -> slow; the suite-tooling battery below runs separately)
 - `make fmt` # format repo-wide with oxfmt (writes files)
 - `make fmt-check` # verify formatting, no writes (CI gate)
 - `make fmt-staged` # format + re-stage staged files (pre-commit hook parity)

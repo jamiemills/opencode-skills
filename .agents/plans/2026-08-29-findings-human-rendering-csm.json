@@ -4,15 +4,15 @@
   "artifactId": "art-findings-human-rendering-plan-20260829t075204z-7de245604201",
   "runId": "run-20260829t075204z-7de245604201",
   "planId": "findings-human-rendering",
-  "status": "ready",
+  "status": "complete",
   "control": {
-    "status": "ready",
-    "currentState": "NOT_STARTED",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-08-29T08:00:00Z: lean findings projection plan drafted and critiqued; implementation not started",
-    "lastModelRun": "csm-plan current run",
-    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "lastCheckpoint": "2026-08-29T12:30:00Z: all implementation, repair, review, bootstrap, focused, and full-suite gates passed",
+    "lastModelRun": "csm-build run 2026-08-29t075204z-7de245604201",
+    "nextTransition": "COMPLETE; no further build transition",
     "activeTasks": [],
     "blockers": [],
     "resume": {
@@ -143,7 +143,7 @@
     {
       "taskId": "T001",
       "ordinal": 1,
-      "status": "pending",
+      "status": "completed",
       "title": "Define findings projection mapping and explicit profile identity bridge",
       "dependsOn": [],
       "parallelGroup": "G1",
@@ -167,7 +167,7 @@
     {
       "taskId": "T002",
       "ordinal": 2,
-      "status": "pending",
+      "status": "completed",
       "title": "Fix HTML omit redaction and generatedAt consistency",
       "dependsOn": [],
       "parallelGroup": "G1",
@@ -189,7 +189,7 @@
     {
       "taskId": "T003",
       "ordinal": 3,
-      "status": "pending",
+      "status": "completed",
       "title": "Implement the csm-review findings-to-render-model adapter",
       "dependsOn": ["T001"],
       "parallelGroup": "G2",
@@ -213,7 +213,7 @@
     {
       "taskId": "T004",
       "ordinal": 4,
-      "status": "pending",
+      "status": "completed",
       "title": "Wire concrete Markdown and HTML projections through publication",
       "dependsOn": ["T002", "T003"],
       "parallelGroup": "G3",
@@ -236,7 +236,7 @@
     {
       "taskId": "T005",
       "ordinal": 5,
-      "status": "pending",
+      "status": "completed",
       "title": "Add findings projection end-to-end coverage and contract documentation",
       "dependsOn": ["T004"],
       "parallelGroup": "G4",
@@ -302,9 +302,24 @@
     {"sequence": 3, "timestamp": "2026-08-29T08:00:00Z", "cycle": 0, "transition": "DRAFT -> CRITIQUE", "tasks": [], "evidence": "Draft contained six dependency-ordered tasks reusing existing renderer APIs.", "nextState": "CRITIQUE"},
     {"sequence": 4, "timestamp": "2026-08-29T08:05:00Z", "cycle": 0, "transition": "CRITIQUE -> REMEDIATE", "tasks": [], "evidence": "Independent critique identified identity conflation, raw-schema path invalidity, bootstrap closure, separate descriptors, determinism, redaction, accessibility, and rollback omissions.", "nextState": "REMEDIATE"},
     {"sequence": 5, "timestamp": "2026-08-29T08:10:00Z", "cycle": 1, "transition": "REMEDIATE -> VERIFY", "tasks": [], "evidence": "Plan revised with explicit identity bridge, adapter-owned mapping, exact commands, separate descriptors, redaction/accessibility tests, and recovery rules.", "nextState": "VERIFY"},
-    {"sequence": 6, "timestamp": "2026-08-29T08:12:00Z", "cycle": 1, "transition": "VERIFY -> SAVED", "tasks": [], "evidence": "Plan schema, task pending statuses, applicability obligations, acceptance mapping, critique resolution, and protected-state scope reviewed; implementation not started.", "nextState": "SAVED"}
+    {"sequence": 6, "timestamp": "2026-08-29T08:12:00Z", "cycle": 1, "transition": "VERIFY -> SAVED", "tasks": [], "evidence": "Plan schema, task pending statuses, applicability obligations, acceptance mapping, critique resolution, and protected-state scope reviewed; implementation not started.", "nextState": "SAVED"},
+    {"sequence": 7, "timestamp": "2026-08-29T08:25:00Z", "cycle": 0, "transition": "RECOVER -> VALIDATE -> SELECT -> DISPATCH", "tasks": ["T001", "T002"], "evidence": "Plan validated at csm-plan/1; T001 profile tests passed 4/4 plus render-profile 12/12; T002 HTML tests passed 15/15 plus render-profile 12/12; generated hook change restored before dispatch; T003 is next ready task.", "nextState": "DISPATCH"},
+    {"sequence": 8, "timestamp": "2026-08-29T10:05:00Z", "cycle": 0, "transition": "DISPATCH -> INTEGRATE -> VERIFY", "tasks": ["T003", "T004", "T005"], "evidence": "T003 adapter tests passed 5/5 then 23/23 after producer-digest repair; T004 acceptance passed 17/17 and supporting suites 44/44; T005 acceptance passed; pack-bootstrap regenerated payload, closure/schema-sync passed 8/8, package index/lint/check passed; formatting passed after adapter test formatting; renderer wiring mapping added for render-model/render-markdown/render-html.", "nextState": "VERIFY"},
+    {"sequence": 9, "timestamp": "2026-08-29T12:30:00Z", "cycle": 0, "transition": "VERIFY -> REVIEW -> CHECKPOINT -> COMPLETE", "tasks": ["T001", "T002", "T003", "T004", "T005"], "evidence": "Full make test passed 1283/1283; audit clean; lint, fmt-check, check, package index, bootstrap closure/parity, focused 46/46 tests passed; independent post-repair reviews found no material unresolved issues; Makefile/README gate wiring completed; no unexplained worktree changes outside the owned set.", "nextState": "COMPLETE"}
   ],
-  "completionReview": null,
+  "completionReview": {
+    "status": "complete",
+    "summary": "Human-facing csm-review Markdown and HTML projections implemented through the existing typed model, renderers, and publication seam.",
+    "evidence": [
+      "T001-T005 complete with focused and end-to-end tests.",
+      "Full make test passed 1283/1283.",
+      "make audit, make lint, make fmt-check, make check, and make test-package-index passed.",
+      "Bootstrap payload closure/parity passed after adding render-model, render-markdown, render-html, and security-policy mappings.",
+      "Independent post-repair review found no material unresolved issues."
+    ],
+    "remainingRisks": ["Full browser and assistive-technology validation remains outside the repository's structural test suite."],
+    "implementationStarted": true
+  },
   "inputs": [
     {"artifactId": "art-research-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f", "schema": "csm-research/1", "digest": "sha256:c0282a492d8098fe000bc432e27d5e50e625b745760761ce5317221030cb46c2", "owner": "csm-deep-research", "path": ".agents/research/2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json"}
   ],

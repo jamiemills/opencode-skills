@@ -10,6 +10,7 @@
   "legacyPath": ".agents/reviews/<date>-<repo-slug>-review.md",
   "legacyStatus": "history-only",
   "projectionProfile": "csm-review-human/1",
+  "projectionRuntimeProfile": "csm-render-profile/1",
   "terminal": "immutable",
   "collision": "reject-owner-mismatch-or-terminal"
 }

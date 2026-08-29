@@ -1,0 +1,14 @@
+{
+  "artifact": {
+    "artifactId": "art-review-empty",
+    "owner": "csm-review",
+    "runId": "run-review-empty",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "createdAt": "2026-08-25T12:00:00Z"
+  },
+  "source": { "commitSha": "abcdef1234567", "repository": "empty-demo" },
+  "findings": [],
+  "verificationStatus": { "status": "VERIFIED", "unresolved": [] },
+  "redaction": { "status": "passed", "rules": ["secrets"], "redactedFields": 0 },
+  "sortOrder": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true }
+}

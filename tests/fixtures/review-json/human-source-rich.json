@@ -1,0 +1,84 @@
+{
+  "artifact": {
+    "artifactId": "art-review-rich",
+    "owner": "csm-review",
+    "runId": "run-review-rich",
+    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "createdAt": "2026-08-25T12:00:00Z"
+  },
+  "source": { "commitSha": "abcdef1234567", "repository": "rich-demo" },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Unsafe result",
+      "dimension": "correctness",
+      "category": "bug",
+      "anchorRef": "anchor-1",
+      "severity": "high",
+      "confidence": "verified",
+      "evidenceClass": "E1",
+      "locations": [{ "path": "src/app.js", "line": 12, "symbol": "run" }],
+      "quotedSnippets": ["return safeValue;"],
+      "commitSha": "abcdef1234567",
+      "explanation": "The result is not checked.",
+      "impact": "Users can receive incorrect output.",
+      "remediationSketch": "Validate the result before returning it.",
+      "fixActions": [
+        {
+          "actionId": "fix-one",
+          "order": 0,
+          "action": "Add validation.",
+          "verification": "Run the test."
+        }
+      ],
+      "verification": {
+        "method": "targeted test",
+        "command": "[REDACTED]",
+        "result": "[REDACTED]"
+      },
+      "challenges": [
+        {
+          "challengeId": "challenge-one",
+          "challenger": "agent-reviewer",
+          "verdict": "agree",
+          "rationale": "[REDACTED]"
+        }
+      ],
+      "dissents": [
+        { "dissentId": "dissent-one", "author": "agent-reviewer", "rationale": "[REDACTED]" }
+      ],
+      "status": "upheld",
+      "statusNote": "Confirmed.",
+      "corroborators": ["agent-reviewer"],
+      "sortKey": "0:0:0:F-001",
+      "cvss": { "score": 7.5, "vector": "CVSS:3.1/AV:N", "assumptions": ["Network reachable."] }
+    },
+    {
+      "id": "F-002",
+      "title": "Missing documentation",
+      "dimension": "maintainability",
+      "category": "docs",
+      "anchorRef": null,
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "locations": [{ "path": "README.md", "line": 4 }],
+      "quotedSnippets": [],
+      "commitSha": "abcdef1234567",
+      "explanation": "The behavior is undocumented.",
+      "impact": "Maintainers may misunderstand it.",
+      "remediationSketch": "Document the behavior.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "retracted",
+      "statusNote": "Retracted after review.",
+      "corroborators": [],
+      "sortKey": "4:2:2:F-002"
+    }
+  ],
+  "verificationStatus": { "status": "INCOMPLETE", "unresolved": ["Run integration verification"] },
+  "redaction": { "status": "passed", "rules": ["secrets", "personal-data"], "redactedFields": 4 },
+  "sortOrder": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true }
+}
