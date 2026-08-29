@@ -1,0 +1,313 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-findings-human-rendering-plan-20260829t075204z-7de245604201",
+  "runId": "run-20260829t075204z-7de245604201",
+  "planId": "findings-human-rendering",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-08-29T08:00:00Z: lean findings projection plan drafted and critiqued; implementation not started",
+    "lastModelRun": "csm-plan current run",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": "Control, latest journal row, critique resolution, task recovery notes, input research artifact, and working-tree diff",
+      "rule": "All implementation tasks remain pending until a separate explicit csm-build invocation"
+    }
+  },
+  "goal": {
+    "title": "Complete human-facing csm-review findings projections",
+    "outcome": "Project validated csm-review-findings/1 JSON into deterministic human-readable Markdown and HTML through the existing renderers and publication seam.",
+    "deliverables": [
+      "One csm-review-owned findings-to-csm-render-model adapter",
+      "One explicit csm-review human profile/mapping using the current renderer profile schema",
+      "Concrete Markdown/HTML publication wiring with separate media descriptors",
+      "Renderer defect regressions and findings projection end-to-end tests",
+      "Updated csm-review contract and synchronized bootstrap payload"
+    ],
+    "constraints": [
+      "Reuse lib/render-markdown, lib/render-html, lib/render-model, and lib/publication; do not build replacement renderers",
+      "Canonical findings JSON remains authoritative; Markdown and HTML remain disposable projections",
+      "Do not parse arbitrary Markdown or accept raw HTML from finding values",
+      "Preserve source artifact identity, digest, run, owner, status, evidence, remediation, and redaction semantics",
+      "Keep all new implementation tasks pending for a later explicit csm-build run"
+    ],
+    "exclusions": [
+      "No migration or rewriting of legacy Markdown history",
+      "No changes to csm-review finding semantics or severity ordering",
+      "No generic recursive JSON renderer",
+      "No external web publication redesign",
+      "No new renderer framework or dependency unless an existing contract cannot represent a required human field"
+    ]
+  },
+  "acceptanceCriteria": [
+    {"id": "AC1", "statement": "A validated csm-review-findings/1 fixture can be converted by one csm-review-owned adapter into a valid deterministic csm-render-model/1 without rendering arbitrary JSON, Markdown, HTML, or command strings as markup.", "evidence": "Adapter contract test passes for empty, one-finding, multi-finding, retracted, challenged, and redacted fixtures; every retained field is covered by a mapping table."},
+    {"id": "AC2", "statement": "The csm-review-human/1 producer declaration has an explicit mapping to the renderer runtime identity csm-render-profile/1, and profile/source identity validation succeeds.", "evidence": "Profile mapping test validates the profile, model, sourceRef, and both projection descriptors without identity mismatch."},
+    {"id": "AC3", "statement": "Concrete Markdown and HTML renderer callbacks are wired through publication with separate media-specific projection descriptors and one injected timestamp.", "evidence": "End-to-end test proves share none/markdown/html/both behavior, source linkage, renderer digests, profile digests, and output digests."},
+    {"id": "AC4", "statement": "HTML omit redaction suppresses both the label and value, marker redaction remains visible as [REDACTED], and generatedAt is consistent in descriptor and returned metadata.", "evidence": "Focused render-html regression tests pass."},
+    {"id": "AC5", "statement": "Human output preserves the agreed finding information architecture and remains safe/accessibility-usable.", "evidence": "Tests assert severity, status, evidence class, locations, explanation, impact, remediation, challenge state, and redacted nested rationale behavior; HTML asserts semantic headings, labels, tables/lists, ARIA relationships, CSP, and no executable markup."},
+    {"id": "AC6", "statement": "The implementation is synchronized into the bootstrap payload and all repository gates pass without changing canonical JSON discovery or Markdown/HTML machine-input rejection.", "evidence": "Bootstrap parity/import-closure tests, renderer/publication tests, make lint, make fmt-check, and make check pass; negative projection-input tests remain green."
+    }
+  ],
+  "currentStateEvidence": {
+    "repository": "opencode-skills at b69872e79201a5f66aebcf276b0b45b0b3eb6a56; existing untracked review report and research finding are pre-existing to this plan and must not be reverted.",
+    "existingRenderers": [
+      "lib/render-markdown/index.mjs:212-273 exports renderMarkdown, validates csm-render-model/1, emits deterministic Markdown, and binds output digest/projection metadata.",
+      "lib/render-html/index.mjs:289-407 exports renderHtml, builds allowlisted escaped HTML with CSP/accessibility metadata, and validates a projection descriptor.",
+      "lib/render-model/index.mjs:111-180 requires runtime profile identity csm-render-profile/1 and validates fields against the supplied source schema; :183-267 creates the typed model.",
+      "lib/publication/index.mjs:558-614 selects media type and invokes caller-supplied renderer callbacks; it does not import the concrete renderers."
+    ],
+    "findingsContract": "csm-review/schemas/csm-review-findings.schema.json:52-150 contains nested findings, evidence, remediation, challenges, dissents, verification, and status fields; raw findings JSON is not csm-render-model/1.",
+    "producerContract": "csm-review/producer.json:7-13 declares projectionProfile csm-review-human/1, but no implemented/registered profile instance or findings adapter was found by repository-wide static search.",
+    "tests": "tests/render-profile.test.mjs, tests/render-markdown.test.mjs, and tests/render-html.test.mjs cover generic renderer APIs; tests/publication-protocol.test.mjs uses synthetic callbacks and has no concrete findings end-to-end path.",
+    "knownDefects": [
+      "lib/render-html/index.mjs:102-107 renders every redacted item as [REDACTED], including profile redaction=omit items whose model has no value.",
+      "lib/render-html/index.mjs:294 and :406 use the function generatedAt parameter in returned metadata while the descriptor uses projection.generatedAt."
+    ],
+    "researchInput": "The deep research finding at .agents/research/2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json concluded renderer implementation exists but findings-specific adapter/profile/wiring is missing; digest sha256:c0282a492d8098fe000bc432e27d5e50e625b745760761ce5317221030cb46c2."
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["public_contract", "invariant_or_consistency", "security_or_authority", "cross_boundary_coordination", "external_side_effect"],
+    "evidence": [
+      {"source": "brief", "locator": "request", "observation": "The plan changes a human-facing projection/publication contract."},
+      {"source": "repository", "locator": "lib/publication/index.mjs:558-614", "observation": "Concrete renderer callbacks must be connected to a publication boundary."},
+      {"source": "repository", "locator": "lib/render-html/index.mjs:102-107", "observation": "HTML redaction behavior affects safe human presentation."}
+    ],
+    "obligations": [
+      {"id": "boundary", "status": "required"},
+      {"id": "contract", "status": "required"},
+      {"id": "invariant", "status": "required"},
+      {"id": "observable_behavior", "status": "required"},
+      {"id": "rollback_recovery", "status": "required"},
+      {"id": "unresolved_risks", "status": "required"}
+    ],
+    "taskApplicability": {"warranted": ["T001", "T002", "T003", "T004", "T005"], "lightweight": []},
+    "dddArtifacts": [],
+    "unresolvedRisks": ["Whether every rich findings field can fit the existing typed model without adding a small new kind; T001 must resolve this using representative fixtures before T003.", "Full assistive-technology/browser conformance is not established by structural tests alone."],
+    "bypass": {"requested": false, "rationale": null}
+  },
+  "assumptionsAndDecisions": [
+    {"id": "D1", "statement": "Reuse the existing generic renderer APIs; the missing work is a csm-review adapter/profile/wiring seam, not a renderer rewrite.", "type": "user-directed", "evidence": "Deep research finding and existing implementation/tests.", "status": "accepted"},
+    {"id": "D2", "statement": "Keep csm-review-human/1 as the producer-facing logical profile name, but use csm-render-profile/1 as the runtime profile schema/profile identity because validateRenderProfile currently requires it.", "type": "design", "evidence": "lib/render-model/index.mjs:116-120 and csm-review/producer.json:12.", "status": "accepted"},
+    {"id": "D3", "statement": "The adapter owns all findings-to-model mapping. The publication entrypoint only validates, builds metadata, invokes the adapter, and dispatches format-specific renderers.", "type": "design", "evidence": "Avoids duplicated mapping and keeps one source of presentation semantics.", "status": "accepted"},
+    {"id": "D4", "statement": "Use separate Markdown and HTML projection descriptors because media type, renderer identity, renderer digest, and output digest differ.", "type": "invariant", "evidence": "lib/publication/index.mjs:581-604 and existing renderer contracts.", "status": "accepted"},
+    {"id": "D5", "statement": "Use an adapter-owned normalized view with fixed top-level paths instead of pointing a static profile at dynamic /findings/N paths or the raw JSON Schema document.", "type": "design", "evidence": "validateRenderProfile selects paths from a source-schema-shaped object; dynamic findings arrays do not satisfy that static path model.", "status": "accepted"}
+  ],
+  "rdRecord": [
+    {"id": "R1", "question": "Were both renderers actually built?", "method": "Deep hybrid research with local plan, source, test, and external standards tracks plus independent challenge", "observation": "Yes: T007/T008 are recorded complete; both modules and focused tests exist.", "implication": "Do not rebuild generic renderers.", "status": "resolved"},
+    {"id": "R2", "question": "Is the requested findings-to-human path wired?", "method": "Repository-wide static search and publication/test inspection", "observation": "No implemented findings adapter/profile or concrete renderer-to-publication path was found; producer.json declares only the logical profile name.", "implication": "Add the adapter/profile/wiring and concrete end-to-end tests.", "status": "resolved"},
+    {"id": "R3", "question": "What limits the lean design?", "method": "Read renderer schemas/implementations and external CommonMark, OWASP, WCAG, JSON Schema guidance", "observation": "Use a typed intermediate model, narrow Markdown, fixed-tag HTML, explicit URL/redaction/accessibility policies, and separate descriptors.", "implication": "No arbitrary recursive JSON or raw markup path.", "status": "resolved"}
+  ],
+  "discoveredRequirements": [
+    {"id": "DR1", "requirement": "Every generated item must have a nonempty accessibleLabel and every human-critical finding field must appear in the mapping matrix or be explicitly omitted with rationale.", "evidence": "csm-render-model.schema.json and critique finding 6/12.", "status": "required"},
+    {"id": "DR2", "requirement": "Nested challenge/dissent/verification rationale, command, and result fields marked redacted must not be emitted as ordinary text.", "evidence": "Findings schema redaction fields and critique finding 10.", "status": "required"},
+    {"id": "DR3", "requirement": "Projection IDs and generatedAt must be explicit/injected for deterministic output; Markdown and HTML descriptors are separate.", "evidence": "Renderer APIs and critique findings 4/5.", "status": "required"},
+    {"id": "DR4", "requirement": "Any csm-review/lib import of shared renderers must be included in pack-bootstrap mapping and verified by payload drift/import-closure checks.", "evidence": "pack-bootstrap.mjs mapping and critique finding 3.", "status": "required"}
+  ],
+  "design": {
+    "dataFlow": "validated csm-review-findings/1 -> validate source identity/redaction -> csm-review/lib/findings-render.mjs normalized typed model -> existing csm-render-profile/1 runtime profile mapped from logical csm-review-human/1 -> format-specific projection descriptor -> renderMarkdown or renderHtml -> publish callback/storage",
+    "profileIdentity": {"logical": "csm-review-human/1", "runtimeSchema": "csm-render-profile/1", "rule": "Do not put csm-review-human/1 in projection.profile until the generic runtime explicitly supports that identity; the lean path retains it in the producer contract and maps it to the validated runtime profile."},
+    "informationArchitecture": [
+      "Summary: source artifact, verification status, overall finding count, severity counts, repository commit",
+      "Findings: one deterministic table/list row per finding with ID, severity, confidence, evidence class, status, and title",
+      "Finding detail: locations, anchor/CVSS metadata where present, explanation, impact, remediation, and fix actions",
+      "Review evidence: challenge verdicts and dissent presence/status only; redacted rationale/command/result values are marker or omitted by policy",
+      "Provenance: source artifact/run/owner/digest, renderer/profile identity/digests, generatedAt, untrusted-presentation status"
+    ],
+    "mappingRule": "The adapter is the sole owner of field selection, ordering, redaction treatment, and accessible labels. It may use table/list/text items; links and code items are not used for findings fields unless a fixture proves a field-specific need.",
+    "determinism": "Require injected generatedAt and projectionId seed/explicit ID; sort findings by the authoritative sortKey and preserve stable location/challenge order. Use separate descriptor objects for Markdown and HTML.",
+    "security": "Validate findings before mapping; render values only as escaped typed text/list/table content; reject raw HTML/Markdown interpretation; retain HTML fixed allowlists/CSP/URL policy; never expose redacted nested values as ordinary text.",
+    "rollback": "Before integration, preserve the existing generic renderer/publication behavior. If the findings path fails, remove only the new csm-review adapter/profile/entrypoint/tests and restore the generated payload from the previous canonical pack after parity checks; do not alter canonical findings discovery or legacy history."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T003", "T004", "T005"],
+    "parallelGroups": {"G1": ["T001", "T002"], "G2": ["T003"], "G3": ["T004"], "G4": ["T005"]},
+    "edges": [
+      {"from": "T001", "to": "T003", "reason": "Mapping matrix and runtime profile identity must be fixed before adapter implementation."},
+      {"from": "T002", "to": "T004", "reason": "Concrete publication wiring must use corrected renderer metadata/redaction behavior."},
+      {"from": "T003", "to": "T004", "reason": "Publication entrypoint consumes the adapter output."},
+      {"from": "T004", "to": "T005", "reason": "End-to-end tests exercise the completed concrete path."},
+      {"from": "T004", "to": "T005", "reason": "Documentation, bootstrap synchronization, and final gates follow the tested concrete path."
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "pending",
+      "title": "Define findings projection mapping and explicit profile identity bridge",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": ["csm-review/producer.json", "csm-review/lib/human-profile.mjs", "csm-review/test/findings-render-profile.test.mjs", "tests/fixtures/review-json/"],
+      "notInScope": ["lib/render-markdown/index.mjs", "lib/render-html/index.mjs", "canonical findings schema semantics", "legacy Markdown history"],
+      "spikeCandidate": "Resolve whether the existing csm-render-model/1 can represent all required finding fields using fixed table/list/text items. Use copied synthetic fixtures only; if not, document the smallest typed-model extension before T003.",
+      "actions": [
+        "Define the logical csm-review-human/1 producer profile name separately from the runtime csm-render-profile/1 identity required by validateRenderProfile.",
+        "Create csm-review/lib/human-profile.mjs as the single canonical profile module; do not create a parallel JSON profile file.",
+        "Choose a fixed profile with Summary, Findings, Detail, Review Evidence, and Provenance sections; define exact item paths, ordering, labels, accessible labels, and marker/omit redaction policy.",
+        "Create representative valid fixtures for empty, one-finding, multiple findings, retracted finding, challenged/dissenting finding, verification data, CVSS data, and redacted nested rationale/command/result values.",
+        "Write a field mapping matrix covering source artifact metadata, verificationStatus, redaction, ownership, source commit, every finding field retained, and explicit omissions with rationale."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 csm-review/test/findings-render-profile.test.mjs",
+      "validation": ["Profile validates through validateRenderProfile/createRenderModel using runtime profile identity csm-render-profile/1.", "Empty input has an explicit Summary/status model and does not trigger a generic no-op failure.", "Mapping fixture is deterministic under reordered JSON object keys."],
+      "acceptanceEvidence": "Profile/mapping fixture, identity bridge decision, field mapping matrix, and test output recorded in the build plan evidence.",
+      "repairAttempts": 0,
+      "recoveryNote": "If partially written, keep only the profile/fixture changes; inspect the mapping matrix and profile identity test before resuming. No shared renderer files should be touched."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "pending",
+      "title": "Fix HTML omit redaction and generatedAt consistency",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": ["lib/render-html/index.mjs", "tests/render-html.test.mjs"],
+      "notInScope": ["Markdown renderer behavior", "findings adapter", "publication API redesign"],
+      "spikeCandidate": "None; both defects are directly evidenced by existing implementation and tests.",
+      "actions": [
+        "Make renderItem omit the redacted item label and dd entirely when the validated model/profile semantics specify redaction=omit; keep marker items visibly labeled [REDACTED].",
+        "Resolve generatedAt once from the projection input and use that value consistently in the returned metadata and projection descriptor.",
+        "Add regression fixtures for omit vs marker and a projection timestamp different from the default function parameter."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/render-html.test.mjs",
+      "validation": ["No raw executable tags/attributes are emitted.", "Descriptor and returned metadata generatedAt values are equal.", "Existing CSP, URL, ID, digest, and accessibility tests remain green."],
+      "acceptanceEvidence": "Focused test output and exact before/after behavior notes for omit, marker, and generatedAt.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from render-html.test.mjs if the implementation is complete but a regression is failing; do not modify the adapter until this focused gate is green."
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "pending",
+      "title": "Implement the csm-review findings-to-render-model adapter",
+      "dependsOn": ["T001"],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": ["csm-review/lib/findings-render.mjs", "csm-review/lib/human-profile.mjs", "csm-review/test/findings-render.test.mjs"],
+      "notInScope": ["generic renderer internals", "raw JSON recursive rendering", "Markdown parsing", "HTML publication", "changes to findings validator semantics"],
+      "spikeCandidate": "Use only the T001 synthetic fixtures. If a human-critical field cannot be represented by text/list/table, stop and record the smallest model-contract extension rather than falling back to generic JSON serialization.",
+      "actions": [
+        "Require a validated csm-review-findings/1 payload and assert artifact.artifactId/digest/runId/owner agree with ownership and source metadata before mapping.",
+        "Convert findings into the fixed typed model with authoritative sortKey ordering, stable locations/challenges, nonempty accessible labels, and explicit sections from T001.",
+        "Render snippets, commands, verification results, challenge rationales, and dissents according to their redaction status; never emit redacted nested content as ordinary text.",
+        "Use text/list/table kinds for findings values; do not use links for paths/anchors or code blocks for arbitrary snippets unless the mapping test proves the specific field safe and useful.",
+        "Return the model plus the source descriptor needed to construct format-specific projections without duplicating transformation logic."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 csm-review/test/findings-render.test.mjs",
+      "validation": ["Run the T001 profile test.", "Run tests/render-profile.test.mjs.", "Assert field mapping for all retained human-critical fields and explicit omissions.", "Assert key-order-independent model bytes and stable finding order."],
+      "acceptanceEvidence": "Adapter API, mapping matrix, fixture output/digest, redaction assertions, and test output.",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from the last adapter sub-action; the adapter must remain the sole mapping owner. If source identity validation is incomplete, do not wire publication."
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "pending",
+      "title": "Wire concrete Markdown and HTML projections through publication",
+      "dependsOn": ["T002", "T003"],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": ["csm-review/lib/human-projection.mjs", "csm-review/producer.json if contract mapping needs a documented field", "csm-review/test/human-projection.test.mjs"],
+      "notInScope": ["lib/publication/index.mjs redesign", "external GitHub Pages upload", "canonical artifact discovery changes", "duplicate findings mapping"],
+      "spikeCandidate": "None after T001-T003; if publication's callback return contract cannot carry the concrete renderer descriptor, stop and record the exact contract mismatch before changing shared publication.",
+      "actions": [
+        "Expose one review-owned entrypoint accepting validated findings JSON, explicit share mode, injected generatedAt, deterministic projection IDs, and optional publication settings.",
+        "Build the normalized model once through T003, then create separate Markdown and HTML projection descriptors with their own renderer identities/digests/media types/output digests while sharing source/profile/timestamp inputs.",
+        "Pass concrete renderMarkdown/renderHtml callbacks to the existing publish API; support none/markdown/html/both and retain pending/untrusted-presentation semantics.",
+        "Ensure the entrypoint does not alter machine input routing, canonical discovery, or legacy Markdown history behavior."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 csm-review/test/human-projection.test.mjs tests/publication-protocol.test.mjs tests/projection-discovery-negative.test.mjs",
+      "validation": ["share:none invokes no renderer/publication output.", "share:markdown and share:html each validate their own descriptor.", "share:both returns two format-specific descriptors with distinct renderer/media/output fields.", "Repeated calls with identical inputs, generatedAt, and projection IDs produce identical bytes/digests."],
+      "acceptanceEvidence": "Concrete entrypoint API, media descriptor examples, publication test output, and negative machine-input/discovery results.",
+      "repairAttempts": 0,
+      "recoveryNote": "If publication wiring is partially present, inspect descriptor ownership and callback return shape first; do not add a second findings transformation in this task."
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "pending",
+      "title": "Add findings projection end-to-end coverage and contract documentation",
+      "dependsOn": ["T004"],
+      "parallelGroup": "G4",
+      "risk": "standard",
+      "ownedScope": ["tests/review-render.test.mjs", "csm-review/SKILL.md", "README.md or generated contract source only if required", "bootstrap/package/** regenerated output"],
+      "notInScope": ["new renderer behavior beyond T002", "legacy Markdown conversion", "unrelated documentation cleanup", "manual edits to generated payload files"],
+      "spikeCandidate": "None; use existing bootstrap pack/check commands and synthetic review fixtures.",
+      "actions": [
+        "Add one end-to-end test from valid findings JSON through T004 to concrete Markdown and HTML output and publication storage/callback.",
+        "Assert human-visible severity, status, evidence class, locations, explanation, impact, remediation, challenge presence, retracted status, and safe redaction; assert HTML semantic structure/CSP and Markdown safe escaping.",
+        "Document the human projection entrypoint, logical csm-review-human/1 to runtime csm-render-profile/1 mapping, explicit share modes, disposable status, and source/digest behavior.",
+        "Regenerate bootstrap through the canonical packer if csm-review/lib imports shared renderers; never hand-edit generated payload files."
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/review-render.test.mjs",
+      "validation": ["node --test --test-concurrency=1 tests/render-profile.test.mjs tests/render-markdown.test.mjs tests/render-html.test.mjs", "node --test --test-concurrency=1 tests/publication-protocol.test.mjs tests/projection-discovery-negative.test.mjs", "make lint", "make fmt-check", "make check", "make test-package-index"],
+      "acceptanceEvidence": "End-to-end output fixtures/digests, documentation diff, bootstrap parity/import-closure results, and all listed gate outputs.",
+      "repairAttempts": 0,
+      "recoveryNote": "If a gate fails after bootstrap regeneration, compare canonical source and generated payload first; restore only through the packer in the future build session, never by hand."
+    }
+  ],
+  "verificationStrategy": {
+    "order": ["T001 profile/mapping test", "T002 renderer regressions", "T003 adapter test", "T004 publication/invariant tests", "T005 end-to-end test", "focused generic renderer tests", "bootstrap parity", "lint/format/check"],
+    "fastGates": ["node --test csm-review/test/findings-render-profile.test.mjs", "node --test csm-review/test/findings-render.test.mjs", "node --test tests/render-html.test.mjs", "node --test tests/review-render.test.mjs"],
+    "batchGates": ["node --test tests/publication-protocol.test.mjs tests/projection-discovery-negative.test.mjs", "make test-package-index", "make lint", "make fmt-check", "make check"],
+    "parallelSafe": ["T001 and T002 because they own disjoint files"],
+    "environmentSensitive": ["No browser is required for structural HTML tests; full assistive-technology/browser validation remains outside this plan.", "Bootstrap regeneration must run only in the build session's isolated/staged workflow and be followed by parity/import-closure checks."],
+    "requiredIndependentReview": ["T001 profile/source identity and redaction mapping", "T003 findings field preservation and redaction", "T004 separate media descriptors/publication boundary"]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "The existing generic profile model may not express rich repeated finding details without a contract extension.",
+      "Logical profile name csm-review-human/1 may be confused with runtime csm-render-profile/1 identity.",
+      "A redacted nested rationale/command/result could leak if the adapter treats schema presence as permission to display.",
+      "Using one projection descriptor for both media types will fail renderer digest/media validation.",
+      "New csm-review/lib imports may require bootstrap mapping changes and generated payload synchronization.",
+      "The existing generic HTML omit defect and timestamp inconsistency could make otherwise-correct findings output misleading."
+    ],
+    "mitigations": [
+      "Resolve fixed-vs-dynamic representation with T001 fixtures before writing the adapter; extend the model only if a specific human-critical field requires it.",
+      "Keep logical and runtime identities as explicit constants and test both descriptors.",
+      "Default redacted nested values to omitted/marker output and test absence of original content.",
+      "Construct separate Markdown and HTML descriptors from shared source/model inputs.",
+      "Regenerate with pack-bootstrap and run payload-index/import-closure checks.",
+      "Land T002 before concrete publication wiring."
+    ],
+    "rollback": "The canonical findings artifact and discovery remain unchanged. Remove only the new adapter/profile/entrypoint/tests/docs if integration fails; revert generated payload through the canonical packer after verifying the previous source/payload parity. Existing generic renderer contracts remain unchanged except the two specified HTML correctness fixes.",
+    "forwardRecovery": "If publication integration is blocked by a shared contract mismatch, preserve the adapter/model and record the exact mismatch as a blocker; do not bypass the typed model with direct JSON serialization."
+  },
+  "critiqueResolution": [
+    {"finding": "Runtime profile identity conflated with logical csm-review-human/1", "severity": "high", "resolution": "Added D2, T001 explicit identity bridge, and mapping acceptance test; runtime profile remains csm-render-profile/1 until generic support is intentionally changed.", "evidence": "lib/render-model/index.mjs:116-120; csm-review/producer.json:12"},
+    {"finding": "Raw findings JSON cannot be validated directly as a render profile source schema", "severity": "high", "resolution": "T001/T003 require an adapter-owned normalized typed model and forbid static /findings/N profile paths or raw schema-document selection.", "evidence": "lib/render-model/index.mjs:151-174,183-199"},
+    {"finding": "Bootstrap closure could miss renderer dependencies", "severity": "high", "resolution": "T005 explicitly regenerates and validates pack mapping, payload parity, and import closure.", "evidence": "scripts/pack-bootstrap.mjs mapping and existing bootstrap tests"},
+    {"finding": "Markdown and HTML require separate descriptors", "severity": "high", "resolution": "D4 and T004 require one descriptor per media type with shared source/profile/timestamp but distinct renderer/media/output fields.", "evidence": "lib/publication/index.mjs:581-604"},
+    {"finding": "Determinism and generatedAt were underspecified", "severity": "high", "resolution": "T004 requires injected generatedAt and deterministic projection IDs; T002 fixes HTML timestamp consistency; T004 repeats identical-input assertions.", "evidence": "Renderer APIs and projection descriptor validation"},
+    {"finding": "Human-critical field preservation was not measurable", "severity": "high", "resolution": "T001 requires a complete mapping matrix and representative fixtures; T003/T005 assert all retained fields and explicit omissions.", "evidence": "csm-review/schemas/csm-review-findings.schema.json:52-150"},
+    {"finding": "Nested redacted values and accessibility needed explicit tests", "severity": "medium", "resolution": "DR1/DR2 and T003/T005 require accessible labels, semantic field visibility, and absence of original redacted content.", "evidence": "csm-render-model schema and findings schema"},
+    {"finding": "Rollback and concrete acceptance signals were missing", "severity": "medium", "resolution": "Every task now has an exact command, anti-scope, recovery note, and the plan includes generated-payload rollback/forward-recovery rules.", "evidence": "Numbered Plan and Risks And Recovery"}
+  ],
+  "journal": [
+    {"sequence": 0, "timestamp": "2026-08-29T07:52:04Z", "cycle": 0, "transition": "INTAKE -> DISCOVER", "tasks": [], "evidence": "User requested a plan for the lean findings-rendering approach; repository pinned and existing untracked artifacts preserved.", "nextState": "DISCOVER"},
+    {"sequence": 1, "timestamp": "2026-08-29T07:55:00Z", "cycle": 0, "transition": "DISCOVER -> RESEARCH", "tasks": [], "evidence": "Existing deep research, migration plan, renderer implementations, schemas, tests, and publication seam inspected.", "nextState": "RESEARCH"},
+    {"sequence": 2, "timestamp": "2026-08-29T07:58:00Z", "cycle": 0, "transition": "RESEARCH -> DRAFT", "tasks": [], "evidence": "Uncertainty scout resolved profile identity, dynamic findings mapping, separate descriptors, deterministic IDs/timestamps, redaction, and bootstrap requirements.", "nextState": "DRAFT"},
+    {"sequence": 3, "timestamp": "2026-08-29T08:00:00Z", "cycle": 0, "transition": "DRAFT -> CRITIQUE", "tasks": [], "evidence": "Draft contained six dependency-ordered tasks reusing existing renderer APIs.", "nextState": "CRITIQUE"},
+    {"sequence": 4, "timestamp": "2026-08-29T08:05:00Z", "cycle": 0, "transition": "CRITIQUE -> REMEDIATE", "tasks": [], "evidence": "Independent critique identified identity conflation, raw-schema path invalidity, bootstrap closure, separate descriptors, determinism, redaction, accessibility, and rollback omissions.", "nextState": "REMEDIATE"},
+    {"sequence": 5, "timestamp": "2026-08-29T08:10:00Z", "cycle": 1, "transition": "REMEDIATE -> VERIFY", "tasks": [], "evidence": "Plan revised with explicit identity bridge, adapter-owned mapping, exact commands, separate descriptors, redaction/accessibility tests, and recovery rules.", "nextState": "VERIFY"},
+    {"sequence": 6, "timestamp": "2026-08-29T08:12:00Z", "cycle": 1, "transition": "VERIFY -> SAVED", "tasks": [], "evidence": "Plan schema, task pending statuses, applicability obligations, acceptance mapping, critique resolution, and protected-state scope reviewed; implementation not started.", "nextState": "SAVED"}
+  ],
+  "completionReview": null,
+  "inputs": [
+    {"artifactId": "art-research-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f", "schema": "csm-research/1", "digest": "sha256:c0282a492d8098fe000bc432e27d5e50e625b745760761ce5317221030cb46c2", "owner": "csm-deep-research", "path": ".agents/research/2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json"}
+  ],
+  "provenance": {"producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-29T08:12:00Z", "sourceDigests": ["sha256:c0282a492d8098fe000bc432e27d5e50e625b745760761ce5317221030cb46c2"]},
+  "projection": {"profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only"}
+}

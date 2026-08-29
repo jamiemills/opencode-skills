@@ -55,6 +55,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-27-csm-orchestrate-remediation-csm.json` — 2026-08-27 — remediate csm-orchestrate approach-review findings — status: complete
 - `2026-08-28-min-viable-autonomy-csm.json` — 2026-08-28 — minimum viable safe autonomy for csm-orchestrate — status: complete
 - `2026-08-28-autonomy-safety-hardening-csm.json` — 2026-08-28 — close autonomy safety gaps from adversarial research — status: ready
+- `2026-08-29-findings-human-rendering-csm.json` — 2026-08-29 — complete human-facing csm-review findings Markdown/HTML projections — status: ready
 
 ## docs/
 
