@@ -1070,8 +1070,8 @@
       },
       {
         "path": "payload/skills/csm-review/lib/findings-render.mjs",
-        "sha256": "259e858753afe62fcab6bd7d0af07139a85023b22ba1afd4b23ce36e0133b572",
-        "bytes": 5060,
+        "sha256": "2c814c14f493de57f424db736b8434f39b6313d68d174b4ebfb3647c54eaf666",
+        "bytes": 5410,
         "mode": "0644"
       },
       {
@@ -1082,8 +1082,8 @@
       },
       {
         "path": "payload/skills/csm-review/lib/human-profile.mjs",
-        "sha256": "5b0ae9767680a7691fef6caf9e5290ad319c724405fd280bb711cddc9ab44dd7",
-        "bytes": 6358,
+        "sha256": "f12db318b4523db1c0ea16f6136098bd9cba3cfee243d4ed543e5adf7e0c39fc",
+        "bytes": 8856,
         "mode": "0644"
       },
       {
@@ -1865,8 +1865,8 @@
       },
       {
         "path": "payload/lib/render-html/index.mjs",
-        "sha256": "d0decdd579c46af2e673034cd0ac7ab98b11e2bf36451547b1a219f3a44ebac8",
-        "bytes": 14996,
+        "sha256": "dd726c8e94abebb69f9f2a658effe9e2c9f314ee64cd7164216318f406914541",
+        "bytes": 15085,
         "mode": "0644"
       },
       {

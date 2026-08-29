@@ -50,12 +50,38 @@ test("fixed human profile validates and creates an ordered model", async () => {
     [
       ["summary", ["/artifact/artifactId", "/verificationStatus/status", "/source/commitSha"]],
       ["findings", ["/findings"]],
-      ["detail", ["/source/repository", "/artifact/createdAt", "/sortOrder/algorithm"]],
+      [
+        "detail",
+        [
+          "/source/repository",
+          "/artifact/createdAt",
+          "/sortOrder/algorithm",
+          "/sortOrder/stable",
+          "/schema",
+          "/schemaRevision",
+        ],
+      ],
       [
         "review-evidence",
-        ["/verificationStatus/unresolved", "/redaction/redactedFields", "/redaction/status"],
+        [
+          "/verificationStatus/unresolved",
+          "/redaction/redactedFields",
+          "/redaction/status",
+          "/redaction/rules",
+        ],
       ],
-      ["provenance", ["/artifact/runId", "/artifact/owner", "/artifact/digest"]],
+      [
+        "provenance",
+        [
+          "/artifact/runId",
+          "/artifact/owner",
+          "/artifact/digest",
+          "/ownership/collisionPolicy",
+          "/ownership/terminalPolicy",
+          "/projection/authority",
+          "/projection/formats",
+        ],
+      ],
     ],
   );
   assert.equal(result.model.sections[1].items[0].value.length, 2);

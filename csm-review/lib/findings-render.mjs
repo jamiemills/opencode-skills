@@ -92,6 +92,8 @@ function normalizedSource(payload) {
     right.sortKey.localeCompare(left.sortKey),
   );
   return {
+    schema: payload.schema,
+    schemaRevision: payload.schemaRevision,
     artifact: {
       artifactId: payload.artifact.artifactId,
       owner: payload.artifact.owner,
@@ -114,6 +116,14 @@ function normalizedSource(payload) {
       redactedFields: payload.redaction.redactedFields,
     },
     sortOrder: { ...payload.sortOrder },
+    ownership: {
+      collisionPolicy: payload.ownership.collisionPolicy,
+      terminalPolicy: payload.ownership.terminalPolicy,
+    },
+    projection: {
+      authority: payload.projection?.authority ?? "json",
+      formats: [...(payload.projection?.formats ?? [])],
+    },
   };
 }
 
