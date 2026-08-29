@@ -84,6 +84,29 @@ Every finding and every verification records the rung it ran at. Posture is sele
 - Hands off: findings feed a future explicit csm-plan or csm-grill invocation (human-mediated); a human may separately and explicitly dispatch csm-review-python for Python doctrine analysis, and that analyzer owns its `.agents/doctrine/` report write.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload, csm-make-tests, csm-ddd, csm-autoresearch
 
+## Human Findings Projection
+
+The human projection entrypoint is `csm-review/lib/human-projection.mjs` and
+`publishHumanFindings`. It accepts the validated `csm-review-findings/1` JSON
+artifact, an explicit `share` mode (`none`, `markdown`, `html`, or `both`), an
+injected UTC `generatedAt`, and an injected projection ID or pair of format
+specific projection IDs. It maps the JSON once through the typed findings
+render model, then uses the existing Markdown and HTML renderers through the
+existing publication boundary.
+
+The producer-facing logical profile is `csm-review-human/1`; at runtime it is
+mapped to the validated renderer profile identity `csm-render-profile/1`.
+Markdown and HTML always have separate projection descriptors because their
+media types, renderer identities/digests, and output digests differ. Both
+descriptors retain the canonical source artifact, source digest, run, owner,
+profile digest, generated timestamp, and pending approval state.
+
+Human output is `untrusted-presentation` and disposable. It is not a machine
+input, replacement source, or approval. The JSON findings artifact remains the
+only authority; legacy Markdown remains history-only. Redacted nested
+challenge, dissent, and verification values are omitted or represented only by
+the `[REDACTED]` marker according to the mapping policy.
+
 ## Durable Artifact Identity
 
 Each review invocation uses one immutable validated `run-id`, supplied by the caller or generated once at INTAKE as `yyyymmddthhmmssz-<12 lowercase hex>`; accepted IDs match `^[a-z0-9][a-z0-9-]{7,63}$`. The report records the ID and binds the reviewed git root, normalized repository slug, artifact type, and run ID. Date and slug alone never establish ownership.

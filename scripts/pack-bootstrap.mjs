@@ -234,6 +234,12 @@ const mapping = {
       destDir: join("payload", "lib", "compatibility-runtime"),
     },
     { srcDir: join("lib", "publication"), destDir: join("payload", "lib", "publication") },
+    { srcDir: join("lib", "render-model"), destDir: join("payload", "lib", "render-model") },
+    {
+      srcDir: join("lib", "render-markdown"),
+      destDir: join("payload", "lib", "render-markdown"),
+    },
+    { srcDir: join("lib", "render-html"), destDir: join("payload", "lib", "render-html") },
     {
       srcDir: join("lib", "artifact-resolver"),
       destDir: join("payload", "lib", "artifact-resolver"),
