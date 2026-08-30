@@ -5,6 +5,43 @@ description: Upload evidence to a GitHub Pages demo site. Never pushes elsewhere
 
 # CSM Upload
 
+## Progress Tracker
+
+Progress tracking is ON by default for every invocation. Create and maintain a
+versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+artifacts, permissions, receipts, and evidence and never replaces them.
+Declare 3–6 milestones before work begins, each with a positive weight; weights
+must total exactly 100%.
+
+```text
+TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
+Milestones
+[Validate ✓ 25%] [Scan ✓ 25%] [Publish ▶ 30%] [Receipt ○ 20%]
+```
+
+Calculate `completed_weight + active_weight × verified_fraction`; retries retain
+one logical item and never add credit. Unknown, skipped, cancelled, blocked,
+failed, and incomplete work is never silently complete. If scope changes,
+record old/new scope, reason, and revised weights before recalculating.
+If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and
+keep progress indeterminate.
+
+Render one overall horizontal bar and one milestone row at declaration,
+meaningful transitions, scope changes, and terminal completion. Use this
+skill's lifecycle: validate (25%), scan (25%), publish (30%), receipt (20%).
+Retries retain one logical item and never add credit. Unknown, blocked, failed,
+incomplete, and unestimated work remains indeterminate. Scope changes record
+old/new scope, reason, and revised weights. `--quiet-progress` suppresses
+tracker text only; it never disables JSON tracking, hides blockers, or changes
+publication authority.
+
+Upload progress output is limited to bounded, redacted file and publication
+status summaries. Never include credentials, GitHub tokens, config contents,
+private repository data, local absolute paths, binary contents, session data, or
+publication secrets. Progress never claims a push, deployment, or URL
+verification without the authoritative publication receipt and separate
+evidence. Progress cannot authorize or perform publication side effects.
+
 ## Interface
 
 - Consumes: validated JSON evidence/publication descriptors and referenced local binary evidence, plus the `~/.agents/csm-upload.json` configuration; Markdown/HTML projections are rejected as machine inputs

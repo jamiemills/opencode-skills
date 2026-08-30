@@ -110,6 +110,57 @@ test("reordered finding object keys produce identical model bytes", async () => 
   );
 });
 
+test("preserves every retained human finding field in the normalized row", async () => {
+  const payload = await validFixture();
+  payload.findings[0] = {
+    ...payload.findings[0],
+    category: "security",
+    anchorRef: "CWE-20",
+    locations: [
+      { path: "src/app.js", line: 12, symbol: "run" },
+      { path: "src/other.js", line: 19 },
+    ],
+    quotedSnippets: ["return safeValue;", "return userValue;"],
+    fixActions: [
+      { actionId: "fix-two", order: 1, action: "Test", verification: "private command" },
+      { actionId: "fix-one", order: 0, action: "Validate", verification: "private command" },
+    ],
+    verification: {
+      method: "targeted test",
+      command: "private",
+      result: "private",
+      redacted: true,
+    },
+    dissents: [
+      { dissentId: "dissent-one", author: "agent-reviewer", rationale: "private", redacted: true },
+    ],
+    corroborators: ["agent-reviewer"],
+    cvss: { score: 7.5, vector: "CVSS:4.0/AV:N", assumptions: ["test"] },
+    statusNote: "status note",
+  };
+  const result = await createFindingsRenderModel(payload);
+  const row = result.model.sections.find((section) => section.id === "findings").items[0].value[0];
+  assert.equal(row.category, "security");
+  assert.equal(row.anchor, "CWE-20");
+  assert.equal(row.locations, "src/app.js:12 (run); src/other.js:19");
+  assert.equal(row.quotedSnippets, "return safeValue;; return userValue;");
+  assert.equal(
+    row.fixActions,
+    "fix-one: Validate (verify: [REDACTED]); fix-two: Test (verify: [REDACTED])",
+  );
+  assert.equal(row.verificationMethod, "targeted test");
+  assert.equal(row.verificationCommand, "[REDACTED]");
+  assert.equal(row.verificationResult, "[REDACTED]");
+  assert.equal(row.dissentPresence, "1 present (dissent-one)");
+  assert.equal(row.dissentRationale, "[REDACTED]");
+  assert.equal(row.corroborators, "agent-reviewer");
+  assert.equal(row.challengeVerdict, "challenge-one: agree");
+  assert.equal(row.challengeRationale, "[REDACTED]");
+  assert.equal(row.cvss, "score=7.5; vector=CVSS:4.0/AV:N; assumptions=test");
+  assert.equal(row.statusNote, "status note");
+  assert.ok(!result.sourceBytes.includes("private command"));
+});
+
 test("empty validated findings retain the explicit summary shape", async () => {
   const payload = await validFixture();
   payload.findings = [];

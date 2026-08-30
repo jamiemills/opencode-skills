@@ -5,9 +5,13 @@ description: Deep research, R&D and validation queries answered with one exhaust
 
 # csm-deep-research
 
-## Optional Progress Tracker
+## Progress Tracker
 
-The progress tracker is OFF by default. Include no tracker text in intermediate or final output unless the user explicitly requests progress tracking or supplies `--progress`; otherwise preserve existing output unchanged. When enabled, declare 3–6 skill-appropriate milestones and expected weights totaling 100% before work begins.
+Progress tracking is ON by default for every invocation. Create and maintain a
+versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+artifacts, permissions, receipts, and evidence and never replaces them.
+Declare 3–6 milestones before work begins, each with a positive weight; weights
+must total exactly 100%.
 
 Render one overall horizontal bar and one horizontal milestone row as work advances:
 
@@ -18,6 +22,14 @@ Milestones
 ```
 
 The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`; `verified_fraction` means the honestly estimated fraction of the active workflow milestone supported by completed named checkpoints, not evidentiary confidence. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. Map each milestone to named states, deliverables, or acceptance checkpoints. On challenge downgrade, scope expansion, or a killed draft, discarded work loses credit and progress may remain unchanged or decrease. Render updates at declaration, meaningful state transitions, scope changes, and terminal completion only. This supplements, never replaces, the skill state machine, claim verdicts, acceptance evidence, and final result.
+Declare milestones for this lifecycle, for example question (20%), research
+(35%), challenge (25%), and finding (20%). Only completed named checkpoints earn
+credit; retries retain one logical item. Unknown, blocked, failed, incomplete,
+or discarded work is not complete. Scope changes record old/new scope, reason,
+and revised weights. `--quiet-progress` suppresses only tracker text, never
+JSON state, blockers, receipts, or required output.
+Unknown, skipped, cancelled, blocked, failed, and incomplete work is never
+silently complete.
 
 Deep research, R&D, and validation queries answered with one dated, exhaustively cited research finding. The skill is a standalone orchestration state machine: it takes a research question, classifies it on two axes (complexity tier and source mode), dispatches parallel read-only expert researchers, synthesizes a single progressive-disclosure finding, adversarial-challenges it with an independent agent, judges it against a rubric, remediates what fails, verifies tier-scaled, and saves the finding into the research corpus. It is instructions-only — the runtime implements nothing, plans nothing, and builds nothing in the researched repository.
 

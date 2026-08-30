@@ -5,6 +5,32 @@ description: Use ONLY to execute a canonical csm-grill/1 approach through bounde
 
 # CSM Orchestrate
 
+## Progress Tracker
+
+Progress tracking is ON by default for every invocation. Create and maintain a
+versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+artifacts, permissions, receipts, and evidence and never replaces them.
+Declare 3–6 milestones before work begins, each with a positive weight; weights
+must total exactly 100%.
+
+Render one overall horizontal bar and one horizontal milestone row as work advances:
+
+```text
+TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
+Milestones
+[Research ✓ 20%] [Plan ✓ 15%] [Build ▶ 45%] [Verify ○ 20%]
+```
+
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. This supplements, never replaces, the orchestration state machine, durable cursor, telemetry, evidence gates, receipts, and final review.
+Declare milestones for this lifecycle, for example materialize (20%), dispatch
+(30%), reconcile (30%), and review (20%). Only completed named checkpoints earn
+credit; retries retain one logical item. Unknown, blocked, failed, incomplete,
+or undispatched work is not complete. Scope changes record old/new scope,
+reason, and revised weights. `--quiet-progress` suppresses only tracker text,
+never JSON state, blockers, receipts, or required output.
+Unknown, skipped, cancelled, blocked, failed, and incomplete work is never
+silently complete.
+
 `csm-orchestrate` is the outer-loop controller for an agreed canonical
 `csm-approach/1` JSON artifact. It compiles approach phases into immutable thin
 slices, selects only declared conditional routes, invokes siblings through an

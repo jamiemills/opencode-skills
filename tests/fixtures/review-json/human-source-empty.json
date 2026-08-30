@@ -7,8 +7,15 @@
     "createdAt": "2026-08-25T12:00:00Z"
   },
   "source": { "commitSha": "abcdef1234567", "repository": "empty-demo" },
+  "schema": "csm-review-findings/1",
+  "schemaRevision": 1,
   "findings": [],
   "verificationStatus": { "status": "VERIFIED", "unresolved": [] },
   "redaction": { "status": "passed", "rules": ["secrets"], "redactedFields": 0 },
-  "sortOrder": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true }
+  "sortOrder": { "algorithm": "severity:confidence:evidenceClass:id", "stable": true },
+  "ownership": {
+    "collisionPolicy": "reject-owner-mismatch-or-terminal",
+    "terminalPolicy": "immutable"
+  },
+  "projection": { "authority": "json", "formats": ["markdown", "html"] }
 }

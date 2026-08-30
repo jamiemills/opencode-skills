@@ -821,6 +821,51 @@ function checkPayloadDrift(rootDir) {
   return issues;
 }
 
+function progressTrackerSection(content) {
+  const lines = splitLines(content);
+  const inFence = fenceMap(lines);
+  const start = lines.findIndex((line, i) => !inFence[i] && line === "## Progress Tracker");
+  if (start < 0) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i += 1)
+    if (!inFence[i] && /^##\s/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  return lines.slice(start, end).join("\n");
+}
+
+function checkProgressTrackerContracts(rootDir) {
+  const manifest = loadSkillManifest(rootDir);
+  if (manifest.error) return [manifest.error];
+  const issues = [];
+  for (const skill of manifest.skills ?? []) {
+    const source = readOrNull(path.join(rootDir, skill, "SKILL.md"));
+    const payload = readOrNull(
+      path.join(rootDir, "bootstrap", "package", "payload", "skills", skill, "SKILL.md"),
+    );
+    if (source === null || payload === null) {
+      issues.push(`${skill}: root/payload SKILL.md missing`);
+      continue;
+    }
+    const rootSection = progressTrackerSection(source);
+    const payloadSection = progressTrackerSection(payload);
+    if (rootSection === null) issues.push(`${skill}: missing real Progress Tracker heading`);
+    else {
+      if (rootSection !== payloadSection) issues.push(`${skill}: root/payload tracker drift`);
+      for (const phrase of [
+        "Progress tracking is ON by default",
+        "csm-progress/1",
+        "Declare 3–6 milestones",
+        "TASK PROGRESS  not estimated",
+        "--quiet-progress",
+      ])
+        if (!rootSection.includes(phrase)) issues.push(`${skill}: tracker missing ${phrase}`);
+    }
+  }
+  return issues;
+}
+
 // DEFERRED-citation rule (journal-learnings T004): task lines marked
 // `[blocked] DEFERRED` must carry a `[DEF:<slug>]` citation matching an ID in
 // the deferred ledger (.agents/docs/deferred.md). Non-COMPLETE plans hard-fail
@@ -1614,6 +1659,8 @@ function main() {
   for (const issue of payloadDriftIssues) {
     check(false, `payload drift: ${issue}`);
   }
+  for (const issue of checkProgressTrackerContracts(root))
+    check(false, `progress tracker contract: ${issue}`);
   for (const issue of checkCommittedPayloadIndex(root)) check(false, `payload index: ${issue}`);
 
   // F-004 early-warning gate: the scan tier manifest must cover every

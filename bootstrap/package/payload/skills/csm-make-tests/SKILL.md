@@ -5,19 +5,23 @@ description: Generate a comprehensive executable test suite for any repository �
 
 # CSM Make Tests
 
-## Optional Progress Tracker
+## Progress Tracker
 
-The progress tracker is OFF by default. Include no tracker text in intermediate or final output unless the user explicitly requests progress tracking or supplies `--progress`; otherwise preserve existing output unchanged. When enabled, declare 3–6 skill-appropriate milestones and expected weights totaling 100% before work begins.
+Progress tracking is ON by default for every invocation. Create and maintain a
+versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+artifacts, permissions, receipts, and evidence and never replaces them.
+Declare 3–6 milestones before work begins, each with a positive weight; weights
+must total exactly 100%.
 
 Render one overall horizontal bar and one horizontal milestone row as work advances:
 
 ```text
 TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
 Milestones
-[Research ✓ 20%] [Plan ✓ 15%] [Build ▶ 45%] [Verify ○ 20%]
+[Audit ✓ 20%] [Design ✓ 15%] [Generate ▶ 45%] [Validate ○ 20%]
 ```
 
-The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. This supplements, never replaces, the skill state machine, acceptance evidence, and final result.
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking.
 
 Turn a repository into a fully tested one: audit what exists, capture what the code actually does, generate the tests that are missing across every layer, prove they detect faults, and keep them maintained as the code evolves. Grounded in the committed research finding `.agents/research/2026-08-22-characterization-skill-implementation-research.md` (characterization techniques, generation ladder, mutation gates, differential oracles, performance continuity).
 

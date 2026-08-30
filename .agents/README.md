@@ -56,6 +56,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-28-min-viable-autonomy-csm.json` — 2026-08-28 — minimum viable safe autonomy for csm-orchestrate — status: complete
 - `2026-08-28-autonomy-safety-hardening-csm.json` — 2026-08-28 — close autonomy safety gaps from adversarial research — status: ready
 - `2026-08-29-findings-human-rendering-csm.json` — 2026-08-29 — complete human-facing csm-review findings Markdown/HTML projections — status: ready
+- `2026-08-29-progress-tracking-runtime-csm.json` — 2026-08-29 — implement default-on cross-skill progress and orchestrator aggregation — status: blocked at commit boundary
 
 ## docs/
 
@@ -81,6 +82,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 ## research/
 
+- `2026-08-29-progress-tracking-gaps-20260829t210000z-a7c4e91b2d6f-research.json` — 2026-08-29 — progress-tracking contract, runtime, aggregation, and persistence research — status: reference
 - `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
 - `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
 - `2026-08-20-csm-deep-research-skill-research.md` — 2026-08-20 — seed research document for the csm-deep-research corpus — status: reference
@@ -142,6 +144,7 @@ still cited (the remediation plan and baselines reference them).
 
 - `2026-08-27-csm-orchestrate-remediation-build.json` — 2026-08-27 — execute csm-orchestrate remediation plan — status: complete
 - `2026-08-28-all-skills-config-production-assurance-build.json` — 2026-08-28 — execute the all-skills config production-assurance plan (T001-T010 dispatch log; per-dispatch cycles recorded in the plan journal) — status: in progress
+- `progress-tracking-runtime-20260829.json` — 2026-08-30 — csm-build checkpoint for cross-skill progress implementation — status: blocked at commit boundary
 
 ## ddd/
 

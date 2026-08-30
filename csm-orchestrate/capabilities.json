@@ -1,7 +1,7 @@
 {
   "schema": "csm-orchestrate-capabilities/1",
   "version": 1,
-  "contentDigest": "sha256:f9b23d48321de18057688c660d87ef993008eedc8b508a2dbb2a32fc008f5b28",
+  "contentDigest": "sha256:232817de8a978564e467695a2fe6dfe97b134905cc2d6cc082197b28e4a30d7f",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -12,7 +12,7 @@
     {
       "skill": "csm-autoresearch",
       "version": "1",
-      "digest": "sha256:21fa59eef2126aeca667933d799432549a00798494a4e7b8b8acfe60b1ba8127",
+      "digest": "sha256:f8bed09269041dfdb7bef9ae3fa5a066840c6b32fe9770ac98e1acecfaf9e9ee",
       "source": {
         "skillPath": "csm-autoresearch/SKILL.md",
         "producerPath": "csm-autoresearch/producer.json"
@@ -53,7 +53,7 @@
     {
       "skill": "csm-bdd-tdd",
       "version": "1",
-      "digest": "sha256:ff39fd96c1332a154f3af2ef58dbf94514374c42030d6f65964ddebb8f11b76e",
+      "digest": "sha256:93fe3707c785409ce5364dcf7fd23a0253fac6353de1d4a1426bb6ce7011647f",
       "source": { "skillPath": "csm-bdd-tdd/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "conditional",
@@ -84,7 +84,7 @@
     {
       "skill": "csm-browse",
       "version": "1",
-      "digest": "sha256:4fb4deaf2eadbe90034a9c1b58258a1c720b343071429c5b2d0ce600fb971062",
+      "digest": "sha256:f132f97e77de0ee605692e33d60635f4d3f75b787728304f8b79db1a0282ff20",
       "source": { "skillPath": "csm-browse/SKILL.md", "producerPath": null },
       "activation": { "mode": "conditional", "predicate": "explicit browser evidence task" },
       "inputs": [{ "name": "browser task", "kind": "request", "required": true }],
@@ -112,7 +112,7 @@
     {
       "skill": "csm-build",
       "version": "1",
-      "digest": "sha256:be88db5db4bbede8b0d284d0c6d61238c7b0ff1461d0cb9a1f1aa23fca6e6f1a",
+      "digest": "sha256:772836e87dab5f4c4878d787b0b5d9636e339ec83d15437b05975acd4a3f98d3",
       "source": { "skillPath": "csm-build/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "explicit",
@@ -136,7 +136,7 @@
     {
       "skill": "csm-ddd",
       "version": "1",
-      "digest": "sha256:c239a758431817a2e64db44d3efbe35c4492d2d4d164e15f007aebe440f1b7e5",
+      "digest": "sha256:68b4752297d43870bbe3d215273931c8bb37c49ff93878e39adbd5ebe6e2493f",
       "source": { "skillPath": "csm-ddd/SKILL.md", "producerPath": "csm-ddd/producer.json" },
       "activation": {
         "mode": "conditional",
@@ -167,7 +167,7 @@
     {
       "skill": "csm-deep-research",
       "version": "1",
-      "digest": "sha256:822c874f6fff205e9b202224ee7799db53403b0649b2bc2fa8adc7dc553b8442",
+      "digest": "sha256:056fc56e6fc68411e17fdcbd6a7e3373d80a02a998692bc32720b0e97bdf3760",
       "source": { "skillPath": "csm-deep-research/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "conditional",
@@ -193,7 +193,7 @@
     {
       "skill": "csm-grill",
       "version": "1",
-      "digest": "sha256:8271cdc69b67597982872f2b3fe884dcce929f26f8de5ed8a8e1846b6e452305",
+      "digest": "sha256:c4743f241e21feb21af25c0305ea76a27da49919a43cfa77c159d7025b4065c2",
       "source": { "skillPath": "csm-grill/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "explicit",
@@ -219,7 +219,7 @@
     {
       "skill": "csm-make-tests",
       "version": "1",
-      "digest": "sha256:dda9e90463f314d79c31bcf8712683186dfeb1aa53d82fa015def8811dae8a8d",
+      "digest": "sha256:e82ae68c150430a18afe343e620a83bc26bc21f5a5a26a840209616618a1dbda",
       "source": {
         "skillPath": "csm-make-tests/SKILL.md",
         "producerPath": "csm-make-tests/producer.json"
@@ -253,7 +253,7 @@
     {
       "skill": "csm-plan",
       "version": "1",
-      "digest": "sha256:58ed13e2db5c9a1946af1958689bff14fbaac795096335b6157f452d72a1ded9",
+      "digest": "sha256:9283de4d0431c3fe4882b2f65c1cfeb1e713c1d3a74b7af404f35a40ba84c564",
       "source": { "skillPath": "csm-plan/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "explicit",
@@ -279,7 +279,7 @@
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:197b72c4b9aa2a809aecbf413902f8e495cd1d4f8c5235a837a924cae9caa974",
+      "digest": "sha256:8377aa3658bdfd0cb8f281b899db80c897c9298d0124a611039f66f5c31f9478",
       "source": { "skillPath": "csm-review/SKILL.md", "producerPath": "csm-review/producer.json" },
       "activation": {
         "mode": "conditional",
@@ -310,7 +310,7 @@
     {
       "skill": "csm-review-python",
       "version": "1",
-      "digest": "sha256:982e191cbefc7b082c468a56d3c77f15f10165c018236f42c45a9f0ef5f289a4",
+      "digest": "sha256:491600512e4827d8f648a0af350e5b0d5456fcf81ac6c347e775d15527c267fe",
       "source": {
         "skillPath": "csm-review-python/SKILL.md",
         "producerPath": "csm-review-python/producer.json"
@@ -344,7 +344,7 @@
     {
       "skill": "csm-scan",
       "version": "1",
-      "digest": "sha256:445b20f813cf1b7302b3f3a4c6822fdba15b2fac56e059be3767e06ad1f9aaf9",
+      "digest": "sha256:bce6d33ba39ae138ff83a39c8b23aa2cf9f653530f7febfc664061b994e81c34",
       "source": { "skillPath": "csm-scan/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "conditional",
@@ -370,7 +370,7 @@
     {
       "skill": "csm-upload",
       "version": "1",
-      "digest": "sha256:838a4fb0f26aeead009d58ac50c2d63b4626a89dabefce1cf8005debd97f7438",
+      "digest": "sha256:06118e1d9dd0d3be5fa6549788f78e8c2f7dfd1679796508a012e3fd4031cced",
       "source": { "skillPath": "csm-upload/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "explicit",

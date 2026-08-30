@@ -148,6 +148,10 @@ const mapping = {
       destDir: join("payload", "skills", "csm-orchestrate", "schemas"),
     },
     {
+      srcDir: join("csm-orchestrate", "output"),
+      destDir: join("payload", "skills", "csm-orchestrate", "output"),
+    },
+    {
       srcDir: join("csm-bdd-tdd", "schemas"),
       destDir: join("payload", "skills", "csm-bdd-tdd", "schemas"),
     },

@@ -235,6 +235,7 @@ function routeNodes(phase, capabilities, signals, completedEffects) {
       nodeId: `node-${slug(phase.phaseId)}-${slug(capability.skill)}`,
       skill: capability.skill,
       capabilityDigest: capability.digest,
+      weight: 1,
       dependencies: Object.freeze(
         independent
           ? []

@@ -64,7 +64,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:24571d25905a8ca17e68c42374d072aa95e8e6e4cb655a1f9f28536e1240a65f"
+      "schemaContentDigest": "sha256:e82498ada2d72f1612b1370c3d4f87eecfd965367a2b48c6cd9ea587ee37a2cd"
     },
     {
       "id": "csm-orchestrate-requirement/1",
@@ -284,6 +284,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:937fd8027cf73d7ae39002303c0265979789857b91a763fe648c9c1be797703c"
+    },
+    {
+      "id": "csm-progress/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-progress.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:9cdaacbd99af91cffd90ff4e0734cf5fa496752b682185ef2bcb6ddfb3cea7c2"
     },
     {
       "id": "csm-render-profile/1",

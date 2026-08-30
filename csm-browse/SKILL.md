@@ -5,6 +5,42 @@ description: Browse pages in the chromium-vnc Docker container via CDP. Use when
 
 # CSM Browse
 
+## Progress Tracker
+
+Progress tracking is ON by default for every invocation. Create and maintain a
+versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+artifacts, permissions, receipts, and evidence and never replaces them.
+Declare 3–6 milestones before work begins, each with a positive weight; weights
+must total exactly 100%.
+
+```text
+TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
+Milestones
+[Setup ✓ 20%] [Navigate ✓ 30%] [Inspect ▶ 30%] [Evidence ○ 20%]
+```
+
+Calculate `completed_weight + active_weight × verified_fraction`; retries retain
+one logical item and never add credit. Unknown, skipped, cancelled, blocked,
+failed, and incomplete work is never silently complete. If scope changes,
+record old/new scope, reason, and revised weights before recalculating.
+If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and
+keep progress indeterminate.
+
+Render one overall horizontal bar and one milestone row at declaration,
+meaningful transitions, scope changes, and terminal completion. Use this
+skill's lifecycle: setup (20%), navigate (30%), inspect (30%), evidence (20%).
+Retries retain one logical item and never add credit. Unknown, blocked, failed,
+incomplete, and unestimated work remains indeterminate. Scope changes record
+old/new scope, reason, and revised weights. `--quiet-progress` suppresses
+tracker text only; it never disables JSON tracking, hides blockers, or changes
+the session/evidence lifecycle.
+
+Browse progress output is limited to bounded, redacted event summaries and
+artifact references. Never include passwords, cookie or token values, typed
+secrets, authorization headers, private page text, access-granting session
+identifiers, or unredacted network payloads. `--allow-sensitive` authorizes an
+operation, not progress disclosure.
+
 ## When to use this skill
 
 Use `csm-browse` whenever you need to drive a headful Chromium browser inside the `chromium-vnc` Docker container via Chrome DevTools Protocol (CDP). This covers navigating to URLs, clicking elements, typing text, pressing keys, logging into sites, taking screenshots (viewport or full-page), inspecting DOM or evaluating JavaScript, capturing console/network/performance events, and recording screencast videos.

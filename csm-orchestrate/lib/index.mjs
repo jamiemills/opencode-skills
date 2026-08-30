@@ -30,6 +30,7 @@ import {
 } from "./recovery.mjs";
 import { assertSchema } from "./contracts.mjs";
 import { validateSignal } from "./validators.mjs";
+import { createProgressTracker } from "./progress.mjs";
 
 const RUN_ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
 const slug = (value) =>
@@ -58,6 +59,7 @@ const receiptApproval = (approval) =>
         status: approval.status,
       }
     : null;
+const progressByReceipt = new WeakMap();
 
 const abortFailure = () => ({
   status: "incomplete",
@@ -317,6 +319,7 @@ async function saveCursor({
   approval,
   idempotencyKey,
   terminalIntent,
+  fencingToken,
 }) {
   if (!store) return;
   await persistCursor(
@@ -347,6 +350,7 @@ async function saveCursor({
       updatedAt: new Date(now()).toISOString(),
     }),
     store,
+    fencingToken === undefined ? {} : { fencingToken },
   );
 }
 
@@ -398,12 +402,19 @@ async function runOrchestrationInternal({
         fencingToken: null,
         ...event,
       });
+      if (progressTracker) void progressTracker.observeTelemetry().catch(() => undefined);
+      return true;
     } catch {
-      return;
+      return false;
     }
   };
+  let progressTracker = null;
   const emitTerminalReceipt = (...args) => {
     const receipt = terminalReceipt(...args);
+    if (progressTracker) {
+      progressByReceipt.set(receipt, progressTracker);
+      progressTracker.associateReceipt(receipt.receiptId, receipt.phaseId);
+    }
     emitTelemetry({
       phaseId: receipt.phaseId,
       eventType: "terminal",
@@ -411,24 +422,43 @@ async function runOrchestrationInternal({
     });
     return receipt;
   };
+  progressTracker = createProgressTracker({
+    runId,
+    graphRevision: 1,
+    store: cursorStore,
+    now: () => new Date(now()).toISOString(),
+  });
   if (!host || typeof host.invokeSiblingSkill !== "function")
-    return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
-      reason: "unavailable-host",
-    });
+    return await (async () => {
+      await progressTracker.persist();
+      return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
+        reason: "unavailable-host",
+      });
+    })();
   if (
     !cursorStore ||
     typeof cursorStore.saveCursor !== "function" ||
     typeof cursorStore.loadCursor !== "function"
-  )
+  ) {
+    await progressTracker.persist();
     return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
       reason: "durable-cursor-required",
     });
+  }
   const graph = await compileApproach(approach, {
     capabilities,
     signals,
     parentPhaseId,
     phaseIdOverride,
   });
+  progressTracker = createProgressTracker({
+    runId,
+    graphRevision: graph.graphRevision,
+    store: cursorStore,
+    now: () => new Date(now()).toISOString(),
+  });
+  await progressTracker.reload();
+  await progressTracker.materialize(graph.phases);
   const adapter = createHostInvocationAdapter({
     host,
     capabilities,
@@ -445,11 +475,18 @@ async function runOrchestrationInternal({
     route: graph.phases.flatMap((phase) => phase.routeNodes),
     evaluation: { signals, technicalGate, functionalGate },
   });
-  if (!preflight.enabled)
+  if (!preflight.enabled) {
+    for (const progressItem of progressTracker.snapshot.items)
+      if (progressItem.state === "pending" || progressItem.state === "active")
+        await progressTracker.update(progressItem.itemId, {
+          state: "blocked",
+          blocker: { code: "AUTONOMY_PREFLIGHT", message: "autonomy preflight blocked execution" },
+        });
     return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
       reason: "autonomy-preflight-blocked",
       missing: preflight.missing,
     });
+  }
   let dispatchedSteps = 0;
   const dispatchBlocked = () =>
     signal?.aborted ? abortFailure() : dispatchedSteps >= maxSteps ? stepCapFailure() : null;
@@ -467,6 +504,7 @@ async function runOrchestrationInternal({
         childRunId,
       });
       fencingToken = claim?.fencingToken ?? 1;
+      progressTracker.setFencingToken(fencingToken);
     }
     return cursorStore.createDispatchIntent(cursorId, childRunId, fencingToken);
   };
@@ -546,6 +584,7 @@ async function runOrchestrationInternal({
       let phaseFunctional = [];
       let phaseFailure = null;
       const executeNode = async (node) => {
+        const progressId = progressTracker.itemId(phase.phaseId, node.nodeId);
         const cursorId = `cursor-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.nodeId)}`;
         const savedCursor = await loadCursor(cursorId, cursorStore, {
           runId,
@@ -613,7 +652,7 @@ async function runOrchestrationInternal({
           timeoutMs,
           cancellation: { requested: false },
           retry: {
-            attempt: savedCursor?.attempt ?? 0,
+            attempt: savedCursor?.attempt || 1,
             idempotencyKey:
               savedCursor?.idempotencyKey ?? `${phase.idempotency.key}:${node.nodeId}`,
           },
@@ -677,7 +716,7 @@ async function runOrchestrationInternal({
           phase,
           node,
           childRunId,
-          attempt: 0,
+          attempt: savedCursor?.attempt || 1,
           state: "dispatching",
           store: cursorStore,
           now,
@@ -699,6 +738,11 @@ async function runOrchestrationInternal({
         if (!result) {
           const blocked = dispatchBlocked();
           if (blocked) return { node, approval, failure: blocked };
+          await progressTracker.update(progressId, {
+            state: "active",
+            childRunId,
+            attempt: savedCursor?.attempt || 1,
+          });
           emitTelemetry({
             phaseId: phase.phaseId,
             edgeId: request.edgeId,
@@ -716,7 +760,7 @@ async function runOrchestrationInternal({
           result = capOutputSize(await invokeAdapter(request, cursorId));
           await resolveDispatchIntent(dispatchIntent, result.status);
         }
-        let attempt = savedCursor?.attempt ?? 0;
+        let attempt = savedCursor?.attempt || 1;
         let invocationChildRunId = childRunId;
         while (result.status === "failed" || result.status === "incomplete") {
           const decision = retryDecision({
@@ -763,6 +807,11 @@ async function runOrchestrationInternal({
               attempt,
               idempotencyKey: retryIdempotencyKey,
             },
+          });
+          await progressTracker.update(progressId, {
+            state: "active",
+            childRunId: retryChild,
+            attempt,
           });
           emitTelemetry({
             phaseId: phase.phaseId,
@@ -850,6 +899,22 @@ async function runOrchestrationInternal({
             : { evidence: [], failures: [] };
         if (reconciliation.failures.length)
           failure = { status: "incomplete", failure: reconciliation.failures[0] };
+        if (failure)
+          await progressTracker.update(progressId, {
+            state:
+              failure.status === "blocked"
+                ? "blocked"
+                : failure.status === "failed"
+                  ? "failed"
+                  : "incomplete",
+            blocker: {
+              code: String(failure.failure?.code ?? "CHILD_FAILURE")
+                .toUpperCase()
+                .replace(/[^A-Z0-9_]/g, "_")
+                .slice(0, 64),
+              message: failure.failure?.message ?? failure.failure?.code ?? "child failed",
+            },
+          });
         const technical = [
           ...(technicalGate
             ? await technicalGate({ phase, node, result })
@@ -871,6 +936,15 @@ async function runOrchestrationInternal({
             state: "validated",
             store: cursorStore,
             now,
+          });
+        if (!failure && result.status === "completed")
+          await progressTracker.update(progressId, {
+            state: "active",
+            childRunId: invocationChildRunId,
+            attempt,
+            evidenceRefs: [...evidence, ...reconciledEvidence]
+              .map((item) => item.evidenceId)
+              .filter(Boolean),
           });
         return {
           node,
@@ -1034,6 +1108,25 @@ async function runOrchestrationInternal({
           completion: !phaseFailure && gate.status === "VERIFIED",
         });
       await assertSchema("csm-orchestrate-adversarial-review/2", review);
+      const phaseState = phaseFailure
+        ? phaseFailure.status === "blocked"
+          ? "blocked"
+          : phaseFailure.status === "failed"
+            ? "failed"
+            : "incomplete"
+        : gate.status === "BLOCKED"
+          ? "blocked"
+          : gate.status === "VERIFIED" && review.status === "ACCEPTED"
+            ? "verified"
+            : "incomplete";
+      for (const progressItem of progressTracker.snapshot.items.filter(
+        (item) => item.phaseId === phase.phaseId,
+      ))
+        if (progressItem.state === "pending" || progressItem.state === "active")
+          await progressTracker.update(progressItem.itemId, {
+            state: phaseState,
+            ...(phaseState === "verified" ? { verifiedFraction: 1 } : {}),
+          });
       phaseResults.push({ phase, gate, review });
       if (review?.reviewId) reviewIds.push(review.reviewId);
       executedPhaseIds.add(phase.phaseId);
@@ -1203,6 +1296,7 @@ async function runOrchestrationInternal({
           ],
         };
         const remediationPhase = activeGraph.phases[insertAt];
+        await progressTracker.addPhase(remediationPhase);
         remediationLineage.push({
           sourceReviewId: remediationPhase.sourceReviewId,
           findings: remediationPhase.reviewFindings,
@@ -1362,6 +1456,7 @@ async function runOrchestrationInternal({
         ],
       };
       const remediationPhase = activeGraph.phases[insertAt];
+      await progressTracker.addPhase(remediationPhase);
       remediationLineage.push({
         sourceReviewId: remediationPhase.sourceReviewId,
         findings: remediationPhase.reviewFindings,
@@ -1394,6 +1489,9 @@ async function runOrchestrationInternal({
 
 export async function orchestrate(options) {
   const result = await runOrchestrationInternal(options);
+  const progressTracker = progressByReceipt.get(result);
+  if (progressTracker) await progressTracker.flush();
+  const progress = progressTracker?.snapshot ?? null;
   const durable = {
     schema: result.schema,
     receiptId: result.receiptId,
@@ -1417,7 +1515,7 @@ export async function orchestrate(options) {
   await assertSchema("csm-orchestrate-receipt/2", durable);
   if (options?.cursorStore?.saveTerminalReceipt)
     await persistTerminalReceipt(durable, options.cursorStore);
-  return result;
+  return { ...result, progress };
 }
 
 export const runOrchestration = orchestrate;

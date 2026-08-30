@@ -17,19 +17,23 @@ executes implementation tasks during the planning migration. Markdown and HTML
 remain human-only projections and are rejected as machine inputs; legacy Markdown
 is not automatically converted.
 
-## Optional Progress Tracker
+## Progress Tracker
 
-The progress tracker is OFF by default. Include no tracker text in intermediate or final output unless the user explicitly requests progress tracking or supplies `--progress`; otherwise preserve existing output unchanged. When enabled, declare 3–6 skill-appropriate milestones and expected weights totaling 100% before work begins.
+Progress tracking is ON by default for every invocation. Create and maintain a
+versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+artifacts, permissions, receipts, and evidence and never replaces them.
+Declare 3–6 milestones before work begins, each with a positive weight; weights
+must total exactly 100%.
 
 Render one overall horizontal bar and one horizontal milestone row as work advances:
 
 ```text
 TASK PROGRESS  [████████████████░░░░░░░░░░░░] 53%
 Milestones
-[Research ✓ 20%] [Plan ✓ 15%] [Build ▶ 45%] [Verify ○ 20%]
+[Recover ✓ 20%] [Select ✓ 15%] [Execute ▶ 45%] [Verify ○ 20%]
 ```
 
-The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate overall completion as `completed_weight + active_weight × verified_fraction`. If scope cannot be estimated, say `TASK PROGRESS  not estimated`; if scope changes, explain the change and recalculate. This supplements, never replaces, the skill state machine, acceptance evidence, and final result.
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking.
 
 Execute a saved CSM plan from its verified current state. Start a new plan or recover interrupted work, use the maximum useful number of parallel subagents, and continue cycling until the goal is verified complete or genuinely blocked.
 

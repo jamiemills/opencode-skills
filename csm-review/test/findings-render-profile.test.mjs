@@ -50,12 +50,38 @@ test("fixed human profile validates and creates an ordered model", async () => {
     [
       ["summary", ["/artifact/artifactId", "/verificationStatus/status", "/source/commitSha"]],
       ["findings", ["/findings"]],
-      ["detail", ["/source/repository", "/artifact/createdAt", "/sortOrder/algorithm"]],
+      [
+        "detail",
+        [
+          "/source/repository",
+          "/artifact/createdAt",
+          "/sortOrder/algorithm",
+          "/sortOrder/stable",
+          "/schema",
+          "/schemaRevision",
+        ],
+      ],
       [
         "review-evidence",
-        ["/verificationStatus/unresolved", "/redaction/redactedFields", "/redaction/status"],
+        [
+          "/verificationStatus/unresolved",
+          "/redaction/redactedFields",
+          "/redaction/status",
+          "/redaction/rules",
+        ],
       ],
-      ["provenance", ["/artifact/runId", "/artifact/owner", "/artifact/digest"]],
+      [
+        "provenance",
+        [
+          "/artifact/runId",
+          "/artifact/owner",
+          "/artifact/digest",
+          "/ownership/collisionPolicy",
+          "/ownership/terminalPolicy",
+          "/projection/authority",
+          "/projection/formats",
+        ],
+      ],
     ],
   );
   assert.equal(result.model.sections[1].items[0].value.length, 2);
@@ -95,6 +121,19 @@ test("empty findings retain an explicit summary and findings model", async () =>
 
 test("mapping matrix and nested redaction policy are explicit", () => {
   assert.ok(FINDINGS_FIELD_MAPPING.some((row) => row[0] === "explanation" && row[2] === "table"));
+  for (const field of [
+    "verification.command",
+    "verification.result",
+    "verification.redacted",
+    "challenges.rationale",
+    "challenges.challenger",
+    "challenges.redacted",
+    "dissents.rationale",
+    "dissents.author",
+    "dissents.redacted",
+  ]) {
+    assert.ok(FINDINGS_FIELD_MAPPING.some((row) => row[0] === field));
+  }
   for (const field of [
     "verification.command",
     "verification.result",

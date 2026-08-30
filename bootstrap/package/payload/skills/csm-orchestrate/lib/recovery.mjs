@@ -83,13 +83,14 @@ export function createParentCursor({
   return Object.freeze(cursor);
 }
 
-export async function persistCursor(cursor, store) {
+export async function persistCursor(cursor, store, options = {}) {
   assertIdentity(cursor);
   await assertSchema(cursor.schema, cursor);
   if (!store || typeof store.saveCursor !== "function")
     throw new TypeError("durable cursor store is required; memory is not durable");
   const previous = cursorWriteQueues.get(store) ?? Promise.resolve();
-  const write = previous.then(() => store.saveCursor(cursor));
+  const snapshot = structuredClone(cursor);
+  const write = previous.then(() => store.saveCursor(snapshot, options));
   cursorWriteQueues.set(
     store,
     write.catch(() => {}),
@@ -115,6 +116,20 @@ export async function loadCursor(cursorId, store, expected = {}) {
   )
     fail("loaded cursor does not match requested lookup");
   return cursor;
+}
+
+export async function persistProgress(progress, store, options = {}) {
+  if (!store || typeof store.saveProgress !== "function")
+    throw new TypeError("durable progress store is required; memory is not durable");
+  const saved = await store.saveProgress(progress, options);
+  if (saved === false) throw new Error("durable progress store rejected snapshot");
+  return progress;
+}
+
+export async function loadProgress(progressId, store) {
+  if (!store || typeof store.loadProgress !== "function")
+    throw new TypeError("durable progress store is required; memory is not durable");
+  return store.loadProgress(progressId);
 }
 
 export async function persistTerminalReceipt(receipt, store) {

@@ -43,6 +43,13 @@
       "adapter": null
     },
     {
+      "schema": "csm-progress",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-orchestrate-invocation",
       "producerRevision": 1,
       "consumerRevision": 2,

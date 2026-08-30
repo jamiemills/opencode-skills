@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-progress/1",
+  "title": "CSM logical progress snapshot",
+  "description": "A separate progress projection; it is not an execution cursor or terminal receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "progressId",
+    "runId",
+    "graphRevision",
+    "revision",
+    "items",
+    "aggregate",
+    "updatedAt"
+  ],
+  "properties": {
+    "schema": { "const": "csm-progress/1" },
+    "progressId": { "$ref": "#/$defs/progressId" },
+    "runId": { "$ref": "#/$defs/runId" },
+    "graphRevision": { "type": "integer", "minimum": 1 },
+    "revision": { "type": "integer", "minimum": 0 },
+    "items": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/item" }
+    },
+    "aggregate": { "$ref": "#/$defs/aggregate" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "progressId": { "type": "string", "pattern": "^progress-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "nodeId": { "type": "string", "minLength": 1 },
+    "skill": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+    "childRunId": { "anyOf": [{ "$ref": "#/$defs/runId" }, { "type": "null" }] },
+    "receiptId": {
+      "anyOf": [
+        { "type": "string", "pattern": "^receipt-[a-z0-9][a-z0-9-]{1,127}$" },
+        { "type": "null" }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itemId",
+        "phaseId",
+        "nodeId",
+        "graphRevision",
+        "skill",
+        "weight",
+        "state",
+        "verifiedFraction",
+        "attempt",
+        "childRunId",
+        "evidenceRefs",
+        "receiptId",
+        "blocker"
+      ],
+      "properties": {
+        "itemId": { "type": "string", "pattern": "^item-[a-z0-9][a-z0-9-]{1,127}$" },
+        "phaseId": { "$ref": "#/$defs/phaseId" },
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "graphRevision": { "type": "integer", "minimum": 1 },
+        "skill": { "$ref": "#/$defs/skill" },
+        "weight": { "type": "number", "exclusiveMinimum": 0 },
+        "state": { "enum": ["pending", "active", "verified", "failed", "blocked", "incomplete"] },
+        "verifiedFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "childRunId": { "$ref": "#/$defs/childRunId" },
+        "evidenceRefs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "receiptId": { "$ref": "#/$defs/receiptId" },
+        "blocker": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": {
+                "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$" },
+                "message": { "type": "string", "minLength": 1, "maxLength": 500 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plannedProgress", "observedWork", "outcome", "counts", "eventsObserved"],
+      "properties": {
+        "plannedProgress": {
+          "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+        },
+        "observedWork": { "type": "integer", "minimum": 0 },
+        "outcome": {
+          "enum": ["active", "verified", "incomplete", "blocked", "failed", "indeterminate"]
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pending", "active", "verified", "failed", "blocked", "incomplete"],
+          "properties": {
+            "pending": { "type": "integer", "minimum": 0 },
+            "active": { "type": "integer", "minimum": 0 },
+            "verified": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "blocked": { "type": "integer", "minimum": 0 },
+            "incomplete": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "eventsObserved": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

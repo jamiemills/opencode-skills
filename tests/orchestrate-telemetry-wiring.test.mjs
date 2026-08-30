@@ -314,7 +314,7 @@ test("orchestrate emits correlated dispatch and terminal events to the JSONL tra
     assert.equal(dispatchEvents[0].phaseId, host.requests[0].phaseId);
     assert.equal(dispatchEvents[0].edgeId, host.requests[0].edgeId);
     assert.equal(dispatchEvents[0].childRunId, host.requests[0].childRunId);
-    assert.equal(dispatchEvents[0].attempt, 0);
+    assert.equal(dispatchEvents[0].attempt, 1);
     assert.equal(dispatchEvents[0].payload.skill, "csm-scan");
     assert.equal(dispatchEvents[0].payload.invocationId, host.requests[0].invocationId);
     const terminalEvents = events.filter((event) => event.eventType === "terminal");
@@ -348,7 +348,7 @@ test("orchestrate emits a retry event with the retried child correlation ids", a
     assert.equal(retryEvents[0].runId, runId);
     assert.equal(retryEvents[0].phaseId, host.requests[1].phaseId);
     assert.equal(retryEvents[0].childRunId, host.requests[1].childRunId);
-    assert.equal(retryEvents[0].attempt, 1);
+    assert.equal(retryEvents[0].attempt, 2);
     assert.equal(retryEvents[0].payload.priorFailureCode, "connection-reset");
     assert.equal(events.filter((event) => event.eventType === "terminal").length, 1);
   } finally {

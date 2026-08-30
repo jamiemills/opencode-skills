@@ -361,9 +361,11 @@ export function renderHtml({
     element("body", {}, [
       element("main", { id: "csm-rendered-projection" }, [
         element("h1", {}, [text("Rendered projection")]),
-        element("p", { role: "status" }, [
-          text("Untrusted presentation derived from validated JSON."),
-        ]),
+        element(
+          "p",
+          { "aria-label": "Untrusted presentation derived from validated JSON.", role: "status" },
+          [text("Untrusted presentation derived from validated JSON.")],
+        ),
         ...sections,
       ]),
     ]),

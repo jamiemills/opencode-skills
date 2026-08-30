@@ -222,7 +222,7 @@ test("redaction, CSP, and accessibility structure are explicit", () => {
   assert.match(html, /http-equiv="Content-Security-Policy"/);
   assert.match(html, /default-src &#39;none&#39;/);
   assert.match(html, /<title>Rendered projection<\/title>/);
-  assert.match(html, /<h1>Rendered projection<\/h1><p role="status">/);
+  assert.match(html, /<h1>Rendered projection<\/h1><p[^>]*role="status">/);
   assert.match(html, /<h2 id="csm-heading-proto-0-heading-0">&lt;Section&gt;<\/h2>/);
   assert.match(html, /aria-labelledby="csm-heading-proto-0-heading-0"/);
   assert.match(html, /role="status"/);
