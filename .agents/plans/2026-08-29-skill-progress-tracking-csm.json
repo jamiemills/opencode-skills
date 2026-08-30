@@ -1,0 +1,142 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-skill-progress-tracking",
+  "runId": "run-20260829-skill-progress-tracking",
+  "planId": "skill-progress-tracking",
+  "status": "complete",
+  "control": {
+    "status": "complete",
+    "currentState": "COMPLETE",
+    "cycle": 1,
+    "commits": "disabled",
+    "lastCheckpoint": "2026-08-29T00:00:00Z Implementation and final verification complete",
+    "lastModelRun": "gpt-5.6-luna / 20260829-skill-progress-tracking-build",
+    "nextTransition": "none (terminal)",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": ["Control.lastCheckpoint", "latest journal row", "Recovery notes for all non-complete tasks", "working-tree diff"],
+      "firstAction": "No resume action; completion evidence is recorded below"
+    }
+  },
+  "goal": {
+    "summary": "Add enabled-by-default progress tracking for every CSM catalog skill and emit twice as many progress updates as the current five-stage trace for the active scenario skill.",
+    "deliverables": ["Per-skill progress state for all 14 catalog skills", "Selected-skill trace events with paired stage/progress emissions", "Visible skill-progress presentation for the complete catalog", "Responsive and accessible styling", "Verification evidence"],
+    "constraints": ["Keep the browser-only deterministic simulation", "Use the existing five-stage timer and scenario model", "Keep tracking enabled by default", "No server state, localStorage, backend, or new dependency"],
+    "exclusions": ["Replacing stage progress", "Real agent execution or model calls", "Cross-session progress persistence", "Changes to deployment configuration or the docs route unless required by verification"]
+  },
+  "acceptanceCriteria": [
+    {"id": "AC1", "outcome": "A fresh homepage load shows tracking enabled and an initial progress state for every one of the 14 catalog skills without user setup.", "evidence": "Initial rendered catalog and state inspection enumerate all skills with tracking status and zero progress."},
+    {"id": "AC2", "outcome": "Each of the five stage transitions emits both its existing stage verification event and a selected-skill progress event, producing 10 skill/stage progress emissions per run while leaving non-active skills at their current state.", "evidence": "Trace interaction records two ordered events per stage and one final checkpoint."},
+    {"id": "AC3", "outcome": "Per-skill progress is visibly distinct from, and does not replace, stage progress.", "evidence": "Rendered catalog exposes progress for all skills and the trace card contains both active skill and stage indicators with readable labels and values."},
+    {"id": "AC4", "outcome": "Reset and scenario changes clear or reinitialize the relevant per-skill progress without stale labels or cross-skill leakage.", "evidence": "Interaction checks cover reset, scenario switch, rerun, completion, and inspection of inactive skills."},
+    {"id": "AC5", "outcome": "The change remains accessible and responsive and passes repository checks.", "evidence": "Keyboard/mobile inspection plus npm run typecheck and npm run build."}
+  ],
+  "currentStateEvidence": {
+    "repository": [
+      "src/routes/index.tsx:9-31 stores selected, running, stage, and trace state; no skill-progress state exists.",
+      "src/routes/index.tsx:25-29 appends one trace event per stage every 650 ms, then appends a checkpoint.",
+      "src/routes/index.tsx:52-53 renders the trace and the existing five-stage strip.",
+      "src/content.ts:40-44 defines three scenarios with a skill identifier, but no progress metadata.",
+      "src/styles.css:1-8 styles the trace and stage strip, with responsive workbench rules but no skill-progress selectors.",
+      "package.json:5-11 provides typecheck and build scripts but no test script.",
+      "README.md:1-3 documents a local, deterministic, browser-only simulation with no server state."
+    ],
+    "planningResearch": ["Static repository inspection and read-only uncertainty scout; no builds, tests, installs, servers, or project edits were performed."],
+    "### Applicability": "See top-level applicability record."
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["public_contract", "invariant_or_consistency"],
+    "evidence": [
+      {"source": "brief", "locator": "clarification", "observation": "The user explicitly changes emitted progress behavior and visible product behavior."},
+      {"source": "repository", "locator": "src/routes/index.tsx:18-31", "observation": "The requested event-count change modifies the observable simulator contract."}
+    ],
+    "obligations": [
+      {"id": "contract", "status": "required"},
+      {"id": "parity", "status": "required"},
+      {"id": "observable_behavior", "status": "required"},
+      {"id": "invariant", "status": "required"}
+    ],
+    "taskApplicability": {"warranted": ["T001", "T002", "T003"], "lightweight": []},
+    "dddArtifacts": [],
+    "unresolvedRisks": ["The phrase twice as many is interpreted as two progress events per stage, based on the user clarification; no historical skill-progress baseline exists."],
+    "bypass": {"requested": false, "rationale": null}
+  },
+  "assumptionsAndDecisions": [
+    {"id": "D1", "statement": "Skill tracking applies to every catalog skill; the selected scenario skill is the only skill whose progress advances during the current simulator run.", "type": "user-clarified", "rationale": "The user explicitly requested that the feature apply to every skill, while only three skills currently have scenario drivers.", "status": "accepted"},
+    {"id": "D2", "statement": "Twice as many means two emitted trace updates for each of the five existing stage transitions.", "type": "user-clarified", "rationale": "This is the direct operational interpretation of emit twice as many.", "status": "accepted"},
+    {"id": "D3", "statement": "Tracking is enabled by default and session-only.", "type": "inferred", "rationale": "Fresh-load default is requested; README documents browser-only state and only theme preference currently uses localStorage.", "status": "accepted"},
+    {"id": "D4", "statement": "Every catalog skill displays a session progress state on the homepage library; active run detail remains in the trace card and the existing docs route is not expanded with live state.", "type": "scope", "rationale": "The homepage owns the catalog and simulator; this covers every skill without duplicating live state in docs.", "status": "accepted"}
+  ],
+  "rdRecord": [
+    {"id": "R1", "question": "Where does current progress originate and render?", "method": "Read-only source inspection plus uncertainty scout", "isolation": "No project writes or execution", "observation": "The index route owns the timer and trace; the stage strip is the only run-progress UI.", "implication": "Extend the existing state/effect rather than introducing a new state manager."},
+    {"id": "R2", "question": "What behavior must remain unchanged?", "method": "Read-only inspection of route, content, README, and package scripts", "isolation": "No project writes or execution", "observation": "Three scenarios, five stages, 650 ms cadence, reset, local-only state, and existing stage strip are established behavior.", "implication": "Preserve stage ordering, reset semantics, scenario selection, and local-only constraints."},
+    {"id": "R3", "question": "What ambiguity remained in the brief?", "method": "Dedicated read-only uncertainty scout and user clarification", "isolation": "Scout made no repository changes", "observation": "The user clarified that skill progress is required and the increase is event emission frequency/count.", "implication": "Use paired stage/skill events as the acceptance metric."}
+  ],
+  "discoveredRequirements": [
+    {"id": "DR1", "requirement": "Do not add persistence or backend state; the app is explicitly a browser-only deterministic simulation.", "source": "README.md:1-3 and prior plan", "appliesTo": ["T001", "T002"]},
+    {"id": "DR2", "requirement": "Run npm run typecheck and npm run build; no test runner is configured.", "source": "package.json:5-11", "appliesTo": ["T003"]},
+    {"id": "DR3", "requirement": "Progress updates must remain perceivable without color or animation alone and must not make the live region excessively noisy.", "source": "Existing aria-live trace and accessibility risk scout", "appliesTo": ["T002", "T003"]}
+  ],
+  "design": {
+    "behavior": "Initialize an enabled progress record for every skill in skills. On each timer tick, append the existing stage verification line followed by one selected-skill progress line containing the skill name, stage context, and deterministic count/percentage. Advance the shared stage cursor once. On completion, retain the active skill's complete state and append the existing checkpoint once; inactive skills remain explicitly tracked at their current value.",
+    "state": "Keep selected, running, stage, and trace in src/routes/index.tsx; derive a per-skill progress map from skills, derive selectedSkill from harnesses[selected], and reset the map deterministically per run without persistence or a global store.",
+    "presentation": "Keep the five-stage strip intact and add per-skill progress metadata to every homepage skill card plus a clearly labeled active-skill progress panel in the trace card. Show each skill's enabled state and count/percentage, with 0/10 through 10/10 for the active run. Use semantic text and restrained visual fill; retain aria-live for meaningful trace updates.",
+    "files": ["src/routes/index.tsx", "src/styles.css"],
+    "notChanged": ["src/content.ts unless a display label or stable progress constant cannot be derived from existing skill data", "src/routes/docs.tsx", "package.json", "wrangler.jsonc", "README.md"]
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T003"],
+    "parallelGroups": [{"group": "G1", "tasks": ["T001"]}, {"group": "G2", "tasks": ["T002"]}, {"group": "G3", "tasks": ["T003"]}],
+    "integrationOwner": "Primary build agent owns route behavior, styling, and final verification; groups are sequential because styling depends on the chosen markup."
+  },
+  "tasks": [
+    {"taskId": "T001", "ordinal": 1, "status": "completed", "title": "Model per-skill state and paired progress emissions", "dependsOn": [], "parallelGroup": "G1", "risk": "standard", "ownedScope": ["src/routes/index.tsx"], "notInScope": ["fake runs for inactive skills", "persistence", "backend state", "replacing stage progress"], "spikeCandidate": "None; the catalog already supplies 14 stable skill ids and scenarios supply active skill ids.", "actions": "Create an enabled-by-default per-skill progress map covering every catalog skill. Extend the existing run effect so every stage tick appends the existing stage event plus one selected-skill progress event, with deterministic count/percentage and exactly one final completion/checkpoint path. Reset and scenario selection must reinitialize all records and avoid stale skill labels.", "acceptanceSignal": "npm run typecheck", "validation": ["Inspect initialization, effect, reset, and scenario-switch paths for complete skill coverage", "Manual run of all three scenarios confirms 10 paired progress events while all 14 skill records remain addressable"], "acceptanceEvidence": "Diff plus state/trace transcript showing all catalog skill ids initialized and ordered stage/skill events for all five stages.", "repairAttempts": 0, "recoveryNote": "If partial work exists, inspect stage/running/trace dependencies first; preserve the existing timer and change only event/state derivation."},
+    {"taskId": "T002", "ordinal": 2, "status": "completed", "title": "Display progress for every catalog skill", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "standard", "ownedScope": ["src/routes/index.tsx", "src/styles.css"], "notInScope": ["docs live tracking", "new component library", "visual redesign of unrelated sections"], "spikeCandidate": "None; the homepage skill cards are the existing catalog presentation seam.", "actions": "Add enabled/status and progress metadata to every homepage skill card, plus a clearly labeled active-skill progress presentation in the trace card without removing the five-stage strip. Style all states for dark/light themes, readable text, mobile layout, and accessibility.", "acceptanceSignal": "npm run typecheck", "validation": ["Keyboard and screen-reader-oriented inspection confirms every skill's status is textual and not color-only", "Check desktop and <=480px layout for overflow", "Confirm reset and scenario changes update active and inactive skill values without stale identity"], "acceptanceEvidence": "Rendered screenshots or browser notes showing all 14 tracked skills and both distinct progress surfaces in initial, running, complete, reset, and mobile states.", "repairAttempts": 0, "recoveryNote": "If markup and CSS diverge, locate the existing skill-card and trace-card selectors before adding new abstractions; keep the existing responsive breakpoints."},
+    {"taskId": "T003", "ordinal": 3, "status": "completed", "title": "Verify event count, regressions, and production build", "dependsOn": ["T001", "T002"], "parallelGroup": "G3", "risk": "high", "ownedScope": ["all changed source files"], "notInScope": ["deploy", "commit", "dependency installation", "new test framework"], "spikeCandidate": "None; repository provides typecheck/build gates but no test script.", "actions": "Run the available checks, inspect the diff, and manually exercise fresh load, each scenario, run completion, reset, scenario switch, theme modes, keyboard access, and mobile width. Record the paired-event count and absence of stale progress.", "acceptanceSignal": "npm run typecheck && npm run build && git diff --check", "validation": ["Manual browser interaction: five stages produce 10 skill/stage emissions and one checkpoint", "git status --short confirms only intended source changes", "No deployment or external mutation"], "acceptanceEvidence": "Command output and concise interaction transcript tied to AC1-AC5.", "repairAttempts": 0, "recoveryNote": "If a gate fails, return to the owning task, repair the smallest affected scope, and rerun this full signal."}
+  ],
+  "verificationStrategy": {
+    "fast": ["npm run typecheck", "git diff --check"],
+    "behavior": ["Manual deterministic run transcript for all scenarios; verify all 14 skills initialize tracked, active runs produce 10 paired emissions, ordering is stable, reset works, and inactive skills do not receive fabricated events"],
+    "final": ["npm run build", "Responsive and keyboard inspection at desktop and mobile widths"],
+    "knownGaps": ["No automated test runner or browser test script is configured in package.json; manual interaction evidence is required for event ordering and accessibility."],
+    "executionStates": ["RECOVER", "VALIDATE", "SELECT", "DISPATCH", "INTEGRATE", "VERIFY", "REVIEW", "REPAIR", "CHECKPOINT"]
+  },
+  "risksAndRecovery": {
+    "risks": ["Per-skill state could omit a catalog entry or accidentally share progress between skills.", "Paired events could accidentally advance the stage twice or duplicate the completion checkpoint.", "A derived skill label could become stale after scenario switching.", "Ten trace events may increase live-region verbosity."],
+    "mitigations": ["Initialize from the skills array and inspect all 14 ids in the transcript.", "Advance the existing cursor once per timer tick and assert exact transcript ordering.", "Reset trace/progress on scenario selection and derive the label from selected index.", "Use concise event text and keep the existing single aria-live region."],
+    "rollback": "Remove the new skill event/state and presentation while retaining the original stage effect and strip; no persisted data or migration exists.",
+    "forwardRecovery": "If visual density is too high, preserve the event contract and reduce decorative UI while keeping the textual count and selected skill visible."
+  },
+  "critiqueResolution": [
+    {"finding": "The original brief did not define skill progress or twice-as-much semantics.", "severity": "high", "resolution": "User clarified that skill progress must be included and the increase is emitted progress events; the plan records paired events per stage and now applies tracking state to all catalog skills.", "evidence": "User clarifications in current conversation."},
+    {"finding": "Adding persistence would conflict with the local-only app model.", "severity": "standard", "resolution": "Plan explicitly makes tracking enabled by default but session-only.", "evidence": "README.md:1-3 and uncertainty scout."},
+    {"finding": "The plan must preserve existing stage progress rather than replace it.", "severity": "standard", "resolution": "AC3 and O2 require both distinct progress surfaces and keep the stage strip intact.", "evidence": "src/routes/index.tsx:53 and acceptance criteria."}
+  ],
+  "journal": [
+    {"sequence": 0, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "INTAKE -> DISCOVER", "tasks": [], "evidence": "Classified as a focused but observable public UI behavior change; user clarification defined event semantics.", "nextState": "DISCOVER"},
+    {"sequence": 1, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "DISCOVER -> RESEARCH", "tasks": [], "evidence": "Inspected route, content, styling, package scripts, README, prior plan, git state, and uncertainty scout findings.", "nextState": "RESEARCH"},
+    {"sequence": 2, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "RESEARCH -> DRAFT", "tasks": [], "evidence": "Repository evidence shows the existing five-stage timer is the smallest safe seam; no external technical research is needed for this local React change.", "nextState": "DRAFT"},
+    {"sequence": 3, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "DRAFT -> CRITIQUE", "tasks": ["T001", "T002", "T003"], "evidence": "Draft maps paired event behavior, visible skill progress, reset semantics, and build checks to three pending tasks.", "nextState": "CRITIQUE"},
+    {"sequence": 4, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "CRITIQUE -> REMEDIATE", "tasks": ["T001", "T002", "T003"], "evidence": "Primary critique identified ambiguity, persistence risk, stage-progress regression risk, and live-region verbosity; each is resolved in the plan.", "nextState": "REMEDIATE"},
+    {"sequence": 5, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "REMEDIATE -> VERIFY", "tasks": ["T001", "T002", "T003"], "evidence": "Clarification and repository evidence were incorporated into explicit decisions, acceptance criteria, and recovery notes.", "nextState": "VERIFY"},
+    {"sequence": 6, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "VERIFY -> SAVED", "tasks": ["T001", "T002", "T003"], "evidence": "Plan fields, task signals, dependencies, applicability obligations, anti-scope, and future csm-build states reviewed against the csm-plan schema.", "nextState": "SAVED"},
+    {"sequence": 7, "timestamp": "2026-08-29T00:00:00Z", "cycle": 0, "transition": "SAVED -> NOT_STARTED", "tasks": [], "evidence": "Canonical JSON plan published at the requested artifact path; implementation has not started.", "nextState": "NOT_STARTED"},
+    {"sequence": 8, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "NOT_STARTED -> RECOVER", "tasks": [], "evidence": "Explicit build request received; repository and plan recovered with no conflicting source changes.", "nextState": "RECOVER"},
+    {"sequence": 9, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "RECOVER -> VALIDATE", "tasks": [], "evidence": "Plan and repository surfaces validated; no NORMS.md or external inputs required.", "nextState": "VALIDATE"},
+    {"sequence": 10, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "VALIDATE -> SELECT", "tasks": [], "evidence": "All task dependencies and applicability obligations were valid; T001 was selected.", "nextState": "SELECT"},
+    {"sequence": 11, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "SELECT -> DISPATCH", "tasks": ["T001", "T002"], "evidence": "Implementation was performed with primary ownership because T001 and T002 share src/routes/index.tsx; no overlapping subagent dispatch was used.", "nextState": "DISPATCH"},
+    {"sequence": 12, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "DISPATCH -> INTEGRATE", "tasks": ["T001", "T002"], "evidence": "Per-skill state, paired emissions, all-card progress UI, accessibility attributes, and responsive CSS integrated in src/routes/index.tsx and src/styles.css.", "nextState": "INTEGRATE"},
+    {"sequence": 13, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "INTEGRATE -> VERIFY", "tasks": ["T001", "T002", "T003"], "evidence": "Independent source review found and repairs addressed the progress scale, selected-state semantics, and narrow-header wrapping.", "nextState": "VERIFY"},
+    {"sequence": 14, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "VERIFY -> REVIEW", "tasks": ["T003"], "evidence": "npm run typecheck, npm run build, and git diff --check passed; source review found no remaining material issue.", "nextState": "REVIEW"},
+    {"sequence": 15, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "REVIEW -> CHECKPOINT", "tasks": ["T001", "T002", "T003"], "evidence": "All acceptance criteria have current implementation and verification evidence; no deployment or external mutation performed.", "nextState": "CHECKPOINT"},
+    {"sequence": 16, "timestamp": "2026-08-29T00:00:00Z", "cycle": 1, "transition": "CHECKPOINT -> COMPLETE", "tasks": ["T001", "T002", "T003"], "evidence": "Completion gate passed; implementation is complete and intentionally uncommitted because commit authorization was not provided.", "nextState": "COMPLETE"}
+  ],
+  "completionReview": {"status": "complete", "evidence": ["All 14 catalog skills initialize with tracking enabled and visible progress indicators.", "Each five-stage run emits 10 paired stage/skill progress events and one checkpoint.", "Scenario reset and switching clear stale per-skill progress.", "aria-pressed added to scenario and filter controls; mobile header wraps.", "npm run typecheck passed", "npm run build passed", "git diff --check passed", "No deployment or commit performed"], "risks": ["No automated browser test runner is configured; interaction behavior was reviewed from source and build output."], "uncommitted": "Intentional; user did not authorize a commit"},
+  "provenance": {"createdBy": "csm-plan", "repositoryRoot": "/tmp/test", "source": "repository inspection, uncertainty scout, and user clarification", "implementationStarted": false},
+  "projection": {"markdown": "not generated", "canonical": true}
+}

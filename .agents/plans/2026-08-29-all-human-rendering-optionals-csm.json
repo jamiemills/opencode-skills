@@ -1,0 +1,212 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-all-human-rendering-optionals-plan-20260829t172255z-e99d6e9d239c",
+  "runId": "run-20260829t172255z-e99d6e9d239c",
+  "planId": "all-human-rendering-optionals",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-08-29T17:30:00Z: optional rendering work scoped and uncertainty-scanned; implementation not started",
+    "lastModelRun": "csm-plan current run",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {"read": "Control, latest journal row, task recovery notes, critique resolution, and working-tree diff", "rule": "All implementation tasks remain pending until a separate explicit csm-build invocation"}
+  },
+  "goal": {
+    "title": "Build the remaining human-rendering operational items",
+    "outcome": "Make human findings projections automatically available in interactive review sessions, continuously validate generated HTML in Chromium and its accessibility tree, publish a current successor research record without mutating history, and clean only stale browser runtime state safely.",
+    "constraints": [
+      "Canonical JSON remains the only authority; Markdown/HTML remain disposable untrusted projections.",
+      "Interactive sessions default to transient Markdown; HTML requires explicit share or destination intent; non-interactive sessions do not implicitly publish projections.",
+      "Use the existing csm-review projection entrypoint, csm-browse harness, and renderer security policy.",
+      "Preserve the terminal historical research JSON exactly; no replacement, rename, or in-place wording edits.",
+      "Preserve .agents/plans, .agents/research, and .agents/reviews artifacts during cleanup unless a separate explicit deletion request is made."
+    ],
+    "exclusions": [
+      "No new renderer implementation or arbitrary JSON/Markdown/HTML parser.",
+      "No screen-reader vendor certification claim; the CI lane validates Chromium's accessibility tree and structural semantics.",
+      "No deletion of historical process artifacts.",
+      "No automatic csm-browse invocation from csm-review; the browser lane remains CI-owned."
+    ]
+  },
+  "acceptanceCriteria": [
+    {"id": "AC1", "statement": "A review lifecycle caller can automatically select the correct human projection behavior from interaction mode: interactive defaults to Markdown, explicit HTML/both is supported, and non-interactive/unknown remains JSON-only.", "evidence": "Session-policy tests exercise all mode/share combinations with explicit generatedAt and projection IDs."},
+    {"id": "AC2", "statement": "The generated findings HTML renders successfully in a real Chromium session and exposes correct accessibility-tree landmarks, names, headings, table headers/cells, status, and redaction semantics.", "evidence": "Opt-in browser test passes with CSM_BROWSE_E2E_REQUIRE=1 and records DOM/AX-tree assertions without console errors or unexpected network requests."},
+    {"id": "AC3", "statement": "CI runs the browser/accessibility lane as an independent required-or-explicitly-visible job without making the default non-Docker test lane depend on Chromium.", "evidence": "Workflow validation confirms pinned actions, timeout, cleanup, required flag, and an unambiguous skip/failure policy."},
+    {"id": "AC4", "statement": "A current successor research finding or erratum records that renderer implementation and findings wiring are complete while preserving the immutable historical research artifact.", "evidence": "Separate csm-deep-research JSON artifact validates, links the historical artifact, and is indexed; historical digest remains unchanged."},
+    {"id": "AC5", "statement": "Browser runtime cleanup is previewed and limited to validated stale csm-browse session directories; project .agents artifacts are preserved.", "evidence": "Dry-run output reviewed, cleanup tests pass, and before/after path inventory shows no deletion outside the runtime session root."}
+  ],
+  "currentStateEvidence": {
+    "repository": "main checkout at local commit 9543869 with remote origin/main at 8826d63; local checkout contains pre-existing untracked research/review artifacts and local history that must not be reverted or swept.",
+    "automaticProjection": "csm-review/lib/human-projection.mjs:76-127 exposes publishHumanFindings but requires explicit share, generatedAt, and projection ID; csm-review is an instruction-led skill with no executable runner that currently calls it automatically.",
+    "browserHarness": "csm-browse/tests/e2e.mjs:29-36 is Docker-gated and supports CSM_BROWSE_E2E_REQUIRE=1; csm-browse scripts provide open/eval/html/console/network and session cleanup.",
+    "ci": ".github/workflows/ci.yml:10-72 has frozen-install and repository-gates jobs but no browser/accessibility job; default make test intentionally avoids Docker E2E.",
+    "history": "The terminal research finding .agents/research/2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json is immutable; its current wording is historical evidence, not a file to edit.",
+    "cleanup": "csm-browse/lib/sweep.mjs and csm-browse/tests/e2e.mjs own stale runtime cleanup; .agents process artifacts are not runtime session state and must be preserved.",
+    "priorEvidence": "The merged implementation has passed repository CI, focused projection tests, and manual Chromium/CDP accessibility-tree validation; remaining work is automation, lifecycle policy, successor evidence, and safe cleanup."
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "mixed",
+    "mode": "risk-first",
+    "matchedSignals": ["public_contract", "security_or_authority", "invariant_or_consistency", "cross_boundary_coordination", "external_side_effect", "migration_or_rollback"],
+    "evidence": [
+      {"source": "brief", "locator": "request", "observation": "User requested all remaining automatic projection, browser/AT, historical wording, and cleanup items."},
+      {"source": "repository", "locator": "csm-review/lib/human-projection.mjs:76-127", "observation": "Automatic session behavior affects the projection/publication boundary."},
+      {"source": "repository", "locator": ".github/workflows/ci.yml:10-72", "observation": "Browser validation changes CI execution and external Docker side effects."},
+      {"source": "repository", "locator": ".agents/research/...research.json", "observation": "Historical terminal artifact cannot be rewritten; successor evidence is a separate artifact boundary."}
+    ],
+    "obligations": [
+      {"id": "boundary", "status": "required"},
+      {"id": "contract", "status": "required"},
+      {"id": "invariant", "status": "required"},
+      {"id": "observable_behavior", "status": "required"},
+      {"id": "rollback_recovery", "status": "required"},
+      {"id": "unresolved_risks", "status": "required"}
+    ],
+    "taskApplicability": {"warranted": ["T001", "T002", "T003", "T004"], "lightweight": ["T005"]},
+    "dddArtifacts": [],
+    "unresolvedRisks": ["GitHub-hosted runner availability and cost for Docker/Chromium; the browser job must have an explicit timeout and visible failure/skip policy.", "A real assistive technology such as a screen reader is not available in the current harness; AX-tree validation is the achievable automated contract.", "Deleting stale runtime sessions is bounded but destructive to runtime evidence, so dry-run and path allowlisting are mandatory."],
+    "bypass": {"requested": false, "rationale": null}
+  },
+  "assumptionsAndDecisions": [
+    {"id": "D1", "statement": "Automatic invocation means lifecycle/host policy integration around publishHumanFindings, not an implicit csm-browse or external service launch.", "type": "scope", "evidence": "No csm-review executable runner exists; human-projection API already exists.", "status": "accepted"},
+    {"id": "D2", "statement": "The browser CI job is opt-in to Docker execution but required when scheduled: CSM_BROWSE_E2E_REQUIRE=1 converts unavailable Chromium into failure, while the normal make test remains Docker-free.", "type": "design", "evidence": "Existing csm-browse E2E contract and uncertainty scout.", "status": "accepted"},
+    {"id": "D3", "statement": "The historical research artifact is preserved; a new successor finding/erratum is the only valid wording correction.", "type": "invariant", "evidence": "Terminal artifact identity and write-discipline rules.", "status": "accepted"},
+    {"id": "D4", "statement": "Local cleanup preserves all .agents artifacts and only cleans stale csm-browse runtime sessions after dry-run review.", "type": "safety", "evidence": "Cleanup ownership in csm-browse sweep and user did not request history deletion.", "status": "accepted"}
+  ],
+  "rdRecord": [
+    {"id": "R1", "question": "Where can automatic projection behavior be added?", "method": "Read-only inspection of csm-review lifecycle docs/API and repository-wide callers", "observation": "Use csm-review lifecycle policy plus a small session-policy wrapper around publishHumanFindings; no executable runner currently exists.", "implication": "T001 must define host inputs and test mode selection without changing JSON authority.", "status": "resolved"},
+    {"id": "R2", "question": "How can browser/AT validation be made repeatable?", "method": "Read-only inspection of csm-browse E2E/harness and prior Chromium/CDP validation", "observation": "Dedicated Docker-gated workflow can serve generated HTML, inspect DOM and Accessibility.getFullAXTree, and fail closed with CSM_BROWSE_E2E_REQUIRE=1.", "implication": "T002/T003 own browser test and CI lane; default tests remain Docker-free.", "status": "resolved"},
+    {"id": "R3", "question": "Can the historical research JSON be corrected in place?", "method": "Read artifact identity rules and terminal research journal", "observation": "No; terminal artifact replacement/editing is forbidden.", "implication": "T004 is a separate human-mediated csm-deep-research successor/erratum, not an in-place edit.", "status": "resolved"},
+    {"id": "R4", "question": "What may cleanup delete?", "method": "Read csm-browse sweep/e2e cleanup and .agents layout", "observation": "Only validated stale browser session directories; preserve plans/research/reviews and dry-run first.", "implication": "T005 has an allowlisted runtime-only scope.", "status": "resolved"}
+  ],
+  "discoveredRequirements": [
+    {"id": "DR1", "requirement": "Automatic projection failure must never mutate, replace, or downgrade the terminal JSON artifact; it must return a structured projection failure to the host.", "evidence": "csm-review producer terminal policy and publication boundary.", "status": "required"},
+    {"id": "DR2", "requirement": "Markdown and HTML outputs retain separate descriptors and injected generatedAt/projection IDs in every automatic path.", "evidence": "Existing human-projection implementation.", "status": "required"},
+    {"id": "DR3", "requirement": "The browser job must use the existing isolated session cleanup and never target shared CDP port 9222 directly.", "evidence": "csm-browse SKILL.md isolation contract.", "status": "required"},
+    {"id": "DR4", "requirement": "Successor research must reference the historical artifact without replacing it and must carry current implementation/CI evidence.", "evidence": "Terminal research artifact identity rules.", "status": "required"}
+  ],
+  "design": {
+    "automaticFlow": "validated terminal findings JSON -> session policy resolves interactionMode/share -> explicit generatedAt/projection IDs from host -> publishHumanFindings -> disposable Markdown/HTML output; projection failure is reported without touching JSON authority",
+    "browserFlow": "CI browser job -> pinned Node/pnpm install -> start synthetic findings HTML server -> ensure isolated csm-browse session -> open page -> inspect DOM + Accessibility.getFullAXTree + console/network -> write bounded summary -> close session in finally",
+    "researchFlow": "historical terminal finding remains unchanged -> separate explicitly owned csm-deep-research successor/erratum records current implementation and links prior artifact -> index successor without a latest alias",
+    "cleanupFlow": "dry-run stale-session inventory -> validate each candidate under csm-browse runtime root -> remove only stale sessions through existing sweep -> re-run inventory; never touch .agents process artifacts",
+    "failurePolicy": "Interactive projection is best-effort for human display but never changes canonical review success; browser CI fails when required and reports unavailable infrastructure clearly; cleanup stops on path ambiguity."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T003", "T005"],
+    "parallelGroups": {"G1": ["T001", "T002"], "G2": ["T003", "T004"], "G3": ["T005"]},
+    "edges": [
+      {"from": "T001", "to": "T003", "reason": "CI/browser and lifecycle tests consume the automatic session-policy contract."},
+      {"from": "T002", "to": "T003", "reason": "CI invokes the browser test created by T002."},
+      {"from": "T003", "to": "T005", "reason": "Final gates include the new CI/workflow contract and cleanup evidence."},
+      {"from": "T004", "to": "T005", "reason": "Final evidence/indexing follows the successor research handoff."}
+    ]
+  },
+  "tasks": [
+    {
+      "taskId": "T001", "ordinal": 1, "status": "pending", "title": "Add automatic interaction-mode projection policy",
+      "dependsOn": [], "parallelGroup": "G1", "risk": "high",
+      "ownedScope": ["csm-review/lib/human-projection.mjs or one new csm-review/lib/session-projection.mjs", "csm-review/SKILL.md", "csm-review/test/session-projection.test.mjs"],
+      "notInScope": ["generic renderers", "canonical findings schema", "csm-browse invocation", "legacy Markdown history"],
+      "spikeCandidate": "None; the current API and interaction policy are known. If no host lifecycle caller can be identified, implement and document the smallest host-facing wrapper rather than inventing a runner.",
+      "actions": ["Define one host-facing session policy function that accepts interactionMode, optional explicit share/destination, generatedAt, and deterministic projection IDs.", "Resolve interactive default to markdown, explicit html/both only when requested, and unknown/non-interactive to none/JSON-only.", "Call publishHumanFindings only after terminal findings JSON validation; make projection failures structured and non-fatal to canonical JSON.", "Document the policy and preserve separate media descriptors/untrusted-presentation semantics."],
+      "acceptanceSignal": "node --test --test-concurrency=1 csm-review/test/session-projection.test.mjs",
+      "validation": ["Run csm-review/test/human-projection.test.mjs and tests/review-render.test.mjs.", "Assert all mode/share combinations and projection failure isolation."],
+      "acceptanceEvidence": "Policy API, mode matrix, deterministic descriptor fixtures, and failure-isolation test output.",
+      "repairAttempts": 0,
+      "recoveryNote": "If interrupted, inspect the mode matrix before changing publishHumanFindings; the generic publication contract must remain unchanged."
+    },
+    {
+      "taskId": "T002", "ordinal": 2, "status": "pending", "title": "Add opt-in Chromium accessibility-tree validation for findings HTML",
+      "dependsOn": [], "parallelGroup": "G1", "risk": "high",
+      "ownedScope": ["csm-browse/tests/render-findings-e2e.mjs", "csm-browse/tests/fixtures or a disposable generated fixture", "csm-browse/tests/render-findings-e2e-summary.mjs if required"],
+      "notInScope": ["shared browser security policy", "generic renderer rewrite", "real user credentials", "shared CDP port 9222"],
+      "spikeCandidate": "Prove that Accessibility.getFullAXTree is available on the isolated session and that the generated findings page is reachable from the container bridge; use only synthetic findings data and a disposable server/session.",
+      "actions": ["Generate the findings HTML with the concrete csm-review projection entrypoint from synthetic redacted findings.", "Serve it on a disposable bridge-reachable fixture server and use ensure-browser/browse infrastructure to open it.", "Inspect DOM and Accessibility.getFullAXTree for named status, h1/h2 headings, named findings table, column headers, rows/cells, visible redaction marker, and no original redacted values.", "Assert zero scripts/event-handler attributes, restrictive CSP, no unexpected network requests, and no browser console errors; close the session in finally."],
+      "acceptanceSignal": "CSM_BROWSE_E2E_REQUIRE=1 node csm-browse/tests/render-findings-e2e.mjs",
+      "validation": ["Run csm-browse/tests/unit/security.test.mjs and csm-browse/tests/unit/sweep.test.mjs.", "Run make test-review-render.", "Record infrastructure-unavailable as a hard failure under REQUIRE=1, never a silent pass."],
+      "acceptanceEvidence": "Browser/AX-tree assertions, bounded console/network summary, session cleanup result, and screenshot or digest-referenced evidence if retained by the test harness.",
+      "repairAttempts": 0,
+      "recoveryNote": "If browser startup fails, preserve the failure summary and stop; do not weaken REQUIRE=1 or fall back to shared CDP."
+    },
+    {
+      "taskId": "T003", "ordinal": 3, "status": "pending", "title": "Add a dedicated CI browser/accessibility lane",
+      "dependsOn": ["T001", "T002"], "parallelGroup": "G2", "risk": "high",
+      "ownedScope": [".github/workflows/browser-accessibility.yml", "Makefile browser target if required", "README.md test/lane documentation"],
+      "notInScope": ["changing the default Docker-free make test contract", "unpinned actions", "production browser deployment", "screen-reader certification"],
+      "spikeCandidate": "None after T002; if chromium-vnc image availability cannot be established on hosted runners, block the lane with explicit infrastructure evidence rather than converting the required test to a silent skip.",
+      "actions": ["Create a dedicated workflow using the existing pinned checkout/setup-node patterns, pinned pnpm, bounded timeout-minutes, and least-privilege permissions.", "Install both root and csm-browse dependencies with lifecycle scripts disabled where compatible; run the T002 test with CSM_BROWSE_E2E_REQUIRE=1.", "Ensure cleanup runs even after assertion failure and the job publishes only bounded test summary/screenshot evidence.", "Keep make test unchanged as the fast lane; document the browser lane and its Docker prerequisite."],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/workflow-trigger-policy.test.mjs tests/workflow-contract.test.mjs",
+      "validation": ["Run the actual workflow on the branch and require Frozen install, browser/accessibility, and repository gates to pass.", "Run make lint, make fmt-check, make check, and make test.", "Verify action SHAs and timeout/cleanup policy statically."],
+      "acceptanceEvidence": "Workflow run URL, successful browser job, action pin review, cleanup output, and documentation update.",
+      "repairAttempts": 0,
+      "recoveryNote": "If the hosted runner lacks the image, retain the workflow failure as a blocker and do not alter the default suite to hide it."
+    },
+    {
+      "taskId": "T004", "ordinal": 4, "status": "pending", "title": "Create a successor research finding/erratum for current renderer status",
+      "dependsOn": [], "parallelGroup": "G2", "risk": "standard",
+      "executionOwner": "separate explicit csm-deep-research invocation; not executable by csm-build",
+      "ownedScope": ["new .agents/research/<date>-<slug>-<run-id>-research.json", ".agents/README.md index entry for the successor"],
+      "notInScope": ["historical terminal research JSON", "source implementation", "rewriting prior research digest", "mutable latest alias"],
+      "spikeCandidate": "None; use the current merged implementation, CI result, and browser evidence as local sources in the separately owned research run.",
+      "actions": ["Run a separate explicit csm-deep-research successor/erratum with current local evidence.", "State that generic renderers, findings adapter/profile, publication wiring, and browser/AX validation are now implemented; preserve any remaining limitations precisely.", "Reference the historical artifact as prior evidence without replacing, renaming, or editing it.", "Index the successor artifact as current reference while retaining the historical entry."],
+      "acceptanceSignal": "Separate human-mediated csm-deep-research run validates its saved JSON against csm-research/1 and records the historical artifact link.",
+      "validation": ["Historical research file digest is unchanged.", "New finding has a unique run ID, eight required sections, dated references, and no credentials/personal data."],
+      "acceptanceEvidence": "Successor research path/run ID, schema validation output, historical digest comparison, and index entry.",
+      "repairAttempts": 0,
+      "recoveryNote": "If the delegated research run collides or fails, leave the historical artifact untouched and record the handoff blocker; do not write a local substitute."
+    },
+    {
+      "taskId": "T005", "ordinal": 5, "status": "pending", "title": "Preview and safely clean stale browser runtime sessions",
+      "dependsOn": ["T003"], "parallelGroup": "G3", "risk": "standard",
+      "ownedScope": ["csm-browse runtime session root only", "cleanup evidence/summary outside the repository if retained"],
+      "notInScope": [".agents/plans/**", ".agents/research/**", ".agents/reviews/**", "source files", "arbitrary /tmp cleanup", "historical artifact deletion"],
+      "spikeCandidate": "None; existing csm-browse sweep owns validated stale-session cleanup and supports dry-run.",
+      "actions": ["Run ensure-browser --cleanup-stale --dry-run and review candidates under the csm-browse runtime root.", "Remove only candidates the existing sweep validates as stale, preserving active/creating sessions and all project artifacts.", "Re-run dry-run/inventory and execute cleanup tests; stop on ambiguous paths or cleanup failures."],
+      "acceptanceSignal": "node csm-browse/scripts/ensure-browser.mjs --cleanup-stale --dry-run",
+      "validation": ["node --test --test-concurrency=1 csm-browse/tests/unit/cleanup.test.mjs csm-browse/tests/unit/sweep.test.mjs csm-browse/tests/unit/residuals.test.mjs", "Before/after inventory contains no active-session removal and no .agents deletion.", "Run make check after cleanup."],
+      "acceptanceEvidence": "Dry-run output, validated candidate list, cleanup result, post-cleanup inventory, and protected .agents artifact check.",
+      "repairAttempts": 0,
+      "recoveryNote": "If dry-run reports no stale sessions, record a clean no-op and do not broaden scope."
+    }
+  ],
+  "verificationStrategy": {
+    "order": ["T001 session-policy tests", "T002 browser/AX-tree test", "T003 workflow/static checks", "T005 dry-run cleanup tests", "full make test/lint/fmt/check", "actual GitHub browser workflow", "T004 successor research validation"],
+    "fastGates": ["make test-review-render", "node --test csm-review/test/session-projection.test.mjs", "node --test csm-browse/tests/unit/security.test.mjs csm-browse/tests/unit/sweep.test.mjs", "make lint", "make fmt-check"],
+    "batchGates": ["make check", "make test", "CSM_BROWSE_E2E_REQUIRE=1 node csm-browse/tests/render-findings-e2e.mjs", "GitHub browser/accessibility workflow"],
+    "parallelSafe": ["T001 and T002 own disjoint implementation/test surfaces", "T004 is separately owned research and must not share writes with csm-build"],
+    "environmentSensitive": ["T002/T003 require Docker chromium-vnc and bridge reachability.", "AX-tree validation is not equivalent to a screen-reader audit; disclose that limitation."],
+    "requiredIndependentReview": ["T001 projection failure isolation and mode defaults", "T002 security/accessibility assertions", "T003 CI permissions, action pins, timeout, and cleanup", "T005 deletion path safety"]
+  },
+  "risksAndRecovery": {
+    "risks": ["Automatic projection could accidentally become authoritative or mutate terminal JSON.", "Browser CI could be flaky or silently skip due Docker availability.", "AX-tree assertions can pass while real screen-reader interaction still differs.", "Cleanup could remove runtime evidence or an active session if stale detection is bypassed.", "Historical research wording could be changed in place and invalidate its terminal identity."],
+    "mitigations": ["Keep projection output disposable/untrusted and make failure isolation a test invariant.", "Use a dedicated required browser job with CSM_BROWSE_E2E_REQUIRE=1, timeout, bounded evidence, and explicit infrastructure failure.", "Use semantic AX-tree checks plus a documented residual limitation; do not claim full AT certification.", "Dry-run first, existing sweep/path validation only, runtime-root allowlist, preserve .agents.", "Create a separate successor research finding; never edit the historical JSON."],
+    "rollback": "Disable/remove only the new automatic policy, browser workflow/test, and cleanup invocation if they fail; retain generic renderer behavior, canonical findings JSON, historical research, and existing CI fast lane. Restore generated bootstrap payload only through pack-bootstrap after parity verification.",
+    "forwardRecovery": "If browser infrastructure is unavailable, keep T002/T003 blocked with evidence and continue only independent T001/T004 work; never convert required browser validation into an unreported skip."
+  },
+  "critiqueResolution": [
+    {"finding": "Automatic invocation has no executable csm-review runner", "severity": "high", "resolution": "Defined automatic behavior as a host-facing session-policy wrapper/lifecycle contract around existing publishHumanFindings, with no implicit browser launch.", "evidence": "csm-review/lib/human-projection.mjs:76-127; csm-review/SKILL.md:87-108"},
+    {"finding": "Full AT validation cannot be claimed from current harness", "severity": "medium", "resolution": "Plan requires Chromium Accessibility.getFullAXTree and structural semantics, explicitly excluding screen-reader certification.", "evidence": "csm-browse harness and prior manual AX-tree result"},
+    {"finding": "Terminal research artifact cannot be edited", "severity": "high", "resolution": "T004 is a separate human-mediated csm-deep-research successor/erratum with immutable historical link.", "evidence": ".agents/README.md:5 and terminal research journal"},
+    {"finding": "Cleanup scope could delete evidence", "severity": "high", "resolution": "T005 limits deletion to validated stale csm-browse runtime sessions after dry-run; all .agents artifacts are explicit anti-scope.", "evidence": "csm-browse/lib/sweep.mjs and uncertainty scout"}
+  ],
+  "journal": [
+    {"sequence": 0, "timestamp": "2026-08-29T17:22:55Z", "cycle": 0, "transition": "INTAKE -> DISCOVER", "tasks": [], "evidence": "User requested a plan for all remaining optional rendering items; repository baseline and existing artifacts preserved.", "nextState": "DISCOVER"},
+    {"sequence": 1, "timestamp": "2026-08-29T17:25:00Z", "cycle": 0, "transition": "DISCOVER -> RESEARCH", "tasks": [], "evidence": "Automatic projection, csm-browse E2E, CI, terminal research identity, and cleanup seams inspected.", "nextState": "RESEARCH"},
+    {"sequence": 2, "timestamp": "2026-08-29T17:28:00Z", "cycle": 0, "transition": "RESEARCH -> DRAFT", "tasks": [], "evidence": "Uncertainty scout resolved automatic host policy, required browser lane, successor research handoff, and runtime-only cleanup.", "nextState": "DRAFT"},
+    {"sequence": 3, "timestamp": "2026-08-29T17:30:00Z", "cycle": 0, "transition": "DRAFT -> CRITIQUE", "tasks": [], "evidence": "Draft contains five tasks with mixed applicability and explicit preservation/rollback boundaries.", "nextState": "CRITIQUE"},
+    {"sequence": 4, "timestamp": "2026-08-29T17:32:00Z", "cycle": 0, "transition": "CRITIQUE -> VERIFY", "tasks": [], "evidence": "Primary critique resolved missing runner boundary, AT limitation, immutable research handoff, CI skip policy, and cleanup allowlist.", "nextState": "VERIFY"},
+    {"sequence": 5, "timestamp": "2026-08-29T17:35:00Z", "cycle": 0, "transition": "VERIFY -> SAVED", "tasks": [], "evidence": "Plan schema, applicability, acceptance mapping, pending statuses, task dependencies, rollback, and protected artifact scope verified; implementation not started.", "nextState": "SAVED"}
+  ],
+  "completionReview": null,
+  "inputs": [],
+  "provenance": {"producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-29T17:35:00Z", "sourceDigests": []},
+  "projection": {"profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only"}
+}

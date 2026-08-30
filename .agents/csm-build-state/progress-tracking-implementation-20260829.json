@@ -1,0 +1,42 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-build-progress-tracking-implementation-20260829",
+  "runId": "run-20260829t203500z-progress-build",
+  "owner": "csm-build",
+  "status": "blocked",
+  "control": {
+    "currentState": "BLOCKED",
+    "cycle": 0,
+    "nextTransition": "none (terminal)",
+    "activeTasks": ["T001"],
+    "blockers": ["Current checkout is a skills suite without the application baseline required by the implementation plan; creating an unrelated application boundary requires an explicit scope decision."],
+    "lastCheckpoint": "2026-08-29T20:35:00Z: recovery and validation blocked before dispatch",
+    "lastModelRun": "gpt-5.6-luna / progress-tracking-implementation-build"
+  },
+  "inputs": [{
+    "name": "plan",
+    "artifactId": "art-progress-tracking-implementation-20260829",
+    "schema": "csm-plan/1",
+    "runId": "run-20260829t202500z-progress-implementation",
+    "owner": "csm-plan",
+    "digest": "sha256:8c18f58245893eb733411bc30f5006fb5c26244711fbb6b10181aac999e81487",
+    "path": ".agents/plans/2026-08-29-progress-tracking-implementation-csm.json",
+    "status": "resolved"
+  }],
+  "journal": [{
+    "sequence": 0,
+    "timestamp": "2026-08-29T20:35:00Z",
+    "from": "RECOVER",
+    "to": "BLOCKED",
+    "evidence": "Validation found no current-checkout application entrypoint, root npm test script, or root build script. The plan's T001 recovery note requires blocking rather than inventing an application boundary without a product decision.",
+    "inputDigests": ["sha256:8c18f58245893eb733411bc30f5006fb5c26244711fbb6b10181aac999e81487"]
+  }],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-progress-tracking-implementation-20260829",
+    "sourceDigests": ["sha256:8c18f58245893eb733411bc30f5006fb5c26244711fbb6b10181aac999e81487"]
+  },
+  "projection": {"sourceOnly": true, "allowed": ["markdown", "html"]}
+}

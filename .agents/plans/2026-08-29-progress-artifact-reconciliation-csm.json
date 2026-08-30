@@ -1,0 +1,104 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-progress-artifact-reconciliation-20260829",
+  "runId": "run-20260829t201500z-progress-reconcile",
+  "planId": "progress-artifact-reconciliation",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "disabled",
+    "lastCheckpoint": "2026-08-29T20:15:00Z: successor scoped to reconcile relocated progress plans without mutating terminal history",
+    "lastModelRun": "gpt-5.6-luna / progress-artifact-reconciliation-plan",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": ["Control.lastCheckpoint", "latest journal row", "Recovery notes for all non-COMPLETE tasks", "working-tree diff"],
+      "firstAction": "Verify /tmp/test remains the intended application root and recompute the source research digest before changing any plan metadata."
+    }
+  },
+  "goal": {
+    "summary": "Create an explicit, resumable successor for the progress-tracking plans copied from /tmp/test while preserving terminal artifacts and preventing cross-repository provenance errors.",
+    "deliverables": ["Validated relocation inventory", "Correct source-root and input-digest ledger", "Consistent successor references for progress plans", "Index entry and migration evidence"],
+    "constraints": ["This plan is stored in the current skills checkout but governs artifact reconciliation only", "The application implementation remains under /tmp/test", "Terminal plans and research artifacts are immutable", "No source implementation, deployment, or commit is authorized"],
+    "exclusions": ["Rebuilding the progress-tracking application", "Editing terminal plans in place", "Copying external artifacts without digest verification", "Changing unrelated skills-repository artifacts"]
+  },
+  "acceptanceCriteria": [
+    {"id": "AC1", "outcome": "Every relocated progress plan is classified as source-root-bound, destination-local, or invalid, with exact path and lifecycle evidence.", "evidence": "Inventory transcript covering all five 2026-08-29 progress plans and the /tmp/test source tree."},
+    {"id": "AC2", "outcome": "The source research artifact is linked with its actual SHA-256 digest, and any prior divergent digest is recorded as superseded evidence rather than silently corrected.", "evidence": "Hash command output and input descriptor in the successor plan."},
+    {"id": "AC3", "outcome": "The successor does not claim that /tmp/test application files exist in this checkout and has a clear future execution-root handoff.", "evidence": "Current-state path checks and explicit execution-root decision."},
+    {"id": "AC4", "outcome": "No terminal artifact is edited, replaced, renamed, or deleted; malformed or contradictory legacy plans are isolated as blockers.", "evidence": "Before/after artifact inventory and JSON validation results."}
+  ],
+  "currentStateEvidence": {
+    "destinationRoot": "Current repository is /home/jamiemills/.config/opencode/skills. It contains the copied plans but not the /tmp/test application files.",
+    "sourceRoot": "/tmp/test contains src/progress.ts, src/lib/sqlite.ts, src/routes/index.tsx, src/styles.css, package.json, and the source research artifact.",
+    "sourceResearch": "/tmp/test/.agents/research/2026-08-29-orchestrator-skill-task-progress-run-20260829t000000z-research.json exists and hashes to sha256:7e292396e6be5d0b3599b5d8bbd8d05be945416f159a25aeb643a72623db5d2a.",
+    "knownContradictions": ["The copied orchestrator plan is COMPLETE while all five tasks are pending.", "Its recorded research digest is sha256:16f777918c... and does not match the source artifact.", "2026-08-27-csm-orchestrate-csm.json is not valid JSON around line 359.", "skill-progress-tracking records repositoryRoot /tmp/test and implementationStarted false despite COMPLETE state."],
+    "protectedState": "Terminal plans and the source research artifact remain read-only evidence."
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["security_or_authority", "invariant_or_consistency", "migration_or_rollback"],
+    "evidence": [
+      {"source": "brief", "locator": "request", "observation": "User requested a deliberate successor after discovering relocated plans and inconsistent provenance."},
+      {"source": "repository", "locator": ".agents/plans and /tmp/test/.agents", "observation": "Artifact identity, digest, lifecycle, and repository-root boundaries differ across the two locations."}
+    ],
+    "obligations": [
+      {"id": "boundary", "status": "required"},
+      {"id": "contract", "status": "required"},
+      {"id": "invariant", "status": "required"},
+      {"id": "rollback_recovery", "status": "required"},
+      {"id": "unresolved_risks", "status": "required"}
+    ],
+    "taskApplicability": {"warranted": ["T001", "T002", "T003"], "lightweight": []},
+    "dddArtifacts": [],
+    "unresolvedRisks": ["The source and destination repositories have separate Git histories and artifact indexes.", "A future build must execute against /tmp/test, not this skills checkout, unless a separate application migration is authorized."],
+    "bypass": {"requested": false, "rationale": null}
+  },
+  "assumptionsAndDecisions": [
+    {"id": "D1", "statement": "This successor is an artifact-reconciliation plan, not an implementation plan for the application.", "type": "scope", "rationale": "The application files and source research live under /tmp/test.", "status": "accepted"},
+    {"id": "D2", "statement": "The source research artifact is referenced as external read-only evidence until it is deliberately registered in the destination corpus.", "type": "provenance", "rationale": "Input paths in this checkout cannot truthfully point to files that are not present here.", "status": "accepted"},
+    {"id": "D3", "statement": "Terminal artifacts are preserved; corrections use this successor or a later owner-matching artifact.", "type": "immutability", "rationale": "Existing artifact identity rules prohibit in-place terminal replacement.", "status": "accepted"}
+  ],
+  "rdRecord": [
+    {"id": "R1", "question": "Where do the referenced application and research files exist?", "method": "Read-only filesystem inspection of /tmp/test and the current checkout", "isolation": "No source or artifact writes during inspection", "observation": "Application files and research exist under /tmp/test; only copied plans exist in this checkout.", "implication": "Keep execution-root evidence explicit and do not treat destination-relative source paths as valid."},
+    {"id": "R2", "question": "Does the copied research digest match the source artifact?", "method": "SHA-256 hash of the source JSON", "isolation": "Read-only hash computation", "observation": "Source digest is sha256:7e292396e6be5d0b3599b5d8bbd8d05be945416f159a25aeb643a72623db5d2a, differing from the copied plan's recorded digest.", "implication": "Require explicit digest reconciliation before future build consumption."},
+    {"id": "R3", "question": "Can all copied plans be consumed by a loader?", "method": "Read-only JSON parsing of destination plans", "isolation": "No writes or execution of plan tasks", "observation": "2026-08-27-csm-orchestrate-csm.json fails JSON parsing near line 359.", "implication": "Record the malformed legacy plan as a blocker; do not repair terminal history in place."}
+  ],
+  "discoveredRequirements": [
+    {"id": "DR1", "requirement": "Future execution must name /tmp/test as the application root and this checkout as the artifact-review root.", "source": "Filesystem inspection", "appliesTo": ["T001", "T003"]},
+    {"id": "DR2", "requirement": "Input descriptors must use an exact verified digest, not a copied or abbreviated digest.", "source": "Source hash verification", "appliesTo": ["T002"]},
+    {"id": "DR3", "requirement": "Malformed terminal JSON remains a blocker and must not be silently rewritten.", "source": "JSON parser result and artifact identity rules", "appliesTo": ["T001", "T003"]}
+  ],
+  "design": {
+    "boundary": "The successor plan is canonical in the current checkout, while /tmp/test is an external source-root evidence location. It does not make external files machine inputs.",
+    "flow": "Inventory destination plans -> verify source artifacts and digests -> classify lifecycle contradictions -> record a future handoff without modifying terminal history.",
+    "authority": "This successor records reconciliation decisions; original terminal plans and research remain historical evidence.",
+    "handoff": "A future csm-build must explicitly target the application plan under /tmp/test or create a separately authorized source-root plan there."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T003"],
+    "parallelGroups": [{"group": "G1", "tasks": ["T001", "T002"]}, {"group": "G2", "tasks": ["T003"]}],
+    "integrationOwner": "Primary agent owns artifact classification and final provenance review."
+  },
+  "tasks": [
+    {"taskId": "T001", "ordinal": 1, "status": "pending", "title": "Inventory and classify relocated plans", "dependsOn": [], "parallelGroup": "G1", "risk": "high", "ownedScope": [".agents/plans/", "source-root evidence only"], "notInScope": ["terminal artifact edits", "application source changes", "deployment", "commit"], "spikeCandidate": "None; filesystem and parser checks are sufficient.", "actions": "Enumerate copied plans, compare lifecycle state with task statuses and journal tails, identify malformed JSON, and classify each plan by execution root.", "acceptanceSignal": "node --input-type=module -e \"for (const f of ['.agents/plans/2026-08-29-progress-artifact-reconciliation-csm.json']) JSON.parse(await import('node:fs/promises').then(m=>m.readFile(f, 'utf8')))\"", "validation": ["Parse every non-malformed JSON plan", "Record malformed legacy plans as blockers rather than repairing them"], "acceptanceEvidence": "Inventory with status, currentState, task statuses, root, and blocker classification.", "repairAttempts": 0, "recoveryNote": "If interrupted, resume from the plan inventory; do not infer completion from journal text alone."},
+    {"taskId": "T002", "ordinal": 2, "status": "pending", "title": "Reconcile source research identity and digest", "dependsOn": [], "parallelGroup": "G1", "risk": "high", "ownedScope": ["successor provenance and input ledger only"], "notInScope": ["editing /tmp/test research", "copying files without authorization", "changing terminal plan digests in place"], "spikeCandidate": "None; hash the exact source JSON read-only.", "actions": "Verify the source research artifact, record its exact artifactId, runId, owner, path, and SHA-256, and document the divergence from the copied orchestrator plan.", "acceptanceSignal": "node -e \"const fs=require('fs'),c=require('crypto');const p='/tmp/test/.agents/research/2026-08-29-orchestrator-skill-task-progress-run-20260829t000000z-research.json';console.log(c.createHash('sha256').update(fs.readFileSync(p)).digest('hex'))\"", "validation": ["Confirm source file exists", "Confirm recorded digest is 64 lowercase hex characters", "Preserve source artifact bytes"], "acceptanceEvidence": "Command output and immutable source descriptor.", "repairAttempts": 0, "recoveryNote": "If the source file changes, stop and record a new digest instead of updating history silently."},
+    {"taskId": "T003", "ordinal": 3, "status": "pending", "title": "Publish the explicit future execution handoff", "dependsOn": ["T001", "T002"], "parallelGroup": "G2", "risk": "standard", "ownedScope": ["this successor plan and its index entry if authorized"], "notInScope": ["running csm-build", "repairing application behavior", "editing terminal plans or research"], "spikeCandidate": "None; handoff wording is bounded by verified root and digest evidence.", "actions": "Document that application implementation belongs under /tmp/test, identify the valid source plan or require a new owner-matching source-root plan, and leave all tasks pending until explicit build authorization.", "acceptanceSignal": "git diff --check", "validation": ["Successor remains ready with all tasks pending", "No terminal artifact changes", "Handoff names the exact execution root"], "acceptanceEvidence": "Saved successor path, diff check, and protected-artifact inventory.", "repairAttempts": 0, "recoveryNote": "If root ownership remains ambiguous, block the handoff rather than selecting a repository implicitly."}
+  ],
+  "verificationStrategy": {"order": ["read-only artifact inventory", "source digest verification", "JSON plan parsing", "git diff --check", "final provenance review"], "fastGates": ["JSON parse", "source existence/hash", "git diff --check"], "expensiveGates": [], "knownGaps": ["No application build is appropriate from this checkout; /tmp/test remains a separate execution root."]},
+  "risksAndRecovery": {"risks": ["Cross-root execution could edit the wrong repository.", "A stale digest could admit the wrong research input.", "Repairing terminal history would destroy provenance.", "Malformed legacy JSON could break corpus-wide loaders."], "mitigations": ["Explicit source/destination boundary.", "Exact read-only SHA-256 verification.", "Fresh successor instead of terminal mutation.", "Isolate malformed plan as a blocker."], "rollback": "Remove only this new successor if its scope is rejected; do not touch source-root or terminal artifacts.", "forwardRecovery": "Create a new owner-matching plan under /tmp/test if application implementation is requested, using the verified source digest and a fresh run ID."},
+  "critiqueResolution": [],
+  "journal": [
+    {"sequence": 0, "timestamp": "2026-08-29T20:15:00Z", "cycle": 0, "transition": "INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> VERIFY -> SAVED", "tasks": [], "evidence": "Inspected both repositories, located the source research artifact and application files under /tmp/test, verified the source digest, and scoped this successor to artifact reconciliation in the current checkout. Implementation was not started.", "nextState": "NOT_STARTED"}
+  ],
+  "completionReview": null,
+  "inputs": [],
+  "provenance": {"producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-29T20:15:00Z", "repositoryRoot": "/home/jamiemills/.config/opencode/skills", "sourceRootEvidence": "/tmp/test", "sourceDigests": ["sha256:7e292396e6be5d0b3599b5d8bbd8d05be945416f159a25aeb643a72623db5d2a"]},
+  "projection": {"profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only"}
+}

@@ -1,0 +1,148 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-research-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f",
+  "runId": "run-20260829t074546z-5fdd2180dc5f",
+  "title": "JSON-to-Markdown and JSON-to-HTML Human Findings Rendering",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The migration did build both renderer libraries: lib/render-markdown/index.mjs and lib/render-html/index.mjs, with focused tests. It did not complete the concrete human-facing findings path: no implemented csm-review findings adapter, registered findings profile, or end-to-end renderer-to-publication test was found. Do not rebuild the renderers; add the missing adapter/profile/wiring and fix the two known renderer defects first."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question -> local migration evidence -> renderer inspection -> test/wiring inspection -> external security/accessibility constraints -> independent challenge -> judge -> verified finding\n\nT006-T009 are recorded complete, and the code plus focused tests substantiate that generic typed rendering was built. The broader migration assessment also says the migration was substantially implemented rather than fully release-hardened; that qualification does not negate renderer existence. The missing deliverable is the final product seam for humans viewing findings: csm-review JSON must be projected into csm-render-model/1 through a findings-specific profile, then passed to the concrete renderers and publication API."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported: The migration plan explicitly required JSON-to-Markdown and direct JSON-to-HTML renderers, and T006-T009 are recorded complete. [R1]\n\nK2. supported: Both concrete renderer libraries exist and are tested for deterministic output, escaping, URL policy, provenance metadata, digests, CSP, accessibility structure, and invalid inputs. [R2][R3]\n\nK3. supported: The renderers consume validated csm-render-model/1 objects, not raw csm-review findings JSON. [R2]\n\nK4. supported: No implemented or registered csm-review findings render profile or production call path from csm-review JSON through createRenderModel, renderMarkdown/renderHtml, and publish was found; csm-review/producer.json declares csm-review-human/1, but that declaration is not an implementation. [R3][R4]\n\nK5. supported: The lean completion is an adapter/profile/wiring task, not a renderer rewrite. [R2][R4][R5]\n\nK6. partially-supported: The existing renderer contracts are suitable for human findings, but rich finding semantics must be flattened explicitly because the generic model has no native severity, citation, remediation, verdict, or cross-reference kinds. [R2][R5]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "Implementation status\n\nThe migration plan records T006 as the typed render-model/profile foundation, T007 as the JSON-to-Markdown renderer, T008 as the direct JSON-to-HTML renderer, and T009 as publication/interaction-mode boundaries. The plan records their acceptance signals and completion journal entries. Git history cited by the research track includes the renderer and publication commits. [R1]\n\nWhat exists\n\nThe Markdown API is renderMarkdown({ model, profile, projection }). It validates the model/profile/projection, escapes Markdown syntax, rejects raw HTML, validates allowlisted URLs, emits ordered sections/items, computes a UTF-8 SHA-256 output digest, and validates the final projection descriptor. [R2]\n\nThe HTML API is renderHtml({ model, schemaRegistry, profile, projection }). It builds fixed semantic elements, allowlists tags/attributes, escapes text/attributes, validates URLs, generates collision-resistant IDs, emits CSP/provenance metadata, computes an output digest, and validates the final projection descriptor. [R2]\n\nWhat is missing\n\nThe csm-review findings schema is a rich typed artifact with findings, severity, confidence, evidence class, locations, snippets, explanations, impact, remediation, challenges, status, and sort order. The generic render model supports only text, number, boolean, date, list, table, code, link, and redacted items. Therefore a findings-specific adapter must choose the human information architecture and explicitly flatten each finding into sections and typed items. [R2][R4]\n\nThe publication API selects media type and calls renderer callbacks supplied by its caller. Its tests use anonymous synthetic Markdown/HTML callbacks, not the concrete renderer functions. Static repository search found no production caller connecting csm-review findings to createRenderModel, renderMarkdown/renderHtml, and publish. csm-review/producer.json declares projectionProfile csm-review-human/1, but no implemented/registered profile instance was found. [R3][R4]\n\nLean completion design\n\n1. Add one findings-to-render-model adapter. Validate the source findings payload first, preserve source artifact ID/digest/run/owner, and construct deterministic sections such as Summary, Findings, Evidence, and Remediation.\n2. Add one csm-review-human/1 profile or equivalent profile data, with explicit ordering and redaction policy. Keep finding IDs, severity/status labels, locations, evidence class, explanation, impact, remediation, and challenge status visible to humans; keep raw credential-bearing snippets redacted.\n3. Build projection metadata from the existing source descriptor and renderer/profile digests. Do not copy the canonical JSON into the rendered body except through intentionally selected fields.\n4. Wire the concrete renderer callbacks into publish for explicit human sharing. Keep Markdown/HTML disposable and never make either authoritative.\n5. Add one end-to-end test: csm-review fixture -> validate findings -> adapter -> render model -> concrete Markdown/HTML renderer -> publish callback/storage. Assert output digests, source linkage, deterministic bytes, unsafe-content handling, and that projections are excluded from artifact discovery.\n6. Add parity tests for shared semantic content and an intentional-difference test for media-specific details. Fix HTML omit redaction so omit truly suppresses the item, and use one resolved generatedAt value in HTML metadata and descriptor.\n\nExternal constraints\n\nA narrow Markdown subset and raw-HTML rejection are appropriate because CommonMark permits raw HTML while downstream Markdown-to-HTML implementations vary. Markdown escaping is not a universal XSS guarantee, so Markdown remains an untrusted presentation. [R5]\n\nHTML should continue using fixed tags/attributes, context-correct escaping, URL parsing plus scheme/credential checks, and no scripts/styles/forms/objects by default. CSP is defense in depth; a response-header CSP is stronger than a meta-only CSP when deployment controls headers. [R5]\n\nAccessibility requires semantic headings, sections, definition lists, lists, real tables, and programmatic relationships such as aria-labelledby. The existing HTML renderer already follows most of this structure. [R5]"
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Recommendation: retain both existing renderers and complete only the missing findings projection seam. Do not create a second JSON-to-Markdown or JSON-to-HTML implementation.\n\nRecommended minimum boundary: validated csm-review-findings/1 -> findings-specific csm-render-model/1 adapter -> existing renderMarkdown/renderHtml -> existing publication callback/storage. Validate and redact before the adapter; keep source/projection digests and approval metadata in the existing descriptor model.\n\nThe implementation is ready for a lean build after two prerequisites: correct HTML omit-redaction and generatedAt consistency, then add the concrete findings profile/adapter and one end-to-end test per media type. The recommendation changes only if the real findings corpus cannot fit the generic model without losing human-critical semantics; in that case extend the model with a small typed construct rather than rendering arbitrary JSON recursively."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. No renderer execution was performed in this research run; completion evidence comes from checked-in code, tests, and plan journal records. Run the focused suites and the new end-to-end fixture before claiming runtime readiness.\n\nU2. No browser/assistive-technology audit was performed. WCAG-oriented structural checks exist, but full accessibility conformance remains unverified.\n\nU3. The absence of a production findings call path is based on static repository search and inspected publication tests. A generated or externally supplied integration outside this repository was not assessed.\n\nU4. The primary ISO 25010 URL returned HTTP 403 during anchor retrieval; ISO/IEC 25010:2023 remains the pinned edition, but that primary page was not retrievable in this run."
+    },
+    "references": {
+      "id": "references",
+      "content": "[R1] Local migration plan and journal, T006-T009, T014. https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/.agents/plans/2026-08-25-json-only-rendered-skill-outputs-csm.md — repository-local plan; retrieved 2026-08-29; completion records inspected.\n\n[R2] Existing render model, profile, Markdown renderer, HTML renderer, security policy, and projection schemas. https://github.com/jamiemills/opencode-skills/tree/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/lib and https://github.com/jamiemills/opencode-skills/tree/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/schemas — repository-local implementation at pinned commit; retrieved 2026-08-29.\n\n[R3] Renderer-focused tests and publication tests. https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/tests/render-markdown.test.mjs and https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/tests/render-html.test.mjs — repository-local tests; retrieved 2026-08-29.\n\n[R4] csm-review producer descriptor and findings schema. https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/csm-review/producer.json and https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/csm-review/schemas/csm-review-findings.schema.json — repository-local contracts; retrieved 2026-08-29.\n\n[R5] CommonMark 0.31.2; OWASP XSS Prevention and CSP guidance; W3C WCAG 2.2; JSON Schema Draft 2020-12. https://spec.commonmark.org/0.31.2/ ; https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html ; https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html ; https://www.w3.org/TR/2024/REC-WCAG22-20241212/ ; https://json-schema.org/draft/2020-12/json-schema-core.html — standards/security guidance; retrieved 2026-08-29."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Strategy: DEEP tier, hybrid local+web source mode. Four independent research tracks covered migration records, implementation, tests/wiring, and lean external design constraints. All researchers were instructed read-only; no repository code was executed or modified.\n\nControl journal:\n0 INTAKE complete — repository pinned at b69872e79201a5f66aebcf276b0b45b0b3eb6a56; pre-existing review report remained the only worktree change; run ID run-20260829t074546z-5fdd2180dc5f.\n1 TRIAGE complete — DEEP/hybrid selected because the answer distinguishes implementation existence from production wiring and informs an architecture decision.\n2 RESEARCH complete — four tracks returned local and external evidence.\n3 SYNTHESIZE complete — conclusion separated generic renderer completion from missing findings integration.\n4 CHALLENGE complete — independent challenger supported the conclusion and corrected the absolute wording about the profile: csm-review/producer.json declares csm-review-human/1, but no implementation/registration was found.\n5 JUDGE complete — initial draft scored factual accuracy 0.82, citation accuracy 0.66, completeness 0.78, clarity 0.94; failed citation threshold because absence claims and the HTML omit location needed sharper citations.\n6 REMEDIATE complete — added producer descriptor, findings schema, publication test, explicit repository-search wording, and render-html omit citation to the final synthesis.\n7 VERIFY complete — all material claims carry references; unverified items are disclosed; external references include retrieval dates; protected-state baseline remains unchanged except the run-owned research file.\n8 SAVED — this terminal run-owned JSON finding is the authoritative artifact; no implementation was performed.\n\nJudge correction applied: say 'no implemented or registered findings profile was found; producer.json declares csm-review-human/1', not 'no profile exists'. The HTML omit defect is cited to render-html/index.mjs:102-107 together with render-profile.test.mjs:237-267.\n\nThe user asked whether the renderers were built and, if not, how to build lean versions. The answer is that the renderer versions were built; only the findings-specific human presentation seam remains."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-renderers-built",
+      "section": "keyFindings",
+      "statement": "The migration built both JSON-to-Markdown and direct JSON-to-HTML renderer libraries, and the plan records T006-T009 complete.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {"referenceId": "ref-plan", "locator": "plan T006-T009 and journal completion lines 343-400, 724-750", "quote": "Build and verify the JSON-to-Markdown renderer; Build and verify the direct JSON-to-HTML renderer."},
+        {"referenceId": "ref-markdown", "locator": "lib/render-markdown/index.mjs:212-273", "quote": "export async function renderMarkdown({ model, profile, projection, sourceMetadata } = {})"},
+        {"referenceId": "ref-html", "locator": "lib/render-html/index.mjs:289-407", "quote": "export function renderHtml({ model, schemaRegistry, profile, projection, generatedAt = ... } = {})"}
+      ]
+    },
+    {
+      "claimId": "claim-renderers-tested",
+      "section": "keyFindings",
+      "statement": "The renderer libraries have focused deterministic, security, metadata, digest, and accessibility tests.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {"referenceId": "ref-markdown-tests", "locator": "tests/render-markdown.test.mjs:97-205", "quote": "renders deterministic typed Markdown and metadata"},
+        {"referenceId": "ref-html-tests", "locator": "tests/render-html.test.mjs:114-335", "quote": "HTML output is deterministic and carries source/profile/renderer metadata"}
+      ]
+    },
+    {
+      "claimId": "claim-findings-wiring-missing",
+      "section": "keyFindings",
+      "statement": "No implemented or registered csm-review findings render profile or production path from findings JSON through the concrete renderers and publication was found; producer.json declares csm-review-human/1 only.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {"referenceId": "ref-producer", "locator": "csm-review/producer.json:7-13", "quote": "projectionProfile: csm-review-human/1"},
+        {"referenceId": "ref-publication", "locator": "lib/publication/index.mjs:558-614; tests/publication-protocol.test.mjs:73-117", "quote": "publication receives renderer callbacks supplied by its caller; tests use synthetic callbacks"},
+        {"referenceId": "ref-search", "locator": "repository-wide static search for renderMarkdown/renderHtml/createRenderModel callers, retrieved 2026-08-29", "quote": "only renderer modules and direct renderer tests were found"}
+      ]
+    },
+    {
+      "claimId": "claim-lean-completion",
+      "section": "recommendation",
+      "statement": "The lean completion should reuse the existing renderers and add a csm-review findings-to-render-model adapter, a human profile, concrete publication wiring, and end-to-end tests.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {"referenceId": "ref-model-schema", "locator": "schemas/csm-render-model.schema.json:21-172", "quote": "typed render model kinds and closed properties"},
+        {"referenceId": "ref-findings-schema", "locator": "csm-review/schemas/csm-review-findings.schema.json:52-120", "quote": "typed findings, locations, evidence, remediation, challenges, and status"},
+        {"referenceId": "ref-publication", "locator": "lib/publication/index.mjs:558-614", "quote": "publication selects requested media type and invokes renderer callback"}
+      ]
+    },
+    {
+      "claimId": "claim-html-defects",
+      "section": "detailSections",
+      "statement": "Before wiring findings, fix HTML omit-redaction divergence and use one resolved generatedAt value consistently.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {"referenceId": "ref-html-defect", "locator": "lib/render-html/index.mjs:102-107,289-306,367-406; schemas/csm-render-profile.schema.json redaction modes", "quote": "if (item.redacted) return \"[REDACTED]\";"},
+        {"referenceId": "ref-omit-test", "locator": "tests/render-profile.test.mjs:237-267", "quote": "omit redaction produces a schema-valid deterministic item without a value"}
+      ]
+    }
+  ],
+  "references": [
+    {"referenceId": "ref-plan", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/.agents/plans/2026-08-25-json-only-rendered-skill-outputs-csm.md", "publisher": "opencode-skills repository plan", "retrievedAt": "2026-08-29", "publishedOrUpdated": "2026-08-25 plan with journal updates", "sourcePosture": "customer-evidence"},
+    {"referenceId": "ref-markdown", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/lib/render-markdown/index.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-html", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/lib/render-html/index.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-markdown-tests", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/tests/render-markdown.test.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-html-tests", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/tests/render-html.test.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-producer", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/csm-review/producer.json", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-publication", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/lib/publication/index.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-search", "url": "https://github.com/jamiemills/opencode-skills/tree/b69872e79201a5f66aebcf276b0b45b0b3eb6a56", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e; static repository search", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-model-schema", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/schemas/csm-render-model.schema.json", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-findings-schema", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/csm-review/schemas/csm-review-findings.schema.json", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-html-defect", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/lib/render-html/index.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-omit-test", "url": "https://github.com/jamiemills/opencode-skills/blob/b69872e79201a5f66aebcf276b0b45b0b3eb6a56/tests/render-profile.test.mjs", "publisher": "opencode-skills repository", "retrievedAt": "2026-08-29", "publishedOrUpdated": "pinned commit b69872e", "sourcePosture": "empirical-measurement"},
+    {"referenceId": "ref-commonmark", "url": "https://spec.commonmark.org/0.31.2/", "publisher": "CommonMark", "retrievedAt": "2026-08-29", "publishedOrUpdated": "0.31.2", "sourcePosture": "methodological-authority"},
+    {"referenceId": "ref-owasp-xss", "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html", "publisher": "OWASP", "retrievedAt": "2026-08-29", "publishedOrUpdated": "living cheat sheet", "sourcePosture": "methodological-authority"},
+    {"referenceId": "ref-owasp-csp", "url": "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html", "publisher": "OWASP", "retrievedAt": "2026-08-29", "publishedOrUpdated": "living cheat sheet", "sourcePosture": "methodological-authority"},
+    {"referenceId": "ref-wcag", "url": "https://www.w3.org/TR/2024/REC-WCAG22-20241212/", "publisher": "W3C", "retrievedAt": "2026-08-29", "publishedOrUpdated": "WCAG 2.2 Recommendation, 2024-12-12", "sourcePosture": "methodological-authority"},
+    {"referenceId": "ref-json-schema", "url": "https://json-schema.org/draft/2020-12/json-schema-core.html", "publisher": "JSON Schema / IETF authors", "retrievedAt": "2026-08-29", "publishedOrUpdated": "Draft 2020-12", "sourcePosture": "methodological-authority"}
+  ],
+  "journal": [
+    {"sequence": 0, "state": "INTAKE", "event": "Repository pinned; baseline captured; DEEP hybrid run initialized.", "occurredAt": "2026-08-29T07:45:46Z", "cycle": 0, "trigger": "explicit deep-research request"},
+    {"sequence": 1, "state": "TRIAGE", "event": "Selected DEEP tier and hybrid source mode with four independent tracks.", "occurredAt": "2026-08-29T07:46:00Z", "cycle": 0, "trigger": "architecture decision and local/web evidence required"},
+    {"sequence": 2, "state": "RESEARCH", "event": "Four read-only research tracks completed.", "occurredAt": "2026-08-29T08:10:00Z", "cycle": 0, "trigger": "local plan, implementation, tests, and external design evidence collected"},
+    {"sequence": 3, "state": "SYNTHESIZE", "event": "Draft separated renderer existence from findings integration completeness.", "occurredAt": "2026-08-29T08:20:00Z", "cycle": 0, "trigger": "evidence reconciled"},
+    {"sequence": 4, "state": "CHALLENGE", "event": "Independent challenge supported the conclusion and narrowed the profile absence claim.", "occurredAt": "2026-08-29T08:35:00Z", "cycle": 0, "trigger": "anti-anchoring review"},
+    {"sequence": 5, "state": "JUDGE", "event": "Initial draft failed citation accuracy threshold; other dimensions passed.", "occurredAt": "2026-08-29T08:45:00Z", "cycle": 0, "trigger": "citation and absence-claim corrections required"},
+    {"sequence": 6, "state": "REMEDIATE", "event": "Added producer/profile distinction, absence-search evidence, and exact HTML defect citations.", "occurredAt": "2026-08-29T09:00:00Z", "cycle": 1, "trigger": "judge corrections"},
+    {"sequence": 7, "state": "VERIFY", "event": "Claims, references, fixed section shape, redaction, and residual unknowns verified.", "occurredAt": "2026-08-29T09:15:00Z", "cycle": 1, "trigger": "remediation complete"},
+    {"sequence": 8, "state": "SAVED", "event": "Terminal research finding saved; no implementation performed.", "occurredAt": "2026-08-29T09:20:00Z", "cycle": 1, "trigger": "verification passed with disclosed residuals"}
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1",
+    "producedAt": "2026-08-29T09:20:00Z",
+    "sourceDigests": ["sha256:b69872e79201a5f66aebcf276b0b45b0b3eb6a56b69872e79201a5f66aebcf27"]
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": ["tldr", "executiveSummary", "keyFindings", "detailSections", "recommendation", "unverifiedClaims", "references", "processAppendix"],
+    "legacyMarkdownStatus": "history-only"
+  }
+}
