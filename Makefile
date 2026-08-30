@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 OXFMT_CONFIG := $(dir $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))).oxfmtrc.json
 OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
-.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e analyze
+.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-patch-context analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -91,7 +91,10 @@ test-review-render: ## csm-review human Markdown/HTML projection tests
 	  csm-review/test/human-projection.test.mjs \
 	  tests/review-render.test.mjs
 
+test-patch-context: ## patch-context guidance contract tests
+	node --test --test-concurrency=1 tests/patch-context-guidance.test.mjs
+
 test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs
 
-test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; browser E2E and live/external gates remain separate)
+test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; browser E2E and live/external gates remain separate)

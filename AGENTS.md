@@ -12,6 +12,13 @@
   a long in-context transcript.
 - Append-only history: never rewrite earlier turns in a session.
 
+## Patch Context Safety
+
+- Re-read the full current target file immediately before patching; never use truncated output as patch context.
+- Use stable anchors and small conceptual hunks.
+- If `apply_patch` rejects expected lines, do not guess, fuzzy-match, or overwrite. Re-read the current file, inspect concurrent or formatter changes, and retry with a fresh smaller patch.
+- Preserve exact-context failure semantics; do not weaken verification.
+
 ## Parallel sessions (worktrees)
 
 - One goal per worktree when running parallel csm-grill/plan/build/research

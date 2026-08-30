@@ -1,7 +1,7 @@
 {
   "schema": "csm-orchestrate-capabilities/1",
   "version": 1,
-  "contentDigest": "sha256:232817de8a978564e467695a2fe6dfe97b134905cc2d6cc082197b28e4a30d7f",
+  "contentDigest": "sha256:f1d6a332bc73f758b4222320b7961f257e30a5e412828c8f07b0dd6ed4a17285",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -112,7 +112,7 @@
     {
       "skill": "csm-build",
       "version": "1",
-      "digest": "sha256:772836e87dab5f4c4878d787b0b5d9636e339ec83d15437b05975acd4a3f98d3",
+      "digest": "sha256:12c167fed28e217c9f30b2884d72ecc05b828c7c1e306a2de4a36cd3c0608363",
       "source": { "skillPath": "csm-build/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "explicit",
@@ -253,7 +253,7 @@
     {
       "skill": "csm-plan",
       "version": "1",
-      "digest": "sha256:9283de4d0431c3fe4882b2f65c1cfeb1e713c1d3a74b7af404f35a40ba84c564",
+      "digest": "sha256:03bacef376c4b9ba615d0d66aeb15ef577d4f8633ea66d55f3afd29351f4d88c",
       "source": { "skillPath": "csm-plan/SKILL.md", "producerPath": null },
       "activation": {
         "mode": "explicit",

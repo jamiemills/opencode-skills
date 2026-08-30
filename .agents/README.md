@@ -65,6 +65,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-29-progress-tracking-implementation-csm.json` — 2026-08-29 — implement progress tracking in the application checkout — status: superseded by `2026-08-30-progress-followups-csm.json` (terminal blocked history retained)
 - `2026-08-29-skill-progress-tracking-csm.json` — 2026-08-29 — add default-on progress tracking to catalog skills — status: retained historical complete plan
 - `2026-08-30-progress-followups-csm.json` — 2026-08-30 — close remaining progress-tracking operational gaps — status: indexed active plan
+- `2026-08-30-patch-reliability-csm.json` — 2026-08-30 — prevent recurring patch-context failures with fail-closed editing guidance and contract tests — status: indexed active plan
 
 ## docs/
 
@@ -162,6 +163,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-08-28-all-skills-config-production-assurance-build.json` — 2026-08-28 — execute the all-skills config production-assurance plan (T001-T010 dispatch log; per-dispatch cycles recorded in the plan journal) — status: in progress
 - `progress-tracking-runtime-20260829.json` — 2026-08-30 — csm-build checkpoint for cross-skill progress implementation — status: blocked at commit boundary
 - `progress-followups-20260830.json` — 2026-08-30 — csm-build checkpoint for progress follow-up work — status: indexed active checkpoint
+- `patch-reliability-20260830.json` — 2026-08-30 — csm-build checkpoint for patch-context reliability work — status: indexed active checkpoint
 - `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
 
 ## ddd/

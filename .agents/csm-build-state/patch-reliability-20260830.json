@@ -1,0 +1,15 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-build-patch-reliability-20260830",
+  "runId": "run-20260830t073000z-patch-reliability-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {"currentState": "RECOVER", "cycle": 0, "nextTransition": "RECOVER -> VALIDATE", "activeTasks": [], "blockers": [], "lastCheckpoint": "2026-08-30T07:30:00Z: build recovered from csm-orchestrate compiled approach", "lastModelRun": "gpt-5.6-luna / patch-reliability-build"},
+  "inputs": [{"name": "plan", "artifactId": "art-patch-reliability-20260830", "schema": "csm-plan/1", "runId": "run-20260830t071500z-patch-reliability", "owner": "csm-plan", "digest": "sha256:b2befb9946657a6312b8ac928c793fd235a34f940aadf8045336fa8bd2d54ca6", "path": ".agents/plans/2026-08-30-patch-reliability-csm.json", "status": "resolved"}],
+  "journal": [{"sequence": 0, "timestamp": "2026-08-30T07:30:00Z", "from": "NOT_STARTED", "to": "RECOVER", "evidence": "Recovered the explicit patch-reliability build request after csm-orchestrate compiled the repaired approach to csm-build-only phases.", "inputDigests": []}],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {"sourcePlan": "art-patch-reliability-20260830", "sourceDigests": ["sha256:b2befb9946657a6312b8ac928c793fd235a34f940aadf8045336fa8bd2d54ca6"]},
+  "projection": {"sourceOnly": true, "allowed": ["markdown", "html"]}
+}

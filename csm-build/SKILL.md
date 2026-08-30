@@ -37,6 +37,13 @@ The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` 
 
 Execute a saved CSM plan from its verified current state. Start a new plan or recover interrupted work, use the maximum useful number of parallel subagents, and continue cycling until the goal is verified complete or genuinely blocked.
 
+## Patch Context Safety
+
+- Re-read the full current target file immediately before patching; never use truncated output as patch context.
+- Use stable anchors and small conceptual hunks.
+- If `apply_patch` rejects expected lines, do not guess, fuzzy-match, or overwrite. Re-read the current file, inspect concurrent or formatter changes, and retry with a fresh smaller patch.
+- Preserve exact-context failure semantics; do not weaken verification.
+
 ## Tmux Session Bootstrap
 
 Run first — before `Activation Boundary` work, locating the plan, or any execution state. Not an execution state.

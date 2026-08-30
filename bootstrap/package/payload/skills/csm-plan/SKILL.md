@@ -25,6 +25,13 @@ The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` 
 
 Turn the user's brief into an evidence-based, executable, and resumable implementation plan. Use a cyclic state machine and the maximum useful number of parallel subagents. Save and display the plan, then stop. A saved plan may optionally be mutated by `csm-bdd-tdd` before execution; `csm-build` follows the mutation when one exists.
 
+## Patch Context Safety
+
+- Re-read the full current target file immediately before patching; never use truncated output as patch context.
+- Use stable anchors and small conceptual hunks.
+- If `apply_patch` rejects expected lines, do not guess, fuzzy-match, or overwrite. Re-read the current file, inspect concurrent or formatter changes, and retry with a fresh smaller patch.
+- Preserve exact-context failure semantics; do not weaken verification.
+
 ## Tmux Session Bootstrap
 
 Run first — before `INTAKE`, any planning tool use, or any other section. Not a planning state.
