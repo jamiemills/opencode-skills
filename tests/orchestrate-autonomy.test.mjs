@@ -471,7 +471,7 @@ test("retry backoff creates a measurable delay before the retry dispatch", async
     await autonomyOptions(host, {
       runId: "run-autonomy-backoff",
       signals: { capabilities: ["csm-scan"] },
-      retryBackoffMs: 150,
+      retryBackoffMs: 250,
     }),
   );
   assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
