@@ -769,6 +769,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/cli-host.mjs",
+        "sha256": "82d53fcb54d7b9ec3392061eee5ef6705c72c5368c348dbc48be9e975f48d11e",
+        "bytes": 4315,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/compatibility.mjs",
         "sha256": "cb736960c0d1c5534e7fd65c9c007fa7631d72e599a8cb4b52151c3a1c84cbf6",
         "bytes": 3230,

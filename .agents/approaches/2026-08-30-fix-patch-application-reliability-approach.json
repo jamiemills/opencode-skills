@@ -1,0 +1,67 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "artifactId": "art-fix-patch-application-reliability-20260830",
+  "runId": "run-20260830t061500z-patch-reliability",
+  "ideaSlug": "fix-patch-application-reliability",
+  "status": "agreed",
+  "ideaStatement": "Identify and implement a safe fix for recurring apply_patch context failures, then verify, commit, merge, push, and confirm green CI without hiding or overwriting unrelated work.",
+  "decisions": [
+    {"decisionId": "D1", "question": "What is the fix boundary?", "answer": "Improve patch-application reliability and diagnostics in the repository/agent workflow; do not weaken exact-context verification or silently overwrite files.", "rationale": "The observed failures are context mismatches, and fail-closed editing is a safety invariant.", "traceability": ["User request", "Repository apply_patch failures in current session and recorded logs"]},
+    {"decisionId": "D2", "question": "What is the source of truth for changes?", "answer": "Current repository files and git diff are authoritative; stale snippets, truncated tool output, and generated copies must be re-read before patching.", "rationale": "The recurring error occurs when patch context is based on an earlier or incomplete file view.", "traceability": ["Current worktree state", "apply_patch verification behavior"]},
+    {"decisionId": "D3", "question": "How should delivery be handled?", "answer": "Use bounded implementation, independent review, repository gates, an explicit path-only commit, remote integration, push, and GitHub CI verification.", "rationale": "The requested outcome includes build delivery and CI, while unrelated changes must remain protected.", "traceability": ["User request", "Repository hook and CI contracts"]}
+  ],
+  "researchSynthesis": "Recurring apply_patch failures are caused by exact-context drift: long JSON lines, formatter rewrites, concurrent edits, stale copied snippets, and patches aimed at the wrong repository or file shape. The fix must preserve fail-closed context matching while making the workflow more reliable through fresh bounded reads, stable anchors, smaller hunks, explicit file ownership, conflict diagnostics, and tests for stale/format-shifted/concurrent contexts. The implementation must be repository-specific and must not invent a replacement editor that bypasses the existing safety boundary.",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Prepare patch reliability work",
+      "goal": "Build the smallest safe reliability improvement from the recorded patch failures.",
+      "deliverables": ["Bounded change brief", "Failure cases", "Chosen fix and rollback criteria"],
+      "scope": ["Recorded patch failures", "Agent editing workflow", "Repository instructions"],
+      "outOfScope": ["Disabling exact-context verification", "Blind file replacement", "Unrelated application changes"],
+      "constraints": ["Read-only diagnosis", "Use current file contents and git evidence", "Keep path and ownership boundaries explicit"],
+      "acceptanceHints": ["build bounded patch reliability change", "produce a deliverable change brief"],
+      "dependencies": [],
+      "context": ["Relevant local examples are recorded in the repository process evidence.", "The fix must account for long-line JSON and concurrent formatter/agent changes.", "The host supplies the validated progress-followups plan as the build input."]
+    },
+    {
+      "phaseId": "P2",
+      "title": "Implement bounded patch reliability fix",
+      "goal": "Implement the selected fix without weakening fail-closed editing or overwriting unrelated work.",
+      "deliverables": ["Minimal source/tooling change", "Regression tests", "Updated JSON state/evidence where required"],
+      "scope": ["Files identified by P1", "Exact-context diagnostics or editing guidance", "Focused tests"],
+      "outOfScope": ["Global formatter redesign", "Silent fuzzy patching", "Destructive cleanup", "Unrelated dirty files"],
+      "constraints": ["Use existing repository conventions", "Preserve JSON-only machine artifacts", "Every changed file has an acceptance signal"],
+      "acceptanceHints": ["build patch context reliability change", "deliver focused verification"],
+      "dependencies": ["P1"],
+      "context": ["Prefer smaller stable hunks and explicit re-read/anchor diagnostics over fuzzy application.", "Keep generated payloads synchronized if the selected seam is packaged."]
+    },
+    {
+      "phaseId": "P3",
+      "title": "Verify patch reliability work",
+      "goal": "Build verification evidence for the change and repair any material failure.",
+      "deliverables": ["Verification evidence", "Repository gate results", "Resolved failure or explicit blocker"],
+      "scope": ["P2 diff", "Stale/concurrent/context-shift cases", "Security and ownership boundaries", "Tests and generated parity"],
+      "outOfScope": ["Rubber-stamp review", "Changing the user goal", "Suppressing failed checks"],
+      "constraints": ["Reviewer did not author the implementation", "Failures remain visible", "No commit until review and gates pass"],
+      "acceptanceHints": ["build verification evidence", "run repository gates", "deliver the bounded change"],
+      "dependencies": ["P2"],
+      "context": ["Verification must include long JSON lines, formatter drift, concurrent edits, generated payload parity, and exact error reporting."]
+    },
+    {
+      "phaseId": "P4",
+      "title": "Commit merge push and confirm CI",
+      "goal": "Deliver the verified fix through the repository's hook, remote integration, and CI workflow.",
+      "deliverables": ["Path-scoped commit", "Merged remote history", "Pushed main branch", "Successful GitHub Actions run"],
+      "scope": ["Verified P2/P3 files", "Required plan/research/build evidence", "Remote main integration"],
+      "outOfScope": ["Force push", "Bypassing hooks", "Pushing secrets", "Committing unresolved unrelated work"],
+      "constraints": ["Explicit path-only commit", "Inspect status/diff/log before commit", "Merge remote updates before push", "Verify CI by run URL and conclusion"],
+      "acceptanceHints": ["commit verified patch fix", "merge origin main", "push main", "verify GitHub CI success"],
+      "dependencies": ["P3"],
+      "context": ["Current remote is github.com:jamiemills/opencode-skills.git.", "Use gh for CI inspection and report the final commit, merge, push, and run URL."]
+    }
+  ],
+  "projection": {"profile": "csm-grill-human/1", "legacyMarkdownStatus": "history-only"},
+  "provenance": {"producer": "csm-grill", "producerVersion": "csm-grill/1", "producedAt": "2026-08-30T06:15:00Z", "sourceDigests": []}
+}

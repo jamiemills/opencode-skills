@@ -143,6 +143,7 @@ the source file. Deletion remains awaiting explicit authorization.
 
 ## approaches/
 
+- `2026-08-30-fix-patch-application-reliability-approach.json` — 2026-08-30 — canonical approach for diagnosing and fixing recurring patch-context failures — status: agreed
 - `2026-08-16-suite-coherence-contracts-approach.md` — 2026-08-16 — agreed approach behind the suite-coherence plan — status: complete
 - `2026-08-20-csm-deep-research-skill-approach.md` — 2026-08-20 — grill approach for the csm-deep-research skill — status: complete
 - `2026-08-20-tdad-verification-layer-approach.md` — 2026-08-20 — grill approach for the TDAD verification layer — status: reference (plan not started)
