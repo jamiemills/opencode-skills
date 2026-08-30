@@ -57,9 +57,18 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-28-autonomy-safety-hardening-csm.json` — 2026-08-28 — close autonomy safety gaps from adversarial research — status: ready
 - `2026-08-29-findings-human-rendering-csm.json` — 2026-08-29 — complete human-facing csm-review findings Markdown/HTML projections — status: ready
 - `2026-08-29-progress-tracking-runtime-csm.json` — 2026-08-29 — implement default-on cross-skill progress and orchestrator aggregation — status: blocked at commit boundary
+- `2026-08-29-all-human-rendering-optionals-csm.json` — 2026-08-29 — complete optional human rendering and projection follow-ups — status: quarantined (copied application-root plan; preserved pending provenance review)
+- `2026-08-29-complete-progress-tracking-csm.json` — 2026-08-29 — complete progress tracking across skills, orchestration, and persistence — status: quarantined (copied application-root plan; preserved pending provenance review)
+- `2026-08-29-durable-progress-persistence-csm.json` — 2026-08-29 — add durable browser-local progress persistence — status: quarantined (copied application-root plan; preserved pending provenance review)
+- `2026-08-29-orchestrator-progress-model-csm.json` — 2026-08-29 — separate task, invocation, attempt, telemetry, and aggregate progress — status: retained historical complete plan
+- `2026-08-29-progress-artifact-reconciliation-csm.json` — 2026-08-29 — reconcile copied progress artifacts and execution-root provenance — status: indexed successor/reconciliation plan
+- `2026-08-29-progress-tracking-implementation-csm.json` — 2026-08-29 — implement progress tracking in the application checkout — status: superseded by `2026-08-30-progress-followups-csm.json` (terminal blocked history retained)
+- `2026-08-29-skill-progress-tracking-csm.json` — 2026-08-29 — add default-on progress tracking to catalog skills — status: retained historical complete plan
+- `2026-08-30-progress-followups-csm.json` — 2026-08-30 — close remaining progress-tracking operational gaps — status: indexed active plan
 
 ## docs/
 
+- `2026-08-30-progress-followups-t002-inventory.json` — 2026-08-30 — T002 untracked artifact inventory and retention evidence — status: reference
 - `csm-suite-performance-baseline-2026-08-15.md` — 2026-08-15 — performance baseline for the csm-scan suite — status: reference
 - `csm-suite-review-2026-08-15.md` — 2026-08-15 — three-pass hostile review of the csm-suite-improvements build — status: reference
 - `cache-token-efficiency-2026-08-20.md` — 2026-08-20 — cache maximization and token efficiency reference (DeepSeek caching, measured ratios, docs-only config block, monitor, toggle) — status: retired
@@ -79,10 +88,12 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-24-opencode-skills-review.md` — 2026-08-24 — parallel full static review of skills, runtime, packaging, README, and release surfaces — status: reference
 - `2026-08-25-opencode-skills-review.md` — 2026-08-25 — full static hardening review of skills, runtime, packaging, README, and release surfaces — status: reference
 - `2026-08-27-csm-orchestrate-approach-review-20260827t130000z-a1b2c3d4e5f6-review.json` — 2026-08-27 — focused csm-orchestrate approach-fidelity and remediation review — status: complete
+- `2026-08-29-opencode-skills-20260829t063809z-0916749aa6da-review.json` — 2026-08-29 — terminal adversarial review of the skills suite — status: retained historical review
 
 ## research/
 
 - `2026-08-29-progress-tracking-gaps-20260829t210000z-a7c4e91b2d6f-research.json` — 2026-08-29 — progress-tracking contract, runtime, aggregation, and persistence research — status: reference
+- `2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json` — 2026-08-29 — JSON renderer and human-findings integration research — status: retained terminal research
 - `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
 - `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
 - `2026-08-20-csm-deep-research-skill-research.md` — 2026-08-20 — seed research document for the csm-deep-research corpus — status: reference
@@ -125,6 +136,10 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 Completed plans are retained as process evidence; prune after 6 months or when
 superseded. Reviews and docs are retained while their findings/numbers are
 still cited (the remediation plan and baselines reference them).
+Untracked process artifacts are never deleted by reconciliation: current
+artifacts are indexed, historical artifacts are retained, provenance-ambiguous
+copies are quarantined, and explicit supersession is recorded without changing
+the source file. Deletion remains awaiting explicit authorization.
 
 ## approaches/
 
@@ -145,6 +160,8 @@ still cited (the remediation plan and baselines reference them).
 - `2026-08-27-csm-orchestrate-remediation-build.json` — 2026-08-27 — execute csm-orchestrate remediation plan — status: complete
 - `2026-08-28-all-skills-config-production-assurance-build.json` — 2026-08-28 — execute the all-skills config production-assurance plan (T001-T010 dispatch log; per-dispatch cycles recorded in the plan journal) — status: in progress
 - `progress-tracking-runtime-20260829.json` — 2026-08-30 — csm-build checkpoint for cross-skill progress implementation — status: blocked at commit boundary
+- `progress-followups-20260830.json` — 2026-08-30 — csm-build checkpoint for progress follow-up work — status: indexed active checkpoint
+- `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
 
 ## ddd/
 

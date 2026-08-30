@@ -1,0 +1,15 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-build-progress-followups-20260830",
+  "runId": "run-20260830t042000z-progress-followups-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {"currentState": "SELECT", "cycle": 0, "nextTransition": "SELECT -> DISPATCH", "activeTasks": ["T001", "T002"], "blockers": [], "lastCheckpoint": "2026-08-30T04:25:00Z: follow-up plan validated and T001/T002 selected", "lastModelRun": "gpt-5.6-luna / progress-followups-build"},
+  "inputs": [{"name": "plan", "artifactId": "art-progress-followups-20260830", "schema": "csm-plan/1", "runId": "run-20260830t040000z-progress-followups", "owner": "csm-plan", "digest": "sha256:4c3286411346de7f21ade5badb6bcced1cbd5ee46c034cfe901bf1d53c90fb2c", "path": ".agents/plans/2026-08-30-progress-followups-csm.json", "status": "resolved"}],
+  "journal": [{"sequence": 0, "timestamp": "2026-08-30T04:20:00Z", "from": "NOT_STARTED", "to": "RECOVER", "evidence": "Explicit csm-build request received; selected the follow-up plan and preserved the clean merged baseline.", "inputDigests": ["sha256:ad152a2c4a09efa5247fb9893827cf2d914d587395e2751146bb94cae00bad4d"]}, {"sequence": 1, "timestamp": "2026-08-30T04:25:00Z", "from": "RECOVER", "to": "VALIDATE", "evidence": "Plan/build-state schemas and input digests validate; predecessor terminal state is preserved; implementation commit and CI evidence are present.", "inputDigests": ["sha256:ad152a2c4a09efa5247fb9893827cf2d914d587395e2751146bb94cae00bad4d"]}, {"sequence": 2, "timestamp": "2026-08-30T04:25:00Z", "from": "VALIDATE", "to": "SELECT", "evidence": "T001/T002 selected: successor state creation and artifact inventory are ready and do not overlap.", "inputDigests": ["sha256:ad152a2c4a09efa5247fb9893827cf2d914d587395e2751146bb94cae00bad4d"]}],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {"sourcePlan": "art-progress-followups-20260830", "sourceDigests": ["sha256:4c3286411346de7f21ade5badb6bcced1cbd5ee46c034cfe901bf1d53c90fb2c"]},
+  "projection": {"sourceOnly": true, "allowed": ["markdown", "html"]}
+}

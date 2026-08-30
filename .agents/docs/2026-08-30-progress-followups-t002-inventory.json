@@ -1,0 +1,28 @@
+{
+  "schema": "csm-artifact-inventory/1",
+  "schemaRevision": 1,
+  "artifactId": "art-progress-followups-t002-inventory-20260830",
+  "runId": "run-20260830t-progress-followups-t002-inventory",
+  "owner": "csm-build",
+  "taskId": "T002",
+  "repositoryRoot": "/home/jamiemills/.config/opencode/skills",
+  "scope": "Untracked .agents plans, research, reviews, and build-state files at inventory time",
+  "deletionPolicy": "No deletion authorized; all ambiguous or historical artifacts preserved",
+  "records": [
+    {"path": ".agents/plans/2026-08-29-all-human-rendering-optionals-csm.json", "sha256": "a68c37a4aa9fe706f161e112288d6708563dda0df73674ee7ebe854bc3cf860b", "format": "csm-plan/1", "status": "ready", "classification": "quarantined", "reason": "Valid copied application-root plan; execution provenance remains unresolved."},
+    {"path": ".agents/plans/2026-08-29-complete-progress-tracking-csm.json", "sha256": "9573d0dfa45e39cd95f92d26837ae40338f909419471081b544b224420eea823", "format": "csm-plan/1", "status": "ready", "classification": "quarantined", "reason": "Valid copied application-root plan; execution provenance remains unresolved."},
+    {"path": ".agents/plans/2026-08-29-durable-progress-persistence-csm.json", "sha256": "383784bd4fc3267447407e13f21994b0057d4c31c740bf562bab5dbff5c4709d", "format": "csm-plan/1", "status": "ready", "classification": "quarantined", "reason": "Valid copied application-root plan; execution provenance remains unresolved."},
+    {"path": ".agents/plans/2026-08-29-orchestrator-progress-model-csm.json", "sha256": "0b7d5296df77ee681dd49ddacf312080d99dcbc05703eb2a57392c143e9f4c9d", "format": "csm-plan/1", "status": "complete", "classification": "retained", "reason": "Complete historical plan preserved as process evidence."},
+    {"path": ".agents/plans/2026-08-29-progress-artifact-reconciliation-csm.json", "sha256": "38c78b6790721f0d35e04cafd71d2a3df2c1e8cab58b895bc0ade711c59f51f6", "format": "csm-plan/1", "status": "ready", "classification": "indexed", "reason": "Explicit artifact-reconciliation successor for this checkout."},
+    {"path": ".agents/plans/2026-08-29-progress-tracking-implementation-csm.json", "sha256": "8c18f58245893eb733411bc30f5006fb5c26244711fbb6b10181aac999e81487", "format": "csm-plan/1", "status": "blocked", "classification": "superseded", "supersededBy": ".agents/plans/2026-08-30-progress-followups-csm.json", "reason": "Operationally superseded by the bounded follow-up plan; terminal blocked history is preserved."},
+    {"path": ".agents/plans/2026-08-29-skill-progress-tracking-csm.json", "sha256": "e8b80e779f62521759ccf60130f3845b6deebcda4fe0d789c0a17efe4b9ad18b", "format": "csm-plan/1", "status": "complete", "classification": "retained", "reason": "Complete historical plan preserved; its application-root claim is not used as current execution authority."},
+    {"path": ".agents/plans/2026-08-30-progress-followups-csm.json", "sha256": "4c3286411346de7f21ade5badb6bcced1cbd5ee46c034cfe901bf1d53c90fb2c", "format": "csm-plan/1", "status": "in_progress", "classification": "indexed", "reason": "Current owner-matching follow-up plan."},
+    {"path": ".agents/csm-build-state/progress-followups-20260830.json", "sha256": "a2dab18a934b5276ca1022c7952542ae85e1f46da4365a24aadf8d61bba425e3", "format": "csm-build-state/1", "status": "in_progress", "classification": "indexed", "reason": "Current nonterminal checkpoint for the follow-up plan."},
+    {"path": ".agents/csm-build-state/progress-tracking-implementation-20260829.json", "sha256": "65654404288aacf09325b10e8a3d75b3548f89476774c410dc9555e52987fa4f", "format": "csm-build-state/1", "status": "blocked", "classification": "retained", "reason": "Terminal blocked build state; immutable historical evidence."},
+    {"path": ".agents/research/2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json", "sha256": "c0282a492d8098fe000bc432e27d5e50e625b745760761ce5317221030cb46c2", "format": "csm-research/1", "status": "terminal", "classification": "retained", "reason": "Terminal research JSON; canonical evidence preserved byte-for-byte."},
+    {"path": ".agents/reviews/2026-08-29-opencode-skills-20260829t063809z-0916749aa6da-review.json", "sha256": "5e16518992a4d96432f0b89ad93533633b8565b69eb840e98928d613e01d7808", "format": "csm-review-findings/1", "status": "terminal", "classification": "retained", "reason": "Terminal review findings; retained for audit and remediation provenance."}
+  ],
+  "summary": {"total": 12, "indexed": 3, "retained": 5, "superseded": 1, "quarantined": 3, "awaitingExplicitDeletion": 0},
+  "checks": ["All 12 files parsed as JSON", "All 12 format markers recognized", "Terminal JSON files were not edited", "No deletion performed"],
+  "provenance": {"inventoryCommand": "git status --porcelain=v1 --untracked-files=all", "index": ".agents/README.md"}
+}

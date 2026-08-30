@@ -62,6 +62,16 @@ approach, a host adapter, capability metadata, and edge-bound approvals.
   state is not treated as recovery evidence. Retries use the route's declared
   idempotency and recovery policy.
 
+## Standalone Runtime Boundary
+
+Standalone skills have no shared progress host/context callback in this
+repository; their csm-progress/1 contract is instruction-led only. The
+executable csm-progress/1 authority is the orchestrator-hosted progress runtime
+reached through `orchestrate()` and its injected host adapter. Standalone skills
+must not invent a caller, mutate the parent aggregate, or emit receipt, cursor,
+telemetry, browse, upload, credential, session, or publication data through
+progress.
+
 ## Operator Handoff
 
 The future `csm-build` handoff should provide the saved approach path, parent
