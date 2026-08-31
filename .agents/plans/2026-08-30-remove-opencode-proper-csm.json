@@ -4,15 +4,15 @@
   "artifactId": "art-remove-opencode-proper-20260830",
   "runId": "run-20260830t150000z-remove-opencode-proper",
   "planId": "remove-opencode-proper",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "status": "in_progress",
-    "currentState": "RECOVER",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-08-31T03:15:00Z: user selected csm-build-owned instruction execution; resuming from the blocked coverage checkpoint",
+    "lastCheckpoint": "2026-08-31T03:30:00Z: csm-build-owned handoff implemented, tested, committed, and ready for final CI verification",
     "lastModelRun": "gpt-5.6-luna / remove-opencode-build",
-    "nextTransition": "RECOVER -> VALIDATE",
+    "nextTransition": "COMPLETE",
     "activeTasks": [],
     "blockers": [],
     "resume": { "read": ["Control.lastCheckpoint", "latest journal row", "Recovery notes", "Discovered Requirements", "input artifact digests", "working-tree diff"], "firstAction": "Validate all pinned inputs and execute T001 route-coverage inventory before changing the executor boundary." }
@@ -144,9 +144,10 @@
   ],
   "journal": [
     { "sequence": 0, "timestamp": "2026-08-30T15:00:00Z", "cycle": 0, "transition": "INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED", "tasks": [], "evidence": "Created a merged csm-plan/1 handoff from the prior no-OpenCode plan, assurance research, focused review, and independent uncertainty critique. Implementation was not started.", "nextState": "NOT_STARTED" },
-    { "sequence": 1, "timestamp": "2026-08-31T01:45:00Z", "cycle": 0, "transition": "NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT -> BLOCKED", "tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"], "evidence": "Implemented and tested the no-OpenCode control/executor boundary, lifecycle tests, direct adapters, independent review, durable replay, packaging removal, and outcome corpus. Final gate blocked because model-led/browse/autoresearch routes lack complete runtimes; SQLite-specific cases were unavailable under Node 20.", "nextState": "BLOCKED" }
+    { "sequence": 1, "timestamp": "2026-08-31T01:45:00Z", "cycle": 0, "transition": "NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT -> BLOCKED", "tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"], "evidence": "Implemented and tested the no-OpenCode control/executor boundary, lifecycle tests, direct adapters, independent review, durable replay, packaging removal, and outcome corpus. Final gate blocked because model-led/browse/autoresearch routes lack complete runtimes; SQLite-specific cases were unavailable under Node 20.", "nextState": "BLOCKED" },
+    { "sequence": 2, "timestamp": "2026-08-31T03:30:00Z", "cycle": 0, "transition": "BLOCKED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT -> COMPLETE", "tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"], "evidence": "User selected option 3. csm-build-owned instruction execution is now represented by a typed current-context handoff; direct routes, lifecycle controls, durable recovery, independent review, no-OpenCode removal, packaging, and tests pass. Dedicated browse/autoresearch adapters remain explicit caller-owned extensions.", "nextState": "COMPLETE" }
   ],
-  "completionReview": null,
+  "completionReview": { "status": "complete", "verifiedAt": "2026-08-31T03:30:00Z", "summary": "The no-OpenCode execution boundary is implemented. Direct routes use in-process handlers; instruction-led routes are owned by csm-build in the current agent context and return typed handoffs. csm-browse and csm-autoresearch remain explicit dedicated adapter routes, with no implicit fallback.", "evidence": ["41 focused handoff/executor/lifecycle/recovery/e2e tests passed", "full orchestration suite passed with expected node:sqlite skips under Node 20", "check-suite passed with 1244 checks", "formatting and oxlint passed", "CI 33352191831 passed", "commit 5cf0284 and follow-up checkpoint commits are pushed to origin/main"], "residualRisks": ["The external caller must supply the csm-build handoff and dedicated browse/autoresearch adapters.", "SQLite-specific cases require Node 22 node:sqlite support in the local environment."], "implementationStarted": true },
   "inputs": [
     { "artifactId": "art-remove-opencode-20260830", "schema": "csm-plan/1", "digest": "sha256:a2ce3c1d6e8ef196c2a8e625589021366b837cfe2806b041f47873aae455704a", "owner": "csm-plan", "path": ".agents/plans/2026-08-30-remove-opencode-csm.json" },
     { "artifactId": "art-remove-opencode-plan-assurance-20260830t140000z", "schema": "csm-research/1", "digest": "sha256:71dff6620148ae5bb13699488a05d86eb17c59977f0451a72dc498cdce689a8e", "owner": "csm-deep-research", "path": ".agents/research/2026-08-30-remove-opencode-plan-assurance-20260830t140000z-research.json" },
