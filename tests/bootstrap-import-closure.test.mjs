@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import test from "node:test";
@@ -85,6 +85,12 @@ test("generated entrypoints import in isolation without mutating canonical files
     await packBootstrap({ outputRoot });
     const payload = join(outputRoot, "package", "payload");
     const nodeModules = join(root, "node_modules");
+    const isolatedModules = join(outputRoot, "node_modules");
+    await mkdir(isolatedModules);
+    for (const dependency of ["ajv", "ajv-formats"])
+      await symlink(join(nodeModules, dependency), join(isolatedModules, dependency), "junction");
+    await import(`${join(payload, "skills/csm-orchestrate/index.mjs")}?no-csm-browse-deps`);
+    await rm(isolatedModules, { recursive: true, force: true });
     await symlink(nodeModules, join(outputRoot, "node_modules"), "junction");
     const entrypoints = [
       "lib/artifact-resolver/index.mjs",

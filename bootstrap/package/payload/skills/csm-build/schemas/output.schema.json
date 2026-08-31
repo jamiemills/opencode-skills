@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-build-output/1",
+  "title": "Typed current-context csm-build delivery",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "skill",
+    "attempt",
+    "requestIdentity",
+    "inputSchemaDigest",
+    "outputSchemaDigest",
+    "status",
+    "effects",
+    "artifacts",
+    "evidence",
+    "output",
+    "outputDigest",
+    "state",
+    "inputs",
+    "delivery"
+  ],
+  "properties": {
+    "schema": { "const": "csm-build-output/1" },
+    "skill": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "requestIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invocationId",
+        "parentRunId",
+        "childRunId",
+        "phaseId",
+        "edgeId",
+        "skill",
+        "digest"
+      ],
+      "properties": {
+        "invocationId": { "type": "string", "minLength": 1 },
+        "parentRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "childRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "phaseId": { "type": "string", "minLength": 1 },
+        "edgeId": { "type": "string", "minLength": 1 },
+        "skill": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "inputSchemaDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "outputSchemaDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "status": { "enum": ["completed", "cancelled", "incomplete", "blocked", "failed"] },
+    "effects": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "artifacts": { "type": "array", "items": { "type": "object" } },
+    "evidence": { "type": "array", "items": { "type": "object" } },
+    "output": {},
+    "outputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "state": { "type": ["object", "null"] },
+    "inputs": { "type": "array", "items": { "type": "object" } },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestDigest", "inputDigests", "workspace", "nativeArtifacts"],
+      "properties": {
+        "requestDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "inputDigests": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+        },
+        "workspace": { "type": ["object", "null"] },
+        "nativeArtifacts": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "failure": { "type": ["object", "null"] }
+  }
+}

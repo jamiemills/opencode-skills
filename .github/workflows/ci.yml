@@ -68,5 +68,10 @@ jobs:
         run: make test-deterministic
       - name: Run default test suites
         run: make test
+      - name: Run opt-in adapter integration gates
+        env:
+          CSM_ADAPTER_INTEGRATIONS: ${{ vars.CSM_ADAPTER_INTEGRATIONS }}
+          CSM_ADAPTER_INTEGRATIONS_APPROVED: ${{ vars.CSM_ADAPTER_INTEGRATIONS_APPROVED }}
+        run: make test-adapter-integrations
       - name: Check patch whitespace
         run: git diff --check

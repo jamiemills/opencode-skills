@@ -7,6 +7,21 @@ const HASH = /^sha256:[0-9a-f]{64}$/;
 const REQUIRED_LIMITS = ["timeoutMs", "maxOutputBytes", "maxWorkspaceBytes"];
 const HOST_CAPABILITY = Symbol("host-owned-sandbox-capability");
 
+export function createHostSandboxCapability({ attest, verifyCleanup, verifyLimits } = {}) {
+  if (
+    typeof attest !== "function" ||
+    typeof verifyCleanup !== "function" ||
+    typeof verifyLimits !== "function"
+  )
+    throw new TypeError("sandbox capability attestation functions are required");
+  return Object.freeze({
+    [HOST_CAPABILITY]: true,
+    attest,
+    verifyCleanup,
+    verifyLimits,
+  });
+}
+
 function hash(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
@@ -175,6 +190,21 @@ function createGeneratedProvider({
   const provider = Object.freeze({
     mode: "generated",
     sandboxProvider,
+    sandboxVerified: diagnostics.length === 0,
+    sandboxAttestation: attestation.evidence ?? null,
+    verifySandboxAttestation(value, controls) {
+      return (
+        value === attestation.evidence &&
+        value?.provider === sandboxProvider &&
+        value?.network === controls.network &&
+        value?.evaluatorAssets === controls.evaluatorAssets &&
+        value?.credentials === controls.credentials &&
+        Array.isArray(value?.mounts) &&
+        value.mounts.length === controls.mounts.length &&
+        value.mounts.every((mount, index) => mount === controls.mounts[index]) &&
+        hostCapability.verifyLimits(value, controls.limits) === true
+      );
+    },
     approval: { status: approval.status, approver: approval.approver, reason: approval.reason },
     policy: Object.freeze({
       network,

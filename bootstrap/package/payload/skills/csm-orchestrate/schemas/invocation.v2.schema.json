@@ -34,6 +34,8 @@
     "requestDigest": { "$ref": "#/$defs/digest" },
     "contractDigest": { "$ref": "#/$defs/digest" },
     "handlerDigest": { "$ref": "#/$defs/digest" },
+    "inputSchemaDigest": { "$ref": "#/$defs/digest" },
+    "outputSchemaDigest": { "$ref": "#/$defs/digest" },
     "receiptSchemaDigest": { "$ref": "#/$defs/digest" },
     "evidenceSchemaDigest": { "$ref": "#/$defs/digest" },
     "effectiveConfigDigest": { "$ref": "#/$defs/digest" },
@@ -105,6 +107,8 @@
         "sourceOwner": { "type": "string", "minLength": 1 },
         "sourceRunId": { "$ref": "#/$defs/runId" },
         "sourceArtifactId": { "type": "string", "minLength": 1 },
+        "nativeRunId": { "type": "string", "minLength": 1 },
+        "nativeArtifactId": { "type": "string", "minLength": 1 },
         "schemaRevision": { "type": "integer", "minimum": 1 },
         "path": { "type": "string", "minLength": 1 },
         "resolution": { "type": "string", "minLength": 1 }

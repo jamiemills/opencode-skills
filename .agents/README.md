@@ -68,6 +68,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-30-patch-reliability-csm.json` — 2026-08-30 — prevent recurring patch-context failures with fail-closed editing guidance and contract tests — status: indexed active plan
 - `2026-08-30-remove-opencode-csm.json` — 2026-08-30 — initial no-OpenCode executor replacement plan — status: superseded by `2026-08-30-remove-opencode-proper-csm.json`
 - `2026-08-30-remove-opencode-proper-csm.json` — 2026-08-30 — implement no-OpenCode csm-orchestrate execution with original-goal parity — status: blocked at full route runtime coverage
+- `2026-08-31-build-all-orchestrate-adapters-csm.json` — 2026-08-31 — build csm-build, csm-browse, and csm-autoresearch adapters with full orchestration proof — status: indexed active plan
+- `2026-08-31-complete-all-orchestrate-adapters-csm.json` — 2026-08-31 — complete all remaining orchestrator adapters and release gates — status: blocked at uncommitted-baseline hook fixture
 
 ## docs/
 
@@ -100,6 +102,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-29-progress-tracking-gaps-20260829t210000z-a7c4e91b2d6f-research.json` — 2026-08-29 — progress-tracking contract, runtime, aggregation, and persistence research — status: reference
 - `2026-08-30-orchestrate-without-opencode-20260830t120000z-research.json` — 2026-08-30 — no-OpenCode executor architecture research — status: reference
 - `2026-08-30-remove-opencode-plan-assurance-20260830t140000z-research.json` — 2026-08-30 — assurance review of the no-OpenCode implementation plan — status: reference
+- `2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json` — 2026-08-31 — deep research for all remaining orchestrator adapters and proof gates — status: reference
 - `2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json` — 2026-08-29 — JSON renderer and human-findings integration research — status: retained terminal research
 - `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
 - `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
@@ -171,6 +174,8 @@ the source file. Deletion remains awaiting explicit authorization.
 - `progress-followups-20260830.json` — 2026-08-30 — csm-build checkpoint for progress follow-up work — status: indexed active checkpoint
 - `patch-reliability-20260830.json` — 2026-08-30 — csm-build checkpoint for patch-context reliability work — status: indexed active checkpoint
 - `remove-opencode-proper-20260830.json` — 2026-08-30 — csm-build checkpoint for no-OpenCode orchestrator implementation — status: blocked at full route coverage
+- `build-all-orchestrate-adapters-20260831.json` — 2026-08-31 — csm-build checkpoint for all remaining orchestrator adapters — status: indexed active checkpoint
+- `complete-all-orchestrate-adapters-20260831.json` — 2026-08-31 — csm-build checkpoint for completed adapter work and release gates — status: blocked at T008 hook fixture baseline
 - `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
 
 ## ddd/

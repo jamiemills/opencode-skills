@@ -28,7 +28,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:5b3ceffe4a4d0d2574c1bd3329c4bec7c68486c3c9734c786133ec7ff02f4f36"
+      "schemaContentDigest": "sha256:b1922d85dd44ee303a783101de472e6eebd201fc29dc441d1b0667e0334c52a0"
     },
     {
       "id": "csm-orchestrate-invocation/2",
@@ -37,7 +37,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:71ebb9ee263e2b4256047cfe26094bd3a6cae8c45ffe8657ca368dcd62ef0095"
+      "schemaContentDigest": "sha256:d03823eaebb7ef5d9c01b6701ff54a208cee645a4b1b6c90999313101576990d"
     },
     {
       "id": "csm-orchestrate-capabilities/1",
@@ -146,7 +146,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:db752379f63caa8c0096ac4e9d56cd2d866464f051793f9c14349062ed583eb7"
+      "schemaContentDigest": "sha256:19c02ce4845469195ed6790aacfe657a624deea63bb66c785734dd5ec96912f6"
     },
     {
       "id": "csm-orchestrate-evidence/2",
@@ -155,7 +155,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:05fac9594c80f041d7ba9ff5b62fccd0dc7b0e970a8c593519a7d9649cabdc80"
+      "schemaContentDigest": "sha256:13806864f628666a954d77f6b99b15bc01b31958916b836a38aae58aebce5089"
     },
     {
       "id": "csm-orchestrate-gate/1",
@@ -410,6 +410,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:7485eae53f5d053362c45f15e5d0ab5b333eac641c3e585fd497263c94d27bb3"
+    },
+    {
+      "id": "csm-build-output/1",
+      "revision": 1,
+      "schemaPath": "csm-build/schemas/output.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:e9ac8e7a7a97fa0fde2e1c9b21cb09d4cd1d03e0a73057e0de69fa9a66764306"
     },
     {
       "id": "csm-browse-evidence/1",

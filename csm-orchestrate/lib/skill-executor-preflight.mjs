@@ -9,7 +9,7 @@ export function preflightSkillRoutes(
   route,
   registry,
   bindings = {},
-  { requireBindings = false } = {},
+  { requireBindings = false, capabilities = null } = {},
 ) {
   if (!Array.isArray(route) || route.length === 0)
     return { ok: false, failure: blocked("invalid-route", "selected route must contain nodes") };
@@ -40,6 +40,8 @@ export function preflightSkillRoutes(
         skill: node.skill,
         contractDigest: pinned.contractDigest,
         handlerDigest: pinned.handlerDigest,
+        inputSchemaDigest: pinned.inputSchemaDigest,
+        outputSchemaDigest: pinned.outputSchemaDigest,
         receiptSchemaDigest: pinned.receiptSchemaDigest,
         evidenceSchemaDigest: pinned.evidenceSchemaDigest,
         effectiveConfigDigest: pinned.effectiveConfigDigest,
@@ -48,6 +50,19 @@ export function preflightSkillRoutes(
         return {
           ok: false,
           failure: blocked("stale-handler", `handler skill mismatch for ${node.skill}`),
+        };
+      const capability = Array.isArray(capabilities)
+        ? capabilities.find((item) => item.skill === node.skill)
+        : capabilities?.skills?.find((item) => item.skill === node.skill);
+      if (node.capabilityDigest && !capability)
+        return {
+          ok: false,
+          failure: blocked("capability-missing", `capability is not registered for ${node.skill}`),
+        };
+      if (node.capabilityDigest && node.capabilityDigest !== capability.digest)
+        return {
+          ok: false,
+          failure: blocked("capability-mismatch", `capability digest mismatch for ${node.skill}`),
         };
       resolved.push(Object.freeze({ node, descriptor }));
     } catch (error) {

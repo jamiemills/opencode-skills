@@ -431,11 +431,25 @@ async function runOrchestrationInternal({
       });
       if (progressTracker) void progressTracker.observeTelemetry().catch(() => undefined);
       return true;
-    } catch {
+    } catch (error) {
+      if (typeof telemetryEmitter.getLossRecords !== "function")
+        telemetryLosses.push({
+          schema: "csm-orchestrate-telemetry-loss/1",
+          eventType: "telemetry_loss",
+          runId,
+          phaseId: event.phaseId ?? null,
+          edgeId: event.edgeId ?? null,
+          childRunId: event.childRunId ?? null,
+          attempt: event.attempt ?? 0,
+          sequence: null,
+          code: error?.code ?? "telemetry-write-failed",
+          message: error?.message ?? "telemetry event could not be written",
+        });
       return false;
     }
   };
   let progressTracker = null;
+  const telemetryLosses = [];
   const emitTerminalReceipt = (...args) => {
     const receipt = terminalReceipt(...args);
     if (progressTracker) {
@@ -447,7 +461,11 @@ async function runOrchestrationInternal({
       eventType: "terminal",
       payload: { receiptId: receipt.receiptId, status: receipt.outcome.status },
     });
-    return receipt;
+    const losses = [...telemetryLosses, ...(telemetryEmitter?.getLossRecords?.() ?? [])];
+    if (!losses.length) return receipt;
+    const surfaced = Object.freeze({ ...receipt, telemetryLosses: losses });
+    if (progressTracker) progressByReceipt.set(surfaced, progressTracker);
+    return surfaced;
   };
   progressTracker = createProgressTracker({
     runId,
@@ -492,7 +510,7 @@ async function runOrchestrationInternal({
       graph.phases.flatMap((phase) => phase.routeNodes),
       executorRegistry,
       executorBindings,
-      { requireBindings: Boolean(executorAdapter) },
+      { requireBindings: Boolean(executorAdapter), capabilities },
     );
     if (!executorPreflight.ok)
       return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
@@ -779,6 +797,14 @@ async function runOrchestrationInternal({
               await cursorStore.recordReconciliation(childRunId, "RESOLVED-COMPLETED", {
                 reason: resume.reason,
               });
+              emitTelemetry({
+                phaseId: phase.phaseId,
+                edgeId: request.edgeId,
+                childRunId,
+                eventType: "reconciliation",
+                attempt: savedCursor.attempt || 1,
+                payload: { status: "RESOLVED-COMPLETED", reason: resume.reason },
+              });
             } catch {
               /* already durably resolved; the terminal record remains authoritative */
             }
@@ -786,6 +812,14 @@ async function runOrchestrationInternal({
             try {
               await cursorStore.recordReconciliation(childRunId, "UNKNOWN", {
                 reason: resume.reason,
+              });
+              emitTelemetry({
+                phaseId: phase.phaseId,
+                edgeId: request.edgeId,
+                childRunId,
+                eventType: "reconciliation",
+                attempt: savedCursor.attempt || 1,
+                payload: { status: "UNKNOWN", reason: resume.reason },
               });
             } catch (error) {
               return {
@@ -1204,6 +1238,13 @@ async function runOrchestrationInternal({
           functional: phaseFunctional,
           completion: !phaseFailure && gate.status === "VERIFIED",
         });
+      emitTelemetry({
+        phaseId: phase.phaseId,
+        edgeId: "edge-final-review",
+        childRunId: `run-${slug(runId)}-review-${slug(phase.phaseId)}`,
+        eventType: "review",
+        payload: { status: review.status, reviewId: review.reviewId },
+      });
       await assertSchema("csm-orchestrate-adversarial-review/2", review);
       const phaseState = phaseFailure
         ? phaseFailure.status === "blocked"
@@ -1323,6 +1364,17 @@ async function runOrchestrationInternal({
       : typeof adapter.invokeReview === "function"
         ? await adapter.invokeReview(reviewInvocation)
         : null;
+    emitTelemetry({
+      phaseId: reviewInvocation.phaseId,
+      edgeId: reviewInvocation.edgeId,
+      childRunId: hostReview?.review?.provenance?.reviewerChildRunId ?? null,
+      eventType: "review",
+      payload: {
+        status: hostReview?.status ?? "unknown",
+        reviewId: hostReview?.review?.reviewId ?? null,
+        failureCode: hostReview?.failure?.code ?? null,
+      },
+    });
     if (hostReview?.status !== "completed" && finalReviewExecutor)
       return emitTerminalReceipt(
         runId,
@@ -1369,6 +1421,16 @@ async function runOrchestrationInternal({
         review: final,
         remediation: hostRemediation,
         completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
+      });
+      emitTelemetry({
+        phaseId: phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+        edgeId: "edge-final-review",
+        eventType: "remediation",
+        payload: {
+          status: coordinated.status,
+          reviewId: final?.reviewId ?? null,
+          phaseId: coordinated.remediation?.phaseId ?? null,
+        },
       });
       await assertSchema("csm-orchestrate-final-review/2", coordinated);
       if (coordinated.status === "REMEDIATION_REQUIRED") {
@@ -1529,6 +1591,16 @@ async function runOrchestrationInternal({
       remediation,
       completedEffects: new Set(activeGraph.phases.flatMap((phase) => phase.sideEffects)),
       injected: Boolean(finalReview),
+    });
+    emitTelemetry({
+      phaseId: phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+      edgeId: "edge-final-review",
+      eventType: "remediation",
+      payload: {
+        status: coordinated.status,
+        reviewId: final?.reviewId ?? null,
+        phaseId: coordinated.remediation?.phaseId ?? null,
+      },
     });
     await assertSchema("csm-orchestrate-final-review/2", coordinated);
     if (coordinated.status === "REMEDIATION_REQUIRED") {

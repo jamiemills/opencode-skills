@@ -358,7 +358,16 @@ test("orchestrate emits a retry event with the retried child correlation ids", a
 
 test("telemetry emitter failures never break the run", async () => {
   const host = hostFixture();
-  const telemetryEmitter = createTelemetryEmitter({ transport: createMemoryTransport() });
+  const telemetryEmitter = createTelemetryEmitter({
+    transport: {
+      write() {
+        throw Object.assign(new Error("telemetry sink unavailable"), { code: "sink-down" });
+      },
+      list: () => [],
+    },
+    runId: "run-telemetry-broken",
+    effectiveConfigDigest: CONFIG_DIGEST,
+  });
   const result = await orchestrate(
     await orchestrateOptions(host, {
       runId: "run-telemetry-broken",
@@ -367,6 +376,9 @@ test("telemetry emitter failures never break the run", async () => {
   );
   assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
   assert.equal(host.calls, 1);
+  assert.ok(result.telemetryLosses.length > 0);
+  assert.equal(result.telemetryLosses[0].eventType, "telemetry_loss");
+  assert.equal(result.telemetryLosses[0].code, "sink-down");
 });
 
 test("telemetry auto-computes effectiveConfigDigest when not provided", async () => {

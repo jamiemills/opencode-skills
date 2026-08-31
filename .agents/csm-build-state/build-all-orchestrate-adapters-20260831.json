@@ -1,0 +1,36 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-build-all-orchestrate-adapters-20260831",
+  "runId": "run-20260831t061000z-build-all-orchestrate-adapters",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "RECOVER",
+    "cycle": 0,
+    "nextTransition": "RECOVER -> VALIDATE",
+    "activeTasks": [],
+    "blockers": [],
+    "lastCheckpoint": "2026-08-31T06:10:00Z: explicit build request received; validating all-adapter plan and research input",
+    "lastModelRun": "gpt-5.6-luna / build-all-orchestrate-adapters"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-build-all-orchestrate-adapters-20260831",
+      "schema": "csm-plan/1",
+      "runId": "run-20260831t060000z-build-all-orchestrate-adapters",
+      "owner": "csm-plan",
+      "digest": "sha256:9227cb06dd22db878427380ce75cd189a17240e17116aa7afe821e349acd5a4a",
+      "path": ".agents/plans/2026-08-31-build-all-orchestrate-adapters-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    { "sequence": 0, "timestamp": "2026-08-31T06:10:00Z", "from": "NOT_STARTED", "to": "RECOVER", "evidence": "Explicit csm-build request received; all-adapter plan and deep-research input are being validated before dispatch.", "inputDigests": [] }
+  ],
+  "artifacts": [],
+  "completion": null,
+  "provenance": { "sourcePlan": "art-build-all-orchestrate-adapters-20260831", "sourceDigests": ["sha256:9227cb06dd22db878427380ce75cd189a17240e17116aa7afe821e349acd5a4a"] },
+  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+}

@@ -129,6 +129,8 @@ async function assertRequest(request, { requireExecutableIdentity = false } = {}
     for (const field of [
       "contractDigest",
       "handlerDigest",
+      "inputSchemaDigest",
+      "outputSchemaDigest",
       "receiptSchemaDigest",
       "evidenceSchemaDigest",
       "effectiveConfigDigest",
@@ -193,7 +195,51 @@ export function childIdentityFailure(result, request) {
   return null;
 }
 
-export async function validateChildResult(result, request) {
+async function validateChildArtifacts(result, request, artifactResolver, schemaRegistry) {
+  for (const ref of result?.outputArtifactRefs ?? []) {
+    if (
+      !ref ||
+      typeof ref !== "object" ||
+      typeof ref.artifactId !== "string" ||
+      typeof ref.schema !== "string" ||
+      !DIGEST.test(ref.digest ?? "")
+    )
+      return "invalid child artifact reference";
+    if (ref.sourceRunId && ref.sourceRunId !== request.childRunId)
+      return "child artifact source run does not match invocation";
+    if (ref.sourceOwner && ref.sourceOwner !== request.skill)
+      return "child artifact source owner does not match invocation";
+    if (ref.nativeArtifactId && !ref.nativeRunId) return "native artifact identity is incomplete";
+    if (ref.schema && schemaRegistry?.resolve) {
+      try {
+        schemaRegistry.resolve(
+          ref.schema,
+          ref.schemaRevision ?? Number(ref.schema.split("/").at(-1)),
+        );
+      } catch {
+        return "child artifact schema is not registered";
+      }
+    }
+    if (ref.path) {
+      if (!artifactResolver?.resolve) return "child artifact resolver is required";
+      const resolved = await artifactResolver.resolve(ref.path, {
+        expectedFileDigest: ref.digest,
+        expectedArtifactId: ref.sourceArtifactId ?? ref.artifactId,
+        expectedOwner: ref.sourceOwner ?? request.skill,
+        expectedSourceRunId: ref.sourceRunId ?? request.childRunId,
+      });
+      if (resolved?.status !== "resolved" || resolved.fileDigest !== ref.digest)
+        return "child artifact could not be resolver-validated";
+    }
+  }
+  return null;
+}
+
+export async function validateChildResult(
+  result,
+  request,
+  { artifactResolver, schemaRegistry } = {},
+) {
   const statuses = new Set(["completed", "failed", "blocked", "incomplete"]);
   if (!statuses.has(result?.status))
     return result?.status === "rejected" ? "rejected child status" : "unknown child status";
@@ -237,6 +283,13 @@ export async function validateChildResult(result, request) {
     };
     if (!(await validSchema(evidence.schema, evidence))) return "invalid child evidence";
   }
+  const artifactError = await validateChildArtifacts(
+    result,
+    request,
+    artifactResolver,
+    schemaRegistry,
+  );
+  if (artifactError) return artifactError;
   return null;
 }
 
@@ -316,6 +369,28 @@ export function createHostInvocationAdapter({
             "reconciliation-required",
             "ambiguous child attempt requires reconciliation",
           );
+        if (durableAttempt.state === "dispatched" && !durableAttempt.response) {
+          const terminal = failure(
+            "incomplete",
+            "incomplete",
+            "reconciliation-required",
+            "child dispatch was interrupted before a terminal response was persisted",
+          );
+          try {
+            await cursorStore.saveChildAttemptResult?.(
+              durableAttempt.attemptId,
+              terminal,
+              "UNKNOWN",
+            );
+          } catch {}
+          await cursorStore.recordReconciliation?.(request.childRunId, "UNKNOWN", {
+            cause: "restart-after-dispatch",
+            attemptId: durableAttempt.attemptId,
+            requestDigest: expectedRequestDigest,
+          });
+          cacheTerminal(terminal, "UNKNOWN");
+          return terminal;
+        }
         if (durableAttempt.state === "terminal" && durableAttempt.response)
           if (!terminalInvocations.has(key)) return durableAttempt.response;
       }
@@ -355,6 +430,13 @@ export function createHostInvocationAdapter({
           "cancelled",
           "invocation was cancelled before dispatch",
         );
+      if (cursorStore && typeof cursorStore.consumeApproval === "function") {
+        try {
+          await cursorStore.consumeApproval(request.approval.approvalId, durableCursorId);
+        } catch {
+          return failure("blocked", "policy", "approval-consumed", "approval was already consumed");
+        }
+      }
       if (cursorStore && typeof cursorStore.recordIdempotency === "function") {
         try {
           await cursorStore.recordIdempotency(key, durableCursorId);
@@ -365,13 +447,6 @@ export function createHostInvocationAdapter({
             "duplicate-terminal-invocation",
             "terminal invocation already exists",
           );
-        }
-      }
-      if (cursorStore && typeof cursorStore.consumeApproval === "function") {
-        try {
-          await cursorStore.consumeApproval(request.approval.approvalId, durableCursorId);
-        } catch {
-          return failure("blocked", "policy", "approval-consumed", "approval was already consumed");
         }
       }
       consumedApprovals.add(request.approval.approvalId);
@@ -395,6 +470,30 @@ export function createHostInvocationAdapter({
         dispatchIntentId: dispatchIntentId ?? null,
       };
       const saveAttempt = (...args) => cursorStore?.saveChildAttemptResult?.(...args);
+      const persistTerminal = async (response, state = "terminal") => {
+        try {
+          await saveAttempt(attemptRecord.attemptId, response, state);
+          return response;
+        } catch {
+          const persisted = await cursorStore?.loadChildAttemptByKey?.(key);
+          if (persisted?.state === "terminal" && persisted.response) return persisted.response;
+          const unknown = failure(
+            "incomplete",
+            "incomplete",
+            "reconciliation-required",
+            "child response persistence failed after dispatch",
+          );
+          try {
+            await saveAttempt(attemptRecord.attemptId, unknown, "UNKNOWN");
+          } catch {}
+          await cursorStore?.recordReconciliation?.(request.childRunId, "UNKNOWN", {
+            cause: "terminal-persistence-failed",
+            attemptId: attemptRecord.attemptId,
+            requestDigest: expectedRequestDigest,
+          });
+          return unknown;
+        }
+      };
       if (typeof cursorStore?.beginChildAttempt === "function") {
         try {
           await cursorStore.beginChildAttempt(attemptRecord);
@@ -432,20 +531,29 @@ export function createHostInvocationAdapter({
       try {
         const result = await Promise.race([hostInvocation, timeout, cancellation]);
         clearTimeout(timer);
-        const resultError = await validateChildResult(result, request);
+        const resultError = await validateChildResult(result, request, {
+          artifactResolver,
+          schemaRegistry,
+        });
         if (resultError) {
           const terminal = failure("blocked", "policy", "invalid-child-result", resultError);
-          await saveAttempt(attemptRecord.attemptId, terminal);
-          cacheTerminal(terminal);
-          return terminal;
+          const persisted = await persistTerminal(terminal);
+          cacheTerminal(
+            persisted,
+            persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+          );
+          return persisted;
         }
         const status = result.status;
         const identityError = childIdentityFailure(result, request);
         if (identityError) {
           const terminal = failure("blocked", "policy", "child-identity-mismatch", identityError);
-          await saveAttempt(attemptRecord.attemptId, terminal);
-          cacheTerminal(terminal);
-          return terminal;
+          const persisted = await persistTerminal(terminal);
+          cacheTerminal(
+            persisted,
+            persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+          );
+          return persisted;
         }
         if (status === "failed" || status === "blocked") {
           const klass = FAILURE_CLASSES.includes(result.failure?.class)
@@ -460,9 +568,12 @@ export function createHostInvocationAdapter({
               message: result.failure?.message ?? "child invocation failed",
             },
           };
-          await saveAttempt(attemptRecord.attemptId, terminal);
-          cacheTerminal(terminal);
-          return terminal;
+          const persisted = await persistTerminal(terminal);
+          cacheTerminal(
+            persisted,
+            persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+          );
+          return persisted;
         }
         if (status === "incomplete") {
           const terminal = {
@@ -474,11 +585,15 @@ export function createHostInvocationAdapter({
               message: result.failure?.message ?? "child evidence is incomplete",
             },
           };
-          await saveAttempt(attemptRecord.attemptId, terminal);
-          cacheTerminal(terminal);
-          return terminal;
+          const persisted = await persistTerminal(terminal);
+          cacheTerminal(
+            persisted,
+            persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+          );
+          return persisted;
         }
         const terminal = {
+          ...result,
           status: "completed",
           outputArtifactRefs: result?.outputArtifactRefs ?? [],
           childReceipt: result?.childReceipt ?? null,
@@ -486,9 +601,12 @@ export function createHostInvocationAdapter({
           technical: result?.technical ?? null,
           functional: result?.functional ?? null,
         };
-        await saveAttempt(attemptRecord.attemptId, terminal);
-        cacheTerminal(terminal);
-        return terminal;
+        const persisted = await persistTerminal(terminal);
+        cacheTerminal(
+          persisted,
+          persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+        );
+        return persisted;
       } catch (error) {
         clearTimeout(timer);
         if (error?.timeout || error?.cancelled) {
@@ -500,9 +618,25 @@ export function createHostInvocationAdapter({
               ? "child invocation timed out after dispatch"
               : "child invocation was cancelled after dispatch",
           );
-          await saveAttempt(attemptRecord.attemptId, terminal, "UNKNOWN");
+          await persistTerminal(terminal, "UNKNOWN");
           await cursorStore?.recordReconciliation?.(request.childRunId, "UNKNOWN", {
             cause: error?.timeout ? "timeout-after-dispatch" : "cancellation-after-dispatch",
+            attemptId: attemptRecord.attemptId,
+            requestDigest: expectedRequestDigest,
+          });
+          cacheTerminal(terminal, "UNKNOWN");
+          return terminal;
+        }
+        if (attemptRecord.sideEffectClass !== "read-only") {
+          const terminal = failure(
+            "incomplete",
+            "incomplete",
+            "reconciliation-required",
+            "side-effecting child failed after dispatch; reconcile before retry",
+          );
+          await persistTerminal(terminal, "UNKNOWN");
+          await cursorStore?.recordReconciliation?.(request.childRunId, "UNKNOWN", {
+            cause: "side-effect-failed-after-dispatch",
             attemptId: attemptRecord.attemptId,
             requestDigest: expectedRequestDigest,
           });
@@ -516,9 +650,12 @@ export function createHostInvocationAdapter({
             error.code ?? `${error.failureClass}-failed`,
             error.message ?? `${error.failureClass} failure`,
           );
-          await saveAttempt(attemptRecord.attemptId, terminal);
-          cacheTerminal(terminal);
-          return terminal;
+          const persisted = await persistTerminal(terminal);
+          cacheTerminal(
+            persisted,
+            persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+          );
+          return persisted;
         }
         const terminal = failure(
           "failed",
@@ -526,9 +663,12 @@ export function createHostInvocationAdapter({
           "transport-failed",
           error?.message ?? "host transport failed",
         );
-        await saveAttempt(attemptRecord.attemptId, terminal);
-        cacheTerminal(terminal);
-        return terminal;
+        const persisted = await persistTerminal(terminal);
+        cacheTerminal(
+          persisted,
+          persisted.failure?.code === "reconciliation-required" ? "UNKNOWN" : "terminal",
+        );
+        return persisted;
       }
     },
     async invokeReview(request) {

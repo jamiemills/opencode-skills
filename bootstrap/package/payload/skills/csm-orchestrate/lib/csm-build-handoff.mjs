@@ -95,6 +95,11 @@ export function createCsmBuildHandoff({
       const result = await execute({
         skill,
         input: request.input ?? {},
+        invocationId: identity.invocationId,
+        parentRunId: identity.parentRunId,
+        childRunId: identity.childRunId,
+        phaseId: identity.phaseId,
+        edgeId: identity.edgeId,
         requestIdentity: Object.freeze({ ...identity, digest: identityDigest(identity) }),
         attempt: expected.attempt,
         inputSchema,

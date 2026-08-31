@@ -169,7 +169,12 @@ function directAdapter(skill, invoke) {
   };
 }
 
-export function createExecutorHandlers({ csmBuildHandoff = null, csmBuildHandoffs = [] } = {}) {
+export function createExecutorHandlers({
+  csmBuildHandoff = null,
+  csmBuildHandoffs = [],
+  csmAutoresearchAdapter = null,
+  csmBrowseAdapter = null,
+} = {}) {
   const handlers = new Map();
   const handoffs = [
     ...(Array.isArray(csmBuildHandoffs) ? csmBuildHandoffs : Object.values(csmBuildHandoffs ?? {})),
@@ -262,7 +267,34 @@ export function createExecutorHandlers({ csmBuildHandoff = null, csmBuildHandoff
       };
     }),
   );
+  if (csmAutoresearchAdapter) {
+    if (typeof csmAutoresearchAdapter.execute !== "function")
+      throw new TypeError("csm-autoresearch adapter is required");
+    handlers.set("csm-autoresearch", async ({ input, signal, context }) =>
+      csmAutoresearchAdapter.execute({ input, signal, context }),
+    );
+  }
+  if (csmBrowseAdapter) {
+    if (typeof csmBrowseAdapter.execute !== "function")
+      throw new TypeError("csm-browse adapter is required");
+    const browseHandler = async ({ input, signal, context, request }) => {
+      const result = await csmBrowseAdapter.execute({ input, signal, context, request });
+      return result.receipt
+        ? result
+        : {
+            ...result,
+            receipt: makeReceipt(
+              context,
+              "csm-browse",
+              result.status === "completed" ? "completed" : "incomplete",
+            ),
+          };
+    };
+    browseHandler.csmBrowseAdapter = true;
+    handlers.set("csm-browse", browseHandler);
+  }
   for (const skill of ["csm-autoresearch", "csm-browse"]) {
+    if (handlers.has(skill)) continue;
     handlers.set(skill, async () => ({
       status: "blocked",
       effects: [],
@@ -358,8 +390,14 @@ export function createExecutorDescriptors({
   handlers = createExecutorHandlers(),
   csmBuildHandoff = null,
   csmBuildHandoffs = [],
+  csmAutoresearchAdapter = null,
+  csmBrowseAdapter = null,
 } = {}) {
+  if (csmBrowseAdapter && handlers.get("csm-browse")?.csmBrowseAdapter !== true)
+    handlers = createExecutorHandlers({ csmBrowseAdapter });
   const direct = ["csm-ddd", "csm-scan", "csm-upload"];
+  if (csmAutoresearchAdapter && handlers.has("csm-autoresearch")) direct.push("csm-autoresearch");
+  if (handlers.get("csm-browse")?.csmBrowseAdapter === true) direct.push("csm-browse");
   const handoffs = [
     ...(Array.isArray(csmBuildHandoffs) ? csmBuildHandoffs : Object.values(csmBuildHandoffs ?? {})),
     ...(csmBuildHandoff ? [csmBuildHandoff] : []),
@@ -375,20 +413,40 @@ export function createExecutorDescriptors({
         schema: "csm-orchestrate-skill-executor/1",
         version: 1,
         skill,
-        handlerDigest: owned.includes(skill)
-          ? handoffFor(skill).handlerDigest
-          : digest({ skill, implementation: "direct-adapter/1" }),
-        inputSchemaDigest: owned.includes(skill)
-          ? handoffFor(skill).inputSchemaDigest
-          : digest({ skill, schema: "input/1" }),
-        outputSchemaDigest: owned.includes(skill)
-          ? handoffFor(skill).outputSchemaDigest
-          : digest({ schema: RESULT_SCHEMA }),
+        handlerDigest:
+          skill === "csm-autoresearch"
+            ? digest({ skill, implementation: "autoresearch-adapter/1" })
+            : skill === "csm-browse"
+              ? digest({ skill, implementation: "browse-adapter/1" })
+              : owned.includes(skill)
+                ? handoffFor(skill).handlerDigest
+                : digest({ skill, implementation: "direct-adapter/1" }),
+        inputSchemaDigest:
+          skill === "csm-autoresearch"
+            ? digest({ skill, schema: "csm-autoresearch-contract/1" })
+            : skill === "csm-browse"
+              ? digest({ skill, schema: "csm-browse-operation/1" })
+              : owned.includes(skill)
+                ? handoffFor(skill).inputSchemaDigest
+                : digest({ skill, schema: "input/1" }),
+        outputSchemaDigest:
+          skill === "csm-autoresearch"
+            ? digest({ schema: RESULT_SCHEMA, native: "csm-autoresearch-report/1" })
+            : skill === "csm-browse"
+              ? digest({ schema: RESULT_SCHEMA, native: "csm-browse-evidence/1" })
+              : owned.includes(skill)
+                ? handoffFor(skill).outputSchemaDigest
+                : digest({ schema: RESULT_SCHEMA }),
         receiptSchemaDigest: digest({ schema: "csm-orchestrate-child-receipt/1" }),
         evidenceSchemaDigest: digest({ schema: "csm-orchestrate-evidence/2" }),
-        effectiveConfigDigest: owned.includes(skill)
-          ? handoffFor(skill).effectiveConfigDigest
-          : digest({ skill, config: "default/1" }),
+        effectiveConfigDigest:
+          skill === "csm-autoresearch"
+            ? digest({ skill, config: "autoresearch-adapter/1" })
+            : skill === "csm-browse"
+              ? digest({ skill, config: "browse-adapter/1" })
+              : owned.includes(skill)
+                ? handoffFor(skill).effectiveConfigDigest
+                : digest({ skill, config: "default/1" }),
         permissions: [...capability.permissions],
         effects: [...capability.effects],
         cancellation: "cooperative",

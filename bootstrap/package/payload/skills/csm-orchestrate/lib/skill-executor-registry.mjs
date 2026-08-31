@@ -27,6 +27,8 @@ function key(value) {
     value.skill,
     value.contractDigest,
     value.handlerDigest,
+    value.inputSchemaDigest,
+    value.outputSchemaDigest,
     value.receiptSchemaDigest,
     value.evidenceSchemaDigest,
     value.effectiveConfigDigest,
@@ -44,6 +46,8 @@ function validateDescriptor(descriptor) {
   for (const field of [
     "contractDigest",
     "handlerDigest",
+    "inputSchemaDigest",
+    "outputSchemaDigest",
     "inputSchemaDigest",
     "outputSchemaDigest",
     "receiptSchemaDigest",

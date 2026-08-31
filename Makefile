@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 OXFMT_CONFIG := $(dir $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))).oxfmtrc.json
 OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
-.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-patch-context analyze
+.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -51,8 +51,8 @@ test-bootstrap: ## bootstrap suites (serial; self-pack) + resume-semantics corpu
 test-orchestrate: ## csm-orchestrate unit and integration tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-*.test.mjs
 
-test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, and worktree sessions)
-	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs
+test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, worktree sessions, and gate wiring)
+	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/adapter-gate-wiring.test.mjs
 
 test-package-index: ## package and payload-index validation tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/package-audit.test.mjs
@@ -97,4 +97,28 @@ test-patch-context: ## patch-context guidance contract tests
 test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs
 
-test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; browser E2E and live/external gates remain separate)
+test-e2e-required: ## required browser E2E (fails when chromium-vnc is unavailable)
+	CSM_BROWSE_E2E_REQUIRE=1 $(MAKE) test-e2e
+
+test-generated-sandbox-required: ## required generated-source containment gate (fails when sandbox is unavailable)
+	node csm-autoresearch/scripts/probe-sandbox.mjs --required
+	node --test --test-concurrency=1 csm-autoresearch/test/generated-sandbox.test.mjs
+
+test-adapter-integrations: ## opt-in real adapter gates (set opt-in and approval variables)
+	@if [ "$${CSM_ADAPTER_INTEGRATIONS:-0}" != "1" ]; then \
+		printf '%s\n' 'SKIP: adapter integration gates not opted in (set CSM_ADAPTER_INTEGRATIONS=1)'; \
+		if [ -n "$${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' '### Adapter integration gates' '- **Status:** SKIPPED' '- **Reason:** opt-in was not enabled' >>"$${GITHUB_STEP_SUMMARY}"; fi; \
+		exit 0; \
+	elif [ "$${CSM_ADAPTER_INTEGRATIONS_APPROVED:-0}" != "1" ]; then \
+		printf '%s\n' 'SKIP: adapter integration gates not approved (set CSM_ADAPTER_INTEGRATIONS_APPROVED=1)'; \
+		if [ -n "$${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' '### Adapter integration gates' '- **Status:** SKIPPED' '- **Reason:** approved capability evidence was not supplied' >>"$${GITHUB_STEP_SUMMARY}"; fi; \
+		exit 0; \
+	else \
+		$(MAKE) test-adapter-integrations-required; \
+	fi
+
+test-adapter-integrations-required: ## run all approved real adapter gates; unavailable capabilities fail
+	$(MAKE) test-e2e-required
+	$(MAKE) test-generated-sandbox-required
+
+test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

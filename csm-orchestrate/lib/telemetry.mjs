@@ -32,6 +32,10 @@ export const DEFAULT_REDACT_KEYS = Object.freeze([
   "cookie",
   "accesstoken",
   "refreshtoken",
+  "url",
+  "uri",
+  "candidate",
+  "candidates",
 ]);
 
 const RUN_ID_PATTERN = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
@@ -156,6 +160,24 @@ export function createTelemetryEmitter(options = {}) {
   let sequence = 0;
   let emittedCount = 0;
   const recordedReceipts = [];
+  const lossRecords = [];
+
+  function recordLoss(event, error) {
+    lossRecords.push(
+      Object.freeze({
+        schema: "csm-orchestrate-telemetry-loss/1",
+        eventType: "telemetry_loss",
+        runId: event.runId ?? options.runId,
+        phaseId: event.phaseId ?? null,
+        edgeId: event.edgeId ?? null,
+        childRunId: event.childRunId ?? null,
+        attempt: event.attempt ?? 0,
+        sequence: event.sequence ?? null,
+        code: error?.code ?? "telemetry-write-failed",
+        message: error?.message ?? "telemetry event could not be written",
+      }),
+    );
+  }
 
   function emit(event) {
     if (!isPlainObject(event)) throw new TypeError("telemetry event must be an object");
@@ -196,7 +218,14 @@ export function createTelemetryEmitter(options = {}) {
       fencingToken,
     });
     if (!EVENT_ID_PATTERN.test(full.eventId)) throw new TypeError("eventId is not canonical");
-    transport.write(full);
+    try {
+      const write = transport.write(full);
+      if (write && typeof write.then === "function")
+        Promise.resolve(write).catch((error) => recordLoss(full, error));
+    } catch (error) {
+      recordLoss(full, error);
+      throw error;
+    }
     return full;
   }
 
@@ -219,47 +248,59 @@ export function createTelemetryEmitter(options = {}) {
   function checkCompleteness(terminalReceipts) {
     const receipts = terminalReceipts === undefined ? recordedReceipts.slice() : terminalReceipts;
     if (!Array.isArray(receipts)) throw new TypeError("terminalReceipts must be an array");
-    const terminalEvents = transport.list().filter((event) => event.eventType === "terminal");
-    const missing = receipts.filter(
-      (receipt) => !terminalEvents.some((event) => correlate(receipt, event)),
-    );
-    return {
-      complete: missing.length === 0,
-      total: receipts.length,
-      correlated: receipts.length - missing.length,
-      missing: missing.map((receipt) => ({ receiptId: receipt.receiptId, runId: receipt.runId })),
+    const inspect = (events) => {
+      const terminalEvents = events.filter((event) => event.eventType === "terminal");
+      const missing = receipts.filter(
+        (receipt) => !terminalEvents.some((event) => correlate(receipt, event)),
+      );
+      return {
+        complete: missing.length === 0,
+        total: receipts.length,
+        correlated: receipts.length - missing.length,
+        missing: missing.map((receipt) => ({ receiptId: receipt.receiptId, runId: receipt.runId })),
+      };
     };
+    const events = transport.list();
+    return events?.then ? events.then(inspect) : inspect(events);
   }
 
   function detectLoss() {
-    const observed = transport.list();
-    const observedSequences = new Set(observed.map((event) => event.sequence));
-    const missingSequences = [];
-    for (let expected = 1; expected <= emittedCount; expected += 1) {
-      if (!observedSequences.has(expected)) missingSequences.push(expected);
-    }
-    const unexpectedSequences = observed
-      .filter(
-        (event) =>
-          !Number.isInteger(event.sequence) || event.sequence < 1 || event.sequence > emittedCount,
-      )
-      .map((event) => event.sequence);
-    return {
-      lost:
-        missingSequences.length > 0 ||
-        unexpectedSequences.length > 0 ||
-        observed.length !== emittedCount,
-      emittedCount,
-      observedCount: observed.length,
-      missingSequences,
-      unexpectedSequences,
+    const inspect = (observed) => {
+      const observedSequences = new Set(observed.map((event) => event.sequence));
+      const missingSequences = [];
+      for (let expected = 1; expected <= emittedCount; expected += 1) {
+        if (!observedSequences.has(expected)) missingSequences.push(expected);
+      }
+      const unexpectedSequences = observed
+        .filter(
+          (event) =>
+            !Number.isInteger(event.sequence) ||
+            event.sequence < 1 ||
+            event.sequence > emittedCount,
+        )
+        .map((event) => event.sequence);
+      return {
+        lost:
+          missingSequences.length > 0 ||
+          unexpectedSequences.length > 0 ||
+          observed.length !== emittedCount,
+        emittedCount,
+        observedCount: observed.length,
+        missingSequences,
+        unexpectedSequences,
+      };
     };
+    const events = transport.list();
+    return events?.then ? events.then(inspect) : inspect(events);
   }
 
   function getEvents(filter = {}) {
     if (!isPlainObject(filter)) throw new TypeError("event filter must be an object");
     const keys = Object.keys(filter).filter((key) => filter[key] !== undefined);
-    return transport.list().filter((event) => keys.every((key) => event[key] === filter[key]));
+    const inspect = (events) =>
+      events.filter((event) => keys.every((key) => event[key] === filter[key]));
+    const events = transport.list();
+    return events?.then ? events.then(inspect) : inspect(events);
   }
 
   return {
@@ -268,6 +309,7 @@ export function createTelemetryEmitter(options = {}) {
     checkCompleteness,
     detectLoss,
     getEvents,
+    getLossRecords: () => lossRecords.slice(),
   };
 }
 

@@ -1,0 +1,174 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-complete-all-orchestrate-adapters-build-20260831",
+  "runId": "run-20260831t080000z-complete-all-orchestrate-adapters-build",
+  "owner": "csm-build",
+  "status": "blocked",
+  "control": {
+    "currentState": "BLOCKED",
+    "cycle": 1,
+    "nextTransition": "none (terminal)",
+    "activeTasks": [],
+    "blockers": ["T008 make test hook fixtures require the newly added payload files to be present in their temporary baseline commit; the current worktree is intentionally uncommitted."],
+    "lastCheckpoint": "2026-08-31T10:00:00Z: T006 and T007 verified; T008 blocked by uncommitted-baseline hook fixture",
+    "lastModelRun": "gpt-5.6-luna / complete-all-orchestrate-adapters-build"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-complete-all-orchestrate-adapters-20260831",
+      "schema": "csm-plan/1",
+      "runId": "run-20260831t070000z-complete-all-orchestrate-adapters",
+      "owner": "csm-plan",
+      "digest": "sha256:70ce2d838b3b5edfca32cb49e0e5860df561c88c981e0e84fb546e84bdb6ac7d",
+      "path": ".agents/plans/2026-08-31-complete-all-orchestrate-adapters-csm.json",
+      "status": "resolved"
+    },
+    {
+      "name": "ddd",
+      "artifactId": "art-build-all-orchestrate-adapters-20260831t040000z",
+      "schema": "csm-research/1",
+      "runId": "run-20260831t040000z-build-all-orchestrate-adapters",
+      "owner": "csm-deep-research",
+      "digest": "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f",
+      "path": ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "Explicit csm-build request selected the latest five-deliverable orchestration plan; existing worktree changes were inspected and preserved."
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "RECOVER",
+      "to": "VALIDATE",
+      "evidence": "Plan schema, research input, current-context implementation, and repository baseline validated."
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "VALIDATE",
+      "to": "SELECT",
+      "evidence": "T001 and T002 are the first dependency-ordered tasks with runnable acceptance signals."
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "Selected T001 and T002 for bounded implementation and verification."
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "Current-context caller, csm-build-output/1 schema, executor registry, and route preflight are present in the working tree."
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "Focused T001, T002, and predecessor regression suites passed."
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "Primary review confirmed exact identity/digest binding, fail-closed malformed delivery, native artifact containment, and preflight-before-mutation coverage."
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "T001 and T002 focused acceptance evidence is current, but T001 cannot be accepted without the external caller. No commit or push was authorized; T003-T008 remain pending."
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "from": "CHECKPOINT",
+      "to": "BLOCKED",
+      "evidence": "The required real current-context csm-build caller is outside this checkout and was not available for integration. Resume with RECOVER after the caller is supplied."
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-08-31T08:30:00Z",
+      "from": "BLOCKED",
+      "to": "RECOVER",
+      "evidence": "User explicitly accepted the injected current-context boundary as sufficient; the prior blocker is resolved."
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-08-31T08:30:00Z",
+      "from": "RECOVER",
+      "to": "VALIDATE",
+      "evidence": "T001 and T002 focused evidence remains passing and T003/T004 dependencies are satisfied."
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-08-31T08:30:00Z",
+      "from": "VALIDATE",
+      "to": "SELECT",
+      "evidence": "Selected independent ready tasks T003 browse and T004 autoresearch; T005 remains gated on both."
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-08-31T09:00:00Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "Dispatched T003, T004, and dependent T005 after adapter implementations and focused tests were available."
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-08-31T09:00:00Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "Integrated browse cleanup, autoresearch host capability construction, and async-safe telemetry inspection in source and payload copies."
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-08-31T09:00:00Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "T003-T005 acceptance suites, telemetry regressions, payload closure, and syntax checks passed."
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-08-31T09:00:00Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "Independent review findings were repaired: generated capability injection is explicit, JSONL inspection supports async transports, and rejected browser state is cleaned up."
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-08-31T09:00:00Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "T003-T005 are verified; T006 is the next dependency-ready task. Real browser/generated sandbox E2E remains environment-gated."
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-08-31T10:00:00Z",
+      "from": "CHECKPOINT",
+      "to": "BLOCKED",
+      "evidence": "T006 and T007 passed. T008 cannot complete because make test hook fixtures create a temporary baseline from committed files while this execution is intentionally uncommitted; resume after commit authorization or an equivalent baseline is available."
+    }
+  ],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-complete-all-orchestrate-adapters-20260831",
+    "sourceDigests": ["sha256:70ce2d838b3b5edfca32cb49e0e5860df561c88c981e0e84fb546e84bdb6ac7d", "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f"]
+  },
+  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+}

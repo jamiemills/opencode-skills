@@ -22,6 +22,7 @@ const SCHEMA_FILES = [
   "final-review.v2.schema.json",
   "cursor.v2.schema.json",
   "skill-executor.v1.schema.json",
+  "child-attempt.v1.schema.json",
 ];
 let validatorPromise;
 
