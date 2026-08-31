@@ -37,7 +37,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:6627cf9af0c7164522aabe466a783de60ec53fc5b49b8b5ad407ea4ce41d58d8"
+      "schemaContentDigest": "sha256:71ebb9ee263e2b4256047cfe26094bd3a6cae8c45ffe8657ca368dcd62ef0095"
     },
     {
       "id": "csm-orchestrate-capabilities/1",
@@ -46,7 +46,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:0b02896e277551c610c588623afb8c96bffe2d7f3dcce7dbef87f5bc5d3e6ae3"
+      "schemaContentDigest": "sha256:7a1637f8eeea4dd17db55d627856b7cccca37c26c8b39e570fe582ff529ec911"
     },
     {
       "id": "csm-orchestrate-phase/1",
@@ -182,7 +182,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:6a3e973375e4736cea8156fd51a330ba18c00ec9adb50a8b75fcdb9aa9ccecf0"
+      "schemaContentDigest": "sha256:28f487cee17e94c858dc56745dfaa1be34e29847683293b0491a2c4482c39981"
     },
     {
       "id": "csm-orchestrate-final-review/1",

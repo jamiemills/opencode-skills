@@ -750,13 +750,17 @@ function checkCommittedPayloadIndex(rootDir) {
 function transformBootstrapPayload(content, rel) {
   const rewritten = rel.length > 0;
   if (!rewritten || !rel.endsWith(".mjs")) return content;
+  const orchestratorHandler = rel === "csm-orchestrate/lib/skill-executor-handlers.mjs";
   return Buffer.from(
     content
       .toString("utf8")
       .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../../lib/")
       .replaceAll(/(["'])\.\.\/\.\.\/\.\.\/lib\//g, "$1../../../../lib/")
       .replaceAll(/(["'])\.\.\/\.\.\/lib\//g, "$1../../../lib/")
-      .replaceAll(/(["'])\.\.\/\.\.\/csm-ddd\//g, "$1../../skills/csm-ddd/"),
+      .replaceAll(
+        /(["'])\.\.\/\.\.\/csm-ddd\//g,
+        orchestratorHandler ? "$1../../csm-ddd/" : "$1../../skills/csm-ddd/",
+      ),
   );
 }
 

@@ -66,6 +66,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-29-skill-progress-tracking-csm.json` — 2026-08-29 — add default-on progress tracking to catalog skills — status: retained historical complete plan
 - `2026-08-30-progress-followups-csm.json` — 2026-08-30 — close remaining progress-tracking operational gaps — status: indexed active plan
 - `2026-08-30-patch-reliability-csm.json` — 2026-08-30 — prevent recurring patch-context failures with fail-closed editing guidance and contract tests — status: indexed active plan
+- `2026-08-30-remove-opencode-csm.json` — 2026-08-30 — initial no-OpenCode executor replacement plan — status: superseded by `2026-08-30-remove-opencode-proper-csm.json`
+- `2026-08-30-remove-opencode-proper-csm.json` — 2026-08-30 — implement no-OpenCode csm-orchestrate execution with original-goal parity — status: blocked at full route runtime coverage
 
 ## docs/
 
@@ -78,6 +80,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `deferred.md` — 2026-08-20 — deferred-work ledger (5 carried records: CI/audit, sandbox, README plan, eval harness, publication) cited by `[DEF:<slug>]` in non-COMPLETE plans — status: reference
 - `csm-ddd-token-efficiency-liability.md` — 2026-08-23 — deferred liability: csm-ddd description vs the token-efficiency budget (reconciled by WORD_BUDGET re-pin 2026-08-23) — status: retired
 - `csm-deep-research-skill-review-2026-08-20.md` — 2026-08-20 — csm-review audit of the csm-deep-research skill — status: reference
+- `2026-08-30-remove-opencode-proper-t001-route-coverage.json` — 2026-08-30 — route/runtime coverage inventory for no-OpenCode execution — status: blocked reference
 
 ## reviews/
 
@@ -90,10 +93,13 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-25-opencode-skills-review.md` — 2026-08-25 — full static hardening review of skills, runtime, packaging, README, and release surfaces — status: reference
 - `2026-08-27-csm-orchestrate-approach-review-20260827t130000z-a1b2c3d4e5f6-review.json` — 2026-08-27 — focused csm-orchestrate approach-fidelity and remediation review — status: complete
 - `2026-08-29-opencode-skills-20260829t063809z-0916749aa6da-review.json` — 2026-08-29 — terminal adversarial review of the skills suite — status: retained historical review
+- `2026-08-30-opencode-skills-20260830t120000z-orchestrate-review.json` — 2026-08-30 — focused csm-orchestrate host/execution-boundary review — status: incomplete review evidence
 
 ## research/
 
 - `2026-08-29-progress-tracking-gaps-20260829t210000z-a7c4e91b2d6f-research.json` — 2026-08-29 — progress-tracking contract, runtime, aggregation, and persistence research — status: reference
+- `2026-08-30-orchestrate-without-opencode-20260830t120000z-research.json` — 2026-08-30 — no-OpenCode executor architecture research — status: reference
+- `2026-08-30-remove-opencode-plan-assurance-20260830t140000z-research.json` — 2026-08-30 — assurance review of the no-OpenCode implementation plan — status: reference
 - `2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json` — 2026-08-29 — JSON renderer and human-findings integration research — status: retained terminal research
 - `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
 - `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
@@ -164,6 +170,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `progress-tracking-runtime-20260829.json` — 2026-08-30 — csm-build checkpoint for cross-skill progress implementation — status: blocked at commit boundary
 - `progress-followups-20260830.json` — 2026-08-30 — csm-build checkpoint for progress follow-up work — status: indexed active checkpoint
 - `patch-reliability-20260830.json` — 2026-08-30 — csm-build checkpoint for patch-context reliability work — status: indexed active checkpoint
+- `remove-opencode-proper-20260830.json` — 2026-08-30 — csm-build checkpoint for no-OpenCode orchestrator implementation — status: blocked at full route coverage
 - `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
 
 ## ddd/

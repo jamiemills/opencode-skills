@@ -1,0 +1,37 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-build-remove-opencode-proper-20260830",
+  "runId": "run-20260830t151000z-remove-opencode-build",
+  "owner": "csm-build",
+  "status": "blocked",
+  "control": {
+    "currentState": "BLOCKED",
+    "cycle": 0,
+    "nextTransition": "BLOCKED -> RECOVER after provider-neutral runtime and full route coverage are supplied",
+    "activeTasks": ["T004", "T008"],
+    "blockers": ["Full all-skill runtime coverage is not implemented for model-led, browse, and autoresearch routes.", "Provider-neutral model runtime and external caller migration decision are unavailable.", "SQLite-specific recovery tests were skipped because node:sqlite is unavailable under the current environment."],
+    "lastCheckpoint": "2026-08-31T01:45:00Z: verified no-OpenCode implementation; blocked at full route coverage and SQLite-specific evidence",
+    "lastModelRun": "gpt-5.6-luna / remove-opencode-build"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-remove-opencode-proper-20260830",
+      "schema": "csm-plan/1",
+      "runId": "run-20260830t150000z-remove-opencode-proper",
+      "owner": "csm-plan",
+      "digest": "sha256:45af64e68f20d32ee35c51357c3ab87fe0936b5f2e0efd1c91f9e99c28a16cfd",
+      "path": ".agents/plans/2026-08-30-remove-opencode-proper-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    { "sequence": 0, "timestamp": "2026-08-30T15:10:00Z", "from": "NOT_STARTED", "to": "RECOVER", "evidence": "Explicit user build request received; plan, cited inputs, and worktree baseline are being reconstructed before dispatch.", "inputDigests": [] },
+    { "sequence": 1, "timestamp": "2026-08-31T01:45:00Z", "from": "RECOVER", "to": "BLOCKED", "evidence": "No-OpenCode executor, direct handlers, lifecycle, review, recovery, packaging, and outcome tests are implemented and verified. Full model-led/browse/autoresearch runtime coverage is unavailable, and SQLite-specific cases remain skipped under the current Node runtime.", "inputDigests": ["sha256:12abd801bdfb026109810f27e476b72d09f4edf242f02e50ed93292b3d6c89a0"] }
+  ],
+  "artifacts": [],
+  "completion": { "status": "blocked", "verifiedAt": "2026-08-31T01:45:00Z", "evidence": [], "commit": { "status": "not-requested", "sha": null, "message": "Implementation is blocked pending full route runtime coverage and unavailable SQLite-specific evidence.", "files": [] }, "rollback": { "status": "available", "checkpoint": "working tree before remove-opencode-proper build", "action": "Restore only this build's executor-plane and packaging changes after review; preserve unrelated worktree changes." } },
+  "provenance": { "sourcePlan": "art-remove-opencode-proper-20260830", "sourceDigests": ["sha256:45af64e68f20d32ee35c51357c3ab87fe0936b5f2e0efd1c91f9e99c28a16cfd"] },
+  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+}

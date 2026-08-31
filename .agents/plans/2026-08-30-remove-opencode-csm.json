@@ -1,0 +1,142 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-remove-opencode-20260830",
+  "runId": "run-20260830t130000z-remove-opencode",
+  "planId": "remove-opencode",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "disabled",
+    "lastCheckpoint": "2026-08-30T13:00:00Z: plan drafted from pinned csm-review and csm-deep-research findings",
+    "lastModelRun": "gpt-5.6-luna / remove-opencode-plan",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": ["Control.lastCheckpoint", "latest journal row", "Recovery notes of non-COMPLETE tasks", "Discovered Requirements", "working-tree diff"],
+      "firstAction": "Validate this plan and inspect the current csm-orchestrate tree before selecting T001."
+    }
+  },
+  "goal": {
+    "summary": "Remove csm-orchestrate's dependency on OpenCode child sessions while delivering its intended end-to-end orchestration behavior.",
+    "deliverables": ["Versioned in-process SkillExecutor contract", "Exact handler registry and preflight availability checks", "Typed direct handlers or explicit BLOCKED semantics for every routed skill", "Independent final-review executor", "Durable retry/recovery integration", "Zero-OpenCode integration coverage and synchronized packaged output"],
+    "constraints": ["Preserve route selection, approvals, typed receipts, evidence gates, retries, remediation, and durable recovery", "Do not use @opencode-ai/sdk or any implicit LLM/CLI fallback", "Keep capabilities metadata separate from executable handler registration", "Preserve fail-closed behavior and artifact ownership", "Do not claim exactly-once effects; retain at-least-once reconciliation"],
+    "exclusions": ["Changing OpenCode itself", "Launching a replacement agent session", "Enabling unsupported instruction-only skills by pretending SKILL.md is executable", "Changing unrelated sibling-skill behavior", "Broad distributed execution redesign"]
+  },
+  "acceptanceCriteria": [
+    { "id": "AC1", "outcome": "A selected route resolves an exact registered handler by skill, contract digest, and handler digest before approvals or dispatch intents are consumed.", "evidence": "Registry/preflight tests and typed BLOCKED output for missing or stale handlers." },
+    { "id": "AC2", "outcome": "Supported direct handlers execute without OpenCode or child-process launch and return valid child receipts, evidence, and owned artifacts.", "evidence": "Registry-backed DDD/scan end-to-end test with a zero-launch assertion." },
+    { "id": "AC3", "outcome": "Every currently routable skill is either callable through a typed handler or deterministically BLOCKED; no implicit fallback remains.", "evidence": "Manifest-to-registry coverage test and unsupported-skill negative tests." },
+    { "id": "AC4", "outcome": "Final review has distinct reviewer identity and provenance and cannot review its own producer output.", "evidence": "Independent-review receipt and self-review rejection tests." },
+    { "id": "AC5", "outcome": "Timeout, cancellation, retry, crash/restart, idempotency, and durable terminal-record behavior remain fail-closed and replay-safe.", "evidence": "Restart and failure-path integration tests over the existing cursor/store contracts." },
+    { "id": "AC6", "outcome": "Source and bootstrap payload contain no default OpenCode execution path, and the repository gates pass.", "evidence": "Static zero-opencode-path check, payload parity, make check, make fmt-check, make lint, and make test." }
+  ],
+  "currentStateEvidence": {
+    "pinnedCommit": "75adabef9539da6c4a2d231d3aa90bdf1e58cb33",
+    "review": ".agents/reviews/2026-08-30-opencode-skills-20260830t120000z-orchestrate-review.json",
+    "research": ".agents/research/2026-08-30-orchestrate-without-opencode-20260830t120000z-research.json",
+    "observations": [
+      "csm-orchestrate/lib/cli-host.mjs:52-91 defaults to opencode and calls execFile for sibling execution.",
+      "csm-orchestrate/lib/invocation.mjs:278-309 consumes the abstract host boundary, so the core can remain independent of the replacement executor.",
+      "csm-orchestrate/capabilities.json and lib/capabilities.mjs describe metadata but expose no executable handler registry.",
+      "csm-orchestrate/lib/index.mjs:1184-1208 requires finalReview or host.invokeReview; the built-in CLI host supplies neither.",
+      "Existing tests use synthetic invokeSiblingSkill fixtures, not a real registry-backed execution path."
+    ]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["boundary_change", "public_contract", "ownership_or_persistence", "invariant_or_consistency", "cross_boundary_coordination", "architecture_or_refactor", "security_or_authority"],
+    "evidence": [
+      { "source": "brief", "locator": "request", "observation": "User requests removal of the OpenCode execution boundary while preserving the original orchestration goals." },
+      { "source": "repository", "locator": "csm-orchestrate/lib/cli-host.mjs, invocation.mjs, index.mjs", "observation": "The change crosses dispatch, approvals, receipts, final review, retries, durable state, and packaged interfaces." }
+    ],
+    "obligations": [{ "id": "boundary", "status": "required" }, { "id": "contract", "status": "required" }, { "id": "invariant", "status": "required" }, { "id": "observable_behavior", "status": "required" }, { "id": "rollback_recovery", "status": "required" }, { "id": "unresolved_risks", "status": "required" }],
+    "taskApplicability": { "warranted": ["T001", "T002", "T003", "T004", "T005", "T006", "T007"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": ["Most skills are instruction-led rather than callable libraries; enabling them requires real runtime handlers or explicit blocking.", "A direct in-process handler can still perform filesystem or external side effects, so permissions and artifact ownership must be enforced at the handler boundary.", "The actual external caller that currently constructs createCliHost() is not in this repository and must be identified during build discovery."],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    { "id": "D1", "statement": "OpenCode session creation is not an acceptable execution mechanism for csm-orchestrate.", "type": "user-dictated", "rationale": "The request explicitly rejects the current behavior.", "status": "accepted" },
+    { "id": "D2", "statement": "@opencode-ai/sdk is excluded because its documented API starts or connects to an OpenCode server/session.", "type": "architecture", "rationale": "The deep-research finding cites the official SDK and server documentation.", "status": "accepted" },
+    { "id": "D3", "statement": "Capabilities metadata and executable handler registration remain separate authorities.", "type": "safety", "rationale": "Metadata alone cannot prove a callable implementation, digest, side-effect behavior, or artifact contract.", "status": "accepted" },
+    { "id": "D4", "statement": "The first supported handlers should be limited to skills with existing callable libraries; instruction-only skills remain blocked until converted.", "type": "scope", "rationale": "Current repository inspection found representative direct pipelines but no general runtime for instruction-led skills.", "status": "accepted" }
+  ],
+  "rdRecord": [
+    { "id": "R1", "question": "Where does OpenCode get launched?", "method": "Read-only source tracing at pinned commit", "isolation": "No repository execution or writes", "observation": "cli-host.mjs defaults to opencode and execFile; invocation.mjs calls only the injected host interface.", "implication": "Replace the host implementation and remove its default path without rewriting the control plane." },
+    { "id": "R2", "question": "Can the OpenCode SDK remove sessions?", "method": "Official OpenCode SDK/server documentation retrieval", "isolation": "Read-only web retrieval", "observation": "createOpencode starts a server and client; the server exposes session APIs.", "implication": "Do not use the SDK for a no-session architecture." },
+    { "id": "R3", "question": "Can the repository execute all declared skills directly today?", "method": "Read-only registry and library inventory", "isolation": "No code execution or writes", "observation": "No general executable registry exists; direct callable pipelines are only present for a subset.", "implication": "Add coverage inventory and explicit unsupported BLOCKED semantics before enabling routes." }
+  ],
+  "discoveredRequirements": [
+    { "id": "DR1", "requirement": "Handler availability and both contract/handler digests must be checked before approval consumption or dispatch intent creation.", "source": "independent plan critique", "appliesTo": ["T001", "T005"] },
+    { "id": "DR2", "requirement": "Handler output must specify child identity, schema-valid receipt, evidence, artifact ownership, and failure mapping.", "source": "independent plan critique", "appliesTo": ["T002", "T003", "T004"] },
+    { "id": "DR3", "requirement": "Durable idempotency must cover request digest, handler digest, attempt, and terminal response across restart.", "source": "independent plan critique and idempotent receiver research", "appliesTo": ["T005"] },
+    { "id": "DR4", "requirement": "Both root and bootstrap copies of cli-host and related tests/docs must be removed or rewritten together.", "source": "packaging inventory", "appliesTo": ["T006"] }
+  ],
+  "design": {
+    "boundary": "orchestrate() remains the control plane; an injected SkillExecutor registry becomes the execution plane.",
+    "registry": "Exact skill ID maps to a handler descriptor containing contractDigest, handlerDigest, input/output schemas, permissions, effects, artifact owner, and execute(request, context, signal).",
+    "preflight": "Compile route nodes from capabilities, resolve every selected handler by skill plus digests, and return typed BLOCKED before approval consumption when any handler is absent, stale, unsupported, or contradictory.",
+    "handlerProtocol": "Handlers receive the already-authorized child request and cancellation signal, perform only declared work, validate their result, and return a normalized child receipt/evidence/artifact envelope. No handler may invoke OpenCode, an implicit LLM, or an undeclared subprocess fallback.",
+    "review": "Final review is a separate registered executor with a distinct reviewer child identity, approval edge, receipt, and artifact lineage; self-review is rejected.",
+    "recovery": "Persist request digest, contract digest, handler digest, idempotency key, attempt, dispatch intent, and terminal response through the existing durable store. Preserve at-least-once semantics and explicit UNKNOWN reconciliation.",
+    "unsupported": "Instruction-only skills are not routed until they expose typed runtime handlers. Selected unsupported routes produce BLOCKED with a stable reason and do not consume approval or dispatch budget.",
+    "packaging": "Remove or quarantine cli-host from source and bootstrap payload, update tests/docs/capability metadata, and add a static gate that rejects the OpenCode launch path."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T005", "T007"],
+    "parallelGroups": [{ "group": "G1", "tasks": ["T001"] }, { "group": "G2", "tasks": ["T002", "T003", "T004", "T006"] }, { "group": "G3", "tasks": ["T005"] }, { "group": "G4", "tasks": ["T007"] }],
+    "integrationOwner": "Primary build agent owns registry/control-plane integration, cross-handler contracts, packaged parity, final review, rollback, and gates."
+  },
+  "tasks": [
+    { "taskId": "T001", "ordinal": 1, "status": "pending", "title": "Define the versioned in-process executor contract and registry", "dependsOn": [], "parallelGroup": "G1", "risk": "high", "ownedScope": ["csm-orchestrate executor schema and registry", "capability/handler digest validation", "preflight integration"], "notInScope": ["handler implementation", "OpenCode SDK", "implicit fallback", "unrelated skills"], "spikeCandidate": "Inventory whether existing schema registry patterns can represent handler descriptors without making capabilities.json executable; run only read-only inspection in a temporary sandbox.", "actions": "Add a versioned SkillExecutor/handler contract; define exact lookup by skill and contract/handler digests; validate input, output, permissions, effects, cancellation, and artifact ownership; resolve all selected handlers before approval or dispatch intent.", "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-executor-contract.test.mjs", "validation": ["Malformed descriptors, stale digests, duplicate handlers, unknown skills, and missing handlers fail closed", "Unsupported route is BLOCKED before approval consumption", "Existing host-invocation tests remain green"], "acceptanceEvidence": "Schema, registry, preflight trace, and negative-test output.", "repairAttempts": 0, "recoveryNote": "If partial registry work exists, compare the registry digest and schema revision before resuming; do not dispatch a route with an unresolved handler."
+    },
+    { "taskId": "T002", "ordinal": 2, "status": "pending", "title": "Inventory and implement direct handlers for callable skills", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high", "ownedScope": ["executor handlers for csm-ddd and csm-scan", "handler descriptors", "receipt/evidence/artifact normalization", "handler integration tests"], "notInScope": ["converting instruction-only skills", "OpenCode or child CLI execution", "external deployment"], "spikeCandidate": "Prove each selected library's filesystem, subprocess, and sink behavior in an isolated synthetic repository before enabling it; if isolation cannot be proven, leave the skill unsupported.", "actions": "Inventory callable entrypoints and transitive side effects; wrap only verified libraries; bind child IDs, schemas, artifact ownership, cancellation, and failure classes; add direct registry-backed execution for the smallest viable skill set.", "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-executor-ddd-scan.test.mjs", "validation": ["Real handlers execute through the registry without execFile/spawn", "Artifacts resolve and validate against schemas", "Wrong owner/run ID, malformed output, undeclared artifact, and oversized output fail closed"], "acceptanceEvidence": "Handler inventory, descriptors, normalized receipts, artifact evidence, and zero-process-launch test output.", "repairAttempts": 0, "recoveryNote": "If a library cannot satisfy the typed child contract, keep its registry entry absent and record the stable BLOCKED reason rather than adding an adapter fallback."
+    },
+    { "taskId": "T003", "ordinal": 3, "status": "pending", "title": "Make instruction-only skills explicitly unsupported until callable", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "standard", "ownedScope": ["capability-to-registry coverage", "unsupported route behavior", "csm-plan/csm-build/csm-review/csm-deep-research route tests"], "notInScope": ["rewriting those skills into runtimes", "OpenCode fallback", "changing their domain instructions"], "spikeCandidate": "Determine whether any existing skill exposes a complete callable lifecycle rather than helper functions; use read-only source inventory only.", "actions": "Add manifest coverage that distinguishes declared capability from executable support; return stable BLOCKED for absent handlers; prove no approval reservation, dispatch intent, retry, or OpenCode launch occurs for unsupported skills.", "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-unsupported-skills.test.mjs", "validation": ["Every routable skill is classified supported or unsupported", "Unsupported selection remains fail-closed and deterministic", "No implicit model/session/CLI behavior is reachable"], "acceptanceEvidence": "Coverage matrix and blocked-route traces.", "repairAttempts": 0, "recoveryNote": "Do not mark a skill supported based on SKILL.md text or helper exports; require a complete typed handler descriptor."
+    },
+    { "taskId": "T004", "ordinal": 4, "status": "pending", "title": "Implement an independent in-process final-review executor", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high", "ownedScope": ["final-review executor descriptor", "review identity/provenance", "self-review and review-gate tests"], "notInScope": ["removing independence checks", "using the producer handler as reviewer", "OpenCode review sessions"], "spikeCandidate": "Identify the smallest deterministic review implementation that can validate the selected requirements without sharing producer identity; otherwise retain BLOCKED review semantics.", "actions": "Register a separate review executor; bind reviewer child run, approval edge, receipt, artifact, and current evidence; reject same-run or same-producer self-review; preserve remediation insertion and final gate behavior.", "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-inprocess-final-review.test.mjs", "validation": ["Distinct reviewer identity is mandatory", "Self-review, stale evidence, and forged provenance fail closed", "A valid review can verify a complete direct-handler run"], "acceptanceEvidence": "Review receipt lineage and rejection traces.", "repairAttempts": 0, "recoveryNote": "If independent review cannot be implemented without an external authority, leave the executor unavailable and surface REQUIRES_REVIEW rather than weakening the gate."
+    },
+    { "taskId": "T005", "ordinal": 5, "status": "pending", "title": "Integrate durable retry, cancellation, and restart semantics", "dependsOn": ["T001", "T002", "T003", "T004"], "parallelGroup": "G3", "risk": "high", "ownedScope": ["invocation adapter", "orchestration store records", "retry/cancellation/restart integration tests"], "notInScope": ["exactly-once claims", "new distributed store", "receipt authority redesign"], "spikeCandidate": "Simulate crash-after-handler-before-parent-save in a temporary synthetic store and confirm durable terminal replay; do not use real repository data or services.", "actions": "Persist handler and request identity with dispatch intents and terminal records; ensure invalid/unavailable handlers do not poison idempotency; propagate AbortSignal; reconcile timeout UNKNOWN; replay saved terminal responses without duplicate direct effects.", "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-executor-recovery.test.mjs tests/orchestrate-invocation-approval.test.mjs", "validation": ["Retry uses new attempt identity while preserving logical work", "Restart blocks ambiguous side effects until reconciliation", "Cancellation leaves no orphaned handler operation", "Approval is consumed only after handler preflight passes"], "acceptanceEvidence": "Durable records and failure-path traces for replay, timeout, cancellation, and retry.", "repairAttempts": 0, "recoveryNote": "Resume from the last durable cursor/intent; never infer completion from a missing parent record or process exit alone."
+    },
+    { "taskId": "T006", "ordinal": 6, "status": "pending", "title": "Remove the OpenCode execution path and synchronize packaging", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high", "ownedScope": ["csm-orchestrate/lib/cli-host.mjs", "bootstrap/package/payload/skills/csm-orchestrate/lib/cli-host.mjs", "CLI-host tests/docs/capability references", "static zero-opencode gate"], "notInScope": ["editing OpenCode upstream", "deleting unrelated host abstractions", "changing external caller code outside this repository"], "spikeCandidate": "Locate every source, payload, test, and documentation reference to cli-host/createCliHost before deletion; read-only search only.", "actions": "Delete or quarantine the default CLI host, remove the default opencode command, rewrite docs around explicit executor injection, synchronize payload, and add a static test that rejects the old launch path and any hidden child-process fallback.", "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-no-opencode.test.mjs tests/cli-host.test.mjs", "validation": ["No source or payload path executes opencode", "No test depends on creating an OpenCode child", "Package index and capability digests remain synchronized"], "acceptanceEvidence": "Static search results, updated tests, and generated payload parity output.", "repairAttempts": 0, "recoveryNote": "If an external caller still imports createCliHost, preserve a clear migration error or explicit opt-in compatibility boundary; do not silently recreate the old default."
+    },
+    { "taskId": "T007", "ordinal": 7, "status": "pending", "title": "Run full verification and independent review", "dependsOn": ["T005", "T006"], "parallelGroup": "G4", "risk": "high", "ownedScope": ["integration evidence", "repository gates", "final review artifacts"], "notInScope": ["unrelated cleanup", "force-push or hook bypass", "claiming unsupported skills are complete"], "spikeCandidate": "None; use the repository's configured gates and the zero-launch integration fixture.", "actions": "Run focused tests, conformance, formatting, lint, package audit, deterministic suites, full tests, and an independent review of the final diff; verify the original-goal matrix and rollback path.", "acceptanceSignal": "make check && make fmt-check && make lint && make test", "validation": ["Focused executor and no-opencode tests pass first", "Full test suite passes or environment-sensitive failures are explicitly recorded", "Protected worktree and packaged output are clean", "Independent review confirms all acceptance criteria"], "acceptanceEvidence": "Command results, goal-to-test matrix, review verdict, clean diff, and final plan completion evidence.", "repairAttempts": 0, "recoveryNote": "On failure, return to the owning task and preserve the exact failing evidence; do not broaden scope or weaken a gate."
+    }
+  ],
+  "verificationStrategy": {
+    "order": ["registry schema/preflight", "handler inventory", "unsupported routes", "final review", "durable recovery", "no-opencode/package checks", "make check", "make fmt-check", "make lint", "make test", "independent review"],
+    "fastGates": ["focused executor tests", "unsupported-route tests", "no-opencode static test", "make check", "make fmt-check", "make lint"],
+    "expensiveGates": ["direct-handler integration", "durable restart tests", "make test"],
+    "parallelizable": ["T002", "T003", "T004", "T006"],
+    "knownGaps": ["The external caller that constructs createCliHost is not in this repository.", "Instruction-only skills require separate runtime conversion before they can be supported.", "No test may prove arbitrary external side effects are exactly once; the intended guarantee remains at-least-once with reconciliation."]
+  },
+  "risksAndRecovery": {
+    "risks": ["Removing the CLI host may expose callers that depended on the undocumented default.", "Direct handlers may have hidden filesystem or subprocess side effects.", "Handler and skill-contract digests can drift independently.", "Final review can be weakened if reviewer identity is not separate.", "A crash after an effect but before terminal persistence can create ambiguity."],
+    "mitigations": ["Require explicit executor injection and provide a typed migration failure.", "Inventory and sandbox-test each handler before registration.", "Bind both digests into approvals, receipts, and recovery records.", "Require distinct reviewer identity and provenance.", "Persist dispatch intent before execution and reconcile UNKNOWN outcomes."],
+    "rollback": "Revert only the executor/registry integration and packaging changes using the recorded commit boundary; retain existing control-plane schemas and restore the prior explicit host contract only if the new registry cannot pass its gates.",
+    "forwardRecovery": "If a handler fails integration, leave it unsupported and continue only with verified handlers. If durable reconciliation fails, stop BLOCKED with the cursor and dispatch-intent evidence; never rerun an ambiguous side effect automatically."
+  },
+  "critiqueResolution": [
+    { "finding": "Registry lookup must happen before approval consumption or dispatch intent.", "severity": "high", "resolution": "Added T001 preflight and T005 approval-order tests.", "evidence": "Independent executor-plan critique; csm-orchestrate/lib/invocation.mjs:263-276." },
+    { "finding": "Capability digest alone does not authenticate executable code.", "severity": "high", "resolution": "Added separate contract and handler digests to T001 and T005.", "evidence": "Independent executor-plan critique; csm-orchestrate/lib/capabilities.mjs:53-61." },
+    { "finding": "Direct DDD/scan handlers need output, artifact, and side-effect contracts.", "severity": "high", "resolution": "Added T002 inventory/spike and typed normalization acceptance tests.", "evidence": "Independent executor-plan critique; csm-ddd and csm-scan library inspection." },
+    { "finding": "Final-review independence needs distinct identity and provenance.", "severity": "high", "resolution": "Added T004 as a separate executor with self-review rejection tests.", "evidence": "Independent executor-plan critique; csm-orchestrate/lib/adversarial-final-review.mjs:213-222." },
+    { "finding": "Deleting cli-host requires source, payload, test, and documentation cleanup.", "severity": "medium", "resolution": "Added T006 with explicit packaged-path and reference inventory.", "evidence": "Independent executor-plan critique; csm-orchestrate/lib/cli-host.mjs and bootstrap payload." }
+  ],
+  "journal": [
+    { "sequence": 0, "timestamp": "2026-08-30T13:00:00Z", "cycle": 0, "transition": "INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED", "tasks": [], "evidence": "Created a warranted architecture plan from the pinned csm-review and csm-deep-research artifacts; implementation was not started.", "nextState": "NOT_STARTED" }
+  ],
+  "completionReview": null,
+  "inputs": [
+    { "artifactId": "art-review-orchestrate-20260830t120000z", "schema": "csm-review-findings/1", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "owner": "csm-review", "path": ".agents/reviews/2026-08-30-opencode-skills-20260830t120000z-orchestrate-review.json" },
+    { "artifactId": "art-orchestrate-without-opencode-20260830t120000z", "schema": "csm-research/1", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "owner": "csm-deep-research", "path": ".agents/research/2026-08-30-orchestrate-without-opencode-20260830t120000z-research.json" }
+  ],
+  "provenance": { "producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-30T13:00:00Z", "sourceDigests": [] },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}

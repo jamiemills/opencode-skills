@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-skill-executor/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "skill",
+    "contractDigest",
+    "handlerDigest",
+    "inputSchemaDigest",
+    "outputSchemaDigest",
+    "receiptSchemaDigest",
+    "evidenceSchemaDigest",
+    "effectiveConfigDigest",
+    "permissions",
+    "effects",
+    "cancellation",
+    "idempotency"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-skill-executor/1" },
+    "version": { "const": 1 },
+    "skill": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+    "contractDigest": { "$ref": "#/$defs/digest" },
+    "handlerDigest": { "$ref": "#/$defs/digest" },
+    "inputSchemaDigest": { "$ref": "#/$defs/digest" },
+    "outputSchemaDigest": { "$ref": "#/$defs/digest" },
+    "receiptSchemaDigest": { "$ref": "#/$defs/digest" },
+    "evidenceSchemaDigest": { "$ref": "#/$defs/digest" },
+    "effectiveConfigDigest": { "$ref": "#/$defs/digest" },
+    "permissions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "cancellation": { "enum": ["cooperative", "unsupported"] },
+    "idempotency": { "enum": ["natural", "required", "forbidden", "not-applicable"] }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } }
+}

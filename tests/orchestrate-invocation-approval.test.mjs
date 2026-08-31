@@ -63,6 +63,17 @@ test("missing approval and changed digest fail closed before host access", async
   assert.equal(calls, 0);
 });
 
+test("strict executor mode requires all executable digests and a recomputed request digest", async () => {
+  const adapter = createHostInvocationAdapter({
+    capabilities,
+    requireExecutableIdentity: true,
+    host: { invokeSiblingSkill: async () => ({ status: "completed" }) },
+  });
+  const result = await adapter.invoke(base());
+  assert.equal(result.failure.code, "invalid-invocation");
+  assert.match(result.failure.message, /contractDigest/);
+});
+
 test("requested skill and digest must be in the canonical manifest", async () => {
   const adapter = createHostInvocationAdapter({
     ...adapterOptions({
@@ -106,6 +117,17 @@ test("duplicate terminal invocation is rejected deterministically", async () => 
   });
   assert.equal((await adapter.invoke(base())).status, "completed");
   assert.equal((await adapter.invoke(base())).failure.code, "duplicate-terminal-invocation");
+});
+
+test("undefined optional request fields are ignored by the material digest", async () => {
+  const adapter = createHostInvocationAdapter({
+    capabilities,
+    host: { invokeSiblingSkill: async () => ({ status: "completed" }) },
+  });
+  const result = await adapter.invoke(
+    base({ approval: undefined, input: { optional: undefined } }),
+  );
+  assert.equal(result.failure.code, "missing-approval");
 });
 
 test("child, evaluator, timeout, and incomplete failures remain distinct", async () => {

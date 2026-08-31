@@ -236,6 +236,8 @@ export function retryDecision({
     return { action: "stop", reason: "retry-budget-exhausted", nextAttempt: attempt };
   if (!failure || !RETRYABLE_FAILURES.has(failure.class))
     return { action: "stop", reason: "non-retryable-failure", nextAttempt: attempt };
+  if (failure.code === "reconciliation-required")
+    return { action: "stop", reason: "reconciliation-required", nextAttempt: attempt };
   if (retryability === "never")
     return { action: "stop", reason: "route-forbids-retry", nextAttempt: attempt };
   if (sideEffects.some((effect) => !READ_ONLY.has(effect)) && idempotencyMode === "forbidden")

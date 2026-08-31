@@ -9,6 +9,7 @@
     "reviewId": { "type": "string", "pattern": "^review-[a-z0-9][a-z0-9-]{1,127}$" },
     "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
     "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "inputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "status": { "enum": ["ACCEPTED", "REJECTED"] },
     "independent": { "const": true },
     "provenance": {
@@ -16,8 +17,9 @@
       "additionalProperties": false,
       "required": ["mode", "reviewer", "reviewerChildRunId"],
       "properties": {
-        "mode": { "enum": ["local-test-seam", "host-backed"] },
+        "mode": { "enum": ["local-test-seam", "host-backed", "in-process-independent"] },
         "reviewer": { "type": "string", "minLength": 1 },
+        "executor": { "type": "string", "minLength": 1 },
         "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
         "reviewerChildRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
         "receipt": {

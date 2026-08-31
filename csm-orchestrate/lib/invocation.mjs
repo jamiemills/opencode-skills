@@ -1,12 +1,12 @@
 "use strict";
 
-import { execFile } from "node:child_process";
 import { assertSchema, validSchema } from "./contracts.mjs";
 import {
   validateInjectedFinalReview,
   validateReviewProvenance,
 } from "./adversarial-final-review.mjs";
 import { HOST_REVIEW } from "./review-token.mjs";
+import { digest } from "../../lib/schema-runtime/index.mjs";
 
 const FAILURE_CLASSES = Object.freeze([
   "transport",
@@ -21,7 +21,16 @@ const DIGEST = /^sha256:[a-f0-9]{64}$/;
 
 export function validateHandoffRef(
   ref,
-  { owner, runId, artifactId, schema, schemaRevision, path, resolution, digest } = {},
+  {
+    owner,
+    runId,
+    artifactId,
+    schema,
+    schemaRevision,
+    path,
+    resolution,
+    digest: expectedDigest,
+  } = {},
 ) {
   if (!ref || typeof ref !== "object") return "handoff ref must be an object";
   if (
@@ -45,13 +54,34 @@ export function validateHandoffRef(
   if (path !== undefined && ref.path !== path) return "handoff path mismatch";
   if (resolution !== undefined && ref.resolution !== resolution)
     return "handoff resolution mismatch";
-  if (digest !== undefined && ref.digest !== digest) return "handoff digest mismatch";
+  if (expectedDigest !== undefined && ref.digest !== expectedDigest)
+    return "handoff digest mismatch";
   return null;
 }
 
 function failure(status, failureClass, code, message) {
   return { status, failure: { class: failureClass, code, message } };
 }
+
+function omitUndefined(value) {
+  if (Array.isArray(value)) return value.map(omitUndefined);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, omitUndefined(item)]),
+    );
+  return value;
+}
+
+const requestDigest = (request) =>
+  digest(
+    omitUndefined(
+      Object.fromEntries(
+        Object.entries(request).filter(([key]) => key !== "status" && key !== "requestDigest"),
+      ),
+    ),
+  );
 
 async function raceDeadline(promise, ms, code) {
   let timer;
@@ -67,7 +97,7 @@ async function raceDeadline(promise, ms, code) {
   }
 }
 
-async function assertRequest(request) {
+async function assertRequest(request, { requireExecutableIdentity = false } = {}) {
   if (!request || typeof request !== "object")
     throw new TypeError("invocation request is required");
   for (const field of [
@@ -92,6 +122,21 @@ async function assertRequest(request) {
   )
     throw new TypeError("parent and child run IDs must be distinct canonical run IDs");
   if (!request.retry.idempotencyKey) throw new TypeError("idempotency key is required");
+  if (requireExecutableIdentity) {
+    for (const field of [
+      "contractDigest",
+      "handlerDigest",
+      "receiptSchemaDigest",
+      "evidenceSchemaDigest",
+      "effectiveConfigDigest",
+      "requestDigest",
+    ]) {
+      if (typeof request[field] !== "string" || !DIGEST.test(request[field]))
+        throw new TypeError(`invocation request requires ${field}`);
+    }
+    if (request.requestDigest !== requestDigest(request))
+      throw new TypeError("invocation request digest mismatch");
+  }
   for (const ref of request.upstreamArtifactRefs ?? []) {
     const error = validateHandoffRef(ref);
     if (error) throw new TypeError(error);
@@ -223,14 +268,15 @@ export function createHostInvocationAdapter({
   cursorStore = null,
   now = () => new Date(),
   terminalInvocations = new Map(),
+  requireExecutableIdentity = false,
 } = {}) {
   const consumedApprovals = new Set();
   const manifest = Array.isArray(capabilities) ? capabilities : capabilities?.skills;
   const capabilityBySkill = new Map((manifest ?? []).map((item) => [item.skill, item]));
   return Object.freeze({
-    async invoke(request, { signal, cursorId } = {}) {
+    async invoke(request, { signal, cursorId, dispatchIntentId } = {}) {
       try {
-        await assertRequest(request);
+        await assertRequest(request, { requireExecutableIdentity });
       } catch (error) {
         return failure("blocked", "policy", "invalid-invocation", error.message);
       }
@@ -250,13 +296,42 @@ export function createHostInvocationAdapter({
           "skill digest is not in the canonical capability manifest",
         );
       const key = request.retry.idempotencyKey;
-      if (terminalInvocations.has(key))
+      const expectedRequestDigest = requestDigest(request);
+      const cacheTerminal = (response, state = "terminal") =>
+        terminalInvocations.set(key, { response, state, requestDigest: expectedRequestDigest });
+      const durableAttempt =
+        typeof cursorStore?.loadChildAttemptByKey === "function"
+          ? await cursorStore.loadChildAttemptByKey(key)
+          : null;
+      if (durableAttempt) {
+        if (durableAttempt.requestDigest && durableAttempt.requestDigest !== expectedRequestDigest)
+          return failure("rejected", "policy", "idempotency-conflict", "request digest changed");
+        if (durableAttempt.state === "UNKNOWN")
+          return failure(
+            "incomplete",
+            "incomplete",
+            "reconciliation-required",
+            "ambiguous child attempt requires reconciliation",
+          );
+        if (durableAttempt.state === "terminal" && durableAttempt.response)
+          if (!terminalInvocations.has(key)) return durableAttempt.response;
+      }
+      const local = terminalInvocations.get(key);
+      if (local) {
+        if (local.state === "UNKNOWN")
+          return failure(
+            "incomplete",
+            "incomplete",
+            "reconciliation-required",
+            "ambiguous child attempt requires reconciliation",
+          );
         return failure(
           "rejected",
           "policy",
           "duplicate-terminal-invocation",
           "terminal invocation already exists",
         );
+      }
       const durableCursorId =
         cursorId ??
         `cursor-${request.parentRunId}-${request.phaseId}-${request.edgeId.replace(/^edge-/, "")}`;
@@ -298,20 +373,39 @@ export function createHostInvocationAdapter({
       }
       consumedApprovals.add(request.approval.approvalId);
       const controller = new AbortController();
-      let childResult = null;
-      // Best-effort: tmux-detached grandchildren live in the tmux server's session;
-      // without pid-namespaces this cannot guarantee cleanup
-      const killTmuxSession = () => {
-        const sessionName = childResult?.tmuxSessionName;
-        if (typeof sessionName !== "string" || sessionName === "") return;
-        execFile("tmux", ["kill-session", "-t", sessionName], () => {});
+      const attemptRecord = {
+        attemptId: `attempt-${request.retry.idempotencyKey.replace(/[^a-z0-9-]/gi, "-")}-${request.retry.attempt}`,
+        logicalKey: key,
+        requestDigest: expectedRequestDigest,
+        parentRunId: request.parentRunId,
+        childRunId: request.childRunId,
+        phaseId: request.phaseId,
+        attempt: request.retry.attempt,
+        capabilityDigest: request.skillDigest,
+        contractDigest: request.contractDigest,
+        handlerDigest: request.handlerDigest,
+        receiptSchemaDigest: request.receiptSchemaDigest,
+        evidenceSchemaDigest: request.evidenceSchemaDigest,
+        configDigest: request.effectiveConfigDigest,
+        sideEffectClass:
+          request.sideEffectClass ?? ((request.sideEffects ?? []).join(",") || "read-only"),
+        dispatchIntentId: dispatchIntentId ?? null,
       };
+      if (typeof cursorStore?.beginChildAttempt === "function") {
+        try {
+          await cursorStore.beginChildAttempt(attemptRecord);
+        } catch (error) {
+          return failure(
+            "rejected",
+            "policy",
+            error?.info?.conflict ? "idempotency-conflict" : "duplicate-terminal-invocation",
+            error.message,
+          );
+        }
+      }
       const hostInvocation = host.invokeSiblingSkill(request, { signal: controller.signal });
       Promise.resolve(hostInvocation).then(
-        (result) => {
-          childResult = result;
-          if (controller.signal.aborted) killTmuxSession();
-        },
+        () => {},
         () => {},
       );
       const cancellation = new Promise((_, reject) => {
@@ -319,7 +413,6 @@ export function createHostInvocationAdapter({
           "abort",
           () => {
             controller.abort();
-            killTmuxSession();
             reject(Object.assign(new Error("invocation was cancelled"), { cancelled: true }));
           },
           { once: true },
@@ -329,7 +422,6 @@ export function createHostInvocationAdapter({
       const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => {
           controller.abort();
-          killTmuxSession();
           reject(Object.assign(new Error("child invocation timed out"), { timeout: true }));
         }, request.timeoutMs);
       });
@@ -337,12 +429,18 @@ export function createHostInvocationAdapter({
         const result = await Promise.race([hostInvocation, timeout, cancellation]);
         clearTimeout(timer);
         const resultError = await validateChildResult(result, request);
-        if (resultError) return failure("blocked", "policy", "invalid-child-result", resultError);
+        if (resultError) {
+          const terminal = failure("blocked", "policy", "invalid-child-result", resultError);
+          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          cacheTerminal(terminal);
+          return terminal;
+        }
         const status = result.status;
         const identityError = childIdentityFailure(result, request);
         if (identityError) {
           const terminal = failure("blocked", "policy", "child-identity-mismatch", identityError);
-          terminalInvocations.set(key, terminal);
+          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          cacheTerminal(terminal);
           return terminal;
         }
         if (status === "failed" || status === "blocked") {
@@ -350,6 +448,7 @@ export function createHostInvocationAdapter({
             ? result.failure.class
             : "child";
           const terminal = {
+            ...result,
             status,
             failure: {
               class: klass,
@@ -357,16 +456,24 @@ export function createHostInvocationAdapter({
               message: result.failure?.message ?? "child invocation failed",
             },
           };
-          terminalInvocations.set(key, terminal);
+          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          cacheTerminal(terminal);
           return terminal;
         }
-        if (status === "incomplete")
-          return failure(
-            "incomplete",
-            "incomplete",
-            result.failure?.code ?? "child-incomplete",
-            result.failure?.message ?? "child evidence is incomplete",
-          );
+        if (status === "incomplete") {
+          const terminal = {
+            ...result,
+            status: "incomplete",
+            failure: {
+              class: "incomplete",
+              code: result.failure?.code ?? "child-incomplete",
+              message: result.failure?.message ?? "child evidence is incomplete",
+            },
+          };
+          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          cacheTerminal(terminal);
+          return terminal;
+        }
         const terminal = {
           status: "completed",
           outputArtifactRefs: result?.outputArtifactRefs ?? [],
@@ -375,27 +482,49 @@ export function createHostInvocationAdapter({
           technical: result?.technical ?? null,
           functional: result?.functional ?? null,
         };
-        terminalInvocations.set(key, terminal);
+        await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+        cacheTerminal(terminal);
         return terminal;
       } catch (error) {
         clearTimeout(timer);
-        if (error?.timeout)
-          return failure("failed", "timeout", "timeout", "child invocation timed out");
-        if (error?.cancelled)
-          return failure("rejected", "timeout", "cancelled", "invocation was cancelled");
-        if (FAILURE_CLASSES.includes(error?.failureClass))
-          return failure(
+        if (error?.timeout || error?.cancelled) {
+          const terminal = failure(
+            "incomplete",
+            error?.timeout ? "timeout" : "timeout",
+            "reconciliation-required",
+            error?.timeout
+              ? "child invocation timed out after dispatch"
+              : "child invocation was cancelled after dispatch",
+          );
+          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal, "UNKNOWN");
+          await cursorStore?.recordReconciliation?.(request.childRunId, "UNKNOWN", {
+            cause: error?.timeout ? "timeout-after-dispatch" : "cancellation-after-dispatch",
+            attemptId: attemptRecord.attemptId,
+            requestDigest: expectedRequestDigest,
+          });
+          cacheTerminal(terminal, "UNKNOWN");
+          return terminal;
+        }
+        if (FAILURE_CLASSES.includes(error?.failureClass)) {
+          const terminal = failure(
             "failed",
             error.failureClass,
             error.code ?? `${error.failureClass}-failed`,
             error.message ?? `${error.failureClass} failure`,
           );
-        return failure(
+          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          cacheTerminal(terminal);
+          return terminal;
+        }
+        const terminal = failure(
           "failed",
           "transport",
           "transport-failed",
           error?.message ?? "host transport failed",
         );
+        await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+        cacheTerminal(terminal);
+        return terminal;
       }
     },
     async invokeReview(request) {

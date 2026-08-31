@@ -34,14 +34,14 @@ silently complete.
 `csm-orchestrate` is the outer-loop controller for an agreed canonical
 `csm-approach/1` JSON artifact. It compiles approach phases into immutable thin
 slices, selects only declared conditional routes, invokes siblings through an
-injected host adapter, and emits a parent `csm-orchestrate-receipt/1`.
+explicitly injected executor, and emits a parent `csm-orchestrate-receipt/1`.
 
 ## Interface
 
 Invoke `orchestrate()` from `csm-orchestrate/index.mjs` with a canonical JSON
-approach, a host adapter, capability metadata, and edge-bound approvals.
+approach, an explicitly injected executor, capability metadata, and edge-bound approvals.
 
-- Consumes: canonical approach JSON, declared capabilities, host adapter, and scoped approvals.
+- Consumes: canonical approach JSON, declared capabilities, explicitly injected executor, and scoped approvals.
 - Produces: a typed parent receipt with child lineage, evidence, gate, review, and outcome status.
 - Hands off: the final receipt and durable cursor to the operator or future `csm-build` handoff.
 - Never invokes: csm-orchestrate
@@ -50,9 +50,9 @@ approach, a host adapter, capability metadata, and edge-bound approvals.
 
 - The JSON approach artifact is authoritative. Markdown is not accepted by the
   runtime without a separate validated projection adapter.
-- A host implementing `invokeSiblingSkill` and an approval bound to every edge
-  are required. Missing host, capability metadata, approval, or evidence fails
-  closed; this repository does not provide live host dispatch.
+- An explicitly injected executor and an approval bound to every edge are
+  required. Missing executor, capability metadata, approval, or evidence fails
+  closed; this repository provides no default process or model runtime.
 - Sibling skills retain their own lifecycle, artifacts, permissions, and side
   effect authority. The coordinator records references and receipts only.
 - Technical, functional, adversarial, and mandatory final review gates run
@@ -67,7 +67,7 @@ approach, a host adapter, capability metadata, and edge-bound approvals.
 Standalone skills have no shared progress host/context callback in this
 repository; their csm-progress/1 contract is instruction-led only. The
 executable csm-progress/1 authority is the orchestrator-hosted progress runtime
-reached through `orchestrate()` and its injected host adapter. Standalone skills
+reached through `orchestrate()` and its injected executor. Standalone skills
 must not invent a caller, mutate the parent aggregate, or emit receipt, cursor,
 telemetry, browse, upload, credential, session, or publication data through
 progress.
@@ -75,7 +75,7 @@ progress.
 ## Operator Handoff
 
 The future `csm-build` handoff should provide the saved approach path, parent
-`run-...` ID, capability manifest, host adapter, approval provider, durable
+`run-...` ID, capability manifest, executor, approval provider, durable
 cursor store, and deterministic technical/functional evidence callbacks. Run
 `node --test tests/orchestrate-e2e.test.mjs` for the synthetic contract suite.
 Do not interpret this skill's fixture host as production dispatch or infer

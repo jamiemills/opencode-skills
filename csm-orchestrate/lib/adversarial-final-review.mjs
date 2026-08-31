@@ -318,8 +318,8 @@ export function validateInjectedFinalReview({
 export function validateReviewProvenance(review, parentRunId) {
   const provenance = review?.provenance;
   const failures = [];
-  if (!provenance || provenance.mode !== "host-backed")
-    return ["final review lacks host-backed provenance"];
+  if (!provenance || !["host-backed", "in-process-independent"].includes(provenance.mode))
+    return ["final review lacks independent provenance"];
   if (!provenance.reviewer || !provenance.owner || !provenance.reviewerChildRunId)
     failures.push("final review reviewer identity is incomplete");
   if (provenance.reviewerChildRunId === parentRunId)
@@ -337,6 +337,231 @@ export function validateReviewProvenance(review, parentRunId) {
   if (provenance.approval?.approvedDigest !== provenance.artifact?.digest)
     failures.push("final review approval is not bound to review artifact digest");
   return failures;
+}
+
+const deepFreeze = (value) => {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) deepFreeze(child);
+  return Object.freeze(value);
+};
+
+const reviewRunId = (parentRunId, phaseId, inputDigest) =>
+  `run-${digest(`${parentRunId}:${phaseId}:${inputDigest}`).slice(7, 39)}`;
+
+/**
+ * Run final review in-process without sharing the producer's executor context.
+ * The reviewer receives only a frozen acceptance context; its records are made
+ * here so a reviewer cannot self-assert its own provenance.
+ */
+export function createIndependentFinalReviewExecutor({
+  reviewer,
+  reviewerId = "csm-review-independent",
+  executorId = "csm-orchestrate-final-review",
+  producerExecutorId = null,
+} = {}) {
+  if (typeof reviewer !== "function") throw new TypeError("independent reviewer is required");
+  if (
+    !reviewerId ||
+    !executorId ||
+    reviewerId === producerExecutorId ||
+    executorId === producerExecutorId
+  )
+    throw new TypeError("independent reviewer identity must differ from producer identity");
+  return Object.freeze({
+    async invokeReview(request = {}, { signal } = {}) {
+      if (signal?.aborted)
+        return {
+          status: "unknown",
+          failure: { class: "timeout", code: "cancelled", message: "final review was cancelled" },
+        };
+      if (
+        typeof request.producerExecutorId !== "string" ||
+        request.producerExecutorId.length === 0 ||
+        request.producerExecutorId === reviewerId ||
+        request.producerExecutorId === executorId
+      )
+        return {
+          status: "unknown",
+          failure: {
+            class: "policy",
+            code: "self-review",
+            message: "reviewer executor equals producer executor",
+          },
+        };
+      const requirements = request.requirements ?? [];
+      const evidence = request.evidence ?? [];
+      const phaseResults = request.phaseResults ?? [];
+      const input = deepFreeze(
+        structuredClone({
+          parentRunId: request.parentRunId,
+          phaseId: request.phaseId,
+          graphRevision: request.graphRevision,
+          requirements,
+          evidence,
+          phaseResults,
+          childReceipts: request.childReceipts ?? [],
+        }),
+      );
+      const inputDigest = digest(input);
+      const reviewerChildRunId = reviewRunId(request.parentRunId, request.phaseId, inputDigest);
+      if (reviewerChildRunId === request.parentRunId)
+        return {
+          status: "unknown",
+          failure: {
+            class: "policy",
+            code: "self-review",
+            message: "reviewer child run equals producer run",
+          },
+        };
+      let candidate;
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      signal?.addEventListener("abort", abort, { once: true });
+      let timer;
+      try {
+        candidate = await Promise.race([
+          reviewer(input, { signal: controller.signal, reviewerId, executorId }),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              controller.abort();
+              reject(Object.assign(new Error("independent review timed out"), { timeout: true }));
+            }, request.timeoutMs ?? 30_000);
+          }),
+        ]);
+      } catch (error) {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
+        return {
+          status: "unknown",
+          failure: {
+            class:
+              error?.timeout || error?.name === "AbortError" || signal?.aborted
+                ? "timeout"
+                : "child",
+            code: error?.timeout
+              ? "review-timeout"
+              : signal?.aborted
+                ? "cancelled"
+                : "reviewer-failed",
+            message: error?.message ?? "independent reviewer failed",
+          },
+        };
+      }
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      if (signal?.aborted)
+        return {
+          status: "unknown",
+          failure: { class: "timeout", code: "cancelled", message: "final review was cancelled" },
+        };
+      if (
+        !candidate ||
+        typeof candidate !== "object" ||
+        !["ACCEPTED", "REJECTED"].includes(candidate.status)
+      )
+        return {
+          status: "unknown",
+          failure: {
+            class: "evaluator",
+            code: "ambiguous-review",
+            message: "reviewer returned no typed decision",
+          },
+        };
+      const authoritative = reviewAcceptance({
+        runId: request.parentRunId,
+        requirements,
+        claims: evidence.map((item) => ({
+          requirementIds: item.requirementIds,
+          evidenceRefs: [
+            { evidenceId: item.evidenceId, acceptanceSignalId: item.acceptanceSignalId },
+          ],
+        })),
+        evidence,
+        artifacts: [
+          ...new Map(
+            evidence
+              .filter((item) => item.source?.artifactId)
+              .map((item) => [
+                item.source.artifactId,
+                {
+                  artifactId: item.source.artifactId,
+                  path: item.source.path,
+                  digest: item.source.digest ?? item.digest,
+                },
+              ]),
+          ).values(),
+        ],
+        technical: phaseResults.flatMap((item) => item.gate?.technical ?? []),
+        functional: phaseResults.flatMap((item) => item.gate?.functional ?? []),
+        completion: phaseResults.every((item) => item.gate?.status === "VERIFIED"),
+      });
+      const finalArtifactDigest = digest({ inputDigest, candidate, authoritative });
+      const reviewArtifact = {
+        artifactId: `artifact-final-review-${reviewerChildRunId.slice(4)}`,
+        runId: reviewerChildRunId,
+        owner: reviewerId,
+        schema: "csm-orchestrate-adversarial-review/2",
+        path: `review-${reviewerChildRunId}.json`,
+        resolution: "in-process-independent-review",
+        digest: finalArtifactDigest,
+      };
+      const reviewReceipt = {
+        artifactId: `receipt-final-review-${reviewerChildRunId.slice(4)}`,
+        runId: reviewerChildRunId,
+        owner: reviewerId,
+        schema: "csm-review-receipt/1",
+        path: `review-receipt-${reviewerChildRunId}.json`,
+        resolution: "in-process-independent-review",
+        digest: digest({ reviewArtifact, status: candidate.status }),
+      };
+      const {
+        producerRationale: _producerRationale,
+        provenance: _provenance,
+        ...candidateFields
+      } = candidate;
+      const reviewValue = {
+        ...candidateFields,
+        schema: "csm-orchestrate-adversarial-review/2",
+        reviewId: `review-${reviewerChildRunId.slice(4)}`,
+        runId: request.parentRunId,
+        phaseId: request.phaseId,
+        independent: true,
+        inputDigest,
+        requirementCoverage: candidate.requirementCoverage ?? authoritative.requirementCoverage,
+        evidenceEntailment: candidate.evidenceEntailment ?? authoritative.evidenceEntailment,
+        artifactIdentity: candidate.artifactIdentity ?? authoritative.artifactIdentity,
+        technical: candidate.technical ?? authoritative.technical,
+        functional: candidate.functional ?? authoritative.functional,
+        findings: candidate.findings ?? authoritative.findings,
+        provenance: {
+          mode: "in-process-independent",
+          reviewer: reviewerId,
+          executor: executorId,
+          owner: reviewerId,
+          reviewerChildRunId,
+          receipt: reviewReceipt,
+          artifact: reviewArtifact,
+          approval: {
+            approvalId: `approval-final-review-${reviewerChildRunId.slice(4)}`,
+            edgeId: request.edgeId,
+            parentRunId: request.parentRunId,
+            reviewerChildRunId,
+            phaseId: request.phaseId,
+            approvedDigest: finalArtifactDigest,
+          },
+        },
+        ...(candidate.status === "ACCEPTED" && authoritative.status === "REJECTED"
+          ? {
+              status: "REJECTED",
+              findings: [...(candidate.findings ?? []), ...authoritative.findings],
+            }
+          : {}),
+      };
+      Object.defineProperty(reviewValue, HOST_REVIEW, { value: true });
+      const review = Object.freeze(reviewValue);
+      return { status: "completed", review, reviewReceipt, reviewArtifact };
+    },
+  });
 }
 
 function assertInsertion(graph, phase, existingEffects) {
@@ -466,7 +691,7 @@ export function coordinateFinalReview({
     });
   if (
     review.status === "ACCEPTED" &&
-    review.provenance?.mode === "host-backed" &&
+    ["host-backed", "in-process-independent"].includes(review.provenance?.mode) &&
     review.runId === graph?.runId &&
     Array.isArray(review.findings) &&
     Array.isArray(review.technical) &&

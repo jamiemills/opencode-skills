@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "csm-orchestrate-capabilities/1",
   "title": "CSM orchestrate capability manifest",
-  "description": "Immutable host discovery metadata for the supported CSM skills.",
+  "description": "Immutable capability metadata for the supported CSM skills; executable runtimes are injected separately.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "version", "contentDigest", "skills", "coordinator"],
@@ -20,12 +20,21 @@
     "coordinator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["skill", "version", "role", "entrypoint"],
+      "required": ["skill", "version", "role", "entrypoint", "execution"],
       "properties": {
         "skill": { "const": "csm-orchestrate" },
         "version": { "type": "string", "minLength": 1 },
         "role": { "const": "coordinator" },
-        "entrypoint": { "type": "string", "minLength": 1 }
+        "entrypoint": { "type": "string", "minLength": 1 },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "missingExecutor"],
+          "properties": {
+            "mode": { "const": "explicit-in-process-injection" },
+            "missingExecutor": { "const": "BLOCKED" }
+          }
+        }
       }
     }
   },

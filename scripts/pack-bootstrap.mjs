@@ -349,12 +349,18 @@ async function expandMapping() {
   return entries;
 }
 
-function rewritePayloadSpecifier(specifier) {
-  return specifier
+function rewritePayloadSpecifier(specifier, destination) {
+  const rewritten = specifier
     .replace(/^\.\.\/\.\.\/\.\.\/\.\.\/lib\//, "../../../../../lib/")
     .replace(/^\.\.\/\.\.\/\.\.\/lib\//, "../../../../lib/")
     .replace(/^\.\.\/\.\.\/lib\//, "../../../lib/")
     .replace(/^\.\.\/\.\.\/csm-ddd\//, "../../skills/csm-ddd/");
+  if (
+    destination.includes("payload/skills/csm-orchestrate/") &&
+    specifier.startsWith("../../csm-ddd/")
+  )
+    return specifier;
+  return rewritten;
 }
 
 function payloadData(data, destination) {
@@ -364,7 +370,7 @@ function payloadData(data, destination) {
   if ((!rewritten && !sharedRuntime) || !normalized.endsWith(".mjs")) return data;
   const text = data.toString("utf8");
   const rewriteMatch = (match, prefix, quote, specifier) =>
-    `${prefix}${quote}${rewritePayloadSpecifier(specifier)}${quote}`;
+    `${prefix}${quote}${rewritePayloadSpecifier(specifier, normalized)}${quote}`;
   return Buffer.from(
     text
       .replace(

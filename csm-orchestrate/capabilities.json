@@ -6,7 +6,11 @@
     "skill": "csm-orchestrate",
     "version": "1",
     "role": "coordinator",
-    "entrypoint": "csm-orchestrate/index.mjs"
+    "entrypoint": "csm-orchestrate/index.mjs",
+    "execution": {
+      "mode": "explicit-in-process-injection",
+      "missingExecutor": "BLOCKED"
+    }
   },
   "skills": [
     {
