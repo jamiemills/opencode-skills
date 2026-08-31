@@ -11,7 +11,7 @@
     "nextTransition": "BLOCKED -> RECOVER after provider-neutral runtime and full route coverage are supplied",
     "activeTasks": ["T004", "T008"],
     "blockers": ["Full all-skill runtime coverage is not implemented for model-led, browse, and autoresearch routes.", "Provider-neutral model runtime and external caller migration decision are unavailable.", "SQLite-specific recovery tests were skipped because node:sqlite is unavailable under the current environment."],
-    "lastCheckpoint": "2026-08-31T02:50:00Z: CI regression repaired and local full tests pass; blocked at full route coverage",
+    "lastCheckpoint": "2026-08-31T02:55:00Z: pushed final checkpoint 22b21e1; CI 33351819405 passed; blocked only at full route coverage",
     "lastModelRun": "gpt-5.6-luna / remove-opencode-build"
   },
   "inputs": [
@@ -31,7 +31,7 @@
     { "sequence": 1, "timestamp": "2026-08-31T01:45:00Z", "from": "RECOVER", "to": "BLOCKED", "evidence": "No-OpenCode executor, direct handlers, lifecycle, review, recovery, packaging, and outcome tests are implemented and verified. Full model-led/browse/autoresearch runtime coverage is unavailable, and SQLite-specific cases remain skipped under the current Node runtime.", "inputDigests": ["sha256:12abd801bdfb026109810f27e476b72d09f4edf242f02e50ed93292b3d6c89a0"] }
   ],
   "artifacts": [],
-  "completion": { "status": "blocked", "verifiedAt": "2026-08-31T02:50:00Z", "evidence": [], "commit": { "status": "recorded", "sha": "d5ae1e1", "message": "test: retry temporary hook fixture cleanup", "files": ["csm-orchestrate", "lib/orchestration-store/index.mjs", "scripts/hooks/test/pre-commit.test.mjs", "tests/orchestrate-*.test.mjs", "bootstrap/package/payload", ".agents"] }, "rollback": { "status": "available", "checkpoint": "working tree before remove-opencode-proper build", "action": "Restore only this build's executor-plane and packaging changes after review; preserve unrelated worktree changes." } },
+  "completion": { "status": "blocked", "verifiedAt": "2026-08-31T02:55:00Z", "evidence": [], "commit": { "status": "recorded", "sha": "22b21e1", "message": "chore: update orchestrator build checkpoint", "files": ["csm-orchestrate", "lib/orchestration-store/index.mjs", "scripts/hooks/test/pre-commit.test.mjs", "tests/orchestrate-*.test.mjs", "bootstrap/package/payload", ".agents"] }, "rollback": { "status": "available", "checkpoint": "working tree before remove-opencode-proper build", "action": "Restore only this build's executor-plane and packaging changes after review; preserve unrelated worktree changes." } },
   "provenance": { "sourcePlan": "art-remove-opencode-proper-20260830", "sourceDigests": ["sha256:45af64e68f20d32ee35c51357c3ab87fe0936b5f2e0efd1c91f9e99c28a16cfd"] },
   "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
 }
