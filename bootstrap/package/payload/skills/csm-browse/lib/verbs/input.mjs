@@ -1,4 +1,4 @@
-import { connect, getSession, clickCoords } from "../cdp.mjs";
+import { connect, getSession, clickCoords, clickAndWaitForNavigation } from "../cdp.mjs";
 
 export function typedResult(selector) {
   return { typed: true, selector };
@@ -70,7 +70,7 @@ export async function run({ args, state, verb }) {
     const client = await connect(state);
     try {
       const sessionId = await getSession(client);
-      await clickCoords(client, sessionId, sel, index);
+      await clickAndWaitForNavigation(client, sessionId, sel, index);
       console.log(JSON.stringify({ clicked: sel, index }));
     } finally {
       await client.close().catch(() => {});

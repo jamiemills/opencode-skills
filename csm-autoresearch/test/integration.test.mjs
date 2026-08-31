@@ -2,15 +2,18 @@
 
 import assert from "node:assert/strict";
 import { access, mkdtemp, readFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { createJudge } from "../lib/llm/index.mjs";
 import { optimize, evaluateHardGates } from "../lib/optimizer/index.mjs";
 import { promote, rollback } from "../lib/population/index.mjs";
-import { createGeneratedProvider, hash as generatedHash } from "../lib/providers/generated.mjs";
+import {
+  createGeneratedProvider,
+  createHostSandboxCapability,
+  hash as generatedHash,
+  probeSandbox,
+} from "../lib/providers/generated.mjs";
 import { createRegisteredProvider } from "../lib/providers/registered.mjs";
 import { parseLine } from "../lib/protocol/index.mjs";
 import { executeCandidate } from "../lib/runtime/index.mjs";
@@ -19,7 +22,7 @@ import { contract, policy, request, sourceHash } from "./fixtures/integration/ca
 const digest = (value) => `sha256:${value.repeat(64)}`;
 const approval = { status: "approved", approver: "integration-test", reason: "synthetic fixture" };
 const cleanupToken = Symbol("integration-cleanup");
-const hostCapability = Object.freeze({
+const hostCapability = createHostSandboxCapability({
   attest: ({ provider, limits, network, mounts, evaluatorAssets, credentials }) => ({
     provider,
     limits: Object.keys(limits),
@@ -27,27 +30,19 @@ const hostCapability = Object.freeze({
     mounts,
     evaluatorAssets,
     credentials,
+    networkIsolation: true,
+    mountIsolation: true,
+    credentialIsolation: true,
+    resourceLimits: true,
+    processContainment: true,
+    descendantContainment: true,
+    sourceHashBinding: true,
+    cleanupVerification: true,
   }),
   verifyLimits: (evidence, limits) =>
     Object.keys(limits).every((key) => evidence.limits.includes(key)),
   verifyCleanup: (result) => result.cleanup?.token === cleanupToken,
 });
-
-function run(command, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.once("error", reject);
-    child.once("close", (code) => resolve({ code, stdout, stderr }));
-  });
-}
 
 test("protocol request crosses provider/runtime and receives a deterministic hard-gate decision", async () => {
   const root = await mkdtemp(join(tmpdir(), "csm-integration-runtime-"));
@@ -110,7 +105,7 @@ test("optimizer hard failure remains authoritative over an advisory judge", asyn
   assert.notEqual(result.incumbent.id, "failed-gate");
 });
 
-test("generated evaluator assets stay separated and required probe fails instead of skipping", async () => {
+test("host-attested generated candidates run while the required default probe stays fail-closed", async () => {
   const source = "export default () => ({ score: 1 })";
   let observed;
   const sandbox = {
@@ -118,7 +113,33 @@ test("generated evaluator assets stay separated and required probe fails instead
     capability: hostCapability,
     execute: async (input) => {
       observed = input;
-      return { status: "ok", metrics: { score: 1 }, cleanup: { token: cleanupToken } };
+      return {
+        status: "ok",
+        metrics: { score: 1 },
+        cleanup: { token: cleanupToken },
+        attestation: {
+          status: "verified",
+          provider: "synthetic",
+          network: "disabled",
+          mounts: [],
+          evaluatorAssets: "isolated",
+          credentials: "none",
+          policyDigest: generatedHash("synthetic-policy"),
+          imageDigest: generatedHash("synthetic-image"),
+          sourceHash: generatedHash(source),
+          controls: {
+            networkIsolation: true,
+            mountIsolation: true,
+            credentialIsolation: true,
+            resourceLimits: true,
+            processContainment: true,
+            descendantContainment: true,
+            sourceHashBinding: true,
+            cleanupVerification: true,
+          },
+          limits: ["timeoutMs", "maxOutputBytes", "maxWorkspaceBytes"],
+        },
+      };
     },
   };
   const provider = createGeneratedProvider({
@@ -135,12 +156,13 @@ test("generated evaluator assets stay separated and required probe fails instead
     candidate: { ...request({ id: "generated" }, 1).candidate, sourceHash: generatedHash(source) },
     input: { source, value: 1 },
   });
-  assert.equal(result.status, "sandbox_unavailable");
-  assert.equal(observed, undefined);
-  const probeScript = fileURLToPath(new URL("../scripts/probe-sandbox.mjs", import.meta.url));
-  const probe = await run(process.execPath, [probeScript, "--required"]);
-  assert.equal(probe.code, 1);
-  assert.equal(JSON.parse(probe.stdout).status, "sandbox_unavailable");
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.metrics, { score: 1 });
+  assert.equal(observed.policy.network, "disabled");
+  assert.deepEqual(observed.policy.mounts, []);
+  const probe = probeSandbox();
+  assert.equal(probe.status, "sandbox_unavailable");
+  assert.equal(probe.verified, false);
 });
 
 test("malformed, oversized, timed-out, and resource-exhausted candidates fail closed and clean up", async () => {

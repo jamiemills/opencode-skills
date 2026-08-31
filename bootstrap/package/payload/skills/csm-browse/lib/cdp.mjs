@@ -110,6 +110,51 @@ export async function clickCoords(client, sessionId, sel, index = 0) {
   );
 }
 
+// A click may start a navigation after the input events return. Keep the
+// session usable until the new main frame has finished loading, but do not
+// delay ordinary in-page clicks.
+export async function clickAndWaitForNavigation(client, sessionId, sel, index = 0) {
+  await client.send("Page.enable", {}, sessionId);
+  const escaped = sel.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const navigationExpression = `(function(){var e=document.querySelectorAll('${escaped}')[${index}];return !!(e&&e.closest('a[href],form[action]'))})()`;
+  const { result: navigationProbe } = await client.send(
+    "Runtime.evaluate",
+    { expression: navigationExpression, returnByValue: true },
+    sessionId,
+  );
+  const mayNavigate = navigationProbe?.value === true;
+  let resolveNavigation;
+  let resolveLoad;
+  let loadTimer;
+  const navigation = new Promise((resolve) => (resolveNavigation = resolve));
+  const load = new Promise((resolve, reject) => {
+    loadTimer = setTimeout(() => reject(new Error("Page load timed out after 30000ms")), 30000);
+    resolveLoad = () => {
+      clearTimeout(loadTimer);
+      resolve();
+    };
+  });
+  const onFrameNavigated = (event) => {
+    if (!event.frame?.parentId) {
+      resolveNavigation();
+    }
+  };
+  const onLoad = () => resolveLoad();
+  client.on("Page.frameNavigated", onFrameNavigated);
+  client.on("Page.loadEventFired", onLoad);
+  try {
+    await clickCoords(client, sessionId, sel, index);
+    if (mayNavigate) {
+      await navigation;
+      await load;
+    }
+  } finally {
+    clearTimeout(loadTimer);
+    client.off("Page.frameNavigated", onFrameNavigated);
+    client.off("Page.loadEventFired", onLoad);
+  }
+}
+
 export async function waitForSelector(client, sessionId, sel, timeoutMs = 5000) {
   const escaped = sel.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const start = Date.now();

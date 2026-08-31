@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
   createGeneratedProvider,
+  createHostSandboxCapability,
   hash,
   policyChecks,
   probeSandbox,
@@ -38,6 +39,14 @@ const capability = (token = Symbol("cleanup")) =>
       mounts,
       evaluatorAssets,
       credentials,
+      networkIsolation: true,
+      mountIsolation: true,
+      credentialIsolation: true,
+      resourceLimits: true,
+      processContainment: true,
+      descendantContainment: true,
+      sourceHashBinding: true,
+      cleanupVerification: true,
     }),
     verifyLimits: (evidence, declared) =>
       Object.keys(declared).every((key) => evidence.limits.includes(key)),
@@ -49,6 +58,28 @@ test("sandbox probe fails closed without verified capability", () => {
   assert.equal(result.status, "sandbox_unavailable");
   assert.equal(result.verified, false);
   assert.match(result.diagnostics.join(" "), /sandbox provider/);
+  assert.equal(result.controls.descendantContainment, false);
+});
+
+test("sandbox probe names missing host-attested controls", () => {
+  const missingControlCapability = createHostSandboxCapability({
+    attest: () => ({
+      provider: "synthetic",
+      limits: ["timeoutMs", "maxOutputBytes", "maxWorkspaceBytes"],
+      network: "disabled",
+      mounts: [],
+      evaluatorAssets: "isolated",
+      credentials: "none",
+    }),
+    verifyLimits: () => true,
+    verifyCleanup: () => true,
+  });
+  const result = probeSandbox({
+    provider: { name: "synthetic", capability: missingControlCapability, execute() {} },
+  });
+  assert.equal(result.status, "sandbox_unavailable");
+  assert.match(result.diagnostics.join(" "), /networkIsolation/);
+  assert.equal(result.controls.networkIsolation, false);
 });
 
 test("generated provider returns sandbox_unavailable before candidate execution", async () => {
@@ -184,4 +215,98 @@ test("caller-supplied verification arrays and cleanup claims cannot enable execu
     "sandbox_unavailable",
   );
   assert.equal(executed, false);
+});
+
+test("generated execution rejects forged or incomplete attestation evidence", async () => {
+  const source = "export default () => ({ score: 1 })";
+  const cleanup = Symbol("cleanup");
+  const hostCapability = createHostSandboxCapability(capability(cleanup));
+  const provider = createGeneratedProvider({
+    sandbox: {
+      name: "synthetic",
+      capability: hostCapability,
+      execute: async () => ({
+        status: "ok",
+        metrics: { score: 1 },
+        cleanup: { token: cleanup },
+        attestation: {
+          status: "verified",
+          policyDigest: hash("forged-policy"),
+          imageDigest: hash("forged-image"),
+          sourceHash: hash(source),
+          controls: {},
+        },
+      }),
+    },
+    hostCapability,
+    sandboxProvider: "synthetic",
+    evaluatorHash: hash("evaluator"),
+    environmentHash: hash("environment"),
+    limits,
+    approval,
+  });
+  assert.equal((await provider.evaluate(request(source))).status, "blocked");
+});
+
+test("generated execution rejects a successful result without attestation", async () => {
+  const source = "export default () => ({ score: 1 })";
+  const cleanup = Symbol("cleanup");
+  const hostCapability = createHostSandboxCapability(capability(cleanup));
+  const provider = createGeneratedProvider({
+    sandbox: {
+      name: "synthetic",
+      capability: hostCapability,
+      execute: async () => ({ status: "ok", metrics: { score: 1 }, cleanup: { token: cleanup } }),
+    },
+    hostCapability,
+    sandboxProvider: "synthetic",
+    evaluatorHash: hash("evaluator"),
+    environmentHash: hash("environment"),
+    limits,
+    approval,
+  });
+  assert.equal((await provider.evaluate(request(source))).status, "blocked");
+});
+
+test("Docker policy and attestation schemas freeze the host boundary", async () => {
+  const policy = JSON.parse(
+    await readFile(
+      new URL("../schemas/docker-sandbox-policy.schema.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const attestation = JSON.parse(
+    await readFile(
+      new URL("../schemas/docker-sandbox-attestation.schema.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(policy.additionalProperties, false);
+  assert.equal(policy.properties.image.properties.digest.pattern, "^sha256:[0-9a-f]{64}$");
+  assert.deepEqual(policy.properties.mounts.const, []);
+  assert.equal(policy.properties.network.const, "none");
+  assert.equal(policy.properties.rootFilesystem.const, "read-only");
+  assert.deepEqual(policy.properties.security.properties.capDrop.const, ["ALL"]);
+  assert.equal(policy.properties.security.properties.noNewPrivileges.const, true);
+  assert.equal(policy.properties.security.properties.dockerSocket.const, false);
+  assert.deepEqual(policy.properties.environment.properties.allowlist.const, []);
+  assert.deepEqual(attestation.properties.cleanup.properties.status.enum, [
+    "verified",
+    "unknown",
+    "failed",
+  ]);
+  assert.ok(attestation.properties.controls.required.includes("descendantContainment"));
+  assert.ok(attestation.properties.controls.required.includes("sourceHashBinding"));
+  assert.ok(attestation.properties.controls.required.includes("cleanupVerification"));
+  assert.equal(attestation.$defs.inspect.properties.network.const, "none");
+  assert.deepEqual(attestation.$defs.inspect.properties.mounts.const, []);
+  assert.equal(attestation.$defs.inspect.properties.dockerSocket.const, false);
+  assert.deepEqual(attestation.$defs.inspect.properties.limits.required, [
+    "cpuQuotaUs",
+    "memoryBytes",
+    "pids",
+    "maxOutputBytes",
+    "timeoutMs",
+    "workspaceBytes",
+  ]);
 });

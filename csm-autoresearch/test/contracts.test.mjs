@@ -21,6 +21,8 @@ const schemaNames = [
   "ledger-event",
   "report",
   "llm-adapter",
+  "docker-sandbox-policy",
+  "docker-sandbox-attestation",
 ];
 
 async function json(url) {

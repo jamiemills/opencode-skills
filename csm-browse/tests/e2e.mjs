@@ -435,7 +435,7 @@ async function runTests() {
         data = parseJson(r.stdout);
         assert(step + " - click link", data && data.clicked, r.stdout);
 
-        r = await browse("text", "h1");
+        r = await browse("text", "h1", "--allow-sensitive");
         assert(step + " - text h1=Page 2", r.stdout.includes("Page 2"), `got: "${r.stdout}"`);
 
         r = await browse("open", `${FIXTURE_BASE}/page1.html`);
@@ -446,7 +446,7 @@ async function runTests() {
         data = parseJson(r.stdout);
         assert(
           step + " - status has currentUrl",
-          data && data.currentUrl && data.currentUrl.includes("page1.html"),
+          data && data.currentUrl === `${new URL(FIXTURE_BASE).origin}/`,
           data ? data.currentUrl : "null",
         );
         assert(step + " - daemon alive", data && data.daemonAlive === true);
@@ -471,11 +471,11 @@ async function runTests() {
 
         r = await browse("type", "#username", "alice");
         data = parseJson(r.stdout);
-        assert(step + " - type username", data && data.typed === "alice", r.stdout);
+        assert(step + " - type username", data && data.typed === true, r.stdout);
 
         r = await browse("type", "#password", "pw");
         data = parseJson(r.stdout);
-        assert(step + " - type password", data && data.typed === "pw", r.stdout);
+        assert(step + " - type password", data && data.typed === true, r.stdout);
 
         r = await browse("click", "#submit");
         data = parseJson(r.stdout);
@@ -485,7 +485,7 @@ async function runTests() {
         data = parseJson(r.stdout);
         assert(step + " - wait #result", data && data.found === "#result", r.stdout);
 
-        r = await browse("text", "#result");
+        r = await browse("text", "#result", "--allow-sensitive");
         assert(
           step + " - result welcome alice",
           r.stdout.toLowerCase().includes("welcome alice"),
@@ -502,7 +502,7 @@ async function runTests() {
       try {
         let r, data;
 
-        r = await browse("html");
+        r = await browse("html", "--allow-sensitive");
         assert(step + " - html contains markup", r.stdout.includes("<html"), "html element found");
         assert(
           step + " - html has login form",
@@ -510,7 +510,7 @@ async function runTests() {
           "login form found",
         );
 
-        r = await browse("eval", "document.title");
+        r = await browse("eval", "document.title", "--allow-sensitive");
         data = parseJson(r.stdout);
         assert(
           step + " - eval document.title",
@@ -518,7 +518,7 @@ async function runTests() {
           data ? JSON.stringify(data.result).substring(0, 80) : r.stdout,
         );
 
-        r = await browse("eval", 'throw new Error("e2e-test-error")');
+        r = await browse("eval", 'throw new Error("e2e-test-error")', "--allow-sensitive");
         // T006 strict-eval behavior: page exceptions surface as a verb error
         // (non-zero exit + descriptive stderr), not a {result:{subtype:error}} payload.
         assert(
@@ -584,6 +584,7 @@ async function runTests() {
         r = await browse(
           "eval",
           `(function(){var d=document.createElement('div');d.style.height='20000px';d.style.width='1px';document.body.appendChild(d);return d.offsetHeight})()`,
+          "--allow-sensitive",
         );
         data = parseJson(r.stdout);
         assert(
@@ -634,7 +635,11 @@ async function runTests() {
         data = parseJson(r.stdout);
         assert(step + " - open wall fixture", data && data.title, r.stdout);
 
-        r = await browse("eval", `!!document.querySelector('iframe[src*="cmpv2"]')`);
+        r = await browse(
+          "eval",
+          `!!document.querySelector('iframe[src*="cmpv2"]')`,
+          "--allow-sensitive",
+        );
         data = parseJson(r.stdout);
         assert(
           step + " - wall present before screenshot",
@@ -649,6 +654,7 @@ async function runTests() {
         r = await browse(
           "eval",
           `JSON.stringify({wall:!!document.querySelector('iframe[src*="cmpv2"]'),ov:getComputedStyle(document.body).overflow})`,
+          "--allow-sensitive",
         );
         data = parseJson(r.stdout);
         let st = null;

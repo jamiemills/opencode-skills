@@ -1,0 +1,145 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-unblock-orchestrator-release-evidence-20260831",
+  "runId": "run-20260831t110000z-unblock-orchestrator-release-evidence",
+  "planId": "unblock-orchestrator-release-evidence",
+  "status": "blocked",
+  "control": {
+    "status": "blocked",
+    "currentState": "BLOCKED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-08-31T11:00:00Z: plan created from the T008 release-evidence blocker analysis",
+    "lastModelRun": "gpt-5.6-luna / unblock-orchestrator-release-evidence-plan",
+    "nextTransition": "none (terminal)",
+    "activeTasks": ["T002", "T003"],
+    "blockers": ["Required browser E2E failed 14 of 89 assertions", "Required generated-sandbox probe has no host provider or attestation"],
+    "resume": {
+      "read": ["last checkpoint", "latest journal", "recovery notes", "inputs", "working-tree diff", "current commit"],
+      "firstAction": "Verify the committed release SHA, current build state, and availability of approved browser and sandbox capabilities before T001."
+    }
+  },
+  "goal": {
+    "summary": "Unblock and complete the remaining csm-orchestrate release evidence without weakening fail-closed adapter or approval guarantees.",
+    "deliverables": ["Exact-commit release baseline", "real csm-browse E2E evidence", "host-attested generated-sandbox evidence", "real adapter-shaped outcome and review evidence", "successful approved CI result and completed build state"],
+    "constraints": ["No real credentials or production data", "No automatic promotion of autoresearch candidates", "No skipped gate counts as completion", "Generated execution requires independently attested containment", "Browser actions use disposable owned sessions", "At-least-once effects require reconciliation", "Do not lower existing acceptance bars"],
+    "exclusions": ["OpenCode execution fallback", "Changing upstream OpenCode", "Disabling required integration gates", "Treating ordinary Node child processes as sandboxes", "Unrelated refactors"]
+  },
+  "acceptanceCriteria": [
+    { "id": "AC1", "outcome": "All release evidence is bound to the committed implementation SHA and the durable build state is no longer stale or falsely complete.", "evidence": "Exact-SHA baseline record, validated plan/build-state digests, and reproducible gate log." },
+    { "id": "AC2", "outcome": "A real disposable Chromium/CDP session executes the approved browser path with owned identity, cleanup, redaction, and resolver-valid evidence.", "evidence": "Required browser E2E output plus orchestrator adapter receipt/evidence trace; unavailable infrastructure remains BLOCKED." },
+    { "id": "AC3", "outcome": "Generated autoresearch executes only through a host-attested sandbox proving network, mount, credential, resource, process/descendant, source-hash, and cleanup controls.", "evidence": "Positive provider probe, generated candidate trace, attestation, cleanup result, and artifact descriptors; otherwise generated mode remains BLOCKED." },
+    { "id": "AC4", "outcome": "Real adapter-shaped outcomes preserve requirement/gate/review/remediation/telemetry semantics and ambiguous effects remain UNKNOWN/reconciliation-required.", "evidence": "Outcome corpus, independent review record, remediation trace, telemetry completeness/redaction report, and recovery results." },
+    { "id": "AC5", "outcome": "The required full repository gates and approved CI gates pass for the exact committed SHA, with no hidden skip presented as success.", "evidence": "make audit/check/fmt-check/lint/test, required adapter gates, CI run URL/SHA, final build completion record, and rollback checkpoint." }
+  ],
+  "currentStateEvidence": {
+    "pinnedCommit": "809ebe0",
+    "sourcePlan": ".agents/plans/2026-08-31-complete-all-orchestrate-adapters-csm.json",
+    "sourcePlanDigest": "sha256:70ce2d838b3b5edfca32cb49e0e5860df561c88c981e0e84fb546e84bdb6ac7d",
+    "sourceBuildState": ".agents/csm-build-state/complete-all-orchestrate-adapters-20260831.json",
+    "observations": [
+      "The adapter implementation and focused suites are committed at 809ebe0; the prior T008 block was caused by the uncommitted temporary-baseline fixture and was resolved by staging/indexing the process artifacts.",
+      "Real browser evidence is not present: csm-browse/tests/e2e.mjs requires CSM_BROWSE_E2E_REQUIRE=1 and chromium-vnc, while the adapter test injects fake session and artifact bindings.",
+      "Real generated-sandbox evidence is not present: csm-autoresearch/scripts/probe-sandbox.mjs supplies no provider and ordinary runtime execution does not prove containment.",
+      "CI has not yet produced a result for 809ebe0 and adapter integration variables must be explicitly enabled and approved.",
+      "Current local Node is 20.20.2 while the repository integration floor is Node 22; use scripts/with-node22.mjs for Node 22 gates."
+    ],
+    "researchSources": [
+      ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json",
+      "csm-browse/tests/e2e.mjs:29-33,125-145",
+      "csm-browse/tests/progress-e2e.mjs:152-265",
+      "csm-autoresearch/scripts/probe-sandbox.mjs:3-7",
+      "csm-autoresearch/lib/providers/generated.mjs:78-127,306-337",
+      "Makefile:97-124",
+      ".github/workflows/ci.yml:71-75"
+    ]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["boundary_change", "public_contract", "ownership_or_persistence", "invariant_or_consistency", "external_side_effect", "migration_or_rollback", "cross_boundary_coordination", "security_or_authority"],
+    "evidence": [
+      { "source": "brief", "locator": "request", "observation": "The request asks for work that changes release evidence and unblocks external browser/sandbox/CI boundaries." },
+      { "source": "repository", "locator": "currentStateEvidence", "observation": "The existing release state explicitly records missing real browser, sandbox, and CI evidence." }
+    ],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "ownership", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "seam", "status": "required" },
+      { "id": "parity", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002", "T003", "T004", "T005"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": ["Approved chromium-vnc execution and a host-attested sandbox provider may be unavailable in the execution environment.", "Pushing and enabling CI integration variables require explicit user authorization at build time.", "The current adapter tests do not themselves prove a real orchestrator dispatch against a live browser or sandbox."],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    { "id": "D1", "statement": "The committed 809ebe0 implementation is the release baseline and must be tested without changing it merely to manufacture evidence.", "type": "scope", "rationale": "The prior T008 blocker was the uncommitted baseline, not a product assertion failure.", "status": "accepted" },
+    { "id": "D2", "statement": "Real browser and generated-sandbox gates are mandatory evidence; a default skip is not completion.", "type": "safety", "rationale": "The existing Makefile and adapter gate tests explicitly distinguish SKIPPED from completion.", "status": "accepted" },
+    { "id": "D3", "statement": "A host capability must be injected through createHostSandboxCapability and independently attest containment.", "type": "user-safety", "rationale": "The generated provider cannot safely infer sandbox authority from a boolean or ordinary subprocess.", "status": "accepted" },
+    { "id": "D4", "statement": "External CI enablement and pushing are separate approval-gated actions.", "type": "operational", "rationale": "The build workflow forbids external mutation without explicit authorization.", "status": "accepted" }
+  ],
+  "rdRecord": [
+    { "id": "R1", "question": "What exactly unblocks browser evidence?", "method": "Read-only inspection of csm-browse E2E, adapter tests, Makefile, and CI.", "isolation": "No commands that start services or mutate repository state were run.", "observation": "A disposable chromium-vnc environment and a real orchestrator adapter trace are required; mocked adapter tests are insufficient.", "implication": "T002 and T003 must run required, non-skipping gates and retain evidence." },
+    { "id": "R2", "question": "What exactly unblocks generated sandbox evidence?", "method": "Read-only inspection of generated provider, probe, runtime, and integration tests.", "isolation": "No provider, container, credentials, or candidate was started.", "observation": "A host-owned provider with attestation and cleanup verification must be supplied; ordinary Node execution is explicitly inadequate.", "implication": "T003 must either integrate a real approved provider or leave generated mode blocked with evidence." },
+    { "id": "R3", "question": "What remains after the local commit?", "method": "Read-only inspection of commit/state/plan and CI references.", "isolation": "No push or external mutation was performed during planning.", "observation": "The exact SHA needs full gates, approved integration variables, CI evidence, and a final completion record.", "implication": "T001, T004, and T005 bind release evidence to 809ebe0 and preserve residual risks." }
+  ],
+  "discoveredRequirements": [
+    { "id": "DR1", "requirement": "Use Node 22 for every integration and SQLite/WAL gate; default Node 20 is not sufficient.", "source": ".node-version and package-audit.test.mjs", "appliesTo": ["T001", "T002", "T003", "T004", "T005"] },
+    { "id": "DR2", "requirement": "Run browser and sandbox gates serially in disposable environments and retain cleanup evidence.", "source": "csm-browse E2E and generated provider safety boundaries", "appliesTo": ["T002", "T003", "T004"] },
+    { "id": "DR3", "requirement": "Do not treat skipped adapter integration gates as successful evidence.", "source": "Makefile:107-118 and tests/adapter-gate-wiring.test.mjs", "appliesTo": ["T002", "T003", "T005"] },
+    { "id": "DR4", "requirement": "Do not rewrite or weaken the committed adapter code solely to make an unavailable host capability pass.", "source": "current-state review and generated-provider policy", "appliesTo": ["T001", "T003", "T005"] }
+  ],
+  "design": {
+    "controlPlane": "csm-orchestrate remains the authority for receipts, requirements, approvals, evidence, gates, review, remediation, telemetry, recovery, and completion status.",
+    "baseline": "T001 verifies 809ebe0, reconciles the durable state, and creates a disposable evidence workspace without altering release semantics.",
+    "browserBoundary": "T002 runs required chromium-vnc E2E and a narrowly typed orchestrator-to-browse trace using owned sessions, resolver validation, redaction, and cleanup.",
+    "sandboxBoundary": "T003 supplies or integrates an approved host-owned sandbox provider through createHostSandboxCapability, proves containment and cleanup, and retains generated artifacts; absent proof remains BLOCKED.",
+    "assurance": "T004 compares real adapter outcomes against the existing lifecycle corpus and verifies independent review, remediation, telemetry, and UNKNOWN recovery behavior.",
+    "release": "T005 runs Node 22 repository gates, enables approved CI adapter gates, records the exact CI SHA, and only then transitions the build state to COMPLETE; otherwise it records BLOCKED with the missing capability and recovery action."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T003", "T004", "T005"],
+    "parallelGroups": [{ "group": "G1", "tasks": ["T001"] }, { "group": "G2", "tasks": ["T002", "T003"] }, { "group": "G3", "tasks": ["T004"] }, { "group": "G4", "tasks": ["T005"] }],
+    "integrationOwner": "Primary build agent owns durable state, evidence binding, final review, completion decision, and any authorized commit/push boundary."
+  },
+  "tasks": [
+    { "taskId": "T001", "ordinal": 1, "status": "completed", "title": "Reconcile the committed release baseline and durable state", "dependsOn": [], "parallelGroup": "G1", "risk": "high", "ownedScope": [".agents/csm-build-state/complete-all-orchestrate-adapters-20260831.json", "release baseline evidence", "exact-SHA gate record"], "notInScope": ["rewriting adapter behavior", "pushing", "real browser or sandbox execution"], "spikeCandidate": "None; verify the existing commit/state relationship with read-only inspection and disposable logs.", "actions": "Confirm HEAD is 809ebe0, validate the plan/build-state digests, rerun the focused suites under Node 22, and record a reproducible exact-SHA baseline. Preserve the prior blocked history and do not infer completion from the local commit alone.", "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-csm-build-real-integration.test.mjs tests/orchestrate-adapter-contracts.test.mjs tests/orchestrate-adapter-preflight.test.mjs tests/orchestrate-adapter-recovery.test.mjs", "validation": ["HEAD and test corpus resolve to one SHA", "Durable state parses and its source digest matches", "No protected state changes outside the plan/build evidence boundary"], "acceptanceEvidence": "Exact-SHA record, focused test output, validated state digest, and protected-state comparison.", "repairAttempts": 0, "recoveryNote": "If HEAD, state, or plan digests drift, stop and create a bounded repair before running host-bound gates." },
+    { "taskId": "T002", "ordinal": 2, "status": "blocked", "title": "Run and retain real browser/CDP adapter evidence", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high", "ownedScope": ["disposable chromium-vnc session", "csm-browse E2E evidence", "orchestrator browse trace", "cleanup and redaction evidence"], "notInScope": ["real credentials", "shared port 9222", "arbitrary CDP or shell commands", "automatic retries after ambiguity"], "spikeCandidate": "Use only the existing disposable progress fixture to verify chromium-vnc, network, session-port, and cleanup prerequisites before the required run; no production pages.", "actions": "Run the required Node 22 browser gate with CSM_BROWSE_E2E_REQUIRE=1, exercise the typed orchestrator browse adapter against the disposable session, retain resolver-valid artifacts/evidence and cleanup results, and classify timeout/cancellation as UNKNOWN until reconciled.", "acceptanceSignal": "node scripts/with-node22.mjs --exec env CSM_BROWSE_E2E_REQUIRE=1 make test-e2e-required", "validation": ["Browser infrastructure is available and the gate does not skip", "Owned session identity, ports, paths, token redaction, and cleanup are evidenced", "A real adapter-shaped receipt/evidence trace is retained or the task is BLOCKED"], "acceptanceEvidence": "E2E summary, adapter receipt, evidence descriptors, session cleanup proof, protocol/version record, and security negatives.", "repairAttempts": 0, "recoveryNote": "Required run failed 14 of 89 assertions; diagnose fixture/browser interaction before retrying." },
+    { "taskId": "T003", "ordinal": 3, "status": "blocked", "title": "Provide positive host-attested generated-sandbox evidence", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high", "ownedScope": ["host sandbox provider injection", "createHostSandboxCapability integration", "positive probe", "generated candidate artifacts"], "notInScope": ["ordinary Node child process as sandbox", "ambient credentials/network", "automatic promotion", "weakening provider hard gates"], "spikeCandidate": "In an isolated disposable workspace, prove the candidate provider enforces network, mounts, credentials, limits, descendants, and cleanup before integrating it; if any control is unverifiable, retain BLOCKED.", "actions": "Supply an approved host provider bound to the exported capability constructor, run the required probe and positive generated candidate test, verify source hash/evaluator ownership/attestation/cleanup, and retain ledger/report/manifest/quarantine/rollback artifacts. Do not claim support when only fail-closed negatives pass.", "acceptanceSignal": "node scripts/with-node22.mjs --exec node csm-autoresearch/scripts/probe-sandbox.mjs --required", "validation": ["Provider identity and host capability are bound", "Network, mounts, credentials, resource/process/descendant limits, and cleanup are independently attested", "Generated artifacts resolve with native/shared lineage", "Unavailable or insufficient containment remains explicitly BLOCKED"], "acceptanceEvidence": "Positive probe, provider attestation, candidate/evaluator trace, cleanup verification, artifacts, quarantine, and rollback descriptor.", "repairAttempts": 0, "recoveryNote": "Required probe returned sandbox_unavailable because no provider or host capability is supplied; do not substitute a plain subprocess." },
+    { "taskId": "T004", "ordinal": 4, "status": "pending", "title": "Verify real outcome parity and independent assurance", "dependsOn": ["T002", "T003"], "parallelGroup": "G3", "risk": "high", "ownedScope": ["outcome corpus", "review lineage", "remediation trace", "telemetry completeness/redaction", "UNKNOWN reconciliation"], "notInScope": ["self-review", "telemetry as outcome authority", "counting skipped host gates as pass", "unbounded remediation"], "spikeCandidate": "None; use the committed deterministic corpus and retained adapter evidence.", "actions": "Compare baseline and new outcomes across browser/sandbox and blocked paths, verify requirement entailment, technical/functional gates, independent review, bounded remediation, telemetry loss handling, and durable UNKNOWN recovery. Record residual host limitations explicitly.", "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-adapter-review-telemetry.test.mjs tests/orchestrate-adapter-recovery.test.mjs tests/orchestrate-outcome-corpus.test.mjs", "validation": ["No false VERIFIED result from missing or unrelated evidence", "Reviewer lineage is independent and remediation re-enters gates", "Telemetry cannot change authority and sensitive values are redacted", "Ambiguous effects remain reconciliation-required"], "acceptanceEvidence": "Baseline comparison, review record, remediation graph, telemetry report, recovery rows, and unresolved-risk register.", "repairAttempts": 0, "recoveryNote": "If real adapter evidence is missing or review independence cannot be proven, keep release BLOCKED." },
+    { "taskId": "T005", "ordinal": 5, "status": "pending", "title": "Run approved CI gates and finalize the release state", "dependsOn": ["T004"], "parallelGroup": "G4", "risk": "high", "ownedScope": ["Node 22 repository gates", "approved adapter CI variables", "CI result for exact SHA", "completion/rollback evidence"], "notInScope": ["force-push", "hook bypass", "automatic external mutation without approval", "declaring skipped E2E complete"], "spikeCandidate": "None; all actions are final release verification and require explicit external-action approval where applicable.", "actions": "Run make audit/check/fmt-check/lint/test from the committed corpus, run approved adapter integration gates, push only with explicit user authorization, require CI success for the exact SHA, and update the durable build state to COMPLETE only when every acceptance criterion has evidence. Otherwise checkpoint BLOCKED with the exact missing prerequisite.", "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test", "validation": ["All local gates pass under the declared toolchain", "Required browser and sandbox gates execute rather than skip", "CI reports success for the exact committed SHA", "Final review, rollback checkpoint, and clean worktree are recorded"], "acceptanceEvidence": "Full command log, adapter gate outputs, CI URL/SHA, final independent review, completion artifact, rollback checkpoint, and clean status.", "repairAttempts": 0, "recoveryNote": "A failed or skipped required host gate yields BLOCKED, not COMPLETE; resume from the durable checkpoint after the capability or CI prerequisite is supplied." }
+  ],
+  "verificationStrategy": {
+    "order": ["T001 exact-SHA baseline", "T002/T003 real host gates", "T004 outcome assurance", "T005 CI and final state"],
+    "fastGates": ["state/digest validation", "focused Node 22 tests", "static no-OpenCode and payload closure", "make check/fmt-check/lint"],
+    "expensiveGates": ["chromium-vnc E2E", "host-attested generated sandbox", "full make test", "approved CI run", "independent final review"],
+    "parallelizable": ["T002 and T003 after T001"],
+    "knownGaps": ["Browser and sandbox runs mutate disposable host/container state and require approved capabilities.", "A local green suite cannot replace CI evidence for the exact SHA.", "At-least-once side effects cannot be elevated to arbitrary exactly-once semantics."]
+  },
+  "risksAndRecovery": {
+    "risks": ["No approved browser host", "No host-attested sandbox provider", "External CI variables or push authorization unavailable", "Evidence generated for a different SHA", "Cleanup or reconciliation ambiguity"],
+    "mitigations": ["Required non-skipping gates", "Capability attestation and negative tests", "Explicit external-action approval", "Exact-SHA binding", "Durable UNKNOWN and owned cleanup"],
+    "rollback": "Retain 809ebe0 as the rollback baseline; revert only a separately identified evidence/provider integration change and preserve fail-closed blocked behavior.",
+    "forwardRecovery": "Checkpoint the missing capability, failed command, owner, and exact next transition; resume through RECOVER -> VALIDATE after the prerequisite is supplied."
+  },
+  "critiqueResolution": [],
+  "journal": [
+    { "sequence": 0, "timestamp": "2026-08-31T11:00:00Z", "cycle": 0, "transition": "NOT_STARTED -> NOT_STARTED", "tasks": [], "evidence": "Created a warranted five-task plan from the committed T008 blocker, repository gate behavior, and read-only browser/sandbox/release-boundary research. All implementation tasks remain pending; implementation was not started.", "nextState": "NOT_STARTED" },
+    { "sequence": 1, "timestamp": "2026-08-31T12:30:00Z", "cycle": 0, "transition": "NOT_STARTED -> BLOCKED", "tasks": ["T001", "T002", "T003"], "evidence": "T001 exact-SHA baseline passed. Required browser E2E reached chromium-vnc but failed 14 of 89 assertions. Required sandbox probe returned sandbox_unavailable with no provider and no host-owned capability. T002 and T003 are blocked; T004/T005 remain pending.", "nextState": "BLOCKED" }
+  ],
+  "completionReview": null,
+  "inputs": [
+    { "artifactId": "art-complete-all-orchestrate-adapters-20260831", "schema": "csm-plan/1", "digest": "sha256:70ce2d838b3b5edfca32cb49e0e5860df561c88c981e0e84fb546e84bdb6ac7d", "owner": "csm-plan", "path": ".agents/plans/2026-08-31-complete-all-orchestrate-adapters-csm.json" },
+    { "artifactId": "art-build-all-orchestrate-adapters-20260831t040000z", "schema": "csm-research/1", "digest": "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f", "owner": "csm-deep-research", "path": ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json" }
+  ],
+  "provenance": { "producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-31T11:00:00Z", "sourceDigests": ["sha256:70ce2d838b3b5edfca32cb49e0e5860df561c88c981e0e84fb546e84bdb6ac7d", "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f"] },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}

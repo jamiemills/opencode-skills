@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-docker-sandbox-attestation/1",
+  "title": "host-owned Docker generated-sandbox attestation",
+  "description": "Host observations bound to one policy, source, and disposable container. A true control is valid only when its inspect observation is independently verified.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "provider",
+    "policyDigest",
+    "containerId",
+    "imageDigest",
+    "sourceHash",
+    "network",
+    "mounts",
+    "evaluatorAssets",
+    "credentials",
+    "limits",
+    "inspectBefore",
+    "inspectAfter",
+    "controls",
+    "cleanup",
+    "status"
+  ],
+  "properties": {
+    "format": { "const": "csm-autoresearch-docker-sandbox-attestation/1" },
+    "provider": { "const": "docker" },
+    "policyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "containerId": { "type": "string", "pattern": "^[a-f0-9]{12,64}$" },
+    "imageDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "sourceHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "network": { "const": "disabled" },
+    "mounts": { "const": [] },
+    "evaluatorAssets": { "const": "isolated" },
+    "credentials": { "const": "none" },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeoutMs", "maxOutputBytes", "maxWorkspaceBytes"],
+      "properties": {
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 3600000 },
+        "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "maxWorkspaceBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 }
+      }
+    },
+    "inspectBefore": { "$ref": "#/$defs/inspect" },
+    "inspectAfter": { "$ref": "#/$defs/inspect" },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pinnedImage",
+        "networkIsolation",
+        "mountIsolation",
+        "credentialIsolation",
+        "resourceLimits",
+        "readOnlyRootfs",
+        "boundedTmpfs",
+        "capDropAll",
+        "noNewPrivileges",
+        "cpuLimit",
+        "memoryLimit",
+        "pidLimit",
+        "outputLimit",
+        "processContainment",
+        "descendantContainment",
+        "sourceHashBinding",
+        "cleanupVerification"
+      ],
+      "properties": {
+        "pinnedImage": { "type": "boolean" },
+        "networkIsolation": { "type": "boolean" },
+        "mountIsolation": { "type": "boolean" },
+        "credentialIsolation": { "type": "boolean" },
+        "resourceLimits": { "type": "boolean" },
+        "readOnlyRootfs": { "type": "boolean" },
+        "boundedTmpfs": { "type": "boolean" },
+        "capDropAll": { "type": "boolean" },
+        "noNewPrivileges": { "type": "boolean" },
+        "cpuLimit": { "type": "boolean" },
+        "memoryLimit": { "type": "boolean" },
+        "pidLimit": { "type": "boolean" },
+        "outputLimit": { "type": "boolean" },
+        "processContainment": { "type": "boolean" },
+        "descendantContainment": { "type": "boolean" },
+        "sourceHashBinding": { "type": "boolean" },
+        "cleanupVerification": { "type": "boolean" }
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "containerAbsent", "descendantsAbsent", "workspaceRemoved"],
+      "properties": {
+        "status": { "enum": ["verified", "unknown", "failed"] },
+        "containerAbsent": { "type": "boolean" },
+        "descendantsAbsent": { "type": "boolean" },
+        "workspaceRemoved": { "type": "boolean" }
+      }
+    },
+    "status": { "enum": ["verified", "unknown", "failed"] }
+  },
+  "$defs": {
+    "inspect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "containerId",
+        "imageDigest",
+        "network",
+        "mounts",
+        "rootFilesystem",
+        "tmpfs",
+        "capDrop",
+        "noNewPrivileges",
+        "privileged",
+        "hostPid",
+        "hostIpc",
+        "dockerSocket",
+        "limits",
+        "environmentNames",
+        "credentialNames",
+        "environmentPolicy",
+        "running",
+        "descendantCount"
+      ],
+      "properties": {
+        "containerId": { "type": "string", "pattern": "^[a-f0-9]{12,64}$" },
+        "imageDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "network": { "const": "none" },
+        "mounts": { "const": [] },
+        "rootFilesystem": { "const": "read-only" },
+        "tmpfs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["workspace", "sizeBytes", "mode"],
+          "properties": {
+            "workspace": { "const": "/workspace" },
+            "sizeBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+            "mode": { "const": "rw,noexec,nosuid,nodev" }
+          }
+        },
+        "capDrop": { "const": ["ALL"] },
+        "noNewPrivileges": { "const": true },
+        "privileged": { "const": false },
+        "hostPid": { "const": false },
+        "hostIpc": { "const": false },
+        "dockerSocket": { "const": false },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cpuQuotaUs",
+            "memoryBytes",
+            "pids",
+            "maxOutputBytes",
+            "timeoutMs",
+            "workspaceBytes"
+          ],
+          "properties": {
+            "cpuQuotaUs": { "type": "integer", "minimum": 1, "maximum": 3600000000 },
+            "memoryBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+            "pids": { "type": "integer", "minimum": 1, "maximum": 4096 },
+            "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+            "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 3600000 },
+            "workspaceBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 }
+          }
+        },
+        "environmentNames": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "uniqueItems": true
+        },
+        "credentialNames": { "const": [] },
+        "environmentPolicy": { "const": true },
+        "running": { "type": "boolean" },
+        "descendantCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

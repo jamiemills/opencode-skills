@@ -6,8 +6,23 @@ import { validateRequest, validateResponse } from "../protocol/index.mjs";
 const HASH = /^sha256:[0-9a-f]{64}$/;
 const REQUIRED_LIMITS = ["timeoutMs", "maxOutputBytes", "maxWorkspaceBytes"];
 const HOST_CAPABILITY = Symbol("host-owned-sandbox-capability");
+const REQUIRED_ATTESTATION_CONTROLS = [
+  "networkIsolation",
+  "mountIsolation",
+  "credentialIsolation",
+  "resourceLimits",
+  "processContainment",
+  "descendantContainment",
+  "sourceHashBinding",
+  "cleanupVerification",
+];
 
-export function createHostSandboxCapability({ attest, verifyCleanup, verifyLimits } = {}) {
+export function createHostSandboxCapability({
+  attest,
+  verifyCleanup,
+  verifyLimits,
+  verifyPolicy,
+} = {}) {
   if (
     typeof attest !== "function" ||
     typeof verifyCleanup !== "function" ||
@@ -19,6 +34,7 @@ export function createHostSandboxCapability({ attest, verifyCleanup, verifyLimit
     attest,
     verifyCleanup,
     verifyLimits,
+    ...(typeof verifyPolicy === "function" ? { verifyPolicy } : {}),
   });
 }
 
@@ -128,6 +144,9 @@ function hostAttestation({
       ],
     };
   }
+  const missingControls = REQUIRED_ATTESTATION_CONTROLS.filter(
+    (control) => evidence?.[control] !== true,
+  );
   if (
     !evidence ||
     evidence.provider !== sandboxProvider ||
@@ -135,9 +154,17 @@ function hostAttestation({
     evidence.mounts?.length !== 0 ||
     evidence.evaluatorAssets !== "isolated" ||
     evidence.credentials !== "none" ||
-    hostCapability.verifyLimits(evidence, limits) !== true
+    hostCapability.verifyLimits(evidence, limits) !== true ||
+    missingControls.length > 0
   )
-    return { diagnostics: ["host sandbox attestation is invalid"] };
+    return {
+      diagnostics: [
+        "host sandbox attestation is invalid",
+        ...(missingControls.length > 0
+          ? [`unverified sandbox controls: ${missingControls.join(", ")}`]
+          : []),
+      ],
+    };
   return { evidence };
 }
 
@@ -194,7 +221,7 @@ function createGeneratedProvider({
     sandboxAttestation: attestation.evidence ?? null,
     verifySandboxAttestation(value, controls) {
       return (
-        value === attestation.evidence &&
+        value?.status === "verified" &&
         value?.provider === sandboxProvider &&
         value?.network === controls.network &&
         value?.evaluatorAssets === controls.evaluatorAssets &&
@@ -202,7 +229,16 @@ function createGeneratedProvider({
         Array.isArray(value?.mounts) &&
         value.mounts.length === controls.mounts.length &&
         value.mounts.every((mount, index) => mount === controls.mounts[index]) &&
-        hostCapability.verifyLimits(value, controls.limits) === true
+        hostCapability.verifyLimits(value, controls.limits) === true &&
+        (typeof hostCapability.verifyPolicy !== "function" ||
+          hostCapability.verifyPolicy(value, controls) === true) &&
+        REQUIRED_ATTESTATION_CONTROLS.every((control) => value?.controls?.[control] === true) &&
+        HASH.test(value?.policyDigest ?? "") &&
+        HASH.test(value?.imageDigest ?? "") &&
+        HASH.test(value?.sourceHash ?? "") &&
+        (!controls.sourceHash || value?.sourceHash === controls.sourceHash) &&
+        (!controls.policyDigest || value?.policyDigest === controls.policyDigest) &&
+        (!controls.imageDigest || value?.imageDigest === controls.imageDigest)
       );
     },
     approval: { status: approval.status, approver: approval.approver, reason: approval.reason },
@@ -271,6 +307,25 @@ function createGeneratedProvider({
             limits,
             sandboxProvider,
           );
+        if (result.status === "ok") {
+          if (
+            !result.attestation ||
+            provider.verifySandboxAttestation(result.attestation, {
+              ...provider.policy,
+              imageDigest: attestation.evidence?.imageDigest,
+              sourceHash: hash(source),
+            }) !== true
+          )
+            return response(
+              request,
+              "blocked",
+              ["sandbox attestation is required and failed revalidation"],
+              evaluatorHash,
+              environmentHash,
+              limits,
+              sandboxProvider,
+            );
+        }
         if (result.status !== "ok")
           return response(
             request,
@@ -346,7 +401,13 @@ function probeSandbox({ provider } = {}) {
     verified: checks.length === 0,
     provider: provider?.name ?? null,
     diagnostics: checks,
+    controls: Object.fromEntries(
+      REQUIRED_ATTESTATION_CONTROLS.map((control) => [
+        control,
+        attestation.evidence?.[control] === true && checks.length === 0,
+      ]),
+    ),
   };
 }
 
-export { createGeneratedProvider, hash, policyChecks, probeSandbox };
+export { createGeneratedProvider, hash, policyChecks, probeSandbox, REQUIRED_ATTESTATION_CONTROLS };

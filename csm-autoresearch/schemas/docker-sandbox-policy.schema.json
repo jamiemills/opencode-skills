@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-autoresearch-docker-sandbox-policy/1",
+  "title": "host-owned Docker generated-sandbox launch policy",
+  "description": "The only permitted Docker boundary for hostile generated candidates. Docker availability is not evidence of this policy being applied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "provider",
+    "image",
+    "network",
+    "mounts",
+    "rootFilesystem",
+    "tmpfs",
+    "security",
+    "limits",
+    "process",
+    "source",
+    "environment"
+  ],
+  "properties": {
+    "format": { "const": "csm-autoresearch-docker-sandbox-policy/1" },
+    "provider": { "const": "docker" },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "digest"],
+      "properties": {
+        "reference": { "type": "string", "pattern": "^[A-Za-z0-9./_:-]+$" },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "network": { "const": "none" },
+    "mounts": { "const": [] },
+    "rootFilesystem": { "const": "read-only" },
+    "tmpfs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace", "sizeBytes", "mode"],
+      "properties": {
+        "workspace": { "const": "/workspace" },
+        "sizeBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "mode": { "const": "rw,noexec,nosuid,nodev" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capDrop",
+        "noNewPrivileges",
+        "privileged",
+        "hostPid",
+        "hostIpc",
+        "dockerSocket"
+      ],
+      "properties": {
+        "capDrop": { "const": ["ALL"] },
+        "noNewPrivileges": { "const": true },
+        "privileged": { "const": false },
+        "hostPid": { "const": false },
+        "hostIpc": { "const": false },
+        "dockerSocket": { "const": false }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpuQuotaUs",
+        "memoryBytes",
+        "pids",
+        "maxOutputBytes",
+        "timeoutMs",
+        "workspaceBytes"
+      ],
+      "properties": {
+        "cpuQuotaUs": { "type": "integer", "minimum": 1, "maximum": 3600000000 },
+        "memoryBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "pids": { "type": "integer", "minimum": 1, "maximum": 4096 },
+        "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 3600000 },
+        "workspaceBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 }
+      }
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["killContainerOnExit", "verifyDescendantsAbsent"],
+      "properties": {
+        "killContainerOnExit": { "const": true },
+        "verifyDescendantsAbsent": { "const": true }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hash"],
+      "properties": {
+        "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowlist", "credentials"],
+      "properties": {
+        "allowlist": { "const": [] },
+        "credentials": { "const": "none" }
+      }
+    }
+  }
+}

@@ -70,6 +70,9 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-30-remove-opencode-proper-csm.json` — 2026-08-30 — implement no-OpenCode csm-orchestrate execution with original-goal parity — status: blocked at full route runtime coverage
 - `2026-08-31-build-all-orchestrate-adapters-csm.json` — 2026-08-31 — build csm-build, csm-browse, and csm-autoresearch adapters with full orchestration proof — status: indexed active plan
 - `2026-08-31-complete-all-orchestrate-adapters-csm.json` — 2026-08-31 — complete all remaining orchestrator adapters and release gates — status: blocked at uncommitted-baseline hook fixture
+- `2026-08-31-remediate-browser-sandbox-release-blockers-csm.json` — 2026-08-31 — remediate browser and sandbox release blockers — status: blocked at unavailable host provider
+- `2026-08-31-unblock-orchestrator-release-evidence-csm.json` — 2026-08-31 — unblock orchestrator release evidence — status: blocked at browser and sandbox gates
+- `2026-08-31-docker-host-attested-sandbox-csm.json` — 2026-08-31 — implement Docker host-attested generated sandbox — status: in progress
 
 ## docs/
 
@@ -176,6 +179,9 @@ the source file. Deletion remains awaiting explicit authorization.
 - `remove-opencode-proper-20260830.json` — 2026-08-30 — csm-build checkpoint for no-OpenCode orchestrator implementation — status: blocked at full route coverage
 - `build-all-orchestrate-adapters-20260831.json` — 2026-08-31 — csm-build checkpoint for all remaining orchestrator adapters — status: indexed active checkpoint
 - `complete-all-orchestrate-adapters-20260831.json` — 2026-08-31 — csm-build checkpoint for completed adapter work and release gates — status: blocked at T008 hook fixture baseline
+- `remediate-browser-sandbox-release-blockers-20260831.json` — 2026-08-31 — csm-build checkpoint for browser and sandbox remediation — status: blocked at unavailable host provider
+- `unblock-orchestrator-release-evidence-20260831.json` — 2026-08-31 — csm-build checkpoint for release evidence — status: blocked at browser and sandbox gates
+- `docker-host-attested-sandbox-20260831.json` — 2026-08-31 — csm-build checkpoint for Docker sandbox implementation — status: in progress
 - `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
 
 ## ddd/

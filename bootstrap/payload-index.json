@@ -151,9 +151,15 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-autoresearch/lib/providers/docker.mjs",
+        "sha256": "7d04d22294c2dfc216547cb5ce11e328b9ed4933e756658ccc188b25079f45e8",
+        "bytes": 23397,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-autoresearch/lib/providers/generated.mjs",
-        "sha256": "9247f24f6f069b7a79a9ad10a55f9c332db3e2e372cf5951c098ab0bce0a3455",
-        "bytes": 9909,
+        "sha256": "19ece8a51a9d627d1d0c9a158a984adf1a8894371a01121a0ddf5bb2c5dec0a3",
+        "bytes": 11996,
         "mode": "0644"
       },
       {
@@ -190,6 +196,18 @@
         "path": "payload/skills/csm-autoresearch/schemas/config.schema.json",
         "sha256": "da874fa782007f2e68204976ba293bd93c6e3d3f8b8cfa204d824a7a3c14ffae",
         "bytes": 1050,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-autoresearch/schemas/docker-sandbox-attestation.schema.json",
+        "sha256": "4cb460bc714ed564d4709a126470650ddfe791ead8e98b88cd7a07c741d7046c",
+        "bytes": 6455,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-autoresearch/schemas/docker-sandbox-policy.schema.json",
+        "sha256": "e5444e991f796a48b8ce530356cc0c9c5d71a0a274c233dc7c3136d3a9e41313",
+        "bytes": 3532,
         "mode": "0644"
       },
       {
@@ -278,8 +296,8 @@
       },
       {
         "path": "payload/skills/csm-browse/lib/cdp.mjs",
-        "sha256": "eb710a9ad244c5402a238331d36bed704da3bff9deb13cb2417c6d792d9794ab",
-        "bytes": 6642,
+        "sha256": "382fc36e76375a151c1d89ba147b8bad6ebf82dbfc1ddd8e8530b7f92a0c8ef6",
+        "bytes": 8310,
         "mode": "0644"
       },
       {
@@ -398,8 +416,8 @@
       },
       {
         "path": "payload/skills/csm-browse/lib/verbs/input.mjs",
-        "sha256": "c2dfab31122f354fe5efc41bdc79b1b5497488290633815a795c642649bde4f8",
-        "bytes": 3889,
+        "sha256": "689c138e882d454088be0ee2281067f92509b9f95c83cec1baa8c145fac16a61",
+        "bytes": 3930,
         "mode": "0644"
       },
       {
