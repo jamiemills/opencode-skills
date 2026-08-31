@@ -83,6 +83,9 @@ const requestDigest = (request) =>
     ),
   );
 
+const storageDigest = (request, field) =>
+  request[field] ?? digest({ skill: request.skill, field, version: 1 });
+
 async function raceDeadline(promise, ms, code) {
   let timer;
   try {
@@ -335,18 +338,6 @@ export function createHostInvocationAdapter({
       const durableCursorId =
         cursorId ??
         `cursor-${request.parentRunId}-${request.phaseId}-${request.edgeId.replace(/^edge-/, "")}`;
-      if (cursorStore && typeof cursorStore.recordIdempotency === "function") {
-        try {
-          await cursorStore.recordIdempotency(key, durableCursorId);
-        } catch {
-          return failure(
-            "rejected",
-            "policy",
-            "duplicate-terminal-invocation",
-            "terminal invocation already exists",
-          );
-        }
-      }
       const current = new Date(now());
       const approvalError = approvalFailure(request.approval, request, current, consumedApprovals);
       if (approvalError) return failure("blocked", "policy", approvalError[0], approvalError[1]);
@@ -364,6 +355,18 @@ export function createHostInvocationAdapter({
           "cancelled",
           "invocation was cancelled before dispatch",
         );
+      if (cursorStore && typeof cursorStore.recordIdempotency === "function") {
+        try {
+          await cursorStore.recordIdempotency(key, durableCursorId);
+        } catch {
+          return failure(
+            "rejected",
+            "policy",
+            "duplicate-terminal-invocation",
+            "terminal invocation already exists",
+          );
+        }
+      }
       if (cursorStore && typeof cursorStore.consumeApproval === "function") {
         try {
           await cursorStore.consumeApproval(request.approval.approvalId, durableCursorId);
@@ -382,15 +385,16 @@ export function createHostInvocationAdapter({
         phaseId: request.phaseId,
         attempt: request.retry.attempt,
         capabilityDigest: request.skillDigest,
-        contractDigest: request.contractDigest,
-        handlerDigest: request.handlerDigest,
-        receiptSchemaDigest: request.receiptSchemaDigest,
-        evidenceSchemaDigest: request.evidenceSchemaDigest,
-        configDigest: request.effectiveConfigDigest,
+        contractDigest: storageDigest(request, "contractDigest"),
+        handlerDigest: storageDigest(request, "handlerDigest"),
+        receiptSchemaDigest: storageDigest(request, "receiptSchemaDigest"),
+        evidenceSchemaDigest: storageDigest(request, "evidenceSchemaDigest"),
+        configDigest: storageDigest(request, "effectiveConfigDigest"),
         sideEffectClass:
           request.sideEffectClass ?? ((request.sideEffects ?? []).join(",") || "read-only"),
         dispatchIntentId: dispatchIntentId ?? null,
       };
+      const saveAttempt = (...args) => cursorStore?.saveChildAttemptResult?.(...args);
       if (typeof cursorStore?.beginChildAttempt === "function") {
         try {
           await cursorStore.beginChildAttempt(attemptRecord);
@@ -431,7 +435,7 @@ export function createHostInvocationAdapter({
         const resultError = await validateChildResult(result, request);
         if (resultError) {
           const terminal = failure("blocked", "policy", "invalid-child-result", resultError);
-          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          await saveAttempt(attemptRecord.attemptId, terminal);
           cacheTerminal(terminal);
           return terminal;
         }
@@ -439,7 +443,7 @@ export function createHostInvocationAdapter({
         const identityError = childIdentityFailure(result, request);
         if (identityError) {
           const terminal = failure("blocked", "policy", "child-identity-mismatch", identityError);
-          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          await saveAttempt(attemptRecord.attemptId, terminal);
           cacheTerminal(terminal);
           return terminal;
         }
@@ -456,7 +460,7 @@ export function createHostInvocationAdapter({
               message: result.failure?.message ?? "child invocation failed",
             },
           };
-          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          await saveAttempt(attemptRecord.attemptId, terminal);
           cacheTerminal(terminal);
           return terminal;
         }
@@ -470,7 +474,7 @@ export function createHostInvocationAdapter({
               message: result.failure?.message ?? "child evidence is incomplete",
             },
           };
-          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          await saveAttempt(attemptRecord.attemptId, terminal);
           cacheTerminal(terminal);
           return terminal;
         }
@@ -482,7 +486,7 @@ export function createHostInvocationAdapter({
           technical: result?.technical ?? null,
           functional: result?.functional ?? null,
         };
-        await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+        await saveAttempt(attemptRecord.attemptId, terminal);
         cacheTerminal(terminal);
         return terminal;
       } catch (error) {
@@ -496,7 +500,7 @@ export function createHostInvocationAdapter({
               ? "child invocation timed out after dispatch"
               : "child invocation was cancelled after dispatch",
           );
-          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal, "UNKNOWN");
+          await saveAttempt(attemptRecord.attemptId, terminal, "UNKNOWN");
           await cursorStore?.recordReconciliation?.(request.childRunId, "UNKNOWN", {
             cause: error?.timeout ? "timeout-after-dispatch" : "cancellation-after-dispatch",
             attemptId: attemptRecord.attemptId,
@@ -512,7 +516,7 @@ export function createHostInvocationAdapter({
             error.code ?? `${error.failureClass}-failed`,
             error.message ?? `${error.failureClass} failure`,
           );
-          await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+          await saveAttempt(attemptRecord.attemptId, terminal);
           cacheTerminal(terminal);
           return terminal;
         }
@@ -522,7 +526,7 @@ export function createHostInvocationAdapter({
           "transport-failed",
           error?.message ?? "host transport failed",
         );
-        await cursorStore?.saveChildAttemptResult?.(attemptRecord.attemptId, terminal);
+        await saveAttempt(attemptRecord.attemptId, terminal);
         cacheTerminal(terminal);
         return terminal;
       }

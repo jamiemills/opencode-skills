@@ -44,6 +44,26 @@ const slug = (value) =>
       ? normalized
       : `${normalized.slice(0, 98)}-${digest(normalized).slice(7, 19)}`;
   })();
+
+function omitUndefined(value) {
+  if (Array.isArray(value)) return value.map(omitUndefined);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, omitUndefined(item)]),
+    );
+  return value;
+}
+
+const materialDigest = (value) =>
+  digest(
+    omitUndefined(
+      Object.fromEntries(
+        Object.entries(value).filter(([key]) => key !== "status" && key !== "requestDigest"),
+      ),
+    ),
+  );
 const unique = (values) => [...new Set(values.filter(Boolean))];
 const invocationApproval = (approval) =>
   approval?.schema === "csm-orchestrate-approval/1"
@@ -716,11 +736,7 @@ async function runOrchestrationInternal({
               }
             : {}),
         };
-        request.requestDigest = digest(
-          Object.fromEntries(
-            Object.entries(request).filter(([key]) => key !== "status" && key !== "requestDigest"),
-          ),
-        );
+        request.requestDigest = materialDigest(request);
         const durableAttempt =
           typeof cursorStore.loadChildAttemptByKey === "function"
             ? await cursorStore.loadChildAttemptByKey(request.retry.idempotencyKey)
@@ -924,13 +940,7 @@ async function runOrchestrationInternal({
                     idempotencyKey: retryIdempotencyKey,
                   },
                 };
-                retryRequest.requestDigest = digest(
-                  Object.fromEntries(
-                    Object.entries(retryRequest).filter(
-                      ([key]) => key !== "status" && key !== "requestDigest",
-                    ),
-                  ),
-                );
+                retryRequest.requestDigest = materialDigest(retryRequest);
                 return retryRequest;
               })(),
               cursorId,

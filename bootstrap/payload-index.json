@@ -794,14 +794,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "0faa5f6f1bc9eadbb6a2de816c6105d8e16fcc061f1fe67d612e0049b6eb2ca2",
-        "bytes": 59768,
+        "sha256": "5699b44a582c0803ff77907d9975aabd3d5cd0818be785231f2bceb98ffbdeb7",
+        "bytes": 59951,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/invocation.mjs",
-        "sha256": "6f423b2beb431460e900aec7d547ca6990c817b82fbc6506f70b6210b1296f4e",
-        "bytes": 24029,
+        "sha256": "2619313c0de8d14d3e1a186ff60b7c296d01ee9241ccd354ddcda83f26af61ed",
+        "bytes": 24114,
         "mode": "0644"
       },
       {
