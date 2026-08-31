@@ -10,8 +10,8 @@
     "cycle": 0,
     "nextTransition": "none (terminal)",
     "activeTasks": ["T004"],
-    "blockers": ["Exact-SHA CI cannot be verified until this staged release is committed and pushed with explicit authorization"],
-    "lastCheckpoint": "2026-08-31T19:00:00Z: T001-T003 verified; T004 blocked at commit/push/CI boundary",
+    "blockers": ["CI run 33428762495 was green but skipped required adapter integration because approval variables were unset"],
+    "lastCheckpoint": "2026-08-31T19:30:00Z: commit 7638d41 pushed; default CI green, required adapter gate skipped",
     "lastModelRun": "gpt-5.6-luna / docker-host-attested-sandbox-build"
   },
   "inputs": [
@@ -21,7 +21,7 @@
       "schema": "csm-plan/1",
       "runId": "run-20260831t150000z-docker-host-attested-sandbox",
       "owner": "csm-plan",
-      "digest": "sha256:ca7e66d175e0d5f1fab6a7da246d115e0cd3d299e4ae19f48e101ea1e09ef8b3",
+      "digest": "sha256:397b745af4286d3c9f10a11f994df1a8511fe57c0126eb9b32fef11ac10c7ae6",
       "path": ".agents/plans/2026-08-31-docker-host-attested-sandbox-csm.json",
       "status": "resolved"
     }
@@ -42,10 +42,13 @@
      { "sequence": 12, "timestamp": "2026-08-31T19:00:00Z", "from": "INTEGRATE", "to": "VERIFY", "evidence": "make audit/check/fmt-check/lint/test passed; full test suite passed with 1283 tests and one environment skip." },
      { "sequence": 13, "timestamp": "2026-08-31T19:00:00Z", "from": "VERIFY", "to": "REVIEW", "evidence": "Final Docker review and exact generated-provider composition checks passed; CI remains unverified." },
      { "sequence": 14, "timestamp": "2026-08-31T19:00:00Z", "from": "REVIEW", "to": "CHECKPOINT", "evidence": "T001-T003 complete; T004 is blocked only by explicit commit/push and CI verification." },
-     { "sequence": 15, "timestamp": "2026-08-31T19:00:00Z", "from": "CHECKPOINT", "to": "BLOCKED", "evidence": "The release is staged and locally green, but exact-SHA CI requires an explicitly authorized commit and push." }
+      { "sequence": 15, "timestamp": "2026-08-31T19:00:00Z", "from": "CHECKPOINT", "to": "BLOCKED", "evidence": "The release is staged and locally green, but exact-SHA CI requires an explicitly authorized commit and push." },
+      { "sequence": 16, "timestamp": "2026-08-31T19:30:00Z", "from": "BLOCKED", "to": "RECOVER", "evidence": "User authorized commit, push, and merge actions." },
+      { "sequence": 17, "timestamp": "2026-08-31T19:30:00Z", "from": "RECOVER", "to": "VALIDATE", "evidence": "Commit 7638d41 is pushed to origin/main and CI run 33428762495 completed successfully." },
+      { "sequence": 18, "timestamp": "2026-08-31T19:30:00Z", "from": "VALIDATE", "to": "BLOCKED", "evidence": "CI default gates are green, but the required adapter integration step was skipped because CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED are unset. Resume after those variables and CI Docker/browser prerequisites are enabled." }
   ],
   "artifacts": [],
   "completion": null,
-  "provenance": { "sourcePlan": "art-docker-host-attested-sandbox-20260831", "sourceDigests": ["sha256:ca7e66d175e0d5f1fab6a7da246d115e0cd3d299e4ae19f48e101ea1e09ef8b3"] },
+  "provenance": { "sourcePlan": "art-docker-host-attested-sandbox-20260831", "sourceDigests": ["sha256:397b745af4286d3c9f10a11f994df1a8511fe57c0126eb9b32fef11ac10c7ae6"] },
   "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
 }

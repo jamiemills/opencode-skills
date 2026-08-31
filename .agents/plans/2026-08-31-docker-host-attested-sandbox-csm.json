@@ -10,11 +10,11 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-08-31T15:00:00Z: option 1 plan created for a Docker-backed host-attested generated sandbox",
+    "lastCheckpoint": "2026-08-31T19:30:00Z: local Docker release pushed; CI green with required adapter gate skipped",
     "lastModelRun": "gpt-5.6-luna / docker-host-attested-sandbox-plan",
     "nextTransition": "none (terminal)",
     "activeTasks": ["T004"],
-    "blockers": ["CI cannot be verified until the staged release is committed and pushed with explicit authorization"],
+    "blockers": ["CI run 33428762495 is green, but CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED were unset, so required adapter integration gates were skipped"],
     "resume": {
       "read": ["last checkpoint", "latest journal", "recovery notes", "inputs", "working-tree diff", "parent blocked plans"],
       "firstAction": "Verify Docker daemon/image availability, Node 22, current parent-plan digests, and protected-state baseline before T001."
@@ -132,7 +132,7 @@
   "critiqueResolution": [],
   "journal": [
     { "sequence": 0, "timestamp": "2026-08-31T15:00:00Z", "cycle": 0, "transition": "NOT_STARTED -> NOT_STARTED", "tasks": [], "evidence": "Created a warranted option-1 Docker sandbox implementation plan from the current generated-provider policy and required probe blocker. All implementation tasks remain pending; implementation was not started.", "nextState": "NOT_STARTED" },
-    { "sequence": 1, "timestamp": "2026-08-31T19:30:00Z", "cycle": 0, "transition": "NOT_STARTED -> BLOCKED", "tasks": ["T001", "T002", "T003", "T004"], "evidence": "T001-T003 completed: Docker contract, composed generated-provider execution, positive probe, adversarial tests, payload parity, and full local gates passed. T004 is blocked because committing and pushing the staged release, then verifying exact-SHA CI, requires explicit current-invocation authorization.", "nextState": "BLOCKED" }
+    { "sequence": 1, "timestamp": "2026-08-31T19:30:00Z", "cycle": 0, "transition": "NOT_STARTED -> BLOCKED", "tasks": ["T001", "T002", "T003", "T004"], "evidence": "T001-T003 completed: Docker contract, composed generated-provider execution, positive probe, adversarial tests, payload parity, and full local gates passed. Commit 7638d41 was pushed and CI run 33428762495 is green, but CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED were unset, so the required adapter integration gates were skipped.", "nextState": "BLOCKED" }
   ],
   "completionReview": null,
   "inputs": [
