@@ -52,7 +52,7 @@ test("coverage classifications and required route evidence are explicit", () => 
   const classifications = new Set([
     "procedural-callable",
     "adapter-required",
-    "model-runtime-required",
+    "csm-build-owned",
     "unsupported",
   ]);
   for (const route of matrix.routes) {

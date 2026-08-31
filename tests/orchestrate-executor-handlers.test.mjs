@@ -8,7 +8,6 @@ import { digest } from "../lib/schema-runtime/index.mjs";
 import {
   createExecutorDescriptors,
   createExecutorHandlers,
-  createModelExecutor,
   executeSkill,
 } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
@@ -58,16 +57,7 @@ test("normalizes a valid child result and enforces handler selection", async () 
   assert.equal(result.context.runId, context.runId);
   assert.equal(result.artifacts[0].digest, validArtifact.digest);
   const handlers = createExecutorHandlers();
-  assert.equal(
-    (
-      await executeSkill(
-        "csm-build",
-        { context: { ...context, owner: "csm-build" }, input: {} },
-        { handlers },
-      )
-    ).status,
-    "blocked",
-  );
+  assert.equal(handlers.has("csm-build"), false);
 });
 
 test("rejects malformed output, wrong identity, and undeclared artifacts", async () => {
@@ -147,11 +137,7 @@ test("reports cancellation and has no OpenCode invocation path", async () => {
     { handlers: new Map([["csm-scan", handler()]]) },
   );
   assert.equal(result.status, "cancelled");
-  assert.equal(createModelExecutor(), null);
-  const handlers = createExecutorHandlers({
-    modelExecutor: createModelExecutor({ execute: async () => ({}) }),
-  });
-  assert.equal(typeof handlers.get("csm-plan"), "function");
+  assert.equal(createExecutorHandlers().has("csm-plan"), false);
   assert.doesNotMatch(JSON.stringify(createExecutorDescriptors()), /opencode/i);
 });
 

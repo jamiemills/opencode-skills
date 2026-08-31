@@ -6,6 +6,7 @@ import { publishPublicationDescriptor } from "../../csm-upload/lib/publication.m
 import { assertSchema } from "./contracts.mjs";
 import { digest } from "../../lib/schema-runtime/index.mjs";
 import { skillExecutorContractDigest } from "./skill-executor-registry.mjs";
+import { csmBuildOwnedSkills } from "./csm-build-handoff.mjs";
 import canonicalCapabilities from "../capabilities.json" with { type: "json" };
 
 const RESULT_SCHEMA = "csm-orchestrate-child-result/1";
@@ -168,17 +169,12 @@ function directAdapter(skill, invoke) {
   };
 }
 
-export function createModelExecutor({ execute } = {}) {
-  if (typeof execute !== "function") return null;
-  return Object.freeze({
-    async execute(request) {
-      return execute({ ...request, signal: request.signal });
-    },
-  });
-}
-
-export function createExecutorHandlers({ modelExecutor = null } = {}) {
+export function createExecutorHandlers({ csmBuildHandoff = null, csmBuildHandoffs = [] } = {}) {
   const handlers = new Map();
+  const handoffs = [
+    ...(Array.isArray(csmBuildHandoffs) ? csmBuildHandoffs : Object.values(csmBuildHandoffs ?? {})),
+    ...(csmBuildHandoff ? [csmBuildHandoff] : []),
+  ];
   handlers.set(
     "csm-ddd",
     directAdapter("csm-ddd", async (input, signal, context) => {
@@ -275,31 +271,43 @@ export function createExecutorHandlers({ modelExecutor = null } = {}) {
       failure: failure("unsupported-runtime", `${skill} requires its approved host adapter`),
     }));
   }
-  for (const skill of [
-    "csm-bdd-tdd",
-    "csm-build",
-    "csm-deep-research",
-    "csm-grill",
-    "csm-make-tests",
-    "csm-plan",
-    "csm-review",
-    "csm-review-python",
-  ]) {
-    handlers.set(
-      skill,
-      modelExecutor
-        ? directAdapter(skill, (input, signal) => modelExecutor.execute({ skill, input, signal }))
-        : async () => ({
-            status: "blocked",
-            effects: [],
-            artifacts: [],
-            receipt: null,
-            failure: failure(
-              "unsupported-runtime",
-              `${skill} requires an injected provider-neutral model executor`,
-            ),
-          }),
-    );
+  for (const handoff of handoffs) {
+    if (typeof handoff?.execute !== "function")
+      throw new TypeError("csm-build handoff adapter is required");
+    for (const skill of csmBuildOwnedSkills())
+      if (handoff.skill === skill)
+        handlers.set(skill, async ({ input, signal, context }) => {
+          const result = await handoff.execute(
+            {
+              invocationId: context.invocationId,
+              parentRunId: context.parentRunId,
+              childRunId: context.runId,
+              phaseId: context.phaseId,
+              edgeId: context.edgeId,
+              skill,
+              input,
+              retry: { attempt: context.attempt },
+            },
+            signal,
+          );
+          if (result.status === "cancelled")
+            return {
+              status: "cancelled",
+              effects: [],
+              artifacts: [],
+              receipt: makeReceipt(context, skill, "incomplete"),
+              failure: result.failure,
+            };
+          return {
+            status: result.status ?? "completed",
+            effects: result.effects ?? handoff.effects,
+            artifacts: result.artifacts ?? [],
+            evidence: result.evidence ?? [],
+            output: result.output ?? null,
+            receipt: result.receipt ?? makeReceipt(context, skill, result.status ?? "completed"),
+            failure: result.failure ?? null,
+          };
+        });
   }
   return Object.freeze(handlers);
 }
@@ -346,8 +354,19 @@ export function selectExecutorHandler(skill, { handlers = createExecutorHandlers
   return handlers.get(skill) ?? null;
 }
 
-export function createExecutorDescriptors({ handlers = createExecutorHandlers() } = {}) {
-  return ["csm-ddd", "csm-scan", "csm-upload"]
+export function createExecutorDescriptors({
+  handlers = createExecutorHandlers(),
+  csmBuildHandoff = null,
+  csmBuildHandoffs = [],
+} = {}) {
+  const direct = ["csm-ddd", "csm-scan", "csm-upload"];
+  const handoffs = [
+    ...(Array.isArray(csmBuildHandoffs) ? csmBuildHandoffs : Object.values(csmBuildHandoffs ?? {})),
+    ...(csmBuildHandoff ? [csmBuildHandoff] : []),
+  ];
+  const handoffFor = (skill) => handoffs.find((item) => item?.skill === skill);
+  const owned = handoffs.map((item) => item?.skill).filter((skill) => skill && handlers.has(skill));
+  return [...direct, ...owned]
     .filter((skill) => handlers.has(skill))
     .map((skill) => {
       const capability = canonicalCapabilities.skills.find((item) => item.skill === skill);
@@ -356,12 +375,20 @@ export function createExecutorDescriptors({ handlers = createExecutorHandlers() 
         schema: "csm-orchestrate-skill-executor/1",
         version: 1,
         skill,
-        handlerDigest: digest({ skill, implementation: "direct-adapter/1" }),
-        inputSchemaDigest: digest({ skill, schema: "input/1" }),
-        outputSchemaDigest: digest({ schema: RESULT_SCHEMA }),
+        handlerDigest: owned.includes(skill)
+          ? handoffFor(skill).handlerDigest
+          : digest({ skill, implementation: "direct-adapter/1" }),
+        inputSchemaDigest: owned.includes(skill)
+          ? handoffFor(skill).inputSchemaDigest
+          : digest({ skill, schema: "input/1" }),
+        outputSchemaDigest: owned.includes(skill)
+          ? handoffFor(skill).outputSchemaDigest
+          : digest({ schema: RESULT_SCHEMA }),
         receiptSchemaDigest: digest({ schema: "csm-orchestrate-child-receipt/1" }),
         evidenceSchemaDigest: digest({ schema: "csm-orchestrate-evidence/2" }),
-        effectiveConfigDigest: digest({ skill, config: "default/1" }),
+        effectiveConfigDigest: owned.includes(skill)
+          ? handoffFor(skill).effectiveConfigDigest
+          : digest({ skill, config: "default/1" }),
         permissions: [...capability.permissions],
         effects: [...capability.effects],
         cancellation: "cooperative",

@@ -4,14 +4,14 @@
   "artifactId": "art-build-remove-opencode-proper-20260830",
   "runId": "run-20260830t151000z-remove-opencode-build",
   "owner": "csm-build",
-  "status": "blocked",
+  "status": "in_progress",
   "control": {
-    "currentState": "BLOCKED",
+    "currentState": "RECOVER",
     "cycle": 0,
-    "nextTransition": "BLOCKED -> RECOVER after provider-neutral runtime and full route coverage are supplied",
-    "activeTasks": ["T004", "T008"],
-    "blockers": ["Full all-skill runtime coverage is not implemented for model-led, browse, and autoresearch routes.", "Provider-neutral model runtime and external caller migration decision are unavailable.", "SQLite-specific recovery tests were skipped because node:sqlite is unavailable under the current environment."],
-    "lastCheckpoint": "2026-08-31T02:55:00Z: pushed final checkpoint 22b21e1; CI 33351819405 passed; blocked only at full route coverage",
+    "nextTransition": "RECOVER -> VALIDATE",
+    "activeTasks": ["T004"],
+    "blockers": ["A typed csm-build handoff is still required for instruction-led routes; browse and autoresearch remain dedicated adapter routes.", "The actual external createCliHost caller is outside this checkout.", "SQLite-specific recovery tests were skipped because node:sqlite is unavailable under the current environment."],
+    "lastCheckpoint": "2026-08-31T03:15:00Z: user selected csm-build-owned instruction execution; resuming from blocked coverage checkpoint",
     "lastModelRun": "gpt-5.6-luna / remove-opencode-build"
   },
   "inputs": [
@@ -21,17 +21,18 @@
       "schema": "csm-plan/1",
       "runId": "run-20260830t150000z-remove-opencode-proper",
       "owner": "csm-plan",
-      "digest": "sha256:45af64e68f20d32ee35c51357c3ab87fe0936b5f2e0efd1c91f9e99c28a16cfd",
+      "digest": "sha256:6a59f705362733958466ea1c5954a83c24e6199f492d8109533c942e7470693e",
       "path": ".agents/plans/2026-08-30-remove-opencode-proper-csm.json",
       "status": "resolved"
     }
   ],
   "journal": [
     { "sequence": 0, "timestamp": "2026-08-30T15:10:00Z", "from": "NOT_STARTED", "to": "RECOVER", "evidence": "Explicit user build request received; plan, cited inputs, and worktree baseline are being reconstructed before dispatch.", "inputDigests": [] },
-    { "sequence": 1, "timestamp": "2026-08-31T01:45:00Z", "from": "RECOVER", "to": "BLOCKED", "evidence": "No-OpenCode executor, direct handlers, lifecycle, review, recovery, packaging, and outcome tests are implemented and verified. Full model-led/browse/autoresearch runtime coverage is unavailable, and SQLite-specific cases remain skipped under the current Node runtime.", "inputDigests": ["sha256:12abd801bdfb026109810f27e476b72d09f4edf242f02e50ed93292b3d6c89a0"] }
+    { "sequence": 1, "timestamp": "2026-08-31T01:45:00Z", "from": "RECOVER", "to": "BLOCKED", "evidence": "No-OpenCode executor, direct handlers, lifecycle, review, recovery, packaging, and outcome tests are implemented and verified. Full model-led/browse/autoresearch runtime coverage is unavailable, and SQLite-specific cases remain skipped under the current Node runtime.", "inputDigests": ["sha256:12abd801bdfb026109810f27e476b72d09f4edf242f02e50ed93292b3d6c89a0"] },
+    { "sequence": 2, "timestamp": "2026-08-31T03:15:00Z", "from": "BLOCKED", "to": "RECOVER", "evidence": "User selected option 3: csm-build owns instruction-led execution in the current agent context and returns typed results to csm-orchestrate. Resume requires validating the handoff contract and route ownership matrix.", "inputDigests": ["sha256:45af64e68f20d32ee35c51357c3ab87fe0936b5f2e0efd1c91f9e99c28a16cfd"] }
   ],
   "artifacts": [],
-  "completion": { "status": "blocked", "verifiedAt": "2026-08-31T02:55:00Z", "evidence": [], "commit": { "status": "recorded", "sha": "22b21e1", "message": "chore: update orchestrator build checkpoint", "files": ["csm-orchestrate", "lib/orchestration-store/index.mjs", "scripts/hooks/test/pre-commit.test.mjs", "tests/orchestrate-*.test.mjs", "bootstrap/package/payload", ".agents"] }, "rollback": { "status": "available", "checkpoint": "working tree before remove-opencode-proper build", "action": "Restore only this build's executor-plane and packaging changes after review; preserve unrelated worktree changes." } },
-  "provenance": { "sourcePlan": "art-remove-opencode-proper-20260830", "sourceDigests": ["sha256:45af64e68f20d32ee35c51357c3ab87fe0936b5f2e0efd1c91f9e99c28a16cfd"] },
+  "completion": null,
+  "provenance": { "sourcePlan": "art-remove-opencode-proper-20260830", "sourceDigests": ["sha256:6a59f705362733958466ea1c5954a83c24e6199f492d8109533c942e7470693e"] },
   "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
 }

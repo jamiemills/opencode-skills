@@ -8,18 +8,18 @@
   "repositoryRoot": ".",
   "manifest": {
     "path": "csm-orchestrate/capabilities.json",
-    "contentDigest": "sha256:f1d6a332bc73f758b4222320b7961f257e30a5e412828c8f07b0dd6ed4a17285",
+    "contentDigest": "sha256:34d80cbed874d47bc3f4c147657084beb09f691d512d626c4b30e5c7508f4b61",
     "coordinatorEntrypoint": "csm-orchestrate/index.mjs"
   },
   "coverageDecision": {
-    "status": "BLOCKED",
+      "status": "HANDOFF_REQUIRED",
     "complete": false,
-    "reason": "No provider-neutral model executor or registered SkillExecutor adapter exists in this checkout.",
+      "reason": "Instruction-led routes are owned by csm-build and require a typed handoff from the current agent context.",
     "completionRule": "BLOCKED, unsupported, and unregistered routes never count as complete.",
-    "productDecisionRequired": true,
+      "productDecisionRequired": false,
     "blockers": [
       "Register typed adapters for the procedural pipelines before enabling those routes.",
-      "Decide and implement a provider-neutral model runtime for instruction-led workflows without OpenCode.",
+      "Define and enforce the csm-build-owned typed handoff for instruction-led workflows without OpenCode.",
       "Define a browser host contract for csm-browse and a publication adapter for csm-upload."
     ]
   },
@@ -42,8 +42,8 @@
     },
     {
       "skill": "csm-bdd-tdd",
-      "classification": "model-runtime-required",
-      "runtimeStatus": "not-available",
+      "classification": "csm-build-owned",
+      "runtimeStatus": "owner-handoff-required",
       "complete": false,
       "entrypoint": { "paths": ["csm-bdd-tdd/lib/package.mjs"], "callableExports": [], "helperOnly": true },
       "inputSchemas": ["csm-plan/1"],
@@ -74,8 +74,8 @@
     },
     {
       "skill": "csm-build",
-      "classification": "model-runtime-required",
-      "runtimeStatus": "not-available",
+      "classification": "csm-build-owned",
+      "runtimeStatus": "owner-handoff-required",
       "complete": false,
       "entrypoint": { "paths": ["csm-build/SKILL.md"], "callableExports": [], "helperOnly": true },
       "inputSchemas": ["csm-plan/1"],
@@ -86,7 +86,7 @@
       "subprocessNetworkBrowser": { "subprocess": "not declared", "network": "not declared", "browser": "not used" },
       "cancellation": "no executable boundary or cooperative cancellation contract exists.",
       "reviewRole": "standard",
-      "migrationNotes": "Requires a provider-neutral model executor plus a typed workspace mutation adapter; SKILL.md is instruction text, not executable code."
+      "migrationNotes": "csm-build owns instruction execution and must return a typed workspace mutation result; SKILL.md is instruction text, not executable code."
     },
     {
       "skill": "csm-ddd",
@@ -105,8 +105,8 @@
       "migrationNotes": "Wrap analyzeRepository and publication with schema/owner/run/attempt validation; scripts/ddd.mjs is a CLI wrapper, not an orchestrator registry entry."
     },
     {
-      "skill": "csm-deep-research",
-      "classification": "model-runtime-required",
+  "skill": "csm-deep-research",
+      "classification": "csm-build-owned",
       "runtimeStatus": "not-available",
       "complete": false,
       "entrypoint": { "paths": ["csm-deep-research/lib/research.mjs"], "callableExports": [], "helperOnly": true },
@@ -118,11 +118,11 @@
       "subprocessNetworkBrowser": { "subprocess": "not declared", "network": "external evidence required", "browser": "browser evidence may be required" },
       "cancellation": "no model or evidence-collection execution boundary accepts AbortSignal.",
       "reviewRole": "adversarial",
-      "migrationNotes": "Requires a provider-neutral research runtime and explicit source/browser adapters; artifact construction helpers are not a research executor."
+      "migrationNotes": "csm-build owns instruction execution and must return a typed research result; artifact construction helpers are not a research executor."
     },
     {
-      "skill": "csm-grill",
-      "classification": "model-runtime-required",
+  "skill": "csm-grill",
+      "classification": "csm-build-owned",
       "runtimeStatus": "not-available",
       "complete": false,
       "entrypoint": { "paths": ["csm-grill/SKILL.md", "csm-grill/approach-producer.json"], "callableExports": [], "helperOnly": true },
@@ -137,8 +137,8 @@
       "migrationNotes": "Requires model execution and typed artifact publication; producer metadata does not make SKILL.md callable."
     },
     {
-      "skill": "csm-make-tests",
-      "classification": "model-runtime-required",
+  "skill": "csm-make-tests",
+      "classification": "csm-build-owned",
       "runtimeStatus": "not-available",
       "complete": false,
       "entrypoint": { "paths": ["csm-make-tests/lib/ledger.mjs", "csm-make-tests/lib/verification.mjs"], "callableExports": [], "helperOnly": true },
@@ -153,8 +153,8 @@
       "migrationNotes": "Requires a model/runtime generator and explicit test execution policy; ledger helpers are not a route handler."
     },
     {
-      "skill": "csm-plan",
-      "classification": "model-runtime-required",
+  "skill": "csm-plan",
+      "classification": "csm-build-owned",
       "runtimeStatus": "not-available",
       "complete": false,
       "entrypoint": { "paths": ["csm-plan/SKILL.md"], "callableExports": [], "helperOnly": true },
@@ -166,11 +166,11 @@
       "subprocessNetworkBrowser": { "subprocess": "not declared", "network": "not declared", "browser": "not used" },
       "cancellation": "no executable boundary exists.",
       "reviewRole": "adversarial",
-      "migrationNotes": "Requires a provider-neutral model executor; SKILL.md and plan schema are not executable."
+      "migrationNotes": "csm-build owns instruction execution and must return a typed plan result; SKILL.md and plan schema are not executable."
     },
     {
-      "skill": "csm-review",
-      "classification": "model-runtime-required",
+  "skill": "csm-review",
+      "classification": "csm-build-owned",
       "runtimeStatus": "not-available",
       "complete": false,
       "entrypoint": { "paths": ["csm-review/lib/findings-validator.mjs", "csm-review/lib/human-projection.mjs"], "callableExports": [], "helperOnly": true },
@@ -182,11 +182,11 @@
       "subprocessNetworkBrowser": { "subprocess": "not declared", "network": "not declared", "browser": "not used" },
       "cancellation": "no audit execution boundary accepts AbortSignal.",
       "reviewRole": "final",
-      "migrationNotes": "Requires a genuinely independent provider-neutral review runtime; validators and human projection are helper-only."
+      "migrationNotes": "csm-build owns review execution while csm-orchestrate validates independent typed evidence; validators and human projection are helper-only."
     },
     {
-      "skill": "csm-review-python",
-      "classification": "model-runtime-required",
+  "skill": "csm-review-python",
+      "classification": "csm-build-owned",
       "runtimeStatus": "not-available",
       "complete": false,
       "entrypoint": { "paths": ["csm-review-python/lib/findings-validator.mjs"], "callableExports": [], "helperOnly": true },

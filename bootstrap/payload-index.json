@@ -42,8 +42,8 @@
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "12c167fed28e217c9f30b2884d72ecc05b828c7c1e306a2de4a36cd3c0608363",
-        "bytes": 36214,
+        "sha256": "47eb6e88b906e5cdf7ba7c02aa1800b8c52cb46a5ac6783c5e0fc64fe89da791",
+        "bytes": 36621,
         "mode": "0644"
       },
       {
@@ -728,14 +728,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "04420a42e92d7fbc041d7d87eb5317a353d8ad8a33f46d60d607295f95dba746",
+        "sha256": "2fe08facaee194d850fe9f3c34f07e898be02a186b075f3b36b40e166b3c3f81",
         "bytes": 15091,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/index.mjs",
-        "sha256": "2236369a1eacd5ebd7fe8def55be94d69c61b97e4dd0b26379a66d3636250cc7",
-        "bytes": 360,
+        "sha256": "803b65ddcabc98129ea5a8e2c0729160e19d6cefc6b16c45898b25e9f6985597",
+        "bytes": 459,
         "mode": "0644"
       },
       {
@@ -787,6 +787,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/csm-build-handoff.mjs",
+        "sha256": "a001dbe2db957aee6c67efee27ac7e4079fc1f453319edf081836a8e0f24b2b9",
+        "bytes": 4701,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/evidence-gates.mjs",
         "sha256": "1bc82815e9a88cb9e53ce87d206332af016132118349eb79d7f61b2c95d6d2ac",
         "bytes": 15441,
@@ -830,14 +836,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-adapter.mjs",
-        "sha256": "68f674b74f5fe4541e2bf74ba7d1115b79ef628666a0611e6fab5d74e9633ab4",
-        "bytes": 4918,
+        "sha256": "46ab365561e3d7a495e5a839e48dbafda1ea109bbec240eb40f6c569d6c9a300",
+        "bytes": 5281,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-handlers.mjs",
-        "sha256": "270571f95840a26aa0503e1e702ead058cc91c6c21d992458139af51d423aa88",
-        "bytes": 12910,
+        "sha256": "f1aa44337d5cd37c37f003c01cf0f41e8dd6d8189847470b9aad7f25b9240b3a",
+        "bytes": 14490,
         "mode": "0644"
       },
       {

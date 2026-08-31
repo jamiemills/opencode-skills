@@ -44,6 +44,14 @@ Execute a saved CSM plan from its verified current state. Start a new plan or re
 - If `apply_patch` rejects expected lines, do not guess, fuzzy-match, or overwrite. Re-read the current file, inspect concurrent or formatter changes, and retry with a fresh smaller patch.
 - Preserve exact-context failure semantics; do not weaken verification.
 
+## csm-orchestrate Handoff
+
+When csm-build is executing an instruction-led route for csm-orchestrate, keep
+the work in the current agent context. Return one typed child result bound to
+the supplied parent/child identity, attempt, input/output schema digests, and
+artifacts; do not start a nested agent session. The orchestrator owns approval,
+evidence, receipt, retry, remediation, and recovery decisions.
+
 ## Tmux Session Bootstrap
 
 Run first — before `Activation Boundary` work, locating the plan, or any execution state. Not an execution state.

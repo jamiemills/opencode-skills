@@ -2,6 +2,7 @@
 
 import { createHostInvocationAdapter } from "./invocation.mjs";
 import { executeSkill } from "./skill-executor-handlers.mjs";
+import { csmBuildOwnedSkills } from "./csm-build-handoff.mjs";
 import { digest } from "../../../lib/schema-runtime/index.mjs";
 
 // This adapter is deliberately opt-in. It is an in-process execution boundary,
@@ -86,6 +87,10 @@ export function createInProcessExecutorAdapter({
               runId: request.childRunId,
               owner: request.skill,
               attempt: request.retry?.attempt ?? 1,
+              invocationId: request.invocationId,
+              parentRunId: request.parentRunId,
+              phaseId: request.phaseId,
+              edgeId: request.edgeId,
               publication: publicationBindings[request.skill] ?? null,
             },
             signal,
@@ -138,5 +143,8 @@ export function createInProcessExecutorAdapter({
         };
       }
     },
+    supportedCsmBuildSkills: Object.freeze(
+      csmBuildOwnedSkills().filter((skill) => Boolean(bindings[skill])),
+    ),
   });
 }
