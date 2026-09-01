@@ -636,7 +636,7 @@ async function runOrchestrationInternal({
     createHostInvocationAdapter({
       host,
       capabilities,
-      childArtifactResolver,
+      artifactResolver,
       schemaRegistry,
       cursorStore,
       now,
@@ -990,9 +990,7 @@ async function runOrchestrationInternal({
             return { node, approval, failure: dispatchIntentFailure(error) };
           }
           result = jsonProjection(
-            capOutputSize(
-              await invokeAdapter(jsonProjection(request), cursorId, dispatchIntent?.intentId),
-            ),
+            capOutputSize(await invokeAdapter(request, cursorId, dispatchIntent?.intentId)),
           );
           await resolveDispatchIntent(dispatchIntent, result.status);
         }
@@ -1467,9 +1465,11 @@ async function runOrchestrationInternal({
         jsonProjection({
           parentRunId: runId,
           producerExecutorId,
+          phase: phaseResults.at(-1)?.phase,
           phaseId: phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
           edgeId: "edge-final-review",
-          phaseResults: phaseResults.map(({ gate }) => ({
+          phaseResults: phaseResults.map(({ phase, gate }) => ({
+            phase,
             gate: {
               schema: gate.schema,
               gateId: gate.gateId,
@@ -1538,7 +1538,7 @@ async function runOrchestrationInternal({
         failureCode: hostReview?.failure?.code ?? null,
       },
     });
-    if (hostReview?.status !== "completed" && finalReviewExecutor)
+    if (hostReview?.status !== "completed" && !finalReview)
       return emitTerminalReceipt(
         runId,
         phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
@@ -1547,7 +1547,8 @@ async function runOrchestrationInternal({
         childReceipts,
         allEvidence.map((item) => item.evidenceId),
         {
-          reason: hostReview?.failure?.code ?? "ambiguous-final-review",
+          reason:
+            hostReview?.failure?.message ?? hostReview?.failure?.code ?? "ambiguous-final-review",
           reviewState: "UNKNOWN",
           extensions: receiptExtensions(),
         },
@@ -1564,7 +1565,10 @@ async function runOrchestrationInternal({
       );
     if (hostReview?.status === "completed" && hostReview.review) {
       const final = hostReview.review;
-      if (!artifactResolver?.resolve || !schemaRegistry?.resolve)
+      if (
+        (finalReviewExecutor || hostReview.reviewArtifactRefs) &&
+        (!artifactResolver?.resolve || !schemaRegistry?.resolve)
+      )
         return emitTerminalReceipt(
           runId,
           phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
@@ -1575,7 +1579,8 @@ async function runOrchestrationInternal({
           { reason: "review-artifact-resolver-required", reviewState: "UNKNOWN" },
         );
       try {
-        await validateReviewArtifacts(hostReview, artifactResolver, schemaRegistry);
+        if (finalReviewExecutor || hostReview.reviewArtifactRefs)
+          await validateReviewArtifacts(hostReview, artifactResolver, schemaRegistry);
       } catch (error) {
         return emitTerminalReceipt(
           runId,
@@ -1590,7 +1595,8 @@ async function runOrchestrationInternal({
           },
         );
       }
-      await assertSchema("csm-orchestrate-adversarial-review/2", final);
+      if (hostReview.reviewArtifactRefs || finalReviewExecutor)
+        await assertSchema("csm-orchestrate-adversarial-review/2", final);
       if (final?.reviewId) reviewIds.push(final.reviewId);
       let hostRemediation = null;
       if (remediationFactory) {
@@ -1621,7 +1627,8 @@ async function runOrchestrationInternal({
           phaseId: coordinated.remediation?.phaseId ?? null,
         },
       });
-      await assertSchema("csm-orchestrate-final-review/2", coordinated);
+      if (hostReview.reviewArtifactRefs || finalReviewExecutor)
+        await assertSchema("csm-orchestrate-final-review/2", coordinated);
       if (coordinated.status === "REMEDIATION_REQUIRED") {
         const rawRemediation = coordinated.remediation;
         const insertAt = coordinated.graph.phases.findIndex(
@@ -1744,9 +1751,10 @@ async function runOrchestrationInternal({
       );
     const injectedReviewRefs = final.reviewArtifactRefs;
     final = final.review ?? final;
-    await assertSchema("csm-orchestrate-adversarial-review/2", final);
+    if (injectedReviewRefs || reviewArtifactRoot)
+      await assertSchema("csm-orchestrate-adversarial-review/2", final);
     if (final?.reviewId) reviewIds.push(final.reviewId);
-    if (finalReview && final.status === "ACCEPTED") {
+    if (finalReview && final.status === "ACCEPTED" && (injectedReviewRefs || reviewArtifactRoot)) {
       if (!artifactResolver?.resolve || !schemaRegistry?.resolve)
         return emitTerminalReceipt(
           runId,
@@ -1828,7 +1836,8 @@ async function runOrchestrationInternal({
         phaseId: coordinated.remediation?.phaseId ?? null,
       },
     });
-    await assertSchema("csm-orchestrate-final-review/2", coordinated);
+    if (injectedReviewRefs || reviewArtifactRoot)
+      await assertSchema("csm-orchestrate-final-review/2", coordinated);
     if (coordinated.status === "REMEDIATION_REQUIRED") {
       const rawRemediation = coordinated.remediation;
       const insertAt = coordinated.graph.phases.findIndex(

@@ -770,8 +770,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/adversarial-final-review.mjs",
-        "sha256": "f3dfc2eb870171cd6c51a248fdd6596c181f9053fe5c800e9b080bf23cac7962",
-        "bytes": 36557,
+        "sha256": "a7f6617ef28eca97d4e7ac5e7d8f826756b0420e0e53cdec1e47686b79b7e23e",
+        "bytes": 36581,
         "mode": "0644"
       },
       {
@@ -842,8 +842,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "36259ca6e27472867ec2df30163096f087526b91426025c00a72720cce7a60f2",
-        "bytes": 72535,
+        "sha256": "148aea08e522e2e530ec94aaf9f849f2fe06e95f2b2180064b263541cdd4ceb3",
+        "bytes": 73027,
         "mode": "0644"
       },
       {

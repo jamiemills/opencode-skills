@@ -264,7 +264,7 @@ export function validateInjectedFinalReview({
     failures.push("final review requirement coverage is required");
   const evidenceById = new Map(evidence.map((item) => [item.evidenceId, item]));
   const criticalRequirementIds = new Set(
-    phaseResults.flatMap((item) => item.phase.requirementIds ?? []),
+    phaseResults.flatMap((item) => item.phase?.requirementIds ?? item.requirementIds ?? []),
   );
   const coverage = new Map(
     (review?.requirementCoverage ?? []).map((item) => [item.requirementId, item]),
