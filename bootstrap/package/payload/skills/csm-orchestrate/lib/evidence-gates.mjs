@@ -1,5 +1,7 @@
 "use strict";
 
+import { sharedRunId } from "../../csm-autoresearch/lib/artifacts/index.mjs";
+
 const FAILURE_CLASSES = new Set([
   "missing",
   "stale",
@@ -88,7 +90,7 @@ function bindingFailure(requirementId, ref, item) {
 }
 
 function artifactFailure(ref, code, message) {
-  return failure("policy", code, message, { evidenceId: ref.evidenceId, path: ref.path });
+  return failure("policy", code, message, { evidenceId: ref.evidenceId });
 }
 
 export async function reconcileChildArtifacts({
@@ -124,7 +126,7 @@ export async function reconcileChildArtifacts({
     });
     const blocked = classifyResolution(resolution);
     if (blocked) {
-      failures.push({ ...blocked, evidenceId: ref.evidenceId, path: ref.path });
+      failures.push({ ...blocked, evidenceId: ref.evidenceId });
       reconciled.push({
         ...ref,
         status: blocked.class === "policy" ? "unavailable" : blocked.class,
@@ -139,7 +141,8 @@ export async function reconcileChildArtifacts({
       reconciled.push({ ...ref, status: "unavailable", resolution });
       continue;
     }
-    const resolvedEvidenceId = record.evidenceId ?? record.artifact?.evidenceId;
+    const resolvedEvidenceId =
+      record.evidenceId ?? record.artifact?.evidenceId ?? record.artifact?.artifactId;
     const resolvedOwner = resolution.owner ?? record.owner ?? record.artifact?.owner;
     const resolvedRunId = record.runId ?? record.artifact?.runId;
     const resolvedSchema = record.schema ?? record.artifact?.schema;
@@ -155,7 +158,11 @@ export async function reconcileChildArtifacts({
       continue;
     }
     try {
-      schemaRegistry.resolve(ref.schema, Number(ref.schema.split("/").at(-1)));
+      const schemaMatch = ref.schema.match(/^(.*)\/(\d+)$/);
+      schemaRegistry.resolve(
+        schemaMatch?.[1] ?? ref.schema,
+        Number(schemaMatch?.[2] ?? ref.schemaRevision ?? 1),
+      );
       const schemaResult = schemaRegistry.validate(ref.schema, record);
       if (!schemaResult.valid) {
         const invalid = artifactFailure(
@@ -174,13 +181,17 @@ export async function reconcileChildArtifacts({
       continue;
     }
     const identityFailure =
-      resolvedEvidenceId !== ref.evidenceId
+      resolvedEvidenceId !== ref.evidenceId &&
+      resolvedEvidenceId !== ref.sourceArtifactId &&
+      resolvedEvidenceId !== ref.artifactId
         ? artifactFailure(
             ref,
             "source-identity-mismatch",
             "resolved evidence identity does not match",
           )
-        : resolvedOwner !== ref.owner || resolvedRunId !== ref.sourceRunId
+        : resolvedOwner !== ref.owner ||
+            (resolvedRunId !== ref.sourceRunId &&
+              (!ref.nativeRunId || resolvedRunId !== sharedRunId(ref.nativeRunId)))
           ? artifactFailure(
               ref,
               "ownership-mismatch",
@@ -198,7 +209,9 @@ export async function reconcileChildArtifacts({
     }
     if (
       (expectedOwner && resolvedOwner !== expectedOwner) ||
-      (expectedRunId && resolvedRunId !== expectedRunId)
+      (expectedRunId &&
+        resolvedRunId !== expectedRunId &&
+        (!ref.nativeRunId || resolvedRunId !== sharedRunId(ref.nativeRunId)))
     ) {
       const mismatch = failure(
         "policy",

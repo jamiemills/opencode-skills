@@ -8,8 +8,16 @@
     "schema": { "const": "csm-orchestrate-adversarial-review/2" },
     "reviewId": { "type": "string", "pattern": "^review-[a-z0-9][a-z0-9-]{1,127}$" },
     "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
     "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
     "inputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "sourceArtifactIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+      "uniqueItems": true
+    },
     "status": { "enum": ["ACCEPTED", "REJECTED"] },
     "independent": { "const": true },
     "provenance": {
@@ -24,30 +32,49 @@
         "reviewerChildRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
         "receipt": {
           "type": "object",
+          "additionalProperties": false,
           "required": ["artifactId", "runId", "digest"],
           "properties": {
             "artifactId": { "type": "string", "minLength": 1 },
             "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
-            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+            "schema": { "const": "csm-review-receipt/1" },
+            "path": { "type": "string", "minLength": 1 },
+            "resolution": { "type": "string", "minLength": 1 }
           }
         },
         "artifact": {
           "type": "object",
+          "additionalProperties": false,
           "required": ["artifactId", "runId", "digest"],
           "properties": {
             "artifactId": { "type": "string", "minLength": 1 },
             "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
-            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+            "schema": { "const": "csm-orchestrate-adversarial-review/2" },
+            "path": { "type": "string", "minLength": 1 },
+            "resolution": { "type": "string", "minLength": 1 }
           }
         },
         "approval": {
           "type": "object",
-          "required": ["approvalId", "edgeId", "parentRunId", "reviewerChildRunId"],
+          "required": [
+            "approvalId",
+            "edgeId",
+            "parentRunId",
+            "reviewerChildRunId",
+            "phaseId",
+            "approvedDigest"
+          ],
           "properties": {
             "approvalId": { "type": "string", "minLength": 1 },
             "edgeId": { "type": "string", "minLength": 1 },
             "parentRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
-            "reviewerChildRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" }
+            "reviewerChildRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+            "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+            "approvedDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
           }
         }
       }
@@ -68,12 +95,45 @@
   "allOf": [
     {
       "if": {
-        "properties": { "provenance": { "properties": { "mode": { "const": "host-backed" } } } }
+        "required": ["provenance"],
+        "properties": {
+          "provenance": {
+            "required": ["mode"],
+            "properties": { "mode": { "const": "host-backed" } }
+          }
+        }
       },
       "then": {
+        "required": [
+          "owner",
+          "phaseId",
+          "inputDigest",
+          "sourceDigest",
+          "sourceRunId",
+          "sourceArtifactIds"
+        ],
+        "properties": { "provenance": { "required": ["owner", "receipt", "artifact", "approval"] } }
+      }
+    },
+    {
+      "if": {
+        "required": ["provenance"],
         "properties": {
-          "provenance": { "required": ["owner", "receipt", "artifact", "approval"] }
+          "provenance": {
+            "required": ["mode"],
+            "properties": { "mode": { "enum": ["host-backed", "in-process-independent"] } }
+          }
         }
+      },
+      "then": {
+        "required": [
+          "owner",
+          "phaseId",
+          "inputDigest",
+          "sourceDigest",
+          "sourceRunId",
+          "sourceArtifactIds"
+        ]
       }
     }
   ]

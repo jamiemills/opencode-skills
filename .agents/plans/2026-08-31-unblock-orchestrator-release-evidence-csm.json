@@ -10,11 +10,11 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-08-31T11:00:00Z: plan created from the T008 release-evidence blocker analysis",
+    "lastCheckpoint": "2026-08-31T21:00:00Z: T001-T007 verified; T008 blocked because CI adapter integration was skipped",
     "lastModelRun": "gpt-5.6-luna / unblock-orchestrator-release-evidence-plan",
     "nextTransition": "none (terminal)",
-    "activeTasks": ["T002", "T003"],
-    "blockers": ["Required browser E2E failed 14 of 89 assertions", "Required generated-sandbox probe has no host provider or attestation"],
+    "activeTasks": ["T008"],
+    "blockers": ["CI run 33429777585 is green, but required adapter integration was skipped because CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED are unset"],
     "resume": {
       "read": ["last checkpoint", "latest journal", "recovery notes", "inputs", "working-tree diff", "current commit"],
       "firstAction": "Verify the committed release SHA, current build state, and availability of approved browser and sandbox capabilities before T001."

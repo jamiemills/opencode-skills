@@ -1,0 +1,10 @@
+{
+  "schema":"csm-build-state/1","schemaRevision":1,
+  "artifactId":"art-close-live-evidence-ci-build-20260901","runId":"run-20260901t040000z-close-live-evidence-ci-build","owner":"csm-build","status":"blocked",
+  "control":{"currentState":"BLOCKED","cycle":0,"nextTransition":"none (terminal)","activeTasks":["T001","T002"],"blockers":["Live browse proof still depends on migration-mode/test resolver for PNG evidence","Live Docker proof does not yet prove production-resolver-valid persisted review receipt/artifact records"],"lastCheckpoint":"2026-09-01T05:00:00Z: live proofs pass but production evidence boundary remains blocked","lastModelRun":"gpt-5.6-luna / close-live-evidence-ci-build"},
+  "inputs":[{"name":"plan","artifactId":"art-close-live-evidence-ci-20260901","schema":"csm-plan/1","runId":"run-20260901t030000z-close-live-evidence-ci","owner":"csm-plan","digest":"sha256:908a26064fd424538eccf6d15697f077cc82a70a90b598527d8379795a8061c7","path":".agents/plans/2026-09-01-close-live-evidence-ci-csm.json","status":"resolved"}],
+  "journal":[{"sequence":0,"timestamp":"2026-09-01T04:00:00Z","from":"NOT_STARTED","to":"RECOVER","evidence":"Explicit csm-build request selected the evidence-closure plan; current dirty implementation state and parent plan were validated before dispatch."},{"sequence":1,"timestamp":"2026-09-01T05:00:00Z","from":"RECOVER","to":"BLOCKED","evidence":"T001/T002 live acceptance tests pass, but independent review found production resolver compatibility and persisted review-record gaps. Resume through RECOVER after those boundaries are repaired."}],
+  "artifacts":[],"completion":null,
+  "provenance":{"sourcePlan":"art-close-live-evidence-ci-20260901","sourceDigests":["sha256:908a26064fd424538eccf6d15697f077cc82a70a90b598527d8379795a8061c7"]},
+  "projection":{"sourceOnly":true,"allowed":["markdown","html"]}
+}

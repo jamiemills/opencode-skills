@@ -17,6 +17,7 @@ import {
   reviewAcceptance,
   validateInjectedFinalReview,
 } from "./adversarial-final-review.mjs";
+import { HOST_REVIEW } from "./review-token.mjs";
 import {
   autonomyGate,
   classifyResume,
@@ -45,20 +46,22 @@ const slug = (value) =>
       : `${normalized.slice(0, 98)}-${digest(normalized).slice(7, 19)}`;
   })();
 
-function omitUndefined(value) {
-  if (Array.isArray(value)) return value.map(omitUndefined);
+function jsonProjection(value) {
+  if (value === undefined || typeof value === "function" || typeof value === "symbol")
+    return undefined;
+  if (Array.isArray(value)) return value.map(jsonProjection).filter((item) => item !== undefined);
   if (value && typeof value === "object")
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([, item]) => item !== undefined)
-        .map(([key, item]) => [key, omitUndefined(item)]),
+        .map(([key, item]) => [key, jsonProjection(item)])
+        .filter(([, item]) => item !== undefined),
     );
   return value;
 }
 
 const materialDigest = (value) =>
   digest(
-    omitUndefined(
+    jsonProjection(
       Object.fromEntries(
         Object.entries(value).filter(([key]) => key !== "status" && key !== "requestDigest"),
       ),
@@ -153,7 +156,7 @@ function terminalReceipt(
     },
     outcome: { status, accepted: status === "VERIFIED", acceptanceRefs: unique(acceptanceRefs) },
     idempotencyKey: digest({ runId, phaseId, status }),
-    ...extra,
+    ...jsonProjection(extra),
   });
 }
 
@@ -243,7 +246,7 @@ async function externalRefsFor(node, refs, artifactResolver, schemaRegistry) {
     const resolved = await artifactResolver.resolve(ref.path, {
       expectedOwner: ref.sourceOwner,
       expectedSourceRunId: ref.sourceRunId,
-      expectedArtifactId: ref.sourceArtifactId,
+      ...(ref.recordType === "receipt" ? {} : { expectedArtifactId: ref.sourceArtifactId }),
       expectedFileDigest: ref.digest,
     });
     if (
@@ -263,6 +266,8 @@ async function reconcileResult(result, node, childRunId, artifactResolver, schem
     ...ref,
     fileDigest: ref.fileDigest ?? ref.digest,
     sourceRunId: ref.sourceRunId ?? ref.runId,
+    requirementIds: [...node.requirementIds],
+    acceptanceSignalId: ref.acceptanceSignalId ?? node.acceptanceSignalIds[0],
   }));
   if (!refs.length)
     refs.push(
@@ -273,8 +278,8 @@ async function reconcileResult(result, node, childRunId, artifactResolver, schem
         owner: item.owner,
         sourceRunId: item.sourceRunId ?? item.runId,
         fileDigest: item.source?.digest ?? item.digest,
-        requirementIds: item.requirementIds,
-        ...(item.acceptanceSignalId ? { acceptanceSignalId: item.acceptanceSignalId } : {}),
+        requirementIds: item.requirementIds ?? [...node.requirementIds],
+        acceptanceSignalId: item.acceptanceSignalId ?? node.acceptanceSignalIds[0],
       })),
     );
   const resolver = artifactResolver;
@@ -316,7 +321,10 @@ async function reconcileResult(result, node, childRunId, artifactResolver, schem
           { class: "policy", code: "schema-invalid", message: "artifact schema is not declared" },
         ],
       };
-    if (declared && schemaRegistry?.resolve) schemaRegistry.resolve(declared);
+    if (declared && schemaRegistry?.resolve) {
+      const match = declared.match(/^(.*)\/(\d+)$/);
+      schemaRegistry.resolve(match?.[1] ?? declared, Number(match?.[2] ?? 1));
+    }
   }
   return reconcileChildArtifacts({
     artifactRefs: refs,
@@ -326,6 +334,101 @@ async function reconcileResult(result, node, childRunId, artifactResolver, schem
     consumerRevision: 1,
     schemaRegistry,
   });
+}
+
+async function validateReviewArtifacts(reviewResult, artifactResolver, schemaRegistry) {
+  const refs = reviewResult?.reviewArtifactRefs;
+  if (!Array.isArray(refs) || refs.length !== 3)
+    throw new TypeError("independent review persisted record references are required");
+  const recordTypes = new Set(refs.map((ref) => ref?.recordType));
+  if (
+    recordTypes.size !== 3 ||
+    !["review", "artifact", "receipt"].every((type) => recordTypes.has(type))
+  )
+    throw new TypeError("independent review persisted record references are incomplete");
+  const expectedSchemas = {
+    review: "csm-orchestrate-adversarial-review/2",
+    artifact: "csm-artifact/1",
+    receipt: "csm-review-receipt/1",
+  };
+  const resolvedRecords = new Map();
+  for (const ref of refs) {
+    if (
+      !ref?.recordType ||
+      !ref.recordId ||
+      !ref.schema ||
+      !ref.path ||
+      !ref.digest ||
+      !ref.sourceDigest ||
+      !ref.sourceArtifactId ||
+      !ref.sourceRunId ||
+      !ref.sourceOwner
+    )
+      throw new TypeError("independent review artifact reference is incomplete");
+    if (ref.schema !== expectedSchemas[ref.recordType])
+      throw new TypeError(`independent review reference schema mismatch: ${ref.recordId}`);
+    const schemaMatch = ref.schema.match(/^(.*)\/(\d+)$/);
+    schemaRegistry.resolve(schemaMatch?.[1] ?? ref.schema, Number(schemaMatch?.[2] ?? 1));
+    const resolved = await artifactResolver.resolve(ref.path, {
+      expectedOwner: ref.sourceOwner,
+      expectedSourceRunId: ref.sourceRunId,
+      expectedSourceDigest: ref.sourceDigest,
+      ...(ref.recordType === "artifact" ? { expectedArtifactId: ref.sourceArtifactId } : {}),
+      expectedFileDigest: ref.digest,
+    });
+    const value = resolved?.value;
+    const identity =
+      ref.recordType === "review"
+        ? value?.reviewId
+        : ref.recordType === "artifact"
+          ? value?.artifact?.artifactId
+          : value?.receiptId;
+    if (
+      resolved?.status !== "resolved" ||
+      resolved.owner !== ref.sourceOwner ||
+      resolved.fileDigest !== ref.digest ||
+      value?.schema !== ref.schema ||
+      identity !== ref.recordId ||
+      (value?.sourceRunId ?? value?.artifact?.runId) !== ref.sourceRunId ||
+      (value?.sourceArtifactIds ?? []).includes(ref.sourceArtifactId) !== true ||
+      (value?.sourceDigest ?? value?.artifact?.sourceDigest) !== ref.sourceDigest
+    )
+      throw new TypeError(`independent review resolver identity mismatch: ${ref.recordId}`);
+    resolvedRecords.set(ref.recordType, value);
+  }
+  const review = resolvedRecords.get("review");
+  const artifact = resolvedRecords.get("artifact");
+  const receipt = resolvedRecords.get("receipt");
+  const artifactId = artifact?.artifact?.artifactId;
+  const sourceArtifactIds = new Set(refs.map((ref) => ref.sourceArtifactId));
+  const childRunId = review?.provenance?.reviewerChildRunId;
+  if (
+    sourceArtifactIds.size !== 1 ||
+    !sourceArtifactIds.has(artifactId) ||
+    review?.runId !== reviewResult?.review?.runId ||
+    review?.owner !== refs.find((ref) => ref.recordType === "review")?.sourceOwner ||
+    review?.provenance?.owner !== review?.owner ||
+    review?.provenance?.reviewerChildRunId !==
+      refs.find((ref) => ref.recordType === "review")?.sourceRunId ||
+    review?.sourceDigest !== refs.find((ref) => ref.recordType === "review")?.sourceDigest ||
+    review?.provenance?.artifact?.artifactId !== artifactId ||
+    review?.provenance?.artifact?.digest !== artifact?.artifact?.digest ||
+    review?.provenance?.artifact?.runId !== childRunId ||
+    review?.provenance?.artifact?.owner !== review?.owner ||
+    review?.provenance?.receipt?.artifactId !== receipt?.receiptId ||
+    review?.provenance?.receipt?.digest !==
+      refs.find((ref) => ref.recordType === "receipt")?.digest ||
+    review?.provenance?.receipt?.owner !== review?.owner ||
+    artifact?.artifact?.owner !== review?.owner ||
+    receipt?.owner !== review?.owner ||
+    receipt?.reviewId !== review?.reviewId ||
+    receipt?.reviewArtifactId !== artifactId ||
+    receipt?.reviewDigest !== artifact?.artifact?.digest ||
+    receipt?.inputDigest !== review?.inputDigest ||
+    receipt?.sourceRunId !== childRunId ||
+    receipt?.sourceDigest !== review?.sourceDigest
+  )
+    throw new TypeError("independent review persisted provenance is not bound to final review");
 }
 
 async function saveCursor({
@@ -406,12 +509,14 @@ async function runOrchestrationInternal({
   effectiveConfigDigest = null,
   inputArtifactRefs = [],
   artifactResolver,
+  childArtifactResolver = artifactResolver,
   schemaRegistry,
   executorRegistry,
   executorBindings = {},
   executorAdapter = null,
   finalReviewExecutor = null,
   producerExecutorId = null,
+  reviewArtifactRoot = null,
   executorInput,
   parentPhaseId = null,
   phaseIdOverride = null,
@@ -531,7 +636,7 @@ async function runOrchestrationInternal({
     createHostInvocationAdapter({
       host,
       capabilities,
-      artifactResolver,
+      childArtifactResolver,
       schemaRegistry,
       cursorStore,
       now,
@@ -688,7 +793,7 @@ async function runOrchestrationInternal({
           nodeInputArtifactRefs = await externalRefsFor(
             node,
             inputArtifactRefs,
-            artifactResolver,
+            childArtifactResolver,
             schemaRegistry,
           );
         } catch (error) {
@@ -742,7 +847,7 @@ async function runOrchestrationInternal({
           status: "ready",
           ...(executorInput
             ? {
-                input:
+                input: jsonProjection(
                   typeof executorInput === "function"
                     ? await executorInput({
                         phase,
@@ -751,6 +856,7 @@ async function runOrchestrationInternal({
                         attempt: savedCursor?.attempt || 1,
                       })
                     : (executorInput[node.skill] ?? executorInput),
+                ),
               }
             : {}),
         };
@@ -883,7 +989,11 @@ async function runOrchestrationInternal({
           } catch (error) {
             return { node, approval, failure: dispatchIntentFailure(error) };
           }
-          result = capOutputSize(await invokeAdapter(request, cursorId, dispatchIntent?.intentId));
+          result = jsonProjection(
+            capOutputSize(
+              await invokeAdapter(jsonProjection(request), cursorId, dispatchIntent?.intentId),
+            ),
+          );
           await resolveDispatchIntent(dispatchIntent, result.status);
         }
         let attempt = savedCursor?.attempt || 1;
@@ -961,24 +1071,26 @@ async function runOrchestrationInternal({
           } catch (error) {
             return { node, approval, failure: dispatchIntentFailure(error) };
           }
-          result = capOutputSize(
-            await invokeAdapter(
-              (() => {
-                const retryRequest = {
-                  ...request,
-                  childRunId: retryChild,
-                  invocationId: `invocation-${slug(retryChild)}`,
-                  approval: invocationApproval(retryApproval),
-                  retry: {
-                    attempt,
-                    idempotencyKey: retryIdempotencyKey,
-                  },
-                };
-                retryRequest.requestDigest = materialDigest(retryRequest);
-                return retryRequest;
-              })(),
-              cursorId,
-              retryIntent?.intentId,
+          result = jsonProjection(
+            capOutputSize(
+              await invokeAdapter(
+                (() => {
+                  const retryRequest = {
+                    ...request,
+                    childRunId: retryChild,
+                    invocationId: `invocation-${slug(retryChild)}`,
+                    approval: invocationApproval(retryApproval),
+                    retry: {
+                      attempt,
+                      idempotencyKey: retryIdempotencyKey,
+                    },
+                  };
+                  retryRequest.requestDigest = materialDigest(retryRequest);
+                  return retryRequest;
+                })(),
+                cursorId,
+                retryIntent?.intentId,
+              ),
             ),
           );
           await resolveDispatchIntent(retryIntent, result.status);
@@ -1009,7 +1121,11 @@ async function runOrchestrationInternal({
                 schemaRevision: declared.schemaRevision,
               });
               if (error) throw new TypeError(error);
-              return { ...ref, outputName: ref.outputName ?? ref.name };
+              return {
+                ...ref,
+                outputName: ref.outputName ?? ref.name,
+                requirementIds: [...node.requirementIds],
+              };
             });
           } catch (error) {
             failure = {
@@ -1024,7 +1140,7 @@ async function runOrchestrationInternal({
                 result,
                 node,
                 invocationChildRunId,
-                artifactResolver,
+                childArtifactResolver,
                 schemaRegistry,
               )
             : { evidence: [], failures: [] };
@@ -1346,19 +1462,66 @@ async function runOrchestrationInternal({
           extensions: receiptExtensions(),
         },
       );
-    const reviewInvocation = {
-      parentRunId: runId,
-      producerExecutorId,
-      phase: phaseResults.at(-1)?.phase,
-      phaseId: phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
-      edgeId: "edge-final-review",
-      graphRevision: activeGraph.graphRevision,
-      phaseResults,
-      evidence: allEvidence,
-      childReceipts,
-      requirements: phaseResults.flatMap((item) => item.requirements ?? []),
-      timeoutMs: reviewTimeoutMs,
-    };
+    const reviewInvocation = JSON.parse(
+      JSON.stringify(
+        jsonProjection({
+          parentRunId: runId,
+          producerExecutorId,
+          phaseId: phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+          edgeId: "edge-final-review",
+          phaseResults: phaseResults.map(({ gate }) => ({
+            gate: {
+              schema: gate.schema,
+              gateId: gate.gateId,
+              runId: gate.runId,
+              phaseId: gate.phaseId,
+              technical: gate.technical,
+              functional: gate.functional,
+              status: gate.status,
+            },
+          })),
+          evidence: allEvidence.map((item) => ({
+            evidenceId: item.evidenceId,
+            kind: item.kind,
+            status: item.status,
+            owner: item.owner,
+            runId: item.runId,
+            digest: item.digest,
+            requirementIds: item.requirementIds,
+            acceptanceSignalId: item.acceptanceSignalId,
+            source: item.source
+              ? {
+                  path: item.source.path,
+                  artifactId: item.source.artifactId,
+                  digest: item.source.digest,
+                  schema: item.source.schema,
+                  sourceRunId: item.source.sourceRunId,
+                }
+              : undefined,
+          })),
+          childReceipts: childReceipts.map(
+            ({ receiptId, schema, runId: childRunId, digest: childDigest, owner, status }) => ({
+              receiptId,
+              schema,
+              runId: childRunId,
+              digest: childDigest,
+              owner,
+              status,
+            }),
+          ),
+          requirements: phaseResults.flatMap((item) =>
+            (item.requirements ?? []).map((requirement) => ({
+              requirementId: requirement.requirementId,
+              criticality: requirement.criticality,
+              acceptanceSignalIds: requirement.acceptanceSignalIds,
+              waiver: requirement.waiver,
+            })),
+          ),
+          timeoutMs: reviewTimeoutMs,
+          ...(reviewArtifactRoot ? { artifactRoot: reviewArtifactRoot } : {}),
+        }),
+      ),
+    );
     const hostReview = finalReviewExecutor
       ? await finalReviewExecutor.invokeReview(reviewInvocation, { signal })
       : typeof adapter.invokeReview === "function"
@@ -1401,6 +1564,32 @@ async function runOrchestrationInternal({
       );
     if (hostReview?.status === "completed" && hostReview.review) {
       const final = hostReview.review;
+      if (!artifactResolver?.resolve || !schemaRegistry?.resolve)
+        return emitTerminalReceipt(
+          runId,
+          phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+          terminalApproval,
+          "REQUIRES_REVIEW",
+          childReceipts,
+          allEvidence.map((item) => item.evidenceId),
+          { reason: "review-artifact-resolver-required", reviewState: "UNKNOWN" },
+        );
+      try {
+        await validateReviewArtifacts(hostReview, artifactResolver, schemaRegistry);
+      } catch (error) {
+        return emitTerminalReceipt(
+          runId,
+          phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+          terminalApproval,
+          "BLOCKED",
+          childReceipts,
+          allEvidence.map((item) => item.evidenceId),
+          {
+            reason: "invalid-review-artifact",
+            failure: { class: "policy", code: "invalid-review-artifact", message: error.message },
+          },
+        );
+      }
       await assertSchema("csm-orchestrate-adversarial-review/2", final);
       if (final?.reviewId) reviewIds.push(final.reviewId);
       let hostRemediation = null;
@@ -1510,6 +1699,7 @@ async function runOrchestrationInternal({
         allEvidence.map((item) => item.evidenceId),
         {
           finalReview: coordinated.finalReview,
+          reviewArtifactRefs: hostReview.reviewArtifactRefs,
           ...(coordinated.status === "BLOCKED"
             ? { reason: coordinated.routing?.reason ?? "final-review-blocked" }
             : {}),
@@ -1523,13 +1713,16 @@ async function runOrchestrationInternal({
     if (finalReview) {
       try {
         final = await raceDeadline(
-          finalReview({
-            phase: phaseResults.at(-1)?.phase,
-            graph: activeGraph,
-            phaseResults,
-            evidence: allEvidence,
-            childReceipts,
-          }),
+          finalReview(
+            jsonProjection({
+              phase: phaseResults.at(-1)?.phase,
+              graph: activeGraph,
+              phaseResults,
+              evidence: allEvidence,
+              childReceipts,
+              ...(reviewArtifactRoot ? { artifactRoot: reviewArtifactRoot } : {}),
+            }),
+          ),
           reviewTimeoutMs,
           "review-timeout",
         );
@@ -1549,9 +1742,42 @@ async function runOrchestrationInternal({
         allEvidence.map((item) => item.evidenceId),
         { reason: finalTimedOut ? "review-timeout" : "invalid-final-review" },
       );
+    const injectedReviewRefs = final.reviewArtifactRefs;
+    final = final.review ?? final;
     await assertSchema("csm-orchestrate-adversarial-review/2", final);
     if (final?.reviewId) reviewIds.push(final.reviewId);
     if (finalReview && final.status === "ACCEPTED") {
+      if (!artifactResolver?.resolve || !schemaRegistry?.resolve)
+        return emitTerminalReceipt(
+          runId,
+          phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+          terminalApproval,
+          "REQUIRES_REVIEW",
+          childReceipts,
+          allEvidence.map((item) => item.evidenceId),
+          { reason: "review-artifact-resolver-required", reviewState: "UNKNOWN" },
+        );
+      try {
+        await validateReviewArtifacts(
+          { review: final, reviewArtifactRefs: injectedReviewRefs },
+          artifactResolver,
+          schemaRegistry,
+        );
+        final = Object.defineProperty({ ...final }, HOST_REVIEW, { value: true });
+      } catch (error) {
+        return emitTerminalReceipt(
+          runId,
+          phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
+          terminalApproval,
+          "BLOCKED",
+          childReceipts,
+          allEvidence.map((item) => item.evidenceId),
+          {
+            reason: "invalid-review-artifact",
+            failure: { class: "policy", code: "invalid-review-artifact", message: error.message },
+          },
+        );
+      }
       const contextual = validateInjectedFinalReview({
         review: final,
         runId,
@@ -1680,6 +1906,8 @@ async function runOrchestrationInternal({
       allEvidence.map((item) => item.evidenceId),
       {
         finalReview: coordinated.finalReview,
+        ...(injectedReviewRefs ? { reviewArtifactRefs: injectedReviewRefs } : {}),
+        ...(coordinated.status === "VERIFIED" ? { reason: "accepted" } : {}),
         ...(coordinated.status === "BLOCKED"
           ? { reason: coordinated.routing?.reason ?? "final-review-blocked" }
           : {}),
@@ -1718,7 +1946,14 @@ export async function orchestrate(options) {
   await assertSchema("csm-orchestrate-receipt/2", durable);
   if (options?.cursorStore?.saveTerminalReceipt)
     await persistTerminalReceipt(durable, options.cursorStore);
-  return { ...result, progress };
+  return {
+    ...result,
+    progress,
+    receipt: durable,
+    ...(durable.extensions?.reviewArtifactRefs
+      ? { reviewArtifactRefs: durable.extensions.reviewArtifactRefs }
+      : {}),
+  };
 }
 
 export const runOrchestration = orchestrate;

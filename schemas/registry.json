@@ -182,7 +182,16 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:28f487cee17e94c858dc56745dfaa1be34e29847683293b0491a2c4482c39981"
+      "schemaContentDigest": "sha256:894d18249a16c888a5dbfb428657c098240e39fe63b3249bd9b63965044f75dd"
+    },
+    {
+      "id": "csm-review-receipt/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/review-receipt.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:6d19dff6cf63a493e4c6b2d250f5c0b56f2399621315a457714050d52409f95a"
     },
     {
       "id": "csm-orchestrate-final-review/1",
@@ -463,7 +472,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:2d544dcf760fa11925c52a3f2baa66c40025b0436e559aa726a6a9967f638d73"
+      "schemaContentDigest": "sha256:6c5572453263dd1d306520f26ef8c1fac72ec1abfb54e9016952434aaa027985"
     },
     {
       "id": "csm-autoresearch-policy/1",

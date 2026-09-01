@@ -210,11 +210,14 @@ async function validateChildArtifacts(result, request, artifactResolver, schemaR
     if (ref.sourceOwner && ref.sourceOwner !== request.skill)
       return "child artifact source owner does not match invocation";
     if (ref.nativeArtifactId && !ref.nativeRunId) return "native artifact identity is incomplete";
+    if (ref.fileDigest !== undefined && !DIGEST.test(ref.fileDigest))
+      return "invalid child artifact file digest";
     if (ref.schema && schemaRegistry?.resolve) {
       try {
+        const match = ref.schema.match(/^(.*)\/([0-9]+)$/);
         schemaRegistry.resolve(
-          ref.schema,
-          ref.schemaRevision ?? Number(ref.schema.split("/").at(-1)),
+          match ? match[1] : ref.schema,
+          ref.schemaRevision ?? (match ? Number(match[2]) : undefined),
         );
       } catch {
         return "child artifact schema is not registered";
@@ -223,12 +226,12 @@ async function validateChildArtifacts(result, request, artifactResolver, schemaR
     if (ref.path) {
       if (!artifactResolver?.resolve) return "child artifact resolver is required";
       const resolved = await artifactResolver.resolve(ref.path, {
-        expectedFileDigest: ref.digest,
+        expectedFileDigest: ref.fileDigest ?? ref.digest,
         expectedArtifactId: ref.sourceArtifactId ?? ref.artifactId,
         expectedOwner: ref.sourceOwner ?? request.skill,
         expectedSourceRunId: ref.sourceRunId ?? request.childRunId,
       });
-      if (resolved?.status !== "resolved" || resolved.fileDigest !== ref.digest)
+      if (resolved?.status !== "resolved" || resolved.fileDigest !== (ref.fileDigest ?? ref.digest))
         return "child artifact could not be resolver-validated";
     }
   }

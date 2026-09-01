@@ -260,8 +260,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/schemas/run-contract.schema.json",
-        "sha256": "3481a46614584d9b5a72623584a341a199d7b82580a3e725fb6541aa1068f69f",
-        "bytes": 2862,
+        "sha256": "497cf5b14403ee57002d478085f135463c25a29793300281c386452969844d09",
+        "bytes": 2948,
         "mode": "0644"
       },
       {
@@ -758,8 +758,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "2fe08facaee194d850fe9f3c34f07e898be02a186b075f3b36b40e166b3c3f81",
-        "bytes": 15091,
+        "sha256": "c71aa15e4ba11298036f3c3f622c7d303c9489b718bf0909e09a6f6d3df2dd03",
+        "bytes": 15372,
         "mode": "0644"
       },
       {
@@ -770,8 +770,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/adversarial-final-review.mjs",
-        "sha256": "7bfe87ac6827d1e69dcd0577afc8aff152a4df46d0f68f0a0d52be7e09f6c810",
-        "bytes": 30835,
+        "sha256": "f3dfc2eb870171cd6c51a248fdd6596c181f9053fe5c800e9b080bf23cac7962",
+        "bytes": 36557,
         "mode": "0644"
       },
       {
@@ -818,14 +818,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/csm-autoresearch-adapter.mjs",
-        "sha256": "325ff7f5ef14b8e5617539a42e771552c55f670187821a999fc2895b974f3851",
-        "bytes": 9837,
+        "sha256": "ef742607ef768a80a528ef4e9632e2e5028e63968f8f6cdf3ce26f9b003a56a3",
+        "bytes": 10755,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/csm-browse-adapter.mjs",
-        "sha256": "02482d130faacc58d0bfa0674cac0fd7444bf40e224ffcdb6888be851f91e050",
-        "bytes": 13310,
+        "sha256": "26c024711f5898673adf5692685a765ee6574c455e6384ec422910911c93b5db",
+        "bytes": 13764,
         "mode": "0644"
       },
       {
@@ -836,20 +836,20 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/evidence-gates.mjs",
-        "sha256": "1bc82815e9a88cb9e53ce87d206332af016132118349eb79d7f61b2c95d6d2ac",
-        "bytes": 15441,
+        "sha256": "afd869fa08b21cae536000263269d0330a6355b506c78131060e1edb9ff8d227",
+        "bytes": 15934,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "14e1154da9f1a56881a6b5923f60d22b003225d19a9a41470f2fc1384fed412a",
-        "bytes": 62839,
+        "sha256": "36259ca6e27472867ec2df30163096f087526b91426025c00a72720cce7a60f2",
+        "bytes": 72535,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/invocation.mjs",
-        "sha256": "e638ed5fcd25dbec07ea33bb44762fe6234a666acc10e69b79b22d792be44aa8",
-        "bytes": 29359,
+        "sha256": "fcf0a488222f88cb546b1424510c8f5e1a1897b4d54368389f0bc3859d347c11",
+        "bytes": 29599,
         "mode": "0644"
       },
       {
@@ -884,8 +884,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-handlers.mjs",
-        "sha256": "ac8bbbec5fbbfa0f83f5d27487e6873e586b0027534986023d70d43a9af1c493",
-        "bytes": 16967,
+        "sha256": "a7d31a6e6c95f0e4701fe0fbbe528d611fa0935fa5d0e3d516e3c3b3f912ad8a",
+        "bytes": 17041,
         "mode": "0644"
       },
       {
@@ -926,8 +926,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/schemas/adversarial-review.v2.schema.json",
-        "sha256": "40f7b5eca14a82c5c252052babbd2fd0c3a5779afa6a0caf4a681d8c2598203d",
-        "bytes": 3439,
+        "sha256": "2080dbef1ec30dd6537296cf30f1ba1fe44cdcc4b5f0083d9981a2aa2d2373e7",
+        "bytes": 5517,
         "mode": "0644"
       },
       {
@@ -1060,6 +1060,12 @@
         "path": "payload/skills/csm-orchestrate/schemas/requirement.v2.schema.json",
         "sha256": "5a45011a4c42b7cde99de431a7df53e6fe29372405acb29d60f389bddab896ac",
         "bytes": 2607,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/review-receipt.schema.json",
+        "sha256": "15895902fc53cc0a8ce2175e780fa3e1ebbdfa1aa43c7518496d85839f0d4acf",
+        "bytes": 1505,
         "mode": "0644"
       },
       {
@@ -1925,8 +1931,8 @@
       },
       {
         "path": "payload/lib/artifact-resolver/index.mjs",
-        "sha256": "40f807366b64debe2e1619f54a52c965bd76b2c6e9dd71f412008ed46f5e0303",
-        "bytes": 25883,
+        "sha256": "e6f15e05eacfa0a88d7520951750619172d6b76940ff03f42bfddcdb703cfb97",
+        "bytes": 26180,
         "mode": "0644"
       },
       {
@@ -2081,8 +2087,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "f77b8d6a42220d5f8858c609c9bf3f800bb545c61871b01606928d90ea157c05",
-        "bytes": 25433,
+        "sha256": "c2a418337a5b419ee098dc76c0a0a6df926fe5c03324c30fb1aec3a375ca5a82",
+        "bytes": 25764,
         "mode": "0644"
       },
       {

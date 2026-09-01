@@ -1,0 +1,12 @@
+{
+  "schema":"csm-build-state/1","schemaRevision":1,
+  "artifactId":"art-lean-mvp-orchestrator-release-build-state-20260831",
+  "runId":"run-20260901t000000z-lean-mvp-orchestrator-release-build",
+  "owner":"csm-build","status":"blocked",
+  "control":{"currentState":"BLOCKED","cycle":0,"nextTransition":"none (terminal)","activeTasks":["T002","T003"],"blockers":["Browse live proof uses a test resolver for PNG artifact materialization rather than the production resolver","Docker live proof does not yet persist and independently resolve final review receipt/artifact records"],"lastCheckpoint":"2026-09-01T02:00:00Z: live proofs pass but release evidence boundary remains blocked","lastModelRun":"gpt-5.6-luna / lean-mvp-orchestrator-release-build"},
+  "inputs":[{"name":"plan","artifactId":"art-lean-mvp-orchestrator-release-build-20260831","schema":"csm-plan/1","runId":"run-20260831t234000z-lean-mvp-orchestrator-release-build","owner":"csm-plan","digest":"sha256:91a4ac3cffdbddca946b709287decbea170781a562e5ff2048ec0c3cc23bf44d","path":".agents/plans/2026-08-31-lean-mvp-orchestrator-release-build-csm.json","status":"resolved"}],
+  "journal":[{"sequence":0,"timestamp":"2026-09-01T00:00:00Z","from":"NOT_STARTED","to":"RECOVER","evidence":"Explicit csm-build request selected the lean MVP plan; current committed baseline and parent blocked records will be validated before dispatch."},{"sequence":1,"timestamp":"2026-09-01T02:00:00Z","from":"RECOVER","to":"BLOCKED","evidence":"Live browse and Docker proof suites pass, but independent review found production evidence gaps: PNG capture relies on a test resolver and final review receipt/artifact records are not independently persisted/resolved. Resume through RECOVER after those boundaries are repaired."}],
+  "artifacts":[],"completion":null,
+  "provenance":{"sourcePlan":"art-lean-mvp-orchestrator-release-build-20260831","sourceDigests":["sha256:91a4ac3cffdbddca946b709287decbea170781a562e5ff2048ec0c3cc23bf44d"]},
+  "projection":{"sourceOnly":true,"allowed":["markdown","html"]}
+}

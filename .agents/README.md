@@ -73,6 +73,10 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-31-remediate-browser-sandbox-release-blockers-csm.json` — 2026-08-31 — remediate browser and sandbox release blockers — status: blocked at unavailable host provider
 - `2026-08-31-unblock-orchestrator-release-evidence-csm.json` — 2026-08-31 — unblock orchestrator release evidence — status: blocked at browser and sandbox gates
 - `2026-08-31-docker-host-attested-sandbox-csm.json` — 2026-08-31 — implement Docker host-attested generated sandbox — status: in progress
+- `2026-08-31-lean-mvp-orchestrator-release-build-csm.json` — 2026-08-31 — execute lean orchestrator release build — status: in progress
+- `2026-09-01-close-live-evidence-ci-csm.json` — 2026-09-01 — close live evidence and CI gates — status: blocked
+- `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: in progress
+- `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked
 
 ## docs/
 
@@ -106,6 +110,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-30-orchestrate-without-opencode-20260830t120000z-research.json` — 2026-08-30 — no-OpenCode executor architecture research — status: reference
 - `2026-08-30-remove-opencode-plan-assurance-20260830t140000z-research.json` — 2026-08-30 — assurance review of the no-OpenCode implementation plan — status: reference
 - `2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json` — 2026-08-31 — deep research for all remaining orchestrator adapters and proof gates — status: reference
+- `2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json` — 2026-08-31 — lean orchestrator release research finding — status: reference
 - `2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json` — 2026-08-29 — JSON renderer and human-findings integration research — status: retained terminal research
 - `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
 - `2026-08-25-typed-json-interstage-payloads-research.md` — 2026-08-25 — authoritative standards and implementation guidance for typed JSON inter-stage payloads — status: reference
@@ -183,6 +188,8 @@ the source file. Deletion remains awaiting explicit authorization.
 - `unblock-orchestrator-release-evidence-20260831.json` — 2026-08-31 — csm-build checkpoint for release evidence — status: blocked at browser and sandbox gates
 - `docker-host-attested-sandbox-20260831.json` — 2026-08-31 — csm-build checkpoint for Docker sandbox implementation — status: in progress
 - `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
+- `lean-mvp-orchestrator-release-build-20260831.json` — 2026-08-31 — csm-build checkpoint for lean orchestrator release — status: in progress
+- `close-live-evidence-ci-20260901.json` — 2026-09-01 — csm-build checkpoint for live evidence and CI closure — status: blocked
 
 ## ddd/
 

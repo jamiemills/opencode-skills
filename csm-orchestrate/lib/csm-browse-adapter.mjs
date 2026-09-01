@@ -130,30 +130,20 @@ function translateEvidence(native, context, validateEvidenceDescriptor) {
     runId: context.runId,
     source: {
       path: native.path,
-      artifactId: native.evidenceId,
-      digest: native.descriptorDigest,
-      schema: native.schema,
+      artifactId: `art-${native.runId.slice(4)}-${native.evidenceId.slice(9)}`.slice(0, 140),
+      digest: native.digest,
+      schema: "csm-artifact/1",
       sourceRunId: native.runId,
       nativeRunId: native.runId,
       nativeArtifactId: native.evidenceId,
     },
   };
-  return { ...body, digest: digest(body) };
-}
-
-function translateArtifact(native, context) {
-  const body = {
-    artifactId: `artifact-${context.runId.slice(4)}-${native.evidenceId.slice(9)}`.slice(0, 140),
-    schema: native.schema,
-    runId: context.runId,
-    owner: context.owner,
-    path: native.path,
-    nativeArtifactId: native.evidenceId,
-    nativeRunId: native.runId,
-    bytes: native.bytes,
-    value: native,
-  };
-  return { ...body, digest: digest(body) };
+  try {
+    return { ...body, digest: digest(body) };
+  } catch (error) {
+    error.message = `browse evidence digest failed: ${error.message}`;
+    throw error;
+  }
 }
 
 async function abortable(promise, signal) {
@@ -303,12 +293,23 @@ export function createCsmBrowseAdapter({
             throw policyError("invalid-artifact", "browser artifact resolver is required");
           const resolved = await artifactResolver.resolve(native.path, {
             expectedFileDigest: native.digest,
-            expectedArtifactId: native.evidenceId,
+            expectedArtifactId: `art-${native.runId.slice(4)}-${native.evidenceId.slice(9)}`.slice(
+              0,
+              140,
+            ),
             expectedOwner: "csm-browse",
             expectedSourceRunId: native.runId,
           });
           if (resolved?.status !== "resolved" || resolved.fileDigest !== native.digest)
-            throw policyError("invalid-artifact", "browser evidence was not resolver-validated");
+            throw policyError(
+              "invalid-artifact",
+              `browser evidence was not resolver-validated: ${resolved?.code ?? "digest-mismatch"}${resolved?.errors ? ` ${JSON.stringify(resolved.errors)}` : ""}`,
+            );
+          const translatedEvidence = translateEvidence(
+            native,
+            context,
+            browse.validateEvidenceDescriptor,
+          );
           result = {
             status: "completed",
             effects:
@@ -316,8 +317,22 @@ export function createCsmBrowseAdapter({
                 ? ["browser-session", "workspace-write"]
                 : ["browser-session"],
             output: { sessionId: sid },
-            artifacts: input.operation === "capture" ? [translateArtifact(native, context)] : [],
-            evidence: [translateEvidence(native, context, browse.validateEvidenceDescriptor)],
+            artifacts: [],
+            evidence: [translatedEvidence],
+            technical: [
+              {
+                status: "pass",
+                scenarioId: "browser-capture",
+                evidenceRefs: [translatedEvidence.evidenceId],
+              },
+            ],
+            functional: [
+              {
+                status: "pass",
+                scenarioId: "browser-capture",
+                evidenceRefs: [translatedEvidence.evidenceId],
+              },
+            ],
           };
         }
         if (!result) {

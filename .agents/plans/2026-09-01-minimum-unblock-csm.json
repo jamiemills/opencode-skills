@@ -1,0 +1,481 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-minimum-unblock-20260901",
+  "runId": "run-20260901t073000z-minimum-unblock",
+  "planId": "minimum-unblock",
+  "status": "in_progress",
+  "control": {
+    "status": "in_progress",
+    "currentState": "VALIDATE",
+    "cycle": 2,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-01T09:00:00Z: recovery prerequisites supplied; T001 verified and T002 validation resumed",
+    "lastModelRun": "gpt-5.6-luna / minimum-unblock-build",
+    "nextTransition": "VALIDATE -> SELECT",
+    "activeTasks": ["T002"],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal",
+        "T002 recovery note",
+        "working-tree diff",
+        "current commit",
+        "repository variables"
+      ],
+    "firstAction": "Commit the validated intended corpus, push main, configure both approved CI variables, and run the exact-SHA workflow."
+    }
+  },
+  "goal": {
+    "summary": "Apply only the changes required to make persisted independent review evidence authoritative and unblock final release verification.",
+    "deliverables": [
+      "default-resolver-valid persisted review records and typed refs",
+      "orchestration fail-closed enforcement of persisted review validation",
+      "tracked baseline and exact-SHA local evidence",
+      "non-skipping approved adapter CI evidence"
+    ],
+    "constraints": [
+      "Planning only in this invocation",
+      "No fabricated descriptors or test-only resolver",
+      "No compatibility-mode acceptance for required review records",
+      "Preserve independent reviewer and native/shared lineage",
+      "No unrelated refactor or schema redesign",
+      "No commit/push/deployment unless separately authorized",
+      "No real credentials or production data"
+    ],
+    "exclusions": [
+      "browser changes already supported by prior evidence",
+      "new sandbox runtime",
+      "broad artifact-resolver redesign",
+      "terminal-history edits",
+      "automatic CI approval defaults"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "outcome": "Persisted review, review-artifact, and receipt records are accepted by the default production resolver with source-digest enforcement and exact owner/run/identity bindings.",
+      "evidence": "Disposable Docker integration output, default resolver results, schema validation, recomputed file/payload/descriptor digests."
+    },
+    {
+      "id": "AC2",
+      "outcome": "The orchestrator cannot return VERIFIED unless typed persisted review refs exist and all required records have been resolver-validated.",
+      "evidence": "Orchestration code path, positive live proof, and missing/forged/persistence-failure negatives."
+    },
+    {
+      "id": "AC3",
+      "outcome": "The complete tracked corpus passes the repository test baseline and payload/index parity for one exact SHA.",
+      "evidence": "Authorized commit SHA, make test, make check, make fmt-check, make lint, make audit, and clean status."
+    },
+    {
+      "id": "AC4",
+      "outcome": "Required adapter CI executes browser and Docker integration rather than skipping and passes for the exact SHA.",
+      "evidence": "CI run URL/SHA and logs showing both repository variables approved and gates executed."
+    }
+  ],
+  "currentStateEvidence": {
+    "previousPlan": ".agents/plans/2026-09-01-production-evidence-boundaries-csm.json",
+    "previousPlanStatus": "blocked and schema-valid",
+    "reviewEvidence": "Independent review found T002 incomplete because persisted review files were tested with requireSourceDigest:false, the executor returned reviewRecordPaths rather than resolver-valid refs, and orchestration only validates reviewArtifactRefs when supplied.",
+    "sourceEvidence": [
+      "csm-orchestrate/lib/adversarial-final-review.mjs:357-418",
+      "csm-orchestrate/lib/adversarial-final-review.mjs:631-645",
+      "csm-orchestrate/lib/index.mjs:1492-1521",
+      "tests/orchestrate-autoresearch-live-integration.test.mjs:360-378",
+      ".github/workflows/ci.yml:71-75",
+      "Makefile:107-118"
+    ],
+    "observedGates": [
+      "Browser focused/live suite passed 8/8 after reconciliation repair.",
+      "Docker/review focused suite passed 15/15 but is insufficient for AC1/AC2.",
+      "make lint, make fmt-check, make check, and make audit passed.",
+      "make test failed in pre-commit fixtures because the new review schema is not in HEAD and the tracked baseline omitted it.",
+      "gh variable list returned no repository variables for the required adapter approvals."
+    ],
+    "existingChanges": "The worktree contains the prior implementation, generated bootstrap payload, new review schema, live tests, plans, and research artifacts. This plan must not assume those changes are committed."
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": [
+      "boundary_change",
+      "public_contract",
+      "ownership_or_persistence",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "migration_or_rollback",
+      "cross_boundary_coordination",
+      "architecture_or_refactor",
+      "security_or_authority"
+    ],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "The user requests the minimum changes needed to unblock production evidence and CI."
+      },
+      {
+        "source": "repository",
+        "locator": "previous-plan-and-review",
+        "observation": "Independent review identifies persistence, resolver, authority, and exact-SHA CI gaps."
+      }
+    ],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "ownership", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "seam", "status": "required" },
+      { "id": "parity", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "Whether review schemas can accept the smallest source-binding additions without breaking existing consumers must be checked before implementation.",
+      "Repository settings and runner capability are external prerequisites."
+    ],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "Use the existing artifact resolver and digest taxonomy; extend only review record schemas/records enough to satisfy its default source-digest contract.",
+      "type": "scope",
+      "rationale": "Avoids changing resolver semantics while closing the identified boundary gap.",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Return typed refs for each persisted review record and enforce them before VERIFIED.",
+      "type": "authority",
+      "rationale": "A path-only side channel cannot prove persistence or bind review authority to actual bytes.",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "CI variables are configuration prerequisites, not source-code defaults.",
+      "type": "operability",
+      "rationale": "The gate must remain fail-closed when approval is absent.",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "R1",
+      "question": "What is the minimum implementation surface for the reviewed blockers?",
+      "method": "Read-only inspection of the blocked plan, review executor, orchestration validation path, schemas, CI workflow, Makefile, and current gate results.",
+      "isolation": "No R&D command or source change was run; only the intentional plan file is written.",
+      "observation": "Two implementation seams and one external release prerequisite explain all blockers: resolver-valid record format, persisted-ref enforcement, then commit/settings/CI evidence.",
+      "implication": "Use two tasks: one code/schema/test repair and one exact-SHA release gate task."
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "Default resolver validation must retain source-digest enforcement; tests may not set requireSourceDigest:false for acceptance.",
+      "source": "independent review",
+      "appliesTo": ["T001"]
+    },
+    {
+      "id": "DR2",
+      "requirement": "Review executor must return typed refs containing path, schema, source owner/run/artifact identity, and recomputable file digest for every persisted record required by acceptance.",
+      "source": "independent review",
+      "appliesTo": ["T001"]
+    },
+    {
+      "id": "DR3",
+      "requirement": "Orchestration must fail closed when persisted review refs are absent, malformed, missing, forged, or resolver-invalid.",
+      "source": "index.mjs review path",
+      "appliesTo": ["T001"]
+    },
+    {
+      "id": "DR4",
+      "requirement": "Tracked-only hook tests require the new schema and payload index to be present in HEAD; no-skipped CI variables must be configured externally.",
+      "source": "make test and gh variable list",
+      "appliesTo": ["T002"]
+    }
+  ],
+  "design": {
+    "persistence": "Keep the existing independent reviewer and disposable artifact root. Emit resolver-native JSON records with explicit source bindings and typed refs for the review payload, artifact descriptor, and receipt; validate actual files with the default resolver and registered schemas.",
+    "enforcement": "Make the orchestrator require the complete typed persisted-ref set whenever a final review executor is used, validate owner/run/artifact/schema/file digest for each ref, and return UNKNOWN/BLOCKED rather than VERIFIED on any missing or invalid record.",
+    "release": "Regenerate bootstrap payload/index, run focused and repository gates after the corpus is committed, configure CSM_ADAPTER_INTEGRATIONS=1 and CSM_ADAPTER_INTEGRATIONS_APPROVED=1 in repository settings, and inspect exact-SHA CI logs for non-skipping browser/Docker execution."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002"],
+    "parallelGroups": [
+      { "group": "G1", "tasks": ["T001"] },
+      { "group": "G2", "tasks": ["T002"] }
+    ],
+    "integrationOwner": "Primary build agent owns shared review/orchestrator seams, payload regeneration, commit authorization, repository settings, and final parent-plan reconciliation."
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autoresearch-live-integration.test.mjs tests/orchestrate-autoresearch-adapter.test.mjs csm-autoresearch/test/docker-provider.test.mjs tests/orchestrate-outcome-corpus.test.mjs",
+      "title": "Make persisted independent review evidence default-resolver-valid and mandatory",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        "csm-orchestrate/lib/adversarial-final-review.mjs",
+        "csm-orchestrate/lib/index.mjs review validation path",
+        "csm-orchestrate/schemas/review-receipt.schema.json and any directly required review schema registry entries",
+        "tests/orchestrate-autoresearch-live-integration.test.mjs and focused review tests"
+      ],
+      "notInScope": [
+        "artifact-resolver redesign",
+        "browse adapter changes",
+        "compatibility-mode acceptance",
+        "fabricated descriptors",
+        "post-hoc identity rewriting",
+        "CI configuration"
+      ],
+      "spikeCandidate": "Before editing, use one disposable synthetic record set to determine whether adding explicit sourceDigest/sourceRunId/sourceArtifactIds to existing review records is sufficient; keep all writes outside the repository except the plan and do not use production data.",
+      "actions": "Extend only the review record contract fields needed by the default resolver; persist actual review, artifact, and receipt bytes with canonical digests and source bindings; return typed refs for every required record; make orchestration require and validate those refs before VERIFIED; update positive and forged/missing/default-resolver-negative tests; preserve independent reviewer identity, native/shared lineage, cleanup, and UNKNOWN fail-closed behavior.",
+      "validation": [
+        "Default createArtifactResolver uses requireSourceDigest default true",
+        "Resolver validates actual persisted bytes and expected owner/run/identity/schema/digests",
+        "Missing, forged, and deleted review records cannot produce VERIFIED",
+        "Focused Docker suite passes with no skipped tests",
+        "Payload source and bootstrap copy remain synchronized"
+      ],
+      "acceptanceEvidence": "Exact focused suite passed 21/21 with no skips; make fmt-check, make lint, make check passed; payload parity passed; independent reviews were resolved including cross-record identity and partial-persistence fail-closed coverage.",
+      "repairAttempts": 2,
+      "recoveryNote": "Repaired default-resolver source bindings, mandatory refs, injected-review enforcement, schema parity, fixture coverage, cross-record identity, and partial-persistence negatives."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "in_progress",
+      "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test",
+      "title": "Establish exact-SHA tracked baseline and non-skipping adapter CI",
+      "dependsOn": ["T001"],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [
+        "bootstrap payload/index parity",
+        "active plan/build state",
+        "repository variables",
+        "exact-SHA CI run",
+        "parent completion evidence"
+      ],
+      "notInScope": [
+        "source-code approval defaults",
+        "force-push",
+        "terminal history edits",
+        "accepting SKIPPED as success",
+        "real credentials or production data"
+      ],
+      "spikeCandidate": "None; this task is release verification and requires explicit external authorization for commit/settings changes.",
+      "actions": "Regenerate payload/index, inspect diff and status, obtain explicit commit authorization, commit only intended implementation/plan corpus with exact pathset, rerun all local gates including tracked-only pre-commit suite, configure repository variables CSM_ADAPTER_INTEGRATIONS=1 and CSM_ADAPTER_INTEGRATIONS_APPROVED=1 and verify a Docker/browser-capable runner, trigger CI for the exact SHA, inspect adapter logs, and update the parent plan only after both gates execute and pass.",
+      "validation": [
+        "Payload drift is empty",
+        "All local gates pass from tracked baseline",
+        "CI adapter step is executed rather than skipped",
+        "Browser and Docker required gates pass for exact SHA",
+        "Worktree and parent/build state reconcile cleanly"
+      ],
+      "acceptanceEvidence": "In progress: user explicitly authorized commit, push, merge, and CI configuration; exact-SHA evidence is pending.",
+      "repairAttempts": 0,
+      "recoveryNote": "If commit authorization, repository variables, or runner capability is absent, leave T002 blocked and preserve fail-closed CI behavior."
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "T001 focused tests and default resolver checks",
+      "T002 payload/local gates",
+      "T002 exact-SHA CI",
+      "independent final review"
+    ],
+    "fastGates": [
+      "plan/schema validation",
+      "focused Docker tests",
+      "default resolver/schema/digest negatives",
+      "payload parity",
+      "fmt/lint/check"
+    ],
+    "expensiveGates": ["full make test", "exact-SHA CI", "independent review"],
+    "parallelizable": [],
+    "knownGaps": [
+      "CI repository variables and runner capability are external.",
+      "A commit is required for tracked-only hook baseline; this plan does not authorize it."
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Review schema contract incompatibility",
+      "Persisted refs drift from actual bytes",
+      "CI approval remains skipped",
+      "Uncommitted corpus masks hook behavior"
+    ],
+    "mitigations": [
+      "Bounded schema extension only after disposable probe",
+      "Default resolver and recomputation on actual paths",
+      "Require both variables and inspect logs",
+      "Exact-SHA commit then rerun full suite"
+    ],
+    "rollback": "Retain prior pushed baseline de4dfc5/7638d41; if T001 fails, preserve blocked UNKNOWN behavior and do not promote the review.",
+    "forwardRecovery": "Resume through RECOVER -> VALIDATE after the exact contract decision, commit authorization, repository variables, and runner capability are available."
+  },
+  "critiqueResolution": [
+    {
+      "finding": "Prior T002 acceptance used requireSourceDigest:false.",
+      "severity": "high",
+      "resolution": "T001 explicitly requires default resolver settings and source-binding fields.",
+      "evidence": "Independent review and current live test lines 360-378."
+    },
+    {
+      "finding": "Orchestration did not require persisted review refs.",
+      "severity": "high",
+      "resolution": "T001 returns and validates a complete typed ref set before VERIFIED.",
+      "evidence": "csm-orchestrate/lib/index.mjs:1492-1521."
+    },
+    {
+      "finding": "Full hook suite cannot baseline uncommitted new files.",
+      "severity": "high",
+      "resolution": "T002 makes exact-SHA commit and rerun an acceptance requirement, subject to separate authorization.",
+      "evidence": "make test failure from tracked fixture."
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-01T07:30:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> NOT_STARTED",
+      "tasks": [],
+      "evidence": "Created a minimum-scope warranted plan from the schema-valid blocked evidence-boundary plan and independent review. Planning only; every implementation task remains pending.",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-01T07:35:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": [],
+      "evidence": "Explicit csm-build request selected this exact plan. The plan is schema-valid; prior blocked plan, implementation diff, generated payload, review schema, and current worktree were inspected. No NORMS.md exists at repository root or cwd.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-01T07:35:00Z",
+      "cycle": 0,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": [],
+      "evidence": "Current repository matches the plan's two-task scope. T001 is the only dispatchable task; T002 remains dependent on T001 and external commit/settings prerequisites.",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-01T07:50:00Z",
+      "cycle": 1,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": ["T001"],
+      "evidence": "Focused T001 baseline passed 15/15; production review seams were dispatchable.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-01T07:50:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": ["T001"],
+      "evidence": "T001 review persistence repair dispatched.",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-01T08:10:00Z",
+      "cycle": 1,
+      "transition": "DISPATCH -> INTEGRATE",
+      "tasks": ["T001"],
+      "evidence": "Review persistence and mandatory resolver enforcement integrated; payload regenerated.",
+      "nextState": "INTEGRATE"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-01T08:15:00Z",
+      "cycle": 1,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": ["T001"],
+      "evidence": "Focused suite passed 15/15; formatting, lint, and conformance passed.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-01T08:18:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": ["T001"],
+      "evidence": "Independent review found cross-record identity and partial-persistence coverage gaps.",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-01T08:25:00Z",
+      "cycle": 1,
+      "transition": "REVIEW -> CHECKPOINT",
+      "tasks": ["T001"],
+      "evidence": "Cross-record identity repair and partial-persistence negative coverage integrated. Exact suite passed 21/21 with no skips; make fmt-check, make lint, make check passed; payload parity passed.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-01T08:25:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> BLOCKED",
+      "tasks": ["T002"],
+      "evidence": "T002 was blocked until the user authorized commit/push/merge and CI configuration; no commit or push was performed.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-01T09:00:00Z",
+      "cycle": 2,
+      "transition": "BLOCKED -> RECOVER",
+      "tasks": ["T002"],
+      "evidence": "User explicitly authorized commit, push, merge, and CI configuration. Recovery rechecked the worktree, current branch, remote, plan, and CI variables; variables remain unset and must be configured.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-01T09:00:00Z",
+      "cycle": 2,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": ["T002"],
+      "evidence": "T001 evidence and payload parity are verified; final focused suite and quality gates are available. The current release scope is the existing complete intended corpus on main.",
+      "nextState": "VALIDATE"
+    }
+  ],
+  "completionReview": null,
+  "inputs": [
+    {
+      "artifactId": "art-production-evidence-boundaries-20260901",
+      "schema": "csm-plan/1",
+      "digest": "sha256:1b7582470b93308cb88d7c69f02765e9c5f15edc5e654575b5ea1f66502fc544",
+      "owner": "csm-plan",
+      "path": ".agents/plans/2026-09-01-production-evidence-boundaries-csm.json"
+    },
+    {
+      "artifactId": "art-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f",
+      "schema": "csm-research/1",
+      "digest": "sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-01T07:30:00Z",
+    "sourceDigests": ["sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205"]
+  },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}

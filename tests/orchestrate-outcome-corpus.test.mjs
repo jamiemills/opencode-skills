@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { descriptorDigest, payloadDigest } from "../lib/digest-taxonomy/index.mjs";
 import { digest } from "../lib/schema-runtime/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { HOST_REVIEW } from "../csm-orchestrate/lib/review-token.mjs";
@@ -15,6 +22,7 @@ const capabilities = await loadCapabilities();
 const scanDescriptor = createExecutorDescriptors().find((item) => item.skill === "csm-scan");
 const dddDescriptor = createExecutorDescriptors().find((item) => item.skill === "csm-ddd");
 const accepted = async () => ({ status: "ACCEPTED", findings: [] });
+const fileDigest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 function approach(runId, goal = "repository conventions") {
   return {
@@ -60,7 +68,7 @@ function evidenceFor(request, mode, context) {
       path: `outcome-${context.runId}.json`,
       artifactId: `art-${context.runId}`,
       digest: digest({ runId: context.runId, mode }),
-      schema: "csm-outcome-fixture/1",
+      schema: "csm-orchestrate-evidence/2",
       sourceRunId: context.runId,
     },
   };
@@ -71,6 +79,7 @@ function makeHarness(mode) {
   const store = createSqliteStore({ mode: "memory", now: () => "2026-08-31T00:00:00.000Z" });
   const effects = [];
   const artifacts = new Map();
+  let reviewArtifactRoot;
   let handlerCalls = 0;
   let reviewCalls = 0;
   const handler = async ({ context, input }) => {
@@ -143,6 +152,8 @@ function makeHarness(mode) {
         };
       },
     };
+    reviewArtifactRoot = await mkdtemp(join(tmpdir(), "outcome-review-"));
+    const schemaRegistry = await loadSchemaRegistry();
     const options = {
       approach: approach(`${RUN_PREFIX}-${mode}`),
       runId: `${RUN_PREFIX}-${mode}`,
@@ -168,8 +179,9 @@ function makeHarness(mode) {
         status: "approved",
       }),
       now: () => new Date("2026-08-31T00:00:00.000Z"),
-      schemaRegistry: { resolve() {}, validate: () => ({ valid: true, errors: [] }) },
-      artifactResolver: {
+      schemaRegistry,
+      artifactResolver: createArtifactResolver({ root: reviewArtifactRoot, schemaRegistry }),
+      childArtifactResolver: {
         async resolve(path, expected = {}) {
           const value = artifacts.get(path);
           if (!value) return { status: "missing", code: "missing", message: "fixture missing" };
@@ -182,8 +194,9 @@ function makeHarness(mode) {
           };
         },
       },
+      reviewArtifactRoot,
     };
-    return { options, adapter };
+    return { options, adapter, reviewArtifactRoot };
   };
   return {
     setup,
@@ -212,7 +225,7 @@ function makeHarness(mode) {
         artifactId: `art-outcome-review-${reviewCalls}`,
         runId: reviewerChildRunId,
         owner: "csm-outcome-reviewer",
-        schema: "csm-review/1",
+        schema: "csm-orchestrate-adversarial-review/2",
         path: `review-${reviewCalls}.json`,
         resolution: "in-process-independent-review",
         digest: digest({ inputDigest, status }),
@@ -279,7 +292,83 @@ function makeHarness(mode) {
         findings: status === "REJECTED" ? [{ code: "gap", severity: "high" }] : [],
       };
       Object.defineProperty(review, HOST_REVIEW, { value: true });
-      return review;
+      const artifactRecord = {
+        schema: "csm-artifact/1",
+        artifact: {
+          artifactId: artifact.artifactId,
+          kind: "orchestrate-final-review",
+          owner: artifact.owner,
+          runId: reviewerChildRunId,
+          digest: artifact.digest,
+          createdAt: "2026-08-31T00:00:00.000Z",
+          revision: 1,
+        },
+        contentType: "application/json",
+        lifecycleStatus: "completed",
+        location: `review-artifact-${reviewerChildRunId}.json`,
+        sourceDigest: inputDigest,
+        sourceRunId: reviewerChildRunId,
+        sourceArtifactIds: [artifact.artifactId],
+      };
+      artifactRecord.payloadDigest = payloadDigest(artifactRecord);
+      artifactRecord.descriptorDigest = descriptorDigest(artifactRecord);
+      const receiptBody = {
+        schema: "csm-review-receipt/1",
+        receiptId: `receipt-outcome-review-${reviewCalls}`,
+        runId: reviewerChildRunId,
+        owner: artifact.owner,
+        status: "completed",
+        reviewId: review.reviewId,
+        reviewArtifactId: artifact.artifactId,
+        reviewDigest: artifact.digest,
+        inputDigest,
+        sourceDigest: inputDigest,
+        sourceRunId: reviewerChildRunId,
+        sourceArtifactIds: [artifact.artifactId],
+      };
+      const receipt = { ...receiptBody, receiptDigest: digest(receiptBody) };
+      review.owner = artifact.owner;
+      review.sourceDigest = inputDigest;
+      review.sourceRunId = reviewerChildRunId;
+      review.sourceArtifactIds = [artifact.artifactId];
+      review.provenance.receipt = {
+        ...review.provenance.receipt,
+        digest: fileDigest(Buffer.from(`${JSON.stringify(receipt)}\n`)),
+      };
+      const records = [
+        ["review", review],
+        ["artifact", artifactRecord],
+        ["receipt", receipt],
+      ];
+      const refs = [];
+      for (const [recordType, value] of records) {
+        const path = `${recordType}-${reviewerChildRunId}.json`;
+        const bytes = Buffer.from(`${JSON.stringify(value)}\n`);
+        await writeFile(join(reviewArtifactRoot, path), bytes);
+        refs.push({
+          recordType,
+          recordId:
+            recordType === "review"
+              ? value.reviewId
+              : recordType === "artifact"
+                ? value.artifact.artifactId
+                : value.receiptId,
+          schema: value.schema,
+          path,
+          digest: fileDigest(bytes),
+          sourceOwner: artifact.owner,
+          sourceRunId: reviewerChildRunId,
+          sourceDigest: inputDigest,
+          sourceArtifactId: artifact.artifactId,
+        });
+      }
+      return { status: "completed", review, reviewArtifactRefs: refs };
+    },
+    get reviewArtifactRoot() {
+      return reviewArtifactRoot;
+    },
+    async cleanup() {
+      if (reviewArtifactRoot) await rm(reviewArtifactRoot, { recursive: true, force: true });
     },
   };
 }
@@ -303,7 +392,26 @@ async function run(mode, { review = true } = {}) {
       sideEffects: ["read-only"],
       remediationBudget: 1,
     });
-  return { result: await orchestrate(options), harness, options };
+  try {
+    return { result: await orchestrate(options), harness, options };
+  } finally {
+    await harness.cleanup();
+  }
+}
+
+async function runInvalidPersistedReview(mutate) {
+  const harness = makeHarness("success");
+  const { options } = await harness.setup();
+  options.finalReview = async (request) => {
+    const result = await harness.finalReview(request);
+    await mutate(result, harness);
+    return result;
+  };
+  try {
+    return await orchestrate(options);
+  } finally {
+    await harness.cleanup();
+  }
 }
 
 test("outcome corpus preserves verified success and zero duplicate effects", async () => {
@@ -363,9 +471,11 @@ test("in-process final review verifies only with distinct producer and reviewer 
     reviewer: accepted,
     reviewerId: "csm-independent-reviewer",
     executorId: "csm-independent-review-executor",
+    artifactRoot: distinctSetup.reviewArtifactRoot,
   });
   distinctSetup.options.producerExecutorId = "csm-scan-executor";
   const verified = await orchestrate(distinctSetup.options);
+  await distinct.cleanup();
   assert.equal(verified.outcome.status, "VERIFIED", JSON.stringify(verified));
   assert.notEqual(
     verified.finalReview.provenance.reviewer,
@@ -390,4 +500,39 @@ test("in-process final review verifies only with distinct producer and reviewer 
   const selfResult = await orchestrate(selfSetup.options);
   assert.equal(selfResult.outcome.status, "REQUIRES_REVIEW");
   assert.equal(selfResult.reviewState, "UNKNOWN");
+});
+
+test("default resolver review failures never become VERIFIED", async () => {
+  const cases = [
+    ["absent refs", (result) => delete result.reviewArtifactRefs],
+    ["forged refs", (result) => (result.reviewArtifactRefs[0].path = "forged-review.json")],
+    [
+      "deleted record",
+      async (result, harness) =>
+        unlink(join(harness.reviewArtifactRoot, result.reviewArtifactRefs[1].path)),
+    ],
+    [
+      "partial persistence failure",
+      async (result, harness) =>
+        unlink(join(harness.reviewArtifactRoot, result.reviewArtifactRefs[2].path)),
+    ],
+    [
+      "wrong source identity",
+      (result) => (result.reviewArtifactRefs[0].sourceArtifactId = "art-forged"),
+    ],
+    ["wrong schema", (result) => (result.reviewArtifactRefs[0].schema = "csm-review-receipt/1")],
+    [
+      "source digest mismatch",
+      (result) => (result.reviewArtifactRefs[0].sourceDigest = digest("wrong-source")),
+    ],
+    [
+      "file digest mismatch",
+      (result) => (result.reviewArtifactRefs[0].digest = digest("wrong-file")),
+    ],
+  ];
+  for (const [name, mutate] of cases) {
+    const result = await runInvalidPersistedReview(mutate);
+    assert.ok(["BLOCKED", "REQUIRES_REVIEW"].includes(result.outcome.status), name);
+    assert.notEqual(result.outcome.status, "VERIFIED", name);
+  }
 });

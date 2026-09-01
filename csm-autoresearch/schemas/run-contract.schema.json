@@ -8,6 +8,7 @@
   "properties": {
     "format": { "const": "csm-autoresearch-contract/1" },
     "runId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$" },
+    "sharedRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
     "source": { "$ref": "#/$defs/source" },
     "metric": { "$ref": "#/$defs/metric" },
     "mutation": { "$ref": "#/$defs/mutation" },

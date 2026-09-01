@@ -1,6 +1,10 @@
 "use strict";
 
 import { digest } from "../../lib/schema-runtime/index.mjs";
+import { descriptorDigest, payloadDigest } from "../../lib/digest-taxonomy/index.mjs";
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, relative, resolve } from "node:path";
 
 const PHASE_ID = /^phase-[a-z0-9][a-z0-9-]{1,127}$/;
 import { HOST_REVIEW } from "./review-token.mjs";
@@ -211,7 +215,7 @@ export function reviewAcceptance({
     );
   return Object.freeze({
     schema: "csm-orchestrate-adversarial-review/2",
-    reviewId: `review-${digest({ runId, requirements, claims, evidence, artifacts }).slice(7, 39)}`,
+    reviewId: `review-${digest(JSON.parse(JSON.stringify({ runId, requirements, claims, evidence, artifacts }))).slice(7, 39)}`,
     runId,
     status: failures.length ? "REJECTED" : "ACCEPTED",
     independent: true,
@@ -348,6 +352,98 @@ const deepFreeze = (value) => {
 const reviewRunId = (parentRunId, phaseId, inputDigest) =>
   `run-${digest(`${parentRunId}:${phaseId}:${inputDigest}`).slice(7, 39)}`;
 
+const fileDigest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+
+async function persistReviewRecords({
+  artifactRoot,
+  review,
+  reviewArtifact,
+  reviewerChildRunId,
+  reviewerId,
+  inputDigest,
+}) {
+  if (artifactRoot === undefined) return null;
+  if (typeof artifactRoot !== "string" || !artifactRoot)
+    throw new TypeError("review artifact root is required");
+  const root = resolve(artifactRoot);
+  await mkdir(root, { recursive: true });
+  const reviewPath = join(root, `review-${reviewerChildRunId}.json`);
+  const artifactPath = join(root, `review-artifact-${reviewerChildRunId}.json`);
+  const receiptPath = join(root, `review-receipt-${reviewerChildRunId}.json`);
+  const receiptBody = {
+    schema: "csm-review-receipt/1",
+    receiptId: `receipt-final-review-${reviewerChildRunId.slice(4)}`,
+    runId: reviewerChildRunId,
+    owner: reviewerId,
+    status: "completed",
+    reviewId: review.reviewId,
+    reviewArtifactId: reviewArtifact.artifactId,
+    reviewDigest: reviewArtifact.digest,
+    inputDigest,
+    sourceDigest: inputDigest,
+    sourceRunId: reviewerChildRunId,
+    sourceArtifactIds: [reviewArtifact.artifactId],
+  };
+  const receiptRecord = { ...receiptBody, receiptDigest: digest(receiptBody) };
+  const receiptFileDigest = fileDigest(Buffer.from(`${JSON.stringify(receiptRecord)}\n`));
+  const persistedReview = {
+    ...review,
+    owner: reviewerId,
+    sourceDigest: inputDigest,
+    sourceRunId: reviewerChildRunId,
+    sourceArtifactIds: [reviewArtifact.artifactId],
+    provenance: {
+      ...review.provenance,
+      receipt: { ...review.provenance.receipt, digest: receiptFileDigest },
+    },
+  };
+  Object.defineProperty(persistedReview, HOST_REVIEW, { value: true });
+  const reviewBytes = Buffer.from(`${JSON.stringify(persistedReview)}\n`);
+  const artifactBase = {
+    schema: "csm-artifact/1",
+    artifact: {
+      artifactId: reviewArtifact.artifactId,
+      kind: "orchestrate-final-review",
+      owner: reviewerId,
+      runId: reviewerChildRunId,
+      digest: reviewArtifact.digest,
+      createdAt: new Date().toISOString(),
+      revision: 1,
+    },
+    contentType: "application/json",
+    lifecycleStatus: "completed",
+    location: relative(root, artifactPath),
+    sourceDigest: inputDigest,
+    sourceRunId: reviewerChildRunId,
+    sourceArtifactIds: [reviewArtifact.artifactId],
+  };
+  const persistedArtifact = {
+    ...artifactBase,
+    payloadDigest: payloadDigest(artifactBase),
+  };
+  persistedArtifact.descriptorDigest = descriptorDigest(persistedArtifact);
+  const receiptBytes = Buffer.from(`${JSON.stringify(receiptRecord)}\n`);
+  await writeFile(reviewPath, reviewBytes, { mode: 0o600 });
+  const persistedArtifactBytes = Buffer.from(`${JSON.stringify(persistedArtifact)}\n`);
+  await writeFile(artifactPath, persistedArtifactBytes, { mode: 0o600 });
+  await writeFile(receiptPath, receiptBytes, { mode: 0o600 });
+  return {
+    review: Object.freeze(persistedReview),
+    reviewArtifact: persistedArtifact,
+    reviewReceipt: {
+      ...receiptRecord,
+      digest: receiptFileDigest,
+      fileDigest: receiptFileDigest,
+    },
+    paths: { review: reviewPath, artifact: artifactPath, receipt: receiptPath },
+    fileDigests: {
+      review: fileDigest(reviewBytes),
+      artifact: fileDigest(persistedArtifactBytes),
+      receipt: receiptFileDigest,
+    },
+  };
+}
+
 /**
  * Run final review in-process without sharing the producer's executor context.
  * The reviewer receives only a frozen acceptance context; its records are made
@@ -358,6 +454,7 @@ export function createIndependentFinalReviewExecutor({
   reviewerId = "csm-review-independent",
   executorId = "csm-orchestrate-final-review",
   producerExecutorId = null,
+  artifactRoot,
 } = {}) {
   if (typeof reviewer !== "function") throw new TypeError("independent reviewer is required");
   if (
@@ -392,15 +489,17 @@ export function createIndependentFinalReviewExecutor({
       const evidence = request.evidence ?? [];
       const phaseResults = request.phaseResults ?? [];
       const input = deepFreeze(
-        structuredClone({
-          parentRunId: request.parentRunId,
-          phaseId: request.phaseId,
-          graphRevision: request.graphRevision,
-          requirements,
-          evidence,
-          phaseResults,
-          childReceipts: request.childReceipts ?? [],
-        }),
+        JSON.parse(
+          JSON.stringify({
+            parentRunId: request.parentRunId,
+            phaseId: request.phaseId,
+            graphRevision: request.graphRevision,
+            requirements,
+            evidence,
+            phaseResults,
+            childReceipts: request.childReceipts ?? [],
+          }),
+        ),
       );
       const inputDigest = digest(input);
       const reviewerChildRunId = reviewRunId(request.parentRunId, request.phaseId, inputDigest);
@@ -495,9 +594,10 @@ export function createIndependentFinalReviewExecutor({
         functional: phaseResults.flatMap((item) => item.gate?.functional ?? []),
         completion: phaseResults.every((item) => item.gate?.status === "VERIFIED"),
       });
-      const finalArtifactDigest = digest({ inputDigest, candidate, authoritative });
+      const safeCandidate = JSON.parse(JSON.stringify(candidate));
+      const finalArtifactDigest = digest({ inputDigest, candidate: safeCandidate, authoritative });
       const reviewArtifact = {
-        artifactId: `artifact-final-review-${reviewerChildRunId.slice(4)}`,
+        artifactId: `art-final-review-${reviewerChildRunId.slice(4)}`,
         runId: reviewerChildRunId,
         owner: reviewerId,
         schema: "csm-orchestrate-adversarial-review/2",
@@ -514,13 +614,8 @@ export function createIndependentFinalReviewExecutor({
         resolution: "in-process-independent-review",
         digest: digest({ reviewArtifact, status: candidate.status }),
       };
-      const {
-        producerRationale: _producerRationale,
-        provenance: _provenance,
-        ...candidateFields
-      } = candidate;
       const reviewValue = {
-        ...candidateFields,
+        ...safeCandidate,
         schema: "csm-orchestrate-adversarial-review/2",
         reviewId: `review-${reviewerChildRunId.slice(4)}`,
         runId: request.parentRunId,
@@ -559,7 +654,59 @@ export function createIndependentFinalReviewExecutor({
       };
       Object.defineProperty(reviewValue, HOST_REVIEW, { value: true });
       const review = Object.freeze(reviewValue);
-      return { status: "completed", review, reviewReceipt, reviewArtifact };
+      const persisted = await persistReviewRecords({
+        artifactRoot,
+        review,
+        reviewArtifact,
+        reviewerChildRunId,
+        reviewerId,
+        inputDigest,
+      });
+      return {
+        status: "completed",
+        review: persisted?.review ?? review,
+        reviewReceipt: persisted?.reviewReceipt ?? reviewReceipt,
+        reviewArtifact: persisted?.reviewArtifact ?? reviewArtifact,
+        ...(persisted
+          ? {
+              reviewArtifactRefs: [
+                {
+                  recordType: "review",
+                  recordId: persisted.review.reviewId,
+                  schema: persisted.review.schema,
+                  path: relative(resolve(artifactRoot), persisted.paths.review),
+                  digest: persisted.fileDigests.review,
+                  sourceOwner: reviewerId,
+                  sourceRunId: reviewerChildRunId,
+                  sourceDigest: inputDigest,
+                  sourceArtifactId: reviewArtifact.artifactId,
+                },
+                {
+                  recordType: "artifact",
+                  recordId: persisted.reviewArtifact.artifact.artifactId,
+                  schema: persisted.reviewArtifact.schema,
+                  path: relative(resolve(artifactRoot), persisted.paths.artifact),
+                  digest: persisted.fileDigests.artifact,
+                  sourceOwner: reviewerId,
+                  sourceRunId: reviewerChildRunId,
+                  sourceDigest: inputDigest,
+                  sourceArtifactId: reviewArtifact.artifactId,
+                },
+                {
+                  recordType: "receipt",
+                  recordId: persisted.reviewReceipt.receiptId,
+                  schema: persisted.reviewReceipt.schema,
+                  path: relative(resolve(artifactRoot), persisted.paths.receipt),
+                  digest: persisted.fileDigests.receipt,
+                  sourceOwner: reviewerId,
+                  sourceRunId: reviewerChildRunId,
+                  sourceDigest: inputDigest,
+                  sourceArtifactId: reviewArtifact.artifactId,
+                },
+              ],
+            }
+          : {}),
+      };
     },
   });
 }

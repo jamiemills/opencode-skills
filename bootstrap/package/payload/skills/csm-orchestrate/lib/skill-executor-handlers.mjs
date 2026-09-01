@@ -81,6 +81,8 @@ async function normalize(raw, descriptor, context) {
     artifacts,
     output: raw.output ?? null,
     failure: raw.failure ?? null,
+    technical: raw.technical ?? [],
+    functional: raw.functional ?? [],
   };
   receipt(result.receipt, context);
   for (const item of result.evidence) {

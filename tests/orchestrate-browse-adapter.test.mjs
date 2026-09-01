@@ -73,7 +73,7 @@ test("browse derives an owned session and translates resolver-validated evidence
   assert.equal(ensured, 1);
   assert.equal(cleaned, 1);
   assert.equal(result.evidence[0].source.nativeArtifactId, native.evidenceId);
-  assert.equal(result.artifacts[0].nativeRunId, native.runId);
+  assert.deepEqual(result.artifacts, []);
 });
 
 test("browse cleanup failure preserves UNKNOWN reconciliation authority after cancellation", async () => {

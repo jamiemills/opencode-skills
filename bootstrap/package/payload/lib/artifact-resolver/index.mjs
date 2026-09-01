@@ -104,6 +104,7 @@ function fileIdentity(info) {
 function recordIdentity(record) {
   if (record?.artifact?.artifactId) return record.artifact.artifactId;
   if (record?.artifactId) return record.artifactId;
+  if (record?.schema === "csm-browse-evidence/1" && record?.evidenceId) return record.evidenceId;
   if (record?.eventId) return record.eventId;
   return null;
 }
@@ -129,11 +130,14 @@ function recordSourceDigest(record, allowLegacy = false) {
 function recordSourceRunId(record, allowLegacy = false) {
   if (record?.sourceRunId) return record.sourceRunId;
   if (!allowLegacy) return null;
+  if (record?.schema === "csm-browse-evidence/1") return record.runId ?? null;
   return record?.sourcePlan?.runId ?? record?.provenance?.sourceRunId ?? null;
 }
 
 function recordSourceArtifactIds(record, allowLegacy = false) {
   const ids = [...(record?.sourceArtifactIds ?? [])].filter(Boolean);
+  if (allowLegacy && record?.schema === "csm-browse-evidence/1" && record?.evidenceId)
+    ids.push(record.evidenceId);
   if (allowLegacy) {
     ids.push(record?.sourcePlan?.artifactId, record?.provenance?.sourceArtifactId);
   }

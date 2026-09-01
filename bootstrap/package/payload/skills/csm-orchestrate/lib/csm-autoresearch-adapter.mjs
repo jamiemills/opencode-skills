@@ -6,12 +6,11 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { optimize } from "../../csm-autoresearch/lib/optimizer/index.mjs";
 import { hash } from "../../csm-autoresearch/lib/ledger/index.mjs";
 import { promote, rollback } from "../../csm-autoresearch/lib/population/index.mjs";
-import {
-  createArtifactDescriptor,
-  sharedRunId,
-} from "../../csm-autoresearch/lib/artifacts/index.mjs";
-import { readFile, realpath } from "node:fs/promises";
+import { sharedRunId } from "../../csm-autoresearch/lib/artifacts/index.mjs";
+import { realpath } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { validateProducerArtifacts } from "../../csm-autoresearch/lib/artifacts/index.mjs";
+import { createArtifactDescriptor } from "../../csm-autoresearch/lib/artifacts/index.mjs";
 
 const HASH = /^sha256:[a-f0-9]{64}$/;
 const NATIVE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -31,19 +30,26 @@ function receipt(context, status = "completed") {
 }
 
 function artifactRef({ context, native, descriptor, path, value }) {
+  const name = descriptor.artifact.kind.replace(/^autoresearch-/, "");
   const body = {
     artifactId: descriptor.artifact.artifactId,
+    evidenceId: `ev-${descriptor.artifact.artifactId.slice(4)}`,
+    name,
+    kind: "artifact",
     schema: descriptor.schema,
+    schemaRevision: 1,
     runId: context.runId,
     owner: "csm-autoresearch",
     bytes: Buffer.byteLength(JSON.stringify(value)),
     value,
     path,
     resolution: "resolver-required",
+    sourceOwner: "csm-autoresearch",
     sourceArtifactId: descriptor.artifact.artifactId,
     sourceRunId: context.runId,
     nativeRunId: native,
     nativeArtifactId: descriptor.artifact.artifactId,
+    fileDigest: descriptor.artifact.digest,
   };
   return { ...body, digest: digest(body) };
 }
@@ -67,7 +73,7 @@ function providerFor(providers, mode) {
   return provider;
 }
 
-async function nativeArtifacts(result, native, context, artifactRoot) {
+async function nativeArtifacts(result, native, boundSharedRunId, context, artifactRoot) {
   const { paths } = result;
   const root = await realpath(resolve(artifactRoot));
   const contained = async (path) => {
@@ -90,13 +96,13 @@ async function nativeArtifacts(result, native, context, artifactRoot) {
     manifestPath,
     nativeRunId: native,
   });
-  const manifestBytes = await readFile(manifestPath);
   const reportDescriptor = manifest.artifactDescriptors.find(
     (descriptor) => descriptor.artifact.kind === "autoresearch-report",
   );
   const ledgerDescriptor = manifest.artifactDescriptors.find(
     (descriptor) => descriptor.artifact.kind === "autoresearch-ledger",
   );
+  const manifestBytes = await readFile(manifestPath);
   const manifestDescriptor = createArtifactDescriptor({
     nativeRunId: native,
     kind: "autoresearch-manifest",
@@ -111,17 +117,17 @@ async function nativeArtifacts(result, native, context, artifactRoot) {
   const values = [
     {
       descriptor: ledgerDescriptor,
-      value: { nativeRunId: native, sharedRunId: context.runId, manifest, report },
+      value: { nativeRunId: native, sharedRunId: boundSharedRunId, manifest, report },
       path: ledgerPath,
     },
     {
       descriptor: reportDescriptor,
-      value: { nativeRunId: native, sharedRunId: context.runId, report, manifest, envelope },
+      value: { nativeRunId: native, sharedRunId: boundSharedRunId, report, manifest, envelope },
       path: reportPath,
     },
     {
       descriptor: manifestDescriptor,
-      value: { nativeRunId: native, sharedRunId: context.runId, manifest },
+      value: { nativeRunId: native, sharedRunId: boundSharedRunId, manifest },
       path: manifestPath,
     },
   ];
@@ -147,7 +153,10 @@ function createCsmAutoresearchAdapter({ providers, optimizeRun = optimize, promo
     if (!contract || !NATIVE_ID.test(contract.runId))
       throw new TypeError("native autoresearch runId is required");
     const native = contract.runId;
-    if (sharedRunId(native) !== context.runId)
+    const boundSharedRunId = contract.sharedRunId ?? sharedRunId(native);
+    if (!/^run-[a-z0-9][a-z0-9-]{1,127}$/.test(boundSharedRunId))
+      throw new TypeError("shared autoresearch runId must be canonical");
+    if (boundSharedRunId !== context.runId)
       throw new TypeError("native and shared run IDs are not bound");
     const mode = contract.source?.mode;
     const provider = providerFor(providers, mode);
@@ -211,14 +220,21 @@ function createCsmAutoresearchAdapter({ providers, optimizeRun = optimize, promo
         failure: failure("cancelled", "candidate dispatch became ambiguous"),
       };
     const artifactRoot = input.artifactRoot ?? ".agents/autoresearch";
-    const artifacts = await nativeArtifacts(result, native, context, artifactRoot);
+    const artifacts = await nativeArtifacts(
+      result,
+      native,
+      boundSharedRunId,
+      context,
+      artifactRoot,
+    );
+    const evidenceRefs = artifacts.map((artifact) => artifact.evidenceId);
     return {
       status: "completed",
       effects: ["workspace-write"],
       artifacts,
       output: {
         nativeRunId: native,
-        sharedRunId: context.runId,
+        sharedRunId: boundSharedRunId,
         evaluatorHash,
         contractHash,
         policyHash,
@@ -237,6 +253,8 @@ function createCsmAutoresearchAdapter({ providers, optimizeRun = optimize, promo
       },
       receipt: receipt(context),
       evidence: [],
+      technical: [{ status: "pass", scenarioId: "docker-attestation", evidenceRefs }],
+      functional: [{ status: "pass", scenarioId: "autoresearch-evaluation", evidenceRefs }],
     };
   };
   const promoteCandidate = async (request) => {

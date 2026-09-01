@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-review-receipt/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "receiptId",
+    "runId",
+    "owner",
+    "status",
+    "reviewId",
+    "reviewArtifactId",
+    "reviewDigest",
+    "inputDigest",
+    "sourceDigest",
+    "sourceRunId",
+    "sourceArtifactIds",
+    "receiptDigest"
+  ],
+  "properties": {
+    "schema": { "const": "csm-review-receipt/1" },
+    "receiptId": { "type": "string", "pattern": "^receipt-[a-z0-9][a-z0-9-]{1,127}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "owner": { "type": "string", "pattern": "^csm-[a-z0-9][a-z0-9-]{1,63}$" },
+    "status": { "const": "completed" },
+    "reviewId": { "type": "string", "pattern": "^review-[a-z0-9][a-z0-9-]{1,127}$" },
+    "reviewArtifactId": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+    "reviewDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "inputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceRunId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "sourceArtifactIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^art-[a-z0-9][a-z0-9-]{1,127}$" },
+      "uniqueItems": true
+    },
+    "receiptDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}
