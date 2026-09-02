@@ -125,175 +125,180 @@ function childArtifactResolver(root, schemaRegistry) {
   };
 }
 
-test("csm-orchestrate composes the Docker generated provider and proves cleanup", async () => {
-  const provider = createDockerGeneratedProvider({ limits });
-  if (provider.sandboxProvider !== "docker" || provider.sandboxVerified !== true)
-    assert.fail(
-      `Docker host attestation unavailable: ${provider.sandbox?.unavailable ?? "unverified"}`,
-    );
+test(
+  "csm-orchestrate composes the Docker generated provider and proves cleanup",
+  { skip: process.env.CSM_ADAPTER_INTEGRATIONS_REQUIRED !== "1" },
+  async () => {
+    const provider = createDockerGeneratedProvider({ limits });
+    if (provider.sandboxProvider !== "docker" || provider.sandboxVerified !== true)
+      assert.fail(
+        `Docker host attestation unavailable: ${provider.sandbox?.unavailable ?? "unverified"}`,
+      );
 
-  const artifactRoot = await mkdtemp(join(tmpdir(), "orchestrate-docker-live-"));
-  const sandbox = createDockerSandboxProvider({ limits });
-  const store = createSqliteStore({ mode: "memory", now: () => "2026-08-31T00:00:00.000Z" });
-  const capabilities = await loadCapabilities();
-  const schemaRegistry = await loadSchemaRegistry();
-  const autoresearch = createCsmAutoresearchAdapter({ providers: { generated: provider } });
-  const handlers = createExecutorHandlers({ csmAutoresearchAdapter: autoresearch });
-  const descriptor = createExecutorDescriptors({
-    handlers,
-    csmAutoresearchAdapter: autoresearch,
-  }).find((item) => item.skill === "csm-autoresearch");
-  const registry = await createSkillExecutorRegistry({ descriptors: [descriptor] });
-  const bindings = { "csm-autoresearch": descriptor };
-  const requests = [];
-  const childResponses = [];
-  const productionResolver = createArtifactResolver({ root: artifactRoot, schemaRegistry });
-  const inProcess = createInProcessExecutorAdapter({
-    registry,
-    bindings,
-    capabilities,
-    cursorStore: store,
-    inputForRequest: async (request) => {
-      return {
-        contract: contract(request.childRunId, request.childRunId),
-        artifactRoot,
-        evaluatorHash,
-        environmentHash,
-        baseline: {
-          id: "synthetic-baseline",
-          parentId: null,
-          sourceHash: generatedHash(source),
-          patchHash: hash("synthetic-baseline-patch"),
-        },
-        candidates: [
-          {
-            id: "synthetic-candidate",
-            parentId: "synthetic-baseline",
-            sourceHash: generatedHash(source),
-            patchHash: hash("synthetic-patch-v1"),
-          },
-        ],
-        evaluatorInput: { source, value: 4 },
-      };
-    },
-    artifactResolver: childArtifactResolver(artifactRoot, schemaRegistry),
-    schemaRegistry,
-  });
-  const executorAdapter = {
-    async invoke(request, options) {
-      requests.push(request);
-      const response = await inProcess.invoke(request, options);
-      childResponses.push(response);
-      return response;
-    },
-  };
-
-  const independentReview = createIndependentFinalReviewExecutor({
-    reviewerId: "csm-review-independent",
-    executorId: "csm-orchestrate-final-review",
-    producerExecutorId: "csm-autoresearch",
-    artifactRoot,
-    reviewer: async ({ requirements, evidence, phaseResults }) => ({
-      status: "ACCEPTED",
-      requirementCoverage: requirements.map((requirement) => ({
-        requirementId: requirement.requirementId,
-        evidenceRefs: evidence
-          .filter((item) => item.requirementIds?.includes(requirement.requirementId))
-          .map((item) => item.evidenceId),
-      })),
-      evidenceEntailment: "supported",
-      technical: phaseResults.flatMap((item) => item.gate?.technical ?? []),
-      functional: phaseResults.flatMap((item) => item.gate?.functional ?? []),
-      findings: [],
-    }),
-  });
-  try {
-    const sandboxResult = await sandbox.execute({
-      source,
-      input: 4,
-      limits,
-      policy: provider.policy,
-    });
-    assert.equal(sandboxResult.status, "ok", JSON.stringify(sandboxResult));
-    assert.equal(sandboxResult.metrics.score, 5);
-    assert.equal(sandboxResult.attestation.status, "verified");
-    assert.equal(sandboxResult.cleanup.status, "verified");
-    assert.equal(sandboxResult.cleanup.containerAbsent, true);
-    assert.equal(sandboxResult.cleanup.descendantsAbsent, true);
-    assert.equal(sandboxResult.cleanup.workspaceRemoved, true);
-
-    const result = await orchestrate({
-      approach,
-      runId,
+    const artifactRoot = await mkdtemp(join(tmpdir(), "orchestrate-docker-live-"));
+    const sandbox = createDockerSandboxProvider({ limits });
+    const store = createSqliteStore({ mode: "memory", now: () => "2026-08-31T00:00:00.000Z" });
+    const capabilities = await loadCapabilities();
+    const schemaRegistry = await loadSchemaRegistry();
+    const autoresearch = createCsmAutoresearchAdapter({ providers: { generated: provider } });
+    const handlers = createExecutorHandlers({ csmAutoresearchAdapter: autoresearch });
+    const descriptor = createExecutorDescriptors({
+      handlers,
+      csmAutoresearchAdapter: autoresearch,
+    }).find((item) => item.skill === "csm-autoresearch");
+    const registry = await createSkillExecutorRegistry({ descriptors: [descriptor] });
+    const bindings = { "csm-autoresearch": descriptor };
+    const requests = [];
+    const childResponses = [];
+    const productionResolver = createArtifactResolver({ root: artifactRoot, schemaRegistry });
+    const inProcess = createInProcessExecutorAdapter({
+      registry,
+      bindings,
       capabilities,
-      signals: { capabilities: ["csm-autoresearch"], inputs: ["run contract"] },
-      executorRegistry: registry,
-      executorBindings: bindings,
-      executorAdapter,
       cursorStore: store,
-      approvals: async ({ phase, node, childRunId }) => ({
-        schema: "csm-orchestrate-approval/1",
-        approvalId: `approval-${childRunId}`,
-        binding: {
-          parentRunId: runId,
-          childRunId,
-          phaseId: phase.phaseId,
-          edgeId: `edge-${node.nodeId}`,
-        },
-        scope: node.approvalScope,
-        approvedDigest: node.capabilityDigest,
-        approvedAt: "2026-08-31T00:00:00.000Z",
-        expiresAt: "2099-08-31T00:00:00.000Z",
-        status: "approved",
-      }),
-      now: () => new Date("2026-08-31T00:00:00.000Z"),
+      inputForRequest: async (request) => {
+        return {
+          contract: contract(request.childRunId, request.childRunId),
+          artifactRoot,
+          evaluatorHash,
+          environmentHash,
+          baseline: {
+            id: "synthetic-baseline",
+            parentId: null,
+            sourceHash: generatedHash(source),
+            patchHash: hash("synthetic-baseline-patch"),
+          },
+          candidates: [
+            {
+              id: "synthetic-candidate",
+              parentId: "synthetic-baseline",
+              sourceHash: generatedHash(source),
+              patchHash: hash("synthetic-patch-v1"),
+            },
+          ],
+          evaluatorInput: { source, value: 4 },
+        };
+      },
+      artifactResolver: childArtifactResolver(artifactRoot, schemaRegistry),
       schemaRegistry,
-      artifactResolver: productionResolver,
-      childArtifactResolver: childArtifactResolver(artifactRoot, schemaRegistry),
-      finalReviewExecutor: independentReview,
-      producerExecutorId: "csm-autoresearch",
-      reviewArtifactRoot: artifactRoot,
     });
+    const executorAdapter = {
+      async invoke(request, options) {
+        requests.push(request);
+        const response = await inProcess.invoke(request, options);
+        childResponses.push(response);
+        return response;
+      },
+    };
 
-    assert.equal(requests.length, 1);
-    assert.equal(childResponses.length, 1);
-    assert.equal(childResponses[0].status, "completed", JSON.stringify(childResponses[0]));
-    assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
-    assert.equal(result.outcome.accepted, true);
-    assert.equal(
-      requests[0].childRunId,
-      `run-${runId}-phase-docker-composed-p1-csm-autoresearch-0`,
-    );
-    assert.equal(result.receipt.outcome.status, "VERIFIED");
-    assert.equal(provider.sandboxAttestation.status, "verified");
-    assert.match(provider.sandboxAttestation.imageDigest, /^sha256:[0-9a-f]{64}$/);
-    assert.equal(provider.sandboxAttestation.network, "disabled");
-    assert.deepEqual(provider.sandboxAttestation.mounts, []);
-    assert.equal(provider.sandboxAttestation.controls.cleanupVerification, true);
-
-    const reviewChildRunId = result.receipt.extensions.finalReview?.provenance?.reviewerChildRunId;
-    assert.match(reviewChildRunId, /^run-/);
-    for (const ref of result.reviewArtifactRefs ?? result.receipt.extensions.reviewArtifactRefs) {
-      await readFile(join(artifactRoot, ref.path));
-      const resolved = await productionResolver.resolve(ref.path, {
-        expectedFileDigest: ref.digest,
-        expectedOwner: ref.sourceOwner,
-        expectedSourceDigest: ref.sourceDigest,
-        expectedSourceRunId: ref.sourceRunId,
-        expectedSourceArtifactId: ref.sourceArtifactId,
+    const independentReview = createIndependentFinalReviewExecutor({
+      reviewerId: "csm-review-independent",
+      executorId: "csm-orchestrate-final-review",
+      producerExecutorId: "csm-autoresearch",
+      artifactRoot,
+      reviewer: async ({ requirements, evidence, phaseResults }) => ({
+        status: "ACCEPTED",
+        requirementCoverage: requirements.map((requirement) => ({
+          requirementId: requirement.requirementId,
+          evidenceRefs: evidence
+            .filter((item) => item.requirementIds?.includes(requirement.requirementId))
+            .map((item) => item.evidenceId),
+        })),
+        evidenceEntailment: "supported",
+        technical: phaseResults.flatMap((item) => item.gate?.technical ?? []),
+        functional: phaseResults.flatMap((item) => item.gate?.functional ?? []),
+        findings: [],
+      }),
+    });
+    try {
+      const sandboxResult = await sandbox.execute({
+        source,
+        input: 4,
+        limits,
+        policy: provider.policy,
       });
-      assert.equal(resolved.status, "resolved", JSON.stringify(resolved));
-      assert.equal(resolved.fileDigest, ref.digest);
-      assert.equal(resolved.owner, ref.sourceOwner);
+      assert.equal(sandboxResult.status, "ok", JSON.stringify(sandboxResult));
+      assert.equal(sandboxResult.metrics.score, 5);
+      assert.equal(sandboxResult.attestation.status, "verified");
+      assert.equal(sandboxResult.cleanup.status, "verified");
+      assert.equal(sandboxResult.cleanup.containerAbsent, true);
+      assert.equal(sandboxResult.cleanup.descendantsAbsent, true);
+      assert.equal(sandboxResult.cleanup.workspaceRemoved, true);
+
+      const result = await orchestrate({
+        approach,
+        runId,
+        capabilities,
+        signals: { capabilities: ["csm-autoresearch"], inputs: ["run contract"] },
+        executorRegistry: registry,
+        executorBindings: bindings,
+        executorAdapter,
+        cursorStore: store,
+        approvals: async ({ phase, node, childRunId }) => ({
+          schema: "csm-orchestrate-approval/1",
+          approvalId: `approval-${childRunId}`,
+          binding: {
+            parentRunId: runId,
+            childRunId,
+            phaseId: phase.phaseId,
+            edgeId: `edge-${node.nodeId}`,
+          },
+          scope: node.approvalScope,
+          approvedDigest: node.capabilityDigest,
+          approvedAt: "2026-08-31T00:00:00.000Z",
+          expiresAt: "2099-08-31T00:00:00.000Z",
+          status: "approved",
+        }),
+        now: () => new Date("2026-08-31T00:00:00.000Z"),
+        schemaRegistry,
+        artifactResolver: productionResolver,
+        childArtifactResolver: childArtifactResolver(artifactRoot, schemaRegistry),
+        finalReviewExecutor: independentReview,
+        producerExecutorId: "csm-autoresearch",
+        reviewArtifactRoot: artifactRoot,
+      });
+
+      assert.equal(requests.length, 1);
+      assert.equal(childResponses.length, 1);
+      assert.equal(childResponses[0].status, "completed", JSON.stringify(childResponses[0]));
+      assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
+      assert.equal(result.outcome.accepted, true);
+      assert.equal(
+        requests[0].childRunId,
+        `run-${runId}-phase-docker-composed-p1-csm-autoresearch-0`,
+      );
+      assert.equal(result.receipt.outcome.status, "VERIFIED");
+      assert.equal(provider.sandboxAttestation.status, "verified");
+      assert.match(provider.sandboxAttestation.imageDigest, /^sha256:[0-9a-f]{64}$/);
+      assert.equal(provider.sandboxAttestation.network, "disabled");
+      assert.deepEqual(provider.sandboxAttestation.mounts, []);
+      assert.equal(provider.sandboxAttestation.controls.cleanupVerification, true);
+
+      const reviewChildRunId =
+        result.receipt.extensions.finalReview?.provenance?.reviewerChildRunId;
+      assert.match(reviewChildRunId, /^run-/);
+      for (const ref of result.reviewArtifactRefs ?? result.receipt.extensions.reviewArtifactRefs) {
+        await readFile(join(artifactRoot, ref.path));
+        const resolved = await productionResolver.resolve(ref.path, {
+          expectedFileDigest: ref.digest,
+          expectedOwner: ref.sourceOwner,
+          expectedSourceDigest: ref.sourceDigest,
+          expectedSourceRunId: ref.sourceRunId,
+          expectedSourceArtifactId: ref.sourceArtifactId,
+        });
+        assert.equal(resolved.status, "resolved", JSON.stringify(resolved));
+        assert.equal(resolved.fileDigest, ref.digest);
+        assert.equal(resolved.owner, ref.sourceOwner);
+      }
+      const receipt = JSON.parse(
+        await readFile(join(artifactRoot, `review-receipt-${reviewChildRunId}.json`), "utf8"),
+      );
+      assert.match(receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/);
+    } finally {
+      await rm(artifactRoot, { recursive: true, force: true });
     }
-    const receipt = JSON.parse(
-      await readFile(join(artifactRoot, `review-receipt-${reviewChildRunId}.json`), "utf8"),
-    );
-    assert.match(receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/);
-  } finally {
-    await rm(artifactRoot, { recursive: true, force: true });
-  }
-});
+  },
+);
 
 test("Docker composition remains fail-closed when the host cannot attest through the adapter", async () => {
   const unavailable = createDockerGeneratedProvider({ docker: "csm-no-such-docker" });
