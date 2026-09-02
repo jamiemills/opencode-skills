@@ -75,7 +75,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-31-docker-host-attested-sandbox-csm.json` — 2026-08-31 — implement Docker host-attested generated sandbox — status: in progress
 - `2026-08-31-lean-mvp-orchestrator-release-build-csm.json` — 2026-08-31 — execute lean orchestrator release build — status: in progress
 - `2026-09-01-close-live-evidence-ci-csm.json` — 2026-09-01 — close live evidence and CI gates — status: blocked
-- `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: in progress
+- `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: blocked at runner prerequisites
 - `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked
 
 ## docs/

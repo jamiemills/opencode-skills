@@ -4,17 +4,21 @@
   "artifactId": "art-minimum-unblock-20260901",
   "runId": "run-20260901t073000z-minimum-unblock",
   "planId": "minimum-unblock",
-  "status": "in_progress",
+  "status": "blocked",
   "control": {
-    "status": "in_progress",
-    "currentState": "VALIDATE",
+    "status": "blocked",
+    "currentState": "BLOCKED",
     "cycle": 2,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-01T09:00:00Z: recovery prerequisites supplied; T001 verified and T002 validation resumed",
+    "lastCheckpoint": "2026-09-02T06:15:00Z: exact-SHA CI default suite passed; required adapter gate blocked by unavailable runner prerequisites",
     "lastModelRun": "gpt-5.6-luna / minimum-unblock-build",
-    "nextTransition": "VALIDATE -> SELECT",
+    "nextTransition": "BLOCKED -> RECOVER",
     "activeTasks": ["T002"],
-    "blockers": [],
+    "blockers": [
+      "CI runner cannot resolve or pull node:22.22.0-bookworm-slim for the required Docker proof",
+      "CI csm-browse container-config path is rejected for unsafe ancestry even with workspace-local HOME",
+      "No exact-SHA non-skipping adapter CI pass exists"
+    ],
     "resume": {
       "read": [
         "last checkpoint",
@@ -24,7 +28,7 @@
         "current commit",
         "repository variables"
       ],
-    "firstAction": "Commit the validated intended corpus, push main, configure both approved CI variables, and run the exact-SHA workflow."
+    "firstAction": "Provide a Docker/browser-capable CI runner with the pinned image available and a symlink-safe browser config root, then resume RECOVER -> VALIDATE."
     }
   },
   "goal": {
@@ -253,7 +257,7 @@
     {
       "taskId": "T002",
       "ordinal": 2,
-      "status": "in_progress",
+      "status": "blocked",
       "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test",
       "title": "Establish exact-SHA tracked baseline and non-skipping adapter CI",
       "dependsOn": ["T001"],
@@ -282,7 +286,7 @@
         "Browser and Docker required gates pass for exact SHA",
         "Worktree and parent/build state reconcile cleanly"
       ],
-      "acceptanceEvidence": "In progress: user explicitly authorized commit, push, merge, and CI configuration; exact-SHA evidence is pending.",
+      "acceptanceEvidence": "Blocked: exact-SHA workflow 33596726843 passed default tests but required adapter gates failed because the runner lacked node:22.22.0-bookworm-slim and rejected the csm-browse container-config ancestry; no non-skipping adapter pass exists.",
       "repairAttempts": 0,
       "recoveryNote": "If commit authorization, repository variables, or runner capability is absent, leave T002 blocked and preserve fail-closed CI behavior."
     }
@@ -452,6 +456,15 @@
       "tasks": ["T002"],
       "evidence": "T001 evidence and payload parity are verified; final focused suite and quality gates are available. The current release scope is the existing complete intended corpus on main.",
       "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-02T06:15:00Z",
+      "cycle": 2,
+      "transition": "VALIDATE -> BLOCKED",
+      "tasks": ["T002"],
+      "evidence": "Commits b6f2843, f636c80, and 0c99e5a are pushed to main; CI default tests pass. Required adapter run 33576677198 was cancelled after logs showed missing node:22.22.0-bookworm-slim and unsafe csm-browse container-config ancestry. Variables are configured, but no Docker/browser-capable runner has completed the non-skipping adapter gates.",
+      "nextState": "BLOCKED"
     }
   ],
   "completionReview": null,
