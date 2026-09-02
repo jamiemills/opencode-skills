@@ -118,9 +118,9 @@ test-adapter-integrations: ## opt-in real adapter gates (set opt-in and approval
 	fi
 
 test-adapter-integrations-required: ## run all approved real adapter gates; unavailable capabilities fail
+	docker pull node:22.22.0-bookworm-slim
 	CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 $(MAKE) test-orchestrate
 	$(MAKE) test-e2e-required
-	docker pull node:22.22.0-bookworm-slim
 	$(MAKE) test-generated-sandbox-required
 
 test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

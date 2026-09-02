@@ -72,7 +72,7 @@ jobs:
         env:
           CSM_ADAPTER_INTEGRATIONS: ${{ vars.CSM_ADAPTER_INTEGRATIONS }}
           CSM_ADAPTER_INTEGRATIONS_APPROVED: ${{ vars.CSM_ADAPTER_INTEGRATIONS_APPROVED }}
-          HOME: ${{ runner.temp }}/home
+          HOME: ${{ github.workspace }}/.ci-home
         run: make test-adapter-integrations
       - name: Check patch whitespace
         run: git diff --check
