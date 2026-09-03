@@ -57,6 +57,7 @@ const paths = {
   sessions: join(root, "sessions"),
 };
 for (const path of Object.values(paths)) await ensurePrivate(path);
+await ensurePrivate(join(paths.home, ".config", "csm-browse"));
 
 const output =
   Object.entries({
