@@ -7,12 +7,12 @@
   "status": "in_progress",
   "control": {
     "status": "in_progress",
-    "currentState": "VALIDATE",
+    "currentState": "SELECT",
     "cycle": 2,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-02T09:00:00Z: user authorized commit/push; T001 repair evidence revalidated and T002 resumed",
+    "lastCheckpoint": "2026-09-03T00:30:00Z: T001 implementation and independent review complete; T002 selected for exact-SHA CI",
     "lastModelRun": "gpt-5.6-luna / ci-runner-unblock-build",
-    "nextTransition": "VALIDATE -> SELECT",
+    "nextTransition": "SELECT -> DISPATCH",
     "activeTasks": ["T002"],
     "blockers": [],
     "resume": {
@@ -524,6 +524,24 @@
       "tasks": ["T002"],
       "evidence": "T001 repair was revalidated: focused wiring/live tests passed 11 with 5 expected skips, Docker provider tests passed 7/7, and formatting/lint/conformance passed.",
       "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-03T00:30:00Z",
+      "cycle": 2,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": ["T002"],
+      "evidence": "T001 final review accepted the current implementation; T002 is the only remaining task and requires commit/push plus exact-SHA CI.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-03T00:30:00Z",
+      "cycle": 2,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": ["T002"],
+      "evidence": "T002 exact-SHA release verification is dispatched to the primary controller; no subagent implementation is needed.",
+      "nextState": "DISPATCH"
     }
   ],
   "completionReview": null,
