@@ -45,6 +45,10 @@ test("adapter integration gates are explicit, required, and separate from defaul
   assert.match(workflow, /needs\.gates\.result.*success/);
   assert.match(workflow, /runs-on: ubuntu-24\.04/);
   assert.match(workflow, /timeout-minutes: 30/);
+  assert.match(
+    workflow,
+    /timeout --signal=TERM --kill-after=30s 12m make test-adapter-integrations-required/,
+  );
   assert.match(workflow, /test "\$CSM_ADAPTER_INTEGRATIONS" = 1/);
   assert.match(workflow, /test "\$CSM_ADAPTER_INTEGRATIONS_APPROVED" = 1/);
   assert.match(workflow, /node scripts\/adapter-ci-preflight\.mjs/);

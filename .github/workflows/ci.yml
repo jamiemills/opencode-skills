@@ -158,7 +158,7 @@ jobs:
         run: |
           set -o pipefail
           status=0
-          make test-adapter-integrations-required 2>&1 | tee "$RUNNER_TEMP/adapter-tests.log" || status=$?
+          timeout --signal=TERM --kill-after=30s 12m make test-adapter-integrations-required 2>&1 | tee "$RUNNER_TEMP/adapter-tests.log" || status=$?
           printf '%s\n' "$status" > "$RUNNER_TEMP/adapter-tests.status"
           exit "$status"
       - name: Collect redacted adapter diagnostics
