@@ -56,6 +56,7 @@ test("adapter integration gates are explicit, required, and separate from defaul
   assert.match(workflow, /node scripts\/adapter-ci-preflight\.mjs/);
   assert.match(workflow, /Remove stale adapter browser resources/);
   assert.match(workflow, /docker rm -f chromium-vnc/);
+  assert.match(workflow, /for _ in 1 2 3 4 5 6 7 8 9 10/);
   assert.match(workflow, /SANDBOX_IMAGE: node@sha256:[0-9a-f]{64}/);
   assert.match(workflow, /SANDBOX_IMAGE_TAG: node:22\.22\.0-bookworm-slim/);
   assert.match(workflow, /docker run --rm.*node --version/);
