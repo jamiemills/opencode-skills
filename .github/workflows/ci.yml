@@ -201,6 +201,7 @@ jobs:
              remaining="$(timeout 15s docker ps -aq --filter name='^chromium-vnc$' || printf '__INSPECT_TIMEOUT__')"
              if [ "$remaining" = "__INSPECT_TIMEOUT__" ]; then cleanup_status=1; break; fi
              if [ -z "$remaining" ]; then break; fi
+             timeout 15s docker rm -f chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
              sleep 0.5
            done
            if [ -n "$remaining" ] && [ "$remaining" != "__INSPECT_TIMEOUT__" ]; then cleanup_status=1; fi
