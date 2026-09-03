@@ -40,6 +40,8 @@ test("adapter integration gates are explicit, required, and separate from defaul
   assert.match(makefile, /test-adapter-integrations-required/);
   assert.doesNotMatch(makefile.match(/^test:.*$/m)?.[0] ?? "", /test-adapter-integrations/);
   assert.match(workflow, /adapter-integrations:\s*\n\s+name: Adapter integrations/);
+  assert.match(workflow, /Install browser media tooling/);
+  assert.match(workflow, /apt-get install --no-install-recommends -y ffmpeg/);
   assert.match(workflow, /needs: gates/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
   assert.match(workflow, /needs\.gates\.result.*success/);
