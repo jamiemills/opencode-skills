@@ -842,8 +842,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "148aea08e522e2e530ec94aaf9f849f2fe06e95f2b2180064b263541cdd4ceb3",
-        "bytes": 73027,
+        "sha256": "82b5c67326e71adc2a94e5d75e61108e9aa55b1a7176439c14dbd98db6930717",
+        "bytes": 73082,
         "mode": "0644"
       },
       {

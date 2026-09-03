@@ -1157,7 +1157,9 @@ async function runOrchestrationInternal({
                 .toUpperCase()
                 .replace(/[^A-Z0-9_]/g, "_")
                 .slice(0, 64),
-              message: failure.failure?.message ?? failure.failure?.code ?? "child failed",
+              message: String(
+                failure.failure?.message ?? failure.failure?.code ?? "child failed",
+              ).slice(0, 500),
             },
           });
         const technical = [
