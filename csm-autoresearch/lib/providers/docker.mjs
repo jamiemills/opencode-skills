@@ -6,7 +6,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createGeneratedProvider, createHostSandboxCapability, hash } from "./generated.mjs";
 
-export const DOCKER_IMAGE = "node:22.22.0-bookworm-slim";
+export const DOCKER_IMAGE_TAG = "node:22.22.0-bookworm-slim";
+export const DOCKER_IMAGE_DIGEST =
+  "sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94";
+export const DOCKER_IMAGE = `node@${DOCKER_IMAGE_DIGEST}`;
 
 const COMMAND_TIMEOUT_MS = 5000;
 const COMMAND_OUTPUT_BYTES = 64 * 1024;
@@ -389,7 +392,7 @@ export function createDockerSandboxProvider({ docker = "docker", image = DOCKER_
             "100000",
             "--cpu-period",
             "100000",
-            `${image}@${digest}`,
+            image.includes("@") ? image : `${image}@${digest}`,
             "sleep",
             "infinity",
           ],

@@ -5,11 +5,21 @@ import { test } from "node:test";
 import {
   createDockerGeneratedProvider,
   createDockerSandboxProvider,
+  DOCKER_IMAGE,
+  DOCKER_IMAGE_DIGEST,
+  DOCKER_IMAGE_TAG,
 } from "../lib/providers/docker.mjs";
 import { hash } from "../lib/providers/generated.mjs";
 
 const limits = { timeoutMs: 300, maxOutputBytes: 1024, maxWorkspaceBytes: 1024 * 1024 };
 const available = createDockerSandboxProvider();
+
+test("Docker provider defaults to the approved immutable Node image", () => {
+  assert.equal(DOCKER_IMAGE_TAG, "node:22.22.0-bookworm-slim");
+  assert.match(DOCKER_IMAGE_DIGEST, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(DOCKER_IMAGE, `node@${DOCKER_IMAGE_DIGEST}`);
+  assert.doesNotMatch(DOCKER_IMAGE, /:22\.22\.0-bookworm-slim$/);
+});
 
 const generatedRequest = (source) => ({
   format: "csm-autoresearch-evaluator-request/1",

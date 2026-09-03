@@ -77,6 +77,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-01-close-live-evidence-ci-csm.json` — 2026-09-01 — close live evidence and CI gates — status: blocked
 - `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: blocked at runner prerequisites
 - `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked
+- `2026-09-02-ci-runner-unblock-csm.json` — 2026-09-02 — unblock required CI runner gates — status: in progress
 
 ## docs/
 

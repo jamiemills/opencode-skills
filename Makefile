@@ -1,6 +1,9 @@
 SHELL := /bin/bash
 OXFMT_CONFIG := $(dir $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))).oxfmtrc.json
 OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
+SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
+SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
 .PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
 
 help: ## show all targets
@@ -98,11 +101,10 @@ test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to re
 	cd csm-browse && node tests/e2e.mjs
 
 test-e2e-required: ## required browser E2E (fails when chromium-vnc is unavailable)
-	CSM_BROWSE_E2E_REQUIRE=1 $(MAKE) test-e2e
+	CSM_BROWSE_E2E_REQUIRE=1 node scripts/adapter-required-tests.mjs --browser-e2e-required
 
 test-generated-sandbox-required: ## required generated-source containment gate (fails when sandbox is unavailable)
-	node csm-autoresearch/scripts/probe-sandbox.mjs --required
-	node --test --test-concurrency=1 csm-autoresearch/test/generated-sandbox.test.mjs
+	node scripts/adapter-required-tests.mjs --generated-sandbox-required
 
 test-adapter-integrations: ## opt-in real adapter gates (set opt-in and approval variables)
 	@if [ "$${CSM_ADAPTER_INTEGRATIONS:-0}" != "1" ]; then \
@@ -118,9 +120,15 @@ test-adapter-integrations: ## opt-in real adapter gates (set opt-in and approval
 	fi
 
 test-adapter-integrations-required: ## run all approved real adapter gates; unavailable capabilities fail
-	docker pull node:22.22.0-bookworm-slim
-	CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 $(MAKE) test-orchestrate
-	$(MAKE) test-e2e-required
-	$(MAKE) test-generated-sandbox-required
+	@test "$${CSM_ADAPTER_INTEGRATIONS:-0}" = 1
+	@test "$${CSM_ADAPTER_INTEGRATIONS_APPROVED:-0}" = 1
+	@set -eu; env_file="$${ADAPTER_ENV_FILE:-$${RUNNER_TEMP:-.}/csm-adapter-env}"; \
+		node scripts/adapter-ci-preflight.mjs --output "$$env_file"; \
+		set -a; . "$$env_file"; set +a; \
+		docker image inspect '$(SANDBOX_IMAGE)' >/dev/null 2>&1 || \
+			docker pull '$(SANDBOX_IMAGE)'; \
+		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs; \
+		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --browser-e2e-required; \
+		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --generated-sandbox-required
 
 test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

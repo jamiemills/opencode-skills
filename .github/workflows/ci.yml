@@ -68,11 +68,135 @@ jobs:
         run: make test-deterministic
       - name: Run default test suites
         run: make test
-      - name: Run opt-in adapter integration gates
-        env:
-          CSM_ADAPTER_INTEGRATIONS: ${{ vars.CSM_ADAPTER_INTEGRATIONS }}
-          CSM_ADAPTER_INTEGRATIONS_APPROVED: ${{ vars.CSM_ADAPTER_INTEGRATIONS_APPROVED }}
-          HOME: ${{ github.workspace }}/.ci-home
-        run: make test-adapter-integrations
       - name: Check patch whitespace
         run: git diff --check
+
+  adapter-integrations:
+    name: Adapter integrations
+    needs: gates
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CSM_ADAPTER_INTEGRATIONS: ${{ vars.CSM_ADAPTER_INTEGRATIONS }}
+      CSM_ADAPTER_INTEGRATIONS_APPROVED: ${{ vars.CSM_ADAPTER_INTEGRATIONS_APPROVED }}
+      BROWSER_IMAGE: jlesage/chromium@sha256:7514667737463e4302d5b58bd07311790dd29c816d4a980143a96de85cf0210e
+      SANDBOX_IMAGE_TAG: node:22.22.0-bookworm-slim
+      SANDBOX_IMAGE: node@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+      SANDBOX_IMAGE_DIGEST: sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+      BROWSER_IMAGE_DIGEST: sha256:7514667737463e4302d5b58bd07311790dd29c816d4a980143a96de85cf0210e
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require successful default gates
+        run: test "${{ needs.gates.result }}" = success
+      - name: Assert event-specific workflow SHA
+        env:
+          CHECKOUT_SHA: ${{ github.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          # GITHUB_SHA/github.sha is the checked-out commit, including the PR merge ref.
+          test -n "$GITHUB_SHA"
+          test "$CHECKOUT_SHA" = "$GITHUB_SHA"
+          test "$actual" = "$GITHUB_SHA"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            printf 'workflow_sha=%s\nevent=%s\n' "$GITHUB_SHA" "$GITHUB_EVENT_NAME" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            # PR_HEAD_SHA is source intent, not the commit checked out by checkout.
+            test -n "$PR_HEAD_SHA"
+            printf 'workflow_sha=%s\npr_head_sha=%s\n' "$GITHUB_SHA" "$PR_HEAD_SHA" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "unsupported event: $GITHUB_EVENT_NAME" >&2
+            exit 1
+          fi
+      - name: Set up host Node from .node-version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Assert required adapter approval and host Node
+        run: |
+          test "$CSM_ADAPTER_INTEGRATIONS" = 1
+          test "$CSM_ADAPTER_INTEGRATIONS_APPROVED" = 1
+          test "$(cat .node-version)" = 22.23.2
+          test "$(node --version)" = v22.23.2
+      - name: Enable pnpm and install dependencies
+        env:
+          COREPACK_DEFAULT_TO_LATEST: 0
+        run: |
+          corepack enable
+          corepack install --global pnpm@10.34.5
+          test "$(pnpm --version)" = 10.34.5
+          make install
+      - name: Provision and validate private runtime paths
+        env:
+          ADAPTER_ENV_FILE: ${{ runner.temp }}/adapter-env
+        run: node scripts/adapter-ci-preflight.mjs
+      - name: Preflight Docker and immutable images
+        run: |
+          set -eu
+          timeout 15s docker info
+          runtime_browser_image="$(node --input-type=module -e 'import { IMAGE } from "./csm-browse/lib/constants.mjs"; process.stdout.write(IMAGE)')"
+          runtime_browser_digest="${runtime_browser_image#*@}"
+          test "$BROWSER_IMAGE" = "$runtime_browser_image"
+          test "$BROWSER_IMAGE_DIGEST" = "$runtime_browser_digest"
+          printf 'runtime_browser_image=%s\nruntime_browser_digest=%s\n' "$runtime_browser_image" "$runtime_browser_digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          docker pull "$SANDBOX_IMAGE"
+          docker pull "$BROWSER_IMAGE"
+          sandbox_digest="$(timeout 15s docker image inspect --format '{{index .RepoDigests 0}}' "$SANDBOX_IMAGE")"
+          browser_digest="$(timeout 15s docker image inspect --format '{{index .RepoDigests 0}}' "$BROWSER_IMAGE")"
+          printf 'sandbox_image=%s\nsandbox_repo_digest=%s\nbrowser_image=%s\nbrowser_repo_digest=%s\n' "$SANDBOX_IMAGE" "$sandbox_digest" "$BROWSER_IMAGE" "$browser_digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$sandbox_digest" = "node@$SANDBOX_IMAGE_DIGEST"
+          test "$browser_digest" = "$BROWSER_IMAGE"
+          test "${BROWSER_IMAGE#*@}" = "$BROWSER_IMAGE_DIGEST"
+          test "$SANDBOX_IMAGE_TAG" = node:22.22.0-bookworm-slim
+          test "$(timeout 15s docker run --rm "$SANDBOX_IMAGE" node --version)" = v22.22.0
+          timeout 15s docker image inspect "$BROWSER_IMAGE" >/dev/null
+      - name: Run required adapter integrations
+        env:
+          CSM_ADAPTER_INTEGRATIONS_REQUIRED: 1
+        run: |
+          set -o pipefail
+          status=0
+          make test-adapter-integrations-required 2>&1 | tee "$RUNNER_TEMP/adapter-tests.log" || status=$?
+          printf '%s\n' "$status" > "$RUNNER_TEMP/adapter-tests.status"
+          exit "$status"
+      - name: Collect redacted adapter diagnostics
+        if: always()
+        run: |
+          set +e
+          mkdir -p "$RUNNER_TEMP/adapter-diagnostics"
+          redact() {
+            node scripts/adapter-required-tests.mjs --redact
+          }
+          timeout 15s docker info 2>&1 | redact > "$RUNNER_TEMP/adapter-diagnostics/docker-info.txt"
+          timeout 15s docker image inspect "$SANDBOX_IMAGE" "$BROWSER_IMAGE" 2>&1 | redact > "$RUNNER_TEMP/adapter-diagnostics/images.json"
+          timeout 15s docker inspect chromium-vnc 2>&1 | redact > "$RUNNER_TEMP/adapter-diagnostics/browser-container.json"
+          printf 'workflow_sha=%s\nevent=%s\n' "$GITHUB_SHA" "$GITHUB_EVENT_NAME" > "$RUNNER_TEMP/adapter-diagnostics/identity.txt"
+          if [ -f "$RUNNER_TEMP/adapter-tests.log" ]; then
+            redact < "$RUNNER_TEMP/adapter-tests.log" > "$RUNNER_TEMP/adapter-diagnostics/adapter-tests.log"
+          fi
+          cleanup_status=0
+          remaining="$(timeout 15s docker ps -aq --filter name='^chromium-vnc$')"
+          if [ "$?" -ne 0 ]; then
+            cleanup_status=1
+          elif [ -n "$remaining" ]; then
+            timeout 15s docker rm -f chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || cleanup_status=1
+          fi
+          remaining="$(timeout 15s docker ps -aq --filter name='^chromium-vnc$')"
+          if [ "$?" -ne 0 ] || [ -n "$remaining" ]; then cleanup_status=1; fi
+          timeout 15s docker network rm csm-browse-net >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
+          network_remaining="$(timeout 15s docker network inspect csm-browse-net 2>/dev/null)"
+          if [ "$?" -eq 0 ] || [ -n "$network_remaining" ]; then cleanup_status=1; fi
+          printf 'cleanup_status=%s\n' "$cleanup_status" >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt"
+          chmod -R go-rwx "$RUNNER_TEMP/adapter-diagnostics"
+          original_status="$(cat "$RUNNER_TEMP/adapter-tests.status" 2>/dev/null || printf 1)"
+          if [ "$original_status" -ne 0 ]; then exit "$original_status"; fi
+          if [ "$cleanup_status" -ne 0 ]; then exit 1; fi
+      - name: Upload adapter diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: adapter-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/adapter-diagnostics
+          if-no-files-found: error

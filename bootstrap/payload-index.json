@@ -152,8 +152,8 @@
       },
       {
         "path": "payload/skills/csm-autoresearch/lib/providers/docker.mjs",
-        "sha256": "7d04d22294c2dfc216547cb5ce11e328b9ed4933e756658ccc188b25079f45e8",
-        "bytes": 23397,
+        "sha256": "fc32515b9e14db09e69d2318f40e34bf5b18d214daefee69bd083796f4d6ffca",
+        "bytes": 23602,
         "mode": "0644"
       },
       {

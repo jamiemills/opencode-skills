@@ -1,0 +1,538 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-ci-runner-unblock-20260902",
+  "runId": "run-20260902t070000z-ci-runner-unblock",
+  "planId": "ci-runner-unblock",
+  "status": "in_progress",
+  "control": {
+    "status": "in_progress",
+    "currentState": "VALIDATE",
+    "cycle": 2,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-02T09:00:00Z: user authorized commit/push; T001 repair evidence revalidated and T002 resumed",
+    "lastModelRun": "gpt-5.6-luna / ci-runner-unblock-build",
+    "nextTransition": "VALIDATE -> SELECT",
+    "activeTasks": ["T002"],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal",
+        "research tracks",
+        "critique",
+        "previous minimum-unblock plan",
+        "working-tree diff",
+        "current commit"
+      ],
+      "firstAction": "Commit and push the verified T001 changes, then run T002 against the exact pushed SHA."
+    }
+  },
+  "goal": {
+    "summary": "Make the required browser and Docker adapter CI gates execute reliably on a capable runner and produce trustworthy exact-SHA green evidence.",
+    "deliverables": [
+      "stable dedicated adapter integration job",
+      "symlink-safe csm-browse runtime paths",
+      "verified immutable Docker/browser image identities",
+      "non-skipping exact-SHA adapter CI pass",
+      "updated wiring and release-plan evidence"
+    ],
+    "constraints": [
+      "Do not weaken fail-closed adapter behavior",
+      "Do not accept skipped or unavailable required gates",
+      "Do not use floating image identity without recording/validating resolved digests",
+      "Preserve default fast-suite behavior",
+      "Use runner-provided paths and ephemeral state",
+      "Do not use real credentials or production data",
+      "Keep job/check names stable for branch protection",
+      "No unrelated application refactor"
+    ],
+    "exclusions": [
+      "changing browser or sandbox product semantics",
+      "making live tests default-suite tests",
+      "adding a new CI provider",
+      "branch-protection changes unless explicitly required after evidence",
+      "real data migration"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "outcome": "Default repository gates pass without running capability-dependent live proofs, and the dedicated adapter job is always instantiated with an explicit stable check name and bounded timeout.",
+      "evidence": "Workflow/Makefile wiring tests and successful default CI job."
+    },
+    {
+      "id": "AC2",
+      "outcome": "The required adapter job fails explicitly on missing variables, missing Docker/browser capability, image digest mismatch, unsafe paths, test skips, or incomplete cleanup; it never reports success through skip behavior.",
+      "evidence": "Required-mode negative tests, preflight logs, TAP summary, and failure-path diagnostics."
+    },
+    {
+      "id": "AC3",
+      "outcome": "On a Docker/browser-capable runner, the pinned Node sandbox and browser images are available, inspected, and bound to recorded immutable RepoDigests; csm-browse imports only after safe HOME/XDG/session/config paths are provisioned and validated.",
+      "evidence": "Preflight output with image references/digests, lstat/realpath checks, docker info, container/config mount checks, and successful live proofs."
+    },
+    {
+      "id": "AC4",
+      "outcome": "The dedicated adapter job runs browser and Docker orchestration proofs for one exact workflow SHA and passes without skipped tests; diagnostics are retained without masking the original exit status.",
+      "evidence": "CI run URL, event-specific SHA comparison, job logs, uploaded redacted diagnostics, and successful required gates."
+    }
+  ],
+  "currentStateEvidence": {
+    "previousPlan": ".agents/plans/2026-09-01-minimum-unblock-csm.json",
+    "previousStatus": "blocked at CI runner prerequisites",
+    "currentCommit": "139c1cc",
+    "currentBranch": "main",
+    "currentRepoState": "clean and pushed",
+    "ciVariables": ["CSM_ADAPTER_INTEGRATIONS=1", "CSM_ADAPTER_INTEGRATIONS_APPROVED=1"],
+    "workflow": ".github/workflows/ci.yml:3-76 uses mutable ubuntu-latest, embeds adapter execution after default tests, and has no explicit timeout or diagnostic artifact step.",
+    "makefile": "Makefile:97-124 keeps required browser/sandbox gates in the adapter target; current recent changes pull node:22.22.0-bookworm-slim and run live orchestrator tests when CSM_ADAPTER_INTEGRATIONS_REQUIRED=1.",
+    "observedCI": [
+      "Default repository gates passed in run 33597967908 before the adapter phase.",
+      "Required adapter run 33597967908 was cancelled after the live phase remained stalled.",
+      "Earlier adapter logs reported missing node:22.22.0-bookworm-slim and unsafe csm-browse container-config ancestry.",
+      "Workspace-local HOME and late Docker pull did not resolve the runner failure."
+    ],
+    "localContract": "csm-browse/lib/security.mjs:32-107,110-193 rejects symlinked/unsafe ancestors and requires safe ownership/modes; csm-browse/lib/constants.mjs:37-44 derives config from HOME and sessions from XDG_RUNTIME_DIR or HOME; CSM_BROWSE_SESSIONS_ROOT is the supported sessions-root override.",
+    "deepResearch": "Four independent hybrid research tracks retrieved current GitHub, Docker, XDG, Linux, and repository evidence on 2026-09-02; findings are recorded in rdRecord and cited sources.",
+    "critique": "Independent critique required explicit runner/job/check semantics, no-skip enforcement, image digest evidence, pre-import path validation, diagnostic artifacts, and event-specific SHA verification."
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": [
+      "public_contract",
+      "ownership_or_persistence",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "migration_or_rollback",
+      "cross_boundary_coordination",
+      "security_or_authority"
+    ],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "The user requests a plan to fix required CI runner failures using deep research."
+      },
+      {
+        "source": "repository",
+        "locator": "CI logs and security contract",
+        "observation": "Required live gates are blocked by image availability and unsafe filesystem ancestry."
+      }
+    ],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "ownership", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "seam", "status": "required" },
+      { "id": "parity", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "The repository's current runner may not be capable of Chromium-vnc or Docker execution even after workflow changes.",
+      "The exact approved RepoDigest for each required image must be selected from the runner/preflight evidence without silently accepting a changed image.",
+      "Branch protection/ruleset required-check configuration is not locally inspectable."
+    ],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "Use a dedicated always-visible adapter job on ubuntu-24.04 or an explicitly provisioned Docker/browser-capable runner instead of embedding required live tests in the default gates job.",
+      "type": "architecture",
+      "rationale": "Separates fast default validation from environment-dependent evidence while keeping the required check visible.",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Use .node-version for the host Node runtime and treat node:22.22.0-bookworm-slim as the sandbox image with independently verified RepoDigest.",
+      "type": "contract",
+      "rationale": "Research found the host and sandbox versions are distinct and mutable tags are insufficient evidence.",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "Provision one private root under a runner-supported path, validate every ancestor with lstat/realpath before csm-browse imports, and set CSM_BROWSE_SESSIONS_ROOT explicitly.",
+      "type": "security",
+      "rationale": "HOME-only overrides previously failed the no-unsafe-ancestor contract.",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "R1",
+      "question": "Can the pinned Docker image be made available reliably on GitHub-hosted runners?",
+      "method": "Web-only read-only retrieval from GitHub runner docs, actions/runner-images, Docker Hub tag API, Docker docs, retrieved 2026-09-02.",
+      "isolation": "No repository writes or external mutations; researcher returned text only.",
+      "observation": "Standard Ubuntu VM runners provide Docker; ubuntu-slim does not support Docker-in-Docker; node:22.22.0-bookworm-slim exists on Docker Hub as of retrieval, but pulls depend on registry/network and fresh runners do not retain images.",
+      "implication": "Use standard ubuntu-24.04, pull/inspect before tests, record RepoDigest, and fail clearly on pull/architecture/network errors.",
+      "sources": [
+        "https://docs.github.com/en/actions/reference/runners/github-hosted-runners#single-cpu-runners",
+        "https://raw.githubusercontent.com/actions/runner-images/main/images/ubuntu/Ubuntu2404-Readme.md",
+        "https://hub.docker.com/v2/repositories/library/node/tags/22.22.0-bookworm-slim",
+        "https://docs.docker.com/engine/storage/bind-mounts/"
+      ]
+    },
+    {
+      "id": "R2",
+      "question": "What path setup satisfies csm-browse's filesystem security contract in CI?",
+      "method": "Hybrid read-only retrieval from repository security/constants plus GitHub variables, XDG, Linux path-resolution documentation, retrieved 2026-09-02.",
+      "isolation": "No repository writes or external mutations; researcher returned text only.",
+      "observation": "csm-browse rejects unsafe/symlink ancestors, derives config from HOME and sessions from XDG_RUNTIME_DIR/HOME, and accepts CSM_BROWSE_SESSIONS_ROOT before import. HOME alone is not proof of safe ancestry.",
+      "implication": "Create and validate private roots component-by-component, set explicit HOME/XDG/session variables, then import/run csm-browse.",
+      "sources": [
+        "file:///home/jamiemills/.config/opencode/skills/csm-browse/lib/security.mjs#L32-L193",
+        "file:///home/jamiemills/.config/opencode/skills/csm-browse/lib/constants.mjs#L37-L44",
+        "https://docs.github.com/en/actions/reference/variables",
+        "https://specifications.freedesktop.org/basedir-spec/latest/",
+        "https://man7.org/linux/man-pages/man7/path_resolution.7.html"
+      ]
+    },
+    {
+      "id": "R3",
+      "question": "How should required and default CI gates be separated without false green status?",
+      "method": "Hybrid read-only repository inspection and current GitHub Actions documentation, retrieved 2026-09-02.",
+      "isolation": "No repository writes or external mutations; researcher returned text only.",
+      "observation": "Default Make test keeps adapter gates separate, but the current workflow embeds them after default tests. Conditional skipped jobs can appear successful; required checks need an always-visible stable job that asserts prerequisites and fails explicitly.",
+      "implication": "Create a dedicated unconditional job with stable name, timeout, explicit variable assertions, required-mode tests, and artifacts; update wiring tests.",
+      "sources": [
+        "file:///home/jamiemills/.config/opencode/skills/Makefile#L97-L124",
+        "file:///home/jamiemills/.config/opencode/skills/.github/workflows/ci.yml#L3-L76",
+        "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions",
+        "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging",
+        "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes",
+        "https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts"
+      ]
+    },
+    {
+      "id": "R4",
+      "question": "What must the implementation prove beyond a successful docker pull?",
+      "method": "Independent critique of the proposed design plus Docker/GitHub documentation, retrieved 2026-09-02.",
+      "isolation": "No repository writes or external mutations; critic returned text only.",
+      "observation": "Pulling an image does not prove its immutable identity, Docker execution, mounts, browser capability, cleanup, or exact workflow SHA; diagnostic artifact upload must not mask the original result.",
+      "implication": "Add preflight inspect/RepoDigest checks, disposable container/config mount probes, bounded cleanup, redacted diagnostics, and event-specific SHA assertions.",
+      "sources": [
+        "https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container",
+        "https://docs.docker.com/engine/storage/bind-mounts/",
+        "https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts"
+      ]
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "The dedicated adapter job must be unconditional and stable; missing variables or prerequisites must fail, not skip.",
+      "source": "independent critique and GitHub conditions documentation",
+      "appliesTo": ["T001", "T002"]
+    },
+    {
+      "id": "DR2",
+      "requirement": "Host Node must be asserted from .node-version (v22.23.2); sandbox image version/digest is a separate contract.",
+      "source": "independent critique and repository .node-version",
+      "appliesTo": ["T001"]
+    },
+    {
+      "id": "DR3",
+      "requirement": "Every csm-browse config/session ancestor must be validated as safe before importing modules that freeze paths.",
+      "source": "csm-browse security/constants local contract",
+      "appliesTo": ["T001"]
+    },
+    {
+      "id": "DR4",
+      "requirement": "Required mode must reject TAP skips, unavailable images, incomplete cleanup, and SHA mismatch; diagnostics run always and preserve the original failure.",
+      "source": "independent critique",
+      "appliesTo": ["T002"]
+    }
+  ],
+  "design": {
+    "job": "Keep the existing default gates job for fast tests. Add an unconditional `adapter-integrations` job with `needs: gates`, `runs-on: ubuntu-24.04`, stable name, timeout, and an explicit prerequisite assertion step. Do not use a job-level conditional that can silently skip the required check.",
+    "paths": "In the adapter job, create a private root using runner-supported variables, validate all ancestors with lstat/realpath and mode/ownership checks, set HOME, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_RUNTIME_DIR, and CSM_BROWSE_SESSIONS_ROOT before Node imports csm-browse.",
+    "images": "Pull and inspect the exact sandbox image and the configured browser image; assert expected RepoDigests recorded by the plan/preflight. Run disposable Docker info/container/mount probes before live tests.",
+    "tests": "Default `make test` skips only live capability tests. Required adapter mode runs live orchestration/browser tests, required browser E2E, and generated sandbox tests with no skip acceptance. Add wiring and negative tests.",
+    "diagnostics": "Use bounded, redacted diagnostics under RUNNER_TEMP/workspace, collect TAP output, docker info/inspect/logs, image digests, path checks, and cleanup state in an always step; upload with pinned action SHA without overriding the test exit code.",
+    "sha": "For push, compare git rev-parse HEAD to GITHUB_SHA; for pull_request, define and assert the intended event SHA explicitly. Publish SHA and image digests in the job summary/artifact metadata."
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002"],
+    "parallelGroups": [
+      { "group": "G1", "tasks": ["T001"] },
+      { "group": "G2", "tasks": ["T002"] }
+    ],
+    "integrationOwner": "Primary build agent owns workflow/Makefile integration, payload parity if source changes, exact-SHA release verification, CI monitoring, and plan checkpoint."
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/adapter-gate-wiring.test.mjs tests/orchestrate-browse-live-integration.test.mjs tests/orchestrate-autoresearch-live-integration.test.mjs && make fmt-check && make lint && make check",
+      "title": "Add a stable dedicated adapter job and safe runner provisioning",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        ".github/workflows/ci.yml",
+        "Makefile",
+        "tests/adapter-gate-wiring.test.mjs",
+        "tests/orchestrate-browse-live-integration.test.mjs",
+        "tests/orchestrate-autoresearch-live-integration.test.mjs",
+        "directly required runner/path helper"
+      ],
+      "notInScope": [
+        "application resolver semantics",
+        "review persistence behavior",
+        "branch-protection mutation",
+        "floating image acceptance",
+        "real credentials"
+      ],
+      "spikeCandidate": "Use a disposable local synthetic path probe and read-only workflow inspection to prove which runner path is symlink-safe; no repository writes outside the task files and no live external mutation.",
+      "actions": "Remove adapter execution from the default gates path while retaining default live-test skips; add an unconditional stable `adapter-integrations` job on ubuntu-24.04 with timeout and `needs`; assert both CI variables; use .node-version for host Node; provision/validate private HOME/XDG/runtime/session/config roots before imports; pull and inspect required images before live tests; add wiring, no-skip, image/path preflight, and failure-diagnostics contract tests; pin upload action references if artifacts are added.",
+      "validation": [
+        "Default test command executes no live capability tests and passes",
+        "Workflow wiring test confirms stable unconditional job, runner, needs, timeout, variable assertions, and no adapter command in default gates",
+        "Path preflight rejects symlinks/non-private modes and accepts the actual runner paths",
+        "Docker/browser image preflight records exact RepoDigests",
+        "Formatting/lint/conformance pass"
+      ],
+      "acceptanceEvidence": "Final independent review found no findings. Wiring/live contract tests passed with expected default-mode skips; Docker provider tests passed 7/7; formatting, lint, conformance, immutable image, path, zero-skip, redaction, cleanup, and SHA contract checks passed.",
+      "repairAttempts": 2,
+      "recoveryNote": "Two review cycles repaired image identity, complete required summaries, browser wrapper routing, redaction, and shared required-command environment."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "in_progress",
+      "acceptanceSignal": "gh run view <exact-run-id> --json status,conclusion,jobs",
+      "title": "Run and verify the non-skipping exact-SHA adapter gate",
+      "dependsOn": ["T001"],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [
+        "required CI run",
+        "diagnostic artifacts",
+        "exact-SHA evidence",
+        "minimum-unblock plan checkpoint"
+      ],
+      "notInScope": [
+        "accepting cancelled/queued runs",
+        "branch-protection redesign",
+        "changing product behavior to fit runner",
+        "claiming green from default-suite success"
+      ],
+      "spikeCandidate": "None; this is final external verification.",
+      "actions": "Push the validated workflow change, verify variables and exact commit SHA, monitor the dedicated adapter job, require Docker/browser/sandbox tests to execute with zero unexpected skips, inspect logs and uploaded diagnostics, and if the runner fails preflight classify it as unavailable external infrastructure with the precise required runner label/setup. Update the plan and previous blocked plan only with observed run evidence; mark complete only after all required gates pass.",
+      "validation": [
+        "Default gates pass for exact SHA",
+        "Dedicated adapter job is present and not skipped",
+        "Host Node is v22.23.2",
+        "Pinned image RepoDigests match recorded expectations",
+        "Browser and Docker orchestration/live E2E pass",
+        "Cleanup and diagnostics are verified",
+        "Worktree is clean and CI SHA matches git SHA"
+      ],
+      "acceptanceEvidence": "In progress: commit/push authorization is now explicit; exact-SHA CI evidence is pending.",
+      "repairAttempts": 0,
+      "recoveryNote": "If the job cannot run on the available runner, remain BLOCKED and hand off the exact capability/label/configuration request; never convert the required job to a skip."
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "plan validation",
+      "T001 wiring/path/image contract tests",
+      "default local suite",
+      "exact-SHA CI default gates",
+      "exact-SHA required adapter gates",
+      "independent final review"
+    ],
+    "fastGates": [
+      "csm-plan schema validation",
+      "workflow wiring tests",
+      "path security tests",
+      "make fmt-check",
+      "make lint",
+      "make check"
+    ],
+    "expensiveGates": [
+      "full make test",
+      "Docker/browser live proofs",
+      "required CI",
+      "diagnostic artifact inspection"
+    ],
+    "parallelizable": [],
+    "knownGaps": [
+      "Runner labels, Docker image availability, browser container access, and branch protection are external.",
+      "Docker Hub tag existence does not prove repository-approved digest until preflight records it."
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Runner image/path topology violates csm-browse policy",
+      "Docker pull/network/architecture failure",
+      "Required job silently skipped",
+      "Image tag moves",
+      "Live test hangs or leaks containers",
+      "PR SHA differs from merge SHA"
+    ],
+    "mitigations": [
+      "Explicit pre-import lstat/realpath probes",
+      "Standard Ubuntu runner, early pull, docker info and bounded probes",
+      "Unconditional job and variable assertions",
+      "Record and assert RepoDigest",
+      "timeouts, always diagnostics, cleanup checks",
+      "Event-specific SHA assertion"
+    ],
+    "rollback": "Revert only the CI workflow/Makefile gating changes to the last pushed baseline if the dedicated job destabilizes default gates; retain application evidence enforcement and preserve required gate failure semantics.",
+    "forwardRecovery": "Resume BLOCKED -> RECOVER after a capable runner/label/path setup is supplied; rerun VALIDATE before any new dispatch."
+  },
+  "critiqueResolution": [
+    {
+      "finding": "A conditional or dependency-skipped job can create misleading required-check success.",
+      "severity": "high",
+      "resolution": "T001 requires an unconditional stable job and explicit prerequisite assertions.",
+      "evidence": "Independent critique; GitHub conditions/protected-branch docs retrieved 2026-09-02."
+    },
+    {
+      "finding": "No-skip behavior and image identity were underspecified.",
+      "severity": "high",
+      "resolution": "T001/T002 require required-mode skip rejection and RepoDigest assertions for every required image.",
+      "evidence": "Independent critique and Docker/GitHub runner research."
+    },
+    {
+      "finding": "HOME override alone failed csm-browse ancestry checks.",
+      "severity": "high",
+      "resolution": "T001 provisions and validates all path ancestors plus explicit sessions root before module import.",
+      "evidence": "csm-browse security/constants source and CI logs."
+    },
+    {
+      "finding": "Diagnostics could mask the original failure and SHA semantics differ by event.",
+      "severity": "medium",
+      "resolution": "T002 requires always-on bounded redacted diagnostics and event-specific SHA comparison.",
+      "evidence": "Independent critique and GitHub workflow/artifact documentation."
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-02T07:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> NOT_STARTED",
+      "tasks": [],
+      "evidence": "Created a warranted implementation plan from four independent deep hybrid research tracks and an independent critique. No implementation or CI mutation was performed during planning.",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-02T07:15:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": [],
+      "evidence": "Explicit csm-build request selected this plan. Current commit 139c1cc is clean and pushed; required variables remain configured; previous workflows 33576677198 and 33597967908 were cancelled in adapter execution after runner prerequisite failures.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-02T07:15:00Z",
+      "cycle": 0,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": [],
+      "evidence": "Plan validates as csm-plan/1. Current workflow/Makefile and local csm-browse security contract match T001 scope. No repository NORMS.md exists.",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-02T07:20:00Z",
+      "cycle": 1,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": ["T001"],
+      "evidence": "Wiring baseline passed 2/2 and T001 was selected as the only ready task.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-02T07:20:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": ["T001"],
+      "evidence": "Bounded CI runner implementation dispatched with research-derived image, path, no-skip, cleanup, and SHA requirements.",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-02T08:25:00Z",
+      "cycle": 1,
+      "transition": "DISPATCH -> INTEGRATE",
+      "tasks": ["T001"],
+      "evidence": "CI workflow, Makefile, runner preflight, required-test wrapper, provider image contract, and wiring tests integrated; two repair cycles were required by independent review.",
+      "nextState": "INTEGRATE"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-02T08:35:00Z",
+      "cycle": 1,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": ["T001"],
+      "evidence": "Focused wiring/live command passed with 11 executed tests and 5 expected default skips; Docker provider tests passed 7/7; make fmt-check, make lint, and make check passed.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-02T08:45:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": ["T001"],
+      "evidence": "Final independent review found no findings and accepted T001 static/local criteria.",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-02T08:45:00Z",
+      "cycle": 1,
+      "transition": "REVIEW -> CHECKPOINT",
+      "tasks": ["T001"],
+      "evidence": "T001 is complete; T002 requires commit/push authorization and a capable external runner for exact-SHA execution.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-02T08:45:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> BLOCKED",
+      "tasks": ["T002"],
+      "evidence": "Implementation remained uncommitted and no exact-SHA non-skipping adapter CI pass existed. Required variables were configured, but runner capability remained externally unverified.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-02T09:00:00Z",
+      "cycle": 2,
+      "transition": "BLOCKED -> RECOVER",
+      "tasks": ["T002"],
+      "evidence": "User explicitly authorized commit and push in the current invocation.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-02T09:00:00Z",
+      "cycle": 2,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": ["T002"],
+      "evidence": "T001 repair was revalidated: focused wiring/live tests passed 11 with 5 expected skips, Docker provider tests passed 7/7, and formatting/lint/conformance passed.",
+      "nextState": "VALIDATE"
+    }
+  ],
+  "completionReview": null,
+  "inputs": [],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-02T07:00:00Z",
+    "sourceDigests": []
+  },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}
