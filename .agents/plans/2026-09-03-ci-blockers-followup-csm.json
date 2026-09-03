@@ -4,17 +4,17 @@
   "artifactId": "art-ci-blockers-followup-20260903",
   "runId": "run-20260903t080000z-ci-blockers-followup",
   "planId": "ci-blockers-followup",
-  "status": "in_progress",
+  "status": "blocked",
   "control": {
-    "status": "in_progress",
-    "currentState": "RECOVER",
+    "status": "blocked",
+    "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-03T23:00:00Z: commit/push authorization received; preparing exact owned-path commit",
+    "lastCheckpoint": "2026-09-03T23:30:00Z: pushed repair verified locally; CI blocked by repeated npm registry audit timeout",
     "lastModelRun": "gpt-5.6-luna / ci-blockers-followup-build",
-    "nextTransition": "RECOVER -> VALIDATE",
+    "nextTransition": "BLOCKED -> RECOVER after npm registry audit service recovers",
     "activeTasks": ["T003"],
-    "blockers": [],
+    "blockers": ["pnpm audit repeatedly fails with ERR_SOCKET_TIMEOUT against registry.npmjs.org; required CI cannot reach the adapter job."],
     "resume": {
       "read": [
         "last checkpoint",
@@ -24,7 +24,7 @@
         "latest CI run and artifact evidence",
         "all pending task recovery notes"
       ],
-    "firstAction": "Validate the owned pathset, commit the workflow repair and build evidence, push main, and verify the exact-SHA CI run."
+    "firstAction": "When npm audit service access recovers, rerun the exact pushed SHA and verify the required adapter cleanup postcondition."
     }
   },
   "goal": {
@@ -75,10 +75,10 @@
     }
   ],
   "currentStateEvidence": {
-    "repository": "main is at commit fc11fa6; the current workflow repair is limited to .github/workflows/ci.yml plus build evidence and is authorized for commit/push.",
+    "repository": "main is clean at commit f26eb74; the workflow repair, plan, build state, and artifact index are committed and pushed.",
     "existingPlan": ".agents/plans/2026-09-02-ci-runner-unblock-csm.json remains the prior execution record and is not mutated.",
     "latestSuccessfulAdapterEvidence": "Run 33721832131 executed the required adapter command successfully: browser E2E PASS 89/89, Docker adapter tests 7/7, and required TAP summaries had zero skips.",
-    "latestVerificationBlocker": "Rerun 33726800933 passed Repository gates in about seven minutes and passed the required adapter command; its cleanup step remained red because it ran before the current restart-policy repair.",
+    "latestVerificationBlocker": "Run 33812953261 and its failed-job rerun both failed Frozen install during pnpm audit with ERR_SOCKET_TIMEOUT after retries; Adapter integrations correctly refused to run.",
     "confirmedPriorBlockers": [
       "missing host ffmpeg/ffprobe caused screenshot, video, and sweep failures",
       "unsafe browser bind-mount migration path caused csm-browse failures",
@@ -88,7 +88,7 @@
     "currentWorkflow": ".github/workflows/ci.yml has an unconditional Adapter integrations job on ubuntu-24.04, immutable image checks, host media-tool installation, bounded required execution, redacted diagnostics, and cleanup postconditions.",
     "currentTests": "Focused browser security, adapter wiring, progress, formatting, lint, conformance, and commit hooks pass locally; one node:sqlite test is an expected environment skip in the focused progress run.",
     "knownUnknowns": [
-      "Whether disabling the restart policy before forced removal makes cleanup_status=0 on the hosted runner.",
+      "Whether disabling the restart policy before forced removal makes cleanup_status=0 on the hosted runner; this remains unverified because audit failed before Adapter integrations.",
       "Branch protection requirements are not locally inspectable."
     ]
   },
@@ -229,7 +229,7 @@
     {
       "taskId": "T003",
       "ordinal": 3,
-      "status": "in_progress",
+      "status": "blocked",
       "title": "Obtain final exact-SHA green CI evidence",
       "dependsOn": ["T002"],
       "parallelGroup": "G3",
@@ -240,7 +240,7 @@
       "actions": "Commit and push only with explicit authorization, verify the workflow SHA, monitor the complete default gates, require the dedicated adapter job, inspect browser/Docker zero-skip summaries, verify cleanup_status=0 and final resource absence, and record the run/artifact URLs.",
       "acceptanceSignal": "gh run view <exact-run-id> --json status,conclusion,jobs,headSha, with expected result: completed success, exact head SHA, successful Repository gates, successful Adapter integrations, and no skipped required tests.",
       "validation": ["uploaded redacted diagnostics", "browser E2E summary PASS equals TOTAL", "Docker summary pass equals tests", "container and network absent after cleanup", "git status --short is empty"],
-      "acceptanceEvidence": "Commit/push authorized in the current invocation; exact-SHA verification is in progress.",
+      "acceptanceEvidence": "Blocked by repeated external npm registry audit timeout; the pushed workflow has not completed its required adapter job on the latest repair SHA.",
       "repairAttempts": 0,
       "recoveryNote": "If the run stalls or is cancelled, remain blocked and record the last completed job and exact external dependency; do not reinterpret the result."
     }
@@ -290,6 +290,15 @@
       "tasks": ["T001"],
       "evidence": "Explicit csm-build request selected this plan. Current commit fc11fa6 is clean; no prior build-state cursor exists, so recovery starts from the plan checkpoint and latest CI evidence.",
       "nextState": "RECOVER"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-03T23:30:00Z",
+      "cycle": 0,
+      "transition": "RECOVER -> BLOCKED",
+      "tasks": ["T003"],
+      "evidence": "Commit f26eb74 was pushed. Run 33812953261 and its failed-job rerun both failed Frozen install because pnpm audit timed out against registry.npmjs.org after retries; no required adapter verification occurred on the repair SHA.",
+      "nextState": "BLOCKED"
     },
     {
       "sequence": 2,

@@ -4,14 +4,14 @@
   "artifactId": "art-ci-blockers-followup-build-20260903",
   "runId": "run-20260903t090000z-ci-blockers-followup-build",
   "owner": "csm-build",
-  "status": "in_progress",
+  "status": "blocked",
   "control": {
-    "currentState": "RECOVER",
+    "currentState": "BLOCKED",
     "cycle": 0,
-    "nextTransition": "RECOVER -> VALIDATE",
+    "nextTransition": "BLOCKED -> RECOVER after npm registry audit service recovers",
     "activeTasks": ["T003"],
-    "blockers": [],
-    "lastCheckpoint": "2026-09-03T23:00:00Z: commit/push authorization received; preparing exact owned-path commit",
+    "blockers": ["pnpm audit repeatedly fails with ERR_SOCKET_TIMEOUT against registry.npmjs.org; required CI cannot reach the adapter job."],
+    "lastCheckpoint": "2026-09-03T23:30:00Z: f26eb74 pushed; CI blocked by repeated npm registry audit timeout",
     "lastModelRun": "gpt-5.6-luna / ci-blockers-followup-build"
   },
   "inputs": [
@@ -21,7 +21,7 @@
       "schema": "csm-plan/1",
       "runId": "run-20260903t080000z-ci-blockers-followup",
       "owner": "csm-plan",
-      "digest": "sha256:f5e93d2060530b2ae203720033a213e01ef7ef6af91c50421c11728b6bec7ffb",
+      "digest": "sha256:1ddfe48ee7af98ca80897dba464c885e001c0ac64c7fcf0d4aa11e5c3b487eb7",
       "path": ".agents/plans/2026-09-03-ci-blockers-followup-csm.json",
       "status": "resolved"
     }
@@ -34,6 +34,14 @@
       "to": "RECOVER",
       "evidence": "Explicit csm-build request selected the saved follow-up plan. Repository is clean at fc11fa6; latest adapter command evidence is green, but full exact-SHA verification is incomplete and prior CI run 33726800933 stalled before Adapter integrations.",
       "nextState": "RECOVER"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-03T23:30:00Z",
+      "from": "RECOVER",
+      "to": "BLOCKED",
+      "evidence": "Commit f26eb74 was pushed. Run 33812953261 and its failed-job rerun both failed Frozen install because pnpm audit timed out against registry.npmjs.org after retries; no required adapter verification occurred on the repair SHA.",
+      "nextState": "BLOCKED"
     },
     {
       "sequence": 1,
@@ -56,7 +64,7 @@
   "completion": null,
   "provenance": {
     "sourcePlan": "art-ci-blockers-followup-20260903",
-    "sourceDigests": ["sha256:f5e93d2060530b2ae203720033a213e01ef7ef6af91c50421c11728b6bec7ffb"]
+    "sourceDigests": ["sha256:1ddfe48ee7af98ca80897dba464c885e001c0ac64c7fcf0d4aa11e5c3b487eb7"]
   },
   "projection": {
     "sourceOnly": true,
