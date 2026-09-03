@@ -59,6 +59,7 @@ const paths = {
 for (const path of Object.values(paths)) await ensurePrivate(path);
 const browserConfig = join(paths.config, "csm-browse");
 await ensurePrivate(browserConfig);
+await ensurePrivate(join(browserConfig, "container-config"));
 
 const output =
   Object.entries({
