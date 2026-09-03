@@ -1,0 +1,65 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-ci-blockers-followup-build-20260903",
+  "runId": "run-20260903t090000z-ci-blockers-followup-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "RECOVER",
+    "cycle": 0,
+    "nextTransition": "RECOVER -> VALIDATE",
+    "activeTasks": ["T003"],
+    "blockers": [],
+    "lastCheckpoint": "2026-09-03T23:00:00Z: commit/push authorization received; preparing exact owned-path commit",
+    "lastModelRun": "gpt-5.6-luna / ci-blockers-followup-build"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-ci-blockers-followup-20260903",
+      "schema": "csm-plan/1",
+      "runId": "run-20260903t080000z-ci-blockers-followup",
+      "owner": "csm-plan",
+      "digest": "sha256:f5e93d2060530b2ae203720033a213e01ef7ef6af91c50421c11728b6bec7ffb",
+      "path": ".agents/plans/2026-09-03-ci-blockers-followup-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-03T09:00:00Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "Explicit csm-build request selected the saved follow-up plan. Repository is clean at fc11fa6; latest adapter command evidence is green, but full exact-SHA verification is incomplete and prior CI run 33726800933 stalled before Adapter integrations.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-03T22:30:00Z",
+      "from": "RECOVER",
+      "to": "BLOCKED",
+      "evidence": "T001 validated with local test-scan 1283/1283 and rerun 33726800933 passing Repository gates. T002 validated with focused adapter wiring, formatting, whitespace, and repository checks; current workflow repair is uncommitted. T003 requires explicit commit/push authorization before exact-SHA verification.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-03T23:00:00Z",
+      "from": "BLOCKED",
+      "to": "RECOVER",
+      "evidence": "User explicitly authorized commit, push, and merge in the current invocation. The owned change set is .github/workflows/ci.yml plus the plan and build-state checkpoint.",
+      "nextState": "RECOVER"
+    }
+  ],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-ci-blockers-followup-20260903",
+    "sourceDigests": ["sha256:f5e93d2060530b2ae203720033a213e01ef7ef6af91c50421c11728b6bec7ffb"]
+  },
+  "projection": {
+    "sourceOnly": true,
+    "allowed": ["markdown", "html"]
+  }
+}

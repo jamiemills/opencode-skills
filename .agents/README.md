@@ -78,6 +78,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: blocked at runner prerequisites
 - `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked
 - `2026-09-02-ci-runner-unblock-csm.json` — 2026-09-02 — unblock required CI runner gates — status: in progress
+- `2026-09-03-ci-blockers-followup-csm.json` — 2026-09-03 — finish default-suite and adapter cleanup blockers — status: in progress
 
 ## docs/
 
@@ -191,6 +192,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `progress-tracking-implementation-20260829.json` — 2026-08-29 — csm-build checkpoint for progress implementation — status: retained terminal blocked history
 - `lean-mvp-orchestrator-release-build-20260831.json` — 2026-08-31 — csm-build checkpoint for lean orchestrator release — status: in progress
 - `close-live-evidence-ci-20260901.json` — 2026-09-01 — csm-build checkpoint for live evidence and CI closure — status: blocked
+- `ci-blockers-followup-20260903.json` — 2026-09-03 — csm-build checkpoint for default-suite and adapter cleanup blockers — status: in progress
 
 ## ddd/
 

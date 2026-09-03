@@ -136,6 +136,7 @@ jobs:
         run: |
           set -eu
           if timeout 15s docker inspect chromium-vnc >/dev/null 2>&1; then
+            timeout 15s docker update --restart=no chromium-vnc
             timeout 15s docker rm -f chromium-vnc
           fi
           if timeout 15s docker network inspect csm-browse-net >/dev/null 2>&1; then
@@ -194,6 +195,7 @@ jobs:
            if [ "$remaining" = "__INSPECT_TIMEOUT__" ]; then
              cleanup_status=1
            elif [ -n "$remaining" ]; then
+             timeout 15s docker update --restart=no chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
              timeout 15s docker rm -f chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
            fi
            remaining=""
@@ -201,6 +203,7 @@ jobs:
              remaining="$(timeout 15s docker ps -aq --filter name='^chromium-vnc$' || printf '__INSPECT_TIMEOUT__')"
              if [ "$remaining" = "__INSPECT_TIMEOUT__" ]; then cleanup_status=1; break; fi
              if [ -z "$remaining" ]; then break; fi
+             timeout 15s docker update --restart=no chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
              timeout 15s docker rm -f chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
              sleep 0.5
            done
