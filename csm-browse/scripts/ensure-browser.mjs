@@ -403,7 +403,19 @@ async function containerIsHardened(name) {
       ],
       { timeout: 10000 },
     );
-    return !relay.stdout.includes("LIVE");
+    if (!relay.stdout.includes("LIVE")) return true;
+    await neutralizeSharedRelay();
+    const remaining = await dockerCli(
+      [
+        "exec",
+        name,
+        "sh",
+        "-c",
+        'pgrep -f "socat TCP-LISTEN:922[2]" >/dev/null && echo LIVE || true',
+      ],
+      { timeout: 10000 },
+    );
+    return !remaining.stdout.includes("LIVE");
   } catch {
     return false;
   }
