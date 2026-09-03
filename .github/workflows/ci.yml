@@ -194,7 +194,7 @@ jobs:
           if [ "$?" -ne 0 ]; then
             cleanup_status=1
           elif [ -n "$remaining" ]; then
-            timeout 15s docker rm -f chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || cleanup_status=1
+             timeout 15s docker rm -f chromium-vnc >> "$RUNNER_TEMP/adapter-diagnostics/cleanup.txt" 2>&1 || true
           fi
            remaining=""
            for _ in 1 2 3 4 5 6 7 8 9 10; do
