@@ -57,7 +57,8 @@ const paths = {
   sessions: join(root, "sessions"),
 };
 for (const path of Object.values(paths)) await ensurePrivate(path);
-await ensurePrivate(join(paths.home, ".config", "csm-browse"));
+const browserConfig = join(paths.config, "csm-browse");
+await ensurePrivate(browserConfig);
 
 const output =
   Object.entries({
@@ -67,6 +68,7 @@ const output =
     XDG_STATE_HOME: paths.state,
     XDG_RUNTIME_DIR: paths.runtime,
     CSM_BROWSE_SESSIONS_ROOT: paths.sessions,
+    CSM_BROWSE_CONFIG_ROOT: browserConfig,
   })
     .map(([key, value]) => `${key}=${value}`)
     .join("\n") + "\n";

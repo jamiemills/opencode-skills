@@ -6,6 +6,8 @@ import { defaultSessionsRoot, validateRuntimeRootSelection } from "./security.mj
 export const SKILL_DIR = fileURLToPath(new URL("..", import.meta.url));
 export const SESSIONS_ROOT = process.env.CSM_BROWSE_SESSIONS_ROOT || defaultSessionsRoot();
 await validateRuntimeRootSelection(SESSIONS_ROOT);
+export const CONFIG_ROOT =
+  process.env.CSM_BROWSE_CONFIG_ROOT || join(homedir(), ".config", "csm-browse");
 export const CONTAINER_NAME = "chromium-vnc";
 // F-050: digest-pinned so `docker pull` is immutable — the :latest tag can
 // never repoint underneath us. Refresh the digest quarterly (same cadence as
@@ -34,10 +36,10 @@ export function assertImageFresh(now = new Date()) {
 // VNC password is generated once by ensure-browser.mjs and stored here (0600,
 // parent dir 0700); it is passed to the container via CONTAINER_ENV_FILE, so
 // the value never appears in a docker run argv (ps-visible).
-export const VNC_PASS_PATH = join(homedir(), ".config", "csm-browse", "vnc-pass");
+export const VNC_PASS_PATH = join(CONFIG_ROOT, "vnc-pass");
 // Single source for every path the shared container needs: the F-067-5 rule
 // is that the printed/executed command can never hardcode a second copy.
-export const CONTAINER_CONFIG_DIR = join(homedir(), ".config", "csm-browse");
+export const CONTAINER_CONFIG_DIR = CONFIG_ROOT;
 export const CONTAINER_CONFIG_HOST_DIR = join(CONTAINER_CONFIG_DIR, "container-config");
 export const CONTAINER_ENV_FILE = join(CONTAINER_CONFIG_DIR, "container.env");
 export const CONTAINER_TOKEN_PATH = join(CONTAINER_CONFIG_DIR, "container-token");
