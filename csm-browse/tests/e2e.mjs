@@ -564,11 +564,15 @@ async function runTests() {
 
         r = await browse("screenshot", "--full", "step7-full.png");
         data = parseJson(r.stdout);
-        assert(step + " - full-page screenshot exists", data && data.bytes > 24, r.stdout);
+        assert(
+          step + " - full-page screenshot exists",
+          data && data.bytes > 24,
+          `stdout=${r.stdout} stderr=${r.stderr}`,
+        );
         assert(
           step + " - full-page larger than viewport",
           data && data.height > vpHeight,
-          data ? `full=${data.height} vs vp=${vpHeight}` : r.stdout,
+          data ? `full=${data.height} vs vp=${vpHeight}` : `stdout=${r.stdout} stderr=${r.stderr}`,
         );
       } catch (e) {
         fail(step, e.message);
@@ -601,12 +605,14 @@ async function runTests() {
         assert(
           step + " - truncated flag set",
           data && data.truncated === true,
-          data ? JSON.stringify(data).substring(0, 150) : r.stdout.substring(0, 80),
+          data
+            ? JSON.stringify(data).substring(0, 150)
+            : `stdout=${r.stdout} stderr=${r.stderr}`.substring(0, 160),
         );
         assert(
           step + " - output non-empty",
           data && data.bytes > 24,
-          data ? `bytes=${data.bytes}` : "no data",
+          data ? `bytes=${data.bytes}` : `stdout=${r.stdout} stderr=${r.stderr}`,
         );
 
         let leftovers = [];
@@ -842,7 +848,7 @@ async function runTests() {
         assert(
           step + " - screencast stopped OK",
           data && data.file && !data.error,
-          data ? JSON.stringify(data) : r.stdout,
+          data ? JSON.stringify(data) : `stdout=${r.stdout} stderr=${r.stderr}`,
         );
         videoPath = data && data.file;
         console.log(
