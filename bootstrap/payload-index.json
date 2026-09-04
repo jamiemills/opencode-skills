@@ -1966,6 +1966,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/lib/progress-tracker.mjs",
+        "sha256": "e71ac7f026273ba96d47344f9d4e8d13383d2e66649c72e5d894ce99e2a034fa",
+        "bytes": 5653,
+        "mode": "0644"
+      },
+      {
         "path": "payload/lib/publication/index.mjs",
         "sha256": "cb786c609416a3711760d15c372ee9b70bd3332a1d085a9c5318ee2bf00b1684",
         "bytes": 23985,

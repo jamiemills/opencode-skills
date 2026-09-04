@@ -231,6 +231,7 @@ const mapping = {
   helperBins: [],
   metadata: [
     { src: "LICENSE", dest: "LICENSE" },
+    { src: "lib/progress-tracker.mjs", dest: join("payload", "lib", "progress-tracker.mjs") },
     { srcDir: "schemas", destDir: join("payload", "schemas") },
     { srcDir: join("lib", "schema-runtime"), destDir: join("payload", "lib", "schema-runtime") },
     {
