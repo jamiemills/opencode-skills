@@ -79,6 +79,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked
 - `2026-09-02-ci-runner-unblock-csm.json` — 2026-09-02 — unblock required CI runner gates — status: in progress
 - `2026-09-03-ci-blockers-followup-csm.json` — 2026-09-03 — finish default-suite and adapter cleanup blockers — status: blocked at npm registry audit timeout
+- `2026-09-03-npm-audit-ci-resilience-csm.json` — 2026-09-03 — add bounded npm audit retry resilience — status: in progress
 
 ## docs/
 
@@ -193,6 +194,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `lean-mvp-orchestrator-release-build-20260831.json` — 2026-08-31 — csm-build checkpoint for lean orchestrator release — status: in progress
 - `close-live-evidence-ci-20260901.json` — 2026-09-01 — csm-build checkpoint for live evidence and CI closure — status: blocked
 - `ci-blockers-followup-20260903.json` — 2026-09-03 — csm-build checkpoint for default-suite and adapter cleanup blockers — status: blocked at npm registry audit timeout
+- `npm-audit-ci-resilience-20260904.json` — 2026-09-04 — csm-build checkpoint for npm audit CI resilience — status: in progress
 
 ## ddd/
 

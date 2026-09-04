@@ -32,7 +32,14 @@ fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
 	fi
 
 audit: ## non-mutating dependency audit; high/critical or unavailable advisories fail
-	pnpm audit --audit-level=high
+	@set -o pipefail; \
+	status=1; \
+	for attempt in 1 2 3; do \
+		if timeout 90s pnpm audit --audit-level=high; then exit 0; else status=$$?; fi; \
+		printf 'dependency audit attempt %s/3 failed with status %s\n' "$$attempt" "$$status" >&2; \
+		if [ "$$attempt" -eq 3 ]; then exit "$$status"; fi; \
+		sleep $$((attempt * 5)); \
+	done
 
 check: ## repo conformance gate
 	node scripts/check-suite.mjs

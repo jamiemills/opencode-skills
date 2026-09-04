@@ -38,6 +38,9 @@ test("adapter integration gates are explicit, required, and separate from defaul
   assert.match(makefile, /test-adapter-integrations:/);
   assert.match(makefile, /CSM_ADAPTER_INTEGRATIONS_APPROVED/);
   assert.match(makefile, /test-adapter-integrations-required/);
+  assert.match(makefile, /timeout 90s pnpm audit --audit-level=high/);
+  assert.match(makefile, /for attempt in 1 2 3/);
+  assert.match(makefile, /if \[ "\$\$attempt" -eq 3 \]; then exit "\$\$status"/);
   assert.doesNotMatch(makefile.match(/^test:.*$/m)?.[0] ?? "", /test-adapter-integrations/);
   assert.match(workflow, /adapter-integrations:\s*\n\s+name: Adapter integrations/);
   assert.match(workflow, /Install browser media tooling/);

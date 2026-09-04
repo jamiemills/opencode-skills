@@ -1,0 +1,56 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-npm-audit-ci-resilience-build-20260904",
+  "runId": "run-20260904t001500z-npm-audit-ci-resilience-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "RECOVER",
+    "cycle": 0,
+    "nextTransition": "RECOVER -> VALIDATE",
+    "activeTasks": ["T003"],
+    "blockers": [],
+    "lastCheckpoint": "2026-09-04T02:00:00Z: commit/push authorization received; preparing scoped audit resilience commit",
+    "lastModelRun": "gpt-5.6-luna / npm-audit-ci-resilience-build"
+  },
+  "inputs": [{
+    "name": "plan",
+    "artifactId": "art-npm-audit-ci-resilience-20260903",
+    "schema": "csm-plan/1",
+    "runId": "run-20260903t234500z-npm-audit-ci-resilience",
+    "owner": "csm-plan",
+    "digest": "sha256:7856aadd5a67d369db201e3075664189e1b5039a250b651bacdf696f35c6669e",
+    "path": ".agents/plans/2026-09-03-npm-audit-ci-resilience-csm.json",
+    "status": "resolved"
+  }],
+  "journal": [{
+    "sequence": 0,
+    "timestamp": "2026-09-04T00:15:00Z",
+    "from": "NOT_STARTED",
+    "to": "RECOVER",
+    "evidence": "Explicit csm-build request selected the saved audit resilience plan. Repository is clean at 2a82b8e; repeated CI audit failures are recorded as ERR_SOCKET_TIMEOUT against registry.npmjs.org.",
+    "nextState": "RECOVER"
+  }, {
+    "sequence": 1,
+    "timestamp": "2026-09-04T01:00:00Z",
+    "from": "RECOVER",
+    "to": "BLOCKED",
+    "evidence": "T001 selected bounded retry after current pnpm documentation confirmed --ignore-registry-errors would be false-green. T002 implemented three 90-second retries and local audit recovered after transient timeouts; lint, conformance, formatting, and wiring tests pass. T003 is blocked pending explicit commit/push authorization.",
+    "nextState": "BLOCKED"
+  }, {
+    "sequence": 2,
+    "timestamp": "2026-09-04T01:30:00Z",
+    "from": "BLOCKED",
+    "to": "BLOCKED",
+    "evidence": "Focused implementation and repository checks pass locally, but this invocation did not authorize commit/push. Exact-SHA CI verification remains incomplete.",
+    "nextState": "BLOCKED"
+  }],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-npm-audit-ci-resilience-20260903",
+    "sourceDigests": ["sha256:7856aadd5a67d369db201e3075664189e1b5039a250b651bacdf696f35c6669e"]
+  },
+  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+}

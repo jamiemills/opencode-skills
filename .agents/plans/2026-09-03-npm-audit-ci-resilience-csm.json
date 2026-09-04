@@ -1,0 +1,154 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-npm-audit-ci-resilience-20260903",
+  "runId": "run-20260903t234500z-npm-audit-ci-resilience",
+  "planId": "npm-audit-ci-resilience",
+  "status": "in_progress",
+  "control": {
+    "status": "in_progress",
+    "currentState": "RECOVER",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-04T02:00:00Z: commit/push authorization received; preparing scoped audit resilience commit",
+    "lastModelRun": "gpt-5.6-luna / npm-audit-ci-resilience-build",
+    "nextTransition": "RECOVER -> VALIDATE",
+    "activeTasks": ["T003"],
+    "blockers": [],
+    "resume": {
+      "read": ["last checkpoint", "latest journal", "current commit", "working-tree diff", "pending task recovery notes"],
+      "firstAction": "Validate the scoped audit change, commit only owned files, push, and verify exact-SHA CI."
+    }
+  },
+  "goal": {
+    "summary": "Make the dependency-audit CI gate resilient to transient npm registry timeouts without weakening vulnerability detection or reporting false green.",
+    "deliverables": ["bounded audit retry/backoff behavior", "clear timeout diagnostics", "regression coverage for failure semantics", "successful exact-SHA CI evidence"],
+    "constraints": ["Keep high-severity audit failures blocking", "Keep registry-unavailable failures blocking unless an explicitly approved evidence-preserving policy exists", "Preserve pnpm lockfile and frozen install behavior", "Use no real credentials or production data", "Keep the existing stable CI job names", "Prefer the smallest repository-native change"],
+    "exclusions": ["silently skipping audit", "replacing audit with an unapproved weaker scanner", "dependency upgrades unrelated to the timeout", "branch-protection changes", "real registry or infrastructure changes"]
+  },
+  "acceptanceCriteria": [
+    { "id": "AC1", "outcome": "The audit gate has a documented, bounded behavior for transient registry failures and still fails closed when vulnerability evidence cannot be obtained.", "evidence": "Policy tests and workflow/Makefile inspection." },
+    { "id": "AC2", "outcome": "Transient audit timeouts receive bounded retries or an approved equivalent and produce actionable redacted diagnostics.", "evidence": "Deterministic retry/failure tests and CI log output." },
+    { "id": "AC3", "outcome": "High-severity vulnerabilities continue to fail the gate and no audit failure is converted into success.", "evidence": "Synthetic vulnerability/failure-path tests." },
+    { "id": "AC4", "outcome": "A complete exact-SHA CI run passes the frozen install, repository gates, and required adapter job after the change.", "evidence": "CI run URL, head SHA, job conclusions, and artifact evidence." }
+  ],
+  "currentStateEvidence": {
+    "repository": "main is at commit 2a82b8e; audit retry, tests, and checkpoint changes are authorized for commit and push.",
+    "observedCI": [
+      "Run 33812953261 failed Frozen install during make audit after pnpm retried registry.npmjs.org three times.",
+      "The failed-job rerun also failed with ERR_SOCKET_TIMEOUT against https://registry.npmjs.org/-/npm/v1/security/audits/quick.",
+      "Adapter integrations correctly refused to run when the default gate failed.",
+      "Earlier run 33721832131 proved browser E2E 89/89 and Docker adapter tests 7/7 when the audit gate completed."
+    ],
+    "affectedFiles": ["Makefile: audit target", ".github/workflows/ci.yml: install/audit jobs", "tests for CI wiring and audit behavior"],
+    "knownUnknowns": ["Whether the hosted registry remains available long enough for the pushed retry change to reach adapter verification", "Whether three 90-second attempts fit the full CI time budget"]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": ["public_contract", "invariant_or_consistency", "external_side_effect", "cross_boundary_coordination", "security_or_authority"],
+    "evidence": [
+      { "source": "brief", "locator": "request", "observation": "The user requested a CSM plan to fix the CI blocker." },
+      { "source": "ci", "locator": "run 33812953261 audit logs", "observation": "The security audit gate cannot complete because its external advisory request times out." }
+    ],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "ownership", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "seam", "status": "required" },
+      { "id": "parity", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002", "T003"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": ["A retry can extend CI duration without improving availability.", "Any alternative advisory source may have different vulnerability coverage.", "A registry outage must remain visibly blocking."],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    { "id": "D1", "statement": "Do not convert an unavailable advisory service into a successful audit result.", "type": "security", "evidence": "Existing Makefile audit target is a blocking gate and prior CI correctly stopped downstream jobs.", "status": "accepted" },
+    { "id": "D2", "statement": "Research must compare bounded retry/backoff with any approved offline or alternate evidence source before implementation.", "type": "design", "evidence": "The current failure is external network availability, and the safe fallback is not established.", "status": "accepted" }
+  ],
+  "rdRecord": [],
+  "discoveredRequirements": [
+    { "id": "DR1", "requirement": "The audit command currently uses pnpm audit --audit-level=high and its registry retries can consume several minutes before failing.", "source": "Makefile:35 and CI run 33812953261" },
+    { "id": "DR2", "requirement": "The adapter job depends on successful default gates and must not run or pass when audit evidence is unavailable.", "source": ".github/workflows/ci.yml and run 33812953261" }
+  ],
+  "design": {
+    "summary": "First establish the repository-approved resilience policy, then implement one bounded audit execution seam with preserved exit semantics and diagnostics, then verify the full workflow.",
+    "candidateApproaches": ["bounded retry/backoff around the existing pnpm audit", "approved alternate advisory retrieval with equivalent high-severity semantics", "fail-fast diagnostics only if retries are not safe"],
+    "selectionRule": "Choose the smallest approach that preserves audit coverage and fail-closed behavior; reject any approach that reports success without current advisory evidence.",
+    "boundaries": ["Makefile audit command", "CI install/audit environment", "required downstream gate dependency"],
+    "failurePolicy": "Vulnerability findings and unavailable/ambiguous advisory evidence remain nonzero failures."
+  },
+  "executionGraph": { "criticalPath": ["T001", "T002", "T003"], "parallelGroups": [], "dependencies": { "T001": [], "T002": ["T001"], "T003": ["T002"] } },
+  "tasks": [
+    {
+      "taskId": "T001", "ordinal": 1, "status": "completed", "title": "Establish the audit resilience policy", "dependsOn": [], "parallelGroup": "G1", "risk": "high",
+      "ownedScope": ["Makefile audit target", "CI audit steps", "pnpm audit behavior and current documentation"],
+      "notInScope": ["dependency upgrades", "disabling audit", "alternate scanner adoption without approval"],
+      "spikeCandidate": "Determine whether bounded retry/backoff can be implemented using existing repository tooling without masking vulnerabilities; use read-only docs and disposable synthetic command experiments only.",
+      "actions": "Inspect current audit configuration and pnpm behavior, retrieve current authoritative guidance for audit retries/timeouts, compare the candidate approaches, and record the selected policy with its failure semantics.",
+      "acceptanceSignal": "A written evidence record identifies the selected approach, retry budget, timeout behavior, and exact nonzero behavior for registry unavailability and high-severity findings.",
+      "validation": ["make audit (baseline result recorded; expected current external timeout may fail)", "pnpm audit --help", "read-only current pnpm documentation retrieval"],
+      "acceptanceEvidence": "Pnpm 10.34.5 documents --ignore-registry-errors as exit-zero on registry errors, so it was rejected. Existing audit behavior was retained and a bounded retry policy was selected.",
+      "repairAttempts": 0,
+      "recoveryNote": "If no safe resilience policy preserves current audit semantics, block rather than inventing a fallback."
+    },
+    {
+      "taskId": "T002", "ordinal": 2, "status": "completed", "title": "Implement bounded audit resilience", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high",
+      "ownedScope": ["Makefile", "CI audit wiring", "focused audit contract tests", "payload/index files only if mechanically required"],
+      "notInScope": ["false-green fallback", "lockfile changes", "unrelated CI refactors", "removing high-severity enforcement"],
+      "spikeCandidate": "None after T001; return to research if implementation requires a new advisory provider or credential.",
+      "actions": "Implement the selected bounded retry/backoff or approved equivalent, preserve the original audit exit status and high-severity threshold, emit redacted diagnostics, and add deterministic tests for success, vulnerability failure, timeout, and exhausted retries.",
+      "acceptanceSignal": "The focused audit contract test suite passes with expected results: clean audit succeeds, high-severity finding fails, transient retry can recover, and exhausted/unavailable audit fails.",
+      "validation": ["node --test <focused-audit-contract-tests>", "make fmt-check", "make lint", "make check", "git diff --check"],
+      "acceptanceEvidence": "Makefile now performs three 90-second attempts with 5/10-second backoff, preserves high-severity audit status, and local audit recovered after transient timeout attempts. Wiring, lint, conformance, formatting, and whitespace checks pass.",
+      "repairAttempts": 0,
+      "recoveryNote": "If tests show changed vulnerability semantics, revert the design choice and return to T001 research."
+    },
+    {
+      "taskId": "T003", "ordinal": 3, "status": "blocked", "title": "Verify exact-SHA CI and downstream adapter gates", "dependsOn": ["T002"], "parallelGroup": "G3", "risk": "high",
+      "ownedScope": ["one pushed commit", "one exact CI run", "audit logs", "adapter diagnostic artifact", "plan evidence"],
+      "notInScope": ["accepting registry failure as green", "skipping default gates", "branch-protection changes"],
+      "spikeCandidate": "None; external verification only.",
+      "actions": "Commit and push only with explicit authorization, verify exact SHA, monitor frozen install and repository gates, confirm audit completes with high-severity policy intact, then verify Adapter integrations executes and finishes with zero skips and cleanup_status=0.",
+      "acceptanceSignal": "gh run view <exact-run-id> --json status,conclusion,jobs,headSha, with expected result: completed success, exact pushed SHA, successful default gates, successful Adapter integrations, and retained audit evidence.",
+      "validation": ["audit command exit/result in CI", "required TAP summaries", "browser E2E summary", "Docker summary", "cleanup artifact", "git status --short"],
+      "acceptanceEvidence": "Commit/push authorization received in the current invocation; exact-SHA verification is in progress.",
+      "repairAttempts": 0,
+      "recoveryNote": "If npm registry access remains unavailable, checkpoint BLOCKED with the exact external error and do not weaken the gate."
+    }
+  ],
+  "verificationStrategy": {
+    "order": ["plan validation", "policy research", "focused audit tests", "default local gates", "exact-SHA CI", "required adapter CI", "independent review"],
+    "fastGates": ["plan schema/conformance", "focused audit tests", "make fmt-check", "make lint", "make check"],
+    "expensiveGates": ["pnpm audit against registry", "full make test", "exact-SHA CI", "adapter integration artifact inspection"],
+    "parallelizable": [],
+    "knownGaps": ["Registry availability is external and may remain unavailable during verification.", "Advisory coverage equivalence must be proven before selecting an alternate source."]
+  },
+  "risksAndRecovery": {
+    "risks": ["Retry increases CI duration", "alternate advisory data is incomplete", "audit failure is accidentally masked", "downstream adapter job remains unverified"],
+    "mitigations": ["bounded retry budget", "coverage comparison and explicit rejection of weak fallback", "nonzero exhausted-failure path tests", "exact-SHA downstream verification"],
+    "rollback": "Revert only the audit resilience change if it alters vulnerability semantics or destabilizes repository gates; preserve the prior blocking audit behavior.",
+    "forwardRecovery": "Resume from T001 policy evidence or T003 blocked checkpoint after registry service access recovers."
+  },
+  "critiqueResolution": [
+    { "finding": "A retry plan can accidentally turn registry outage into success.", "severity": "high", "resolution": "Acceptance criteria require exhausted/unavailable audit to remain nonzero and explicitly reject false-green fallback.", "evidence": "Run 33812953261 and Makefile audit gate behavior." },
+    { "finding": "Adapter success cannot be evaluated when default audit fails.", "severity": "medium", "resolution": "T003 requires complete default gates before downstream adapter evidence is accepted.", "evidence": "Adapter integrations refusal in run 33814016063." }
+  ],
+  "journal": [
+    { "sequence": 0, "timestamp": "2026-09-03T23:45:00Z", "cycle": 0, "transition": "NOT_STARTED -> NOT_STARTED", "tasks": [], "evidence": "Created a warranted plan for repeated npm audit registry timeouts. No implementation or external mutation was performed during planning.", "nextState": "NOT_STARTED" },
+    { "sequence": 1, "timestamp": "2026-09-04T00:15:00Z", "cycle": 0, "transition": "NOT_STARTED -> RECOVER", "tasks": ["T001"], "evidence": "Explicit csm-build request selected this plan. Repository is clean at commit 2a82b8e and no prior build-state artifact exists for this plan.", "nextState": "RECOVER" },
+    { "sequence": 2, "timestamp": "2026-09-04T01:00:00Z", "cycle": 0, "transition": "RECOVER -> BLOCKED", "tasks": ["T001", "T002", "T003"], "evidence": "T001 selected bounded retry after current pnpm documentation confirmed --ignore-registry-errors would be false-green. T002 implemented three 90-second retries and local audit recovered after transient timeouts; lint, conformance, formatting, and wiring tests pass. T003 is blocked pending explicit commit/push authorization.", "nextState": "BLOCKED" },
+    { "sequence": 3, "timestamp": "2026-09-04T01:30:00Z", "cycle": 0, "transition": "BLOCKED -> BLOCKED", "tasks": ["T003"], "evidence": "Focused implementation checks pass, but the prior invocation did not authorize commit/push. Exact-SHA CI verification remained incomplete.", "nextState": "BLOCKED" },
+    { "sequence": 4, "timestamp": "2026-09-04T02:00:00Z", "cycle": 0, "transition": "BLOCKED -> RECOVER", "tasks": ["T003"], "evidence": "User explicitly authorized commit, push, and merge in the current invocation. The owned change set is Makefile, tests/adapter-gate-wiring.test.mjs, this plan, and the build-state checkpoint.", "nextState": "RECOVER" }
+  ],
+  "completionReview": null,
+  "inputs": [],
+  "provenance": { "producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-09-03T23:45:00Z", "sourceDigests": [] },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}
