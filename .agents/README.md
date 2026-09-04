@@ -81,7 +81,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-03-ci-blockers-followup-csm.json` — 2026-09-03 — finish default-suite and adapter cleanup blockers — status: blocked at npm registry audit timeout
 - `2026-09-03-npm-audit-ci-resilience-csm.json` — 2026-09-03 — add bounded npm audit retry resilience — status: superseded by `2026-09-04-replace-npm-audit-ci-gate-csm.json` (retries disproven by run 33833838983)
 - `2026-09-04-replace-npm-audit-ci-gate-csm.json` — 2026-09-04 — replace npm audit CI gate with fail-closed pinned OSV audit — status: complete (run 33903446355 green on 0ec452a)
-- `2026-09-04-skill-progress-tracker-enforcement-csm.json` — 2026-09-04 — enforce skill progress tracker records — status: in progress
+- `2026-09-04-skill-progress-tracker-enforcement-csm.json` — 2026-09-04 — enforce skill progress tracker records — status: complete (CI run 33928035357 / fa79f36 fully green)
 
 ## docs/
 
@@ -198,7 +198,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `ci-blockers-followup-20260903.json` — 2026-09-03 — csm-build checkpoint for default-suite and adapter cleanup blockers — status: blocked at npm registry audit timeout
 - `npm-audit-ci-resilience-20260904.json` — 2026-09-04 — csm-build checkpoint for npm audit CI resilience — status: superseded by `replace-npm-audit-ci-gate-20260904.json`
 - `replace-npm-audit-ci-gate-20260904.json` — 2026-09-04 — csm-build checkpoint for the OSV audit CI gate replacement — status: complete
-- `skill-progress-tracker-enforcement-20260904.json` — 2026-09-04 — csm-build checkpoint for skill progress tracker enforcement — status: in progress
+- `skill-progress-tracker-enforcement-20260904.json` — 2026-09-04 — csm-build checkpoint for skill progress tracker enforcement — status: complete (shipped on fa79f36; CI run 33928035357 fully green)
 
 ## progress/
 

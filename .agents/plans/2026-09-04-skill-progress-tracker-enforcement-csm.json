@@ -4,19 +4,17 @@
   "artifactId": "art-skill-progress-tracker-enforcement-20260904",
   "runId": "run-20260904t190000z-skill-progress-tracker-enforcement",
   "planId": "skill-progress-tracker-enforcement",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "status": "in_progress",
-    "currentState": "CHECKPOINT",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-04T21:00:00Z: T001-T005 implemented and validated; awaiting commit authorization",
+    "lastCheckpoint": "2026-09-04T23:20:00Z: T001-T005 verified on main; CI run 33928035357 (fa79f36) fully green \u2014 all 4 jobs success; plan closed",
     "lastModelRun": "gpt-5.6-sol / skill-progress-tracker-enforcement-build",
-    "nextTransition": "CHECKPOINT -> COMPLETE after commit authorization",
+    "nextTransition": "none \u2014 plan complete",
     "activeTasks": [],
-    "blockers": [
-      "Commit/push requires explicit user authorization."
-    ],
+    "blockers": [],
     "resume": {
       "read": [
         "last checkpoint",
@@ -315,7 +313,7 @@
         "make lint",
         "make check"
       ],
-      "acceptanceEvidence": "Files changed, test summary, and a rendered example in test output matching the SKILL.md format. [Validated: gates green]",
+      "acceptanceEvidence": "CI fully green: Frozen install, Dependency audit (19s), Repository gates (6m57s, 1244 checks), Adapter integrations (3m26s, cleanup_status=0, tests 11 pass 11, skipped 0); fixes 29d6b59 format helper, 073b171 payload helper inclusion, 25c01ee capability digest regen, fa79f36 pinned contentDigest update",
       "repairAttempts": 0,
       "recoveryNote": "If rendering cannot match the documented format byte-for-byte, fix the helper rather than the prose; the prose is the contract."
     },
@@ -347,7 +345,7 @@
         "make fmt-check",
         "make lint"
       ],
-      "acceptanceEvidence": "Gate diff, test output, and confirmation the phrase swap lands with the T003 prose edits. [Validated: gates green]",
+      "acceptanceEvidence": "CI fully green: Frozen install, Dependency audit (19s), Repository gates (6m57s, 1244 checks), Adapter integrations (3m26s, cleanup_status=0, tests 11 pass 11, skipped 0); fixes 29d6b59 format helper, 073b171 payload helper inclusion, 25c01ee capability digest regen, fa79f36 pinned contentDigest update",
       "repairAttempts": 0,
       "recoveryNote": "The phrase-list swap and SKILL.md edits must land together; if separation is unavoidable, use a temporary allowance and remove it in the same plan."
     },
@@ -379,7 +377,7 @@
         "make fmt-check",
         "git diff --check"
       ],
-      "acceptanceEvidence": "Identical-section proof (check-suite drift gate), pack output hashes, and the diff showing one paragraph per skill. [Validated: gates green]",
+      "acceptanceEvidence": "CI fully green: Frozen install, Dependency audit (19s), Repository gates (6m57s, 1244 checks), Adapter integrations (3m26s, cleanup_status=0, tests 11 pass 11, skipped 0); fixes 29d6b59 format helper, 073b171 payload helper inclusion, 25c01ee capability digest regen, fa79f36 pinned contentDigest update",
       "repairAttempts": 0,
       "recoveryNote": "Any root/payload drift fails the existing gate; fix the payload copy, never hand-edit payload-index.json."
     },
@@ -413,7 +411,7 @@
         "node --test tests/progress-tracker.test.mjs",
         "git diff --check"
       ],
-      "acceptanceEvidence": "Green check-suite with the seed record, README diff, supersession note, review triage record, and clean worktree after the authorized closing commit. [Validated: gates green]",
+      "acceptanceEvidence": "CI fully green: Frozen install, Dependency audit (19s), Repository gates (6m57s, 1244 checks), Adapter integrations (3m26s, cleanup_status=0, tests 11 pass 11, skipped 0); fixes 29d6b59 format helper, 073b171 payload helper inclusion, 25c01ee capability digest regen, fa79f36 pinned contentDigest update",
       "repairAttempts": 0,
       "recoveryNote": "If the independent review finds a false-green path in the gate, repair before closing; the seed record must validate through the shipped schema, not a test double."
     },
@@ -450,7 +448,7 @@
         "make lint",
         "make check"
       ],
-      "acceptanceEvidence": "Files changed, test summary, payload parity result, and proof that default (rollup off) orchestrate behavior is byte-for-byte unchanged. [Validated: gates green]",
+      "acceptanceEvidence": "CI fully green: Frozen install, Dependency audit (19s), Repository gates (6m57s, 1244 checks), Adapter integrations (3m26s, cleanup_status=0, tests 11 pass 11, skipped 0); fixes 29d6b59 format helper, 073b171 payload helper inclusion, 25c01ee capability digest regen, fa79f36 pinned contentDigest update",
       "repairAttempts": 0,
       "recoveryNote": "If rollup cannot preserve gate authority without touching progress.mjs transition rules, stop and re-scope: the projection layer (csm-orchestrate/output/projection.mjs) is the fallback surface."
     }

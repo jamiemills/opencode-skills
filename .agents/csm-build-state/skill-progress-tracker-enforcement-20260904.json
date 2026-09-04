@@ -4,46 +4,64 @@
   "artifactId": "art-skill-progress-tracker-enforcement-build-20260904",
   "runId": "run-20260904t200000z-skill-progress-tracker-enforcement-build",
   "owner": "csm-build",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "currentState": "CHECKPOINT",
+    "currentState": "COMPLETE",
     "cycle": 0,
-    "nextTransition": "CHECKPOINT -> COMPLETE after commit authorization",
+    "nextTransition": "none \u2014 build complete",
     "activeTasks": [],
-    "blockers": ["Commit/push requires explicit user authorization."],
-    "lastCheckpoint": "2026-09-04T21:00:00Z: T001-T005 implemented, validated (22 focused tests + check-suite 1244 OK), awaiting commit authorization",
+    "blockers": [],
+    "lastCheckpoint": "2026-09-04T23:20:00Z: shipped on fa79f36; CI run 33928035357 fully green",
     "lastModelRun": "gpt-5.6-sol / skill-progress-tracker-enforcement-build"
   },
-  "inputs": [{
-    "name": "plan",
-    "artifactId": "art-skill-progress-tracker-enforcement-20260904",
-    "schema": "csm-plan/1",
-    "runId": "run-20260904t190000z-skill-progress-tracker-enforcement",
-    "owner": "csm-plan",
-    "digest": "pending",
-    "path": ".agents/plans/2026-09-04-skill-progress-tracker-enforcement-csm.json",
-    "status": "resolved"
-  }],
-  "journal": [{
-    "sequence": 0,
-    "timestamp": "2026-09-04T20:00:00Z",
-    "from": "NOT_STARTED",
-    "to": "RECOVER",
-    "evidence": "Explicit csm-build request selected the saved plan. Repository clean at c4f6590.",
-    "nextState": "RECOVER"
-  }, {
-    "sequence": 1,
-    "timestamp": "2026-09-04T21:00:00Z",
-    "from": "RECOVER",
-    "to": "CHECKPOINT",
-    "evidence": "T001: schema + helper + 5 contract tests. T002: check-suite gate validates .agents/progress/*.json, phrase list swapped. T003: 28 SKILL.md files (14 root + 14 payload) updated, pack synced. T005: progress-rollup.mjs + 4 tests + opt-in call site. T004: seed record persisted and validated. All gates green: 22 focused tests, check-suite 1244 OK, fmt/lint/diff clean.",
-    "nextState": "CHECKPOINT"
-  }],
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-skill-progress-tracker-enforcement-20260904",
+      "schema": "csm-plan/1",
+      "runId": "run-20260904t190000z-skill-progress-tracker-enforcement",
+      "owner": "csm-plan",
+      "digest": "pending",
+      "path": ".agents/plans/2026-09-04-skill-progress-tracker-enforcement-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-04T20:00:00Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "Explicit csm-build request selected the saved plan. Repository clean at c4f6590.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-04T21:00:00Z",
+      "from": "RECOVER",
+      "to": "CHECKPOINT",
+      "evidence": "T001: schema + helper + 5 contract tests. T002: check-suite gate validates .agents/progress/*.json, phrase list swapped. T003: 28 SKILL.md files (14 root + 14 payload) updated, pack synced. T005: progress-rollup.mjs + 4 tests + opt-in call site. T004: seed record persisted and validated. All gates green: 22 focused tests, check-suite 1244 OK, fmt/lint/diff clean.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-04T23:20:00Z",
+      "from": "CHECKPOINT",
+      "to": "COMPLETE",
+      "note": "Commit/push authorized; formatting, payload inclusion, capability digests, and pinned test digest fixed; CI run 33928035357 all 4 jobs success; plan closed complete"
+    }
+  ],
   "artifacts": [],
   "completion": null,
   "provenance": {
     "sourcePlan": "art-skill-progress-tracker-enforcement-20260904",
     "sourceDigests": []
   },
-  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
 }
