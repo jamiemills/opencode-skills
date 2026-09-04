@@ -758,8 +758,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "c71aa15e4ba11298036f3c3f622c7d303c9489b718bf0909e09a6f6d3df2dd03",
-        "bytes": 15372,
+        "sha256": "dc83885cb051816541b37b3053442230cb893d405315e6801dee54e8be4161f6",
+        "bytes": 16770,
         "mode": "0644"
       },
       {

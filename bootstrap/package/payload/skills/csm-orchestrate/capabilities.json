@@ -1,7 +1,7 @@
 {
   "schema": "csm-orchestrate-capabilities/1",
   "version": 1,
-  "contentDigest": "sha256:310c5e37ea02f80665e90f628ef17da5fb2a8d22fc1b09680b301c130e606918",
+  "contentDigest": "sha256:1308e324784687cf68f71fbaa58e301a033cb142a72a3ccd622cbb96a39a4f08",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -16,7 +16,7 @@
     {
       "skill": "csm-autoresearch",
       "version": "1",
-      "digest": "sha256:f8bed09269041dfdb7bef9ae3fa5a066840c6b32fe9770ac98e1acecfaf9e9ee",
+      "digest": "sha256:70667f7f303c496882854aaf919a76321931f756bc9f65be7c24c58353e8aa23",
       "source": {
         "skillPath": "csm-autoresearch/SKILL.md",
         "producerPath": "csm-autoresearch/producer.json"
@@ -57,7 +57,10 @@
       "effects": ["workspace-write"],
       "approvalClass": "human-and-host",
       "retryability": "bounded",
-      "idempotency": { "mode": "required", "key": "runId+attempt" },
+      "idempotency": {
+        "mode": "required",
+        "key": "runId+attempt"
+      },
       "recovery": "terminal",
       "parallelism": "serial",
       "reviewLevel": "adversarial",
@@ -69,13 +72,23 @@
     {
       "skill": "csm-bdd-tdd",
       "version": "1",
-      "digest": "sha256:93fe3707c785409ce5364dcf7fd23a0253fac6353de1d4a1426bb6ce7011647f",
-      "source": { "skillPath": "csm-bdd-tdd/SKILL.md", "producerPath": null },
+      "digest": "sha256:99e8717eb3287a7e25d5f738a4fc6a3dfd870dfd3e57c3433d47fdd3e94ec93d",
+      "source": {
+        "skillPath": "csm-bdd-tdd/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "conditional",
         "predicate": "explicit validated plan requires BDD or TDD package"
       },
-      "inputs": [{ "name": "plan", "kind": "artifact", "schema": "csm-plan/1", "required": true }],
+      "inputs": [
+        {
+          "name": "plan",
+          "kind": "artifact",
+          "schema": "csm-plan/1",
+          "required": true
+        }
+      ],
       "outputs": [
         {
           "name": "test package",
@@ -88,7 +101,10 @@
       "effects": ["workspace-write"],
       "approvalClass": "human",
       "retryability": "bounded",
-      "idempotency": { "mode": "natural", "key": "planDigest+goalSlug" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "planDigest+goalSlug"
+      },
       "recovery": "resume",
       "parallelism": "serial",
       "reviewLevel": "standard",
@@ -100,10 +116,22 @@
     {
       "skill": "csm-browse",
       "version": "1",
-      "digest": "sha256:f132f97e77de0ee605692e33d60635f4d3f75b787728304f8b79db1a0282ff20",
-      "source": { "skillPath": "csm-browse/SKILL.md", "producerPath": null },
-      "activation": { "mode": "conditional", "predicate": "explicit browser evidence task" },
-      "inputs": [{ "name": "browser task", "kind": "request", "required": true }],
+      "digest": "sha256:882de9e794fb5d49ad43e795a0459b43afd46e82ab693c64468e020f9e6b94d9",
+      "source": {
+        "skillPath": "csm-browse/SKILL.md",
+        "producerPath": null
+      },
+      "activation": {
+        "mode": "conditional",
+        "predicate": "explicit browser evidence task"
+      },
+      "inputs": [
+        {
+          "name": "browser task",
+          "kind": "request",
+          "required": true
+        }
+      ],
       "outputs": [
         {
           "name": "evidence",
@@ -116,7 +144,10 @@
       "effects": ["browser-session", "workspace-write"],
       "approvalClass": "human-and-host",
       "retryability": "never",
-      "idempotency": { "mode": "required", "key": "sessionId+eventId" },
+      "idempotency": {
+        "mode": "required",
+        "key": "sessionId+eventId"
+      },
       "recovery": "restart",
       "parallelism": "serial",
       "reviewLevel": "standard",
@@ -128,19 +159,38 @@
     {
       "skill": "csm-build",
       "version": "1",
-      "digest": "sha256:47eb6e88b906e5cdf7ba7c02aa1800b8c52cb46a5ac6783c5e0fc64fe89da791",
-      "source": { "skillPath": "csm-build/SKILL.md", "producerPath": null },
+      "digest": "sha256:075b0cde6d05d0aa919001eb978c1687b64c74933f5654adda804425be2b986e",
+      "source": {
+        "skillPath": "csm-build/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "explicit",
         "predicate": "explicit approved build invocation with validated JSON plan"
       },
-      "inputs": [{ "name": "plan", "kind": "artifact", "schema": "csm-plan/1", "required": true }],
-      "outputs": [{ "name": "implementation", "kind": "implementation", "terminal": true }],
+      "inputs": [
+        {
+          "name": "plan",
+          "kind": "artifact",
+          "schema": "csm-plan/1",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "implementation",
+          "kind": "implementation",
+          "terminal": true
+        }
+      ],
       "permissions": ["read", "write", "execute"],
       "effects": ["workspace-write"],
       "approvalClass": "human-and-host",
       "retryability": "bounded",
-      "idempotency": { "mode": "required", "key": "planId+taskId+attempt" },
+      "idempotency": {
+        "mode": "required",
+        "key": "planId+taskId+attempt"
+      },
       "recovery": "resume",
       "parallelism": "serial",
       "reviewLevel": "standard",
@@ -152,13 +202,22 @@
     {
       "skill": "csm-ddd",
       "version": "1",
-      "digest": "sha256:68b4752297d43870bbe3d215273931c8bb37c49ff93878e39adbd5ebe6e2493f",
-      "source": { "skillPath": "csm-ddd/SKILL.md", "producerPath": "csm-ddd/producer.json" },
+      "digest": "sha256:1cce2f49475462867182be9f4942a648f9d4a612740c887e57572c57588ec449",
+      "source": {
+        "skillPath": "csm-ddd/SKILL.md",
+        "producerPath": "csm-ddd/producer.json"
+      },
       "activation": {
         "mode": "conditional",
         "predicate": "repository structure or dependency uncertainty requires DDD"
       },
-      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "inputs": [
+        {
+          "name": "repository",
+          "kind": "repository",
+          "required": true
+        }
+      ],
       "outputs": [
         {
           "name": "report and graph",
@@ -171,7 +230,10 @@
       "effects": ["read-only"],
       "approvalClass": "none",
       "retryability": "safe",
-      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "repoCommit+scope"
+      },
       "recovery": "restart",
       "parallelism": "independent-read-only",
       "reviewLevel": "standard",
@@ -183,21 +245,38 @@
     {
       "skill": "csm-deep-research",
       "version": "1",
-      "digest": "sha256:056fc56e6fc68411e17fdcbd6a7e3373d80a02a998692bc32720b0e97bdf3760",
-      "source": { "skillPath": "csm-deep-research/SKILL.md", "producerPath": null },
+      "digest": "sha256:a93beadd56bbce73a351748b9f3750df764250538a4ecb1dd1493fab8044cb1d",
+      "source": {
+        "skillPath": "csm-deep-research/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "conditional",
         "predicate": "question needs external, repository, or documentation evidence"
       },
-      "inputs": [{ "name": "research question", "kind": "request", "required": true }],
+      "inputs": [
+        {
+          "name": "research question",
+          "kind": "request",
+          "required": true
+        }
+      ],
       "outputs": [
-        { "name": "finding", "kind": "artifact", "schema": "csm-research/1", "terminal": true }
+        {
+          "name": "finding",
+          "kind": "artifact",
+          "schema": "csm-research/1",
+          "terminal": true
+        }
       ],
       "permissions": ["read", "network", "browser"],
       "effects": ["read-only"],
       "approvalClass": "none",
       "retryability": "safe",
-      "idempotency": { "mode": "natural", "key": "question+sourceSnapshot" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "question+sourceSnapshot"
+      },
       "recovery": "resume",
       "parallelism": "independent-read-only",
       "reviewLevel": "adversarial",
@@ -209,21 +288,38 @@
     {
       "skill": "csm-grill",
       "version": "1",
-      "digest": "sha256:c4743f241e21feb21af25c0305ea76a27da49919a43cfa77c159d7025b4065c2",
-      "source": { "skillPath": "csm-grill/SKILL.md", "producerPath": null },
+      "digest": "sha256:6b9d41a70f68d45b1b9b35fe2124618a6e24fb5504b78cda75fe998b9f4e419d",
+      "source": {
+        "skillPath": "csm-grill/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "explicit",
         "predicate": "rough idea needs adversarial approach framing"
       },
-      "inputs": [{ "name": "idea", "kind": "request", "required": true }],
+      "inputs": [
+        {
+          "name": "idea",
+          "kind": "request",
+          "required": true
+        }
+      ],
       "outputs": [
-        { "name": "approach", "kind": "artifact", "schema": "csm-approach/1", "terminal": true }
+        {
+          "name": "approach",
+          "kind": "artifact",
+          "schema": "csm-approach/1",
+          "terminal": true
+        }
       ],
       "permissions": ["read", "write"],
       "effects": ["workspace-write"],
       "approvalClass": "human",
       "retryability": "bounded",
-      "idempotency": { "mode": "natural", "key": "idea+runId" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "idea+runId"
+      },
       "recovery": "resume",
       "parallelism": "serial",
       "reviewLevel": "adversarial",
@@ -235,7 +331,7 @@
     {
       "skill": "csm-make-tests",
       "version": "1",
-      "digest": "sha256:e82ae68c150430a18afe343e620a83bc26bc21f5a5a26a840209616618a1dbda",
+      "digest": "sha256:bbc0a18cbfcf1edc2ed3ed3461000c2f80117d83107b76fde2bbb651f79d3317",
       "source": {
         "skillPath": "csm-make-tests/SKILL.md",
         "producerPath": "csm-make-tests/producer.json"
@@ -244,7 +340,13 @@
         "mode": "conditional",
         "predicate": "coverage, characterization, or mutation tests are required"
       },
-      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "inputs": [
+        {
+          "name": "repository",
+          "kind": "repository",
+          "required": true
+        }
+      ],
       "outputs": [
         {
           "name": "test package",
@@ -257,7 +359,10 @@
       "effects": ["workspace-write"],
       "approvalClass": "human",
       "retryability": "bounded",
-      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "repoCommit+scope"
+      },
       "recovery": "resume",
       "parallelism": "serial",
       "reviewLevel": "adversarial",
@@ -269,21 +374,39 @@
     {
       "skill": "csm-plan",
       "version": "1",
-      "digest": "sha256:03bacef376c4b9ba615d0d66aeb15ef577d4f8633ea66d55f3afd29351f4d88c",
-      "source": { "skillPath": "csm-plan/SKILL.md", "producerPath": null },
+      "digest": "sha256:986c7ac85c819babec72539d0385a89115d86e6c047653513645fe7d53c24bf4",
+      "source": {
+        "skillPath": "csm-plan/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "explicit",
         "predicate": "accepted brief or approach phase needs a canonical plan"
       },
       "inputs": [
-        { "name": "brief", "kind": "request", "schema": "csm-approach/1", "required": true }
+        {
+          "name": "brief",
+          "kind": "request",
+          "schema": "csm-approach/1",
+          "required": true
+        }
       ],
-      "outputs": [{ "name": "plan", "kind": "artifact", "schema": "csm-plan/1", "terminal": true }],
+      "outputs": [
+        {
+          "name": "plan",
+          "kind": "artifact",
+          "schema": "csm-plan/1",
+          "terminal": true
+        }
+      ],
       "permissions": ["read", "write"],
       "effects": ["workspace-write"],
       "approvalClass": "human",
       "retryability": "bounded",
-      "idempotency": { "mode": "natural", "key": "goalSlug+sourceDigest" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "goalSlug+sourceDigest"
+      },
       "recovery": "resume",
       "parallelism": "serial",
       "reviewLevel": "adversarial",
@@ -295,13 +418,22 @@
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:8377aa3658bdfd0cb8f281b899db80c897c9298d0124a611039f66f5c31f9478",
-      "source": { "skillPath": "csm-review/SKILL.md", "producerPath": "csm-review/producer.json" },
+      "digest": "sha256:a9a500421b32e7df879a08966a4989b46b09b7ceea3adcfd2d016c0c1cc49851",
+      "source": {
+        "skillPath": "csm-review/SKILL.md",
+        "producerPath": "csm-review/producer.json"
+      },
       "activation": {
         "mode": "conditional",
         "predicate": "independent repository audit is required"
       },
-      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "inputs": [
+        {
+          "name": "repository",
+          "kind": "repository",
+          "required": true
+        }
+      ],
       "outputs": [
         {
           "name": "findings",
@@ -314,7 +446,10 @@
       "effects": ["read-only"],
       "approvalClass": "none",
       "retryability": "safe",
-      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "repoCommit+scope"
+      },
       "recovery": "restart",
       "parallelism": "independent-read-only",
       "reviewLevel": "final",
@@ -326,7 +461,7 @@
     {
       "skill": "csm-review-python",
       "version": "1",
-      "digest": "sha256:491600512e4827d8f648a0af350e5b0d5456fcf81ac6c347e775d15527c267fe",
+      "digest": "sha256:691d7a00d34bfdccf23f0642c941821c954215eec331b25b99cf177f3039275a",
       "source": {
         "skillPath": "csm-review-python/SKILL.md",
         "producerPath": "csm-review-python/producer.json"
@@ -335,7 +470,13 @@
         "mode": "conditional",
         "predicate": "target repository is Python and doctrine review is requested"
       },
-      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "inputs": [
+        {
+          "name": "repository",
+          "kind": "repository",
+          "required": true
+        }
+      ],
       "outputs": [
         {
           "name": "doctrine findings",
@@ -348,7 +489,10 @@
       "effects": ["read-only"],
       "approvalClass": "none",
       "retryability": "safe",
-      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "repoCommit+scope"
+      },
       "recovery": "restart",
       "parallelism": "independent-read-only",
       "reviewLevel": "final",
@@ -360,21 +504,38 @@
     {
       "skill": "csm-scan",
       "version": "1",
-      "digest": "sha256:bce6d33ba39ae138ff83a39c8b23aa2cf9f653530f7febfc664061b994e81c34",
-      "source": { "skillPath": "csm-scan/SKILL.md", "producerPath": null },
+      "digest": "sha256:49d906de5e9b51d72dadd8d02d4e9162d50cb218b9620f23dec76d74b276ac3e",
+      "source": {
+        "skillPath": "csm-scan/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "conditional",
         "predicate": "repository conventions are needed before planning or review"
       },
-      "inputs": [{ "name": "repository", "kind": "repository", "required": true }],
+      "inputs": [
+        {
+          "name": "repository",
+          "kind": "repository",
+          "required": true
+        }
+      ],
       "outputs": [
-        { "name": "norms", "kind": "artifact", "schema": "csm-norms/1", "terminal": true }
+        {
+          "name": "norms",
+          "kind": "artifact",
+          "schema": "csm-norms/1",
+          "terminal": true
+        }
       ],
       "permissions": ["read", "execute"],
       "effects": ["read-only"],
       "approvalClass": "none",
       "retryability": "safe",
-      "idempotency": { "mode": "natural", "key": "repoCommit+scope" },
+      "idempotency": {
+        "mode": "natural",
+        "key": "repoCommit+scope"
+      },
       "recovery": "restart",
       "parallelism": "independent-read-only",
       "reviewLevel": "standard",
@@ -386,8 +547,11 @@
     {
       "skill": "csm-upload",
       "version": "1",
-      "digest": "sha256:06118e1d9dd0d3be5fa6549788f78e8c2f7dfd1679796508a012e3fd4031cced",
-      "source": { "skillPath": "csm-upload/SKILL.md", "producerPath": null },
+      "digest": "sha256:b508c7193ed9649e1832f9a9988af56ab73136f22ff687cae522fb7efecd525e",
+      "source": {
+        "skillPath": "csm-upload/SKILL.md",
+        "producerPath": null
+      },
       "activation": {
         "mode": "explicit",
         "predicate": "user explicitly requests publication of validated evidence"
@@ -412,7 +576,10 @@
       "effects": ["publication", "external-side-effect", "credential-use"],
       "approvalClass": "human-and-host",
       "retryability": "never",
-      "idempotency": { "mode": "required", "key": "publicationDigest" },
+      "idempotency": {
+        "mode": "required",
+        "key": "publicationDigest"
+      },
       "recovery": "blocked",
       "parallelism": "serial",
       "reviewLevel": "standard",
