@@ -221,9 +221,12 @@ async function downloadToVerifiableFile(
   throw lastError ?? new Error(`download failed after ${attempts} attempts: ${url}`);
 }
 
-function defaultRunProcess({ cmd, args, timeoutMs }) {
+function defaultRunProcess({ cmd, args, timeoutMs, env }) {
   return new Promise((resolveRun) => {
-    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(cmd, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      ...(env ? { env: { ...process.env, ...env } } : {}),
+    });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -393,6 +396,7 @@ export async function runAudit(deps = {}) {
       cmd: scannerPath,
       args: scanArgs,
       timeoutMs: TIMEOUTS.scannerMs,
+      env: { OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: cacheRoot },
     });
     if (scanRun.timedOut) throw new Error(`scanner timed out after ${TIMEOUTS.scannerMs}ms`);
 

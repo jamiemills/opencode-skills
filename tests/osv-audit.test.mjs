@@ -255,8 +255,14 @@ function sha256Of(fill, size) {
   return createHash("sha256").update(Buffer.alloc(size, fill)).digest("hex");
 }
 
-function fakeRunProcess({ version = true, scanStatus = 0, report, scanArgs = null } = {}) {
-  return async ({ cmd, args }) => {
+function fakeRunProcess({
+  version = true,
+  scanStatus = 0,
+  report,
+  scanArgs = null,
+  spawnEnv = null,
+} = {}) {
+  return async ({ cmd, args, env }) => {
     if (args.includes("--version")) {
       if (!version)
         return { status: 1, signal: null, stdout: "other", stderr: "", timedOut: false };
@@ -272,6 +278,7 @@ function fakeRunProcess({ version = true, scanStatus = 0, report, scanArgs = nul
       return { status: 0, signal: null, stdout: "OK", stderr: "", timedOut: false };
     if (args[0] === "scan") {
       if (scanArgs) Object.assign(scanArgs, { list: args });
+      if (spawnEnv) Object.assign(spawnEnv, { env });
       const outputArg = args.find((arg) => arg.startsWith("--output-file="));
       if (report !== undefined) {
         const { writeFile: writeSync } = await import("node:fs/promises");
@@ -295,12 +302,14 @@ test("runAudit passes a clean scan and records provenance", async (t) => {
   const scannerSha = sha256Of(7, 64);
   const calls = [];
   const scanArgs = { list: null };
+  const spawnEnv = { env: null };
   const outcome = await runAudit({
     fetch: fakeFetch({ scannerBytes: 64, dbBytes: 32, dbMd5Hex: dbMd5, metadata, calls }),
     now: () => NOW,
     runProcess: fakeRunProcess({
       scanStatus: 0,
       scanArgs,
+      spawnEnv,
       report: {
         results: [
           { source: { path: join(workspace, "pnpm-lock.yaml"), type: "lockfile" }, packages: [{}] },
@@ -331,6 +340,14 @@ test("runAudit passes a clean scan and records provenance", async (t) => {
   assert.ok(
     scanArgs.list.some((arg) => arg.startsWith("--config=")),
     "scan args must override repository config",
+  );
+  assert.ok(
+    spawnEnv.env?.OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY?.length > 0,
+    "scanner child must receive the local DB cache directory",
+  );
+  assert.ok(
+    spawnEnv.env.OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY.endsWith("osv-db-cache"),
+    "DB cache directory must be the scanner-managed layout root",
   );
 });
 
