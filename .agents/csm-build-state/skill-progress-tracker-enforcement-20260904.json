@@ -1,0 +1,49 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-skill-progress-tracker-enforcement-build-20260904",
+  "runId": "run-20260904t200000z-skill-progress-tracker-enforcement-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "CHECKPOINT",
+    "cycle": 0,
+    "nextTransition": "CHECKPOINT -> COMPLETE after commit authorization",
+    "activeTasks": [],
+    "blockers": ["Commit/push requires explicit user authorization."],
+    "lastCheckpoint": "2026-09-04T21:00:00Z: T001-T005 implemented, validated (22 focused tests + check-suite 1244 OK), awaiting commit authorization",
+    "lastModelRun": "gpt-5.6-sol / skill-progress-tracker-enforcement-build"
+  },
+  "inputs": [{
+    "name": "plan",
+    "artifactId": "art-skill-progress-tracker-enforcement-20260904",
+    "schema": "csm-plan/1",
+    "runId": "run-20260904t190000z-skill-progress-tracker-enforcement",
+    "owner": "csm-plan",
+    "digest": "pending",
+    "path": ".agents/plans/2026-09-04-skill-progress-tracker-enforcement-csm.json",
+    "status": "resolved"
+  }],
+  "journal": [{
+    "sequence": 0,
+    "timestamp": "2026-09-04T20:00:00Z",
+    "from": "NOT_STARTED",
+    "to": "RECOVER",
+    "evidence": "Explicit csm-build request selected the saved plan. Repository clean at c4f6590.",
+    "nextState": "RECOVER"
+  }, {
+    "sequence": 1,
+    "timestamp": "2026-09-04T21:00:00Z",
+    "from": "RECOVER",
+    "to": "CHECKPOINT",
+    "evidence": "T001: schema + helper + 5 contract tests. T002: check-suite gate validates .agents/progress/*.json, phrase list swapped. T003: 28 SKILL.md files (14 root + 14 payload) updated, pack synced. T005: progress-rollup.mjs + 4 tests + opt-in call site. T004: seed record persisted and validated. All gates green: 22 focused tests, check-suite 1244 OK, fmt/lint/diff clean.",
+    "nextState": "CHECKPOINT"
+  }],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-skill-progress-tracker-enforcement-20260904",
+    "sourceDigests": []
+  },
+  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+}

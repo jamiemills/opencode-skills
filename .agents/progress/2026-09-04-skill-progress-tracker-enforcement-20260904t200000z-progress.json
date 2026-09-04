@@ -1,0 +1,43 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-skill-progress-tracker-enforcement",
+  "runId": "run-20260904t200000z-skill-progress-tracker-enforcement-build",
+  "skill": "csm-build",
+  "goal": "Make skill progress trackers reliably appear and persist on every CSM invocation",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Schema+helper",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Gate enforcement",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "SKILL.md contract",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Orchestrator rollup",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "Seed+verify",
+      "weightPercent": 25,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-04T20:00:00.000Z",
+  "updatedAt": "2026-09-04T21:00:00.000Z"
+}

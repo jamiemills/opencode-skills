@@ -8,7 +8,7 @@ description: Grill an idea into an approach. Never plans or implements. Biases t
 ## Progress Tracker
 
 Progress tracking is ON by default for every invocation. Create and maintain a
-versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+versioned `csm-skill-progress/1` JSON record via `scripts/lib/progress-tracker.mjs`; it supplements this skill's lifecycle,
 artifacts, permissions, receipts, and evidence and never replaces them.
 Declare 3–6 milestones before work begins, each with a positive weight; weights
 must total exactly 100%.
@@ -21,7 +21,7 @@ Milestones
 [Frame ✓ 20%] [Challenge ✓ 15%] [Decide ▶ 45%] [Handoff ○ 20%]
 ```
 
-The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking.
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking. At every state transition and at SAVED/COMPLETE/BLOCKED/PAUSED, render the bar and persist the record via `scripts/lib/progress-tracker.mjs` to `.agents/progress/<date>-<goal-slug>-<run-id>-progress.json`, indexed in `.agents/README.md`.
 
 Grill a rough idea into an agreed, phased approach through a relentless, research-backed interview. Ask one question at a time, back every answer with research, and cycle until the user explicitly agrees. The output is a single approach document whose phases are ready-made briefs for future, separately invoked csm-plan sessions. This skill never plans, never implements, and never invokes csm-plan or csm-build. It is csm-deep-research-aware: when a question's answer hinges on an external spec, standard, or factual claim that needs an exhaustively cited finding, it may dispatch a csm-deep-research run and cite the finding.
 

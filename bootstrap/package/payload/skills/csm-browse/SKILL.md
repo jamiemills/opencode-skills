@@ -8,7 +8,7 @@ description: Browse pages in the chromium-vnc Docker container via CDP. Use when
 ## Progress Tracker
 
 Progress tracking is ON by default for every invocation. Create and maintain a
-versioned `csm-progress/1` JSON record; it supplements this skill's lifecycle,
+versioned `csm-skill-progress/1` JSON record via `scripts/lib/progress-tracker.mjs`; it supplements this skill's lifecycle,
 artifacts, permissions, receipts, and evidence and never replaces them.
 Declare 3–6 milestones before work begins, each with a positive weight; weights
 must total exactly 100%.

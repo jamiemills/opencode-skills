@@ -90,6 +90,8 @@ jobs:
         run: make test-deterministic
       - name: Run OSV audit verifier tests
         run: make test-osv-audit
+      - name: Run progress tracker tests
+        run: make test-progress-tracker
       - name: Run default test suites
         run: make test
       - name: Check patch whitespace

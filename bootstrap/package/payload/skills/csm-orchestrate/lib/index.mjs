@@ -517,6 +517,7 @@ async function runOrchestrationInternal({
   finalReviewExecutor = null,
   producerExecutorId = null,
   reviewArtifactRoot = null,
+  skillProgressRollupDir = null,
   executorInput,
   parentPhaseId = null,
   phaseIdOverride = null,
@@ -1096,6 +1097,35 @@ async function runOrchestrationInternal({
           terminalApproval = retryApproval;
         }
         const receipt = childReceipt(result, node, invocationChildRunId);
+        if (skillProgressRollupDir) {
+          try {
+            const { rollupChildProgress, findChildSkillProgress } =
+              await import("./progress-rollup.mjs");
+            const childRecord = await findChildSkillProgress(
+              skillProgressRollupDir,
+              invocationChildRunId,
+            );
+            if (childRecord) {
+              const rollupResult = await rollupChildProgress({
+                progressTracker,
+                phaseId: phase.phaseId,
+                nodeId: node.nodeId,
+                record: childRecord,
+              });
+              if (rollupResult.status === "rolled-up")
+                emitTelemetry({
+                  phaseId: phase.phaseId,
+                  edgeId: `edge-${slug(node.nodeId)}`,
+                  childRunId: invocationChildRunId,
+                  eventType: "skill-progress-rollup",
+                  payload: {
+                    fraction: rollupResult.fraction,
+                    evidenceRef: rollupResult.evidenceRef,
+                  },
+                });
+            }
+          } catch {}
+        }
         let failure =
           result.status === "completed" && !receipt
             ? { status: "blocked", failure: { class: "policy", code: "child-identity-mismatch" } }

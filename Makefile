@@ -100,6 +100,9 @@ test-patch-context: ## patch-context guidance contract tests
 test-osv-audit: ## OSV dependency audit verifier contract tests
 	node --test --test-concurrency=1 tests/osv-audit.test.mjs
 
+test-progress-tracker: ## skill progress tracker contract tests
+	node --test --test-concurrency=1 tests/progress-tracker.test.mjs
+
 test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs
 
@@ -134,4 +137,4 @@ test-adapter-integrations-required: ## run all approved real adapter gates; unav
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --browser-e2e-required; \
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --generated-sandbox-required
 
-test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)
+test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-progress-tracker test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

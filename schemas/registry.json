@@ -304,6 +304,15 @@
       "schemaContentDigest": "sha256:9cdaacbd99af91cffd90ff4e0734cf5fa496752b682185ef2bcb6ddfb3cea7c2"
     },
     {
+      "id": "csm-skill-progress/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-skill-progress.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:1de76f1f7107208957dc7eef5acd2dd495418690a00a05c00e7bba60c28457e3"
+    },
+    {
       "id": "csm-render-profile/1",
       "revision": 1,
       "schemaPath": "schemas/csm-render-profile.schema.json",

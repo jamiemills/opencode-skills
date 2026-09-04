@@ -21,6 +21,7 @@ import { checkDrift } from "./sync-skill-boilerplate.mjs";
 import { checkDrift as checkMatrixDrift } from "./gen-readme-matrix.mjs";
 import { lintPlanSignals } from "./check-plan-signals.mjs";
 import { checkDependencyPolicy } from "./lib/dependency-policy.mjs";
+import { validateSkillProgress } from "./lib/progress-tracker.mjs";
 import {
   FENCE_OPEN_RE,
   splitLines,
@@ -859,12 +860,38 @@ function checkProgressTrackerContracts(rootDir) {
       if (rootSection !== payloadSection) issues.push(`${skill}: root/payload tracker drift`);
       for (const phrase of [
         "Progress tracking is ON by default",
-        "csm-progress/1",
+        "csm-skill-progress/1",
+        "scripts/lib/progress-tracker.mjs",
         "Declare 3–6 milestones",
         "TASK PROGRESS  not estimated",
         "--quiet-progress",
       ])
         if (!rootSection.includes(phrase)) issues.push(`${skill}: tracker missing ${phrase}`);
+    }
+  }
+  return issues;
+}
+
+// csm-skill-progress/1 record gate: every persisted invocation progress record
+// under .agents/progress/ must validate against the shipped schema and
+// cross-field rules via the shared helper. Returns [] or issue strings.
+function validateSkillProgressRecords(repoRoot) {
+  const progressDir = path.join(repoRoot, ".agents", "progress");
+  const issues = [];
+  let records;
+  try {
+    records = fs.readdirSync(progressDir).filter((f) => f.endsWith(".json"));
+  } catch {
+    return issues;
+  }
+  for (const f of records) {
+    const full = path.join(progressDir, f);
+    try {
+      const record = JSON.parse(fs.readFileSync(full, "utf-8"));
+      const verdict = validateSkillProgress(record);
+      if (!verdict.ok) issues.push(`.agents/progress/${f}: ${verdict.reason}`);
+    } catch (error) {
+      issues.push(`.agents/progress/${f}: ${error.message}`);
     }
   }
   return issues;
@@ -1432,6 +1459,12 @@ function main() {
         }
       }
     }
+  }
+
+  // csm-skill-progress/1 records: every persisted invocation progress record
+  // must validate against the schema and cross-field rules.
+  for (const iss of validateSkillProgressRecords(root)) {
+    check(false, iss);
   }
 
   const reviewsDir = path.join(root, ".agents", "reviews");
