@@ -4,16 +4,16 @@
   "artifactId": "art-replace-npm-audit-ci-gate-20260904",
   "runId": "run-20260904t050000z-replace-npm-audit-ci-gate",
   "planId": "replace-npm-audit-ci-gate",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "status": "in_progress",
-    "currentState": "RECOVER",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-04T08:00:00Z: commit/push/merge authorized; T003 dispatching exact-SHA verification",
+    "lastCheckpoint": "2026-09-04T18:15:00Z: run 33903446355 green on exact SHA 0ec452a; all acceptance criteria verified",
     "lastModelRun": "gpt-5.6-sol / replace-npm-audit-ci-gate-build",
-    "nextTransition": "CHECKPOINT -> T003 after commit/push authorization",
-    "activeTasks": ["T003"],
+    "nextTransition": "none (terminal)",
+    "activeTasks": [],
     "blockers": [],
     "resume": {
       "read": [
@@ -349,7 +349,7 @@
     {
       "taskId": "T003",
       "ordinal": 3,
-      "status": "in_progress",
+      "status": "completed",
       "title": "Obtain exact-SHA dependency and adapter evidence",
       "dependsOn": ["T002"],
       "parallelGroup": "G3",
@@ -489,9 +489,54 @@
       "tasks": ["T001", "T002", "T003"],
       "evidence": "T001 implemented scripts/osv-audit.mjs + tests and made make audit the single OSV interface. Independent review found 12 findings; F-1 (GCS size-as-string would keep the gate permanently red) and F-2/F-3/F-4/F-6/F-7/F-8/F-9/F-10 were repaired (1 repair attempt on T001); F-5 warning-prefix residual documented and backstopped by adjudication. T002 wired the Dependency audit job, gates needs, evidence upload, and test-osv-audit in CI. Local gates: 22/22 focused tests zero-skip, fmt/lint/check/whitespace OK, YAML valid. T003 (exact-SHA CI) awaits commit/push authorization.",
       "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-04T18:15:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> COMPLETE",
+      "tasks": ["T003"],
+      "evidence": "Authorized commit/push executed: b4cbbfb (implementation), 727251a (scanner DB-cache-dir env repair after CI run 33900216577 exposed exit-127), fa3a24c (wider poll window), 0ec452a (exit-code cleanup postconditions after run 33902012265 evidence showed stdout-captured inspect errors defeated sentinel matching). Final run 33903446355: completed success on exact SHA 0ec452a — Frozen install, Dependency audit (21s, clean, 0 vulnerabilities, generation-pinned DB), Repository gates (7m17s incl. verifier tests), Adapter integrations (3m17s, zero-skip, cleanup_status=0). All five acceptance criteria verified; completionReview filled.",
+      "nextState": "COMPLETE"
     }
   ],
-  "completionReview": null,
+  "completionReview": {
+    "verifiedAt": "2026-09-04T18:15:00Z",
+    "verdict": "COMPLETE",
+    "evidence": {
+      "ciRun": "https://github.com/jamiemills/opencode-skills/actions/runs/33903446355",
+      "headSha": "0ec452a2b10eb51e7262a356c2dd84a5fa9c44a8",
+      "jobs": {
+        "frozenInstall": "success",
+        "dependencyAudit": "success",
+        "repositoryGates": "success",
+        "adapterIntegrations": "success"
+      },
+      "dependencyAudit": {
+        "scanner": "2.3.8 verified (sha256 bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc)",
+        "database": "generation 1788544127307733, age 0h, size 222286369, sha256 1b77d96022c970c4df5f2202b82cee003cbd21463d5ae7f6c98a0c3ce784ef19",
+        "lockfiles": ["pnpm-lock.yaml", "csm-browse/pnpm-lock.yaml"],
+        "vulnerabilities": 0,
+        "result": "clean"
+      },
+      "adapter": {
+        "browserE2E": "zero-skip suite passed",
+        "dockerProofs": "passed",
+        "cleanupStatus": 0
+      },
+      "acceptanceCriteria": {
+        "AC1": "single audit interface, no npm audit endpoint, both lockfiles, generation-bound DB (evidence artifact summary.json)",
+        "AC2": "bounded fail-closed execution verified in CI (21-25s audit job)",
+        "AC3": "clean scan with full coverage evidence passed; finding/status-mismatch paths covered by 13 zero-skip unit tests",
+        "AC4": "Dependency audit job present; gates needs [frozen-install, dependency-audit]; adapter contract intact (job graph in run 33903446355)",
+        "AC5": "exact-SHA run 33903446355 green through all four jobs with cleanup_status=0"
+      },
+      "residuals": [
+        "OSV warning-prefix match (F-5) remains pinned to ^warning:/i; adjudication backstops remain verified",
+        "OSV advisory policy is non-equivalent to pnpm audit by design (stricter: fails every finding)"
+      ]
+    }
+  },
   "inputs": [],
   "provenance": {
     "producer": "csm-plan",

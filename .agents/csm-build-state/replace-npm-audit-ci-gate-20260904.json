@@ -4,14 +4,14 @@
   "artifactId": "art-replace-npm-audit-ci-gate-build-20260904",
   "runId": "run-20260904t060000z-replace-npm-audit-ci-gate-build",
   "owner": "csm-build",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "currentState": "CHECKPOINT",
-    "cycle": 0,
-    "nextTransition": "CHECKPOINT -> SELECT for T003 after commit/push authorization",
-    "activeTasks": ["T003"],
+    "currentState": "COMPLETE",
+    "cycle": 1,
+    "nextTransition": "none (terminal)",
+    "activeTasks": [],
     "blockers": [],
-    "lastCheckpoint": "2026-09-04T08:00:00Z: commit/push/merge authorized; T003 dispatching exact-SHA verification",
+    "lastCheckpoint": "2026-09-04T18:15:00Z: run 33903446355 green on exact SHA 0ec452a; all tasks complete",
     "lastModelRun": "gpt-5.6-sol / replace-npm-audit-ci-gate-build"
   },
   "inputs": [{
@@ -38,6 +38,13 @@
     "to": "CHECKPOINT",
     "evidence": "T001/T002 implemented and validated (22/22 focused tests, fmt/lint/check/whitespace, YAML valid). Independent review found 12 findings; critical GCS size-as-string defect repaired plus 8 others; warning-prefix residual documented. T003 exact-SHA CI awaits commit/push authorization.",
     "nextState": "CHECKPOINT"
+  }, {
+    "sequence": 2,
+    "timestamp": "2026-09-04T18:15:00Z",
+    "from": "CHECKPOINT",
+    "to": "COMPLETE",
+    "evidence": "Authorized push executed through repairs 727251a (DB cache env), fa3a24c (poll window), 0ec452a (exit-code postconditions). Final run 33903446355 completed success on exact SHA 0ec452a: Dependency audit clean (0 vulnerabilities, generation 1788544127307733), Repository gates green incl. verifier tests, Adapter integrations green with cleanup_status=0.",
+    "nextState": "COMPLETE"
   }],
   "journal": [{
     "sequence": 0,
