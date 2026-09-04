@@ -38,9 +38,26 @@ test("adapter integration gates are explicit, required, and separate from defaul
   assert.match(makefile, /test-adapter-integrations:/);
   assert.match(makefile, /CSM_ADAPTER_INTEGRATIONS_APPROVED/);
   assert.match(makefile, /test-adapter-integrations-required/);
-  assert.match(makefile, /timeout 90s pnpm audit --audit-level=high/);
-  assert.match(makefile, /for attempt in 1 2 3/);
-  assert.match(makefile, /if \[ "\$\$attempt" -eq 3 \]; then exit "\$\$status"/);
+  assert.match(makefile, /node scripts\/osv-audit\.mjs/);
+  assert.doesNotMatch(makefile, /pnpm audit/);
+  assert.match(makefile, /any finding or invalid evidence fails/);
+  assert.match(workflow, /dependency-audit:\s*\n\s+name: Dependency audit/);
+  assert.match(workflow, /needs: \[frozen-install, dependency-audit\]/);
+  assert.match(
+    workflow,
+    /dependency-audit:\s*\n\s+name: Dependency audit\s*\n\s+needs: frozen-install/,
+  );
+  assert.match(workflow, /dependency-audit:[^]*?runs-on: ubuntu-24\.04/);
+  assert.match(workflow, /dependency-audit:[^]*?timeout-minutes: 15/);
+  assert.match(workflow, /name: Upload dependency audit evidence\s*\n\s+if: always\(\)/);
+  assert.match(workflow, /if-no-files-found: error/);
+  assert.match(workflow, /make test-osv-audit/);
+  assert.match(makefile, /test-osv-audit:/);
+  assert.doesNotMatch(workflow, /pnpm audit/);
+  assert.doesNotMatch(workflow, /Audit dependencies/);
+  assert.match(workflow, /OSV_AUDIT_EVIDENCE_DIR/);
+  assert.match(workflow, /name: Run pinned OSV dependency audit/);
+  assert.match(workflow, /Upload dependency audit evidence/);
   assert.doesNotMatch(makefile.match(/^test:.*$/m)?.[0] ?? "", /test-adapter-integrations/);
   assert.match(workflow, /adapter-integrations:\s*\n\s+name: Adapter integrations/);
   assert.match(workflow, /Install browser media tooling/);

@@ -31,15 +31,8 @@ fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
 	  pnpm exec oxfmt $(OXFMT_ARGS) --check $$files; \
 	fi
 
-audit: ## non-mutating dependency audit; high/critical or unavailable advisories fail
-	@set -o pipefail; \
-	status=1; \
-	for attempt in 1 2 3; do \
-		if timeout 90s pnpm audit --audit-level=high; then exit 0; else status=$$?; fi; \
-		printf 'dependency audit attempt %s/3 failed with status %s\n' "$$attempt" "$$status" >&2; \
-		if [ "$$attempt" -eq 3 ]; then exit "$$status"; fi; \
-		sleep $$((attempt * 5)); \
-	done
+audit: ## non-mutating dependency audit via pinned OSV-Scanner; any finding or invalid evidence fails
+	node scripts/osv-audit.mjs
 
 check: ## repo conformance gate
 	node scripts/check-suite.mjs
@@ -104,6 +97,9 @@ test-review-render: ## csm-review human Markdown/HTML projection tests
 test-patch-context: ## patch-context guidance contract tests
 	node --test --test-concurrency=1 tests/patch-context-guidance.test.mjs
 
+test-osv-audit: ## OSV dependency audit verifier contract tests
+	node --test --test-concurrency=1 tests/osv-audit.test.mjs
+
 test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs
 
@@ -138,4 +134,4 @@ test-adapter-integrations-required: ## run all approved real adapter gates; unav
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --browser-e2e-required; \
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --generated-sandbox-required
 
-test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)
+test: test-hooks test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

@@ -1,0 +1,503 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-replace-npm-audit-ci-gate-20260904",
+  "runId": "run-20260904t050000z-replace-npm-audit-ci-gate",
+  "planId": "replace-npm-audit-ci-gate",
+  "status": "in_progress",
+  "control": {
+    "status": "in_progress",
+    "currentState": "RECOVER",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-04T08:00:00Z: commit/push/merge authorized; T003 dispatching exact-SHA verification",
+    "lastModelRun": "gpt-5.6-sol / replace-npm-audit-ci-gate-build",
+    "nextTransition": "CHECKPOINT -> T003 after commit/push authorization",
+    "activeTasks": ["T003"],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal",
+        "current commit and working-tree diff",
+        "R&D record",
+        "critique resolution",
+        "all pending task recovery notes"
+      ],
+      "firstAction": "Validate the current retry-only audit implementation, both lockfiles, pinned OSV release evidence, and CI topology before selecting T001."
+    }
+  },
+  "goal": {
+    "summary": "Replace the consistently unavailable npm registry audit endpoint with a dedicated, fail-closed OSV lockfile audit that can complete reliably and preserve downstream exact-SHA adapter verification.",
+    "deliverables": [
+      "repository-owned OSV audit verifier",
+      "checksum-pinned scanner and generation-bound advisory database",
+      "dedicated stable Dependency audit CI job",
+      "deterministic negative-path and coverage tests",
+      "one complete exact-SHA green CI run"
+    ],
+    "constraints": [
+      "Do not use the npm registry security audit endpoint in CI",
+      "Do not report success when the scanner, database, either lockfile, or scan evidence is missing or invalid",
+      "Fail on every OSV finding; document that this is a non-equivalent replacement for pnpm audit --audit-level=high",
+      "Use only checksum-pinned executable bytes and generation-bound database bytes",
+      "Keep CI permissions at contents: read and use no credentials",
+      "Keep Frozen install, Repository gates, and Adapter integrations check names stable",
+      "Preserve Adapter integrations fail-closed dependency behavior",
+      "Do not cache stale vulnerability data as a successful fallback"
+    ],
+    "exclusions": [
+      "more retries around pnpm audit",
+      "pnpm --ignore-registry-errors",
+      "the tagged OSV reusable workflow",
+      "dependency upgrades unrelated to an actual finding",
+      "repository-controlled vulnerability ignores",
+      "branch-protection changes",
+      "SARIF/code-scanning permissions",
+      "production credentials or private advisory sources"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "outcome": "The repository has one audit interface that never calls the npm security audit endpoint and scans both canonical pnpm lockfiles against a fresh, generation-bound OSV npm database.",
+      "evidence": "Makefile/script wiring tests, recorded OSV binary identity, database provenance, and exact lockfile source evidence."
+    },
+    {
+      "id": "AC2",
+      "outcome": "Audit execution is bounded and fail-closed for download, metadata, checksum, archive, scanner, warning, output, source-coverage, and status/report failures.",
+      "evidence": "Deterministic table-driven tests for all failure classes and configured job/process/request timeouts."
+    },
+    {
+      "id": "AC3",
+      "outcome": "Any OSV finding fails the audit, while a clean result passes only when both lockfiles contribute nonempty package inventories and the scanner report agrees with its exit status.",
+      "evidence": "Synthetic clean/finding/status-mismatch tests and a successful scan of the repository lockfiles."
+    },
+    {
+      "id": "AC4",
+      "outcome": "CI exposes a stable Dependency audit job, Repository gates requires both Frozen install and Dependency audit, and Adapter integrations retains its existing fail-closed dependency contract.",
+      "evidence": "Workflow wiring tests and completed job graph for an exact pushed SHA."
+    },
+    {
+      "id": "AC5",
+      "outcome": "One exact-SHA workflow completes green through dependency audit, default repository gates, browser/Docker adapter proofs, diagnostics, and cleanup.",
+      "evidence": "CI run URL, head SHA, job conclusions, audit artifact, zero-skip adapter summaries, and cleanup_status=0."
+    }
+  ],
+  "currentStateEvidence": {
+    "repository": "main is clean at commit 1ce7913; no source changes were made during this planning invocation.",
+    "predecessorPlan": ".agents/plans/2026-09-03-npm-audit-ci-resilience-csm.json is the retry-only predecessor and remains retained history.",
+    "failureEvidence": [
+      "Run 33812953261 failed Frozen install because pnpm audit exhausted three 90-second attempts against registry.npmjs.org.",
+      "Every attempt reached ERR_SOCKET_TIMEOUT; the retry-only design added about five minutes without obtaining advisory evidence.",
+      "Repository gates was skipped and Adapter integrations correctly refused execution because its prerequisite was not successful."
+    ],
+    "repositoryTopology": [
+      "Makefile:34-42 owns the current retry-only audit interface.",
+      ".github/workflows/ci.yml runs make audit in Frozen install and Repository gates.",
+      "The repository has two independent pnpm lockfiles: pnpm-lock.yaml and csm-browse/pnpm-lock.yaml.",
+      "The current root pnpm audit invocation does not explicitly prove coverage of csm-browse/pnpm-lock.yaml."
+    ],
+    "selectedTechnology": {
+      "scanner": "OSV-Scanner v2.3.8 Linux amd64",
+      "binaryUrl": "https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_amd64",
+      "binarySha256": "bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc",
+      "binaryBytes": 58335394,
+      "databaseMetadata": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/npm%2Fall.zip",
+      "databaseLayout": "$OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY/osv-scanner/npm/all.zip"
+    },
+    "rejectedAlternatives": [
+      "More pnpm audit retries use the same failing endpoint and are disproven by run 33833838983.",
+      "pnpm --ignore-registry-errors deliberately returns success without advisory evidence.",
+      "GitHub dependency review is primarily a pull-request diff and does not replace a full exact-push scan.",
+      "The latest tagged OSV reusable workflow continues after scanner failure and lacks the unreleased main-branch missing-result guard."
+    ],
+    "residualUncertainty": [
+      "OSV data and npm audit are non-equivalent advisory policies.",
+      "The OSV npm database has no published signed immutable manifest or freshness SLA.",
+      "Static GCS and GitHub release GET availability remains external, but exhaustion will fail visibly rather than pass."
+    ]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": [
+      "boundary_change",
+      "public_contract",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "cross_boundary_coordination",
+      "security_or_authority"
+    ],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "The user requested review and a replacement plan for the failing CI security gate."
+      },
+      {
+        "source": "repository-and-ci",
+        "locator": "Makefile:34-42, .github/workflows/ci.yml, run 33833838983",
+        "observation": "The change replaces a blocking vulnerability-data boundary and alters the CI job dependency graph."
+      }
+    ],
+    "obligations": [
+      { "id": "boundary", "status": "required" },
+      { "id": "ownership", "status": "required" },
+      { "id": "contract", "status": "required" },
+      { "id": "invariant", "status": "required" },
+      { "id": "observable_behavior", "status": "required" },
+      { "id": "seam", "status": "required" },
+      { "id": "parity", "status": "required" },
+      { "id": "rollback_recovery", "status": "required" },
+      { "id": "unresolved_risks", "status": "required" }
+    ],
+    "taskApplicability": { "warranted": ["T001", "T002", "T003"], "lightweight": [] },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "OSV and npm advisory coverage are not exact equivalents.",
+      "A current OSV database export could be unavailable and must block CI.",
+      "The new any-finding policy may expose low, moderate, unknown, or malicious-package findings that the previous threshold did not block."
+    ],
+    "bypass": { "requested": false, "rationale": null }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "Replace, rather than retry, the npm audit endpoint in CI.",
+      "type": "architecture",
+      "evidence": "Three bounded attempts consistently failed against the same endpoint in run 33833838983.",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Use a checksum-pinned OSV-Scanner binary and a fresh generation-specific offline npm database download.",
+      "type": "security",
+      "evidence": "OSV v2.3.8 supports pnpm lockfiles and official offline scanning; the release API publishes the reviewed binary digest.",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "Fail on every OSV finding and describe the replacement as non-equivalent, not as strict parity with pnpm audit --audit-level=high.",
+      "type": "policy",
+      "evidence": "OSV v2.3.8 has no minimum-severity flag and uses a different advisory model; filtering unknown or producer-specific severity would create ambiguity.",
+      "status": "accepted"
+    },
+    {
+      "id": "D4",
+      "statement": "Use a repository-owned verifier instead of the tagged OSV reusable workflow.",
+      "type": "failure-semantics",
+      "evidence": "The v2.5.1 reusable workflow continues after scanner failure and its missing-results failure guard exists only on unreleased main.",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "R1",
+      "question": "Why did bounded pnpm audit retries fail?",
+      "method": "Read-only repository and GitHub Actions log inspection.",
+      "isolation": "No writes or workflow mutations; repository remained clean.",
+      "observation": "All three attempts reached ERR_SOCKET_TIMEOUT against the npm quick-audit POST endpoint and exited 124.",
+      "planImplication": "Remove this endpoint from the CI critical path rather than increasing retries."
+    },
+    {
+      "id": "R2",
+      "question": "Can OSV scan this repository without the npm audit endpoint?",
+      "method": "Current OSV documentation, v2.3.8 release metadata/source, and parallel read-only research retrieved 2026-09-04.",
+      "isolation": "Read-only web retrieval and repository inspection; no binaries, databases, containers, or workflows executed.",
+      "observation": "OSV supports pnpm-lock.yaml, explicit repeated lockfiles, offline npm database scans, JSON output, all-package output, and documented status codes. Linux amd64 v2.3.8 has SHA256 bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc.",
+      "planImplication": "Use a pinned binary, generation-bound database, explicit lockfiles, and repository-owned adjudication."
+    },
+    {
+      "id": "R3",
+      "question": "What false-green paths must be closed?",
+      "method": "Hostile independent critique of OSV v2.3.8 offline behavior and the proposed CI topology.",
+      "isolation": "Read-only source and documentation review; no repository or external mutation.",
+      "observation": "The scanner can skip malformed local database entries, repository config can ignore findings, combined output can omit a lockfile without independent validation, and the tagged reusable workflow can mishandle missing scan results.",
+      "planImplication": "Validate database transfer/archive, override config, require exact per-lockfile source/package evidence, adjudicate status/report consistency, and own artifact handling."
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "Use OSV-Scanner v2.3.8 Linux amd64 bytes only after matching hard-coded SHA256 and expected byte size; assert reported version before scanning.",
+      "source": "OSV release API retrieved 2026-09-04"
+    },
+    {
+      "id": "DR2",
+      "requirement": "Database metadata maximum age is 48 hours, maximum future clock skew is 5 minutes, and metadata name, content type, generation, updated timestamp, size, and MD5 are mandatory.",
+      "source": "Local fail-closed policy based on OSV offline and GCS generation APIs; OSV publishes no freshness SLA."
+    },
+    {
+      "id": "DR3",
+      "requirement": "Download the exact GCS generation, stream to a temporary file, enforce metadata size plus a 350 MiB hard cap, validate MD5 and ZIP integrity, then atomically publish under runner temp.",
+      "source": "GCS generation/checksum guidance and independent critique."
+    },
+    {
+      "id": "DR4",
+      "requirement": "Use a trusted empty config outside the checkout and explicit canonical paths for exactly pnpm-lock.yaml and csm-browse/pnpm-lock.yaml.",
+      "source": "OSV configuration and explicit-lockfile behavior."
+    },
+    {
+      "id": "DR5",
+      "requirement": "Use --offline --all-vulns --all-packages and JSON output; fail on any Warning line for pinned v2.3.8, any non-0/1 scanner status, or any status/report/coverage mismatch.",
+      "source": "OSV v2.3.8 flags/output source and hostile critique."
+    },
+    {
+      "id": "DR6",
+      "requirement": "Metadata requests use 15-second attempts, binary requests 60-second attempts, database body requests 90-second attempts, each with at most three attempts and bounded backoff; scanner timeout is 240 seconds and job timeout is 15 minutes (worst-case total stays under the job cap). Response bodies are downloaded inside the retry loop so truncated transfers retry.",
+      "source": "Local operability policy resolving critique finding on unbounded response bodies."
+    },
+    {
+      "id": "DR7",
+      "requirement": "Always upload bounded report, redacted stderr, scanner status, and database provenance; never upload the database or executable.",
+      "source": "Independent critique and existing repository diagnostic-artifact pattern."
+    }
+  ],
+  "design": {
+    "summary": "Replace retry-only pnpm audit with one repository-owned OSV audit path and one independent CI job. Fetch and verify the scanner and current database under runner temp, scan both lockfiles offline, validate coverage and status/report consistency, then make default gates depend on the audit job.",
+    "components": [
+      {
+        "name": "scripts/osv-audit.mjs",
+        "responsibility": "Bounded asset retrieval, identity/freshness/integrity validation, offline scanner execution, exact lockfile coverage adjudication, bounded evidence output, and final exit status."
+      },
+      {
+        "name": "Makefile audit",
+        "responsibility": "Single repository audit interface invoking scripts/osv-audit.mjs; removes the retry-only pnpm command."
+      },
+      {
+        "name": "Dependency audit CI job",
+        "responsibility": "Stable independent fail-closed check on ubuntu-24.04 with Node from .node-version, 15-minute timeout, always-uploaded bounded diagnostics, and contents: read only."
+      }
+    ],
+    "dataFlow": [
+      "Validate canonical non-symlink lockfiles.",
+      "Download scanner to runner temp, enforce maximum/exact size and SHA256, then enable execution and assert version.",
+      "Fetch and validate OSV GCS metadata; select exact generation.",
+      "Stream exact-generation database to a temporary file with size/MD5/SHA256 calculation and bounded requests; validate ZIP with runner unzip utility; atomically move to documented offline layout.",
+      "Write trusted empty config under runner temp and invoke one combined offline scan over both explicit canonical lockfiles.",
+      "Validate bounded stderr, scanner status, JSON shape, exactly two expected source paths, nonzero package inventory per source, and zero/nonzero vulnerability consistency.",
+      "Write summary/provenance and preserve nonzero failure; CI uploads only bounded evidence."
+    ],
+    "policy": {
+      "clean": "Status 0, valid report, exact source coverage, nonempty package inventories, zero vulnerabilities, and no warnings passes.",
+      "finding": "Status 1 with at least one package carrying a nonempty vulnerabilities array fails.",
+      "error": "All other statuses or malformed, missing, inconsistent, stale, incomplete, or warning-bearing evidence fails.",
+      "equivalence": "This is a non-equivalent public OSV policy and intentionally fails on every OSV finding; it does not claim npm audit parity or private-registry coverage."
+    }
+  },
+  "executionGraph": {
+    "criticalPath": ["T001", "T002", "T003"],
+    "parallelGroups": [],
+    "dependencies": {
+      "T001": [],
+      "T002": ["T001"],
+      "T003": ["T002"]
+    }
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "title": "Implement the fail-closed OSV audit verifier",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": ["scripts/osv-audit.mjs", "focused OSV audit tests", "Makefile audit target"],
+      "notInScope": ["CI topology", "dependency upgrades", "vulnerability ignores", "npm audit fallback", "hand-written ZIP parser"],
+      "spikeCandidate": "Before integrating, execute the pinned scanner and a current database only inside an isolated /tmp sandbox to confirm exact v2.3.8 CLI/output paths and current lockfile inventory; do not promote downloaded assets into the repository.",
+      "actions": "Build a Node 22 verifier with injected fetch, clock, process runner, and temp-path seams. Implement DR1-DR6; use the runner's unzip utility for archive integrity rather than parsing ZIP internals. Change make audit to this single verifier and remove the retry-only pnpm loop. Add table-driven tests for clean result, finding, all relevant operational statuses, request/body timeout, oversized binary/database, digest/version mismatch, stale/future/malformed metadata, exact-generation retrieval failure, size/MD5 mismatch, archive failure, scanner timeout, warning output, malformed/missing report, duplicate/unexpected/missing sources, empty package inventory, and status/report mismatch.",
+      "acceptanceSignal": "node --test tests/osv-audit.test.mjs, with expected result: all clean, finding, transfer, identity, freshness, coverage, warning, timeout, and mismatch cases pass with no skips.",
+      "validation": [
+        "node --test tests/osv-audit.test.mjs",
+        "node --test tests/adapter-gate-wiring.test.mjs",
+        "make fmt-check",
+        "make lint",
+        "make check",
+        "git diff --check"
+      ],
+      "acceptanceEvidence": "Isolated pinned-scanner evidence from the independent review (binary sha256/size verified against the v2.3.8 release; flags and DB layout confirmed), plus 13 zero-skip deterministic tests in tests/osv-audit.test.mjs. Review finding F-1 (GCS size-as-string) repaired before dispatch.",
+      "repairAttempts": 1,
+      "recoveryNote": "If scanner output or CLI differs from documented v2.3.8 behavior, preserve the isolated evidence and return to REPAIR; do not loosen adjudication."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "completed",
+      "title": "Wire a dedicated Dependency audit CI job",
+      "dependsOn": ["T001"],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [".github/workflows/ci.yml", "workflow wiring tests", "audit evidence artifact contract"],
+      "notInScope": ["renaming existing protected checks", "SARIF permissions", "Adapter integrations behavior", "branch protection"],
+      "spikeCandidate": "None after T001; workflow changes consume the verified repository audit interface.",
+      "actions": "Add an unconditional stable Dependency audit job on ubuntu-24.04 with contents: read, Node from .node-version, a 15-minute timeout, and make audit execution that records status without masking it. Remove audit steps from Frozen install and Repository gates. Set Repository gates needs to [frozen-install, dependency-audit]. Preserve Adapter integrations needs: gates, if: always(), and its explicit successful-prerequisite assertion. Add an if: always() upload step for bounded audit report/stderr/status/provenance files and exclude scanner/database bytes. Add workflow tests for names, dependencies, timeouts, exact audit command, artifact bounds, permissions, and absence of pnpm audit/ignore-registry-errors.",
+      "acceptanceSignal": "node --test tests/adapter-gate-wiring.test.mjs tests/osv-audit.test.mjs, with expected result: stable job graph, fail-closed evidence upload, and audit implementation contracts pass with zero skips.",
+      "validation": [
+        "node --test tests/adapter-gate-wiring.test.mjs tests/osv-audit.test.mjs",
+        "make fmt-check",
+        "make lint",
+        "make check",
+        "git diff --check"
+      ],
+      "acceptanceEvidence": "Workflow wiring tests pass (22/22 focused total): stable Dependency audit job, gates needs [frozen-install, dependency-audit], evidence upload with if: always() and if-no-files-found: error, pnpm audit absent from workflow and Makefile, YAML parses, check-suite 1244 checks OK.",
+      "repairAttempts": 0,
+      "recoveryNote": "If workflow validation reveals a skipped or false-green path, keep T002 incomplete and repair the job graph before any push."
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "in_progress",
+      "title": "Obtain exact-SHA dependency and adapter evidence",
+      "dependsOn": ["T002"],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": ["one authorized commit/push", "one exact CI run", "audit and adapter artifacts", "plan/build checkpoints"],
+      "notInScope": ["accepting partial or skipped jobs", "retrying npm audit", "branch-protection changes", "claiming equivalence to npm audit"],
+      "spikeCandidate": "None; this is external verification after implementation and independent review.",
+      "actions": "After independent security/correctness review and explicit commit/push authorization, commit only owned files, push, assert exact workflow SHA, and monitor all jobs. Require Dependency audit to record scanner checksum/version, database generation/freshness/size/MD5/SHA256, exact two-lockfile coverage, clean status/report consistency, and a bounded artifact. Require Frozen install and Repository gates success. Require Adapter integrations to execute browser and Docker proofs with zero skips and cleanup_status=0. Update predecessor blocker evidence only with observed results.",
+      "acceptanceSignal": "gh run view <exact-run-id> --json status,conclusion,jobs,headSha, with expected result: completed success for exact pushed SHA, successful Dependency audit, Frozen install, Repository gates, and Adapter integrations, with no required skips.",
+      "validation": [
+        "audit artifact contains bounded report/status/provenance and no scanner/database payload",
+        "database age is within 48 hours and exact generation checks pass",
+        "both lockfiles have nonzero package inventory",
+        "browser E2E pass equals total and Docker TAP pass equals tests",
+        "adapter cleanup_status=0",
+        "git status --short is empty"
+      ],
+      "acceptanceEvidence": "Exact run URL/SHA, all job conclusions, audit summary/artifact URL, adapter summary/artifact URL, cleanup record, review result, and final clean worktree.",
+      "repairAttempts": 0,
+      "recoveryNote": "If GitHub Releases, GCS, or OSV evidence is unavailable, remain BLOCKED with the exact failed boundary; never fall back to stale data or a success exit."
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "plan/schema validation",
+      "isolated pinned-scanner smoke test",
+      "deterministic verifier unit tests",
+      "workflow wiring tests",
+      "format/lint/conformance/whitespace",
+      "independent security and correctness review",
+      "exact-SHA full CI",
+      "artifact and downstream adapter verification"
+    ],
+    "fastGates": [
+      "node --test tests/osv-audit.test.mjs",
+      "node --test tests/adapter-gate-wiring.test.mjs",
+      "make fmt-check",
+      "make lint",
+      "make check",
+      "git diff --check"
+    ],
+    "expensiveGates": [
+      "isolated 58 MB scanner and approximately 222 MB database retrieval",
+      "full offline database scan",
+      "exact-SHA GitHub Actions workflow",
+      "browser/Docker live adapter proofs"
+    ],
+    "parallelizable": [],
+    "knownGaps": [
+      "OSV publishes no database freshness SLA or independently signed database manifest.",
+      "Exact npm audit advisory parity is neither claimed nor required; the new policy fails every public OSV finding.",
+      "External GET availability can still block CI, but cannot produce a false green."
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Large database download increases CI time or bandwidth",
+      "OSV database publisher corruption or malformed entries",
+      "Policy expansion exposes lower-severity findings",
+      "Missing lockfile coverage appears clean",
+      "Download/scanner stalls recreate the original timeout problem",
+      "Workflow job graph allows downstream execution after audit failure"
+    ],
+    "mitigations": [
+      "One dedicated job and one database retrieval per workflow",
+      "Exact generation, metadata size/MD5, local SHA256, ZIP integrity, warning rejection, and output validation",
+      "Document non-equivalence and remediate actual findings rather than filtering ambiguous severity",
+      "Explicit canonical lockfiles plus nonzero source-specific package inventories",
+      "Numeric request, body, scanner, and job deadlines with bounded attempts",
+      "Repository gates needs both prerequisite jobs; existing adapter fail-closed assertion remains"
+    ],
+    "rollback": "Revert the OSV verifier/job and restore the last blocking npm audit behavior if the replacement produces incomplete evidence or unstable semantics; do not use ignore-registry-errors as rollback.",
+    "forwardRecovery": "If a current database or scanner release is unavailable, checkpoint BLOCKED with exact metadata/download/status evidence. Resume through RECOVER after availability returns or a newly reviewed version/digest is approved."
+  },
+  "critiqueResolution": [
+    {
+      "finding": "Bounded attempt counts alone can still hang on response bodies or scanner execution.",
+      "severity": "high",
+      "resolution": "DR6 defines request/body/scanner/job deadlines, retry classes, and total bounds.",
+      "evidence": "Independent hostile critique, resolved in T001/T002 acceptance."
+    },
+    {
+      "finding": "OSV is not exact parity or necessarily a strict superset of pnpm audit.",
+      "severity": "high",
+      "resolution": "D3 and the design policy explicitly call this non-equivalent and fail on every OSV finding.",
+      "evidence": "OSV/pnpm documentation and independent critique."
+    },
+    {
+      "finding": "The latest tagged reusable workflow can convert scanner failure into misleading reporting when results are absent.",
+      "severity": "high",
+      "resolution": "D4 rejects the reusable workflow; repository code validates completion and evidence directly.",
+      "evidence": "Pinned v2.5.1 reusable workflow and unreleased main-branch missing-result guard."
+    },
+    {
+      "finding": "OSV offline mode alone can skip missing/malformed evidence, repository ignores, or one omitted lockfile.",
+      "severity": "high",
+      "resolution": "DR2-DR5 require independent transfer/archive checks, a trusted empty config, exact source/package coverage, warning rejection, and status/report consistency.",
+      "evidence": "Pinned v2.3.8 source review and parallel research."
+    },
+    {
+      "finding": "Hand-writing a ZIP parser is disproportionate and risky.",
+      "severity": "medium",
+      "resolution": "T001 uses the runner's bounded unzip integrity command and does not implement ZIP parsing.",
+      "evidence": "Independent critique."
+    },
+    {
+      "finding": "Audit artifacts were unspecified and could disappear on failure or upload huge sensitive files.",
+      "severity": "medium",
+      "resolution": "DR7 and T002 always upload only bounded report/stderr/status/provenance evidence and exclude binary/database bytes.",
+      "evidence": "Independent critique and existing adapter diagnostic pattern."
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-04T05:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> NOT_STARTED",
+      "tasks": [],
+      "evidence": "Created a warranted successor plan after repository/CI recovery, current OSV/pnpm/GitHub/GCS research, two parallel analyses, hostile critique, and primary verification. No implementation, commit, push, workflow trigger, binary execution, database download, or repository source mutation occurred.",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-04T06:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": ["T001"],
+      "evidence": "Explicit csm-build request selected this plan. Repository is clean at 1ce7913; retry-only pnpm audit is the current interface; no build-state artifact existed for this plan.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-04T07:30:00Z",
+      "cycle": 0,
+      "transition": "RECOVER -> CHECKPOINT",
+      "tasks": ["T001", "T002", "T003"],
+      "evidence": "T001 implemented scripts/osv-audit.mjs + tests and made make audit the single OSV interface. Independent review found 12 findings; F-1 (GCS size-as-string would keep the gate permanently red) and F-2/F-3/F-4/F-6/F-7/F-8/F-9/F-10 were repaired (1 repair attempt on T001); F-5 warning-prefix residual documented and backstopped by adjudication. T002 wired the Dependency audit job, gates needs, evidence upload, and test-osv-audit in CI. Local gates: 22/22 focused tests zero-skip, fmt/lint/check/whitespace OK, YAML valid. T003 (exact-SHA CI) awaits commit/push authorization.",
+      "nextState": "CHECKPOINT"
+    }
+  ],
+  "completionReview": null,
+  "inputs": [],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-04T05:00:00Z",
+    "sourceDigests": []
+  },
+  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+}

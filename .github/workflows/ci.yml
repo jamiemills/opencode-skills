@@ -28,12 +28,36 @@ jobs:
           test "$(pnpm --version)" = "10.34.5"
       - name: Install dependencies without lifecycle scripts
         run: make install
-      - name: Audit dependencies
+
+  dependency-audit:
+    name: Dependency audit
+    needs: frozen-install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Run pinned OSV dependency audit
+        env:
+          OSV_AUDIT_EVIDENCE_DIR: ${{ runner.temp }}/osv-audit-evidence
         run: make audit
+      - name: Upload dependency audit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-audit-${{ github.run_id }}
+          path: ${{ runner.temp }}/osv-audit-evidence
+          if-no-files-found: error
 
   gates:
     name: Repository gates
-    needs: frozen-install
+    needs: [frozen-install, dependency-audit]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -54,8 +78,6 @@ jobs:
           test "$(pnpm --version)" = "10.34.5"
       - name: Install dependencies without lifecycle scripts
         run: make install
-      - name: Audit dependencies
-        run: make audit
       - name: Check formatting
         run: make fmt-check
       - name: Run lint
@@ -66,6 +88,8 @@ jobs:
         run: make test-package-index
       - name: Run deterministic suites
         run: make test-deterministic
+      - name: Run OSV audit verifier tests
+        run: make test-osv-audit
       - name: Run default test suites
         run: make test
       - name: Check patch whitespace

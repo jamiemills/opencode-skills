@@ -1,0 +1,57 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-replace-npm-audit-ci-gate-build-20260904",
+  "runId": "run-20260904t060000z-replace-npm-audit-ci-gate-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "CHECKPOINT",
+    "cycle": 0,
+    "nextTransition": "CHECKPOINT -> SELECT for T003 after commit/push authorization",
+    "activeTasks": ["T003"],
+    "blockers": [],
+    "lastCheckpoint": "2026-09-04T08:00:00Z: commit/push/merge authorized; T003 dispatching exact-SHA verification",
+    "lastModelRun": "gpt-5.6-sol / replace-npm-audit-ci-gate-build"
+  },
+  "inputs": [{
+    "name": "plan",
+    "artifactId": "art-replace-npm-audit-ci-gate-20260904",
+    "schema": "csm-plan/1",
+    "runId": "run-20260904t050000z-replace-npm-audit-ci-gate",
+    "owner": "csm-plan",
+    "digest": "sha256:2807ed4e332d1117b8aa921354ea704fc58367d5dabf2787c0c43dab9245324b",
+    "path": ".agents/plans/2026-09-04-replace-npm-audit-ci-gate-csm.json",
+    "status": "resolved"
+  }],
+  "journal": [{
+    "sequence": 0,
+    "timestamp": "2026-09-04T06:00:00Z",
+    "from": "NOT_STARTED",
+    "to": "RECOVER",
+    "evidence": "Explicit csm-build request selected the saved successor plan. Repository is clean at 1ce7913; retry-only pnpm audit is the current audit interface and no OSV verifier exists yet.",
+    "nextState": "RECOVER"
+  }, {
+    "sequence": 1,
+    "timestamp": "2026-09-04T07:30:00Z",
+    "from": "RECOVER",
+    "to": "CHECKPOINT",
+    "evidence": "T001/T002 implemented and validated (22/22 focused tests, fmt/lint/check/whitespace, YAML valid). Independent review found 12 findings; critical GCS size-as-string defect repaired plus 8 others; warning-prefix residual documented. T003 exact-SHA CI awaits commit/push authorization.",
+    "nextState": "CHECKPOINT"
+  }],
+  "journal": [{
+    "sequence": 0,
+    "timestamp": "2026-09-04T06:00:00Z",
+    "from": "NOT_STARTED",
+    "to": "RECOVER",
+    "evidence": "Explicit csm-build request selected the saved successor plan. Repository is clean at 1ce7913; the retry-only pnpm audit is the current audit interface and no OSV verifier exists yet.",
+    "nextState": "RECOVER"
+  }],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-replace-npm-audit-ci-gate-20260904",
+    "sourceDigests": ["sha256:2807ed4e332d1117b8aa921354ea704fc58367d5dabf2787c0c43dab9245324b"]
+  },
+  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+}
