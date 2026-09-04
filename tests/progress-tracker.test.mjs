@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderSkillProgress, validateSkillProgress } from "../scripts/lib/progress-tracker.mjs";
+import { renderSkillProgress, validateSkillProgress } from "../lib/progress-tracker.mjs";
 
 function validRecord(overrides = {}) {
   return {

@@ -860,8 +860,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/progress-rollup.mjs",
-        "sha256": "6382002cfcd0c28914d752f78ffeffd89b8efc7e04dde649abe756c33e4779e1",
-        "bytes": 2285,
+        "sha256": "3efb871ca21e11074287f43947e294bdbfafd2d46c42f226978011718e11cb24",
+        "bytes": 2280,
         "mode": "0644"
       },
       {

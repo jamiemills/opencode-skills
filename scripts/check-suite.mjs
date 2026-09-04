@@ -21,7 +21,7 @@ import { checkDrift } from "./sync-skill-boilerplate.mjs";
 import { checkDrift as checkMatrixDrift } from "./gen-readme-matrix.mjs";
 import { lintPlanSignals } from "./check-plan-signals.mjs";
 import { checkDependencyPolicy } from "./lib/dependency-policy.mjs";
-import { validateSkillProgress } from "./lib/progress-tracker.mjs";
+import { validateSkillProgress } from "../lib/progress-tracker.mjs";
 import {
   FENCE_OPEN_RE,
   splitLines,
@@ -861,7 +861,7 @@ function checkProgressTrackerContracts(rootDir) {
       for (const phrase of [
         "Progress tracking is ON by default",
         "csm-skill-progress/1",
-        "scripts/lib/progress-tracker.mjs",
+        "lib/progress-tracker.mjs",
         "Declare 3–6 milestones",
         "TASK PROGRESS  not estimated",
         "--quiet-progress",

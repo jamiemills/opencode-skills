@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { validateSkillProgress } from "../../scripts/lib/progress-tracker.mjs";
+import { validateSkillProgress } from "../../lib/progress-tracker.mjs";
 
 // Roll a child skill's csm-skill-progress/1 record into the orchestrator
 // progress tracker. Pure mapping: never transitions item state, never touches
