@@ -69,6 +69,8 @@ On first run or missing config, queries `gh api user` and falls back to `gh auth
 
 ## Usage
 
+Script: `csm-upload/scripts/upload.mjs` (canonical path: `$HOME/.config/opencode/skills/csm-upload/scripts/upload.mjs`)
+
 ```bash
 node $HOME/.config/opencode/skills/csm-upload/scripts/upload.mjs --label <name> [--desc <text>] [--github <user>] [--repo <name>] [--confirm-permanent] [--ack-unscanned-binary] <file1> [<file2>] [more files]
 ```

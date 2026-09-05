@@ -147,7 +147,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: each refinement is independently revertible.
 
-5. [blocked] DEFERRED — CI and scheduled dependency audits (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
+5. [blocked] DEFERRED [DEF:CI] — CI and scheduled dependency audits (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T005
    - Depends on: T004
    - Parallel group: G4
@@ -162,7 +162,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-6. [blocked] DEFERRED — Chromium sandbox redesign (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
+6. [blocked] DEFERRED [DEF:SANDBOX] — Chromium sandbox redesign (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T006
    - Depends on: T001
    - Parallel group: G4
@@ -177,7 +177,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-7. [blocked] DEFERRED — old comprehensive README plan (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
+7. [blocked] DEFERRED [DEF:README] — old comprehensive README plan (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T007
    - Depends on: none
    - Parallel group: G4
@@ -192,7 +192,7 @@ The active build begins with T001's isolated CDP-auth design spike and implement
    - Repair attempts: 0
    - Recovery note: do not dispatch; csm-build SELECT must ignore blocked tasks marked DEFERRED.
 
-8. [blocked] DEFERRED — live-LLM behavioral evaluation harness (F-017 tier-b) (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
+8. [blocked] DEFERRED [DEF:EVAL] — live-LLM behavioral evaluation harness (F-017 tier-b) (moved to .agents/plans/2026-08-19-consolidated-remaining-work-csm.md)
    - Task ID: T008
    - Depends on: none
    - Parallel group: G4
