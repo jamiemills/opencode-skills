@@ -149,6 +149,8 @@ test(
       const options = await workingOptions({
         runId: "run-parity-browse-orchestrated",
         ideaSlug: "parity-browse",
+        finalReview: async ({ phase, phaseResults, evidence }) =>
+          acceptedReview({ runId: options.runId, phase, phaseResults, evidence }),
       });
       options.executorAdapter = adapter;
       options.executorRegistry = registry;

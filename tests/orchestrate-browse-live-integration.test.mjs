@@ -233,13 +233,8 @@ test(
           state,
         });
         const withSource = { ...native, sourceDigest: native.digest };
-        return {
-          ...withSource,
-          descriptorDigest: digest({
-            ...withSource,
-            descriptorDigest: undefined,
-          }),
-        };
+        const { descriptorDigest: _dropped, ...rest } = withSource;
+        return { ...withSource, descriptorDigest: digest(rest) };
       },
       artifactResolver: {
         resolve: async () => {
