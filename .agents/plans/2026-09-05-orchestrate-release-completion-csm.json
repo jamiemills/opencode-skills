@@ -4,16 +4,18 @@
   "artifactId": "art-orchestrate-release-completion-20260905",
   "runId": "run-20260905t100000z-orchestrate-release-completion",
   "planId": "orchestrate-release-completion",
-  "status": "ready",
+  "status": "in_progress",
   "control": {
-    "status": "ready",
-    "currentState": "NOT_STARTED",
-    "cycle": 0,
+    "status": "in_progress",
+    "currentState": "CHECKPOINT",
+    "cycle": 1,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T12:15:00Z: T001-T005 executed; closure commit pushed \u2014 two-phase protocol phase 2 (exact-SHA CI verification) pending",
-    "lastModelRun": "glm-5.3-flash / csm-build-orchestrate-release-completion",
-    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
-    "activeTasks": [],
+    "lastCheckpoint": "2026-09-05T13:40:00Z: re-review APPROVED (no findings) after model-switch recovery; gates re-verified green post-switch (focused 22/0, check-suite 1244, fmt/lint/payload clean); committing the approved parity-oracle repair for exact-SHA CI verification (two-phase phase 2)",
+    "lastModelRun": "glm-5.3-flash / csm-build-orchestrate-release-completion (post-switch recovery)",
+    "nextTransition": "CHECKPOINT -> COMPLETE after exact-SHA green CI on the repair commit",
+    "activeTasks": [
+      "T002"
+    ],
     "blockers": [],
     "resume": {
       "read": [
@@ -24,7 +26,7 @@
         "working-tree diff",
         "research finding (currentStateEvidence.research)"
       ],
-      "firstAction": "Promote the draft per T001 first action, then SELECT the G1 batch (T001, T002, T004)"
+      "firstAction": "Remove temporary diagnostics, repair the live parity resolver binding, then run the required live case before exact-SHA CI"
     }
   },
   "goal": {
@@ -354,22 +356,23 @@
       "risk": "standard",
       "ownedScope": [
         "tests/orchestrate-outcome-parity.test.mjs (new)",
+        "tests/orchestrate-autoresearch-live-integration.test.mjs",
         "scripts/adapter-required-tests.mjs"
       ],
       "notInScope": [
         "csm-orchestrate/lib runtime",
-        "existing live suites",
         "receipt byte-equality comparisons"
       ],
       "spikeCandidate": "Field-selection risk: verify orchestrated outcomes embed no runIds/timestamps inside the compared projections \u2014 run one in-process stub-adapter vs orchestrate comparison locally (unskipped) before CI",
       "actions": [
         "Write the parity test per design (canonicalized deterministic projections, zero side-effect deltas, blocked-path mapping)",
+        "Add an explicit canonicalized standalone-vs-orchestrated Docker projection assertion to the existing Docker live suite so the required lane proves Docker parity without doubling container executions",
         "Include an unskipped local unit case (stub in-process adapter vs orchestrate) so comparison logic executes pre-CI",
         "Append the file to the default ADAPTER_REQUIRED_TEST_FILES list"
       ],
       "acceptanceSignal": "Local unskipped unit case + skip-gated file pass via node --test tests/orchestrate-outcome-parity.test.mjs; CI Adapter integrations runs it zero-skip and green",
       "validation": "node --test tests/orchestrate-outcome-parity.test.mjs passes (skip-gated locally); CI Adapter integrations runs it zero-skip and green",
-      "acceptanceEvidence": "tests/orchestrate-outcome-parity.test.mjs: 2 unskipped stub cases green + 2 live cases in required lane; scripts/adapter-required-tests.mjs updated",
+      "acceptanceEvidence": "tests/orchestrate-outcome-parity.test.mjs compares standalone and orchestrated success/refusal projections and independently resolves orchestrated browse evidence with the recorded expectedSourceDigest; the Docker live suite intercepts the actual orchestrated sandbox result and compares score, attestation, and cleanup; the log case is an additional standalone lineage check",
       "repairAttempts": 0,
       "recoveryNote": "Test file + required-list diff + CI run URL"
     },
@@ -570,6 +573,127 @@
       ],
       "evidence": "all tasks executed with gates green; required-check answer: no branch protection (recorded as residual risk)",
       "nextState": "SAVED-EXECUTION \u2014 phase-2 CI evidence pending"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-05T12:30:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> RECOVER",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "model-switch recovery re-read the saved plan and current diff; prior exact-SHA CI passed Repository gates and failed only the new live parity case; current delta contains one temporary diagnostic and the finalReview/child-resolver repair",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-05T12:35:00Z",
+      "cycle": 1,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "temporary diagnostics removed; producer adapter and child artifact reconciliation now both use the evidence-root resolver; final review persistence and validation use the same review root",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-05T12:40:00Z",
+      "cycle": 1,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "exact live browse parity case passed locally: 1/1, zero skips, 14.4s",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-05T12:41:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH -> INTEGRATE -> VERIFY",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "primary-owned high-conflict repair integrated: producer adapter + child reconciliation use evidence-root resolver; final review persistence + validation use the same review root; temporary diagnostics removed",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-05T12:45:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REPAIR",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "scope check found Docker parity was implicit but not asserted; repair extends the existing Docker live suite rather than duplicating an expensive container run",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-05T12:50:00Z",
+      "cycle": 1,
+      "transition": "REPAIR -> VERIFY",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "Docker standalone-vs-orchestrated projection now reads the typed report artifact; exact Docker live case passed locally 1/1, zero skips, 7.8s",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-05T13:00:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "required live subset passed 11/11 with zero skips; focused fail-closed suites passed 20/20; formatting, lint, payload parity, and check-suite 1244 all pass",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-05T13:10:00Z",
+      "cycle": 1,
+      "transition": "REVIEW -> REPAIR",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "independent review BLOCKED closure: browse used a circular VERIFIED oracle, Docker attestation/cleanup was provider capability rather than run-derived, and refusal lacked a standalone comparison; all three findings accepted for repair",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-05T13:20:00Z",
+      "cycle": 1,
+      "transition": "REPAIR -> VERIFY",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "browse independently resolves orchestrated evidence with the adapter-recorded expectedSourceDigest; refusal compares status/code; Docker captures the raw candidate sandbox result and compares score, attestation, and cleanup",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-05T13:25:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "required live subset 11/11 zero-skip; focused 20/20; fmt, lint, payload parity, and check-suite 1244 pass after oracle repair",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-09-05T13:40:00Z",
+      "cycle": 1,
+      "transition": "REVIEW -> CHECKPOINT",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "independent re-review APPROVED with no findings (browse independent sourceDigest oracle, Docker run-derived sandbox result oracle, refusal status/code comparison all verified); gates re-verified after model switch",
+      "nextState": "CHECKPOINT -> COMPLETE on exact-SHA green CI"
     }
   ],
   "critiqueResolution": [

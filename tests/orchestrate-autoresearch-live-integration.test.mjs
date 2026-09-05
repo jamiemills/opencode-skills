@@ -18,10 +18,13 @@ import {
   createDockerGeneratedProvider,
   createDockerSandboxProvider,
 } from "../csm-autoresearch/lib/providers/docker.mjs";
-import { hash as generatedHash } from "../csm-autoresearch/lib/providers/generated.mjs";
+import {
+  createGeneratedProvider,
+  hash as generatedHash,
+} from "../csm-autoresearch/lib/providers/generated.mjs";
 import { sharedRunId } from "../csm-autoresearch/lib/artifacts/index.mjs";
 import { hash } from "../csm-autoresearch/lib/ledger/index.mjs";
-import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
+import { canonicalize, loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
 
@@ -129,88 +132,126 @@ test(
   "csm-orchestrate composes the Docker generated provider and proves cleanup",
   { skip: process.env.CSM_ADAPTER_INTEGRATIONS_REQUIRED !== "1" },
   async () => {
-    const provider = createDockerGeneratedProvider({ limits });
+    const sandbox = createDockerSandboxProvider({ limits });
+    const rawSandboxResults = [];
+    const observedSandbox = Object.freeze({
+      ...sandbox,
+      async execute(request) {
+        const result = await sandbox.execute(request);
+        rawSandboxResults.push(result);
+        return result;
+      },
+    });
+    const provider = createGeneratedProvider({
+      sandbox: observedSandbox,
+      hostCapability: observedSandbox.capability,
+      evaluatorHash,
+      environmentHash,
+      limits,
+      approval: {
+        status: "approved",
+        approver: "docker-host",
+        reason: "explicit Docker sandbox integration",
+      },
+      sandboxProvider: "docker",
+    });
     if (provider.sandboxProvider !== "docker" || provider.sandboxVerified !== true)
       assert.fail(
         `Docker host attestation unavailable: ${provider.sandbox?.unavailable ?? "unverified"}`,
       );
 
     const artifactRoot = await mkdtemp(join(tmpdir(), "orchestrate-docker-live-"));
-    const sandbox = createDockerSandboxProvider({ limits });
-    const store = createSqliteStore({ mode: "memory", now: () => "2026-08-31T00:00:00.000Z" });
-    const capabilities = await loadCapabilities();
-    const schemaRegistry = await loadSchemaRegistry();
-    const autoresearch = createCsmAutoresearchAdapter({ providers: { generated: provider } });
-    const handlers = createExecutorHandlers({ csmAutoresearchAdapter: autoresearch });
-    const descriptor = createExecutorDescriptors({
-      handlers,
-      csmAutoresearchAdapter: autoresearch,
-    }).find((item) => item.skill === "csm-autoresearch");
-    const registry = await createSkillExecutorRegistry({ descriptors: [descriptor] });
-    const bindings = { "csm-autoresearch": descriptor };
-    const requests = [];
-    const childResponses = [];
-    const productionResolver = createArtifactResolver({ root: artifactRoot, schemaRegistry });
-    const inProcess = createInProcessExecutorAdapter({
-      registry,
-      bindings,
-      capabilities,
-      cursorStore: store,
-      inputForRequest: async (request) => {
-        return {
-          contract: contract(request.childRunId, request.childRunId),
-          artifactRoot,
-          evaluatorHash,
-          environmentHash,
-          baseline: {
-            id: "synthetic-baseline",
-            parentId: null,
-            sourceHash: generatedHash(source),
-            patchHash: hash("synthetic-baseline-patch"),
-          },
-          candidates: [
-            {
-              id: "synthetic-candidate",
-              parentId: "synthetic-baseline",
-              sourceHash: generatedHash(source),
-              patchHash: hash("synthetic-patch-v1"),
-            },
-          ],
-          evaluatorInput: { source, value: 4 },
-        };
-      },
-      artifactResolver: childArtifactResolver(artifactRoot, schemaRegistry),
-      schemaRegistry,
-    });
-    const executorAdapter = {
-      async invoke(request, options) {
-        requests.push(request);
-        const response = await inProcess.invoke(request, options);
-        childResponses.push(response);
-        return response;
-      },
-    };
-
-    const independentReview = createIndependentFinalReviewExecutor({
-      reviewerId: "csm-review-independent",
-      executorId: "csm-orchestrate-final-review",
-      producerExecutorId: "csm-autoresearch",
-      artifactRoot,
-      reviewer: async ({ requirements, evidence, phaseResults }) => ({
-        status: "ACCEPTED",
-        requirementCoverage: requirements.map((requirement) => ({
-          requirementId: requirement.requirementId,
-          evidenceRefs: evidence
-            .filter((item) => item.requirementIds?.includes(requirement.requirementId))
-            .map((item) => item.evidenceId),
-        })),
-        evidenceEntailment: "supported",
-        technical: phaseResults.flatMap((item) => item.gate?.technical ?? []),
-        functional: phaseResults.flatMap((item) => item.gate?.functional ?? []),
-        findings: [],
-      }),
-    });
     try {
+      const store = createSqliteStore({ mode: "memory", now: () => "2026-08-31T00:00:00.000Z" });
+      const capabilities = await loadCapabilities();
+      const schemaRegistry = await loadSchemaRegistry();
+      const orchestratedEvaluations = [];
+      const observedProvider = Object.freeze({
+        ...provider,
+        async evaluate(request) {
+          const priorResultCount = rawSandboxResults.length;
+          const result = await provider.evaluate(request);
+          orchestratedEvaluations.push({
+            request,
+            response: result,
+            sandboxResult:
+              rawSandboxResults.length > priorResultCount ? rawSandboxResults.at(-1) : null,
+          });
+          return result;
+        },
+      });
+      const autoresearch = createCsmAutoresearchAdapter({
+        providers: { generated: observedProvider },
+      });
+      const handlers = createExecutorHandlers({ csmAutoresearchAdapter: autoresearch });
+      const descriptor = createExecutorDescriptors({
+        handlers,
+        csmAutoresearchAdapter: autoresearch,
+      }).find((item) => item.skill === "csm-autoresearch");
+      const registry = await createSkillExecutorRegistry({ descriptors: [descriptor] });
+      const bindings = { "csm-autoresearch": descriptor };
+      const requests = [];
+      const childResponses = [];
+      const productionResolver = createArtifactResolver({ root: artifactRoot, schemaRegistry });
+      const inProcess = createInProcessExecutorAdapter({
+        registry,
+        bindings,
+        capabilities,
+        cursorStore: store,
+        inputForRequest: async (request) => {
+          return {
+            contract: contract(request.childRunId, request.childRunId),
+            artifactRoot,
+            evaluatorHash,
+            environmentHash,
+            baseline: {
+              id: "synthetic-baseline",
+              parentId: null,
+              sourceHash: generatedHash(source),
+              patchHash: hash("synthetic-baseline-patch"),
+            },
+            candidates: [
+              {
+                id: "synthetic-candidate",
+                parentId: "synthetic-baseline",
+                sourceHash: generatedHash(source),
+                patchHash: hash("synthetic-patch-v1"),
+              },
+            ],
+            evaluatorInput: { source, value: 4 },
+          };
+        },
+        artifactResolver: childArtifactResolver(artifactRoot, schemaRegistry),
+        schemaRegistry,
+      });
+      const executorAdapter = {
+        async invoke(request, options) {
+          requests.push(request);
+          const response = await inProcess.invoke(request, options);
+          childResponses.push(response);
+          return response;
+        },
+      };
+
+      const independentReview = createIndependentFinalReviewExecutor({
+        reviewerId: "csm-review-independent",
+        executorId: "csm-orchestrate-final-review",
+        producerExecutorId: "csm-autoresearch",
+        artifactRoot,
+        reviewer: async ({ requirements, evidence, phaseResults }) => ({
+          status: "ACCEPTED",
+          requirementCoverage: requirements.map((requirement) => ({
+            requirementId: requirement.requirementId,
+            evidenceRefs: evidence
+              .filter((item) => item.requirementIds?.includes(requirement.requirementId))
+              .map((item) => item.evidenceId),
+          })),
+          evidenceEntailment: "supported",
+          technical: phaseResults.flatMap((item) => item.gate?.technical ?? []),
+          functional: phaseResults.flatMap((item) => item.gate?.functional ?? []),
+          findings: [],
+        }),
+      });
       const sandboxResult = await sandbox.execute({
         source,
         input: 4,
@@ -263,6 +304,32 @@ test(
       assert.equal(childResponses[0].status, "completed", JSON.stringify(childResponses[0]));
       assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
       assert.equal(result.outcome.accepted, true);
+      const orchestratedSandboxResult = orchestratedEvaluations.find(
+        ({ request }) => request.candidate?.id === "synthetic-candidate",
+      )?.sandboxResult;
+      assert.ok(orchestratedSandboxResult, JSON.stringify(orchestratedEvaluations));
+      const reportRef = childResponses[0].outputArtifactRefs.find((ref) => ref.name === "report");
+      assert.ok(reportRef, JSON.stringify(childResponses[0].outputArtifactRefs));
+      const standaloneProjection = canonicalize({
+        status: sandboxResult.status,
+        score: sandboxResult.metrics.score,
+        attestationStatus: sandboxResult.attestation.status,
+        cleanupVerified: sandboxResult.cleanup.status === "verified",
+      });
+      const orchestratedProjection = canonicalize({
+        status: orchestratedSandboxResult.status,
+        score: orchestratedSandboxResult.metrics.score,
+        attestationStatus: orchestratedSandboxResult.attestation.status,
+        cleanupVerified: orchestratedSandboxResult.cleanup.status === "verified",
+      });
+      assert.equal(orchestratedProjection, standaloneProjection);
+      assert.equal(
+        reportRef.value.report.trials[0].metrics.score,
+        orchestratedSandboxResult.metrics.score,
+      );
+      assert.equal(orchestratedSandboxResult.cleanup.containerAbsent, true);
+      assert.equal(orchestratedSandboxResult.cleanup.descendantsAbsent, true);
+      assert.equal(orchestratedSandboxResult.cleanup.workspaceRemoved, true);
       assert.equal(
         requests[0].childRunId,
         `run-${runId}-phase-docker-composed-p1-csm-autoresearch-0`,

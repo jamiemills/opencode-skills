@@ -11,6 +11,7 @@ import { createExecutorHandlers } from "../csm-orchestrate/lib/skill-executor-ha
 import { createExecutorDescriptors } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
 import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
+import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import { acceptedReview, hostFixture, workingOptions } from "./helpers-final-review.mjs";
@@ -54,24 +55,35 @@ test("outcome parity: orchestrated and standalone adapter runs agree on determin
 
 test("outcome parity: standalone refusal maps to a blocked orchestration, never verified", async () => {
   const base = hostFixture({ ideaSlug: "parity-refusal" });
+  const refusal = {
+    status: "blocked",
+    failure: { class: "policy", code: "approval-denied", message: "fixture refusal" },
+    effects: [],
+  };
+  const refusingHost = {
+    ...base,
+    async invokeSiblingSkill() {
+      return structuredClone(refusal);
+    },
+    artifactResolver: base.artifactResolver,
+  };
+  const standalone = await refusingHost.invokeSiblingSkill();
   const options = await workingOptions({
     runId: "run-parity-refusal",
     ideaSlug: "parity-refusal",
   });
-  options.host = {
-    ...base,
-    async invokeSiblingSkill() {
-      return {
-        status: "blocked",
-        failure: { class: "policy", code: "approval-denied", message: "fixture refusal" },
-        effects: [],
-      };
-    },
-    artifactResolver: base.artifactResolver,
-  };
+  options.host = refusingHost;
   const orchestrated = await orchestrate(options);
-  assert.notEqual(orchestrated.outcome.status, "VERIFIED");
-  assert.ok(["BLOCKED", "INCOMPLETE"].includes(orchestrated.outcome.status));
+  const standaloneProjection = canonicalize({
+    status: standalone.status.toUpperCase(),
+    code: standalone.failure.code,
+  });
+  const orchestratedProjection = canonicalize({
+    status: orchestrated.outcome.status,
+    code: orchestrated.reason,
+  });
+  assert.equal(orchestratedProjection, standaloneProjection);
+  assert.equal(orchestrated.outcome.status, "BLOCKED");
 });
 
 test(
@@ -87,6 +99,13 @@ test(
       schemaRegistry,
       owner: "csm-browse",
     });
+    const resolverCalls = [];
+    const observedEvidenceResolver = {
+      async resolve(path, expected) {
+        resolverCalls.push({ path, expected });
+        return evidenceResolver.resolve(path, expected);
+      },
+    };
     const capabilities = await loadCapabilities();
     let ownedSession = null;
     try {
@@ -135,7 +154,7 @@ test(
             native,
           });
         },
-        artifactResolver: { resolve: (...args) => evidenceResolver.resolve(...args) },
+        artifactResolver: observedEvidenceResolver,
       });
       const handlers = createExecutorHandlers({ csmBrowseAdapter: browseAdapter });
       const descriptor = createExecutorDescriptors({ handlers }).find(
@@ -148,18 +167,43 @@ test(
         bindings: { "csm-browse": descriptor },
         capabilities: [capabilities.skills.find((item) => item.skill === "csm-browse")],
         cursorStore: store,
-        artifactResolver: { resolve: (...args) => reviewResolver.resolve(...args) },
+        artifactResolver: observedEvidenceResolver,
       });
       const options = await workingOptions({
         runId: "run-parity-browse-orchestrated",
         ideaSlug: "parity-browse",
-        finalReview: async ({ phase, phaseResults, evidence }) =>
-          acceptedReview({ runId: options.runId, phase, phaseResults, evidence }),
       });
       options.executorAdapter = adapter;
+      options.finalReviewExecutor = createIndependentFinalReviewExecutor({
+        producerExecutorId: "csm-browse",
+        artifactRoot: reviewArtifactRoot,
+        reviewer: async ({
+          requirements,
+          evidence: reviewEvidence,
+          phaseResults: reviewPhases,
+        }) => ({
+          status: "ACCEPTED",
+          requirementCoverage: requirements.map((requirement) => ({
+            requirementId: requirement.requirementId,
+            evidenceRefs: reviewEvidence
+              .filter((item) => item.requirementIds?.includes(requirement.requirementId))
+              .map((item) => item.evidenceId),
+          })),
+          evidenceEntailment: "supported",
+          technical: reviewPhases.flatMap((item) => item.gate.technical),
+          functional: reviewPhases.flatMap((item) => item.gate.functional),
+          findings: [],
+        }),
+      });
+      options.producerExecutorId = "csm-browse";
       options.executorRegistry = registry;
       options.executorBindings = { "csm-browse": descriptor };
       options.executorInput = { operation: "capture", binaryAcknowledged: true };
+      options.artifactResolver = createArtifactResolver({
+        root: reviewArtifactRoot,
+        schemaRegistry,
+      });
+      options.reviewArtifactRoot = reviewArtifactRoot;
       options.childArtifactResolver = createArtifactResolver({
         root: evidenceRoot,
         schemaRegistry,
@@ -184,14 +228,27 @@ test(
       options.now = () => new Date("2026-09-05T12:00:00Z");
       options.cursorStore = store;
       const orchestrated = await orchestrate(options);
+      assert.equal(orchestrated.outcome.status, "VERIFIED", JSON.stringify(orchestrated));
+      const orchestratedCall = resolverCalls.find(
+        (call) =>
+          call.path === "evidence-orchestrated.json" &&
+          typeof call.expected.expectedSourceDigest === "string",
+      );
+      assert.ok(orchestratedCall, JSON.stringify(resolverCalls));
+      const orchestratedResolved = await evidenceResolver.resolve(
+        orchestratedCall.path,
+        orchestratedCall.expected,
+      );
       const standaloneProjection = {
         status: standaloneResolved.status,
         sourceDigestBound:
           standaloneResolved?.value?.sourceDigest === standalonePersisted.sourceDigest,
       };
       const orchestratedProjection = {
-        status: orchestrated.outcome.status === "VERIFIED" ? "resolved" : "failed",
-        sourceDigestBound: orchestrated.outcome.status === "VERIFIED",
+        status: orchestratedResolved.status,
+        sourceDigestBound:
+          orchestratedResolved?.value?.sourceDigest ===
+          orchestratedCall.expected.expectedSourceDigest,
       };
       assert.deepEqual(
         orchestratedProjection,
