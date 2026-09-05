@@ -216,6 +216,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `g3-ruling.md` — 2026-09-05 — G3 evidence-source ruling question + options + recommendation — status: awaiting user ruling
 - `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
 - `g3-bundle.json` — 2026-09-05 — G3 local evidence bundle (host-assurance 20/20 + docker probe verified; submission deferred to ruling) — status: reference
+- `t007-mvd-designation.json` — 2026-09-05 — MVD designation (this host, operator jamiemills) + evidence window procedures — status: active
 
 ## ddd/
 
@@ -234,3 +235,4 @@ the source file. Deletion remains awaiting explicit authorization.
 - `review-run-7aefc81cc340ede2295111d59c67e1ee.json` — 2026-09-05 — accepted adversarial review record (csm-orchestrate-adversarial-review/2) — status: reference
 - `review-artifact-run-7aefc81cc340ede2295111d59c67e1ee.json` — 2026-09-05 — review artifact record (csm-artifact/1) — status: reference
 - `review-receipt-run-7aefc81cc340ede2295111d59c67e1ee.json` — 2026-09-05 — review receipt record (csm-review-receipt/1) — status: reference
+- `t007-g8-drill.json` — 2026-09-05 — G8 drill evidence: 8/8 rollback stop-rule drills verified + promotion path (run-g8-drill.mjs) — status: reference

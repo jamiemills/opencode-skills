@@ -1,0 +1,179 @@
+{
+  "schema": "csm-g8-drill/1",
+  "executedAt": "2026-09-05T18:06:34.251Z",
+  "host": "this-machine (MVD per t007-mvd-designation)",
+  "controllers": "lib/rollout canary + rollback + versions (production modules)",
+  "stopRulesExercised": [
+    "falseVerified",
+    "unauthorizedEffects",
+    "duplicateNonIdempotentEffects",
+    "provenanceMismatches",
+    "telemetryBlindSpots",
+    "p99-latency-ratio",
+    "error-rate-ratio"
+  ],
+  "rollbackDrillsVerified": 8,
+  "promotionPathVerified": true,
+  "rounds": [
+    {
+      "label": "absolute:falseVerified",
+      "rounds": [
+        {
+          "label": "absolute:falseVerified",
+          "violation": {
+            "kind": "absolute",
+            "rule": "falseVerified",
+            "observed": 1,
+            "threshold": 0
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "absolute:unauthorizedEffects",
+      "rounds": [
+        {
+          "label": "absolute:unauthorizedEffects",
+          "violation": {
+            "kind": "absolute",
+            "rule": "unauthorizedEffects",
+            "observed": 1,
+            "threshold": 0
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "absolute:duplicateNonIdempotentEffects",
+      "rounds": [
+        {
+          "label": "absolute:duplicateNonIdempotentEffects",
+          "violation": {
+            "kind": "absolute",
+            "rule": "duplicateNonIdempotentEffects",
+            "observed": 1,
+            "threshold": 0
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "absolute:provenanceMismatches",
+      "rounds": [
+        {
+          "label": "absolute:provenanceMismatches",
+          "violation": {
+            "kind": "absolute",
+            "rule": "provenanceMismatches",
+            "observed": 1,
+            "threshold": 0
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "absolute:telemetryBlindSpots",
+      "rounds": [
+        {
+          "label": "absolute:telemetryBlindSpots",
+          "violation": {
+            "kind": "absolute",
+            "rule": "telemetryBlindSpots",
+            "observed": 1,
+            "threshold": 0
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "blindness:missing-measurements",
+      "rounds": [
+        {
+          "label": "blindness:missing-measurements",
+          "violation": {
+            "kind": "absolute",
+            "rule": "telemetry-blindness",
+            "observed": "missing-or-non-finite-canary-control-measurements",
+            "threshold": 0
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "relative:p99-latency-ratio",
+      "rounds": [
+        {
+          "label": "relative:p99-latency-ratio",
+          "violation": {
+            "kind": "relative",
+            "rule": "p99-latency-ratio",
+            "observed": 2,
+            "threshold": 1.5,
+            "control": 100,
+            "canary": 200
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "relative:error-rate-ratio",
+      "rounds": [
+        {
+          "label": "relative:error-rate-ratio",
+          "violation": {
+            "kind": "relative",
+            "rule": "error-rate-ratio",
+            "observed": 3,
+            "threshold": 2,
+            "control": 0.01,
+            "canary": 0.03
+          },
+          "fenced": true,
+          "dispatchBlocked": true,
+          "pointerMovedTo": "cfg-v1-d8c9624c",
+          "rollbackVerified": true
+        }
+      ]
+    },
+    {
+      "label": "promotion-path",
+      "rounds": [
+        {
+          "label": "promotion-path",
+          "healthyEvaluations": 3,
+          "samples": 75,
+          "promoted": true,
+          "knownGood": "cfg-v2-34f4c6e9"
+        }
+      ]
+    }
+  ]
+}

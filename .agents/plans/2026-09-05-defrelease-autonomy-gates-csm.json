@@ -10,12 +10,12 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T17:00:00Z: user rulings received \u2014 G3 defer to deployment (option b, T003 COMPLETE); T006 publication DEFERRED by user (not blocked \u2014 deferred; DEF-RELEASE ledger remains open); T007 remains BLOCKED solely on the deployment MVD (user-provided host + representative-duration run). Resume: BLOCKED -> RECOVER when the user provides the deployment environment.",
+    "lastCheckpoint": "2026-09-05T17:25:00Z: T007 MVD designated (this host, operator jamiemills) \u2014 evidence window OPEN. G8 drill complete (8/8 rollback verified + promotion path, .agents/evidence/t007-g8-drill.json); G5/G6 accrue during real use; G7 runs at collection. Resume: BLOCKED -> RECOVER when the user directs evidence collection.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
     "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
     "blockers": [
-      "T007 requires: the deployment MVD (user-provided host running opencode with telemetry export, attributable operator = user) + representative-duration workload + promotion approval"
+      "T007 evidence collection requires a representative real-use window on the MVD \u2014 user directs collection when ready"
     ],
     "resume": {
       "read": [
@@ -763,6 +763,17 @@
       ],
       "evidence": "G3 ruled: option b (defer to deployment) \u2014 T003 COMPLETE. T006 publication deferred by user (DEF-RELEASE stays open in the ledger). T007 stays BLOCKED on the deployment MVD only.",
       "nextState": "BLOCKED on T007 MVD (user-provided)"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-05T17:25:00Z",
+      "cycle": 1,
+      "transition": "BLOCKED (T007 setup)",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "MVD designated (this host); G8 drill PASS 8/8 + promotion path; window open for G5/G6 accrual; G7 runs at collection",
+      "nextState": "BLOCKED on representative real-use window (user-directed collection)"
     }
   ],
   "critiqueResolution": [

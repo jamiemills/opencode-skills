@@ -1,0 +1,28 @@
+{
+  "schema": "csm-mvd-designation/1",
+  "designatedAt": "2026-09-05T17:20:00Z",
+  "designatedBy": "user (jamiemills)",
+  "host": {
+    "machine": "agent1",
+    "role": "single-host opencode runtime (this machine)",
+    "runtime": "opencode + repo toolchain, node 22 via scripts/with-node22.mjs",
+    "docker": true
+  },
+  "operator": {
+    "accountable": "jamiemills",
+    "trustAnchor": "OS-user boundary (docs/autonomy-guide.md:8-10)"
+  },
+  "window": {
+    "opened": "2026-09-05T17:20:00Z",
+    "procedures": "docs/autonomy-deployment.md",
+    "accruing": {
+      "G5": "independent final-review records on real artifacts (each real build's .agents/evidence/ + review records)",
+      "G6": "terminal receipts + trace/audit correlation + telemetry-loss counts (recorded per run)"
+    },
+    "runnableNow": {
+      "G7": "frozen held-out corpus (lib/evals/orchestration, CORPUS_SPLITS includes held-out) executed at collection time against window data",
+      "G8": "drill COMPLETE \u2014 .agents/evidence/t007-g8-drill.json (8/8 rollback drills verified, promotion path verified)"
+    },
+    "resumeTrigger": "user directs evidence collection after a representative real-use period"
+  }
+}
