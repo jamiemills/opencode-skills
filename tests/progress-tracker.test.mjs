@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderSkillProgress, validateSkillProgress } from "../lib/progress-tracker.mjs";
+import {
+  parseMilestoneSpec,
+  renderSkillProgress,
+  updateSkillProgress,
+  validateSkillProgress,
+} from "../lib/progress-tracker.mjs";
 
 function validRecord(overrides = {}) {
   return {
@@ -121,4 +126,64 @@ test("a complete record renders a full bar", () => {
   const rendered = renderSkillProgress(record);
   assert.match(rendered, /█{30}\] 100%/);
   assert.match(rendered, /\[Verify ✓ 20%\]/);
+});
+
+test("updateSkillProgress derives overallPercent from milestones", () => {
+  const next = updateSkillProgress(validRecord(), ["M3=complete", "M4=active:0.5"], {
+    now: "2026-09-05T08:00:00.000Z",
+  });
+  assert.equal(next.overallPercent, 90);
+  assert.equal(next.status, "active");
+  assert.equal(next.updatedAt, "2026-09-05T08:00:00.000Z");
+  assert.equal(next.milestones[2].verifiedFraction, undefined);
+  assert.equal(next.milestones[3].verifiedFraction, 0.5);
+  assert.equal(validateSkillProgress(next).ok, true);
+});
+
+test("updateSkillProgress defaults an active milestone to fraction 0", () => {
+  const next = updateSkillProgress(validRecord(), ["M3=active"], {
+    now: "2026-09-05T08:00:00.000Z",
+  });
+  assert.equal(next.milestones[2].verifiedFraction, 0);
+  assert.equal(next.overallPercent, 35);
+  assert.equal(validateSkillProgress(next).ok, true);
+});
+
+test("updateSkillProgress derives terminal status and normalizes aliases", () => {
+  const record = validRecord({ status: "active", overallPercent: 53 });
+  record.milestones = record.milestones.map((m) => ({ ...m }));
+  const next = updateSkillProgress(record, ["M3=done", "M4=complete"], {
+    now: "2026-09-05T08:00:00.000Z",
+  });
+  assert.equal(next.status, "complete");
+  assert.equal(next.overallPercent, 100);
+
+  const resumed = updateSkillProgress(next, ["M4=in_progress:0.25"]);
+  assert.equal(resumed.status, "active");
+  assert.equal(resumed.overallPercent, 85);
+  assert.equal(resumed.milestones[3].status, "active");
+  assert.equal(resumed.milestones[3].verifiedFraction, 0.25);
+});
+
+test("updateSkillProgress never emits an invalid record (fail-closed)", () => {
+  assert.throws(() => updateSkillProgress(validRecord(), ["M9=complete"]), /unknown milestone/);
+  assert.throws(() => updateSkillProgress(validRecord(), ["bogus"]), /invalid milestone spec/);
+  assert.throws(() => updateSkillProgress(validRecord(), ["M3=weird"]), /invalid milestone spec/);
+  assert.throws(
+    () => updateSkillProgress(validRecord(), ["M3=active:2"]),
+    /invalid milestone spec/,
+  );
+});
+
+test("parseMilestoneSpec shape and rejections", () => {
+  assert.deepEqual(parseMilestoneSpec("M1=complete"), { id: "M1", status: "complete" });
+  assert.deepEqual(parseMilestoneSpec("M2=active:0.25"), {
+    id: "M2",
+    status: "active",
+    verifiedFraction: 0.25,
+  });
+  assert.equal(parseMilestoneSpec("M2=complete:0.5"), null);
+  assert.equal(parseMilestoneSpec("M2="), null);
+  assert.equal(parseMilestoneSpec("nope"), null);
+  assert.deepEqual(parseMilestoneSpec("M2=done"), { id: "M2", status: "complete" });
 });

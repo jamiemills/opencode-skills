@@ -132,3 +132,111 @@ export function renderSkillProgress(record) {
 export async function loadSkillProgress(path) {
   return JSON.parse(await readFile(path, "utf-8"));
 }
+
+const STATUS_ALIASES = {
+  done: "complete",
+  finished: "complete",
+  in_progress: "active",
+  inprogress: "active",
+  started: "active",
+  todo: "pending",
+  waiting: "pending",
+};
+
+const RECORD_STATUS_ALIASES = {
+  in_progress: "active",
+  inprogress: "active",
+  done: "complete",
+  finished: "complete",
+};
+
+export function normalizeStatus(raw, aliases) {
+  const key = String(raw).trim().toLowerCase();
+  return aliases[key] ?? key;
+}
+
+export function parseMilestoneSpec(spec) {
+  const match = /^([A-Za-z][A-Za-z0-9]*)=([A-Za-z_]+)(?::([0-9]*\.?[0-9]+))?$/.exec(spec);
+  if (!match) return null;
+  const [, id, rawStatus, rawFraction] = match;
+  const status = normalizeStatus(rawStatus, STATUS_ALIASES);
+  if (!["complete", "active", "pending"].includes(status)) return null;
+  if (rawFraction === undefined) return { id, status };
+  if (status !== "active") return null;
+  const verifiedFraction = Number(rawFraction);
+  if (!(verifiedFraction >= 0 && verifiedFraction <= 1)) return null;
+  return { id, status, verifiedFraction };
+}
+
+export function updateSkillProgress(
+  record,
+  specs,
+  { now = new Date().toISOString(), status } = {},
+) {
+  const byId = new Map(record.milestones.map((m) => [m.id, m]));
+  const updates = specs.map((spec) => {
+    const parsed = parseMilestoneSpec(spec);
+    if (!parsed)
+      throw new Error(`invalid milestone spec: ${spec} (expected M<id>=<status>[:<fraction>])`);
+    if (!byId.has(parsed.id)) throw new Error(`unknown milestone: ${parsed.id}`);
+    return parsed;
+  });
+  for (const { id, status: milestoneStatus, verifiedFraction } of updates) {
+    const milestone = byId.get(id);
+    milestone.status = milestoneStatus;
+    if (milestoneStatus === "active") milestone.verifiedFraction = verifiedFraction ?? 0;
+    else delete milestone.verifiedFraction;
+  }
+  const next = { ...record, milestones: record.milestones.map((m) => ({ ...m })) };
+  if (status !== undefined) next.status = normalizeStatus(status, RECORD_STATUS_ALIASES);
+  else if (next.milestones.every((m) => m.status === "complete")) next.status = "complete";
+  else if (next.status === "complete") next.status = "active";
+  let computed = 0;
+  for (const m of next.milestones) {
+    if (m.status === "complete") computed += m.weightPercent;
+    else if (m.status === "active") computed += m.weightPercent * (m.verifiedFraction ?? 0);
+  }
+  next.overallPercent = Math.floor(computed);
+  next.updatedAt = now;
+  const finalVerdict = validateSkillProgress(next);
+  if (!finalVerdict.ok) throw new Error(`update produced invalid record: ${finalVerdict.reason}`);
+  return next;
+}
+
+function isMain() {
+  return process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+}
+
+async function main(argv) {
+  const [command, file, ...rest] = argv;
+  if (!file)
+    throw new Error("usage: progress-tracker.mjs <update|show|validate> <file> [specs...]");
+  const record = await loadSkillProgress(file);
+  if (command === "show") {
+    console.log(renderSkillProgress(record));
+    return;
+  }
+  if (command === "validate") {
+    const verdict = validateSkillProgress(record);
+    if (!verdict.ok) throw new Error(verdict.reason);
+    console.log(`valid — overallPercent ${record.overallPercent}`);
+    return;
+  }
+  if (command === "update") {
+    const statusFlag = rest.includes("--status") ? rest[rest.indexOf("--status") + 1] : undefined;
+    const specs = rest.filter((arg) => arg !== "--status" && arg !== statusFlag);
+    const next = updateSkillProgress(record, specs, { status: statusFlag });
+    const { writeFile } = require("node:fs/promises");
+    await writeFile(file, `${JSON.stringify(next, null, 2)}\n`);
+    console.log(renderSkillProgress(next));
+    return;
+  }
+  throw new Error(`unknown command: ${command} (expected update|show|validate)`);
+}
+
+if (isMain()) {
+  main(process.argv.slice(2)).catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
+}

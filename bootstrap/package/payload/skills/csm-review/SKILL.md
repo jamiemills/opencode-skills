@@ -8,7 +8,7 @@ description: Audit a repository; deliver a dated findings report. Never fixes co
 ## Progress Tracker
 
 Progress tracking is ON by default for every invocation. Create and maintain a
-versioned `csm-skill-progress/1` JSON record via `lib/progress-tracker.mjs`; it supplements this skill's lifecycle,
+versioned `csm-skill-progress/1` JSON record via `lib/progress-tracker.mjs` (update it only through `node lib/progress-tracker.mjs update <record> M<id>=<status>[:<fraction>]`, which derives `overallPercent` and normalizes statuses — never hand-edit the JSON); it supplements this skill's lifecycle,
 artifacts, permissions, receipts, and evidence and never replaces them.
 Declare 3–6 milestones before work begins, each with a positive weight; weights
 must total exactly 100%.
@@ -21,7 +21,7 @@ Milestones
 [Scope ✓ 20%] [Audit ✓ 15%] [Findings ▶ 45%] [Report ○ 20%]
 ```
 
-The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking. At every state transition and at SAVED/COMPLETE/BLOCKED/PAUSED, render the bar and persist the record via `lib/progress-tracker.mjs` to `.agents/progress/<date>-<goal-slug>-<run-id>-progress.json`, indexed in `.agents/README.md`.
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking. At every state transition and at SAVED/COMPLETE/BLOCKED/PAUSED, render the bar and persist the record via `node lib/progress-tracker.mjs update ...` to `.agents/progress/<date>-<goal-slug>-<run-id>-progress.json`, indexed in `.agents/README.md`.
 
 csm-review judges what is wrong with a repository; csm-scan inventories what is there. Multi-agent adversarial review as a cyclic state machine producing a single dated findings report. Every finding is evidence-grounded at a pinned commit, independently challenged where its severity demands it, and recorded with severity and confidence kept strictly apart. The report is findings plus remediation sketches — never a plan and never patches.
 
