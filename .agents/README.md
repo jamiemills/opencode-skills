@@ -115,6 +115,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-30-orchestrate-without-opencode-20260830t120000z-research.json` — 2026-08-30 — no-OpenCode executor architecture research — status: reference
 - `2026-08-30-remove-opencode-plan-assurance-20260830t140000z-research.json` — 2026-08-30 — assurance review of the no-OpenCode implementation plan — status: reference
 - `2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json` — 2026-08-31 — deep research for all remaining orchestrator adapters and proof gates — status: reference
+- `2026-09-05-orchestrate-release-validation-20260905t060229z-41bef79510aa-research.json` — 2026-09-05 — validate remaining orchestrator release work: build paths, completeness, necessity — status: reference (DEEP x hybrid; 4 tracks; challenge + judge PASS; verdict: list stale and incomplete, revised 9-item work list inside)
 - `2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json` — 2026-08-31 — lean orchestrator release research finding — status: reference
 - `2026-08-29-json-renderers-human-findings-20260829t074546z-5fdd2180dc5f-research.json` — 2026-08-29 — JSON renderer and human-findings integration research — status: retained terminal research
 - `2026-08-29-agentic-evals-repo-augmentation-20260829t090750z-df51a9921bc7-research.json` — 2026-08-29 — evals for agentic engineering practice and repo augmentation (taxonomy, practice, local inventory, tooling, failure modes; W1/W2/W3 change plan) — status: reference
@@ -203,6 +204,7 @@ the source file. Deletion remains awaiting explicit authorization.
 ## progress/
 
 - `2026-09-04-skill-progress-tracker-enforcement-20260904t200000z-progress.json` — 2026-09-04 — csm-build invocation progress for the skill-progress-tracker-enforcement build — status: complete
+- `2026-09-05-orchestrate-release-validation-progress.json` — 2026-09-05 — csm-deep-research progress record for orchestrate release validation — status: complete
 
 ## ddd/
 

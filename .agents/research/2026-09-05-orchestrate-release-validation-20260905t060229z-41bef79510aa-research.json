@@ -1,0 +1,611 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-orchestrate-release-validation-20260905",
+  "runId": "run-20260905t060229z-41bef79510aa",
+  "title": "Orchestrator Release-Evidence Work: Build Paths, Completeness, and Necessity",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The five-item list is necessary but stale and incomplete. Items 1-3 are substantially satisfied in committed code and green required CI; what remains there is three narrow residual enforcement defects plus record closure. Items 4-5 (independent final review, parent-plan reconciliation) are genuinely open and are the real release gates. The list omits: exact-SHA binding of the closure commit + rollback checkpoint, a changelog/version record, required-check configuration verification, and the (user-gated) publication path. Revised work list: 4 residual code fixes, run the built-but-never-run independent final review at the release SHA, build one outcome-parity live test, reconcile all stale records, then close with exact-SHA CI evidence."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Four parallel read-only researchers examined the repository's plans, checkpoints, code, CI workflow, and external release-engineering standards (NIST SP 800-53 SA-11/CM-4, NIST SSDF PS.3.2/PW.7, SLSA provenance, Google SRE release engineering). Headline correction: the plan records predate the code. The persisted-review enforcement (commits b6f2843/f636c80/0c99e5a) landed AFTER the lean-mvp plan was checkpointed BLOCKED, and the composed orchestrator-to-browse and orchestrator-to-Docker live proofs exist (scripts/adapter-required-tests.mjs:188-195) and run green zero-skip in required CI (runs 33903446355, 33928035357). Convergence across three independent tracks on the same residual defects gives high confidence in the revised list.\n\n```text\n5-item candidate list -> 4-track DEEP research -> verdict per item\n  items 1-3: REQUIRED but ~satisfied (3 residual defects + record closure)\n  items 4-5: REQUIRED and genuinely OPEN (the real gates)\n  + 4 missing items pulled in (exact-SHA closure, changelog, required-check, publication)\n```"
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "1. KF1 (necessity, supported, high): All five candidate items map to recognized release-engineering/assurance practice \u2014 NIST SP 800-53 SA-11 (test evidence, independent agent verification), CM-4(1) (operational-environment validation), SSDF PS.3.2 (release provenance) and PW.7 (review before release), SLSA provenance, SRE release engineering (exact-branch test reruns, change reports, rollback).\n2. KF2 (staleness, supported, high): Items 1-3 are substantially SATISFIED in committed code and green required CI. The lean-mvp plan's two blockers were cured by b6f2843 (persisted review enforcement) and the composed live proofs; plan records predate the fixes. Caveat: the green run is pinned to 0ec452a, not HEAD 368d5bb \u2014 the 9 intervening commits touch no adapter-lane files, but exact-SHA closure still requires a fresh green run at the release SHA.\n3. KF3 (residual defect A, supported, high): The browse live proof still builds its evidence resolver with requireSourceDigest:false (tests/orchestrate-browse-live-integration.test.mjs:96-101, :363-368), and the browse adapter never passes expectedSourceDigest in its resolve call (csm-orchestrate/lib/csm-browse-adapter.mjs:294-302) \u2014 the PNG-to-record lineage bind is by construction, not resolver-enforced.\n4. KF4 (residual defect B, supported after downgrade, high): The host-adapter review seam skips the index-level 3-ref persisted-record validation (including per-ref sourceDigest binding) and the adversarial-review/2 + final-review/2 schema asserts (csm-orchestrate/lib/index.mjs:1601, 1614, 1630, 1662) because the gate is (finalReviewExecutor || hostReview.reviewArtifactRefs) and invocation.mjs invokeReview returns without reviewArtifactRefs; however invocation.mjs:727-742 still resolver-validates each receipt/artifact record and fails closed if the resolver is missing \u2014 what is skipped is the index-layer triple validation, not all persisted-record validation.\n5. KF5 (parity, supported, high): No live standalone-adapter-vs-orchestrated outcome comparison exists anywhere (grep: only plan/research text). The repo's canonical parity idiom (lib/rollout/shadow.mjs canonicalize + assertZeroSideEffects) is not applied to adapter orchestration. This is the substance of lean-mvp T004's 'outcome parity'.\n6. KF6 (assurance, supported, high): The independent final-review machinery is fully built (adversarial-final-review.mjs: identity separation, authoritative re-derivation, 0600 persisted records, reviewArtifactRefs) but has never been run and recorded for a RELEASE decision: every active release plan has completionReview:null (the one filled completionReview, 2026-09-04-replace-npm-audit-ci-gate-csm.json:503, is a CI-gate plan); the newest review artifact in .agents/reviews/ is 2026-08-30 at commit 75adabe, pre-dating substantial orchestrator work.\n7. KF7 (reconciliation, supported, high): Stale falsified blockers persist across at least 5 plans + build states (adapter-variables-unset, runner-image, npm-audit-timeout, E2E 14/89, sandbox-unavailable \u2014 all cured); .agents/README.md index lines drift from plan JSON state; 2026-08-27-csm-orchestrate-csm.json is malformed JSON (missing comma ~line 359) and cannot be parsed at all.\n8. KF8 (completeness, partially-supported, high): The list is NOT complete. Verified omissions: (a) exact-SHA binding of the final closure commit + rollback descriptor (lean-mvp AC5, ci-blockers-followup T003); (b) version/changelog record for the only versioned release unit @jamiemills/csm-skills-bootstrap@0.1.0 (no CHANGELOG exists); (c) required-check configuration for the Adapter integrations job (not locally inspectable, unrecorded); (d) publication path DEF-RELEASE (npm publish/sign/replay \u2014 user-gated, open); (e) scheduled dependency audits (schedule: trigger absent).\n9. KF9 (scope boundary, context-dependent, high): Deployment/autonomy gates G2/G3/G5-G8 (docs/production-readiness-report.md verdict NOT READY FOR AUTONOMY) gate autonomy promotion, not release-evidence closure. Different bar; do not silently fold in, but state the distinction in the release record.\n10. KF10 (record hygiene, upheld, high): .agents/csm-build-state/replace-npm-audit-ci-gate-20260904.json contains a duplicate journal key (lines 27 and 49); parsers silently keep only the last entry, shadowing the run's recovery journal. Fold into the reconciliation work item.\n11. KF11 (test coverage, upheld, high): All outcome-corpus negative tests for review tampering exercise only the finalReviewExecutor seam (tests/orchestrate-outcome-corpus.test.mjs:379, 507-530); the host seam (adapter.invokeReview, index.mjs:1560) has no equivalent persisted-record negative coverage \u2014 reinforces KF4's fix needing its own corpus negatives."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "R1-residual: (1) drop requireSourceDigest:false from tests/orchestrate-browse-live-integration.test.mjs:100 and :367 (static analysis says records already satisfy default enforcement; if not, switch harness to taxonomy helpers as adversarial-final-review.mjs:420-424 does); (2) add expectedSourceDigest: native.digest to csm-browse-adapter.mjs resolve call (:294-302); (3) mirror to payload copies (check-suite.mjs:800-801 parity gate); acceptance = production-evidence-boundaries T001 signal re-run + raw E2E stays 89/89.\nR2-residual: (1) make invokeReview persist the full review record set and return reviewArtifactRefs (reuse persistReviewRecords shape); (2) change index.mjs:1601/1614 to require validation whenever hostReview.status==='completed' && hostReview.review; (3) add expectedSourceDigest to host-seam resolver calls (mirroring index.mjs:375); (4) extend orchestrate-outcome-corpus.test.mjs:505-538 with a reviewRecordPaths-only-executor negative + host-seam-with-refs positive; (5) expect test-host updates at the six known host implementations (telemetry-wiring:171, autonomy:158, autonomy-e2e:163, recovery-sqlite:154, e2e:172, helpers-final-review:117). Fail direction is BLOCKED/REQUIRES_REVIEW, never false-VERIFIED.\nParity: new tests/orchestrate-outcome-parity.test.mjs (skip-gated on CSM_ADAPTER_INTEGRATIONS_REQUIRED=1) comparing standalone adapter.execute vs orchestrate() on deterministic projections only (status, effects, metrics, cleanup, digest shapes \u2014 never raw receipts/timestamps), using canonicalize from lib/schema-runtime; include a blocked-path parity case; append to ADAPTER_REQUIRED_TEST_FILES in scripts/adapter-required-tests.mjs:188-191.\nAssurance: run createIndependentFinalReviewExecutor with genuinely distinct producer/reviewer identities against the release corpus at HEAD; persist the three records under .agents/ evidence storage (not tmp); confirm every reviewArtifactRefs entry resolves via production resolver; record completionReview + rollback descriptor; the review scope must include a current-SHA security look at the orchestrator's command/secret surface (SSDF PW.7), superseding the 2026-08-30/75adabe review.\nReconciliation: scripts/close-plan.mjs exists for closure; fix the malformed 2026-08-27 plan JSON; clear falsified blockers with run 33903446355/33928035357 evidence; sync .agents/README.md index; lean-mvp AC1 demands 'no stale blocked claims remain in the active cursor'.\n\nSTATUS TABLE\ncapability | status (2026-09-05) | evidence posture | next verification\nComposed orchestrator->browse proof | exists, CI-green | repo + CI runs | re-run acceptance signal after R1 fix\nComposed orchestrator->Docker proof | exists, CI-green | repo + CI runs | record closure only\nPersisted review enforcement (executor seam) | committed (b6f2843), CI-green | code + corpus tests | host-seam hole fix\nOutcome parity (live) | MISSING | grep-verified absence | build test, add to required lane\nIndependent final review | BUILT, never run | completionReview:null everywhere | run at release SHA, persist records\nParent-plan reconciliation | OPEN | stale blockers verified stale | close-plan.mjs + index sync\nChangelog/version record | MISSING | find: no CHANGELOG | create for bootstrap@0.1.0\nRequired-check config | UNKNOWN external | not locally inspectable | verify in GitHub settings\nPublication (DEF-RELEASE) | OPEN, user-gated | deferred.md:46-53 | explicit user approval required\nHost-seam review validation | SKIPPED (index gate) | index.mjs:1601/1614 | fix + host-seam corpus negatives\nExact-SHA closure at release SHA | PENDING | green run at 0ec452a only | fresh run at closure commit"
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Replace the stale five-item list with a nine-item ordered work list: (1) R1 residual \u2014 strict resolver defaults in the browse live test + expectedSourceDigest bind in csm-browse-adapter; (2) R2 residual \u2014 host-seam reviewArtifactRefs emission + unconditional completed-review validation + corpus negatives (including the currently-missing host-seam tampering cases); (3) build the outcome-parity live test and add it to the required adapter lane; (4) run the independent final review at the release SHA (scope includes current-SHA security surface; producer/reviewer identity separation is mandatory; record the in-process-vs-process-isolation governance caveat in the residual-risk register); (5) create the changelog/version record for @jamiemills/csm-skills-bootstrap@0.1.0; (6) reconcile ALL stale records (5+ plans, build states, README index, malformed 2026-08-27 JSON, duplicate journal key in replace-npm-audit-ci-gate build state) \u2014 lean-mvp AC1 makes this a gate, not hygiene; (7) verify the Adapter integrations job is a required check (external, GitHub settings); (8) close the parent plan via scripts/close-plan.mjs with exact-SHA green CI (closure commit needs its own green run) + rollback descriptor; (9) hold DEF-RELEASE publication and autonomy gates G5-G8 as explicitly separate, user-owned decisions. Validation questions: will tightening index.mjs:1601 break the six known host implementations (test updates expected, fail-closed direction); is requireSourceDigest:false strictly removable (static analysis says yes; verify by running the acceptance signal). What would change the recommendation: discovery that host-seam reviews were intentionally exempt (would downgrade KF4 to accepted-deviation and require a recorded security rationale)."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "- requireSourceDigest:false removability in the browse live test is derived analytically from digest-taxonomy math, not executed (T2, medium confidence).\n- Whether host-seam invokeReview was intentionally exempt from ref enforcement is unknown (T2 medium; check b6f2843 review history).\n- Branch-protection required-check status of the Adapter integrations job is not locally inspectable (T1 medium).\n- Whether tightening index.mjs:1601 breaks the six known host tests is predicted but unexecuted (T2); the fix is fail-closed by direction (BLOCKED/REQUIRES_REVIEW, never false-VERIFIED).\n- In-process final-review independence is governance-level, not process isolation (prior research, carried into residual-risk register).\n- CI run evidence for 89/89 E2E and 11/11 docker tests is cited from plan/build-state records, not re-fetched from GitHub Actions API in this run.\n- Whether the host-seam review bypass was intentional (accepted deviation) or accidental is unresolved from code alone \u2014 check b6f2843 review history before fixing KF4.\n- Green required-adapter run 33903446355 is pinned to 0ec452a; HEAD 368d5bb has no own green full-run record (9 intervening commits touch no adapter-lane files)."
+    },
+    "references": {
+      "id": "references",
+      "content": "- ref-leanmvp: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/.agents/plans/2026-08-31-lean-mvp-orchestrator-release-build-csm.json (retrieved 2026-09-05; control.blockers, tasks T001-T005, AC1-AC5)\n- ref-prodeb: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/.agents/plans/2026-09-01-production-evidence-boundaries-csm.json (retrieved 2026-09-05; T001 completed evidence; T002 blockers + recovery directive)\n- ref-minunblock: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/.agents/plans/2026-09-01-minimum-unblock-csm.json (retrieved 2026-09-05; T001 completed 21/21; journal seq12 commits b6f2843/f636c80/0c99e5a; DR1-DR3)\n- ref-invocation: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/invocation.mjs (retrieved 2026-09-05; 677-765 invokeReview returns without reviewArtifactRefs)\n- ref-index: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/index.mjs (retrieved 2026-09-05; 339-432 validateReviewArtifacts; 1601/1614 conditional gate)\n- ref-browsetest: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/tests/orchestrate-browse-live-integration.test.mjs (retrieved 2026-09-05; 96-101, 363-368 requireSourceDigest:false)\n- ref-browseadapter: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/csm-browse-adapter.mjs (retrieved 2026-09-05; 283-337 resolver validation, no expectedSourceDigest)\n- req-finalreview: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/adversarial-final-review.mjs (retrieved 2026-09-05; 357-445 persistReviewRecords; 452-712 executor; 665-708 refs)\n- ref-shadow: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/lib/rollout/shadow.mjs (retrieved 2026-09-05; 19-191 canonicalize parity idiom)\n- req-required: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/scripts/adapter-required-tests.mjs (retrieved 2026-09-05; 117-221; 188-195 required file list)\n- ref-corpus: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/tests/orchestrate-outcome-corpus.test.mjs (retrieved 2026-09-05; 417-537 no-false-VERIFIED matrix)\n- req-deferred: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/.agents/docs/deferred.md (retrieved 2026-09-05; 10-18 DEF-CI; 46-53 DEF-RELEASE)\n- ref-readiness: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/docs/production-readiness-report.md (retrieved 2026-09-05; verdict NOT READY FOR AUTONOMY; gates G2/G3/G5-G8)\n- ref-ci: workspace-local \u2014 file:///home/jamiemills/.config/opencode/skills/.agents/csm-build-state/replace-npm-audit-ci-gate-20260904.json (retrieved 2026-09-05; journal seq2: run 33903446355 adapter green cleanup_status=0)\n- ref-nist53: CSF Tools (NIST SP 800-53 R5 SA-11) \u2014 https://csf.tools/reference/nist-sp-800-53/r5/sa/sa-11/ (retrieved 2026-09-05; SA-11, SA-11(3) independent verification)\n- ref-ssdf: NIST SSDF v1.1 \u2014 https://csrc.nist.gov/projects/ssdf (retrieved 2026-09-05; PS.3.2 provenance; PW.7 review before release)\n- ref-slsa: SLSA v1.1 \u2014 https://slsa.dev/spec/v1.1/provenance (retrieved 2026-09-05; provenance definition)\n- ref-sre: Google SRE \u2014 https://sre.google/sre-book/release-engineering/ (retrieved 2026-09-05; ch.8 release engineering, versioning, rollback, change reports)\n- ref-canary: Google SRE Workbook \u2014 https://sre.google/workbook/canarying-releases/ (retrieved 2026-09-05; canary/control outcome evaluation)"
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "DEEP x hybrid. 4 parallel read-only tracks: T1 repository-requirements (explore), T2 resolver+review-records (explore), T3 proofs+parity (explore), T4 release-norms+completeness (general+web). External sources: NIST SP 800-53 R5 (SA-11, SA-11(3), CM-4, CM-4(1)), NIST SSDF v1.1 (PS.3.2, PW.7), SLSA v1.1 provenance, Google SRE (release engineering ch.8, canarying workbook, launch checklist). Convergence: T1, T2, T3 independently located the same residual defects (browse relaxed resolver, adapter missing expectedSourceDigest, host-seam bypass) \u2014 strong corroboration. T1 ran 2026-09-05 ~06:15Z; T4 webfetch retrieved 2026-09-05. Containment: subagents read-only, returned text; write allowlist = this finding + skill-mandated csm-skill-progress/1 progress record (.agents/progress/, validated by repo gate). Prior research consumed: 2026-08-31-lean-mvp-orchestrator-release (7c4d9e2a1b6f) and 2026-08-31-build-all-orchestrate-adapters."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-kf1",
+      "section": "keyFindings",
+      "statement": "All five candidate items map to recognized release-engineering/assurance practice \u2014 NIST SP 800-53 SA-11",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-nist53",
+          "locator": "SA-11 testing/evidence",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-ssdf",
+          "locator": "PS.3.2, PW.7",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-slsa",
+          "locator": "provenance",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-sre",
+          "locator": "ch.8",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-canary",
+          "locator": "canary/control",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf2",
+      "section": "keyFindings",
+      "statement": "Items 1-3 are substantially SATISFIED in committed code and green required CI. The lean-mvp plan's two blockers were cured by b6f2843",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-required",
+          "locator": "188-195 required lane",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-ci",
+          "locator": "run 33903446355",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-minunblock",
+          "locator": "journal seq12 commits",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf3",
+      "section": "keyFindings",
+      "statement": "The browse live proof still builds its evidence resolver with requireSourceDigest:false",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-browsetest",
+          "locator": "96-101, 363-368",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-browseadapter",
+          "locator": "283-337",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf4",
+      "section": "keyFindings",
+      "statement": "The host-adapter review seam bypasses 3-ref enforcement: invocation.mjs invokeReview",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-invocation",
+          "locator": "677-765, 727-742",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-index",
+          "locator": "1601-1662",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-corpus",
+          "locator": "505-538",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf5",
+      "section": "keyFindings",
+      "statement": "No live standalone-adapter-vs-orchestrated outcome comparison exists anywhere",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-shadow",
+          "locator": "19-191 unwired",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-leanmvp",
+          "locator": "T004",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf6",
+      "section": "keyFindings",
+      "statement": "The independent final-review machinery is fully built",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-req-finalreview",
+          "locator": "357-712 built",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-leanmvp",
+          "locator": "completionReview null",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf7",
+      "section": "keyFindings",
+      "statement": "Stale falsified blockers persist across at least 5 plans + build states",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-ci",
+          "locator": "env + green run",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-leanmvp",
+          "locator": "stale blockers",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf8",
+      "section": "keyFindings",
+      "statement": "The list is NOT complete. Verified omissions:",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-req-deferred",
+          "locator": "46-53 DEF-RELEASE",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-leanmvp",
+          "locator": "AC1/AC5",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf9",
+      "section": "keyFindings",
+      "statement": "Deployment/autonomy gates G2/G3/G5-G8",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-readiness",
+          "locator": "G5-G8 deployment-only",
+          "quote": "(verified by track report + challenge)"
+        },
+        {
+          "referenceId": "ref-leanmvp",
+          "locator": "scope",
+          "quote": "(verified by track report + challenge)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf10",
+      "section": "keyFindings",
+      "statement": ".agents/csm-build-state/replace-npm-audit-ci-gate-20260904.json contains a duplicate journal key (lines 27 and 49); parsers silently keep only the last entry, shadowing the run's recovery journal. Fold into the reconciliation work item.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-ci",
+          "locator": "build-state journal",
+          "quote": "(challenge-verified)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-kf11",
+      "section": "keyFindings",
+      "statement": "All outcome-corpus negative tests for review tampering exercise only the finalReviewExecutor seam (tests/orchestrate-outcome-corpus.test.mjs:379, 507-530); the host seam (adapter.invokeReview, index.mjs:1560) has no equivalent persisted-record negative coverage \u2014 reinforces KF4's fix needing its own",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-ci",
+          "locator": "build-state journal",
+          "quote": "(challenge-verified)"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-leanmvp",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/.agents/plans/2026-08-31-lean-mvp-orchestrator-release-build-csm.json",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "control.blockers, tasks T001-T005, AC1-AC5",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-prodeb",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/.agents/plans/2026-09-01-production-evidence-boundaries-csm.json",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "T001 completed evidence; T002 blockers + recovery directive",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-minunblock",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/.agents/plans/2026-09-01-minimum-unblock-csm.json",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "T001 completed 21/21; journal seq12 commits b6f2843/f636c80/0c99e5a; DR1-DR3",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-invocation",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/invocation.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "677-765 invokeReview returns without reviewArtifactRefs",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/index.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "339-432 validateReviewArtifacts; 1601/1614 conditional gate",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-browsetest",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/tests/orchestrate-browse-live-integration.test.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "96-101, 363-368 requireSourceDigest:false",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-browseadapter",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/csm-browse-adapter.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "283-337 resolver validation, no expectedSourceDigest",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-req-finalreview",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/adversarial-final-review.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "357-445 persistReviewRecords; 452-712 executor; 665-708 refs",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-shadow",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/lib/rollout/shadow.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "19-191 canonicalize parity idiom",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-req-required",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/scripts/adapter-required-tests.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "117-221; 188-195 required file list",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-corpus",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/tests/orchestrate-outcome-corpus.test.mjs",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "417-537 no-false-VERIFIED matrix",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-req-deferred",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/.agents/docs/deferred.md",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "10-18 DEF-CI; 46-53 DEF-RELEASE",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-readiness",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/docs/production-readiness-report.md",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "verdict NOT READY FOR AUTONOMY; gates G2/G3/G5-G8",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-ci",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/home/jamiemills/.config/opencode/skills/.agents/csm-build-state/replace-npm-audit-ci-gate-20260904.json",
+      "publisher": "workspace-local",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "journal seq2: run 33903446355 adapter green cleanup_status=0",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-nist53",
+      "url": "https://csf.tools/reference/nist-sp-800-53/r5/sa/sa-11/",
+      "publisher": "CSF Tools (NIST SP 800-53 R5 SA-11)",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "SA-11, SA-11(3) independent verification",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-ssdf",
+      "url": "https://csrc.nist.gov/projects/ssdf",
+      "publisher": "NIST SSDF v1.1",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "PS.3.2 provenance; PW.7 review before release",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-slsa",
+      "url": "https://slsa.dev/spec/v1.1/provenance",
+      "publisher": "SLSA v1.1",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "provenance definition",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-sre",
+      "url": "https://sre.google/sre-book/release-engineering/",
+      "publisher": "Google SRE",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "ch.8 release engineering, versioning, rollback, change reports",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-canary",
+      "url": "https://sre.google/workbook/canarying-releases/",
+      "publisher": "Google SRE Workbook",
+      "retrievedAt": "2026-09-05",
+      "publishedOrUpdated": "canary/control outcome evaluation",
+      "sourcePosture": "methodological-authority"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "transition",
+      "occurredAt": "2026-09-05T06:05:00Z",
+      "cycle": 0,
+      "trigger": "invocation: validate remaining orchestrator release work \u2014 build paths, completeness, necessity"
+    },
+    {
+      "sequence": 1,
+      "state": "INTAKE",
+      "event": "complete",
+      "occurredAt": "2026-09-05T06:05:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 2,
+      "state": "TRIAGE",
+      "event": "transition",
+      "occurredAt": "2026-09-05T06:07:00Z",
+      "cycle": 0,
+      "trigger": "intake complete"
+    },
+    {
+      "sequence": 3,
+      "state": "TRIAGE",
+      "event": "complete",
+      "occurredAt": "2026-09-05T06:07:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 4,
+      "state": "SYNTHESIZE",
+      "event": "transition",
+      "occurredAt": "2026-09-05T06:45:00Z",
+      "cycle": 0,
+      "trigger": "4 track reports received"
+    },
+    {
+      "sequence": 5,
+      "state": "SYNTHESIZE",
+      "event": "complete",
+      "occurredAt": "2026-09-05T06:45:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 6,
+      "state": "CHALLENGE",
+      "event": "transition",
+      "occurredAt": "2026-09-05T06:46:00Z",
+      "cycle": 0,
+      "trigger": "draft complete"
+    },
+    {
+      "sequence": 7,
+      "state": "JUDGE",
+      "event": "transition",
+      "occurredAt": "2026-09-05T07:00:00Z",
+      "cycle": 0,
+      "trigger": "challenge: 8 uphold, 1 downgrade (KF4), +3 claims"
+    },
+    {
+      "sequence": 8,
+      "state": "JUDGE",
+      "event": "complete",
+      "occurredAt": "2026-09-05T07:10:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 9,
+      "state": "REMEDIATE",
+      "event": "transition",
+      "occurredAt": "2026-09-05T07:12:00Z",
+      "cycle": 0,
+      "trigger": "apply KF4 correction, KF6 tightening, N1-N3, claim-specific citations"
+    },
+    {
+      "sequence": 10,
+      "state": "REMEDIATE",
+      "event": "complete",
+      "occurredAt": "2026-09-05T07:14:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 11,
+      "state": "VERIFY",
+      "event": "transition",
+      "occurredAt": "2026-09-05T07:15:00Z",
+      "cycle": 0,
+      "trigger": "all verdicts resolved"
+    },
+    {
+      "sequence": 12,
+      "state": "VERIFY",
+      "event": "complete",
+      "occurredAt": "2026-09-05T07:20:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 13,
+      "state": "VERIFY",
+      "event": "schema-shape correction",
+      "occurredAt": "2026-09-05T07:25:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 14,
+      "state": "VERIFY",
+      "event": "enum/pattern fixes",
+      "occurredAt": "2026-09-05T07:27:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 15,
+      "state": "VERIFY",
+      "event": "reference shape: file:// -> repo blob URL + note locator",
+      "occurredAt": "2026-09-05T07:29:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 16,
+      "state": "VERIFY",
+      "event": "reference props: note -> publishedOrUpdated + sourcePosture",
+      "occurredAt": "2026-09-05T07:31:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 17,
+      "state": "VERIFY",
+      "event": "sourcePosture enum values",
+      "occurredAt": "2026-09-05T07:33:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 18,
+      "state": "VERIFY",
+      "event": "journal normalized to schema shape",
+      "occurredAt": "2026-09-05T07:36:00Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 19,
+      "state": "VERIFY",
+      "event": "complete",
+      "occurredAt": "2026-09-05T07:40:00Z",
+      "cycle": 0,
+      "trigger": "schema CLEAN; protected-state only run-owned files; redaction clean; judge citation spot-checks accepted"
+    },
+    {
+      "sequence": 20,
+      "state": "SAVED",
+      "event": "complete",
+      "occurredAt": "2026-09-05T07:41:00Z",
+      "cycle": 0,
+      "trigger": "terminal: finding committed; declaredArtifacts: none (progress record is skill-mandated, not a research artifact)"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1",
+    "producedAt": "2026-09-05T06:02:29Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

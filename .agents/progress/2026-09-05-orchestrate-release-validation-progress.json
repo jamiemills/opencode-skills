@@ -1,0 +1,55 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-orchestrate-release-validation-20260905",
+  "runId": "run-20260905t060229z-orchestrate-release-validation-research",
+  "skill": "csm-deep-research",
+  "goal": "Research how to build the remaining orchestrator release-evidence items; validate list completeness and per-item necessity",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Intake + triage (DEEP x hybrid)",
+      "weightPercent": 10,
+      "status": "complete",
+      "verifiedFraction": 1.0
+    },
+    {
+      "id": "M2",
+      "title": "Research: 4 parallel expert tracks",
+      "weightPercent": 35,
+      "status": "complete",
+      "verifiedFraction": 1.0
+    },
+    {
+      "id": "M3",
+      "title": "Synthesize draft finding",
+      "weightPercent": 15,
+      "status": "complete",
+      "verifiedFraction": 1.0
+    },
+    {
+      "id": "M4",
+      "title": "Adversarial challenge",
+      "weightPercent": 10,
+      "status": "complete",
+      "verifiedFraction": 1.0
+    },
+    {
+      "id": "M5",
+      "title": "Judge rubric verdict",
+      "weightPercent": 10,
+      "status": "complete",
+      "verifiedFraction": 1.0
+    },
+    {
+      "id": "M6",
+      "title": "Verify + save + commit",
+      "weightPercent": 20,
+      "status": "complete",
+      "verifiedFraction": 1.0
+    }
+  ],
+  "startedAt": "2026-09-05T06:02:29Z",
+  "updatedAt": "2026-09-05T07:41:00Z"
+}
