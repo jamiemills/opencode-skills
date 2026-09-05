@@ -10,9 +10,9 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T21:20:00Z: quality delivery cycle 2 \u2014 4 of 8 items done. Item 7 COMPLETE: quality-review resolver value contract fixed \u2014 host emits full csm-orchestrate-evidence/2 descriptors (closed schema), resolver echoes expectations, payload kept beside refs; P1/P2 routing bug fixed (slug-matched 'review' routed P1 to the review branch); stale csm-upload capability digest regenerated (stale since 9e9fb05) + pin test updated; driver guards --run-id divergence (approval binding uses approach.runId) and drains telemetry before exit. E2E run-quality-review-e2e-r2: P1+P2 gates VERIFIED, reviews ACCEPTED, terminal REQUIRES_REVIEW (independent final review executor not wired for real runs \u2014 the one remaining seam for a VERIFIED terminal). Fixture self-test VERIFIED; check-suite 1244 OK; lint/fmt green. Remaining: (4) split csm-orchestrate/lib/index.mjs, (6) G7 held-out corpus, optional final-review wiring for the E2E terminal.",
+    "lastCheckpoint": "2026-09-05T22:10:00Z: quality delivery cycle 3 COMPLETE via csm-orchestrate \u2014 run run-quality-delivery-items-r5 terminal VERIFIED (3/3 phases VERIFIED+ACCEPTED, independent final review runtime-persisted and ACCEPTED, 12 telemetry events). Items 4+6+final-review wiring delivered: (4) index.mjs 73938\u219257040 bytes with run-helpers/run-artifacts/run-cursor modules, public API parity, 281-test battery green; (6) scripts/run-g7-evaluation.mjs runs the frozen held-out corpus (10/10 labels matched, report PASSED) and records .agents/evidence/g7-corpus-confirmation.json + README line; final-review: driver --final-review flag + scripts/independent-reviewer.mjs + E2E wiring test. All gates green (check 1244, lint, fmt, payload 320). Remaining quality items: none session-blocking; T007 window accrues representative-use evidence from these runs.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
-    "nextTransition": "CHECKPOINT -> SELECT on user direction (item 4 split lib/index.mjs, item 6 G7 corpus, or wire independent final review for a VERIFIED E2E terminal)",
+    "nextTransition": "BLOCKED on T007 representative-use window accrual (user-directed collection); quality delivery cycle 3 complete \u2014 all 8 items done",
     "activeTasks": [],
     "blockers": [
       "T007 evidence collection requires a representative real-use window on the MVD \u2014 user directs collection when ready"
@@ -840,6 +840,17 @@
       ],
       "evidence": "quality-review-host.mjs now emits csm-orchestrate-evidence/2 descriptors as resolver values (corpus-test contract); P1/P2 routing fixed; csm-upload capability digest regenerated + test pin updated; run-orchestrator.mjs fails fast on --run-id divergence and drains telemetry (telemetry.jsonl now persists, 7 events); E2E run-quality-review-e2e-r2: both phases VERIFIED + ACCEPTED, terminal REQUIRES_REVIEW (independent-final-review-required); fixture self-test VERIFIED; make check 1244 OK",
       "nextState": "CHECKPOINT (item 7 done; items 4 and 6 remain; final-review wiring optional next)"
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-05T22:10:00Z",
+      "cycle": 3,
+      "transition": "DISPATCH -> INTEGRATE -> VERIFY -> FINAL REVIEW -> VERIFIED (user-directed csm-orchestrate run of items 4, 6, final-review wiring)",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "run run-quality-delivery-items-r5 terminal VERIFIED (r1-r4 attempts honestly failed: 30s default child timeout on real build work, host parity check against package entry instead of lib/index, wiring test repoRoot path, piped node --test stdout not echoing subprocess output \u2014 each fail-closed and repaired). P1: index.mjs 73938\u219257040 bytes, 3 modules, exports parity, codemod idempotent. P2: G7 runner + evidence bundle (10/10 held-out labels matched, report PASSED, provisional thresholds confirmed) + README index line. P3: independent reviewer + driver --final-review flag + composite parent resolver + E2E wiring test (VERIFIED). Gates: orchestrate+evals+bootstrap battery 281 tests / 273 pass / 0 fail / 8 skipped, check 1244, lint, fmt, payload 320 files",
+      "nextState": "CHECKPOINT (quality delivery cycle 3 complete \u2014 all 8 items done; T007 window accrues)"
     }
   ],
   "critiqueResolution": [

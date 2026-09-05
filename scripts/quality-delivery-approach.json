@@ -1,0 +1,85 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "status": "agreed",
+  "runId": "run-quality-delivery-items-r5",
+  "ideaSlug": "quality-delivery",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Split csm-orchestrate/lib/index.mjs",
+      "goal": "extract cohesive helper, artifact, and cursor sections of the 74kB orchestrator core into three modules with public API parity and green focused suites",
+      "deliverables": [
+        "run-helpers.mjs",
+        "run-artifacts.mjs",
+        "run-cursor.mjs",
+        "index.mjs under 60kB"
+      ],
+      "scope": ["csm-orchestrate/lib"],
+      "outOfScope": [
+        "runtime behavior changes",
+        "public API changes",
+        "remediation of other modules"
+      ],
+      "constraints": [
+        "content-anchored fail-closed codemod",
+        "public exports preserved",
+        "focused suites green"
+      ],
+      "acceptanceHints": ["index.mjs under 60kB", "exports parity", "focused suites pass"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": []
+    },
+    {
+      "phaseId": "P2",
+      "title": "G7 held-out corpus confirmation",
+      "goal": "run the frozen held-out corpus through the evaluation harness, confirm provisional thresholds, and record the G7 evidence bundle with README index line",
+      "deliverables": ["scripts/run-g7-evaluation.mjs", "G7 evidence bundle", "README index line"],
+      "scope": ["scripts", ".agents/evidence", ".agents/README.md"],
+      "outOfScope": ["corpus label changes", "threshold retuning", "G5/G6/G8 collectors"],
+      "constraints": [
+        "labels frozen",
+        "thresholds stay provisional (D6)",
+        "evidence shape matches checkPromotionGates"
+      ],
+      "acceptanceHints": ["held-out corpus runs green", "evidence recorded", "report PASSED"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": ["P1"]
+    },
+    {
+      "phaseId": "P3",
+      "title": "Independent final review wiring",
+      "goal": "ship the independent reviewer module and prove the driver --final-review flag drives a real run to a VERIFIED terminal receipt",
+      "deliverables": [
+        "scripts/independent-reviewer.mjs",
+        "driver --final-review wiring",
+        "E2E wiring test"
+      ],
+      "scope": ["scripts", "tests"],
+      "outOfScope": [
+        "reviewer LLM integration",
+        "autonomy policy changes",
+        "receipt schema changes"
+      ],
+      "constraints": [
+        "reviewer identity differs from producer",
+        "review records runtime-persisted",
+        "wiring test VERIFIED"
+      ],
+      "acceptanceHints": [
+        "reviewer module syntax-checked",
+        "wiring test VERIFIED",
+        "terminal receipt accepted"
+      ],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": ["P2"]
+    }
+  ],
+  "signals": {
+    "capabilities": ["csm-build"],
+    "inputs": ["plan", "repository"]
+  }
+}

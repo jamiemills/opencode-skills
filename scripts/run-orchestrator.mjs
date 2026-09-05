@@ -6,6 +6,8 @@
 //   node scripts/run-orchestrator.mjs --fixture
 //   node scripts/run-orchestrator.mjs --approach <approach.json> [--host <host.mjs>] [--run-id <runId>]
 //            [--approvals <approvals.mjs>]  (default: createAutonomyPolicy — 3 read-only skills auto-approve)
+//            [--final-review <reviewer.mjs>]  (independent terminal review; without it a fully
+//                                              executed run ends REQUIRES_REVIEW)
 //
 // --fixture  self-test: built-in fixture host + trivial approach; must VERIFIED.
 // --approach approach file (csm-approach/1) for a real run.
@@ -178,6 +180,44 @@ async function realMode() {
   const approvalsModule = argValue("--approvals")
     ? await import(pathToFileURL(path.resolve(argValue("--approvals"))).href)
     : null;
+  // Independent final review: --final-review <module.mjs> default-exports an
+  // async reviewer(input) -> {status: ACCEPTED|REJECTED, ...}; it is wrapped in
+  // createIndependentFinalReviewExecutor so review records are persisted and
+  // provenance is built by the runtime, never by the reviewer itself.
+  const finalReviewPath = argValue("--final-review");
+  let finalReviewExecutor = null;
+  const reviewRoot = join(evidenceDir, "review");
+  if (finalReviewPath) {
+    const { createIndependentFinalReviewExecutor } =
+      await import("../csm-orchestrate/lib/adversarial-final-review.mjs");
+    const reviewerModule = await import(pathToFileURL(path.resolve(finalReviewPath)).href);
+    const reviewer =
+      typeof reviewerModule.default === "function"
+        ? reviewerModule.default
+        : typeof reviewerModule.reviewer === "function"
+          ? reviewerModule.reviewer
+          : null;
+    if (!reviewer) throw new Error("--final-review module must export a reviewer function");
+    finalReviewExecutor = createIndependentFinalReviewExecutor({
+      producerExecutorId: "csm-build",
+      artifactRoot: reviewRoot,
+      reviewer,
+    });
+  }
+  // The parent resolver serves host artifacts first, then falls back to the
+  // real file-backed resolver over the review artifact root, so runtime-
+  // persisted independent-review records resolve without host knowledge.
+  const { createArtifactResolver } = await import("../lib/artifact-resolver/index.mjs");
+  const reviewFileResolver = createArtifactResolver({ root: reviewRoot, schemaRegistry });
+  const parentResolver = hostArtifactResolver
+    ? {
+        async resolve(refPath, expected = {}) {
+          const fromHost = await hostArtifactResolver.resolve(refPath, expected);
+          if (fromHost?.status === "resolved") return fromHost;
+          return reviewFileResolver.resolve(refPath, expected);
+        },
+      }
+    : reviewFileResolver;
   const result = await orchestrate({
     approach,
     runId,
@@ -187,9 +227,15 @@ async function realMode() {
     approvals: approvalsModule ? approvalsModule.default : createAutonomyPolicy(capabilities),
     cursorStore,
     maxSteps: 25,
+    // real hosts do real work (test suites, evaluations); the 30s default is
+    // tuned for in-process fixtures and fails a legitimate build attempt
+    timeoutMs: 600_000,
     telemetryEmitter,
     schemaRegistry,
-    ...(hostArtifactResolver ? { artifactResolver: hostArtifactResolver } : {}),
+    producerExecutorId: "csm-build",
+    ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
+    artifactResolver: parentResolver,
+    reviewArtifactRoot: reviewRoot,
     ...(hostChildArtifactResolver ? { childArtifactResolver: hostChildArtifactResolver } : {}),
   });
   await copyFile(approachPath, join(evidenceDir, "approach.json"));
@@ -212,7 +258,7 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (args[0] === "--approach") process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>]",
     );
     process.exit(1);
   })().catch((error) => {

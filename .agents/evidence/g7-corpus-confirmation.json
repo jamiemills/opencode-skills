@@ -1,0 +1,92 @@
+{
+  "schema": "csm-eval-g7-confirmation/1",
+  "gate": "G7",
+  "collectedAt": "2026-09-05T21:42:00.138Z",
+  "collector": "scripts/run-g7-evaluation.mjs",
+  "evidenceSource": "deployment-like (MVD host evaluation run)",
+  "deployment": {
+    "G7": {
+      "passed": 10,
+      "failed": 0,
+      "details": "held-out corpus eval-orchestration-held-out-2026-08-28: 10/10 scenarios met frozen labels; report overall PASSED; provisional thresholds confirmed for this evaluation round"
+    }
+  },
+  "corpus": {
+    "split": "held-out",
+    "corpusId": "eval-orchestration-held-out-2026-08-28",
+    "scenarioCount": 10,
+    "corpusDigest": "sha256:8d9bfd2a4253877a92131d196452d349f3acb15909586929f0f62a594476de26",
+    "labelsFrozen": true
+  },
+  "thresholds": {
+    "basis": "docs/slo-definitions.md provisional thresholds",
+    "confirmedForRound": true,
+    "note": "provisional values remain non-binding until re-derived from deployment windows (D6)"
+  },
+  "sliSummary": {
+    "availability": {
+      "status": "MET",
+      "value": 1,
+      "numerator": 10,
+      "denominator": 10
+    },
+    "correctness": {
+      "status": "MET",
+      "value": 1,
+      "numerator": 10,
+      "denominator": 10
+    },
+    "falseVerified": {
+      "status": "HELD",
+      "value": 0,
+      "numerator": 0,
+      "denominator": 4
+    },
+    "falseRejection": {
+      "status": "MET",
+      "value": 0,
+      "numerator": 0,
+      "denominator": 4
+    },
+    "duplicateEffects": {
+      "status": "HELD",
+      "value": 0,
+      "numerator": 0,
+      "denominator": 4
+    },
+    "recoveryRate": {
+      "status": "MET",
+      "value": 1,
+      "numerator": 2,
+      "denominator": 2
+    },
+    "configResolutionTime": {
+      "status": "MET",
+      "value": 1,
+      "numerator": 4,
+      "denominator": 4
+    }
+  },
+  "safetyGates": [
+    {
+      "id": "false-verified-zero",
+      "sliId": "falseVerified",
+      "absolute": true,
+      "violated": false,
+      "observed": 0,
+      "detail": "any false VERIFIED in the window fails the report"
+    },
+    {
+      "id": "duplicate-effects-zero",
+      "sliId": "duplicateEffects",
+      "absolute": true,
+      "violated": false,
+      "observed": 0,
+      "detail": "any duplicate non-idempotent effect inside a VERIFIED run fails the report"
+    }
+  ],
+  "failedScenarioIds": [],
+  "reportFormat": "csm-evaluation-report/1",
+  "reportOverall": "PASSED",
+  "limitations": "synthetic deterministic corpus; floor for safety evidence, not a production study"
+}
