@@ -4,18 +4,16 @@
   "artifactId": "art-orchestrate-release-completion-20260905",
   "runId": "run-20260905t100000z-orchestrate-release-completion",
   "planId": "orchestrate-release-completion",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "status": "in_progress",
-    "currentState": "CHECKPOINT",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 1,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T13:40:00Z: re-review APPROVED (no findings) after model-switch recovery; gates re-verified green post-switch (focused 22/0, check-suite 1244, fmt/lint/payload clean); committing the approved parity-oracle repair for exact-SHA CI verification (two-phase phase 2)",
+    "lastCheckpoint": "2026-09-05T14:45:00Z: PLAN COMPLETE \u2014 exact-SHA CI run 33971856450 at ef0fe34: all 4 jobs success; Adapter integrations 11/11 pass, skipped 0, cleanup_status=0 (includes the new outcome-parity live gate)",
     "lastModelRun": "glm-5.3-flash / csm-build-orchestrate-release-completion (post-switch recovery)",
-    "nextTransition": "CHECKPOINT -> COMPLETE after exact-SHA green CI on the repair commit",
-    "activeTasks": [
-      "T002"
-    ],
+    "nextTransition": "none \u2014 plan complete",
+    "activeTasks": [],
     "blockers": [],
     "resume": {
       "read": [
@@ -694,6 +692,21 @@
       ],
       "evidence": "independent re-review APPROVED with no findings (browse independent sourceDigest oracle, Docker run-derived sandbox result oracle, refusal status/code comparison all verified); gates re-verified after model switch",
       "nextState": "CHECKPOINT -> COMPLETE on exact-SHA green CI"
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-09-05T14:45:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> COMPLETE",
+      "tasks": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005"
+      ],
+      "evidence": "exact-SHA CI run 33971856450 at ef0fe34: all 4 jobs success; Adapter integrations 11/11 pass, skipped 0, cleanup_status=0 (includes the new outcome-parity live gate)",
+      "nextState": "terminal"
     }
   ],
   "critiqueResolution": [
@@ -758,7 +771,20 @@
       "evidence": "critic-verified harness math"
     }
   ],
-  "completionReview": null,
+  "completionReview": {
+    "verdict": "COMPLETE",
+    "completedAt": "2026-09-05T14:45:00Z",
+    "ciRun": 33971856450,
+    "sha": "ef0fe34",
+    "acceptance": {
+      "AC1": "browse live proof on production resolver defaults; expectedSourceDigest bound; raw E2E 89/89 in required lane",
+      "AC2": "tests/orchestrate-outcome-parity.test.mjs in required lane, ran zero-skip in run 33971856450",
+      "AC3": "independent final review ACCEPTED (review-7aefc81cc340ede2295111d59c67e1ee); records under .agents/evidence/; completionReview in both parent plans",
+      "AC4": "CHANGELOG.md present; check-suite OK",
+      "AC5": "corpus parseable; blockers cleared with run citations; index synced; rollback descriptor present; 7 parents closed; required-check: main not branch-protected (residual risk + user remediation recorded)"
+    },
+    "independentReview": "parity-oracle repair APPROVED by independent reviewer (no findings) after initial BLOCK"
+  },
   "provenance": {
     "producer": "csm-plan",
     "producerVersion": "csm-plan/1",
