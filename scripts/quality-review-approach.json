@@ -1,0 +1,39 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "status": "agreed",
+  "runId": "run-quality-review-e2e",
+  "ideaSlug": "quality-review",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Collect quality signals",
+      "goal": "run real repository tooling and capture quality signals as evidence",
+      "deliverables": ["signal report"],
+      "scope": ["repository"],
+      "outOfScope": ["production", "modifications"],
+      "constraints": ["read-only"],
+      "acceptanceHints": ["signals collected", "tooling executed"],
+      "route": "csm-scan",
+      "context": [],
+      "dependencies": []
+    },
+    {
+      "phaseId": "P2",
+      "title": "Review and prioritize improvements",
+      "goal": "adversarially review collected signals and produce a prioritized improvement list",
+      "deliverables": ["prioritized improvements"],
+      "scope": ["repository"],
+      "outOfScope": ["production", "modifications"],
+      "constraints": ["read-only", "evidence-bound"],
+      "acceptanceHints": ["improvements prioritized", "findings evidence-bound"],
+      "route": "csm-scan",
+      "context": [],
+      "dependencies": ["P1"]
+    }
+  ],
+  "signals": {
+    "capabilities": ["csm-scan"],
+    "inputs": ["repository"]
+  }
+}

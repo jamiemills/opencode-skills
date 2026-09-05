@@ -155,6 +155,8 @@ async function realMode() {
   const approach = await loadApproach(approachPath);
   const runId = argValue("--run-id") ?? approach.runId;
   const host = await loadHostModule(hostPath, runId);
+  const hostArtifactResolver = host.artifactResolver ?? null;
+  const hostChildArtifactResolver = host.childArtifactResolver ?? hostArtifactResolver;
   const capabilities = await loadCapabilities();
   const evidenceDir = join(".agents", "evidence", "orchestrator", runId);
   await mkdir(evidenceDir, { recursive: true });
@@ -176,12 +178,14 @@ async function realMode() {
     runId,
     host,
     capabilities,
-    signals: { capabilities: [], inputs: [] },
+    signals: approach.signals ?? { capabilities: [], inputs: [] },
     approvals: approvalsModule ? approvalsModule.default : createAutonomyPolicy(capabilities),
     cursorStore,
     maxSteps: 25,
     telemetryEmitter,
     schemaRegistry,
+    ...(hostArtifactResolver ? { artifactResolver: hostArtifactResolver } : {}),
+    ...(hostChildArtifactResolver ? { childArtifactResolver: hostChildArtifactResolver } : {}),
   });
   await copyFile(approachPath, join(evidenceDir, "approach.json"));
   await writeFile(

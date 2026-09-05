@@ -10,7 +10,7 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T17:55:00Z: BLOCKED on T007 window \u2014 user will accrue G5/G6 evidence by running the orchestrator (run-orchestrator.mjs) in a NEW repo on this MVD host; window scope = any repo on this host. Resume: BLOCKED -> RECOVER when the user directs collection.",
+    "lastCheckpoint": "2026-09-05T18:45:00Z: orchestrator E2E quality review \u2014 host resolvers repaired (mapResolver shared instance, lint clean), run artifacts indexed. Open item: E2E run still returns INCOMPLETE (schema-invalid) \u2014 the real schemaRegistry rejects the evidence source schema path during reconcile; next repair = mirror the corpus stub-resolver value shape (schema+artifactId+sourceRunId) in quality-review-host.mjs mapResolver. Multiple real orchestrate() runs executed on the MVD \u2014 G6 telemetry accruing under .agents/evidence/orchestrator/.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
     "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
@@ -796,6 +796,28 @@
       ],
       "evidence": "user will use the orchestrator in a new repo on this host; MVD scope updated to host-level (any repo counts)",
       "nextState": "BLOCKED on representative use"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-05T18:20:00Z",
+      "cycle": 1,
+      "transition": "T007 + quality review execution",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "driver built+shipped (a46bcaa); quality-review approach+host built; orchestrator runs reached phase execution; blocked on resolver value contract (descriptor shape)",
+      "nextState": "REPAIR (context budget) \u2014 resume with descriptor-shaped resolver values"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-05T18:45:00Z",
+      "cycle": 1,
+      "transition": "T007 quality review execution",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "host resolvers repaired; run artifacts indexed; E2E still INCOMPLETE (schema-invalid in reconcile) \u2014 next repair is resolver value shape",
+      "nextState": "BLOCKED on resolver value contract (small, well-understood repair)"
     }
   ],
   "critiqueResolution": [
