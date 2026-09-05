@@ -303,6 +303,27 @@ export function createTelemetryEmitter(options = {}) {
     return events?.then ? events.then(inspect) : inspect(events);
   }
 
+  async function flush() {
+    // drain async transports so persisted telemetry is complete when the
+    // process exits (honest-failure fix: jsonl writes were lost on exit)
+    const drained = transport.list();
+    if (drained?.then) await drained;
+  }
+
+  async function flush() {
+    // drain async transports so persisted telemetry is complete when the
+    // process exits (honest-failure fix: jsonl writes were lost on exit)
+    const drained = transport.list();
+    if (drained?.then) await drained;
+  }
+
+  async function flush() {
+    // drain async transports so persisted telemetry is complete when the
+    // process exits (honest-failure fix: jsonl writes were lost on exit)
+    const drained = transport.list();
+    if (drained?.then) await drained;
+  }
+
   return {
     emit,
     recordTerminalReceipt,
@@ -310,6 +331,7 @@ export function createTelemetryEmitter(options = {}) {
     detectLoss,
     getEvents,
     getLossRecords: () => lossRecords.slice(),
+    flush,
   };
 }
 

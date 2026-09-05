@@ -1,0 +1,61 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "status": "agreed",
+  "runId": "run-honest-failures-r4",
+  "ideaSlug": "honest-failures",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Record honest-failure inventory",
+      "goal": "record the typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths as tracked evidence",
+      "deliverables": ["honest-failures-analysis.json", "README index line"],
+      "scope": [".agents/evidence", ".agents/README.md"],
+      "outOfScope": ["runtime changes", "corpus or threshold changes"],
+      "constraints": ["verbatim failure history", "each finding carries verification path"],
+      "acceptanceHints": ["inventory recorded", "README indexed"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": []
+    },
+    {
+      "phaseId": "P2",
+      "title": "Apply honest-failure fixes",
+      "goal": "apply the fail-closed patch set (read-only timeout retry, telemetry flush, runId divergence fail-fast, capability freshness gate, driver guards) and prove them with focused tests",
+      "deliverables": ["patched runtime files", "tests/orchestrate-honest-failures.test.mjs"],
+      "scope": [
+        "csm-orchestrate/lib",
+        "scripts/check-suite.mjs",
+        "scripts/run-orchestrator.mjs",
+        "tests"
+      ],
+      "outOfScope": ["receipt schema changes", "autonomy policy changes", "corpus changes"],
+      "constraints": [
+        "anchored fail-closed patches",
+        "side-effecting children keep fail-closed reconciliation",
+        "tests green"
+      ],
+      "acceptanceHints": ["patches applied", "verification tests pass"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": ["P1"]
+    },
+    {
+      "phaseId": "P3",
+      "title": "Full battery verification",
+      "goal": "prove no regressions: orchestrate battery, evals, fixture driver, and the check-suite including the new capability freshness gate",
+      "deliverables": ["green battery", "green check-suite"],
+      "scope": ["tests", "scripts"],
+      "outOfScope": ["new features", "documentation rewrites"],
+      "constraints": ["zero test failures", "check-suite OK"],
+      "acceptanceHints": ["battery green", "check-suite OK", "fixture VERIFIED"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": ["P2"]
+    }
+  ],
+  "signals": {
+    "capabilities": ["csm-build"],
+    "inputs": ["plan", "repository"]
+  }
+}

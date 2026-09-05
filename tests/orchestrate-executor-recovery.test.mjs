@@ -96,7 +96,9 @@ test("timeout after dispatch is durable UNKNOWN and not an ordinary retry", asyn
     cursorStore: durable,
     host: { invokeSiblingSkill: async () => new Promise(() => {}) },
   });
-  const result = await adapter.invoke(request(), {
+  // side-effecting children keep the fail-closed reconciliation path; read-only
+  // children get a typed safe-retry failure (orchestrate-honest-failures.test.mjs)
+  const result = await adapter.invoke(request({ sideEffects: ["workspace-write"] }), {
     cursorId: "cursor-recovery",
     dispatchIntentId: "intent-recovery",
   });

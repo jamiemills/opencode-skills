@@ -18,6 +18,7 @@
 
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile, copyFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path, { join } from "node:path";
 import { tmpdir } from "node:os";
 import { orchestrate } from "../csm-orchestrate/index.mjs";
@@ -167,6 +168,15 @@ async function realMode() {
   const capabilities = await loadCapabilities();
   const evidenceDir = join(".agents", "evidence", "orchestrator", runId);
   await mkdir(evidenceDir, { recursive: true });
+  // honest-failure guard: silently reusing durable state surfaces as progress
+  // fencing staleness; require an explicit --resume or a fresh approach.runId
+  if (!args.includes("--resume") && existsSync(join(evidenceDir, "cursor.db")))
+    throw new Error(
+      `run ${runId} already has durable state; pass --resume to continue recovery or use a fresh approach.runId`,
+    );
+  const timeoutMs = Number(argValue("--timeout-ms") ?? 600_000);
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
+    throw new Error("--timeout-ms must be a positive number of milliseconds");
   const cursorStore = createSqliteStore({
     mode: "wal",
     databasePath: join(evidenceDir, "cursor.db"),
@@ -227,9 +237,9 @@ async function realMode() {
     approvals: approvalsModule ? approvalsModule.default : createAutonomyPolicy(capabilities),
     cursorStore,
     maxSteps: 25,
-    // real hosts do real work (test suites, evaluations); the 30s default is
-    // tuned for in-process fixtures and fails a legitimate build attempt
-    timeoutMs: 600_000,
+    // real hosts do real work (test suites, evaluations); the 30s runtime
+    // default is tuned for in-process fixtures and fails legitimate builds
+    timeoutMs,
     telemetryEmitter,
     schemaRegistry,
     producerExecutorId: "csm-build",

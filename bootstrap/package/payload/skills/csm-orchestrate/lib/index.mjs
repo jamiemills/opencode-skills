@@ -1528,6 +1528,15 @@ async function runOrchestrationInternal({
 }
 
 export async function orchestrate(options) {
+  if (
+    options &&
+    typeof options.approach?.runId === "string" &&
+    typeof options.runId === "string" &&
+    options.runId !== options.approach.runId
+  )
+    throw new TypeError(
+      "runId must equal approach.runId: approvals and cursors bind to the approach run identity",
+    );
   const result = await runOrchestrationInternal(options);
   const progressTracker = progressByReceipt.get(result);
   if (progressTracker) await progressTracker.flush();
@@ -1555,6 +1564,8 @@ export async function orchestrate(options) {
   await assertSchema("csm-orchestrate-receipt/2", durable);
   if (options?.cursorStore?.saveTerminalReceipt)
     await persistTerminalReceipt(durable, options.cursorStore);
+  if (typeof options?.telemetryEmitter?.flush === "function")
+    await options.telemetryEmitter.flush().catch(() => {});
   return {
     ...result,
     progress,

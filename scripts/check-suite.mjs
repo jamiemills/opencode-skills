@@ -765,6 +765,53 @@ function transformBootstrapPayload(content, rel) {
   );
 }
 
+// Honest-failure fix (cycle 4): skill files can change without regenerating
+// csm-orchestrate/capabilities.json; the drift only surfaced later as an
+// orchestrator startup failure ("invalid capability manifest"). Verify every
+// manifest digest against the file bytes at gate time.
+function checkCapabilityManifestFreshness(rootDir) {
+  const issues = [];
+  const manifestPath = path.join(rootDir, "csm-orchestrate", "capabilities.json");
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    return ["capabilities.json missing or unreadable"];
+  }
+  for (const capability of manifest.skills ?? []) {
+    const skillPath = path.join(rootDir, capability.source?.skillPath ?? "");
+    let actual;
+    try {
+      actual = `sha256:${createHash("sha256").update(fs.readFileSync(skillPath)).digest("hex")}`;
+    } catch {
+      issues.push(`${capability.skill}: skill file missing (${capability.source?.skillPath})`);
+      continue;
+    }
+    if (capability.digest && actual !== capability.digest)
+      issues.push(
+        `${capability.skill}: manifest digest stale — regenerate csm-orchestrate/capabilities.json`,
+      );
+    if (capability.source?.entrypoint && capability.source?.libraryDigest) {
+      let entryDigest;
+      try {
+        entryDigest = `sha256:${createHash("sha256")
+          .update(fs.readFileSync(path.join(rootDir, capability.source.entrypoint)))
+          .digest("hex")}`;
+      } catch {
+        issues.push(
+          `${capability.skill}: entrypoint file missing (${capability.source.entrypoint})`,
+        );
+        continue;
+      }
+      if (entryDigest !== capability.source.libraryDigest)
+        issues.push(
+          `${capability.skill}: entrypoint libraryDigest stale — regenerate csm-orchestrate/capabilities.json`,
+        );
+    }
+  }
+  return issues;
+}
+
 function checkPayloadDrift(rootDir) {
   const payloadRoot = path.join(rootDir, "bootstrap", "package", "payload", "skills");
   const srcMap = buildPayloadSrcMap(rootDir);
@@ -1698,6 +1745,8 @@ function main() {
   }
   for (const issue of checkProgressTrackerContracts(root))
     check(false, `progress tracker contract: ${issue}`);
+  for (const issue of checkCapabilityManifestFreshness(root))
+    check(false, `capability manifest: ${issue}`);
   for (const issue of checkCommittedPayloadIndex(root)) check(false, `payload index: ${issue}`);
 
   // F-004 early-warning gate: the scan tier manifest must cover every

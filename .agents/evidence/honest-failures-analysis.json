@@ -1,0 +1,77 @@
+{
+  "schema": "csm-honest-failures-analysis/1",
+  "collectedAt": "2026-09-05T22:14:39.376Z",
+  "source": "quality delivery cycles 2-3 journal rows + orchestrator run evidence r1-r5",
+  "failures": [
+    {
+      "id": "F1",
+      "failure": "30s default child timeout declared real build work reconciliation-required (run r1); read-only children share the fail-closed path even though no effects can have landed",
+      "rootCause": "request.timeoutMs default tuned for in-process fixtures; timeout catch does not distinguish read-only from side-effecting children",
+      "fix": "driver realMode passes 600s and honors --timeout-ms; runtime: read-only child timeout now returns typed retryable failure (class timeout, code child-timeout); side-effecting children keep fail-closed reconciliation",
+      "verifiedBy": "tests/orchestrate-honest-failures.test.mjs (retry completes VERIFIED; side-effecting stays BLOCKED)"
+    },
+    {
+      "id": "F2",
+      "failure": "approval binding mismatch when caller passed --run-id diverging from approach.runId",
+      "rootCause": "approvals bind to phase.runId (approach identity) while orchestrate accepted any parent runId",
+      "fix": "orchestrate fails fast with a typed error when runId !== approach.runId; driver also guards",
+      "verifiedBy": "tests/orchestrate-honest-failures.test.mjs divergence assertion"
+    },
+    {
+      "id": "F3",
+      "failure": "telemetry.jsonl empty for early runs (async transport writes lost on process exit)",
+      "rootCause": "no drain of the transport write queue before exit",
+      "fix": "telemetryEmitter.flush() drains the transport; orchestrate epilogue awaits it best-effort; driver also drains explicitly",
+      "verifiedBy": "tests/orchestrate-honest-failures.test.mjs flush assertion + r5 run telemetry (12 events)"
+    },
+    {
+      "id": "F4",
+      "failure": "stale csm-upload capability digest shipped in 9e9fb05 and surfaced only as an orchestrator startup failure two cycles later",
+      "rootCause": "no gate-time verification of capabilities.json digests against skill file bytes",
+      "fix": "check-suite capability manifest freshness check (per-skill sha256 + entrypoint libraryDigest)",
+      "verifiedBy": "make check includes the new gate; negative behavior demonstrated by the original 9e9fb05 incident"
+    },
+    {
+      "id": "F5",
+      "failure": "hardcoded contentDigest pin in orchestrate-capabilities.test.mjs broke on the legitimate manifest regeneration",
+      "rootCause": "pin asserted a constant instead of manifest self-consistency",
+      "fix": "pin replaced with computed consistency assertion",
+      "verifiedBy": "tests/orchestrate-capabilities.test.mjs green across regenerations"
+    },
+    {
+      "id": "F6",
+      "failure": "driver silently reused durable run state; surfaced as progress fencing staleness (run r2)",
+      "rootCause": "no guard on existing cursor.db",
+      "fix": "driver refuses to start when durable state exists unless --resume is passed",
+      "verifiedBy": "manual rerun behavior + guard code review (runbook: fresh runId per attempt)"
+    },
+    {
+      "id": "F7",
+      "failure": "host parity check targeted the package entry instead of lib/index.mjs (run r3 host throw)",
+      "rootCause": "host author error; the runtime contract was correct",
+      "fix": "fixed in cycle 3 host; recorded as honesty evidence",
+      "verifiedBy": "cycle 3 run VERIFIED"
+    },
+    {
+      "id": "F8",
+      "failure": "piped node --test does not echo subprocess stdout, so a host-level VERIFIED regex on captured output can never match (run r4)",
+      "rootCause": "test-runner reporter behavior; assertion placed at the wrong layer",
+      "fix": "wiring test asserts the VERIFIED receipt itself; host derives from test pass/fail counts",
+      "verifiedBy": "cycle 3 run VERIFIED + wiring test green"
+    },
+    {
+      "id": "F9",
+      "failure": "persisted independent-review records unresolvable by host-only parent resolvers (wiring test BLOCKED invalid-review-artifact)",
+      "rootCause": "runtime review records are files; host in-memory resolvers cannot see them",
+      "fix": "driver composes host resolver with the real file-backed resolver over reviewArtifactRoot",
+      "verifiedBy": "tests/orchestrate-driver-final-review.test.mjs VERIFIED"
+    },
+    {
+      "id": "F10",
+      "failure": "csm-orchestrate/lib/index.mjs exceeded the 60kB maintainability outlier threshold (73938 bytes)",
+      "rootCause": "accreted single-module design",
+      "fix": "split into run-helpers/run-artifacts/run-cursor with public API parity (cycle 3 item 4)",
+      "verifiedBy": "57040 bytes + 281-test battery green"
+    }
+  ]
+}

@@ -614,6 +614,20 @@ export function createHostInvocationAdapter({
       } catch (error) {
         clearTimeout(timer);
         if (error?.timeout || error?.cancelled) {
+          // Honest-failure fix (cycle 4): a read-only child has no external
+          // effects, so a post-dispatch timeout is unambiguous — return a typed
+          // retryable failure instead of a permanent reconciliation block.
+          // Side-effecting children keep the fail-closed reconciliation path.
+          if (error?.timeout && attemptRecord.sideEffectClass === "read-only") {
+            const retryable = failure(
+              "failed",
+              "timeout",
+              "child-timeout",
+              "read-only child invocation timed out; safe retry allowed",
+            );
+            await persistTerminal(retryable);
+            return retryable;
+          }
           const terminal = failure(
             "incomplete",
             error?.timeout ? "timeout" : "timeout",
