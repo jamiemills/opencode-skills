@@ -1,6 +1,15 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 
 const digestA = `sha256:${"a".repeat(64)}`;
+
+export function reviewEvidenceRoot(prefix = "orchestrate-review-") {
+  return mkdtempSync(join(tmpdir(), prefix));
+}
 
 export function approachFor(runId, ideaSlug) {
   return {
@@ -112,6 +121,8 @@ export async function workingOptions({
 }) {
   const loaded = capabilities ?? (await loadCapabilities());
   const base = hostFixture({ ideaSlug });
+  const reviewArtifactRoot = reviewEvidenceRoot(`review-${ideaSlug}-`);
+  const reviewSchemaRegistry = await loadSchemaRegistry();
   const host = {
     ...base,
     async invokeReview(request) {
@@ -138,7 +149,7 @@ export async function workingOptions({
           runId: review.provenance?.reviewerChildRunId ?? `run-review-${ideaSlug}-child`,
           digest: review.provenance?.artifact?.digest ?? `sha256:${"d".repeat(64)}`,
           owner: review.provenance?.owner ?? "csm-test-host",
-          schema: "csm-review/1",
+          schema: "csm-orchestrate-adversarial-review/2",
           path: "review-artifact.json",
           resolution: "fixture",
         },
@@ -192,7 +203,13 @@ export async function workingOptions({
         return this.cursors.get(cursorId) ?? null;
       },
     },
-    artifactResolver: base.artifactResolver,
+    artifactResolver: createArtifactResolver({
+      root: reviewArtifactRoot,
+      schemaRegistry: reviewSchemaRegistry,
+    }),
+    childArtifactResolver: base.artifactResolver,
+    reviewArtifactRoot,
+    reviewSchemaRegistry,
     schemaRegistry: {
       resolve() {},
       validate() {

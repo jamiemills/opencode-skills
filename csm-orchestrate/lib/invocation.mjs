@@ -2,10 +2,11 @@
 
 import { assertSchema, validSchema } from "./contracts.mjs";
 import {
+  buildReviewArtifactRefs,
+  persistReviewRecords,
   validateInjectedFinalReview,
   validateReviewProvenance,
 } from "./adversarial-final-review.mjs";
-import { HOST_REVIEW } from "./review-token.mjs";
 import { digest } from "../../lib/schema-runtime/index.mjs";
 
 const FAILURE_CLASSES = Object.freeze([
@@ -722,31 +723,6 @@ export function createHostInvocationAdapter({
           !record.resolution
         ) {
           failures.push("host review record identity is incomplete");
-          continue;
-        }
-        if (artifactResolver?.resolve) {
-          const resolved = await artifactResolver.resolve(record.path, {
-            expectedFileDigest: record.digest,
-            expectedArtifactId: record.artifactId,
-            expectedOwner: record.owner,
-            expectedSourceRunId: record.runId,
-          });
-          if (
-            resolved?.status !== "resolved" ||
-            resolved.owner !== record.owner ||
-            resolved.fileDigest !== record.digest ||
-            resolved.value?.artifactId !== record.artifactId ||
-            resolved.value?.sourceRunId !== record.runId
-          )
-            failures.push("host review artifact could not be resolver-validated");
-        } else failures.push("host review artifact resolver is required");
-        try {
-          schemaRegistry.resolve(
-            record.schema,
-            record.schemaRevision ?? Number(record.schema.split("/").at(-1)),
-          );
-        } catch {
-          failures.push("host review artifact schema is not registered");
         }
       }
       if (review?.status === "ACCEPTED") {
@@ -760,8 +736,45 @@ export function createHostInvocationAdapter({
       }
       if (failures.length)
         return failure("blocked", "policy", "invalid-review-provenance", failures.join("; "));
-      Object.defineProperty(review, HOST_REVIEW, { value: true });
-      return { status: "completed", review };
+      const artifactRoot = request.artifactRoot;
+      if (!artifactRoot || typeof artifactRoot !== "string")
+        return failure(
+          "blocked",
+          "policy",
+          "review-artifact-root-required",
+          "host review persistence requires a review artifact root",
+        );
+      const reviewerChildRunId = review.provenance.reviewerChildRunId;
+      const reviewerId = review.provenance.owner;
+      const inputDigest = digest({
+        parentRunId: request.parentRunId,
+        phaseId: request.phaseId,
+        edgeId: request.edgeId,
+        reviewId: review.reviewId,
+      });
+      let persisted;
+      try {
+        persisted = await persistReviewRecords({
+          artifactRoot,
+          review: { ...review, inputDigest },
+          reviewArtifact: { ...artifact, runId: reviewerChildRunId, owner: reviewerId },
+          reviewerChildRunId,
+          reviewerId,
+          inputDigest,
+        });
+      } catch (error) {
+        return failure(
+          "blocked",
+          "policy",
+          "review-persistence-failed",
+          error?.message ?? "review record persistence failed",
+        );
+      }
+      return {
+        status: "completed",
+        review: persisted.review,
+        reviewArtifactRefs: buildReviewArtifactRefs({ artifactRoot, persisted }),
+      };
     },
   });
 }

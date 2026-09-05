@@ -3,6 +3,11 @@ import test from "node:test";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { autonomyGate } from "../csm-orchestrate/lib/recovery.mjs";
 import {
   createSqliteStore,
@@ -175,7 +180,7 @@ const withReviewHost = (host, runId) => ({
         runId: review.provenance.reviewerChildRunId,
         digest: review.provenance.artifact?.digest ?? SHA_D,
         owner: review.provenance.owner,
-        schema: "csm-review/1",
+        schema: "csm-orchestrate-adversarial-review/2",
         path: "review-artifact.json",
         resolution: "fixture",
       },
@@ -208,6 +213,8 @@ const memoryCursorStore = () => ({
 
 const autonomyOptions = async (host, { runId, signals, phaseCount = 1, ...extra }) => {
   const capabilities = await loadCapabilities();
+  const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "review-"));
+  const reviewSchemaRegistry = await loadSchemaRegistry();
   return {
     approach: approachFor(runId, phaseCount),
     runId,
@@ -217,7 +224,12 @@ const autonomyOptions = async (host, { runId, signals, phaseCount = 1, ...extra 
     approvals: createAutonomyPolicy(capabilities, { now: NOW }),
     now: NOW,
     cursorStore: memoryCursorStore(),
-    artifactResolver: host.artifactResolver,
+    artifactResolver: createArtifactResolver({
+      root: reviewArtifactRoot,
+      schemaRegistry: reviewSchemaRegistry,
+    }),
+    childArtifactResolver: host.artifactResolver,
+    reviewArtifactRoot,
     schemaRegistry: {
       resolve() {},
       validate() {

@@ -354,7 +354,7 @@ const reviewRunId = (parentRunId, phaseId, inputDigest) =>
 
 const fileDigest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
-async function persistReviewRecords({
+export async function persistReviewRecords({
   artifactRoot,
   review,
   reviewArtifact,
@@ -365,6 +365,8 @@ async function persistReviewRecords({
   if (artifactRoot === undefined) return null;
   if (typeof artifactRoot !== "string" || !artifactRoot)
     throw new TypeError("review artifact root is required");
+  if (!/^run-[a-z0-9][a-z0-9-]{1,127}$/.test(reviewerChildRunId))
+    throw new TypeError("reviewer child runId is invalid");
   const root = resolve(artifactRoot);
   await mkdir(root, { recursive: true });
   const reviewPath = join(root, `review-${reviewerChildRunId}.json`);
@@ -394,7 +396,11 @@ async function persistReviewRecords({
     sourceArtifactIds: [reviewArtifact.artifactId],
     provenance: {
       ...review.provenance,
-      receipt: { ...review.provenance.receipt, digest: receiptFileDigest },
+      receipt: {
+        ...review.provenance.receipt,
+        artifactId: receiptRecord.receiptId,
+        digest: receiptFileDigest,
+      },
     },
   };
   Object.defineProperty(persistedReview, HOST_REVIEW, { value: true });
@@ -669,46 +675,48 @@ export function createIndependentFinalReviewExecutor({
         reviewArtifact: persisted?.reviewArtifact ?? reviewArtifact,
         ...(persisted
           ? {
-              reviewArtifactRefs: [
-                {
-                  recordType: "review",
-                  recordId: persisted.review.reviewId,
-                  schema: persisted.review.schema,
-                  path: relative(resolve(artifactRoot), persisted.paths.review),
-                  digest: persisted.fileDigests.review,
-                  sourceOwner: reviewerId,
-                  sourceRunId: reviewerChildRunId,
-                  sourceDigest: inputDigest,
-                  sourceArtifactId: reviewArtifact.artifactId,
-                },
-                {
-                  recordType: "artifact",
-                  recordId: persisted.reviewArtifact.artifact.artifactId,
-                  schema: persisted.reviewArtifact.schema,
-                  path: relative(resolve(artifactRoot), persisted.paths.artifact),
-                  digest: persisted.fileDigests.artifact,
-                  sourceOwner: reviewerId,
-                  sourceRunId: reviewerChildRunId,
-                  sourceDigest: inputDigest,
-                  sourceArtifactId: reviewArtifact.artifactId,
-                },
-                {
-                  recordType: "receipt",
-                  recordId: persisted.reviewReceipt.receiptId,
-                  schema: persisted.reviewReceipt.schema,
-                  path: relative(resolve(artifactRoot), persisted.paths.receipt),
-                  digest: persisted.fileDigests.receipt,
-                  sourceOwner: reviewerId,
-                  sourceRunId: reviewerChildRunId,
-                  sourceDigest: inputDigest,
-                  sourceArtifactId: reviewArtifact.artifactId,
-                },
-              ],
+              reviewArtifactRefs: buildReviewArtifactRefs({ artifactRoot, persisted }),
             }
           : {}),
       };
     },
   });
+}
+
+export function buildReviewArtifactRefs({ artifactRoot, persisted }) {
+  const sourceArtifactId = persisted.reviewArtifact.artifact.artifactId;
+  const base = {
+    sourceOwner: persisted.review.owner,
+    sourceRunId: persisted.review.sourceRunId,
+    sourceDigest: persisted.review.sourceDigest,
+    sourceArtifactId,
+  };
+  return [
+    {
+      recordType: "review",
+      recordId: persisted.review.reviewId,
+      schema: persisted.review.schema,
+      path: relative(resolve(artifactRoot), persisted.paths.review),
+      digest: persisted.fileDigests.review,
+      ...base,
+    },
+    {
+      recordType: "artifact",
+      recordId: persisted.reviewArtifact.artifact.artifactId,
+      schema: persisted.reviewArtifact.schema,
+      path: relative(resolve(artifactRoot), persisted.paths.artifact),
+      digest: persisted.fileDigests.artifact,
+      ...base,
+    },
+    {
+      recordType: "receipt",
+      recordId: persisted.reviewReceipt.receiptId,
+      schema: persisted.reviewReceipt.schema,
+      path: relative(resolve(artifactRoot), persisted.paths.receipt),
+      digest: persisted.fileDigests.receipt,
+      ...base,
+    },
+  ];
 }
 
 function assertInsertion(graph, phase, existingEffects) {

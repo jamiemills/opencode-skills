@@ -10,11 +10,13 @@ import fs from "node:fs";
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import path from "node:path";
+import path, { join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { createSqliteStore, resolveSqliteDriver } from "../lib/orchestration-store/index.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
@@ -187,7 +189,7 @@ const withReviewHost = (host, runId) => ({
           runId: `run-review-${runId}`,
           digest: SHA_D,
           owner: "csm-test-host",
-          schema: "csm-review/1",
+          schema: "csm-orchestrate-adversarial-review/2",
           path: "review-artifact.json",
           resolution: "fixture",
         },
@@ -221,6 +223,8 @@ const withReviewHost = (host, runId) => ({
 
 const orchestrateOptions = async (host, { runId, cursorStore, telemetryEmitter, signals } = {}) => {
   const capabilities = await loadCapabilities();
+  const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "review-"));
+  const reviewSchemaRegistry = await loadSchemaRegistry();
   return {
     approach: approachFor(runId),
     runId,
@@ -232,7 +236,12 @@ const orchestrateOptions = async (host, { runId, cursorStore, telemetryEmitter, 
     cursorStore,
     telemetryEmitter,
     effectiveConfigDigest: CONFIG_DIGEST,
-    artifactResolver: host.artifactResolver,
+    artifactResolver: createArtifactResolver({
+      root: reviewArtifactRoot,
+      schemaRegistry: reviewSchemaRegistry,
+    }),
+    childArtifactResolver: host.artifactResolver,
+    reviewArtifactRoot,
     schemaRegistry: {
       resolve() {},
       validate() {

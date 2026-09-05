@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { digest } from "../lib/schema-runtime/index.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { loadCapabilities, SUPPORTED_SKILLS } from "../csm-orchestrate/lib/capabilities.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 
@@ -189,7 +191,7 @@ const options = async (host, extra = {}) => {
                 runId: review.provenance.reviewerChildRunId,
                 digest: review.provenance.artifact?.digest ?? `sha256:${"d".repeat(64)}`,
                 owner: review.provenance.owner,
-                schema: "csm-review/1",
+                schema: "csm-orchestrate-adversarial-review/2",
                 path: "review-artifact.json",
                 resolution: "fixture",
               },
@@ -210,6 +212,8 @@ const options = async (host, extra = {}) => {
           },
         }
       : host;
+  const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "review-"));
+  const reviewSchemaRegistry = await loadSchemaRegistry();
   return {
     approach: approach(),
     runId,
@@ -227,7 +231,12 @@ const options = async (host, extra = {}) => {
         return this.cursors.get(cursorId) ?? null;
       },
     },
-    artifactResolver: host.artifactResolver,
+    artifactResolver: createArtifactResolver({
+      root: reviewArtifactRoot,
+      schemaRegistry: reviewSchemaRegistry,
+    }),
+    childArtifactResolver: host.artifactResolver,
+    reviewArtifactRoot,
     schemaRegistry: {
       resolve() {},
       validate() {
@@ -305,6 +314,7 @@ test("unrelated external artifact refs are excluded from each node request", asy
   const base = fixture();
   const requests = [];
   const host = {
+    artifactResolver: base.artifactResolver,
     async invokeSiblingSkill(request, context) {
       requests.push(request);
       return base.invokeSiblingSkill(request, context);
@@ -323,26 +333,34 @@ test("unrelated external artifact refs are excluded from each node request", asy
     resolution: "fixture",
     digest: `sha256:${"e".repeat(64)}`,
   };
-  const result = await orchestrate(
-    await options(host, {
-      inputArtifactRefs: [external, { ...external, name: "unrelated", sourceArtifactId: "other" }],
-      artifactResolver: {
-        async resolve(path, expected) {
-          if (path !== external.path && !path.startsWith("review-"))
-            return base.artifactResolver.resolve(path, expected);
-          return {
-            status: "resolved",
-            owner: expected.expectedOwner,
-            fileDigest: expected.expectedFileDigest,
-            value: {
-              artifactId: expected.expectedArtifactId,
-              sourceRunId: expected.expectedSourceRunId,
-            },
-          };
-        },
-      },
-    }),
-  );
+  const opts = await options(host, {
+    inputArtifactRefs: [external, { ...external, name: "unrelated", sourceArtifactId: "other" }],
+  });
+  const reviewResolver = opts.artifactResolver;
+  const fixtureResolver = host.artifactResolver;
+  opts.childArtifactResolver = {
+    async resolve(path, expected) {
+      if (path === external.path)
+        return {
+          status: "resolved",
+          owner: expected.expectedOwner,
+          fileDigest: expected.expectedFileDigest,
+          value: {
+            artifactId: expected.expectedArtifactId,
+            sourceRunId: expected.expectedSourceRunId,
+          },
+        };
+      return fixtureResolver.resolve(path, expected);
+    },
+  };
+  opts.artifactResolver = {
+    async resolve(path, expected) {
+      if (path.startsWith("review-")) return reviewResolver.resolve(path, expected);
+      if (path !== external.path) return fixtureResolver.resolve(path, expected);
+      return externalEcho;
+    },
+  };
+  const result = await orchestrate(opts);
   assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
   assert.deepEqual(requests[0].inputArtifactRefs, [external]);
 });
@@ -374,9 +392,9 @@ test("missing evidence is incomplete, not verified", async () => {
   assert.equal(result.outcome.status, "INCOMPLETE");
 });
 
-test("host evidence without resolver is incomplete, not verified", async () => {
+test("host evidence without resolver requires review rather than verifying", async () => {
   const result = await orchestrate(await options(fixture(), { artifactResolver: undefined }));
-  assert.equal(result.outcome.status, "INCOMPLETE");
+  assert.equal(result.outcome.status, "REQUIRES_REVIEW");
 });
 
 test("final review can create a bounded remediation phase", async () => {
@@ -470,6 +488,7 @@ test("transport interruption retries with a new child identity", async () => {
   let first = true;
   const base = fixture();
   const host = {
+    artifactResolver: base.artifactResolver,
     async invokeSiblingSkill(request, context) {
       if (first) {
         first = false;
@@ -478,9 +497,7 @@ test("transport interruption retries with a new child identity", async () => {
       return base.invokeSiblingSkill(request, context);
     },
   };
-  const result = await orchestrate(
-    await options(host, { artifactResolver: base.artifactResolver }),
-  );
+  const result = await orchestrate(await options(host));
   assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
 });
 

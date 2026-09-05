@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -10,6 +10,7 @@ import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
+import { acceptedReview, workingOptions } from "./helpers-final-review.mjs";
 import { HOST_REVIEW } from "../csm-orchestrate/lib/review-token.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
@@ -534,5 +535,75 @@ test("default resolver review failures never become VERIFIED", async () => {
     const result = await runInvalidPersistedReview(mutate);
     assert.ok(["BLOCKED", "REQUIRES_REVIEW"].includes(result.outcome.status), name);
     assert.notEqual(result.outcome.status, "VERIFIED", name);
+  }
+});
+
+test("host-seam review persists resolver-native records and verifies", async () => {
+  const options = await workingOptions({
+    runId: "run-corpus-host-verified",
+    ideaSlug: "corpus-host",
+    finalReview: async ({ phase, phaseResults, evidence }) =>
+      acceptedReview({ runId: "run-corpus-host-verified", phase, phaseResults, evidence }),
+  });
+  try {
+    const result = await orchestrate(options);
+    assert.equal(result.outcome.status, "VERIFIED");
+    assert.ok(result.extensions.reviewIds.length >= 1);
+  } finally {
+    await rm(options.reviewArtifactRoot, { recursive: true, force: true });
+  }
+});
+
+test("host-seam review without an artifact root never verifies", async () => {
+  const options = await workingOptions({
+    runId: "run-corpus-host-noroot",
+    ideaSlug: "corpus-host-noroot",
+    finalReview: async ({ phase, phaseResults, evidence }) =>
+      acceptedReview({ runId: "run-corpus-host-noroot", phase, phaseResults, evidence }),
+  });
+  const root = options.reviewArtifactRoot;
+  delete options.reviewArtifactRoot;
+  try {
+    const result = await orchestrate(options);
+    assert.equal(result.outcome.status, "REQUIRES_REVIEW");
+    assert.equal(result.reviewState, "UNKNOWN");
+    assert.match(result.reason ?? "", /review artifact root/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("tampered host-seam review record fails closed", async () => {
+  const options = await workingOptions({
+    runId: "run-corpus-host-tamper",
+    ideaSlug: "corpus-host-tamper",
+    finalReview: async ({ phase, phaseResults, evidence }) =>
+      acceptedReview({ runId: "run-corpus-host-tamper", phase, phaseResults, evidence }),
+  });
+  const real = options.artifactResolver.resolve.bind(options.artifactResolver);
+  let mutated = false;
+  options.artifactResolver = {
+    async resolve(path, expected) {
+      if (
+        !mutated &&
+        path.startsWith("review-") &&
+        !path.startsWith("review-artifact-") &&
+        !path.startsWith("review-receipt-")
+      ) {
+        mutated = true;
+        const filePath = join(options.reviewArtifactRoot, path);
+        const record = JSON.parse(await readFile(filePath, "utf8"));
+        record.findings = [...(record.findings ?? []), { code: "forged", severity: "high" }];
+        await writeFile(filePath, `${JSON.stringify(record, null, 2)}\n`);
+      }
+      return real(path, expected);
+    },
+  };
+  try {
+    const result = await orchestrate(options);
+    assert.equal(result.outcome.status, "BLOCKED");
+    assert.equal(result.failure?.code, "invalid-review-artifact");
+  } finally {
+    await rm(options.reviewArtifactRoot, { recursive: true, force: true });
   }
 });

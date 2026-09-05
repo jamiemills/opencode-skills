@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { makeAutonomousFunctionalGate, orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import {
   createJsonlTransport,
   createMemoryTransport,
@@ -188,7 +190,7 @@ const withReviewHost = (host, runId) => ({
         runId: review.provenance.reviewerChildRunId,
         digest: review.provenance.artifact?.digest ?? SHA_D,
         owner: review.provenance.owner,
-        schema: "csm-review/1",
+        schema: "csm-orchestrate-adversarial-review/2",
         path: "review-artifact.json",
         resolution: "fixture",
       },
@@ -221,6 +223,8 @@ const memoryCursorStore = () => ({
 
 const orchestrateOptions = async (host, { runId, ...extra }) => {
   const capabilities = await loadCapabilities();
+  const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "telemetry-review-"));
+  const reviewSchemaRegistry = await loadSchemaRegistry();
   return {
     approach: approachFor(runId),
     runId,
@@ -230,7 +234,12 @@ const orchestrateOptions = async (host, { runId, ...extra }) => {
     approvals: createAutonomyPolicy(capabilities, { now: NOW }),
     now: NOW,
     cursorStore: memoryCursorStore(),
-    artifactResolver: host.artifactResolver,
+    artifactResolver: createArtifactResolver({
+      root: reviewArtifactRoot,
+      schemaRegistry: reviewSchemaRegistry,
+    }),
+    childArtifactResolver: host.artifactResolver,
+    reviewArtifactRoot,
     schemaRegistry: {
       resolve() {},
       validate() {

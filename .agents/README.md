@@ -205,6 +205,7 @@ the source file. Deletion remains awaiting explicit authorization.
 
 - `2026-09-04-skill-progress-tracker-enforcement-20260904t200000z-progress.json` — 2026-09-04 — csm-build invocation progress for the skill-progress-tracker-enforcement build — status: complete
 - `2026-09-05-orchestrate-release-validation-progress.json` — 2026-09-05 — csm-deep-research progress record for orchestrate release validation — status: complete
+- `2026-09-05-production-evidence-t002-progress.json` — 2026-09-05 — csm-build progress record for production-evidence-boundaries T002 resume — status: complete
 
 ## ddd/
 

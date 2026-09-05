@@ -1,0 +1,38 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-production-evidence-t002-resume-20260905",
+  "runId": "run-20260905t080000z-production-evidence-boundaries-t002",
+  "skill": "csm-build",
+  "goal": "Resume production-evidence-boundaries T002: resolver-native persisted review refs enforced in orchestration",
+  "status": "active",
+  "overallPercent": 97,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate baseline",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Implement host-seam persistence + enforcement",
+      "weightPercent": 50,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Verify: focused + repo gates",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Independent review + checkpoint",
+      "weightPercent": 15,
+      "status": "active",
+      "verifiedFraction": 0.8
+    }
+  ],
+  "startedAt": "2026-09-05T08:00:00Z",
+  "updatedAt": "2026-09-05T08:53:15.226Z"
+}

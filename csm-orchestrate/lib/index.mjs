@@ -392,8 +392,9 @@ async function validateReviewArtifacts(reviewResult, artifactResolver, schemaReg
       (value?.sourceRunId ?? value?.artifact?.runId) !== ref.sourceRunId ||
       (value?.sourceArtifactIds ?? []).includes(ref.sourceArtifactId) !== true ||
       (value?.sourceDigest ?? value?.artifact?.sourceDigest) !== ref.sourceDigest
-    )
+    ) {
       throw new TypeError(`independent review resolver identity mismatch: ${ref.recordId}`);
+    }
     resolvedRecords.set(ref.recordType, value);
   }
   const review = resolvedRecords.get("review");
@@ -1597,10 +1598,7 @@ async function runOrchestrationInternal({
       );
     if (hostReview?.status === "completed" && hostReview.review) {
       const final = hostReview.review;
-      if (
-        (finalReviewExecutor || hostReview.reviewArtifactRefs) &&
-        (!artifactResolver?.resolve || !schemaRegistry?.resolve)
-      )
+      if (!artifactResolver?.resolve || !schemaRegistry?.resolve)
         return emitTerminalReceipt(
           runId,
           phaseResults.at(-1)?.phase.phaseId ?? "phase-intake",
@@ -1611,8 +1609,7 @@ async function runOrchestrationInternal({
           { reason: "review-artifact-resolver-required", reviewState: "UNKNOWN" },
         );
       try {
-        if (finalReviewExecutor || hostReview.reviewArtifactRefs)
-          await validateReviewArtifacts(hostReview, artifactResolver, schemaRegistry);
+        await validateReviewArtifacts(hostReview, artifactResolver, schemaRegistry);
       } catch (error) {
         return emitTerminalReceipt(
           runId,
@@ -1627,8 +1624,7 @@ async function runOrchestrationInternal({
           },
         );
       }
-      if (hostReview.reviewArtifactRefs || finalReviewExecutor)
-        await assertSchema("csm-orchestrate-adversarial-review/2", final);
+      await assertSchema("csm-orchestrate-adversarial-review/2", final);
       if (final?.reviewId) reviewIds.push(final.reviewId);
       let hostRemediation = null;
       if (remediationFactory) {
@@ -1659,8 +1655,7 @@ async function runOrchestrationInternal({
           phaseId: coordinated.remediation?.phaseId ?? null,
         },
       });
-      if (hostReview.reviewArtifactRefs || finalReviewExecutor)
-        await assertSchema("csm-orchestrate-final-review/2", coordinated);
+      await assertSchema("csm-orchestrate-final-review/2", coordinated);
       if (coordinated.status === "REMEDIATION_REQUIRED") {
         const rawRemediation = coordinated.remediation;
         const insertAt = coordinated.graph.phases.findIndex(

@@ -6,6 +6,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
+import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { classifyResume } from "../csm-orchestrate/lib/recovery.mjs";
 import {
@@ -146,6 +148,8 @@ async function acceptedReview() {
 
 async function options(store, host) {
   const review = await acceptedReview();
+  const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "review-"));
+  const reviewSchemaRegistry = await loadSchemaRegistry();
   return {
     approach: approach(),
     runId,
@@ -169,7 +173,7 @@ async function options(store, host) {
             runId: review.provenance.reviewerChildRunId,
             digest: review.provenance.artifact.digest,
             owner: review.provenance.owner,
-            schema: "csm-review/1",
+            schema: "csm-orchestrate-adversarial-review/2",
             path: "review-artifact.json",
             resolution: "fixture",
           },
@@ -207,7 +211,12 @@ async function options(store, host) {
     }),
     now: () => new Date("2026-08-27T12:00:00Z"),
     cursorStore: store,
-    artifactResolver: host.artifactResolver,
+    artifactResolver: createArtifactResolver({
+      root: reviewArtifactRoot,
+      schemaRegistry: reviewSchemaRegistry,
+    }),
+    childArtifactResolver: host.artifactResolver,
+    reviewArtifactRoot,
     schemaRegistry: {
       resolve() {},
       validate() {
