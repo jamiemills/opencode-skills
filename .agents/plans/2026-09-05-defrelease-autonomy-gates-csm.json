@@ -4,17 +4,20 @@
   "artifactId": "art-defrelease-autonomy-gates-20260905",
   "runId": "run-20260905t150000z-defrelease-autonomy-gates",
   "planId": "defrelease-autonomy-gates",
-  "status": "ready",
+  "status": "blocked",
   "control": {
-    "status": "ready",
-    "currentState": "NOT_STARTED",
+    "status": "blocked",
+    "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T15:20:00Z: plan drafted from discovery of release-checklist, deferred ledger, rollout policy, promotion machinery, and publication tooling",
-    "lastModelRun": "glm-5.3-flash / csm-plan-defrelease-autonomy-gates",
-    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "lastCheckpoint": "2026-09-05T15:10:00Z-window: T001-T005 shipped and CI-verified on 80066e4 (run 33980092950, all 4 jobs green, adapter lane zero-skip). T006 (publication execution) and T007 (deployment evidence + promotion approval) are user decision gates by design. Decision needed: (1) approve + supply credentials for publication (T006), (2) provide the deployment MVD + G3 ruling (T003/T007). Resume: BLOCKED -> RECOVER on user direction for either gate.",
+    "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
+    "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
-    "blockers": [],
+    "blockers": [
+      "T006 requires: explicit user approval + npm credentials (2FA) + signing keys + hosting origin \u2014 publication runbook: bootstrap/publication-runbook.md",
+      "T003/T007 require: the G3 ruling (accept local Docker-attested bundle vs defer to deployment \u2014 .agents/docs/g3-ruling.md) and the deployment MVD (docs/autonomy-deployment.md) + promotion approval"
+    ],
     "resume": {
       "read": [
         "last checkpoint",
@@ -736,6 +739,18 @@
       "tasks": [],
       "evidence": "all 12 findings applied (3 high, 5 medium, 4 low)",
       "nextState": "VERIFY"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-05T16:40:00Z",
+      "cycle": 0,
+      "transition": "CHECKPOINT -> BLOCKED",
+      "tasks": [
+        "T006",
+        "T007"
+      ],
+      "evidence": "T001-T005 shipped and CI-verified on 80066e4; independent review APPROVE-WITH-NITS (all 5 nits applied); T006/T007 are user-owned credential/approval gates",
+      "nextState": "BLOCKED (recoverable on user direction)"
     }
   ],
   "critiqueResolution": [

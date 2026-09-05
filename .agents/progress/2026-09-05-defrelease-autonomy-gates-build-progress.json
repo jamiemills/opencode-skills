@@ -4,8 +4,8 @@
   "runId": "run-20260905t160000z-defrelease-autonomy-gates-build",
   "skill": "csm-build",
   "goal": "Execute defrelease-autonomy-gates plan: T001-T007 (T006/T007 are user gates)",
-  "status": "active",
-  "overallPercent": 51,
+  "status": "blocked",
+  "overallPercent": 61,
   "milestones": [
     {
       "id": "M1",
@@ -30,9 +30,9 @@
       "id": "M4",
       "title": "CHECKPOINT: BLOCKED at user gates T006/T007",
       "weightPercent": 10,
-      "status": "pending"
+      "status": "complete"
     }
   ],
   "startedAt": "2026-09-05T16:00:00Z",
-  "updatedAt": "2026-09-05T16:30:42.839Z"
+  "updatedAt": "2026-09-05T17:23:20.496Z"
 }
