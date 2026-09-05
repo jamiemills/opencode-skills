@@ -160,6 +160,11 @@ test(
       options.executorRegistry = registry;
       options.executorBindings = { "csm-browse": descriptor };
       options.executorInput = { operation: "capture", binaryAcknowledged: true };
+      options.childArtifactResolver = createArtifactResolver({
+        root: evidenceRoot,
+        schemaRegistry,
+        owner: "csm-browse",
+      });
       options.signals = { capabilities: ["csm-browse"], inputs: ["plan"] };
       options.approvals = async ({ phase, node, childRunId }) => ({
         schema: "csm-orchestrate-approval/2",
