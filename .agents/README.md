@@ -219,3 +219,11 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-08-23-tangled-fixture-ddd-report.md` — 2026-08-23 — csm-ddd analysis of the tangled test fixture — status: complete
 - `2026-08-23-tangled-fixture-ddd-graph.json` — 2026-08-23 — graph companion of the tangled-fixture analysis — status: complete
 - `2026-08-23-csm-ddd-validation-notes.md` (under ddd/artifacts/) — 2026-08-23 — fixture-corpus + adjacency validation evidence — status: complete
+
+
+## evidence/
+
+- `run-g1-final-review.mjs` — 2026-09-05 — reproducible independent final release review for orchestrate-release-completion G1 (SHA 2f08063) — status: reference
+- `review-run-7aefc81cc340ede2295111d59c67e1ee.json` — 2026-09-05 — accepted adversarial review record (csm-orchestrate-adversarial-review/2) — status: reference
+- `review-artifact-run-7aefc81cc340ede2295111d59c67e1ee.json` — 2026-09-05 — review artifact record (csm-artifact/1) — status: reference
+- `review-receipt-run-7aefc81cc340ede2295111d59c67e1ee.json` — 2026-09-05 — review receipt record (csm-review-receipt/1) — status: reference
