@@ -26,7 +26,7 @@ test("all 13 capabilities validate and resolve deterministically", () => {
   assert.equal(manifest.skills.length, 13);
   assert.equal(
     manifest.contentDigest,
-    "sha256:1308e324784687cf68f71fbaa58e301a033cb142a72a3ccd622cbb96a39a4f08",
+    "sha256:308ac0ea04134e1699aa41fde76249ac71b6d05cb7b3582cd5fe48c31289b2de",
   );
 });
 

@@ -8,7 +8,7 @@ description: Mutate a CSM plan into a BDD+TDD package — spec and test designs.
 ## Progress Tracker
 
 Progress tracking is ON by default for every invocation. Create and maintain a
-versioned `csm-skill-progress/1` JSON record via `scripts/lib/progress-tracker.mjs`; it supplements this skill's lifecycle,
+versioned `csm-skill-progress/1` JSON record via `lib/progress-tracker.mjs`; it supplements this skill's lifecycle,
 artifacts, permissions, receipts, and evidence and never replaces them.
 Declare 3–6 milestones before work begins, each with a positive weight; weights
 must total exactly 100%.
@@ -21,7 +21,7 @@ Milestones
 [Specify ✓ 20%] [Red ✓ 15%] [Green ▶ 45%] [Verify ○ 20%]
 ```
 
-The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking. At every state transition and at SAVED/COMPLETE/BLOCKED/PAUSED, render the bar and persist the record via `scripts/lib/progress-tracker.mjs` to `.agents/progress/<date>-<goal-slug>-<run-id>-progress.json`, indexed in `.agents/README.md`.
+The milestone row has no per-milestone progress bars. Use `✓` complete, `▶` active, and `○` pending. Calculate `completed_weight + active_weight × verified_fraction` using named checkpoints actually completed by this skill. Retries retain one logical item and weight and never add credit. If scope cannot be estimated honestly, emit `TASK PROGRESS  not estimated` and keep it indeterminate. Unknown, skipped, cancelled, blocked, failed, and incomplete work is never silently complete. For a scope change, record old/new scope, reason, and revised weights before recalculating; discarded work gets no retroactive credit. `--quiet-progress` suppresses tracker bars and milestone text only; it never disables tracking, changes JSON state, hides blockers, or suppresses required lifecycle, safety, receipt, or evidence output. `--progress` is never required to activate tracking. At every state transition and at SAVED/COMPLETE/BLOCKED/PAUSED, render the bar and persist the record via `lib/progress-tracker.mjs` to `.agents/progress/<date>-<goal-slug>-<run-id>-progress.json`, indexed in `.agents/README.md`.
 
 Take a plan produced by `csm-plan` and transform it into a strict BDD + TDD package: a formal spec, executable behavior scenarios (BDD, outside-in), unit test designs (TDD, inside-out), and a **new mutated CSM plan file** whose tasks are traceable to approved scenarios and drive red → green → refactor during a future `csm-build` run. This skill specifies and plans only — it never builds.
 
