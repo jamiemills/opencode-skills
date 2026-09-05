@@ -99,7 +99,7 @@ test(
         path: "evidence-standalone.json",
         native: standaloneNative,
       });
-      const standaloneResolved = await reviewResolver.resolve(standalonePersisted.path, {
+      const standaloneResolved = await evidenceResolver.resolve(standalonePersisted.path, {
         expectedFileDigest: standalonePersisted.digest,
         expectedArtifactId:
           `art-${standalonePersisted.runId.slice(4)}-${standalonePersisted.evidenceId.slice(9)}`.slice(
