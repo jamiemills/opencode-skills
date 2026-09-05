@@ -5,7 +5,11 @@ import { join } from "node:path";
 import test from "node:test";
 import { canonicalize, loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
-import { createCsmBrowseAdapter, orchestrate } from "../csm-orchestrate/index.mjs";
+import {
+  createCsmBrowseAdapter,
+  createInProcessExecutorAdapter,
+  orchestrate,
+} from "../csm-orchestrate/index.mjs";
 import { createExecutorHandlers } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
 import { acceptedReview, hostFixture, workingOptions } from "./helpers-final-review.mjs";
 import {

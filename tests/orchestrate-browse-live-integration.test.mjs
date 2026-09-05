@@ -224,8 +224,15 @@ test(
         cleaned++;
         return closeSession(sid);
       },
-      capture: async ({ sid, state }) =>
-        captureNative({ sid, runId: context.runId, fixtureUrl: fixture.baseUrl, state }),
+      capture: async ({ sid, state }) => {
+        const native = await captureNative({
+          sid,
+          runId: context.runId,
+          fixtureUrl: fixture.baseUrl,
+          state,
+        });
+        return { ...native, sourceDigest: native.digest };
+      },
       artifactResolver: {
         resolve: async () => {
           throw new Error("resolver unavailable");
