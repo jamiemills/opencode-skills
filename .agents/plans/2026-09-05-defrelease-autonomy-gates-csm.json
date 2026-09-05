@@ -10,7 +10,7 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T18:45:00Z: orchestrator E2E quality review \u2014 host resolvers repaired (mapResolver shared instance, lint clean), run artifacts indexed. Open item: E2E run still returns INCOMPLETE (schema-invalid) \u2014 the real schemaRegistry rejects the evidence source schema path during reconcile; next repair = mirror the corpus stub-resolver value shape (schema+artifactId+sourceRunId) in quality-review-host.mjs mapResolver. Multiple real orchestrate() runs executed on the MVD \u2014 G6 telemetry accruing under .agents/evidence/orchestrator/.",
+    "lastCheckpoint": "2026-09-05T19:30:00Z: quality delivery cycle 2 \u2014 3 of 8 items done (F-052 resolved, 9 DEFERRED citations added, TODO verified zero); committed 9e9fb05. Remaining: (4) split csm-orchestrate/lib/index.mjs, (6) G7 held-out corpus, (7) quality-review resolver contract. Next: item 7 (resolver contract, small).",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
     "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
@@ -818,6 +818,17 @@
       ],
       "evidence": "host resolvers repaired; run artifacts indexed; E2E still INCOMPLETE (schema-invalid in reconcile) \u2014 next repair is resolver value shape",
       "nextState": "BLOCKED on resolver value contract (small, well-understood repair)"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-05T19:30:00Z",
+      "cycle": 2,
+      "transition": "CHECKPOINT (quality delivery cycle 2 partial)",
+      "tasks": [
+        "T002"
+      ],
+      "evidence": "3/8 quality items delivered on 9e9fb05 (F-052 gone, 9 citations added, TODO zero verified); 5 remain \u2014 items 4, 6, 7 are session-sized",
+      "nextState": "CHECKPOINT -> SELECT (item 7 next per user confirmation)"
     }
   ],
   "critiqueResolution": [
