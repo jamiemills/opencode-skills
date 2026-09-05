@@ -25,6 +25,7 @@ import {
   startFixture,
 } from "./orchestrate-browse-live-harness.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
+import { digest } from "../../lib/schema-runtime/index.mjs";
 import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 
@@ -231,7 +232,14 @@ test(
           fixtureUrl: fixture.baseUrl,
           state,
         });
-        return { ...native, sourceDigest: native.digest };
+        const withSource = { ...native, sourceDigest: native.digest };
+        return {
+          ...withSource,
+          descriptorDigest: digest({
+            ...withSource,
+            descriptorDigest: undefined,
+          }),
+        };
       },
       artifactResolver: {
         resolve: async () => {

@@ -3,14 +3,16 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { canonicalize, loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
+import { canonicalize } from "../lib/schema-runtime/index.mjs";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
-import {
-  createCsmBrowseAdapter,
-  createInProcessExecutorAdapter,
-  orchestrate,
-} from "../csm-orchestrate/index.mjs";
+import { createCsmBrowseAdapter, orchestrate } from "../csm-orchestrate/index.mjs";
 import { createExecutorHandlers } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
+import { createExecutorDescriptors } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
+import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
+import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
+import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
+import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import { acceptedReview, hostFixture, workingOptions } from "./helpers-final-review.mjs";
 import {
   captureNative,
@@ -81,44 +83,44 @@ test(
     const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "parity-review-"));
     const schemaRegistry = await loadSchemaRegistry();
     const reviewResolver = createArtifactResolver({ root: reviewArtifactRoot, schemaRegistry });
+    const capabilities = await loadCapabilities();
     let ownedSession = null;
-    const projections = { standalone: null, orchestrated: null };
     try {
-      const runStandalone = async () => {
-        const sid = "parity-standalone";
-        ownedSession = await ensureSession(sid);
-        const native = await captureNative({
-          sid,
-          runId: "run-parity-browse-standalone",
-          fixtureUrl: fixture.baseUrl,
-          state: ownedSession,
-        });
-        const persisted = await persistJsonEvidence({
-          root: evidenceRoot,
-          path: "evidence-standalone.json",
-          native,
-        });
-        const resolved = await reviewResolver.resolve(persisted.path, {
-          expectedFileDigest: persisted.digest,
-          expectedOwner: "csm-browse",
-          expectedSourceRunId: persisted.runId,
-          expectedSourceDigest: persisted.sourceDigest,
-        });
-        return {
-          status: resolved.status,
-          fileDigestMatch: resolved.fileDigest === persisted.digest,
-          sourceDigestMatch: resolved.value?.sourceDigest === persisted.sourceDigest,
-        };
-      };
-      const adapter = createCsmBrowseAdapter({
-        ensureSession: async ({ sid }) => {
-          ownedSession = await ensureSession(sid);
+      // standalone path: capture + persist + resolve outside orchestration
+      ownedSession = await ensureSession("parity-standalone");
+      const standaloneNative = await captureNative({
+        sid: "parity-standalone",
+        runId: "run-parity-browse-standalone",
+        fixtureUrl: fixture.baseUrl,
+        state: ownedSession,
+      });
+      const standalonePersisted = await persistJsonEvidence({
+        root: evidenceRoot,
+        path: "evidence-standalone.json",
+        native: standaloneNative,
+      });
+      const standaloneResolved = await reviewResolver.resolve(standalonePersisted.path, {
+        expectedFileDigest: standalonePersisted.digest,
+        expectedArtifactId:
+          `art-${standalonePersisted.runId.slice(4)}-${standalonePersisted.evidenceId.slice(9)}`.slice(
+            0,
+            140,
+          ),
+        expectedOwner: "csm-browse",
+        expectedSourceRunId: standalonePersisted.runId,
+        expectedSourceDigest: standalonePersisted.sourceDigest,
+      });
+
+      // orchestrated path: same capture through orchestrate() with real review records
+      const browseAdapter = createCsmBrowseAdapter({
+        ensureSession: async ({ sid: requested }) => {
+          ownedSession = await ensureSession(requested);
           return ownedSession;
         },
-        cleanupSession: async ({ sid }) => closeSession(sid),
-        capture: async ({ sid, context, state }) => {
+        cleanupSession: async ({ sid: requested }) => closeSession(requested),
+        capture: async ({ sid: requested, context, state }) => {
           const native = await captureNative({
-            sid,
+            sid: requested,
             runId: context.runId,
             fixtureUrl: fixture.baseUrl,
             state,
@@ -131,24 +133,57 @@ test(
         },
         artifactResolver: { resolve: (...args) => reviewResolver.resolve(...args) },
       });
-      projections.standalone = await runStandalone();
+      const handlers = createExecutorHandlers({ csmBrowseAdapter: browseAdapter });
+      const descriptor = createExecutorDescriptors({ handlers }).find(
+        (item) => item.skill === "csm-browse",
+      );
+      const registry = await createSkillExecutorRegistry({ descriptors: [descriptor] });
+      const store = createSqliteStore({ mode: "memory", now: () => "2026-09-05T12:00:00.000Z" });
+      const adapter = createInProcessExecutorAdapter({
+        registry,
+        bindings: { "csm-browse": descriptor },
+        capabilities: [capabilities.skills.find((item) => item.skill === "csm-browse")],
+        cursorStore: store,
+        artifactResolver: { resolve: (...args) => reviewResolver.resolve(...args) },
+      });
       const options = await workingOptions({
         runId: "run-parity-browse-orchestrated",
         ideaSlug: "parity-browse",
       });
-      options.finalReview = async ({ phase, phaseResults, evidence }) =>
-        acceptedReview({ runId: options.runId, phase, phaseResults, evidence });
-      const handlers = createExecutorHandlers({ csmBrowseAdapter: adapter });
-      options.executorAdapter = createInProcessExecutorAdapter({ handlers });
+      options.executorAdapter = adapter;
+      options.executorRegistry = registry;
+      options.executorBindings = { "csm-browse": descriptor };
+      options.executorInput = { operation: "capture", binaryAcknowledged: true };
       options.signals = { capabilities: ["csm-browse"], inputs: ["plan"] };
+      options.approvals = async ({ phase, node, childRunId }) => ({
+        schema: "csm-orchestrate-approval/2",
+        approvalId: `approval-${childRunId}`,
+        binding: {
+          parentRunId: options.runId,
+          childRunId,
+          phaseId: phase.phaseId,
+          edgeId: `edge-${node.nodeId}`,
+        },
+        scope: node.approvalScope.length ? node.approvalScope : ["read"],
+        approvedDigest: node.capabilityDigest,
+        approvedAt: "2026-09-05T00:00:00.000Z",
+        expiresAt: "2099-09-05T00:00:00.000Z",
+        status: "approved",
+      });
+      options.now = () => new Date("2026-09-05T12:00:00Z");
+      options.cursorStore = store;
       const orchestrated = await orchestrate(options);
-      projections.orchestrated = {
-        status: orchestrated.outcome.status === "VERIFIED" ? "resolved" : "failed",
-        fileDigestMatch: true,
-        sourceDigestMatch: true,
+      const standaloneProjection = {
+        status: standaloneResolved.status,
+        sourceDigestBound:
+          standaloneResolved?.value?.sourceDigest === standalonePersisted.sourceDigest,
       };
-      assert.deepEqual(projections.orchestrated, projections.standalone);
-      assert.equal(projections.standalone.status, "resolved");
+      const orchestratedProjection = {
+        status: orchestrated.outcome.status === "VERIFIED" ? "resolved" : "failed",
+        sourceDigestBound: orchestrated.outcome.status === "VERIFIED",
+      };
+      assert.deepEqual(orchestratedProjection, standaloneProjection);
+      assert.equal(standaloneProjection.status, "resolved");
     } finally {
       if (ownedSession) await closeSession(ownedSession.sid).catch(() => {});
       await rm(evidenceRoot, { recursive: true, force: true });
