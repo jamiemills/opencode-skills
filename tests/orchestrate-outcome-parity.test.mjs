@@ -184,7 +184,11 @@ test(
         status: orchestrated.outcome.status === "VERIFIED" ? "resolved" : "failed",
         sourceDigestBound: orchestrated.outcome.status === "VERIFIED",
       };
-      assert.deepEqual(orchestratedProjection, standaloneProjection);
+      assert.deepEqual(
+        orchestratedProjection,
+        standaloneProjection,
+        `orchestrated=${JSON.stringify(orchestratedProjection)} standalone=${JSON.stringify(standaloneProjection)} outcome=${JSON.stringify(orchestrated.outcome)} reason=${orchestrated.reason ?? "none"} failure=${JSON.stringify(orchestrated.failure ?? null)}`,
+      );
       assert.equal(standaloneProjection.status, "resolved");
     } finally {
       if (ownedSession) await closeSession(ownedSession.sid).catch(() => {});
