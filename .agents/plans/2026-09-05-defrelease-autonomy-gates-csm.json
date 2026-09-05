@@ -10,9 +10,9 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T19:30:00Z: quality delivery cycle 2 \u2014 3 of 8 items done (F-052 resolved, 9 DEFERRED citations added, TODO verified zero); committed 9e9fb05. Remaining: (4) split csm-orchestrate/lib/index.mjs, (6) G7 held-out corpus, (7) quality-review resolver contract. Next: item 7 (resolver contract, small).",
+    "lastCheckpoint": "2026-09-05T21:20:00Z: quality delivery cycle 2 \u2014 4 of 8 items done. Item 7 COMPLETE: quality-review resolver value contract fixed \u2014 host emits full csm-orchestrate-evidence/2 descriptors (closed schema), resolver echoes expectations, payload kept beside refs; P1/P2 routing bug fixed (slug-matched 'review' routed P1 to the review branch); stale csm-upload capability digest regenerated (stale since 9e9fb05) + pin test updated; driver guards --run-id divergence (approval binding uses approach.runId) and drains telemetry before exit. E2E run-quality-review-e2e-r2: P1+P2 gates VERIFIED, reviews ACCEPTED, terminal REQUIRES_REVIEW (independent final review executor not wired for real runs \u2014 the one remaining seam for a VERIFIED terminal). Fixture self-test VERIFIED; check-suite 1244 OK; lint/fmt green. Remaining: (4) split csm-orchestrate/lib/index.mjs, (6) G7 held-out corpus, optional final-review wiring for the E2E terminal.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
-    "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
+    "nextTransition": "CHECKPOINT -> SELECT on user direction (item 4 split lib/index.mjs, item 6 G7 corpus, or wire independent final review for a VERIFIED E2E terminal)",
     "activeTasks": [],
     "blockers": [
       "T007 evidence collection requires a representative real-use window on the MVD \u2014 user directs collection when ready"
@@ -829,6 +829,17 @@
       ],
       "evidence": "3/8 quality items delivered on 9e9fb05 (F-052 gone, 9 citations added, TODO zero verified); 5 remain \u2014 items 4, 6, 7 are session-sized",
       "nextState": "CHECKPOINT -> SELECT (item 7 next per user confirmation)"
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-05T21:20:00Z",
+      "cycle": 2,
+      "transition": "SELECT -> INTEGRATE -> VERIFY (quality item 7: quality-review resolver contract)",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "quality-review-host.mjs now emits csm-orchestrate-evidence/2 descriptors as resolver values (corpus-test contract); P1/P2 routing fixed; csm-upload capability digest regenerated + test pin updated; run-orchestrator.mjs fails fast on --run-id divergence and drains telemetry (telemetry.jsonl now persists, 7 events); E2E run-quality-review-e2e-r2: both phases VERIFIED + ACCEPTED, terminal REQUIRES_REVIEW (independent-final-review-required); fixture self-test VERIFIED; make check 1244 OK",
+      "nextState": "CHECKPOINT (item 7 done; items 4 and 6 remain; final-review wiring optional next)"
     }
   ],
   "critiqueResolution": [

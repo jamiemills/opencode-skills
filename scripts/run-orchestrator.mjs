@@ -154,6 +154,11 @@ async function realMode() {
   }
   const approach = await loadApproach(approachPath);
   const runId = argValue("--run-id") ?? approach.runId;
+  if (runId !== approach.runId)
+    throw new Error(
+      "--run-id must equal approach.runId (autonomy approvals bind to the compiled phase.runId); " +
+        `got ${runId}, approach declares ${approach.runId}`,
+    );
   const host = await loadHostModule(hostPath, runId);
   const hostArtifactResolver = host.artifactResolver ?? null;
   const hostChildArtifactResolver = host.childArtifactResolver ?? hostArtifactResolver;
@@ -192,6 +197,8 @@ async function realMode() {
     join(evidenceDir, "receipt.json"),
     `${JSON.stringify(result.receipt, null, 2)}\n`,
   );
+  // drain the async transport so telemetry.jsonl is complete before exit
+  await telemetryEmitter.getEvents();
   console.log("status:", result.receipt.outcome.status);
   console.log("reason:", result.reason ?? "none");
   console.log("evidence:", evidenceDir);
