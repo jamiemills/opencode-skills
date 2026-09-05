@@ -82,7 +82,11 @@ test(
     const evidenceRoot = await mkdtemp(join(tmpdir(), "parity-evidence-"));
     const reviewArtifactRoot = await mkdtemp(join(tmpdir(), "parity-review-"));
     const schemaRegistry = await loadSchemaRegistry();
-    const reviewResolver = createArtifactResolver({ root: reviewArtifactRoot, schemaRegistry });
+    const evidenceResolver = createArtifactResolver({
+      root: evidenceRoot,
+      schemaRegistry,
+      owner: "csm-browse",
+    });
     const capabilities = await loadCapabilities();
     let ownedSession = null;
     try {
@@ -131,7 +135,7 @@ test(
             native,
           });
         },
-        artifactResolver: { resolve: (...args) => reviewResolver.resolve(...args) },
+        artifactResolver: { resolve: (...args) => evidenceResolver.resolve(...args) },
       });
       const handlers = createExecutorHandlers({ csmBrowseAdapter: browseAdapter });
       const descriptor = createExecutorDescriptors({ handlers }).find(
