@@ -1,6 +1,9 @@
 # G3 Ruling: Host Execution Assurance Evidence Source
 
-**Status: AWAITING USER RULING** — recorded by
+**Status: RULED 2026-09-05 — Option (b): defer to deployment.**
+Decided by the user (jamiemills). G3 will be submitted with deployment counts
+once the MVD exists (T007); the local bundle below remains recorded as
+supporting evidence only. Originally recorded by
 `.agents/plans/2026-09-05-defrelease-autonomy-gates-csm.json` T003.
 
 ## The question

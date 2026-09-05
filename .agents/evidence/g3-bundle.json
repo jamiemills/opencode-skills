@@ -12,5 +12,5 @@
     "tests/host-assurance/*.test.mjs (20 tests, 0 failures)",
     "csm-autoresearch/scripts/probe-sandbox.mjs (available/verified/ok)"
   ],
-  "ruling": "pending user decision \u2014 see .agents/docs/g3-ruling.md"
+  "ruling": "ruled 2026-09-05: defer to deployment (option b) \u2014 local bundle kept as supporting evidence only; G3 submits deployment counts at T007"
 }

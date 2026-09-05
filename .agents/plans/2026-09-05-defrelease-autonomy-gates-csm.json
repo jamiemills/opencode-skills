@@ -10,13 +10,12 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T15:10:00Z-window: T001-T005 shipped and CI-verified on 80066e4 (run 33980092950, all 4 jobs green, adapter lane zero-skip). T006 (publication execution) and T007 (deployment evidence + promotion approval) are user decision gates by design. Decision needed: (1) approve + supply credentials for publication (T006), (2) provide the deployment MVD + G3 ruling (T003/T007). Resume: BLOCKED -> RECOVER on user direction for either gate.",
+    "lastCheckpoint": "2026-09-05T17:00:00Z: user rulings received \u2014 G3 defer to deployment (option b, T003 COMPLETE); T006 publication DEFERRED by user (not blocked \u2014 deferred; DEF-RELEASE ledger remains open); T007 remains BLOCKED solely on the deployment MVD (user-provided host + representative-duration run). Resume: BLOCKED -> RECOVER when the user provides the deployment environment.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
     "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
     "blockers": [
-      "T006 requires: explicit user approval + npm credentials (2FA) + signing keys + hosting origin \u2014 publication runbook: bootstrap/publication-runbook.md",
-      "T003/T007 require: the G3 ruling (accept local Docker-attested bundle vs defer to deployment \u2014 .agents/docs/g3-ruling.md) and the deployment MVD (docs/autonomy-deployment.md) + promotion approval"
+      "T007 requires: the deployment MVD (user-provided host running opencode with telemetry export, attributable operator = user) + representative-duration workload + promotion approval"
     ],
     "resume": {
       "read": [
@@ -751,6 +750,19 @@
       ],
       "evidence": "T001-T005 shipped and CI-verified on 80066e4; independent review APPROVE-WITH-NITS (all 5 nits applied); T006/T007 are user-owned credential/approval gates",
       "nextState": "BLOCKED (recoverable on user direction)"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-05T17:00:00Z",
+      "cycle": 1,
+      "transition": "BLOCKED (partial recovery)",
+      "tasks": [
+        "T003",
+        "T006",
+        "T007"
+      ],
+      "evidence": "G3 ruled: option b (defer to deployment) \u2014 T003 COMPLETE. T006 publication deferred by user (DEF-RELEASE stays open in the ledger). T007 stays BLOCKED on the deployment MVD only.",
+      "nextState": "BLOCKED on T007 MVD (user-provided)"
     }
   ],
   "critiqueResolution": [
