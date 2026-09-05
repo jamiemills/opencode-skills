@@ -10,7 +10,7 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T17:45:00Z: first T007 evidence collection \u2014 G0-G5 + G8 pass, G6/G7 BLOCKED (deployment-evidence-required). Snapshot: .agents/evidence/t007-evidence-snapshot.json. Closes when: G6 = real orchestrator-runtime runs preserved via run-orchestrator.mjs; G7 = populated held-out corpus executed. Still BLOCKED on representative real use.",
+    "lastCheckpoint": "2026-09-05T17:55:00Z: BLOCKED on T007 window \u2014 user will accrue G5/G6 evidence by running the orchestrator (run-orchestrator.mjs) in a NEW repo on this MVD host; window scope = any repo on this host. Resume: BLOCKED -> RECOVER when the user directs collection.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
     "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
@@ -785,6 +785,17 @@
       ],
       "evidence": "7/9 gates pass; G6+G7 blocked \u2014 no runtime-run telemetry preserved yet and no populated held-out corpus; snapshot saved",
       "nextState": "BLOCKED (window accrues; recollect after real orchestrator use + corpus population)"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-05T17:55:00Z",
+      "cycle": 1,
+      "transition": "window scope update",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "user will use the orchestrator in a new repo on this host; MVD scope updated to host-level (any repo counts)",
+      "nextState": "BLOCKED on representative use"
     }
   ],
   "critiqueResolution": [

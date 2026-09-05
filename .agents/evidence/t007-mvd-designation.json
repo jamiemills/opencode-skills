@@ -23,6 +23,8 @@
       "G7": "frozen held-out corpus (lib/evals/orchestration, CORPUS_SPLITS includes held-out) executed at collection time against window data",
       "G8": "drill COMPLETE \u2014 .agents/evidence/t007-g8-drill.json (8/8 rollback drills verified, promotion path verified)"
     },
-    "resumeTrigger": "user directs evidence collection after a representative real-use period"
+    "resumeTrigger": "user directs evidence collection after a representative real-use period",
+    "scope": "orchestrator-runtime runs in ANY repository on this host count toward G5/G6 evidence (the MVD is the host, not the repo) \u2014 user confirmed 2026-09-05 they will use the orchestrator in a new repo",
+    "driver": "node <skills-repo>/scripts/with-node22.mjs --exec node <skills-repo>/scripts/run-orchestrator.mjs --approach <approach.json> --host <host.mjs> --run-id <runId>"
   }
 }
