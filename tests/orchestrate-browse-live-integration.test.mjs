@@ -25,7 +25,7 @@ import {
   startFixture,
 } from "./orchestrate-browse-live-harness.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
-import { digest } from "../../lib/schema-runtime/index.mjs";
+import { digest } from "../lib/schema-runtime/index.mjs";
 import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 
