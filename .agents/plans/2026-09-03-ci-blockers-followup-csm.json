@@ -10,11 +10,13 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-03T23:30:00Z: pushed repair verified locally; CI blocked by repeated npm registry audit timeout",
+    "lastCheckpoint": "2026-09-05T11:40:00Z: stale blocker(s) cleared \u2014 cured by runs 33903446355 / 33928035357 / 33956525179 (Adapter integrations zero-skip green, cleanup_status=0) and T001-T003 of orchestrate-release-completion (2f08063/da153d2)",
     "lastModelRun": "gpt-5.6-luna / ci-blockers-followup-build",
     "nextTransition": "BLOCKED -> RECOVER after npm registry audit service recovers",
-    "activeTasks": ["T003"],
-    "blockers": ["pnpm audit repeatedly fails with ERR_SOCKET_TIMEOUT against registry.npmjs.org; required CI cannot reach the adapter job."],
+    "activeTasks": [
+      "T003"
+    ],
+    "blockers": [],
     "resume": {
       "read": [
         "last checkpoint",
@@ -24,7 +26,7 @@
         "latest CI run and artifact evidence",
         "all pending task recovery notes"
       ],
-    "firstAction": "When npm audit service access recovers, rerun the exact pushed SHA and verify the required adapter cleanup postcondition."
+      "firstAction": "When npm audit service access recovers, rerun the exact pushed SHA and verify the required adapter cleanup postcondition."
     }
   },
   "goal": {
@@ -116,24 +118,61 @@
       }
     ],
     "obligations": [
-      { "id": "boundary", "status": "required" },
-      { "id": "ownership", "status": "required" },
-      { "id": "contract", "status": "required" },
-      { "id": "invariant", "status": "required" },
-      { "id": "observable_behavior", "status": "required" },
-      { "id": "seam", "status": "required" },
-      { "id": "parity", "status": "required" },
-      { "id": "rollback_recovery", "status": "required" },
-      { "id": "unresolved_risks", "status": "required" }
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "ownership",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "seam",
+        "status": "required"
+      },
+      {
+        "id": "parity",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
     ],
-    "taskApplicability": { "warranted": ["T001", "T002", "T003"], "lightweight": [] },
+    "taskApplicability": {
+      "warranted": [
+        "T001",
+        "T002",
+        "T003"
+      ],
+      "lightweight": []
+    },
     "dddArtifacts": [],
     "unresolvedRisks": [
       "The default suite may be affected by an external runner or test-process hang not yet localized.",
       "The final cleanup result depends on Docker daemon behavior on the hosted runner.",
       "Branch protection requirements are not locally inspectable."
     ],
-    "bypass": { "requested": false, "rationale": null }
+    "bypass": {
+      "requested": false,
+      "rationale": null
+    }
   },
   "assumptionsAndDecisions": [
     {
@@ -181,12 +220,20 @@
     "failurePolicy": "Any missing, skipped, stalled, cancelled, or incomplete required evidence remains blocked and is recorded explicitly."
   },
   "executionGraph": {
-    "criticalPath": ["T001", "T002", "T003"],
+    "criticalPath": [
+      "T001",
+      "T002",
+      "T003"
+    ],
     "parallelGroups": [],
     "dependencies": {
       "T001": [],
-      "T002": ["T001"],
-      "T003": ["T002"]
+      "T002": [
+        "T001"
+      ],
+      "T003": [
+        "T002"
+      ]
     }
   },
   "tasks": [
@@ -198,12 +245,25 @@
       "dependsOn": [],
       "parallelGroup": "G1",
       "risk": "high",
-      "ownedScope": [".github/workflows/ci.yml", "Makefile", "scripts/check-suite.mjs", "CI logs and diagnostics"],
-      "notInScope": ["adapter product behavior", "removing default tests", "accepting a timeout as green"],
+      "ownedScope": [
+        ".github/workflows/ci.yml",
+        "Makefile",
+        "scripts/check-suite.mjs",
+        "CI logs and diagnostics"
+      ],
+      "notInScope": [
+        "adapter product behavior",
+        "removing default tests",
+        "accepting a timeout as green"
+      ],
       "spikeCandidate": "Determine whether the stall is test:scan, a child process leak, or hosted-runner behavior using a disposable local copy and bounded CI diagnostics; do not write to the live repository during the spike.",
       "actions": "Compare normal default-suite timings with the stalled run, identify the last emitted test boundary, inspect child-process cleanup and timeout behavior, and add only the minimum diagnostic or command boundary needed to identify the cause.",
       "acceptanceSignal": "A bounded reproduction or CI diagnostic identifies the exact command/process boundary responsible for the stall, with expected result: a named root cause and retained log evidence.",
-      "validation": ["node --test tests/adapter-gate-wiring.test.mjs", "make fmt-check", "make check"],
+      "validation": [
+        "node --test tests/adapter-gate-wiring.test.mjs",
+        "make fmt-check",
+        "make check"
+      ],
       "acceptanceEvidence": "Local test-scan completed 1283/1283 in about 3.5 minutes, and rerun 33726800933 completed Repository gates successfully in about seven minutes; no scan code defect was reproduced.",
       "repairAttempts": 0,
       "recoveryNote": "If the cause is external runner behavior, leave the task blocked with the exact capability evidence; do not add an arbitrary timeout that masks a failing test."
@@ -213,15 +273,31 @@
       "ordinal": 2,
       "status": "completed",
       "title": "Repair the proven default-suite or cleanup blocker",
-      "dependsOn": ["T001"],
+      "dependsOn": [
+        "T001"
+      ],
       "parallelGroup": "G2",
       "risk": "high",
-      "ownedScope": ["only files implicated by T001", "corresponding contract tests", "mirrored payload files if required"],
-      "notInScope": ["weakening fail-closed checks", "changing required check names", "unrelated refactors"],
+      "ownedScope": [
+        "only files implicated by T001",
+        "corresponding contract tests",
+        "mirrored payload files if required"
+      ],
+      "notInScope": [
+        "weakening fail-closed checks",
+        "changing required check names",
+        "unrelated refactors"
+      ],
       "spikeCandidate": "None after T001; any new cause must return to research before implementation.",
       "actions": "Implement the smallest fix for the identified stall or cleanup postcondition, add a regression test for the observed failure, synchronize generated payloads where applicable, and preserve diagnostic artifacts and original exit status.",
       "acceptanceSignal": "The focused regression test for the identified cause passes and reproduces the former failure as a passing case without any skip or relaxed assertion.",
-      "validation": ["node --test <focused-regression-test>", "make fmt-check", "make lint", "make check", "git diff --check"],
+      "validation": [
+        "node --test <focused-regression-test>",
+        "make fmt-check",
+        "make lint",
+        "make check",
+        "git diff --check"
+      ],
       "acceptanceEvidence": "Current workflow adds docker update --restart=no before bounded removal retries; adapter wiring, formatting, whitespace, and repository checks pass locally.",
       "repairAttempts": 0,
       "recoveryNote": "If validation exposes a different failure, preserve the failed evidence and return to T001 research rather than stacking speculative patches."
@@ -231,30 +307,80 @@
       "ordinal": 3,
       "status": "blocked",
       "title": "Obtain final exact-SHA green CI evidence",
-      "dependsOn": ["T002"],
+      "dependsOn": [
+        "T002"
+      ],
       "parallelGroup": "G3",
       "risk": "high",
-      "ownedScope": ["one pushed commit", "one exact CI run", "adapter diagnostic artifact", "plan and release evidence"],
-      "notInScope": ["claiming success from partial jobs", "cancelling a run before the required job completes", "branch-protection changes"],
+      "ownedScope": [
+        "one pushed commit",
+        "one exact CI run",
+        "adapter diagnostic artifact",
+        "plan and release evidence"
+      ],
+      "notInScope": [
+        "claiming success from partial jobs",
+        "cancelling a run before the required job completes",
+        "branch-protection changes"
+      ],
       "spikeCandidate": "None; this is external verification after implementation.",
       "actions": "Commit and push only with explicit authorization, verify the workflow SHA, monitor the complete default gates, require the dedicated adapter job, inspect browser/Docker zero-skip summaries, verify cleanup_status=0 and final resource absence, and record the run/artifact URLs.",
       "acceptanceSignal": "gh run view <exact-run-id> --json status,conclusion,jobs,headSha, with expected result: completed success, exact head SHA, successful Repository gates, successful Adapter integrations, and no skipped required tests.",
-      "validation": ["uploaded redacted diagnostics", "browser E2E summary PASS equals TOTAL", "Docker summary pass equals tests", "container and network absent after cleanup", "git status --short is empty"],
+      "validation": [
+        "uploaded redacted diagnostics",
+        "browser E2E summary PASS equals TOTAL",
+        "Docker summary pass equals tests",
+        "container and network absent after cleanup",
+        "git status --short is empty"
+      ],
       "acceptanceEvidence": "Blocked by repeated external npm registry audit timeout; the pushed workflow has not completed its required adapter job on the latest repair SHA.",
       "repairAttempts": 0,
       "recoveryNote": "If the run stalls or is cancelled, remain blocked and record the last completed job and exact external dependency; do not reinterpret the result."
     }
   ],
   "verificationStrategy": {
-    "order": ["plan validation", "T001 diagnosis", "T002 focused repair", "default local gates", "exact-SHA full CI", "required adapter evidence", "final review"],
-    "fastGates": ["plan schema validation", "adapter wiring tests", "focused regression tests", "make fmt-check", "make lint", "make check"],
-    "expensiveGates": ["full make test", "hosted exact-SHA CI", "Docker/browser live proofs", "artifact inspection"],
+    "order": [
+      "plan validation",
+      "T001 diagnosis",
+      "T002 focused repair",
+      "default local gates",
+      "exact-SHA full CI",
+      "required adapter evidence",
+      "final review"
+    ],
+    "fastGates": [
+      "plan schema validation",
+      "adapter wiring tests",
+      "focused regression tests",
+      "make fmt-check",
+      "make lint",
+      "make check"
+    ],
+    "expensiveGates": [
+      "full make test",
+      "hosted exact-SHA CI",
+      "Docker/browser live proofs",
+      "artifact inspection"
+    ],
     "parallelizable": [],
-    "knownGaps": ["Hosted-runner scheduling and Docker behavior are external.", "Full default-suite timing is environment-sensitive."]
+    "knownGaps": [
+      "Hosted-runner scheduling and Docker behavior are external.",
+      "Full default-suite timing is environment-sensitive."
+    ]
   },
   "risksAndRecovery": {
-    "risks": ["Default suite hangs before adapter job", "cleanup postcondition race", "required job skipped or never instantiated", "exact SHA differs from inspected code"],
-    "mitigations": ["Bounded diagnosis with preserved logs", "retry then final absence postconditions", "unconditional stable adapter job", "event-specific SHA assertions"],
+    "risks": [
+      "Default suite hangs before adapter job",
+      "cleanup postcondition race",
+      "required job skipped or never instantiated",
+      "exact SHA differs from inspected code"
+    ],
+    "mitigations": [
+      "Bounded diagnosis with preserved logs",
+      "retry then final absence postconditions",
+      "unconditional stable adapter job",
+      "event-specific SHA assertions"
+    ],
     "rollback": "Revert only a newly introduced CI repair if it destabilizes default gates; retain the fail-closed required adapter contract and preserve the prior known-green live command evidence.",
     "forwardRecovery": "Resume from the last exact run and task evidence; rerun T001 validation before another repair or push."
   },
@@ -287,7 +413,9 @@
       "timestamp": "2026-09-03T09:00:00Z",
       "cycle": 0,
       "transition": "NOT_STARTED -> RECOVER",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "Explicit csm-build request selected this plan. Current commit fc11fa6 is clean; no prior build-state cursor exists, so recovery starts from the plan checkpoint and latest CI evidence.",
       "nextState": "RECOVER"
     },
@@ -296,7 +424,9 @@
       "timestamp": "2026-09-03T23:30:00Z",
       "cycle": 0,
       "transition": "RECOVER -> BLOCKED",
-      "tasks": ["T003"],
+      "tasks": [
+        "T003"
+      ],
       "evidence": "Commit f26eb74 was pushed. Run 33812953261 and its failed-job rerun both failed Frozen install because pnpm audit timed out against registry.npmjs.org after retries; no required adapter verification occurred on the repair SHA.",
       "nextState": "BLOCKED"
     },
@@ -305,7 +435,11 @@
       "timestamp": "2026-09-03T22:30:00Z",
       "cycle": 0,
       "transition": "RECOVER -> BLOCKED",
-      "tasks": ["T001", "T002", "T003"],
+      "tasks": [
+        "T001",
+        "T002",
+        "T003"
+      ],
       "evidence": "T001 validated: local test-scan passed 1283/1283 and rerun 33726800933 passed Repository gates. T002 validated locally with focused adapter wiring, formatting, whitespace, and repository checks. T003 is blocked because committing and pushing the repair was not explicitly authorized in this invocation.",
       "nextState": "BLOCKED"
     },
@@ -314,7 +448,9 @@
       "timestamp": "2026-09-03T23:00:00Z",
       "cycle": 0,
       "transition": "BLOCKED -> RECOVER",
-      "tasks": ["T003"],
+      "tasks": [
+        "T003"
+      ],
       "evidence": "User explicitly authorized commit, push, and merge in the current invocation. The owned change set is .github/workflows/ci.yml plus the plan and build-state checkpoint.",
       "nextState": "RECOVER"
     }
@@ -327,5 +463,8 @@
     "producedAt": "2026-09-03T08:00:00Z",
     "sourceDigests": []
   },
-  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
 }

@@ -355,7 +355,7 @@
         "stale approval and changed digest block",
         "duplicate terminal invocation is safely rejected"
       ],
-      "acceptanceEvidence": "Focused invocation/approval tests 4/4; T002 tests 4/4; conformance 1210 checks; fail-closed unavailable-host, approval binding/expiry/consumption, idempotency, timeout, cancellation, and distinct failure fixtures."
+      "acceptanceEvidence": "Focused invocation/approval tests 4/4; T002 tests 4/4; conformance 1210 checks; fail-closed unavailable-host, approval binding/expiry/consumption, idempotency, timeout, cancellation, and distinct failure fixtures.",
       "recoveryNote": "On host uncertainty, leave dispatch blocked and preserve an explicit spike result."
     },
     {

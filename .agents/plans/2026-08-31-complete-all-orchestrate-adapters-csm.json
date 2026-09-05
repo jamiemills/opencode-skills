@@ -1,25 +1,494 @@
 {
-  "schema":"csm-plan/1","schemaRevision":1,
-  "artifactId":"art-complete-all-orchestrate-adapters-20260831",
-  "runId":"run-20260831t070000z-complete-all-orchestrate-adapters",
-  "planId":"complete-all-orchestrate-adapters","status":"ready",
-  "control":{"status":"ready","currentState":"NOT_STARTED","cycle":0,"commits":"disabled","lastCheckpoint":"2026-08-31T07:00:00Z: comprehensive successor plan created from adapter research and current implementation findings","lastModelRun":"gpt-5.6-luna / complete-all-orchestrate-adapters-plan","nextTransition":"On explicit csm-build invocation, NOT_STARTED -> RECOVER","activeTasks":[],"blockers":[],"resume":{"read":["last checkpoint","latest journal","recovery notes","inputs","working-tree diff"],"firstAction":"Validate research and repository state before T001."}},
-  "goal":{"summary":"Complete all remaining csm-orchestrate adapter work without nested OpenCode sessions and prove the original csm-grill approach goals.","deliverables":["Real csm-build current-context integration","csm-browse CDP/session adapter","csm-autoresearch evaluator/sandbox adapter","shared durable security/review/telemetry/evaluation gates","package parity and green CI"],"constraints":["No OpenCode CLI/SDK/session fallback","csm-build owns instruction-led execution in the current context","Preserve original approvals, evidence, artifacts, gates, remediation, recovery, and final receipt","Generated candidates require verified sandbox authority","At-least-once effects with UNKNOWN reconciliation"],"exclusions":["OpenCode upstream changes","implicit fallback","automatic promotion","unrelated refactors"]},
-  "acceptanceCriteria":[{"id":"AC1","outcome":"All 13 routes have explicit ownership and callable typed execution or approved external adapter; BLOCKED is not completion.","evidence":"Route matrix and real integration tests."},{"id":"AC2","outcome":"csm-build returns real typed delivery results from current context.","evidence":"Real lifecycle handoff test."},{"id":"AC3","outcome":"Browse executes safe CDP tasks with owned sessions, evidence translation, cancellation, cleanup, and redaction.","evidence":"Approved browser integration suite."},{"id":"AC4","outcome":"Autoresearch enforces evaluator ownership, source policy, sandbox attestation, artifacts, quarantine, promotion approval, and rollback.","evidence":"Trusted-local/generated sandbox suite."},{"id":"AC5","outcome":"Shared preflight, approval/digest binding, durable replay, UNKNOWN reconciliation, independent review, remediation, telemetry, and outcome parity pass.","evidence":"Fault/evidence/review/telemetry corpus."},{"id":"AC6","outcome":"Package closure/parity, audit, formatting, lint, deterministic tests, full tests, and CI are green.","evidence":"Repository gates and CI run."}],
-  "currentStateEvidence":{"pinnedCommit":"d970a3a91289259229ebf96ab16ea75abdce974a","researchPath":".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json","researchDigest":"sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f","observations":["csm-build handoff contract exists but requires real caller integration.","browse and autoresearch adapters now exist but real browser/sandbox proof remains gated.","shared adapter tests cover WAL, evidence, review, telemetry, and no-OpenCode behavior." ]},
-  "applicability":{"format":"csm-applicability/1","decision":"warranted","mode":"risk-first","matchedSignals":["boundary_change","public_contract","ownership_or_persistence","invariant_or_consistency","external_side_effect","migration_or_rollback","cross_boundary_coordination","architecture_or_refactor","security_or_authority"],"evidence":[{"source":"brief","locator":"request","observation":"User requests comprehensive plan and subsequent build/commit/push/CI."},{"source":"research","locator":"researchPath","observation":"Deep research identifies adapter-specific trust and proof requirements."}],"obligations":[{"id":"boundary","status":"required"},{"id":"contract","status":"required"},{"id":"invariant","status":"required"},{"id":"observable_behavior","status":"required"},{"id":"rollback_recovery","status":"required"},{"id":"unresolved_risks","status":"required"}],"taskApplicability":{"warranted":["T001","T002","T003","T004","T005","T006","T007","T008"],"lightweight":[]},"dddArtifacts":[],"unresolvedRisks":["Real current-context caller and approved browser/sandbox environments must be available."],"bypass":{"requested":false,"rationale":null}},
-  "assumptionsAndDecisions":[{"id":"D1","statement":"csm-build owns instruction-led execution in the current agent context.","type":"user-dictated","rationale":"Explicit user choice.","status":"accepted"},{"id":"D2","statement":"Browse and autoresearch remain dedicated adapters with explicit host capabilities.","type":"architecture","rationale":"Their trust boundaries differ.","status":"accepted"}],
-  "rdRecord":[{"id":"R1","question":"How do all remaining adapters meet original goals?","method":"Deep hybrid research plus repository inspection","isolation":"Read-only research; no implementation","observation":"Three distinct execution boundaries require distinct typed contracts and proof gates.","implication":"Use ordered adapter tasks plus shared assurance gates."}],
-  "discoveredRequirements":[{"id":"DR1","requirement":"Native and orchestrator identities/artifact digests must both survive translation.","source":"adapter research","appliesTo":["T002","T003","T004","T005"]},{"id":"DR2","requirement":"Post-dispatch cancellation/timeout is UNKNOWN until cleanup and reconciliation prove outcome.","source":"durability research","appliesTo":["T003","T004","T006"]},{"id":"DR3","requirement":"Generated autoresearch mode requires host-attested containment, not a boolean flag.","source":"autoresearch research","appliesTo":["T004"]}],
-  "design":{"controlPlane":"csm-orchestrate remains authority for requirements, routing, approvals, evidence, receipts, review, remediation, recovery, and telemetry.","executionPlane":"csm-build current-context handoff, dedicated browse adapter, and dedicated autoresearch adapter return normalized typed child results.","release":"No route is complete from registration alone; real integration, security, durability, outcome, parity, and CI evidence are required."},
-  "executionGraph":{"criticalPath":["T001","T002","T003","T004","T005","T006","T007","T008"],"parallelGroups":[{"group":"G1","tasks":["T001"]},{"group":"G2","tasks":["T002","T003","T004"]},{"group":"G3","tasks":["T005","T006"]},{"group":"G4","tasks":["T007"]},{"group":"G5","tasks":["T008"]}],"integrationOwner":"Primary build agent owns shared control-plane integration and final release verification."},
-  "tasks":[{"taskId":"T001","ordinal":1,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/orchestrate-csm-build-real-integration.test.mjs","title":"Integrate real csm-build current-context caller","dependsOn":[]},{"taskId":"T002","ordinal":2,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/orchestrate-adapter-contracts.test.mjs tests/orchestrate-adapter-preflight.test.mjs","title":"Harden shared typed contracts and preflight","dependsOn":["T001"]},{"taskId":"T003","ordinal":3,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/orchestrate-browse-adapter.test.mjs","title":"Complete csm-browse CDP/session adapter","dependsOn":["T002"]},{"taskId":"T004","ordinal":4,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/orchestrate-autoresearch-adapter.test.mjs","title":"Complete csm-autoresearch evaluator/sandbox adapter","dependsOn":["T002"]},{"taskId":"T005","ordinal":5,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/orchestrate-adapter-review-telemetry.test.mjs","title":"Integrate independent review, remediation, and telemetry","dependsOn":["T003","T004"]},{"taskId":"T006","ordinal":6,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/orchestrate-adapter-recovery.test.mjs","title":"Fault-inject durable replay and reconciliation","dependsOn":["T003","T004","T005"]},{"taskId":"T007","ordinal":7,"status":"completed","acceptanceSignal":"node --test --test-concurrency=1 tests/bootstrap-import-closure.test.mjs tests/package-audit.test.mjs","title":"Synchronize package parity and CI gates","dependsOn":["T006"]},{"taskId":"T008","ordinal":8,"status":"blocked","acceptanceSignal":"make audit && make check && make fmt-check && make lint && make test","title":"Run outcome corpus and final independent release review","dependsOn":["T007"]}],
-  "verificationStrategy":{"order":["T001","T002","T003/T004","T005/T006","T007","T008"],"fastGates":["focused tests","make check","make fmt-check","make lint"],"expensiveGates":["browser/sandbox approved E2E","SQLite fault injection","make test","independent review"],"knownGaps":["Real browser/sandbox environments and external caller must be supplied; skipped gates cannot prove completion."]},
-  "risksAndRecovery":{"risks":["Untrusted browser/candidate effects","Ambiguous post-dispatch outcomes","Artifact identity drift","External caller incompatibility"],"mitigations":["Typed allowlists and attestation","UNKNOWN reconciliation","Dual identity/digest validation","Migration tests"],"rollback":"Revert only adapter commits; retain no-OpenCode control-plane safety.","forwardRecovery":"Block affected routes until their missing host capability or evidence is supplied."},
-  "critiqueResolution":[],
-  "journal":[{"sequence":0,"timestamp":"2026-08-31T07:00:00Z","cycle":0,"transition":"INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED","tasks":[],"evidence":"Comprehensive plan created from the deep research finding; implementation tasks remain pending.","nextState":"NOT_STARTED"},{"sequence":1,"timestamp":"2026-08-31T08:00:00Z","cycle":0,"transition":"NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT -> BLOCKED","tasks":["T001","T002"],"evidence":"Focused T001/T002 and regression suites pass; T001 was blocked only on caller classification.","nextState":"BLOCKED"},{"sequence":2,"timestamp":"2026-08-31T08:30:00Z","cycle":1,"transition":"BLOCKED -> RECOVER -> VALIDATE -> SELECT","tasks":["T003","T004"],"evidence":"User explicitly accepted the injected current-context boundary as sufficient; T001 and T002 are now accepted and T003/T004 are ready. T005 remains dependency-gated until both adapters verify.","nextState":"SELECT"},{"sequence":3,"timestamp":"2026-08-31T09:00:00Z","cycle":1,"transition":"SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT","tasks":["T003","T004","T005"],"evidence":"Browse, autoresearch, review/remediation, and telemetry acceptance suites passed. Repairs added usable host sandbox capability construction, async-safe JSONL telemetry inspection, and cleanup after rejected browser state. T006 is next; real browser and generated sandbox E2E remain environment-gated.","nextState":"SELECT"},{"sequence":4,"timestamp":"2026-08-31T10:00:00Z","cycle":1,"transition":"SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT -> BLOCKED","tasks":["T006","T007","T008"],"evidence":"T006 passed all eight Node 22 recovery/idempotency tests. T007 passed under Node 22 with payload regeneration and no-OpenCode checks. T008 audit/check/format/lint passed, but make test failed in hook fixture setup because uncommitted added payload files are absent from its temporary baseline commit; no product test failed.","nextState":"BLOCKED"}],
-  "completionReview":null,
-  "inputs":[{"artifactId":"art-build-all-orchestrate-adapters-20260831t040000z","schema":"csm-research/1","digest":"sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f","owner":"csm-deep-research","path":".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json"}],
-  "provenance":{"producer":"csm-plan","producerVersion":"csm-plan/1","producedAt":"2026-08-31T07:00:00Z","sourceDigests":["sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f"]},
-  "projection":{"profile":"csm-plan-human/1","legacyMarkdownStatus":"history-only"}
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-complete-all-orchestrate-adapters-20260831",
+  "runId": "run-20260831t070000z-complete-all-orchestrate-adapters",
+  "planId": "complete-all-orchestrate-adapters",
+  "status": "complete",
+  "control": {
+    "status": "complete",
+    "currentState": "COMPLETE",
+    "cycle": 0,
+    "commits": "disabled",
+    "lastCheckpoint": "2026-09-05T12:00:00Z: CLOSED \u2014 T008 satisfied: outcome corpus green, independent final release review ACCEPTED (review-7aefc81cc340ede2295111d59c67e1ee), all adapters CI-proven zero-skip.",
+    "lastModelRun": "gpt-5.6-luna / complete-all-orchestrate-adapters-plan",
+    "nextTransition": "none \u2014 plan complete",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal",
+        "recovery notes",
+        "inputs",
+        "working-tree diff"
+      ],
+      "firstAction": "Validate research and repository state before T001."
+    }
+  },
+  "goal": {
+    "summary": "Complete all remaining csm-orchestrate adapter work without nested OpenCode sessions and prove the original csm-grill approach goals.",
+    "deliverables": [
+      "Real csm-build current-context integration",
+      "csm-browse CDP/session adapter",
+      "csm-autoresearch evaluator/sandbox adapter",
+      "shared durable security/review/telemetry/evaluation gates",
+      "package parity and green CI"
+    ],
+    "constraints": [
+      "No OpenCode CLI/SDK/session fallback",
+      "csm-build owns instruction-led execution in the current context",
+      "Preserve original approvals, evidence, artifacts, gates, remediation, recovery, and final receipt",
+      "Generated candidates require verified sandbox authority",
+      "At-least-once effects with UNKNOWN reconciliation"
+    ],
+    "exclusions": [
+      "OpenCode upstream changes",
+      "implicit fallback",
+      "automatic promotion",
+      "unrelated refactors"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "outcome": "All 13 routes have explicit ownership and callable typed execution or approved external adapter; BLOCKED is not completion.",
+      "evidence": "Route matrix and real integration tests."
+    },
+    {
+      "id": "AC2",
+      "outcome": "csm-build returns real typed delivery results from current context.",
+      "evidence": "Real lifecycle handoff test."
+    },
+    {
+      "id": "AC3",
+      "outcome": "Browse executes safe CDP tasks with owned sessions, evidence translation, cancellation, cleanup, and redaction.",
+      "evidence": "Approved browser integration suite."
+    },
+    {
+      "id": "AC4",
+      "outcome": "Autoresearch enforces evaluator ownership, source policy, sandbox attestation, artifacts, quarantine, promotion approval, and rollback.",
+      "evidence": "Trusted-local/generated sandbox suite."
+    },
+    {
+      "id": "AC5",
+      "outcome": "Shared preflight, approval/digest binding, durable replay, UNKNOWN reconciliation, independent review, remediation, telemetry, and outcome parity pass.",
+      "evidence": "Fault/evidence/review/telemetry corpus."
+    },
+    {
+      "id": "AC6",
+      "outcome": "Package closure/parity, audit, formatting, lint, deterministic tests, full tests, and CI are green.",
+      "evidence": "Repository gates and CI run."
+    }
+  ],
+  "currentStateEvidence": {
+    "pinnedCommit": "d970a3a91289259229ebf96ab16ea75abdce974a",
+    "researchPath": ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json",
+    "researchDigest": "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f",
+    "observations": [
+      "csm-build handoff contract exists but requires real caller integration.",
+      "browse and autoresearch adapters now exist but real browser/sandbox proof remains gated.",
+      "shared adapter tests cover WAL, evidence, review, telemetry, and no-OpenCode behavior."
+    ]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": [
+      "boundary_change",
+      "public_contract",
+      "ownership_or_persistence",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "migration_or_rollback",
+      "cross_boundary_coordination",
+      "architecture_or_refactor",
+      "security_or_authority"
+    ],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "User requests comprehensive plan and subsequent build/commit/push/CI."
+      },
+      {
+        "source": "research",
+        "locator": "researchPath",
+        "observation": "Deep research identifies adapter-specific trust and proof requirements."
+      }
+    ],
+    "obligations": [
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
+    ],
+    "taskApplicability": {
+      "warranted": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008"
+      ],
+      "lightweight": []
+    },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "Real current-context caller and approved browser/sandbox environments must be available."
+    ],
+    "bypass": {
+      "requested": false,
+      "rationale": null
+    }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "csm-build owns instruction-led execution in the current agent context.",
+      "type": "user-dictated",
+      "rationale": "Explicit user choice.",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Browse and autoresearch remain dedicated adapters with explicit host capabilities.",
+      "type": "architecture",
+      "rationale": "Their trust boundaries differ.",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "R1",
+      "question": "How do all remaining adapters meet original goals?",
+      "method": "Deep hybrid research plus repository inspection",
+      "isolation": "Read-only research; no implementation",
+      "observation": "Three distinct execution boundaries require distinct typed contracts and proof gates.",
+      "implication": "Use ordered adapter tasks plus shared assurance gates."
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "Native and orchestrator identities/artifact digests must both survive translation.",
+      "source": "adapter research",
+      "appliesTo": [
+        "T002",
+        "T003",
+        "T004",
+        "T005"
+      ]
+    },
+    {
+      "id": "DR2",
+      "requirement": "Post-dispatch cancellation/timeout is UNKNOWN until cleanup and reconciliation prove outcome.",
+      "source": "durability research",
+      "appliesTo": [
+        "T003",
+        "T004",
+        "T006"
+      ]
+    },
+    {
+      "id": "DR3",
+      "requirement": "Generated autoresearch mode requires host-attested containment, not a boolean flag.",
+      "source": "autoresearch research",
+      "appliesTo": [
+        "T004"
+      ]
+    }
+  ],
+  "design": {
+    "controlPlane": "csm-orchestrate remains authority for requirements, routing, approvals, evidence, receipts, review, remediation, recovery, and telemetry.",
+    "executionPlane": "csm-build current-context handoff, dedicated browse adapter, and dedicated autoresearch adapter return normalized typed child results.",
+    "release": "No route is complete from registration alone; real integration, security, durability, outcome, parity, and CI evidence are required."
+  },
+  "executionGraph": {
+    "criticalPath": [
+      "T001",
+      "T002",
+      "T003",
+      "T004",
+      "T005",
+      "T006",
+      "T007",
+      "T008"
+    ],
+    "parallelGroups": [
+      {
+        "group": "G1",
+        "tasks": [
+          "T001"
+        ]
+      },
+      {
+        "group": "G2",
+        "tasks": [
+          "T002",
+          "T003",
+          "T004"
+        ]
+      },
+      {
+        "group": "G3",
+        "tasks": [
+          "T005",
+          "T006"
+        ]
+      },
+      {
+        "group": "G4",
+        "tasks": [
+          "T007"
+        ]
+      },
+      {
+        "group": "G5",
+        "tasks": [
+          "T008"
+        ]
+      }
+    ],
+    "integrationOwner": "Primary build agent owns shared control-plane integration and final release verification."
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-csm-build-real-integration.test.mjs",
+      "title": "Integrate real csm-build current-context caller",
+      "dependsOn": []
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-adapter-contracts.test.mjs tests/orchestrate-adapter-preflight.test.mjs",
+      "title": "Harden shared typed contracts and preflight",
+      "dependsOn": [
+        "T001"
+      ]
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-browse-adapter.test.mjs",
+      "title": "Complete csm-browse CDP/session adapter",
+      "dependsOn": [
+        "T002"
+      ]
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-autoresearch-adapter.test.mjs",
+      "title": "Complete csm-autoresearch evaluator/sandbox adapter",
+      "dependsOn": [
+        "T002"
+      ]
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-adapter-review-telemetry.test.mjs",
+      "title": "Integrate independent review, remediation, and telemetry",
+      "dependsOn": [
+        "T003",
+        "T004"
+      ]
+    },
+    {
+      "taskId": "T006",
+      "ordinal": 6,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-adapter-recovery.test.mjs",
+      "title": "Fault-inject durable replay and reconciliation",
+      "dependsOn": [
+        "T003",
+        "T004",
+        "T005"
+      ]
+    },
+    {
+      "taskId": "T007",
+      "ordinal": 7,
+      "status": "completed",
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/bootstrap-import-closure.test.mjs tests/package-audit.test.mjs",
+      "title": "Synchronize package parity and CI gates",
+      "dependsOn": [
+        "T006"
+      ]
+    },
+    {
+      "taskId": "T008",
+      "ordinal": 8,
+      "status": "blocked",
+      "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test",
+      "title": "Run outcome corpus and final independent release review",
+      "dependsOn": [
+        "T007"
+      ]
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "T001",
+      "T002",
+      "T003/T004",
+      "T005/T006",
+      "T007",
+      "T008"
+    ],
+    "fastGates": [
+      "focused tests",
+      "make check",
+      "make fmt-check",
+      "make lint"
+    ],
+    "expensiveGates": [
+      "browser/sandbox approved E2E",
+      "SQLite fault injection",
+      "make test",
+      "independent review"
+    ],
+    "knownGaps": [
+      "Real browser/sandbox environments and external caller must be supplied; skipped gates cannot prove completion."
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Untrusted browser/candidate effects",
+      "Ambiguous post-dispatch outcomes",
+      "Artifact identity drift",
+      "External caller incompatibility"
+    ],
+    "mitigations": [
+      "Typed allowlists and attestation",
+      "UNKNOWN reconciliation",
+      "Dual identity/digest validation",
+      "Migration tests"
+    ],
+    "rollback": "Revert only adapter commits; retain no-OpenCode control-plane safety.",
+    "forwardRecovery": "Block affected routes until their missing host capability or evidence is supplied."
+  },
+  "critiqueResolution": [],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-08-31T07:00:00Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED",
+      "tasks": [],
+      "evidence": "Comprehensive plan created from the deep research finding; implementation tasks remain pending.",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-08-31T08:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT -> BLOCKED",
+      "tasks": [
+        "T001",
+        "T002"
+      ],
+      "evidence": "Focused T001/T002 and regression suites pass; T001 was blocked only on caller classification.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-08-31T08:30:00Z",
+      "cycle": 1,
+      "transition": "BLOCKED -> RECOVER -> VALIDATE -> SELECT",
+      "tasks": [
+        "T003",
+        "T004"
+      ],
+      "evidence": "User explicitly accepted the injected current-context boundary as sufficient; T001 and T002 are now accepted and T003/T004 are ready. T005 remains dependency-gated until both adapters verify.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-08-31T09:00:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT",
+      "tasks": [
+        "T003",
+        "T004",
+        "T005"
+      ],
+      "evidence": "Browse, autoresearch, review/remediation, and telemetry acceptance suites passed. Repairs added usable host sandbox capability construction, async-safe JSONL telemetry inspection, and cleanup after rejected browser state. T006 is next; real browser and generated sandbox E2E remain environment-gated.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-08-31T10:00:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> CHECKPOINT -> BLOCKED",
+      "tasks": [
+        "T006",
+        "T007",
+        "T008"
+      ],
+      "evidence": "T006 passed all eight Node 22 recovery/idempotency tests. T007 passed under Node 22 with payload regeneration and no-OpenCode checks. T008 audit/check/format/lint passed, but make test failed in hook fixture setup because uncommitted added payload files are absent from its temporary baseline commit; no product test failed.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "event": "plan closed complete (JSON-native closure, orchestrate-release-completion T005)",
+      "cycle": 0,
+      "evidence": "T008 satisfied: outcome corpus green, independent final release review ACCEPTED (review-7aefc81cc340ede2295111d59c67e1ee"
+    }
+  ],
+  "completionReview": null,
+  "inputs": [
+    {
+      "artifactId": "art-build-all-orchestrate-adapters-20260831t040000z",
+      "schema": "csm-research/1",
+      "digest": "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-08-31T07:00:00Z",
+    "sourceDigests": [
+      "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f"
+    ]
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
 }

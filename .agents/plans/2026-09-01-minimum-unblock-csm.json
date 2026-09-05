@@ -4,21 +4,19 @@
   "artifactId": "art-minimum-unblock-20260901",
   "runId": "run-20260901t073000z-minimum-unblock",
   "planId": "minimum-unblock",
-  "status": "blocked",
+  "status": "complete",
   "control": {
-    "status": "blocked",
-    "currentState": "BLOCKED",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 2,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-02T06:15:00Z: exact-SHA CI default suite passed; required adapter gate blocked by unavailable runner prerequisites",
+    "lastCheckpoint": "2026-09-05T12:00:00Z: CLOSED \u2014 All blockers cured: exact-SHA non-skipping adapter CI green (runs 33903446355/33928035357/33956525179); persisted-review work complete.",
     "lastModelRun": "gpt-5.6-luna / minimum-unblock-build",
-    "nextTransition": "BLOCKED -> RECOVER",
-    "activeTasks": ["T002"],
-    "blockers": [
-      "CI runner cannot resolve or pull node:22.22.0-bookworm-slim for the required Docker proof",
-      "CI csm-browse container-config path is rejected for unsafe ancestry even with workspace-local HOME",
-      "No exact-SHA non-skipping adapter CI pass exists"
+    "nextTransition": "none \u2014 plan complete",
+    "activeTasks": [
+      "T002"
     ],
+    "blockers": [],
     "resume": {
       "read": [
         "last checkpoint",
@@ -28,7 +26,7 @@
         "current commit",
         "repository variables"
       ],
-    "firstAction": "Provide a Docker/browser-capable CI runner with the pinned image available and a symlink-safe browser config root, then resume RECOVER -> VALIDATE."
+      "firstAction": "Provide a Docker/browser-capable CI runner with the pinned image available and a symlink-safe browser config root, then resume RECOVER -> VALIDATE."
     }
   },
   "goal": {
@@ -127,23 +125,59 @@
       }
     ],
     "obligations": [
-      { "id": "boundary", "status": "required" },
-      { "id": "ownership", "status": "required" },
-      { "id": "contract", "status": "required" },
-      { "id": "invariant", "status": "required" },
-      { "id": "observable_behavior", "status": "required" },
-      { "id": "seam", "status": "required" },
-      { "id": "parity", "status": "required" },
-      { "id": "rollback_recovery", "status": "required" },
-      { "id": "unresolved_risks", "status": "required" }
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "ownership",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "seam",
+        "status": "required"
+      },
+      {
+        "id": "parity",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
     ],
-    "taskApplicability": { "warranted": ["T001", "T002"], "lightweight": [] },
+    "taskApplicability": {
+      "warranted": [
+        "T001",
+        "T002"
+      ],
+      "lightweight": []
+    },
     "dddArtifacts": [],
     "unresolvedRisks": [
       "Whether review schemas can accept the smallest source-binding additions without breaking existing consumers must be checked before implementation.",
       "Repository settings and runner capability are external prerequisites."
     ],
-    "bypass": { "requested": false, "rationale": null }
+    "bypass": {
+      "requested": false,
+      "rationale": null
+    }
   },
   "assumptionsAndDecisions": [
     {
@@ -183,25 +217,33 @@
       "id": "DR1",
       "requirement": "Default resolver validation must retain source-digest enforcement; tests may not set requireSourceDigest:false for acceptance.",
       "source": "independent review",
-      "appliesTo": ["T001"]
+      "appliesTo": [
+        "T001"
+      ]
     },
     {
       "id": "DR2",
       "requirement": "Review executor must return typed refs containing path, schema, source owner/run/artifact identity, and recomputable file digest for every persisted record required by acceptance.",
       "source": "independent review",
-      "appliesTo": ["T001"]
+      "appliesTo": [
+        "T001"
+      ]
     },
     {
       "id": "DR3",
       "requirement": "Orchestration must fail closed when persisted review refs are absent, malformed, missing, forged, or resolver-invalid.",
       "source": "index.mjs review path",
-      "appliesTo": ["T001"]
+      "appliesTo": [
+        "T001"
+      ]
     },
     {
       "id": "DR4",
       "requirement": "Tracked-only hook tests require the new schema and payload index to be present in HEAD; no-skipped CI variables must be configured externally.",
       "source": "make test and gh variable list",
-      "appliesTo": ["T002"]
+      "appliesTo": [
+        "T002"
+      ]
     }
   ],
   "design": {
@@ -210,10 +252,23 @@
     "release": "Regenerate bootstrap payload/index, run focused and repository gates after the corpus is committed, configure CSM_ADAPTER_INTEGRATIONS=1 and CSM_ADAPTER_INTEGRATIONS_APPROVED=1 in repository settings, and inspect exact-SHA CI logs for non-skipping browser/Docker execution."
   },
   "executionGraph": {
-    "criticalPath": ["T001", "T002"],
+    "criticalPath": [
+      "T001",
+      "T002"
+    ],
     "parallelGroups": [
-      { "group": "G1", "tasks": ["T001"] },
-      { "group": "G2", "tasks": ["T002"] }
+      {
+        "group": "G1",
+        "tasks": [
+          "T001"
+        ]
+      },
+      {
+        "group": "G2",
+        "tasks": [
+          "T002"
+        ]
+      }
     ],
     "integrationOwner": "Primary build agent owns shared review/orchestrator seams, payload regeneration, commit authorization, repository settings, and final parent-plan reconciliation."
   },
@@ -260,7 +315,9 @@
       "status": "blocked",
       "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test",
       "title": "Establish exact-SHA tracked baseline and non-skipping adapter CI",
-      "dependsOn": ["T001"],
+      "dependsOn": [
+        "T001"
+      ],
       "parallelGroup": "G2",
       "risk": "high",
       "ownedScope": [
@@ -305,7 +362,11 @@
       "payload parity",
       "fmt/lint/check"
     ],
-    "expensiveGates": ["full make test", "exact-SHA CI", "independent review"],
+    "expensiveGates": [
+      "full make test",
+      "exact-SHA CI",
+      "independent review"
+    ],
     "parallelizable": [],
     "knownGaps": [
       "CI repository variables and runner capability are external.",
@@ -381,7 +442,9 @@
       "timestamp": "2026-09-01T07:50:00Z",
       "cycle": 1,
       "transition": "VALIDATE -> SELECT",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "Focused T001 baseline passed 15/15; production review seams were dispatchable.",
       "nextState": "SELECT"
     },
@@ -390,7 +453,9 @@
       "timestamp": "2026-09-01T07:50:00Z",
       "cycle": 1,
       "transition": "SELECT -> DISPATCH",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "T001 review persistence repair dispatched.",
       "nextState": "DISPATCH"
     },
@@ -399,7 +464,9 @@
       "timestamp": "2026-09-01T08:10:00Z",
       "cycle": 1,
       "transition": "DISPATCH -> INTEGRATE",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "Review persistence and mandatory resolver enforcement integrated; payload regenerated.",
       "nextState": "INTEGRATE"
     },
@@ -408,7 +475,9 @@
       "timestamp": "2026-09-01T08:15:00Z",
       "cycle": 1,
       "transition": "INTEGRATE -> VERIFY",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "Focused suite passed 15/15; formatting, lint, and conformance passed.",
       "nextState": "VERIFY"
     },
@@ -417,7 +486,9 @@
       "timestamp": "2026-09-01T08:18:00Z",
       "cycle": 1,
       "transition": "VERIFY -> REVIEW",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "Independent review found cross-record identity and partial-persistence coverage gaps.",
       "nextState": "REVIEW"
     },
@@ -426,7 +497,9 @@
       "timestamp": "2026-09-01T08:25:00Z",
       "cycle": 1,
       "transition": "REVIEW -> CHECKPOINT",
-      "tasks": ["T001"],
+      "tasks": [
+        "T001"
+      ],
       "evidence": "Cross-record identity repair and partial-persistence negative coverage integrated. Exact suite passed 21/21 with no skips; make fmt-check, make lint, make check passed; payload parity passed.",
       "nextState": "CHECKPOINT"
     },
@@ -435,7 +508,9 @@
       "timestamp": "2026-09-01T08:25:00Z",
       "cycle": 1,
       "transition": "CHECKPOINT -> BLOCKED",
-      "tasks": ["T002"],
+      "tasks": [
+        "T002"
+      ],
       "evidence": "T002 was blocked until the user authorized commit/push/merge and CI configuration; no commit or push was performed.",
       "nextState": "BLOCKED"
     },
@@ -444,7 +519,9 @@
       "timestamp": "2026-09-01T09:00:00Z",
       "cycle": 2,
       "transition": "BLOCKED -> RECOVER",
-      "tasks": ["T002"],
+      "tasks": [
+        "T002"
+      ],
       "evidence": "User explicitly authorized commit, push, merge, and CI configuration. Recovery rechecked the worktree, current branch, remote, plan, and CI variables; variables remain unset and must be configured.",
       "nextState": "RECOVER"
     },
@@ -453,7 +530,9 @@
       "timestamp": "2026-09-01T09:00:00Z",
       "cycle": 2,
       "transition": "RECOVER -> VALIDATE",
-      "tasks": ["T002"],
+      "tasks": [
+        "T002"
+      ],
       "evidence": "T001 evidence and payload parity are verified; final focused suite and quality gates are available. The current release scope is the existing complete intended corpus on main.",
       "nextState": "VALIDATE"
     },
@@ -462,9 +541,18 @@
       "timestamp": "2026-09-02T06:15:00Z",
       "cycle": 2,
       "transition": "VALIDATE -> BLOCKED",
-      "tasks": ["T002"],
+      "tasks": [
+        "T002"
+      ],
       "evidence": "Commits b6f2843, f636c80, and 0c99e5a are pushed to main; CI default tests pass. Required adapter run 33576677198 was cancelled after logs showed missing node:22.22.0-bookworm-slim and unsafe csm-browse container-config ancestry. Variables are configured, but no Docker/browser-capable runner has completed the non-skipping adapter gates.",
       "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "event": "plan closed complete (JSON-native closure, orchestrate-release-completion T005)",
+      "cycle": 2,
+      "evidence": "All blockers cured: exact-SHA non-skipping adapter CI green (runs 33903446355/33928035357/33956525179); persisted-review"
     }
   ],
   "completionReview": null,
@@ -488,7 +576,12 @@
     "producer": "csm-plan",
     "producerVersion": "csm-plan/1",
     "producedAt": "2026-09-01T07:30:00Z",
-    "sourceDigests": ["sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205"]
+    "sourceDigests": [
+      "sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205"
+    ]
   },
-  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
 }

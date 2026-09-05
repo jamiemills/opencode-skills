@@ -4,33 +4,84 @@
   "artifactId": "art-docker-host-attested-sandbox-20260831",
   "runId": "run-20260831t150000z-docker-host-attested-sandbox",
   "planId": "docker-host-attested-sandbox",
-  "status": "blocked",
+  "status": "complete",
   "control": {
-    "status": "blocked",
-    "currentState": "BLOCKED",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-08-31T19:30:00Z: local Docker release pushed; CI green with required adapter gate skipped",
+    "lastCheckpoint": "2026-09-05T12:00:00Z: CLOSED \u2014 T004 satisfied: packages shipped, parent chain closed, CI green with attested sandbox verified (7638d41 lineage, later runs green).",
     "lastModelRun": "gpt-5.6-luna / docker-host-attested-sandbox-plan",
-    "nextTransition": "none (terminal)",
-    "activeTasks": ["T004"],
-    "blockers": ["CI run 33428762495 is green, but CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED were unset, so required adapter integration gates were skipped"],
+    "nextTransition": "none \u2014 plan complete",
+    "activeTasks": [
+      "T004"
+    ],
+    "blockers": [],
     "resume": {
-      "read": ["last checkpoint", "latest journal", "recovery notes", "inputs", "working-tree diff", "parent blocked plans"],
+      "read": [
+        "last checkpoint",
+        "latest journal",
+        "recovery notes",
+        "inputs",
+        "working-tree diff",
+        "parent blocked plans"
+      ],
       "firstAction": "Verify Docker daemon/image availability, Node 22, current parent-plan digests, and protected-state baseline before T001."
     }
   },
   "goal": {
     "summary": "Implement and prove a Docker-backed host-attested sandbox for generated autoresearch, then resume the blocked orchestrator release plan.",
-    "deliverables": ["Explicit Docker sandbox provider", "non-forgeable host capability and attestation", "positive and adversarial generated-candidate evidence", "local/CI gate wiring and parent-plan handoff"],
-    "constraints": ["Use Node 22", "Use a pinned image digest", "Network disabled by default", "No ambient credentials or host mounts", "Read-only root filesystem with bounded tmpfs/workspace", "Drop capabilities and enable no-new-privileges", "Bound CPU/memory/output/workspace/PID limits", "Kill and verify all descendants during cleanup", "No automatic promotion", "No skipped gate counts as completion", "Keep fail-closed behavior when Docker or any control is unavailable"],
-    "exclusions": ["Privileged containers", "host networking", "host PID/IPC namespaces", "Docker socket inside the candidate", "ordinary Node subprocess as sandbox", "real credentials or production data", "OpenCode fallback", "weakening generated-provider policy"]
+    "deliverables": [
+      "Explicit Docker sandbox provider",
+      "non-forgeable host capability and attestation",
+      "positive and adversarial generated-candidate evidence",
+      "local/CI gate wiring and parent-plan handoff"
+    ],
+    "constraints": [
+      "Use Node 22",
+      "Use a pinned image digest",
+      "Network disabled by default",
+      "No ambient credentials or host mounts",
+      "Read-only root filesystem with bounded tmpfs/workspace",
+      "Drop capabilities and enable no-new-privileges",
+      "Bound CPU/memory/output/workspace/PID limits",
+      "Kill and verify all descendants during cleanup",
+      "No automatic promotion",
+      "No skipped gate counts as completion",
+      "Keep fail-closed behavior when Docker or any control is unavailable"
+    ],
+    "exclusions": [
+      "Privileged containers",
+      "host networking",
+      "host PID/IPC namespaces",
+      "Docker socket inside the candidate",
+      "ordinary Node subprocess as sandbox",
+      "real credentials or production data",
+      "OpenCode fallback",
+      "weakening generated-provider policy"
+    ]
   },
   "acceptanceCriteria": [
-    { "id": "AC1", "outcome": "The provider constructs an explicit Docker sandbox only from a pinned image and returns a host-owned non-forgeable capability.", "evidence": "Provider descriptor, image digest, launch policy, capability-bound attestation, and negative configuration tests." },
-    { "id": "AC2", "outcome": "A positive generated candidate run succeeds only when Docker independently verifies network, mounts, credentials, resources, process/descendant containment, source hash, and cleanup.", "evidence": "Required probe, positive candidate trace, Docker inspect evidence, cleanup proof, and artifact lineage." },
-    { "id": "AC3", "outcome": "Provider faults, forged attestations, escapes, timeouts, output/resource exhaustion, cancellation, and Docker unavailability fail closed without leaks.", "evidence": "Adversarial test matrix, no-residue checks, UNKNOWN/reconciliation records, and fail-closed probe output." },
-    { "id": "AC4", "outcome": "The provider is packaged and enabled in approved CI, and the parent release plan resumes through full local gates and exact-SHA CI evidence.", "evidence": "Payload parity, CI workflow/variable evidence, full gate log, parent-plan handoff, final review, and rollback checkpoint." }
+    {
+      "id": "AC1",
+      "outcome": "The provider constructs an explicit Docker sandbox only from a pinned image and returns a host-owned non-forgeable capability.",
+      "evidence": "Provider descriptor, image digest, launch policy, capability-bound attestation, and negative configuration tests."
+    },
+    {
+      "id": "AC2",
+      "outcome": "A positive generated candidate run succeeds only when Docker independently verifies network, mounts, credentials, resources, process/descendant containment, source hash, and cleanup.",
+      "evidence": "Required probe, positive candidate trace, Docker inspect evidence, cleanup proof, and artifact lineage."
+    },
+    {
+      "id": "AC3",
+      "outcome": "Provider faults, forged attestations, escapes, timeouts, output/resource exhaustion, cancellation, and Docker unavailability fail closed without leaks.",
+      "evidence": "Adversarial test matrix, no-residue checks, UNKNOWN/reconciliation records, and fail-closed probe output."
+    },
+    {
+      "id": "AC4",
+      "outcome": "The provider is packaged and enabled in approved CI, and the parent release plan resumes through full local gates and exact-SHA CI evidence.",
+      "evidence": "Payload parity, CI workflow/variable evidence, full gate log, parent-plan handoff, final review, and rollback checkpoint."
+    }
   ],
   "currentStateEvidence": {
     "baselineCommit": "809ebe00d7edc24987f3ec03e3f19835d87e3f9",
@@ -60,43 +111,184 @@
     "format": "csm-applicability/1",
     "decision": "warranted",
     "mode": "risk-first",
-    "matchedSignals": ["boundary_change", "public_contract", "ownership_or_persistence", "invariant_or_consistency", "external_side_effect", "migration_or_rollback", "cross_boundary_coordination", "architecture_or_refactor", "security_or_authority"],
+    "matchedSignals": [
+      "boundary_change",
+      "public_contract",
+      "ownership_or_persistence",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "migration_or_rollback",
+      "cross_boundary_coordination",
+      "architecture_or_refactor",
+      "security_or_authority"
+    ],
     "evidence": [
-      { "source": "brief", "locator": "request", "observation": "The user selected a Docker-backed host sandbox to unblock generated execution and the dependent release plan." },
-      { "source": "repository", "locator": "currentStateEvidence", "observation": "Generated mode is intentionally blocked because no provider or host attestation exists." }
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "The user selected a Docker-backed host sandbox to unblock generated execution and the dependent release plan."
+      },
+      {
+        "source": "repository",
+        "locator": "currentStateEvidence",
+        "observation": "Generated mode is intentionally blocked because no provider or host attestation exists."
+      }
     ],
     "obligations": [
-      { "id": "boundary", "status": "required" },
-      { "id": "ownership", "status": "required" },
-      { "id": "contract", "status": "required" },
-      { "id": "invariant", "status": "required" },
-      { "id": "observable_behavior", "status": "required" },
-      { "id": "seam", "status": "required" },
-      { "id": "parity", "status": "required" },
-      { "id": "rollback_recovery", "status": "required" },
-      { "id": "unresolved_risks", "status": "required" }
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "ownership",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "seam",
+        "status": "required"
+      },
+      {
+        "id": "parity",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
     ],
-    "taskApplicability": { "warranted": ["T001", "T002", "T003", "T004"], "lightweight": [] },
+    "taskApplicability": {
+      "warranted": [
+        "T001",
+        "T002",
+        "T003",
+        "T004"
+      ],
+      "lightweight": []
+    },
     "dddArtifacts": [],
-    "unresolvedRisks": ["Docker daemon privileges and runtime configuration may not support every required control.", "The chosen pinned image may not contain the required runtime without adding unsafe dependencies.", "CI may not expose Docker or approved adapter variables in the same way as the local host.", "A Docker-backed provider must not imply stronger isolation than its observed inspect and cleanup evidence supports."],
-    "bypass": { "requested": false, "rationale": null }
+    "unresolvedRisks": [
+      "Docker daemon privileges and runtime configuration may not support every required control.",
+      "The chosen pinned image may not contain the required runtime without adding unsafe dependencies.",
+      "CI may not expose Docker or approved adapter variables in the same way as the local host.",
+      "A Docker-backed provider must not imply stronger isolation than its observed inspect and cleanup evidence supports."
+    ],
+    "bypass": {
+      "requested": false,
+      "rationale": null
+    }
   },
   "assumptionsAndDecisions": [
-    { "id": "D1", "statement": "Docker is the selected provider boundary, but Docker presence is not accepted as containment evidence by itself.", "type": "user-dictated", "rationale": "The user selected option 1; the provider must still prove each control independently.", "status": "accepted" },
-    { "id": "D2", "statement": "Candidate source is copied into a disposable workspace and never receives the host repository path or Docker socket.", "type": "security", "rationale": "Host mounts and Docker socket access would invalidate the sandbox boundary.", "status": "accepted" },
-    { "id": "D3", "statement": "The probe gains a provider only through explicit host injection, not environment discovery or ambient configuration.", "type": "architecture", "rationale": "Implicit discovery cannot establish owner identity or attestation provenance.", "status": "accepted" },
-    { "id": "D4", "statement": "If Docker cannot prove a required control, generated mode remains blocked and the parent plan does not complete.", "type": "safety", "rationale": "Fail-closed behavior is the existing contract.", "status": "accepted" }
+    {
+      "id": "D1",
+      "statement": "Docker is the selected provider boundary, but Docker presence is not accepted as containment evidence by itself.",
+      "type": "user-dictated",
+      "rationale": "The user selected option 1; the provider must still prove each control independently.",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Candidate source is copied into a disposable workspace and never receives the host repository path or Docker socket.",
+      "type": "security",
+      "rationale": "Host mounts and Docker socket access would invalidate the sandbox boundary.",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "The probe gains a provider only through explicit host injection, not environment discovery or ambient configuration.",
+      "type": "architecture",
+      "rationale": "Implicit discovery cannot establish owner identity or attestation provenance.",
+      "status": "accepted"
+    },
+    {
+      "id": "D4",
+      "statement": "If Docker cannot prove a required control, generated mode remains blocked and the parent plan does not complete.",
+      "type": "safety",
+      "rationale": "Fail-closed behavior is the existing contract.",
+      "status": "accepted"
+    }
   ],
   "rdRecord": [
-    { "id": "R1", "question": "Which Docker controls are required for generated execution?", "method": "Repository provider policy, runtime limitations, generated tests, and Docker security configuration inspection.", "isolation": "Read-only inspection; no new container or candidate was started during planning.", "observation": "Network, mounts, credentials, limits, process/descendant containment, source binding, and cleanup all require independent evidence.", "implication": "T001 must freeze a launch/attestation contract before provider implementation." },
-    { "id": "R2", "question": "How should the provider avoid creating false positive evidence?", "method": "Comparison of createHostSandboxCapability and the required probe contract.", "isolation": "No provider injection or probe bypass was performed during planning.", "observation": "The host capability marker is non-forgeable only within the provider module; callbacks must inspect actual Docker state and cleanup outcomes.", "implication": "T002 must bind attestations to provider identity, container identity, policy digest, and observed inspect results." },
-    { "id": "R3", "question": "How does this hand back to the blocked release plan?", "method": "Inspection of parent remediation/release plans and their csm-build states.", "isolation": "No parent state or external CI was mutated during planning.", "observation": "After provider evidence, the parent plan resumes at its sandbox task, then assurance and CI tasks.", "implication": "T004 owns handoff, not a second completion authority." }
+    {
+      "id": "R1",
+      "question": "Which Docker controls are required for generated execution?",
+      "method": "Repository provider policy, runtime limitations, generated tests, and Docker security configuration inspection.",
+      "isolation": "Read-only inspection; no new container or candidate was started during planning.",
+      "observation": "Network, mounts, credentials, limits, process/descendant containment, source binding, and cleanup all require independent evidence.",
+      "implication": "T001 must freeze a launch/attestation contract before provider implementation."
+    },
+    {
+      "id": "R2",
+      "question": "How should the provider avoid creating false positive evidence?",
+      "method": "Comparison of createHostSandboxCapability and the required probe contract.",
+      "isolation": "No provider injection or probe bypass was performed during planning.",
+      "observation": "The host capability marker is non-forgeable only within the provider module; callbacks must inspect actual Docker state and cleanup outcomes.",
+      "implication": "T002 must bind attestations to provider identity, container identity, policy digest, and observed inspect results."
+    },
+    {
+      "id": "R3",
+      "question": "How does this hand back to the blocked release plan?",
+      "method": "Inspection of parent remediation/release plans and their csm-build states.",
+      "isolation": "No parent state or external CI was mutated during planning.",
+      "observation": "After provider evidence, the parent plan resumes at its sandbox task, then assurance and CI tasks.",
+      "implication": "T004 owns handoff, not a second completion authority."
+    }
   ],
   "discoveredRequirements": [
-    { "id": "DR1", "requirement": "Use a pinned image digest and record Docker inspect output sufficient to bind the actual container to the attestation.", "source": "csm-browse container hardening patterns and generated-provider policy", "appliesTo": ["T001", "T002", "T003"] },
-    { "id": "DR2", "requirement": "No host path, credential, Docker socket, host network, host PID, or privileged capability may enter the candidate sandbox.", "source": "sandbox security boundary", "appliesTo": ["T001", "T002", "T003"] },
-    { "id": "DR3", "requirement": "Every timeout, cancellation, crash, and cleanup failure is recorded as UNKNOWN/reconciliation-required until Docker state is verified.", "source": "orchestrator durability contract", "appliesTo": ["T002", "T003", "T004"] },
-    { "id": "DR4", "requirement": "Positive synthetic provider tests cannot substitute for the Docker-backed required probe.", "source": "prior T002 review and required probe result", "appliesTo": ["T003", "T004"] }
+    {
+      "id": "DR1",
+      "requirement": "Use a pinned image digest and record Docker inspect output sufficient to bind the actual container to the attestation.",
+      "source": "csm-browse container hardening patterns and generated-provider policy",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003"
+      ]
+    },
+    {
+      "id": "DR2",
+      "requirement": "No host path, credential, Docker socket, host network, host PID, or privileged capability may enter the candidate sandbox.",
+      "source": "sandbox security boundary",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003"
+      ]
+    },
+    {
+      "id": "DR3",
+      "requirement": "Every timeout, cancellation, crash, and cleanup failure is recorded as UNKNOWN/reconciliation-required until Docker state is verified.",
+      "source": "orchestrator durability contract",
+      "appliesTo": [
+        "T002",
+        "T003",
+        "T004"
+      ]
+    },
+    {
+      "id": "DR4",
+      "requirement": "Positive synthetic provider tests cannot substitute for the Docker-backed required probe.",
+      "source": "prior T002 review and required probe result",
+      "appliesTo": [
+        "T003",
+        "T004"
+      ]
+    }
   ],
   "design": {
     "provider": "A dedicated Docker provider launches one disposable non-privileged container per candidate from a pinned digest, using network=none, read-only rootfs, bounded tmpfs/workspace, dropped capabilities, no-new-privileges, explicit CPU/memory/PID/output limits, and an explicit environment allowlist.",
@@ -106,39 +298,294 @@
     "handoff": "After T003, resume the parent release-evidence plan at T003/T004-equivalent sandbox and assurance work, preserving the parent receipt/state authority."
   },
   "executionGraph": {
-    "criticalPath": ["T001", "T002", "T003", "T004"],
-    "parallelGroups": [{ "group": "G1", "tasks": ["T001"] }, { "group": "G2", "tasks": ["T002"] }, { "group": "G3", "tasks": ["T003"] }, { "group": "G4", "tasks": ["T004"] }],
+    "criticalPath": [
+      "T001",
+      "T002",
+      "T003",
+      "T004"
+    ],
+    "parallelGroups": [
+      {
+        "group": "G1",
+        "tasks": [
+          "T001"
+        ]
+      },
+      {
+        "group": "G2",
+        "tasks": [
+          "T002"
+        ]
+      },
+      {
+        "group": "G3",
+        "tasks": [
+          "T003"
+        ]
+      },
+      {
+        "group": "G4",
+        "tasks": [
+          "T004"
+        ]
+      }
+    ],
     "integrationOwner": "Primary build agent owns provider registration, payload parity, durable evidence, parent-plan handoff, and final release decision."
   },
   "tasks": [
-    { "taskId": "T001", "ordinal": 1, "status": "completed", "title": "Freeze the Docker sandbox threat model and attestation contract", "dependsOn": [], "parallelGroup": "G1", "risk": "high", "ownedScope": ["Docker launch policy", "provider/capability contract", "policy and attestation schema", "image digest and runtime prerequisites"], "notInScope": ["starting candidates", "automatic Docker discovery", "weakening generated-provider checks", "CI enablement"], "spikeCandidate": "Inspect the pinned image and Docker capabilities read-only; if proving a required control needs a privileged or unavailable feature, record the provider as unsuitable rather than relaxing the contract.", "actions": "Define the exact launch configuration, policy digest inputs, container identity binding, inspect evidence, cleanup proof, failure taxonomy, and host-capability callback contract. Specify which Docker facts are observable and which remain bounded limitations.", "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 csm-autoresearch/test/generated-sandbox.test.mjs", "validation": ["Contract covers all required controls", "No privileged/host-mounted fallback is permitted", "Each attestation field has an observable source and owner", "Fail-closed behavior is explicit"], "acceptanceEvidence": "Threat model, policy digest definition, attestation descriptor, control-to-observation matrix, and rollback decision.", "repairAttempts": 0, "recoveryNote": "Contract schemas and fail-closed tests passed." },
-    { "taskId": "T002", "ordinal": 2, "status": "completed", "title": "Implement explicit Docker provider and host capability injection", "dependsOn": ["T001"], "parallelGroup": "G2", "risk": "high", "ownedScope": ["csm-autoresearch Docker provider", "explicit probe entrypoint", "container lifecycle/cleanup", "provider registration"], "notInScope": ["Docker socket inside candidates", "host networking/PID/IPC", "ambient environment discovery", "ordinary subprocess fallback", "automatic promotion"], "spikeCandidate": "Use one disposable synthetic candidate in an isolated temporary workspace to verify image, network, mount, credential, resource, PID, descendant, and cleanup observations before enabling the provider.", "actions": "Construct the provider with pinned image/configuration, explicit source staging, safe argv/environment, inspect-based attestation, bounded execution, process/descendant cleanup, and host-capability binding. Wire the required probe to an explicit provider injection path while keeping no-provider invocation blocked.", "acceptanceSignal": "node scripts/with-node22.mjs --exec node csm-autoresearch/scripts/probe-sandbox.mjs --required", "validation": ["Provider identity and policy digest are bound", "Docker launch has no forbidden host boundary", "Cleanup verifies container absence and no descendant residue", "Docker/provider failure returns sandbox_unavailable or blocked"], "acceptanceEvidence": "Provider code, launch/inspect trace, policy digest, capability descriptor, cleanup trace, and no-provider negative result.", "repairAttempts": 2, "recoveryNote": "Provider implemented after two review repairs; composed probe now passes." },
-    { "taskId": "T003", "ordinal": 3, "status": "completed", "title": "Prove positive and adversarial generated execution", "dependsOn": ["T002"], "parallelGroup": "G3", "risk": "high", "ownedScope": ["positive Docker candidate test", "containment adversarial matrix", "artifact/evaluator lineage", "UNKNOWN cleanup recovery"], "notInScope": ["real credentials", "network-enabled candidate", "host repository mutation", "synthetic-only completion evidence", "automatic promotion"], "spikeCandidate": "Run only disposable candidates that attempt network, mount, credential, process, descendant, output, timeout, and path escapes; retain bounded diagnostics and clean every container.", "actions": "Run the positive required probe and generated candidate through the real provider, verify all attestation controls against Docker observations, test forged/partial attestations and cleanup failures, persist ledger/report/manifest/quarantine/rollback artifacts, and prove native/shared identity lineage.", "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 csm-autoresearch/test/generated-sandbox.test.mjs csm-autoresearch/test/integration.test.mjs tests/orchestrate-autoresearch-adapter.test.mjs", "validation": ["Positive run succeeds only with verified=true", "Hostile controls fail closed", "Timeout/cancel/crash becomes UNKNOWN until reconciled", "No candidate or container residue remains", "Artifacts and source hashes resolve"], "acceptanceEvidence": "Positive probe, candidate output, Docker inspect evidence, adversarial results, cleanup proof, artifacts, quarantine, rollback, and reconciliation records.", "repairAttempts": 0, "recoveryNote": "Positive and adversarial suites passed; inspect-bound attestation verified." },
-    { "taskId": "T004", "ordinal": 4, "status": "blocked", "title": "Synchronize packages, resume the parent plan, and verify CI", "dependsOn": ["T003"], "parallelGroup": "G4", "risk": "high", "ownedScope": ["root/bootstrap parity", "CI provider wiring", "parent release-plan/state handoff", "full local and CI gates"], "notInScope": ["force-push", "hook bypass", "unapproved CI secrets", "marking skipped integration as green", "unrelated refactors"], "spikeCandidate": "None; use the proven provider and retained evidence from T001-T003.", "actions": "Regenerate payload/index, run full local gates under Node 22, update the parent blocked plan/state with provider evidence and exact digests, enable approved adapter integration variables, push only under explicit authorization, verify CI for the exact SHA, and complete the parent plan only after all required gates execute.", "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test", "validation": ["Payload parity and static no-OpenCode checks pass", "Required browser and generated sandbox gates do not skip", "CI is green for the exact SHA", "Parent completion review and rollback checkpoint are valid"], "acceptanceEvidence": "Parity digest, full local gate log, adapter gate output, parent-plan handoff, CI URL/SHA, final review, completion state, and clean worktree.", "repairAttempts": 0, "recoveryNote": "Local gates pass, but commit/push and exact-SHA CI evidence require explicit external authorization." }
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "title": "Freeze the Docker sandbox threat model and attestation contract",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        "Docker launch policy",
+        "provider/capability contract",
+        "policy and attestation schema",
+        "image digest and runtime prerequisites"
+      ],
+      "notInScope": [
+        "starting candidates",
+        "automatic Docker discovery",
+        "weakening generated-provider checks",
+        "CI enablement"
+      ],
+      "spikeCandidate": "Inspect the pinned image and Docker capabilities read-only; if proving a required control needs a privileged or unavailable feature, record the provider as unsuitable rather than relaxing the contract.",
+      "actions": "Define the exact launch configuration, policy digest inputs, container identity binding, inspect evidence, cleanup proof, failure taxonomy, and host-capability callback contract. Specify which Docker facts are observable and which remain bounded limitations.",
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 csm-autoresearch/test/generated-sandbox.test.mjs",
+      "validation": [
+        "Contract covers all required controls",
+        "No privileged/host-mounted fallback is permitted",
+        "Each attestation field has an observable source and owner",
+        "Fail-closed behavior is explicit"
+      ],
+      "acceptanceEvidence": "Threat model, policy digest definition, attestation descriptor, control-to-observation matrix, and rollback decision.",
+      "repairAttempts": 0,
+      "recoveryNote": "Contract schemas and fail-closed tests passed."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "completed",
+      "title": "Implement explicit Docker provider and host capability injection",
+      "dependsOn": [
+        "T001"
+      ],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [
+        "csm-autoresearch Docker provider",
+        "explicit probe entrypoint",
+        "container lifecycle/cleanup",
+        "provider registration"
+      ],
+      "notInScope": [
+        "Docker socket inside candidates",
+        "host networking/PID/IPC",
+        "ambient environment discovery",
+        "ordinary subprocess fallback",
+        "automatic promotion"
+      ],
+      "spikeCandidate": "Use one disposable synthetic candidate in an isolated temporary workspace to verify image, network, mount, credential, resource, PID, descendant, and cleanup observations before enabling the provider.",
+      "actions": "Construct the provider with pinned image/configuration, explicit source staging, safe argv/environment, inspect-based attestation, bounded execution, process/descendant cleanup, and host-capability binding. Wire the required probe to an explicit provider injection path while keeping no-provider invocation blocked.",
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node csm-autoresearch/scripts/probe-sandbox.mjs --required",
+      "validation": [
+        "Provider identity and policy digest are bound",
+        "Docker launch has no forbidden host boundary",
+        "Cleanup verifies container absence and no descendant residue",
+        "Docker/provider failure returns sandbox_unavailable or blocked"
+      ],
+      "acceptanceEvidence": "Provider code, launch/inspect trace, policy digest, capability descriptor, cleanup trace, and no-provider negative result.",
+      "repairAttempts": 2,
+      "recoveryNote": "Provider implemented after two review repairs; composed probe now passes."
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "completed",
+      "title": "Prove positive and adversarial generated execution",
+      "dependsOn": [
+        "T002"
+      ],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": [
+        "positive Docker candidate test",
+        "containment adversarial matrix",
+        "artifact/evaluator lineage",
+        "UNKNOWN cleanup recovery"
+      ],
+      "notInScope": [
+        "real credentials",
+        "network-enabled candidate",
+        "host repository mutation",
+        "synthetic-only completion evidence",
+        "automatic promotion"
+      ],
+      "spikeCandidate": "Run only disposable candidates that attempt network, mount, credential, process, descendant, output, timeout, and path escapes; retain bounded diagnostics and clean every container.",
+      "actions": "Run the positive required probe and generated candidate through the real provider, verify all attestation controls against Docker observations, test forged/partial attestations and cleanup failures, persist ledger/report/manifest/quarantine/rollback artifacts, and prove native/shared identity lineage.",
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 csm-autoresearch/test/generated-sandbox.test.mjs csm-autoresearch/test/integration.test.mjs tests/orchestrate-autoresearch-adapter.test.mjs",
+      "validation": [
+        "Positive run succeeds only with verified=true",
+        "Hostile controls fail closed",
+        "Timeout/cancel/crash becomes UNKNOWN until reconciled",
+        "No candidate or container residue remains",
+        "Artifacts and source hashes resolve"
+      ],
+      "acceptanceEvidence": "Positive probe, candidate output, Docker inspect evidence, adversarial results, cleanup proof, artifacts, quarantine, rollback, and reconciliation records.",
+      "repairAttempts": 0,
+      "recoveryNote": "Positive and adversarial suites passed; inspect-bound attestation verified."
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "blocked",
+      "title": "Synchronize packages, resume the parent plan, and verify CI",
+      "dependsOn": [
+        "T003"
+      ],
+      "parallelGroup": "G4",
+      "risk": "high",
+      "ownedScope": [
+        "root/bootstrap parity",
+        "CI provider wiring",
+        "parent release-plan/state handoff",
+        "full local and CI gates"
+      ],
+      "notInScope": [
+        "force-push",
+        "hook bypass",
+        "unapproved CI secrets",
+        "marking skipped integration as green",
+        "unrelated refactors"
+      ],
+      "spikeCandidate": "None; use the proven provider and retained evidence from T001-T003.",
+      "actions": "Regenerate payload/index, run full local gates under Node 22, update the parent blocked plan/state with provider evidence and exact digests, enable approved adapter integration variables, push only under explicit authorization, verify CI for the exact SHA, and complete the parent plan only after all required gates execute.",
+      "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test",
+      "validation": [
+        "Payload parity and static no-OpenCode checks pass",
+        "Required browser and generated sandbox gates do not skip",
+        "CI is green for the exact SHA",
+        "Parent completion review and rollback checkpoint are valid"
+      ],
+      "acceptanceEvidence": "Parity digest, full local gate log, adapter gate output, parent-plan handoff, CI URL/SHA, final review, completion state, and clean worktree.",
+      "repairAttempts": 0,
+      "recoveryNote": "Local gates pass, but commit/push and exact-SHA CI evidence require explicit external authorization."
+    }
   ],
   "verificationStrategy": {
-    "order": ["T001 contract", "T002 provider", "T003 positive/adversarial evidence", "T004 parent handoff and CI"],
-    "fastGates": ["Node 22 syntax", "negative provider tests", "policy/attestation unit tests", "payload parity", "make check/fmt-check/lint"],
-    "expensiveGates": ["Docker positive candidate", "containment adversarial matrix", "cleanup fault injection", "full make test", "approved CI run", "independent security review"],
+    "order": [
+      "T001 contract",
+      "T002 provider",
+      "T003 positive/adversarial evidence",
+      "T004 parent handoff and CI"
+    ],
+    "fastGates": [
+      "Node 22 syntax",
+      "negative provider tests",
+      "policy/attestation unit tests",
+      "payload parity",
+      "make check/fmt-check/lint"
+    ],
+    "expensiveGates": [
+      "Docker positive candidate",
+      "containment adversarial matrix",
+      "cleanup fault injection",
+      "full make test",
+      "approved CI run",
+      "independent security review"
+    ],
     "parallelizable": [],
-    "knownGaps": ["Docker runtime configuration may not provide independently verifiable process/descendant containment.", "CI Docker availability and approved variables are external prerequisites.", "At-least-once effects remain reconciliation-based rather than arbitrary exactly-once."]
+    "knownGaps": [
+      "Docker runtime configuration may not provide independently verifiable process/descendant containment.",
+      "CI Docker availability and approved variables are external prerequisites.",
+      "At-least-once effects remain reconciliation-based rather than arbitrary exactly-once."
+    ]
   },
   "risksAndRecovery": {
-    "risks": ["Docker privilege or daemon configuration undermines containment", "Image drift or unpinned image", "Host path/socket/credential leakage", "Descendant cleanup failure", "CI environment mismatch", "Evidence generated for wrong SHA"],
-    "mitigations": ["Pinned image and inspect-bound policy", "No host mounts/socket and explicit env allowlist", "No-new-privileges/cap-drop/resource bounds", "Bounded cleanup and UNKNOWN reconciliation", "CI required gate and exact-SHA binding", "Parent durable handoff"],
+    "risks": [
+      "Docker privilege or daemon configuration undermines containment",
+      "Image drift or unpinned image",
+      "Host path/socket/credential leakage",
+      "Descendant cleanup failure",
+      "CI environment mismatch",
+      "Evidence generated for wrong SHA"
+    ],
+    "mitigations": [
+      "Pinned image and inspect-bound policy",
+      "No host mounts/socket and explicit env allowlist",
+      "No-new-privileges/cap-drop/resource bounds",
+      "Bounded cleanup and UNKNOWN reconciliation",
+      "CI required gate and exact-SHA binding",
+      "Parent durable handoff"
+    ],
     "rollback": "Retain 809ebe0 as the parent rollback baseline; disable the Docker provider and restore generated BLOCKED behavior if any control or cleanup proof regresses.",
     "forwardRecovery": "Record the failed control, Docker inspect evidence, owner, and exact next transition; resume through RECOVER -> VALIDATE after the provider or CI prerequisite is repaired."
   },
   "critiqueResolution": [],
   "journal": [
-    { "sequence": 0, "timestamp": "2026-08-31T15:00:00Z", "cycle": 0, "transition": "NOT_STARTED -> NOT_STARTED", "tasks": [], "evidence": "Created a warranted option-1 Docker sandbox implementation plan from the current generated-provider policy and required probe blocker. All implementation tasks remain pending; implementation was not started.", "nextState": "NOT_STARTED" },
-    { "sequence": 1, "timestamp": "2026-08-31T19:30:00Z", "cycle": 0, "transition": "NOT_STARTED -> BLOCKED", "tasks": ["T001", "T002", "T003", "T004"], "evidence": "T001-T003 completed: Docker contract, composed generated-provider execution, positive probe, adversarial tests, payload parity, and full local gates passed. Commit 7638d41 was pushed and CI run 33428762495 is green, but CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED were unset, so the required adapter integration gates were skipped.", "nextState": "BLOCKED" }
+    {
+      "sequence": 0,
+      "timestamp": "2026-08-31T15:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> NOT_STARTED",
+      "tasks": [],
+      "evidence": "Created a warranted option-1 Docker sandbox implementation plan from the current generated-provider policy and required probe blocker. All implementation tasks remain pending; implementation was not started.",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-08-31T19:30:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> BLOCKED",
+      "tasks": [
+        "T001",
+        "T002",
+        "T003",
+        "T004"
+      ],
+      "evidence": "T001-T003 completed: Docker contract, composed generated-provider execution, positive probe, adversarial tests, payload parity, and full local gates passed. Commit 7638d41 was pushed and CI run 33428762495 is green, but CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED were unset, so the required adapter integration gates were skipped.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "event": "plan closed complete (JSON-native closure, orchestrate-release-completion T005)",
+      "cycle": 0,
+      "evidence": "T004 satisfied: packages shipped, parent chain closed, CI green with attested sandbox verified (7638d41 lineage, later r"
+    }
   ],
   "completionReview": null,
   "inputs": [
-    { "artifactId": "art-remediate-browser-sandbox-release-blockers-20260831", "schema": "csm-plan/1", "digest": "sha256:738be49281b496d0ac1b1d84b0899fe73f3bf1a7b48f4202d1a3e68a5b0982f4", "owner": "csm-plan", "path": ".agents/plans/2026-08-31-remediate-browser-sandbox-release-blockers-csm.json" },
-    { "artifactId": "art-build-all-orchestrate-adapters-20260831t040000z", "schema": "csm-research/1", "digest": "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f", "owner": "csm-deep-research", "path": ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json" }
+    {
+      "artifactId": "art-remediate-browser-sandbox-release-blockers-20260831",
+      "schema": "csm-plan/1",
+      "digest": "sha256:738be49281b496d0ac1b1d84b0899fe73f3bf1a7b48f4202d1a3e68a5b0982f4",
+      "owner": "csm-plan",
+      "path": ".agents/plans/2026-08-31-remediate-browser-sandbox-release-blockers-csm.json"
+    },
+    {
+      "artifactId": "art-build-all-orchestrate-adapters-20260831t040000z",
+      "schema": "csm-research/1",
+      "digest": "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-08-31-build-all-orchestrate-adapters-20260831t040000z-research.json"
+    }
   ],
-  "provenance": { "producer": "csm-plan", "producerVersion": "csm-plan/1", "producedAt": "2026-08-31T15:00:00Z", "sourceDigests": ["sha256:738be49281b496d0ac1b1d84b0899fe73f3bf1a7b48f4202d1a3e68a5b0982f4", "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f"] },
-  "projection": { "profile": "csm-plan-human/1", "legacyMarkdownStatus": "history-only" }
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-08-31T15:00:00Z",
+    "sourceDigests": [
+      "sha256:738be49281b496d0ac1b1d84b0899fe73f3bf1a7b48f4202d1a3e68a5b0982f4",
+      "sha256:d0d37bbbfd9166e75c75c9eb6214e4048e6c5ecd6eb65d0a736adf3ee528292f"
+    ]
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
 }

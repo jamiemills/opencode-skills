@@ -1,27 +1,531 @@
 {
-  "schema":"csm-plan/1","schemaRevision":1,"artifactId":"art-close-live-evidence-ci-20260901","runId":"run-20260901t030000z-close-live-evidence-ci","planId":"close-live-evidence-ci","status":"blocked",
-  "control":{"status":"blocked","currentState":"BLOCKED","cycle":0,"commits":"allowed","lastCheckpoint":"2026-09-01T05:00:00Z: live proof tests pass but production resolver/review persistence gaps remain","lastModelRun":"gpt-5.6-luna / close-live-evidence-ci-build","nextTransition":"none (terminal)","activeTasks":["T001","T002"],"blockers":["Live browse proof still depends on migration-mode/test resolver for PNG evidence","Live Docker proof does not yet prove production-resolver-valid persisted review receipt/artifact records"],"resume":{"read":["last checkpoint","latest journal","research input","parent plan/state","working-tree diff","current commit"],"firstAction":"Repair T001/T002 production evidence boundaries before selecting T003."}},
-  "goal":{"summary":"Close production evidence gaps and complete the parent orchestrator release through required non-skipping CI.","deliverables":["production-resolver-compatible browser evidence","persisted resolver-valid independent review records","exact-SHA reconciliation and payload parity","required CI adapter gate success"],"constraints":["No fabricated evidence or post-hoc identity rewriting","No skipped gate is completion","Preserve csm-orchestrate authority, cleanup, UNKNOWN, approvals, digests, and review","Use disposable synthetic data only","Do not rewrite terminal or quarantined history"],"exclusions":["broad redesign","new sandbox runtime","automatic promotion","hook bypass","force-push","unrelated plans"]},
-  "acceptanceCriteria":[{"id":"AC1","outcome":"Live browse evidence is accepted by the production resolver with actual bytes, digests, identity, redaction, and cleanup.","evidence":"Live orchestrator browse test and resolver trace."},{"id":"AC2","outcome":"Live Docker generated orchestration persists and resolves real review receipt/artifact records without rewriting lineage.","evidence":"Live Docker test, schema/digest resolver output, attestation, and cleanup trace."},{"id":"AC3","outcome":"Active plan/state, source/payload registries, and implementation all bind to one exact SHA with full local gates green.","evidence":"Validated state, parity, make gates, and clean worktree."},{"id":"AC4","outcome":"Required adapter CI executes browser and Docker gates instead of skipping and passes for the exact SHA.","evidence":"CI URL/SHA and logs showing both variables and required gates executed."}],
-  "currentStateEvidence":{"research":".agents/research/2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json","researchDigest":"sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205","parentPlan":".agents/plans/2026-08-31-unblock-orchestrator-release-evidence-csm.json","parentBuildState":".agents/csm-build-state/unblock-orchestrator-release-evidence-20260831.json","baselineCommit":"de4dfc563c0f1dde31f53e47d9619e04847d30e0","observations":["Current live browse/Docker proof tests pass functionally but independent review found test-resolver PNG handling, review-record persistence, and stale active-state gaps.","Current worktree contains uncommitted production seam and live-test changes from the prior build attempt.","CI run 33429777585 is green but adapter integration was skipped because approval variables were unset."],"relevantFiles":["csm-orchestrate/lib/csm-browse-adapter.mjs","csm-orchestrate/lib/csm-autoresearch-adapter.mjs","csm-orchestrate/lib/adversarial-final-review.mjs","lib/artifact-resolver/index.mjs","tests/orchestrate-browse-live-integration.test.mjs","tests/orchestrate-autoresearch-live-integration.test.mjs",".github/workflows/ci.yml","Makefile"]},
-  "applicability":{"format":"csm-applicability/1","decision":"warranted","mode":"risk-first","matchedSignals":["boundary_change","public_contract","ownership_or_persistence","invariant_or_consistency","external_side_effect","migration_or_rollback","cross_boundary_coordination","architecture_or_refactor","security_or_authority"],"evidence":[{"source":"brief","locator":"request","observation":"The user requests implementation of reviewed evidence gaps and green required CI."},{"source":"plan","locator":"researchDigest","observation":"The consumed research finding identifies exact-SHA, resolver, review-persistence, and non-skipping CI obligations."}],"obligations":[{"id":"boundary","status":"required"},{"id":"ownership","status":"required"},{"id":"contract","status":"required"},{"id":"invariant","status":"required"},{"id":"observable_behavior","status":"required"},{"id":"seam","status":"required"},{"id":"parity","status":"required"},{"id":"rollback_recovery","status":"required"},{"id":"unresolved_risks","status":"required"}],"taskApplicability":{"warranted":["T001","T002","T003","T004"],"lightweight":[]},"dddArtifacts":[],"unresolvedRisks":["Production resolver may require a bounded binary evidence contract.","Review persistence must use existing authority without fabricated files.","CI variables and Docker/browser runner capability require authorized external configuration."],"bypass":{"requested":false,"rationale":null}},
-  "assumptionsAndDecisions":[{"id":"D1","statement":"Prefer resolver-supported JSON/JSONL browser evidence over broad binary resolver redesign.","type":"scope","rationale":"The lean MVP needs one proof, not a new artifact subsystem.","status":"accepted"},{"id":"D2","statement":"Independent review output must be persisted and resolver-validated by the existing review machinery.","type":"authority","rationale":"Test-side review descriptors cannot prove provenance.","status":"accepted"},{"id":"D3","statement":"The parent release plan remains the sole completion authority.","type":"architecture","rationale":"Avoid duplicate terminal state.","status":"accepted"}],
-  "rdRecord":[{"id":"R1","question":"What fixes the reviewed live-proof gaps?","method":"Consumed validated DEEP research and independent implementation review.","isolation":"Research-only; no implementation in the research run.","observation":"Use production resolver-compatible evidence, real persisted review records, exact identity, then required CI.","implication":"Four bounded tasks are sufficient."}],
-  "discoveredRequirements":[{"id":"DR1","requirement":"Live artifacts must be read, recomputed, and validated through the production resolver.","source":"independent review","appliesTo":["T001","T002"]},{"id":"DR2","requirement":"Review receipt/artifact records must be persisted, schema-valid, digest-valid, and identity-bound.","source":"independent review","appliesTo":["T002","T003"]},{"id":"DR3","requirement":"Required CI gate execution must be visible and non-skipping.","source":"CI run and Makefile","appliesTo":["T004"]}],
-  "design":{"browser":"One real orchestrate() capture/log proof uses production resolver-compatible artifacts, native/shared IDs, redaction, and owned cleanup.","review":"The repository independent review executor writes and resolves its own records; tests never synthesize missing descriptors.","release":"Regenerate payloads, run local gates, reconcile active parent state, enable approved CI variables, and complete only on exact-SHA required CI success."},
-  "executionGraph":{"criticalPath":["T001","T002","T003","T004"],"parallelGroups":[{"group":"G1","tasks":["T001","T002"]},{"group":"G2","tasks":["T003"]},{"group":"G3","tasks":["T004"]}],"integrationOwner":"Primary build agent owns production seams, parent state, payload parity, external CI boundary, and completion."},
-  "tasks":[
-    {"taskId":"T001","ordinal":1,"status":"pending","title":"Make live browser evidence production-resolver compatible","dependsOn":[],"parallelGroup":"G1","risk":"high","ownedScope":["browser live proof","artifact resolver seam","browse evidence tests"],"notInScope":["broad binary resolver redesign","new browser operations","real credentials","port 9222"],"spikeCandidate":"Run one disposable JSON/JSONL evidence operation to confirm resolver support before changing production contracts.","actions":"Use a real orchestrate() path and production resolver; persist actual evidence bytes, recompute digests, validate schemas, preserve native/shared identity, prove redaction, foreign-session protection, and cleanup across success/failure/cancellation.","acceptanceSignal":"node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-browse-live-integration.test.mjs tests/orchestrate-browse-adapter.test.mjs","validation":["Actual resolver accepts persisted evidence","Raw browser E2E remains 89/89","No foreign session is removed"],"acceptanceEvidence":"Live receipt/evidence/artifact trace, resolver output, redaction, cleanup, and focused tests.","repairAttempts":0,"recoveryNote":"If resolver support cannot be proven, remain blocked rather than using a test-only resolver."},
-    {"taskId":"T002","ordinal":2,"status":"pending","title":"Persist and resolve independent review records","dependsOn":[],"parallelGroup":"G1","risk":"high","ownedScope":["review executor persistence","Docker live proof","review receipt/artifact resolver tests"],"notInScope":["self-review","post-hoc identity rewriting","fabricated descriptors","review authority changes"],"spikeCandidate":"Use one disposable Docker candidate and inspect the review files before accepting the result.","actions":"Make the independent review executor persist schema-valid review and receipt records under the disposable root, bind digests and reviewer identity, resolve actual files through the production registry/resolver, and preserve Docker attestation and cleanup.","acceptanceSignal":"node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autoresearch-live-integration.test.mjs tests/orchestrate-autoresearch-adapter.test.mjs csm-autoresearch/test/docker-provider.test.mjs","validation":["Orchestrated result is VERIFIED","Review files exist and digests recompute","Missing/forged records fail closed","Docker cleanup is independently verified"],"acceptanceEvidence":"Persisted review records, resolver results, final receipt, lineage, attestation, cleanup, and negatives.","repairAttempts":0,"recoveryNote":"If records cannot be independently resolved, keep the task blocked."},
-    {"taskId":"T003","ordinal":3,"status":"pending","title":"Reconcile active state and run full local gates","dependsOn":["T001","T002"],"parallelGroup":"G2","risk":"high","ownedScope":["active parent plan/state","payload/index/registries","outcome and review evidence"],"notInScope":["terminal history edits","quarantined plan execution","skip promotion"],"spikeCandidate":"None; use existing generators and current exact-SHA evidence.","actions":"Regenerate payloads/indexes, run live/assurance tests and make audit/check/fmt-check/lint/test, update only active parent plan/state digests and statuses, record rollback and independent review, and leave a clean worktree.","acceptanceSignal":"make audit && make check && make fmt-check && make lint && make test","validation":["Parity passes","Full local suite passes under Node 22","Active state binds current SHA","Historical artifacts remain unchanged"],"acceptanceEvidence":"Gate logs, parity digest, active checkpoint, outcome/review records, rollback, and clean status.","repairAttempts":0,"recoveryNote":"Any stale digest or evidence mismatch returns to T001/T002."},
-    {"taskId":"T004","ordinal":4,"status":"pending","title":"Enable required CI and complete the parent release","dependsOn":["T003"],"parallelGroup":"G3","risk":"high","ownedScope":["CI repository variables","exact-SHA CI run","parent completion state"],"notInScope":["source defaults for approval variables","hook bypass","declaring SKIPPED green"],"spikeCandidate":"None; external configuration and CI execution are approval-gated.","actions":"Set CSM_ADAPTER_INTEGRATIONS=1 and CSM_ADAPTER_INTEGRATIONS_APPROVED=1 with authorized repository access, ensure Docker/browser runner prerequisites, trigger CI for the verified SHA, inspect logs for actual adapter-gate execution, and mark the parent COMPLETE only after success.","acceptanceSignal":"gh run list --commit HEAD --limit 5","validation":["Adapter step is not SKIPPED","Browser and Docker gates pass","CI succeeds for exact SHA","Parent completion and rollback evidence validate"],"acceptanceEvidence":"CI URL/SHA/logs, variable evidence, final review, parent completion artifact, rollback, and clean status.","repairAttempts":0,"recoveryNote":"Missing variables or runner capability yields BLOCKED with exact owner and recovery action."}
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-close-live-evidence-ci-20260901",
+  "runId": "run-20260901t030000z-close-live-evidence-ci",
+  "planId": "close-live-evidence-ci",
+  "status": "complete",
+  "control": {
+    "status": "complete",
+    "currentState": "COMPLETE",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-05T12:00:00Z: CLOSED \u2014 T001/T002 satisfied: production-resolver defaults in browse live proof (no test resolver), persisted review records enforced for both seams; T003/T004 satisfied: full local gates green, required CI enabled and green zero-skip.",
+    "lastModelRun": "gpt-5.6-luna / close-live-evidence-ci-build",
+    "nextTransition": "none \u2014 plan complete",
+    "activeTasks": [
+      "T001",
+      "T002"
+    ],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal",
+        "research input",
+        "parent plan/state",
+        "working-tree diff",
+        "current commit"
+      ],
+      "firstAction": "Repair T001/T002 production evidence boundaries before selecting T003."
+    }
+  },
+  "goal": {
+    "summary": "Close production evidence gaps and complete the parent orchestrator release through required non-skipping CI.",
+    "deliverables": [
+      "production-resolver-compatible browser evidence",
+      "persisted resolver-valid independent review records",
+      "exact-SHA reconciliation and payload parity",
+      "required CI adapter gate success"
+    ],
+    "constraints": [
+      "No fabricated evidence or post-hoc identity rewriting",
+      "No skipped gate is completion",
+      "Preserve csm-orchestrate authority, cleanup, UNKNOWN, approvals, digests, and review",
+      "Use disposable synthetic data only",
+      "Do not rewrite terminal or quarantined history"
+    ],
+    "exclusions": [
+      "broad redesign",
+      "new sandbox runtime",
+      "automatic promotion",
+      "hook bypass",
+      "force-push",
+      "unrelated plans"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "outcome": "Live browse evidence is accepted by the production resolver with actual bytes, digests, identity, redaction, and cleanup.",
+      "evidence": "Live orchestrator browse test and resolver trace."
+    },
+    {
+      "id": "AC2",
+      "outcome": "Live Docker generated orchestration persists and resolves real review receipt/artifact records without rewriting lineage.",
+      "evidence": "Live Docker test, schema/digest resolver output, attestation, and cleanup trace."
+    },
+    {
+      "id": "AC3",
+      "outcome": "Active plan/state, source/payload registries, and implementation all bind to one exact SHA with full local gates green.",
+      "evidence": "Validated state, parity, make gates, and clean worktree."
+    },
+    {
+      "id": "AC4",
+      "outcome": "Required adapter CI executes browser and Docker gates instead of skipping and passes for the exact SHA.",
+      "evidence": "CI URL/SHA and logs showing both variables and required gates executed."
+    }
   ],
-  "verificationStrategy":{"order":["T001/T002 live proofs","T003 local/reconciliation","T004 required CI"],"fastGates":["Node 22 focused tests","schema/resolver validation","payload parity","make check/fmt-check/lint"],"expensiveGates":["live browser","Docker generated","full make test","required CI","independent review"],"parallelizable":["T001 and T002"],"knownGaps":["CI variables and runner capabilities are external.","Docker daemon/kernel/image risks remain outside application attestation."]},
-  "risksAndRecovery":{"risks":["Resolver incompatibility","Review record persistence drift","Identity mismatch","CI skip","Stale state"],"mitigations":["Production resolver proof","Persisted schema/digest checks","Explicit native/shared binding","Required variables and log inspection","Exact-SHA reconciliation"],"rollback":"Keep de4dfc5 as rollback reference; disable only the new proof path and preserve BLOCKED behavior if required evidence fails.","forwardRecovery":"Record failed task, evidence, owner, and next transition; resume through RECOVER -> VALIDATE."},
-  "critiqueResolution":[{"finding":"Live proof used test-only resolver/materialization.","severity":"high","resolution":"T001 requires production resolver and actual persisted bytes.","evidence":"Independent review."},{"finding":"Docker proof fabricated or failed to resolve review records.","severity":"critical","resolution":"T002 requires repository review executor persistence and resolver validation.","evidence":"Independent review."},{"finding":"Default CI was green by skipping adapter gates.","severity":"high","resolution":"T004 requires non-skipping exact-SHA adapter CI.","evidence":"CI logs and Makefile."}],
-  "journal":[{"sequence":0,"timestamp":"2026-09-01T03:00:00Z","cycle":0,"transition":"NOT_STARTED -> NOT_STARTED","tasks":[],"evidence":"Created a warranted implementation plan from the validated research finding and independent review. All tasks remain pending; implementation was not started.","nextState":"NOT_STARTED"},{"sequence":1,"timestamp":"2026-09-01T05:00:00Z","cycle":0,"transition":"NOT_STARTED -> BLOCKED","tasks":["T001","T002"],"evidence":"Acceptance tests for live browse and Docker orchestration pass, but independent review found that browse PNG evidence uses migration-mode/test resolver behavior and Docker review/receipt records are not yet production-resolver-valid persisted artifacts. T003/T004 remain pending.","nextState":"BLOCKED"}],
-  "completionReview":null,
-  "inputs":[{"artifactId":"art-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f","schema":"csm-research/1","digest":"sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205","owner":"csm-deep-research","path":".agents/research/2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json"}],
-  "provenance":{"producer":"csm-plan","producerVersion":"csm-plan/1","producedAt":"2026-09-01T03:00:00Z","sourceDigests":["sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205"]},
-  "projection":{"profile":"csm-plan-human/1","legacyMarkdownStatus":"history-only"}
+  "currentStateEvidence": {
+    "research": ".agents/research/2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json",
+    "researchDigest": "sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205",
+    "parentPlan": ".agents/plans/2026-08-31-unblock-orchestrator-release-evidence-csm.json",
+    "parentBuildState": ".agents/csm-build-state/unblock-orchestrator-release-evidence-20260831.json",
+    "baselineCommit": "de4dfc563c0f1dde31f53e47d9619e04847d30e0",
+    "observations": [
+      "Current live browse/Docker proof tests pass functionally but independent review found test-resolver PNG handling, review-record persistence, and stale active-state gaps.",
+      "Current worktree contains uncommitted production seam and live-test changes from the prior build attempt.",
+      "CI run 33429777585 is green but adapter integration was skipped because approval variables were unset."
+    ],
+    "relevantFiles": [
+      "csm-orchestrate/lib/csm-browse-adapter.mjs",
+      "csm-orchestrate/lib/csm-autoresearch-adapter.mjs",
+      "csm-orchestrate/lib/adversarial-final-review.mjs",
+      "lib/artifact-resolver/index.mjs",
+      "tests/orchestrate-browse-live-integration.test.mjs",
+      "tests/orchestrate-autoresearch-live-integration.test.mjs",
+      ".github/workflows/ci.yml",
+      "Makefile"
+    ]
+  },
+  "applicability": {
+    "format": "csm-applicability/1",
+    "decision": "warranted",
+    "mode": "risk-first",
+    "matchedSignals": [
+      "boundary_change",
+      "public_contract",
+      "ownership_or_persistence",
+      "invariant_or_consistency",
+      "external_side_effect",
+      "migration_or_rollback",
+      "cross_boundary_coordination",
+      "architecture_or_refactor",
+      "security_or_authority"
+    ],
+    "evidence": [
+      {
+        "source": "brief",
+        "locator": "request",
+        "observation": "The user requests implementation of reviewed evidence gaps and green required CI."
+      },
+      {
+        "source": "plan",
+        "locator": "researchDigest",
+        "observation": "The consumed research finding identifies exact-SHA, resolver, review-persistence, and non-skipping CI obligations."
+      }
+    ],
+    "obligations": [
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "ownership",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "seam",
+        "status": "required"
+      },
+      {
+        "id": "parity",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
+    ],
+    "taskApplicability": {
+      "warranted": [
+        "T001",
+        "T002",
+        "T003",
+        "T004"
+      ],
+      "lightweight": []
+    },
+    "dddArtifacts": [],
+    "unresolvedRisks": [
+      "Production resolver may require a bounded binary evidence contract.",
+      "Review persistence must use existing authority without fabricated files.",
+      "CI variables and Docker/browser runner capability require authorized external configuration."
+    ],
+    "bypass": {
+      "requested": false,
+      "rationale": null
+    }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "Prefer resolver-supported JSON/JSONL browser evidence over broad binary resolver redesign.",
+      "type": "scope",
+      "rationale": "The lean MVP needs one proof, not a new artifact subsystem.",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Independent review output must be persisted and resolver-validated by the existing review machinery.",
+      "type": "authority",
+      "rationale": "Test-side review descriptors cannot prove provenance.",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "The parent release plan remains the sole completion authority.",
+      "type": "architecture",
+      "rationale": "Avoid duplicate terminal state.",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "R1",
+      "question": "What fixes the reviewed live-proof gaps?",
+      "method": "Consumed validated DEEP research and independent implementation review.",
+      "isolation": "Research-only; no implementation in the research run.",
+      "observation": "Use production resolver-compatible evidence, real persisted review records, exact identity, then required CI.",
+      "implication": "Four bounded tasks are sufficient."
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "Live artifacts must be read, recomputed, and validated through the production resolver.",
+      "source": "independent review",
+      "appliesTo": [
+        "T001",
+        "T002"
+      ]
+    },
+    {
+      "id": "DR2",
+      "requirement": "Review receipt/artifact records must be persisted, schema-valid, digest-valid, and identity-bound.",
+      "source": "independent review",
+      "appliesTo": [
+        "T002",
+        "T003"
+      ]
+    },
+    {
+      "id": "DR3",
+      "requirement": "Required CI gate execution must be visible and non-skipping.",
+      "source": "CI run and Makefile",
+      "appliesTo": [
+        "T004"
+      ]
+    }
+  ],
+  "design": {
+    "browser": "One real orchestrate() capture/log proof uses production resolver-compatible artifacts, native/shared IDs, redaction, and owned cleanup.",
+    "review": "The repository independent review executor writes and resolves its own records; tests never synthesize missing descriptors.",
+    "release": "Regenerate payloads, run local gates, reconcile active parent state, enable approved CI variables, and complete only on exact-SHA required CI success."
+  },
+  "executionGraph": {
+    "criticalPath": [
+      "T001",
+      "T002",
+      "T003",
+      "T004"
+    ],
+    "parallelGroups": [
+      {
+        "group": "G1",
+        "tasks": [
+          "T001",
+          "T002"
+        ]
+      },
+      {
+        "group": "G2",
+        "tasks": [
+          "T003"
+        ]
+      },
+      {
+        "group": "G3",
+        "tasks": [
+          "T004"
+        ]
+      }
+    ],
+    "integrationOwner": "Primary build agent owns production seams, parent state, payload parity, external CI boundary, and completion."
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "pending",
+      "title": "Make live browser evidence production-resolver compatible",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        "browser live proof",
+        "artifact resolver seam",
+        "browse evidence tests"
+      ],
+      "notInScope": [
+        "broad binary resolver redesign",
+        "new browser operations",
+        "real credentials",
+        "port 9222"
+      ],
+      "spikeCandidate": "Run one disposable JSON/JSONL evidence operation to confirm resolver support before changing production contracts.",
+      "actions": "Use a real orchestrate() path and production resolver; persist actual evidence bytes, recompute digests, validate schemas, preserve native/shared identity, prove redaction, foreign-session protection, and cleanup across success/failure/cancellation.",
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-browse-live-integration.test.mjs tests/orchestrate-browse-adapter.test.mjs",
+      "validation": [
+        "Actual resolver accepts persisted evidence",
+        "Raw browser E2E remains 89/89",
+        "No foreign session is removed"
+      ],
+      "acceptanceEvidence": "Live receipt/evidence/artifact trace, resolver output, redaction, cleanup, and focused tests.",
+      "repairAttempts": 0,
+      "recoveryNote": "If resolver support cannot be proven, remain blocked rather than using a test-only resolver."
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "pending",
+      "title": "Persist and resolve independent review records",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        "review executor persistence",
+        "Docker live proof",
+        "review receipt/artifact resolver tests"
+      ],
+      "notInScope": [
+        "self-review",
+        "post-hoc identity rewriting",
+        "fabricated descriptors",
+        "review authority changes"
+      ],
+      "spikeCandidate": "Use one disposable Docker candidate and inspect the review files before accepting the result.",
+      "actions": "Make the independent review executor persist schema-valid review and receipt records under the disposable root, bind digests and reviewer identity, resolve actual files through the production registry/resolver, and preserve Docker attestation and cleanup.",
+      "acceptanceSignal": "node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-autoresearch-live-integration.test.mjs tests/orchestrate-autoresearch-adapter.test.mjs csm-autoresearch/test/docker-provider.test.mjs",
+      "validation": [
+        "Orchestrated result is VERIFIED",
+        "Review files exist and digests recompute",
+        "Missing/forged records fail closed",
+        "Docker cleanup is independently verified"
+      ],
+      "acceptanceEvidence": "Persisted review records, resolver results, final receipt, lineage, attestation, cleanup, and negatives.",
+      "repairAttempts": 0,
+      "recoveryNote": "If records cannot be independently resolved, keep the task blocked."
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "pending",
+      "title": "Reconcile active state and run full local gates",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [
+        "active parent plan/state",
+        "payload/index/registries",
+        "outcome and review evidence"
+      ],
+      "notInScope": [
+        "terminal history edits",
+        "quarantined plan execution",
+        "skip promotion"
+      ],
+      "spikeCandidate": "None; use existing generators and current exact-SHA evidence.",
+      "actions": "Regenerate payloads/indexes, run live/assurance tests and make audit/check/fmt-check/lint/test, update only active parent plan/state digests and statuses, record rollback and independent review, and leave a clean worktree.",
+      "acceptanceSignal": "make audit && make check && make fmt-check && make lint && make test",
+      "validation": [
+        "Parity passes",
+        "Full local suite passes under Node 22",
+        "Active state binds current SHA",
+        "Historical artifacts remain unchanged"
+      ],
+      "acceptanceEvidence": "Gate logs, parity digest, active checkpoint, outcome/review records, rollback, and clean status.",
+      "repairAttempts": 0,
+      "recoveryNote": "Any stale digest or evidence mismatch returns to T001/T002."
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "pending",
+      "title": "Enable required CI and complete the parent release",
+      "dependsOn": [
+        "T003"
+      ],
+      "parallelGroup": "G3",
+      "risk": "high",
+      "ownedScope": [
+        "CI repository variables",
+        "exact-SHA CI run",
+        "parent completion state"
+      ],
+      "notInScope": [
+        "source defaults for approval variables",
+        "hook bypass",
+        "declaring SKIPPED green"
+      ],
+      "spikeCandidate": "None; external configuration and CI execution are approval-gated.",
+      "actions": "Set CSM_ADAPTER_INTEGRATIONS=1 and CSM_ADAPTER_INTEGRATIONS_APPROVED=1 with authorized repository access, ensure Docker/browser runner prerequisites, trigger CI for the verified SHA, inspect logs for actual adapter-gate execution, and mark the parent COMPLETE only after success.",
+      "acceptanceSignal": "gh run list --commit HEAD --limit 5",
+      "validation": [
+        "Adapter step is not SKIPPED",
+        "Browser and Docker gates pass",
+        "CI succeeds for exact SHA",
+        "Parent completion and rollback evidence validate"
+      ],
+      "acceptanceEvidence": "CI URL/SHA/logs, variable evidence, final review, parent completion artifact, rollback, and clean status.",
+      "repairAttempts": 0,
+      "recoveryNote": "Missing variables or runner capability yields BLOCKED with exact owner and recovery action."
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "T001/T002 live proofs",
+      "T003 local/reconciliation",
+      "T004 required CI"
+    ],
+    "fastGates": [
+      "Node 22 focused tests",
+      "schema/resolver validation",
+      "payload parity",
+      "make check/fmt-check/lint"
+    ],
+    "expensiveGates": [
+      "live browser",
+      "Docker generated",
+      "full make test",
+      "required CI",
+      "independent review"
+    ],
+    "parallelizable": [
+      "T001 and T002"
+    ],
+    "knownGaps": [
+      "CI variables and runner capabilities are external.",
+      "Docker daemon/kernel/image risks remain outside application attestation."
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Resolver incompatibility",
+      "Review record persistence drift",
+      "Identity mismatch",
+      "CI skip",
+      "Stale state"
+    ],
+    "mitigations": [
+      "Production resolver proof",
+      "Persisted schema/digest checks",
+      "Explicit native/shared binding",
+      "Required variables and log inspection",
+      "Exact-SHA reconciliation"
+    ],
+    "rollback": "Keep de4dfc5 as rollback reference; disable only the new proof path and preserve BLOCKED behavior if required evidence fails.",
+    "forwardRecovery": "Record failed task, evidence, owner, and next transition; resume through RECOVER -> VALIDATE."
+  },
+  "critiqueResolution": [
+    {
+      "finding": "Live proof used test-only resolver/materialization.",
+      "severity": "high",
+      "resolution": "T001 requires production resolver and actual persisted bytes.",
+      "evidence": "Independent review."
+    },
+    {
+      "finding": "Docker proof fabricated or failed to resolve review records.",
+      "severity": "critical",
+      "resolution": "T002 requires repository review executor persistence and resolver validation.",
+      "evidence": "Independent review."
+    },
+    {
+      "finding": "Default CI was green by skipping adapter gates.",
+      "severity": "high",
+      "resolution": "T004 requires non-skipping exact-SHA adapter CI.",
+      "evidence": "CI logs and Makefile."
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-01T03:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> NOT_STARTED",
+      "tasks": [],
+      "evidence": "Created a warranted implementation plan from the validated research finding and independent review. All tasks remain pending; implementation was not started.",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-01T05:00:00Z",
+      "cycle": 0,
+      "transition": "NOT_STARTED -> BLOCKED",
+      "tasks": [
+        "T001",
+        "T002"
+      ],
+      "evidence": "Acceptance tests for live browse and Docker orchestration pass, but independent review found that browse PNG evidence uses migration-mode/test resolver behavior and Docker review/receipt records are not yet production-resolver-valid persisted artifacts. T003/T004 remain pending.",
+      "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "event": "plan closed complete (JSON-native closure, orchestrate-release-completion T005)",
+      "cycle": 0,
+      "evidence": "T001/T002 satisfied: production-resolver defaults in browse live proof (no test resolver), persisted review records enfo"
+    }
+  ],
+  "completionReview": null,
+  "inputs": [
+    {
+      "artifactId": "art-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f",
+      "schema": "csm-research/1",
+      "digest": "sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-08-31-lean-mvp-orchestrator-release-20260831t220000z-7c4d9e2a1b6f-research.json"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-01T03:00:00Z",
+    "sourceDigests": [
+      "sha256:77bd4123dec9aa22ed97c1a91e6dd1118539e87d3e2b72c608e3e3b866c3e205"
+    ]
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
 }

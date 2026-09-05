@@ -1,0 +1,28 @@
+{
+  "schema": "csm-release-rollback/1",
+  "created": "2026-09-05T12:00:00Z",
+  "releaseLine": {
+    "g1": {
+      "sha": "2f08063",
+      "what": "browse source-digest binding + outcome-parity gate + changelog"
+    },
+    "t003": {
+      "sha": "da153d2",
+      "what": "independent final release review records (ACCEPTED)"
+    },
+    "closure": {
+      "sha": "see build-state journal after closure CI",
+      "what": "record reconciliation + parent plan closures"
+    }
+  },
+  "knownGoodPrior": {
+    "sha": "f8418fd",
+    "what": "pre-G1 main with all prior release evidence green (runs 33903446355/33928035357/33956525179)"
+  },
+  "revert": "git revert the releaseLine SHAs in reverse order; rerun make check and the required adapter CI lane; adapter lane must remain zero-skip before re-releasing",
+  "reviewRecords": [
+    ".agents/evidence/review-run-7aefc81cc340ede2295111d59c67e1ee.json",
+    ".agents/evidence/review-artifact-run-7aefc81cc340ede2295111d59c67e1ee.json",
+    ".agents/evidence/review-receipt-run-7aefc81cc340ede2295111d59c67e1ee.json"
+  ]
+}

@@ -4,23 +4,20 @@
   "artifactId": "art-lean-mvp-orchestrator-release-build-20260831",
   "runId": "run-20260831t234000z-lean-mvp-orchestrator-release-build",
   "planId": "lean-mvp-orchestrator-release-build",
-  "status": "blocked",
+  "status": "complete",
   "control": {
-    "status": "blocked",
-    "currentState": "BLOCKED",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-01T02:00:00Z: live proof tests pass but release evidence boundary remains blocked",
+    "lastCheckpoint": "2026-09-05T12:00:00Z: CLOSED \u2014 All acceptance criteria satisfied via successor execution: composed proofs exist and run zero-skip in required CI (runs 33903446355/33928035357/33956525179); persisted review enforcement shipped (b6f2843 lineage + 14726f3); independent final review ACCEPTED (review-7aefc81cc340ede2295111d59c67e1ee at 2f08063/da153d2); reconciliation completed by orchestrate-release-completion T005.",
     "lastModelRun": "gpt-5.6-luna / lean-mvp-orchestrator-release-build",
-    "nextTransition": "none (terminal)",
+    "nextTransition": "none \u2014 plan complete",
     "activeTasks": [
       "T002",
       "T003"
     ],
-    "blockers": [
-      "Browse live proof uses a test resolver for PNG artifact materialization rather than the production resolver",
-      "Docker live proof does not yet persist and independently resolve final review receipt/artifact records"
-    ],
+    "blockers": [],
     "resume": {
       "read": [
         "last checkpoint",
@@ -560,6 +557,13 @@
       ],
       "evidence": "T001 baseline, T002 live browse tests, T003 live Docker tests, T004 assurance tests, payload parity, and full local gates pass. Independent review still finds two release evidence gaps: browse PNG proof depends on a test resolver instead of the production resolver, and Docker final review receipt/artifact records are not independently persisted/resolved. T005 CI remains pending behind these gaps.",
       "nextState": "BLOCKED"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "event": "plan closed complete (JSON-native closure, orchestrate-release-completion T005)",
+      "cycle": 0,
+      "evidence": "All acceptance criteria satisfied via successor execution: composed proofs exist and run zero-skip in required CI (runs "
     }
   ],
   "completionReview": {
@@ -568,9 +572,9 @@
     "executedAt": "2026-09-05",
     "sha": "2f08063",
     "records": [
-      ".agents/evidence/review-run-orchestrate-release-g1.json",
-      ".agents/evidence/review-artifact-run-orchestrate-release-g1.json",
-      ".agents/evidence/review-receipt-run-orchestrate-release-g1.json"
+      ".agents/evidence/review-run-7aefc81cc340ede2295111d59c67e1ee.json",
+      ".agents/evidence/review-artifact-run-7aefc81cc340ede2295111d59c67e1ee.json",
+      ".agents/evidence/review-receipt-run-7aefc81cc340ede2295111d59c67e1ee.json"
     ],
     "runner": ".agents/evidence/run-g1-final-review.mjs",
     "note": "Independent executor review (csm-release-reviewer-g1 != csm-build-release-producer); all three records resolve through the production resolver with matching digests."

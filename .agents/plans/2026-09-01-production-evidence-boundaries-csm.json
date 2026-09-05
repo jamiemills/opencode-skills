@@ -4,23 +4,20 @@
   "artifactId": "art-production-evidence-boundaries-20260901",
   "runId": "run-20260901t060000z-production-evidence-boundaries",
   "planId": "production-evidence-boundaries",
-  "status": "blocked",
+  "status": "complete",
   "control": {
-    "status": "blocked",
-    "currentState": "BLOCKED",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 1,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T09:50:00Z: T002 shipped on 14726f3; CI run 33956525179 fully green (all 4 jobs, adapter lane zero-skip) \u2014 exact-SHA evidence for the enforcement commit exists. T003 next: reconcile stale blocker records (variables present since Sep 4) and close the plan.",
+    "lastCheckpoint": "2026-09-05T12:00:00Z: CLOSED \u2014 T001/T002 completed with CI evidence (14726f3, run 33956525179); T003 reconciliation executed by orchestrate-release-completion T005.",
     "lastModelRun": "glm-5.3-flash / csm-build-review-persistence",
-    "nextTransition": "CHECKPOINT -> SELECT (T003: reconcile + close)",
+    "nextTransition": "none \u2014 plan complete",
     "activeTasks": [
       "T002",
       "T003"
     ],
-    "blockers": [
-      "T003 required repository variables CSM_ADAPTER_INTEGRATIONS and CSM_ADAPTER_INTEGRATIONS_APPROVED are absent",
-      "Full pre-commit suite requires the new schema to be present in HEAD; current worktree is uncommitted"
-    ],
+    "blockers": [],
     "resume": {
       "read": [
         "last checkpoint",
@@ -561,6 +558,13 @@
       "event": "T002 completed",
       "cycle": 1,
       "evidence": "host-seam persisted review records enforced; 90/0 focused; APPROVE-WITH-NITS with 3 nits applied"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "event": "plan closed complete (JSON-native closure, orchestrate-release-completion T005)",
+      "cycle": 1,
+      "evidence": "T001/T002 completed with CI evidence (14726f3, run 33956525179); T003 reconciliation executed by orchestrate-release-com"
     }
   ],
   "completionReview": null,

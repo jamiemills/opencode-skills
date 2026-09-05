@@ -56,7 +56,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-28-min-viable-autonomy-csm.json` — 2026-08-28 — minimum viable safe autonomy for csm-orchestrate — status: complete
 - `2026-08-28-autonomy-safety-hardening-csm.json` — 2026-08-28 — close autonomy safety gaps from adversarial research — status: ready
 - `2026-08-29-findings-human-rendering-csm.json` — 2026-08-29 — complete human-facing csm-review findings Markdown/HTML projections — status: ready
-- `2026-08-29-progress-tracking-runtime-csm.json` — 2026-08-29 — implement default-on cross-skill progress and orchestrator aggregation — status: blocked at commit boundary
+- `2026-08-29-progress-tracking-runtime-csm.json` — 2026-08-29 — implement default-on cross-skill progress and orchestrator aggregation — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
 - `2026-08-29-all-human-rendering-optionals-csm.json` — 2026-08-29 — complete optional human rendering and projection follow-ups — status: quarantined (copied application-root plan; preserved pending provenance review)
 - `2026-08-29-complete-progress-tracking-csm.json` — 2026-08-29 — complete progress tracking across skills, orchestration, and persistence — status: quarantined (copied application-root plan; preserved pending provenance review)
 - `2026-08-29-durable-progress-persistence-csm.json` — 2026-08-29 — add durable browser-local progress persistence — status: quarantined (copied application-root plan; preserved pending provenance review)
@@ -67,18 +67,18 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-30-progress-followups-csm.json` — 2026-08-30 — close remaining progress-tracking operational gaps — status: superseded by `2026-09-04-skill-progress-tracker-enforcement-csm.json` (T004 outcome preserved; remaining tasks covered by the successor plan)
 - `2026-08-30-patch-reliability-csm.json` — 2026-08-30 — prevent recurring patch-context failures with fail-closed editing guidance and contract tests — status: indexed active plan
 - `2026-08-30-remove-opencode-csm.json` — 2026-08-30 — initial no-OpenCode executor replacement plan — status: superseded by `2026-08-30-remove-opencode-proper-csm.json`
-- `2026-08-30-remove-opencode-proper-csm.json` — 2026-08-30 — implement no-OpenCode csm-orchestrate execution with original-goal parity — status: blocked at full route runtime coverage
+- `2026-08-30-remove-opencode-proper-csm.json` — 2026-08-30 — implement no-OpenCode csm-orchestrate execution with original-goal parity — status: complete
 - `2026-08-31-build-all-orchestrate-adapters-csm.json` — 2026-08-31 — build csm-build, csm-browse, and csm-autoresearch adapters with full orchestration proof — status: indexed active plan
-- `2026-08-31-complete-all-orchestrate-adapters-csm.json` — 2026-08-31 — complete all remaining orchestrator adapters and release gates — status: blocked at uncommitted-baseline hook fixture
-- `2026-08-31-remediate-browser-sandbox-release-blockers-csm.json` — 2026-08-31 — remediate browser and sandbox release blockers — status: blocked at unavailable host provider
-- `2026-08-31-unblock-orchestrator-release-evidence-csm.json` — 2026-08-31 — unblock orchestrator release evidence — status: blocked at browser and sandbox gates
-- `2026-08-31-docker-host-attested-sandbox-csm.json` — 2026-08-31 — implement Docker host-attested generated sandbox — status: in progress
-- `2026-08-31-lean-mvp-orchestrator-release-build-csm.json` — 2026-08-31 — execute lean orchestrator release build — status: in progress
-- `2026-09-01-close-live-evidence-ci-csm.json` — 2026-09-01 — close live evidence and CI gates — status: blocked
-- `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: blocked at runner prerequisites
-- `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked
-- `2026-09-02-ci-runner-unblock-csm.json` — 2026-09-02 — unblock required CI runner gates — status: in progress
-- `2026-09-03-ci-blockers-followup-csm.json` — 2026-09-03 — finish default-suite and adapter cleanup blockers — status: blocked at npm registry audit timeout
+- `2026-08-31-complete-all-orchestrate-adapters-csm.json` — 2026-08-31 — complete all remaining orchestrator adapters and release gates — status: ready
+- `2026-08-31-remediate-browser-sandbox-release-blockers-csm.json` — 2026-08-31 — remediate browser and sandbox release blockers — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-08-31-unblock-orchestrator-release-evidence-csm.json` — 2026-08-31 — unblock orchestrator release evidence — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-08-31-docker-host-attested-sandbox-csm.json` — 2026-08-31 — implement Docker host-attested generated sandbox — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-08-31-lean-mvp-orchestrator-release-build-csm.json` — 2026-08-31 — execute lean orchestrator release build — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-09-01-close-live-evidence-ci-csm.json` — 2026-09-01 — close live evidence and CI gates — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-09-01-minimum-unblock-csm.json` — 2026-09-01 — minimum persisted-review and CI unblock — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-09-01-production-evidence-boundaries-csm.json` — 2026-09-01 — repair production evidence boundaries — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
+- `2026-09-02-ci-runner-unblock-csm.json` — 2026-09-02 — unblock required CI runner gates — status: in_progress
+- `2026-09-03-ci-blockers-followup-csm.json` — 2026-09-03 — finish default-suite and adapter cleanup blockers — status: blocked (stale blockers cleared 2026-09-05; superseded by orchestrate-release-completion)
 - `2026-09-03-npm-audit-ci-resilience-csm.json` — 2026-09-03 — add bounded npm audit retry resilience — status: superseded by `2026-09-04-replace-npm-audit-ci-gate-csm.json` (retries disproven by run 33833838983)
 - `2026-09-04-replace-npm-audit-ci-gate-csm.json` — 2026-09-04 — replace npm audit CI gate with fail-closed pinned OSV audit — status: complete (run 33903446355 green on 0ec452a)
 - `2026-09-04-skill-progress-tracker-enforcement-csm.json` — 2026-09-04 — enforce skill progress tracker records — status: complete (CI run 33928035357 / fa79f36 fully green)
@@ -206,7 +206,8 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-04-skill-progress-tracker-enforcement-20260904t200000z-progress.json` — 2026-09-04 — csm-build invocation progress for the skill-progress-tracker-enforcement build — status: complete
 - `2026-09-05-orchestrate-release-validation-progress.json` — 2026-09-05 — csm-deep-research progress record for orchestrate release validation — status: complete
 - `2026-09-05-production-evidence-t002-progress.json` — 2026-09-05 — csm-build progress record for production-evidence-boundaries T002 resume — status: complete
-- `2026-09-05-orchestrate-release-completion-csm.json` — 2026-09-05 — complete remaining orchestration release work (T001-T005) — status: ready
+- `2026-09-05-orchestrate-release-completion-csm.json` — 2026-09-05 — complete remaining orchestration release work (T001-T005) — status: in progress (T001-T005 executed; closure CI pending)
+- `rollback-descriptor-20260905.json` — 2026-09-05 — release rollback descriptor for orchestrate-release-completion (known-good f8418fd; revert order) — status: reference
 - `2026-09-05-orchestrate-release-completion-plan-progress.json` — 2026-09-05 — csm-plan progress record for the release-completion plan — status: complete
 - `2026-09-05-orchestrate-release-completion-build-progress.json` — 2026-09-05 — csm-build progress record for the release-completion build — status: active
 
