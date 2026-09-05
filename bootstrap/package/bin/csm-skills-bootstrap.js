@@ -227,6 +227,9 @@ function validateEnvelope(envelope, keyring, { now = new Date(), indexSha256 } =
       Array.isArray(envelope.signature))
   )
     reject("UNSIGNED", "signature is malformed");
+  const requireSignature = process.env.CSM_BOOTSTRAP_REQUIRE_SIGNATURE === "1";
+  if (requireSignature && !hasSignature)
+    reject("SIGNATURE_REQUIRED", "signature is required when CSM_BOOTSTRAP_REQUIRE_SIGNATURE=1");
   if (hasSignature && envelope.signature !== null) {
     if (
       envelope.signature.algorithm !== "Ed25519" ||

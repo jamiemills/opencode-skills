@@ -1,0 +1,16 @@
+{
+  "schema": "csm-gate-evidence-bundle/1",
+  "gate": "G3",
+  "source": "local",
+  "collectedAt": "2026-09-05",
+  "counts": {
+    "passed": 20,
+    "failed": 0,
+    "details": "host-assurance suites 20/20 + docker sandbox attestation probe verified (provider docker, execution ok); supporting evidence only \u2014 submission deferred to the user ruling in .agents/docs/g3-ruling.md"
+  },
+  "components": [
+    "tests/host-assurance/*.test.mjs (20 tests, 0 failures)",
+    "csm-autoresearch/scripts/probe-sandbox.mjs (available/verified/ok)"
+  ],
+  "ruling": "pending user decision \u2014 see .agents/docs/g3-ruling.md"
+}

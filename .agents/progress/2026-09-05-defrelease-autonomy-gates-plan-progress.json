@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-defrelease-autonomy-gates-plan-20260905",
+  "runId": "run-20260905t150000z-defrelease-autonomy-gates-plan",
+  "skill": "csm-plan",
+  "goal": "Plan DEF-RELEASE publication and autonomy gates G5-G8 (user-owned decisions)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Intake + discover publication/autonomy surfaces",
+      "weightPercent": 30,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Draft plan JSON",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Independent critique + remediate",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify + save",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-05T15:00:00Z",
+  "updatedAt": "2026-09-05T15:36:05.619Z"
+}

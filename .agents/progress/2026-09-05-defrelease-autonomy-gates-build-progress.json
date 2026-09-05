@@ -1,0 +1,38 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-defrelease-autonomy-gates-build-20260905",
+  "runId": "run-20260905t160000z-defrelease-autonomy-gates-build",
+  "skill": "csm-build",
+  "goal": "Execute defrelease-autonomy-gates plan: T001-T007 (T006/T007 are user gates)",
+  "status": "active",
+  "overallPercent": 51,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "G1 batch: T001 strict mode + T002 replay runner + T004 deployment collectors",
+      "weightPercent": 45,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "T003 G3 ruling doc + bundle; T005 runbooks + ledger",
+      "weightPercent": 30,
+      "status": "active",
+      "verifiedFraction": 0.2
+    },
+    {
+      "id": "M3",
+      "title": "VERIFY + independent REVIEW (bootstrap trust surface)",
+      "weightPercent": 15,
+      "status": "pending"
+    },
+    {
+      "id": "M4",
+      "title": "CHECKPOINT: BLOCKED at user gates T006/T007",
+      "weightPercent": 10,
+      "status": "pending"
+    }
+  ],
+  "startedAt": "2026-09-05T16:00:00Z",
+  "updatedAt": "2026-09-05T16:30:42.839Z"
+}

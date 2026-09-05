@@ -210,6 +210,12 @@ the source file. Deletion remains awaiting explicit authorization.
 - `rollback-descriptor-20260905.json` — 2026-09-05 — release rollback descriptor for orchestrate-release-completion (known-good f8418fd; revert order) — status: reference
 - `2026-09-05-orchestrate-release-completion-plan-progress.json` — 2026-09-05 — csm-plan progress record for the release-completion plan — status: complete
 - `2026-09-05-orchestrate-release-completion-build-progress.json` — 2026-09-05 — csm-build progress record for the release-completion build — status: active
+- `2026-09-05-defrelease-autonomy-gates-csm.json` — 2026-09-05 — prepare and gate DEF-RELEASE publication + autonomy promotion (T001-T007) — status: ready
+- `2026-09-05-defrelease-autonomy-gates-plan-progress.json` — 2026-09-05 — csm-plan progress record — status: complete
+- `2026-09-05-defrelease-autonomy-gates-build-progress.json` — 2026-09-05 — csm-build progress record — status: active
+- `g3-ruling.md` — 2026-09-05 — G3 evidence-source ruling question + options + recommendation — status: awaiting user ruling
+- `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
+- `g3-bundle.json` — 2026-09-05 — G3 local evidence bundle (host-assurance 20/20 + docker probe verified; submission deferred to ruling) — status: reference
 
 ## ddd/
 

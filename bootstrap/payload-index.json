@@ -16,8 +16,8 @@
   ],
   "fixedBin": {
     "path": "bin/csm-skills-bootstrap.js",
-    "sha256": "2ba8896a14b6a1fb276300b7d74a085793f408f45995a1c9ef2b03a7939be24d",
-    "bytes": 14515,
+    "sha256": "3d2055dbff6351d74dd066ec5d1c6cb1959a599fc0933869a3f87960ea836ff0",
+    "bytes": 14734,
     "mode": "0755"
   },
   "classes": {

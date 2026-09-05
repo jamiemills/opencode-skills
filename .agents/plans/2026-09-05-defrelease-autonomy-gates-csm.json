@@ -1,0 +1,826 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-defrelease-autonomy-gates-20260905",
+  "runId": "run-20260905t150000z-defrelease-autonomy-gates",
+  "planId": "defrelease-autonomy-gates",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-05T15:20:00Z: plan drafted from discovery of release-checklist, deferred ledger, rollout policy, promotion machinery, and publication tooling",
+    "lastModelRun": "glm-5.3-flash / csm-plan-defrelease-autonomy-gates",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal row",
+        "recovery notes of all non-COMPLETE tasks",
+        "discovered requirements",
+        "working-tree diff"
+      ],
+      "firstAction": "SELECT the G1 batch (T001, T002, T004)"
+    }
+  },
+  "goal": {
+    "summary": "Prepare and gate the two user-owned decisions: (A) DEF-RELEASE bootstrap publication (signature hard-require activation, engine-strict, key ceremony, envelope sign/host, npm publish, registry-spec replay) and (B) autonomy promotion (G3 ruling, deployment MVD definition, G5-G8 evidence collectors, promotion runbook). Every credential-requiring step is an explicit user decision gate where csm-build checkpoints BLOCKED with the exact owner and prerequisite.",
+    "deliverables": [
+      "Flag-gated strict-signature mode in both bootstrap validator copies + engine-strict config + F-046 remainder decision record",
+      "Registry-spec offline replay runner assembled from the existing offline harness",
+      "G3 ruling record + local Docker-attested evidence bundle (if ruling permits)",
+      "Deployment MVD definition + G5/G6/G7/G8 evidence collectors and drill procedures",
+      "Publication runbook and autonomy promotion runbook, each ending in an explicit user decision gate"
+    ],
+    "constraints": [
+      "No credential-requiring action executes without explicit user approval; csm-build checkpoints BLOCKED with owner and prerequisite",
+      "No weakening of bootstrap trust validation: strict mode is additive and default-off until the user activates at publication",
+      "G5-G8 accept deployment-only evidence; local evidence must never be submitted for them (rollout-policy.md:160-169)",
+      "Production autonomy stays disabled until every G0-G8 gate passes with accountable approval (D6)"
+    ],
+    "exclusions": [
+      "actually publishing without user approval",
+      "enabling autonomy modes in code",
+      "key generation by the agent"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "criterion": "Strict-signature mode exists in both validator copies (bin + trust-policy parity), flag-gated default-off, with tests proving both modes; engine-strict committed; F-046 remainder decision recorded",
+      "evidence": "node --test tests/bootstrap-trust.test.mjs tests/protocol/*.test.mjs green in both modes; grep confirms flag checks in both copies"
+    },
+    {
+      "id": "AC2",
+      "criterion": "Registry-spec replay runner exists, self-tested against the file: spec locally, and documented as the post-publication evidence command",
+      "evidence": "fixture roundtrip green + registry-mode fail-closed pre-publish (recorded negative result); registry-mode hash-tree comparison runs only post-publish (T006)"
+    },
+    {
+      "id": "AC3",
+      "criterion": "G3 ruling recorded (user decision) and, if local-bundle permitted, the bundle produced from existing Docker attestation suites with counts ready for checkPromotionGates",
+      "evidence": "ruling record in .agents/docs/ + bundle evidence file + checkPromotionGates invocation output"
+    },
+    {
+      "id": "AC4",
+      "criterion": "Deployment MVD defined and G5/G6/G7/G8 evidence collectors + drill procedures exist and are documented",
+      "evidence": "docs/autonomy-deployment.md + collector script with local dry-run output"
+    },
+    {
+      "id": "AC5",
+      "criterion": "Publication runbook and autonomy promotion runbook exist; each names the exact user decision, credentials, prerequisites, evidence records, and rollback",
+      "evidence": "bootstrap/publication-runbook.md + docs/autonomy-promotion-runbook.md; readiness-report re-baseline decision recorded"
+    }
+  ],
+  "currentStateEvidence": {
+    "observations": [
+      "DEF-RELEASE deferred halves: F-045 signature hard-require is a plain conditional (hasSignature) in TWO parity copies: bootstrap/package/bin/csm-skills-bootstrap.js:222-251 and tests/protocol/trust-policy.mjs:194-229; no flag exists today",
+      "F-046 mostly shipped: payload_index_sha256 required in bin :137-146, bound into policyToSign :46-56, schema-required, tested; remainder ('fields beyond') is undefined scope needing a recorded decision",
+      "F-060 mostly shipped: engines >=22 <25 in bootstrap/package.json:28-30 and csm-browse/package.json:17-19; remainder is engine-strict enforcement (no .npmrc exists anywhere)",
+      "Embedded keyring literal (bin :14-17) must stay canonically equal to bootstrap/keyring.json (test pin tests/bootstrap-trust.test.mjs:369)",
+      "pack-bootstrap.mjs --release refuses non-production keyrings and fixture markers (scripts/pack-bootstrap.mjs:279-303,631)",
+      "Post-publication replay harness is assembled: tests/offline/commands.mjs exports makeSandbox/runNpx/hashTree/checkSpec/checkArgv/verifyCacheManifest (:246-257); missing piece is only the registry-spec variant (release-checklist.md:24-26 forbids file: substitution)",
+      "release-provenance-check.yml: manual workflow_dispatch, release environment, inputs artifact_path (under .release-staging/) + approved_artifact_digest (64-hex); verifies digest, structure, identity; no publish/OIDC",
+      "G5-G8 accept deployment-only evidence; local evidence ignored and flagged (lib/rollout/promotion.mjs:8-54,160-169); evidence shape {passed,failed,details?}; deployment wins where both present (:104-140)",
+      "checkPromotionGates has NO runtime consumer (only tests/docs reference it); autonomy promotion is procedural: evidence -> promotable -> accountable approval -> widen createAutonomyPolicy inputs (data, not code)",
+      "G3 loophole: gate code accepts local evidence for G3 today; report BLOCKED rationale (real host identity, trust anchors, final-sink reauthorization) contradicts accepting it \u2014 explicit user ruling required; final-sink reauthorization has zero implementation; attestation.mjs has keyEpoch structure but no keys/signatures",
+      "docs/production-readiness-report.md is a stale 2026-08-28 snapshot: post-report release line (2f08063, da153d2, CHANGELOG 0.1.0, rollback descriptor, run 33971856450) never re-baselined; lib/rollout/ unchanged since 8b759c0",
+      "D6: production autonomy disabled until all G0-G8 pass (user-dictated, all-skills-config-production-assurance plan decisions)"
+    ],
+    "applicability": {
+      "format": "csm-applicability/1",
+      "decision": "warranted",
+      "mode": "risk-first",
+      "matchedSignals": [
+        "external_side_effect",
+        "public_contract",
+        "security_or_authority"
+      ],
+      "evidence": [
+        {
+          "source": "deferred.md",
+          "locator": "DEF-RELEASE :46-53",
+          "observation": "npm publication + signed envelope + key ceremony = external side effects on the public registry"
+        },
+        {
+          "source": "bootstrap/bin",
+          "locator": "csm-skills-bootstrap.js:222-251",
+          "observation": "bootstrap trust validation is a public-contract security boundary"
+        },
+        {
+          "source": "rollout-policy.md",
+          "locator": ":147-172",
+          "observation": "autonomy promotion gates are authority-bearing (security_or_authority)"
+        }
+      ],
+      "obligations": [
+        {
+          "id": "OB1",
+          "obligation": "boundary: strict mode additive + default-off; behavior identical until user activation",
+          "tasks": [
+            "T001"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB2",
+          "obligation": "observable behavior: both validator copies stay canonically parity-pinned; tests prove both modes",
+          "tasks": [
+            "T001"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB3",
+          "obligation": "authority: G3 ruling and promotion approvals are explicit user decisions recorded in .agents/docs/",
+          "tasks": [
+            "T003",
+            "T005",
+            "T007"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB4",
+          "obligation": "external side effect: publication steps are user-gated; csm-build checkpoints BLOCKED at each",
+          "tasks": [
+            "T006"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB5",
+          "obligation": "rollback: publication runbook includes unpublish/deprecate window + keyring-level revocation (rotation + re-sign \u2014 there is no envelope revoke mechanism); autonomy runbook includes autonomy-remains-disabled fallback",
+          "tasks": [
+            "T005"
+          ],
+          "status": "required"
+        }
+      ],
+      "taskApplicability": {
+        "warranted": [
+          "T001",
+          "T003",
+          "T005",
+          "T006",
+          "T007"
+        ],
+        "lightweight": [
+          "T002",
+          "T004"
+        ]
+      },
+      "dddArtifacts": [],
+      "unresolvedRisks": [
+        "G3 ruling is a genuine user decision (accept local Docker-attested bundle vs defer to deployment)",
+        "Deployment MVD target (where opencode runs real workloads with telemetry) is a user decision",
+        "Registry replay against the literal registry spec cannot be fully tested until the package is published"
+      ],
+      "bypass": {
+        "requested": false,
+        "rationale": null
+      }
+    }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "Scope is the two user-owned decisions: DEF-RELEASE publication and autonomy promotion (G5-G8 + G3 ruling)",
+      "type": "user-dictated",
+      "evidence": "user directive; research KF9 scope boundary",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "Strict-signature mode ships flag-gated default-off; the user flips it at publication per DEF-RELEASE's publication-gated semantics",
+      "type": "decision",
+      "evidence": "deferred.md:50 'kept publication-gated'; F-045 remainder analysis",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "F-046 remainder is resolved by recorded decision: payload_index_sha256 is sufficient; no additional envelope fields unless the user specifies otherwise at publication",
+      "type": "decision",
+      "evidence": "discovery: no specification for additional fields exists anywhere",
+      "status": "accepted"
+    },
+    {
+      "id": "D4",
+      "statement": "checkPromotionGates stays procedural (no runtime consumer wired); autonomy widening after promotion is policy data + guide procedures, not new enforcement code",
+      "type": "decision",
+      "evidence": "discovery Q6: no runtime consumer exists; guide defines widening as data",
+      "status": "accepted"
+    },
+    {
+      "id": "D5",
+      "statement": "This plan does not publish, host, generate keys, or enable autonomy \u2014 those are T006/T007 user gates where csm-build checkpoints BLOCKED",
+      "type": "user-dictated",
+      "evidence": "DEF-RELEASE user-approval-gated; D6",
+      "status": "accepted"
+    },
+    {
+      "id": "D6",
+      "statement": "F-045 closure mechanism: ceremony-strict \u2014 strict mode ships flag-gated; the publication runbook mandates the flag at every release verify; DEF-RELEASE closure records the deviation (default-on hard-require deferred to the first post-publication version unless the user chooses default-on at T006)",
+      "type": "decision",
+      "evidence": "critique H1: env flag cannot hard-require for npx consumers; default-on breaks the documented unsigned local flow and fixtures",
+      "status": "accepted"
+    },
+    {
+      "id": "D7",
+      "statement": "Engine-strict is a dev-side guard; consumer-side engine enforcement is impossible from inside the package (npm always excludes .npmrc from packs) \u2014 recorded in the F-060 closure note",
+      "type": "decision",
+      "evidence": "critique H3: .npmrc is npm always-excluded; repo toolchain is pnpm from root",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "RD1",
+      "question": "Exact remaining scope of DEF-RELEASE halves and autonomy promotion mechanics",
+      "method/tool": "read-only discovery subagent over bootstrap/, .agents/, lib/rollout/, workflows, tests/offline+protocol+integration",
+      "isolation": "read-only; no writes",
+      "observation": "F-045 flip in 2 parity copies; F-046 remainder undefined; F-060 needs .npmrc; replay runner is thin assembly; G5-G8 deployment-only; checkPromotionGates procedural; G3 loophole needs ruling; readiness report stale",
+      "plan implication": "7 tasks: 3 preparatory + 1 ruling + 2 runbooks + 2 user gates; user decisions made explicit BLOCKED gates"
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "Both validator copies (bin + trust-policy.mjs) must change in lockstep; canonical keyring equality is test-pinned (tests/bootstrap-trust.test.mjs:369)",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    },
+    {
+      "id": "DR2",
+      "requirement": "pack-bootstrap.mjs --release refuses non-production keyrings incl. renamed fixture markers (:279-303) \u2014 key ceremony output must pass it",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    },
+    {
+      "id": "DR3",
+      "requirement": "Offline harness exports (makeSandbox/runNpx/hashTree/checkSpec/checkArgv/verifyCacheManifest) are the assembly blocks for the registry replay runner (tests/offline/commands.mjs:246-257)",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    },
+    {
+      "id": "DR4",
+      "requirement": "Registry replay MUST use the exact literal @jamiemills/csm-skills-bootstrap@0.1.0 (grammar enforcement rejects every other spec form)",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    },
+    {
+      "id": "DR5",
+      "requirement": "checkPromotionGates evidence: {local?,deployment?} x G0-G8 x {passed,failed,details?}; deployment wins; G5-G8 local ignored+flagged",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    },
+    {
+      "id": "DR6",
+      "requirement": "check-suite requires README index lines for every tracked .agents artifact in the same commit",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    },
+    {
+      "id": "DR7",
+      "requirement": "Skill-progress records via node lib/progress-tracker.mjs only",
+      "source": "discovery 2026-09-05",
+      "appliesTo": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007"
+      ]
+    }
+  ],
+  "design": {
+    "publication": "T001 adds REQUIRE_SIGNATURE mode: env CSM_BOOTSTRAP_REQUIRE_SIGNATURE=1 (documented; default absent = current behavior) checked in both validator copies; when set, unsigned envelopes are rejected with a typed reason; tests cover both modes incl. canonical keyring pin. .npmrc (bootstrap/) with engine-strict=true. F-046 decision recorded in deferred.md (resolved: payload_index_sha256 sufficient). T002 assembles scripts/replay-registry.mjs from tests/offline/commands.mjs exports: warm file: run, then registry-spec npx in dead-registry sandbox, hash-tree diff; self-tested today against the file: spec, registry variant runs post-publish (T006). T005 writes bootstrap/publication-runbook.md: ordered steps from release-checklist.md with exact commands, credentials list (npm account 2FA, signing key storage, hosting origin/DNS), approval records, rollback (unpublish window/deprecate + envelope revoke), evidence records; readiness-report re-baseline decision recorded.",
+    "autonomy": "T003 records the G3 ruling question in .agents/docs/g3-ruling.md with both options + consequences; if local-bundle permitted, produces the bundle: run existing host-assurance suites + docker attestation probe, count passes/failures into checkPromotionGates G3 shape {passed,failed,details}. T004 writes docs/autonomy-deployment.md defining the MVD (single-host opencode runtime, telemetry export, attributable operator) and collector procedures for G5 (independent acceptance records on deployment artifacts), G6 (trace/metrics/audit/receipt correlation + export-loss detection report), G7 (frozen held-out corpus confirmation vs deployment-like data, threshold confirmation), G8 (representative-duration canary vs contemporaneous control + all stop rules exercised + verified rollback drill) using existing lib/rollout controllers. T007 writes docs/autonomy-promotion-runbook.md: checkPromotionGates submission template, accountable approval record template, what widens post-promotion (createAutonomyPolicy inputs/deny-list), autonomy-remains-disabled fallback.",
+    "gates": "T006 = user decision gate: execute publication runbook (npm publish exact bytes, provenance workflow optional, host envelope + pin origin + re-sign, keyring rotation, registry replay, steps re-sign). T007 = user decision gate: deploy MVD, run collectors for G5-G8 (+G3 per ruling), submit checkPromotionGates, obtain accountable approval, then widen autonomy policy per runbook. Both are BLOCKED-by-design until the user acts; this plan completes when the runbooks + preparatory work prove ready."
+  },
+  "executionGraph": {
+    "criticalPath": [
+      "T001",
+      "T005",
+      "T006"
+    ],
+    "parallelGroups": [
+      {
+        "group": "G1",
+        "tasks": [
+          "T001",
+          "T002",
+          "T004"
+        ]
+      },
+      {
+        "group": "G2",
+        "tasks": [
+          "T003"
+        ]
+      },
+      {
+        "group": "G3",
+        "tasks": [
+          "T005"
+        ]
+      },
+      {
+        "group": "G4",
+        "tasks": [
+          "T006",
+          "T007"
+        ]
+      }
+    ],
+    "integrationOwner": "Primary build agent"
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "pending",
+      "title": "Strict-signature mode (flag-gated) + engine-strict + F-046 decision record",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "high",
+      "ownedScope": [
+        "bootstrap/package/bin/csm-skills-bootstrap.js",
+        "tests/protocol/trust-policy.mjs",
+        "bootstrap/.npmrc (new)",
+        ".agents/docs/deferred.md",
+        "payload mirrors"
+      ],
+      "notInScope": [
+        "key generation",
+        "default behavior change",
+        "registry or hosting"
+      ],
+      "spikeCandidate": "Design note: choose the typed rejection code for strict-mode unsigned envelopes (reuse UNSIGNED vs new SIGNATURE_REQUIRED) \u2014 keep it parity-pinned across both copies",
+      "actions": [
+        "Add REQUIRE_SIGNATURE gate in both copies: when env set and envelope unsigned -> typed rejection; keep default behavior identical",
+        "Add bootstrap/.npmrc with engine-strict=true (dev-side guard only \u2014 npm never packs .npmrc so npx consumers see nothing; record the consumer-side limitation in the F-060 closure note; evaluate a root .npmrc for repo-dev enforcement)",
+        "Update tests: both modes, canonical keyring pin intact, unsigned-rejection case under the flag",
+        "Record F-046 remainder decision in .agents/docs/deferred.md (payload_index_sha256 sufficient)",
+        "Repack payload; parity tests green in both modes",
+        "Extend the regex extraction-pin pattern (bootstrap-trust.test.mjs:665-672) to pin the new gate in BOTH copies; grep is auxiliary only",
+        "Update DEF-RELEASE status in .agents/docs/deferred.md as the F-046/F-060 halves ship"
+      ],
+      "acceptanceSignal": "node --test tests/bootstrap-trust.test.mjs tests/protocol/*.test.mjs \u2014 green with flag unset AND set (unsigned accepted unset, rejected set); grep confirms the gate in both copies",
+      "validation": [
+        "make check (payload parity + canonical pin)",
+        "make fmt-check && make lint",
+        "pack --release still refuses fixture keyrings"
+      ],
+      "acceptanceEvidence": "Test output both modes + grep + deferred.md decision",
+      "repairAttempts": 0,
+      "recoveryNote": "If parity copies drift, the canonical-pin test fails first \u2014 fix both together, never one"
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "pending",
+      "title": "Registry-spec offline replay runner",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "standard",
+      "ownedScope": [
+        "scripts/replay-registry.mjs (new)"
+      ],
+      "notInScope": [
+        "tests/offline/* (import only)",
+        "CI workflow"
+      ],
+      "spikeCandidate": "Warm/replay sequencing: warm (file: pre-publish | registry post-publish) then replay (registry spec) \u2014 verify npx --offline --no-install accepts a bare registry spec in the dead-registry sandbox during local self-test with a file: warm",
+      "actions": [
+        "Assemble the runner from tests/offline/commands.mjs exports (makeSandbox/runNpx/hashTree/verifyCacheManifest)",
+        "Two explicit modes: --fixture mode (argv NOT routed through checkArgv; documented as never-registry-replay-evidence) and registry mode (checkArgv-validated literal; dead-registry sandbox; post-publish-only)",
+        "Self-test = fixture roundtrip green PLUS a negative test proving registry mode fails closed pre-publish (a file: warm cannot populate the registry-literal cache entry \u2014 that fail-closed is by design)",
+        "Include npm cache verify exit 0 and warm-cache transcript capture in both modes",
+        "Document the post-publish invocation in the runner header"
+      ],
+      "acceptanceSignal": "node scripts/replay-registry.mjs --fixture \u2014 fixture roundtrip green AND registry mode demonstrably fails closed pre-publish (recorded negative result)",
+      "validation": [
+        "make lint",
+        "tests/offline/*.test.mjs still green"
+      ],
+      "acceptanceEvidence": "Runner output + self-test transcript",
+      "repairAttempts": 0,
+      "recoveryNote": "If grammar enforcement rejects a spec form, the runner records the reason \u2014 never bypass checkSpec"
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "pending",
+      "title": "G3 ruling record + local Docker-attested evidence bundle",
+      "dependsOn": [],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [
+        ".agents/docs/g3-ruling.md (new)",
+        ".agents/evidence/g3-bundle.json (new, if permitted)",
+        ".agents/README.md (index lines for ruling + bundle)"
+      ],
+      "notInScope": [
+        "attestation signing infrastructure",
+        "final-sink reauthorization implementation",
+        "autonomy mode changes"
+      ],
+      "spikeCandidate": "Should G3 accept the local Docker-attested bundle (gate code permits; D6 intent says deployment)? \u2014 USER RULING; build the bundle either way, submit only if permitted",
+      "actions": [
+        "Write .agents/docs/g3-ruling.md: both options, consequences, recommendation (defer to deployment, or accept-with-documented-deviation); the doc MUST carry an explicit deviation clause against rollout-policy.md:182-184 (G3 = authenticated host, trust anchors, final-sink reauthorization) and forbid describing a local-accepted G3 as 'gate green' anywhere",
+        "Ask the user for the ruling (csm-build checkpoints BLOCKED with the exact question)",
+        "On ruling: run existing host-assurance suites + docker attestation probe; count into checkPromotionGates G3 shape {passed,failed,details}",
+        "Record the bundle at .agents/evidence/g3-bundle.json",
+        "Add .agents/README.md index lines for g3-ruling.md and g3-bundle.json in the same commit; run make check"
+      ],
+      "acceptanceSignal": "Ruling recorded; if local permitted: checkPromotionGates({local:{G3:counts}}) invoked with output recorded; else G3 marked deployment-deferred in the ruling doc",
+      "validation": [
+        "node --test tests/host-assurance/*.test.mjs csm-autoresearch/test/docker-provider.test.mjs",
+        "make check (index lines)"
+      ],
+      "acceptanceEvidence": "Ruling doc + bundle/checkPromotionGates output",
+      "repairAttempts": 0,
+      "recoveryNote": "The ruling is the resume anchor; bundle build is mechanical once the ruling lands"
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "pending",
+      "title": "Deployment MVD definition + G5-G8 evidence collectors and drill procedures",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "standard",
+      "ownedScope": [
+        "docs/autonomy-deployment.md (new)",
+        "scripts/collect-gate-evidence.mjs (new)"
+      ],
+      "notInScope": [
+        "lib/rollout/* runtime changes",
+        "production infrastructure"
+      ],
+      "spikeCandidate": "Is a single-host opencode runtime with exported telemetry a valid 'deployment' for G5-G8 attribution? (user confirmation folded into T007 gate; definition drafted here)",
+      "actions": [
+        "Write docs/autonomy-deployment.md: MVD definition, telemetry export requirements, attribution model, per-gate evidence definitions for G5 (independent acceptance records), G6 (trace/metrics/audit/receipt correlation + loss detection), G7 (held-out corpus confirmation + threshold confirmation), G8 (canary vs control + stop rules + rollback drill)",
+        "Build scripts/collect-gate-evidence.mjs: assembles {deployment:{G5..G8:{passed,failed,details}}} from recorded evidence files; validates shape via checkPromotionGates dry-run",
+        "Local dry-run of the collector with synthetic evidence proves shape acceptance"
+      ],
+      "acceptanceSignal": "node scripts/collect-gate-evidence.mjs --dry-run \u2014 emits a shape-valid evidence bundle accepted by checkPromotionGates (verified via a dry-run call)",
+      "validation": [
+        "make lint",
+        "tests/rollout/*.test.mjs still green"
+      ],
+      "acceptanceEvidence": "Docs + collector dry-run output",
+      "repairAttempts": 0,
+      "recoveryNote": "Docs + collector dry-run output are the resume anchor; partial collector work detected by --dry-run failure"
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "pending",
+      "title": "Publication runbook + autonomy promotion runbook + readiness-report re-baseline decision",
+      "dependsOn": [
+        "T001",
+        "T002",
+        "T003",
+        "T004"
+      ],
+      "parallelGroup": "G3",
+      "risk": "standard",
+      "ownedScope": [
+        "bootstrap/publication-runbook.md (new)",
+        "docs/autonomy-promotion-runbook.md (new)",
+        ".agents/docs/readiness-rebaseline-decision.md (new)"
+      ],
+      "notInScope": [
+        "executing publication",
+        "enabling autonomy",
+        "key generation"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "bootstrap/publication-runbook.md: exact ordered steps from release-checklist.md (gates, deterministic double-pack, --release keyring gate, cache manifest, provenance workflow, publish, host+pin+re-sign, keyring rotation, registry replay, steps re-sign), credentials list, approval records, rollback (unpublish window/deprecate, envelope revoke), evidence records to keep",
+        "docs/autonomy-promotion-runbook.md: deployment execution (T004 procedures), collector run, checkPromotionGates submission, accountable approval record template, post-promotion policy widening per autonomy-guide, autonomy-remains-disabled fallback",
+        "Record the readiness-report re-baseline decision (refresh now vs scope as 2026-08-28 snapshot)",
+        "Add .agents/README.md index line for readiness-rebaseline-decision.md in the same commit",
+        "Add a DEF-AUTONOMY-PROMOTION record to .agents/docs/deferred.md (deployment-evidence-gated autonomy promotion) so parked T007 work has a valid [DEF:<slug>] citation"
+      ],
+      "acceptanceSignal": "Both runbooks exist; a walkthrough finds every step with a command, an owner, an approval requirement, and a rollback; readiness decision recorded",
+      "validation": [
+        "make check (index lines for new .agents docs if tracked)",
+        "make fmt-check"
+      ],
+      "acceptanceEvidence": "Runbook files + walkthrough notes",
+      "repairAttempts": 0,
+      "recoveryNote": "Runbook walkthrough is the resume anchor; each uncited step is identifiable by its heading"
+    },
+    {
+      "taskId": "T006",
+      "ordinal": 6,
+      "status": "pending",
+      "title": "USER GATE: execute publication (publish, host, key ceremony, registry replay)",
+      "dependsOn": [
+        "T001",
+        "T002",
+        "T005"
+      ],
+      "parallelGroup": "G4",
+      "risk": "high",
+      "ownedScope": [
+        "npm registry state (user)",
+        "hosting origin (user)",
+        "bootstrap/keyring.json (user keys)",
+        "envelope artifacts (user)"
+      ],
+      "notInScope": [
+        "agent-run publish/credentials",
+        "autonomy changes"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "csm-build MUST checkpoint BLOCKED with the runbook and the exact credentials/approvals the user must supply",
+        "On user approval: credential-bearing commands (npm publish, DNS/hosting, key generation/rotation) are typed by the USER only; the agent may run non-credential verification steps; record every evidence artifact per the Records section",
+        "Post-publish: run scripts/replay-registry.mjs in registry mode for the checklist replay evidence",
+        "Close DEF-RELEASE in .agents/docs/deferred.md once publication + replay evidence records are complete",
+        "Capture npm cache verify exit 0 and the warm-cache transcript per release-checklist.md:11,26"
+      ],
+      "acceptanceSignal": "npm registry shows the exact audited digest; envelope hosted at the pinned origin with valid signature; registry replay hash-tree identical; records complete",
+      "validation": [
+        "pack-bootstrap.mjs --release green with production keyring",
+        "provenance workflow (if approved) run + green"
+      ],
+      "acceptanceEvidence": "Registry URL + digests + replay transcript + key fingerprint records",
+      "repairAttempts": 0,
+      "recoveryNote": "BLOCKED until the user supplies credentials and explicit approval \u2014 csm-build records the exact owner and resumes only on user direction"
+    },
+    {
+      "taskId": "T007",
+      "ordinal": 7,
+      "status": "pending",
+      "title": "USER GATE: deployment evidence collection + autonomy promotion approval",
+      "dependsOn": [
+        "T003",
+        "T004",
+        "T005"
+      ],
+      "parallelGroup": "G4",
+      "risk": "high",
+      "ownedScope": [
+        "deployment environment (user)",
+        "evidence records (collector output)",
+        "promotion approval record (user)"
+      ],
+      "notInScope": [
+        "autonomy code enablement",
+        "agent-approved promotion"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "csm-build MUST checkpoint BLOCKED: user deploys the MVD, runs collectors for G5-G8 (+G3 per T003 ruling) over a representative duration, exercises every G8 stop rule + verified rollback drill",
+        "Run scripts/collect-gate-evidence.mjs + checkPromotionGates with real deployment evidence",
+        "If promotable: present the accountability record; autonomy policy widening happens ONLY on explicit user approval per the runbook"
+      ],
+      "acceptanceSignal": "checkPromotionGates returns promotable=true on real deployment evidence; signed accountability approval recorded; autonomy widening executed only per the approved runbook",
+      "validation": [
+        "collector shape validation",
+        "all G0-G8 pass"
+      ],
+      "acceptanceEvidence": "checkPromotionGates output + approval record + deployment evidence bundle paths",
+      "repairAttempts": 0,
+      "recoveryNote": "BLOCKED until the user provides the deployment environment and approval \u2014 never promoted on local evidence alone"
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "per-task focused tests (fast)",
+      "bootstrap trust/protocol suites (both signature modes)",
+      "offline suites",
+      "make check/fmt-check/lint (batch)",
+      "CI exact-SHA all-jobs (final)"
+    ],
+    "fastGates": [
+      "focused node --test files",
+      "grep assertions",
+      "json.load parse checks"
+    ],
+    "batchGates": [
+      "make check (check-suite 1244 + payload parity)",
+      "make fmt-check",
+      "make lint"
+    ],
+    "finalGates": [
+      "exact-SHA CI all 4 jobs green, adapter lane zero-skip"
+    ],
+    "environmentSensitive": [
+      "live browser/Docker suites CI-only",
+      "registry replay registry-mode requires the published package (post-T006)"
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Strict-mode flip at publication could break consumers installing without the flag context (mitigation: default-off until user activation; runbook documents the exact activation)",
+      "Registry replay mechanics differ from file: replay in untested ways (mitigation: self-test + explicit spike on warm/replay sequencing)",
+      "G3 ruling accepting local evidence weakens D6 intent (mitigation: ruling doc records the deviation explicitly; alternative is deployment deferral)",
+      "User decision gates may stall the plan indefinitely (by design; csm-build checkpoints BLOCKED with exact owners)"
+    ],
+    "mitigations": [
+      "fail-closed defaults",
+      "documented rollback per runbook",
+      "exact-SHA CI for every evidence claim"
+    ],
+    "recovery": "T001-T005 resumable from acceptance signals; T006/T007 BLOCKED states carry exact prerequisites and resume only on user direction"
+  },
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-05T15:00:00Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER",
+      "tasks": [],
+      "evidence": "warranted decision (external_side_effect, public_contract, security_or_authority)",
+      "nextState": "DISCOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-05T15:10:00Z",
+      "cycle": 0,
+      "transition": "DISCOVER -> RESEARCH",
+      "tasks": [],
+      "evidence": "discovery subagent: DEF-RELEASE halves mostly shipped; replay is thin assembly; G5-G8 deployment-only; checkPromotionGates procedural; G3 loophole needs ruling; readiness report stale",
+      "nextState": "RESEARCH"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-05T15:15:00Z",
+      "cycle": 0,
+      "transition": "RESEARCH -> DRAFT",
+      "tasks": [],
+      "evidence": "7-task structure: 3 preparatory + 1 ruling + 2 runbooks + 2 user gates",
+      "nextState": "DRAFT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-05T15:20:00Z",
+      "cycle": 0,
+      "transition": "DRAFT -> CRITIQUE",
+      "tasks": [],
+      "evidence": "draft complete, schema-shaped",
+      "nextState": "CRITIQUE"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-05T15:30:00Z",
+      "cycle": 0,
+      "transition": "CRITIQUE -> REMEDIATE",
+      "tasks": [],
+      "evidence": "critic READY-AFTER-EDITS: 3 high (H1 flag semantics, H2 impossible self-test, H3 engine-strict inertness) + 5 medium + 4 low",
+      "nextState": "REMEDIATE"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-05T15:40:00Z",
+      "cycle": 0,
+      "transition": "REMEDIATE -> VERIFY",
+      "tasks": [],
+      "evidence": "all 12 findings applied (3 high, 5 medium, 4 low)",
+      "nextState": "VERIFY"
+    }
+  ],
+  "critiqueResolution": [
+    {
+      "finding": "H1 env flag cannot deliver hard-require semantics",
+      "severity": "high",
+      "resolution": "D6 added: ceremony-strict mechanism; DEF-RELEASE closure records the deviation; default-on available as user option at T006",
+      "evidence": "npx consumers never see the env var"
+    },
+    {
+      "finding": "H2 file: self-test impossible under grammar enforcement",
+      "severity": "high",
+      "resolution": "runner split into --fixture mode (not registry evidence) + registry mode (post-publish); AC2 rewritten to fixture-roundtrip + fail-closed negative",
+      "evidence": "commands.mjs:50-70 checkSpec rejects file: unconditionally"
+    },
+    {
+      "finding": "H3 .npmrc engine-strict inert for consumers",
+      "severity": "high",
+      "resolution": "reframed dev-side guard + D7 limitation record + root .npmrc evaluated",
+      "evidence": "npm always-excludes .npmrc from packs"
+    },
+    {
+      "finding": "M4 T003/T005 index-line ownership",
+      "severity": "medium",
+      "resolution": "ownedScope += .agents/README.md; index actions; make check in T003 validation",
+      "evidence": "check-suite.mjs:1434-1458"
+    },
+    {
+      "finding": "M5 T007 DEFERRED-citation trap",
+      "severity": "medium",
+      "resolution": "T005 adds DEF-AUTONOMY-PROMOTION ledger record",
+      "evidence": "check-suite :901-986"
+    },
+    {
+      "finding": "M6 G3 baseline is policy not just D6",
+      "severity": "medium",
+      "resolution": "g3-ruling.md requires deviation clause vs rollout-policy:182-184; 'gate green' phrasing forbidden for local acceptance",
+      "evidence": "rollout-policy.md:182-184"
+    },
+    {
+      "finding": "M7 grep-based parity below repo bar",
+      "severity": "medium",
+      "resolution": "extraction-pin pattern extended to the new gate; grep auxiliary",
+      "evidence": "bootstrap-trust.test.mjs:665-672"
+    },
+    {
+      "finding": "M8 DEF-RELEASE status hygiene",
+      "severity": "medium",
+      "resolution": "T001 status-update action + T006 closure action",
+      "evidence": "deferred.md"
+    },
+    {
+      "finding": "L9 agent-run publish contradiction",
+      "severity": "low",
+      "resolution": "credential-bearing commands typed by user only; agent runs verification only",
+      "evidence": "T006 actions"
+    },
+    {
+      "finding": "L10 cache verify + warm transcript missing",
+      "severity": "low",
+      "resolution": "added to runner modes and T006 actions",
+      "evidence": "release-checklist.md:11,26"
+    },
+    {
+      "finding": "L11 spike premise false",
+      "severity": "low",
+      "resolution": "reworded to typed-rejection-code design note",
+      "evidence": "bin has no env reads today"
+    },
+    {
+      "finding": "L12 envelope revoke has no mechanism",
+      "severity": "low",
+      "resolution": "OB5 + runbook name keyring rotation + re-sign as the revocation path",
+      "evidence": "keyring.json revoked semantics"
+    }
+  ],
+  "completionReview": null,
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-05T15:20:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
+}

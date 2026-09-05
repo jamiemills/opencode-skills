@@ -166,6 +166,63 @@ test("accepts the committed valid local HTTPS envelope and binds canonical steps
   }
 });
 
+test("F-045 strict mode: CSM_BOOTSTRAP_REQUIRE_SIGNATURE=1 rejects unsigned envelopes; signed envelopes and default mode unchanged", async () => {
+  const envelope = await loadBoundFixture();
+  const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
+  const prior = process.env.CSM_BOOTSTRAP_REQUIRE_SIGNATURE;
+  try {
+    delete process.env.CSM_BOOTSTRAP_REQUIRE_SIGNATURE;
+    assert.equal(validateEnvelope(envelope, keyring, { now }).trusted, true);
+
+    process.env.CSM_BOOTSTRAP_REQUIRE_SIGNATURE = "1";
+    assert.throws(
+      () => validateEnvelope(envelope, keyring, { now }),
+      (error) => error.code === "SIGNATURE_REQUIRED",
+    );
+
+    const keyPair = generateKeyPairSync("ed25519");
+    const privateKey = keyPair.privateKey;
+    const der = keyPair.publicKey.export({ format: "der", type: "spki" });
+    const derBase64 = der.toString("base64");
+    const fingerprint = digest(Buffer.from(derBase64, "base64"));
+    const strictKeyring = {
+      schema: "csm-bootstrap-keyring/1",
+      environment: "test-fixture-only",
+      production_use: false,
+      keys: [
+        {
+          id: "strict-mode-test",
+          algorithm: "Ed25519",
+          public_key_der_base64: derBase64,
+          fingerprint,
+          not_before: "2026-01-01T00:00:00.000Z",
+          not_after: "2099-01-01T00:00:00.000Z",
+          revoked: false,
+        },
+      ],
+    };
+    const withStrictKey = {
+      ...envelope,
+      key: { id: "strict-mode-test", fingerprint, algorithm: "Ed25519" },
+    };
+    const signed = {
+      ...withStrictKey,
+      signature: {
+        algorithm: "Ed25519",
+        value: sign(
+          null,
+          Buffer.from(canonicalJson(policyToSign(withStrictKey))),
+          privateKey,
+        ).toString("base64"),
+      },
+    };
+    assert.equal(validateEnvelope(signed, strictKeyring, { now }).trusted, true);
+  } finally {
+    if (prior === undefined) delete process.env.CSM_BOOTSTRAP_REQUIRE_SIGNATURE;
+    else process.env.CSM_BOOTSTRAP_REQUIRE_SIGNATURE = prior;
+  }
+});
+
 test("rejects trust and guidance boundary violations", async () => {
   const envelope = await loadBoundFixture();
   const keyring = JSON.parse(await readFile(keyringPath, "utf8"));
@@ -672,6 +729,15 @@ test("R5: the shipped bin embeds the shared shell denylist and fixed package pol
   const denylistMatch = /const SHELL_DENYLIST =\s*\/([\s\S]*?)\/i;/.exec(binSrc);
   assert.ok(denylistMatch, "shipped bin must declare SHELL_DENYLIST");
   assert.equal(denylistMatch[1], SHELL_DENYLIST.source);
+});
+
+test("F-045 strict-mode gate is parity-pinned across the shipped bin and the test engine", async () => {
+  const gatePattern =
+    /CSM_BOOTSTRAP_REQUIRE_SIGNATURE === "1";[\s\S]*?requireSignature && !hasSignature[\s\S]*?SIGNATURE_REQUIRED/;
+  const binSrc = await readFile(binPath, "utf8");
+  const engineSrc = await readFile(join(root, "tests", "protocol", "trust-policy.mjs"), "utf8");
+  assert.match(binSrc, gatePattern, "shipped bin must carry the strict-signature gate");
+  assert.match(engineSrc, gatePattern, "trust-policy engine must carry the strict-signature gate");
 });
 
 test("shell policy is explicitly heuristic and hostile obfuscation is not treated as a guarantee", () => {

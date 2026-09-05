@@ -1,0 +1,6 @@
+{
+  "decision": "scope docs/production-readiness-report.md as the 2026-08-28 snapshot; do not refresh in this plan",
+  "rationale": "lib/rollout/ is unchanged since 8b759c0, so the report's gate analysis remains technically current; the post-report release line (2f08063/da153d2/CHANGELOG 0.1.0/rollback descriptor/run 33971856450) changed release evidence, not rollout semantics. A re-baseline belongs to the T007 promotion execution, where real deployment evidence will rewrite the verdict anyway.",
+  "decidedBy": "csm-plan (defrelease-autonomy-gates T005)",
+  "decidedAt": "2026-09-05"
+}
