@@ -19,26 +19,71 @@
     "descriptorDigest"
   ],
   "properties": {
-    "schema": { "const": "csm-browse-evidence/1" },
-    "evidenceId": { "type": "string", "pattern": "^evidence-[a-z0-9][a-z0-9-]{1,127}$" },
-    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
-    "owner": { "const": "csm-browse" },
-    "kind": { "enum": ["screenshot", "video", "dom", "console", "network", "performance"] },
+    "schema": {
+      "const": "csm-browse-evidence/1"
+    },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^evidence-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "owner": {
+      "const": "csm-browse"
+    },
+    "kind": {
+      "enum": ["screenshot", "video", "dom", "console", "network", "performance"]
+    },
     "path": {
       "type": "string",
       "pattern": "^(?!/)(?![A-Za-z]:[\\/])(?!.*(?:^|/)[.]{2}(?:/|$))(?!.*\\\\)[^\\u0000]+$"
     },
-    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
-    "bytes": { "type": "integer", "minimum": 0 },
-    "contentType": { "type": "string", "minLength": 1, "pattern": "^[^\\s/]+/[^\\s]+$" },
-    "capturedAt": { "type": "string", "format": "date-time" },
-    "metadata": { "type": "object", "additionalProperties": true },
-    "binaryAcknowledged": { "type": "boolean" },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "contentType": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s/]+/[^\\s]+$"
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "binaryAcknowledged": {
+      "type": "boolean"
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "properties": { "url": { "type": "string", "format": "uri" }, "title": { "type": "string" } }
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string"
+        }
+      }
     },
-    "descriptorDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+    "descriptorDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "sourceDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
   }
 }

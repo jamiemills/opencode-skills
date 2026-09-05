@@ -111,7 +111,7 @@ export async function persistJsonEvidence({ root, path, native }) {
     .update(JSON.stringify(record) + "\n")
     .digest("hex")}`;
   await writeFile(join(root, path), JSON.stringify(record) + "\n", { mode: 0o600 });
-  const returned = { ...native, path, digest: fileDigest };
+  const returned = { ...native, path, digest: fileDigest, sourceDigest: native.digest };
   const descriptor = { ...returned };
   delete descriptor.descriptorDigest;
   return { ...returned, descriptorDigest: digest(descriptor) };

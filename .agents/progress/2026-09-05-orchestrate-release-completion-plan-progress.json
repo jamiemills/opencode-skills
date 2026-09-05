@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-orchestrate-release-completion-plan-20260905",
+  "runId": "run-20260905t100000z-orchestrate-release-completion-plan",
+  "skill": "csm-plan",
+  "goal": "Plan the 5 remaining orchestration release items",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Intake + discover (session evidence)",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Draft plan JSON",
+      "weightPercent": 30,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Independent critique + remediate",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify + save",
+      "weightPercent": 25,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-05T10:00:00Z",
+  "updatedAt": "2026-09-05T09:26:04.767Z"
+}

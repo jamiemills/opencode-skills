@@ -188,6 +188,7 @@ async function main() {
   const files = process.env.ADAPTER_REQUIRED_TEST_FILES?.split("\n").filter(Boolean) ?? [
     "tests/orchestrate-browse-live-integration.test.mjs",
     "tests/orchestrate-autoresearch-live-integration.test.mjs",
+    "tests/orchestrate-outcome-parity.test.mjs",
   ];
   const child = spawn(process.execPath, ["--test", "--test-concurrency=1", ...files], {
     stdio: ["ignore", "pipe", "pipe"],

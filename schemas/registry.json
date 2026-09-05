@@ -445,7 +445,8 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:6638a367f8dc4ddc083f06b44c7657155635138b1dd8fffcbc160101f7e56ac4"
+      "schemaContentDigest": "sha256:64cac78fccdefe181e2e7594f28708c34103a8b842003ed1672f041925797f15",
+      "digest": "sha256:c2bc693d1a691b182d4f1e88014ee6d3edcdf3b04160db4df4495626e568cc59"
     },
     {
       "id": "csm-browse-session/1",

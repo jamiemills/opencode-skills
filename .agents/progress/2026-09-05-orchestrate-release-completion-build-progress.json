@@ -1,0 +1,38 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-orchestrate-release-completion-build-20260905",
+  "runId": "run-20260905t110000z-orchestrate-release-completion-build",
+  "skill": "csm-build",
+  "goal": "Execute orchestrate-release-completion plan: T001-T005",
+  "status": "active",
+  "overallPercent": 42,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "G1 batch: T001 + T002 + T004",
+      "weightPercent": 40,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "T003 independent final release review",
+      "weightPercent": 25,
+      "status": "active",
+      "verifiedFraction": 0.1
+    },
+    {
+      "id": "M3",
+      "title": "T005 reconciliation + closure",
+      "weightPercent": 25,
+      "status": "pending"
+    },
+    {
+      "id": "M4",
+      "title": "Final CI evidence + completion",
+      "weightPercent": 10,
+      "status": "pending"
+    }
+  ],
+  "startedAt": "2026-09-05T11:00:00Z",
+  "updatedAt": "2026-09-05T09:42:13.448Z"
+}

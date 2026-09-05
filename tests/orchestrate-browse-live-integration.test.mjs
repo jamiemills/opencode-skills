@@ -97,7 +97,6 @@ test(
         root: evidenceRoot,
         schemaRegistry,
         owner: "csm-browse",
-        requireSourceDigest: false,
       });
       const productionResolver = createArtifactResolver({
         root: reviewArtifactRoot,
@@ -364,7 +363,6 @@ test(
         root: SESSIONS_ROOT,
         schemaRegistry: await loadSchemaRegistry(),
         owner: "csm-browse",
-        requireSourceDigest: false,
       }),
     });
     try {

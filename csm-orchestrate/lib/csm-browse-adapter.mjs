@@ -291,6 +291,11 @@ export function createCsmBrowseAdapter({
           browse.validateEvidenceDescriptor(native, { sourceRunId: native.runId });
           if (!artifactResolver?.resolve)
             throw policyError("invalid-artifact", "browser artifact resolver is required");
+          if (!native.sourceDigest || typeof native.sourceDigest !== "string")
+            throw policyError(
+              "invalid-artifact",
+              "browser evidence descriptor must carry the native source digest",
+            );
           const resolved = await artifactResolver.resolve(native.path, {
             expectedFileDigest: native.digest,
             expectedArtifactId: `art-${native.runId.slice(4)}-${native.evidenceId.slice(9)}`.slice(
@@ -299,6 +304,7 @@ export function createCsmBrowseAdapter({
             ),
             expectedOwner: "csm-browse",
             expectedSourceRunId: native.runId,
+            expectedSourceDigest: native.sourceDigest,
           });
           if (resolved?.status !== "resolved" || resolved.fileDigest !== native.digest)
             throw policyError(

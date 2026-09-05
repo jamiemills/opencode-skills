@@ -28,7 +28,7 @@ function state(sid, port = 9225) {
   };
 }
 
-function nativeEvidence() {
+function nativeEvidence(sourceDigest) {
   const body = {
     schema: "csm-browse-evidence/1",
     evidenceId: "evidence-capture-test",
@@ -42,6 +42,7 @@ function nativeEvidence() {
     capturedAt: "2026-08-31T00:00:00.000Z",
     metadata: {},
     binaryAcknowledged: true,
+    ...(sourceDigest ? { sourceDigest } : {}),
   };
   return { ...body, descriptorDigest: digest(body) };
 }
@@ -49,7 +50,8 @@ function nativeEvidence() {
 test("browse derives an owned session and translates resolver-validated evidence", async () => {
   let ensured = 0;
   let cleaned = 0;
-  const native = nativeEvidence();
+  const resolveCalls = [];
+  const native = nativeEvidence(digest("bytes"));
   const adapter = createCsmBrowseAdapter({
     ensureSession: async ({ sid }) => {
       ensured++;
@@ -59,7 +61,12 @@ test("browse derives an owned session and translates resolver-validated evidence
       cleaned++;
     },
     capture: async () => native,
-    artifactResolver: { resolve: async () => ({ status: "resolved", fileDigest: native.digest }) },
+    artifactResolver: {
+      resolve: async (path, expected) => {
+        resolveCalls.push(expected);
+        return { status: "resolved", fileDigest: native.digest };
+      },
+    },
   });
   const result = await executeSkill(
     "csm-browse",
@@ -74,6 +81,7 @@ test("browse derives an owned session and translates resolver-validated evidence
   assert.equal(cleaned, 1);
   assert.equal(result.evidence[0].source.nativeArtifactId, native.evidenceId);
   assert.deepEqual(result.artifacts, []);
+  assert.equal(resolveCalls[0].expectedSourceDigest, digest("bytes"));
 });
 
 test("browse cleanup failure preserves UNKNOWN reconciliation authority after cancellation", async () => {
@@ -173,4 +181,51 @@ test("browse pre-dispatch cancellation provisions no session and identity is det
   assert.equal(result.status, "cancelled");
   assert.equal(called, false);
   assert.match(sessionIdFor(context), /^orch-[a-f0-9]{32}$/);
+});
+
+test("browse evidence without a native source digest fails closed", async () => {
+  const native = nativeEvidence();
+  const adapter = createCsmBrowseAdapter({
+    ensureSession: async ({ sid }) => state(sid),
+    cleanupSession: async () => {},
+    capture: async () => native,
+    artifactResolver: { resolve: async () => ({ status: "resolved", fileDigest: native.digest }) },
+  });
+  const result = await executeSkill(
+    "csm-browse",
+    { input: { operation: "capture", binaryAcknowledged: true }, context, request },
+    {
+      handlers: createExecutorHandlers({ csmBrowseAdapter: adapter }),
+      descriptor: { effects: ["browser-session", "workspace-write"] },
+    },
+  );
+  assert.equal(result.status, "failed", JSON.stringify(result));
+  assert.match(result.failure?.code ?? "", /invalid-artifact/);
+  assert.match(result.failure?.message ?? "", /source digest/);
+});
+
+test("browse evidence source-digest divergence fails closed", async () => {
+  const native = nativeEvidence(digest("bytes"));
+  const adapter = createCsmBrowseAdapter({
+    ensureSession: async ({ sid }) => state(sid),
+    cleanupSession: async () => {},
+    capture: async () => native,
+    artifactResolver: {
+      resolve: async () => ({
+        status: "rejected",
+        code: "source-digest-mismatch",
+        errors: [{ message: "artifact sourceDigest does not match upstream identity" }],
+      }),
+    },
+  });
+  const result = await executeSkill(
+    "csm-browse",
+    { input: { operation: "capture", binaryAcknowledged: true }, context, request },
+    {
+      handlers: createExecutorHandlers({ csmBrowseAdapter: adapter }),
+      descriptor: { effects: ["browser-session", "workspace-write"] },
+    },
+  );
+  assert.equal(result.status, "failed", JSON.stringify(result));
+  assert.match(result.failure?.message ?? "", /not resolver-validated/);
 });
