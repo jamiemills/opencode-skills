@@ -1,0 +1,66 @@
+{
+  "schema": "csm-t007-evidence-snapshot/1",
+  "collectedAt": "2026-09-05T18:27:23.481Z",
+  "windowOpened": "2026-09-05T17:20:00Z",
+  "promotable": false,
+  "bundle": {
+    "local": {
+      "G0": {
+        "passed": 1244,
+        "failed": 0,
+        "details": "check-suite 1244 OK (run 33980092950 CI)"
+      },
+      "G1": {
+        "passed": 41,
+        "failed": 0,
+        "details": "config/contract suites green (CI 33980092950)"
+      },
+      "G2": {
+        "passed": 12,
+        "failed": 0,
+        "details": "forgery/replay/authority suites green"
+      },
+      "G3": {
+        "passed": 20,
+        "failed": 0,
+        "details": "host-assurance 20/20 + docker attestation probe verified (supporting; G3 ruling = defer to deployment)"
+      },
+      "G4": {
+        "passed": 30,
+        "failed": 0,
+        "details": "durable store suites green (sqlite suites in CI)"
+      }
+    },
+    "deployment": {
+      "G5": {
+        "passed": 1,
+        "failed": 0,
+        "details": "independent acceptance: release review ACCEPTED (review-7aefc81c) on G1 artifacts at 2f08063/da153d2"
+      },
+      "G8": {
+        "passed": 8,
+        "failed": 0,
+        "details": "stop-rule drills 8/8 verified + promotion path (t007-g8-drill.json, this host)"
+      }
+    }
+  },
+  "gateStates": {
+    "G0": "pass",
+    "G1": "pass",
+    "G2": "pass",
+    "G3": "pass",
+    "G4": "pass",
+    "G5": "pass",
+    "G6": "blocked",
+    "G7": "blocked",
+    "G8": "pass"
+  },
+  "blocking": {
+    "G6": "no correlated receipt/trace/telemetry runs recorded on the MVD yet — requires real orchestrator-runtime runs (scripts/run-orchestrator.mjs) with telemetry preserved in .agents/evidence/orchestrator/<runId>/",
+    "G7": "held-out corpus run not yet executed against window data — requires a populated held-out scenario set executed via the lib/evals/orchestration corpus machinery"
+  },
+  "closesWhen": {
+    "G6": "representative real use of scripts/run-orchestrator.mjs with receipts+telemetry preserved, then recount",
+    "G7": "populate held-out scenarios and execute the corpus run, then recount"
+  }
+}

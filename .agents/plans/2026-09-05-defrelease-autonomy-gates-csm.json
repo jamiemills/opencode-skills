@@ -10,7 +10,7 @@
     "currentState": "BLOCKED",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T17:25:00Z: T007 MVD designated (this host, operator jamiemills) \u2014 evidence window OPEN. G8 drill complete (8/8 rollback verified + promotion path, .agents/evidence/t007-g8-drill.json); G5/G6 accrue during real use; G7 runs at collection. Resume: BLOCKED -> RECOVER when the user directs evidence collection.",
+    "lastCheckpoint": "2026-09-05T17:45:00Z: first T007 evidence collection \u2014 G0-G5 + G8 pass, G6/G7 BLOCKED (deployment-evidence-required). Snapshot: .agents/evidence/t007-evidence-snapshot.json. Closes when: G6 = real orchestrator-runtime runs preserved via run-orchestrator.mjs; G7 = populated held-out corpus executed. Still BLOCKED on representative real use.",
     "lastModelRun": "glm-5.3-flash / csm-build-defrelease-autonomy-gates",
     "nextTransition": "BLOCKED -> RECOVER on explicit user direction for T006 and/or T007",
     "activeTasks": [],
@@ -774,6 +774,17 @@
       ],
       "evidence": "MVD designated (this host); G8 drill PASS 8/8 + promotion path; window open for G5/G6 accrual; G7 runs at collection",
       "nextState": "BLOCKED on representative real-use window (user-directed collection)"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-05T17:45:00Z",
+      "cycle": 1,
+      "transition": "T007 evidence collection (attempt 1)",
+      "tasks": [
+        "T007"
+      ],
+      "evidence": "7/9 gates pass; G6+G7 blocked \u2014 no runtime-run telemetry preserved yet and no populated held-out corpus; snapshot saved",
+      "nextState": "BLOCKED (window accrues; recollect after real orchestrator use + corpus population)"
     }
   ],
   "critiqueResolution": [

@@ -217,6 +217,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
 - `g3-bundle.json` — 2026-09-05 — G3 local evidence bundle (host-assurance 20/20 + docker probe verified; submission deferred to ruling) — status: reference
 - `t007-mvd-designation.json` — 2026-09-05 — MVD designation (this host, operator jamiemills) + evidence window procedures — status: active
+- `t007-evidence-snapshot.json` — 2026-09-05 — first T007 collection: 7/9 gates pass; G6+G7 blocked with close-out paths — status: active
 
 ## ddd/
 
