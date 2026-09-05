@@ -10,9 +10,9 @@
     "currentState": "BLOCKED",
     "cycle": 1,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-05T09:30:00Z: T002 completed on working tree (host-seam persisted refs + unconditional enforcement); T003 variables blocker stale (CSM_ADAPTER_INTEGRATIONS/APPROVED set since Sep 4, run 33903446355 green); next: commit + exact-SHA CI, then T003 reconcile/close",
+    "lastCheckpoint": "2026-09-05T09:50:00Z: T002 shipped on 14726f3; CI run 33956525179 fully green (all 4 jobs, adapter lane zero-skip) \u2014 exact-SHA evidence for the enforcement commit exists. T003 next: reconcile stale blocker records (variables present since Sep 4) and close the plan.",
     "lastModelRun": "glm-5.3-flash / csm-build-review-persistence",
-    "nextTransition": "CHECKPOINT -> SELECT (T003) after CI evidence",
+    "nextTransition": "CHECKPOINT -> SELECT (T003: reconcile + close)",
     "activeTasks": [
       "T002",
       "T003"
