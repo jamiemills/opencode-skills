@@ -1,0 +1,252 @@
+{
+  "format": "csm-deep-research/1",
+  "runId": "20260906t162030z-b057b2e795cd",
+  "slug": "parallelism-foundations",
+  "state": "SAVED",
+  "tier": "DEEP",
+  "mode": "local",
+  "gitRoot": "/home/jamiemills/.config/opencode/skills",
+  "commitSha": "41ae5053513010422ac843e5a635777b1bf631ae",
+  "question": "How do tracing, logging, JSON encoding of instructions, gate codification, state management, and worktree management currently work in this repo — and which parts of the repo relate to or would be impacted by changes toward (1) maximum parallelization of work initiated by a single user, and (2) maximum parallel work in the same repo? No solutions to devise; findings only.",
+  "control": [
+    {
+      "at": "2026-09-06T16:20:30Z",
+      "entry": "INTAKE complete :: cycle 1 :: baseline clean at 41ae505"
+    },
+    {
+      "at": "2026-09-06T16:22:00Z",
+      "entry": "TRIAGE complete :: cycle 1 :: DEEP tier, local mode; tracks: (1) tracing+telemetry+logging, (2) instruction JSON encoding, (3) gates+approvals+reviews, (4) durable state management, (5) worktree/session machinery + impact inventory"
+    },
+    {
+      "at": "2026-09-06T16:22:30Z",
+      "entry": "RESEARCH -> dispatching 5 parallel read-only researchers :: cycle 1"
+    },
+    {
+      "at": "2026-09-06T16:42:30.566Z",
+      "entry": "CHALLENGE complete :: cycle 1 :: 7 uphold / 3 downgrade / 5 new claims, all resolved (see process.resolutions)"
+    },
+    {
+      "at": "2026-09-06T16:42:30.566Z",
+      "entry": "JUDGE complete :: cycle 1 :: PASS (factual 0.85, citation 0.75, completeness 0.9, clarity 0.75); tightening items applied"
+    },
+    {
+      "at": "2026-09-06T16:42:30.567Z",
+      "entry": "VERIFY complete :: cycle 1 :: protected state re-run clean (only research JSON untracked); redaction check passed; README index line added; 9-part JSON finding complete"
+    },
+    {
+      "at": "2026-09-06T16:42:30.567Z",
+      "entry": "SAVED :: finding committed"
+    }
+  ],
+  "protectedStateBaseline": [],
+  "tl": "The repo is already substantially parallel-ready at the RUN level: every orchestrator run is isolated in .agents/evidence/orchestrator/<runId>/ with its own sqlite DB (WAL, compare-and-swap (CAS) revisions, fencing), telemetry JSONL, and progress state; artifact filenames embed unique run IDs; git worktrees (wt-session.mjs) give each parallel session its own index/HEAD/hooks so sibling sessions cannot sweep each other. The bottlenecks for both goals are NOT in the orchestrator runtime — they are repo-GLOBAL single-writer structures: .agents/README.md index lines (every committed artifact needs a same-commit line), the bootstrap payload tree + payload-index.json (whole-tree byte-parity regen on any source change), capabilities.json digest pins, schemas/registry.json immutability, generator-owned README matrix/boilerplate regions, and the main-checkout-only serial merge flow. Same-runId concurrent reuse is the one genuinely unsafe state (TOCTOU existsSync guard, no run-level lease).",
+  "keyFindings": [
+    {
+      "id": "KF-1",
+      "claim": "Per-run durable-state isolation is strong: the orchestrator driver own bookkeeping (sqlite WAL DB, telemetry JSONL, receipts, progress, review artifacts, approach copy) is confined per run under .agents/evidence/orchestrator/<runId>/; DB keys, child ids, artifact names and receipt ids embed the run slug. Dispatched skill pipelines are currently read-only/in-memory or blocked (agent-session-required); a supplied --host may write anywhere by design.",
+      "verdict": "supported",
+      "sources": [
+        "run-orchestrator.mjs:184-224,331-352",
+        "telemetry.mjs:104-121",
+        "orchestration-store WAL/CAS/fencing",
+        "progress.mjs runId-scoped ids"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-2",
+      "claim": "Telemetry is single-writer per transport (in-process writeQueue) plus an OS append-lock per JSONL file; per-run files mean distinct runs never contend on telemetry. Sequence numbers restart per emitter (per process), so two processes sharing one JSONL produce duplicate sequences that break detectLoss (which expects unique 1..emittedCount per emitter); checkCompleteness correlates by receipt id rather than sequence, so it is unaffected except in the same-runId cross-match case.",
+      "verdict": "supported",
+      "sources": [
+        "telemetry.mjs:104-121,161,204",
+        "durable-json:128-140"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-3",
+      "claim": "Instruction encoding is content-addressed end-to-end: canonical JSON (sorted keys) -> sha256 digests; SKILL.md bytes -> capability digest -> capabilityDigest -> skillDigest; executor identity is an 8-field tuple of skill name + 7 content digests (permissions/effects folded into contractDigest); requestDigest covers the serialized invocation; plan artifacts optionally self-digest and the robust end-to-end binding is a fresh runtime digest over the loaded plan (sourcePlan.digest/planDigest).",
+      "verdict": "supported",
+      "sources": [
+        "schema-runtime canonicalize/digest",
+        "capabilities.mjs:51-55",
+        "skill-executor-registry:9-36,85-92",
+        "run-helpers materialDigest",
+        "plan.mjs:401"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-4",
+      "claim": "The mutable shared instruction document is the plan JSON, advanced in place through csm-plan-owned writers (atomicWrite exclusive; same-path concurrent writers fail with EEXIST/collision rather than clobber). Distinct goals never collide (unique filenames). Same-goal concurrent execution is the only contention; the worktree protocol (one goal per worktree) forbids sharing a worktree, and builds bind the plan by sourcePlan.digest.",
+      "verdict": "supported",
+      "sources": [
+        "csm-build/SKILL.md in-place plan updates",
+        "plan.mjs self-digest",
+        "AGENTS.md worktree rule"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-5",
+      "claim": "Gates are per-run isolated in evaluation but repo-global in codification: evidence/requirement/signal/review gates consume only the run own evidence; the repo-wide conformance gate (scripts/check-suite.mjs) is whole-repo (payload parity, capabilities digests, README index, corpora, progress records WITHOUT the untracked filter).",
+      "verdict": "supported",
+      "sources": [
+        "evidence-gates.mjs",
+        "check-suite.mjs:1481-1509,1511-1515,772-813,815-874"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-6",
+      "claim": "The genuinely serializing repo-global structures are: .agents/README.md index (every tracked artifact needs a same-commit line), bootstrap/package/payload + payload-index.json whole-tree byte parity, capabilities.json digest freshness, schemas/registry.json immutability, generator-owned README matrix/boilerplate, and the main-checkout-only serial ff-only merge flow.",
+      "verdict": "supported",
+      "sources": [
+        "check-suite.mjs:1481-1509",
+        "pack-bootstrap.mjs whole-tree regen",
+        "wt-session.mjs:140-142,178",
+        "AGENTS.md"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-7",
+      "claim": "Same-runId concurrent reuse is the one unsafe state: the existsSync(cursor.db) guard is TOCTOU-racy; there is no run-level exclusive lease or owner identity on fences; two live flows of the same run would interleave progress snapshots, produce duplicate terminal receipt ids (MonotonicTerminalError), and last-write-wins receipt.json.",
+      "verdict": "supported",
+      "sources": [
+        "run-orchestrator.mjs:195-198",
+        "orchestration-store fencing/cas tests",
+        "orchestration-store:1240-1247 (MonotonicTerminalError on duplicate receipt id)"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "KF-8",
+      "claim": "Tracing has a dead-code gap: createTraceEvent/trace.schema.json have no production callers (createTraceEvent is invoked only from a replay test); the durable events ledger is cursor-keyed with no run/child columns; loss detection and completeness APIs are never invoked in the run runtime (detectLoss only in tests; checkCompleteness only in the eval harness).",
+      "verdict": "supported",
+      "sources": [
+        "recovery.mjs:375-412 (no callers)",
+        "tests/orchestrate-recovery-replay.test.mjs:394 (only caller)",
+        "orchestration-store events table",
+        "evals/orchestration:750 (checkCompleteness in eval harness)"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-9",
+      "claim": "Progress persistence re-reads and sorts all prior progress-snapshot rows for the run own progress cursor on every save — O(snapshots-so-far) per write (not a whole-events-table scan; an index on events(cursor_id) bounds the query). Per-event persistence was removed in an earlier fix (F-008); the store-side per-save re-read remains super-linear over very long runs.",
+      "verdict": "supported",
+      "sources": [
+        "orchestration-store:782-786 (saveProgress rescan)",
+        "orchestration-store:830-860 (loadProgress rescan)"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF-10",
+      "claim": "Some shared writing paths lack cross-process exclusion: progress-tracker CLI tmp+rename has no lock; driver receipt.json/progress.json/approach.json use plain writeFile (no atomicWrite); atomicWrite no-exclusive renames are last-writer-wins. None of these collide across distinct runs because filenames are run-unique.",
+      "verdict": "supported",
+      "sources": [
+        "lib/progress-tracker.mjs:11-16",
+        "run-orchestrator.mjs:331-352 plain writeFile",
+        "durable-json atomicWrite semantics"
+      ],
+      "confidence": "high"
+    }
+  ],
+  "recommendation": "Findings only (no solutions per the request). The impact map for the two goals: (1) single-user many-runs: already largely supported per-run; the serializing ceilings are repo-global gate structures and the merge-to-main flow. (2) same-repo parallel work: the ceilings are .agents/README.md single-file index, whole-tree payload regen + byte parity, capabilities/schema digest pins, generator-owned README regions, and unstaged-guard/oxfmt single-checkout assumptions. Any future change toward these goals must touch: the .agents index mechanism, pack-bootstrap/check-suite repo-global gates, capabilities/schema digest pinning, and wt-session merge serialization.",
+  "impactedAreas": {
+    "tracing": [
+      "telemetry.mjs emitter/transport (per-emitter sequences)",
+      "trace.schema.json + createTraceEvent (dead code)",
+      "events ledger (cursor-keyed, no run/child columns)",
+      "evidence-dir JSONL per run"
+    ],
+    "logging": [
+      "driver stdout contract (status/reason/evidence lines)",
+      "projectProgress text (render-on-change)",
+      "check-suite OK/FAIL contract",
+      "no log rotation for telemetry.jsonl"
+    ],
+    "jsonEncoding": [
+      "schema-runtime canonicalize/digest/registry",
+      "capabilities.json digests",
+      "skill-executor descriptor digest tuples",
+      "plan self-digest + in-place mutation"
+    ],
+    "gates": [
+      "evidence-gates (per-run)",
+      "check-suite (repo-global)",
+      "payload parity",
+      ".agents README index",
+      "progress records validated even untracked"
+    ],
+    "state": [
+      "sqlite per-run DB (WAL/CAS/fence)",
+      "progress event-stream rescan",
+      "durable-json locks/atomicity",
+      "same-runId lease gap"
+    ],
+    "worktrees": [
+      "wt-session.mjs create/merge/nuke/prune",
+      "main-checkout-only serial merge",
+      "per-worktree hooks/index",
+      ".agents README expected conflict"
+    ]
+  },
+  "process": {
+    "pipeline": "DEEP tier, local mode. 5 parallel read-only researchers (tracing/telemetry/logging; instruction JSON encoding; gate codification; durable state; worktree+impact inventory) returned evidence packs with file:line citations. ",
+    "tracks": [
+      "telemetry/logging",
+      "json encoding",
+      "gates",
+      "state",
+      "worktrees + impact"
+    ],
+    "challenge": "Independent challenger: 7 uphold, 3 downgrade (KF-1 scope, KF-3 tuple/self-digest, KF-9 rescan scope), 5 new claims (N1-N5). All integrated.",
+    "judge": "Independent judge (reasoning-before-verdict), rubric 0-1 per dimension: factual accuracy 0.85, citation accuracy 0.75, completeness 0.9, clarity 0.75. VERDICT: PASS (no dimension below 0.7).",
+    "resolutions": [
+      "KF-1: challenger downgrade (scope correction: driver bookkeeping confined per-run; dispatched pipelines read-only/in-memory or blocked; --host may write anywhere) -> accepted, claim rewritten",
+      "KF-2: judge clarity/accuracy note (duplicate sequences break detectLoss, not checkCompleteness which correlates by receipt id) -> accepted, claim rewritten",
+      "KF-3: challenger downgrade (8-field = skill name + 7 digests; plan self-digest optional, runtime digest is the binding) -> accepted, claim rewritten",
+      "KF-4: challenger attribution fix (plan advanced in place via csm-plan-owned writers; atomicWrite exclusive; builds bind sourcePlan.digest) -> accepted, claim rewritten",
+      "KF-5: judge clarity note (opaque '1244 gate' token) -> accepted, token replaced with plain description",
+      "KF-7: challenger upheld; judge citation note (non-locator 'claim 6.3/6.4 of state track') -> accepted, replaced with orchestration-store:1240-1247",
+      "KF-8: judge citation note (non-locator 'review F-123'; overstatement of never-invoked) -> accepted, claim + sources rewritten (replay-test-only caller; eval-harness checkCompleteness)",
+      "KF-9: challenger downgrade (O(snapshots-so-far), not whole-events-table) + judge citation fix (saveProgress site 782-786) -> accepted, claim + sources rewritten",
+      "N5: judge factual defect (in-memory terminal drain at csm-orchestrate/lib/index.mjs:161-163 exists; durable receipt drops telemetryLosses) -> accepted, claim + evidence rewritten and verified against source"
+    ]
+  },
+  "newClaims": [
+    {
+      "id": "N1",
+      "claim": "pack-bootstrap regeneration has no cross-process mutual exclusion: packQueue is module-local; two processes regenerating bootstrap/package/payload + payload-index.json in one checkout can interleave; the payload-index write is a plain writeFile.",
+      "evidence": "pack-bootstrap.mjs:617-628,443-456",
+      "confidence": "high"
+    },
+    {
+      "id": "N2",
+      "claim": "Crashed-run telemetry JSONL can brick later reads: appendDurableJsonLine may leave a partial tail on crash; readJsonLines throws partial-tail by default and production never recovers/quarantines it.",
+      "evidence": "durable-json:128-140,227-236; telemetry.mjs:116-119",
+      "confidence": "high"
+    },
+    {
+      "id": "N3",
+      "claim": "Same-runId concurrent reuse also duplicates child artifact/receipt identity and trips DuplicateIdempotencyError/UNIQUE(logical_key,attempt) at the same deterministic node, not only terminal receipt MonotonicTerminalError.",
+      "evidence": "skill-executor-handlers.mjs:129; orchestration-store:76-81,264-285",
+      "confidence": "high"
+    },
+    {
+      "id": "N4",
+      "claim": "Hook/CI gates assume one self-consistent checkout per worktree; each worktree carries its own README/payload/capabilities copies; cross-session drift surfaces only at serial merge + re-gate on main; two worktrees touching the payload tree conflict on rebase and need manual re-pack.",
+      "evidence": "wt-session.mjs:106-127; check-suite payload checks",
+      "confidence": "high"
+    },
+    {
+      "id": "N5",
+      "claim": "Telemetry loss records never reach durable storage: recordLoss keeps an in-memory array surfaced by getLossRecords(); telemetry_loss events are not appended to the durable ledger or the JSONL transport. The only consumer is the in-memory terminal drain (a handler folds getLossRecords() into the receipt at index.mjs:161), and the durable receipt write drops telemetryLosses — so loss records vanish on crash or exit unless a caller drains them in-process.",
+      "evidence": "telemetry.mjs:166-181,320 (recordLoss in-memory only); csm-orchestrate/lib/index.mjs:161-163 (in-memory terminal drain folds losses into the surfaced receipt); csm-orchestrate/lib/index.mjs:1615-1633 (durable receipt omits telemetryLosses)",
+      "confidence": "high"
+    }
+  ]
+}
