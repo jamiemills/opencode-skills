@@ -245,3 +245,5 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-06-progress-movement-fixes-csm.json` — 2026-09-06 — plan + build (COMPLETE): mid-run percentage movement, persisted progress artifacts, rollup telemetry registration, render-on-change — status: reference
 - `2026-09-06-progress-movement-fixes-20260906T065617Z-733a9e508250-progress.json` — 2026-09-06 — csm-plan tracker for progress-movement-fixes — status: reference
 - `2026-09-06-progress-movement-fixes-build-20260906T072018Z-4a21d28205cd-progress.json` — 2026-09-06 — csm-build tracker for progress-movement-fixes — status: reference
+- `2026-09-06-opencode-skills-20260906t091407z-6e281cd9-review.json` — 2026-09-06 — FULL 18-dimension R0 audit at 6e281cd9: 28 findings (5 high, 15 medium, 8 low) with challenges and remediation sketches — status: reference
+- `2026-09-06-repo-audit-run-20260906t091407z-6e281cd9-progress.json` — 2026-09-06 — csm-review tracker for the FULL repo audit — status: reference

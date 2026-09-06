@@ -1,6 +1,7 @@
 "use strict";
 
 import { digest } from "../../lib/schema-runtime/index.mjs";
+import { slug } from "./run-helpers.mjs";
 
 const STATES = new Set(["pending", "active", "verified", "failed", "blocked", "incomplete"]);
 const RUN_ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
@@ -39,12 +40,6 @@ const AGGREGATE_FIELDS = new Set([
   "eventsObserved",
 ]);
 const COUNT_FIELDS = new Set(STATES);
-
-const slug = (value) =>
-  String(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 
 function assertItem(item) {
   if (!item || typeof item !== "object" || Array.isArray(item))
@@ -329,20 +324,44 @@ export function createProgressTracker({
 } = {}) {
   let document = createProgressDocument({ runId, graphRevision, now: now() });
   let writes = Promise.resolve();
+  let telemetryCounter = 0;
   let fencingToken = null;
+  let persistFailure = null;
   const persist = () => {
     if (!store?.saveProgress) return Promise.resolve(document);
-    const snapshot = structuredClone(document);
-    validateProgressDocument(snapshot);
-    const expectedRevision = snapshot.revision - 1;
-    const write = writes.then(() =>
-      store.saveProgress(snapshot, {
-        expectedRevision,
-        ...(fencingToken === null ? {} : { fencingToken }),
-      }),
-    );
-    writes = write.catch(() => undefined);
-    return write.then(() => snapshot);
+    const attempt = (snapshot, expectedRevision) => {
+      const write = writes.then(() =>
+        store.saveProgress(snapshot, {
+          expectedRevision,
+          ...(fencingToken === null ? {} : { fencingToken }),
+        }),
+      );
+      // a failed write must not poison the chain: the next persist rebases
+      // on the stored revision instead of conflicting forever (F-003)
+      writes = write.catch(() => undefined);
+      return write;
+    };
+    return (async () => {
+      const snapshot = structuredClone(document);
+      validateProgressDocument(snapshot);
+      try {
+        await attempt(snapshot, snapshot.revision - 1);
+        return snapshot;
+      } catch (error) {
+        try {
+          const stored = await store.loadProgress?.(
+            `progress-${slug(runId)}`,
+            fencingToken === null ? {} : { fencingToken },
+          );
+          if (stored) {
+            await attempt(snapshot, stored.revision);
+            return snapshot;
+          }
+        } catch {}
+        persistFailure = persistFailure ?? { revision: snapshot.revision, at: now() };
+        throw error;
+      }
+    })();
   };
   const notifyUpdate = () => {
     if (typeof onUpdate !== "function") return;
@@ -391,7 +410,7 @@ export function createProgressTracker({
     update(itemId, patch) {
       return change((current) =>
         updateProgress(current, itemId, patch, {
-          eventsObserved: current.aggregate.eventsObserved,
+          eventsObserved: Math.max(current.aggregate.eventsObserved, telemetryCounter),
           now: now(),
         }),
       );
@@ -406,17 +425,23 @@ export function createProgressTracker({
       fencingToken = Math.max(fencingToken ?? 0, token);
     },
     observeTelemetry() {
+      // F-008: persisting per telemetry event made store writes quadratic.
+      // The counter is tracked in memory and folded into the next real
+      // update/persist, so the snapshot reflects it without extra writes.
+      telemetryCounter += 1;
       document = createProgressDocument({
         ...document,
-        revision: document.revision + 1,
-        eventsObserved: document.aggregate.eventsObserved + 1,
+        eventsObserved: telemetryCounter,
         now: now(),
       });
       notifyUpdate();
-      return persist();
+      return Promise.resolve();
     },
     flush() {
       return writes;
+    },
+    hasPersistFailures() {
+      return persistFailure !== null;
     },
     async reload() {
       await writes;

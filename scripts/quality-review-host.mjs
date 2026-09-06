@@ -12,12 +12,13 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
 import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 
 const exec = promisify(execFile);
-const root = join(import.meta.url.replace(/^file:\/\//, ""), "..", "..").replace(/\/$/, "");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 async function sh(cmd, args) {
   try {

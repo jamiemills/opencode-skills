@@ -78,6 +78,8 @@ function verifyDigests(value) {
       checks.push([value.artifact.digest, digest(candidate)]);
     }
   }
+  // F-013: fail closed when the payload carries no digest to verify
+  if (checks.length === 0) return false;
   return checks.every(([expected, actual]) => expected === actual);
 }
 

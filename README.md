@@ -469,6 +469,22 @@ The signed URL bootstrap protocol is specified and locally testable, but its pub
 
 ## Development & testing
 
+### Running the orchestrator
+
+```text
+node scripts/run-orchestrator.mjs --fixture
+node scripts/run-orchestrator.mjs --approach <approach.json> --host <host.mjs> \
+  [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] \
+  [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--quiet-progress] [--resume]
+```
+
+Each real run writes durable evidence under `.agents/evidence/orchestrator/<runId>/`:
+`cursor.db` (state), `telemetry.jsonl`, `receipt.json` (authoritative),
+`receipt.md`/`receipt.html` (untrusted-presentation projections), `progress.json`/`progress.txt`,
+and `skill-progress/`. The durable-state guard refuses a reused `runId` unless
+`--resume` is passed (for recovery) or a fresh approach `runId` is used.
+
+
 Primary gates and suites have `make` targets; direct commands below are supported focused alternatives. See the [Makefile](Makefile). `pnpm` is the underlying package installer and is normally reached via `make install`.
 
 - `make install` # install root devDeps (lefthook + oxfmt + oxlint) and csm-browse's deps

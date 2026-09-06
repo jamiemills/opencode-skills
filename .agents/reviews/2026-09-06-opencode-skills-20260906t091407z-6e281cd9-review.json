@@ -1,0 +1,1259 @@
+{
+  "schema": "csm-review-findings/1",
+  "schemaRevision": 1,
+  "artifact": {
+    "artifactId": "art-review-opencode-skills-run-20260906t091407z-6e281cd9",
+    "owner": "csm-review",
+    "runId": "run-20260906t091407z-6e281cd9",
+    "digest": "sha256:a431a837a4a265c7c47908a7dab7f2ae7a6ba5aa159163b74b7560c83fdb2fe1",
+    "createdAt": "2026-09-06T09:47:20.043Z",
+    "terminal": true
+  },
+  "source": {
+    "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+    "repository": "opencode-skills"
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Fenced progress store deadlocks resume: reload() throws StaleFenceError for any previously-dispatched runId",
+      "dimension": "resilience",
+      "category": "durable-recovery-deadlock",
+      "severity": "high",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 reliability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 203
+        },
+        {
+          "path": "csm-orchestrate/lib/progress.mjs",
+          "line": 421
+        },
+        {
+          "path": "lib/orchestration-store/index.mjs",
+          "line": 837
+        }
+      ],
+      "quotedSnippets": [
+        "const fence = fencingRow(`progress:${progressId}`);\\nconst providedToken = loadOptions.fencingToken ?? null;"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "orchestrate() recreates the tracker and calls reload() before any claimCursor, so fencingToken is still null; loadProgress throws StaleFenceError when a fence row exists. Any run that once dispatched a node wrote that fence row, so durable recovery of that runId crashes at startup before recovery logic can run.",
+      "impact": "Restarting any previously-dispatched run is impossible via orchestrate() alone; operators must use raw store tooling. The only passing test sets the fencing token manually, masking the gap.",
+      "remediationSketch": "Treat load-without-token as read-only when a fence exists (return snapshot with a fenced flag), or claim the run-level fence in the orchestrator before reload(); add a resume regression test driven through orchestrate() alone.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-001-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "3:2:2:F-001"
+    },
+    {
+      "id": "F-003",
+      "title": "One failed progress persist poisons every later write; flush() hides the divergence",
+      "dimension": "resilience",
+      "category": "persist-chain-poisoning",
+      "severity": "high",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 reliability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/progress.mjs",
+          "line": 333
+        },
+        {
+          "path": "csm-orchestrate/lib/progress.mjs",
+          "line": 418
+        }
+      ],
+      "quotedSnippets": [
+        "writes = write.catch(() => undefined);\\nreturn write.then(() => snapshot);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Persist expectedRevision assumes all earlier writes landed. After one failure (SQLITE_BUSY, store closed), every later write conflicts forever while local revision keeps advancing; flush() returns the never-rejecting chain so the terminal receipt persists over a stale durable document.",
+      "impact": "Silent divergence between in-memory and durable progress; restart resumes from stale state and the failure is invisible in the receipt.",
+      "remediationSketch": "On CAS failure re-read and rebase the stored snapshot (validate transitions) and retry; surface the first chain error from flush() or expose hasPersistFailures() checked before persistTerminalReceipt.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-003-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "3:2:2:F-003"
+    },
+    {
+      "id": "F-004",
+      "title": "Driver realMode guard clauses (durable-state, run-id, timeout, reviewer export) have zero test coverage",
+      "dimension": "test-presence-coverage",
+      "category": "untested-safety-guards",
+      "severity": "high",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "Fowler TestCoverage (martinfowler.com, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/run-orchestrator.mjs",
+          "line": 148
+        },
+        {
+          "path": "scripts/run-orchestrator.mjs",
+          "line": 178
+        },
+        {
+          "path": "scripts/run-orchestrator.mjs",
+          "line": 227
+        }
+      ],
+      "quotedSnippets": [
+        "if (!args.includes(\"--resume\") && existsSync(join(evidenceDir, \"cursor.db\")))"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "All driver-spawning tests exercise only the VERIFIED happy path. The safety-critical guards - durable-state fencing, --run-id mismatch, --timeout-ms validation, --final-review export check - can regress silently.",
+      "impact": "Operators lose the guardrails that prevent blind durable-state reuse (the exact failure class that cost a run in cycle 5).",
+      "remediationSketch": "Add a driver CLI contract test: missing flags, mismatched --run-id, invalid --timeout-ms, reused runId without --resume; assert exit 1 and the stderr message for each.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-004-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "3:2:2:F-004"
+    },
+    {
+      "id": "F-005",
+      "title": "Movement tests race real timers against the poller and burn 17.5s of sleeps",
+      "dimension": "test-quality",
+      "category": "wall-clock-flakiness",
+      "severity": "high",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "testsmells.github.io catalog (retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "tests/orchestrate-progress-movement.test.mjs",
+          "line": 193
+        },
+        {
+          "path": "tests/orchestrate-progress-movement.test.mjs",
+          "line": 282
+        }
+      ],
+      "quotedSnippets": [
+        "partials: [\\n  { at: 1500, percent: 25 },\\n  { at: 3000, percent: 50 },\\n],\\nchildMs: 6000,"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "MV-B/C require the 2s poller tick to observe a 1.5s-written partial before the 6s child completes - a sub-second margin under CI load; MV-D needs the tick inside [1.5s, 3s). Total suite adds ~17.5s of pure sleep. No fake-clock injection exists.",
+      "impact": "The flagship movement assertions are flaky under load and slow the suite; intermittent CI failures will erode trust in exactly the tests that pin the progress-movement fixes.",
+      "remediationSketch": "Accept a pollIntervalMs orchestrate option (default 2000) and set it to ~10ms in tests with childMs ~50-100ms; or inject a fake clock. Keep the same assertions.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-005-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "3:2:2:F-005"
+    },
+    {
+      "id": "F-002",
+      "title": "Run-loop and review-path throws escape orchestrate() with no terminal receipt, intent resolution, or flush",
+      "dimension": "correctness-defects",
+      "category": "terminal-machinery-bypass",
+      "severity": "high",
+      "confidence": "medium",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 functional suitability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 612
+        },
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 892
+        },
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 978
+        }
+      ],
+      "quotedSnippets": [
+        "result = jsonProjection(\\n  capOutputSize(await invokeAdapter(request, cursorId, dispatchIntent?.intentId))\\n);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "No catch exists between executeNode and the orchestrate() export: an adapter rejection, a JSON.stringify throw in capOutputSize (raw result stringified before jsonProjection), or the non-timeout re-throws in the review/remediation paths (four sites) escape with no terminal receipt, unresolved dispatch intent, unflushed progress/telemetry.",
+      "impact": "A run that dies this way leaves no authoritative record, an unresolved dispatch intent, and stale durable progress; the CLI driver only prints and exits 1.",
+      "remediationSketch": "Wrap the node dispatch/retry body to convert throws into classified failed results; resolve intents in finally with a reconciliation record; add an orchestrate()-level catch that emits a terminal receipt and flushes before rethrowing.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-002-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "3:1:2:F-002"
+    },
+    {
+      "id": "F-006",
+      "title": "Bootstrap verify exits 0 with ok:true for unsigned envelopes (recorded, publication-gated deviation)",
+      "dimension": "security-control-verification",
+      "category": "documented-fail-open",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "OWASP ASVS v5.0.0 (owasp.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "bootstrap/package/bin/csm-skills-bootstrap.js",
+          "line": 119
+        },
+        {
+          "path": "bootstrap/package/bin/csm-skills-bootstrap.js",
+          "line": 328
+        }
+      ],
+      "quotedSnippets": [
+        "process.exitCode = result.verification.ok ? 0 : 1;"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "An envelope with no signature field skips all crypto and reports ok:true/exit 0 with every integrity field attacker-supplied. Mitigations verified: strict gate CSM_BOOTSTRAP_REQUIRE_SIGNATURE=1 fails closed; malformed/bad signatures fail closed; the result honestly reports signed:false; the deviation is recorded in deferred.md DEF-RELEASE and the publication runbook; and the shipped keyring is a fixture (F-007) so verification confers no production trust today.",
+      "impact": "Tooling gating on ok/exit 0 treats unsigned local envelopes as trusted; the risk is bounded by the recorded publication gate but remains a machine-contract trap.",
+      "remediationSketch": "Invert default to require signature with an explicit --allow-unsigned; or emit ok:false with a distinct unsigned code for tooling; keep the recorded deviation note current until publication.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-006-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "downgrade",
+          "rationale": "Behavior confirmed but recorded and publication-gated: strict flag fails closed, malformed/bad signatures fail closed, result reports signed:false, deviation recorded in deferred.md and publication runbook, and the shipped keyring is a fixture (F-007) so verification confers no production trust regardless.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "downgraded",
+      "statusNote": "Challenger downgrade accepted: recorded, publication-gated deviation with a working strict flag; scope limited to unsigned (no signature field) envelopes.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-006"
+    },
+    {
+      "id": "F-007",
+      "title": "Shipped trust anchor is a self-declared test-fixture keyring valid to 2030",
+      "dimension": "security-control-verification",
+      "category": "fixture-trust-anchor",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "OWASP ASVS v5.0.0 (owasp.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "bootstrap/keyring.json",
+          "line": 3
+        },
+        {
+          "path": "bootstrap/package/bin/csm-skills-bootstrap.js",
+          "line": 14
+        }
+      ],
+      "quotedSnippets": [
+        "\"environment\":\"test-fixture-only\",\"production_use\":false"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "The bin's only trust root is fixture-2026 (Ed25519, revoked:false, valid 2026-01-01 to 2030-12-31). Signature verification can never confer production trust in the shipped state. Gating recorded: publication-runbook key ceremony (production_use true, embedded literal update) and pack --release refusing fixture markers; DEF-RELEASE covers rotation.",
+      "impact": "Even strict-mode verification proves only fixture custody; a retained or leaked fixture private key makes all verified envelopes forgeable.",
+      "remediationSketch": "Ship a real release keyring at publication (runbook step 3); refuse verify with a typed error when environment is test-fixture-only outside explicit fixture mode.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-007-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-007"
+    },
+    {
+      "id": "F-008",
+      "title": "Every telemetry event persists the full progress document; the store rescans all prior snapshots per write",
+      "dimension": "resilience",
+      "category": "quadratic-progress-persistence",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 reliability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 113
+        },
+        {
+          "path": "csm-orchestrate/lib/progress.mjs",
+          "line": 408
+        },
+        {
+          "path": "lib/orchestration-store/index.mjs",
+          "line": 782
+        }
+      ],
+      "quotedSnippets": [
+        "if (progressTracker) void progressTracker.observeTelemetry().catch(() => undefined);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "emitTelemetry -> observeTelemetry bumps revision and persists the whole document per event; saveProgress rescans and re-sorts all prior progress-snapshot rows inside each write transaction and nothing prunes them - O(n^2) over long runs, widening the SQLITE_BUSY window that feeds F-003.",
+      "impact": "Long or chatty runs degrade progressively and increase the probability of the persist-failure deadlock.",
+      "remediationSketch": "Decouple eventsObserved from document revision (debounced or phase-boundary counter); compact progress state into a dedicated row or prune superseded snapshot events.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-008-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-008"
+    },
+    {
+      "id": "F-009",
+      "title": "An in-flight poller tick survives stopPoll() and can roll up after the node finalized",
+      "dimension": "concurrency-races",
+      "category": "in-flight-poller-tick",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "CWE-362 (cwe.mitre.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 298
+        },
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 610
+        }
+      ],
+      "quotedSnippets": [
+        "}, 2000);\\ntimer.unref?.();\\nreturn () => clearInterval(timer);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "clearInterval does not cancel a tick already awaiting findChildSkillProgress; after executeNode's authoritative updates the stale tick still runs rollupChildProgress from its earlier snapshot, re-writing verifiedFraction/evidenceRefs and emitting telemetry attributed to a returned child.",
+      "impact": "Post-finalization fraction/evidence churn and revision bumps attributed to a settled child; contained by the percent-100 skip but observable on partials.",
+      "remediationSketch": "Generation-guard the stop handle (stopped flag checked after each await in the tick) or track and await/abort the tick promise in stop.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-009-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-009"
+    },
+    {
+      "id": "F-010",
+      "title": "Child skill-progress records are written non-atomically; torn reads are silently skipped by rollup",
+      "dimension": "concurrency-races",
+      "category": "torn-record-writes",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "CWE-362 (cwe.mitre.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "lib/progress-tracker.mjs",
+          "line": 229
+        },
+        {
+          "path": "csm-orchestrate/lib/progress-rollup.mjs",
+          "line": 58
+        }
+      ],
+      "quotedSnippets": [
+        "await writeFile(file, `${JSON.stringify(next, null, 2)}\\n`);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "The CLI writes records in place (no temp+rename while lib/durable-json provides atomicWrite/withLock), and both rollup readers catch {} around JSON.parse - a torn read yields null and the rollup silently no-ops; an invalid record's TypeError is likewise swallowed.",
+      "impact": "Progress evidence can be silently lost mid-run; concurrent CLI updates lose updates.",
+      "remediationSketch": "Use atomicWrite for the record; wrap the CLI read-modify-write in withLock; emit a loss-style telemetry record when a rollup input fails validation instead of bare catch.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-010-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-010"
+    },
+    {
+      "id": "F-012",
+      "title": "An adapter throw skips resolveDispatchIntent: intent stuck pending, cursor stuck dispatching",
+      "dimension": "resilience",
+      "category": "unresolved-dispatch-intent",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 reliability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 611
+        },
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 892
+        }
+      ],
+      "quotedSnippets": [
+        "} finally {\\n  stopPoll?.();\\n}\\nawait resolveDispatchIntent(dispatchIntent, result.status);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "resolveDispatchIntent sits after the try/finally, so an adapter rejection propagates to Promise.all and out of orchestrate, leaving the dispatch intent pending, the cursor at dispatching, and the progress item durably active with no reconciliation record.",
+      "impact": "Operators reading dispatch_intents see a live dispatch that never happened; resume reconciliation covers the cursor but not the intent table.",
+      "remediationSketch": "Resolve the intent in finally (cancelled after recording a reconciliation event, or introduce an unknown resolution); wrap batch node errors so sibling results still reconcile.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-012-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-012"
+    },
+    {
+      "id": "F-013",
+      "title": "Plan input digest verification fails open when a payload carries no digest fields; dead ddd branch",
+      "dimension": "correctness-defects",
+      "category": "fail-open-digest-verification",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 functional suitability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-plan/lib/input-resolver.mjs",
+          "line": 81
+        },
+        {
+          "path": "csm-plan/lib/input-resolver.mjs",
+          "line": 140
+        }
+      ],
+      "quotedSnippets": [
+        "return checks.every(([expected, actual]) => expected === actual);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "With neither value.digest nor value.artifact.digest present, checks is empty and [].every returns true - resolved with zero integrity verification. Partially mitigated: load() enforces requireSourceDigest for non-plan path inputs, so the fail-open bites machine/object inputs and plans. The kind === 'ddd' check at line 140 is unreachable (early return at 91-108).",
+      "impact": "Tampered object/machine inputs and plans pass as resolved whenever their schema leaves digests optional.",
+      "remediationSketch": "Reject with an explicit digest-unverifiable error when no digest field is present (or require expectedSourceDigest at the boundary); delete the dead branch.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-013-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-013"
+    },
+    {
+      "id": "F-014",
+      "title": "A ~68-line remediation splice is duplicated verbatim across both final-review paths",
+      "dimension": "technical-debt-architecture",
+      "category": "duplicated-remediation-splice",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 maintainability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 1288
+        },
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 1497
+        }
+      ],
+      "quotedSnippets": [
+        "const remediationGraph = await compileApproach("
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "The host-executor review path and the injected-review path each carry an identical splice-in-remediation-phase sequence (synthetic approach, compileApproach, graph re-splice, addPhase, lineage push, phaseIndex reset). Any fix to one silently misses the other.",
+      "impact": "The exact seam class the index.mjs split was meant to close; a fix applied to one path diverges the other.",
+      "remediationSketch": "Extract applyRemediationPhase(coordinated, ...) into run-artifacts.mjs (or run-remediation.mjs) and call from both paths.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-014-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-014"
+    },
+    {
+      "id": "F-015",
+      "title": "index.mjs remains a 1,636-line monolith with a ~490-line executeNode closure over ~15 mutable variables",
+      "dimension": "technical-debt-architecture",
+      "category": "orchestration-monolith",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 maintainability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 61
+        },
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 377
+        }
+      ],
+      "quotedSnippets": [
+        "async function runOrchestrationInternal({\\n  approach,\\n  runId = approach?.runId,"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "The split extracted pure helpers but left the loop, node execution, gate/review sequencing, and both final-review tails in one closure scope - which is why the duplicated remediation splice and helper drift survive.",
+      "impact": "Behavior is hard to unit-test in isolation; high merge-conflict surface on the hottest file.",
+      "remediationSketch": "Extract executeNode into run-node.mjs with an explicit run-state object; split the final-review tail; replace closure variables with a state object.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-015-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-015"
+    },
+    {
+      "id": "F-017",
+      "title": "The orchestrator driver, its --resume semantics, and the evidence layout are documented nowhere outside the script",
+      "dimension": "observability-operability",
+      "category": "undocumented-operator-entry-point",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "ISO/IEC 25010:2023 operability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/run-orchestrator.mjs",
+          "line": 167
+        },
+        {
+          "path": "README.md",
+          "line": 118
+        }
+      ],
+      "quotedSnippets": [
+        "const evidenceDir = join(\".agents\", \"evidence\", \"orchestrator\", runId);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Repo-wide grep finds zero mentions of run-orchestrator, --resume, or the evidence layout in README, docs/, or csm-orchestrate/SKILL.md. An operator hitting the durable-state guard has no documented path to choose --resume versus a fresh runId.",
+      "impact": "Risk of blind state deletion or silent state forks; discoverability of the primary authorized run entry point depends on reading source.",
+      "remediationSketch": "Add a 'Running the orchestrator' section (usage, evidence layout, guard, --resume vs fresh-runId decision) to README development/testing.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-017-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-017"
+    },
+    {
+      "id": "F-018",
+      "title": "receipt.md/html projections and .agents/progress/ are absent from the README artifact tables and repo map",
+      "dimension": "ci-build-docs",
+      "category": "docs-drift",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "Google eng-practices Documentation (retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/lib/run-projections.mjs",
+          "line": 143
+        },
+        {
+          "path": "README.md",
+          "line": 118
+        }
+      ],
+      "quotedSnippets": [
+        "const mdPath = join(dir, \"receipt.md\");"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Every real run emits receipt.md/receipt.html (untrusted-presentation with digests) and persists progress artifacts, but the README composition/artifact matrices and the .agents/ tree list only the typed JSON receipt and omit progress/ and the drivers.",
+      "impact": "Consumers miss the projections and the JSON-authoritative contract; fresh sessions enumerating from README miss durable progress state.",
+      "remediationSketch": "Add matrix rows/notes via gen-readme-matrix.mjs; extend the .agents/ and scripts/ tree lines.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-018-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-018"
+    },
+    {
+      "id": "F-019",
+      "title": "engines >=22 <25 while CI tests exactly one Node (22.23.2); sandbox pinned to a second patch (22.22.0)",
+      "dimension": "ci-build-docs",
+      "category": "node-policy-drift",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "Google eng-practices Documentation (retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "package.json",
+          "line": 13
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 151
+        },
+        {
+          "path": "Makefile",
+          "line": 5
+        }
+      ],
+      "quotedSnippets": [
+        "\"engines\": {\\n  \"node\": \">=22 <25\"\\n}"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "No CI matrix leg covers the <25 half of the range; the adapter job runs host 22.23.2 against a 22.22.0 sandbox image - two patch lines in one pipeline. Both sides hard-fail on drift, so it is controlled, but the sandbox can lag the host invisibly. Node 22 EOL 2027-04-30 (endoflife.date, retrieved 2026-09-06).",
+      "impact": "Range-supported Node versions are untested; a future EOL leaves nothing in range without a policy change.",
+      "remediationSketch": "Add a Node 24 canary matrix leg (make analyze + fast suites); align sandbox image and .node-version from one constant; pin ubuntu-latest jobs to ubuntu-24.04.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-019-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-019"
+    },
+    {
+      "id": "F-020",
+      "title": "Guard branches in scripts/lib modules are untested (run-projections, skill-progress-recorder)",
+      "dimension": "test-presence-coverage",
+      "category": "guard-branch-gaps",
+      "severity": "medium",
+      "confidence": "high",
+      "evidenceClass": "E2",
+      "anchorRef": "Fowler TestCoverage (martinfowler.com, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/lib/run-projections.mjs",
+          "line": 110
+        },
+        {
+          "path": "scripts/lib/skill-progress-recorder.mjs",
+          "line": 64
+        }
+      ],
+      "quotedSnippets": [
+        "if (!dir) throw new TypeError(\"projection output directory is required\");"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "run-projections: three input guards, fallbacks, and markdown unwrapping untested. recorder: the null return, percent TypeError branch, caller milestones override, skill default, and goal truncation are unreached (MV-A sweeps happy percents only).",
+      "impact": "A malformed receipt or request hitting these paths after a successful run fails in untested ways.",
+      "remediationSketch": "Small unit blocks per guard/fallback, each validated with the shipped validators.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-020-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:2:2:F-020"
+    },
+    {
+      "id": "F-011",
+      "title": "associateReceipt is fire-and-forget: a terminal-path persist failure becomes an unhandled rejection",
+      "dimension": "concurrency-races",
+      "category": "floating-terminal-rejection",
+      "severity": "medium",
+      "confidence": "medium",
+      "evidenceClass": "E2",
+      "anchorRef": "CWE-362 (cwe.mitre.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 136
+        }
+      ],
+      "quotedSnippets": [
+        "progressTracker.associateReceipt(receipt.receiptId, receipt.phaseId);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "The return value is neither awaited nor caught; each inner update persists, so a store error while stamping the terminal receiptId rejects unhandled - fatal in modern Node - exactly when the terminal receipt should publish.",
+      "impact": "The terminal receipt can be lost entirely to a persistence hiccup instead of degrading.",
+      "remediationSketch": "void associateReceipt(...).catch(...) with a telemetry-loss record, or fold association into the final flushed write chain.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-011-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:1:2:F-011"
+    },
+    {
+      "id": "F-016",
+      "title": "slug/unique/raceDeadline/ID-pattern helpers are duplicated with behavioral drift",
+      "dimension": "code-smells",
+      "category": "helper-drift",
+      "severity": "medium",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "SonarSource concepts (docs.sonarsource.com, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/progress.mjs",
+          "line": 43
+        },
+        {
+          "path": "csm-orchestrate/lib/run-helpers.mjs",
+          "line": 10
+        },
+        {
+          "path": "csm-orchestrate/lib/phase-compiler.mjs",
+          "line": 8
+        }
+      ],
+      "quotedSnippets": [
+        "const slug = (value) =>\\n  String(value)\\n    .toLowerCase()"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "slug exists three times: run-helpers and phase-compiler cap at 110 chars with a digest suffix; progress.mjs's copy has no cap, so itemForNode can build an itemId exceeding the ITEM_ID 128-char pattern for long runIds, throwing at materialize. raceDeadline is a verbatim duplicate; unique has three variants; RUN_ID is redeclared in six files.",
+      "impact": "Divergence silently breaks cross-module identity binding (cursor ids vs progress ids) for long identifiers.",
+      "remediationSketch": "Promote slug/raceDeadline/unique/ID patterns to a shared module; add a max-length-runId identity test.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [
+        {
+          "challengeId": "challenge-f-016-1",
+          "challenger": "agent-independent-explorer-1",
+          "verdict": "agree",
+          "rationale": "Citation re-located and mechanism confirmed at the pinned SHA; no mitigating scope found beyond that recorded in the finding.",
+          "redacted": true
+        }
+      ],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [],
+      "sortKey": "2:1:1:F-016"
+    },
+    {
+      "id": "F-021",
+      "title": "flush() is declared three times verbatim inside createTelemetryEmitter",
+      "dimension": "code-smells",
+      "category": "dead-duplicate-declaration",
+      "severity": "low",
+      "confidence": "high",
+      "evidenceClass": "E3",
+      "anchorRef": "SonarSource concepts (docs.sonarsource.com, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/telemetry.mjs",
+          "line": 307
+        },
+        {
+          "path": "csm-orchestrate/lib/telemetry.mjs",
+          "line": 314
+        },
+        {
+          "path": "csm-orchestrate/lib/telemetry.mjs",
+          "line": 321
+        }
+      ],
+      "quotedSnippets": [
+        "async function flush() {"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Three byte-identical declarations; last wins, so behavior is unaffected, but it is a merge/patch artifact in a correctness-critical loss-accounting file. Two finders independently reported it.",
+      "impact": "Future edits to flush/drain logic risk editing a dead copy.",
+      "remediationSketch": "Delete the two duplicate declarations.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA.",
+      "corroborators": [
+        "agent-group-finder-1",
+        "agent-group-finder-2"
+      ],
+      "sortKey": "1:2:1:F-021"
+    },
+    {
+      "id": "F-022",
+      "title": "recordSkillProgress joins childRunId into a file path with only a remote, schema-level guard",
+      "dimension": "input-validation-trust-boundaries",
+      "category": "remote-only-path-guard",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "OWASP ASVS v5.0.0 validation chapter (owasp.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/lib/skill-progress-recorder.mjs",
+          "line": 67
+        }
+      ],
+      "quotedSnippets": [
+        "await writeFile(join(dir, childRunId + \".json\"), JSON.stringify(record, null, 2) + \"\\n\", {"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "childRunId flows from request data into the path join; the runId-pattern guard lives in validateSkillProgress (called before the write), so traversal is blocked today - but the protection is one schema edit away from disappearing.",
+      "impact": "Hardening gap rather than an exploit: a future caller or schema relaxation would expose path traversal.",
+      "remediationSketch": "Assert the runId pattern (and reject separators) explicitly at the top of the recorder; add a negative test with childRunId '../../evil'.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-022"
+    },
+    {
+      "id": "F-023",
+      "title": "run-g7-evaluation --out builds mkdir target through a file:// URL string",
+      "dimension": "input-validation-trust-boundaries",
+      "category": "file-url-path-munge",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "OWASP ASVS v5.0.0 validation chapter (owasp.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/run-g7-evaluation.mjs",
+          "line": 85
+        }
+      ],
+      "quotedSnippets": [
+        "await mkdir(new URL(\".\", `file://${out}`).pathname, { recursive: true });"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "For a relative --out, file://evidence/g7.json parses 'evidence' as the URL host so .pathname is / - the mkdir silently succeeds at the wrong place while the write lands cwd-relative; spaces/#/? break the parse.",
+      "impact": "Evidence bundles can land in unintended locations; the emitted out: line can misreport the destination.",
+      "remediationSketch": "Use path.resolve + mkdir(path.dirname(abs)) without URL round-tripping.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-023"
+    },
+    {
+      "id": "F-024",
+      "title": "Host scripts derive root by raw string-strip of import.meta.url instead of fileURLToPath",
+      "dimension": "security-implementation-weaknesses",
+      "category": "import-meta-string-strip",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "OWASP Top 10:2025 (owasp.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/quality-review-host.mjs",
+          "line": 20
+        },
+        {
+          "path": "scripts/honest-failures-host.mjs",
+          "line": 23
+        }
+      ],
+      "quotedSnippets": [
+        "const root = join(import.meta.url.replace(/* strip file:// prefix */), \"..\", \"..\").replace(/slash-dollar, \"\");"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "A checkout path containing a space or non-ASCII character keeps %20-style encoding in root, so exec cwd and readdir target nonexistent directories - the host throws or silently collects zero signals. Two hosts affected; the bootstrap bin already uses fileURLToPath.",
+      "impact": "Degrades the quality gate's evidence on such checkouts; errors fail closed rather than misbehave dangerously.",
+      "remediationSketch": "Use dirname(fileURLToPath(import.meta.url)) matching the bootstrap pattern.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-024"
+    },
+    {
+      "id": "F-025",
+      "title": "adapter-required-tests spawns children with no timeout - a hung child stalls the required-test gate forever",
+      "dimension": "memory-resource-safety",
+      "category": "unbounded-child-spawn",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "CWE-400/1088 (cwe.mitre.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "scripts/adapter-required-tests.mjs",
+          "line": 92
+        },
+        {
+          "path": "scripts/adapter-required-tests.mjs",
+          "line": 193
+        }
+      ],
+      "quotedSnippets": [
+        "const child = spawn(process.execPath, [command, ...args], {\\n  stdio: [\"ignore\", \"pipe\", \"pipe\"],"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Unlike osv-audit's defaultRunProcess (which sets and clears a kill timer), this runner has no timeout/kill path and accumulates output unbounded.",
+      "impact": "A wedged browser-e2e child blocks CI indefinitely instead of failing the gate.",
+      "remediationSketch": "Add signal: AbortSignal.timeout(N) (or a cleared kill timer) to both spawns.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-025"
+    },
+    {
+      "id": "F-026",
+      "title": "SHELL_DENYLIST is a bypassable advisory lint, not a security control",
+      "dimension": "security-control-verification",
+      "category": "bypassable-denylist",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "OWASP ASVS v5.0.0 (owasp.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "bootstrap/package/bin/csm-skills-bootstrap.js",
+          "line": 28
+        }
+      ],
+      "quotedSnippets": [
+        "const SHELL_DENYLIST =\\n  /\\b(npx|npm|node|bash|sh|python|curl|wget|sudo|rm|...)\\b/i;"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Whitespace, casing tricks, homoglyphs, or synonyms defeat it. The bin never executes steps, so impact is bounded; the risk is false assurance if a future consumer treats passing steps as safe-to-run.",
+      "impact": "Signals shell-safety the check cannot deliver.",
+      "remediationSketch": "Reframe as a structured steps format with an allowlist, or document the check as best-effort lint only.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-026"
+    },
+    {
+      "id": "F-027",
+      "title": "Retry backoff sleeps double the intended schedule and ignore abort",
+      "dimension": "resilience",
+      "category": "backoff-off-by-one",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "ISO/IEC 25010:2023 reliability (iso.org, retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "csm-orchestrate/lib/index.mjs",
+          "line": 685
+        }
+      ],
+      "quotedSnippets": [
+        "setTimeout(resolve, retryBackoffMs * Math.pow(2, attempt - 1)),"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "retryDecision returns nextAttempt = attempt + 1, so the first retry (attempt 2) waits 2x retryBackoffMs; the sleep is not raced against the abort signal and is not unref'd, so an aborted run blocks for the full backoff.",
+      "impact": "Aborted runs linger; backoff grows faster than designed.",
+      "remediationSketch": "Use attempt - 2 exponent (or pass prior attempt), add jitter, race against the signal, unref the timer.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-027"
+    },
+    {
+      "id": "F-028",
+      "title": "Four suites duplicate the same fixture host and driver happy path; presence-only assertions; MV-D leaks evidence into...",
+      "dimension": "test-quality",
+      "category": "driver-fixture-duplication",
+      "severity": "low",
+      "confidence": "medium",
+      "evidenceClass": "E3",
+      "anchorRef": "testsmells.github.io catalog (retrieved 2026-09-06)",
+      "locations": [
+        {
+          "path": "tests/orchestrate-progress-movement.test.mjs",
+          "line": 262
+        },
+        {
+          "path": "tests/orchestrate-driver-final-review.test.mjs",
+          "line": 117
+        },
+        {
+          "path": "tests/fixtures/renderer-wiring-host.mjs",
+          "line": 1
+        }
+      ],
+      "quotedSnippets": [
+        "const progressDir = join(\\n  repoRoot, \".agents\", \"evidence\", \"orchestrator\", runId, \"skill-progress\",\\n);"
+      ],
+      "commitSha": "6e281cd9fb09791fef552df2cd38e079161c0927",
+      "explanation": "Four ~60-line fixture hosts differ only in id strings; four suites spawn the full driver to re-prove VERIFIED with 120s timeouts; several assertions are presence-only (md.length > 200); MV-D writes evidence under the repo tree and never cleans it (gitignored, so it accumulates invisibly).",
+      "impact": "Fixture-shape changes require 4-5 coordinated edits; suite cost grows; weak assertions cannot detect wrong-content regressions.",
+      "remediationSketch": "Canonical fixture module + thin wrappers; one shared driver harness with a tight timeout; assert field-label/value pairs; clean the evidence dir in finally.",
+      "fixActions": [],
+      "verification": null,
+      "challenges": [],
+      "dissents": [],
+      "status": "upheld",
+      "statusNote": "Upheld after independent challenge / primary verification at the pinned SHA. Confidence capped at medium: static-evidence class (E3) with primary-led challenge only.",
+      "corroborators": [],
+      "sortKey": "1:2:1:F-028"
+    }
+  ],
+  "verificationStatus": {
+    "format": "csm-verification-status/1",
+    "status": "VERIFIED",
+    "unresolved": []
+  },
+  "redaction": {
+    "status": "passed",
+    "rules": [
+      "no absolute paths in snippets",
+      "no credentials/tokens/personal data",
+      "verbatim <=3 lines <=200 chars per finding"
+    ],
+    "redactedFields": 0
+  },
+  "sortOrder": {
+    "algorithm": "severity:confidence:evidenceClass:id",
+    "stable": true
+  },
+  "ownership": {
+    "owner": "csm-review",
+    "runId": "run-20260906t091407z-6e281cd9",
+    "collisionPolicy": "reject-owner-mismatch-or-terminal",
+    "terminalPolicy": "immutable"
+  },
+  "coverage": {
+    "matrix": [
+      {
+        "group": "quality (dims 1-4): csm-orchestrate/lib + output + csm-plan/lib + csm-review/lib",
+        "verdict": "reviewed - findings or clean verdicts recorded",
+        "chunkCount": 1
+      },
+      {
+        "group": "security (dims 5-7,9,11): scripts/ + bootstrap bin + scripts/lib",
+        "verdict": "reviewed - findings or clean verdicts recorded",
+        "chunkCount": 1
+      },
+      {
+        "group": "concurrency+resilience (dims 8,10): index.mjs, telemetry, progress, orchestration-store, progress-rollup, progress-tracker",
+        "verdict": "reviewed - findings or clean verdicts recorded",
+        "chunkCount": 1
+      },
+      {
+        "group": "tests (dims 12-14): tests/*.mjs",
+        "verdict": "reviewed - findings or clean verdicts recorded",
+        "chunkCount": 1
+      },
+      {
+        "group": "supply chain (dims 15-16): package.json, lockfiles, workflows, engines",
+        "verdict": "reviewed - findings or clean verdicts recorded",
+        "chunkCount": 1
+      },
+      {
+        "group": "operations (dims 17-18): Makefile, README, docs, LICENSE, check-suite",
+        "verdict": "reviewed - findings or clean verdicts recorded",
+        "chunkCount": 1
+      }
+    ],
+    "note": "18 dimensions partitioned into 6 non-overlapping finder groups; each finder walked its owned files at the pinned SHA with dual pathway (anchor walk + unanchored proposals)."
+  },
+  "antiCoverage": [
+    {
+      "area": "skill content directories (csm-*/SKILL.md payloads beyond the audited libs)",
+      "risk": "medium",
+      "note": "17 skill dirs are instruction content; auditing every instruction file was time-boxed out of this pass"
+    },
+    {
+      "area": "csm-browse/lib and remaining skill libraries",
+      "risk": "medium",
+      "note": "ownership assigned to supply-chain finder for manifests only; library internals unreviewed this run"
+    },
+    {
+      "area": "dynamic/test execution (R1-R3)",
+      "risk": "medium",
+      "note": "R0 posture per default; no sandbox builds or test executions were run"
+    },
+    {
+      "area": "bootstrap payload content parity beyond automated digest gates",
+      "risk": "low",
+      "note": "payload drift + index digest gates cover sync; content-level parity review not performed"
+    },
+    {
+      "area": "git history depth before 2026-08-20",
+      "risk": "low",
+      "note": "review pinned at HEAD; historical analysis time-boxed out"
+    }
+  ]
+}

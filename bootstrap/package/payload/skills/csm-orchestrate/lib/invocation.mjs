@@ -1,5 +1,7 @@
 "use strict";
 
+import { raceDeadline } from "./run-helpers.mjs";
+
 import { assertSchema, validSchema } from "./contracts.mjs";
 import {
   buildReviewArtifactRefs,
@@ -87,19 +89,7 @@ const requestDigest = (request) =>
 const storageDigest = (request, field) =>
   request[field] ?? digest({ skill: request.skill, field, version: 1 });
 
-async function raceDeadline(promise, ms, code) {
-  let timer;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(Object.assign(new Error(code), { timeout: true })), ms);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// raceDeadline is shared via ./run-helpers.mjs (F-016 helper dedupe)
 
 async function assertRequest(request, { requireExecutableIdentity = false } = {}) {
   if (!request || typeof request !== "object")

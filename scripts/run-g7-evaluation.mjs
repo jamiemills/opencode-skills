@@ -15,6 +15,7 @@
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { dirname, resolve as resolvePath } from "node:path";
 import { createEvaluationHarness } from "../lib/evals/orchestration/index.mjs";
 
 const HELD_OUT_PATH = fileURLToPath(
@@ -83,8 +84,9 @@ export async function runG7Evaluation({ out = DEFAULT_OUT, now = new Date().toIS
   };
 
   if (out) {
-    await mkdir(new URL(".", `file://${out}`).pathname, { recursive: true });
-    await writeFile(out, `${JSON.stringify(bundle, null, 2)}\n`, { mode: 0o644 });
+    const absOut = resolvePath(out);
+    await mkdir(dirname(absOut), { recursive: true });
+    await writeFile(absOut, `${JSON.stringify(bundle, null, 2)}\n`, { mode: 0o644 });
   }
 
   return bundle;

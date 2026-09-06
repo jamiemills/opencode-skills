@@ -20,7 +20,7 @@ import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
 
 const exec = promisify(execFile);
-const root = join(import.meta.url.replace(/^file:\/\//, ""), "..", "..").replace(/\/$/, "");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WIRING_TEST_PATH = "tests/orchestrate-honest-failures.test.mjs";
 
 async function sh(cmd, args, { timeout = 600_000 } = {}) {

@@ -191,15 +191,16 @@ test("MV-B: mid-run partial rollups move the rendered percentage before completi
   const host = partialHost({
     dir: progressDir,
     partials: [
-      { at: 1500, percent: 25 },
-      { at: 3000, percent: 50 },
+      { at: 120, percent: 25 },
+      { at: 220, percent: 50 },
     ],
-    childMs: 6000,
+    childMs: 450,
   });
   const texts = [];
   const result = await orchestrate(
     await orchestrateOptions(runId, host, {
       skillProgressRollupDir: progressDir,
+      progressPollIntervalMs: 40,
       onProgress: (snapshot) => texts.push(projectProgress(snapshot, { width: 28 }).text),
     }),
   );
@@ -229,14 +230,15 @@ test("MV-C: skill-progress-rollup telemetry events are emitted during the run", 
   const host = partialHost({
     dir: progressDir,
     partials: [
-      { at: 1500, percent: 25 },
-      { at: 3000, percent: 50 },
+      { at: 120, percent: 25 },
+      { at: 220, percent: 50 },
     ],
-    childMs: 6000,
+    childMs: 450,
   });
   await orchestrate(
     await orchestrateOptions(runId, host, {
       skillProgressRollupDir: progressDir,
+      progressPollIntervalMs: 40,
       telemetryEmitter,
     }),
   );
@@ -276,10 +278,10 @@ test(
         buildPartialHostSource({
           dir: progressDir,
           partials: [
-            { at: 1500, percent: 25 },
-            { at: 3000, percent: 60 },
+            { at: 120, percent: 25 },
+            { at: 220, percent: 60 },
           ],
-          childMs: 5500,
+          childMs: 450,
         }) + "\n",
       );
       const { stdout } = await exec(

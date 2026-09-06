@@ -25,6 +25,10 @@ const isSafePath = (value) =>
 
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 
+// F-026: best-effort advisory lint ONLY - not a security control. Freeform
+// markdown vetting is trivially bypassable (whitespace, casing, homoglyphs);
+// the bin never executes steps, and no consumer may treat passing steps as
+// safe-to-run. Structured steps are the real fix (publication-gated).
 const SHELL_DENYLIST =
   /\b(npx|npm|node|nodejs|bash|sh|python|python3|pip|pip3|git|curl|wget|sudo|rm|powershell|eval|exec|chmod|chown|docker|uvx|bunx|deno)\b/i;
 const FIXED_PACKAGE_POLICY = {
@@ -325,8 +329,18 @@ async function verifyEnvelope(envelopePath) {
   // every check passed); all failure paths report signed:false.
   const signed =
     Object.prototype.hasOwnProperty.call(envelope, "signature") && envelope.signature !== null;
+  const keyringEnvironment = JSON.parse(KEYRING_JSON).environment;
   return {
-    verification: { ok: true, key: trusted.key, payload_index_sha256: indexSha256, signed },
+    // F-006: ok/exit 0 for unsigned envelopes is the documented local flow;
+    // trustLevel makes the distinction machine-readable without changing that
+    verification: {
+      ok: true,
+      key: trusted.key,
+      payload_index_sha256: indexSha256,
+      signed,
+      trustLevel: signed ? "signature-verified" : "unsigned-no-crypto-verification",
+      keyringEnvironment,
+    },
   };
 }
 

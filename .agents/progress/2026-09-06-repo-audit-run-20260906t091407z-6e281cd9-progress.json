@@ -1,0 +1,17 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-run-20260906t091407z-6e281cd9",
+  "runId": "run-20260906t091407z-6e281cd9",
+  "skill": "csm-review",
+  "goal": "FULL 18-dimension R0 audit of the repository at 6e281cd9",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    { "id": "M1", "title": "scope", "weightPercent": 20, "status": "complete" },
+    { "id": "M2", "title": "audit", "weightPercent": 15, "status": "complete" },
+    { "id": "M3", "title": "findings", "weightPercent": 45, "status": "complete" },
+    { "id": "M4", "title": "report", "weightPercent": 20, "status": "complete" }
+  ],
+  "startedAt": "2026-09-06T09:14:07.000Z",
+  "updatedAt": "2026-09-06T09:58:10.000Z"
+}

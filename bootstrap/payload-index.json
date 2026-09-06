@@ -16,8 +16,8 @@
   ],
   "fixedBin": {
     "path": "bin/csm-skills-bootstrap.js",
-    "sha256": "3d2055dbff6351d74dd066ec5d1c6cb1959a599fc0933869a3f87960ea836ff0",
-    "bytes": 14734,
+    "sha256": "3e779c974afeaf7fe06c941454e299a360a3ab2ba37a281a3580c233ffec9c96",
+    "bytes": 15398,
     "mode": "0755"
   },
   "classes": {
@@ -842,14 +842,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "098bd46d66863a719ead9943d17a0f40374ed375a1ed6e234443aeb4deb9566e",
-        "bytes": 59823,
+        "sha256": "370bbbc5fb85f2b869bd3a450c29056d21ae04489c6471f7e3545dc9385d7d81",
+        "bytes": 58337,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/invocation.mjs",
-        "sha256": "dec04257a1f9cb7f0226548bcd72e4fa9ea393b7aa8d0fbd00e8144a5ff0592e",
-        "bytes": 30439,
+        "sha256": "4a20ee13d2db6df3fd155b25a4cfad97112a8bf1ec5288c36e60a15d54896927",
+        "bytes": 30248,
         "mode": "0644"
       },
       {
@@ -866,8 +866,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/progress.mjs",
-        "sha256": "4551b73682c5fc44c0b46956f6a0d5c88d5d616a9392b744bc6d344615d2e049",
-        "bytes": 15155,
+        "sha256": "029a4e557d8e83bb2300a4a5282f368d7f35ad6183889a5390283fd35147bfd8",
+        "bytes": 16171,
         "mode": "0644"
       },
       {
@@ -884,8 +884,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/run-artifacts.mjs",
-        "sha256": "1fb891806f5f715854d01053b7a52efbc79a4da52945c0f13cb803aa0501cca0",
-        "bytes": 9690,
+        "sha256": "4cac7e9be22e53a1458085b73da9d93061876e49ac88d091127706a3c7a276a6",
+        "bytes": 12675,
         "mode": "0644"
       },
       {
@@ -926,8 +926,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/telemetry.mjs",
-        "sha256": "a875a65486611820af159c72513677832074d16b85262aa10d752a32f94459ad",
-        "bytes": 11788,
+        "sha256": "16365db5ba6084722b4cb032787bfb7e9563ed5340cf26a977ac1ead432488f8",
+        "bytes": 11276,
         "mode": "0644"
       },
       {
@@ -1124,8 +1124,8 @@
       },
       {
         "path": "payload/skills/csm-plan/lib/input-resolver.mjs",
-        "sha256": "a4579b19b63cbea9106eff8fc1b3a324e2edd7f45c078d21f9133bc73ec39928",
-        "bytes": 7352,
+        "sha256": "4979149f67b4f6aa8540f966e4c525a694497d94ac34d3c73550188f2101a2c9",
+        "bytes": 7462,
         "mode": "0644"
       },
       {
@@ -1985,8 +1985,8 @@
       },
       {
         "path": "payload/lib/progress-tracker.mjs",
-        "sha256": "77770ea28fc0d57e4ed56f86d0b33386db3b93e4a68ef7d4097bb07892bb1fc5",
-        "bytes": 9586,
+        "sha256": "98f24c551f9ee43014725c98cdb63790e13e882abd62d7d6e62b697b4c8d8a75",
+        "bytes": 9765,
         "mode": "0644"
       },
       {

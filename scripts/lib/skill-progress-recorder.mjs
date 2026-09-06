@@ -10,7 +10,8 @@
 // at percent/30; 30-70 -> M1 complete, M2 active at (percent-30)/40; 70-99 ->
 // M1/M2 complete, M3 active at (percent-70)/30. The shipped validator derives
 // overallPercent from milestone weights/fractions and rejects any mismatch.
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { atomicWrite } from "../../lib/durable-json/index.mjs";
 import { join } from "node:path";
 import { validateSkillProgress } from "../../lib/progress-tracker.mjs";
 
@@ -65,6 +66,10 @@ export async function recordSkillProgress({ dir, request, goal, percent = 100, m
   if (!Number.isInteger(percent) || percent < 0 || percent > 100)
     throw new TypeError("percent must be an integer between 0 and 100");
   const childRunId = request.childRunId;
+  // F-022: the id feeds a file path - enforce the canonical shape here, not
+  // only remotely via schema validation downstream
+  if (!/^run-[a-z0-9][a-z0-9-]{1,127}$/.test(childRunId) || childRunId.includes("/"))
+    throw new TypeError("childRunId must be a canonical run id");
   const rows = milestones ?? deriveMilestones(percent);
   const nowIso = new Date().toISOString();
   const record = {
@@ -87,7 +92,7 @@ export async function recordSkillProgress({ dir, request, goal, percent = 100, m
   const verdict = validateSkillProgress(record);
   if (!verdict.ok) throw new Error("invalid skill-progress record: " + verdict.reason);
   await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, childRunId + ".json"), JSON.stringify(record, null, 2) + "\n", {
+  await atomicWrite(join(dir, childRunId + ".json"), JSON.stringify(record, null, 2) + "\n", {
     mode: 0o644,
   });
   return record;

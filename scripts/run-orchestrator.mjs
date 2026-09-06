@@ -183,6 +183,9 @@ async function realMode() {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
     throw new Error("--timeout-ms must be a positive number of milliseconds");
   const quietProgress = args.includes("--quiet-progress");
+  const progressPollMs = Number(argValue("--progress-poll-ms") ?? 2000);
+  if (!Number.isFinite(progressPollMs) || progressPollMs <= 0)
+    throw new Error("--progress-poll-ms must be a positive number of milliseconds");
   // one dedupe closure for live and final renders: consecutive identical TASK
   // PROGRESS blocks are suppressed everywhere
   const renderProgressOnChange = (() => {
@@ -261,6 +264,7 @@ async function realMode() {
     schemaRegistry,
     producerExecutorId: "csm-build",
     skillProgressRollupDir,
+    progressPollIntervalMs: progressPollMs,
     ...(quietProgress
       ? {}
       : {
@@ -312,7 +316,7 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (args[0] === "--approach") process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--quiet-progress] [--resume]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--quiet-progress] [--resume]",
     );
     process.exit(1);
   })().catch((error) => {

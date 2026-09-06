@@ -4,6 +4,7 @@
 // Extracted from index.mjs (quality-delivery item 4).
 import { validateHandoffRef } from "./invocation.mjs";
 import { reconcileChildArtifacts } from "./evidence-gates.mjs";
+import { compileApproach } from "./phase-compiler.mjs";
 
 function upstreamRefsFor(node, phase, outputsByNode) {
   return phase.handoffEdges
@@ -242,3 +243,84 @@ async function validateReviewArtifacts(reviewResult, artifactResolver, schemaReg
 }
 
 export { upstreamRefsFor, externalRefsFor, reconcileResult, validateReviewArtifacts };
+
+/**
+ * F-014: compile the remediation approach, splice the remediation phase into
+ * the graph at the coordinated insertion point, register it with the progress
+ * tracker, and append the lineage record. Shared by the host-review and
+ * injected-review final-review paths (previously duplicated verbatim).
+ */
+export async function spliceRemediationPhase({
+  coordinated,
+  capabilities,
+  signals,
+  runId,
+  progressTracker,
+  remediationLineage,
+} = {}) {
+  const rawRemediation = coordinated.remediation;
+  const insertAt = coordinated.graph.phases.findIndex(
+    (phase) => phase.phaseId === rawRemediation.phaseId,
+  );
+  const remediationGraph = await compileApproach(
+    {
+      schema: "csm-approach/1",
+      schemaRevision: 1,
+      status: "agreed",
+      runId,
+      ideaSlug: "remediation",
+      phases: [
+        {
+          phaseId: "P1",
+          title: rawRemediation.outcome?.title ?? "Remediate review finding",
+          goal: rawRemediation.outcome?.goal ?? rawRemediation.acceptanceSignals.join("; "),
+          deliverables: rawRemediation.outcome?.deliverables ?? ["review gap closed"],
+          scope: rawRemediation.scope?.include ?? ["declared review gap"],
+          outOfScope: rawRemediation.scope?.exclude ?? [],
+          constraints: [],
+          acceptanceHints: rawRemediation.acceptanceSignals,
+          context: [],
+          dependencies: [],
+        },
+      ],
+    },
+    {
+      capabilities,
+      signals: { ...signals, capabilities: [rawRemediation.route] },
+      graphRevision: coordinated.graph.graphRevision,
+      parentPhaseId: rawRemediation.parentPhaseId,
+      phaseIdOverride: rawRemediation.phaseId,
+    },
+  );
+  const graph = {
+    ...coordinated.graph,
+    phases: [
+      ...coordinated.graph.phases.slice(0, insertAt),
+      Object.freeze({
+        ...rawRemediation,
+        ...remediationGraph.phases[0],
+        graphRevision: rawRemediation.graphRevision,
+        parentPhaseId: rawRemediation.parentPhaseId,
+        insertion: rawRemediation.insertion,
+        order: rawRemediation.order,
+        remediationBudget: rawRemediation.remediationBudget,
+        requirementDelta: rawRemediation.requirementDelta,
+        reviewFindings: rawRemediation.reviewFindings,
+        sourceReviewId: rawRemediation.sourceReviewId,
+        acceptanceContract: rawRemediation.acceptanceContract,
+      }),
+      ...coordinated.graph.phases.slice(insertAt + 1),
+    ],
+  };
+  const remediationPhase = graph.phases[insertAt];
+  await progressTracker.addPhase(remediationPhase);
+  remediationLineage.push({
+    sourceReviewId: remediationPhase.sourceReviewId,
+    findings: remediationPhase.reviewFindings,
+    requirementDelta: remediationPhase.requirementDelta,
+    phaseId: remediationPhase.phaseId,
+    parentPhaseId: remediationPhase.parentPhaseId,
+    acceptanceContract: remediationPhase.acceptanceContract,
+  });
+  return { graph, insertAt, remediationPhase };
+}

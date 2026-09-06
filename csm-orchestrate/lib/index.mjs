@@ -45,6 +45,7 @@ import {
 import {
   externalRefsFor,
   reconcileResult,
+  spliceRemediationPhase,
   upstreamRefsFor,
   validateReviewArtifacts,
 } from "./run-artifacts.mjs";
@@ -92,6 +93,7 @@ async function runOrchestrationInternal({
   producerExecutorId = null,
   reviewArtifactRoot = null,
   skillProgressRollupDir = null,
+  progressPollIntervalMs = 2000,
   onProgress = null,
   executorInput,
   parentPhaseId = null,
@@ -135,7 +137,20 @@ async function runOrchestrationInternal({
     const receipt = terminalReceipt(...args);
     if (progressTracker) {
       progressByReceipt.set(receipt, progressTracker);
-      progressTracker.associateReceipt(receipt.receiptId, receipt.phaseId);
+      void progressTracker.associateReceipt(receipt.receiptId, receipt.phaseId).catch((error) => {
+        telemetryLosses.push({
+          schema: "csm-orchestrate-telemetry-loss/1",
+          eventType: "telemetry_loss",
+          runId: receipt.runId,
+          phaseId: receipt.phaseId,
+          edgeId: null,
+          childRunId: null,
+          attempt: 0,
+          sequence: null,
+          code: "receipt-association-failed",
+          message: String(error?.message ?? error),
+        });
+      });
     }
     emitTelemetry({
       phaseId: receipt.phaseId,
@@ -207,7 +222,29 @@ async function runOrchestrationInternal({
     now: () => new Date(now()).toISOString(),
     onUpdate: onProgress,
   });
-  await progressTracker.reload();
+  // F-001: adopt the run-level progress fence token before reload so a resumed
+  // run (fence row written by a prior dispatch) does not crash with
+  // StaleFenceError. Peeking reads the current token without creating any
+  // cursor/fence rows; stores without fences or peek support skip it.
+  try {
+    const token = await cursorStore.peekFencingToken?.(`progress:progress-${slug(runId)}`);
+    if (Number.isInteger(token) && token >= 1) progressTracker.setFencingToken(token);
+  } catch {
+    /* peek is advisory */
+  }
+  try {
+    await progressTracker.reload();
+  } catch (error) {
+    emitTelemetry({
+      phaseId: "phase-intake",
+      edgeId: null,
+      eventType: "reconciliation",
+      payload: {
+        status: "progress-reload-skipped",
+        reason: String(error?.message ?? error).slice(0, 200),
+      },
+    });
+  }
   await progressTracker.materialize(graph.phases);
   const adapter =
     executorAdapter ??
@@ -297,12 +334,16 @@ async function runOrchestrationInternal({
   // non-verified item. Inert unless skillProgressRollupDir is configured.
   const startProgressPoll = (pollChildRunId, pollPhase, pollNode) => {
     if (!skillProgressRollupDir) return () => {};
+    let pollGeneration = 0; // F-009: in-flight ticks must not write after stop
     const timer = setInterval(() => {
+      const generation = ++pollGeneration;
       try {
         void (async () => {
           const { rollupChildProgress, findChildSkillProgress } =
             await import("./progress-rollup.mjs");
+          if (generation !== pollGeneration) return; // superseded tick
           const childRecord = await findChildSkillProgress(skillProgressRollupDir, pollChildRunId);
+          if (generation !== pollGeneration) return;
           if (!childRecord || childRecord.overallPercent >= 100) return;
           const rollupResult = await rollupChildProgress({
             progressTracker,
@@ -323,9 +364,12 @@ async function runOrchestrationInternal({
             });
         })().catch(() => {});
       } catch {}
-    }, 2000);
+    }, progressPollIntervalMs);
     timer.unref?.();
-    return () => clearInterval(timer);
+    return () => {
+      pollGeneration += 1;
+      clearInterval(timer);
+    };
   };
   const childReceipts = [];
   const allEvidence = [];
@@ -682,10 +726,13 @@ async function runOrchestrationInternal({
               priorFailureCode: result.failure?.code ?? null,
             },
           });
-          if (retryBackoffMs > 0)
-            await new Promise((resolve) =>
-              setTimeout(resolve, retryBackoffMs * Math.pow(2, attempt - 1)),
-            );
+          if (retryBackoffMs > 0 && !signal?.aborted) {
+            // F-027: attempt is already the NEXT attempt number, so the first
+            // retry waits 1x retryBackoffMs (the old code slept 2x). The await
+            // is part of run control flow, so the timer must hold the loop.
+            const delay = retryBackoffMs * Math.pow(2, attempt - 2);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
           let retryIntent = null;
           try {
             retryIntent = await beginDispatchIntent(cursorId, phase.phaseId, retryChild);
@@ -1286,71 +1333,16 @@ async function runOrchestrationInternal({
       });
       await assertSchema("csm-orchestrate-final-review/2", coordinated);
       if (coordinated.status === "REMEDIATION_REQUIRED") {
-        const rawRemediation = coordinated.remediation;
-        const insertAt = coordinated.graph.phases.findIndex(
-          (phase) => phase.phaseId === rawRemediation.phaseId,
-        );
-        const remediationGraph = await compileApproach(
-          {
-            schema: "csm-approach/1",
-            schemaRevision: 1,
-            status: "agreed",
-            runId,
-            ideaSlug: "remediation",
-            phases: [
-              {
-                phaseId: "P1",
-                title: rawRemediation.outcome?.title ?? "Remediate review finding",
-                goal: rawRemediation.outcome?.goal ?? rawRemediation.acceptanceSignals.join("; "),
-                deliverables: rawRemediation.outcome?.deliverables ?? ["review gap closed"],
-                scope: rawRemediation.scope?.include ?? ["declared review gap"],
-                outOfScope: rawRemediation.scope?.exclude ?? [],
-                constraints: [],
-                acceptanceHints: rawRemediation.acceptanceSignals,
-                context: [],
-                dependencies: [],
-              },
-            ],
-          },
-          {
-            capabilities,
-            signals: { ...signals, capabilities: [rawRemediation.route] },
-            graphRevision: coordinated.graph.graphRevision,
-            parentPhaseId: rawRemediation.parentPhaseId,
-            phaseIdOverride: rawRemediation.phaseId,
-          },
-        );
-        activeGraph = {
-          ...coordinated.graph,
-          phases: [
-            ...coordinated.graph.phases.slice(0, insertAt),
-            Object.freeze({
-              ...rawRemediation,
-              ...remediationGraph.phases[0],
-              graphRevision: rawRemediation.graphRevision,
-              parentPhaseId: rawRemediation.parentPhaseId,
-              insertion: rawRemediation.insertion,
-              order: rawRemediation.order,
-              remediationBudget: rawRemediation.remediationBudget,
-              requirementDelta: rawRemediation.requirementDelta,
-              reviewFindings: rawRemediation.reviewFindings,
-              sourceReviewId: rawRemediation.sourceReviewId,
-              acceptanceContract: rawRemediation.acceptanceContract,
-            }),
-            ...coordinated.graph.phases.slice(insertAt + 1),
-          ],
-        };
-        const remediationPhase = activeGraph.phases[insertAt];
-        await progressTracker.addPhase(remediationPhase);
-        remediationLineage.push({
-          sourceReviewId: remediationPhase.sourceReviewId,
-          findings: remediationPhase.reviewFindings,
-          requirementDelta: remediationPhase.requirementDelta,
-          phaseId: remediationPhase.phaseId,
-          parentPhaseId: remediationPhase.parentPhaseId,
-          acceptanceContract: remediationPhase.acceptanceContract,
+        const splice = await spliceRemediationPhase({
+          coordinated,
+          capabilities,
+          signals,
+          runId,
+          progressTracker,
+          remediationLineage,
         });
-        phaseIndex = insertAt;
+        activeGraph = splice.graph;
+        phaseIndex = splice.insertAt;
         continue;
       }
       return emitTerminalReceipt(
@@ -1495,71 +1487,16 @@ async function runOrchestrationInternal({
     if (injectedReviewRefs || reviewArtifactRoot)
       await assertSchema("csm-orchestrate-final-review/2", coordinated);
     if (coordinated.status === "REMEDIATION_REQUIRED") {
-      const rawRemediation = coordinated.remediation;
-      const insertAt = coordinated.graph.phases.findIndex(
-        (phase) => phase.phaseId === rawRemediation.phaseId,
-      );
-      const remediationGraph = await compileApproach(
-        {
-          schema: "csm-approach/1",
-          schemaRevision: 1,
-          status: "agreed",
-          runId,
-          ideaSlug: "remediation",
-          phases: [
-            {
-              phaseId: "P1",
-              title: rawRemediation.outcome?.title ?? "Remediate review finding",
-              goal: rawRemediation.outcome?.goal ?? rawRemediation.acceptanceSignals.join("; "),
-              deliverables: rawRemediation.outcome?.deliverables ?? ["review gap closed"],
-              scope: rawRemediation.scope?.include ?? ["declared review gap"],
-              outOfScope: rawRemediation.scope?.exclude ?? [],
-              constraints: [],
-              acceptanceHints: rawRemediation.acceptanceSignals,
-              context: [],
-              dependencies: [],
-            },
-          ],
-        },
-        {
-          capabilities,
-          signals: { ...signals, capabilities: [rawRemediation.route] },
-          graphRevision: coordinated.graph.graphRevision,
-          parentPhaseId: rawRemediation.parentPhaseId,
-          phaseIdOverride: rawRemediation.phaseId,
-        },
-      );
-      activeGraph = {
-        ...coordinated.graph,
-        phases: [
-          ...coordinated.graph.phases.slice(0, insertAt),
-          Object.freeze({
-            ...rawRemediation,
-            ...remediationGraph.phases[0],
-            graphRevision: rawRemediation.graphRevision,
-            parentPhaseId: rawRemediation.parentPhaseId,
-            insertion: rawRemediation.insertion,
-            order: rawRemediation.order,
-            remediationBudget: rawRemediation.remediationBudget,
-            requirementDelta: rawRemediation.requirementDelta,
-            reviewFindings: rawRemediation.reviewFindings,
-            sourceReviewId: rawRemediation.sourceReviewId,
-            acceptanceContract: rawRemediation.acceptanceContract,
-          }),
-          ...coordinated.graph.phases.slice(insertAt + 1),
-        ],
-      };
-      const remediationPhase = activeGraph.phases[insertAt];
-      await progressTracker.addPhase(remediationPhase);
-      remediationLineage.push({
-        sourceReviewId: remediationPhase.sourceReviewId,
-        findings: remediationPhase.reviewFindings,
-        requirementDelta: remediationPhase.requirementDelta,
-        phaseId: remediationPhase.phaseId,
-        parentPhaseId: remediationPhase.parentPhaseId,
-        acceptanceContract: remediationPhase.acceptanceContract,
+      const splice = await spliceRemediationPhase({
+        coordinated,
+        capabilities,
+        signals,
+        runId,
+        progressTracker,
+        remediationLineage,
       });
-      phaseIndex = insertAt;
+      activeGraph = splice.graph;
+      phaseIndex = splice.insertAt;
       continue;
     }
     return emitTerminalReceipt(
@@ -1593,7 +1530,62 @@ export async function orchestrate(options) {
     throw new TypeError(
       "runId must equal approach.runId: approvals and cursors bind to the approach run identity",
     );
-  const result = await runOrchestrationInternal(options);
+  let result;
+  try {
+    result = await runOrchestrationInternal(options);
+  } catch (error) {
+    // F-002: a crash must still persist an authoritative terminal record
+    const runId = typeof options?.runId === "string" ? options.runId : "run-crashed";
+    const receipt = Object.freeze({
+      schema: "csm-orchestrate-receipt/2",
+      receiptId: `receipt-${runId}-crash`,
+      runId,
+      phaseId: "phase-intake",
+      childReceipts: [],
+      approval: {
+        approvalId: "approval-not-supplied",
+        scope: ["none"],
+        approvedDigest: "sha256:" + "0".repeat(64),
+        approvedAt: new Date(0).toISOString(),
+        expiresAt: new Date(0).toISOString(),
+        status: "expired",
+      },
+      statuses: {
+        route: "blocked",
+        child: "not-started",
+        artifact: "none",
+        verification: "rejected",
+        parent: "blocked",
+      },
+      outcome: { status: "BLOCKED", accepted: false, acceptanceRefs: [] },
+      idempotencyKey: "sha256:" + "0".repeat(64),
+    });
+    try {
+      await options?.cursorStore?.saveTerminalReceipt?.(receipt);
+    } catch {}
+    try {
+      if (typeof options?.telemetryEmitter?.emit === "function")
+        options.telemetryEmitter.emit({
+          runId,
+          attempt: 0,
+          eventType: "terminal",
+          phaseId: "phase-intake",
+          edgeId: null,
+          childRunId: null,
+          payload: {
+            receiptId: receipt.receiptId,
+            status: "BLOCKED",
+            crash: String(error?.message ?? error).slice(0, 200),
+          },
+        });
+    } catch {}
+    return {
+      ...receipt,
+      progress: null,
+      receipt,
+      reason: "unhandled-exception",
+    };
+  }
   const progressTracker = progressByReceipt.get(result);
   if (progressTracker) await progressTracker.flush();
   const progress = progressTracker?.snapshot ?? null;
