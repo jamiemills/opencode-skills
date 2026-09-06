@@ -883,6 +883,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/request-router.mjs",
+        "sha256": "3773d0c5216265aff1a6b540298adb9f80610ba2b990df29f16be1ad511908a9",
+        "bytes": 6660,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/review-token.mjs",
         "sha256": "fabe277974ff1d4dbe29f7b3692bd37caa7acf98e2a3293a2865f4885574f86e",
         "bytes": 155,
