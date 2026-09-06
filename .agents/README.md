@@ -82,6 +82,12 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-03-npm-audit-ci-resilience-csm.json` — 2026-09-03 — add bounded npm audit retry resilience — status: superseded by `2026-09-04-replace-npm-audit-ci-gate-csm.json` (retries disproven by run 33833838983)
 - `2026-09-04-replace-npm-audit-ci-gate-csm.json` — 2026-09-04 — replace npm audit CI gate with fail-closed pinned OSV audit — status: complete (run 33903446355 green on 0ec452a)
 - `2026-09-04-skill-progress-tracker-enforcement-csm.json` — 2026-09-04 — enforce skill progress tracker records — status: complete (CI run 33928035357 / fa79f36 fully green)
+- `2026-08-27-all-skills-config-production-assurance-csm.json` — 2026-08-27 — build all-skills configuration and production assurance — status: ready
+- `2026-09-05-orchestrate-release-completion-csm.json` — 2026-09-05 — complete remaining orchestration release work (T001-T005) — status: in progress (T001-T005 executed; closure CI pending)
+- `2026-09-05-defrelease-autonomy-gates-csm.json` — 2026-09-05 — prepare and gate DEF-RELEASE publication + autonomy promotion (T001-T007) — status: ready
+- `2026-09-06-progress-movement-fixes-csm.json` — 2026-09-06 — plan + build (COMPLETE): mid-run percentage movement, persisted progress artifacts, rollup telemetry registration, render-on-change — status: reference
+- `2026-09-06-orchestrate-skill-dispatch-enforcement-csm.json` — 2026-09-06 — plan + build (ready): skill-first dispatch enforcement in csm-orchestrate — status: reference
+- `2026-09-06-parallelism-conflict-free-change-set-csm.json` — 2026-09-06 — plan (ready, NOT_STARTED) for csm-orchestrate: 11 tasks / 3 batches implementing the consolidated parallelism change set (S1-S9) with worktree execution, same-commit regen, and acceptance checks A-F — status: reference
 
 ## docs/
 
@@ -95,6 +101,9 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `csm-ddd-token-efficiency-liability.md` — 2026-08-23 — deferred liability: csm-ddd description vs the token-efficiency budget (reconciled by WORD_BUDGET re-pin 2026-08-23) — status: retired
 - `csm-deep-research-skill-review-2026-08-20.md` — 2026-08-20 — csm-review audit of the csm-deep-research skill — status: reference
 - `2026-08-30-remove-opencode-proper-t001-route-coverage.json` — 2026-08-30 — route/runtime coverage inventory for no-OpenCode execution — status: blocked reference
+- `rollback-descriptor-20260905.json` — 2026-09-05 — release rollback descriptor for orchestrate-release-completion (known-good f8418fd; revert order) — status: reference
+- `g3-ruling.md` — 2026-09-05 — G3 evidence-source ruling question + options + recommendation — status: awaiting user ruling
+- `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
 
 ## reviews/
 
@@ -108,6 +117,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-27-csm-orchestrate-approach-review-20260827t130000z-a1b2c3d4e5f6-review.json` — 2026-08-27 — focused csm-orchestrate approach-fidelity and remediation review — status: complete
 - `2026-08-29-opencode-skills-20260829t063809z-0916749aa6da-review.json` — 2026-08-29 — terminal adversarial review of the skills suite — status: retained historical review
 - `2026-08-30-opencode-skills-20260830t120000z-orchestrate-review.json` — 2026-08-30 — focused csm-orchestrate host/execution-boundary review — status: incomplete review evidence
+- `2026-09-06-opencode-skills-20260906t091407z-6e281cd9-review.json` — 2026-09-06 — FULL 18-dimension R0 audit at 6e281cd9: 28 findings (5 high, 15 medium, 8 low) with challenges and remediation sketches — status: reference
 
 ## research/
 
@@ -154,6 +164,11 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-08-20-disney-plus-uk-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ UK creative-assets schema artifact — status: reference
 - `2026-08-20-disney-plus-us-creative-assets-schema.json` (under research/artifacts/) — 2026-08-20 — Disney+ US creative-assets schema artifact — status: reference
 - `2026-08-22-python-idiomatic-reviewer-rules.json` (under research/artifacts/) — 2026-08-22 — 140-rule Python idiomatic reviewer ruleset (bundled input for csm-review-python) — status: reference
+- `2026-09-06-progress-tracking-not-displayed-20260906t061208z-6c2e9293a705-research.json` — 2026-09-06 — deep-research finding: why progress tracking was not displayed in cycle 6 despite the cycle-5 fix (plumbing worked; display semantics did not) — status: reference
+- `2026-09-06-orchestrate-skill-dispatch-gap-research.json` — 2026-09-06 — deep-research finding: why csm-orchestrate never dispatched to real csm skills, and what changes enable skill-first routing — status: reference
+- `2026-09-06-parallelism-foundations-20260906t162030z-b057b2e795cd-research.json` — 2026-09-06 — deep-research finding (DEEP, challenged + judged): how tracing/logging/JSON encoding/gates/state/worktrees work and what serializes toward (1) max parallelization of single-user work and (2) max parallel same-repo work; KF-1..KF-10 + N1-N5, findings only — status: reference
+- `2026-09-06-feature-branch-worthiness-20260906t165335z-36901387fcf6-research.json` — 2026-09-06 — deep-research finding (DEEP validation + extension): parallelism-foundations validated 15/15 at HEAD; short-lived feature branches NOT worthwhile (worktrees already provide them with isolation; branch commits in main checkout re-introduce shared-tree interference); worth including C1 run lease / C3 pack lock / C4a partial-tail recovery; defer C5 compaction; AGENTS.md only-conflict claim needs correction — status: reference
+- `2026-09-06-parallelism-consolidated-change-set-20260906t172253z-1b1735fe8130-research.json` — 2026-09-06 — deep-research finding (DEEP consolidation): both parallelism findings consolidated into one decision-ready change set for conflict-free max parallelism — batch 1 S8 CI filter / S7 hook config / S2 pack lock / S1 run lease / S3a partial-tail; batch 2 S6 merge guard + S3b durable loss markers; batch 3 S9 AGENTS.md hedge + S5-index section-anchored insertion; target state + residual serial spine + acceptance checks — status: reference
 
 ## Retention
 
@@ -178,7 +193,6 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-08-25-json-only-rendered-skill-outputs-approach.md` — 2026-08-25 — agreed suite-wide JSON-only outputs with Markdown/HTML projections — status: agreed
 - `2026-08-26-csm-orchestrate-approach.md` — 2026-08-26 — agreed csm-orchestrate outer-loop approach — status: agreed
 - `2026-08-27-all-skills-config-production-assurance-approach.md` — 2026-08-27 — agreed all-skills configuration and production-assurance approach — status: agreed
-- `2026-08-27-all-skills-config-production-assurance-csm.json` — 2026-08-27 — build all-skills configuration and production assurance — status: ready
 
 ## builds/
 
@@ -207,19 +221,15 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-04-skill-progress-tracker-enforcement-20260904t200000z-progress.json` — 2026-09-04 — csm-build invocation progress for the skill-progress-tracker-enforcement build — status: complete
 - `2026-09-05-orchestrate-release-validation-progress.json` — 2026-09-05 — csm-deep-research progress record for orchestrate release validation — status: complete
 - `2026-09-05-production-evidence-t002-progress.json` — 2026-09-05 — csm-build progress record for production-evidence-boundaries T002 resume — status: complete
-- `2026-09-05-orchestrate-release-completion-csm.json` — 2026-09-05 — complete remaining orchestration release work (T001-T005) — status: in progress (T001-T005 executed; closure CI pending)
-- `rollback-descriptor-20260905.json` — 2026-09-05 — release rollback descriptor for orchestrate-release-completion (known-good f8418fd; revert order) — status: reference
 - `2026-09-05-orchestrate-release-completion-plan-progress.json` — 2026-09-05 — csm-plan progress record for the release-completion plan — status: complete
 - `2026-09-05-orchestrate-release-completion-build-progress.json` — 2026-09-05 — csm-build progress record for the release-completion build — status: active
-- `2026-09-05-defrelease-autonomy-gates-csm.json` — 2026-09-05 — prepare and gate DEF-RELEASE publication + autonomy promotion (T001-T007) — status: ready
 - `2026-09-05-defrelease-autonomy-gates-plan-progress.json` — 2026-09-05 — csm-plan progress record — status: complete
 - `2026-09-05-defrelease-autonomy-gates-build-progress.json` — 2026-09-05 — csm-build progress record — status: active
-- `g3-ruling.md` — 2026-09-05 — G3 evidence-source ruling question + options + recommendation — status: awaiting user ruling
-- `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
-- `g3-bundle.json` — 2026-09-05 — G3 local evidence bundle (host-assurance 20/20 + docker probe verified; submission deferred to ruling) — status: reference
-- `t007-mvd-designation.json` — 2026-09-05 — MVD designation (this host, operator jamiemills) + evidence window procedures — status: active
-- `t007-evidence-snapshot.json` — 2026-09-05 — first T007 collection: 7/9 gates pass; G6+G7 blocked with close-out paths — status: active
 - `2026-09-06-parallelism-conflict-free-change-set-build-20260906T185023Z-91948e723b2f-progress.json` — 2026-09-06 — csm-build progress record for the parallelism-conflict-free-change-set build — status: active
+- `2026-09-06-progress-movement-fixes-20260906T065617Z-733a9e508250-progress.json` — 2026-09-06 — csm-plan tracker for progress-movement-fixes — status: reference
+- `2026-09-06-progress-movement-fixes-build-20260906T072018Z-4a21d28205cd-progress.json` — 2026-09-06 — csm-build tracker for progress-movement-fixes — status: reference
+- `2026-09-06-repo-audit-run-20260906t091407z-6e281cd9-progress.json` — 2026-09-06 — csm-review tracker for the FULL repo audit — status: reference
+- `2026-09-06-orchestrate-skill-dispatch-20260906t141834z-54fb1848813c-progress.json` — 2026-09-06 — csm-plan tracker for orchestrate-skill-dispatch-enforcement — status: reference
 
 ## ddd/
 
@@ -243,16 +253,6 @@ the source file. Deletion remains awaiting explicit authorization.
 - `honest-failures-analysis.json` — 2026-09-05 — typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths — status: reference
 - `progress-visibility-analysis.json` — 2026-09-05 — root-cause analysis of missing progress trackers in orchestrator runs and invoked skills, with fixes and verification paths — status: reference
 - `renderer-wiring-analysis.json` — 2026-09-06 — analysis of the HTML/Markdown projection renderers (working but unused) and the driver wiring that now emits receipt.md/receipt.html per run — status: reference
-- `2026-09-06-progress-tracking-not-displayed-20260906t061208z-6c2e9293a705-research.json` — 2026-09-06 — deep-research finding: why progress tracking was not displayed in cycle 6 despite the cycle-5 fix (plumbing worked; display semantics did not) — status: reference
-- `2026-09-06-progress-movement-fixes-csm.json` — 2026-09-06 — plan + build (COMPLETE): mid-run percentage movement, persisted progress artifacts, rollup telemetry registration, render-on-change — status: reference
-- `2026-09-06-progress-movement-fixes-20260906T065617Z-733a9e508250-progress.json` — 2026-09-06 — csm-plan tracker for progress-movement-fixes — status: reference
-- `2026-09-06-progress-movement-fixes-build-20260906T072018Z-4a21d28205cd-progress.json` — 2026-09-06 — csm-build tracker for progress-movement-fixes — status: reference
-- `2026-09-06-opencode-skills-20260906t091407z-6e281cd9-review.json` — 2026-09-06 — FULL 18-dimension R0 audit at 6e281cd9: 28 findings (5 high, 15 medium, 8 low) with challenges and remediation sketches — status: reference
-- `2026-09-06-repo-audit-run-20260906t091407z-6e281cd9-progress.json` — 2026-09-06 — csm-review tracker for the FULL repo audit — status: reference
-- `2026-09-06-orchestrate-skill-dispatch-enforcement-csm.json` — 2026-09-06 — plan + build (ready): skill-first dispatch enforcement in csm-orchestrate — status: reference
-- `2026-09-06-orchestrate-skill-dispatch-20260906t141834z-54fb1848813c-progress.json` — 2026-09-06 — csm-plan tracker for orchestrate-skill-dispatch-enforcement — status: reference
-- `2026-09-06-orchestrate-skill-dispatch-gap-research.json` — 2026-09-06 — deep-research finding: why csm-orchestrate never dispatched to real csm skills, and what changes enable skill-first routing — status: reference
-- `2026-09-06-parallelism-foundations-20260906t162030z-b057b2e795cd-research.json` — 2026-09-06 — deep-research finding (DEEP, challenged + judged): how tracing/logging/JSON encoding/gates/state/worktrees work and what serializes toward (1) max parallelization of single-user work and (2) max parallel same-repo work; KF-1..KF-10 + N1-N5, findings only — status: reference
-- `2026-09-06-feature-branch-worthiness-20260906t165335z-36901387fcf6-research.json` — 2026-09-06 — deep-research finding (DEEP validation + extension): parallelism-foundations validated 15/15 at HEAD; short-lived feature branches NOT worthwhile (worktrees already provide them with isolation; branch commits in main checkout re-introduce shared-tree interference); worth including C1 run lease / C3 pack lock / C4a partial-tail recovery; defer C5 compaction; AGENTS.md only-conflict claim needs correction — status: reference
-- `2026-09-06-parallelism-consolidated-change-set-20260906t172253z-1b1735fe8130-research.json` — 2026-09-06 — deep-research finding (DEEP consolidation): both parallelism findings consolidated into one decision-ready change set for conflict-free max parallelism — batch 1 S8 CI filter / S7 hook config / S2 pack lock / S1 run lease / S3a partial-tail; batch 2 S6 merge guard + S3b durable loss markers; batch 3 S9 AGENTS.md hedge + S5-index section-anchored insertion; target state + residual serial spine + acceptance checks — status: reference
-- `2026-09-06-parallelism-conflict-free-change-set-csm.json` — 2026-09-06 — plan (ready, NOT_STARTED) for csm-orchestrate: 11 tasks / 3 batches implementing the consolidated parallelism change set (S1-S9) with worktree execution, same-commit regen, and acceptance checks A-F — status: reference
+- `g3-bundle.json` — 2026-09-05 — G3 local evidence bundle (host-assurance 20/20 + docker probe verified; submission deferred to ruling) — status: reference
+- `t007-mvd-designation.json` — 2026-09-05 — MVD designation (this host, operator jamiemills) + evidence window procedures — status: active
+- `t007-evidence-snapshot.json` — 2026-09-05 — first T007 collection: 7/9 gates pass; G6+G7 blocked with close-out paths — status: active

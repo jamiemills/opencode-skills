@@ -20,6 +20,7 @@ import { pathToFileURL } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
 import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
+import { insertAgentsIndexBullet } from "./lib/agents-index.mjs";
 
 const exec = promisify(execFile);
 const root = join(import.meta.url.replace(/^file:\/\//, ""), "..", "..").replace(/\/$/, "");
@@ -354,17 +355,13 @@ async function phaseWork(request) {
       "- `g7-corpus-confirmation.json` — 2026-09-05 — G7 held-out corpus confirmation " +
       `(${bundle.deployment.G7.passed}/${bundle.corpus.scenarioCount} frozen labels matched; report ${bundle.reportOverall}; provisional thresholds confirmed) — status: reference`;
     let indexed = false;
-    if (!readme.includes("`g7-corpus-confirmation.json`")) {
-      const lines = readme.split("\n");
-      let insertAt = lines.length;
-      for (let i = lines.length - 1; i >= 0; i -= 1) {
-        if (lines[i].startsWith("- `")) {
-          insertAt = i + 1;
-          break;
-        }
-      }
-      lines.splice(insertAt, 0, indexLine);
-      await writeFile(readmePath, lines.join("\n"));
+    const next = insertAgentsIndexBullet(
+      readme,
+      ".agents/evidence/g7-corpus-confirmation.json",
+      indexLine,
+    );
+    if (next !== readme) {
+      await writeFile(readmePath, next);
       indexed = true;
     }
     return {

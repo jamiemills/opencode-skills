@@ -18,6 +18,7 @@ import { pathToFileURL } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
 import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
+import { insertAgentsIndexBullet } from "./lib/agents-index.mjs";
 
 const exec = promisify(execFile);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -360,21 +361,13 @@ async function phaseWork(request) {
     const readmePath = join(root, ".agents", "README.md");
     const readme = await readFile(readmePath, "utf8");
     let indexed = false;
-    if (!readme.includes("`honest-failures-analysis.json`")) {
-      const lines = readme.split("\n");
-      let insertAt = lines.length;
-      for (let i = lines.length - 1; i >= 0; i -= 1) {
-        if (lines[i].startsWith("- `")) {
-          insertAt = i + 1;
-          break;
-        }
-      }
-      lines.splice(
-        insertAt,
-        0,
-        "- `honest-failures-analysis.json` — 2026-09-05 — typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths — status: reference",
-      );
-      await writeFile(readmePath, lines.join("\n"));
+    const next = insertAgentsIndexBullet(
+      readme,
+      ".agents/evidence/honest-failures-analysis.json",
+      "- `honest-failures-analysis.json` — 2026-09-05 — typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths — status: reference",
+    );
+    if (next !== readme) {
+      await writeFile(readmePath, next);
       indexed = true;
     }
     return {

@@ -21,6 +21,7 @@ import { checkDrift } from "./sync-skill-boilerplate.mjs";
 import { checkDrift as checkMatrixDrift } from "./gen-readme-matrix.mjs";
 import { lintPlanSignals } from "./check-plan-signals.mjs";
 import { checkDependencyPolicy } from "./lib/dependency-policy.mjs";
+import { agentsIndexSectionFor, agentsIndexSubjectsBySection } from "./lib/agents-index.mjs";
 import { validateSkillProgress } from "../lib/progress-tracker.mjs";
 import {
   FENCE_OPEN_RE,
@@ -962,21 +963,16 @@ function readDeferredLedgerIds(ledgerPath) {
   return ids;
 }
 
-// Extracts the set of artifact basenames referenced by bullet lines in
-// .agents/README.md (lines like "- `2026-08-19-x.md` — ..."). Returns null
+// Section-aware .agents/README.md index reader (S5-index): delegates to
+// scripts/lib/agents-index.mjs, which groups the SUBJECT basename of each
+// bullet line ("- `name` — ...") by its section. Inline backtick
+// cross-references in prose or in other bullets are not subjects and never
+// count toward membership. Returns Map<section heading, subject[]> or null
 // when the index file is absent.
-function readAgentsIndexBasenames(indexPath) {
+function readAgentsIndexSubjects(indexPath) {
   const content = readOrNull(indexPath);
   if (content === null) return null;
-  const names = new Set();
-  for (const line of splitLines(content)) {
-    for (const m of line.matchAll(/`([^`]+)`/g)) {
-      const t = m[1];
-      if (t.includes("/") || t.startsWith(".")) continue;
-      names.add(t);
-    }
-  }
-  return names;
+  return agentsIndexSubjectsBySection(content);
 }
 
 // Scans a plan for `[blocked] DEFERRED` task lines and returns
@@ -1478,14 +1474,17 @@ function main() {
     }
   }
 
-  // .agents artifact-index rule (review F1-07, journal-lessons F7/J7): every
-  // tracked artifact under .agents/ except the index itself must have an index
-  // line in .agents/README.md.
+  // .agents artifact-index rule (review F1-07, journal-lessons F7/J7, S5-index
+  // section membership): every tracked artifact under .agents/ except the index
+  // itself must have ONE bullet line under the section that maps to its
+  // physical directory class. Inline backtick mentions in other sections
+  // (cross-references such as "superseded-by", prose) never satisfy the rule,
+  // and a bullet under a NON-mapped section is a mis-home the gate rejects.
   // Same-commit indexing is the gate's teeth: adding an artifact without its
   // index line fails the next run. Untracked drafts never brick the gate.
   {
-    const indexed = readAgentsIndexBasenames(path.join(root, ".agents", "README.md"));
-    if (indexed === null) {
+    const subjectsBySection = readAgentsIndexSubjects(path.join(root, ".agents", "README.md"));
+    if (subjectsBySection === null) {
       console.log("note: .agents/README.md absent — artifact-index check skipped");
     } else if (tracked === null) {
       console.log("note: git unavailable — artifact-index check skipped");
@@ -1494,16 +1493,36 @@ function main() {
       const agentsArtifacts = [...tracked].filter(
         (t) => t.startsWith(".agents/") && !AGENTS_INDEX_EXEMPT.has(t),
       );
-      const missing = agentsArtifacts.filter((t) => !indexed.has(path.basename(t))).toSorted();
-      if (missing.length === 0) {
+      const missing = [];
+      const misHomed = [];
+      for (const rel of agentsArtifacts) {
+        const want = agentsIndexSectionFor(rel);
+        const basename = path.basename(rel);
+        if (want === null) {
+          missing.push(
+            `${rel} has no mapped index section (register the class in scripts/lib/agents-index.mjs and add its "## <class>/" section)`,
+          );
+          continue;
+        }
+        const foundSections = [];
+        for (const [section, subjects] of subjectsBySection) {
+          if (subjects.includes(basename)) foundSections.push(section);
+        }
+        if (!foundSections.includes(want))
+          missing.push(`${rel} has no bullet line under the ## ${want} section`);
+        for (const section of foundSections) {
+          if (section !== want)
+            misHomed.push(`${rel} bullet under ## ${section} belongs in ## ${want}`);
+        }
+      }
+      if (missing.length === 0 && misHomed.length === 0) {
         check(
           true,
-          `.agents artifact index covers all ${agentsArtifacts.length} tracked artifacts`,
+          `.agents artifact index covers all ${agentsArtifacts.length} tracked artifacts in their mapped sections`,
         );
       } else {
-        for (const t of missing) {
-          check(false, `.agents artifact index: ${t} has no index line in .agents/README.md`);
-        }
+        for (const message of missing) check(false, `.agents artifact index: ${message}`);
+        for (const message of misHomed) check(false, `.agents artifact index: ${message}`);
       }
     }
   }

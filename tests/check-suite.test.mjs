@@ -97,6 +97,29 @@ function clonePristine() {
   return dir;
 }
 
+// Builds a temp corpus cloned from the verified-clean WITH-GIT pristine corpus.
+// The artifact-index (S5-index) section-membership rule is exercised only when
+// git is available (F-053), so its planted cases reuse one git corpus.
+function cloneGitPristine() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "check-suite-"));
+  fs.cpSync(gitPristine, dir, { recursive: true });
+  return dir;
+}
+
+// Inserts a bullet line directly under the given "## <section>" heading.
+function insertBulletUnderHeading(content, heading, bullet) {
+  const lines = content.split("\n");
+  const idx = lines.findIndex((l) => l.trim() === heading);
+  assert.ok(idx >= 0, `fixture: ${heading} heading must exist`);
+  lines.splice(idx + 1, 0, bullet);
+  return lines.join("\n");
+}
+
+function gitRun(dir, args) {
+  const r = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+  assert.equal(r.status, 0, `git ${args.join(" ")} failed: ${r.stderr}`);
+}
+
 function read(dir, rel) {
   return fs.readFileSync(path.join(dir, rel), "utf8");
 }
@@ -125,15 +148,20 @@ function assertGateFails(dir, messageRe, label) {
 }
 
 let pristine = null;
+let gitPristine = null;
 
 before(() => {
   pristine = buildCorpus();
   const r = runGate(pristine);
   assert.equal(r.status, 0, `pristine corpus must be gate-clean: ${combined(r)}`);
+  gitPristine = buildCorpus({ withGit: true });
+  const g = runGate(gitPristine);
+  assert.equal(g.status, 0, `git pristine corpus must be gate-clean: ${combined(g)}`);
 });
 
 after(() => {
   if (pristine !== null) fs.rmSync(pristine, { recursive: true, force: true });
+  if (gitPristine !== null) fs.rmSync(gitPristine, { recursive: true, force: true });
 });
 
 test('clean corpus exits 0 with the "check-suite: OK" banner', () => {
@@ -723,6 +751,93 @@ test("F-053 (D15): with a .git the untracked plant is ignored; without .git it i
       combined(noGitRun),
       /review corpus \.agents\/reviews\/zz-untracked-review\.md missing\/unknown format marker/,
       "F-053 no-git leg message",
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("artifact-index (S5-index): an artifact bullet under the WRONG section fails the gate", () => {
+  const dir = cloneGitPristine();
+  try {
+    const readmePath = ".agents/README.md";
+    const readme = read(dir, readmePath);
+    const researchRel = ".agents/research/2026-08-20-csm-deep-research-skill-research.md";
+    const bullet = readme
+      .split("\n")
+      .find((l) => l.startsWith("- `") && l.includes(`\`${path.basename(researchRel)}\``));
+    assert.ok(bullet, "fixture: the research artifact has a subject bullet");
+    // A second bullet for a research artifact placed under ## plans/ is a
+    // mis-home: section membership maps research -> ## research/, and the
+    // duplicate does NOT satisfy the rule from another section.
+    write(dir, readmePath, insertBulletUnderHeading(readme, "## plans/", bullet));
+    assertGateFails(
+      dir,
+      /bullet under ## plans\/ belongs in ## research\//,
+      "artifact-index-wrong-section",
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("artifact-index (S5-index): a new artifact bulleted under its mapped section passes", () => {
+  const dir = cloneGitPristine();
+  try {
+    const rel = ".agents/evidence/zz-index-evidence-plant.json";
+    write(dir, rel, "{}\n");
+    gitRun(dir, ["add", rel]);
+    write(
+      dir,
+      ".agents/README.md",
+      insertBulletUnderHeading(
+        read(dir, ".agents/README.md"),
+        "## evidence/",
+        "- `zz-index-evidence-plant.json` — 2026-09-06 — planted evidence artifact — status: reference",
+      ),
+    );
+    const r = runGate(dir);
+    assert.equal(r.status, 0, combined(r));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("artifact-index (S5-index): csm-build-state artifacts resolve via the ## builds/ section", () => {
+  const dir = cloneGitPristine();
+  try {
+    const rel = ".agents/csm-build-state/zz-index-csm-build-state-plant.json";
+    const bullet =
+      "- `zz-index-csm-build-state-plant.json` — 2026-09-06 — planted csm-build-state artifact — status: reference";
+    write(dir, rel, "{}\n");
+    gitRun(dir, ["add", rel]);
+    write(
+      dir,
+      ".agents/README.md",
+      insertBulletUnderHeading(read(dir, ".agents/README.md"), "## builds/", bullet),
+    );
+    const ok = runGate(dir);
+    assert.equal(
+      ok.status,
+      0,
+      "a csm-build-state artifact resolves through ## builds/ with no ## csm-build-state/ section\n" +
+        combined(ok),
+    );
+    // Mis-home it under ## progress/: the bullet then belongs in ## builds/.
+    const withBuilds = read(dir, ".agents/README.md");
+    const withoutBullet = withBuilds
+      .split("\n")
+      .filter((l) => !l.includes("zz-index-csm-build-state-plant.json"))
+      .join("\n");
+    write(
+      dir,
+      ".agents/README.md",
+      insertBulletUnderHeading(withoutBullet, "## progress/", bullet),
+    );
+    assertGateFails(
+      dir,
+      /csm-build-state\/zz-index-csm-build-state-plant\.json bullet under ## progress\/ belongs in ## builds\//,
+      "artifact-index-csm-build-state",
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

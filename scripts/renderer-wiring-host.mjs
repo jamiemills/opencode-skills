@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
+import { insertAgentsIndexBullet } from "./lib/agents-index.mjs";
 
 const exec = promisify(execFile);
 const root = join(import.meta.url.replace(/^file:\/\//, ""), "..", "..").replace(/\/$/, "");
@@ -77,21 +78,13 @@ async function phaseWork(request) {
     const readmePath = join(root, ".agents", "README.md");
     const readme = await readFile(readmePath, "utf8");
     let indexed = false;
-    if (!readme.includes("`renderer-wiring-analysis.json`")) {
-      const lines = readme.split("\n");
-      let insertAt = lines.length;
-      for (let i = lines.length - 1; i >= 0; i -= 1) {
-        if (lines[i].startsWith("- `")) {
-          insertAt = i + 1;
-          break;
-        }
-      }
-      lines.splice(
-        insertAt,
-        0,
-        "- `renderer-wiring-analysis.json` — 2026-09-06 — analysis of the HTML/Markdown projection renderers (working but unused) and the driver wiring that now emits receipt.md/receipt.html per run — status: reference",
-      );
-      await writeFile(readmePath, lines.join("\n"));
+    const next = insertAgentsIndexBullet(
+      readme,
+      ".agents/evidence/renderer-wiring-analysis.json",
+      "- `renderer-wiring-analysis.json` — 2026-09-06 — analysis of the HTML/Markdown projection renderers (working but unused) and the driver wiring that now emits receipt.md/receipt.html per run — status: reference",
+    );
+    if (next !== readme) {
+      await writeFile(readmePath, next);
       indexed = true;
     }
     return {

@@ -1,7 +1,7 @@
 {
   "schema": "csm-orchestrate-capabilities/1",
   "version": 1,
-  "contentDigest": "sha256:d53ed247c9bdc30ae40d2c01a1a327ec477320831b2febf4326c09614f2d4c19",
+  "contentDigest": "sha256:098062a5d749933b407ad2faccf61b39e4b279aac5d5a3c546d195f9aad245c4",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -245,7 +245,7 @@
     {
       "skill": "csm-deep-research",
       "version": "1",
-      "digest": "sha256:36729e1fc189f69525f940d693a4daaa7c226615aa2730bdbaf85ee07039e4fb",
+      "digest": "sha256:d828426f5d71ea899cc5839143db346a2510c8017b98e9572d267bdc80ea39d2",
       "source": {
         "skillPath": "csm-deep-research/SKILL.md",
         "producerPath": null
