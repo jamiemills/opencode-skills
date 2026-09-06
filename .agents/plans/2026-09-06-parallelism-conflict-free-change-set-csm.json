@@ -1,0 +1,706 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-parallelism-conflict-free-change-set-20260906",
+  "runId": "run-20260906t181249z-91948e723b2f",
+  "planId": "parallelism-conflict-free-change-set",
+  "owner": "csm-plan",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-06T18:35:00Z: plan SAVED; status ready; NOT_STARTED",
+    "lastModelRun": "deepseek-v4-flash / csm-plan-parallelism-conflict-free-change-set",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal row",
+        "recovery notes of all non-COMPLETE tasks",
+        "discovered requirements",
+        "working-tree diff"
+      ],
+      "firstAction": "RECOVER then SELECT batch 1 (G1-G4 independent: T001, T002, T003, T004)"
+    }
+  },
+  "goal": "Implement the nine-change, three-batch set from research finding .agents/research/2026-09-06-parallelism-consolidated-change-set-20260906t172253z-1b1735fe8130-research.json (083602b) so that (1) work a single user initiates and (2) parallel work in the same repo reach maximum parallelism without conflicts: Batch 1 - S8 CI wt/** push filter (T001), S7 per-worktree hook config (T002), S2 pack-bootstrap fail-fast lock (T003), S1 run lease (T004), S3a telemetry partial-tail recovery (T005); Batch 2 - S6 wt-session merge guard + check-only post-merge verification (T006), S3b durable telemetry loss markers incl. writeQueue poison-pill repair (T007); Batch 3 - S9 AGENTS.md hedge (T008), capabilities regenerator (T010), S5-index section-anchored insertion + gate section check (T009), final acceptance e2e (T011). Deliverable: gate-green repo where every change is verifiably correct (runnable acceptance signals, tests wired into Makefile/CI) and the skills being mutated are never corrupted (payload byte-parity + capability digests + registry digests + boilerplate regenerated in the same commit as any pack-mapped source edit; implementation runs in a wt-session worktree, never the live main checkout).",
+  "acceptanceCriteria": [
+    "AC1: Each task lands with its acceptance signal passing and evidence recorded in the journal; no task completes on status claims alone.",
+    "AC2: check-suite passes at HEAD after every commit and at final state: `node scripts/check-suite.mjs` -> 'check-suite: OK' with payload drift issues:[]; full battery `make test` green.",
+    "AC3: All pack-mapped source edits (csm-orchestrate/lib/**, schemas/**, scripts/install-hooks.mjs if touched by pack mapping) are committed in the same commit as their payload regen (`node scripts/pack-bootstrap.mjs`) and capability digest regen where SKILL.md bytes change; capability-freshness and payload-parity checks stay green (no skill corrupted mid-plan).",
+    "AC4: Acceptance checks A-F from the research finding pass: A two-worktree skill-source merge e2e (T011), B mixed-class index rebase clean, C same-runId second driver start fails fast, D concurrent pack hard-error, E worktree-local hook config, F AGENTS.md hedge present.",
+    "AC5: The main checkout is never mutated during implementation: all work happens in a wt-session worktree (create via wt-session create parallelism-conflict-free-change-set), merged serially TO MAIN FROM THE MAIN CHECKOUT (ff-only: main advances to the wt tip in one integration step, no merge commit), gate re-run on main, worktree nuked.",
+    "AC6: No skill SKILL.md content is changed except the single S5-index placement note in csm-deep-research/SKILL.md (with capability digest regen via T010 generator); all other changes touch scripts/, lib/, .github/, AGENTS.md, .agents/README.md."
+  ],
+  "currentStateEvidence": {
+    "observations": [
+      "Research finding consolidated at .agents/research/2026-09-06-parallelism-consolidated-change-set-20260906t172253z-1b1735fe8130-research.json (commit 083602b): S1-S10 change set, batches, target state, acceptance checks A-F.",
+      "HEAD 4b34c06->083602b: research commits only; code at HEAD matches every cited file:line in the finding (validated by that run's track 1 + challenger + judge).",
+      "check-suite currently OK 14 skills, 1244 checks; payload drift {compared:320, issues:[]}; capabilities.json has NO committed generator (csm-orchestrate/lib/capabilities.mjs:23-94 only validates; regen manual per commit 25c01ee); .agents/docs/gate-baselines.json is a warning-only historical append log (scripts/record-gate-baseline.mjs), not a hard pin.",
+      "tests/orchestration-store/* is wired into no Makefile target; tests/workflow-trigger-policy.test.mjs, release-policy.test.mjs, toolchain-policy.test.mjs are in no Makefile/CI target (NC-G).",
+      "Live worktree shims under ~/csm-wt/*/scripts/hooks/pre-commit contain zero LEFTHOOK_CONFIG (per-worktree by lefthook default); main's tracked shim scripts/hooks/pre-commit:11-20 carries a hand-patched common-dir override (commit d3d090a).",
+      ".agents/README.md 254 lines; EOF appends land under ## evidence/; ## builds/ section (183-202) indexes .agents/builds/ AND .agents/csm-build-state/; ## progress/ cross-lists plans/ docs/ evidence/ files.",
+      "AGENTS.md:36-39 claims the .agents/README.md index line is the only expected merge conflict; README.md:551 already hedges.",
+      "createJsonlTransport.writeQueue is a poison-pill chain (csm-orchestrate/lib/telemetry.mjs:110-115): one rejection permanently rejects all later writes.",
+      "run-orchestrator.mjs:195-198 TOCTOU guard; no run lease exists; fixtureMode uses mkdtemp (77-79); evidence dir gitignored (.gitignore:4)."
+    ],
+    "applicability": {
+      "format": "csm-applicability/1",
+      "decision": "warranted",
+      "mode": "risk-first",
+      "matchedSignals": [
+        "ownership_or_persistence",
+        "invariant_or_consistency",
+        "external_side_effect",
+        "architecture_or_refactor"
+      ],
+      "evidence": [
+        {
+          "source": "research finding 2026-09-06-parallelism-consolidated-change-set",
+          "locator": "S1/S2 run lease and pack lock",
+          "observation": "S1 changes run-state ownership protocol (evidence dirs + resume semantics); S2 changes pack tooling exclusivity"
+        },
+        {
+          "source": "research finding",
+          "locator": "S3b/S5-index/S6",
+          "observation": "invariants: telemetry event contract + detectLoss semantics re-spec (S3b); artifact-index gate semantics change (S5-index); wt-session merge-flow invariant (S6)"
+        },
+        {
+          "source": "research finding",
+          "locator": "S8",
+          "observation": "external side effect: CI workflow trigger shape changes"
+        },
+        {
+          "source": "research finding",
+          "locator": "S5-index/S7",
+          "observation": "architecture/refactor: check-suite section gate + install-hooks shim normalization rework"
+        }
+      ],
+      "obligations": [
+        {
+          "id": "O-PARITY",
+          "status": "required",
+          "note": "before/after payload byte parity + capability digest parity baselined at RECOVER and re-verified at each pack-mapped commit"
+        },
+        {
+          "id": "O-ROLLBACK",
+          "status": "required",
+          "note": "per-change revert path: each task's change is a single self-contained commit sequence; rollback = revert that commit + re-pack; recorded in Risks And Recovery"
+        },
+        {
+          "id": "O-BEHAVIOR",
+          "status": "required",
+          "note": "observable-behavior checks: acceptance signals are runnable commands with expected output; resume/lease/hook behaviors covered by new tests"
+        },
+        {
+          "id": "O-WORKTREE",
+          "status": "required",
+          "note": "no main-checkout mutation; all implementation commits in wt worktree; merge serially + re-gate; protects live skills dir"
+        }
+      ],
+      "taskApplicability": {
+        "warranted": [
+          "T001",
+          "T002",
+          "T003",
+          "T004",
+          "T005",
+          "T006",
+          "T007",
+          "T008",
+          "T009",
+          "T010",
+          "T011"
+        ],
+        "lightweight": []
+      },
+      "dddArtifacts": [],
+      "unresolvedRisks": [
+        "F-033/F-077/F-102 remain open on lib/durable-json acquireLock/withLock - all new locks MUST be fail-fast EEXIST, never auto-takeover",
+        "capabilities regenerator (T010) output must match capabilities.mjs validation rules exactly or capability-freshness gate fails"
+      ],
+      "bypass": {
+        "requested": false,
+        "rationale": null
+      }
+    }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "A1",
+      "statement": "Research change set is authoritative; no solution redesign in this plan.",
+      "type": "user-dictated",
+      "evidence": "consolidated research finding S-claims; user brief",
+      "status": "accepted"
+    },
+    {
+      "id": "A2",
+      "statement": "Implementation executes in a wt-session worktree (AGENTS.md one-goal-per-worktree); main checkout untouched until serial merge.",
+      "type": "repo-norm",
+      "evidence": "AGENTS.md:22-39",
+      "status": "accepted"
+    },
+    {
+      "id": "A3",
+      "statement": "New fail-fast locks (S1/S2) are ledger-style EEXIST, NOT durable-json acquireLock (F-033/F-077/F-102 open).",
+      "type": "decision",
+      "evidence": "research S1/S2 claims; 2026-08-29 review",
+      "status": "accepted"
+    },
+    {
+      "id": "A4",
+      "statement": "S3b uses Option A (telemetry_loss markers on the same JSONL, full event with failed sequence) and does NOT extend the durable receipt schema (receipt/3 deferred).",
+      "type": "decision",
+      "evidence": "research S3b claim; registry immutability ripple",
+      "status": "accepted"
+    },
+    {
+      "id": "A5",
+      "statement": "S5-index placement convention is documented in AGENTS.md + csm-deep-research/SKILL.md (single sentence, digest-regen via T010); no other SKILL.md text changes.",
+      "type": "decision",
+      "evidence": "research S5-index; no index-line text exists in csm-deep-research SKILL.md today",
+      "status": "accepted"
+    },
+    {
+      "id": "A6",
+      "statement": "S6 auto-repack-after-rebase automation is OUT of scope (needs gen-capabilities first + is serialization-by-abort today); only guard + check-only verification land.",
+      "type": "decision",
+      "evidence": "research S6 + NC-E",
+      "status": "accepted"
+    },
+    {
+      "id": "A7",
+      "statement": "Deferred items (C5 compaction, trace dead code, detectLoss runtime wiring, receipt/3, capabilities granularity, index split) are NOT in this plan; recorded in Risks/Deferred.",
+      "type": "decision",
+      "evidence": "research S10 ledger",
+      "status": "accepted"
+    },
+    {
+      "id": "A8",
+      "statement": "Delta vs research base: T008 adds an AGENTS.md section-anchored placement-convention sentence beyond research S9's hedge (S5-index documented the mechanism, not an AGENTS.md sentence). Deliberate; consistent with T009's csm-deep-research/SKILL.md sentence.",
+      "type": "decision",
+      "evidence": "critique F13; A5",
+      "status": "accepted"
+    }
+  ],
+  "discoveredRequirements": [
+    "R1: Any edit to pack-mapped files (csm-orchestrate/lib/**, csm-orchestrate/schemas/**, root schemas/**, lib/durable-json, scripts/install-hooks.mjs if mapped) requires `node scripts/pack-bootstrap.mjs` regen committed in the SAME commit or check-suite payload parity fails.",
+    "R2: Any edit to a SKILL.md changes capability digests; csm-orchestrate/capabilities.json + its contentDigest must be regenerated (T010 generator) in the same commit or capability-freshness gate fails.",
+    "R3: New top-level test files must be added to a Makefile target or CI silently skips them; tests/orchestration-store/* and the three *-policy tests are currently unwired (NC-G) - wire new suites explicitly.",
+    "R4: blocks must use the YAML BLOCK form (branches-ignore on its own lines) - inline flow form breaks tests/workflow-trigger-policy.test.mjs:12-13 content-regex assertions.",
+    "R5: install-hooks.mjs normalization must make the tracked scripts/hooks/pre-commit byte-equal to its own output (run-twice-no-diff) or the unstaged-guard blocks the first fresh-worktree commit.",
+    "R6: Pack lockfile must live at <outputRoot>/.pack-lock (outside package/ + payload-index.json + tar staging) and be gitignored; tests/orchestrate-autonomy-e2e.test.mjs:480 and multiprocess.test.mjs:106 are untouched (no store schema bump in this plan - S1 is lockfile route).",
+    "R7: post-merge verification in wt-session must be CHECK-ONLY (verifyPayloadParity/check-suite), never a repairing pack write; skip when main tree dirty.",
+    "R8: csm-plan plan commit policy: commits allowed per skill authorization; plan itself committed only on explicit user authorization."
+  ],
+  "design": "Three batches of nine changes (plus two support tasks) implemented in a wt-session worktree. Batch 1 (independent, parallel groups G1-G4, then G5): T001 CI push-filter (block-form branches-ignore wt/**); T002 hook-config per-worktree resolution (install-hooks normalization emits --show-toplevel config path; tracked shim byte-equal; .lefthook.yml oxfmt + Makefile config_root updated; d3d090a override removed); T003 pack fail-fast EEXIST lock at <outputRoot>/.pack-lock with gitignore + concurrent-pack test; T004 run lease: fail-fast EEXIST <evidenceDir>/.run-lock acquired after mkdir before host load, released in finally, --resume = dead-owner-only guarded takeover, realMode only; T005 (after T004) telemetry partial-tail: list() reads with recoverPartialTail+onPartialTail, and a repair step under the lease (quarantine torn tail + atomic clean rewrite) before emitter creation; payload regen. Batch 2: T006 (after T003) wt-session pre-rebase both-sides-touched guard over skill-source/generated paths + check-only post-ff-merge verification, hermetic-test-conditional; T007 (after T005) telemetry writeQueue poison-pill repair + Option A durable telemetry_loss markers (full event, failed event's own sequence, no recursion) + detectLoss contract re-spec (marker scanning) + drop-test update; payload regen. Batch 3: T008 AGENTS.md:36-39 hedge (+ convention sentence for section-anchored index placement); T010 committed capabilities regenerator scripts/gen-capabilities.mjs mirroring capabilities.mjs digest rules + parity test; T009 (after T010) S5-index: check-suite section-membership gate with directory->section mapping (re-homing ~20 lines incl. builds/ vs csm-build-state/, progress/ cross-lists), migrate four *-host.mjs EOF writers to section-anchored insertion, single placement sentence in csm-deep-research/SKILL.md with digest regen via T010; T011 final acceptance e2e: two-worktree skill-source merge + mixed-class index rebase + full battery + acceptance checks A-F evidence. Every pack-mapped commit carries its regen (R1/R2). Worktree execution per O-WORKTREE; serial merge + re-gate + nuke at end. Serial-commit discipline: no two tasks ever write files concurrently; concurrency is limited to test execution.",
+  "executionGraph": "Critical path: T004 -> T005 -> T007 and T003 -> T006; T010 -> T009; all -> T011. Parallel groups: G1 {T001}, G2 {T002}, G3 {T003}, G4 {T004} run concurrently (batch 1, independent files); G5 {T005} after T004; G6 {T006} after T003; G7 {T007} after T005; G8 {T008} and G10 {T010} concurrent (batch 3, doc + new script, disjoint files); G9 {T009} after T010; G11 {T011} final. G6/G7 can run concurrently after their deps. File ownership disjoint: ci.yml (T001); install-hooks.mjs+hooks+lefthook+Makefile (T002); pack-bootstrap.mjs+.gitignore (T003); run-orchestrator.mjs (T004); telemetry.mjs+run-orchestrator repair+payload (T005); wt-session.mjs (T006); telemetry.mjs+index.mjs (T007) - NOTE T005 and T007 both touch telemetry.mjs: sequenced (T005 before T007) to keep ownership serial. check-suite.mjs only in T009. AGENTS.md in T008. csm-deep-research/SKILL.md sentence only in T009. ALL tasks commit SERIALLY in the single worktree - parallel groups denote concurrent TEST RUNS only, never parallel writers (one index, one staging area). Makefile is touched by T001 (new test-policy target + .PHONY append), T002 (OXFMT_CONFIG line 2) and T003 (pack-concurrency target + .PHONY append): hunks are on distinct lines and land safely because commits are strictly ordered G1,G2,G3; .PHONY appends are additive.",
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "pending",
+      "title": "S8: CI push filter for wt/** branches",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "low",
+      "ownedScope": ".github/workflows/ci.yml (push block lines 4-5); tests/workflow-trigger-policy.test.mjs; Makefile (.PHONY, test: aggregator, new test-policy target)",
+      "notInScope": "pull_request filters; inline-form YAML; check-suite changes; path-scoped CI",
+      "spikeCandidate": "none",
+      "actions": [
+        "In .github/workflows/ci.yml (push key at line 4 under on: at line 3) add a nested block-form branches-ignore: ['wt/**'] under push; keep pull_request unfiltered and both top-level keys intact (inline flow form would break tests/workflow-trigger-policy.test.mjs:12-13 content regexes).",
+        "Extend tests/workflow-trigger-policy.test.mjs with an assertion that the push trigger ignores refs/heads/wt/** while pull_request remains unfiltered.",
+        "Wire tests/workflow-trigger-policy.test.mjs (and release-policy/toolchain-policy) into a Makefile test-policy target AND add test-policy to the .PHONY list AND include it in the test: aggregator (Makefile ~line 140) or an explicit CI gates step, so the guardrails are CI-enforced (NC-G fully closed, not local-only).",
+        "Run node scripts/check-suite.mjs; run the policy tests."
+      ],
+      "acceptanceSignal": "node tests/workflow-trigger-policy.test.mjs passes AND node scripts/check-suite.mjs reports OK",
+      "validation": [
+        "grep block-form branches-ignore present under push",
+        "make test-policy runs the three policy suites",
+        "git diff shows only ci.yml + workflow-trigger-policy.test.mjs + Makefile"
+      ],
+      "acceptanceEvidence": "test output (policy suites pass), check-suite OK line, diff stat recorded in journal",
+      "repairAttempts": 0,
+      "recoveryNote": "Revert ci.yml hunk and test addition; re-run make test-policy; state is fully determined by git diff"
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "pending",
+      "title": "S7: per-worktree hook/format config resolution",
+      "dependsOn": [],
+      "parallelGroup": "G2",
+      "risk": "standard",
+      "ownedScope": "scripts/install-hooks.mjs (normalization 47-75); scripts/hooks/pre-commit (remove d3d090a LEFTHOOK_CONFIG block, CURRENT lines 13-20, keep call_lefthook() opener at 11-12); .lefthook.yml (oxfmt config_root 20-22); Makefile (OXFMT_CONFIG line 2); scripts/hooks/test/pre-commit.test.mjs",
+      "notInScope": "extensions.worktreeConfig; core.hooksPath location change; payload-mapped files (none of these are pack-mapped)",
+      "spikeCandidate": "Confirm the exact normalized shim install-hooks.mjs currently emits so the tracked shim can be made byte-equal (run install twice in the worktree and diff) - isolation: worktree-local, no main checkout writes",
+      "actions": [
+        "In scripts/install-hooks.mjs post-install normalization, emit a shim that resolves .lefthook.yml (and oxfmt .oxfmtrc.json) from the committing checkout top-level (git rev-parse --show-toplevel) instead of dirname(git-common-dir).",
+        "REMOVE the d3d090a LEFTHOOK_CONFIG block = current lines 13-20 ONLY (the if test -z ... fi block); KEEP call_lefthook() and its opening brace (lines 11-12) and the closing brace. Do NOT hand-delete lines 11-20. AFTER modifying the installer normalization (action 0), RUN `node scripts/install-hooks.mjs` in the worktree and COMMIT the resulting scripts/hooks/pre-commit - byte-equality is PRODUCED by the installer, never hand-anticipated.",
+        "Change .lefthook.yml oxfmt config_root (~20-22) and Makefile OXFMT_CONFIG (line 2) to use --show-toplevel.",
+        "Add an idempotence proof: run install-hooks twice in the worktree and assert `git diff --exit-code -- scripts/hooks/pre-commit` is clean after each run (R5); ADDITIONALLY expose the shim normalization as a pure function in install-hooks.mjs (or add a --no-install/--skip-pnpm-install flag) and unit-test it hermetically (install-hooks runs pnpm install + lefthook install and must not run inside a temp-repo unit test - F8).",
+        "Extend scripts/hooks/test/pre-commit.test.mjs: assert shim no longer sets LEFTHOOK_CONFIG from --git-common-dir; add worktree-context case where a worktree-local .lefthook.yml is honored.",
+        "Run the hook tests and check-suite."
+      ],
+      "acceptanceSignal": "node scripts/hooks/test/pre-commit.test.mjs passes AND worktree double-run of install-hooks leaves scripts/hooks/pre-commit byte-identical (git diff --exit-code clean after each run) AND normalization unit test passes",
+      "validation": [
+        "make test-hooks green if target exists (else run the test file directly)",
+        "node scripts/check-suite.mjs OK",
+        "diff shows no payload-mapped file"
+      ],
+      "acceptanceEvidence": "hook test output, idempotence diff-clean proof, check-suite OK, diff stat",
+      "repairAttempts": 0,
+      "recoveryNote": "Tracked shim + install-hooks normalization must move together and byte-equality is PRODUCED by running the modified installer, never by hand-editing; if a diff remains, re-run install-hooks and commit its output; revert both in one commit if needed"
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "pending",
+      "title": "S2: pack-bootstrap fail-fast cross-process lock",
+      "dependsOn": [],
+      "parallelGroup": "G3",
+      "risk": "standard",
+      "ownedScope": "scripts/pack-bootstrap.mjs (packBootstrap 617-628 + main 630-641); .gitignore; new tests/pack-concurrency.test.mjs; Makefile (wire new test)",
+      "notInScope": "durable-json acquireLock/withLock reuse (F-033/F-077/F-102); payload-index format changes; in-process packQueue removal",
+      "spikeCandidate": "none",
+      "actions": [
+        "In scripts/pack-bootstrap.mjs add a fail-fast EEXIST lock helper (ledger-style open 'wx', metadata {format:'csm-pack-lock/1', token, pid, createdAt}, inode-guarded release in finally) acquired at <outputRoot>/.pack-lock after outputRoot resolution, before packBootstrapOnce; concurrent holder -> hard error message naming pid and lock path (release semantics keep sequential double-pack green).",
+        "Add .gitignore entry for bootstrap/.pack-lock (lock lives outside package/ and payload-index.json).",
+        "Add tests/pack-concurrency.test.mjs: spawn two CLI processes packing the SAME external outputRoot -> exactly one wins, other fails fast with the lock message; after exit a retry succeeds; stale lock file fails next pack with clear message; lock absent after completion.",
+        "Wire tests/pack-concurrency.test.mjs into Makefile (explicit target, not the unwired tests/orchestration-store pattern).",
+        "Run make test-deterministic and the new test."
+      ],
+      "acceptanceSignal": "node tests/pack-concurrency.test.mjs passes (winner/loser/stale/cleanup cases) AND make test-deterministic stays green",
+      "validation": [
+        "make test-package-index green",
+        "node scripts/check-suite.mjs OK (no payload drift - pack-bootstrap.mjs is not pack-mapped)"
+      ],
+      "acceptanceEvidence": "concurrency test output, deterministic double-pack output, check-suite OK",
+      "repairAttempts": 0,
+      "recoveryNote": "If a stale .pack-lock blocks tests, remove it in the worktree; behavior fully covered by the new test"
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "pending",
+      "title": "S1: fail-fast run lease (.run-lock)",
+      "dependsOn": [],
+      "parallelGroup": "G4",
+      "risk": "standard",
+      "ownedScope": "scripts/run-orchestrator.mjs (realMode 156-363; mkdir 185, host load 190, guard 195-198, emitter 221-224, drain 355, catch 375-378)",
+      "notInScope": "store schema bump (no run_leases table - lockfile route); durable-json acquireLock; fixtureMode changes (mkdtemp path untouched); --host behavior",
+      "spikeCandidate": "none",
+      "actions": [
+        "After evidenceDir mkdir (run-orchestrator.mjs:185) and BEFORE loadHostModule (:190), acquire a fail-fast EEXIST lease file <evidenceDir>/.run-lock with metadata {format:'csm-run-lock/1', kind:'run', token, pid, runId, createdAt} (ledger-style, no auto-takeover).",
+        "Keep the existing F-004 honest-failure guard (cursor.db exists, no --resume) BEFORE lease acquisition so its message is preserved (asserted at tests/orchestrate-driver-contract.test.mjs:131); then acquire the lease and TRACK whether acquisition succeeded (didAcquire) - release in finally ONLY when held; a failed acquisition (EEXIST, live owner) must not attempt a release. For two concurrent fresh starts (no cursor.db yet) the lease is the atomic claim and the loser gets the lease message.",
+        "--resume semantics: dead-owner-only guarded takeover (pid liveness via kill(pid,0)); live owner -> hard error 'run <id> is already active (lease held by pid ...)'; --resume + no lock -> acquire and continue.",
+        "Add tests/orchestrate-driver-lease.test.mjs (name matches Makefile tests/orchestrate-*.test.mjs glob): (i) two concurrent driver spawns on one fresh runId -> exactly one winner, loser stderr matches lease message; (ii) stale lock (dead pid) + --resume succeeds; (iii) live owner + --resume fails; (iv) existing cursor.db + no --resume keeps existing message.",
+        "Run orchestrate driver contract + honest-failures suites and the new suite."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-driver-lease.test.mjs passes (4 cases) AND existing tests/orchestrate-driver-contract.test.mjs + tests/orchestrate-honest-failures.test.mjs stay green",
+      "validation": [
+        "make test (orchestrate suites)",
+        "node scripts/check-suite.mjs OK (no payload ripple - run-orchestrator not pack-mapped)"
+      ],
+      "acceptanceEvidence": "lease test output incl. two-spawn winner/loser proof, honest-failure suite output, check-suite OK",
+      "repairAttempts": 0,
+      "recoveryNote": "Lease file under gitignored evidence dir; if a test leaves a lock, remove .run-lock in that run's evidence dir; driver behavior fully test-covered"
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "pending",
+      "title": "S3a: telemetry partial-tail recovery (read + write-side repair)",
+      "dependsOn": [
+        "T004"
+      ],
+      "parallelGroup": "G5",
+      "risk": "standard",
+      "ownedScope": "csm-orchestrate/lib/telemetry.mjs (list() 116-119); scripts/run-orchestrator.mjs (repair step under lease before emitter creation ~221); tests (telemetry + durable-json-safety + orchestrate-telemetry-wiring extensions); bootstrap payload mirror (REGEN REQUIRED, R1)",
+      "notInScope": "csm-browse changes (beneficiary only); durable loss records (T007); log rotation",
+      "spikeCandidate": "none",
+      "actions": [
+        "createJsonlTransport.list(): call readJsonLines(filePath, {recoverPartialTail:true, onPartialTail: report-or-quarantine}) so torn tails never throw (durable-json API 208-260).",
+        "Add a repair step in run-orchestrator realMode: after acquiring the S1 lease and before creating the telemetry emitter, read telemetry.jsonl with recovery; if a torn tail existed, quarantine the torn bytes to <file>.partial-<ts>-<uuid>.quarantine and atomically rewrite the file clean (mirrors csm-autoresearch ledger openUnlocked 117-135). Fix the write-after-crash concatenation hazard.",
+        "Extend tests: durable-json-safety torn-tail recover/rewrite case; telemetry list() over a torn JSONL returns clean records without throwing and notifies onPartialTail.",
+        "Regenerate payload (node scripts/pack-bootstrap.mjs) and commit in the same commit as the source edits.",
+        "Run telemetry + orchestrate-telemetry-wiring suites and check-suite."
+      ],
+      "acceptanceSignal": "new torn-tail tests pass AND node scripts/check-suite.mjs OK with payload drift issues:[] (regen committed same commit)",
+      "validation": [
+        "make test-orchestrate green",
+        "git show --stat on the commit shows payload mirror updated with sources"
+      ],
+      "acceptanceEvidence": "torn-tail test output, check-suite payload-drift-clean output, same-commit regen proof (diff stat)",
+      "repairAttempts": 0,
+      "recoveryNote": "If payload parity fails, re-run pack-bootstrap and amend the same commit; telemetry behavior covered by tests"
+    },
+    {
+      "taskId": "T006",
+      "ordinal": 6,
+      "status": "pending",
+      "title": "S6: wt-session merge guard + check-only post-merge verification",
+      "dependsOn": [
+        "T003"
+      ],
+      "parallelGroup": "G6",
+      "risk": "high",
+      "ownedScope": "scripts/wt-session.mjs (mergeWorktree 133-184; guard inserted AFTER base resolution at 163-164, BEFORE rebase at 166)",
+      "notInScope": "auto-repack-after-rebase automation (A6); capabilities granularity; gen-capabilities (T010 separate); ANY repairing pack write on merge (R7)",
+      "spikeCandidate": "Verify the both-sides-touched path-set detection on a real two-worktree fixture in the sandbox: git diff --quiet merge-base main -- <paths> && git diff --quiet merge-base wt -- <paths> both non-clean -> guard fires; one-side -> no fire",
+      "actions": [
+        "In mergeWorktree, AFTER the fetch and base resolution (base = origin/main when a remote exists, else main; line 163-164) and BEFORE the rebase (:166), compute mb = merge-base(base, wt/<slug>); if BOTH `git diff --quiet mb main -- <paths>` and `git diff --quiet mb wt -- <paths>` are non-clean for the guard path set (csm-*/ sources, bootstrap/ incl. payload-index.json, csm-orchestrate/capabilities.json, README.md matrix region), abort with a deterministic recovery message (rebase in wt, regenerate pack + capabilities, commit, retry). Using the same base as the rebase prevents mis-fires when main is behind origin/main.",
+        "After the ff-only merge (:178), when the merge changed skill-source/generated paths, run CHECK-ONLY verification in the main checkout: verifyPayloadParity/check-suite; report loudly on failure WITHOUT mutating the tree; skip entirely when the main tree is dirty (R7).",
+        "Both steps conditional on bootstrap/package + csm-*/SKILL.md presence so hermetic tests/wt-session.test.mjs temp repos stay green (F4: hermetic guard unit tests fire the guard with SYNTHETIC path-set files - seed.txt committed at guard paths like csm-a/SKILL.md and bootstrap/payload-index.json - and assert no pack runs; no real pack structure needed for the unit level).",
+        "Add tests/wt-session.test.mjs cases: (i) both-sides-touched on synthetic guard paths -> merge B aborts with guard message, no tree mutation; (ii) one-side-touched merges pass; (iii) post-merge verification runs only for skill-source merges and never writes."
+      ],
+      "acceptanceSignal": "new wt-session two-worktree tests pass (guard fires only on both-sides, no tree mutation on abort, verification check-only) AND existing wt-session tests stay green",
+      "validation": [
+        "make test-suite-tooling or direct node tests/wt-session.test.mjs",
+        "node scripts/check-suite.mjs OK"
+      ],
+      "acceptanceEvidence": "two-worktree test output incl. abort-message proof and clean-tree-after-abort check, existing suite output",
+      "repairAttempts": 0,
+      "recoveryNote": "Guard runs before any rebase mutation; a failed test leaves no tree change; revert wt-session.mjs hunk + tests if needed"
+    },
+    {
+      "taskId": "T007",
+      "ordinal": 7,
+      "status": "pending",
+      "title": "S3b: writeQueue repair + durable telemetry_loss markers",
+      "dependsOn": [
+        "T005"
+      ],
+      "parallelGroup": "G7",
+      "risk": "high",
+      "ownedScope": "csm-orchestrate/lib/telemetry.mjs (writeQueue 110-115, recordLoss 166-181, detectLoss 268-296); csm-orchestrate/lib/index.mjs (drain 161-166); tests/telemetry/telemetry.test.mjs (drop-test 137-160 + marker cases); tests/orchestrate-adapter-review-telemetry.test.mjs; bootstrap payload mirror (REGEN REQUIRED, R1)",
+      "notInScope": "durable receipt schema extension (receipt/3 deferred, A4); detectLoss runtime wiring in orchestrate() (deferred until after markers verified); event schema changes (markers reuse existing csm-orchestrate-telemetry-event/1)",
+      "spikeCandidate": "none",
+      "actions": [
+        "Fix the poison-pill writeQueue (telemetry.mjs:110-115): on append rejection, reset the queue so later writes attempt again (or route writes through a resilient path); add a test proving one transient rejection does not kill subsequent writes.",
+        "Option A durable loss markers: recordLoss also enqueues a full csm-orchestrate-telemetry-event/1 marker (eventType telemetry_loss, unique eventId, the FAILED event's own sequence + full field set per telemetry-event.schema.json) written WITHOUT recursion into recordLoss and WITHOUT bumping sequence/emittedCount; keep in-memory lossRecords as fallback surface.",
+        "Re-spec detectLoss contract (NC-C): loss discovery moves to scanning telemetry_loss markers (slot-filling markers satisfy membership+count so plain detectLoss under-reports). REWRITE the drop-test (telemetry.test.mjs:137-160) to model a REJECTING transport, not the current silent-swallow memory dropper: use a JSONL transport whose appendDurableJsonLine rejects once (e.g. EACCES via chmod or a poisoned first write) and assert (a) the poison-pill repair lets a subsequent write succeed, (b) a durable telemetry_loss marker carrying the failed event's sequence + full field set exists after reopen, (c) detectLoss reports via marker scan, (d) the marker does not bump sequence/emittedCount. Update orchestrate-adapter-review-telemetry expectations additively.",
+        "Regenerate payload and commit source+mirror in the same commit.",
+        "Run telemetry suites + orchestrate-telemetry-wiring + adapter-review-telemetry."
+      ],
+      "acceptanceSignal": "updated telemetry suites pass (poison-pill recovery, rejecting-transport marker round-trip incl. reopen, marker-scan detectLoss expectations) AND check-suite OK with payload drift clean",
+      "validation": [
+        "make test-orchestrate green",
+        "marker round-trip test: simulated write failure -> after reopen the durable marker exists in telemetry.jsonl"
+      ],
+      "acceptanceEvidence": "test output for all three new behaviors, check-suite payload-drift-clean proof, same-commit regen diff stat",
+      "repairAttempts": 0,
+      "recoveryNote": "Marker + queue changes are in telemetry.mjs only; if detectLoss expectations break other consumers (eval harness), re-check tests/evals/orchestration and keep marker scanning additive"
+    },
+    {
+      "taskId": "T008",
+      "ordinal": 8,
+      "status": "pending",
+      "title": "S9: AGENTS.md hedge + index placement convention",
+      "dependsOn": [],
+      "parallelGroup": "G8",
+      "risk": "low",
+      "ownedScope": "AGENTS.md (36-39); .agents/README.md (Retention/preamble wording if needed)",
+      "notInScope": "README.md:551 changes (already hedged); check-suite changes; skill SKILL.md changes",
+      "spikeCandidate": "none",
+      "actions": [
+        "Rewrite AGENTS.md:36-39 so the merge-conflict expectation hedges skill-source runs: the .agents/README.md index line is the expected conflict for artifact-only runs; skill-source runs also touch regenerated payload tree / payload-index.json / capabilities.json (align with README.md:551).",
+        "Add the section-anchored placement convention sentence to AGENTS.md (new index lines are inserted at the end of the artifact's own class section - plans/, research/, etc. - never the physical EOF) as the documented convention that T009 codifies.",
+        "Run make check (README/TOC/layout validators)."
+      ],
+      "acceptanceSignal": "node scripts/check-suite.mjs OK and AGENTS.md contains the hedge + placement convention sentences",
+      "validation": [
+        "grep the two sentences",
+        "git diff limited to AGENTS.md (+ .agents/README.md if edited)"
+      ],
+      "acceptanceEvidence": "check-suite OK, diff stat, quoted new sentences in journal",
+      "repairAttempts": 0,
+      "recoveryNote": "Doc-only; revert trivially"
+    },
+    {
+      "taskId": "T010",
+      "ordinal": 9,
+      "status": "pending",
+      "title": "Capabilities template-based digest regenerator (scripts/gen-capabilities.mjs)",
+      "dependsOn": [],
+      "parallelGroup": "G10",
+      "risk": "standard",
+      "ownedScope": "new scripts/gen-capabilities.mjs; tests/gen-capabilities.test.mjs; csm-orchestrate/capabilities.json (regenerated via template); bootstrap payload mirror (REGEN REQUIRED, R1)",
+      "notInScope": "capabilities granularity (per-skill files); loader changes in capabilities.mjs; registry.json changes",
+      "spikeCandidate": "none",
+      "actions": [
+        "Create scripts/gen-capabilities.mjs as a TEMPLATE-PRESERVING digest regenerator: read the current csm-orchestrate/capabilities.json as template (its 15+ rich fields per skill are NOT derivable from SKILL.md bytes), recompute each skill digest = sha256:<hex> over the SKILL.md bytes at skillPath (mirroring capabilities.mjs:23-94 and check-suite.mjs:785) and contentDigest = digest over manifest.skills (import digest from lib/schema-runtime/index.mjs - capabilities.mjs does not export helpers); preserve the template's key order, 2-space indent, and trailing newline so an unchanged run is BYTE-IDENTICAL (no-op diff). Warn if entrypoint/libraryDigest fields ever appear (currently absent).",
+        "Add tests/gen-capabilities.test.mjs: (i) first regen at HEAD is a byte-identical no-op (git diff --exit-code clean); (ii) after a SKILL.md byte change the regen updates only that skill's digest + contentDigest and capability-freshness passes; (iii) a stale capabilities.json is caught by check-suite.",
+        "Regenerate capabilities.json with the new generator (replaces the manual 25c01ee-style flow) and commit with payload regen.",
+        "Run check-suite (capability-freshness 768-813 must pass)."
+      ],
+      "acceptanceSignal": "node tests/gen-capabilities.test.mjs passes (idempotence + freshness + staleness cases) AND node scripts/check-suite.mjs OK with capability freshness clean",
+      "validation": [
+        "generator output byte-identical on second run",
+        "check-suite capability-freshness check green"
+      ],
+      "acceptanceEvidence": "gen tests output, idempotence proof, check-suite capability-freshness clean line",
+      "repairAttempts": 0,
+      "recoveryNote": "If a regen is not byte-identical on unchanged input, fix serialization (key order/indent/newline) before anything else; never hand-edit capabilities.json while the generator exists"
+    },
+    {
+      "taskId": "T009",
+      "ordinal": 10,
+      "status": "pending",
+      "title": "S5-index: section-membership gate + section-anchored writers",
+      "dependsOn": [
+        "T010",
+        "T008"
+      ],
+      "parallelGroup": "G9",
+      "risk": "medium",
+      "ownedScope": "scripts/check-suite.mjs (artifact-index rule 1481-1509, parser 968-980 -> section-aware); .agents/README.md (re-home ~20 cross-listed lines into correct sections); four *-host.mjs EOF writers (scripts/honest-failures-host.mjs:360-378, progress-visibility-host.mjs, quality-delivery-host.mjs, renderer-wiring-host.mjs); csm-deep-research/SKILL.md (single placement sentence; digest regen via T010); scripts/close-plan.mjs (verify no change needed - already anchored 197-218); tests/check-suite.test.mjs (planted-corpus artifact-index cases)",
+      "notInScope": "index split into per-directory files (deferred); generator for the index; changes to plans/reviews/approaches/research corpus loops; other skill SKILL.md files",
+      "spikeCandidate": "none",
+      "actions": [
+        "SPIKE (pre-coding, in-task): enumerate the complete directory->section mapping INCLUDING cross-list exceptions (## progress/ cross-lists plan JSONs that physically live in .agents/plans/; ## builds/ indexes .agents/csm-build-state/ AND .agents/builds/; research artifacts referenced from ## evidence/) and produce the exact re-home diff; budget the check-count change (1244 -> new count; .agents/docs/gate-baselines.json is a warning-only historical log, NOT a pin - verified scripts/record-gate-baseline.mjs).",
+        "Make the artifact-index rule section-aware AND land the check-suite rule change + README re-home in the SAME commit (AC2 requires gate-green per commit; the new rule fails on today's mis-homed EOF entries if committed first). Section semantics: a basename is satisfied by a BULLET occurrence under its mapped section; inline backtick cross-references (e.g. superseded-by) in other sections must NOT satisfy the rule (parser 968-980 must read bullet lines only, not all backticks).",
+        "Re-home the mis-homed entries per the spike's exact diff; keep one line per artifact.",
+        "Migrate the four *-host.mjs writers to section-anchored insertion (honest-failures-host.mjs:360-378, progress-visibility-host.mjs:344-362, quality-delivery-host.mjs:351-368, renderer-wiring-host.mjs:77-95); close-plan.mjs already anchored (verify, no change).",
+        "Add the placement convention sentence to csm-deep-research/SKILL.md (research artifacts indexed under ## research/), regenerate capabilities via the T010 generator + payload, commit together.",
+        "Add planted-corpus cases to tests/check-suite.test.mjs: artifact under wrong section fails; correct section passes; csm-build-state entries resolve to builds/.",
+        "If the check count changes from 1244, record the new count in the journal (gate-baselines.json is a historical append log, not a pin - verify and note)."
+      ],
+      "acceptanceSignal": "node tests/check-suite.test.mjs new planted-corpus artifact-index cases pass AND node scripts/check-suite.mjs OK on the re-homed README AND capability-freshness clean after the SKILL.md sentence edit",
+      "validation": [
+        "grep: zero tracked artifact basenames outside their mapped section (self-check script)",
+        "make test green",
+        "host writers emit under correct sections (host test fixtures)"
+      ],
+      "acceptanceEvidence": "planted-corpus test output, re-homed README diff, capability-freshness clean proof, host-writer fixture output",
+      "repairAttempts": 0,
+      "recoveryNote": "If the gate mapping is incomplete, check-suite fails listing the first unmapped artifact - fix mapping or re-home that line; SKILL.md sentence is one line - revert + regen if needed"
+    },
+    {
+      "taskId": "T011",
+      "ordinal": 11,
+      "status": "pending",
+      "title": "Final acceptance e2e + full battery",
+      "dependsOn": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T009",
+        "T010"
+      ],
+      "parallelGroup": "G11",
+      "risk": "standard",
+      "ownedScope": "tests/wt-session.test.mjs (acceptance A/B additions if not already in T006/T009); test evidence collection; no production files",
+      "notInScope": "new production changes; CI runs (local battery only); remote pushes",
+      "spikeCandidate": "none",
+      "actions": [
+        "Acceptance A: two wt-session worktrees each touching a DIFFERENT skill source with payload regen, merged serially to a temp main: merge A ff-only ok, merge B either ff-only clean (if guard path not double-touched) or aborts with the guard message and succeeds after in-wt rebase+regen (per S6 semantics) - final gate green with no manual re-pack and at most one keep-both index resolution.",
+        "Acceptance A: build a FULL-COPY temp repo (pre-commit.test.mjs copyRepo technique: tracked copy of the repo minus .git), then wt-session create --no-setup --root <temp> --dir <base> for two worktrees; each edits a DIFFERENT skill source and runs REAL pack-bootstrap regen in its worktree; merge A ff-only ok; merge B either ff-only clean (guard path not double-touched) or aborts with the guard message and succeeds after the scripted in-wt rebase+regen recovery; final gate green with no manual re-pack and at most one keep-both index resolution. Document expected wall-clock cost in the journal.",
+        "Acceptance C: second same-runId driver start fails fast with lease message (rerun T004 suite e2e). Acceptance D: concurrent pack hard-errors (T003 suite). Acceptance E: worktree-local .lefthook.yml honored (T002 suite). Acceptance F: AGENTS.md hedge present (grep).",
+        "Run the full battery: make test, node scripts/check-suite.mjs, and any CI-equivalent gates (make fmt-check, make lint, make test-package-index, make test-deterministic) in the worktree; record all outputs in the journal.",
+        "Merge the worktree to main serially (wt-session merge), re-run the gate on main, then nuke the worktree per AGENTS.md. Main checkout remains untouched until this final step.",
+        "Merge the worktree to main SERIALLY: run `node scripts/wt-session.mjs merge <slug>` FROM THE MAIN CHECKOUT (mergeWorktree requires HEAD on main, wt-session.mjs:140-142; running it inside the worktree fails confusingly). The merge is rebase + ff-only: main advances to the wt tip in one integration step with NO merge commit and NO interim writes. Re-run the gate on main, then nuke the worktree (wt-session nuke <slug>). The live main checkout is first mutated only at this final step."
+      ],
+      "acceptanceSignal": "Acceptance A-F evidence all recorded AND full battery green in the worktree AND post-merge main gate: node scripts/check-suite.mjs OK",
+      "validation": [
+        "journal contains each acceptance check's command output",
+        "git log on main shows the serial merge only"
+      ],
+      "acceptanceEvidence": "battery outputs (make test summary, check-suite OK), acceptance A-F check outputs, merge + main re-gate proof, worktree nuke proof",
+      "repairAttempts": 0,
+      "recoveryNote": "Resume from last failing acceptance check; production state unchanged until the final merge step, which is reversible via revert of the merge"
+    }
+  ],
+  "verificationStrategy": "Cheapest first per task: syntax/lint (oxlint/mjs-syntax via pre-commit) -> unit suites (task-local test files) -> payload/capability regen checks (check-suite drift gates) -> full battery (make test, check-suite) -> final acceptance e2e (T011). Fast per-task gates: the task's own test file + node scripts/check-suite.mjs. Expensive batch/final gates: make test, make test-deterministic, make test-package-index (CI-equivalent) - run at T011. Parallelism: G1-G4 and G8/G10 suites run concurrently in the worktree; T005/T007 share telemetry.mjs so they are strictly sequenced. Flaky-sensitive: wt-session tests and the two-spawn lease/concurrent-pack tests use real child processes - keep timeouts generous and assert on stderr messages, not timing.",
+  "risksAndRecovery": "Risks: (1) payload/capability regen missed on a pack-mapped edit -> gate fails; mitigation R1/R2 same-commit regen, AC3; recovery: run pack-bootstrap/gen-capabilities and amend. (2) S5-index gate mapping incomplete -> check-suite fails listing first unmapped artifact; recovery: fix mapping/re-home line. (3) S7 shim byte-equality break -> unstaged-guard blocks fresh-worktree commits; mitigation idempotence test R5; recovery: re-sync tracked shim to install-hooks output. (4) S6 guard false-positive on legitimate merges -> recovery: guard message documents the in-wt rebase+regen path; guard only fires on both-sides-touched. (5) F-033/F-077/F-102 open on durable-json locks -> new locks are fail-fast EEXIST only (A3); never route S1/S2 through acquireLock. (6) telemetry detectLoss re-spec affects eval harness -> keep marker scanning additive, run tests/evals/orchestration. Rollback: every task is one self-contained commit sequence in the worktree; revert the task's commits + re-pack if the task touched pack-mapped files; main stays untouched until T011's final serial merge, after which rollback = revert the merge commit and re-run the gate. Deferred (A7/S10): C5 progress compaction (trigger >10^3-10^4 snapshots), trace dead code, detectLoss runtime wiring, receipt/3, capabilities granularity, index split.",
+  "critiqueResolution": [
+    {
+      "finding": "F1 T002 shim line range/method",
+      "severity": "high",
+      "resolution": "actions corrected: remove only d3d090a block (lines 13-20), regenerate-then-commit via modified install-hooks, byte-equality produced not hand-anticipated",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F5 T010 generator semantics",
+      "severity": "high",
+      "resolution": "T010 re-specified as template-preserving digest regenerator; no-op-diff test; digest imported from schema-runtime",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F2 Makefile disjointness",
+      "severity": "medium",
+      "resolution": "executionGraph + design now state serial commits in one worktree; parallel groups = concurrent test runs only; Makefile hunks additive under ordered commits",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F3 T006 guard base",
+      "severity": "medium",
+      "resolution": "guard placed after fetch/base resolution (163-164), mb = merge-base(base, wt), same base as rebase",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F4 acceptance fixtures",
+      "severity": "medium",
+      "resolution": "T006 hermetic unit uses synthetic guard paths; T011 acceptance A uses full-copy temp repo + real pack regen",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F6 T009 atomicity + mapping",
+      "severity": "medium",
+      "resolution": "rule change + re-home land in same commit; mapping spike added; bullet-line-only section semantics; gate-baselines warning-only noted",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F7 T007 drop-test",
+      "severity": "medium",
+      "resolution": "drop-test rewritten for a rejecting JSONL transport with marker round-trip assertions",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F8 T002 idempotence hermeticity",
+      "severity": "medium",
+      "resolution": "normalization exposed as pure function (or --no-install flag) + worktree double-run proof",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F9 T001 NC-G wiring",
+      "severity": "medium",
+      "resolution": "test-policy added to .PHONY + test: aggregator/CI so policy tests are enforced",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F10 T004 didAcquire + ordering",
+      "severity": "low",
+      "resolution": "F-004 guard precedes lease; release only when held",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F11 line drift",
+      "severity": "low",
+      "resolution": "ranges corrected: pre-commit 13-20, install-hooks 47-75, ci.yml 4-5, guard after 163",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F12 ff-only/merge-cwd wording",
+      "severity": "low",
+      "resolution": "AC5 + T011 state merge runs from main checkout; linear advance, no merge commit",
+      "evidence": "remediation applied at VERIFY"
+    },
+    {
+      "finding": "F13 AGENTS.md sentence delta",
+      "severity": "low",
+      "resolution": "recorded as A8 explicit delta",
+      "evidence": "remediation applied at VERIFY"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-06T18:12:49Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER",
+      "tasks": [],
+      "evidence": "prescriptive brief: augment consolidated research for orchestrate implementation, verifiably correct, no skill corruption; inputs: research finding 083602b + earlier two findings",
+      "nextState": "DISCOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-06T18:13:20Z",
+      "cycle": 0,
+      "transition": "DISCOVER -> RESEARCH",
+      "tasks": [],
+      "evidence": "baseline: HEAD 083602b clean; current-state observations recorded (1244 checks, no gen-capabilities, poison-pill writeQueue, wt shim divergence, index mislabels, NC-G unwired suites); applicability warranted",
+      "nextState": "RESEARCH"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-06T18:14:00Z",
+      "cycle": 0,
+      "transition": "RESEARCH -> DRAFT",
+      "tasks": [],
+      "evidence": "change set already fully researched and validated (consolidated finding S-claims + challenge/judge); planning R&D confirmed task-shape schema, example plan JSON, gate-baselines semantics, no index-line text in csm-deep-research SKILL.md",
+      "nextState": "DRAFT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-06T18:15:00Z",
+      "cycle": 0,
+      "transition": "DRAFT -> CRITIQUE",
+      "tasks": [],
+      "evidence": "draft complete: 11 tasks in G1-G11, 3 batches, worktree execution, same-commit regen rules",
+      "nextState": "CRITIQUE"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-06T18:30:00Z",
+      "cycle": 0,
+      "transition": "CRITIQUE -> REMEDIATE",
+      "tasks": [],
+      "evidence": "hostile critique: 13 findings (2 high: F1 shim delete range/method, F5 generator semantics; 7 medium; 4 low); positive validation of T001/T003/T004/T005/T007/T009 touchpoints",
+      "nextState": "REMEDIATE"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-06T18:32:00Z",
+      "cycle": 0,
+      "transition": "REMEDIATE -> VERIFY",
+      "tasks": [],
+      "evidence": "all 13 findings resolved into task edits; critiqueResolution populated; A8 delta recorded",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-06T18:35:00Z",
+      "cycle": 0,
+      "transition": "VERIFY -> SAVED",
+      "tasks": [],
+      "evidence": "primary VERIFY: task IDs match schema ^T[0-9]{3}$; all 11 pending; acceptance criteria measurable; dependencies correct; T002 regenerate-then-commit step restored; critiqueResolution 13 rows; applicability warranted 11/11",
+      "nextState": "SAVED"
+    }
+  ],
+  "completionReview": {
+    "status": "not-complete",
+    "summary": "Filled by csm-build when all acceptance criteria have evidence",
+    "verifiedCriteria": [],
+    "openItems": []
+  },
+  "inputs": [
+    {
+      "type": "research-finding",
+      "path": ".agents/research/2026-09-06-parallelism-consolidated-change-set-20260906t172253z-1b1735fe8130-research.json",
+      "commitSha": "083602b",
+      "relation": "authoritative change set"
+    },
+    {
+      "type": "research-finding",
+      "path": ".agents/research/2026-09-06-feature-branch-worthiness-20260906t165335z-36901387fcf6-research.json",
+      "commitSha": "4b34c06",
+      "relation": "validation + candidate costing"
+    },
+    {
+      "type": "research-finding",
+      "path": ".agents/research/2026-09-06-parallelism-foundations-20260906t162030z-b057b2e795cd-research.json",
+      "commitSha": "b173a4e",
+      "relation": "foundation findings KF/N"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-06T18:15:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
+}
