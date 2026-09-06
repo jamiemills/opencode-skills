@@ -3,3 +3,4 @@ node_modules/
 .csm-scan-debug*.log
 .env
 .agents/evidence/orchestrator/
+bootstrap/.pack-lock

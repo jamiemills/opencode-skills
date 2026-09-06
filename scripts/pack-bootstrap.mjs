@@ -615,10 +615,79 @@ function resolvePackTarball(stagingDir, filename) {
 // Packing regenerates the shared committed payload/index before staging. Keep
 // concurrent callers from observing one another's partially regenerated state.
 let packQueue = Promise.resolve();
+
+// S2/A3: fail-fast CROSS-PROCESS pack lock at <outputRoot>/.pack-lock
+// (ledger-style EEXIST claim with inode-guarded release — never auto-takeover
+// and never routed through durable-json acquireLock, F-033/F-077/F-102 open).
+// The lock lives OUTSIDE package/ + payload-index.json + the tar staging dirs
+// and is gitignored. A stale lock (crashed holder) fails the next pack with a
+// clear message naming the path; removal is manual, documented in the error.
+const PACK_LOCK = ".pack-lock";
+const PACK_LOCK_FORMAT = "csm-pack-lock/1";
+
+function resolvePackRoot(options) {
+  return resolve(options.outputRoot ?? bootstrapDir);
+}
+
+async function acquirePackLock(outputRoot) {
+  const lockPath = join(outputRoot, PACK_LOCK);
+  await mkdir(outputRoot, { recursive: true });
+  const claim = {
+    format: PACK_LOCK_FORMAT,
+    token: createHash("sha256")
+      .update(`${process.pid}-${Date.now()}-${Math.random()}`)
+      .digest("hex")
+      .slice(0, 16),
+    pid: process.pid,
+    createdAt: new Date().toISOString(),
+  };
+  let handle;
+  try {
+    handle = await open(lockPath, "wx", 0o644);
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      let heldBy = "";
+      try {
+        heldBy = (await readFile(lockPath, "utf8")).trim().replaceAll("\n", " ") || "(empty)";
+      } catch {
+        heldBy = "(unreadable)";
+      }
+      throw new Error(
+        `pack refused: another pack is already running — lock ${lockPath} held by ${heldBy}; wait for it to finish, or remove the stale lock only when that process is dead`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  const { ino } = await handle.stat();
+  await handle.writeFile(`${JSON.stringify(claim, null, 2)}\n`);
+  return {
+    lockPath,
+    claim,
+    async release() {
+      try {
+        const current = await lstat(lockPath).catch(() => null);
+        if (current !== null && current.ino === ino) await rm(lockPath, { force: true });
+      } finally {
+        await handle.close();
+      }
+    },
+  };
+}
+
+async function runWithPackLock(options) {
+  const lock = await acquirePackLock(resolvePackRoot(options));
+  try {
+    return await packBootstrapOnce(options);
+  } finally {
+    await lock.release();
+  }
+}
+
 function packBootstrap(options = {}) {
   const run = packQueue.then(
-    () => packBootstrapOnce(options),
-    () => packBootstrapOnce(options),
+    () => runWithPackLock(options),
+    () => runWithPackLock(options),
   );
   packQueue = run.then(
     () => undefined,
