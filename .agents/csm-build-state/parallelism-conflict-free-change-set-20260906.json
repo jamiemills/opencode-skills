@@ -4,14 +4,14 @@
   "artifactId": "art-parallelism-conflict-free-change-set-build-20260906",
   "runId": "run-20260906t185023z-parallelism-conflict-free-change-set-build",
   "owner": "csm-build",
-  "status": "active",
+  "status": "complete",
   "control": {
-    "currentState": "CHECKPOINT",
+    "currentState": "COMPLETE",
     "cycle": 0,
-    "nextTransition": "CHECKPOINT -> SELECT (T011)",
+    "nextTransition": "none (terminal)",
     "activeTasks": [],
     "blockers": [],
-    "lastCheckpoint": "2026-09-06T20:43:13Z: T006-T010 complete",
+    "lastCheckpoint": "2026-09-06T21:32:25Z: merged to main 381323c, gate OK, worktree nuked, plan COMPLETE",
     "lastModelRun": "deepseek-v4-flash / parallelism-conflict-free-change-set-build"
   },
   "inputs": [
@@ -57,10 +57,22 @@
       "to": "CHECKPOINT",
       "evidence": "Batches 2-3 complete (plan journal seq 10).",
       "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-06T21:32:25Z",
+      "from": "CHECKPOINT",
+      "to": "COMPLETE",
+      "evidence": "T011 final acceptance evidence in plan journal seq 11; merge 381323c; main gate OK 1244.",
+      "nextState": "COMPLETE"
     }
   ],
   "artifacts": [],
-  "completion": null,
+  "completion": {
+    "status": "complete",
+    "summary": "delivered to main 381323c; full battery green modulo branch-name voice-gate artifact (passes on main)",
+    "evidenceRefs": []
+  },
   "provenance": {
     "sourcePlan": "art-parallelism-conflict-free-change-set-20260906",
     "sourceDigests": [

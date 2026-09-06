@@ -5,15 +5,15 @@
   "runId": "run-20260906t181249z-91948e723b2f",
   "planId": "parallelism-conflict-free-change-set",
   "owner": "csm-plan",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "status": "in_progress",
-    "currentState": "CHECKPOINT",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-06T20:43:13Z: batches 2+3 COMPLETE T006-T010 (1b8d34b, a8736cf, 208f5eb, T010 commit, 045ef5d); gate OK 1244 each; T010 generator byte-identical no-op; T009 section gate + 22-bullet re-home + 4 writers anchored + research placement sentence with digest/payload regen same commit.",
+    "lastCheckpoint": "2026-09-06T21:32:25Z: COMPLETE - serial ff-only merge to main at 381323c; main gate check-suite OK 1244; worktree nuked; acceptance A-F evidence recorded (see journal).",
     "lastModelRun": "deepseek-v4-flash / parallelism-conflict-free-change-set-build",
-    "nextTransition": "CHECKPOINT -> SELECT (T011 final acceptance e2e + battery + merge)",
+    "nextTransition": "none (terminal)",
     "activeTasks": [],
     "blockers": [],
     "resume": {
@@ -483,7 +483,7 @@
     {
       "taskId": "T011",
       "ordinal": 11,
-      "status": "pending",
+      "status": "complete",
       "title": "Final acceptance e2e + full battery",
       "dependsOn": [
         "T001",
@@ -714,12 +714,30 @@
       ],
       "evidence": "T006 1b8d34b: S6 both-sides guard (S6_GUARD_PATHS csm-*/bootstrap/capabilities.json/README.md) + check-only post-merge verifyMergedMain (dirty->skip, no-structure->skip, parity+check-suite only); wt-session suite 13/13. T007 a8736cf: poison-pill writeQueue repair, durable telemetry_loss markers (buildLossMarker/enqueueLossMarker no-recursion, no sequence bump), detectLoss marker-scan (recoveredViaMarkers/markerCount), rejecting-transport drop-test rewrite (a-d assertions), adapter-review additive; 29/29 telemetry suites; payload regen same commit. T008 208f5eb: AGENTS.md hedge + section-anchored convention sentence. T010 (commit 9d29d99b-equivalent): scripts/gen-capabilities.mjs template-preserving + oxfmt-canonical normalization; tests 3/3 (no-op/only-digest-change/stale-caught); first regen byte-identical no-op (no capabilities diff). T009 045ef5d: scripts/lib/agents-index.mjs shared mapping/parser/inserter; check-suite section-membership rule (bullet-only subjects; mis-home fails); README 22-bullet re-home; 4 host writers section-anchored; close-plan verified anchored; csm-deep-research/SKILL.md single placement sentence; capabilities + payload regen same commit; planted tests 34/34; check count unchanged 1244 (aggregate check preserved).",
       "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-06T21:32:25Z",
+      "cycle": 0,
+      "transition": "CHECKPOINT -> COMPLETE (T011 final acceptance)",
+      "tasks": [
+        "T011"
+      ],
+      "evidence": "Acceptance A: full-copy temp repo, two wt-sessions each edited a different skill source (deep-research/autoresearch) with REAL pack-bootstrap+gen-capabilities regen and research/docs artifacts (mixed-class index); merge A ff-only with post-merge verification (parity+check-suite OK on temp main); merge B aborted by the S6 both-sides guard with recovery message; documented recovery (in-wt rebase onto main, regen-conflict resolution via checkout --theirs + re-running gen-capabilities+pack-bootstrap) then merge B ff-only with verification; final gate OK; serial history, 0 keep-both resolutions (<=1). Acceptance B: mixed-class index lines (research/ vs docs/) rebased clean. Acceptance C: orchestrate-driver-lease 4/4 (second same-runId start fails fast). Acceptance D: pack-concurrency 3/3 (concurrent pack hard-errors). Acceptance E: hook test (h) worktree-local .lefthook.yml honored (test-hooks 13/13). Acceptance F: AGENTS.md hedge+placement-convention grep present. Battery: make fmt-check clean, make lint clean, make check OK 1244, make test-package-index OK, test-deterministic OK, test-osv-audit OK, test-progress-tracker OK, test-policy 11/11, test-gen-capabilities 3/3, test-pack-concurrency 3/3, test-ddd 74/74, test-autoresearch 81/81, make test: full suite green except 2 csm-scan voice-gate failures caused by the WORKTREE BRANCH NAME (parallelism-conflict-free-change-set contains the non-neutral term 'conflict' rendered into NORMS git-metadata) - proven environmental: csm-scan/test/voice-gate.test.mjs 12/12 PASS on branch main; CI runs on main so unaffected (also wt/** pushes are CI-filtered by T001). Repair: tests/orchestrate-capabilities.test.mjs pinned contentDigest was stale after the T009 SKILL.md sentence change -> expectation recomputed as digest(manifest.skills) (381323c). Serial merge: main 1c8f68f -> 381323c ff-only after user-authorized push of the 4 pre-existing unpushed commits; main re-gate OK; worktree nuked.",
+      "nextState": "COMPLETE"
     }
   ],
   "completionReview": {
-    "status": "not-complete",
-    "summary": "Filled by csm-build when all acceptance criteria have evidence",
-    "verifiedCriteria": [],
+    "status": "complete",
+    "summary": "All 11 tasks complete; AC1-AC6 satisfied: per-task acceptance signals + journal evidence, check-suite OK 1244 at every commit and final state on main, same-commit regen for pack-mapped edits (AC3), acceptance checks A-F green (AC4), main untouched until serial merge + nuked worktree (AC5), single SKILL.md change csm-deep-research placement sentence with digest regen (AC6).",
+    "verifiedCriteria": [
+      "AC1",
+      "AC2",
+      "AC3",
+      "AC4",
+      "AC5",
+      "AC6"
+    ],
     "openItems": []
   },
   "inputs": [

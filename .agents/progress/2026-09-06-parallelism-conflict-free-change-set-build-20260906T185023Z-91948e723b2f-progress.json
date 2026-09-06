@@ -4,8 +4,8 @@
   "runId": "run-20260906t185023z-parallelism-conflict-free-change-set-build",
   "skill": "csm-build",
   "goal": "Execute parallelism-conflict-free-change-set plan T001-T011: gate-green change set, serial merge to main, acceptance A-F",
-  "status": "active",
-  "overallPercent": 86,
+  "status": "complete",
+  "overallPercent": 100,
   "milestones": [
     {
       "id": "M1",
@@ -35,10 +35,9 @@
       "id": "M5",
       "title": "T011 acceptance e2e + merge + main gate",
       "weightPercent": 15,
-      "status": "active",
-      "verifiedFraction": 0.1
+      "status": "complete"
     }
   ],
   "startedAt": "2026-09-06T18:50:23Z",
-  "updatedAt": "2026-09-06T20:43:13.434Z"
+  "updatedAt": "2026-09-06T21:32:25.762Z"
 }
