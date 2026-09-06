@@ -1,0 +1,256 @@
+{
+ "format": "csm-deep-research/1",
+ "schema": "csm-research/1",
+ "schemaRevision": 1,
+ "runId": "20260906t222553z-4f3a9b2c1d8e",
+ "slug": "orchestrate-request-router",
+ "title": "csm-orchestrate universal request intake and up-front skill router",
+ "state": "SAVED",
+ "gitRoot": "/home/jamiemills/.config/opencode/skills",
+ "sourceMode": "local",
+ "tier": "DEEP",
+ "tempDir": "/tmp/opencode/csm-dr-router-20260906t222553z-4f3a9b2c1d8e",
+ "protectedStateBaseline": "clean: git status --short empty at INTAKE (main c21ad2d); only this finding added since",
+ "question": "What changes are needed so csm-orchestrate accepts ANY user request (not only csm-approach/1 artifacts) and runs an up-front router that decides which csm skill to invoke (grill, plan, deep-research, review, build, bdd-tdd, make-tests, scan, ddd, upload, autoresearch, browse), given that the recent parallelism-conflict-free-change-set delivery stalled because orchestrate demands a csm-approach/1 while the artifact was a csm-plan/1 plan (executed instead by csm-build)? Identify the intake/compile/routing/dispatch/schema/gate changes mapped to concrete files.",
+ "control": [
+  {
+   "at": "2026-09-06T22:25:53Z",
+   "entry": "[2026-09-06T22:25:53Z] INTAKE -> TRIAGE :: cycle 1 :: scaffolded finding; baseline clean (main c21ad2d); run id 20260906t222553z-4f3a9b2c1d8e; temp /tmp/opencode/csm-dr-router-20260906t222553z-4f3a9b2c1d8e"
+  },
+  {
+   "at": "2026-09-06T22:26:20Z",
+   "entry": "[2026-09-06T22:26:20Z] TRIAGE complete :: cycle 1 :: tier DEEP, mode local; 4 tracks: A orchestrate-intake/compile internals; B skill taxonomy + activation boundaries; C routing/dispatch machinery + precedent; D recent-run delta + gate/schema/corpus impacts"
+  },
+  {
+   "at": "2026-09-06T22:29:00Z",
+   "entry": "[2026-09-06T22:29:00Z] RESEARCH -> SYNTHESIZE :: cycle 1 :: 4/4 tracks returned with file:line evidence"
+  },
+  {
+   "at": "2026-09-06T22:33:00Z",
+   "entry": "[2026-09-06T22:33:00Z] SYNTHESIZE -> CHALLENGE :: cycle 1 :: draft written (K1-K9, detail D1-D5)"
+  },
+  {
+   "at": "2026-09-06T22:40:05Z",
+   "entry": "[2026-09-06T22:47:00Z] REMEDIATE -> VERIFY -> SAVED :: cycle 1 :: VERIFY: protected state clean (only finding untracked), 9-part envelope intact, corrected citations re-checked, redaction scan 0 hits, remove-opencode exclusion verbatim confirmed"
+  }
+ ],
+ "references": [
+  {
+   "ref": "csm-orchestrate/lib/phase-compiler.mjs:35-36, 32-70, 182-220, 351-391, 410-455",
+   "note": "Approach-only intake gate: schema+revision assert; agreed/runId/phases-Pn/dependencies/acyclicity/title-goal shape; capabilityMatches route selection; 13-skill manifest requirement; ideaSlug-derived ids",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/index.mjs:62-102, 174-231, 280-299, 458-461, 1545-1609",
+   "note": "orchestrate() wiring surface and fails-closed gates; executor/host requirement; enforceSkillFirstRouting; autonomyGate; runId===approach.runId; crash receipt on unhandled exception",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "scripts/run-orchestrator.mjs:53, 238-245, 367-423, 474",
+   "note": "CLI intake asserts csm-approach/1; real-run usage/errors; executor wiring in realMode; usage line",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/invocation.mjs:313, 413-419",
+   "note": "createHostInvocationAdapter; unavailable-host block when host lacks invokeSiblingSkill",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/csm-build-handoff.mjs:60-74, 170-180",
+   "note": "BUILD_OWNED 8-skill handoff; default agent-session-required blocker message",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/skill-executor-handlers.mjs:185-236, 298-307, 346-393",
+   "note": "Real handlers for ddd/scan/upload; unsupported-runtime for autoresearch/browse; default build-owned handlers",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/skill-executor-adapter.mjs, skill-executor-registry.mjs, skill-executor-preflight.mjs:8-74",
+   "note": "In-process executor adapter/registry; preflight requires exact bindings else stale-handler",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/autonomy.mjs:3-44",
+   "note": "Auto-approvable = single read-only effect + read/read,execute perms, excluding csm-review/csm-deep-research; write skills need external approvals",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/lib/capabilities.mjs:7-21, 91-97; csm-orchestrate/capabilities.json",
+   "note": "SUPPORTED_SKILLS 13; activation modes (grill/plan/build/upload explicit); per-skill inputs/outputs/permissions",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-orchestrate/SKILL.md:34-52, 65-82",
+   "note": "Approach-artifact contract; projection-adapter requirement for non-JSON; standalone runtime boundary; operator handoff",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": ".agents/plans/2026-09-06-parallelism-conflict-free-change-set-csm.json:2, 8-16, 201, 669-677",
+   "note": "Recent-run plan: schema csm-plan/1, control/nextTransition, executionGraph batching, SAVED->RECOVER journal seq 7",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": ".agents/plans/2026-08-30-remove-opencode-csm.json:15",
+   "note": "NOT_STARTED nextTransition convention 'On a future explicit csm-build invocation'",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": ".agents/csm-build-state/parallelism-conflict-free-change-set-20260906.json:17-27, 28-69",
+   "note": "Build-state record links plan input (owner csm-plan, resolved); lifecycle journal RECOVER..CHECKPOINT..COMPLETE",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-*/SKILL.md Interface + Activation sections",
+   "note": "Skill taxonomy: consumes/produces/activation/state machine for all 13 csm-* skills (track B table)",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "schemas/registry.json:25-31, 34-40, 242-249, 252-258, 361-367, 406-412",
+   "note": "Registered artifact schemas incl. csm-orchestrate-invocation/1+2, csm-envelope/1, csm-artifact/1, csm-approach/1, csm-plan/1",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": ".agents/research/2026-09-06-orchestrate-skill-dispatch-gap-research.json",
+   "note": "Prior DEEP finding: host vs executor paths; agent-session protocol is the missing tier 3; 7 instruction-led skills cannot be function-dispatched",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "commit 41ae505 + .agents/plans/2026-09-06-orchestrate-skill-dispatch-enforcement-csm.json",
+   "note": "Dispatch enforcement: default agent-session-required handlers; enforceSkillFirstRouting; --allow-host-dispatch",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "scripts/check-suite.mjs:1374-1399, 1461-1474, 1596-1623, 1625-1682, 1477-1528, 1503; scripts/lib/agents-index.mjs:20-31",
+   "note": "Corpus rules scoped to *-csm.md/-approach.md/-research.md; artifact-index section mapping for new classes; progress gate over all .agents/progress JSON",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "AGENTS.md:22-39, 45-48; README.md:61-75",
+   "note": "Worktree norms (one goal per worktree, serial merge+re-gate); static 'Which skill' guidance (no router exists)",
+   "retrieved": "2026-09-06"
+  },
+  {
+   "ref": "csm-grill/SKILL.md:164, 183, 199; scripts/close-plan.mjs; csm-grill/lib + csm-plan/lib exports",
+   "note": "Grill->plan->build chaining is manual today; close-plan is a doc/index tool; skill libs are artifact helpers not lifecycles",
+   "retrieved": "2026-09-06"
+  }
+ ],
+ "tl": "csm-orchestrate can only ingest canonical csm-approach/1 artifacts: phase-compiler.mjs:35-36 and run-orchestrator.mjs:53 hard-assert the schema, no converter from csm-plan/1 (or any other artifact) exists, and signals that could select a skill come only from inside the approach \u2014 never from a raw user request. The recent parallelism delivery stalled exactly there and ran under csm-build instead. The fix is a three-layer intake change: (1) a new typed request envelope (csm-orchestrate-request/1) plus an intake switch that accepts request/1, approach/1, and plan/1; (2) an up-front request router that classifies the ask into one skill route set and auto-derives capability signals; (3) a plan adapter that compiles csm-plan/1 into the same compiled graph orchestrate already executes, so plans run through orchestrate with per-task slices routed to agent sessions running the owning skill's SKILL.md lifecycle. Router + plan adapter land first because they unblock the actual failure we hit; full any-request agent-session dispatch is the pre-existing 'tier 3' protocol gap.",
+ "executiveSummary": "The research question came from a real stall: the parallelism-conflict-free-change-set plan (schema csm-plan/1) could not be handed to csm-orchestrate because orchestrate's only intake is a canonical csm-approach/1 JSON artifact; execution fell back to a csm-build session in a wt-session worktree and completed there. Four local research tracks (intake/compile internals, skill taxonomy, routing/dispatch machinery, recent-run + gate impacts) established that the stall is structural, not a configuration gap, and that most building blocks for a universal intake already exist.\\n\\n```text\\nUser request -> [csm-request/1] -> Router (verb classifier) -> signals -> compile graph -> executor\n                     |-- approach/1 (grill output)  -> existing compileApproach path\n                     |-- plan/1   (plan output)     -> NEW compilePlan adapter (tasks -> slices)\n                     |-- request/1 (anything else)  -> classify -> one skill route -> agent session\n```\\n\\nThe strongest evidence: the schema gate is a single hard assert with no adapter layer (phase-compiler.mjs:35-36; track A); plan artifacts already carry the execution semantics orchestrate would need (control state machine, executionGraph batches, per-task acceptance signals; track D); and the route-selection machinery (capabilityMatches with explicit signals, activation predicates, keyword heuristics) already picks skills \u2014 it is simply fed from the approach artifact rather than from a request (track C). The blocker for universal dispatch remains the known missing 'agent-session protocol' (prior dispatch-gap finding F-004/F-007): 7+ skills are instruction-led lifecycles that cannot be called as functions.\\n\\nThe headline caveat: local-mode research verified repository facts only; no external agent-framework router patterns were retrieved, and the exact agent-session spawn mechanism (tmux + wt-session isolation exists; an opencode-run child protocol does not) is the main residual unknown.",
+ "keyFindings": [
+  {
+   "id": "K1",
+   "verdict": "confirmed",
+   "finding": "csm-orchestrate intake is one hard schema assert: phase-compiler.mjs:35-36 requires schema 'csm-approach/1' + revision 1 and throws 'invalid approach phase graph' otherwise; run-orchestrator.mjs:53 double-asserts at the CLI. No adapter, projection, or converter from any other artifact kind (csm-plan/1, research findings, build state) exists anywhere in lib/ or scripts/. The recent plan (csm-plan/1) therefore cannot enter orchestrate by design.",
+   "detail": "D1"
+  },
+  {
+   "id": "K2",
+   "verdict": "confirmed",
+   "finding": "Beyond the marker, compileApproach assumes the full approach shape: status 'agreed', canonical runId, non-empty phases with canonical Pn ids, dependency arrays + acyclicity, title/goal/deliverables/scope/outOfScope/constraints/acceptanceHints/context strings and arrays, ideaSlug-derived phase/requirement ids, idempotency keys digest({runId,phaseId}), and the complete 13-skill capability manifest for route selection. Any universal intake must either synthesize this shape or bypass compileApproach with a parallel compiler that emits the same internal graph.",
+   "detail": "D1"
+  },
+  {
+   "id": "K3",
+   "verdict": "confirmed",
+   "finding": "Route selection already understands 'which skill': capabilityMatches (phase-compiler.mjs:182-220) matches signals.capabilities/routes explicitly, evaluates per-skill activation predicates, and falls back to keyword heuristics (e.g. csm-plan /canonical plan|planning/, csm-build /implementation|build|code change/). Explicit-mode skills (csm-grill, csm-plan, csm-build, csm-upload per capabilities.json) are only selectable via explicit signals. But signals come exclusively from the approach artifact (run-orchestrator.mjs:400) \u2014 nothing derives them from a user request.",
+   "detail": "D3"
+  },
+  {
+   "id": "K4",
+   "verdict": "confirmed",
+   "finding": "Only csm-ddd, csm-scan, and csm-upload have real in-process function handlers today; every build-owned skill (8: csm-bdd-tdd, csm-build, csm-deep-research, csm-grill, csm-make-tests, csm-plan, csm-review, csm-review-python) defaults to a blocked agent-session-required handoff (csm-build-handoff.mjs:170-180) under enforceSkillFirstRouting (commit 41ae505), and csm-autoresearch/csm-browse are adapter-gated (unsupported-runtime). Instruction-led skills need an agent session running their SKILL.md state machine - no spawn/return protocol exists yet (the prior dispatch-gap finding's 'tier 3'; the remove-opencode plan deliberately excluded child agent sessions).",
+   "detail": "D2/D3"
+  },
+  {
+   "id": "K5",
+   "verdict": "confirmed",
+   "finding": "Plan artifacts encode execution semantics usable by a plan owner: control.currentState/nextTransition follows the convention 'On a future explicit csm-build invocation, NOT_STARTED -> RECOVER' on ready plans (e.g. .agents/plans/2026-08-30-remove-opencode-csm.json:15; the parallelism plan's own control is now terminal COMPLETE after its SAVED->RECOVER journal seq 7), tasks carry acceptanceSignal/validation/recoveryNote fields (190/190 and 182/190 across 37 JSON plans), and a companion build-state record links the plan input with owner csm-plan. Caveat: executionGraph is a prose STRING and csm-plan/1 does not schema-guarantee task fields beyond taskId/ordinal/status/acceptanceSignal - the semantics are strong practice, not a typed graph.",
+   "detail": "D4"
+  },
+  {
+   "id": "K6",
+   "verdict": "supported",
+   "finding": "No request classifier or router exists in code: README.md:61-75 is static 'Which skill should I use?' prose; per-skill activation boundaries are prose in each SKILL.md; skill chaining (grill -> plan -> build) is manual and documented as separate invocations (csm-grill/SKILL.md:164,183,199). A router must therefore be a new component, not a refactor of an existing one.",
+   "detail": "D3"
+  },
+  {
+   "id": "K7",
+   "verdict": "confirmed",
+   "finding": "Repository norms constrain WHERE dispatched work runs regardless of router design: one goal per worktree, main checkout stays on main and is only touched by serial ff-only merges with re-gates (AGENTS.md:22-39), and wt-session merge now guards both-sides skill-source changes (S6, parallelism T006). Any orchestrate-spawned session must run in a wt-session worktree, not the live checkout.",
+   "detail": "D4"
+  },
+  {
+   "id": "K8",
+   "verdict": "confirmed",
+   "finding": "Corpus and gate impact of new artifact classes is additive and small: check-suite corpus rules are suffix-scoped to legacy *-csm.md / -approach.md / -research.md files (JSON plans/approaches/findings are exempt), the artifact-index rule requires one bullet under a mapped section per new class (scripts/lib/agents-index.mjs:20-31 + check-suite.mjs:1503 error text names the two registration edits), and the progress gate validates every .agents/progress/*.json against csm-skill-progress/1. A new .agents/requests/ class would need exactly: AGENTS_DIR_SECTION entry, README '## requests/' section, one indexed artifact bullet.",
+   "detail": "D5"
+  },
+  {
+   "id": "K9",
+   "verdict": "partially-supported",
+   "finding": "Framing correction from challenge: the parallelism delivery did NOT stall in orchestrate - it completed under csm-build, the documented owner of plan execution. What is structural is that plan/1 cannot ENTER orchestrate (K1). Whether plans should be re-architected into orchestrate's phase graph is an open boundary decision with real costs (compilePlan shape mismatch, duplicate-run reconciliation, the deliberate remove-opencode exclusion of child agent sessions); the lower-cost path is a csm-build EXECUTOR handoff (agent-session callback) so orchestrate can route a plan-execution request to a csm-build session without duplicating its lifecycle. Universal natural-language routing still needs the request envelope + verb classifier.",
+   "detail": "D5"
+  }
+ ],
+ "detailSections": [
+  {
+   "id": "D1",
+   "summary": "Anatomy of the intake gate: one assert, deep shape assumptions, no adapter.",
+   "body": "Track A established the rejection point and its reach. phase-compiler.mjs:35-36 fails on schema marker before anything else; run-orchestrator.mjs:53 repeats it. Once past the marker, assertApproach (phase-compiler.mjs:32-70) enforces status agreed, runId pattern, non-empty phases, PHASE_ID /^P[1-9][0-9]*$/, dependencies within the list and acyclic, and the seven string/array phase fields. Compilation then needs the whole capability manifest (13 skills; phase-compiler.mjs:351-391) and derives every downstream identity from approach.runId + approach.ideaSlug (phase/requirement ids, idempotency key digest({runId, phaseId}) at :455). ideaSlug is never validated, so slug(undefined)='undefined' is possible \u2014 a latent intake weakness any new path should fix. No converter exists: lib adapters (csm-autoresearch-adapter, csm-browse-adapter, csm-build-handoff, skill-executor-adapter) and output/projection.mjs contain no plan/research/build -> approach logic (grep for 'approach' found only in-memory remediation synthesis run-artifacts.mjs:265-286). orchestrate() also demands the full wiring surface (index.mjs:62-102): executor or host.invokeSiblingSkill, durable cursorStore, approvals, telemetry, artifact resolvers, enforceSkillFirstRouting, runId===approach.runId. An intake switch must satisfy ALL of these regardless of input kind. Recommendation consequence: introduce a compile boundary \u2014 compileApproach stays for approach/1; a sibling compilePlan emits the identical internal graph for plan/1; a compileRequest emits a single-route graph for raw requests."
+  },
+  {
+   "id": "D2",
+   "summary": "Skill taxonomy: a router's routing table falls out of existing SKILL.md contracts.",
+   "body": "Track B produced the complete table. Consumes/produces are typed and file-conventional: grill -> .agents/approaches/<date>-<slug>-<run-id>-approach.json; plan -> .agents/plans/<date>-<slug>-csm.json; deep-research -> .agents/research/<date>-<slug>-<run-id>-research.json (+artifacts/); build consumes a plan and updates its control/journal in place; review -> .agents/reviews/*.json; review-python -> .agents/doctrine/*.json; ddd -> .agents/ddd/*-report/-graph.json; make-tests -> .agents/tests/* + ledger; scan -> .agents/norms/*.json; upload -> .agents/upload/*-publication.json; autoresearch -> .agents/autoresearch/*.jsonl+report; browse -> .agents/browse/<sid>/. Activation boundaries are one-line gates in each SKILL.md and map cleanly onto verbs: 'research how to build X' -> deep-research; 'grill/stress-test an idea' -> grill; 'make a plan' -> plan; 'implement/execute a saved plan' -> build; 'review/audit a repo' -> review; 'python doctrine review' -> review-python; 'generate/add tests' -> make-tests; 'analyze DDD' -> ddd; 'scan norms' -> scan; 'upload evidence' -> upload; 'browse/login/screenshot' -> browse; 'optimize a declared function/evaluator' -> autoresearch. Each skill also declares 'Never invokes: ...' \u2014 the router (owned by csm-orchestrate, which already never invokes itself) must respect those non-dispatch lists when composing chains. Instruction-led vs library-led classification (medium-high confidence, inferred from lib/scripts inventory + SKILL.md wording) drives HOW the router dispatches: callable pipelines for ddd/scan/upload/browse; agent sessions for the rest."
+  },
+  {
+   "id": "D3",
+   "summary": "Reusable routing machinery: signals already select skills; executors already gate them.",
+   "body": "Track C showed route selection is compile-time capability matching (phase-compiler.mjs:182-220): explicit signals first, then activation predicates, then keyword heuristics; zero matches throws 'no conditional route selected' (:220). Explicit-mode skills are excluded from predicate/heuristic selection (:185) \u2014 so a raw 'make a plan' request would need signals.capabilities=['csm-plan'] derived by the router, not left to text heuristics. The executor surface is layered: host invocation adapter (invocation.mjs:313; unavailable-host if no host), in-process executor adapter (skill-executor-adapter.mjs) with stale-handler blocking for unregistered skills, preflightSkillRoutes (exact binding + capability-digest checks; stale-handler/capability-mismatch blocks), and default agent-session-required handlers for the 8 build-owned skills (csm-build-handoff.mjs:170-180; message: '<skill> requires an agent session running its SKILL.md lifecycle. Direct function dispatch is not available for instruction-led skills.'). Approvals auto-approve only single read-only-effect skills (autonomy.mjs:3-12); write skills require an external approvals module (run-orchestrator.mjs:401). Reuse map: the router reuses capabilityMatches signal semantics; the executor registry/handlers/preflight stay as the enforcement layer; agent-session spawn replaces the default blocked handoff when a session protocol exists. Executor-outcome map (what each route does TODAY in realMode wiring vs after phase 3): csm-ddd/csm-scan/csm-upload -> real in-process function handlers; csm-browse/csm-autoresearch -> blocked unsupported-runtime until an approved host adapter; csm-bdd-tdd/csm-build/csm-deep-research/csm-grill/csm-make-tests/csm-plan/csm-review/csm-review-python -> blocked agent-session-required default handoff. A router must therefore distinguish 'route selected' from 'route executable': selected routes to instruction-led skills are deferred to an agent-session executor (phase 3) rather than dispatched as function calls."
+  },
+  {
+   "id": "D4",
+   "summary": "Plan-execution adaptation and worktree norms: plans are executable graphs already.",
+   "body": "Track D confirmed the parallelism plan encodes execution semantics orchestrate could consume: control.currentState/nextTransition (the NOT_STARTED -> RECOVER convention appears across plans, e.g. 2026-08-30-remove-opencode-csm.json:15), executionGraph with batch/parallel-group and serial-commit constraints (parallelism plan :201), per-task acceptanceSignal + validation + recoveryNote, and companion build-state/progress records (csm-build-state/parallelism-conflict-free-change-set-20260906.json links the plan input with owner csm-plan status resolved). csm-build today runs the whole RECOVER->VALIDATE->SELECT->DISPATCH->INTEGRATE->VERIFY->REVIEW->REPAIR->CHECKPOINT->COMPLETE lifecycle on the plan. Worktree norms (AGENTS.md:22-39) require any dispatched implementation work to happen in a wt-session worktree with serial ff-only merge and re-gate; S6 (parallelism T006) added a both-sides merge guard. Consequence: a compilePlan adapter maps tasks->slices (dependsOn->dependencies, parallelGroup->independent sibling slices, acceptanceSignal->the node's verification check), reuses cursor/receipt/evidence machinery, and routes each slice's execution to a csm-build agent session inside a worktree \u2014 preserving every artifact surface (plan journal, build-state, progress records) that exists today."
+  },
+  {
+   "id": "D5",
+   "summary": "The change set: three layers, mapped to files, sequenced to fix today's stall first.",
+   "body": "The change set is re-scoped by the challenge. PHASE 0 (decision): plan execution stays owned by csm-build unless the user decides otherwise; no compilePlan graph compiler (task/phase shape mismatch: ideaSlug vs planId, seven approach fields vs ownedScope/actions/acceptanceSignal; executionGraph is prose; the compiled graph has no registered schema; parallelGroup means concurrent test runs only with serial commits in ONE worktree; duplicate-run reconciliation vs csm-build-state unresolved). PHASE 1 (intake): schemas/csm-orchestrate-request.schema.json (csm-orchestrate-request/1) + registry entry; csm-orchestrate/lib/intake.mjs switching on schema marker; run-orchestrator.mjs:53 assert -> intake switch with --approach|--plan|--request. PHASE 2 (router): csm-orchestrate/lib/request-router.mjs classifyRequest -> explicit signals per activation boundaries; signals-carrier reconciliation (approach schema forbids signals; real approaches smuggle them; request envelope must be the validated carrier); explicit-mode skills stay explicit-only (phase-compiler.mjs:185). PHASE 3 (bounded agent-session): csm-build executor = csm-build-handoff execute() callback spawning a wt-session csm-build agent session per AGENTS.md one-goal-per-worktree + serial merge norms; typed child result returns through the existing executor adapter; preserves plan journal/build-state/progress artifact surfaces by running the real csm-build lifecycle. PHASE 4 (generalize; requires explicit reversal decision): agent-session protocol for all instruction-led skills. Supporting edits: AGENTS.md single-entry-point documentation; README 'Which skill' -> router pointer; scripts/lib/agents-index.mjs AGENTS_DIR_SECTION + README section only if a .agents/requests corpus lands; check-suite unchanged (JSON artifacts exempt from legacy markdown corpus rules; artifact-index is additive); tests/orchestrate-intake.test.mjs (intake switch + classification matrix) and tests/orchestrate-request-router.test.mjs; telemetry/receipt/approval machinery reused unchanged (index.mjs wiring surface is kind-agnostic once intake emits an approach-equivalent or a single-route graph)."
+  }
+ ],
+ "recommendation": "Bound the decision first, then build in four ordered phases. PHASE 0 (boundary decision, user-owned): keep plan EXECUTION owned by csm-build (recommended - it already runs RECOVER->...->COMPLETE with per-task acceptance, build-state records, and wt-session isolation) and do NOT re-architect csm-plan/1 into orchestrate's phase graph; the challenge evidence shows compilePlan is not mechanical (disjoint task/phase shapes, prose executionGraph, unregistered graph schema, parallelGroup meaning concurrent test runs only with serial commits, duplicate runId reconciliation against existing csm-build-state). PHASE 1 (intake): add csm-orchestrate-request/1 (schema in csm-orchestrate/schemas/, registry entry in schemas/registry.json) + lib/intake.mjs switching on schema marker (csm-approach/1, csm-plan/1, csm-orchestrate-request/1); run-orchestrator.mjs:53 assert becomes the switch; add --request/--plan flags and fail with a router hint otherwise. PHASE 2 (up-front router): lib/request-router.mjs classifyRequest(request) -> {routes, signals:{capabilities,inputs}, goalSlug} mapping the activation-boundary verbs of the 13 skills (track B table with executor-outcome column) to explicit signals, honoring phase-compiler.mjs:185 (explicit-mode skills only via explicit signals); RECONCILE the signals home: csm-approach/1 (csm-grill schema, additionalProperties:false) forbids signals yet real run approaches smuggle them (scripts/*-approach.json) - the request envelope must carry signals through a schema-validated path or explicit-mode routes stay unreachable from validated artifacts. PHASE 3 (bounded agent-session dispatch): implement the csm-build executor as the first real handoff (csm-build-handoff.mjs execute() callback spawning a wt-session csm-build agent session per AGENTS.md worktree norms, returning a typed child result) - this is the minimal tier-3 slice and it unblocks orchestrate accepting 'execute this plan' requests end-to-end. PHASE 4 (generalization, explicit decision required): extend the agent-session protocol to all instruction-led skills; this REVERSES the documented remove-opencode exclusion of child agent sessions and needs an explicit user decision, not a silent design choice. Confidence: high for phases 1-2 (mechanical intake + classifier over verified activation boundaries, K1/K3/K6); medium for phase 3 (wt-session + agent-CLI spawn exist as primitives but no typed return channel is proven - see unverified 1); low-medium for phase 4 (reverses a prior decision; depends on protocol maturity). What would change this answer: a finding that orchestrate's internal graph can host plan tasks without lifecycle duplication (then a compilePlan adapter becomes viable and phase 0 flips); or a user decision that orchestrate must own plan execution (same). Cost of being wrong: building phase 4 before 1-3 re-attempts universal dispatch without fixing artifact intake; building compilePlan (phase-0 alternative) before deciding ownership duplicates csm-build's lifecycle and risks two executors on one plan runId.",
+ "unverifiedClaims": [
+  {
+   "claim": "An agent-session spawn protocol (orchestrate -> tmux -> agent CLI running a skill SKILL.md -> typed receipt) is implementable on top of the existing tmux bootstrap and wt-session isolation without new infrastructure.",
+   "why": "Local evidence shows the primitives (tmux bootstrap in every skill; wt-session create/merge/nuke; run-orchestrator host modules) but no existing child-session protocol or typed return channel.",
+   "verifyBy": "Prototype one P1 slice dispatch (orchestrate -> wt-session worktree -> agent CLI run csm-build on one plan task) and confirm receipt/evidence round-trip."
+  },
+  {
+   "claim": [
+    "Extending keyword-heuristic route fallback to classify free-form user requests for explicit-mode skills is safe."
+   ],
+   "why": "Explicit-mode skills are deliberately excluded from heuristics today (:185); extending selection changes activation semantics that enforcement (41ae505) hardened.",
+   "verifyBy": "Controlled classifier matrix test over representative request phrasings before wiring heuristic selection for explicit skills (activation semantics hardened at phase-compiler.mjs:185 and by 41ae505 enforcement)."
+  },
+  {
+   "claim": "No external agent-ecosystem router pattern would materially improve this design.",
+   "why": "Local-mode run; no web retrieval was performed (skill rule).",
+   "verifyBy": "Optional hybrid follow-up comparing request-routing patterns in other agent frameworks."
+  },
+  {
+   "claim": "Re-introducing child agent sessions for instruction-led skills is the right architectural reversal of the remove-opencode exclusion.",
+   "why": "The remove-opencode plan explicitly excluded launching replacement agent sessions and required deterministic BLOCKED instead; the challenger flagged that P3 silently reverses it.",
+   "verifyBy": "Explicit user decision + a bounded pilot (phase 3 csm-build executor) before generalizing."
+  }
+ ],
+ "process": {
+  "triage": "DEEP / local. Tracks: A orchestrate-intake/compile internals; B skill taxonomy + activation boundaries; C routing/dispatch machinery + precedent; D recent-run delta + gate/schema/corpus impacts. 4/4 tracks returned full evidence packs with file:line quotes.",
+  "challenge": "Independent challenger (read-only): C1-C8 UPHOLD with precision notes (revision gate lives in compileApproach not the CLI; seven array fields not seven string/array fields; explicit-mode scope note; parallelism plan now terminal - NOT_STARTED->RECOVER wording lives in other ready plans; executionGraph is prose and csm-plan/1 does not schema-guarantee task fields). C9 DOWNGRADE: corrected count - only ddd/scan/upload have real function handlers; 8 build-owned skills default blocked (incl. csm-deep-research); autoresearch/browse adapter-gated; no spawn/return protocol. Recommendation-shape review: P1 'stall' premise not evidenced (delivery completed under csm-build, its documented owner); P1 hides a tier-3 dependency (post-41ae505 default blocked handoff); compilePlan not mechanical (prose executionGraph, unregistered graph schema, parallelGroup=concurrent test runs only/serial commits, duplicate-run reconciliation unaddressed); P2/P3 reverse the deliberate remove-opencode exclusion without acknowledgement; signals have no validated home (approach schema forbids signals); simpler alternative = csm-build EXECUTOR handoff rather than plan->graph compiler.",
+  "judge": "Independent judge: factual accuracy 0.95, citation accuracy 0.85 (D2 taxonomy and D4 lifecycle chain lack line-level anchors; strong negative rests on one-file grep), completeness 0.95, clarity 0.90 (false-start opening sentence; dense tl). Overall PASS. Most important improvement: per-skill executor-outcome table (added to D3).",
+  "resilience": "no subagent incidents",
+  "notes": "Research on main @ c21ad2d; workspace-local sources only; retrieval date 2026-09-06; remediation applied: recommendation reworked into phase 0-4 with executor-handoff option, K4/K5/K9 corrected, D3 executor-outcome map added, D5 re-scoped, signals-home and remove-opencode-reversal added to unverified."
+ }
+}
