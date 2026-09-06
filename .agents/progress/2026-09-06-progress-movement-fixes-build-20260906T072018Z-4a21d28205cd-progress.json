@@ -4,8 +4,8 @@
   "runId": "run-20260906t072018z-4a21d28205cd",
   "skill": "csm-build",
   "goal": "execute plan progress-movement-fixes (6 tasks): mid-run percentage movement, persisted progress artifacts, rollup telemetry registration, render-on-change, movement tests",
-  "status": "active",
-  "overallPercent": 22,
+  "status": "complete",
+  "overallPercent": 100,
   "milestones": [
     {
       "id": "M1",
@@ -17,22 +17,21 @@
       "id": "M2",
       "title": "G1 batch (T001 T002 T004)",
       "weightPercent": 35,
-      "status": "active",
-      "verifiedFraction": 0.2
+      "status": "complete"
     },
     {
       "id": "M3",
       "title": "G2-G3 (T003 poller, T005 movement tests)",
       "weightPercent": 30,
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "M4",
       "title": "review, battery, checkpoint complete",
       "weightPercent": 20,
-      "status": "pending"
+      "status": "complete"
     }
   ],
   "startedAt": "2026-09-06T07:20:18.000Z",
-  "updatedAt": "2026-09-06T07:22:17.357Z"
+  "updatedAt": "2026-09-06T08:06:35.420Z"
 }
