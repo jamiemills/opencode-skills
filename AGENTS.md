@@ -34,6 +34,15 @@
   sweep each other's files into commits (`git add -A` is safe again), the gate
   runs against the worktree's own corpus, and hook races disappear.
 - The main checkout stays on `main` (it is the live skills dir); merge
-  worktree branches serially and re-run the gate after merging. The only
-  expected merge conflict is the `.agents/README.md` index line — resolve by
-  keeping both lines.
+  worktree branches serially and re-run the gate after merging. For
+  artifact-only runs the only expected merge conflict is the
+  `.agents/README.md` index line — resolve by keeping both lines. Skill-source
+  runs (work that touches csm-*/ skill sources or regenerated trees) can also
+  collide on the regenerated payload tree (`bootstrap/package/**` +
+  `bootstrap/payload-index.json`) and `csm-orchestrate/capabilities.json`;
+  `wt-session merge` aborts such merges up front with a recovery message —
+  rebase inside the worktree, regenerate, and retry.
+- `.agents/README.md` index lines are section-anchored: new artifact bullets
+  belong at the end of their own class section (`## plans/`, `## research/`,
+  `## builds/`, `## progress/`, ...), never appended to the physical EOF of
+  the file. `scripts/check-suite.mjs` enforces section membership.
