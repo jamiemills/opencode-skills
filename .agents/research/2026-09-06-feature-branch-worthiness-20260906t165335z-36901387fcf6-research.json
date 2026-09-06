@@ -1,0 +1,332 @@
+{
+  "format": "csm-deep-research/1",
+  "schema": "csm-deep-research/1",
+  "runId": "20260906t165335z-36901387fcf6",
+  "slug": "feature-branch-worthiness",
+  "title": "Parallelism foundations validation and change-worthiness (short-lived feature branches and other candidates)",
+  "state": "SAVED",
+  "gitRoot": "/home/jamiemills/.config/opencode/skills",
+  "sourceMode": "local",
+  "tier": "DEEP",
+  "tempDir": "/tmp/opencode/csm-deep-research-fbw",
+  "protectedStateBaseline": "git status --short: clean tree at b173a4e (research: parallelism foundations...)",
+  "question": "Validate the parallelism-foundations finding (20260906t162030z-b057b2e795cd, SAVED b173a4e) against current HEAD. No repo skill currently uses git branches (wt-session worktrees use wt/<slug> branches only); a commit in one run sometimes interferes with a parallel run. Determine: (a) which of its claims survive validation; (b) is employing short-lived feature branches worthwhile as a change toward goal 1 (max parallelization of single-user-initiated work) and goal 2 (max parallel work in the same repo); (c) which other candidate changes (run lease/owner identity, .agents/README.md index mechanism, pack-bootstrap cross-process exclusion, telemetry durability incl. partial-tail recovery and durable loss records, progress snapshot compaction, gate/CI scoping per worktree) are worth including. Decision-ready recommendation with benefit/condition/evidence/trade-off reasoning; findings only - no plans, no implementations.",
+  "control": [
+    {
+      "at": "2026-09-06T16:53:35Z",
+      "entry": "INTAKE complete :: cycle 1 :: run id 20260906t165335z-36901387fcf6; artifact .agents/research/2026-09-06-feature-branch-worthiness-20260906t165335z-36901387fcf6-research.json; temp dir /tmp/opencode/csm-deep-research-fbw; baseline clean tree at b173a4e (validating the parallelism-foundations finding SAVED there)"
+    },
+    {
+      "at": "2026-09-06T16:53:45Z",
+      "entry": "TRIAGE complete :: cycle 1 :: DEEP tier, local mode (repo-internal question; git mechanics via local git/man only). Tracks: (1) validation of parallelism-foundations claims at HEAD, (2) git-usage surface inventory (commits, branches, hooks, CI, wt-session), (3) cross-run commit interference mechanisms, (4) short-lived feature-branch adoption evidence, (5) candidate-change code-site and effort evidence"
+    },
+    {
+      "at": "2026-09-06T17:13:00.948Z",
+      "entry": "CHALLENGE complete :: cycle 1 :: verdicts: V-1/V-2/D-1 uphold, B-1/B-3/D-2 uphold with nits, B-2 downgrade (--push pushes main only, never wt branch; PR path needs manual push), C-1 downgrade (acquireLock carries open F-033/F-077/F-102; ledger precedent is fail-fast EEXIST not auto-takeover), C-3 downgrade (csm-browse is beneficiary not precedent), C-2 uphold with caveats; 7 new claims NC-1..NC-7"
+    },
+    {
+      "at": "2026-09-06T17:13:00.949Z",
+      "entry": "REMEDIATE complete :: cycle 1 :: B-1/B-2/B-3/C-1/C-2/C-3/D-2 rewritten; NC-3 (AGENTS.md correction) added as key finding; catalogue inconsistency reconciled; F-033 qualifier added; hedge aligned with V-2; resolutions logged"
+    },
+    {
+      "at": "2026-09-06T17:16:40.358Z",
+      "entry": "JUDGE complete :: cycle 1 :: PASS - factual 1.0, citation 1.0, completeness 0.85, clarity 0.85; tightening applied (process.researchers populated, NC-5/NC-7 traceability closed, F-102 glossed)"
+    },
+    {
+      "at": "2026-09-06T17:16:50.972Z",
+      "entry": "VERIFY complete :: cycle 1 :: protected-state re-run clean (only research JSON untracked); redaction check passed (no credentials/keys/personal data); per-claim verdicts: all 11 key findings supported via track-1 relocation + challenger + judge; sections complete; 18 references with file:// URLs and retrievedAt 2026-09-06"
+    },
+    {
+      "at": "2026-09-06T17:16:50.973Z",
+      "entry": "SAVED :: finding committed with .agents/README.md index line"
+    }
+  ],
+  "references": [
+    {
+      "id": "R1",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/research/2026-09-06-parallelism-foundations-20260906t162030z-b057b2e795cd-research.json",
+      "retrieved": "2026-09-06",
+      "note": "validated finding: KF-1..KF-10, N1..N5"
+    },
+    {
+      "id": "R2",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/wt-session.mjs",
+      "retrieved": "2026-09-06",
+      "note": "branch lifecycle 86-253; merge main-guard 140-142; rebase+ff-only 164-178; push 179-182"
+    },
+    {
+      "id": "R3",
+      "url": "file:///home/jamiemills/.config/opencode/skills/AGENTS.md",
+      "retrieved": "2026-09-06",
+      "note": "worktree protocol 22-39; only-expected-conflict claim 38"
+    },
+    {
+      "id": "R4",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.lefthook.yml",
+      "retrieved": "2026-09-06",
+      "note": "unstaged-guard 7-16; oxfmt 17-40; check-suite 41-43"
+    },
+    {
+      "id": "R5",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/run-orchestrator.mjs",
+      "retrieved": "2026-09-06",
+      "note": "evidence dir 184-224; TOCTOU guard 195-198; plain writeFile receipts 331-352"
+    },
+    {
+      "id": "R6",
+      "url": "file:///home/jamiemills/.config/opencode/skills/lib/orchestration-store/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "TABLES/DDL 124-294; fencing 691-692,886-943; saveProgress 770-823; loadProgress 830-860; MonotonicTerminalError 1240-1247; idempotency 76-81,974-980,1014-1034"
+    },
+    {
+      "id": "R7",
+      "url": "file:///home/jamiemills/.config/opencode/skills/lib/durable-json/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "append-lock 128-140; acquireLock 142-206; readJsonLines partial-tail 208-260"
+    },
+    {
+      "id": "R8",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/telemetry.mjs",
+      "retrieved": "2026-09-06",
+      "note": "transport 104-121; sequence 161,204; recordLoss 166-181; checkCompleteness 249-266; detectLoss 268-296"
+    },
+    {
+      "id": "R9",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "loss drain 161-163; durable receipt 1614-1633"
+    },
+    {
+      "id": "R10",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/pack-bootstrap.mjs",
+      "retrieved": "2026-09-06",
+      "note": "payload-index write 443-456; syncPayload 481-508; module-local packQueue 617-628"
+    },
+    {
+      "id": "R11",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/check-suite.mjs",
+      "retrieved": "2026-09-06",
+      "note": "payload parity 746-874; capability freshness 768-813; index reader 968-980; artifact-index rule 1481-1509; progress records untracked 925-945,1511-1515"
+    },
+    {
+      "id": "R12",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/plans/2026-08-18-universal-agent-skills-bootstrap-csm.md",
+      "retrieved": "2026-09-06",
+      "note": "push-my-work duplicate-branch incident :251"
+    },
+    {
+      "id": "R13",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/plans/2026-08-20-t010-t011-csm.md",
+      "retrieved": "2026-09-06",
+      "note": "resets wiped 7 tasks :596,:605; commit d94f099"
+    },
+    {
+      "id": "R14",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/docs/journal-lessons.md",
+      "retrieved": "2026-09-06",
+      "note": "payload-dirty gate block :47; approach-file blocked all commits :48; pack discipline A4 :57; push-my-work :90"
+    },
+    {
+      "id": "R15",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/research/2026-08-22-characterization-skill-implementation-research.md",
+      "retrieved": "2026-09-06",
+      "note": "shared-checkout interference journal :643-703"
+    },
+    {
+      "id": "R16",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.github/workflows/ci.yml",
+      "retrieved": "2026-09-06",
+      "note": "push+pull_request unfiltered 3-5"
+    },
+    {
+      "id": "R17",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-autoresearch/lib/ledger/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "acquireRunLease precedent 261-374; recoverPartialTail use 119-122"
+    },
+    {
+      "id": "R18",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/reviews/2026-08-24-opencode-skills-review.md",
+      "retrieved": "2026-09-06",
+      "note": "F-011 commit sweep 149-156"
+    }
+  ],
+  "tl": "The parallelism-foundations finding survives validation intact: all 10 KF and 5 N claims are supported at HEAD (b173a4e), with three minor wording sharpenings. Short-lived feature branches are NOT a worthwhile addition for either parallelization goal: worktrees (wt-session.mjs) already are short-lived branches plus tree/index isolation; branches alone isolate nothing that the observed interference needs (the documented cross-run incidents are shared-checkout tree/index interference that only per-worktree isolation fixes), and branch commits in the shared main checkout would re-introduce the exact interferences the worktree protocol removed. Worth including: a run-level lease/owner identity (C1, closes the only unsafe state KF-7/N3, ~50 lines + tests, precedent exists in csm-autoresearch), a pack-bootstrap cross-process lock (C3, 5-10 lines, closes N1, replaces a manual discipline rule), and telemetry partial-tail recovery (C4a, 1-3 lines, closes N2). Defer: progress snapshot compaction (C5) until a run shows pathological growth. Not now: index split (C2), gate/CI scoping (C6), per-emitter shared sequences (C7, moot once C1 lands).",
+  "executiveSummary": "Pipeline: parallelism-foundations finding (SAVED b173a4e) -> Triage (DEEP/local) -> 5 parallel read-only researchers -> synthesis. Track 1 re-verified every claim of the prior finding against HEAD code: 15/15 supported, no code drift between the 41ae505 pin and HEAD. Track 2 produced the first complete git-usage inventory: only wt-session.mjs creates branches (wt/<slug>); skills commit to current HEAD via git commit --only; nothing pushes except wt-session --push (origin main) and csm-upload (external Pages clone); CI is branch-agnostic (push+pull_request, no filters). Track 3 catalogued 14 interference mechanisms (M1-M14) with historical incidents: 10 are shared-checkout-only and already fixed by per-worktree isolation (unstaged-guard false positives eccbd4c; git add -A sweeps F-011; resets wiping 7 tasks d94f099; hook mid-edit syntax errors in the 2026-08-22 journal; push-my-work branch collision); what REMAINS across worktrees is regenerated whole-tree merge conflicts (payload tree, payload-index.json, capabilities.json - contradicting the AGENTS.md claim that .agents/README.md is the ONLY expected conflict), shared common git config reads, and same-runId concurrency. Track 4 showed feature branches add only ref-level affordances (push/CI/review) over the worktree model, do not isolate working tree or index, and therefore fix none of the tree-level interference while re-introducing it if used in the main checkout. Track 5 costed 7 candidate changes with code sites, tests, gate interactions, and an overlap map to the validated claims. Headline caveats: the interference history is pre-worktree (Aug 2026); live state (4 wt worktrees, one foreign pushed branch, 3 PR merges) shows the mechanism in daily use; no evidence of a remote-collaboration demand driver.",
+  "keyFindings": [
+    {
+      "id": "V-1",
+      "claim": "VALIDATION: parallelism-foundations is valid at HEAD. All 10 KF claims and all 5 N claims are supported against current code; the only intervening commit (b173a4e) touched the research doc and README; no cited code drifted between the 41ae505 pin and HEAD.",
+      "verdict": "supported",
+      "sources": [
+        "git log 41ae505..HEAD",
+        "all cited file:line sites re-located by track 1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "V-2",
+      "claim": "Three wording sharpenings from validation: KF-8 qualifier (checkCompleteness is called in unit tests AND the eval harness, never the run runtime); N4 tail is inference (the two-worktree payload rebase conflict is documented as possible, not test-demonstrated); KF-2 sequence counter is per emitter instance, normally one per process.",
+      "verdict": "supported",
+      "sources": [
+        "track 1 report",
+        "telemetry.test.mjs:105-166",
+        "orchestrate-adapter-review-telemetry.test.mjs:271"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "B-1",
+      "claim": "Short-lived feature branches are NOT worthwhile for goals 1 or 2 in the current setup: the repo already runs short-lived branches per goal (wt/<slug> via wt-session create/merge/nuke); branches alone provide no working-tree or index isolation (git-worktree semantics), so they fix none of the documented tree-level interference mechanisms (unstaged-guard blocks, git add -A sweeps, whole-repo gate reads, index.lock serialization, reset/clean wipes, in-flight hook edits, shared-checkout branch collisions), and committing to branches inside the shared main checkout would re-introduce the exact interferences the worktree protocol removed.",
+      "verdict": "supported",
+      "sources": [
+        "wt-session.mjs:86-253",
+        "AGENTS.md:22-39",
+        ".lefthook.yml:7-43",
+        "track 3 M1-M14 catalogue"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "B-2",
+      "claim": "Branches add only ref-level affordances over worktrees: pushing for remote collaboration, per-branch CI, PR review diffs. Evidence these are real but currently marginal: origin carries three pushed wt/* branches and one foreign branch (pushed manually); ci.yml runs on every branch with no filter; three wt/human-rendering PRs were merged via GitHub. Caveat: wt-session --push pushes origin main only (after ff-only merge), never the wt/<slug> branch, so the PR path required a manual git push origin wt/<slug> that no tooling performs; remote collaboration via PRs would need a small push-branch verb or a documented manual step.",
+      "verdict": "supported",
+      "sources": [
+        "git for-each-ref refs/heads",
+        ".github/workflows/ci.yml:3-5",
+        "git log --merges (PR merges ae78949/38ad485/8826d63)",
+        "wt-session.mjs:179-182"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "B-3",
+      "claim": "Cross-run commit interference is real but its cause is shared-checkout concurrency, and the fix is per-worktree isolation (already deployed), not branches. Documented incidents (Aug 19-22 2026, pre-worktree): unstaged-guard blocks (eccbd4c --no-verify), the commit-sweep hazard remediated by git commit --only rules (review F-011), concurrent git resets wiping 7 tasks (d94f099), in-flight hook syntax errors blocking commits, duplicate push-my-work branch requiring user intervention, and a sibling approach file whose format-marker mismatch blocked all commits in the checkout. Worktrees fix the shared-checkout mechanisms (M1-M8, M10 same-checkout corruption, M13); what remains across worktrees: M9 regenerated-whole-tree conflicts at merge, M11 shared common-config reads, M12 same-runId concurrency, M10 at merge time. The AGENTS.md claim that .agents/README.md is the ONLY expected merge conflict holds only for non-skill-source runs - skill-source branches also conflict on the regenerated payload tree/payload-index.json/capabilities.json (sound inference from whole-tree byte parity, not test-demonstrated - same hedge as V-2/N4).",
+      "verdict": "supported",
+      "sources": [
+        "2026-08-22-characterization-skill-implementation-research.md:643-703",
+        "2026-08-20-t010-t011-csm.md:596-605",
+        "journal-lessons.md:47-57,90",
+        "2026-08-18-universal-agent-skills-bootstrap-csm.md:251",
+        "AGENTS.md:36-39"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "C-1",
+      "claim": "WORTH INCLUDING - Run-level lease/owner identity (C1 = KF-7/N3): closes the only genuinely unsafe state. Store surface ~45 lines + driver 10-20 + schema bump; multiprocess store tests exist; the csm-autoresearch ledger is a fail-fast EEXIST-lease precedent (no auto stale-takeover). Benefit is fail-fast detection of same-runId reuse, not new concurrency. Design caveat: durable-json acquireLock/withLock carry open review findings F-033 (stale-takeover can displace a fresh winner -> dual-holder), F-077 (unbounded recursion), F-102 (error masking) at HEAD - the lease should use the ledger-style fail-fast lock or budget a F-033 fix first, not blanket-reuse acquireLock.",
+      "verdict": "supported",
+      "sources": [
+        "run-orchestrator.mjs:184-224,331-352",
+        "orchestration-store:20,199-294,362-390,770-860,886-943",
+        "csm-autoresearch ledger acquireRunLease",
+        "durable-json:142-206",
+        "tests/orchestration-store/multiprocess.test.mjs"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "C-2",
+      "claim": "WORTH INCLUDING - pack-bootstrap cross-process lock (C3 = N1): ~5-10 lines wrapping packBootstrap in a fail-fast lock (lib/durable-json withLock or EEXIST lock); replaces manual discipline rule A4; closes the module-local packQueue gap; callers unchanged (hosts invoke the CLI, Makefile, tests). Caveats: withLock semantics are fail-fast durable-locked, so concurrent packs become hard errors (a behavior change that enforces A4); the lockfile must live outside the pruned/regenerated payload region and tarball mapping; F-033/F-077 caveat applies if durable-json locks are reused.",
+      "verdict": "supported",
+      "sources": [
+        "pack-bootstrap.mjs:443-456,481-508,617-628",
+        "durable-json:142-206",
+        "journal-lessons.md:57 (rule A4)",
+        "hosts: progress-visibility-host.mjs:437, honest-failures-host.mjs:444"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "C-3",
+      "claim": "WORTH INCLUDING - Telemetry partial-tail recovery (C4a = N2): 1-3 lines in telemetry.mjs list() passing {recoverPartialTail:true,onPartialTail} (or quarantine). The API exists in durable-json; the only production user today is the csm-autoresearch ledger (csm-browse is a beneficiary, not a precedent - its daemon-log prevents partial tails by flush-at-exit and its json-contract reads throw on torn files). Unblocks every post-crash reader of a run telemetry.jsonl. Durable loss records (C4b = N5) are medium effort (~25-45 lines + receipt-schema decision) and worth including as a follow-on: losses currently vanish on exit and the durable receipt drops telemetryLosses.",
+      "verdict": "supported",
+      "sources": [
+        "durable-json:208-260",
+        "telemetry.mjs:116-119,166-181",
+        "csm-autoresearch ledger:119-122",
+        "index.mjs:161-163,1614-1633",
+        "tests/durable-json-safety.test.mjs:91-106"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "D-1",
+      "claim": "DEFER - Progress snapshot compaction (C5 = KF-9): the O(snapshots-so-far) rescan is real but bounded per run (single progress cursor per run, runs are finite, evidence dirs are disposable); the fix costs a schema-version bump + both engines + migration + audit-trail care (~30-60 lines + tests). Defer with condition: adopt when a run exceeds ~10^3-10^4 snapshot writes or when resume cost matters; cheapest interim is pruning old snapshots inside the save transaction.",
+      "verdict": "supported",
+      "sources": [
+        "orchestration-store:770-860,242-248,286",
+        "progress.mjs:330-365,446-462",
+        "tests/orchestrate-progress.test.mjs"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "D-2",
+      "claim": "NOT NOW - Index split (C2), full gate/CI scoping (C6), per-emitter shared sequences (C7), trace dead code: the .agents/README.md split costs a ~207-line reorg + gate changes + boilerplate/payload regen for smaller conflict hunks only (conflict stays, same-commit rule stays); C7's shared-sequence hazard exists only in the same-runId scenario that C1 removes, and detectLoss has no production caller. CI note: three wt branches currently sit on origin and ci.yml is unfiltered, so each push fires the full suite including the Docker adapter-integrations job - a minimal ci.yml branch filter (ignore wt/**) is a cheap optional lever worth including if wt-branch pushes continue; the large per-change gate refactor stays out of scope.",
+      "verdict": "supported",
+      "sources": [
+        "check-suite.mjs:968-980,1481-1509",
+        "gen-readme-matrix.mjs scope",
+        "ci.yml:3-5",
+        "telemetry.mjs:161,204,268-296",
+        "recovery.mjs:375-412"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "NC-3",
+      "claim": "WORTH INCLUDING (doc-only) - Correct AGENTS.md:36-39: the 'only expected merge conflict is the .agents/README.md index line' claim holds only for non-skill-source runs; skill-source worktree branches also conflict on regenerated payload tree files, bootstrap/payload-index.json, csm-orchestrate/capabilities.json and generator-owned README regions during rebase. A one-line hedge plus the existing README.md:551 wording already covers it.",
+      "verdict": "supported",
+      "sources": [
+        "AGENTS.md:36-39",
+        "README.md:551",
+        "check-suite.mjs:746-874,768-813"
+      ],
+      "confidence": "high"
+    }
+  ],
+  "detailSections": "VALIDATION. Track 1 re-located every citation at HEAD: KF-1 evidence-dir confinement and slug-embedded ids (run-orchestrator.mjs:184-224,331-352; progress.mjs:193,264; skill-executor-handlers.mjs:129); KF-2 writeQueue + append-lock + per-emitter sequence with the judge rewrite confirmed accurate (telemetry.mjs:108-114,161,204; durable-json:129; detectLoss 268-296 vs checkCompleteness receipt-id correlation 249-266); KF-3 canonicalize/digest chain and the 8-field tuple = skill + 7 digests with permissions folded via descriptorDigest (schema-runtime:128-142; capabilities.mjs:51-55; skill-executor-registry.mjs:9-36); KF-4 exclusive atomicWrite plan advancement (plan.mjs:456-462) + sourcePlan.digest binding; KF-5/KF-6 all serializing structures verified (check-suite.mjs:1481-1509,772-813,815-874,708-743; progress records validated untracked 925-945,1511-1515); KF-7 TOCTOU + MonotonicTerminalError + no lease; KF-8 dead trace code + ledger shape + test/eval-only loss APIs; KF-9 both saveProgress (782-786) and loadProgress (830-860) re-read + cursor-index bound; KF-10 lockless writes safe only by run-unique filenames; N1-N5 all supported (module-local packQueue 617-628; partial-tail throw 227-236; DuplicateIdempotencyError 76-81/UNIQUE 284; per-worktree corpus gating; in-memory loss drain index.mjs:161-163 dropped from durable 1614-1633). GIT SURFACE. Sole branch creator wt-session.mjs:102; merge = rebase on origin/main + ff-only in main checkout (140-178); nuke deletes the branch (241-251); prune never touches wt/ (262-314). Hooks: pre-commit only; whole-tree unstaged-guard; whole-repo check-suite; oxfmt restages. hooksPath is shared common config; the shim self-locates per worktree but reads .lefthook.yml from the main checkout (common-dir parent). CI: push+pull_request, no filters. Commits: csm-deep-research default-on at SAVED (commit --only), others only on authorization, csm-orchestrate never commits (checkpoint restore only). INTERFERENCE. M1-M14 catalogue: 10 shared-checkout-only (fixed by worktrees), 4 remaining across worktrees: M9 regenerated-file merge conflicts (payload tree/payload-index/capabilities.json; the AGENTS.md 'only .agents/README.md' claim is false for skill-source runs), M10 pack races (same-checkout corruption + merge conflicts), M11 common-config reads, M12 same-runId concurrency. BRANCHES. Branches add ref affordances only; they neither isolate trees nor indexes; adopting them in the main checkout re-exposes M1-M8/M10/M13; skill commit text needs no changes (all commit to current HEAD); gate timing is unchanged (a per-branch commit gate already exists; payload regen must be committed on each branch; rebase replays without hooks so the merge re-gate stays mandatory). CHANGE COSTING. C1 ~45-70 lines + tests (lease route) or ~10 lines (lockfile route); C3 5-10 lines; C4a 1-3 lines, C4b ~25-45 lines + receipt-schema decision; C5 ~30-60 lines + schema bump + both engines + migration; C2 ~207-line reorg + 2 gate functions + boilerplate/payload regen; C6 trivial filter to large refactor; C7 10-25 lines + interface change + test churn.",
+  "recommendation": "Decision-ready (findings only - no plan). 1) Feature branches: AVOID as a mechanism for goals 1 and 2. The wt/<slug> worktree flow already provides per-goal short-lived branches with isolation; adopting branches inside the main checkout would re-introduce shared-tree interference; the ref-level increments (push/CI/PR) are already available via wt-session --push and ci.yml with no branch changes. Validation question if revisited: does a second human collaborator need to review or run parallel sessions against the same repo? If yes, the path is the existing wt branches + PRs, still no new machinery. 2) Include now (cheap, closes validated gaps): C1 run lease or .run-lockfile (prefer the lockfile route first; the lease route if DB owner identity is wanted for audits); C3 pack-bootstrap withLock; C4a partial-tail recovery. 3) Include as follow-on (medium): C4b durable loss records - decide the receipt contract first (extend csm-orchestrate-receipt vs sidecar); do not wire detectLoss until loss records are durable. 4) Defer with condition: C5 compaction (trigger: runs exceeding ~10^3-10^4 progress snapshots or measurable resume cost). 5) Do not include now: C2 index split, C6 gate/CI scoping, C7 shared sequences, trace-code wiring. Cost-of-error: C1/C3/C4a are small, low-risk, and each replaces a documented manual discipline rule with a mechanism - rollback is trivial; none changes contracts. What would change these answers: remote-collaboration demand (branches/PRs up), telemetry becoming a product surface (C4b/C7 up), or long-running resume-heavy runs (C5 up).",
+  "unverifiedClaims": "No claims left unverified. Confidence notes: the N4 tail (payload rebase conflict) rests on inference from byte-parity semantics plus the AGENTS.md/README hedges, not on a planted reproduction; B-2's remote-collaboration increment is evidenced by repo state (pushed branches, 3 PR merges) but demand for it is not measured anywhere; C5 trigger thresholds (~10^3-10^4 snapshots) are judgment calls, not measured.",
+  "process": {
+    "pipeline": "DEEP tier, local mode. 5 parallel read-only researchers dispatched per track.",
+    "researchers": [
+      "T1 validation: re-verified all 15 claims of parallelism-foundations at HEAD; 15/15 supported; 3 wording sharpenings; zero code drift between pin 41ae505 and HEAD b173a4e",
+      "T2 git surface: sole branch creator wt-session (wt/<slug>); skill commits are current-HEAD git commit --only; pushes only wt-session --push origin main and csm-upload Pages clone; CI unfiltered push+pull_request; hooks shared common config with main-checkout .lefthook.yml read",
+      "T3 interference: M1-M14 catalogue with historical incidents (eccbd4c, d94f099, F-011, push-my-work, journal-lessons M6/M7); 10 mechanisms shared-checkout-only (worktree-fixed); remaining: M9 regenerated-whole-tree merge conflicts, M10 merge-side, M11 common-config reads, M12 same-runId",
+      "T4 branches: branches add only ref-level affordances; no tree/index isolation; main-checkout branch commits re-introduce shared-tree interference; per-branch commit gates unchanged; skill commit text is branch-agnostic",
+      "T5 candidates: C1-C7 code sites, effort proxies, tests, gate interactions, overlap map to validated claims"
+    ],
+    "challengeVerdicts": [
+      "V-1 uphold; V-2 uphold",
+      "B-1 uphold (catalogue ranges unreliable -> clause rewritten without numeric ranges)",
+      "B-2 downgrade: wt-session --push pushes origin main only after ff-merge, never wt/<slug>; PR path required manual push (NC-1) -> corrected",
+      "B-3 uphold core: incident labels tightened; M9 marked inference consistent with V-2/N4; M10 remaining-vs-fixed reconciled",
+      "C-1 downgrade: acquireLock not proven - F-033/F-077/F-102 open at HEAD (NC-4); csm-autoresearch precedent is fail-fast EEXIST lease -> corrected",
+      "C-2 uphold with caveats: withLock fail-fast is behavior change; lockfile outside regenerated region",
+      "C-3 downgrade: csm-browse is beneficiary not precedent (NC-6); ledger is the only recoverPartialTail production user -> corrected",
+      "D-1 uphold; D-2 uphold with weakness: three wt branches on origin fire full unfiltered CI (NC-2) -> cheap branch filter noted as optional lever"
+    ],
+    "judgeVerdict": {
+      "scores": {
+        "factualAccuracy": 1,
+        "citationAccuracy": 1,
+        "completeness": 0.85,
+        "clarity": 0.85
+      },
+      "verdict": "PASS",
+      "note": "no dimension below 0.7; tightening items applied"
+    },
+    "remediationLog": [
+      "B-2: downgrade accepted; claim rewritten (PR path needs push-branch verb or manual step); recommendation paragraph fixed",
+      "C-1: downgrade accepted; claim rewritten with F-033/F-077/F-102 qualifier and fail-fast lease guidance",
+      "C-3: downgrade accepted; precedent corrected to csm-autoresearch ledger only",
+      "B-1/B-3: catalogue ranges removed/reconciled; M9 hedged as inference",
+      "NC-3 (AGENTS.md correction) added as key finding",
+      "D-2: CI-filter optional lever added",
+      "NC-1 (--push main-only) -> integrated into B-2; NC-2 (unfiltered CI cost) -> integrated into D-2; NC-4 (F-033/F-077/F-102 open) -> integrated into C-1; NC-5 (hook config main-checkout-bound, shim pre-commit:15-18 + .lefthook.yml oxfmt .oxfmtrc.json read from common-dir parent) -> recorded, see M11 residual in detailSections; NC-6 (csm-browse beneficiary not precedent) -> integrated into C-3; NC-7 (some research runs execute directly on main checkout, e.g. this run, keeping a residual shared-tree surface on main; base state indistinguishable from ff-only merge) -> recorded as observation"
+    ],
+    "containment": "researchers read-only; primary owns all writes; validation target pinned at b173a4e (HEAD)"
+  }
+}
