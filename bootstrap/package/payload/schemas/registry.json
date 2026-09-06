@@ -717,6 +717,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:48bb5b7f22763b4764e40e2135f934d0bf4e52a2194e37fa3331d2091235ba43"
+    },
+    {
+      "id": "csm-orchestrate-request/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/csm-orchestrate-request.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:9f5165bb805af404f883ac262db65c33f0bb7f492883eb90d2f53db31a3cc3d5"
     }
   ]
 }

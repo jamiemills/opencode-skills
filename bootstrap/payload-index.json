@@ -991,6 +991,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/csm-orchestrate-request.schema.json",
+        "sha256": "0cfa25f1bd816535f20c87b14aa56b8062de95f0a65535c7dc0a069c4497d76e",
+        "bytes": 2744,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/cursor.schema.json",
         "sha256": "fc783bf5e8425c7b657d454adfb55686f4b1c0b43be495633e83ee435fb5f566",
         "bytes": 1818,
@@ -2123,8 +2129,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "80fcaa7a783c0329bdfa61561218bd509f9108c0d68a6568f35f01ce77a1871f",
-        "bytes": 26174,
+        "sha256": "ed7055d759f0c482c546a74472ad6afd31690d93f3462adf745868634442aa8d",
+        "bytes": 26519,
         "mode": "0644"
       },
       {

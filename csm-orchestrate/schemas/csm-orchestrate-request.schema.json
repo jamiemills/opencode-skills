@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-request/1",
+  "title": "CSM orchestrate request envelope",
+  "description": "Immutable driver intake request for the csm-orchestrate skill taxonomy. Declares a single verb (kind) over the routeable skills, the canonical run identity consumed for lease/evidence dirs and handoff identity, and bounded optional routing hints (artifactRef, repo, constraints, requestedSignals). The request envelope is never self-routeable to csm-orchestrate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaRevision", "requestId", "runId", "kind", "prompt", "goalSlug"],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-request/1" },
+    "schemaRevision": { "const": 1 },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Non-empty identifier for this request; runId (not requestId) is the canonical identity consumed by lease/evidence dirs and handoff."
+    },
+    "runId": { "$ref": "#/$defs/runId" },
+    "kind": {
+      "enum": [
+        "research",
+        "grill",
+        "plan",
+        "execute-plan",
+        "bdd-tdd",
+        "review",
+        "review-python",
+        "tests",
+        "scan",
+        "ddd",
+        "browse",
+        "upload",
+        "autoresearch"
+      ],
+      "description": "Skill-taxonomy verb the request routes on; csm-orchestrate has no self-route."
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text instruction that activates the routed skill."
+    },
+    "goalSlug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Canonical worktree goal slug (matches wt-session SLUG_RE); feeds worktree/dir naming."
+    },
+    "artifactRef": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Optional reference to a prior artifact (e.g. a saved plan or approach) the routed skill should consume."
+    },
+    "repo": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Optional repository path or identifier the request targets; absent when the request is repo-agnostic."
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Optional bounded constraints narrowing the routed skill's execution."
+    },
+    "requestedSignals": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional explicit-mode routing hints; a skill named here is selected even when its activation mode is explicit-only."
+    }
+  },
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" }
+  }
+}
