@@ -249,3 +249,200 @@ test("pruneWorktrees reaps detached and foreign registrations, spares managed on
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+// --- S6 merge guard + check-only post-merge verification -------------------
+// The guard and the post-merge verification fire on SYNTHETIC guard paths
+// (csm-a/SKILL.md, bootstrap/payload-index.json) exactly as on real skill
+// sources — no bootstrap/package pack structure is needed for the guard, and
+// the hermetic structure gate keeps temp-repo tests from ever running
+// pack-bootstrap/check-suite (which live only in the real checkout).
+
+function commitFile(root, rel, content, message) {
+  const file = path.join(root, rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content);
+  git(root, ["add", rel]);
+  git(root, ["commit", "-m", message]);
+}
+
+// Intercept console.log/console.error so tests can assert on the S6 messages
+// mergeWorktree prints for post-merge verification skips/results.
+function capture(fn) {
+  const lines = [];
+  const origLog = console.log;
+  const origError = console.error;
+  console.log = (...args) => lines.push(args.join(" "));
+  console.error = (...args) => lines.push(args.join(" "));
+  try {
+    const value = fn();
+    return { value, lines };
+  } finally {
+    console.log = origLog;
+    console.error = origError;
+  }
+}
+
+function assertNoPackWrites(root) {
+  assert.equal(
+    git(root, ["status", "--porcelain"]),
+    "",
+    "merge left no untracked/modified debris (no repair writes)",
+  );
+  assert.ok(
+    !fs.existsSync(path.join(root, ".pack-lock")),
+    "no .pack-lock created in the main checkout",
+  );
+  assert.ok(
+    !fs.existsSync(path.join(root, "bootstrap", "package")),
+    "no bootstrap/package payload mirror created",
+  );
+}
+
+test("mergeWorktree guard aborts when both main and wt touch synthetic guard paths; no tree mutation", () => {
+  const root = makeRepo();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-guard-base-"));
+  try {
+    const { dir } = createWorktree(root, "both-sides", base);
+    // main advances past the fork point touching a guard path...
+    commitFile(root, "csm-a/SKILL.md", "main-side\n", "main touches csm-a/SKILL.md");
+    // ...and the wt branch independently touches the same guard path from the
+    // common base (seed.txt commit). merge-base(main, wt/both-sides) predates
+    // both, so BOTH sides are non-clean on the guard path set.
+    commitFile(dir, "csm-a/SKILL.md", "wt-side\n", "wt touches csm-a/SKILL.md");
+    assert.notEqual(
+      git(root, ["rev-parse", "refs/heads/main"]),
+      git(root, ["rev-parse", "refs/heads/wt/both-sides"]),
+      "main and wt diverged on the guard path",
+    );
+    // Record the pre-call tips: the abort must leave BOTH untouched.
+    const mainBefore = git(root, ["rev-parse", "refs/heads/main"]);
+    const wtBefore = git(root, ["rev-parse", `refs/heads/wt/both-sides`]);
+
+    let err = null;
+    try {
+      mergeWorktree(root, "both-sides");
+    } catch (e) {
+      err = e;
+    }
+    assert.ok(err, "guard must abort the both-sides-touched merge");
+    assert.match(err.message, /merge guard \(S6\)/);
+    assert.match(err.message, /refusing to merge \(serialize-by-abort\)/);
+    assert.match(err.message, /regenerate pack \+ capabilities \+ README matrix/);
+    assert.match(err.message, /git rebase main/);
+    // Zero mutation: no rebase (wt tip unchanged) and no merge (main unchanged).
+    assert.equal(git(root, ["rev-parse", "refs/heads/main"]), mainBefore, "main HEAD unchanged");
+    assert.equal(
+      git(root, ["rev-parse", `refs/heads/wt/both-sides`]),
+      wtBefore,
+      "wt branch not rebased by the aborted merge",
+    );
+    assert.ok(fs.existsSync(path.join(dir, "csm-a", "SKILL.md")), "wt working tree intact");
+    assertNoPackWrites(root);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("mergeWorktree lets one-side-touched guard paths merge (wt-only and main-only)", () => {
+  const root = makeRepo();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-guard-base-"));
+  try {
+    // wt-only touches a guard path -> passes, and the file lands in main.
+    const a = createWorktree(root, "wt-guard", base);
+    commitFile(a.dir, "csm-a/SKILL.md", "wt-only\n", "wt touches csm-a");
+    const { branch: brA } = mergeWorktree(root, "wt-guard");
+    assert.equal(brA, "wt/wt-guard");
+    assert.ok(fs.existsSync(path.join(root, "csm-a", "SKILL.md")), "merged into main");
+
+    // main-only touches a guard path; wt touches only a non-guard path ->
+    // wt side is clean on the guard set, so no guard fire and the merge
+    // rebases wt onto the advanced main and fast-forwards.
+    const b = createWorktree(root, "main-guard", base);
+    commitFile(root, "csm-b/SKILL.md", "main-side\n", "main touches csm-b");
+    commitFile(b.dir, "feature.txt", "wt feature\n", "wt touches only feature.txt");
+    const { branch: brB } = mergeWorktree(root, "main-guard");
+    assert.equal(brB, "wt/main-guard");
+    assert.ok(fs.existsSync(path.join(root, "csm-b", "SKILL.md")), "main edit present");
+    assert.ok(fs.existsSync(path.join(root, "feature.txt")), "wt feature merged");
+    assertNoPackWrites(root);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("post-merge verification is gated on skill-source merges and never writes in a synthetic repo", () => {
+  const root = makeRepo();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-guard-base-"));
+  try {
+    // Non-skill-source merge: no verification attempt at all.
+    const plain = createWorktree(root, "plain", base);
+    commitFile(plain.dir, "docs/notes.md", "docs only\n", "docs-only change");
+    const plainOut = capture(() => mergeWorktree(root, "plain"));
+    assert.equal(plainOut.value.branch, "wt/plain");
+    assert.ok(
+      !plainOut.lines.some((l) => l.includes("post-merge verification")),
+      "no verification step for a non-skill-source merge",
+    );
+    assertNoPackWrites(root);
+
+    // Skill-source merge (wt-only touches csm-a/SKILL.md) in a repo WITHOUT the
+    // real bootstrap/package structure: the check-only step is reached (guard
+    // path changed) but skipped on the hermetic structure gate — no pack runs.
+    const skill = createWorktree(root, "skill", base);
+    commitFile(skill.dir, "csm-a/SKILL.md", "wt skill\n", "wt touches csm-a");
+    const skillOut = capture(() => mergeWorktree(root, "skill"));
+    assert.equal(skillOut.value.branch, "wt/skill");
+    assert.ok(
+      skillOut.lines.some((l) => l.includes("post-merge verification skipped")),
+      "verification step ran and reported its skip",
+    );
+    assert.ok(
+      skillOut.lines.some((l) => l.includes("not a skills checkout")),
+      "skip reason is the missing real structure",
+    );
+    assert.ok(
+      !skillOut.lines.some((l) => l.includes("payload parity OK") || l.includes("check-suite OK")),
+      "no actual pack/check-suite run against synthetic fixtures",
+    );
+    assertNoPackWrites(root);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("post-merge verification skips loudly on a dirty main checkout and leaves it untouched", () => {
+  const root = makeRepo();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "wt-guard-base-"));
+  try {
+    const { dir } = createWorktree(root, "dirty-main", base);
+    commitFile(dir, "csm-a/SKILL.md", "wt skill\n", "wt touches csm-a");
+    // Untracked work in the main checkout (R7): the ff-only merge still
+    // succeeds, but the post-merge verification must refuse to run on a dirty
+    // tree and must not touch it.
+    fs.writeFileSync(path.join(root, "in-progress.txt"), "uncommitted\n");
+
+    const out = capture(() => mergeWorktree(root, "dirty-main"));
+    assert.equal(out.value.branch, "wt/dirty-main");
+    assert.ok(fs.existsSync(path.join(root, "csm-a", "SKILL.md")), "merge completed");
+    assert.ok(
+      out.lines.some((l) => l.includes("post-merge verification skipped") && l.includes("dirty")),
+      "dirty-tree skip message printed",
+    );
+    assert.ok(
+      !out.lines.some((l) => l.includes("payload parity OK") || l.includes("check-suite OK")),
+      "no verification ran on the dirty tree",
+    );
+    assert.equal(git(root, ["status", "--porcelain"]), "?? in-progress.txt");
+    assert.ok(fs.existsSync(path.join(root, "in-progress.txt")), "dirty file untouched");
+    assert.ok(
+      !fs.existsSync(path.join(root, ".pack-lock")),
+      "no .pack-lock created in the main checkout",
+    );
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -130,6 +130,103 @@ export function listWorktrees(root) {
   return git(root, ["worktree", "list"]);
 }
 
+// S6 merge-conflict guard (serialize-by-abort). A rebase + ff-only merge can
+// silently produce a tree the gate can never bless when BOTH the local main
+// branch and the wt/<slug> branch changed skill-source or regenerated payload
+// paths since their merge-base: those trees are derived (bootstrap/package +
+// payload-index.json mirror csm-* sources; csm-orchestrate/capabilities.json
+// and the README matrix region are generated), so git-level auto-resolution
+// would mix two parallel edits of the same generated content. Detect that up
+// front — before any rebase mutation — and abort with a deterministic message.
+const S6_GUARD_PATHS = ["csm-*", "bootstrap", "csm-orchestrate/capabilities.json", "README.md"];
+const S6_GUARD_PATHS_HELP =
+  "skill sources (csm-*/), the bootstrap payload mirror (bootstrap/ incl. payload-index.json), csm-orchestrate/capabilities.json, and the README matrix region";
+
+function gitDiffDirty(root, a, b, paths) {
+  try {
+    git(root, ["diff", "--quiet", a, b, "--", ...paths]);
+    return false;
+  } catch (err) {
+    // `git diff --quiet` exits 1 exactly when the trees differ on <paths>.
+    if (err.status === 1) return true;
+    throw err;
+  }
+}
+
+// True when `root` is a real skills checkout (the bootstrap/package payload
+// mirror, csm-*/SKILL.md sources, and scripts/check-suite.mjs are present).
+// The S6 post-merge verification is gated on this so hermetic temp-repo tests
+// never spawn pack-bootstrap/check-suite against synthetic fixtures.
+function hasSkillSourceStructure(root) {
+  if (!fs.existsSync(path.join(root, "bootstrap", "package"))) return false;
+  if (!fs.existsSync(path.join(root, "scripts", "check-suite.mjs"))) return false;
+  let entries = [];
+  try {
+    entries = fs.readdirSync(root);
+  } catch {
+    return false;
+  }
+  return entries.some(
+    (name) => name.startsWith("csm-") && fs.existsSync(path.join(root, name, "SKILL.md")),
+  );
+}
+
+// S6 post-merge verification in the main checkout — CHECK-ONLY (R7: never a
+// repairing pack write, which would dirty the main tree mid-merge). Runs only
+// after an ff-only merge changed skill-source/generated guard paths. Skipped
+// loudly when the main tree is dirty (direct-on-main work must not verify a
+// moving tree) or the root is not a real skills checkout; a failed check is
+// reported loudly and leaves the tree untouched. Returns { verified } for
+// observability/callers; skips report verified:false with a reason.
+function verifyMergedMain(root) {
+  const status = gitOk(root, ["status", "--porcelain"]) ? git(root, ["status", "--porcelain"]) : "";
+  if (status !== "") {
+    console.error(
+      "post-merge verification skipped: main checkout is dirty (R7) — commit or stash before merging the next worktree; tree left untouched",
+    );
+    return { verified: false, reason: "dirty" };
+  }
+  if (!hasSkillSourceStructure(root)) {
+    console.error(
+      `post-merge verification skipped: ${root} is not a skills checkout (no bootstrap/package + csm-*/SKILL.md + scripts/check-suite.mjs); no pack/check-suite run`,
+    );
+    return { verified: false, reason: "no-structure" };
+  }
+  // verifyPayloadParity: read-only comparison of the committed bootstrap/
+  // payload mirror against what the csm-* sources would generate. Imported
+  // from the target root's own pack-bootstrap.mjs — its CLI main never runs.
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { verifyPayloadParity } from "./scripts/pack-bootstrap.mjs";\nawait verifyPayloadParity();`,
+      ],
+      { cwd: root, stdio: ["ignore", "inherit", "inherit"] },
+    );
+    console.log("post-merge verification: payload parity OK");
+  } catch (err) {
+    console.error(
+      `post-merge verification FAILED (payload parity): ${String(err.message).split("\n")[0]} — check-only, no repair write performed`,
+    );
+    return { verified: false, reason: "parity" };
+  }
+  try {
+    execFileSync(process.execPath, ["scripts/check-suite.mjs"], {
+      cwd: root,
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+    console.log("post-merge verification: check-suite OK");
+  } catch (err) {
+    console.error(
+      `post-merge verification FAILED (check-suite): ${String(err.message).split("\n")[0]} — check-only, no repair write performed`,
+    );
+    return { verified: false, reason: "check-suite" };
+  }
+  return { verified: true };
+}
+
 export function mergeWorktree(root, slug, { push = false } = {}) {
   const branch = `wt/${slug}`;
   if (!gitOk(root, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])) {
@@ -162,6 +259,19 @@ export function mergeWorktree(root, slug, { push = false } = {}) {
     }
   }
   const base = hasRemote ? "origin/main" : "main";
+  // S6 guard — AFTER base resolution and BEFORE the rebase (which would mutate
+  // the wt history): when both main and wt/<slug> changed skill-source or
+  // generated paths since their merge-base, the rebase + ff-only merge would
+  // fight over derived trees. Abort deterministically with zero mutation.
+  // Using merge-base(base, branch) (the same base the rebase uses) prevents
+  // mis-fires when local main is simply behind origin/main.
+  const mb = git(root, ["merge-base", base, branch]);
+  const mainTouchedGuard = gitDiffDirty(root, mb, "main", S6_GUARD_PATHS);
+  const wtTouchedGuard = gitDiffDirty(root, mb, branch, S6_GUARD_PATHS);
+  if (mainTouchedGuard && wtTouchedGuard)
+    throw new Error(
+      `merge guard (S6): both main and ${branch} changed ${S6_GUARD_PATHS_HELP} since ${mb} — refusing to merge (serialize-by-abort). Resolve in the worktree, then retry: git rebase ${base}, regenerate pack + capabilities + README matrix (node scripts/pack-bootstrap.mjs), commit`,
+    );
   try {
     git(wt, ["rebase", base]);
   } catch (err) {
@@ -175,7 +285,16 @@ export function mergeWorktree(root, slug, { push = false } = {}) {
     }
     throw err;
   }
+  const preMergeMain = git(root, ["rev-parse", "refs/heads/main"]);
   git(root, ["merge", "--ff-only", branch]);
+  const postMergeMain = git(root, ["rev-parse", "refs/heads/main"]);
+  // S6 post-merge step: skill-source/generated merges get a CHECK-ONLY
+  // verification in the main checkout (never a repairing pack write — R7).
+  if (
+    postMergeMain !== preMergeMain &&
+    gitDiffDirty(root, preMergeMain, postMergeMain, S6_GUARD_PATHS)
+  )
+    verifyMergedMain(root);
   if (push) {
     if (!hasRemote) throw new Error("no origin remote — cannot push");
     git(root, ["push", "origin", "main"]);
