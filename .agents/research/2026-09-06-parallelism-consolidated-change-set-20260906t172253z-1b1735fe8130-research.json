@@ -1,0 +1,346 @@
+{
+  "format": "csm-deep-research/1",
+  "schema": "csm-deep-research/1",
+  "runId": "20260906t172253z-1b1735fe8130",
+  "slug": "parallelism-consolidated-change-set",
+  "title": "Consolidated parallelism findings and recommended change set for conflict-free maximum parallelism",
+  "state": "SAVED",
+  "gitRoot": "/home/jamiemills/.config/opencode/skills",
+  "sourceMode": "local",
+  "tier": "DEEP",
+  "tempDir": "/tmp/opencode/csm-deep-research-cs",
+  "protectedStateBaseline": "git status --short: clean tree at 4b34c06 (feature-branch-worthiness finding SAVED)",
+  "question": "Consolidate every finding from the parallelism-foundations run (20260906t162030z-b057b2e795cd, SAVED b173a4e: KF-1..KF-10, N1..N5) and the feature-branch-worthiness run (20260906t165335z-36901387fcf6, SAVED 4b34c06: V-1..V-2, B-1..B-3, C-1..C-3, D-1..D-2, NC-3) into one authoritative finding, and for every gap recommend a concrete solution (decision-ready, with conditions and touchpoints) so the result can be turned into a plan. Target: maximum parallelization of (1) work a single user initiates and (2) parallel work in the same repo, WITHOUT conflicts arising. Output: the consolidated change set with an ordering/dependency analysis, plus an operational definition of the conflict-free target state and what remains inherently serial. No plans, no implementations - findings and recommendations only.",
+  "control": [
+    {
+      "at": "2026-09-06T17:22:53Z",
+      "entry": "INTAKE complete :: cycle 1 :: run id 20260906t172253z-1b1735fe8130; artifact .agents/research/2026-09-06-parallelism-consolidated-change-set-20260906t172253z-1b1735fe8130-research.json; temp dir /tmp/opencode/csm-deep-research-cs; baseline clean at 4b34c06"
+    },
+    {
+      "at": "2026-09-06T17:23:00Z",
+      "entry": "TRIAGE complete :: cycle 1 :: DEEP tier, local mode. Tracks: (1) solution validation A - concurrency-safety changes (run lease, pack lock, telemetry durability, sequences), (2) solution validation B - serializing-structure changes (index mechanism, payload/capability regen conflicts, hook config residual, AGENTS.md), (3) ordering and integration analysis (dependency graph, gate/CI ripples, landing sequence), (4) conflict-free target state definition and residual-serial inventory"
+    },
+    {
+      "at": "2026-09-06T17:34:44.059Z",
+      "entry": "RESEARCH complete :: cycle 1 :: 4 tracks returned (S1-S4 concurrency validation, S5-S8 serializing-structure validation, S3 ordering+regens, S4 target-state with empirical merge tests)"
+    },
+    {
+      "at": "2026-09-06T17:34:44.059Z",
+      "entry": "SYNTHESIZE complete :: cycle 1 :: consolidated doc drafted (11 key findings CS-1..TARGET, 18 references); dispatching independent challenger"
+    },
+    {
+      "at": "2026-09-06T17:46:49.897Z",
+      "entry": "CHALLENGE complete :: cycle 1 :: uphold: CS-1/S1/S2/S3a-core/S6-core/S7/S8/S9/S10/TARGET-core; downgrades: S3b (NC-B poison-pill writeQueue + NC-C detectLoss contract), S5-index (scope medium: multi-dir mappings + 4 host writers + SAVED flow to migrate); NC-A ordering (S1 must precede S3a repair) applied; NC-D..NC-G integrated"
+    },
+    {
+      "at": "2026-09-06T17:46:49.898Z",
+      "entry": "REMEDIATE complete :: cycle 1 :: all verdicts resolved (see process.remediationLog); batches re-ordered; recommendation updated"
+    },
+    {
+      "at": "2026-09-06T17:59:34.238Z",
+      "entry": "JUDGE complete :: cycle 1 :: PASS - factual 0.80, citation 0.90, completeness 0.90, clarity 0.80; tightening applied (detailSections batch mismatch fixed, NC-D individually recorded, R16 URL corrected, batch 1d vacated by S1 move noted, acceptance-C citation fixed, S5-index sources fixed)"
+    },
+    {
+      "at": "2026-09-06T17:59:44.895Z",
+      "entry": "VERIFY complete :: cycle 1 :: protected-state re-run clean (only research JSON untracked); redaction check passed; all 12 key findings carry supported verdicts via track-1 relocation + challenger + judge; 18 references with file:// URLs + retrievedAt; sections complete"
+    },
+    {
+      "at": "2026-09-06T17:59:44.896Z",
+      "entry": "SAVED :: finding committed with .agents/README.md index line"
+    }
+  ],
+  "references": [
+    {
+      "id": "R1",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/research/2026-09-06-parallelism-foundations-20260906t162030z-b057b2e795cd-research.json",
+      "retrieved": "2026-09-06",
+      "note": "source finding 1: KF-1..KF-10, N1..N5"
+    },
+    {
+      "id": "R2",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/research/2026-09-06-feature-branch-worthiness-20260906t165335z-36901387fcf6-research.json",
+      "retrieved": "2026-09-06",
+      "note": "source finding 2: V/B/C/D claims, M1-M14 catalogue, C1-C7 costing"
+    },
+    {
+      "id": "R3",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/run-orchestrator.mjs",
+      "retrieved": "2026-09-06",
+      "note": "evidence dir + TOCTOU 184-224; receipt/progress writes 331-352"
+    },
+    {
+      "id": "R4",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-autoresearch/lib/ledger/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "fail-fast EEXIST lease precedent 261-375; recoverPartialTail use 117-135"
+    },
+    {
+      "id": "R5",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/pack-bootstrap.mjs",
+      "retrieved": "2026-09-06",
+      "note": "index write 443-456; syncPayload 481-508; module-local packQueue 617-628"
+    },
+    {
+      "id": "R6",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/telemetry.mjs",
+      "retrieved": "2026-09-06",
+      "note": "transport 104-121; recordLoss 166-181; detectLoss 268-296"
+    },
+    {
+      "id": "R7",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "loss drain 161-166; durable receipt 1614-1638"
+    },
+    {
+      "id": "R8",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/wt-session.mjs",
+      "retrieved": "2026-09-06",
+      "note": "create 86-127; merge guard+rebase+ff 140-178"
+    },
+    {
+      "id": "R9",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/check-suite.mjs",
+      "retrieved": "2026-09-06",
+      "note": "index parser 968-980; artifact-index rule 1481-1509; payload drift 746-874; capability freshness 768-813"
+    },
+    {
+      "id": "R10",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/install-hooks.mjs",
+      "retrieved": "2026-09-06",
+      "note": "hooksPath 39; shim normalization 37-75"
+    },
+    {
+      "id": "R11",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/hooks/pre-commit",
+      "retrieved": "2026-09-06",
+      "note": "LEFTHOOK_CONFIG common-dir override 11-20"
+    },
+    {
+      "id": "R12",
+      "url": "file:///home/jamiemills/.config/opencode/skills/AGENTS.md",
+      "retrieved": "2026-09-06",
+      "note": "worktree protocol 22-39 (only-expected-conflict claim 38 to correct)"
+    },
+    {
+      "id": "R13",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/README.md",
+      "retrieved": "2026-09-06",
+      "note": "section headers; EOF appends (research entries at 253-254 under ## evidence/)"
+    },
+    {
+      "id": "R14",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/capabilities.mjs",
+      "retrieved": "2026-09-06",
+      "note": "contentDigest 51-94; no committed generator exists"
+    },
+    {
+      "id": "R15",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.github/workflows/ci.yml",
+      "retrieved": "2026-09-06",
+      "note": "unfiltered push/pull_request 3-5"
+    },
+    {
+      "id": "R16",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/reviews/2026-08-29-opencode-skills-20260829t063809z-0916749aa6da-review.json",
+      "retrieved": "2026-09-06",
+      "note": "F-033/F-077/F-102 upheld open findings on durable-json locks"
+    },
+    {
+      "id": "R17",
+      "url": "file:///home/jamiemills/.config/opencode/skills/lib/durable-json/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "acquireLock 142-206; readJsonLines 208-260"
+    },
+    {
+      "id": "R18",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/docs/journal-lessons.md",
+      "retrieved": "2026-09-06",
+      "note": "discipline rule A4 :57"
+    }
+  ],
+  "tl": "Consolidated verdict from both DEEP findings plus 4 new solution-validation tracks: the repo is already conflict-free BY CONSTRUCTION for per-run state, content-addressing, run-unique filenames, and per-worktree isolation. To reach maximum parallelism without conflicts, land nine changes in three batches: B1 mechanism fixes (S8 CI wt-branch filter, S7 per-worktree hook-config resolution, S2 fail-fast pack lock, S3a telemetry partial-tail recovery); B2 safety+merge changes (S1 fail-fast run lease, S6 wt-session merge conflict guard + post-merge verification, S3b durable telemetry loss markers); B3 discipline fixes (S9 AGENTS.md hedge, S5 index insertion under the artifact's own section - empirically makes mixed-class parallel artifact commits rebase cleanly). Deferred with triggers: progress compaction, trace dead code, detectLoss wiring, gate path-scoping, capabilities granularity, index split. Remaining inherently serial: ordered ff-only main merges, pushes, per-merge gate re-runs, CI per push - nothing removes those and nothing needs to.",
+  "executiveSummary": "Pipeline: two committed findings (parallelism-foundations b173a4e; feature-branch-worthiness 4b34c06) consolidated and extended by 4 read-only tracks: (T1) concurrency-safety solution validation, (T2) serializing-structure solution validation, (T3) ordering/integration analysis, (T4) conflict-free target-state definition with empirical merge tests. Key new evidence: (a) T4 empirically proved in throwaway repos that the .agents/README.md index conflict is an artifact of append-at-EOF placement - two branches inserting lines under DIFFERENT section headers rebase cleanly, so mixed-class parallel artifact commits (research + plan) can be made conflict-free by section-anchored insertion plus a gate check (which also fixes a real mislabel: the builds/ section indexes .agents/csm-build-state/); (b) T1 showed the resume-after-crash path restarts telemetry sequences at 1, so the KF-2 duplicate-sequence hazard survives the run lease in the over-time case - C7 stays deferred but the caveat must be documented for future detectLoss wiring; (c) T3 confirmed run-orchestrator, pack-bootstrap, lib/orchestration-store, durable-json, wt-session are NOT payload-mapped while csm-orchestrate libs/schemas and registry.json ARE - S1/S2/S6/S7/S8 carry zero pack ripple, S3a/S3b require a full re-pack in the same commit; (d) T2 discovered live worktree shims already lack the main-checkout LEFTHOOK_CONFIG override (they resolve per-worktree by lefthook default), so S7 codifies existing behavior in install-hooks.mjs rather than changing semantics. Feature branches remain NOT worthwhile (B-1..B-3 stand). Headline caveats: capabilities.json has no committed generator - a scripts/gen-capabilities.mjs prerequisite must be budgeted before any auto-repack automation; F-033/F-077/F-102 on durable-json acquireLock are open at HEAD, so all new locks are fail-fast EEXIST, ledger-style, never auto-takeover.",
+  "keyFindings": [
+    {
+      "id": "CS-1",
+      "claim": "CONSOLIDATION: the parallelism-foundations finding (KF-1..KF-10, N1..N5) and the feature-branch-worthiness finding (V/B/C/D claims) are jointly valid at HEAD 4b34c06 and are the evidence base for this change set. No-change verdicts stand for: per-run state isolation (KF-1), content-addressed encoding (KF-3), run-unique filenames making lockless writes safe (KF-4/KF-10), per-run evidence gates (KF-5 eval side), per-worktree isolation (M1-M8/M10/M13 fixed), and feature branches (B-1..B-3 - branches add no isolation).",
+      "verdict": "supported",
+      "sources": [
+        "parallelism-foundations research.json",
+        "feature-branch-worthiness research.json",
+        "track 4 no-change list"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S1",
+      "claim": "INCLUDE (batch 1e - moved EARLY so S3a's write-side repair can run under the lease): fail-fast EEXIST lease file at <evidenceDir>/.run-lock (ledger-style per csm-autoresearch precedent; NOT durable-json acquireLock which carries open F-033/F-077/F-102 auto-takeover races), acquired after mkdir before host load (run-orchestrator.mjs:185-190), released in finally. Evidence dir is already gitignored (.gitignore:4). --resume = guarded takeover of a DEAD owner only (pid liveness); hard-fail on live owner; existing cursor.db without --resume keeps the current honest-failure message (F-004 driver-contract tests use unique runIds and survive). realMode only - fixtureMode uses mkdtemp (run-orchestrator.mjs:77-79). No payload ripple. Tests: tests/orchestrate-driver-lease.test.mjs (Makefile glob tests/orchestrate-*.test.mjs). Known residual: pid-reuse false liveness is fail-closed with operator deletion documented.",
+      "verdict": "supported",
+      "sources": [
+        "run-orchestrator.mjs:184-224,331-352",
+        "csm-autoresearch/lib/ledger/index.mjs:261-375",
+        ".agents/reviews/2026-08-29-* (F-033/F-077/F-102)",
+        "track 1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S2",
+      "claim": "INCLUDE (batch 1c) - S2 pack lock: fail-fast EEXIST lock at <outputRoot>/.pack-lock (sibling of package/, outside the pruned payload region and the /tmp tarball staging; gitignored), wrapping packBootstrap (pack-bootstrap.mjs:617-628); concurrent pack becomes a hard error naming the holder pid (mechanizes discipline rule A4); release in finally so make test-deterministic double-pack stays green. Prerequisite for S6. No payload ripple. Test: two CLI processes packing the same outputRoot.",
+      "verdict": "supported",
+      "sources": [
+        "pack-bootstrap.mjs:443-456,481-508,554-603,617-628",
+        "journal-lessons.md:57",
+        "track 1/3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S3a",
+      "claim": "INCLUDE (batch 1f, AFTER S1 - the write-side repair must run under the lease): read-side - createJsonlTransport.list() passes {recoverPartialTail:true, onPartialTail} (telemetry.mjs:116-119); write-side - a repair step under the S1 lease before the emitter is created quarantines the torn tail and atomically rewrites clean (ledger-style; a plain read-side flag does NOT fix O_APPEND write-after-crash concatenation onto torn bytes). Payload regen REQUIRED in same commit (telemetry.mjs is pack-mapped). Ledger is the only production recoverPartialTail user; csm-browse is a beneficiary, not precedent.",
+      "verdict": "supported",
+      "sources": [
+        "telemetry.mjs:104-121",
+        "durable-json:208-260",
+        "csm-autoresearch/lib/ledger/index.mjs:117-135",
+        "track 1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S3b",
+      "claim": "INCLUDE (batch 2c, after S3a) - durable telemetry loss records (N5), TWO prerequisites folded in: (1) NC-B - createJsonlTransport's writeQueue is a poison-pill queue (telemetry.mjs:110-115): after one append rejection every later write() rejects without attempting, silently dropping all telemetry for the process lifetime - the queue must be repaired on rejection (or markers written via direct appendDurableJsonLine) BEFORE Option A is implementable; this is also a standalone latent bug. (2) Option A markers must be full telemetry events (schema requires eventType/payload/effectiveConfigDigest - telemetry-event.schema.json) carrying the FAILED event's own sequence and full field set, written without recursion into recordLoss; in-memory lossRecords stay as fallback. NC-C - detectLoss contract changes: slot-filling markers satisfy membership+count so detectLoss returns lost:false; loss discovery must move to scanning telemetry_loss markers and the drop test (telemetry.test.mjs:137-160) must be re-specified. Durable receipt/3 extension stays an optional follow-on (not a substitute); do NOT wire detectLoss into the runtime until markers exist; flush-before-receipt reorder (index.mjs:1634-1638) needed at that point. Full payload+registry regen for the schema route.",
+      "verdict": "supported",
+      "sources": [
+        "telemetry.mjs:166-181,222-228",
+        "index.mjs:161-166,1614-1638",
+        "schemas/registry.json:129-140",
+        "track 1/3"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "S6",
+      "claim": "INCLUDE (batch 2b, after S2) - S6 merge-conflict mitigation (M9/N4), which SERIALIZES-BY-ABORT rather than auto-merging: (1) fail-fast guard in mergeWorktree BEFORE rebase (wt-session.mjs:164-177): if both main and the wt branch touched skill-source/generated paths (csm-*/ sources, bootstrap/, csm-orchestrate/capabilities.json, README matrix region) since merge-base, abort with a deterministic message (rebase in wt, regenerate, commit, retry). (2) post-ff-merge verification at :178 must be CHECK-ONLY (verifyPayloadParity/check-suite) - never a repairing pack-bootstrap write, which would dirty the main tree mid-merge (NC-E) - and must skip when the main tree is dirty (direct-on-main research runs do clean-tree VERIFY). Both steps conditional so hermetic wt-session tests stay green. Auto-repack-after-rebase automation still requires the missing committed capabilities regenerator (scripts/gen-capabilities.mjs) - prerequisite, budget separately. Capabilities granularity deferred.",
+      "verdict": "supported",
+      "sources": [
+        "wt-session.mjs:133-184",
+        "check-suite.mjs:746-874,768-813",
+        "capabilities.mjs:23-94",
+        "AGENTS.md:36-39",
+        "track 2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S5-index",
+      "claim": "INCLUDE (batch 3, MEDIUM scope - not small): keep the single .agents/README.md (no split; D-2 stands). Mechanism verified empirically: inserts under DIFFERENT section headers rebase cleanly (sections are hundreds of lines apart), EOF appends always conflict. Two parts: (a) writer migration to section-anchored insertion - close-plan.mjs is ALREADY section-anchored (updatedReadme 197-218); the remaining EOF writers to migrate are the four *-host.mjs scripts (honest-failures-host.mjs:360-378, progress-visibility-host.mjs, quality-delivery-host.mjs, renderer-wiring-host.mjs - all scan to the last bullet unbounded by section), the deep-research SAVED index-line flow, and skill-instruction writers; (b) gate: check-suite verifies basename under the MATCHING section, which requires defining directory->section mappings for multi-dir sections (## progress/ cross-lists plans/ JSONs + docs/ + evidence/ files; ## evidence/ holds the research EOF entries; ## builds/ indexes .agents/builds/ AND .agents/csm-build-state/) and re-homing ~20+ lines. Payoff: mixed-class parallel artifact sessions (research + plan) become merge-conflict-free; same-class pairs still conflict (keep-both, rare under one-goal-per-worktree).",
+      "verdict": "supported",
+      "sources": [
+        "track 4 empirical rebase tests",
+        ".agents/README.md sections + lines 243-254 (EOF appends under ## evidence/)",
+        "check-suite.mjs:968-980,1481-1509",
+        "close-plan.mjs:197-218 (updatedReadme section-anchored)"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "S7",
+      "claim": "INCLUDE (batch 1b) - per-worktree hook-config resolution (M11/NC-5): implement --show-toplevel resolution of .lefthook.yml (and .oxfmtrc.json) in install-hooks.mjs's post-install normalization (install-hooks.mjs:37-75) so it survives lefthook install --force regen; delete the common-dir LEFTHOOK_CONFIG override (scripts/hooks/pre-commit:11-20, hand-patch d3d090a); change .lefthook.yml:20-22 oxfmt config_root and Makefile:2 to --show-toplevel. EMPIRICALLY VERIFIED: live wt shims (csm-wt/*) contain zero LEFTHOOK_CONFIG references - wt-session setup regenerates them - so this codifies actual per-worktree behavior and is a no-op on main. NC-F: make the tracked shim byte-equal to install-hooks output and add a run-install-twice-no-diff test, or the first fresh-worktree commit trips unstaged-guard on scripts/hooks/pre-commit. No payload ripple (scripts/hooks, install-hooks.mjs, .lefthook.yml, Makefile are not pack-mapped); no test asserts the override lines.",
+      "verdict": "supported",
+      "sources": [
+        "scripts/hooks/pre-commit:11-20",
+        "install-hooks.mjs:37-75",
+        ".lefthook.yml:17-40",
+        "Makefile:2",
+        "track 2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S8",
+      "claim": "INCLUDE (batch 1a, cheapest) - CI branch filter: add push: branches-ignore: ['wt/**'] to ci.yml:3-5 in BLOCK form (inline form would break the content-regex assertions), keep pull_request unfiltered. Kills full-suite + Docker adapter-integrations cost for wt pushes used only for remote/PR flow. Caveat NC-G: workflow-trigger-policy/release-policy/toolchain-policy tests are NOT wired into any Makefile/CI target at HEAD, so the no-break guarantee is unit-level only - optionally wire them before relying on them as guardrails.",
+      "verdict": "supported",
+      "sources": [
+        "ci.yml:3-5",
+        "tests/workflow-trigger-policy.test.mjs:10-17",
+        "track 2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S9",
+      "claim": "INCLUDE (batch 3, doc-only) - S9 AGENTS.md correction (NC-3): rewrite AGENTS.md:36-39 'only expected merge conflict' claim to carry the skill-source hedge (payload tree/payload-index/capabilities.json also conflict), aligning with README.md:551 which already hedges. Pairs with S6 messaging.",
+      "verdict": "supported",
+      "sources": [
+        "AGENTS.md:36-39",
+        "README.md:551",
+        "track 2/4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "S10",
+      "claim": "DEFER LEDGER (each with a trigger): C5 progress compaction (trigger: runs exceeding ~10^3-10^4 progress snapshots or measurable resume cost); KF-8 trace dead code; detectLoss runtime wiring (only after S3b markers + flush-before-receipt reorder); C7 shared sequences (concurrent case eliminated by S1; over-time resume-sequence restart documented as a caveat, not a change); full check-suite path-scoping (large refactor, not cheap - validated); capabilities granularity (only if M9 conflict frequency rises); standalone index split (only if same-class parallel artifact sessions become routine).",
+      "verdict": "supported",
+      "sources": [
+        "feature-branch-worthiness D-1/D-2",
+        "track 1/3 risk rankings"
+      ],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "TARGET",
+      "claim": "Conflict-free target state (refined): every parallel session in its own wt/<slug> worktree (already true) + S1 (no two live flows share a runId) + S2 (packing exclusive) + S6 (skill-source merges are serialized-by-abort with deterministic messages, never silent conflicts; post-merge gate is check-only) + S5-index (mixed-class artifact commits rebase cleanly under section-anchored writers; same-class reduced to documented keep-both) + S7 (hooks resolve per-worktree). RESIDUAL SERIAL (irreducible): ordered ff-only main updates, ordered pushes, per-merge gate re-runs, one CI run per push, one-goal-per-worktree consumption ordering. Acceptance checks A-F defined in detailSections.",
+      "verdict": "supported",
+      "sources": [
+        "track 4 target-state + acceptance",
+        "wt-session.mjs:140-178",
+        "AGENTS.md:22-39"
+      ],
+      "confidence": "high"
+    }
+  ],
+  "detailSections": "CHANGE SET (validated touchpoints; see claims for rationale). BATCH 1 - mechanism, no schema/payload change except S3a: S8 ci.yml:3-5 branches-ignore wt/** on push only. S7 install-hooks.mjs:37-75 shim normalization emits --show-toplevel config resolution; delete scripts/hooks/pre-commit:11-20 override; .lefthook.yml:20-22 + Makefile:2 config_root -> --show-toplevel; add install-hooks idempotence test; extend scripts/hooks/test/pre-commit.test.mjs. S2 pack-bootstrap.mjs:617-628 wrap with fail-fast EEXIST lock at <outputRoot>/.pack-lock (outside package/ and payload-index.json, gitignored), release in finally, hard-error message names holder pid; new concurrent-pack test (two CLI processes, same outputRoot) wired into a Makefile target (note: tests/orchestration-store/* is currently in NO Makefile target - new test files must be added explicitly). S3a telemetry.mjs:116-119 list() with recoverPartialTail+onPartialTail; repair step in run-orchestrator realMode under the S1 lease before emitter creation (quarantine torn tail, atomic clean rewrite, ledger-style); payload regen in same commit; extend durable-json-safety + telemetry tests. BATCH 2 - safety/merge/contract (landing order authoritative in recommendation + S-claims; S1 moved to batch 1e per NC-A): S6/S3b as batched; S1 run-orchestrator.mjs:185-224 fail-fast EEXIST .run-lock (metadata {format,kind:run,token,pid,runId,createdAt}) - full S1 detail in its S-claim (batch 1e); --resume semantics: dead-owner guarded takeover (pid liveness), live-owner hard fail, existing cursor.db without --resume keeps current honest-failure message; try/finally release; new tests/orchestrate-driver-lease.test.mjs (Makefile glob tests/orchestrate-*.test.mjs). S6 wt-session.mjs:133-184: pre-rebase both-sides-touched guard (path set: csm-*/ sources, bootstrap/ incl. payload-index.json, csm-orchestrate/capabilities.json, README.md matrix region; condition: git diff --quiet base main -- P AND git diff --quiet base wt -- P both non-empty) with recovery message; post-ff-merge conditional pack-bootstrap + check-suite verification; new wt-session.test.mjs two-worktree cases. PREREQUISITE (budget separately): committed scripts/gen-capabilities.mjs regenerator mirroring capabilities.mjs:23-94 digest rules - none exists today; capabilities regen is manual (25c01ee precedent). S3b telemetry.mjs:166-181 recordLoss durable-marker path (Option A): full telemetry event, failed event's own sequence, writeQueue-serialized, no recursion; in-memory fallback retained; flush-before-receipt reorder at index.mjs:1634-1638 when detectLoss wires; receipt/3 extension optional follow-on (registry.json + new schema file + consumers run-helpers.mjs:108, recovery.mjs:153, compatibility.mjs:69-80, run-projections.mjs, patch-honest-failures.mjs + ~8 test literals + full payload regen). BATCH 3 - discipline/docs: S9 AGENTS.md:36-39 hedge. S5-index: writer convention (insert under own class section) in skill instructions + close-plan.mjs:38-46; gate: check-suite.mjs:1481-1509 verifies section membership via section-aware parser (replaces flat readAgentsIndexBasenames 968-980), fixing the ## builds/ indexes csm-build-state/ mislabel. TARGET STATE AND RESIDUAL SERIAL (track 4): zero-conflict conditions enumerated per layer; inherently serial: ordered ff-only main updates (wt-session.mjs:178), ordered pushes (:179-182), rebase of B onto post-A main (:164-177), per-merge gate re-run (AGENTS.md:37), one CI run per push, plan->build consumption ordering. ACCEPTANCE CHECKS: A - two wt sessions touching different skill sources + research run on main: merge A then B ff-only, gate green, no manual re-pack (extend tests/wt-session.test.mjs; none covers two-worktree merges today); B - mixed-class index rebase clean (no test exists for the artifact-index rule at all - add planted-corpus case in tests/check-suite.test.mjs); C - same-runId second driver start fails fast (second-start/durable-state analogue: tests/orchestrate-driver-contract.test.mjs:107-131; F2 runId-divergence at tests/orchestrate-honest-failures.test.mjs:194-204); D - concurrent pack: one wins, other hard-errors (new); E - worktree with locally modified .lefthook.yml runs its own config (new); F - static AGENTS.md hedge (make check). NO-CHANGE (validated): per-run isolation, content addressing, run-unique filenames, per-run evidence gates, per-worktree isolation, ff-only discipline, feature branches, index split, full gate scoping, standalone C7, capabilities granularity (deferred), csm-browse daemon-log. Gate-ripple map (track 3): S8/S7/S2/S1/S6/S9 no payload regen; S3a/S3b payload regen required; S3b schema route touches schemas/registry.json digest (schema-runtime:252-280) + ~8 consumer test literals; capability-freshness gate never fires for this set (no SKILL.md edits); tests/orchestration-store/* not Makefile-wired - add. Skill-discipline flags (track 3): any per-dir index split would break csm-deep-research's allowlisted SAVED commit pathset - S5-index avoids this by keeping the single file; S6 must default fail-fast/no-mutation on main (direct-on-main research runs do VERIFY clean-tree checks); S7 needs run-install-twice-no-diff guarantee (unstaged-guard would block the first fresh-worktree commit otherwise).",
+  "recommendation": "Land the change set in three batches (decision-ready; triggers and conditions in S-claims): BATCH 1 (mechanism; each independently shippable, gate-green per commit): 1a S8 CI wt/** push filter (block form); 1b S7 per-worktree hook config (+ shim/install idempotence); 1c S2 pack lock; 1e S1 run lease (fail-fast EEXIST; no payload ripple); 1f S3a partial-tail recovery read-side + write-side repair UNDER THE S1 LEASE (payload regen). BATCH 2 (safety and contract; after batch 1): 2b S6 wt-session guard + CHECK-ONLY post-merge verification (prerequisite: S2; budget scripts/gen-capabilities.mjs before any auto-repack automation); 2c S3b durable loss markers - prerequisite NC-B writeQueue poison-pill repair first; Option A full-event markers; detectLoss contract re-spec; receipt/3 optional follow-on. BATCH 3 (discipline/docs, can land anytime): S9 AGENTS.md hedge; S5-index section-anchored insertion + gate section check. Do NOT adopt: feature branches (B-1..B-3), standalone index split, full check-suite path-scoping, standalone C7, trace-code wiring. DEFER with triggers (S10 ledger). Cost-of-error: every batch-1 item is small and local; batch-2 items are runtime/merge-path only (no payload ripple for S1/S6; S3b is the only schema-touching change - land it last with a frozen file-by-file diff); rollback of any single change is a revert. What would change these answers: remote collaboration demand (revisit wt-branch push verb + PR flow), telemetry becoming a product surface (S3b/detectLoss priority up), or runs exceeding the compaction trigger.",
+  "unverifiedClaims": "Confidence notes, no unverified claims: S5-index's rebase-clean-for-different-sections result is empirically demonstrated in throwaway repos by track 4 but not yet in the repo's own test suite (acceptance check B adds it); S6's both-sides-touched guard condition is derived from the conflict mechanism and validated against the path set, but the exact generated-path set needs a planted two-worktree test (acceptance A); S3b Option A's no-recursion marker write and sequence-slot-filling behavior needs new JSONL-transport tests (existing loss tests use memory transports only); F-033/F-077/F-102 status verified at HEAD but assumed still open unless the review remediation lands concurrently.",
+  "process": {
+    "pipeline": "DEEP tier, local mode. Consolidation of two validated DEEP findings plus 4 solution-validation research tracks.",
+    "researchers": [
+      "T1 concurrency-safety validation: S1 lease routes (lockfile preferred, fail-fast EEXIST ledger-style, NOT durable-json given F-033/F-077/F-102); resume semantics; S2 pack lock placement + behavior change; S3a read+write-side repair; S3b Option A markers vs sidecar vs receipt/3; S4 sequence hazard survives lease in resume case",
+      "T2 serializing-structure validation: S5 index options (status quo + section-accuracy fix recommended; split breaks exemption set + skill allowlist; generator destroys curation); S6 wt-session guard + post-merge verification (capabilities generator missing - prerequisite); S7 live wt shims already per-worktree (codify in install-hooks); S8 CI filter safe for trigger-policy tests",
+      "T3 ordering/integration: dependency graph + 3-batch landing sequence; regen constraint oracle; exact schema-version/registry files for S1 (store v2) and S3b (receipt/3); skill-discipline flags; verification per batch; risk ranking (S3b schema route highest)",
+      "T4 target state: empirical rebase tests proving section-anchored index inserts rebase cleanly while EOF appends always conflict; zero-conflict conditions per layer; inherently-serial spine; acceptance checks A-F; explicit no-change list"
+    ],
+    "challengeVerdicts": [
+      "CS-1 uphold; S1 uphold (moved to batch 1e per NC-A so S3a repair runs under lease); S2 uphold (gitignore line explicit); S3a uphold (placed after S1)",
+      "S3b downgrade: writeQueue poison-pill (NC-B) + full-event field requirements + detectLoss contract change (NC-C) folded in",
+      "S6 uphold + NC-E: post-merge verification must be check-only and skip on dirty main; serializes-by-abort wording",
+      "S5-index downgrade to medium: multi-dir section mappings, ~20-line re-homing, 4 *-host.mjs writers + SAVED flow + skill instructions to migrate; close-plan.mjs already anchored",
+      "S7 uphold + NC-F (shim byte-equality + install idempotence test); S8 uphold + NC-G (block form; policy tests unwired at HEAD); S9/S10 uphold; TARGET refined"
+    ],
+    "judgeVerdict": {
+      "scores": {
+        "factualAccuracy": 0.8,
+        "citationAccuracy": 0.9,
+        "completeness": 0.9,
+        "clarity": 0.8
+      },
+      "verdict": "PASS",
+      "note": "no dimension below 0.7; six tightening notes applied"
+    },
+    "remediationLog": [
+      "S1: uphold; batch moved 2a -> 1e (before S3a) per NC-A ordering; gitignore note added",
+      "S3a: uphold; explicitly placed AFTER S1 (repair under lease)",
+      "S3b: downgrade accepted - NC-B poison-pill writeQueue prerequisite folded in; marker must be full event with failed sequence + full field set; NC-C detectLoss contract change recorded; drop-test re-spec required",
+      "S6: uphold + NC-E - post-merge verification is check-only, never repairing; skips on dirty main",
+      "S5-index: downgrade to MEDIUM scope - multi-dir section mappings + ~20-line re-homing + 4 host writers + SAVED flow + skill instructions to migrate; close-plan.mjs already section-anchored",
+      "S7: uphold + NC-F - tracked shim byte-equal to install output + run-twice-no-diff test",
+      "S8: uphold + NC-G - block form load-bearing; policy tests unwired at HEAD (noted)",
+      "TARGET: refined - S6 serializes-by-abort; S5-index conflicts only under full writer migration",
+      "NC-A (ordering: S1 batch 1e before S3a) -> batch renumber applied; NC-B (writeQueue poison-pill, telemetry.mjs:110-115) -> S3b prerequisite folded in; NC-C (detectLoss contract moves to telemetry_loss-marker scanning; drop-test re-spec) -> S3b folded in; NC-D (S5-index scope medium: multi-dir section mappings for ## progress/ ## evidence/ ## builds/, ~20-line re-homing, four *-host.mjs EOF writers + deep-research SAVED flow + skill-instruction writers; close-plan.mjs:197-218 already section-anchored) -> S5-index downgraded to MEDIUM scope in claim + detailSections; NC-E (post-merge verification must be check-only, skip on dirty main) -> S6 folded in; NC-F (tracked shim byte-equal to install output + run-twice-no-diff test) -> S7 folded in; NC-G (policy tests unwired at HEAD; block-form branches-ignore load-bearing) -> S8 folded in"
+    ],
+    "containment": "researchers read-only; primary owns all writes; consolidation sources pinned at b173a4e (finding 1) and 4b34c06 (finding 2, HEAD)"
+  }
+}
