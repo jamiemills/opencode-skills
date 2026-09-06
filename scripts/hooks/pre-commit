@@ -8,25 +8,26 @@ if [ "$LEFTHOOK" = "0" ]; then
   exit 0
 fi
 
+# csm per-checkout lefthook config resolution (S7 worktree support)
+if [ -z "$LEFTHOOK_CONFIG" ]; then
+  shim_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if test -n "$shim_root" && test -f "$shim_root/.lefthook.yml"; then
+    export LEFTHOOK_CONFIG="$shim_root/.lefthook.yml"
+  fi
+fi
+
 call_lefthook()
 {
-  if test -z "$LEFTHOOK_CONFIG"
-  then
-    common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-    if test -n "$common_dir" && test -f "$(dirname "$common_dir")/.lefthook.yml"
-    then
-      export LEFTHOOK_CONFIG="$(dirname "$common_dir")/.lefthook.yml"
-    fi
-  fi
   if test -n "$LEFTHOOK_BIN"
   then
     "$LEFTHOOK_BIN" "$@"
+  elif lefthook -h >/dev/null 2>&1
+  then
+    lefthook "$@"
   else
     dir="$(git rev-parse --show-toplevel)"
     osArch=$(uname | tr '[:upper:]' '[:lower:]')
     cpuArch=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')
-    # Prefer the repo-local platform binary: the bare `lefthook` wrapper
-    # refuses custom core.hooksPath, the direct binary does not.
     if test -f "$dir/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook"
     then
       "$dir/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook" "$@"

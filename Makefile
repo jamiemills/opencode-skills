@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-OXFMT_CONFIG := $(dir $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))).oxfmtrc.json
+OXFMT_CONFIG := $(shell git rev-parse --show-toplevel 2>/dev/null)/.oxfmtrc.json
 OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
@@ -39,8 +39,9 @@ check: ## repo conformance gate
 
 analyze: lint check ## analyzers: lint + conformance gate
 
-test-hooks: ## lefthook/pre-commit test suite
-	node --test scripts/hooks/test/pre-commit.test.mjs
+test-hooks: ## lefthook/pre-commit test suites (integration + hermetic shim normalization)
+	node --test scripts/hooks/test/pre-commit.test.mjs \
+	  scripts/hooks/test/hook-shim.test.mjs
 
 test-policy: ## workflow/release/toolchain trigger-policy suites (CI gate guardrails)
 	node --test --test-concurrency=1 tests/workflow-trigger-policy.test.mjs \

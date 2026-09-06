@@ -6,6 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { SHIM_MARKER } from "../../lib/hook-shim.mjs";
+
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 const SHIM = path.join(REPO, "scripts/hooks/pre-commit");
 const REAL_CONFIG = path.join(REPO, ".lefthook.yml");
@@ -174,6 +176,15 @@ test("(a) repo .lefthook.yml validates and the hook shim is in place", { skip: S
   assert.match(content, /LEFTHOOK/, "shim contains the LEFTHOOK fingerprint");
   assert.match(content, /LEFTHOOK_BIN/, "shim honors LEFTHOOK_BIN env");
   assert.match(content, /LEFTHOOK=0/, "shim honors LEFTHOOK=0 to skip");
+  // S7 per-checkout resolution: the shim points lefthook at the committing
+  // checkout top-level, never at the main checkout via git-common-dir.
+  assert.ok(content.includes(SHIM_MARKER), "shim carries the per-checkout config marker");
+  assert.doesNotMatch(content, /git-common-dir/, "shim never resolves config from git-common-dir");
+  assert.match(
+    content,
+    /shim_root="\$\(git rev-parse --show-toplevel 2>\/dev\/null\)"/,
+    "shim resolves config from --show-toplevel",
+  );
   t.diagnostic("repo config + shim OK");
 });
 
@@ -432,3 +443,43 @@ test("(g) a clean commit leaves git status clean and the commit exists", { skip:
   assert.notEqual(after, before, "a new commit was created");
   t.diagnostic("clean commit created with clean status");
 });
+
+test(
+  "(h) a linked worktree honors its own .lefthook.yml, not the main checkout's",
+  { skip: SKIP },
+  (t) => {
+    const root = setup();
+    t.after(() => cleanup(root));
+
+    const wtDir = path.join(root, "wt-a");
+    const wtGit = (...args) => git(wtDir, ...args);
+    git(root, "worktree", "add", "-q", "-b", "wt-a", wtDir);
+    // The worktree carries the tracked canonical shim (per-checkout resolution);
+    // make sure it is executable as a hook.
+    fs.chmodSync(path.join(wtDir, "scripts/hooks/pre-commit"), 0o755);
+
+    // The worktree's OWN config carries a marker job the main checkout's fixture
+    // config does not have. If the shim resolved config from the main checkout
+    // (git-common-dir) or from lefthook auto-discovery against the main repo,
+    // the marker job would not run and this commit would not print it.
+    const wtConfig = `pre-commit:
+  piped: true
+  jobs:
+    - name: wt-config-marker
+      run: echo wt-config-honored
+      fail_text: worktree-local lefthook config must be honored
+`;
+    write(wtDir, ".lefthook.yml", wtConfig);
+
+    write(wtDir, "wt-only.mjs", "export const wtOnly = true;\n");
+    wtGit("add", "wt-only.mjs");
+    const r = commit(wtDir, "h:worktree-config");
+    assert.equal(r.status, 0, `worktree commit failed: ${combined(r)}`);
+    assert.match(
+      combined(r),
+      /wt-config-honored/,
+      "worktree-local .lefthook.yml job ran (config resolved from the worktree top-level)",
+    );
+    t.diagnostic("worktree commit ran against its own .lefthook.yml");
+  },
+);
