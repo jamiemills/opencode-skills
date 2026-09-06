@@ -17,7 +17,8 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile, copyFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, open, lstat, readFile, rm, writeFile, copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path, { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -56,6 +57,80 @@ async function loadHostModule(hostPath, runId, skillProgressDir) {
     throw new TypeError("host module must default-export a factory: ({runId}) => host");
   }
   return module.default({ runId, skillProgressDir });
+}
+
+const RUN_LOCK = ".run-lock";
+const RUN_LOCK_FORMAT = "csm-run-lock/1";
+
+function isPidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
+// S1/A3: fail-fast run lease at <evidenceDir>/.run-lock (ledger-style EEXIST
+// claim, inode-guarded release — never durable-json acquireLock and never
+// auto-takeover of a LIVE owner). --resume performs a guarded takeover of a
+// STALE lease only (owner pid dead via kill(pid, 0)); any live-owner conflict
+// is a hard error naming the holder. Two concurrent fresh starts on one runId
+// race here after the honest-failure guard: the lease is the atomic claim.
+async function acquireRunLease({ evidenceDir, runId, resume = false }) {
+  const lockPath = join(evidenceDir, RUN_LOCK);
+  const claim = {
+    format: RUN_LOCK_FORMAT,
+    kind: "run",
+    token: createHash("sha256")
+      .update(`${process.pid}-${Date.now()}-${Math.random()}`)
+      .digest("hex")
+      .slice(0, 16),
+    pid: process.pid,
+    runId,
+    createdAt: new Date().toISOString(),
+  };
+  let handle;
+  try {
+    handle = await open(lockPath, "wx", 0o644);
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    let owner = null;
+    try {
+      owner = JSON.parse(await readFile(lockPath, "utf8"));
+    } catch {
+      owner = null;
+    }
+    const ownerPid = owner && typeof owner.pid === "number" ? owner.pid : "unknown";
+    const ownerAlive = typeof ownerPid === "number" && isPidAlive(ownerPid);
+    if (resume && !ownerAlive && typeof ownerPid === "number") {
+      await rm(lockPath, { force: true });
+      handle = await open(lockPath, "wx", 0o644);
+      console.error(
+        `run ${runId}: removed stale run lease (held by dead pid ${ownerPid}) under --resume`,
+      );
+    } else {
+      const where = ownerAlive ? "is already active" : "has a stale lease";
+      throw new Error(
+        `run ${runId} ${where} (lease ${lockPath} held by pid ${ownerPid}); wait for it to finish, or pass --resume only when that process is dead`,
+        { cause: error },
+      );
+    }
+  }
+  const { ino } = await handle.stat();
+  await handle.writeFile(`${JSON.stringify(claim, null, 2)}\n`);
+  return {
+    lockPath,
+    claim,
+    async release() {
+      try {
+        const current = await lstat(lockPath).catch(() => null);
+        if (current !== null && current.ino === ino) await rm(lockPath, { force: true });
+      } finally {
+        await handle.close();
+      }
+    },
+  };
 }
 
 async function fixtureMode() {
@@ -187,179 +262,192 @@ async function realMode() {
   await mkdir(skillProgressDir, { recursive: true });
   // one directory serves recording (hosts) and rollup (orchestrate option)
   const skillProgressRollupDir = skillProgressDir;
-  const host = await loadHostModule(hostPath, runId, skillProgressDir);
-  const hostArtifactResolver = host.artifactResolver ?? null;
-  const hostChildArtifactResolver = host.childArtifactResolver ?? hostArtifactResolver;
   // honest-failure guard: silently reusing durable state surfaces as progress
   // fencing staleness; require an explicit --resume or a fresh approach.runId
   if (!args.includes("--resume") && existsSync(join(evidenceDir, "cursor.db")))
     throw new Error(
       `run ${runId} already has durable state; pass --resume to continue recovery or use a fresh approach.runId`,
     );
-  const timeoutMs = Number(argValue("--timeout-ms") ?? 600_000);
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
-    throw new Error("--timeout-ms must be a positive number of milliseconds");
-  const quietProgress = args.includes("--quiet-progress");
-  const progressPollMs = Number(argValue("--progress-poll-ms") ?? 2000);
-  if (!Number.isFinite(progressPollMs) || progressPollMs <= 0)
-    throw new Error("--progress-poll-ms must be a positive number of milliseconds");
-  // one dedupe closure for live and final renders: consecutive identical TASK
-  // PROGRESS blocks are suppressed everywhere
-  const renderProgressOnChange = (() => {
-    let lastProgressText = "";
-    return (snapshot) => {
-      const text = projectProgress(snapshot, { width: 28 }).text;
-      if (text === lastProgressText) return; // render on visible change only
-      lastProgressText = text;
-      console.log(text);
-    };
-  })();
-  const cursorStore = createSqliteStore({
-    mode: "wal",
-    databasePath: join(evidenceDir, "cursor.db"),
-  });
-  const telemetryEmitter = createTelemetryEmitter({
-    transport: createJsonlTransport(join(evidenceDir, "telemetry.jsonl")),
+  // S1: fail-fast run lease — the atomic claim for two concurrent fresh starts
+  // on one runId. Acquired after the honest-failure guard (its message stays
+  // preserved) and before the host module loads; released on every path below.
+  const lease = await acquireRunLease({
+    evidenceDir,
     runId,
+    resume: args.includes("--resume"),
   });
-  const { loadSchemaRegistry: loadRealRegistry } = await import("../lib/schema-runtime/index.mjs");
-  const schemaRegistry = await loadRealRegistry();
-  const approvalsModule = argValue("--approvals")
-    ? await import(pathToFileURL(path.resolve(argValue("--approvals"))).href)
-    : null;
-  // Independent final review: --final-review <module.mjs> default-exports an
-  // async reviewer(input) -> {status: ACCEPTED|REJECTED, ...}; it is wrapped in
-  // createIndependentFinalReviewExecutor so review records are persisted and
-  // provenance is built by the runtime, never by the reviewer itself.
-  const finalReviewPath = argValue("--final-review");
-  let finalReviewExecutor = null;
-  const reviewRoot = join(evidenceDir, "review");
-  if (finalReviewPath) {
-    const { createIndependentFinalReviewExecutor } =
-      await import("../csm-orchestrate/lib/adversarial-final-review.mjs");
-    const reviewerModule = await import(pathToFileURL(path.resolve(finalReviewPath)).href);
-    const reviewer =
-      typeof reviewerModule.default === "function"
-        ? reviewerModule.default
-        : typeof reviewerModule.reviewer === "function"
-          ? reviewerModule.reviewer
-          : null;
-    if (!reviewer) throw new Error("--final-review module must export a reviewer function");
-    finalReviewExecutor = createIndependentFinalReviewExecutor({
-      producerExecutorId: "csm-build",
-      artifactRoot: reviewRoot,
-      reviewer,
+  try {
+    const host = await loadHostModule(hostPath, runId, skillProgressDir);
+    const hostArtifactResolver = host.artifactResolver ?? null;
+    const hostChildArtifactResolver = host.childArtifactResolver ?? hostArtifactResolver;
+    const timeoutMs = Number(argValue("--timeout-ms") ?? 600_000);
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
+      throw new Error("--timeout-ms must be a positive number of milliseconds");
+    const quietProgress = args.includes("--quiet-progress");
+    const progressPollMs = Number(argValue("--progress-poll-ms") ?? 2000);
+    if (!Number.isFinite(progressPollMs) || progressPollMs <= 0)
+      throw new Error("--progress-poll-ms must be a positive number of milliseconds");
+    // one dedupe closure for live and final renders: consecutive identical TASK
+    // PROGRESS blocks are suppressed everywhere
+    const renderProgressOnChange = (() => {
+      let lastProgressText = "";
+      return (snapshot) => {
+        const text = projectProgress(snapshot, { width: 28 }).text;
+        if (text === lastProgressText) return; // render on visible change only
+        lastProgressText = text;
+        console.log(text);
+      };
+    })();
+    const cursorStore = createSqliteStore({
+      mode: "wal",
+      databasePath: join(evidenceDir, "cursor.db"),
     });
-  }
-  // The parent resolver serves host artifacts first, then falls back to the
-  // real file-backed resolver over the review artifact root, so runtime-
-  // persisted independent-review records resolve without host knowledge.
-  const { createArtifactResolver } = await import("../lib/artifact-resolver/index.mjs");
-  const reviewFileResolver = createArtifactResolver({ root: reviewRoot, schemaRegistry });
-  const parentResolver = hostArtifactResolver
-    ? {
-        async resolve(refPath, expected = {}) {
-          const fromHost = await hostArtifactResolver.resolve(refPath, expected);
-          if (fromHost?.status === "resolved") return fromHost;
-          return reviewFileResolver.resolve(refPath, expected);
-        },
-      }
-    : reviewFileResolver;
-  // skill-first dispatch: when enforcement is on, wire an in-process executor
-  // adapter over the registered csm skill handlers so phase routes genuinely
-  // dispatch to skills (csm-ddd/csm-scan/csm-upload run real pipelines;
-  // csm-build-owned skills return blocked/agent-session-required until the
-  // agent-session protocol ships). --allow-host-dispatch opts out entirely.
-  let executorAdapter = null;
-  let executorRegistry = null;
-  let executorBindings = {};
-  if (!allowHostDispatch) {
-    const handlers = createExecutorHandlers({ csmBuildHandoffs: createAllBuildHandoffs() });
-    const descriptors = createExecutorDescriptors({
-      handlers,
-      csmBuildHandoffs: createAllBuildHandoffs(),
+    const telemetryEmitter = createTelemetryEmitter({
+      transport: createJsonlTransport(join(evidenceDir, "telemetry.jsonl")),
+      runId,
     });
-    const registry = await createSkillExecutorRegistry({ descriptors });
-    executorBindings = Object.fromEntries(
-      descriptors.map((descriptor) => [descriptor.skill, descriptor]),
-    );
-    executorAdapter = createInProcessExecutorAdapter({
-      registry,
-      bindings: executorBindings,
-      capabilities,
-      artifactResolver: parentResolver,
-      schemaRegistry,
-      cursorStore,
-    });
-    executorRegistry = registry;
-  }
-  const result = await orchestrate({
-    approach,
-    runId,
-    host,
-    capabilities,
-    signals: approach.signals ?? { capabilities: [], inputs: [] },
-    approvals: approvalsModule ? approvalsModule.default : createAutonomyPolicy(capabilities),
-    cursorStore,
-    maxSteps: 25,
-    // real hosts do real work (test suites, evaluations); the 30s runtime
-    // default is tuned for in-process fixtures and fails legitimate builds
-    timeoutMs,
-    telemetryEmitter,
-    schemaRegistry,
-    producerExecutorId: "csm-build",
-    skillProgressRollupDir,
-    progressPollIntervalMs: progressPollMs,
-    ...(quietProgress
-      ? {}
-      : {
-          onProgress: renderProgressOnChange,
-        }),
-    ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
-    artifactResolver: parentResolver,
-    reviewArtifactRoot: reviewRoot,
-    ...(hostChildArtifactResolver ? { childArtifactResolver: hostChildArtifactResolver } : {}),
-    enforceSkillFirstRouting: !allowHostDispatch,
-    ...(executorAdapter
+    const { loadSchemaRegistry: loadRealRegistry } =
+      await import("../lib/schema-runtime/index.mjs");
+    const schemaRegistry = await loadRealRegistry();
+    const approvalsModule = argValue("--approvals")
+      ? await import(pathToFileURL(path.resolve(argValue("--approvals"))).href)
+      : null;
+    // Independent final review: --final-review <module.mjs> default-exports an
+    // async reviewer(input) -> {status: ACCEPTED|REJECTED, ...}; it is wrapped in
+    // createIndependentFinalReviewExecutor so review records are persisted and
+    // provenance is built by the runtime, never by the reviewer itself.
+    const finalReviewPath = argValue("--final-review");
+    let finalReviewExecutor = null;
+    const reviewRoot = join(evidenceDir, "review");
+    if (finalReviewPath) {
+      const { createIndependentFinalReviewExecutor } =
+        await import("../csm-orchestrate/lib/adversarial-final-review.mjs");
+      const reviewerModule = await import(pathToFileURL(path.resolve(finalReviewPath)).href);
+      const reviewer =
+        typeof reviewerModule.default === "function"
+          ? reviewerModule.default
+          : typeof reviewerModule.reviewer === "function"
+            ? reviewerModule.reviewer
+            : null;
+      if (!reviewer) throw new Error("--final-review module must export a reviewer function");
+      finalReviewExecutor = createIndependentFinalReviewExecutor({
+        producerExecutorId: "csm-build",
+        artifactRoot: reviewRoot,
+        reviewer,
+      });
+    }
+    // The parent resolver serves host artifacts first, then falls back to the
+    // real file-backed resolver over the review artifact root, so runtime-
+    // persisted independent-review records resolve without host knowledge.
+    const { createArtifactResolver } = await import("../lib/artifact-resolver/index.mjs");
+    const reviewFileResolver = createArtifactResolver({ root: reviewRoot, schemaRegistry });
+    const parentResolver = hostArtifactResolver
       ? {
-          executorAdapter,
-          executorRegistry,
-          executorBindings,
+          async resolve(refPath, expected = {}) {
+            const fromHost = await hostArtifactResolver.resolve(refPath, expected);
+            if (fromHost?.status === "resolved") return fromHost;
+            return reviewFileResolver.resolve(refPath, expected);
+          },
         }
-      : {}),
-  });
-  await copyFile(approachPath, join(evidenceDir, "approach.json"));
-  await writeFile(
-    join(evidenceDir, "receipt.json"),
-    `${JSON.stringify(result.receipt, null, 2)}\n`,
-  );
-  // human-readable projections (untrusted presentation; JSON stays authoritative)
-  await emitRunProjections({
-    dir: evidenceDir,
-    receipt: result.receipt,
-    runId,
-    schemaRegistry,
-  });
-  // persist the final progress snapshot (machine + human) into the evidence dir
-  if (result.progress) {
+      : reviewFileResolver;
+    // skill-first dispatch: when enforcement is on, wire an in-process executor
+    // adapter over the registered csm skill handlers so phase routes genuinely
+    // dispatch to skills (csm-ddd/csm-scan/csm-upload run real pipelines;
+    // csm-build-owned skills return blocked/agent-session-required until the
+    // agent-session protocol ships). --allow-host-dispatch opts out entirely.
+    let executorAdapter = null;
+    let executorRegistry = null;
+    let executorBindings = {};
+    if (!allowHostDispatch) {
+      const handlers = createExecutorHandlers({ csmBuildHandoffs: createAllBuildHandoffs() });
+      const descriptors = createExecutorDescriptors({
+        handlers,
+        csmBuildHandoffs: createAllBuildHandoffs(),
+      });
+      const registry = await createSkillExecutorRegistry({ descriptors });
+      executorBindings = Object.fromEntries(
+        descriptors.map((descriptor) => [descriptor.skill, descriptor]),
+      );
+      executorAdapter = createInProcessExecutorAdapter({
+        registry,
+        bindings: executorBindings,
+        capabilities,
+        artifactResolver: parentResolver,
+        schemaRegistry,
+        cursorStore,
+      });
+      executorRegistry = registry;
+    }
+    const result = await orchestrate({
+      approach,
+      runId,
+      host,
+      capabilities,
+      signals: approach.signals ?? { capabilities: [], inputs: [] },
+      approvals: approvalsModule ? approvalsModule.default : createAutonomyPolicy(capabilities),
+      cursorStore,
+      maxSteps: 25,
+      // real hosts do real work (test suites, evaluations); the 30s runtime
+      // default is tuned for in-process fixtures and fails legitimate builds
+      timeoutMs,
+      telemetryEmitter,
+      schemaRegistry,
+      producerExecutorId: "csm-build",
+      skillProgressRollupDir,
+      progressPollIntervalMs: progressPollMs,
+      ...(quietProgress
+        ? {}
+        : {
+            onProgress: renderProgressOnChange,
+          }),
+      ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
+      artifactResolver: parentResolver,
+      reviewArtifactRoot: reviewRoot,
+      ...(hostChildArtifactResolver ? { childArtifactResolver: hostChildArtifactResolver } : {}),
+      enforceSkillFirstRouting: !allowHostDispatch,
+      ...(executorAdapter
+        ? {
+            executorAdapter,
+            executorRegistry,
+            executorBindings,
+          }
+        : {}),
+    });
+    await copyFile(approachPath, join(evidenceDir, "approach.json"));
     await writeFile(
-      join(evidenceDir, "progress.json"),
-      `${JSON.stringify(result.progress, null, 2)}\n`,
+      join(evidenceDir, "receipt.json"),
+      `${JSON.stringify(result.receipt, null, 2)}\n`,
     );
-    await writeFile(
-      join(evidenceDir, "progress.txt"),
-      `${projectProgress(result.progress, { width: 28 }).text}\n`,
-    );
+    // human-readable projections (untrusted presentation; JSON stays authoritative)
+    await emitRunProjections({
+      dir: evidenceDir,
+      receipt: result.receipt,
+      runId,
+      schemaRegistry,
+    });
+    // persist the final progress snapshot (machine + human) into the evidence dir
+    if (result.progress) {
+      await writeFile(
+        join(evidenceDir, "progress.json"),
+        `${JSON.stringify(result.progress, null, 2)}\n`,
+      );
+      await writeFile(
+        join(evidenceDir, "progress.txt"),
+        `${projectProgress(result.progress, { width: 28 }).text}\n`,
+      );
+    }
+    // drain the async transport so telemetry.jsonl is complete before exit
+    await telemetryEmitter.getEvents();
+    if (result.progress && !quietProgress) {
+      renderProgressOnChange(result.progress);
+    }
+    console.log("status:", result.receipt.outcome.status);
+    console.log("reason:", result.reason ?? "none");
+    console.log("evidence:", evidenceDir);
+    return 0;
+  } finally {
+    await lease.release();
   }
-  // drain the async transport so telemetry.jsonl is complete before exit
-  await telemetryEmitter.getEvents();
-  if (result.progress && !quietProgress) {
-    renderProgressOnChange(result.progress);
-  }
-  console.log("status:", result.receipt.outcome.status);
-  console.log("reason:", result.reason ?? "none");
-  console.log("evidence:", evidenceDir);
-  return 0;
 }
 
 const isMain =
