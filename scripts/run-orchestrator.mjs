@@ -34,7 +34,11 @@ import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-exe
 import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
 import { createAllBuildHandoffs } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
-import { createJsonlTransport, createTelemetryEmitter } from "../csm-orchestrate/lib/telemetry.mjs";
+import {
+  createJsonlTransport,
+  createTelemetryEmitter,
+  repairTelemetryJsonlTail,
+} from "../csm-orchestrate/lib/telemetry.mjs";
 import { pathToFileURL } from "node:url";
 
 const args = process.argv.slice(2);
@@ -302,8 +306,18 @@ async function realMode() {
       mode: "wal",
       databasePath: join(evidenceDir, "cursor.db"),
     });
+    // S3a: fix the write-after-crash concatenation hazard before any emitter
+    // runs — a torn telemetry tail is quarantined and the file is atomically
+    // rewritten clean while the run lease is held.
+    const telemetryPath = join(evidenceDir, "telemetry.jsonl");
+    const tailRepair = await repairTelemetryJsonlTail(telemetryPath);
+    if (tailRepair.repaired) {
+      console.error(
+        `run ${runId}: quarantined torn telemetry tail (${tailRepair.tornLength} bytes) to ${tailRepair.quarantinedPath}`,
+      );
+    }
     const telemetryEmitter = createTelemetryEmitter({
-      transport: createJsonlTransport(join(evidenceDir, "telemetry.jsonl")),
+      transport: createJsonlTransport(telemetryPath),
       runId,
     });
     const { loadSchemaRegistry: loadRealRegistry } =

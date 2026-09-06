@@ -926,8 +926,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/telemetry.mjs",
-        "sha256": "16365db5ba6084722b4cb032787bfb7e9563ed5340cf26a977ac1ead432488f8",
-        "bytes": 11276,
+        "sha256": "0a5745034e14ea5a45f3ffa3ea4c7f494dc0edd97f9ca1ed8703c92db263d771",
+        "bytes": 13116,
         "mode": "0644"
       },
       {

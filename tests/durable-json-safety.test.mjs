@@ -98,6 +98,20 @@ test("JSONL recovery detects partial tails and duplicate identities", async () =
   });
 });
 
+test("JSONL recovery with recoverPartialTail returns clean records and reports the torn tail", async () => {
+  const directory = await root();
+  const path = join(directory, "torn.jsonl");
+  await writeFile(path, '{"id":"one"}\n{"id":"two"}\n{"id":"three"}');
+  const tails = [];
+  const records = await readJsonLines(path, {
+    identity: (value) => value.id,
+    recoverPartialTail: true,
+    onPartialTail: (tail) => tails.push(tail),
+  });
+  assert.deepEqual(records, [{ id: "one" }, { id: "two" }]);
+  assert.deepEqual(tails, ['{"id":"three"}']);
+});
+
 test("shared durable JSONL append produces a recovered complete record", async () => {
   const directory = await root();
   const path = join(directory, "events.jsonl");

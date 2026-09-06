@@ -1,7 +1,13 @@
 "use strict";
 
 import { randomUUID } from "node:crypto";
-import { appendDurableJsonLine, readJsonLines } from "../../../lib/durable-json/index.mjs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import {
+  appendDurableJsonLine,
+  atomicWrite,
+  readJsonLines,
+} from "../../../lib/durable-json/index.mjs";
 
 export const TELEMETRY_EVENT_SCHEMA_ID = "csm-orchestrate-telemetry-event/1";
 export const TELEMETRY_EVENT_TYPES = Object.freeze([
@@ -106,7 +112,12 @@ export function createJsonlTransport(filePath) {
     throw new TypeError("filePath must be a non-empty string");
   const pendingWrites = [];
   let writeQueue = Promise.resolve();
+  // S3a: torn tails found by list() are recovered (never thrown) and reported
+  // through this array so callers can quarantine/repair durably. A file that
+  // was never written reads as an empty event list, not an error.
+  const partialTails = [];
   return {
+    partialTails,
     write(event) {
       writeQueue = writeQueue.then(() => appendDurableJsonLine(filePath, event, { mode: 0o600 }));
       pendingWrites.push(writeQueue);
@@ -115,9 +126,42 @@ export function createJsonlTransport(filePath) {
     },
     async list() {
       while (pendingWrites.length) await pendingWrites.shift().catch(() => {});
-      return readJsonLines(filePath);
+      try {
+        return await readJsonLines(filePath, {
+          recoverPartialTail: true,
+          onPartialTail: (tail) => partialTails.push(tail),
+        });
+      } catch (error) {
+        if (error.code === "ENOENT") return [];
+        throw error;
+      }
     },
   };
+}
+
+// S3a write-side repair: after a crash mid-append the JSONL may end in an
+// unterminated line. Quarantine the torn bytes to
+// `<file>.partial-<ts>-<uuid>.quarantine` and atomically rewrite the clean
+// prefix so later appends never concatenate onto the torn tail. Missing file
+// and already-clean files are no-ops. Callers must hold the run lease.
+export async function repairTelemetryJsonlTail(filePath) {
+  let text;
+  try {
+    text = await readFile(filePath, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return { repaired: false, quarantinedPath: null };
+    throw error;
+  }
+  const newlineIndex = text.lastIndexOf("\n");
+  if (newlineIndex === text.length - 1 || text.length === 0)
+    return { repaired: false, quarantinedPath: null };
+  const torn = text.slice(newlineIndex + 1);
+  const clean = text.slice(0, newlineIndex + 1);
+  const quarantinedPath = `${filePath}.partial-${Date.now()}-${randomUUID()}.quarantine`;
+  await mkdir(dirname(quarantinedPath), { recursive: true });
+  await writeFile(quarantinedPath, torn, { mode: 0o600, flag: "wx" });
+  await atomicWrite(filePath, clean);
+  return { repaired: true, quarantinedPath, tornLength: torn.length };
 }
 
 function optionalId(value, pattern, label) {
@@ -331,4 +375,5 @@ export default {
   createMemoryTransport,
   createJsonlTransport,
   createTelemetryEmitter,
+  repairTelemetryJsonlTail,
 };

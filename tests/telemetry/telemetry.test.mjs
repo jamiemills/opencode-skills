@@ -1,16 +1,22 @@
 "use strict";
 
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { createSchemaValidator, digest } from "../../lib/schema-runtime/index.mjs";
+import { readJsonLines } from "../../lib/durable-json/index.mjs";
 import {
   DEFAULT_REDACT_KEYS,
   REDACTED_VALUE,
   TELEMETRY_EVENT_SCHEMA_ID,
   TELEMETRY_EVENT_TYPES,
+  createJsonlTransport,
   createMemoryTransport,
   createTelemetryEmitter,
   redactPayload,
+  repairTelemetryJsonlTail,
 } from "../../csm-orchestrate/lib/telemetry.mjs";
 import { loadSchema } from "../host-assurance/helpers.mjs";
 
@@ -92,7 +98,7 @@ test("telemetry: every lifecycle event type is emittable", () => {
     assert.equal(event.eventType, eventType);
     assert.equal(event.sequence, index);
   }
-  assert.equal(index, 12);
+  assert.equal(index, TELEMETRY_EVENT_TYPES.length);
 });
 
 test("telemetry: completeness — every terminal receipt needs a correlated terminal event", () => {
@@ -225,4 +231,34 @@ test("telemetry: emitted events validate against the registered schema", async (
     extra: true,
   };
   assert.equal(validator.validate(TELEMETRY_EVENT_SCHEMA_ID, broken).valid, false);
+});
+
+test("telemetry: jsonl transport recovers torn tails and reports them without throwing", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "telemetry-torn-"));
+  const path = join(directory, "telemetry.jsonl");
+  await writeFile(path, '{"sequence":1,"ok":true}\n{"sequence":2,"ok":true');
+  const transport = createJsonlTransport(path);
+  const records = await transport.list();
+  assert.deepEqual(records, [{ sequence: 1, ok: true }]);
+  assert.deepEqual(transport.partialTails, ['{"sequence":2,"ok":true']);
+  const missing = createJsonlTransport(join(directory, "never-written.jsonl"));
+  assert.deepEqual(await missing.list(), [], "a never-written file reads as an empty list");
+});
+
+test("telemetry: repairTelemetryJsonlTail quarantines the torn tail and rewrites clean", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "telemetry-repair-"));
+  const path = join(directory, "telemetry.jsonl");
+  const torn = '{"sequence":1}\n{"sequence":2}\n{"sequence":3';
+  await writeFile(path, torn);
+  const result = await repairTelemetryJsonlTail(path);
+  assert.equal(result.repaired, true);
+  assert.ok(result.quarantinedPath.endsWith(".quarantine"));
+  assert.equal(await readFile(result.quarantinedPath, "utf8"), '{"sequence":3');
+  assert.deepEqual(await readJsonLines(path), [{ sequence: 1 }, { sequence: 2 }]);
+  assert.equal((await repairTelemetryJsonlTail(path)).repaired, false, "clean file is a no-op");
+  assert.equal(
+    (await repairTelemetryJsonlTail(join(directory, "absent.jsonl"))).repaired,
+    false,
+    "missing file is a no-op",
+  );
 });
