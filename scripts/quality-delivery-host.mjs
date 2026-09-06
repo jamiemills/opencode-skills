@@ -18,6 +18,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
+import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
 
 const exec = promisify(execFile);
@@ -407,7 +408,7 @@ async function phaseWork(request) {
   throw new Error(`unknown quality-delivery phase ordinal: ${phaseOrdinal}`);
 }
 
-export default function qualityDeliveryHost({ runId } = {}) {
+export default function qualityDeliveryHost({ runId, skillProgressDir } = {}) {
   const artifacts = new Map();
   let calls = 0;
   const reviewExecutor = createIndependentFinalReviewExecutor({
@@ -429,6 +430,7 @@ export default function qualityDeliveryHost({ runId } = {}) {
     async invokeSiblingSkill(request) {
       calls += 1;
       const output = await phaseWork(request);
+      await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
       const evidenceId = `ev-quality-delivery-${calls}`;
       const requirementIds = [
         request.phaseId?.replace(/^phase-/, "req-") ?? `req-quality-delivery-p${calls}`,

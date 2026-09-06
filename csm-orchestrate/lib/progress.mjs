@@ -325,6 +325,7 @@ export function createProgressTracker({
   graphRevision = 1,
   store = null,
   now = () => new Date().toISOString(),
+  onUpdate = null,
 } = {}) {
   let document = createProgressDocument({ runId, graphRevision, now: now() });
   let writes = Promise.resolve();
@@ -343,8 +344,17 @@ export function createProgressTracker({
     writes = write.catch(() => undefined);
     return write.then(() => snapshot);
   };
+  const notifyUpdate = () => {
+    if (typeof onUpdate !== "function") return;
+    try {
+      onUpdate(structuredClone(document));
+    } catch {
+      /* observer errors never break the run */
+    }
+  };
   const change = (fn) => {
     document = fn(document);
+    notifyUpdate();
     return persist();
   };
   return {
@@ -402,6 +412,7 @@ export function createProgressTracker({
         eventsObserved: document.aggregate.eventsObserved + 1,
         now: now(),
       });
+      notifyUpdate();
       return persist();
     },
     flush() {

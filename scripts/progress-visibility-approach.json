@@ -1,0 +1,60 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "status": "agreed",
+  "runId": "run-progress-visibility-r3",
+  "ideaSlug": "progress-visibility",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Record progress-visibility root-cause analysis",
+      "goal": "record why orchestrator runs and invoked skills showed no progress trackers, with fixes and verification paths, as tracked evidence",
+      "deliverables": ["progress-visibility-analysis.json", "README index line"],
+      "scope": [".agents/evidence", ".agents/README.md"],
+      "outOfScope": ["runtime changes", "corpus changes"],
+      "constraints": ["root causes grounded in code inspection and run evidence"],
+      "acceptanceHints": ["analysis recorded", "README indexed"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": []
+    },
+    {
+      "phaseId": "P2",
+      "title": "Apply progress-visibility fixes",
+      "goal": "ship the tracker onUpdate hook, orchestrate onProgress option, driver live+final rendering and rollup wiring, and child skill-progress recording; prove with focused tests",
+      "deliverables": [
+        "patched runtime/driver/hosts",
+        "scripts/lib/skill-progress-recorder.mjs",
+        "tests/orchestrate-progress-visibility.test.mjs"
+      ],
+      "scope": ["csm-orchestrate/lib", "csm-orchestrate/output", "scripts", "tests"],
+      "outOfScope": ["receipt schema changes", "autonomy policy changes"],
+      "constraints": [
+        "anchored fail-closed patches",
+        "observer errors never break runs",
+        "gates stay sole verification authority"
+      ],
+      "acceptanceHints": ["patches applied", "verification tests pass"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": ["P1"]
+    },
+    {
+      "phaseId": "P3",
+      "title": "Battery and live capture verification",
+      "goal": "prove no regressions and that a real driver run renders TASK PROGRESS live and reaches VERIFIED",
+      "deliverables": ["green battery", "capture run with progress output", "green check-suite"],
+      "scope": ["tests", "scripts"],
+      "outOfScope": ["new features"],
+      "constraints": ["zero test failures", "capture run VERIFIED", "check-suite OK"],
+      "acceptanceHints": ["battery green", "capture run shows TASK PROGRESS", "check-suite OK"],
+      "route": "csm-build",
+      "context": [],
+      "dependencies": ["P2"]
+    }
+  ],
+  "signals": {
+    "capabilities": ["csm-build"],
+    "inputs": ["plan", "repository"]
+  }
+}

@@ -92,6 +92,7 @@ async function runOrchestrationInternal({
   producerExecutorId = null,
   reviewArtifactRoot = null,
   skillProgressRollupDir = null,
+  onProgress = null,
   executorInput,
   parentPhaseId = null,
   phaseIdOverride = null,
@@ -152,6 +153,7 @@ async function runOrchestrationInternal({
     graphRevision: 1,
     store: cursorStore,
     now: () => new Date(now()).toISOString(),
+    onUpdate: onProgress,
   });
   if (!executorAdapter && (!host || typeof host.invokeSiblingSkill !== "function"))
     return await (async () => {
@@ -203,6 +205,7 @@ async function runOrchestrationInternal({
     graphRevision: graph.graphRevision,
     store: cursorStore,
     now: () => new Date(now()).toISOString(),
+    onUpdate: onProgress,
   });
   await progressTracker.reload();
   await progressTracker.materialize(graph.phases);
@@ -671,35 +674,6 @@ async function runOrchestrationInternal({
           terminalApproval = retryApproval;
         }
         const receipt = childReceipt(result, node, invocationChildRunId);
-        if (skillProgressRollupDir) {
-          try {
-            const { rollupChildProgress, findChildSkillProgress } =
-              await import("./progress-rollup.mjs");
-            const childRecord = await findChildSkillProgress(
-              skillProgressRollupDir,
-              invocationChildRunId,
-            );
-            if (childRecord) {
-              const rollupResult = await rollupChildProgress({
-                progressTracker,
-                phaseId: phase.phaseId,
-                nodeId: node.nodeId,
-                record: childRecord,
-              });
-              if (rollupResult.status === "rolled-up")
-                emitTelemetry({
-                  phaseId: phase.phaseId,
-                  edgeId: `edge-${slug(node.nodeId)}`,
-                  childRunId: invocationChildRunId,
-                  eventType: "skill-progress-rollup",
-                  payload: {
-                    fraction: rollupResult.fraction,
-                    evidenceRef: rollupResult.evidenceRef,
-                  },
-                });
-            }
-          } catch {}
-        }
         let failure =
           result.status === "completed" && !receipt
             ? { status: "blocked", failure: { class: "policy", code: "child-identity-mismatch" } }
@@ -797,6 +771,38 @@ async function runOrchestrationInternal({
               .map((item) => item.evidenceId)
               .filter(Boolean),
           });
+        // roll up child skill-progress AFTER the per-node update: that update
+        // replaces evidenceRefs and resets verifiedFraction, so a rollup run
+        // earlier would be silently discarded
+        if (skillProgressRollupDir) {
+          try {
+            const { rollupChildProgress, findChildSkillProgress } =
+              await import("./progress-rollup.mjs");
+            const childRecord = await findChildSkillProgress(
+              skillProgressRollupDir,
+              invocationChildRunId,
+            );
+            if (childRecord) {
+              const rollupResult = await rollupChildProgress({
+                progressTracker,
+                phaseId: phase.phaseId,
+                nodeId: node.nodeId,
+                record: childRecord,
+              });
+              if (rollupResult.status === "rolled-up")
+                emitTelemetry({
+                  phaseId: phase.phaseId,
+                  edgeId: `edge-${slug(node.nodeId)}`,
+                  childRunId: invocationChildRunId,
+                  eventType: "skill-progress-rollup",
+                  payload: {
+                    fraction: rollupResult.fraction,
+                    evidenceRef: rollupResult.evidenceRef,
+                  },
+                });
+            }
+          } catch {}
+        }
         return {
           node,
           approval,

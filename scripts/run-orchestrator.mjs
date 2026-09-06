@@ -21,7 +21,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile, copyFile } from "node:fs/promi
 import { existsSync } from "node:fs";
 import path, { join } from "node:path";
 import { tmpdir } from "node:os";
-import { orchestrate } from "../csm-orchestrate/index.mjs";
+import { orchestrate, projectProgress } from "../csm-orchestrate/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
@@ -42,12 +42,12 @@ async function loadApproach(approachPath) {
   return approach;
 }
 
-async function loadHostModule(hostPath, runId) {
+async function loadHostModule(hostPath, runId, skillProgressDir) {
   const module = await import(pathToFileURL(path.resolve(hostPath)).href);
   if (typeof module.default !== "function") {
     throw new TypeError("host module must default-export a factory: ({runId}) => host");
   }
-  return module.default({ runId });
+  return module.default({ runId, skillProgressDir });
 }
 
 async function fixtureMode() {
@@ -162,12 +162,16 @@ async function realMode() {
       "--run-id must equal approach.runId (autonomy approvals bind to the compiled phase.runId); " +
         `got ${runId}, approach declares ${approach.runId}`,
     );
-  const host = await loadHostModule(hostPath, runId);
-  const hostArtifactResolver = host.artifactResolver ?? null;
-  const hostChildArtifactResolver = host.childArtifactResolver ?? hostArtifactResolver;
   const capabilities = await loadCapabilities();
   const evidenceDir = join(".agents", "evidence", "orchestrator", runId);
   await mkdir(evidenceDir, { recursive: true });
+  const skillProgressDir = join(evidenceDir, "skill-progress");
+  await mkdir(skillProgressDir, { recursive: true });
+  // one directory serves recording (hosts) and rollup (orchestrate option)
+  const skillProgressRollupDir = skillProgressDir;
+  const host = await loadHostModule(hostPath, runId, skillProgressDir);
+  const hostArtifactResolver = host.artifactResolver ?? null;
+  const hostChildArtifactResolver = host.childArtifactResolver ?? hostArtifactResolver;
   // honest-failure guard: silently reusing durable state surfaces as progress
   // fencing staleness; require an explicit --resume or a fresh approach.runId
   if (!args.includes("--resume") && existsSync(join(evidenceDir, "cursor.db")))
@@ -177,6 +181,7 @@ async function realMode() {
   const timeoutMs = Number(argValue("--timeout-ms") ?? 600_000);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
     throw new Error("--timeout-ms must be a positive number of milliseconds");
+  const quietProgress = args.includes("--quiet-progress");
   const cursorStore = createSqliteStore({
     mode: "wal",
     databasePath: join(evidenceDir, "cursor.db"),
@@ -243,6 +248,14 @@ async function realMode() {
     telemetryEmitter,
     schemaRegistry,
     producerExecutorId: "csm-build",
+    skillProgressRollupDir,
+    ...(quietProgress
+      ? {}
+      : {
+          onProgress: (snapshot) => {
+            console.log(projectProgress(snapshot, { width: 28 }).text);
+          },
+        }),
     ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
     artifactResolver: parentResolver,
     reviewArtifactRoot: reviewRoot,
@@ -255,6 +268,9 @@ async function realMode() {
   );
   // drain the async transport so telemetry.jsonl is complete before exit
   await telemetryEmitter.getEvents();
+  if (result.progress && !quietProgress) {
+    console.log(projectProgress(result.progress, { width: 28 }).text);
+  }
   console.log("status:", result.receipt.outcome.status);
   console.log("reason:", result.reason ?? "none");
   console.log("evidence:", evidenceDir);
@@ -268,7 +284,7 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (args[0] === "--approach") process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--quiet-progress] [--resume]",
     );
     process.exit(1);
   })().catch((error) => {

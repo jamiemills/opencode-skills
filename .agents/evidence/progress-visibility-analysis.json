@@ -1,0 +1,20 @@
+{
+  "schema": "csm-progress-visibility-analysis/1",
+  "collectedAt": "2026-09-06T05:39:30.374Z",
+  "source": "quality delivery cycles 2-4 run evidence + driver/runtime code inspection",
+  "rootCauses": [
+    {
+      "id": "RCA-A",
+      "failure": "orchestrator runs showed no progress tracker during or after the run",
+      "rootCause": "the runtime maintains a canonical progress snapshot (result.progress) and the projection renderer exists (projectProgress -> 'TASK PROGRESS' bar + Milestones row), but the driver never rendered it: no live rendering path existed (the tracker had no observer hook) and the final snapshot was ignored",
+      "fix": "createProgressTracker accepts onUpdate(snapshot); orchestrate exposes onProgress and notifies on every tracker change and telemetry observation; the driver renders the live TASK PROGRESS block on each update (--quiet-progress mutes it) and prints the final projection after the run"
+    },
+    {
+      "id": "RCA-B",
+      "failure": "skills invoked by the orchestrator showed no progress either",
+      "rootCause": "the orchestrate option skillProgressRollupDir (which rolls child csm-skill-progress/1 records into the parent tracker) was never wired by the driver, and hosts never recorded child skill-progress records for the sibling invocations they executed",
+      "fix": "driver creates <evidenceDir>/skill-progress and passes it to orchestrate (rollup) and to the host factory (recording); hosts record a schema-valid csm-skill-progress/1 record per completed sibling invocation via scripts/lib/skill-progress-recorder.mjs; the orchestrator rolls each record into the parent item's verifiedFraction while gates remain the sole verification authority"
+    }
+  ],
+  "verification": "tests/orchestrate-progress-visibility.test.mjs (onProgress snapshots, driver E2E TASK PROGRESS output, rollup into parent tracker, recorder schema validity) + in-run driver capture on the quality-review approach"
+}

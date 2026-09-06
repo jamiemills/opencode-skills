@@ -239,3 +239,4 @@ the source file. Deletion remains awaiting explicit authorization.
 - `t007-g8-drill.json` — 2026-09-05 — G8 drill evidence: 8/8 rollback stop-rule drills verified + promotion path (run-g8-drill.mjs) — status: reference
 - `g7-corpus-confirmation.json` — 2026-09-05 — G7 held-out corpus confirmation (10/10 frozen labels matched; report PASSED; provisional thresholds confirmed) — status: reference
 - `honest-failures-analysis.json` — 2026-09-05 — typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths — status: reference
+- `progress-visibility-analysis.json` — 2026-09-05 — root-cause analysis of missing progress trackers in orchestrator runs and invoked skills, with fixes and verification paths — status: reference

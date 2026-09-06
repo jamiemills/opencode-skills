@@ -14,6 +14,7 @@ import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { digest } from "../lib/schema-runtime/index.mjs";
+import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 
 const exec = promisify(execFile);
 const root = join(import.meta.url.replace(/^file:\/\//, ""), "..", "..").replace(/\/$/, "");
@@ -72,7 +73,7 @@ async function collectSignals() {
   return signals;
 }
 
-export default function qualityReviewHost() {
+export default function qualityReviewHost({ skillProgressDir } = {}) {
   const artifacts = new Map();
   let calls = 0;
   let collected = null;
@@ -106,6 +107,7 @@ export default function qualityReviewHost() {
           summary: `${improvements.length} prioritized improvements`,
         };
       }
+      await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
       const evidenceId = `ev-quality-${calls}`;
       const requirementIds = [
         request.phaseId?.replace(/^phase-/, "req-") ?? `req-quality-p${calls}`,

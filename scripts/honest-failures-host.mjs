@@ -16,6 +16,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
+import { recordSkillProgress } from "./lib/skill-progress-recorder.mjs";
 import { createIndependentFinalReviewExecutor } from "../csm-orchestrate/lib/adversarial-final-review.mjs";
 
 const exec = promisify(execFile);
@@ -460,7 +461,7 @@ async function phaseWork(request) {
   throw new Error(`unknown honest-failures phase ordinal: ${phaseOrdinal}`);
 }
 
-export default function honestFailuresHost({ runId } = {}) {
+export default function honestFailuresHost({ runId, skillProgressDir } = {}) {
   const artifacts = new Map();
   let calls = 0;
   const reviewExecutor = createIndependentFinalReviewExecutor({
@@ -484,6 +485,7 @@ export default function honestFailuresHost({ runId } = {}) {
     async invokeSiblingSkill(request) {
       calls += 1;
       const output = await phaseWork(request);
+      await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
       const evidenceId = `ev-honest-failures-${calls}`;
       const requirementIds = [
         request.phaseId?.replace(/^phase-/, "req-") ?? `req-honest-failures-p${calls}`,
