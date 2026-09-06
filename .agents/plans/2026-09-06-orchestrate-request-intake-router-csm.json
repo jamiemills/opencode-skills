@@ -5,15 +5,15 @@
   "runId": "run-20260906t230626z-4f3a9b2c1d8e",
   "planId": "orchestrate-request-intake-router",
   "owner": "csm-plan",
-  "status": "ready",
+  "status": "in_progress",
   "control": {
-    "status": "ready",
-    "currentState": "NOT_STARTED",
+    "status": "in_progress",
+    "currentState": "RECOVER",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-06T23:17:29Z: plan SAVED; status ready; NOT_STARTED",
-    "lastModelRun": "deepseek-v4-flash / csm-plan-orchestrate-request-intake-router",
-    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "lastCheckpoint": "2026-09-06T23:21:53Z: explicit csm-build invocation; worktree wt/orchestrate-request-intake-router at 0b22280; plan control NOT_STARTED->RECOVER",
+    "lastModelRun": "deepseek-v4-flash / orchestrate-request-intake-router-build",
+    "nextTransition": "RECOVER -> VALIDATE then SELECT batch 1 (T001)",
     "activeTasks": [],
     "blockers": [],
     "resume": {
@@ -493,6 +493,15 @@
       "tasks": [],
       "evidence": "plan saved at .agents/plans/2026-09-06-orchestrate-request-intake-router-csm.json; status ready; 7 tasks pending",
       "nextState": "SAVED"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-06T23:21:53Z",
+      "cycle": 0,
+      "transition": "SAVED -> RECOVER",
+      "tasks": [],
+      "evidence": "Explicit user request to build the plan with commit/push/merge and CI green. Worktree /home/jamiemills/csm-wt/orchestrate-request-intake-router at 0b22280 clean.",
+      "nextState": "RECOVER"
     }
   ],
   "completionReview": {

@@ -217,6 +217,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `replace-npm-audit-ci-gate-20260904.json` — 2026-09-04 — csm-build checkpoint for the OSV audit CI gate replacement — status: complete
 - `skill-progress-tracker-enforcement-20260904.json` — 2026-09-04 — csm-build checkpoint for skill progress tracker enforcement — status: complete (shipped on fa79f36; CI run 33928035357 fully green)
 - `parallelism-conflict-free-change-set-20260906.json` — 2026-09-06 — csm-build checkpoint for the parallelism conflict-free change set execution (S1-S9, T001-T011) — status: in progress
+- `orchestrate-request-intake-router-20260906.json` — 2026-09-06 — csm-build checkpoint for the orchestrate request intake + router execution (T001-T007) — status: in progress
 
 ## progress/
 
@@ -233,6 +234,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-06-repo-audit-run-20260906t091407z-6e281cd9-progress.json` — 2026-09-06 — csm-review tracker for the FULL repo audit — status: reference
 - `2026-09-06-orchestrate-skill-dispatch-20260906t141834z-54fb1848813c-progress.json` — 2026-09-06 — csm-plan tracker for orchestrate-skill-dispatch-enforcement — status: reference
 - `2026-09-06-orchestrate-request-intake-router-plan-20260906t230626z-4f3a9b2c1d8e-progress.json` — 2026-09-06 — csm-plan progress record for the orchestrate-request-intake-router plan — status: complete
+- `2026-09-06-orchestrate-request-intake-router-build-20260906T232118Z-4f3a9b2c1d8e-progress.json` — 2026-09-06 — csm-build progress record for the orchestrate-request-intake-router build — status: active
 
 ## ddd/
 
