@@ -1,0 +1,68 @@
+{
+  "format": "csm-deep-research/1",
+  "question": "What changes are needed for csm-orchestrate to actually use the full suite of csm skills, and why has it never done so?",
+  "tier": "DEEP",
+  "mode": "local",
+  "retrievedAt": "2026-09-06",
+  "commitSha": "f5a6192a0342b2765157c9faca34650f5c50c5e0",
+  "tl": "csm-orchestrate has never dispatched to a real csm skill. It has two execution paths: a host invocation adapter (shell commands run by custom host scripts — used in every run today) and an in-process executor adapter (real skill handler dispatch — never used in any run). The executor infrastructure exists (registry, adapter, handlers for csm-ddd/csm-scan/csm-upload) and a handoff pattern covers 8 csm-build-owned skills, but 7 of those skills (csm-plan, csm-build, csm-review, csm-grill, csm-make-tests, csm-bdd-tdd, csm-review-python) are instruction-led skills whose core work is agent reasoning, not library code. They cannot be dispatched as function calls — they require an agent session running the skill's SKILL.md lifecycle.",
+  "executiveSummary": "All 5 orchestrate runs today declared route csm-build or csm-scan and produced VERIFIED receipts with full evidence. But the invokeSiblingSkill seam was implemented by custom host scripts that run shell commands (node --test, node scripts/check-suite.mjs, etc.) — not by csm-build or csm-scan lifecycles. The orchestrator never imported or called any csm-* skill implementation. The real executor adapter path exists and works (proven by tests) but was never selected because it requires explicit executor bindings and a registry — neither of which the driver provides. The fundamental constraint is that csm-plan/csm-build/csm-review are instruction-led skills: their SKILL.md defines a state machine for an AI agent to follow, not a callable function. The library files (validators, serializers, templates) are support code, not the skill itself. Real skill dispatch requires spawning an agent session per phase — an architectural bridge that does not yet exist.",
+  "keyFindings": [
+    {
+      "id": "F-001",
+      "finding": "csm-orchestrate has two execution paths: host invocation adapter (used in every run) and in-process executor adapter (never used in any run)",
+      "evidence": "orchestrate() at index.mjs:173 checks executorAdapter first; if absent, falls back to createHostInvocationAdapter. All 5 real runs passed a custom host implementing invokeSiblingSkill as shell commands. createInProcessExecutorAdapter exists at skill-executor-adapter.mjs and is tested in orchestrate-autoresearch-live-integration.test.mjs.",
+      "verdict": "confirmed"
+    },
+    {
+      "id": "F-002",
+      "finding": "The executor infrastructure already implements real handlers for csm-ddd, csm-scan, and csm-upload by calling their actual pipeline functions",
+      "evidence": "skill-executor-handlers.mjs:185-236 registers csm-ddd (calls analyzeRepository), csm-scan (calls runExpandedPipeline), csm-upload (calls publishPublicationDescriptor) — these are real skill library functions, not stubs.",
+      "verdict": "confirmed"
+    },
+    {
+      "id": "F-003",
+      "finding": "The csmBuildHandoff pattern covers 8 skills (csm-plan, csm-build, csm-review, csm-review-python, csm-grill, csm-make-tests, csm-bdd-tdd, csm-deep-research) but requires an adapter with an execute() callback — none was provided in any run",
+      "evidence": "csm-build-handoff.mjs:60-74 defines csmBuildHandoff(skill, { execute }) and BUILD_OWNED set. The execute() callback is the bridge to the skill's implementation. Without it, the handler returns blocked/unsupported-runtime.",
+      "verdict": "confirmed"
+    },
+    {
+      "id": "F-004",
+      "finding": "The 7 unimplemented skills (csm-plan, csm-build, csm-review, csm-grill, csm-make-tests, csm-bdd-tdd, csm-review-python) are instruction-led skills whose SKILL.md defines an agent-driven state machine, not a callable function",
+      "evidence": "csm-plan/SKILL.md defines INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED. csm-build/SKILL.md defines RECOVER -> VALIDATE -> SELECT -> DISPATCH -> ... These are agent reasoning processes, not library calls. Their lib/*.mjs files contain validators, serializers, and template builders — support code, not the skill itself.",
+      "verdict": "confirmed — this is the fundamental architectural constraint"
+    },
+    {
+      "id": "F-005",
+      "finding": "The route label (route: csm-build) in csm-approach/1 is used for capability matching and approval scoping but does NOT invoke csm-build — it selects a capability descriptor that the host is expected to implement",
+      "evidence": "phase-compiler.mjs routeNodes() matches capabilities by skill name from the capabilities manifest. The manifest declares inputs/outputs/permissions but has no code reference. The phase compiler produces routeNodes consumed by executeNode, which calls adapter.invoke — where adapter is either executorAdapter or hostInvocationAdapter.",
+      "verdict": "confirmed"
+    },
+    {
+      "id": "F-006",
+      "finding": "Each skill has exported library functions that could serve as partial handler implementations, but the core lifecycle work (the stateful, agent-driven part) has no programmatic entry point",
+      "evidence": "csm-plan has createPlanArtifact, resolvePlanInputs, validatePlanArtifact (22 exports). csm-grill has createApproachArtifact, validateApproachArtifact (15 exports). These are utility functions — they validate and serialize artifacts but do not run the skill's discovery, critique, or remediation phases.",
+      "verdict": "confirmed"
+    },
+    {
+      "id": "F-007",
+      "finding": "Real skill dispatch requires spawning an agent session per phase — the orchestrator would need to delegate phase work to an AI agent running the target skill's SKILL.md, not call a library function",
+      "evidence": "csm-plan's DISCOVER state requires reading the repository and identifying evidence. csm-build's DISPATCH state requires implementing code. These are agent-reasoning tasks, not deterministic functions. The skill-executor-handlers.mjs pattern works for deterministic skills (csm-ddd's pipeline, csm-scan's pipeline) but cannot wrap an agent reasoning process.",
+      "verdict": "confirmed — this is the fundamental architectural constraint"
+    }
+  ],
+  "recommendation": "Three tiers of change are needed: (1) MECHANICAL: register csm-build-handoff adapters for all 8 csm-build-owned skills with execute() callbacks that spawn agent sessions running the target skill's SKILL.md. (2) STRUCTURAL: make executorAdapter the required (not optional) execution path — remove the createHostInvocationAdapter fallback so orchestrate cannot run without real skill executors. (3) PROTOCOL: define the agent-session dispatch protocol — how orchestrate passes an approach phase to an agent running csm-plan/csm-build/etc., how results flow back as typed evidence, and how the agent session is scoped (tmux, sandbox, write allowlist). Without tier 3, tiers 1-2 are function-call wrappers around skills that fundamentally need an agent to reason through their lifecycle.",
+  "unverified": [
+    "Whether spawning agent sessions per phase is performant enough for real use (each session has model API cost and context setup overhead)",
+    "Whether the skill-executor-handlers.mjs direct adapters (csm-ddd, csm-scan) could serve as a model for wrapping the interactive portions of csm-plan/csm-build",
+    "Whether the csm-build-handoff execute() callback could be implemented as a tmux session running the skill's SKILL.md via an agent CLI"
+  ],
+  "sources": [
+    { "ref": "csm-orchestrate/lib/skill-executor-handlers.mjs", "note": "Real skill handlers: csm-ddd (analyzeRepository), csm-scan (runExpandedPipeline), csm-upload (publishPublicationDescriptor)" },
+    { "ref": "csm-orchestrate/lib/skill-executor-adapter.mjs", "note": "The in-process executor adapter bridge — creates a host invocation adapter backed by the executor registry" },
+    { "ref": "csm-orchestrate/lib/csm-build-handoff.mjs", "note": "The csm-build handoff pattern: csmBuildHandoff(skill, { execute }) covering BUILD_OWNED set of 8 skills" },
+    { "ref": "csm-orchestrate/lib/index.mjs:173", "note": "executorAdapter check: if absent, falls back to createHostInvocationAdapter" },
+    { "ref": "csm-plan/SKILL.md", "note": "Instruction-led lifecycle: INTAKE -> DISCOVER -> RESEARCH -> DRAFT -> CRITIQUE -> REMEDIATE -> VERIFY -> SAVED" },
+    { "ref": "csm-build/SKILL.md", "note": "Instruction-led lifecycle: RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT" }
+  ]
+}

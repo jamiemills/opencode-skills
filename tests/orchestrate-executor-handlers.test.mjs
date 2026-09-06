@@ -57,7 +57,10 @@ test("normalizes a valid child result and enforces handler selection", async () 
   assert.equal(result.context.runId, context.runId);
   assert.equal(result.artifacts[0].digest, validArtifact.digest);
   const handlers = createExecutorHandlers();
-  assert.equal(handlers.has("csm-build"), false);
+  // T001: all csm-build-owned skills now have default handlers
+  // (blocked/agent-session-required until the agent-session protocol lands)
+  assert.equal(handlers.has("csm-build"), true);
+  assert.equal(typeof handlers.get("csm-build"), "function");
 });
 
 test("rejects malformed output, wrong identity, and undeclared artifacts", async () => {
@@ -137,7 +140,8 @@ test("reports cancellation and has no OpenCode invocation path", async () => {
     { handlers: new Map([["csm-scan", handler()]]) },
   );
   assert.equal(result.status, "cancelled");
-  assert.equal(createExecutorHandlers().has("csm-plan"), false);
+  // T001: csm-plan now has a default handler (blocked/agent-session-required)
+  assert.equal(createExecutorHandlers().has("csm-plan"), true);
   assert.doesNotMatch(JSON.stringify(createExecutorDescriptors()), /opencode/i);
 });
 

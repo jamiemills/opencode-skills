@@ -2,7 +2,7 @@
   "schema": "csm-approach/1",
   "schemaRevision": 1,
   "status": "agreed",
-  "runId": "run-quality-review-e2e-r6",
+  "runId": "run-enforced-csmbuild2",
   "ideaSlug": "quality-review",
   "phases": [
     {

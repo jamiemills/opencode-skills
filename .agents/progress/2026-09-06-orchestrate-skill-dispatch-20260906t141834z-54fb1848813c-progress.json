@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-20260906t141834z-54fb1848813c",
+  "runId": "run-20260906t141834z-54fb1848813c",
+  "skill": "csm-plan",
+  "goal": "plan the enforcement of csm-skill-only dispatch in csm-orchestrate",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "intake and discover",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "draft plan with enforcement constraints",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "critique and remediate",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "verify and save",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-06T14:18:34.000Z",
+  "updatedAt": "2026-09-06T14:27:07.043Z"
+}

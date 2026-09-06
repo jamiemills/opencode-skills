@@ -294,6 +294,7 @@ test(
           hostPath,
           "--final-review",
           join(repoRoot, "scripts", "independent-reviewer.mjs"),
+          "--allow-host-dispatch",
         ],
         { cwd: repoRoot, encoding: "utf8", timeout: 120_000 },
       );

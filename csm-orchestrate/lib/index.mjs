@@ -95,6 +95,7 @@ async function runOrchestrationInternal({
   skillProgressRollupDir = null,
   progressPollIntervalMs = 2000,
   onProgress = null,
+  enforceSkillFirstRouting = false,
   executorInput,
   parentPhaseId = null,
   phaseIdOverride = null,
@@ -187,6 +188,19 @@ async function runOrchestrationInternal({
       reason: "durable-cursor-required",
     });
   }
+  // T002: skill-first routing enforcement fires before any graph work: when
+  // enforced, orchestrate must dispatch to csm skills through an executor
+  // adapter. The host invocation adapter is incidental/test-only.
+  if (enforceSkillFirstRouting && !executorAdapter)
+    return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
+      reason: "executor-adapter-required",
+      failure: {
+        class: "policy",
+        code: "executor-adapter-required",
+        message:
+          "skill-first routing is enforced: orchestrate must dispatch to csm skills via an executor adapter. Host invocation is available for incidental tasks and testing only (pass enforceSkillFirstRouting: false to allow).",
+      },
+    });
   const graph = await compileApproach(approach, {
     capabilities,
     signals,
@@ -247,15 +261,22 @@ async function runOrchestrationInternal({
   }
   await progressTracker.materialize(graph.phases);
   const adapter =
+    // F-002/T002: when skill-first routing is enforced, executorAdapter is
+    // required — the orchestrator must dispatch to csm skills, not host scripts.
+    // The host invocation adapter remains available for incidental tasks and
+    // testing (enforceSkillFirstRouting: false).
     executorAdapter ??
-    createHostInvocationAdapter({
-      host,
-      capabilities,
-      artifactResolver,
-      schemaRegistry,
-      cursorStore,
-      now,
-    });
+    (enforceSkillFirstRouting
+      ? null // will be caught by the BLOCKED check below
+      : createHostInvocationAdapter({
+          host,
+          capabilities,
+          artifactResolver,
+          schemaRegistry,
+          cursorStore,
+          now,
+        }));
+
   const preflight = autonomyGate({
     host: host ?? executorAdapter,
     permissions: graph.phases.flatMap((phase) => phase.approvalScope),
@@ -1534,6 +1555,7 @@ export async function orchestrate(options) {
   try {
     result = await runOrchestrationInternal(options);
   } catch (error) {
+    if (process.env.CSM_DEBUG2) console.error("CSM_DEBUG2 crash:", error.stack);
     // F-002: a crash must still persist an authoritative terminal record
     const runId = typeof options?.runId === "string" ? options.runId : "run-crashed";
     const receipt = Object.freeze({

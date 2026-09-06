@@ -830,8 +830,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/csm-build-handoff.mjs",
-        "sha256": "88b63122bb23ab6355c29189c0831e45a590919efbca3af55375e54f948024e3",
-        "bytes": 4898,
+        "sha256": "b366c9cac8bc46006925e1351a1d968defbc645dce3e606b1a512999fe57f565",
+        "bytes": 6333,
         "mode": "0644"
       },
       {
@@ -842,8 +842,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "370bbbc5fb85f2b869bd3a450c29056d21ae04489c6471f7e3545dc9385d7d81",
-        "bytes": 58337,
+        "sha256": "1694e589f0e914e5aef446293ab0d91c3f7e92aef280fd2745d7fa75fe09fc97",
+        "bytes": 59605,
         "mode": "0644"
       },
       {
@@ -902,14 +902,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-adapter.mjs",
-        "sha256": "2fc6e171e57dc5d2e18fe7a1b6c4ea6b87a7917de579fd3e18fe787614ced1e0",
-        "bytes": 5560,
+        "sha256": "a1b348018e40ea3480ca2636ef562c5cbd3736ef8a334f9fe9912838172cc956",
+        "bytes": 5663,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-handlers.mjs",
-        "sha256": "a7d31a6e6c95f0e4701fe0fbbe528d611fa0935fa5d0e3d516e3c3b3f912ad8a",
-        "bytes": 17041,
+        "sha256": "02051b0b02e3e2ff975ba79ee2b18528d1cbccda3e66e2161137b9fe1dddac4b",
+        "bytes": 18983,
         "mode": "0644"
       },
       {

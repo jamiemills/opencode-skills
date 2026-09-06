@@ -113,6 +113,7 @@ test("RW-B: the driver emits receipt.md/receipt.html on a real run", async () =>
         join(repoRoot, "tests", "fixtures", "renderer-wiring-host.mjs"),
         "--final-review",
         join(repoRoot, "scripts", "independent-reviewer.mjs"),
+        "--allow-host-dispatch",
       ],
       { cwd: repoRoot, encoding: "utf8", timeout: 120_000 },
     );

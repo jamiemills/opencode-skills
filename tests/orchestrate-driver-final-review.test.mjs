@@ -116,7 +116,16 @@ test("driver --final-review drives a real run to VERIFIED through the independen
     await writeFile(hostPath, HOST_SOURCE + "\n");
     const { stdout } = await exec(
       process.execPath,
-      [driverPath, "--approach", approachPath, "--host", hostPath, "--final-review", reviewerPath],
+      [
+        driverPath,
+        "--approach",
+        approachPath,
+        "--host",
+        hostPath,
+        "--final-review",
+        reviewerPath,
+        "--allow-host-dispatch",
+      ],
       { cwd: repoRoot, encoding: "utf8", timeout: 120_000 },
     );
     assert.match(stdout, /status: VERIFIED/);

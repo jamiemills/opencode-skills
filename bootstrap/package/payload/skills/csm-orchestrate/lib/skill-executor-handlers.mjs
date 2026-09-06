@@ -6,7 +6,7 @@ import { publishPublicationDescriptor } from "../../csm-upload/lib/publication.m
 import { assertSchema } from "./contracts.mjs";
 import { digest } from "../../../lib/schema-runtime/index.mjs";
 import { skillExecutorContractDigest } from "./skill-executor-registry.mjs";
-import { csmBuildOwnedSkills } from "./csm-build-handoff.mjs";
+import { csmBuildOwnedSkills, createAllBuildHandoffs } from "./csm-build-handoff.mjs";
 import canonicalCapabilities from "../capabilities.json" with { type: "json" };
 
 const RESULT_SCHEMA = "csm-orchestrate-child-result/1";
@@ -310,6 +310,54 @@ export function createExecutorHandlers({
       throw new TypeError("csm-build handoff adapter is required");
     for (const skill of csmBuildOwnedSkills())
       if (handoff.skill === skill)
+        handlers.set(skill, async ({ input, signal, context }) => {
+          const result = await handoff.execute(
+            {
+              invocationId: context.invocationId,
+              parentRunId: context.parentRunId,
+              childRunId: context.runId,
+              phaseId: context.phaseId,
+              edgeId: context.edgeId,
+              skill,
+              input,
+              retry: { attempt: context.attempt },
+            },
+            signal,
+          );
+          if (result.status === "cancelled")
+            return {
+              status: "cancelled",
+              effects: [],
+              artifacts: [],
+              receipt: makeReceipt(context, skill, "incomplete"),
+              failure: result.failure,
+            };
+          return {
+            status: result.status ?? "completed",
+            effects: result.effects ?? handoff.effects,
+            artifacts: result.artifacts ?? [],
+            evidence: result.evidence ?? [],
+            output: result.output ?? null,
+            receipt: result.receipt ?? makeReceipt(context, skill, result.status ?? "completed"),
+            failure: result.failure ?? null,
+          };
+        });
+  }
+  // T001: register default csmBuildHandoff adapters for all csm-build-owned
+  // skills that don't have an explicit handoff, so every skill in
+  // SUPPORTED_SKILLS has a registered handler. The default execute() returns
+  // blocked/agent-session-required (honest: no silent bypass).
+  const allBuildHandoffs = [
+    ...handoffs,
+    ...createAllBuildHandoffs().filter(
+      (h) => !handoffs.some((existing) => existing.skill === h.skill),
+    ),
+  ];
+  for (const handoff of allBuildHandoffs) {
+    if (typeof handoff?.execute !== "function")
+      throw new TypeError("csm-build handoff adapter is required");
+    for (const skill of csmBuildOwnedSkills())
+      if (handoff.skill === skill && !handlers.has(skill))
         handlers.set(skill, async ({ input, signal, context }) => {
           const result = await handoff.execute(
             {

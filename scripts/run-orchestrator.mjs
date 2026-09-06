@@ -25,6 +25,13 @@ import { orchestrate, projectProgress } from "../csm-orchestrate/index.mjs";
 import { emitRunProjections } from "./lib/run-projections.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
+import {
+  createExecutorHandlers,
+  createExecutorDescriptors,
+} from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
+import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
+import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
+import { createAllBuildHandoffs } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import { createJsonlTransport, createTelemetryEmitter } from "../csm-orchestrate/lib/telemetry.mjs";
 import { pathToFileURL } from "node:url";
@@ -75,8 +82,11 @@ async function fixtureMode() {
     transport: createJsonlTransport(telemetryPath),
     runId,
   });
+  // fixture self-test uses the host invocation path (not skill dispatch);
+  // enforcement stays off for this test-only mode
   const result = await orchestrate({
     approach: approachFor(runId, "driver-fixture"),
+    enforceSkillFirstRouting: false,
     runId,
     host,
     capabilities,
@@ -158,6 +168,13 @@ async function realMode() {
   }
   const approach = await loadApproach(approachPath);
   const runId = argValue("--run-id") ?? approach.runId;
+  // skill-first routing: real runs dispatch to csm skills by default. Host-based
+  // incidental/test runs opt out explicitly with --allow-host-dispatch.
+  const allowHostDispatch = args.includes("--allow-host-dispatch");
+  if (allowHostDispatch)
+    console.error(
+      "SKILL-FIRST DISPATCH DISABLED — phase work will not route to csm skills (--allow-host-dispatch)",
+    );
   if (runId !== approach.runId)
     throw new Error(
       "--run-id must equal approach.runId (autonomy approvals bind to the compiled phase.runId); " +
@@ -248,6 +265,34 @@ async function realMode() {
         },
       }
     : reviewFileResolver;
+  // skill-first dispatch: when enforcement is on, wire an in-process executor
+  // adapter over the registered csm skill handlers so phase routes genuinely
+  // dispatch to skills (csm-ddd/csm-scan/csm-upload run real pipelines;
+  // csm-build-owned skills return blocked/agent-session-required until the
+  // agent-session protocol ships). --allow-host-dispatch opts out entirely.
+  let executorAdapter = null;
+  let executorRegistry = null;
+  let executorBindings = {};
+  if (!allowHostDispatch) {
+    const handlers = createExecutorHandlers({ csmBuildHandoffs: createAllBuildHandoffs() });
+    const descriptors = createExecutorDescriptors({
+      handlers,
+      csmBuildHandoffs: createAllBuildHandoffs(),
+    });
+    const registry = await createSkillExecutorRegistry({ descriptors });
+    executorBindings = Object.fromEntries(
+      descriptors.map((descriptor) => [descriptor.skill, descriptor]),
+    );
+    executorAdapter = createInProcessExecutorAdapter({
+      registry,
+      bindings: executorBindings,
+      capabilities,
+      artifactResolver: parentResolver,
+      schemaRegistry,
+      cursorStore,
+    });
+    executorRegistry = registry;
+  }
   const result = await orchestrate({
     approach,
     runId,
@@ -274,6 +319,14 @@ async function realMode() {
     artifactResolver: parentResolver,
     reviewArtifactRoot: reviewRoot,
     ...(hostChildArtifactResolver ? { childArtifactResolver: hostChildArtifactResolver } : {}),
+    enforceSkillFirstRouting: !allowHostDispatch,
+    ...(executorAdapter
+      ? {
+          executorAdapter,
+          executorRegistry,
+          executorBindings,
+        }
+      : {}),
   });
   await copyFile(approachPath, join(evidenceDir, "approach.json"));
   await writeFile(
@@ -316,7 +369,7 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (args[0] === "--approach") process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--quiet-progress] [--resume]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume]",
     );
     process.exit(1);
   })().catch((error) => {

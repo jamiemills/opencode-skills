@@ -110,6 +110,27 @@ export function createCsmBuildHandoff({
       });
       if (!result || typeof result !== "object")
         throw new TypeError("csm-build handoff result is required");
+      // Non-completed statuses (blocked/failed/cancelled) return the short
+      // form: they carry no artifacts/evidence to identity-validate. The
+      // cancelled pre-check above mirrors this shape. Without this
+      // short-circuit a default blocked handoff (agent-session-required)
+      // would be misreported as an identity mismatch and retried.
+      if (["blocked", "failed", "cancelled"].includes(result.status)) {
+        return Object.freeze({
+          schema: outputSchema,
+          skill,
+          attempt: expected.attempt,
+          status: result.status,
+          effects: result.effects ?? [],
+          artifacts: result.artifacts ?? [],
+          receipt: result.receipt ?? null,
+          failure: result.failure ?? {
+            class: "policy",
+            code: result.status,
+            message: `${skill} handoff ${result.status}`,
+          },
+        });
+      }
       if (
         result.schema !== outputSchema ||
         result.skill !== skill ||
@@ -140,6 +161,25 @@ export function createCsmBuildHandoffAdapter(options = {}) {
 
 export function csmBuildOwnedSkills() {
   return [...BUILD_OWNED];
+}
+
+export function createAllBuildHandoffs() {
+  return [...BUILD_OWNED].map((skill) =>
+    createCsmBuildHandoff({
+      skill,
+      execute: async () => ({
+        status: "blocked",
+        effects: [],
+        artifacts: [],
+        receipt: null,
+        failure: {
+          class: "policy",
+          code: "agent-session-required",
+          message: `${skill} requires an agent session running its SKILL.md lifecycle. Direct function dispatch is not available for instruction-led skills.`,
+        },
+      }),
+    }),
+  );
 }
 
 export { identityOf as csmBuildRequestIdentity, identityDigest as csmBuildRequestIdentityDigest };

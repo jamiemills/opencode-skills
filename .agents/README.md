@@ -247,3 +247,6 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-06-progress-movement-fixes-build-20260906T072018Z-4a21d28205cd-progress.json` — 2026-09-06 — csm-build tracker for progress-movement-fixes — status: reference
 - `2026-09-06-opencode-skills-20260906t091407z-6e281cd9-review.json` — 2026-09-06 — FULL 18-dimension R0 audit at 6e281cd9: 28 findings (5 high, 15 medium, 8 low) with challenges and remediation sketches — status: reference
 - `2026-09-06-repo-audit-run-20260906t091407z-6e281cd9-progress.json` — 2026-09-06 — csm-review tracker for the FULL repo audit — status: reference
+- `2026-09-06-orchestrate-skill-dispatch-enforcement-csm.json` — 2026-09-06 — plan + build (ready): skill-first dispatch enforcement in csm-orchestrate — status: reference
+- `2026-09-06-orchestrate-skill-dispatch-20260906t141834z-54fb1848813c-progress.json` — 2026-09-06 — csm-plan tracker for orchestrate-skill-dispatch-enforcement — status: reference
+- `2026-09-06-orchestrate-skill-dispatch-gap-research.json` — 2026-09-06 — deep-research finding: why csm-orchestrate never dispatched to real csm skills, and what changes enable skill-first routing — status: reference

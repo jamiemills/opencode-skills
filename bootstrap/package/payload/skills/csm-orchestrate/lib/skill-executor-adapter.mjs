@@ -30,9 +30,14 @@ export function createInProcessExecutorAdapter({
   const resolve = (request) => {
     const pinned = bindings[request.skill];
     if (!pinned)
-      throw Object.assign(new Error(`${request.skill}: exact executor binding is required`), {
-        code: "stale-handler",
-      });
+      throw Object.assign(
+        new Error(
+          `${request.skill}: skill executor not registered — substantial work must route to the matching csm skill`,
+        ),
+        {
+          code: "stale-handler",
+        },
+      );
     if (
       request.skill === "csm-upload" &&
       (!publicationBindings[request.skill] ||
