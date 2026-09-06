@@ -847,6 +847,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/intake.mjs",
+        "sha256": "3fb7b1fb2b8899712e115115722bf54045be3c0b71d152e22504609a2b510736",
+        "bytes": 2606,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/invocation.mjs",
         "sha256": "4a20ee13d2db6df3fd155b25a4cfad97112a8bf1ec5288c36e60a15d54896927",
         "bytes": 30248,
