@@ -6,12 +6,12 @@
   "owner": "csm-build",
   "status": "active",
   "control": {
-    "currentState": "RECOVER",
+    "currentState": "CHECKPOINT",
     "cycle": 0,
-    "nextTransition": "RECOVER -> VALIDATE -> SELECT (T001)",
+    "nextTransition": "CHECKPOINT -> SELECT (T005)",
     "activeTasks": [],
     "blockers": [],
-    "lastCheckpoint": "2026-09-06T23:21:53Z: worktree ready; baseline pending",
+    "lastCheckpoint": "2026-09-06T23:55:53Z: T001-T004 complete gate OK",
     "lastModelRun": "deepseek-v4-flash / orchestrate-request-intake-router-build"
   },
   "inputs": [
@@ -33,6 +33,14 @@
       "to": "RECOVER",
       "evidence": "explicit csm-build invocation; worktree at 0b22280",
       "nextState": "RECOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-06T23:55:53Z",
+      "from": "DISPATCH",
+      "to": "CHECKPOINT",
+      "evidence": "T001-T004 complete (plan journal seq 5).",
+      "nextState": "CHECKPOINT"
     }
   ],
   "artifacts": [],

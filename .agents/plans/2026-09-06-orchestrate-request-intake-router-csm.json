@@ -8,12 +8,12 @@
   "status": "in_progress",
   "control": {
     "status": "in_progress",
-    "currentState": "RECOVER",
+    "currentState": "CHECKPOINT",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-06T23:21:53Z: explicit csm-build invocation; worktree wt/orchestrate-request-intake-router at 0b22280; plan control NOT_STARTED->RECOVER",
+    "lastCheckpoint": "2026-09-06T23:55:53Z: T001-T004 complete (request schema 8aaa154, intake module, router module, driver intake) gate OK each HEAD",
     "lastModelRun": "deepseek-v4-flash / orchestrate-request-intake-router-build",
-    "nextTransition": "RECOVER -> VALIDATE then SELECT batch 1 (T001)",
+    "nextTransition": "CHECKPOINT -> SELECT (T005 agent-session executor)",
     "activeTasks": [],
     "blockers": [],
     "resume": {
@@ -172,7 +172,7 @@
     {
       "taskId": "T001",
       "ordinal": 1,
-      "status": "pending",
+      "status": "complete",
       "title": "P1: csm-orchestrate-request/1 schema + registry registration",
       "dependsOn": [],
       "parallelGroup": "G1",
@@ -199,7 +199,7 @@
     {
       "taskId": "T002",
       "ordinal": 2,
-      "status": "pending",
+      "status": "complete",
       "title": "P1: lib/intake.mjs schema-marker intake switch",
       "dependsOn": [
         "T001"
@@ -228,7 +228,7 @@
     {
       "taskId": "T003",
       "ordinal": 3,
-      "status": "pending",
+      "status": "complete",
       "title": "P2: lib/request-router.mjs verb classifier -> explicit signals",
       "dependsOn": [
         "T001"
@@ -257,7 +257,7 @@
     {
       "taskId": "T004",
       "ordinal": 4,
-      "status": "pending",
+      "status": "complete",
       "title": "Driver intake: --approach/--plan/--request flags via intake.mjs",
       "dependsOn": [
         "T002",
@@ -502,6 +502,20 @@
       "tasks": [],
       "evidence": "Explicit user request to build the plan with commit/push/merge and CI green. Worktree /home/jamiemills/csm-wt/orchestrate-request-intake-router at 0b22280 clean.",
       "nextState": "RECOVER"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-06T23:55:53Z",
+      "cycle": 0,
+      "transition": "SELECT -> CHECKPOINT (T001-T004)",
+      "tasks": [
+        "T001",
+        "T002",
+        "T003",
+        "T004"
+      ],
+      "evidence": "T001: csm-orchestrate-request/1 schema + registry entry digest(parseJson) canonical + payload regen same commit; schema tests 3/3. T002: intake.mjs marker switch light checks; 8/8. T003: request-router.mjs 13-kind table no self-route; explicit-only guard; 10/10. T004: run-orchestrator --approach/--plan/--request; approach path byte-identical; bypass blocked agent-session-required; 18/18 driver+parity suites; check-suite OK each HEAD.",
+      "nextState": "CHECKPOINT"
     }
   ],
   "completionReview": {

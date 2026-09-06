@@ -5,13 +5,34 @@
   "skill": "csm-build",
   "goal": "Execute orchestrate-request-intake-router plan T001-T007 to gate-green, merge to main, push, CI green",
   "status": "active",
-  "overallPercent": 0,
+  "overallPercent": 53,
   "milestones": [
-    { "id": "M1", "title": "RECOVER + VALIDATE baseline", "weightPercent": 10, "status": "active", "verifiedFraction": 0 },
-    { "id": "M2", "title": "T001-T004 intake+schema+router+driver", "weightPercent": 40, "status": "pending" },
-    { "id": "M3", "title": "T005-T006 agent-session executor", "weightPercent": 35, "status": "pending" },
-    { "id": "M4", "title": "T007 docs + merge + main gate + CI", "weightPercent": 15, "status": "pending" }
+    {
+      "id": "M1",
+      "title": "RECOVER + VALIDATE baseline",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "T001-T004 intake+schema+router+driver",
+      "weightPercent": 40,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "T005-T006 agent-session executor",
+      "weightPercent": 35,
+      "status": "active",
+      "verifiedFraction": 0.1
+    },
+    {
+      "id": "M4",
+      "title": "T007 docs + merge + main gate + CI",
+      "weightPercent": 15,
+      "status": "pending"
+    }
   ],
   "startedAt": "2026-09-06T23:21:18Z",
-  "updatedAt": "2026-09-06T23:21:18Z"
+  "updatedAt": "2026-09-06T23:55:53.545Z"
 }
