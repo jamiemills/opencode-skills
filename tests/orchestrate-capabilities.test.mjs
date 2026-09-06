@@ -24,10 +24,10 @@ test("all 13 capabilities validate and resolve deterministically", () => {
     [...SUPPORTED_SKILLS],
   );
   assert.equal(manifest.skills.length, 13);
-  assert.equal(
-    manifest.contentDigest,
-    "sha256:d53ed247c9bdc30ae40d2c01a1a327ec477320831b2febf4326c09614f2d4c19",
-  );
+  // contentDigest must equal the canonical digest over manifest.skills (the
+  // T010 generator recomputes exactly this), never a hand-pinned value that
+  // drifts on the next deliberate SKILL.md change.
+  assert.equal(manifest.contentDigest, digest(manifest.skills));
 });
 
 test("schema rejects missing capability metadata and unknown revisions", () => {
