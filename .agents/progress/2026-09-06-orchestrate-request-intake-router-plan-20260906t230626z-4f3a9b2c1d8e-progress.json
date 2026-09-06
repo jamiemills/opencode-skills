@@ -1,0 +1,43 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-orchestrate-request-intake-router-plan-20260906t230626z",
+  "runId": "run-20260906t230626z-orchestrate-request-intake-router-plan",
+  "skill": "csm-plan",
+  "goal": "Plan Phase 1-3 of the orchestrate universal request intake + up-front router change set (request/1 schema, intake switch, verb router, bounded csm-build executor handoff)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "INTAKE + DISCOVER baseline",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "RESEARCH gap validation",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "DRAFT plan",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "CRITIQUE + REMEDIATE",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "VERIFY + SAVED",
+      "weightPercent": 15,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-06T23:06:26Z",
+  "updatedAt": "2026-09-06T23:17:33.941Z"
+}

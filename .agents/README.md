@@ -88,6 +88,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-06-progress-movement-fixes-csm.json` — 2026-09-06 — plan + build (COMPLETE): mid-run percentage movement, persisted progress artifacts, rollup telemetry registration, render-on-change — status: reference
 - `2026-09-06-orchestrate-skill-dispatch-enforcement-csm.json` — 2026-09-06 — plan + build (ready): skill-first dispatch enforcement in csm-orchestrate — status: reference
 - `2026-09-06-parallelism-conflict-free-change-set-csm.json` — 2026-09-06 — plan (ready, NOT_STARTED) for csm-orchestrate: 11 tasks / 3 batches implementing the consolidated parallelism change set (S1-S9) with worktree execution, same-commit regen, and acceptance checks A-F — status: reference
+- `2026-09-06-orchestrate-request-intake-router-csm.json` — 2026-09-06 — plan (ready, NOT_STARTED) implementing research 4e0f5da phases 1-3: request/1 envelope + intake switch, verb router deriving signals, bounded env-gated csm-build agent-session executor (T001-T007) — status: reference
 
 ## docs/
 
@@ -231,6 +232,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-06-progress-movement-fixes-build-20260906T072018Z-4a21d28205cd-progress.json` — 2026-09-06 — csm-build tracker for progress-movement-fixes — status: reference
 - `2026-09-06-repo-audit-run-20260906t091407z-6e281cd9-progress.json` — 2026-09-06 — csm-review tracker for the FULL repo audit — status: reference
 - `2026-09-06-orchestrate-skill-dispatch-20260906t141834z-54fb1848813c-progress.json` — 2026-09-06 — csm-plan tracker for orchestrate-skill-dispatch-enforcement — status: reference
+- `2026-09-06-orchestrate-request-intake-router-plan-20260906t230626z-4f3a9b2c1d8e-progress.json` — 2026-09-06 — csm-plan progress record for the orchestrate-request-intake-router plan — status: complete
 
 ## ddd/
 

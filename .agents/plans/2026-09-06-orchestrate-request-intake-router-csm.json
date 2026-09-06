@@ -1,0 +1,522 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-orchestrate-request-intake-router-20260906",
+  "runId": "run-20260906t230626z-4f3a9b2c1d8e",
+  "planId": "orchestrate-request-intake-router",
+  "owner": "csm-plan",
+  "status": "ready",
+  "control": {
+    "status": "ready",
+    "currentState": "NOT_STARTED",
+    "cycle": 0,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-06T23:17:29Z: plan SAVED; status ready; NOT_STARTED",
+    "lastModelRun": "deepseek-v4-flash / csm-plan-orchestrate-request-intake-router",
+    "nextTransition": "On a future explicit csm-build invocation, NOT_STARTED -> RECOVER",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal row",
+        "recovery notes of all non-COMPLETE tasks",
+        "discovered requirements",
+        "working-tree diff"
+      ],
+      "firstAction": "RECOVER then SELECT batch 1 (T001)"
+    }
+  },
+  "goal": "Implement phases 1-3 (P1 request envelope + intake, P2 router, P3 bounded csm-build agent-session executor) of research finding .agents/research/2026-09-06-orchestrate-request-router-20260906t222553z-4f3a9b2c1d8e-research.json (commit 4e0f5da) so csm-orchestrate accepts ANY user request and runs an up-front router that decides which csm skill to invoke. Deliverables: (P1) csm-orchestrate-request/1 schema + registry registration and a lib/intake.mjs schema-marker switch accepting csm-approach/1, csm-plan/1, and csm-orchestrate-request/1; (P2) lib/request-router.mjs verb classifier that maps a request to explicit capability signals per the 13 skills' activation boundaries (explicit-mode skills stay explicit-only) with a schema-validated signals carrier; (P3) a bounded csm-build executor handoff in the driver: execute-a-plan/request kinds route to a csm-build agent session spawned in a wt-session worktree, returning a typed csm-build-output/1 child result. Phase 0 decision honored: plan EXECUTION stays owned by csm-build (no plan->phase-graph compiler; orchestrate routes to a csm-build session). Phase 4 (agent-session generalization to all instruction-led skills) is explicitly excluded pending a user decision. Approach/1 execution must remain byte-for-byte behaviorally identical (parity).",
+  "acceptanceCriteria": [
+    "AC1: csm-orchestrate-request/1 schema exists under csm-orchestrate/schemas/, is registered in schemas/registry.json with schemaContentDigest = digest(parseJson(file)) (canonical loader digest, not raw bytes), loads via loadSchemaRegistry, and accepts a valid sample request while rejecting invalid kinds / non-canonical runIds / extra properties - with a test proving both.",
+    "AC2: lib/intake.mjs dispatches on schema marker: csm-approach/1, csm-plan/1, and csm-orchestrate-request/1 each resolve to a typed kind via LIGHT field checks only (no full JSON-schema validation of plan/1 envelopes, which corpus practice does not satisfy); unknown artifacts fail closed with a router-hint message. The parallelism plan JSON (csm-plan/1) must intake cleanly.",
+    "AC3: lib/request-router.mjs classifyRequest maps representative user requests to the correct skill route set (12 routeable skills incl. csm-bdd-tdd; NO csm-orchestrate self-route) and emits explicit signals {capabilities, inputs}; explicit-mode skills (csm-grill, csm-plan, csm-build, csm-upload) are selected ONLY via explicit signals (no heuristic widening); a classification matrix test covers research/grill/plan/execute-plan/bdd-tdd/review/scan/upload/browse intents with explicit-only negative assertions.",
+    "AC4: run-orchestrator.mjs accepts --approach, --plan, and --request via intake; kind 'approach' behavior is byte-for-byte unchanged (driver-contract incl. the runId===approach.runId message, honest-failures, and lease suites stay green); kind plan/request returns the deterministic blocked agent-session-required result until the env-gated executor lands.",
+    "AC5: The agent-session executor module (env-gated: real spawns require CSM_AGENT_SESSION_EXEC=1; default off returns today's blocked result) spawns a child in a wt-session worktree (skipping create when the worktree already exists; copying artifacts in so journal updates never write main), hands the session an identity+digest envelope, and returns a typed csm-build-output/1 child result that passes full csm-build-handoff identity/schema-digest validation; hermetic tests stub the child binary and assert spawn inputs + result round-trip + timeout + artifact copy.",
+    "AC6: The driver bypass branch (kind plan/request routed to csm-build, approvals-gated before spawn) persists a typed csm-build-output/1 result, proven by tests AND one real-path stub run inside a throwaway wt-session temp repo with env=1; approach path and orchestrate() remain untouched.",
+    "AC7: check-suite OK at every commit and final state; every pack-mapped edit (csm-orchestrate/lib/**, csm-orchestrate/schemas/**, root schemas/registry.json) committed with its payload regen in the SAME commit (git show --stat proof - note payload/schemas/registry.json staleness is NOT gate-caught, M5); no SKILL.md content changes; new test files covered by the tests/orchestrate-*.test.mjs glob and pass."
+  ],
+  "currentStateEvidence": {
+    "observations": [
+      "research finding 4e0f5da (DEEP, challenged+judged) authorizes phases 1-3: request/1 envelope + intake switch, router/classifier deriving explicit signals, bounded csm-build executor handoff; compilePlan explicitly rejected by challenge (prose executionGraph, unregistered graph schema, parallelGroup semantics, duplicate-runId risk); phase 4 reversal of remove-opencode exclusion requires user decision.",
+      "Intake today: phase-compiler.mjs:35-36 requires schema csm-approach/1 revision 1; run-orchestrator.mjs:53-56 loadApproach asserts the marker and runId; no converter exists.",
+      "schemas/registry.json entries carry id/revision/schemaPath/schemaContentDigest (sha256 of schema bytes); loadSchemaRegistry validates digests (tests/schema-registry.test.mjs:24,152); csm-build-output/1 already registered (registry.json:433, schema csm-build/schemas/output.schema.json).",
+      "Route selection: phase-compiler.mjs:182-220 capabilityMatches (explicit signals -> activation predicates -> keyword heuristics); explicit-mode skills per capabilities.json are csm-grill/csm-plan/csm-build/csm-upload; signals flow only from the artifact (run-orchestrator.mjs:400).",
+      "Executors: csm-build-handoff.mjs:170-180 default blocked agent-session-required for 8 build-owned skills under enforceSkillFirstRouting (41ae505); realMode wires executor adapter/bindings (run-orchestrator.mjs:367-423); tests/orchestrate-csm-build-real-integration.test.mjs shows the explicit-handoff-with-execute test pattern.",
+      "csm-orchestrate/lib/** and csm-orchestrate/schemas/** are pack-mapped (payload regen required per parallelism plan R1); root schemas/registry.json is also pack-mapped.",
+      "Worktree norm: AGENTS.md one-goal-per-worktree; main untouched; wt-session create/merge/nuke + S6 guard in place (parallelism T006).",
+      "Agent-CLI session pattern precedent: every instruction-led skill's tmux bootstrap runs '<agent-cli> run --prompt-file <file>' in a named session."
+    ],
+    "applicability": {
+      "format": "csm-applicability/1",
+      "decision": "warranted",
+      "mode": "risk-first",
+      "matchedSignals": [
+        "public_contract",
+        "architecture_or_refactor",
+        "ownership_or_persistence",
+        "external_side_effect"
+      ],
+      "evidence": [
+        {
+          "source": "research finding 4e0f5da",
+          "locator": "phase 1 (request schema)",
+          "observation": "new public artifact contract csm-orchestrate-request/1 + registry entry + CLI flags"
+        },
+        {
+          "source": "research finding 4e0f5da",
+          "locator": "phase 2 (router) + finding K1/K2",
+          "observation": "orchestrate intake redesign (schema-marker switch) replaces the single hard assert"
+        },
+        {
+          "source": "research finding 4e0f5da",
+          "locator": "phase 3 (executor)",
+          "observation": "agent-session spawn changes run/evidence ownership and adds external side effects (child process in wt-session worktree)"
+        }
+      ],
+      "obligations": [
+        {
+          "id": "O-PARITY",
+          "status": "required",
+          "note": "approach/1 path stays behaviorally identical; driver-contract/honest-failures/lease suites + --fixture stay green; default executor result unchanged when agent-session exec is off"
+        },
+        {
+          "id": "O-ROLLBACK",
+          "status": "required",
+          "note": "per-task single self-contained commit; revert commit + re-pack for pack-mapped edits"
+        },
+        {
+          "id": "O-BEHAVIOR",
+          "status": "required",
+          "note": "every acceptance signal is a runnable command; router matrix and intake tests are hermetic; spawn path tested with a stub child"
+        },
+        {
+          "id": "O-WORKTREE",
+          "status": "required",
+          "note": "build runs in a wt-session worktree; agent sessions spawn into wt-session worktrees only; main untouched until serial merge"
+        }
+      ],
+      "taskApplicability": {
+        "warranted": [
+          "T001",
+          "T002",
+          "T003",
+          "T004",
+          "T005",
+          "T006",
+          "T007"
+        ],
+        "lightweight": []
+      },
+      "dddArtifacts": [],
+      "unresolvedRisks": [
+        "agent-session spawn protocol has no proven typed return channel (finding unverified item 1) - hermetic stubs + env-gated real path are the mitigation; real end-to-end validated in build T011-equivalent"
+      ],
+      "bypass": {
+        "requested": false,
+        "rationale": null
+      }
+    }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "A1",
+      "statement": "Research finding 4e0f5da is authoritative for phases 1-3; no solution redesign in this plan.",
+      "type": "user-dictated",
+      "evidence": "DEEP finding challenged+judged; user accepted recommendation ('yes do it')",
+      "status": "accepted"
+    },
+    {
+      "id": "A2",
+      "statement": "Phase 0 decision: plan EXECUTION remains owned by csm-build; orchestrate routes execute-plan requests to a csm-build agent session (executor handoff), never re-architecting csm-plan/1 into the phase graph.",
+      "type": "decision",
+      "evidence": "finding recommendation + challenge (compilePlan non-mechanical)",
+      "status": "accepted"
+    },
+    {
+      "id": "A3",
+      "statement": "Phase 4 (agent-session generalization to all instruction-led skills) is OUT of scope until an explicit user decision reverses the remove-opencode exclusion.",
+      "type": "decision",
+      "evidence": "finding recommendation phase 4; 2026-08-30-remove-opencode-csm.json:27 exclusions",
+      "status": "accepted"
+    },
+    {
+      "id": "A4",
+      "statement": "Signals for explicit-mode skills are carried through the new request envelope only (schema-validated path); approach artifacts keep today's passthrough behavior without schema changes to csm-approach/1.",
+      "type": "decision",
+      "evidence": "finding D5 signals-home reconciliation; challenge note on smuggled signals",
+      "status": "accepted"
+    },
+    {
+      "id": "A5",
+      "statement": "The agent-session executor's real spawn (agent CLI + tmux + wt-session) is env-gated (CSM_AGENT_SESSION_EXEC=1); default off preserves the current deterministic blocked result so CI and hermetic tests never spawn real child sessions.",
+      "type": "decision",
+      "evidence": "41ae505 enforcement semantics; no child-session protocol exists yet",
+      "status": "accepted"
+    }
+  ],
+  "discoveredRequirements": [
+    "R1: any edit to pack-mapped files (csm-orchestrate/lib/**, csm-orchestrate/schemas/**, root schemas/registry.json) requires node scripts/pack-bootstrap.mjs regen committed in the SAME commit or payload parity fails.",
+    "R2: registry schemaContentDigest must equal digest(parseJson(schemaFileBytes)) (canonical loader digest), not raw byte sha256; tests/schema-registry.test.mjs enforces.",
+    "R3: new top-level tests must match the tests/orchestrate-*.test.mjs glob (make test-orchestrate) or be wired explicitly; orchestrate suites run with --test-concurrency=1 under node scripts/with-node22.mjs.",
+    "R4: any execute() handoff result must satisfy the csm-build-handoff identity/schema-digest contract (csm-build-output/1 per csm-build/schemas/output.schema.json) or the adapter rejects with identity mismatch.",
+    "R5: main checkout must not be mutated during implementation or by spawned sessions; artifacts are copied into wt-session worktrees; agent sessions spawn only into worktrees (AGENTS.md).",
+    "R6: plan/request inputs can never pass orchestrate()'s compileApproach (assertApproach requires csm-approach/1) - dispatch for those kinds happens in the driver bypass branch, never inside orchestrate().",
+    "R7: check-suite payload drift does NOT walk payload/schemas/registry.json - same-commit regen proof is via git show --stat.",
+    "R8: corpus csm-plan/1 envelopes do not satisfy the registered csm-plan/1 JSON schema - intake uses marker + light checks, never full schema validation."
+  ],
+  "design": "Three-phased intake generalization inside csm-orchestrate, executed in a wt-session worktree with serial per-task commits. Phase 1: a typed csm-orchestrate-request/1 envelope (kind enum over the skill taxonomy verbs, prompt, artifactRef, goalSlug, constraints, requestedSignals) added under csm-orchestrate/schemas/ and registered in schemas/registry.json; lib/intake.mjs switches on schema marker to resolve approach/plan/request kinds and fails closed with a router hint otherwise. Phase 2: lib/request-router.mjs classifyRequest maps a request to {goalSlug, kind, routes, signals} using the 13 skills' activation boundaries as the routing table; explicit-mode skills receive explicit signals only (no heuristic widening); request->plan/intent chaining stays manual per activation boundaries. Phase 3: the DRIVER (scripts/run-orchestrator.mjs + scripts/lib/agent-session-executor.mjs) wires a csm-build executor binding whose execute() spawns a wt-session csm-build agent session (wt-session create <slug>, prompt file with the plan path and csm-build activation text, '<agent-cli> run --prompt-file' inside the worktree) and awaits the typed child result (csm-build-output/1 written by the build session); spawn is env-gated and hermetic tests stub the child binary; when gated off, the default blocked agent-session-required result is unchanged. orchestrate() lib itself gains no process runtime: the injected executor stays the only execution authority (contract preserved). Approach/1 intake path is untouched code-wise (intake.mjs routes it to the existing loadApproach/compileApproach flow) so parity holds.",
+  "executionGraph": "Critical path: T001 -> (T002, T003) -> T004 -> T005 -> T006 -> T007. G2 {T002, T003} is SEQUENTIAL-ONLY in practice (L1): each regen rewrites the shared bootstrap payload tree, so commits are strictly ordered T002 then T003 in the one worktree; the parallel group denotes concurrent TEST RUNS only, never parallel writers (one index, one staging area). G4 {T005} and G5 {T006} are strictly sequenced (T006 depends on T005). Ownership disjoint per task; pack regens run immediately before their own commit so a sibling's uncommitted file is never swept into the wrong commit.",
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "pending",
+      "title": "P1: csm-orchestrate-request/1 schema + registry registration",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "low",
+      "ownedScope": "csm-orchestrate/schemas/csm-orchestrate-request.schema.json (new); schemas/registry.json (entry); bootstrap payload mirror + payload-index.json (REGEN REQUIRED, R1); tests/orchestrate-request-schema.test.mjs (new)",
+      "notInScope": "intake/router logic; csm-approach/1 schema changes; CLI flags",
+      "spikeCandidate": "none",
+      "actions": [
+        "Design csm-orchestrate-request/1 (draft 2020-12, additionalProperties false): required {schema, schemaRevision, requestId, runId, kind, prompt, goalSlug}; runId pattern ^run-[a-z0-9][a-z0-9-]{1,127}$ (canonical, feeds lease/evidence dirs and handoff identity, L3); optional {artifactRef, repo, constraints, requestedSignals}; kind enum = [research, grill, plan, execute-plan, bdd-tdd, review, review-python, tests, scan, ddd, browse, upload, autoresearch] (NO csm-orchestrate self-route; csm-bdd-tdd included, M4).",
+        "Register in schemas/registry.json with id csm-orchestrate-request/1, revision 1, aliases [], immutable true, unknownFieldPolicy reject, and schemaContentDigest = digest(parseJson(schemaFileBytes)) using the loader's canonical digest (NOT raw byte sha256, M3); author the schema file oxfmt-canonical.",
+        "Run node scripts/pack-bootstrap.mjs and commit schema+registry+payload mirror+payload-index in the SAME commit (R1). NOTE (M5): check-suite payload drift does NOT walk payload/schemas/registry.json, so the git show --stat same-commit proof is the mandatory catch; optionally extend the drift walk to payload/schemas in this task only if trivial.",
+        "Add tests/orchestrate-request-schema.test.mjs: loadSchemaRegistry resolves csm-orchestrate-request/1 with digest equal to digest(parseJson(file)); a valid sample request validates; invalid kind, non-canonical runId, and extra property fail closed.",
+        "Run node scripts/check-suite.mjs and the new test file."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-request-schema.test.mjs passes AND node scripts/check-suite.mjs OK with payload drift issues:[] AND git show --stat shows schema+registry+payload mirror+payload-index in one commit",
+      "validation": [
+        "make test-orchestrate (new test under glob)",
+        "git show --stat same-commit regen proof"
+      ],
+      "acceptanceEvidence": "schema-registry test output incl. valid/invalid samples, check-suite OK line, same-commit diff stat",
+      "repairAttempts": 0,
+      "recoveryNote": "Revert schema + registry hunks and re-pack; registry digest mismatch is deterministic and caught by tests/schema-registry.test.mjs"
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "pending",
+      "title": "P1: lib/intake.mjs schema-marker intake switch",
+      "dependsOn": [
+        "T001"
+      ],
+      "parallelGroup": "G2",
+      "risk": "standard",
+      "ownedScope": "csm-orchestrate/lib/intake.mjs (new, pack-mapped R1); bootstrap payload mirror + payload-index.json (REGEN REQUIRED); tests/orchestrate-intake.test.mjs (new)",
+      "notInScope": "request classification (T003); driver flags (T004); compileApproach changes; JSON-schema validation of plan/1 envelopes (M7)",
+      "spikeCandidate": "none",
+      "actions": [
+        "Create csm-orchestrate/lib/intake.mjs exporting intakeArtifact(input) where input is parsed JSON or a file path: dispatch on schema marker -> {kind:'approach'|'plan'|'request', artifact, path}; unknown/absent marker -> TypeError with a router-hint message naming csm-orchestrate-request/1 as the entry envelope.",
+        "Kind-specific LIGHT checks only, never full JSON-schema validation (corpus csm-plan/1 envelopes do not satisfy the registered plan schema, M7): approach -> runId present and canonical; plan -> planId present + runId present and canonical (pattern ^run-...); request -> requestId + runId + kind + prompt present per T001.",
+        "Regenerate payload and commit source+mirror in the same commit (R1).",
+        "Add tests/orchestrate-intake.test.mjs: approach fixture, plan fixture (parallelism plan envelope shape), request fixture, unknown-marker failure with hint, and a marker-only acceptance proof that a corpus plan envelope passes WITHOUT schema validation.",
+        "Run intake tests + check-suite."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-intake.test.mjs passes (3 kinds + unknown-marker + no-schema-validation cases) AND check-suite OK payload-drift-clean",
+      "validation": [
+        "make test-orchestrate",
+        "node scripts/check-suite.mjs"
+      ],
+      "acceptanceEvidence": "intake test output, check-suite payload-drift-clean proof, same-commit regen diff stat",
+      "repairAttempts": 0,
+      "recoveryNote": "If payload parity fails, re-run pack-bootstrap and amend the same commit"
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "pending",
+      "title": "P2: lib/request-router.mjs verb classifier -> explicit signals",
+      "dependsOn": [
+        "T001"
+      ],
+      "parallelGroup": "G2",
+      "risk": "standard",
+      "ownedScope": "csm-orchestrate/lib/request-router.mjs (new, pack-mapped R1); bootstrap payload mirror + payload-index.json (REGEN REQUIRED); tests/orchestrate-request-router.test.mjs (new)",
+      "notInScope": "heuristic widening of phase-compiler.mjs:185; free-text NLP; approach/1 signal passthrough changes",
+      "spikeCandidate": "none",
+      "actions": [
+        "Create lib/request-router.mjs exporting classifyRequest(request) -> {goalSlug, kind, routes, signals:{capabilities, inputs}}: routing table over the 12 routeable skills keyed on activation-boundary verbs (research->csm-deep-research, grill idea->csm-grill, make a plan->csm-plan, execute/implement a saved plan->csm-build, BDD/TDD a plan->csm-bdd-tdd, review/audit repo->csm-review, python doctrine->csm-review-python, generate/maintain tests->csm-make-tests, scan/norms->csm-scan, ddd analysis->csm-ddd, upload evidence->csm-upload, browse/screenshot->csm-browse, optimize/evaluate a declared function->csm-autoresearch). NO csm-orchestrate self-route (capabilityMatches iterates the 13-skill manifest that excludes csm-orchestrate; a self-route is unexecutable, M4).",
+        "signals.capabilities populated with the selected skill; inputs populated from artifactRef kind when present (plan->['plan'], approach->['approach']); explicit-mode skills (csm-grill, csm-plan, csm-build, csm-upload per capabilities.json) are NEVER selected by text heuristics - only when request.kind or an explicit requestedSignals entry names them (A4).",
+        "Regenerate payload and commit source+mirror in the same commit (R1).",
+        "Add tests/orchestrate-request-router.test.mjs: classification matrix (>=9 representative requests incl. research/grill/plan/execute-plan/bdd-tdd/review/scan/upload/browse), explicit-only negative assertions (phrases containing 'build' or 'plan' without kind/requestedSignals must NOT route to csm-build/csm-plan), unknown request fails with no-route error.",
+        "Run router tests + check-suite."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-request-router.test.mjs passes (matrix incl. bdd-tdd + explicit-only negatives + no-route) AND check-suite OK payload-drift-clean",
+      "validation": [
+        "make test-orchestrate",
+        "node scripts/check-suite.mjs"
+      ],
+      "acceptanceEvidence": "router matrix test output, explicit-only negative proof, check-suite clean",
+      "repairAttempts": 0,
+      "recoveryNote": "Revert request-router.mjs + tests and re-pack; classification table is data-only, trivially reverted"
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "pending",
+      "title": "Driver intake: --approach/--plan/--request flags via intake.mjs",
+      "dependsOn": [
+        "T002",
+        "T003"
+      ],
+      "parallelGroup": "G3",
+      "risk": "standard",
+      "ownedScope": "scripts/run-orchestrator.mjs (loadApproach -> intake at :53-56, realMode input resolution, usage line); tests/orchestrate-driver-contract.test.mjs (extend) or tests/orchestrate-intake-driver.test.mjs (new)",
+      "notInScope": "executor spawn wiring (T005/T006); orchestrate() lib signature changes; plan/request dispatch (T006)",
+      "spikeCandidate": "none",
+      "actions": [
+        "Replace loadApproach's schema assert with intakeArtifact. kind 'approach' keeps today's semantics byte-for-byte: runId===approach.runId check and the F-004 honest-failure message stay (tests/orchestrate-driver-contract.test.mjs:68 asserts it), --host remains REQUIRED for the approach path only.",
+        "kind 'plan' (--plan <path>): derive the driver runId from plan.runId (canonical in corpus plans, M7 answer Q2) and run classifyRequest to confirm kind execute-plan/plan -> routes [csm-build]. kind 'request' (--request <path>): use request.runId (canonical, T001) and classifyRequest. Usage line gains --plan/--request.",
+        "PRE-T005/T006 behavior (M6): for kind plan/request the driver exits with the deterministic blocked agent-session-required result (parity with the default csm-build handoff); this is asserted in T004's own tests. T005/T006 flip only the env-gated csm-build route.",
+        "Duplicate-run semantics on the plan/request bypass (H1, M7): the derived runId is unique per plan artifact, so the honest-failure guard + acquireRunLease apply unchanged to the evidence dir.",
+        "Extend driver tests: --plan intake of the parallelism plan envelope reaches kind plan + csm-build route then returns the deterministic blocked result; --request research-kind returns blocked; --request with non-canonical runId fails intake; existing contract/honest-failure/lease suites stay green.",
+        "Run driver suites + check-suite."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-intake-driver.test.mjs passes (plan->csm-build blocked, request blocked, runId validation) AND existing tests/orchestrate-driver-contract.test.mjs + honest-failures + driver-lease stay green (parity, O-PARITY)",
+      "validation": [
+        "make test-orchestrate",
+        "node scripts/check-suite.mjs (scripts/ not pack-mapped)"
+      ],
+      "acceptanceEvidence": "intake-driver output, parity suite outputs, check-suite OK",
+      "repairAttempts": 0,
+      "recoveryNote": "Revert run-orchestrator hunks + tests; state fully determined by git diff"
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "pending",
+      "title": "P3a: agent-session executor module (env-gated) + identity bridge",
+      "dependsOn": [
+        "T004"
+      ],
+      "parallelGroup": "G4",
+      "risk": "high",
+      "ownedScope": "scripts/lib/agent-session-executor.mjs (new); tests/orchestrate-agent-session-executor.test.mjs (new)",
+      "notInScope": "driver bypass wiring (T006); generalization to non-csm-build skills (A3); orchestrate() lib runtime",
+      "spikeCandidate": "Real child-result identity round-trip: can a spawned session echo the handoff envelope (identity + schema digests) into child-output.json such that createCsmBuildHandoff.execute() full validation passes? Isolation: throwaway temp repo + stub child; no real agent CLI.",
+      "actions": [
+        "Create scripts/lib/agent-session-executor.mjs exporting createCsmBuildAgentSessionExecutor({agentCli, worktreeRoot, spawn, env}): execute(request) returns the EXACT blocked agent-session-required result when env CSM_AGENT_SESSION_EXEC !== '1' (parity with csm-build-handoff.mjs:170-180).",
+        "When enabled: (a) if worktreeRoot is a pre-existing git worktree directory, treat it as already-created and SKIP wt-session create (hermetic tests use a temp fixture root - no git mutation in CI, M2); otherwise create it via wt-session (node scripts/wt-session.mjs create <slug> --root <repo> --dir <parent> --no-setup) and COPY the plan/request artifact into the worktree so journal updates never write into main (L2); (b) write an IDENTITY+digest envelope JSON into the worktree (invocationId/parentRunId/childRunId/phaseId/edgeId/skill + inputSchemaDigest/outputSchemaDigest, mirroring csm-build-handoff.mjs:29-37,87-110) and a prompt file whose text instructs the session (csm-build Activation Boundary activation + plan path + envelope path + evidence-dir path) to write <evidenceDir>/child-output.json carrying the envelope fields verbatim plus the csm-build-output/1 result (H2 bridge); (c) spawn '<agentCli> run --prompt-file <file>' with cwd inside the worktree; poll for child-output.json with a timeout; (d) return the parsed csm-build-output/1 result through createCsmBuildHandoff({skill:'csm-build', execute: thisRunner}) so full identity/schema-digest validation runs (R4).",
+        "Add tests/orchestrate-agent-session-executor.test.mjs (hermetic): stub child binary that reads the envelope + writes a valid csm-build-output/1 JSON; assert (i) blocked-by-default when env off, (ii) spawn argv (agent cli, prompt file, cwd) with env on and a fixture worktreeRoot (no wt-session create invoked), (iii) typed result round-trip incl. identity digest validation, (iv) timeout path, (v) artifact copy into the worktree when creation happens.",
+        "Run executor tests + check-suite."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-agent-session-executor.test.mjs passes (blocked-default, spawn argv, identity-bridge round-trip, timeout, artifact-copy) AND no real agent session can spawn without CSM_AGENT_SESSION_EXEC=1 (code review + env-gate assertion)",
+      "validation": [
+        "make test-orchestrate",
+        "node scripts/check-suite.mjs",
+        "assert the executor never runs wt-session/git when worktreeRoot exists"
+      ],
+      "acceptanceEvidence": "executor test output incl. spawn-argv capture and csm-build-output/1 identity round-trip, check-suite OK",
+      "repairAttempts": 0,
+      "recoveryNote": "Executor is env-gated and hermetic-test-covered; revert module if needed"
+    },
+    {
+      "taskId": "T006",
+      "ordinal": 6,
+      "status": "pending",
+      "title": "P3b: driver bypass wiring + one real-path run",
+      "dependsOn": [
+        "T004",
+        "T005"
+      ],
+      "parallelGroup": "G5",
+      "risk": "high",
+      "ownedScope": "scripts/run-orchestrator.mjs (realMode kind branch: approach keeps orchestrate() path; plan/request + route csm-build invoke the T005 executor handoff directly, persisting the typed result); tests/orchestrate-agent-session-driver.test.mjs (new)",
+      "notInScope": "orchestrate() changes for plan/request (plans cannot pass compileApproach - assertApproach at phase-compiler.mjs:35-36, H1); non-csm-build routes (A3)",
+      "spikeCandidate": "none",
+      "actions": [
+        "In realMode add the H1 branch: when intake kind is plan or request AND classifyRequest routes to csm-build: build the fabricated handoff identity (invocationId/childRunId from the derived driver runId + phaseId/edgeId placeholders), apply the same approvals policy gate (createAutonomyPolicy needs external approvals for csm-build - write effects) BEFORE spawning, then invoke createCsmBuildHandoff({skill:'csm-build', execute: agentSessionExecutor}).execute(request) directly and persist the typed result + receipt like the orchestrate path does. The orchestrate() path and its executor registry/preflight machinery remain untouched and approach-only. Host requirement stays approach-only (T004). Lease guards apply to the derived runId (T004).",
+        "One REAL-path acceptance (M1): with CSM_AGENT_SESSION_EXEC=1, worktreeRoot pointing at a throwaway wt-session temp-repo, and agentCli = a stub script (not a real agent), run the driver --plan <fixture plan> end-to-end and assert the typed csm-build-output/1 result is persisted; document the wall-clock cost. This proves the wiring without a real model runtime; a genuine agent-CLI end-to-end is deferred to the build's final acceptance with an explicit note (finding unverified item 1).",
+        "Add tests/orchestrate-agent-session-driver.test.mjs: approach path unchanged (parity), plan+env-off -> blocked, plan+env-on+stub -> typed result, request research-kind -> blocked, approvals-gate denial blocks the spawn.",
+        "Run driver + executor suites + check-suite."
+      ],
+      "acceptanceSignal": "node tests/orchestrate-agent-session-driver.test.mjs passes AND the real-path stub run (env=1, temp wt-session) persists a typed csm-build-output/1 result AND existing orchestrate driver suites stay green",
+      "validation": [
+        "make test-orchestrate",
+        "node scripts/check-suite.mjs",
+        "journal records the real-path run output + wall-clock"
+      ],
+      "acceptanceEvidence": "driver-bypass test output, real-path run log, parity suite outputs, check-suite OK",
+      "repairAttempts": 0,
+      "recoveryNote": "Bypass branch is additive and env-gated; revert wiring + tests to restore approach-only behavior"
+    },
+    {
+      "taskId": "T007",
+      "ordinal": 7,
+      "status": "pending",
+      "title": "Docs entry point + full gates + approach parity e2e",
+      "dependsOn": [
+        "T006"
+      ],
+      "parallelGroup": "G6",
+      "risk": "low",
+      "ownedScope": "AGENTS.md (single entry-point sentence); no production code",
+      "notInScope": "agent-session protocol docs beyond the bounded executor; phase-4 design; README matrix region changes",
+      "spikeCandidate": "none",
+      "actions": [
+        "Add one AGENTS.md sentence: csm-orchestrate is the single entry point accepting csm-approach/1, csm-plan/1, or csm-orchestrate-request/1 and routing to the owning csm skill (plan execution stays owned by csm-build).",
+        "Run make check, make test-orchestrate (all new suites), make fmt-check, make lint, node scripts/check-suite.mjs in the worktree; record outputs.",
+        "Merge the worktree to main serially from the main checkout (node scripts/wt-session.mjs merge <slug>), re-run the gate on main, then nuke the worktree."
+      ],
+      "acceptanceSignal": "make test-orchestrate green with the new suites AND post-merge main gate: node scripts/check-suite.mjs OK",
+      "validation": [
+        "grep the AGENTS.md sentence",
+        "git log on main shows the serial merge only"
+      ],
+      "acceptanceEvidence": "orchestrate suite output, check-suite OK on main, merge + nuke proof",
+      "repairAttempts": 0,
+      "recoveryNote": "Doc-only plus merge; revert trivially"
+    }
+  ],
+  "verificationStrategy": "Cheapest first: oxfmt/lint (pre-commit) -> task-local test files (request-schema, intake, router, driver, executor, driver-bypass) -> payload regen same-commit proof (check-suite drift gates + git show --stat for registry) -> make test-orchestrate -> final main gate. Fast per-task gates: the task's own test file + node scripts/check-suite.mjs. Expensive/final gates: make test-orchestrate + full make test at T007. Flaky-sensitive: executor spawn tests use stub children with generous timeouts and fixture worktree roots; no real agent sessions in CI (env-gated).",
+  "risksAndRecovery": "Risks: (1) registry digest mismatch (raw-byte vs canonical) -> use digest(parseJson(file)), caught by tests/schema-registry.test.mjs. (2) payload parity failure / stale payload/schemas/registry.json not gate-caught -> mandatory git show --stat same-commit proof (M5). (3) executor child-result identity failure -> identity+digest envelope bridge (H2) + R4 contract tests against csm-build/schemas/output.schema.json. (4) parity regression on approach path -> driver-contract/honest-failures/lease suites; revert the intake switch to pure passthrough for kind approach. (5) router misroutes -> matrix tests; explicit-only guard prevents heuristic widening (M4). (6) real agent-CLI end-to-end unproven -> env-gated real-path stub acceptance in T006 + explicit deferred note (finding unverified item 1). Rollback: each task is one self-contained commit; revert + re-pack for pack-mapped tasks; main untouched until T007's serial merge. Deferred (A3/finding phase 4): agent-session generalization beyond csm-build, plan->phase-graph compiler (phase 0 rejected), csm-approach/1 schema changes, orchestrate() intake of plan/request graphs.",
+  "critiqueResolution": [
+    {
+      "finding": "H1 plan/request cannot pass compileApproach; driver bypass branch + fabricated identity unspecified",
+      "severity": "high",
+      "resolution": "T004/T006 now specify the realMode kind branch: approach keeps orchestrate() byte-for-byte; plan/request + csm-build route build the handoff identity and invoke the T005 executor directly with approvals gating before spawn; host requirement stays approach-only",
+      "evidence": "remediation applied at DRAFT->CRITIQUE->REMEDIATE"
+    },
+    {
+      "finding": "H2 child result can never satisfy handoff identity/digest validation",
+      "severity": "high",
+      "resolution": "T005 adds the identity+digest envelope bridge: executor writes envelope (invocationId/childRunId/phaseId/edgeId/skill + schema digests) into the worktree and the prompt instructs the session to echo it into child-output.json; full createCsmBuildHandoff validation runs on return",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M1 no acceptance exercises the env-gated real spawn path",
+      "severity": "medium",
+      "resolution": "T006 adds one real-path stub run (env=1, throwaway wt-session temp repo, stub agentCli) with wall-clock journaled; genuine agent-CLI e2e deferred explicitly",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M2 hermetic test cannot stub wt-session create",
+      "severity": "medium",
+      "resolution": "T005 executor treats a pre-existing worktreeRoot as already-created and skips create; hermetic tests use temp fixture roots; real creation path tested via artifact-copy assertion",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M3 registry digest recipe wrong (raw bytes vs canonical digest(parseJson))",
+      "severity": "medium",
+      "resolution": "T001 digest = digest(parseJson(schemaFileBytes)); schema file authored oxfmt-canonical; aliases/immutable/unknownFieldPolicy fields included",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M4 taxonomy inconsistent (13 skills claim, missing csm-bdd-tdd, illegal csm-orchestrate self-route)",
+      "severity": "medium",
+      "resolution": "Router table + kind enum = 12 routeable skills incl. csm-bdd-tdd, no csm-orchestrate self-route; matrix adds bdd-tdd row",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M5 payload/schemas/registry.json staleness not gate-caught",
+      "severity": "medium",
+      "resolution": "Same-commit git show --stat proof mandatory in T001 AC; noted the gate gap",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M6 pre-T005 --plan behavior undefined",
+      "severity": "medium",
+      "resolution": "T004 defines: all plan/request kinds exit deterministic blocked agent-session-required until T005/T006 flip the env-gated csm-build route; asserted in T004 tests",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "M7 corpus plan envelopes fail the registered plan schema; intake must not schema-validate plans",
+      "severity": "medium",
+      "resolution": "T002 uses marker + light field checks only; plan runId derivation confirmed canonical in corpus; T004 defines duplicate-run semantics via the derived unique runId + existing lease guards",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "L1 G2 pack regen shared-write sweep risk",
+      "severity": "low",
+      "resolution": "Execution graph states G2 sequential-only commits (T002 then T003); regen immediately before own commit",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "L2 spawned worktree lacks uncommitted artifacts; journal writes would touch main",
+      "severity": "low",
+      "resolution": "T005 copies the plan/request artifact into the worktree and passes the worktree-local path",
+      "evidence": "remediation applied"
+    },
+    {
+      "finding": "L3 requestId fallback likely pattern-invalid for runId consumers",
+      "severity": "low",
+      "resolution": "T001 makes runId required in the request envelope with the canonical run- pattern; --request uses request.runId",
+      "evidence": "remediation applied"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-06T23:08:00Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER",
+      "tasks": [],
+      "evidence": "prescriptive brief: research finding 4e0f5da phases 1-3 (request/1 + intake + router + bounded csm-build executor); ask classified LARGE + PRESCRIPTIVE; applicability warranted (public_contract, architecture_or_refactor, ownership_or_persistence, external_side_effect); no DDD artifacts referenced",
+      "nextState": "DISCOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-06T23:08:00Z",
+      "cycle": 0,
+      "transition": "DISCOVER -> DRAFT",
+      "tasks": [],
+      "evidence": "baseline: main 4e0f5da clean; registry entry mechanics + digest validation confirmed (tests/schema-registry.test.mjs); run-orchestrator.mjs:53-56 assert located; explicit-mode skills confirmed (grill/plan/build/upload); csm-build-output/1 registered (registry.json:433); real-integration test pattern located; pack-mapped paths per parallelism plan R1",
+      "nextState": "DRAFT"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-06T23:17:14Z",
+      "cycle": 0,
+      "transition": "DRAFT -> CRITIQUE -> REMEDIATE",
+      "tasks": [],
+      "evidence": "hostile critique: 2 high (H1 driver bypass + identity fabrication; H2 child-result identity bridge), 5 medium, 3 low; all resolved in critiqueResolution (T005 split into executor module + driver bypass, kind-enum/taxonomy corrected to 12 routeable skills + bdd-tdd, digest recipe fixed, pre-T005 blocked behavior defined, artifact-copy + pre-existing-worktree handling added, real-path stub acceptance added)",
+      "nextState": "REMEDIATE"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-06T23:17:23Z",
+      "cycle": 0,
+      "transition": "REMEDIATE -> VERIFY",
+      "tasks": [],
+      "evidence": "primary VERIFY: 7/7 tasks pending with runnable acceptance signals, risk classes, anti-scope, non-overlapping ownership; dependency order T001->T002/T003(sequential-only)->T004->T005->T006->T007; applicability single valid warranted record incl. T007 with O-PARITY/O-ROLLBACK/O-BEHAVIOR/O-WORKTREE; named files/line anchors verified against repo by critique (registry mechanics, compileApproach gate, handoff contract, lease guards); no DDD artifacts; resume state complete",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-06T23:17:29Z",
+      "cycle": 0,
+      "transition": "VERIFY -> SAVED",
+      "tasks": [],
+      "evidence": "plan saved at .agents/plans/2026-09-06-orchestrate-request-intake-router-csm.json; status ready; 7 tasks pending",
+      "nextState": "SAVED"
+    }
+  ],
+  "completionReview": {
+    "status": "not-complete",
+    "summary": "Filled by csm-build when all acceptance criteria have evidence",
+    "verifiedCriteria": [],
+    "openItems": []
+  },
+  "inputs": [
+    {
+      "type": "research-finding",
+      "path": ".agents/research/2026-09-06-orchestrate-request-router-20260906t222553z-4f3a9b2c1d8e-research.json",
+      "commitSha": "4e0f5daf3099f91ea3d98f5288c5ca291110f465",
+      "relation": "authoritative change set (phases 1-3)"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-06T23:08:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
+}
