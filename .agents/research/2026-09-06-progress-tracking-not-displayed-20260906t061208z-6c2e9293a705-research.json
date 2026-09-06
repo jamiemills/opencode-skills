@@ -1,0 +1,371 @@
+{
+  "format": "csm-deep-research/1",
+  "schema": "csm-deep-research/1",
+  "runId": "20260906t061208z-6c2e9293a705",
+  "slug": "progress-tracking-not-displayed",
+  "title": "Why progress tracking was not displayed in csm-orchestrate cycle 6 despite the cycle-5 fix",
+  "state": "SAVED",
+  "gitRoot": "/home/jamiemills/.config/opencode/skills",
+  "sourceMode": "local",
+  "tier": "STANDARD",
+  "tempDir": "/tmp/opencode/csm-deep-research-progress",
+  "protectedStateBaseline": [],
+  "question": "Zero progress tracking was displayed during csm-orchestrate run run-renderer-wiring-r1 (quality delivery cycle 6) despite cycle 5 (run-progress-visibility-r3) supposedly fixing progress tracking. Establish exactly what the driver prints during a run, under what conditions the final TASK PROGRESS projection renders, and why an operator could see no progress tracking.",
+  "control": [
+    {
+      "at": "2026-09-06T06:12:08Z",
+      "entry": "INTAKE complete :: cycle 1 :: run id 20260906t061208z-6c2e9293a705; artifact .agents/research/2026-09-06-progress-tracking-not-displayed-20260906t061208z-6c2e9293a705-research.json; temp dir /tmp/opencode/csm-deep-research-progress; baseline clean tree"
+    },
+    {
+      "at": "2026-09-06T06:14:00Z",
+      "entry": "TRIAGE complete :: cycle 1 :: tier STANDARD, source mode local; tracks: (1) runtime rendering path, (2) progress semantics during a run, (3) captured stdout evidence of run-renderer-wiring-r1"
+    },
+    {
+      "at": "2026-09-06T06:14:30Z",
+      "entry": "RESEARCH -> dispatched 3 parallel read-only researchers :: cycle 1"
+    },
+    {
+      "at": "2026-09-06T06:30:00Z",
+      "entry": "RESEARCH complete :: cycle 1 :: three evidence packs returned; raw pack staged in temp dir"
+    },
+    {
+      "at": "2026-09-06T06:36:00Z",
+      "entry": "SYNTHESIZE complete :: cycle 1 :: 7 provisional key findings staged to temp draft-claims.json (write-back to this document deferred to REMEDIATE — durability failure caught by JUDGE)"
+    },
+    {
+      "at": "2026-09-06T06:42:00Z",
+      "entry": "CHALLENGE complete :: cycle 1 :: verdicts: KF1 uphold, KF2 downgrade (bar trajectory 0->33->67->100; frozen at 67% not 0%), KF3 uphold (+ adjacent finding: reset ordering), KF4 uphold, KF5 uphold with caveat, KF6 downgrade (trajectory IS persisted in cursor.db-wal; gap is retrievability not absence), KF7 uphold; suggested new claims S1 (rollup telemetry silently discarded - unlisted event type), S3 (epistemic limit: invocation command and stdout uncaptured; --quiet-progress unexcludable), S4 (clamp + reset ordering make rollup movement structurally unobservable)"
+    },
+    {
+      "at": "2026-09-06T06:50:00Z",
+      "entry": "JUDGE complete :: cycle 1 :: verdict FAIL (all four dimensions 0.0) - proximate cause durability: synthesized draft was never written into this document; judge also corrected the WAL snapshot count (26 distinct revisions, not 53) and required the epistemic limit to be load-bearing"
+    },
+    {
+      "at": "2026-09-06T07:05:00Z",
+      "entry": "REMEDIATE complete :: cycle 1 :: full finding written into this document with downgrades integrated, snapshot count corrected (26 distinct revisions, deduped by revision), S1/S2/S4 integrated, epistemic limit made load-bearing; resolutions logged in process appendix"
+    },
+    {
+      "at": "2026-09-06T07:06:00Z",
+      "entry": "VERIFY complete :: cycle 1 :: load-bearing citations spot-checked (clamp, telemetry event types, recorder, projection guard); render shape matches 9-part skeleton; protected-state re-run clean; redaction check clean"
+    },
+    {
+      "at": "2026-09-06T07:07:00Z",
+      "entry": "SAVED :: cycle 1 :: finding committed; temp dir deleted"
+    }
+  ],
+  "process": {
+    "pipeline": "STANDARD tier, local source mode. Three parallel read-only researcher tracks (runtime rendering path; progress semantics; captured run evidence) returned evidence packs with file:line citations. One independent adversarial challenger (anti-anchored: claims + evidence only, no author rationale) returned 5 uphold, 2 downgrade, 4 suggested claims. One independent judge scored the draft FAIL 0.0 across all dimensions on a durability failure (draft never written back), with substantive corrections (snapshot count method, epistemic load-bearing). REMEDIATE applied all verdicts; this document is the remediated finding.",
+    "researchers": [
+      {
+        "track": "runtime rendering path",
+        "scope": "emitTerminalReceipt progressByReceipt keying, orchestrate epilogue, driver onProgress and final render, tracker notifyUpdate"
+      },
+      {
+        "track": "progress semantics during a run",
+        "scope": "aggregateProgress math, item state transitions and timing, observeTelemetry triggers, projection text format"
+      },
+      {
+        "track": "captured run evidence",
+        "scope": "run-renderer-wiring-r1 telemetry timeline and gaps, receipt.json content, persisted artifact inventory, cycle-5 test assertions vs claims"
+      }
+    ],
+    "challengeVerdicts": [
+      {
+        "claim": "KF1",
+        "verdict": "uphold",
+        "rationale": "citations verified; tracker effectively always non-null before terminal emission"
+      },
+      {
+        "claim": "KF2",
+        "verdict": "downgrade",
+        "rationale": "mechanism correct but headline false: WAL progress snapshots show 0->33->67->100; bar frozen at 67% for the 44.9s window (92.7%), not 0%"
+      },
+      {
+        "claim": "KF3",
+        "verdict": "uphold",
+        "rationale": "recorder writes 100% post-completion; clamp at progress.mjs:296-297 neutralizes rollup; reset ordering makes it structural (S4)"
+      },
+      {
+        "claim": "KF4",
+        "verdict": "uphold",
+        "rationale": "telemetry gaps 3.067s and 44.873s verified in telemetry.jsonl; single awaited invocation confirmed"
+      },
+      {
+        "claim": "KF5",
+        "verdict": "uphold",
+        "rationale": "appended byte-identical text blocks confirmed; caveat: movement was coarse not absent; operator experience is inference"
+      },
+      {
+        "claim": "KF6",
+        "verdict": "downgrade",
+        "rationale": "trajectory IS persisted in cursor.db-wal (progress-snapshot events); gap is retrievability/presentation, not absence"
+      },
+      {
+        "claim": "KF7",
+        "verdict": "uphold",
+        "rationale": "V-B substring assertions satisfiable by first pending-state print; no percentage-movement or distinct-final-render test exists"
+      },
+      {
+        "claim": "S1",
+        "verdict": "accepted as new key finding",
+        "rationale": "skill-progress-rollup absent from TELEMETRY_EVENT_TYPES; emit throws; bare catch swallows; zero rollup events in 12-record telemetry.jsonl despite 3 rollups firing"
+      },
+      {
+        "claim": "S3",
+        "verdict": "accepted as epistemic limit",
+        "rationale": "invocation command and stdout uncaptured; --quiet-progress unexcludable from artifacts"
+      }
+    ],
+    "judgeVerdict": {
+      "scores": {
+        "factualAccuracy": 0,
+        "citationAccuracy": 0,
+        "completeness": 0,
+        "clarity": 0
+      },
+      "verdict": "FAIL",
+      "cause": "durability: synthesized draft existed only in temp staging; document was empty",
+      "substantiveCorrections": [
+        "WAL snapshot count: 26 distinct persisted revisions (deduped by revision), not 53 raw string matches",
+        "corrected trajectory reproduced independently: 0 -> 0.333 (rev 8, 06:03:34.857Z) -> 0.667 (rev 15, 06:03:37.945Z) -> 1 (rev 22, 06:04:22.831Z); 67% held 44.88s = 92.7%",
+        "epistemic limit (stdout uncaptured; --quiet-progress unexcludable) must be load-bearing, not a footnote"
+      ]
+    },
+    "remediationLog": [
+      {
+        "verdict": "JUDGE FAIL",
+        "resolution": "full finding written into the research document (keyFindings, detailSections, recommendation, unverifiedClaims, references)",
+        "appliedBy": "primary"
+      },
+      {
+        "verdict": "KF2 downgrade",
+        "resolution": "rewritten: bar frozen at 67% for 92.7% of the run; three coarse jumps only",
+        "appliedBy": "primary"
+      },
+      {
+        "verdict": "KF6 downgrade",
+        "resolution": "rewritten: retrievability/presentation gap; WAL persists 26 distinct snapshots",
+        "appliedBy": "primary"
+      },
+      {
+        "verdict": "judge count correction",
+        "resolution": "26 distinct revisions stated with dedupe method",
+        "appliedBy": "primary"
+      },
+      {
+        "verdict": "S1 accepted",
+        "resolution": "promoted to key finding (new defect)",
+        "appliedBy": "primary"
+      },
+      {
+        "verdict": "S3 accepted",
+        "resolution": "promoted to load-bearing epistemic limit",
+        "appliedBy": "primary"
+      }
+    ],
+    "containment": "tmux session csm-deep-research-progress-tracking-not-displayed (renamed in place); temp dir /tmp/opencode/csm-deep-research-progress; subagents read-only, no writes observed"
+  },
+  "references": [
+    {
+      "id": "R1",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/progress.mjs",
+      "retrieved": "2026-09-06",
+      "note": "aggregateProgress :161-193 (weight x verifiedFraction); itemForNode :267-283 (pending, fraction 0); updateProgress clamp :296-297; notifyUpdate :347-359; observeTelemetry :408-417; assertTransition :137-159"
+    },
+    {
+      "id": "R2",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/index.mjs",
+      "retrieved": "2026-09-06",
+      "note": "emitTerminalReceipt :134-150 (set site A unconditional at :137, loss-surfaced re-key at :148); orchestrate epilogue :1546-1549; phase-end transition :975-993; dispatch :556-563; review :967-973; rollup emit :793-802 with bare catch :804; invokeAdapter :570-572"
+    },
+    {
+      "id": "R3",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/run-orchestrator.mjs",
+      "retrieved": "2026-09-06",
+      "note": "onProgress print :253-259; final render guard :279-281; --quiet-progress :185; timeoutMs rationale :246-248; fixtureMode without onProgress :78-131"
+    },
+    {
+      "id": "R4",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/output/projection.mjs",
+      "retrieved": "2026-09-06",
+      "note": "text format :116-124; quiet early-return :114; JSON-only differing fields :88-92, 103-112; stateLabel :7-11"
+    },
+    {
+      "id": "R5",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/telemetry.mjs",
+      "retrieved": "2026-09-06",
+      "note": "TELEMETRY_EVENT_TYPES :7-20 (no skill-progress-rollup); emit throws for unlisted types :182-185"
+    },
+    {
+      "id": "R6",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/invocation.mjs",
+      "retrieved": "2026-09-06",
+      "note": "single awaited child invocation race :513-536 (no per-milestone hooks during child execution)"
+    },
+    {
+      "id": "R7",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/lib/skill-progress-recorder.mjs",
+      "retrieved": "2026-09-06",
+      "note": "single record, status complete :26, overallPercent 100 :27, written post-completion (only call sites are post-phaseWork in hosts)"
+    },
+    {
+      "id": "R8",
+      "url": "file:///home/jamiemills/.config/opencode/skills/csm-orchestrate/lib/progress-rollup.mjs",
+      "retrieved": "2026-09-06",
+      "note": "rollup patches verifiedFraction + evidenceRefs on the active item :29-36"
+    },
+    {
+      "id": "R9",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/evidence/orchestrator/run-renderer-wiring-r1/telemetry.jsonl",
+      "retrieved": "2026-09-06",
+      "note": "12 records; gaps 3.067s (rec 5->6) and 44.873s (rec 8->9); event types approval/dispatch/review/remediation/terminal only; total 48.396s"
+    },
+    {
+      "id": "R10",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/evidence/orchestrator/run-renderer-wiring-r1/cursor.db-wal",
+      "retrieved": "2026-09-06",
+      "note": "progress-snapshot persistence: 26 distinct revisions (deduped by revision; ~90 raw WAL occurrences), plannedProgress 0 -> 0.333 (rev 8) -> 0.667 (rev 15) -> 1 (rev 22); 67% held rev 15-21 = 44.88s = 92.7%"
+    },
+    {
+      "id": "R11",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/evidence/orchestrator/run-renderer-wiring-r1/receipt.json",
+      "retrieved": "2026-09-06",
+      "note": "top-level keys schema/receiptId/runId/phaseId/childReceipts/approval/statuses/outcome/idempotencyKey/extensions - no progress key; outcome VERIFIED"
+    },
+    {
+      "id": "R12",
+      "url": "file:///home/jamiemills/.config/opencode/skills/tests/orchestrate-progress-visibility.test.mjs",
+      "retrieved": "2026-09-06",
+      "note": "V-A :139-153 last-snapshot render; V-B :155-182 substring assertions only; V-C rollup evidenceRefs; no percentage-movement or distinct-final-render assertion"
+    },
+    {
+      "id": "R13",
+      "url": "file:///home/jamiemills/.config/opencode/skills/scripts/lib/run-projections.mjs",
+      "retrieved": "2026-09-06",
+      "note": "RECEIPT_RENDER_PROFILE :26-53 renders outcome/identity/statuses/approval only - progress excluded by design"
+    },
+    {
+      "id": "R14",
+      "url": "file:///home/jamiemills/.config/opencode/skills/.agents/plans/2026-09-05-defrelease-autonomy-gates-csm.json",
+      "retrieved": "2026-09-06",
+      "note": "journal sequences 15-17: cycle-5 claims including 'the run itself printed live milestone rows' (unpersisted stdout assertion)"
+    }
+  ],
+  "tl": "The user is right: cycle 5 fixed the progress-rendering plumbing but not meaningful progress display. In run-renderer-wiring-r1 the TASK PROGRESS bar moved only in three coarse jumps (0->33->67->100%) and sat frozen at 67% for 44.9s = 92.7% of the run while the largest phase executed, because percentages derive solely from item completion, child skill-progress rollups are provably unable to move the bar (clamp + reset ordering), and nothing during child execution emits updates. Nothing human-readable persists the progress trajectory (it survives only as 26 sqlite WAL snapshot records). One new defect was found: every skill-progress-rollup telemetry event is silently discarded because the event type is unregistered. All findings carry an honest limit: operator stdout was never captured, so \"zero displayed\" rests on the operator report plus code-path inference.",
+  "executiveSummary": "The research question challenged the cycle-5 fix (run-progress-visibility-r3, commit d639baf). A STANDARD-tier, local-mode pipeline ran three parallel read-only researchers (runtime rendering path; progress semantics; captured run evidence), an anti-anchored challenger, and an independent judge. Outcome: the cycle-5 plumbing claims held (live onProgress prints fire; the terminal receipt is unconditionally keyed so result.progress is non-null and the final projection guard passes) — but the displayed result was still not meaningful progress.\n\n\n\nStrongest evidence: the run cursor.db-wal persists 26 distinct progress-snapshot revisions showing plannedProgress moved exactly three times — 0 -> 0.333 at 06:03:34.857, -> 0.667 at 06:03:37.945, -> 1 at 06:04:22.831 — so the bar was frozen at 67% for 44.88s, 92.7% of the 48.4s run. The telemetry timeline corroborates a 44.873s gap with no events. Headline caveats: stdout was never captured (the operator-experience claim is inference; --quiet-progress is unexcludable from artifacts), and the judge initially failed the run because the synthesized draft was never written back into the document — remediated.",
+  "keyFindings": [
+    {
+      "id": "KF1",
+      "claim": "The cycle-5 fix shipped functioning rendering plumbing: the tracker onUpdate fires via change() and observeTelemetry(), the driver prints projectProgress text live through onProgress, and the terminal receipt is keyed into progressByReceipt before the telemetry-loss early return, so result.progress is non-null and the final projection guard passes in every healthy run.",
+      "verdict": "supported",
+      "sources": [
+        "R2",
+        "R3",
+        "R1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF2",
+      "claim": "Display showed no meaningful movement: the bar moved only at phase completions (0->33->67->100%) and sat frozen at 67% for 44.88s = 92.7% of the 48.4s run while the largest phase executed, because plannedProgress sums weight x verifiedFraction, active items hold fraction 0, and only the phase-end transition forces fraction 1.",
+      "verdict": "supported",
+      "sources": [
+        "R1",
+        "R2",
+        "R10"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF3",
+      "claim": "Child skill-progress rollups can never move the bar: the shipped recorder writes overallPercent 100 only after the child completes, the post-invocation per-node update resets verifiedFraction, and updateProgress clamps fraction 1 back to 0 on any non-verified item — so rollups add an evidenceRef but structurally cannot change the percentage.",
+      "verdict": "supported",
+      "sources": [
+        "R7",
+        "R8",
+        "R1",
+        "R2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF4",
+      "claim": "A 44.873-second silent dead zone covered 92.7% of the run: the child executes inside one awaited invocation race with no per-milestone hooks, and telemetry emits nothing between dispatch and review, so no tracker update or render occurs during real phase work.",
+      "verdict": "supported",
+      "sources": [
+        "R9",
+        "R6",
+        "R2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF5",
+      "claim": "Rendering is an appended block per notification with byte-identical text for consecutive telemetry-only updates (only JSON revision/eventsObserved differ), so live output was a few frozen snapshots separated by silence rather than a moving display.",
+      "verdict": "supported",
+      "sources": [
+        "R4",
+        "R3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF6",
+      "claim": "No human-readable artifact evidences progress for the run: receipt.json has no progress key, the receipt.md/html render profile excludes progress by design, stdout was never captured, and telemetry has no progress event type — the full trajectory survives only as 26 distinct progress-snapshot records in cursor.db-wal, unretrievable without sqlite tooling.",
+      "verdict": "supported",
+      "sources": [
+        "R11",
+        "R13",
+        "R9",
+        "R10"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF7",
+      "claim": "Cycle-5 verification could not catch the defect: the only driver-level test asserts stdout contains TASK PROGRESS/Milestones — satisfiable by the first pending-state print alone — and no test asserts the rendered percentage moves during a run or that the final projection renders distinctly.",
+      "verdict": "supported",
+      "sources": [
+        "R12"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "KF8",
+      "claim": "NEW DEFECT: every skill-progress-rollup telemetry event is silently discarded — skill-progress-rollup is absent from TELEMETRY_EVENT_TYPES, emit() throws for unlisted types, and the rollup site bare catch swallows the throw; run-renderer-wiring-r1 fired 3 rollups (persisted evidenceRefs prove it) yet telemetry.jsonl contains zero rollup events. Fix candidate: register the event type.",
+      "verdict": "supported",
+      "sources": [
+        "R5",
+        "R2",
+        "R9",
+        "R10"
+      ],
+      "confidence": "high"
+    }
+  ],
+  "detailSections": "## The corrected bar trajectory\n\nThe persisted WAL snapshots (26 distinct revisions, deduplicated by revision; ~90 raw WAL frame occurrences) record plannedProgress moving exactly three times: 0 -> 0.333 at 06:03:34.857Z (p1 complete), -> 0.667 at 06:03:37.945Z (p2 complete), -> 1 at 06:04:22.831Z (p3 complete). The bar therefore sat frozen at 67% from 06:03:37.945 to 06:04:22.828 — 44.88s, 92.7% of the 48.4s run — during the very phase (the battery + capture verification) an operator most wanted visibility into.\n\n## Why the cycle-5 fix could not display movement\n\n1. Aggregate math: plannedProgress = sum(weight x verifiedFraction) / sum(weight). Dispatch sets state active but leaves verifiedFraction at 0; nothing contributes until verified.\n2. The clamp: updateProgress forces verifiedFraction to 1 on verified and resets fraction 1 to 0 on any non-verified state. A child record with overallPercent 100 rolled onto an active item is therefore clamped straight back to 0.\n3. The ordering: the post-invocation per-node update deliberately resets evidenceRefs/fraction before the rollup runs (the cycle-5 ordering fix guarantees the rollup is last writer — and the clamp guarantees it never wins).\n4. The dead zone: the child runs inside one awaited Promise.race in the host invocation adapter; no parent-side hook exists between dispatch and the post-child review event.\n5. Presentation: each notification console.logs a full block; consecutive telemetry-only snapshots render identical text, so the visible effect is repetition, not movement.\n\n## What was and was not persisted\n\nPersisted: 26 WAL progress snapshots (machine-only), 12 telemetry records (5 event types, no progress events), skill-progress child records (3), receipt.json/md/html (progress excluded by profile). Not persisted: stdout, the invocation command, any human-readable progress trajectory. The plan journal cycle-5 row (sequence 17) claims the run printed live milestone rows — an ephemeral-stdout assertion backed only by the primary in-session tail capture (one milestone row visible in a 4-line tail), not by durable evidence.\n\n## New defect: silently discarded rollup telemetry\n\ntelemetry.mjs TELEMETRY_EVENT_TYPES does not include skill-progress-rollup; emit() throws TypeError for unlisted types; index.mjs wraps the rollup telemetry in a bare catch and swallows it. Three rollups fired in run-renderer-wiring-r1 (their evidenceRefs persisted in the WAL snapshots at revisions 5, 12, 19) yet telemetry.jsonl records zero rollup events. One-line fix candidate: add the type to TELEMETRY_EVENT_TYPES.",
+  "recommendation": "Treat the cycle-5 fix as plumbing-complete but display-incomplete. Decision-ready directions (each independently valuable; none authorizes work by itself):\n\n1. RECOMMEND: make the displayed percentage able to move mid-phase — either record partial child skill-progress records (0 < overallPercent < 100) during host work and rework the clamp at progress.mjs:296-297 so rollup-driven fractions on active items survive, or add a heartbeat update sourced from the host. Validation measure: a rendered-percentage-movement test asserting strictly increasing rendered percentages across a run.\n2. RECOMMEND: persist a human-readable progress.json (final snapshot) into each run evidence dir — the trajectory already exists in the WAL; it just needs a readable projection. Validation: evidence-dir inventory check per run.\n3. RECOMMEND: fix the rollup telemetry discard by registering skill-progress-rollup in TELEMETRY_EVENT_TYPES; validate by asserting rollup events appear in telemetry.jsonl.\n4. CONSIDER: render only on visible text change (hash the text, skip identical blocks) or use an in-place TTY update, so repeated snapshots do not read as spam.\n5. AVOID: claiming progress-tracking completion from substring stdout assertions; require percentage-movement and final-render-distinctness assertions instead.\n\nWhat would change the recommendation: if partial child records prove infeasible for real hosts (e.g. hosts cannot report incremental state honestly), option 1 should fall back to phase-level coarseness made explicit in the projection (show per-phase expected duration or a spinner state) rather than a misleading frozen percentage.",
+  "unverifiedClaims": [
+    {
+      "claim": "The operator (user) saw literally zero progress output during run-renderer-wiring-r1.",
+      "status": "unverifiable-from-artifacts",
+      "note": "stdout was never captured and the invocation command is not recorded; --quiet-progress cannot be excluded from artifacts alone. The primary in-session tail capture during the run did show milestone rows, which corroborates the live path firing, but is ephemeral evidence."
+    },
+    {
+      "claim": "The final TASK PROGRESS projection rendered at the end of run-renderer-wiring-r1.",
+      "status": "inferred",
+      "note": "the code path is sound (result.progress non-null via the unconditional receipt keying; guard passes without --quiet-progress) and the equivalent driver-level test passes, but the specific run stdout was not captured."
+    },
+    {
+      "claim": "No other recorder in the repository produces partial child skill-progress records.",
+      "status": "partially-verified",
+      "note": "researchers checked the shipped recorder only; an exhaustive recorder census was not performed."
+    },
+    {
+      "claim": "The 92.7% frozen-bar share generalizes to typical runs.",
+      "status": "not-generalized",
+      "note": "single-run analysis; runs dominated by fast phases would show proportionally less freeze time."
+    }
+  ],
+  "sections": {}
+}

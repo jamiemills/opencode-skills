@@ -241,3 +241,4 @@ the source file. Deletion remains awaiting explicit authorization.
 - `honest-failures-analysis.json` — 2026-09-05 — typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths — status: reference
 - `progress-visibility-analysis.json` — 2026-09-05 — root-cause analysis of missing progress trackers in orchestrator runs and invoked skills, with fixes and verification paths — status: reference
 - `renderer-wiring-analysis.json` — 2026-09-06 — analysis of the HTML/Markdown projection renderers (working but unused) and the driver wiring that now emits receipt.md/receipt.html per run — status: reference
+- `2026-09-06-progress-tracking-not-displayed-20260906t061208z-6c2e9293a705-research.json` — 2026-09-06 — deep-research finding: why progress tracking was not displayed in cycle 6 despite the cycle-5 fix (plumbing worked; display semantics did not) — status: reference
