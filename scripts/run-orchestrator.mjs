@@ -5,18 +5,25 @@
 // Usage:
 //   node scripts/run-orchestrator.mjs --fixture
 //   node scripts/run-orchestrator.mjs --approach <approach.json> [--host <host.mjs>] [--run-id <runId>]
+//   node scripts/run-orchestrator.mjs --plan <plan.json>
+//   node scripts/run-orchestrator.mjs --request <request.json>
 //            [--approvals <approvals.mjs>]  (default: createAutonomyPolicy — 3 read-only skills auto-approve)
 //            [--final-review <reviewer.mjs>]  (independent terminal review; without it a fully
 //                                              executed run ends REQUIRES_REVIEW)
 //
+// Input flags route on the artifact's schema marker (lib/intake.mjs):
 // --fixture  self-test: built-in fixture host + trivial approach; must VERIFIED.
 // --approach approach file (csm-approach/1) for a real run.
+// --plan     csm-plan/1 envelope: classified kind execute-plan -> csm-build route.
+// --request  csm-orchestrate-request/1 envelope: classified via lib/request-router.mjs.
+//            Plan/request routes currently exit with the blocked agent-session-required
+//            result (no skill executor is wired yet); a skill-executor route flips them.
 // --host     module exporting `default` = host factory ({runId}) -> host
-//            ({invokeSiblingSkill, invokeReview?}). Required for real runs.
+//            ({invokeSiblingSkill, invokeReview?}). Required for the --approach path
+//            only (plan/request bypass routes to skill executors, never hosts).
 //            The host IS your workload: implement your real skill dispatch there.
 "use strict";
 
-import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, open, lstat, readFile, rm, writeFile, copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -33,6 +40,8 @@ import {
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
 import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
 import { createAllBuildHandoffs } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
+import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
+import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import {
   createJsonlTransport,
@@ -48,11 +57,25 @@ function argValue(flag) {
   return index === -1 ? undefined : args[index + 1];
 }
 
-async function loadApproach(approachPath) {
-  const approach = JSON.parse(await readFile(approachPath, "utf8"));
-  assert.equal(approach.schema, "csm-approach/1", "approach file must be csm-approach/1");
-  assert.equal(typeof approach.runId, "string", "approach.runId is required");
-  return approach;
+// Intake binds the input flag to the artifact's schema marker so a --approach
+// file can never silently run the plan/request bypass (or vice versa). The
+// marker switch + light field checks (never full JSON-schema validation of
+// plan/request envelopes) live in lib/intake.mjs (intakeArtifact).
+const INPUT_FLAG_KIND = {
+  "--approach": "approach",
+  "--plan": "plan",
+  "--request": "request",
+};
+
+async function loadInput(inputPath, flag) {
+  const expectedKind = INPUT_FLAG_KIND[flag];
+  const intake = await intakeArtifact(inputPath);
+  if (intake.kind !== expectedKind)
+    throw new TypeError(
+      `run-orchestrator: ${flag} requires a ${expectedKind} artifact; ` +
+        `intake resolved schema marker "${intake.artifact.schema}" as kind ${intake.kind}`,
+    );
+  return intake;
 }
 
 async function loadHostModule(hostPath, runId, skillProgressDir) {
@@ -232,12 +255,50 @@ async function fixtureMode() {
   return result.receipt.outcome.status === "VERIFIED" ? 0 : 1;
 }
 
+// Mirrors the default csm-build handoff blocked failure (csm-build-handoff.mjs):
+// the deterministic agent-session-required message a plan/request route surfaces
+// until a skill executor exists to run the instruction-led SKILL.md lifecycle.
+const agentSessionRequiredMessage = (skill) =>
+  `${skill} requires an agent session running its SKILL.md lifecycle. Direct function dispatch is not available for instruction-led skills.`;
+
+// T004 realMode bypass for plan/request intakes (approach keeps the orchestrate()
+// flow above; --host is approach-only). No executor exists for any plan/request
+// route yet, so the driver classifies the request and then exits non-zero with
+// the blocked agent-session-required result — thrown so it surfaces exactly like
+// every other realMode error at the bottom isMain catch (message on stderr,
+// exit 1). The driver runId is the artifact's own canonical runId (unique per
+// plan/request artifact), which the executor wiring keys evidence/leases off.
+async function realModeBypass({ kind, artifact }) {
+  // Driver runId is the artifact's own canonical runId (validated by
+  // intakeArtifact) — unique per plan/request artifact, so an executor later
+  // keys evidence dir + lease off it without changes.
+  const request =
+    kind === "plan"
+      ? { kind: "execute-plan", artifactRef: "plan" } // plan envelope -> csm-build
+      : artifact;
+  const classification = classifyRequest(request);
+  const blocked = classification.routes
+    .map((skill) => agentSessionRequiredMessage(skill))
+    .join("\n");
+  throw new Error(blocked);
+}
+
 async function realMode() {
-  const approachPath = argValue("--approach");
-  if (!approachPath) {
-    console.error("real runs require --approach <approach.json> (and --host <host.mjs>)");
+  const inputFlag = args[0];
+  const inputPath = argValue(inputFlag);
+  if (!inputPath) {
+    console.error(
+      inputFlag === "--approach"
+        ? "real runs require --approach <approach.json> (and --host <host.mjs>)"
+        : `real runs require ${inputFlag} <artifact.json>`,
+    );
     return 1;
   }
+  const { kind, artifact } = await loadInput(inputPath, inputFlag);
+  // plan/request kinds take the deterministic pre-executor bypass: no host is
+  // involved (host stays approach-only) and no skill executor is wired yet, so
+  // the driver terminates with the blocked agent-session-required result.
+  if (kind !== "approach") return realModeBypass({ kind, artifact });
   const hostPath = argValue("--host");
   if (!hostPath) {
     console.error(
@@ -245,7 +306,8 @@ async function realMode() {
     );
     return 1;
   }
-  const approach = await loadApproach(approachPath);
+  const approach = artifact;
+  const approachPath = inputPath;
   const runId = argValue("--run-id") ?? approach.runId;
   // skill-first routing: real runs dispatch to csm skills by default. Host-based
   // incidental/test runs opt out explicitly with --allow-host-dispatch.
@@ -469,9 +531,12 @@ const isMain =
 if (isMain) {
   (async () => {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
-    if (args[0] === "--approach") process.exit(await realMode());
+    if (["--approach", "--plan", "--request"].includes(args[0])) process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume]",
+    );
+    console.error(
+      "       --host is required for --approach only; --plan/--request route to skill executors by schema marker (blocked agent-session-required until a skill-executor route exists)",
     );
     process.exit(1);
   })().catch((error) => {
