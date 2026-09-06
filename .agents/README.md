@@ -200,6 +200,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `npm-audit-ci-resilience-20260904.json` — 2026-09-04 — csm-build checkpoint for npm audit CI resilience — status: superseded by `replace-npm-audit-ci-gate-20260904.json`
 - `replace-npm-audit-ci-gate-20260904.json` — 2026-09-04 — csm-build checkpoint for the OSV audit CI gate replacement — status: complete
 - `skill-progress-tracker-enforcement-20260904.json` — 2026-09-04 — csm-build checkpoint for skill progress tracker enforcement — status: complete (shipped on fa79f36; CI run 33928035357 fully green)
+- `parallelism-conflict-free-change-set-20260906.json` — 2026-09-06 — csm-build checkpoint for the parallelism conflict-free change set execution (S1-S9, T001-T011) — status: in progress
 
 ## progress/
 
@@ -218,6 +219,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `g3-bundle.json` — 2026-09-05 — G3 local evidence bundle (host-assurance 20/20 + docker probe verified; submission deferred to ruling) — status: reference
 - `t007-mvd-designation.json` — 2026-09-05 — MVD designation (this host, operator jamiemills) + evidence window procedures — status: active
 - `t007-evidence-snapshot.json` — 2026-09-05 — first T007 collection: 7/9 gates pass; G6+G7 blocked with close-out paths — status: active
+- `2026-09-06-parallelism-conflict-free-change-set-build-20260906T185023Z-91948e723b2f-progress.json` — 2026-09-06 — csm-build progress record for the parallelism-conflict-free-change-set build — status: active
 
 ## ddd/
 

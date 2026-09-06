@@ -2,6 +2,11 @@ name: CI
 
 on:
   push:
+    # Worktree branches (wt/**) are local integration vehicles merged to main
+    # serially; running CI on every pushed worktree branch would duplicate runs
+    # and burn concurrency. pull_request stays unfiltered.
+    branches-ignore:
+      - "wt/**"
   pull_request:
 
 permissions:

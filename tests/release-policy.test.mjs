@@ -11,7 +11,9 @@ test("audit target is non-mutating and fails at high severity", async () => {
   const makefile = await read("Makefile");
   const auditTarget = /^audit:.*\n((?:\t.*\n?)*)/m.exec(makefile)?.[0] ?? "";
   assert.match(auditTarget, /^audit:.*non-mutating/m);
-  assert.match(auditTarget, /pnpm audit --audit-level=high/);
+  // The audit gate is the pinned OSV-Scanner verifier (any finding fails);
+  // pnpm audit was replaced by scripts/osv-audit.mjs.
+  assert.match(auditTarget, /node scripts\/osv-audit\.mjs/);
   assert.doesNotMatch(auditTarget, /--fix|--fix-lockfile|install|update/);
   const checklist = await read("bootstrap/release-checklist.md");
   assert.match(checklist, /outages also fail and block release/i);

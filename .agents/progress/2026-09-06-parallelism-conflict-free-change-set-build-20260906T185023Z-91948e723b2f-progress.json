@@ -1,0 +1,18 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-parallelism-conflict-free-change-set-build-20260906t185023z",
+  "runId": "run-20260906t185023z-parallelism-conflict-free-change-set-build",
+  "skill": "csm-build",
+  "goal": "Execute parallelism-conflict-free-change-set plan T001-T011: gate-green change set, serial merge to main, acceptance A-F",
+  "status": "active",
+  "overallPercent": 0,
+  "milestones": [
+    { "id": "M1", "title": "RECOVER + VALIDATE baseline", "weightPercent": 10, "status": "active", "verifiedFraction": 0 },
+    { "id": "M2", "title": "Batch 1: T001-T005", "weightPercent": 35, "status": "pending" },
+    { "id": "M3", "title": "Batch 2: T006-T007", "weightPercent": 20, "status": "pending" },
+    { "id": "M4", "title": "Batch 3: T008-T010", "weightPercent": 20, "status": "pending" },
+    { "id": "M5", "title": "T011 acceptance e2e + merge + main gate", "weightPercent": 15, "status": "pending" }
+  ],
+  "startedAt": "2026-09-06T18:50:23Z",
+  "updatedAt": "2026-09-06T18:50:23Z"
+}

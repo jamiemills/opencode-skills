@@ -1,0 +1,53 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-parallelism-conflict-free-change-set-build-20260906",
+  "runId": "run-20260906t185023z-parallelism-conflict-free-change-set-build",
+  "owner": "csm-build",
+  "status": "active",
+  "control": {
+    "currentState": "RECOVER",
+    "cycle": 0,
+    "nextTransition": "RECOVER -> VALIDATE then SELECT batch 1 (G1-G4: T001,T002,T003,T004)",
+    "activeTasks": [],
+    "blockers": [],
+    "lastCheckpoint": "2026-09-06T18:51:09Z: baseline check-suite OK 1244 checks; plan control transitioned NOT_STARTED->RECOVER in worktree",
+    "lastModelRun": "deepseek-v4-flash / parallelism-conflict-free-change-set-build"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-parallelism-conflict-free-change-set-20260906",
+      "schema": "csm-plan/1",
+      "runId": "run-20260906t181249z-91948e723b2f",
+      "owner": "csm-plan",
+      "path": ".agents/plans/2026-09-06-parallelism-conflict-free-change-set-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-06T18:51:09Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "Explicit csm-build invocation. Worktree wt/parallelism-conflict-free-change-set at 1c8f68f clean; baseline check-suite OK 14 skills 1244 checks, payload drift issues:[]; plan control updated in place (SAVED->RECOVER journal seq 7).",
+      "nextState": "RECOVER"
+    }
+  ],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-parallelism-conflict-free-change-set-20260906",
+    "sourceDigests": [
+      "sha256:bcc0a49c7a41e0840bd4a035443903febaa5c290a30ae8fd5d1b6bf83ff37725"
+    ]
+  },
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
+}
