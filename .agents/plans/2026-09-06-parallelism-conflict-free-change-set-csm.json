@@ -11,9 +11,9 @@
     "currentState": "CHECKPOINT",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-06T19:27:45Z: batch 1 COMPLETE: T001-T005 committed 8ced2d4..6ec0bb5; gate OK 1244 each HEAD; payload regen same-commit (AC3).",
+    "lastCheckpoint": "2026-09-06T20:43:13Z: batches 2+3 COMPLETE T006-T010 (1b8d34b, a8736cf, 208f5eb, T010 commit, 045ef5d); gate OK 1244 each; T010 generator byte-identical no-op; T009 section gate + 22-bullet re-home + 4 writers anchored + research placement sentence with digest/payload regen same commit.",
     "lastModelRun": "deepseek-v4-flash / parallelism-conflict-free-change-set-build",
-    "nextTransition": "CHECKPOINT -> SELECT batch 2 (T006, T007)",
+    "nextTransition": "CHECKPOINT -> SELECT (T011 final acceptance e2e + battery + merge)",
     "activeTasks": [],
     "blockers": [],
     "resume": {
@@ -342,7 +342,7 @@
     {
       "taskId": "T006",
       "ordinal": 6,
-      "status": "pending",
+      "status": "complete",
       "title": "S6: wt-session merge guard + check-only post-merge verification",
       "dependsOn": [
         "T003"
@@ -370,7 +370,7 @@
     {
       "taskId": "T007",
       "ordinal": 7,
-      "status": "pending",
+      "status": "complete",
       "title": "S3b: writeQueue repair + durable telemetry_loss markers",
       "dependsOn": [
         "T005"
@@ -399,7 +399,7 @@
     {
       "taskId": "T008",
       "ordinal": 8,
-      "status": "pending",
+      "status": "complete",
       "title": "S9: AGENTS.md hedge + index placement convention",
       "dependsOn": [],
       "parallelGroup": "G8",
@@ -424,7 +424,7 @@
     {
       "taskId": "T010",
       "ordinal": 9,
-      "status": "pending",
+      "status": "complete",
       "title": "Capabilities template-based digest regenerator (scripts/gen-capabilities.mjs)",
       "dependsOn": [],
       "parallelGroup": "G10",
@@ -450,7 +450,7 @@
     {
       "taskId": "T009",
       "ordinal": 10,
-      "status": "pending",
+      "status": "complete",
       "title": "S5-index: section-membership gate + section-anchored writers",
       "dependsOn": [
         "T010",
@@ -698,6 +698,21 @@
         "T005"
       ],
       "evidence": "T005 6ec0bb5: createJsonlTransport.list() recovers torn tails (partialTails report) + never-written file reads [] (fixes empty-phase drain ENOENT discovered in T004); new repairTelemetryJsonlTail quarantines torn bytes to .partial-<ts>-<uuid>.quarantine + atomicWrite clean; run-orchestrator runs repair under lease before emitter; telemetry.test.mjs +2 cases (stale index-12 count repaired to TELEMETRY_EVENT_TYPES.length), durable-json-safety +1 recoverPartialTail case; payload regen committed same commit; 31/31 telemetry suites + 22 orchestrate suites pass; e2e probe shows quarantine+clean rewrite under driver. check-suite OK.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-06T20:43:13Z",
+      "cycle": 0,
+      "transition": "CHECKPOINT -> CHECKPOINT (batches 2-3 complete)",
+      "tasks": [
+        "T006",
+        "T007",
+        "T008",
+        "T009",
+        "T010"
+      ],
+      "evidence": "T006 1b8d34b: S6 both-sides guard (S6_GUARD_PATHS csm-*/bootstrap/capabilities.json/README.md) + check-only post-merge verifyMergedMain (dirty->skip, no-structure->skip, parity+check-suite only); wt-session suite 13/13. T007 a8736cf: poison-pill writeQueue repair, durable telemetry_loss markers (buildLossMarker/enqueueLossMarker no-recursion, no sequence bump), detectLoss marker-scan (recoveredViaMarkers/markerCount), rejecting-transport drop-test rewrite (a-d assertions), adapter-review additive; 29/29 telemetry suites; payload regen same commit. T008 208f5eb: AGENTS.md hedge + section-anchored convention sentence. T010 (commit 9d29d99b-equivalent): scripts/gen-capabilities.mjs template-preserving + oxfmt-canonical normalization; tests 3/3 (no-op/only-digest-change/stale-caught); first regen byte-identical no-op (no capabilities diff). T009 045ef5d: scripts/lib/agents-index.mjs shared mapping/parser/inserter; check-suite section-membership rule (bullet-only subjects; mis-home fails); README 22-bullet re-home; 4 host writers section-anchored; close-plan verified anchored; csm-deep-research/SKILL.md single placement sentence; capabilities + payload regen same commit; planted tests 34/34; check count unchanged 1244 (aggregate check preserved).",
       "nextState": "CHECKPOINT"
     }
   ],

@@ -8,10 +8,10 @@
   "control": {
     "currentState": "CHECKPOINT",
     "cycle": 0,
-    "nextTransition": "CHECKPOINT -> SELECT batch 2",
+    "nextTransition": "CHECKPOINT -> SELECT (T011)",
     "activeTasks": [],
     "blockers": [],
-    "lastCheckpoint": "2026-09-06T19:27:45Z: batch1 complete T001-T005",
+    "lastCheckpoint": "2026-09-06T20:43:13Z: T006-T010 complete",
     "lastModelRun": "deepseek-v4-flash / parallelism-conflict-free-change-set-build"
   },
   "inputs": [
@@ -48,6 +48,14 @@
       "from": "DISPATCH",
       "to": "CHECKPOINT",
       "evidence": "Batch 1 (G1-G5) complete; plan journal seq 9.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-06T20:43:13Z",
+      "from": "DISPATCH",
+      "to": "CHECKPOINT",
+      "evidence": "Batches 2-3 complete (plan journal seq 10).",
       "nextState": "CHECKPOINT"
     }
   ],
