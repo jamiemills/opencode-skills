@@ -267,6 +267,15 @@ test("telemetry loss, reorder, duplicate, and partial writes are detected withou
   const loss = emitter.detectLoss();
   assert.equal(loss.lost, true);
   assert.deepEqual(loss.missingSequences, [2]);
+  // S3b additive marker-scan expectations: the in-process loss record is kept
+  // as fallback; no durable marker could be written here (the transport also
+  // rejects the marker row), so the marker scan sees zero recovered rows.
+  assert.equal(loss.observedCount, 2);
+  assert.equal(loss.markerCount, 0);
+  assert.deepEqual(loss.recoveredViaMarkers, []);
+  assert.equal(emitter.getLossRecords().length, 1);
+  assert.equal(emitter.getLossRecords()[0].sequence, 2);
+  assert.equal(emitter.getLossRecords()[0].message, "partial write");
   assert.equal(
     emitter.checkCompleteness([{ receiptId: "receipt-adapter", runId: parentRunId }]).complete,
     false,

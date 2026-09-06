@@ -116,13 +116,20 @@ export function createJsonlTransport(filePath) {
   // through this array so callers can quarantine/repair durably. A file that
   // was never written reads as an empty event list, not an error.
   const partialTails = [];
+  // S3b: the queue must never become a poison pill — a rejected append resets
+  // the chain so later writes attempt again instead of failing forever.
   return {
     partialTails,
     write(event) {
-      writeQueue = writeQueue.then(() => appendDurableJsonLine(filePath, event, { mode: 0o600 }));
-      pendingWrites.push(writeQueue);
-      writeQueue.catch(() => {});
-      return writeQueue;
+      const attempt = writeQueue.then(() =>
+        appendDurableJsonLine(filePath, event, { mode: 0o600 }),
+      );
+      writeQueue = attempt.then(
+        () => undefined,
+        () => undefined,
+      );
+      pendingWrites.push(attempt);
+      return attempt;
     },
     async list() {
       while (pendingWrites.length) await pendingWrites.shift().catch(() => {});
@@ -207,6 +214,45 @@ export function createTelemetryEmitter(options = {}) {
   const recordedReceipts = [];
   const lossRecords = [];
 
+  // S3b durable loss markers (Option A): every recorded loss also enqueues a
+  // full telemetry event of type telemetry_loss carrying the FAILED event's
+  // own sequence and complete field set, so a rejecting transport leaves a
+  // durable record that survives reopen. Markers are written WITHOUT
+  // recursion (a marker-write failure is swallowed — recordLoss never calls
+  // itself) and never bump sequence/emittedCount (they are not emissions).
+  function buildLossMarker(event, error) {
+    return Object.freeze({
+      schema: TELEMETRY_EVENT_SCHEMA_ID,
+      eventId: `evt-${randomUUID()}`,
+      sequence: event.sequence ?? 0,
+      runId: event.runId ?? options.runId,
+      phaseId: event.phaseId ?? null,
+      edgeId: event.edgeId ?? null,
+      childRunId: event.childRunId ?? null,
+      eventType: "telemetry_loss",
+      timestamp: event.timestamp ?? now(),
+      attempt: event.attempt ?? 0,
+      payload: Object.freeze({
+        lostEvent: event,
+        code: error?.code ?? "telemetry-write-failed",
+        message: error?.message ?? "telemetry event could not be written",
+      }),
+      effectiveConfigDigest: event.effectiveConfigDigest ?? options.effectiveConfigDigest,
+      fencingToken: event.fencingToken ?? null,
+    });
+  }
+
+  function enqueueLossMarker(event, error) {
+    const marker = buildLossMarker(event, error);
+    try {
+      const write = transport.write(marker);
+      if (write && typeof write.then === "function") write.catch(() => {});
+    } catch {
+      // Marker writes never recurse into recordLoss (no second marker) and
+      // never surface: the loss record above remains the in-memory fallback.
+    }
+  }
+
   function recordLoss(event, error) {
     lossRecords.push(
       Object.freeze({
@@ -222,6 +268,7 @@ export function createTelemetryEmitter(options = {}) {
         message: error?.message ?? "telemetry event could not be written",
       }),
     );
+    enqueueLossMarker(event, error);
   }
 
   function emit(event) {
@@ -311,27 +358,43 @@ export function createTelemetryEmitter(options = {}) {
 
   function detectLoss() {
     const inspect = (observed) => {
-      const observedSequences = new Set(observed.map((event) => event.sequence));
+      // S3b marker-scan semantics: telemetry_loss markers are durable
+      // slot-fillers — a marker carrying a failed event's sequence proves the
+      // event was RECOVERED, not lost. Plain sequence/count checks against the
+      // raw row list would under-report once markers exist, so losses are
+      // computed over real (non-marker) events with markers consulted per
+      // sequence. The in-memory getLossRecords() surface stays as fallback.
+      const markers = observed.filter((event) => event.eventType === "telemetry_loss");
+      const events = observed.filter((event) => event.eventType !== "telemetry_loss");
+      const realSequences = new Set(events.map((event) => event.sequence));
+      const markerSequences = new Set(markers.map((event) => event.sequence));
       const missingSequences = [];
+      const recoveredViaMarkers = [];
       for (let expected = 1; expected <= emittedCount; expected += 1) {
-        if (!observedSequences.has(expected)) missingSequences.push(expected);
+        if (realSequences.has(expected)) continue;
+        if (markerSequences.has(expected)) recoveredViaMarkers.push(expected);
+        else missingSequences.push(expected);
       }
-      const unexpectedSequences = observed
-        .filter(
-          (event) =>
-            !Number.isInteger(event.sequence) ||
-            event.sequence < 1 ||
-            event.sequence > emittedCount,
-        )
-        .map((event) => event.sequence);
+      const outOfRange = (rows) =>
+        rows
+          .filter(
+            (event) =>
+              !Number.isInteger(event.sequence) ||
+              event.sequence < 1 ||
+              event.sequence > emittedCount,
+          )
+          .map((event) => event.sequence);
+      const unexpectedSequences = [...outOfRange(events), ...outOfRange(markers)];
       return {
         lost:
           missingSequences.length > 0 ||
           unexpectedSequences.length > 0 ||
-          observed.length !== emittedCount,
+          events.length + recoveredViaMarkers.length !== emittedCount,
         emittedCount,
-        observedCount: observed.length,
+        observedCount: events.length,
+        markerCount: markers.length,
         missingSequences,
+        recoveredViaMarkers,
         unexpectedSequences,
       };
     };

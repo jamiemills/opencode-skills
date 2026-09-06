@@ -13,7 +13,6 @@ import {
   TELEMETRY_EVENT_SCHEMA_ID,
   TELEMETRY_EVENT_TYPES,
   createJsonlTransport,
-  createMemoryTransport,
   createTelemetryEmitter,
   redactPayload,
   repairTelemetryJsonlTail,
@@ -140,29 +139,76 @@ test("telemetry: a terminal event for another receipt does not complete the run"
   assert.equal(result.correlated, 0);
 });
 
-test("telemetry: loss detection reports dropped sequences", () => {
-  const memory = createMemoryTransport();
-  const dropping = {
+test("telemetry: a rejecting transport recovers via poison-pill repair and durable loss markers", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "telemetry-drop-"));
+  const path = join(directory, "telemetry.jsonl");
+  const inner = createJsonlTransport(path);
+  let rejected = false;
+  // Models a JSONL append that fails ONCE (e.g. EACCES), then succeeds: the
+  // first write rejects, every later write (including the durable loss marker
+  // and the next event) must attempt again — the old writeQueue was a poison
+  // pill that rejected everything after the first failure.
+  const rejecting = {
     write(event) {
-      if (event.eventType !== "review") memory.write(event);
+      if (!rejected) {
+        rejected = true;
+        return Promise.reject(
+          Object.assign(new Error("simulated transient append failure"), { code: "EIO" }),
+        );
+      }
+      return inner.write(event);
     },
-    list: () => memory.list(),
+    list: () => inner.list(),
+    partialTails: inner.partialTails,
   };
-  const source = emitter({ transport: dropping });
-  source.emit({ eventType: "dispatch", childRunId: "run-child-1" });
-  source.emit({ eventType: "review", childRunId: "run-child-1" });
-  source.emit({ eventType: "cursor", phaseId: "phase-p1" });
-  const loss = source.detectLoss();
-  assert.equal(loss.lost, true);
-  assert.equal(loss.emittedCount, 3);
-  assert.equal(loss.observedCount, 2);
-  assert.deepEqual(loss.missingSequences, [2]);
-  const report = source.emit({
-    eventType: "telemetry_loss",
-    payload: { missingSequences: loss.missingSequences },
+  const source = createTelemetryEmitter({
+    transport: rejecting,
+    runId: RUN_ID,
+    effectiveConfigDigest: CONFIG_DIGEST,
+    now: FIXED_NOW,
   });
-  assert.equal(report.eventType, "telemetry_loss");
-  assert.deepEqual(report.payload.missingSequences, [2]);
+  const lost = source.emit({
+    eventType: "dispatch",
+    childRunId: "run-child-1",
+    payload: { skill: "csm-build" },
+  });
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  const later = source.emit({ eventType: "retry", phaseId: "phase-p1", attempt: 2 });
+  await source.flush();
+
+  // (a) poison-pill repair: the write after the rejected one succeeds.
+  assert.equal(later.sequence, 2);
+  const persisted = await inner.list();
+  assert.ok(persisted.some((event) => event.eventType === "retry" && event.sequence === 2));
+  // (d) markers never bump sequence/emittedCount.
+  const report = await source.detectLoss();
+  assert.equal(report.emittedCount, 2);
+  assert.equal(report.observedCount, 1);
+  assert.equal(report.markerCount, 1);
+  assert.equal(report.lost, false);
+  assert.deepEqual(report.missingSequences, []);
+  assert.deepEqual(report.recoveredViaMarkers, [1]);
+  assert.deepEqual(
+    source.getLossRecords().map((record) => record.sequence),
+    [1],
+  );
+
+  // (b) reopen: the durable marker carries the failed event's own sequence and
+  // full field set (its own eventId, the failed event nested intact).
+  const reopened = await readJsonLines(path);
+  const marker = reopened.find((event) => event.eventType === "telemetry_loss");
+  assert.ok(marker, "durable telemetry_loss marker survives reopen");
+  assert.equal(marker.sequence, 1, "marker carries the failed event's sequence");
+  assert.notEqual(marker.eventId, lost.eventId);
+  assert.equal(marker.runId, RUN_ID);
+  assert.equal(marker.payload.code, "EIO");
+  assert.equal(marker.payload.lostEvent.eventId, lost.eventId);
+  assert.equal(marker.payload.lostEvent.eventType, "dispatch");
+  assert.equal(marker.payload.lostEvent.sequence, 1);
+  assert.equal(marker.payload.lostEvent.effectiveConfigDigest, CONFIG_DIGEST);
+  assert.equal(marker.payload.lostEvent.payload.skill, "csm-build");
+  // the later event is also durable, in order, after the marker
+  assert.equal(reopened.at(-1).sequence, 2);
 });
 
 test("telemetry: detectLoss is clean without drops", () => {
