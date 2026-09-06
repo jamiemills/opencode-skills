@@ -1,0 +1,23 @@
+{
+  "schema": "csm-renderer-wiring-analysis/1",
+  "collectedAt": "2026-09-06T06:03:34.762Z",
+  "source": "repo-wide caller analysis + renderer test suites + live receipt rendering",
+  "findings": [
+    {
+      "id": "RW-A",
+      "question": "do the HTML/Markdown renderers work?",
+      "answer": "yes — lib/render-html, lib/render-markdown, and lib/render-model pass all 33 of their own tests (render-html, render-markdown, render-profile suites), enforce escape/URL-safety policies, and render a real terminal receipt correctly when driven through scripts/lib/run-projections.mjs"
+    },
+    {
+      "id": "RW-B",
+      "question": "are they used?",
+      "answer": "no — zero production callers existed: the only references were pack-bootstrap digest pinning and the renderer test suites themselves. Orchestrator runs emitted JSON evidence only (receipt.json, telemetry.jsonl, cursor.db); no human-readable projection was produced anywhere in the run flow. The sole production human projection in the repo was csm-review's own skill-local one."
+    },
+    {
+      "id": "RW-C",
+      "question": "what changed?",
+      "answer": "scripts/lib/run-projections.mjs builds a validated csm-render-model/1 from the terminal receipt (profile-driven sections: outcome, identity, statuses, approval) and renders receipt.md + receipt.html into the run evidence dir via the repository renderers; the driver calls it after persisting receipt.json. JSON remains the machine-authoritative exchange format; projections are marked status: untrusted-presentation with source/renderer/profile digests"
+    }
+  ],
+  "verification": "tests/orchestrate-renderer-wiring.test.mjs (emitter unit + driver E2E asserting receipt.md/receipt.html exist with real content) + in-run capture on the quality-review approach"
+}

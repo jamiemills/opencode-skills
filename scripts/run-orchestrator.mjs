@@ -22,6 +22,7 @@ import { existsSync } from "node:fs";
 import path, { join } from "node:path";
 import { tmpdir } from "node:os";
 import { orchestrate, projectProgress } from "../csm-orchestrate/index.mjs";
+import { emitRunProjections } from "./lib/run-projections.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
@@ -266,6 +267,13 @@ async function realMode() {
     join(evidenceDir, "receipt.json"),
     `${JSON.stringify(result.receipt, null, 2)}\n`,
   );
+  // human-readable projections (untrusted presentation; JSON stays authoritative)
+  await emitRunProjections({
+    dir: evidenceDir,
+    receipt: result.receipt,
+    runId,
+    schemaRegistry,
+  });
   // drain the async transport so telemetry.jsonl is complete before exit
   await telemetryEmitter.getEvents();
   if (result.progress && !quietProgress) {

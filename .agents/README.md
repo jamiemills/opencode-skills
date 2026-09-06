@@ -240,3 +240,4 @@ the source file. Deletion remains awaiting explicit authorization.
 - `g7-corpus-confirmation.json` — 2026-09-05 — G7 held-out corpus confirmation (10/10 frozen labels matched; report PASSED; provisional thresholds confirmed) — status: reference
 - `honest-failures-analysis.json` — 2026-09-05 — typed inventory of honest failures from quality cycles 2-3 with root causes, fixes, and verification paths — status: reference
 - `progress-visibility-analysis.json` — 2026-09-05 — root-cause analysis of missing progress trackers in orchestrator runs and invoked skills, with fixes and verification paths — status: reference
+- `renderer-wiring-analysis.json` — 2026-09-06 — analysis of the HTML/Markdown projection renderers (working but unused) and the driver wiring that now emits receipt.md/receipt.html per run — status: reference
