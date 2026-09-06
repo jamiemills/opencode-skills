@@ -183,6 +183,17 @@ async function realMode() {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
     throw new Error("--timeout-ms must be a positive number of milliseconds");
   const quietProgress = args.includes("--quiet-progress");
+  // one dedupe closure for live and final renders: consecutive identical TASK
+  // PROGRESS blocks are suppressed everywhere
+  const renderProgressOnChange = (() => {
+    let lastProgressText = "";
+    return (snapshot) => {
+      const text = projectProgress(snapshot, { width: 28 }).text;
+      if (text === lastProgressText) return; // render on visible change only
+      lastProgressText = text;
+      console.log(text);
+    };
+  })();
   const cursorStore = createSqliteStore({
     mode: "wal",
     databasePath: join(evidenceDir, "cursor.db"),
@@ -253,9 +264,7 @@ async function realMode() {
     ...(quietProgress
       ? {}
       : {
-          onProgress: (snapshot) => {
-            console.log(projectProgress(snapshot, { width: 28 }).text);
-          },
+          onProgress: renderProgressOnChange,
         }),
     ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
     artifactResolver: parentResolver,
@@ -274,10 +283,21 @@ async function realMode() {
     runId,
     schemaRegistry,
   });
+  // persist the final progress snapshot (machine + human) into the evidence dir
+  if (result.progress) {
+    await writeFile(
+      join(evidenceDir, "progress.json"),
+      `${JSON.stringify(result.progress, null, 2)}\n`,
+    );
+    await writeFile(
+      join(evidenceDir, "progress.txt"),
+      `${projectProgress(result.progress, { width: 28 }).text}\n`,
+    );
+  }
   // drain the async transport so telemetry.jsonl is complete before exit
   await telemetryEmitter.getEvents();
   if (result.progress && !quietProgress) {
-    console.log(projectProgress(result.progress, { width: 28 }).text);
+    renderProgressOnChange(result.progress);
   }
   console.log("status:", result.receipt.outcome.status);
   console.log("reason:", result.reason ?? "none");

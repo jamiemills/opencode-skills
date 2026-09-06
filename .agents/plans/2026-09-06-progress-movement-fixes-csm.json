@@ -1,0 +1,811 @@
+{
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "artifactId": "art-progress-movement-fixes-20260906",
+  "runId": "run-20260906t065617z-733a9e508250",
+  "planId": "progress-movement-fixes",
+  "status": "complete",
+  "control": {
+    "status": "complete",
+    "currentState": "COMPLETE",
+    "cycle": 1,
+    "commits": "allowed",
+    "lastCheckpoint": "2026-09-06T08:03:10.363Z: all 6 tasks completed with evidence; independent review found 8 findings (1 critical recorder-rounding bug caught pre-commit, 1 high poller-lifecycle bug, 6 medium/low) - all repaired and re-verified; battery 330 tests / 322 pass / 0 fail; check 1244 OK; commit follows",
+    "lastModelRun": "glm-5.3-flash / csm-build-progress-movement-fixes",
+    "nextTransition": "none (terminal)",
+    "activeTasks": [],
+    "blockers": [],
+    "resume": {
+      "read": [
+        "last checkpoint",
+        "latest journal row",
+        "recovery notes of all non-COMPLETE tasks",
+        "discovered requirements",
+        "working-tree diff"
+      ],
+      "firstAction": "SELECT the G1 batch (T001, T002, T004)"
+    }
+  },
+  "goal": {
+    "summary": "Make orchestrator progress displays move meaningfully during runs and persist them: (1) child skill-progress partial records roll up mid-invocation so the bar moves during phase work, (2) the final progress snapshot is persisted human-readably into each run evidence dir, (3) skill-progress-rollup telemetry events stop being silently discarded, (4) the driver renders only on visible change, (5) verification asserts percentage movement instead of substring presence. Sourced from deep-research finding .agents/research/2026-09-06-progress-tracking-not-displayed-20260906t061208z-6c2e9293a705-research.json (KF2-KF8, R1-R5).",
+    "deliverables": [
+      "registered skill-progress-rollup telemetry event type (array + schema enum + registry digest)",
+      "recorder partial-record support with honest percent-to-milestone mapping",
+      "orchestrator mid-invocation rollup poller moving the parent bar during child execution",
+      "host mid-work partial record call sites",
+      "driver render-on-visible-change + persisted progress.json/progress.txt in evidence dirs",
+      "movement-asserting verification tests replacing substring-only coverage"
+    ],
+    "constraints": [
+      "gates remain the sole verification authority: rollups move verifiedFraction only, never item state",
+      "the updateProgress exact-1 clamp stays: an active item must not display 100%",
+      "no csm-orchestrate runtime change when skillProgressRollupDir is unset; driver output/artifact changes apply to all runs by design and revert independently",
+      "all existing 324-test battery stays green"
+    ],
+    "exclusions": [
+      "no new host-side progress protocols beyond the existing skillProgressRollupDir file contract",
+      "no in-place TTY rendering (separate future consideration)",
+      "no changes to csm-skill-progress/1 or csm-progress/1 schemas"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "criterion": "During an orchestrate run with a host that reports partial child progress, the sequence of DISTINCT rendered TASK PROGRESS texts contains a strictly increasing percentage mid-phase (before phase completion), and each consecutive printed block differs",
+      "evidence": "tests asserting strictly increasing rendered percentages across onProgress snapshots in a run with timed partial records"
+    },
+    {
+      "id": "AC2",
+      "criterion": "Every run evidence dir contains progress.json (final csm-progress/1 snapshot) and progress.txt (rendered text) alongside receipt.json",
+      "evidence": "driver-level test asserting both files exist with the final trajectory"
+    },
+    {
+      "id": "AC3",
+      "criterion": "skill-progress-rollup events appear in telemetry.jsonl when rollups fire, and the telemetry schema validates them",
+      "evidence": "test asserting rollup events present after a run with rollups; schema validation of a rollup event"
+    },
+    {
+      "id": "AC4",
+      "criterion": "Consecutive identical TASK PROGRESS texts are not re-printed by the driver",
+      "evidence": "driver-level test counting printed blocks against tracker revisions"
+    },
+    {
+      "id": "AC5",
+      "criterion": "Full battery green: orchestrate + renderer + evals + bootstrap-trust suites, check-suite, lint, fmt, payload synced",
+      "evidence": "make check / lint / fmt-check output and test counts recorded"
+    }
+  ],
+  "currentStateEvidence": {
+    "observations": [
+      "plannedProgress sums weight x verifiedFraction (progress.mjs:169-170); active items hold fraction 0 from itemForNode (progress.mjs:276); only phase completion forces fraction 1 (index.mjs:986-993)",
+      "updateProgress clamps exactly-1 fraction to 0 on non-verified items but fractions strictly between 0 and 1 survive on active items (progress.mjs:296-297); assertTransition never constrains verifiedFraction; repeated active->active rollups are legal (progress.mjs:137-159, 438-444 precedent)",
+      "the orchestrator rolls up child skill-progress only AFTER invokeAdapter returns (index.mjs:766-805, rollup is last writer by design) - partial records written mid-run are invisible to the tracker without a mid-invocation reader",
+      "the shipped recorder always writes status complete / overallPercent 100 post-completion (skill-progress-recorder.mjs:20-31); csm-skill-progress/1 accepts status active with mid-range percent and updateSkillProgress supports M<id>=active:<fraction>",
+      "skill-progress-rollup is emitted (index.mjs:797) but absent from TELEMETRY_EVENT_TYPES (telemetry.mjs:7-20) and from the telemetry-event schema enum (telemetry-event.schema.json:29-42); emit throws and the bare catch swallows it; the schema registry entry is immutable with a schemaContentDigest that must be refreshed (registry.json:713-720)",
+      "the driver prints a full projectProgress block per notification including byte-identical consecutive texts (run-orchestrator.mjs:253-259) and persists no progress artifact (receipt.json has no progress key)",
+      "the run-renderer-wiring-r1 trajectory: plannedProgress 0 -> 0.333 -> 0.667 -> 1; frozen at 67% for 44.88s = 92.7% of the run (cursor.db-wal, 26 distinct revisions)"
+    ],
+    "applicability": {
+      "format": "csm-applicability/1",
+      "decision": "warranted",
+      "mode": "risk-first",
+      "matchedSignals": [
+        "invariant_or_consistency",
+        "public_contract"
+      ],
+      "evidence": [
+        {
+          "source": "repository",
+          "locator": "KF3/KF8 + R1/R5",
+          "observation": "verifiedFraction semantics are an invariant of the progress document (clamp + transition rules); telemetry event types are a registered public contract with an immutable schema registry entry"
+        }
+      ],
+      "obligations": [
+        {
+          "id": "OB1",
+          "obligation": "invariant: rollups move verifiedFraction only; gates remain the sole authority for item state; the exact-1 clamp stays",
+          "tasks": [
+            "T002",
+            "T003"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB2",
+          "obligation": "contract: telemetry registration covers array, schema enum, and registry digest together, with schema validation tests",
+          "tasks": [
+            "T001"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB3",
+          "obligation": "observable behavior: mid-run movement is proven by rendered-percentage assertions on a real orchestrate run, not substring presence",
+          "tasks": [
+            "T005"
+          ],
+          "status": "required"
+        },
+        {
+          "id": "OB4",
+          "obligation": "rollback: no-run-behavior-change guarantee when skillProgressRollupDir is unset; revert = revert the three touch surfaces independently",
+          "tasks": [
+            "T003",
+            "T004"
+          ],
+          "status": "required"
+        }
+      ],
+      "taskApplicability": {
+        "warranted": [
+          "T001",
+          "T003",
+          "T005"
+        ],
+        "lightweight": [
+          "T002",
+          "T004",
+          "T006"
+        ]
+      },
+      "dddArtifacts": [],
+      "unresolvedRisks": [
+        "poll interval granularity trades liveness against fs churn (resolved: 2s poll, evidence-dir local)",
+        "hosts that never emit partial records keep today's behavior by design"
+      ],
+      "bypass": {
+        "requested": false,
+        "rationale": null
+      },
+      "proseOnly": true,
+      "note": "Nested prose-only planning record: formal applicability validation (scripts/lib/plan-validation.mjs) reads top-level applicability and is applied by csm-build at execution intake"
+    }
+  },
+  "assumptionsAndDecisions": [
+    {
+      "id": "D1",
+      "statement": "Percentage movement is achieved by partial child records plus a mid-invocation poller, not by changing the exact-1 clamp (the clamp is the honest guard against unverified 100%)",
+      "type": "decision",
+      "evidence": "discovery Q2: fractions strictly between 0 and 1 already survive on active items",
+      "status": "accepted"
+    },
+    {
+      "id": "D2",
+      "statement": "The poller polls skillProgressRollupDir every 2s during invokeAdapter and rolls up whatever child record exists (partial or complete); it is timer-canceled at invocation end",
+      "type": "decision",
+      "evidence": "discovery Q3: rollup is currently post-return only; nothing reads mid-run",
+      "status": "accepted"
+    },
+    {
+      "id": "D3",
+      "statement": "The recorder maps a target percent onto its 3 milestones honestly: percent < 30 -> M1 active with fraction percent/30, M2/M3 pending; 30-70 -> M1 complete, M2 active fraction (percent-30)/40; >= 70 -> M1 complete, M2 complete, M3 active fraction (percent-70)/30; percent 100 -> terminal record as today; the existing validator computes and enforces the exact percent",
+      "type": "decision",
+      "evidence": "discovery Q5: validator derives overallPercent from milestone weights and fractions",
+      "status": "accepted"
+    },
+    {
+      "id": "D4",
+      "statement": "Telemetry registration is one atomic task across array + schema enum + registry schemaContentDigest; the registry entry is immutable so the digest must be regenerated in the same change",
+      "type": "decision",
+      "evidence": "discovery Q1: three coupled registration surfaces",
+      "status": "accepted"
+    },
+    {
+      "id": "D5",
+      "statement": "progress.json (snapshot) and progress.txt (rendered) persist into the evidence dir at run end, mirroring the receipt.md/html pattern",
+      "type": "user-dictated",
+      "evidence": "deep-research R2/KF6: trajectory exists only in WAL",
+      "status": "accepted"
+    },
+    {
+      "id": "D6",
+      "statement": "progress.txt is a raw rendered debug artifact (not the digest-carrying renderer pipeline); progress.json is the machine snapshot; extending RECEIPT_RENDER_PROFILE with progress fields is deliberately out of scope",
+      "type": "decision",
+      "evidence": "critique finding 9: profile extension would bump digests consumed elsewhere",
+      "status": "accepted"
+    }
+  ],
+  "rdRecord": [
+    {
+      "id": "RD1",
+      "question": "Which surfaces gate mid-run percentage movement?",
+      "method/tool": "deep-research finding + explore agent (file:line verified)",
+      "isolation": "read-only",
+      "observation": "clamp survives (0,1); rollup is last writer; nothing reads partial records mid-run; recorder writes only terminal records",
+      "plan implication": "poller + partial recorder + host call sites; no clamp change"
+    },
+    {
+      "id": "RD2",
+      "question": "What does telemetry registration require?",
+      "method/tool": "explore agent",
+      "isolation": "read-only",
+      "observation": "three coupled surfaces: TELEMETRY_EVENT_TYPES array, schema enum, immutable registry schemaContentDigest",
+      "plan implication": "single atomic task with schema validation test"
+    },
+    {
+      "id": "RD3",
+      "question": "Does the plan JSON schema constrain the saved plan?",
+      "method/tool": "explore agent",
+      "isolation": "read-only",
+      "observation": "20 required top-level properties; semantic rules (control.status mirror, contiguous ordinals, journal cursor); readPlanArtifact validates",
+      "plan implication": "draft validated with readPlanArtifact before SAVED"
+    }
+  ],
+  "discoveredRequirements": [
+    {
+      "id": "DR1",
+      "requirement": "Register skill-progress-rollup in BOTH telemetry.mjs:7-20 and telemetry-event.schema.json:29-42, then refresh the immutable registry schemaContentDigest (registry.json:713-720)",
+      "source": "discovery Q1",
+      "appliesTo": [
+        "T001"
+      ]
+    },
+    {
+      "id": "DR2",
+      "requirement": "Fractions strictly between 0 and 1 survive updateProgress on active items; never roll up exactly 1 onto a non-verified item (clamped to 0)",
+      "source": "discovery Q2",
+      "appliesTo": [
+        "T002",
+        "T003",
+        "T005"
+      ]
+    },
+    {
+      "id": "DR3",
+      "requirement": "The rollup block must remain the last writer within executeNode (after the per-node update at index.mjs:766-773)",
+      "source": "discovery Q3",
+      "appliesTo": [
+        "T003"
+      ]
+    },
+    {
+      "id": "DR4",
+      "requirement": "Validate the saved plan with readPlanArtifact (csm-plan/lib/plan.mjs) before publication",
+      "source": "discovery Q4",
+      "appliesTo": [
+        "T006"
+      ]
+    },
+    {
+      "id": "DR5",
+      "requirement": "Partial records must satisfy the validator: overallPercent equals floor(computed) from milestone weights/fractions; complete status requires exactly 100",
+      "source": "discovery Q5",
+      "appliesTo": [
+        "T002"
+      ]
+    },
+    {
+      "id": "DR6",
+      "requirement": "check-suite requires README index lines for tracked .agents artifacts in the same commit",
+      "source": "repository norm",
+      "appliesTo": [
+        "T006"
+      ]
+    }
+  ],
+  "design": {
+    "poller": "In executeNode, when skillProgressRollupDir is set, start a 2s interval BEFORE the awaited invokeAdapter call: each tick calls findChildSkillProgress(dir, childRunId) and, if a record exists, rollupChildProgress({progressTracker, phaseId, nodeId, record}) - partial fractions (0<f<1) land on the active item and move plannedProgress; the interval is cleared in a finally after invokeAdapter resolves, and the existing post-return rollup remains as the final writer. Timer errors are swallowed like the existing rollup catch; no behavior change when skillProgressRollupDir is unset.",
+    "recorder": "recordSkillProgress gains { percent } (0-100, default 100): percent 100 keeps today's terminal record; percent < 100 writes status active with milestones derived to hit the target: M1 complete (30) when percent >= 30; M2 active with fraction (percent-30)/40 clamped [0,1) when 30 < percent < 70; M3 pending below 70, active with fraction (percent-70)/30 at >= 70; the existing validator derives and enforces overallPercent. Hosts call it with partial percents between internal steps and 100 at completion.",
+    "telemetry": "Add skill-progress-rollup to TELEMETRY_EVENT_TYPES and to the telemetry-event schema enum; regenerate the registry schemaContentDigest for csm-orchestrate-telemetry-event/1; validate a synthetic rollup event against the schema in a test.",
+    "driver": "onProgress keeps lastText and skips console.log when text is unchanged; after the run, driver writes progress.json (JSON.stringify of result.progress) and progress.txt (projectProgress text) into the evidence dir before the final status lines.",
+    "tests": "New orchestrate test file: (a) percentage-movement - host writes partial records on a timer mid-invocation; collect onProgress snapshots; assert rendered percentage values strictly increase and at least one mid-run snapshot differs from both first and last; (b) rollup telemetry appears in a captured jsonl transport; (c) driver E2E asserts progress.json/progress.txt exist and at least three distinct TASK PROGRESS texts were printed."
+  },
+  "executionGraph": {
+    "criticalPath": [
+      "T002",
+      "T003",
+      "T005",
+      "T006"
+    ],
+    "parallelGroups": [
+      {
+        "group": "G1",
+        "tasks": [
+          "T001",
+          "T002",
+          "T004"
+        ]
+      },
+      {
+        "group": "G2",
+        "tasks": [
+          "T003"
+        ]
+      },
+      {
+        "group": "G3",
+        "tasks": [
+          "T005"
+        ]
+      },
+      {
+        "group": "G4",
+        "tasks": [
+          "T006"
+        ]
+      }
+    ],
+    "integrationOwner": "Primary build agent"
+  },
+  "tasks": [
+    {
+      "taskId": "T001",
+      "ordinal": 1,
+      "status": "completed",
+      "title": "Register skill-progress-rollup telemetry event (array + schema enum + registry digest)",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "standard",
+      "ownedScope": [
+        "csm-orchestrate/lib/telemetry.mjs",
+        "csm-orchestrate/schemas/telemetry-event.schema.json",
+        "schemas/registry.json (telemetry entry digest only)"
+      ],
+      "notInScope": [
+        "other event types",
+        "telemetry.mjs emit logic",
+        "payload repack (owned by T006)"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "Add 'skill-progress-rollup' to TELEMETRY_EVENT_TYPES keeping alphabetical-ish grouping consistent with existing order",
+        "Add the value to the eventType enum in csm-orchestrate/schemas/telemetry-event.schema.json",
+        "Regenerate the schemaContentDigest for the csm-orchestrate-telemetry-event/1 registry entry (mirror the 25c01ee regeneration pattern)",
+        "Extend or add a test asserting a synthetic skill-progress-rollup event passes schema validation and emit()"
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-telemetry-wiring.test.mjs plus a new assertion file for the rollup event type - green with the rollup event validating through emit() and the schema",
+      "validation": [
+        "node --check on the three touched files",
+        "schema registry loads (loadSchemaRegistry)"
+      ],
+      "acceptanceEvidence": "test output showing the rollup event type accepted",
+      "repairAttempts": 0,
+      "recoveryNote": "registry digest mismatch fails loudly at loadSchemaRegistry; regenerate after any schema edit"
+    },
+    {
+      "taskId": "T002",
+      "ordinal": 2,
+      "status": "completed",
+      "title": "Recorder partial-record support + host mid-work call sites",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "standard",
+      "ownedScope": [
+        "scripts/lib/skill-progress-recorder.mjs",
+        "scripts/quality-review-host.mjs (record call)",
+        "scripts/quality-delivery-host.mjs (record call)",
+        "scripts/honest-failures-host.mjs (record call)",
+        "scripts/renderer-wiring-host.mjs (record call)",
+        "scripts/progress-visibility-host.mjs (record call)",
+        "tests/orchestrate-progress-visibility.test.mjs (V-D update)",
+        "tests/orchestrate-renderer-wiring.test.mjs (if recording asserted)"
+      ],
+      "notInScope": [
+        "host call sites (T003)",
+        "csm-skill-progress schema",
+        "lib/progress-tracker.mjs"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "Add optional { percent } option (0-100, default 100) to recordSkillProgress",
+        "percent 100 preserves today terminal record exactly; percent < 100 writes status active with milestones derived per D3 including the <30 branch (M1 active fraction percent/30, M2/M3 pending)",
+        "Keep validateSkillProgress as the in-writer gate (invalid records throw)",
+        "Unit tests: percent 0/15/40/65/85/100 produce validator-passing records with correct computed percents; percent 100 output is byte-equivalent to the legacy shape",
+        "Add one mid-work partial record call per host phase step (e.g. after each internal verification stage, percent 25/50/75) keeping the terminal percent-100 record as the last write",
+        "Update V-D and any recording assertions for partial records"
+      ],
+      "acceptanceSignal": "new node --test file exercising recordSkillProgress partials - all green with validateSkillProgress passing for each record",
+      "validation": [
+        "node --check scripts/lib/skill-progress-recorder.mjs"
+      ],
+      "acceptanceEvidence": "test output with per-percent computed overallPercent values",
+      "repairAttempts": 0,
+      "recoveryNote": "recorder is additive; legacy percent-100 call sites unchanged"
+    },
+    {
+      "taskId": "T003",
+      "ordinal": 3,
+      "status": "completed",
+      "title": "Orchestrator mid-invocation rollup poller",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "parallelGroup": "G2",
+      "risk": "high",
+      "ownedScope": [
+        "csm-orchestrate/lib/index.mjs (executeNode invokeAdapter window only)"
+      ],
+      "notInScope": [
+        "invocation.mjs race logic",
+        "progress-rollup.mjs",
+        "other index.mjs sections"
+      ],
+      "spikeCandidate": "Confirm per-attempt timer windows cover the retry path (retryChild changes childRunId at index.mjs:592, invocationChildRunId reassigns at :673) and cannot starve or deadlock the awaited invocation - isolate in a temporary sandbox test before integrating",
+      "actions": [
+        "When skillProgressRollupDir is set, start a 2s setInterval (unref'd) immediately before the awaited invokeAdapter call; each tick reads invocationChildRunId at tick time, runs findChildSkillProgress + rollupChildProgress ONLY for records with 0 <= overallPercent < 100 (terminal records stay with the post-return rollup so the clamp cannot reset the bar), and dedupes evidenceRefs by the skill-progress:<progressId> prefix",
+        "Start/clear the interval around EACH invokeAdapter attempt (initial and retry windows); clear in a finally after each attempt settles; keep the existing post-return rollup as the final writer",
+        "Swallow poll errors exactly like the existing rollup catch; zero behavior change when skillProgressRollupDir is unset",
+        "emitTelemetry skill-progress-rollup on each successful mid-run rollup (now registered via T001)",
+        "Retry window: the retry loop starts its own poll window per attempt so attempt-2 partial records are visible",
+        "Poll interval 1-2s; child test fixtures run >=10s with partials every 2s so one timer delay cannot eliminate the movement window"
+      ],
+      "acceptanceSignal": "new test: orchestrate run with a host that writes a partial record 1s into a 3s child; onProgress snapshots show the rendered percentage rising before completion",
+      "validation": [
+        "existing recovery/telemetry suites green",
+        "node --check csm-orchestrate/lib/index.mjs"
+      ],
+      "acceptanceEvidence": "test output with mid-run percentage increase and telemetry events",
+      "repairAttempts": 0,
+      "recoveryNote": "poller is additive and timer-scoped; partial work detectable by absence of mid-run percentage change in the new test"
+    },
+    {
+      "taskId": "T004",
+      "ordinal": 4,
+      "status": "completed",
+      "title": "Driver render-on-visible-change + persisted progress artifacts",
+      "dependsOn": [],
+      "parallelGroup": "G1",
+      "risk": "low",
+      "ownedScope": [
+        "scripts/run-orchestrator.mjs (onProgress callback and post-run output only)"
+      ],
+      "notInScope": [
+        "csm-orchestrate runtime",
+        "receipt.md/html projections"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "onProgress caches lastText and skips console.log when the rendered text equals the previous block",
+        "After the run (before final status lines), write progress.json (result.progress snapshot) and progress.txt (projectProgress text, documented as a raw debug artifact) into the evidence dir when result.progress is non-null",
+        "Log the artifact paths alongside the existing evidence line"
+      ],
+      "acceptanceSignal": "extended driver E2E test asserting progress.json/progress.txt exist, parse, and that printed TASK PROGRESS blocks contain no duplicate consecutive texts",
+      "validation": [
+        "node --check scripts/run-orchestrator.mjs",
+        "fixture driver still VERIFIED"
+      ],
+      "acceptanceEvidence": "test output + evidence-dir inventory",
+      "repairAttempts": 0,
+      "recoveryNote": "purely additive driver output; revert = remove the two blocks"
+    },
+    {
+      "taskId": "T005",
+      "ordinal": 5,
+      "status": "completed",
+      "title": "Movement-asserting verification suite",
+      "dependsOn": [
+        "T001",
+        "T002",
+        "T003",
+        "T004"
+      ],
+      "parallelGroup": "G3",
+      "risk": "standard",
+      "ownedScope": [
+        "tests/orchestrate-progress-movement.test.mjs (new)"
+      ],
+      "notInScope": [
+        "runtime files"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "Test 1 (movement): in-process orchestrate with a host that writes partial records every 2s during a >=10s child; collect onProgress snapshots; dedupe by rendered text; assert at least one mid-run percentage increase and that the final text shows the completed weight share",
+        "Test 2 (telemetry): run with a jsonl transport; assert skill-progress-rollup events are present and schema-valid",
+        "Test 3 (driver): spawn the driver; assert progress.json/progress.txt exist, >=3 distinct TASK PROGRESS texts printed, and no consecutive duplicate blocks"
+      ],
+      "acceptanceSignal": "node --test --test-concurrency=1 tests/orchestrate-progress-movement.test.mjs - all green",
+      "validation": [
+        "node --test tests/orchestrate-progress-visibility.test.mjs still green"
+      ],
+      "acceptanceEvidence": "test counts recorded",
+      "repairAttempts": 0,
+      "recoveryNote": "tests are self-contained; failures identify the failing fix directly"
+    },
+    {
+      "taskId": "T006",
+      "ordinal": 6,
+      "status": "completed",
+      "title": "Full battery, payload sync, index lines",
+      "dependsOn": [
+        "T005"
+      ],
+      "parallelGroup": "G4",
+      "risk": "low",
+      "ownedScope": [
+        "bootstrap payload repack",
+        ".agents/README.md index lines",
+        "plan journal updates"
+      ],
+      "notInScope": [
+        "source fixes (owned by T001-T005)"
+      ],
+      "spikeCandidate": "none",
+      "actions": [
+        "Run the full battery: orchestrate + renderer + evals + bootstrap-trust suites, make check, lint, fmt-check",
+        "Repack the bootstrap payload (runtime files changed in T001/T003)",
+        "Add README index lines for any newly tracked .agents artifacts in the same commit"
+      ],
+      "acceptanceSignal": "make check and make lint and make fmt-check all green; battery reports 0 failures",
+      "validation": [
+        "node scripts/run-orchestrator.mjs --fixture - VERIFIED"
+      ],
+      "acceptanceEvidence": "gate outputs recorded in the plan journal",
+      "repairAttempts": 0,
+      "recoveryNote": "battery failures route back to the owning task via csm-build REVIEW/REPAIR"
+    }
+  ],
+  "verificationStrategy": {
+    "order": [
+      "per-task focused tests (fast)",
+      "orchestrate progress suites",
+      "renderer + evals suites",
+      "make check/lint/fmt (batch)",
+      "CI exact-SHA all-jobs (final)"
+    ],
+    "fastGates": [
+      "focused node --test files",
+      "node --check",
+      "schema registry load"
+    ],
+    "batchGates": [
+      "make check (check-suite + payload parity)",
+      "make lint",
+      "make fmt-check"
+    ],
+    "finalGates": [
+      "exact-SHA CI all-jobs green"
+    ],
+    "environmentSensitive": [
+      "live browser/Docker suites CI-only",
+      "timer-based poller tests tolerate slow CI via generous partial-record windows"
+    ]
+  },
+  "risksAndRecovery": {
+    "risks": [
+      "Poller timer could leak if executeNode throws between start and finally (mitigation: try/finally with clearInterval, unref'd timer)",
+      "Partial records could mislead if hosts report dishonest percents (mitigation: percent is derived from real internal steps; validator enforces shape; gates remain authoritative)",
+      "Telemetry registry digest drift breaks schema loads repo-wide (mitigation: digest regenerated in the same atomic T001 change; loadSchemaRegistry test)",
+      "Duplicate-consecutive render suppression could hide a needed refresh (mitigation: text equality only skips identical text; revision-gated renders still print on any visible change)"
+    ],
+    "mitigations": [
+      "fail-closed poll errors",
+      "validator-gated records",
+      "atomic three-surface telemetry registration"
+    ],
+    "recovery": "each task is independently revertible; T003's poller is inert without skillProgressRollupDir; battery failures route to REVIEW/REPAIR"
+  },
+  "critiqueResolution": [],
+  "completionReview": {
+    "result": "All acceptance criteria verified with current evidence: AC1 movement (MV-B mid-run rendered percentage strictly between 0 and 100 plus the 25-partial render); AC2 persistence (MV-D progress.json csm-progress/1 + progress.txt in the evidence dir); AC3 telemetry (MV-C + T001: skill-progress-rollup events emitted and schema-valid); AC4 dedupe (MV-D: no consecutive identical blocks; shared closure covers live and final renders); AC5 battery (330 tests / 322 pass / 0 fail / 8 skipped; check-suite 1244 OK; lint/fmt green; fixture VERIFIED; payload synced).",
+    "review": "Independent review found 8 findings - 1 critical (recorder toFixed(4) rounding: 20/101 percent values validator-failing including the hosts percent-25; tests had dodged it via swallowed writes), 1 high (shared poller stop slot corrupted parallel batches), 6 medium/low (terminal record missing, fail-soft guards, dedupe boundary, sqlite availability guard, MV-A coverage, test block-comparison). All repaired and re-verified; 0 open findings.",
+    "verifiedAt": "2026-09-06T08:04:47.948Z"
+  },
+  "provenance": {
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "producedAt": "2026-09-06T07:10:00Z",
+    "sourceDigests": []
+  },
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-06T06:56:17Z",
+      "cycle": 0,
+      "transition": "INTAKE -> DISCOVER",
+      "tasks": [],
+      "evidence": "prescriptive brief sourced from deep-research finding 20260906t061208z; applicability warranted (invariant_or_consistency, public_contract)",
+      "nextState": "DISCOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-06T07:00:00Z",
+      "cycle": 0,
+      "transition": "DISCOVER -> RESEARCH",
+      "tasks": [],
+      "evidence": "explore agent verified telemetry registration surfaces, clamp semantics, rollup ordering, plan schema, recorder partial support",
+      "nextState": "RESEARCH"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-06T07:08:00Z",
+      "cycle": 0,
+      "transition": "RESEARCH -> DRAFT",
+      "tasks": [],
+      "evidence": "design committed: poller + partial recorder + telemetry registration + driver rendering + movement tests (D1-D5)",
+      "nextState": "DRAFT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-06T07:20:00Z",
+      "cycle": 0,
+      "transition": "DRAFT -> CRITIQUE",
+      "tasks": [],
+      "evidence": "independent hostile critique: 12 findings (2 critical: draft would fail readPlanArtifact cursor semantics; host call sites orphaned leaving AC1 unreachable)",
+      "nextState": "CRITIQUE"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-06T07:30:00Z",
+      "cycle": 0,
+      "transition": "CRITIQUE -> REMEDIATE",
+      "tasks": [],
+      "evidence": "all 12 findings accepted with concrete corrections (cursor semantics, T002 scope expansion, poller percent-100 skip + per-attempt windows, distinct-text assertions, CI-deterministic fixtures, rollback restatement, applicability prose-only note, progress.txt decision, <30 branch, T003 dependsOn T001, evidenceRef dedupe)",
+      "nextState": "REMEDIATE"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-06T07:35:00Z",
+      "cycle": 0,
+      "transition": "REMEDIATE -> VERIFY",
+      "tasks": [],
+      "evidence": "remediated draft validated with validatePlanArtifact (csm-plan/lib/plan.mjs)",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-06T07:40:00Z",
+      "cycle": 0,
+      "transition": "VERIFY -> SAVED",
+      "tasks": [],
+      "evidence": "primary personal verification: acceptance criteria map to tasks; runnable signals present; parallel ownership non-overlapping; applicability record consistent; saved to canonical path",
+      "nextState": "NOT_STARTED"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-06T07:22:17.451Z",
+      "cycle": 1,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": [],
+      "evidence": "csm-build invocation received; plan format csm-plan/1 validated; clean tree; no NORMS.md; no DDD citations; applicability nested prose-only per plan note",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-06T07:22:17.451Z",
+      "cycle": 1,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": [],
+      "evidence": "anchor spot-checks confirmed: TELEMETRY_EVENT_TYPES telemetry.mjs:7-20; clamp progress.mjs:296-297; recorder call sites in 5 hosts; driver onProgress :256; schema registry immutable entry requires digest refresh",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-06T08:03:10.364Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": [
+        "T001",
+        "T002",
+        "T004"
+      ],
+      "evidence": "telemetry registration 3 surfaces; recorder percent param + 5 host call sites (25 start / 90 post-work); driver dedupe closure + progress.json/progress.txt persistence; fixture VERIFIED",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-06T08:03:10.364Z",
+      "cycle": 1,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": [
+        "T003",
+        "T005"
+      ],
+      "evidence": "poller wraps both invokeAdapter windows (initial + retry); rollup dedupe by progressId prefix; movement suite 4/4 after MV-C/MV-D assertion corrections",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-06T08:03:10.364Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [],
+      "evidence": "battery 330/322 pass/0 fail; check 1244 OK before review",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-06T08:03:10.364Z",
+      "cycle": 1,
+      "transition": "REVIEW -> REPAIR",
+      "tasks": [
+        "T002",
+        "T003"
+      ],
+      "evidence": "independent review: 8 findings - CRITICAL recorder toFixed(4) rounding made 20/101 percents validator-failing incl. the hosts percent-25 (tests dodged it via catch-swallowed writes); HIGH shared poller stop slot corrupted parallel batches; 6 medium/low",
+      "nextState": "REPAIR"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-06T08:03:10.364Z",
+      "cycle": 1,
+      "transition": "REPAIR -> VERIFY",
+      "tasks": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006"
+      ],
+      "evidence": "ceil-guarded fractions (floor(weight*frac)===percent exact); per-call-site stop handles; dedupe boundary; guarded fail-soft host records + terminal percent-100; MV-A extended with failing percents; all green post-repair; completion gate passed",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": [],
+      "evidence": "G1 dispatched: T001 telemetry registration (3 surfaces), T002 recorder percent param + 5 host call sites, T004 driver dedupe + progress persistence",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "DISPATCH -> INTEGRATE",
+      "tasks": [],
+      "evidence": "G1 integrated: fixture VERIFIED; recorder unit coverage added",
+      "nextState": "INTEGRATE"
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": [],
+      "evidence": "G2/G3: T003 poller wraps both invokeAdapter windows (initial + retry, per-attempt stop handles); T005 movement suite written",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [],
+      "evidence": "first VERIFY pass: movement suite 4/4 after MV-C/MV-D assertion corrections; battery 330/322/0/8; check 1244 OK",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 18,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "REVIEW -> REPAIR",
+      "tasks": [],
+      "evidence": "independent review: 8 findings (1 critical recorder rounding, 1 high poller stop slot, 6 medium/low)",
+      "nextState": "REPAIR"
+    },
+    {
+      "sequence": 19,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "REPAIR -> VERIFY",
+      "tasks": [],
+      "evidence": "all findings repaired: ceil-guarded fractions, per-call-site stop handles, dedupe boundary, terminal records, fail-soft guards, sqlite guard, MV-A failing percents, block comparison",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 20,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "VERIFY -> CHECKPOINT",
+      "tasks": [],
+      "evidence": "post-repair battery 330/322/0/8; check 1244 OK; lint/fmt green; fixture VERIFIED",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 21,
+      "timestamp": "2026-09-06T08:04:47.948Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> COMPLETE",
+      "tasks": [],
+      "evidence": "completion gate passed personally; all 6 tasks completed with evidence; commit per plan control commits: allowed",
+      "nextState": "COMPLETE"
+    }
+  ],
+  "projection": {
+    "profile": "csm-plan-human/1",
+    "legacyMarkdownStatus": "history-only"
+  }
+}

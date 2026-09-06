@@ -482,6 +482,12 @@ export default function progressVisibilityHost({ runId, skillProgressDir } = {})
   return {
     async invokeSiblingSkill(request) {
       calls += 1;
+      await recordSkillProgress({
+        dir: skillProgressDir,
+        request,
+        goal: request.phaseId,
+        percent: 25,
+      });
       const output = await phaseWork(request);
       // self-recording is optional infrastructure: before P2 ships the recorder
       // module the import fails, and observer errors must never fail the phase
@@ -489,7 +495,12 @@ export default function progressVisibilityHost({ runId, skillProgressDir } = {})
         const { recordSkillProgress } = await import(
           pathToFileURL(join(root, "scripts", "lib", "skill-progress-recorder.mjs")).href
         );
-        await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
+        await recordSkillProgress({
+          dir: skillProgressDir,
+          request,
+          goal: request.phaseId,
+          percent: 90,
+        });
       } catch {}
       const evidenceId = `ev-progress-visibility-${calls}`;
       const requirementIds = [

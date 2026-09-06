@@ -80,6 +80,12 @@ export default function qualityReviewHost({ skillProgressDir } = {}) {
   return {
     async invokeSiblingSkill(request) {
       calls += 1;
+      await recordSkillProgress({
+        dir: skillProgressDir,
+        request,
+        goal: request.phaseId,
+        percent: 25,
+      });
       const phaseOrdinal = Number(request.phaseId?.match(/p(\d+)$/)?.[1] ?? 1);
       const isReview = phaseOrdinal >= 2;
       let output;
@@ -107,7 +113,12 @@ export default function qualityReviewHost({ skillProgressDir } = {}) {
           summary: `${improvements.length} prioritized improvements`,
         };
       }
-      await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
+      await recordSkillProgress({
+        dir: skillProgressDir,
+        request,
+        goal: request.phaseId,
+        percent: 90,
+      });
       const evidenceId = `ev-quality-${calls}`;
       const requirementIds = [
         request.phaseId?.replace(/^phase-/, "req-") ?? `req-quality-p${calls}`,

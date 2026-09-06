@@ -12,6 +12,7 @@ export const TELEMETRY_EVENT_TYPES = Object.freeze([
   "timeout",
   "cancellation",
   "review",
+  "skill-progress-rollup",
   "remediation",
   "reconciliation",
   "terminal",

@@ -716,7 +716,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:514293f775ab3acceefff7d1a7b4cc0c23afeab1905a1ea5b7cda61f5da0005a"
+      "schemaContentDigest": "sha256:48bb5b7f22763b4764e40e2135f934d0bf4e52a2194e37fa3331d2091235ba43"
     }
   ]
 }

@@ -4,18 +4,68 @@
 // tracker (skillProgressRollupDir). Records are evidence of invocation state
 // only; the orchestrator's technical/functional gates remain the sole
 // verification authority.
+//
+// { percent } below 100 emits an in-progress record (status "active") whose
+// milestones are derived to hit the target exactly: percent < 30 -> M1 active
+// at percent/30; 30-70 -> M1 complete, M2 active at (percent-30)/40; 70-99 ->
+// M1/M2 complete, M3 active at (percent-70)/30. The shipped validator derives
+// overallPercent from milestone weights/fractions and rejects any mismatch.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { validateSkillProgress } from "../../lib/progress-tracker.mjs";
 
-export async function recordSkillProgress({ dir, request, goal, milestones } = {}) {
-  if (!dir || !request?.childRunId) return null;
-  const childRunId = request.childRunId;
-  const rows = milestones ?? [
-    { id: "M1", title: "dispatch accepted", weightPercent: 30 },
-    { id: "M2", title: "work executed", weightPercent: 40 },
-    { id: "M3", title: "evidence bound", weightPercent: 30 },
+const frac = (value, weight) => Math.ceil((value / weight) * 10000 - 1e-9) / 10000;
+
+function deriveMilestones(percent) {
+  if (percent >= 100)
+    return [
+      { id: "M1", title: "dispatch accepted", weightPercent: 30, status: "complete" },
+      { id: "M2", title: "work executed", weightPercent: 40, status: "complete" },
+      { id: "M3", title: "evidence bound", weightPercent: 30, status: "complete" },
+    ];
+  if (percent >= 70)
+    return [
+      { id: "M1", title: "dispatch accepted", weightPercent: 30, status: "complete" },
+      { id: "M2", title: "work executed", weightPercent: 40, status: "complete" },
+      {
+        id: "M3",
+        title: "evidence bound",
+        weightPercent: 30,
+        status: "active",
+        verifiedFraction: frac(percent - 70, 30),
+      },
+    ];
+  if (percent >= 30)
+    return [
+      { id: "M1", title: "dispatch accepted", weightPercent: 30, status: "complete" },
+      {
+        id: "M2",
+        title: "work executed",
+        weightPercent: 40,
+        status: "active",
+        verifiedFraction: frac(percent - 30, 40),
+      },
+      { id: "M3", title: "evidence bound", weightPercent: 30, status: "pending" },
+    ];
+  return [
+    {
+      id: "M1",
+      title: "dispatch accepted",
+      weightPercent: 30,
+      status: "active",
+      verifiedFraction: frac(percent, 30),
+    },
+    { id: "M2", title: "work executed", weightPercent: 40, status: "pending" },
+    { id: "M3", title: "evidence bound", weightPercent: 30, status: "pending" },
   ];
+}
+
+export async function recordSkillProgress({ dir, request, goal, percent = 100, milestones } = {}) {
+  if (!dir || !request?.childRunId) return null;
+  if (!Number.isInteger(percent) || percent < 0 || percent > 100)
+    throw new TypeError("percent must be an integer between 0 and 100");
+  const childRunId = request.childRunId;
+  const rows = milestones ?? deriveMilestones(percent);
   const nowIso = new Date().toISOString();
   const record = {
     schema: "csm-skill-progress/1",
@@ -23,9 +73,14 @@ export async function recordSkillProgress({ dir, request, goal, milestones } = {
     runId: childRunId,
     skill: request.skill ?? "csm-build",
     goal: String(goal ?? request.phaseId ?? "sibling skill invocation").slice(0, 300),
-    status: "complete",
-    overallPercent: 100,
-    milestones: rows.map((m) => ({ ...m, status: "complete" })),
+    status: percent >= 100 ? "complete" : "active",
+    overallPercent: percent,
+    milestones: milestones
+      ? rows.map((m) => ({
+          ...m,
+          status: percent >= 100 ? "complete" : (m.status ?? "complete"),
+        }))
+      : rows,
     startedAt: nowIso,
     updatedAt: nowIso,
   };

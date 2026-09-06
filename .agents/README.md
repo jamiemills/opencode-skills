@@ -242,3 +242,6 @@ the source file. Deletion remains awaiting explicit authorization.
 - `progress-visibility-analysis.json` — 2026-09-05 — root-cause analysis of missing progress trackers in orchestrator runs and invoked skills, with fixes and verification paths — status: reference
 - `renderer-wiring-analysis.json` — 2026-09-06 — analysis of the HTML/Markdown projection renderers (working but unused) and the driver wiring that now emits receipt.md/receipt.html per run — status: reference
 - `2026-09-06-progress-tracking-not-displayed-20260906t061208z-6c2e9293a705-research.json` — 2026-09-06 — deep-research finding: why progress tracking was not displayed in cycle 6 despite the cycle-5 fix (plumbing worked; display semantics did not) — status: reference
+- `2026-09-06-progress-movement-fixes-csm.json` — 2026-09-06 — plan + build (COMPLETE): mid-run percentage movement, persisted progress artifacts, rollup telemetry registration, render-on-change — status: reference
+- `2026-09-06-progress-movement-fixes-20260906T065617Z-733a9e508250-progress.json` — 2026-09-06 — csm-plan tracker for progress-movement-fixes — status: reference
+- `2026-09-06-progress-movement-fixes-build-20260906T072018Z-4a21d28205cd-progress.json` — 2026-09-06 — csm-build tracker for progress-movement-fixes — status: reference

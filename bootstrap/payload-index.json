@@ -842,8 +842,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "2546687c0b5137c7f7521e1ac7dd80efdbe6fe4a18f040d40f99b0687904c91e",
-        "bytes": 57591,
+        "sha256": "098bd46d66863a719ead9943d17a0f40374ed375a1ed6e234443aeb4deb9566e",
+        "bytes": 59823,
         "mode": "0644"
       },
       {
@@ -860,8 +860,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/progress-rollup.mjs",
-        "sha256": "3efb871ca21e11074287f43947e294bdbfafd2d46c42f226978011718e11cb24",
-        "bytes": 2280,
+        "sha256": "ddefb5f53ece445c34e9668edeab65ea07449c30f0caaaf893f0b0a38caff40a",
+        "bytes": 2564,
         "mode": "0644"
       },
       {
@@ -926,8 +926,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/telemetry.mjs",
-        "sha256": "9305e42f4fdcd2253dd76fc8a9977106212a5c803d8ce9ac1a822b13942577f3",
-        "bytes": 11761,
+        "sha256": "a875a65486611820af159c72513677832074d16b85262aa10d752a32f94459ad",
+        "bytes": 11788,
         "mode": "0644"
       },
       {
@@ -1100,8 +1100,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/schemas/telemetry-event.schema.json",
-        "sha256": "81c6e52aa085323059b1fd309d8f7351625c856d1f8819b17768e2a144f757f2",
-        "bytes": 1921,
+        "sha256": "15506c2de5c7c669a76cd6c7b04a5703ab176706351c7a4c52ca8865f66690b3",
+        "bytes": 1954,
         "mode": "0644"
       },
       {
@@ -2123,7 +2123,7 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "c4787b18b1f31a311ede1e164955e72872ce7d52fa7d2428617603e976cf4307",
+        "sha256": "80fcaa7a783c0329bdfa61561218bd509f9108c0d68a6568f35f01ce77a1871f",
         "bytes": 26174,
         "mode": "0644"
       },

@@ -484,8 +484,19 @@ export default function honestFailuresHost({ runId, skillProgressDir } = {}) {
   return {
     async invokeSiblingSkill(request) {
       calls += 1;
+      await recordSkillProgress({
+        dir: skillProgressDir,
+        request,
+        goal: request.phaseId,
+        percent: 25,
+      });
       const output = await phaseWork(request);
-      await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
+      await recordSkillProgress({
+        dir: skillProgressDir,
+        request,
+        goal: request.phaseId,
+        percent: 90,
+      });
       const evidenceId = `ev-honest-failures-${calls}`;
       const requirementIds = [
         request.phaseId?.replace(/^phase-/, "req-") ?? `req-honest-failures-p${calls}`,

@@ -215,12 +215,23 @@ export default function rendererWiringHost({ runId, skillProgressDir } = {}) {
   return {
     async invokeSiblingSkill(request) {
       calls += 1;
+      await recordSkillProgress({
+        dir: skillProgressDir,
+        request,
+        goal: request.phaseId,
+        percent: 25,
+      });
       const output = await phaseWork(request);
       try {
         const { recordSkillProgress } = await import(
           pathToFileURL(join(root, "scripts", "lib", "skill-progress-recorder.mjs")).href
         );
-        await recordSkillProgress({ dir: skillProgressDir, request, goal: request.phaseId });
+        await recordSkillProgress({
+          dir: skillProgressDir,
+          request,
+          goal: request.phaseId,
+          percent: 90,
+        });
       } catch {}
       const evidenceId = `ev-renderer-wiring-${calls}`;
       const requirementIds = [

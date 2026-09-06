@@ -290,6 +290,43 @@ async function runOrchestrationInternal({
     if (dispatchIntentId) invocationOptions.dispatchIntentId = dispatchIntentId;
     return adapter.invoke(request, invocationOptions);
   };
+  // mid-invocation progress poller: child skill-progress records with a
+  // mid-range percent roll onto the active item while the child runs, so the
+  // rendered bar moves during real phase work. Terminal (100%) records stay
+  // with the post-return rollup: the exact-1 clamp would reset the bar on a
+  // non-verified item. Inert unless skillProgressRollupDir is configured.
+  const startProgressPoll = (pollChildRunId, pollPhase, pollNode) => {
+    if (!skillProgressRollupDir) return () => {};
+    const timer = setInterval(() => {
+      try {
+        void (async () => {
+          const { rollupChildProgress, findChildSkillProgress } =
+            await import("./progress-rollup.mjs");
+          const childRecord = await findChildSkillProgress(skillProgressRollupDir, pollChildRunId);
+          if (!childRecord || childRecord.overallPercent >= 100) return;
+          const rollupResult = await rollupChildProgress({
+            progressTracker,
+            phaseId: pollPhase.phaseId,
+            nodeId: pollNode.nodeId,
+            record: childRecord,
+          });
+          if (rollupResult.status === "rolled-up")
+            emitTelemetry({
+              phaseId: pollPhase.phaseId,
+              edgeId: `edge-${slug(pollNode.nodeId)}`,
+              childRunId: pollChildRunId,
+              eventType: "skill-progress-rollup",
+              payload: {
+                fraction: rollupResult.fraction,
+                evidenceRef: rollupResult.evidenceRef,
+              },
+            });
+        })().catch(() => {});
+      } catch {}
+    }, 2000);
+    timer.unref?.();
+    return () => clearInterval(timer);
+  };
   const childReceipts = [];
   const allEvidence = [];
   const phaseResults = [];
@@ -567,9 +604,17 @@ async function runOrchestrationInternal({
           } catch (error) {
             return { node, approval, failure: dispatchIntentFailure(error) };
           }
-          result = jsonProjection(
-            capOutputSize(await invokeAdapter(request, cursorId, dispatchIntent?.intentId)),
-          );
+          // mid-invocation rollup poller: child skill-progress partial records
+          // land while the child runs; without this the bar cannot move during
+          // real phase work (terminal records stay with the post-return rollup)
+          const stopPoll = startProgressPoll(childRunId, phase, node);
+          try {
+            result = jsonProjection(
+              capOutputSize(await invokeAdapter(request, cursorId, dispatchIntent?.intentId)),
+            );
+          } finally {
+            stopPoll?.();
+          }
           await resolveDispatchIntent(dispatchIntent, result.status);
         }
         let attempt = savedCursor?.attempt || 1;
@@ -647,28 +692,33 @@ async function runOrchestrationInternal({
           } catch (error) {
             return { node, approval, failure: dispatchIntentFailure(error) };
           }
-          result = jsonProjection(
-            capOutputSize(
-              await invokeAdapter(
-                (() => {
-                  const retryRequest = {
-                    ...request,
-                    childRunId: retryChild,
-                    invocationId: `invocation-${slug(retryChild)}`,
-                    approval: invocationApproval(retryApproval),
-                    retry: {
-                      attempt,
-                      idempotencyKey: retryIdempotencyKey,
-                    },
-                  };
-                  retryRequest.requestDigest = materialDigest(retryRequest);
-                  return retryRequest;
-                })(),
-                cursorId,
-                retryIntent?.intentId,
+          const stopRetryPoll = startProgressPoll(retryChild, phase, node);
+          try {
+            result = jsonProjection(
+              capOutputSize(
+                await invokeAdapter(
+                  (() => {
+                    const retryRequest = {
+                      ...request,
+                      childRunId: retryChild,
+                      invocationId: `invocation-${slug(retryChild)}`,
+                      approval: invocationApproval(retryApproval),
+                      retry: {
+                        attempt,
+                        idempotencyKey: retryIdempotencyKey,
+                      },
+                    };
+                    retryRequest.requestDigest = materialDigest(retryRequest);
+                    return retryRequest;
+                  })(),
+                  cursorId,
+                  retryIntent?.intentId,
+                ),
               ),
-            ),
-          );
+            );
+          } finally {
+            stopRetryPoll?.();
+          }
           await resolveDispatchIntent(retryIntent, result.status);
           invocationChildRunId = retryChild;
           terminalApproval = retryApproval;

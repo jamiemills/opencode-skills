@@ -28,7 +28,15 @@ export async function rollupChildProgress({ progressTracker, phaseId, nodeId, re
 
   const fraction = record.overallPercent / 100;
   const evidenceRef = `skill-progress:${record.progressId}@${snapshot.revision}`;
-  const evidenceRefs = [...new Set([...(item.evidenceRefs ?? []), evidenceRef])];
+  // repeated mid-run rollups of the same child record would accumulate
+  // revision-suffixed duplicates; keep only the latest per progressId
+  const prefix = `skill-progress:${record.progressId}`;
+  const evidenceRefs = [
+    ...(item.evidenceRefs ?? []).filter(
+      (ref) => ref !== prefix && !String(ref).startsWith(prefix + "@"),
+    ),
+    evidenceRef,
+  ];
 
   await progressTracker.update(itemId, {
     verifiedFraction: fraction,

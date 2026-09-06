@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-20260906t065617z-733a9e508250",
+  "runId": "run-20260906t065617z-733a9e508250",
+  "skill": "csm-plan",
+  "goal": "plan the progress-visibility fixes from the deep-research finding (percentage movement, persisted progress, rollup telemetry, render-on-change, honest tests)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "intake and discover",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "research and draft plan",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "independent critique and remediate",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "verify and save",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-06T06:56:17.000Z",
+  "updatedAt": "2026-09-06T07:17:30.076Z"
+}
