@@ -16,8 +16,11 @@
 // --approach approach file (csm-approach/1) for a real run.
 // --plan     csm-plan/1 envelope: classified kind execute-plan -> csm-build route.
 // --request  csm-orchestrate-request/1 envelope: classified via lib/request-router.mjs.
-//            Plan/request routes currently exit with the blocked agent-session-required
-//            result (no skill executor is wired yet); a skill-executor route flips them.
+//            Plan/request routes exit with the blocked agent-session-required result
+//            unless the env gate CSM_AGENT_SESSION_EXEC=1 is set AND the classified
+//            route is csm-build, when the driver fabricates a handoff identity,
+//            applies the approvals gate, and runs the agent-session executor directly
+//            (see realModeBypass; env vars documented there).
 // --host     module exporting `default` = host factory ({runId}) -> host
 //            ({invokeSiblingSkill, invokeReview?}). Required for the --approach path
 //            only (plan/request bypass routes to skill executors, never hosts).
@@ -39,7 +42,10 @@ import {
 } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
 import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
-import { createAllBuildHandoffs } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
+import {
+  createAllBuildHandoffs,
+  createCsmBuildHandoff,
+} from "../csm-orchestrate/lib/csm-build-handoff.mjs";
 import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
@@ -49,6 +55,8 @@ import {
   repairTelemetryJsonlTail,
 } from "../csm-orchestrate/lib/telemetry.mjs";
 import { pathToFileURL } from "node:url";
+import { digest } from "../lib/schema-runtime/index.mjs";
+import { createCsmBuildAgentSessionExecutor } from "./lib/agent-session-executor.mjs";
 
 const args = process.argv.slice(2);
 
@@ -261,26 +269,189 @@ async function fixtureMode() {
 const agentSessionRequiredMessage = (skill) =>
   `${skill} requires an agent session running its SKILL.md lifecycle. Direct function dispatch is not available for instruction-led skills.`;
 
-// T004 realMode bypass for plan/request intakes (approach keeps the orchestrate()
-// flow above; --host is approach-only). No executor exists for any plan/request
-// route yet, so the driver classifies the request and then exits non-zero with
-// the blocked agent-session-required result — thrown so it surfaces exactly like
-// every other realMode error at the bottom isMain catch (message on stderr,
-// exit 1). The driver runId is the artifact's own canonical runId (unique per
-// plan/request artifact), which the executor wiring keys evidence/leases off.
-async function realModeBypass({ kind, artifact }) {
+// Bypass env surface for the T006 agent-session route. The driver mirrors the
+// executor's CSM_AGENT_SESSION_EXEC gate and injects the remaining executor
+// options + the approvals test hook through the same process env namespace:
+//   CSM_AGENT_SESSION_EXEC          "1" enables the bypass spawn (blocked below).
+//   CSM_AGENT_SESSION_APPROVED      "1" documented test hook: grants the bypass
+//                                   approval when no --approvals module is given
+//                                   (csm-build has workspace-write effects and is
+//                                   never auto-approved; real runs need a module).
+//   CSM_AGENT_SESSION_AGENT_CLI     path of the agent CLI binary to spawn.
+//   CSM_AGENT_SESSION_WORKTREE_ROOT pre-created wt-session worktree root (the
+//                                   executor accepts a dir with a .git marker).
+//   CSM_AGENT_SESSION_TIMEOUT_MS / CSM_AGENT_SESSION_POLL_INTERVAL_MS optional.
+const AGENT_SESSION_EXEC = "CSM_AGENT_SESSION_EXEC";
+const AGENT_SESSION_APPROVED = "CSM_AGENT_SESSION_APPROVED";
+const AGENT_SESSION_AGENT_CLI = "CSM_AGENT_SESSION_AGENT_CLI";
+const AGENT_SESSION_WORKTREE_ROOT = "CSM_AGENT_SESSION_WORKTREE_ROOT";
+const AGENT_SESSION_TIMEOUT_MS = "CSM_AGENT_SESSION_TIMEOUT_MS";
+const AGENT_SESSION_POLL_INTERVAL_MS = "CSM_AGENT_SESSION_POLL_INTERVAL_MS";
+
+function envPositiveNumber(name) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function agentSessionExecutorOptions() {
+  const options = {};
+  const agentCli = process.env[AGENT_SESSION_AGENT_CLI];
+  if (agentCli) options.agentCli = agentCli;
+  const worktreeRoot = process.env[AGENT_SESSION_WORKTREE_ROOT];
+  if (worktreeRoot) options.worktreeRoot = worktreeRoot;
+  const timeoutMs = envPositiveNumber(AGENT_SESSION_TIMEOUT_MS);
+  if (timeoutMs !== undefined) options.timeoutMs = timeoutMs;
+  const pollIntervalMs = envPositiveNumber(AGENT_SESSION_POLL_INTERVAL_MS);
+  if (pollIntervalMs !== undefined) options.pollIntervalMs = pollIntervalMs;
+  return options;
+}
+
+// Fabricated-bypass identity slug (H1): plan envelopes carry a slug-like planId,
+// request envelopes an explicit goalSlug; fall back to a stable literal.
+function bypassGoalSlug(artifact, kind) {
+  const raw =
+    kind === "request" && typeof artifact.goalSlug === "string" && artifact.goalSlug !== ""
+      ? artifact.goalSlug
+      : kind === "plan" && typeof artifact.planId === "string" && artifact.planId !== ""
+        ? artifact.planId
+        : null;
+  const slug = String(raw ?? "request")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+$/g, "")
+    .slice(0, 48);
+  return slug || "request";
+}
+
+// Child run id derived from the driver run id must stay canonical (^run-...).
+function bypassChildRunId(runId) {
+  const trimmed = String(runId).replace(/-+$/, "");
+  const base = trimmed.length > 118 ? trimmed.slice(0, 118).replace(/-+$/, "") : trimmed;
+  const child = `${base}-child`;
+  if (!/^run-[a-z0-9][a-z0-9-]{1,127}$/.test(child))
+    throw new TypeError(`bypass childRunId "${child}" is not a canonical run id`);
+  return child;
+}
+
+function fabricateBypassApproval({ runId, childRunId, phaseId, edgeId }) {
+  const approvedAt = new Date();
+  const expiresAt = new Date(approvedAt.getTime() + 3_600_000);
+  return Object.freeze({
+    schema: "csm-orchestrate-approval/2",
+    approvalId: `approval-bypass-${childRunId}`,
+    binding: { parentRunId: runId, childRunId, phaseId, edgeId },
+    scope: ["read", "write"],
+    approvedDigest: digest({ skill: "csm-build", authority: "agent-session-bypass-test-hook" }),
+    approvedAt: approvedAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    status: "approved",
+  });
+}
+
+// Approvals gate for the bypass, run BEFORE any spawn. csm-build has
+// workspace-write effects, so the default createAutonomyPolicy never approves it
+// (an external --approvals module is the real grant authority). When no module
+// is provided the documented CSM_AGENT_SESSION_APPROVED=1 test hook stands in as
+// the approval; otherwise the gate denies exactly like orchestrate's
+// missing-approval hard block.
+async function resolveBypassApproval({ runId, childRunId, phaseId, edgeId, approvalsModule }) {
+  const phase = { runId, phaseId };
+  const node = {
+    skill: "csm-build",
+    nodeId: edgeId.replace(/^edge-/, ""),
+    sideEffects: ["workspace-write"],
+  };
+  if (approvalsModule) {
+    if (typeof approvalsModule.default !== "function")
+      throw new TypeError("--approvals module must default-export an approvals function");
+    const approval = await approvalsModule.default({ phase, node, childRunId });
+    return approval?.status === "approved" ? approval : null;
+  }
+  if (process.env[AGENT_SESSION_APPROVED] === "1")
+    return fabricateBypassApproval({ runId, childRunId, phaseId, edgeId });
+  const capabilities = await loadCapabilities();
+  const approval = await createAutonomyPolicy(capabilities)({ phase, node, childRunId });
+  return approval?.status === "approved" ? approval : null;
+}
+
+const bypassDenialMessage = ({ runId, skill, phaseId, edgeId, childRunId }) =>
+  `${skill} bypass dispatch for run ${runId} (${phaseId}/${edgeId}/${childRunId}) was denied: ` +
+  `no approval granted (missing-approval: approval is required; telemetry approval denied). ` +
+  `${skill} has workspace-write effects and is never auto-approved — approve it via an external ` +
+  `--approvals module, or set ${AGENT_SESSION_APPROVED}=1 (documented test hook only).`;
+
+// T004/T006 realMode bypass for plan/request intakes (approach keeps the
+// orchestrate() flow above; --host is approach-only). The driver classifies the
+// request and, unless the env gate CSM_AGENT_SESSION_EXEC=1 is on AND the route
+// is csm-build, exits non-zero with the blocked agent-session-required result —
+// thrown so it surfaces exactly like every other realMode error at the bottom
+// isMain catch (message on stderr, exit 1). For the csm-build route under the
+// gate, the driver fabricates the handoff identity from the artifact's canonical
+// runId (invocation-<slug>-<childRunId> / parentRunId=runId / phase-<goalSlug>-
+// execute / edge-<goalSlug>-execute), applies the approvals gate BEFORE any
+// spawn, and invokes the createCsmBuildHandoff({skill:"csm-build", execute})
+// wrapper directly (its defaults provide the request/1 + csm-build-output/1
+// schema digests). No orchestrate() graph or executor registry is involved; the
+// executor wiring keys its evidence/lease off the driver runId.
+async function realModeBypass({ kind, artifact, artifactPath }) {
   // Driver runId is the artifact's own canonical runId (validated by
-  // intakeArtifact) — unique per plan/request artifact, so an executor later
-  // keys evidence dir + lease off it without changes.
+  // intakeArtifact) — unique per plan/request artifact, so the executor keys
+  // evidence dir + lease off it without changes.
+  const runId = artifact.runId;
   const request =
     kind === "plan"
       ? { kind: "execute-plan", artifactRef: "plan" } // plan envelope -> csm-build
       : artifact;
   const classification = classifyRequest(request);
-  const blocked = classification.routes
-    .map((skill) => agentSessionRequiredMessage(skill))
-    .join("\n");
-  throw new Error(blocked);
+  // (b) keep the blocked behavior for route skills other than csm-build and for
+  // the env-off case (pre-executor parity).
+  if (process.env[AGENT_SESSION_EXEC] !== "1" || !classification.routes.includes("csm-build")) {
+    const blocked = classification.routes
+      .map((skill) => agentSessionRequiredMessage(skill))
+      .join("\n");
+    throw new Error(blocked);
+  }
+  const slug = bypassGoalSlug(artifact, kind);
+  const childRunId = bypassChildRunId(runId);
+  const phaseId = `phase-${slug}-execute`;
+  const edgeId = `edge-${slug}-execute`;
+  const invocationId = `invocation-${slug}-${childRunId}`;
+  const approvalsModulePath = argValue("--approvals");
+  const approvalsModule = approvalsModulePath
+    ? await import(pathToFileURL(path.resolve(approvalsModulePath)).href)
+    : null;
+  const approval = await resolveBypassApproval({
+    runId,
+    childRunId,
+    phaseId,
+    edgeId,
+    approvalsModule,
+  });
+  if (!approval)
+    throw new Error(
+      bypassDenialMessage({ runId, skill: "csm-build", phaseId, edgeId, childRunId }),
+    );
+  const evidenceDir = join(".agents", "evidence", "orchestrator", runId);
+  await mkdir(evidenceDir, { recursive: true });
+  const executor = createCsmBuildAgentSessionExecutor(agentSessionExecutorOptions());
+  const handoff = createCsmBuildHandoff({ skill: "csm-build", execute: executor.execute });
+  const result = await handoff.execute({
+    invocationId,
+    parentRunId: runId,
+    childRunId,
+    phaseId,
+    edgeId,
+    skill: "csm-build",
+    retry: { attempt: 0 },
+    input: { artifactPath, plan: artifact },
+  });
+  await writeFile(join(evidenceDir, "bypass-result.json"), `${JSON.stringify(result, null, 2)}\n`);
+  console.log("status:", result.status);
+  console.log("evidence:", evidenceDir);
+  return result.status === "completed" ? 0 : 1;
 }
 
 async function realMode() {
@@ -295,10 +466,11 @@ async function realMode() {
     return 1;
   }
   const { kind, artifact } = await loadInput(inputPath, inputFlag);
-  // plan/request kinds take the deterministic pre-executor bypass: no host is
-  // involved (host stays approach-only) and no skill executor is wired yet, so
-  // the driver terminates with the blocked agent-session-required result.
-  if (kind !== "approach") return realModeBypass({ kind, artifact });
+  // plan/request kinds take the deterministic bypass: no host is involved (host
+  // stays approach-only). A csm-build route under CSM_AGENT_SESSION_EXEC=1 runs
+  // the T005 agent-session executor handoff directly; everything else terminates
+  // with the blocked agent-session-required result.
+  if (kind !== "approach") return realModeBypass({ kind, artifact, artifactPath: inputPath });
   const hostPath = argValue("--host");
   if (!hostPath) {
     console.error(
@@ -536,7 +708,7 @@ if (isMain) {
       "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume]",
     );
     console.error(
-      "       --host is required for --approach only; --plan/--request route to skill executors by schema marker (blocked agent-session-required until a skill-executor route exists)",
+      "       --host is required for --approach only; --plan/--request route by schema marker (blocked agent-session-required unless CSM_AGENT_SESSION_EXEC=1 + a csm-build route, when an agent session runs under an approvals gate)",
     );
     process.exit(1);
   })().catch((error) => {
