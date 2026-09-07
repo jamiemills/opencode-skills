@@ -1,3 +1,12 @@
+## Entry point
+
+- csm-orchestrate is the single entry point: it accepts `csm-approach/1`
+  (grill output), `csm-plan/1` (plan output), or `csm-orchestrate-request/1`
+  (any request) and routes to the owning csm skill. Plan execution stays owned
+  by csm-build; orchestrate hands execute-plan requests to a csm-build agent
+  session (env-gated `CSM_AGENT_SESSION_EXEC=1`), never re-architecting the
+  plan into an approach graph.
+
 ## Fresh-session resume over long transcripts
 
 - Plan files under `.agents/plans/` are the durable record. A fresh session
