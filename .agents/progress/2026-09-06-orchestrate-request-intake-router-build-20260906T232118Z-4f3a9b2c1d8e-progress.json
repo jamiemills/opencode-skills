@@ -5,7 +5,7 @@
   "skill": "csm-build",
   "goal": "Execute orchestrate-request-intake-router plan T001-T007 to gate-green, merge to main, push, CI green",
   "status": "active",
-  "overallPercent": 53,
+  "overallPercent": 92,
   "milestones": [
     {
       "id": "M1",
@@ -23,16 +23,16 @@
       "id": "M3",
       "title": "T005-T006 agent-session executor",
       "weightPercent": 35,
-      "status": "active",
-      "verifiedFraction": 0.1
+      "status": "complete"
     },
     {
       "id": "M4",
       "title": "T007 docs + merge + main gate + CI",
       "weightPercent": 15,
-      "status": "pending"
+      "status": "active",
+      "verifiedFraction": 0.5
     }
   ],
   "startedAt": "2026-09-06T23:21:18Z",
-  "updatedAt": "2026-09-06T23:55:53.545Z"
+  "updatedAt": "2026-09-07T00:48:09.551Z"
 }

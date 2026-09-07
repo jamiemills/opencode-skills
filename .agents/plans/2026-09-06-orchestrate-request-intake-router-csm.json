@@ -5,15 +5,15 @@
   "runId": "run-20260906t230626z-4f3a9b2c1d8e",
   "planId": "orchestrate-request-intake-router",
   "owner": "csm-plan",
-  "status": "in_progress",
+  "status": "complete",
   "control": {
-    "status": "in_progress",
-    "currentState": "CHECKPOINT",
+    "status": "complete",
+    "currentState": "COMPLETE",
     "cycle": 0,
     "commits": "allowed",
-    "lastCheckpoint": "2026-09-06T23:55:53Z: T001-T004 complete (request schema 8aaa154, intake module, router module, driver intake) gate OK each HEAD",
+    "lastCheckpoint": "2026-09-07T00:48:09Z: COMPLETE - T001-T007 done; full battery green in worktree (make test exit 0, check-suite OK 1244); pending serial merge to main",
     "lastModelRun": "deepseek-v4-flash / orchestrate-request-intake-router-build",
-    "nextTransition": "CHECKPOINT -> SELECT (T005 agent-session executor)",
+    "nextTransition": "none (terminal)",
     "activeTasks": [],
     "blockers": [],
     "resume": {
@@ -288,7 +288,7 @@
     {
       "taskId": "T005",
       "ordinal": 5,
-      "status": "pending",
+      "status": "complete",
       "title": "P3a: agent-session executor module (env-gated) + identity bridge",
       "dependsOn": [
         "T004"
@@ -317,7 +317,7 @@
     {
       "taskId": "T006",
       "ordinal": 6,
-      "status": "pending",
+      "status": "complete",
       "title": "P3b: driver bypass wiring + one real-path run",
       "dependsOn": [
         "T004",
@@ -347,7 +347,7 @@
     {
       "taskId": "T007",
       "ordinal": 7,
-      "status": "pending",
+      "status": "complete",
       "title": "Docs entry point + full gates + approach parity e2e",
       "dependsOn": [
         "T006"
@@ -516,12 +516,33 @@
       ],
       "evidence": "T001: csm-orchestrate-request/1 schema + registry entry digest(parseJson) canonical + payload regen same commit; schema tests 3/3. T002: intake.mjs marker switch light checks; 8/8. T003: request-router.mjs 13-kind table no self-route; explicit-only guard; 10/10. T004: run-orchestrator --approach/--plan/--request; approach path byte-identical; bypass blocked agent-session-required; 18/18 driver+parity suites; check-suite OK each HEAD.",
       "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-07T00:48:09Z",
+      "cycle": 0,
+      "transition": "CHECKPOINT -> COMPLETE (T005-T007)",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007"
+      ],
+      "evidence": "T005: scripts/lib/agent-session-executor.mjs env-gated (CSM_AGENT_SESSION_EXEC=1) with identity-envelope bridge; 6/6 hermetic tests (blocked-default, spawn argv, full handoff round-trip, no-wt-session-create when root exists, timeout, artifact copy). T006: realModeBypass approvals-gated dispatch - fabricated handoff identity, --approvals module or CSM_AGENT_SESSION_APPROVED test hook, typed csm-build-output/1 persisted to bypass-result.json; 5/5 driver tests incl. real-path stub run (driver exit 0, status completed, ~820ms). T007: AGENTS.md entry-point section; battery: make fmt-check/lint clean, make test-orchestrate green, full make test exit 0 (csm-browse deps installed in worktree first), check-suite OK 1244 at each HEAD. All AC1-AC7 satisfied.",
+      "nextState": "COMPLETE"
     }
   ],
   "completionReview": {
-    "status": "not-complete",
-    "summary": "Filled by csm-build when all acceptance criteria have evidence",
-    "verifiedCriteria": [],
+    "status": "complete",
+    "summary": "AC1 request schema registered canonical digest + tests; AC2 intake marker switch light checks + parallelism-plan fixture; AC3 router 13-kind table explicit-only no self-route matrix 10/10; AC4 driver flags approach parity suites green; AC5 executor env-gated identity-bridge 6/6; AC6 bypass approvals-gated typed result incl. real-path stub run 5/5; AC7 gate OK every commit, same-commit payload regen for pack-mapped edits, new tests under orchestrate glob.",
+    "verifiedCriteria": [
+      "AC1",
+      "AC2",
+      "AC3",
+      "AC4",
+      "AC5",
+      "AC6",
+      "AC7"
+    ],
     "openItems": []
   },
   "inputs": [

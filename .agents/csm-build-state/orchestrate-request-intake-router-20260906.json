@@ -4,14 +4,14 @@
   "artifactId": "art-orchestrate-request-intake-router-build-20260906",
   "runId": "run-20260906t232118z-orchestrate-request-intake-router-build",
   "owner": "csm-build",
-  "status": "active",
+  "status": "complete",
   "control": {
-    "currentState": "CHECKPOINT",
+    "currentState": "COMPLETE",
     "cycle": 0,
-    "nextTransition": "CHECKPOINT -> SELECT (T005)",
+    "nextTransition": "none (terminal)",
     "activeTasks": [],
     "blockers": [],
-    "lastCheckpoint": "2026-09-06T23:55:53Z: T001-T004 complete gate OK",
+    "lastCheckpoint": "2026-09-07T00:48:09Z: T001-T007 complete; battery green; merge pending",
     "lastModelRun": "deepseek-v4-flash / orchestrate-request-intake-router-build"
   },
   "inputs": [
@@ -41,10 +41,22 @@
       "to": "CHECKPOINT",
       "evidence": "T001-T004 complete (plan journal seq 5).",
       "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-07T00:48:09Z",
+      "from": "CHECKPOINT",
+      "to": "COMPLETE",
+      "evidence": "T005-T007 complete (plan journal seq 6).",
+      "nextState": "COMPLETE"
     }
   ],
   "artifacts": [],
-  "completion": null,
+  "completion": {
+    "status": "complete",
+    "summary": "delivered on branch; merge + main gate pending",
+    "evidenceRefs": []
+  },
   "provenance": {
     "sourcePlan": "art-orchestrate-request-intake-router-20260906",
     "sourceDigests": [
