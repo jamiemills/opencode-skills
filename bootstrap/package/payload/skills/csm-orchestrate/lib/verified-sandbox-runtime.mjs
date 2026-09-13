@@ -1,0 +1,373 @@
+"use strict";
+
+import { createDockerWorkerProvider } from "./docker-worker-provider.mjs";
+import { createEgressNetworkEnforcer } from "./egress-network.mjs";
+import {
+  EgressPolicyError,
+  createEgressBroker,
+  createEgressBrokerListener,
+  createEgressLedger,
+} from "./egress-broker.mjs";
+import { VERIFIED_SANDBOX } from "./skill-executor-preflight.mjs";
+import { digest } from "../../../lib/schema-runtime/index.mjs";
+
+// T003: configuration-driven verified-sandbox runtime. A caller enables one
+// runtime (via `orchestrate({ verifiedSandboxRuntime: config })` or
+// `createInProcessExecutorAdapter({ sandboxRuntime: config })`) and the runtime
+// constructs the Docker worker provider + egress network enforcer + host-side
+// broker listener and supplies the `sandboxExecutor`/`egressPolicy`/
+// `egressLedger`/`egressForward` plumbing that callers previously hand-passed
+// per request.
+//
+// Egress mediation stays host-side: the sandboxed worker has no route (its
+// default route is a blackhole device) and asks the host, over the sustained
+// worker session, to reach a target. The host applies `createEgressBroker`
+// policy, injects credentials only on allow, forwards through the configured
+// transport, and records every decision (including kernel-dropped direct
+// attempts) in the keyed ledger. A worker that ignores the mediation protocol
+// and dials directly is kernel-dropped and captured by the NFLOG probe.
+//
+// The broker container provisioned by the enforcer is the worker's only network
+// peer; wiring that container to relay bytes into the host-side listener is a
+// larger redesign tracked as residual risk (see the T003 build report). This
+// runtime is fail-closed: an enabled config missing its egress policy/ledger or
+// a provider/broker that cannot start raises, and the caller's gate turns that
+// into a typed `isolation-unavailable` refusal.
+
+// The broker container's only job here is to be the internal network's peer and
+// to host the drop-probe netns; mediated egress is decided host-side. It serves
+// nothing, so an unmediated worker gets no usable upstream.
+const DEFAULT_BROKER_SCRIPT = 'require("net").createServer(() => {}).listen(0, "0.0.0.0")';
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// T003: source per-drop facts, retrying so asynchronous NFLOG delivery is not
+// mistaken for "no drops". The provider's collectDrops is already lossless
+// across batches; this only polls until the first drop is observed.
+async function collectDropsWithRetry(provider, options, poll = null) {
+  const attempts = Number.isInteger(poll?.attempts) && poll.attempts > 0 ? poll.attempts : 1;
+  const delayMs = Number.isFinite(poll?.delayMs) && poll.delayMs >= 0 ? poll.delayMs : 0;
+  let last = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    last = await provider.collectDrops(options);
+    if (Number.isInteger(last?.count) && last.count > 0) return last;
+    if (attempt < attempts - 1 && delayMs > 0) await delay(delayMs);
+  }
+  return last;
+}
+
+// T003: the default in-sandbox executor. It owns the mediated worker protocol:
+// the worker emits `{type:"egress", id, target, ...}` messages and the host
+// answers with the listener's decision (never a raw socket); `{type:"done"}`
+// terminates the session. A caller may still inject `sandboxExecutor` to run a
+// different worker contract.
+export function createDefaultSandboxExecutor() {
+  return async function defaultSandboxExecutor({
+    request = {},
+    worker = null,
+    provider = null,
+    listener = null,
+    signal = null,
+  } = {}) {
+    if (!listener || typeof listener.handle !== "function")
+      throw new TypeError("verified-sandbox default executor requires a broker listener");
+    if (!provider || typeof provider.session !== "function")
+      throw new TypeError("verified-sandbox default executor requires a provider session");
+    const decisions = [];
+    let output = null;
+    const meta = {
+      runId: request.parentRunId ?? null,
+      workerId: worker?.id ? `worker-${worker.id}` : null,
+      invocationId: request.invocationId ?? null,
+      attempt: request.retry?.attempt ?? 0,
+      taskId: request.taskId ?? null,
+    };
+    await provider.session({
+      id: worker.id,
+      messages: [{ type: "work", input: request.input ?? {} }],
+      signal,
+      ...(request.timeoutMs ? { timeoutMs: request.timeoutMs } : {}),
+      onResponse: async (message) => {
+        if (message?.type === "done") {
+          output = message.output ?? null;
+          return null;
+        }
+        if (message?.type === "egress") {
+          const handled = await listener.handle(
+            {
+              target: message.target,
+              headers: message.headers ?? {},
+              body: message.body ?? null,
+            },
+            meta,
+          );
+          decisions.push({
+            id: message.id ?? null,
+            decision: handled.decision,
+            reasonCode: handled.reasonCode ?? null,
+          });
+          return {
+            type: "egress.result",
+            id: message.id ?? null,
+            decision: handled.decision,
+            reasonCode: handled.reasonCode ?? null,
+            upstream: handled.upstream ?? null,
+          };
+        }
+        return null;
+      },
+    });
+    return { status: "completed", output, egress: { decisions } };
+  };
+}
+
+// T003: the live runtime. `provider`/`egressEnforcer` may be injected (tests);
+// otherwise the Docker provider + network enforcer are constructed from config.
+// `defaults` carries the configuration-supplied plumbing (policy, ledger
+// factory, forward transport, worker source, executor) that callers no longer
+// pass per request. Request-level fields still override for specialized runs.
+export function createLiveVerifiedSandboxRuntime({
+  provider = null,
+  egressEnforcer = null,
+  docker = "docker",
+  image = undefined,
+  brokerFactory = null,
+  defaults = null,
+} = {}) {
+  const base = defaults ?? {};
+  const activeProvider =
+    provider ??
+    createDockerWorkerProvider({
+      docker,
+      ...(image ? { image } : {}),
+      egressEnforcer: egressEnforcer ?? createEgressNetworkEnforcer({ docker }),
+    });
+  if (typeof activeProvider.start !== "function" || typeof activeProvider.stop !== "function")
+    throw new TypeError("live verified-sandbox runtime requires a provider with start/stop");
+  // The broker listener stays host-side: policy and credential refs never cross
+  // the listener boundary. A caller may inject its own composition; otherwise
+  // the T001 broker listener is built per invocation from the configured (or
+  // request-supplied) egress policy/ledger/transport.
+  const composeBroker =
+    brokerFactory ??
+    (({ request, emit }) => {
+      const policy = request.egressPolicy ?? base.policy ?? null;
+      if (!policy) return null;
+      const ledger =
+        request.egressLedger ??
+        (typeof base.ledgerFactory === "function" ? base.ledgerFactory({ request, emit }) : null) ??
+        base.ledger ??
+        null;
+      if (!ledger) return null;
+      const forward = request.egressForward ?? base.forward ?? null;
+      if (typeof forward !== "function" && typeof base.sandboxExecutor !== "function")
+        throw new EgressPolicyError("verified-sandbox egress forward transport is required");
+      const broker = createEgressBroker({
+        policy,
+        ledger,
+        emitter: { emit },
+        policyDigest: request.egressPolicyDigest ?? base.policyDigest ?? null,
+        credentials: request.egressCredentials ?? base.credentials ?? {},
+      });
+      const listener = createEgressBrokerListener({
+        broker,
+        forward:
+          forward ??
+          (() => {
+            throw new Error("egress forward transport is required");
+          }),
+      });
+      return { broker, listener, ledger };
+    });
+  return Object.freeze({
+    async invoke({ request = {}, emitEgress = null } = {}, { signal } = {}) {
+      const sandboxExecutor = request.sandboxExecutor ?? base.sandboxExecutor ?? null;
+      if (typeof sandboxExecutor !== "function")
+        throw new TypeError("verified-sandbox invocation requires request.sandboxExecutor");
+      const workerSource = request.workerSource ?? base.workerSource ?? null;
+      if (typeof workerSource !== "string" || workerSource.length < 1)
+        throw new TypeError("verified-sandbox invocation requires request.workerSource");
+      let started = null;
+      let broker = null;
+      let listener = null;
+      let ledger = null;
+      try {
+        if (typeof composeBroker === "function") {
+          const composed = await composeBroker({ request, emit: (event) => emitEgress?.(event) });
+          broker = composed?.broker ?? null;
+          listener = composed?.listener ?? null;
+          ledger = composed?.ledger ?? null;
+        }
+        started = await activeProvider.start({
+          name: request.workerName ?? base.workerName ?? `csm-sandbox-${request.childRunId}`,
+          workerSource,
+          policy: request.sandboxPolicy ?? base.sandboxPolicy ?? null,
+          egress: request.egress ?? base.egress ?? null,
+        });
+        let result = await sandboxExecutor({
+          request,
+          worker: started,
+          provider: activeProvider,
+          broker,
+          listener,
+          ledger,
+          emitEgress,
+          signal,
+        });
+        if (broker && typeof activeProvider.collectDrops === "function")
+          await collectDropsWithRetry(
+            activeProvider,
+            {
+              id: started.id,
+              broker,
+              meta: {
+                runId: request.parentRunId,
+                workerId: `worker-${started.id}`,
+                invocationId: request.invocationId,
+                attempt: request.retry?.attempt ?? 0,
+              },
+            },
+            request.dropCapturePoll ?? base.dropCapturePoll ?? null,
+          );
+        if (ledger && typeof ledger.records === "function" && result && typeof result === "object")
+          result = {
+            ...result,
+            egress: {
+              ...result.egress,
+              records: ledger.records(),
+              verify: typeof ledger.verify === "function" ? ledger.verify() : null,
+            },
+          };
+        return result;
+      } finally {
+        if (started?.id) {
+          try {
+            await activeProvider.stop({ id: started.id });
+          } catch {
+            // teardown is best-effort; the provider's stop remains authoritative
+          }
+        }
+      }
+    },
+    effectiveIsolation: () => ({
+      isolation: VERIFIED_SANDBOX,
+      required: VERIFIED_SANDBOX,
+      attestation: "required",
+      selfProvided: false,
+      satisfiable: null,
+    }),
+  });
+}
+
+// T003: build the live runtime from a declarative config. Fail-closed: an
+// enabled config without an egress policy, a worker source/executor, or a
+// ledger source is rejected rather than degrading to an unmediated sandbox.
+export function createVerifiedSandboxRuntime(config = {}) {
+  if (config?.enabled !== true)
+    throw Object.assign(new Error("verified-sandbox runtime is not enabled"), {
+      code: "verified-sandbox-disabled",
+    });
+  const policy = config.policy ?? null;
+  if (!policy || typeof policy !== "object")
+    throw Object.assign(new TypeError("verified-sandbox runtime requires an egress policy"), {
+      code: "verified-sandbox-config",
+    });
+  const sandboxExecutor =
+    typeof config.sandboxExecutor === "function"
+      ? config.sandboxExecutor
+      : createDefaultSandboxExecutor();
+  if (typeof config.workerSource !== "string" && typeof config.sandboxExecutor !== "function")
+    throw Object.assign(
+      new TypeError("verified-sandbox runtime requires a workerSource or sandboxExecutor"),
+      { code: "verified-sandbox-config" },
+    );
+  if (typeof config.forward !== "function" && typeof config.sandboxExecutor !== "function")
+    throw Object.assign(
+      new TypeError("verified-sandbox runtime requires an egress forward transport"),
+      { code: "verified-sandbox-config" },
+    );
+  const ledgerFactory =
+    typeof config.ledgerFactory === "function"
+      ? config.ledgerFactory
+      : ({ request }) => {
+          if (config.ledger) return config.ledger;
+          if (typeof config.ledgerKey !== "string" || config.ledgerKey.length < 8)
+            throw new EgressPolicyError("verified-sandbox runtime requires ledgerKey or ledger");
+          const runId = config.ledgerRunId ?? request.parentRunId ?? request.childRunId;
+          return createEgressLedger({
+            runId,
+            key: config.ledgerKey,
+            filePath: config.ledgerFilePath ?? null,
+            publishAnchor: config.publishAnchor ?? null,
+            readAnchor: config.readAnchor ?? null,
+          });
+        };
+  const defaults = {
+    policy,
+    forward: config.forward ?? null,
+    sandboxExecutor,
+    workerSource: config.workerSource ?? null,
+    credentials: config.credentials ?? {},
+    policyDigest: config.policyDigest ?? digest(policy),
+    ledgerFactory,
+    sandboxPolicy: config.sandboxPolicy ?? null,
+    workerName: config.workerName ?? null,
+    egress: config.egress ?? {
+      ...(config.brokerImage ? { brokerImage: config.brokerImage } : {}),
+      brokerScript: config.brokerScript ?? DEFAULT_BROKER_SCRIPT,
+      ...(config.requireDropCapture !== undefined
+        ? { requireDropCapture: config.requireDropCapture }
+        : {}),
+    },
+    dropCapturePoll: config.dropCapturePoll ?? { attempts: 12, delayMs: 250 },
+  };
+  return createLiveVerifiedSandboxRuntime({
+    provider: config.provider ?? null,
+    egressEnforcer: config.egressEnforcer ?? null,
+    docker: config.docker ?? "docker",
+    image: config.image,
+    brokerFactory: config.brokerFactory ?? null,
+    defaults,
+  });
+}
+
+// T003: a runtime that always refuses, used when an explicitly enabled config
+// cannot be constructed. Dispatch routes to it (it is invocable) and the typed
+// throw is surfaced by the caller's gate as `isolation-unavailable`, so a
+// malformed config can never silently degrade to an unmediated sandbox.
+function createFailClosedRuntime(reason) {
+  const message = `verified-sandbox runtime could not be constructed: ${String(
+    reason?.message ?? reason,
+  )}`;
+  return Object.freeze({
+    async invoke() {
+      throw Object.assign(new Error(message), { code: "verified-sandbox-unavailable" });
+    },
+    effectiveIsolation: () => ({
+      isolation: VERIFIED_SANDBOX,
+      required: VERIFIED_SANDBOX,
+      attestation: "required",
+      selfProvided: false,
+      satisfiable: false,
+      reason: message,
+    }),
+  });
+}
+
+// T003: normalize the many accepted shapes to one runtime or null. An existing
+// runtime (anything with `invoke`) is passed through for back-compat; a config
+// with `enabled: true` is constructed; anything else (including a disabled
+// config) is "no runtime configured" and leaves the caller's fail-closed
+// isolation-unavailable behavior untouched.
+export function resolveVerifiedSandboxRuntime(input = null) {
+  if (input === null || input === undefined) return null;
+  if (typeof input.invoke === "function") return input;
+  if (input.enabled !== true) return null;
+  try {
+    return createVerifiedSandboxRuntime(input);
+  } catch (error) {
+    return createFailClosedRuntime(error);
+  }
+}
+
+export { DEFAULT_BROKER_SCRIPT };

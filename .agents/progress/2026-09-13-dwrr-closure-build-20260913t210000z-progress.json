@@ -1,0 +1,44 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-closure-build-20260913",
+  "runId": "run-20260913t210000z-dwrr-closure-build",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime closure plan to completion via build/review loops",
+  "status": "active",
+  "overallPercent": 92,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Loop 1 residuals",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Loop 2 follow-ups",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Independent review",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "Delivery",
+      "weightPercent": 15,
+      "status": "active",
+      "verifiedFraction": 0.5
+    }
+  ],
+  "startedAt": "2026-09-13T21:00:00.000Z",
+  "updatedAt": "2026-09-13T17:52:49.646Z"
+}

@@ -5,14 +5,13 @@ import { executeSkill } from "./skill-executor-handlers.mjs";
 import { csmBuildOwnedSkills } from "./csm-build-handoff.mjs";
 import { digest } from "../../lib/schema-runtime/index.mjs";
 import canonicalCapabilities from "../capabilities.json" with { type: "json" };
+import { isolationRouting, ISOLATION_FAILURE_CODE } from "./skill-executor-preflight.mjs";
 import {
-  isolationRouting,
-  ISOLATION_FAILURE_CODE,
-  VERIFIED_SANDBOX,
-} from "./skill-executor-preflight.mjs";
-import { createDockerWorkerProvider } from "./docker-worker-provider.mjs";
-import { createEgressNetworkEnforcer } from "./egress-network.mjs";
-import { createEgressBroker, createEgressBrokerListener } from "./egress-broker.mjs";
+  createLiveVerifiedSandboxRuntime,
+  resolveVerifiedSandboxRuntime,
+} from "./verified-sandbox-runtime.mjs";
+
+export { createLiveVerifiedSandboxRuntime };
 
 // This adapter is deliberately opt-in. It is an in-process execution boundary,
 // not a host or a fallback to another runtime.
@@ -34,6 +33,10 @@ export function createInProcessExecutorAdapter({
 } = {}) {
   if (!registry || typeof registry.resolveExact !== "function")
     throw new TypeError("in-process executor registry is required");
+  // T003: accept either a constructed runtime or a declarative config; a
+  // disabled/absent config stays "no runtime" and leaves the existing
+  // fail-closed isolation-unavailable behavior intact.
+  const activeSandboxRuntime = resolveVerifiedSandboxRuntime(sandboxRuntime);
   const manifest =
     capabilities ??
     Object.entries(bindings).map(([skill, binding]) => ({
@@ -232,13 +235,13 @@ export function createInProcessExecutorAdapter({
           request: boundRequest,
           capability: capabilityFor(request.skill),
           enabled: isolationGateEnabled,
-          runtimeInvocable: typeof sandboxRuntime?.invoke === "function",
+          runtimeInvocable: typeof activeSandboxRuntime?.invoke === "function",
         });
         if (routing.action === "blocked")
           return { status: "blocked", failure: routing.failure.failure };
         if (routing.action === "sandbox") {
           try {
-            return await sandboxRuntime.invoke(
+            return await activeSandboxRuntime.invoke(
               {
                 request: boundRequest,
                 descriptor,
@@ -272,115 +275,5 @@ export function createInProcessExecutorAdapter({
     supportedCsmBuildSkills: Object.freeze(
       csmBuildOwnedSkills().filter((skill) => Boolean(bindings[skill])),
     ),
-  });
-}
-
-// T004: the live verified-sandbox runtime. It composes a real worker provider
-// (createDockerWorkerProvider) with an optional host-side egress broker composed
-// by `brokerFactory` (createEgressBroker/Listener). The provider owns
-// network/enforcer provisioning and drop collection; this runtime owns the
-// worker lifecycle and forwards every egress decision through `emitEgress` so
-// the caller can emit correlated `egress.decision` telemetry. It owns no
-// acceptance authority. The actual work is delegated to the injected
-// `request.sandboxExecutor` so the runtime stays transport-agnostic and testable.
-export function createLiveVerifiedSandboxRuntime({
-  provider = null,
-  egressEnforcer = null,
-  docker = "docker",
-  image = undefined,
-  brokerFactory = null,
-} = {}) {
-  const activeProvider =
-    provider ??
-    createDockerWorkerProvider({
-      docker,
-      ...(image ? { image } : {}),
-      egressEnforcer: egressEnforcer ?? createEgressNetworkEnforcer({ docker }),
-    });
-  if (typeof activeProvider.start !== "function" || typeof activeProvider.stop !== "function")
-    throw new TypeError("live verified-sandbox runtime requires a provider with start/stop");
-  // The broker listener stays host-side: policy and credential refs never cross
-  // the listener boundary. A caller may inject its own composition; otherwise
-  // the T001 broker listener is built per invocation from the request's egress
-  // policy/ledger/transport.
-  const composeBroker =
-    brokerFactory ??
-    (({ request, emit }) => {
-      if (!request.egressPolicy || !request.egressLedger) return null;
-      const broker = createEgressBroker({
-        policy: request.egressPolicy,
-        ledger: request.egressLedger,
-        emitter: { emit },
-        policyDigest: request.egressPolicyDigest ?? null,
-        credentials: request.egressCredentials ?? {},
-      });
-      const listener = createEgressBrokerListener({
-        broker,
-        forward:
-          request.egressForward ??
-          (() => {
-            throw new Error("egress forward transport is required");
-          }),
-      });
-      return { broker, listener };
-    });
-  return Object.freeze({
-    async invoke({ request = {}, emitEgress = null } = {}, { signal } = {}) {
-      if (typeof request.sandboxExecutor !== "function")
-        throw new TypeError("verified-sandbox invocation requires request.sandboxExecutor");
-      if (typeof request.workerSource !== "string" || request.workerSource.length < 1)
-        throw new TypeError("verified-sandbox invocation requires request.workerSource");
-      let started = null;
-      let broker = null;
-      let listener = null;
-      try {
-        if (typeof composeBroker === "function") {
-          const composed = await composeBroker({ request, emit: (event) => emitEgress?.(event) });
-          broker = composed?.broker ?? null;
-          listener = composed?.listener ?? null;
-        }
-        started = await activeProvider.start({
-          name: request.workerName ?? `csm-sandbox-${request.childRunId}`,
-          workerSource: request.workerSource,
-          policy: request.sandboxPolicy ?? null,
-          egress: request.egress ?? null,
-        });
-        const result = await request.sandboxExecutor({
-          request,
-          worker: started,
-          broker,
-          listener,
-          emitEgress,
-          signal,
-        });
-        if (broker && typeof activeProvider.collectDrops === "function")
-          await activeProvider.collectDrops({
-            id: started.id,
-            broker,
-            meta: {
-              runId: request.parentRunId,
-              workerId: `worker-${started.id}`,
-              invocationId: request.invocationId,
-              attempt: request.retry?.attempt ?? 0,
-            },
-          });
-        return result;
-      } finally {
-        if (started?.id) {
-          try {
-            await activeProvider.stop({ id: started.id });
-          } catch {
-            // teardown is best-effort; the provider's stop remains authoritative
-          }
-        }
-      }
-    },
-    effectiveIsolation: () => ({
-      isolation: VERIFIED_SANDBOX,
-      required: VERIFIED_SANDBOX,
-      attestation: "required",
-      selfProvided: false,
-      satisfiable: null,
-    }),
   });
 }

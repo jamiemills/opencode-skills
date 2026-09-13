@@ -62,9 +62,22 @@ export function validateWorkerPolicy(policy, { registry } = {}) {
   return policy;
 }
 
+// T006: a killed/closed docker child can emit EPIPE (or ERR_STREAM_DESTROYED)
+// on its stdio streams after teardown. Without an 'error' listener a Node
+// stream re-emits that as an uncaughtException, which would crash the caller
+// (observed as `write EPIPE` from the session heartbeat interval under load).
+// These failures are expected once the child is gone and are already surfaced
+// via exit code / close handling, so swallow them here.
+function ignoreStreamErrors(child) {
+  child.stdin?.on("error", () => {});
+  child.stdout?.on("error", () => {});
+  child.stderr?.on("error", () => {});
+}
+
 function runCommand(docker, args, { timeoutMs = 60_000, stdin = null } = {}) {
   return new Promise((resolve) => {
     const child = spawn(docker, args, { stdio: ["pipe", "pipe", "pipe"] });
+    ignoreStreamErrors(child);
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -250,6 +263,35 @@ export function inspectionFromAttestation(attestation, at = new Date().toISOStri
   };
 }
 
+// T004: the explicit `policy.network` <-> egress contract. `none` forbids a
+// mediated-egress configuration and `broker` requires one; any other declared
+// value fails closed. A false declaration (or a mismatch) can no longer start a
+// worker whose network posture and egress mediation disagree: it throws with a
+// stable typed code so callers can branch on the failure deterministically.
+export const WORKER_NETWORK_EGRESS_CODES = Object.freeze({
+  noneForbidsEgress: "network-none-forbids-egress",
+  brokerRequiresEgress: "network-broker-requires-egress",
+  unsupported: "network-unsupported",
+});
+
+export function assertNetworkEgressContract(network, egress) {
+  if (network === null || network === undefined) return network ?? null;
+  if (network !== "none" && network !== "broker")
+    throw Object.assign(new Error(`unsupported worker policy network: ${String(network)}`), {
+      code: WORKER_NETWORK_EGRESS_CODES.unsupported,
+    });
+  if (network === "none" && egress)
+    throw Object.assign(new Error("worker policy network=none forbids an egress configuration"), {
+      code: WORKER_NETWORK_EGRESS_CODES.noneForbidsEgress,
+    });
+  if (network === "broker" && !egress)
+    throw Object.assign(
+      new Error("worker policy network=broker requires an egress configuration"),
+      { code: WORKER_NETWORK_EGRESS_CODES.brokerRequiresEgress },
+    );
+  return network;
+}
+
 export function createDockerWorkerProvider({
   docker = "docker",
   image = DEFAULT_IMAGE,
@@ -286,14 +328,11 @@ export function createDockerWorkerProvider({
     if (policy !== null && expectedImageDigest === null)
       throw new Error("worker policy requires a digest-pinned image (name@sha256:<64 hex>)");
     const pinRequired = policy !== null || expectedImageDigest !== null;
-    // T005: consume the policy's `network` declaration. `none` forbids mediated
-    // egress; `broker` requires it. The declaration can no longer lie about the
-    // mediation the provider actually performs.
-    const policyNetwork = policy?.network ?? null;
-    if (policyNetwork === "none" && egress)
-      throw new Error("worker policy network=none forbids an egress configuration");
-    if (policyNetwork === "broker" && !egress)
-      throw new Error("worker policy network=broker requires an egress configuration");
+    // T004: enforce the policy `network` declaration against the supplied
+    // egress configuration. `none` forbids mediated egress; `broker` requires
+    // it; a mismatch fails closed with a typed code (see
+    // assertNetworkEgressContract).
+    assertNetworkEgressContract(policy?.network ?? null, egress);
     // T005: `dropCapture.required` is the authoritative policy control (optional
     // by default); the older `egress.requireDropCapture` stays honored.
     const requireDropCapture =
@@ -487,6 +526,7 @@ export function createDockerWorkerProvider({
       const child = spawn(docker, ["exec", "-i", id, "node", WORKER_ENTRY], {
         stdio: ["pipe", "pipe", "pipe"],
       });
+      ignoreStreamErrors(child);
       const responses = [];
       let buffer = "";
       let stderr = "";
@@ -498,7 +538,12 @@ export function createDockerWorkerProvider({
       const expected = messages.length;
       const write = (message) => {
         if (!child.stdin.writable) return;
-        child.stdin.write(`${JSON.stringify(message)}\n`);
+        try {
+          child.stdin.write(`${JSON.stringify(message)}\n`);
+        } catch {
+          // Stream torn down between the writable check and the write; the
+          // child close handler is authoritative.
+        }
       };
       const finish = () => {
         if (settled) return;

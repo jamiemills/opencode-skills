@@ -1,0 +1,53 @@
+T006 concurrency stress — dynamic-worker-runtime closure (N4)
+============================================================
+
+Task: closure-plan T006 ("Stress-verify and eliminate/quarantine the
+parity/concurrency flake") / non-blocker N4 (stress evidence was thin).
+Command under test: make test-orchestrate
+  -> node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-*.test.mjs
+
+Recorded at: 2026-09-13T17:36:52Z
+Host:        Linux 6.8.0-107-generic x86_64, 4 CPUs, 7.6 GiB RAM
+Node:        v22.23.2 (repo shim)
+Docker:      Docker version 29.6.1
+Git HEAD:    4fa6fa2 (working tree at closure T012; no commits per the task)
+
+Baseline — single run
+---------------------
+run S1 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0  wall=3:03
+
+Concurrent stress — batch A (3 simultaneous make processes)
+-----------------------------------------------------------
+run A1 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0
+run A2 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0
+run A3 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0
+batch wall=231s
+
+Concurrent stress — batch B (3 simultaneous make processes)
+-----------------------------------------------------------
+run B1 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0
+run B2 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0
+run B3 exit=0  tests=424 pass=416 fail=0 skipped=8 cancelled=0
+batch wall=206s
+
+Aggregate
+---------
+runs:          7 (1 baseline + 2 x 3 concurrent)
+pass:          7 / 7
+fail:          0
+skipped:       8 per run (environment-gated: Docker provider / adapter /
+               contract suites that require opt-in prerequisites)
+flake events:  0 (no non-zero exit, no failed subtest, no
+               UNHANDLED_REJECTION / concurrent-replacement output)
+
+Interpretation
+--------------
+Repeated concurrent make test-orchestrate runs show no flake, including the
+driver-lease handshake, cross-process lease locks, and the EPIPE stdio path
+fixed under T006. No assertion is quarantined. The 8 skips are the pre-existing
+environment-gated tests, not weakened assertions.
+
+Residual: the Docker drop-probe image (`csm-egress-drop-probe:alpine3.20`) is
+built/reaped by individual test processes; the two 3-way batches did not
+surface an image-tag race, but the harness does not pre-serialize that build
+across concurrently-started processes.

@@ -15,6 +15,14 @@ terminal receipt, evidence and review gates) stays with csm-orchestrate.
   `CSM_AGENT_SESSION_EXEC=1` and fail-closed when disabled or without a handler.
 - `scripts/lib/agent-session-executor.mjs` remains the out-of-process executor
   for csm-build-owned skills.
+- `scripts/run-orchestrator.mjs --verified-sandbox <config.json|config.mjs>`
+  wires the tier-2 runtime from the driver (N1): the loaded config is passed
+  through to `orchestrate()`'s `verifiedSandboxRuntime`, so a verified-sandbox
+  node dispatches through the live provider/broker/listener without the API
+  caller hand-supplying per-request plumbing. A `.json` path is a plain config;
+  a `.mjs` path default-exports the config so function fields (`provider`,
+  `forward`, `sandboxExecutor`) can be supplied. An enabled config that cannot
+  be constructed resolves fail-closed (never a silent unmediated sandbox).
 
 ## Isolation tiers
 
@@ -134,6 +142,14 @@ docker run -d --name t002-proxy --network t002-egress <proxy-image>
 docker run -d --name t002-worker --network t002-egress <worker-image> sleep 100000
 docker exec t002-worker node -e 'require("net").connect(443,"1.1.1.1").on("error",e=>console.log(e.code))'  # ENETUNREACH
 ```
+
+## T006 concurrency stress
+
+The T006 flake/parity fix is backed by a recorded concurrency stress run:
+`.agents/evidence/dynamic-worker-runtime/t006-stress.log`. It captures one
+baseline and two 3-way concurrent `make test-orchestrate` batches (7 runs
+total) with per-run exit codes and TAP counts — 7/7 green, 0 failures, 8
+environment-gated skips each. No assertion is quarantined.
 
 ## Findings ledger
 

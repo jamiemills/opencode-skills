@@ -1,0 +1,166 @@
+{
+  "schema": "csm-orchestrate-prototype-gate/1",
+  "schemaRevision": 1,
+  "generatedAt": "2026-09-13T00:00:00.000Z",
+  "source": {
+    "acceptanceCriterion": "AC10",
+    "plan": "2026-09-12-dynamic-worker-runtime T021 / compatibility research",
+    "note": "Six named prototype decision conditions; the adversarial isolation matrix is recorded separately at .agents/evidence/dynamic-worker-runtime/decision-gate.json."
+  },
+  "conditions": [
+    {
+      "id": "P1",
+      "key": "concurrentWidth",
+      "title": "concurrent independent workers run at the configured width",
+      "status": "pass",
+      "evidence": {
+        "concurrencyMode": "parallel-independent-read-only",
+        "configuredWidth": 3,
+        "observedBatchWidth": 3,
+        "cappedAtTwo": 2,
+        "sideEffectingNodeSerialized": true,
+        "dispatchCallSite": "csm-orchestrate/lib/index.mjs:1285",
+        "testRefs": [
+          "tests/orchestrate-batch-width.test.mjs:33",
+          "tests/orchestrate-driver-worker-runtime.test.mjs:503"
+        ]
+      }
+    },
+    {
+      "id": "P2",
+      "key": "eventOrdering",
+      "title": "event ordering is deterministic and idempotent replay survives a resume",
+      "status": "pass",
+      "evidence": {
+        "persistedHighWaterMark": 2,
+        "sequences": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "strictlyIncreasing": true,
+        "unique": true,
+        "replayLogicalKeyMatched": true,
+        "foldedWorkers": 1,
+        "foldedCompleted": 1,
+        "testRefs": [
+          "tests/orchestrate-worker-state.test.mjs:29",
+          "tests/orchestrate-worker-state.test.mjs:69",
+          "tests/orchestrate-driver-worker-runtime.test.mjs:426"
+        ]
+      }
+    },
+    {
+      "id": "P3",
+      "key": "replayNoDuplicateSideEffects",
+      "title": "replay reconciliation produces no duplicate side effects",
+      "status": "pass",
+      "evidence": {
+        "singleStatus": "reconciled",
+        "duplicatedStatus": "blocked",
+        "duplicatedEffects": [
+          "publication"
+        ],
+        "idempotencyKeyRecognized": true,
+        "freshKeyRecognized": true,
+        "replayRouteStatus": "blocked",
+        "replayRouteReason": "duplicate-side-effect",
+        "testRefs": [
+          "tests/orchestrate-recovery-replay.test.mjs:143",
+          "tests/orchestrate-recovery-replay.test.mjs:381"
+        ]
+      }
+    },
+    {
+      "id": "P4",
+      "key": "redaction",
+      "title": "redaction covers the new telemetry fields",
+      "status": "pass",
+      "evidence": {
+        "authorizationFieldRedacted": true,
+        "valueLevelSecretScrubbed": true,
+        "egressTargetPreserved": true,
+        "credentialRefPreserved": true,
+        "nestedWorkerFieldsRedacted": true,
+        "directValueScrub": true,
+        "newCorrelationFields": [
+          "workerId",
+          "taskId",
+          "invocationId",
+          "logicalKey"
+        ],
+        "testRefs": [
+          "tests/telemetry/telemetry-redaction.test.mjs:29",
+          "tests/telemetry/telemetry-worker-events.test.mjs:69"
+        ]
+      }
+    },
+    {
+      "id": "P5",
+      "key": "renderedSnapshot",
+      "title": "a rendered worker snapshot is produced",
+      "status": "pass",
+      "evidence": {
+        "snapshotSchema": "csm-worker-projection/1",
+        "renderSchema": "csm-worker-projection-render/1",
+        "renderedRows": 2,
+        "aggregate": {
+          "workers": 2,
+          "running": 0,
+          "completed": 1,
+          "failed": 1
+        },
+        "textSummary": "WORKERS  total=2 running=0 completed=1 failed=1",
+        "testRefs": [
+          "tests/worker-projection-render.test.mjs:45",
+          "tests/orchestrate-driver-worker-runtime.test.mjs:426"
+        ]
+      }
+    },
+    {
+      "id": "P6",
+      "key": "authorityRegression",
+      "title": "no receipt/cursor/evidence/gate regression",
+      "status": "pass",
+      "evidence": {
+        "suites": [
+          {
+            "file": "tests/orchestrate-recovery-replay.test.mjs",
+            "status": "pass",
+            "pass": 15,
+            "fail": 0
+          },
+          {
+            "file": "tests/orchestrate-evidence-gates.test.mjs",
+            "status": "pass",
+            "pass": 11,
+            "fail": 0
+          },
+          {
+            "file": "tests/orchestrate-phase-requirement-receipt.test.mjs",
+            "status": "pass",
+            "pass": 4,
+            "fail": 0
+          },
+          {
+            "file": "tests/final-receipt.test.mjs",
+            "status": "pass",
+            "pass": 5,
+            "fail": 0
+          }
+        ],
+        "decisionGateVerdict": "pass",
+        "decisionGateFailedConditions": [],
+        "testRefs": [
+          "tests/orchestrate-recovery-replay.test.mjs (cursor + terminal receipt)",
+          "tests/orchestrate-evidence-gates.test.mjs (evidence gates)",
+          "tests/orchestrate-phase-requirement-receipt.test.mjs",
+          "tests/final-receipt.test.mjs"
+        ]
+      }
+    }
+  ],
+  "verdict": "pass",
+  "failedConditions": []
+}

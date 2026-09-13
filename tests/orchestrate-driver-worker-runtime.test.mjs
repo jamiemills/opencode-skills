@@ -5,15 +5,28 @@
 // --config maxParallelism envelope (T010).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
+import { createTelemetryEmitter } from "../csm-orchestrate/lib/telemetry.mjs";
 
 const exec = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
+
+// The durable sqlite cursor store the driver requires needs Node >= 22.13.
+// Resolve the repo's node22 shim so the driver-invoking tests pass under any
+// ambient node (e.g. the exact `node --test tests/orchestrate-driver-worker-runtime.test.mjs`).
+const NODE22 = spawnSync(
+  process.execPath,
+  [join(repoRoot, "scripts", "with-node22.mjs"), "--print"],
+  { encoding: "utf8" },
+);
+if (NODE22.status !== 0) throw new Error("with-node22 could not resolve a node >= 22 binary");
+const driverNode = NODE22.stdout.trim();
 
 const approachFor = (runId) => ({
   schema: "csm-approach/1",
@@ -230,11 +243,65 @@ function assertCleanOutput(label, text) {
   );
 }
 
+test("the crash path flushes the terminal telemetry event before returning", async () => {
+  const runId = "run-crash-flush-" + process.pid;
+  const persisted = [];
+  let pending = Promise.resolve();
+  // An async transport: a written event only becomes visible to list() after a
+  // macrotask. If the crash handler returns without flushing, this test's
+  // synchronous continuation observes an empty stream (regression guard).
+  const transport = {
+    write(event) {
+      const write = pending.then(
+        () =>
+          new Promise((resolve) => {
+            setImmediate(() => {
+              persisted.push(event);
+              resolve();
+            });
+          }),
+      );
+      pending = write.then(
+        () => undefined,
+        () => undefined,
+      );
+      return write;
+    },
+    list() {
+      return pending.then(() => persisted.slice());
+    },
+  };
+  const emitter = createTelemetryEmitter({
+    transport,
+    runId,
+    effectiveConfigDigest: "sha256:" + "a".repeat(64),
+  });
+  // A non-null host + cursor pass the early intake guards so the run reaches
+  // compileApproach, which throws on the undefined approach and lands on the
+  // crash path.
+  const result = await orchestrate({
+    runId,
+    host: { async invokeSiblingSkill() {} },
+    cursorStore: {
+      async saveCursor() {},
+      async loadCursor() {
+        return null;
+      },
+    },
+    telemetryEmitter: emitter,
+  });
+  assert.equal(result.reason, "unhandled-exception");
+  assert.ok(
+    persisted.some((event) => event.eventType === "terminal"),
+    "the crash-path terminal event must be flushed before orchestrate returns",
+  );
+});
+
 test("the driver renders the worker table from real emitted events", async () => {
   const sandbox = await mkdtemp(join(tmpdir(), "wr-driver-"));
   try {
     const runId = "run-worker-render-" + process.pid;
-    const { stdout } = await exec(process.execPath, await driverArgs(sandbox, runId), {
+    const { stdout } = await exec(driverNode, await driverArgs(sandbox, runId), {
       cwd: repoRoot,
       encoding: "utf8",
       timeout: 120_000,
@@ -260,7 +327,7 @@ test("the driver exposes --dynamic-proposal and refuses the plan route", async (
       }) + "\n",
     );
     const { stdout } = await exec(
-      process.execPath,
+      driverNode,
       await driverArgs(sandbox, runId, [
         "--dynamic-proposal",
         proposalPath,
@@ -286,7 +353,7 @@ test("the driver enforces a --config maxParallelism envelope", async () => {
       JSON.stringify({ skills: { "csm-orchestrate": { maxParallelism: 2 } } }) + "\n",
     );
     const { stdout } = await exec(
-      process.execPath,
+      driverNode,
       await driverArgs(sandbox, runId, ["--config", configPath]),
       { cwd: repoRoot, encoding: "utf8", timeout: 120_000 },
     );
@@ -302,7 +369,7 @@ test("the driver enforces a --config maxParallelism envelope", async () => {
     let rejected = false;
     try {
       await exec(
-        process.execPath,
+        driverNode,
         await driverArgs(sandbox, "run-worker-config-over-" + process.pid, [
           "--config",
           overCeiling,
@@ -335,7 +402,7 @@ test("the driver compiles an approved dynamic proposal on the research route", a
     let stdout;
     try {
       ({ stdout } = await exec(
-        process.execPath,
+        driverNode,
         await driverArgs(sandbox, runId, [
           "--dynamic-proposal",
           proposalPath,
@@ -362,7 +429,7 @@ test("a resumed run rehydrates the persisted telemetry and renders the worker ta
   const evidenceDir = evidenceDirFor(runId);
   const env = { ...process.env, NODE_OPTIONS: "--unhandled-rejections=strict" };
   try {
-    const first = await exec(process.execPath, await driverArgs(sandbox, runId), {
+    const first = await exec(driverNode, await driverArgs(sandbox, runId), {
       cwd: repoRoot,
       encoding: "utf8",
       timeout: 120_000,
@@ -389,7 +456,7 @@ test("a resumed run rehydrates the persisted telemetry and renders the worker ta
       "a true resume retains the durable cursor",
     );
 
-    const second = await exec(process.execPath, await driverArgs(sandbox, runId, ["--resume"]), {
+    const second = await exec(driverNode, await driverArgs(sandbox, runId, ["--resume"]), {
       cwd: repoRoot,
       encoding: "utf8",
       timeout: 120_000,
@@ -438,7 +505,7 @@ test("the configured maxParallelism is the effective batch width in the driver p
   const runId = "run-worker-width-" + process.pid;
   const evidenceDir = evidenceDirFor(runId);
   try {
-    const { stdout } = await exec(process.execPath, await widthDriverArgs(sandbox, runId, 3), {
+    const { stdout } = await exec(driverNode, await widthDriverArgs(sandbox, runId, 3), {
       cwd: repoRoot,
       encoding: "utf8",
       timeout: 120_000,
@@ -454,5 +521,44 @@ test("the configured maxParallelism is the effective batch width in the driver p
   } finally {
     await rm(sandbox, { recursive: true, force: true });
     await rm(evidenceDir, { recursive: true, force: true });
+  }
+});
+
+// N1: the driver must not be an API-only surface for the verified-sandbox
+// runtime. The config module's `enabled` getter only fires when orchestrate()
+// resolves the object the driver passed through, so a written marker proves the
+// flag reached the runtime seam (not just that the driver parsed it).
+test("the driver wires --verified-sandbox through to orchestrate", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "wr-verified-"));
+  try {
+    const runId = "run-worker-verified-" + process.pid;
+    const marker = join(sandbox, "verified-resolved.marker");
+    const configPath = join(sandbox, "verified-sandbox.mjs");
+    await writeFile(
+      configPath,
+      '"use strict";\n' +
+        'import { writeFileSync } from "node:fs";\n' +
+        "export default {\n" +
+        "  get enabled() {\n" +
+        `    writeFileSync(${JSON.stringify(marker)}, "resolved");\n` +
+        "    return true;\n" +
+        "  },\n" +
+        "};\n",
+    );
+    const { stdout } = await exec(
+      driverNode,
+      await driverArgs(sandbox, runId, ["--verified-sandbox", configPath]),
+      { cwd: repoRoot, encoding: "utf8", timeout: 120_000 },
+    );
+    // An enabled-but-unsatisfiable config resolves fail-closed; the trusted
+    // read-only node is unaffected and the run still verifies.
+    assert.match(stdout, /status: VERIFIED/);
+    assert.equal(
+      await readFile(marker, "utf8"),
+      "resolved",
+      "orchestrate must resolve the verified-sandbox config the driver passed through",
+    );
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
   }
 });

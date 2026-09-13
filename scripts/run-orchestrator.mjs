@@ -10,6 +10,10 @@
 //            [--approvals <approvals.mjs>]  (default: createAutonomyPolicy — 3 read-only skills auto-approve)
 //            [--final-review <reviewer.mjs>]  (independent terminal review; without it a fully
 //                                              executed run ends REQUIRES_REVIEW)
+//            [--verified-sandbox <config.json|config.mjs>]  (T012/N1: pass a
+//                                              verified-sandbox runtime config through to
+//                                              orchestrate(); a .mjs must default-export it so
+//                                              function fields can be supplied)
 //
 // Input flags route on the artifact's schema marker (lib/intake.mjs):
 // --fixture  self-test: built-in fixture host + trivial approach; must VERIFIED.
@@ -97,6 +101,25 @@ async function loadHostModule(hostPath, runId, skillProgressDir) {
     throw new TypeError("host module must default-export a factory: ({runId}) => host");
   }
   return module.default({ runId, skillProgressDir });
+}
+
+// T012/N1: optional verified-sandbox runtime config. The driver config path is
+// the smallest safe step that makes `verifiedSandboxRuntime` driver-wireable
+// instead of an API-only option: orchestrate() already resolves and binds the
+// config, so the driver only loads it and passes it through. A `.json` path is
+// parsed as a plain config; any other path must default-export a config object
+// (or a ready runtime) so function-valued fields — provider, forward,
+// sandboxExecutor — can be supplied. An enabled config that cannot be
+// constructed still resolves to a fail-closed runtime, never a silent
+// unmediated sandbox.
+async function loadVerifiedSandboxConfig(configPath) {
+  const resolved = path.resolve(configPath);
+  if (resolved.endsWith(".json")) return JSON.parse(await readFile(resolved, "utf8"));
+  const module = await import(pathToFileURL(resolved).href);
+  const config = module.default ?? module.sandboxRuntime ?? null;
+  if (config === null || typeof config !== "object")
+    throw new TypeError("--verified-sandbox module must default-export a config object");
+  return config;
 }
 
 const RUN_LOCK = ".run-lock";
@@ -544,6 +567,10 @@ async function realMode() {
       const effectiveConfig = JSON.parse(await readFile(path.resolve(configFlag), "utf8"));
       maxParallelism = resolveSkillConfig(effectiveConfig).config.maxParallelism;
     }
+    const verifiedSandboxFlag = argValue("--verified-sandbox");
+    const verifiedSandboxConfig = verifiedSandboxFlag
+      ? await loadVerifiedSandboxConfig(verifiedSandboxFlag)
+      : null;
     // one dedupe closure for live and final renders: consecutive identical TASK
     // PROGRESS blocks are suppressed everywhere
     const renderProgressOnChange = (() => {
@@ -706,6 +733,7 @@ async function realMode() {
           }
         : {}),
       ...(maxParallelism ? { maxParallelism } : {}),
+      ...(verifiedSandboxConfig ? { verifiedSandboxRuntime: verifiedSandboxConfig } : {}),
       ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
       artifactResolver: parentResolver,
       reviewArtifactRoot: reviewRoot,
@@ -770,7 +798,7 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (["--approach", "--plan", "--request"].includes(args[0])) process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume] [--config <config.json>] [--verified-sandbox <config.json|config.mjs>]",
     );
     console.error(
       "       --host is required for --approach only; --plan/--request route by schema marker (blocked agent-session-required unless CSM_AGENT_SESSION_EXEC=1 + a csm-build route, when an agent session runs under an approvals gate)",

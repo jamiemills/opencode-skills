@@ -9,8 +9,11 @@ import {
   createEgressLedger,
 } from "../csm-orchestrate/lib/egress-broker.mjs";
 import {
+  completeRecordBytes,
   createEgressNetworkEnforcer,
+  DROP_DEDUPE_WINDOW_MS,
   DROP_PROBE_IMAGE_TAG,
+  dedupeDrops,
   parseDropCount,
   parseDropRecords,
 } from "../csm-orchestrate/lib/egress-network.mjs";
@@ -226,12 +229,173 @@ test("T002: parseDropRecords extracts per-drop destination facts from ulogd JSON
       dest_ip: "203.0.113.7",
       dest_port: 443,
       protocol: 6,
+      src_ip: "172.22.0.2",
+      src_port: 52868,
       prefix: "CSMDROP-",
       timestamp: "2026-09-13T14:05:24.572014",
     },
-    { dest_ip: "8.8.8.8", dest_port: 53, protocol: 17, prefix: "CSMDROP-", timestamp: null },
+    {
+      dest_ip: "8.8.8.8",
+      dest_port: 53,
+      protocol: 17,
+      src_ip: null,
+      src_port: null,
+      prefix: "CSMDROP-",
+      timestamp: null,
+    },
   ]);
   assert.deepEqual(parseDropRecords(""), []);
+});
+
+test("T007: completeRecordBytes counts only newline-terminated bytes", () => {
+  assert.equal(completeRecordBytes("a\nb\n"), 4);
+  assert.equal(completeRecordBytes("a\nb"), 2);
+  assert.equal(completeRecordBytes("partial"), 0);
+  assert.equal(completeRecordBytes(""), 0);
+  assert.equal(completeRecordBytes("héllo\n"), 7);
+});
+
+test("T007: dedupeDrops collapses NFLOG 5-tuple redeliveries within a window", () => {
+  const base = {
+    dest_ip: "203.0.113.7",
+    dest_port: 443,
+    protocol: 6,
+    src_ip: "172.22.0.2",
+    src_port: 52868,
+  };
+  const at = (timestamp) => ({ ...base, timestamp });
+  assert.equal(
+    dedupeDrops([at("2026-09-13T14:05:24.572014"), at("2026-09-13T14:05:24.612014")]).length,
+    1,
+    "redelivery within the window is collapsed",
+  );
+  assert.equal(
+    dedupeDrops([at("2026-09-13T14:05:24.572014"), at("2026-09-13T14:05:26.572014")]).length,
+    2,
+    "distinct drops outside the window are kept",
+  );
+  assert.equal(
+    dedupeDrops([at("2026-09-13T14:05:24.572014"), at("2026-09-13T14:05:25.572014")]).length,
+    2,
+    "an exclusive window keeps a TCP retransmit exactly one window later (N6)",
+  );
+  assert.equal(
+    dedupeDrops([
+      at("2026-09-13T14:05:24.572014"),
+      { ...at("2026-09-13T14:05:24.582014"), dest_port: 8443 },
+    ]).length,
+    2,
+    "a different 5-tuple is a distinct drop",
+  );
+  assert.equal(
+    dedupeDrops([
+      { ...base, timestamp: null },
+      { ...base, timestamp: null },
+    ]).length,
+    2,
+    "ambiguous drops are never undercounted",
+  );
+  const shared = new Map();
+  dedupeDrops([at("2026-09-13T14:05:24.572014")], { seen: shared });
+  assert.equal(
+    dedupeDrops([at("2026-09-13T14:05:24.612014")], { seen: shared }).length,
+    0,
+    "a shared seen map dedupes across collect batches",
+  );
+  assert.equal(DROP_DEDUPE_WINDOW_MS, 1_000);
+});
+
+test("T007: collectDrops advances a byte offset and never loses a split record", async () => {
+  const log = { bytes: "" };
+  let readerName = null;
+  const run = async (_docker, args) => {
+    if (args[0] === "image") return { code: 0, stdout: "", stderr: "" };
+    if (args[0] === "run") {
+      readerName = args[args.indexOf("--name") + 1];
+      return { code: 0, stdout: "readerid\n", stderr: "" };
+    }
+    if (args[0] === "inspect") return { code: 0, stdout: "true\n", stderr: "" };
+    if (args[0] === "exec") {
+      const command = args[args.length - 1];
+      const match = /tail -c \+(\d+)/.exec(command);
+      assert.ok(match, `unexpected collect command: ${command}`);
+      return { code: 0, stdout: log.bytes.slice(Number(match[1]) - 1), stderr: "" };
+    }
+    return { code: 0, stdout: "", stderr: "" };
+  };
+  const enforcer = createEgressNetworkEnforcer({ run });
+  await enforcer.provisionDropLogging({ workerId: "w1" });
+  assert.ok(readerName, "reader container must be started");
+
+  const first = JSON.stringify({
+    timestamp: "2026-09-13T14:05:24.500000",
+    dest_ip: "203.0.113.7",
+    dest_port: 443,
+    src_ip: "172.22.0.2",
+    src_port: 40000,
+    "ip.protocol": 6,
+  });
+  const second = JSON.stringify({
+    timestamp: "2026-09-13T14:05:25.500000",
+    dest_ip: "198.51.100.9",
+    dest_port: 8443,
+    src_ip: "172.22.0.2",
+    src_port: 41000,
+    "ip.protocol": 6,
+  });
+  // A complete record plus the first half of a second record (split write).
+  log.bytes = `${first}\n${second.slice(0, 20)}`;
+  const partial = await enforcer.collectDrops({ workerId: "w1" });
+  assert.equal(partial.degraded, false);
+  assert.equal(partial.count, 1, "only complete records are consumed");
+  assert.equal(partial.drops[0].dest_ip, "203.0.113.7");
+
+  // The rest of the split record arrives; it must be re-read whole, not lost.
+  log.bytes += `${second.slice(20)}\n`;
+  const completed = await enforcer.collectDrops({ workerId: "w1" });
+  assert.equal(completed.count, 1);
+  assert.equal(completed.drops[0].dest_ip, "198.51.100.9");
+
+  // Two copies of the same new packet in one batch collapse to one audit record.
+  const retransmit = JSON.stringify({
+    timestamp: "2026-09-13T14:05:26.500000",
+    dest_ip: "203.0.113.7",
+    dest_port: 443,
+    src_ip: "172.22.0.2",
+    src_port: 40000,
+    "ip.protocol": 6,
+  });
+  log.bytes += `${retransmit}\n${retransmit}\n`;
+  const deduped = await enforcer.collectDrops({ workerId: "w1" });
+  assert.equal(deduped.count, 1, "NFLOG redelivery is deduped");
+});
+
+test("T002: the broker gets no added capabilities while the drop helper keeps NET_ADMIN", async () => {
+  const calls = [];
+  const run = async (_docker, args) => {
+    calls.push(args);
+    if (args[0] === "run") return { code: 0, stdout: "id\n", stderr: "" };
+    if (args[0] === "inspect") return { code: 0, stdout: "true\n", stderr: "" };
+    if (args[0] === "image") return { code: 0, stdout: "", stderr: "" };
+    return { code: 0, stdout: "", stderr: "" };
+  };
+  const enforcer = createEgressNetworkEnforcer({ run });
+  await enforcer.provision({
+    brokerName: "b1",
+    brokerScript: "x",
+    internalNetwork: "n1",
+    egressNetwork: "e1",
+  });
+  const brokerRun = calls.find((args) => args[0] === "run");
+  assert.ok(brokerRun, "broker must start");
+  assert.ok(!brokerRun.includes("--cap-add"), "broker must not add capabilities");
+  assert.ok(!brokerRun.includes("NET_ADMIN"), "broker must not carry NET_ADMIN");
+
+  await enforcer.provisionDropLogging({ workerId: "w1" });
+  const helperRun = calls.find((args) => args[0] === "run" && args.includes("container:w1"));
+  assert.ok(helperRun, "drop helper must start");
+  assert.ok(helperRun.includes("--cap-add"), "drop helper needs a capability");
+  assert.ok(helperRun.includes("NET_ADMIN"), "drop helper keeps NET_ADMIN");
 });
 
 test("T002: drop capture is observably degraded until it is provisioned", async () => {
@@ -285,6 +449,16 @@ test(
         brokerName,
         brokerScript: 'require("http").createServer((q,s)=>s.end("ok")).listen(8080,"0.0.0.0")',
       });
+      // T002: the broker runs least-privilege (no NET_ADMIN) and still serves.
+      const brokerCaps = spawnSync(
+        "docker",
+        ["inspect", "-f", "{{json .HostConfig.CapAdd}}", brokerName],
+        { encoding: "utf8" },
+      );
+      assert.ok(
+        !String(brokerCaps.stdout).includes("NET_ADMIN"),
+        `broker must not carry NET_ADMIN: ${brokerCaps.stdout}`,
+      );
       const worker = spawnSync(
         "docker",
         [
@@ -305,6 +479,16 @@ test(
 
       const provisionedCapture = await enforcer.provisionDropLogging({ workerId: workerName });
       assert.equal(provisionedCapture.capture.degraded, false);
+      // T002: the drop-probe helper is the only container that needs NET_ADMIN.
+      const helperCaps = spawnSync(
+        "docker",
+        ["inspect", "-f", "{{json .HostConfig.CapAdd}}", provisionedCapture.readerName],
+        { encoding: "utf8" },
+      );
+      assert.ok(
+        String(helperCaps.stdout).includes("NET_ADMIN"),
+        `drop helper must carry NET_ADMIN: ${helperCaps.stdout}`,
+      );
 
       // A TEST-NET attempt is DROPped, so connect() hangs until our own bound
       // fires; the drop itself is what we assert below.

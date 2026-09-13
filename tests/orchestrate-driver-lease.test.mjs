@@ -48,7 +48,7 @@ function runDriver(args) {
   );
 }
 
-async function writeFixture(runId, { hostSleepMs = 4000 } = {}) {
+async function writeFixture(runId, { hostSleepMs = 4000, hold = false } = {}) {
   const sandbox = await mkdtemp(join(tmpdir(), "driver-lease-"));
   const approachPath = join(sandbox, "approach.json");
   await writeFile(
@@ -64,19 +64,34 @@ async function writeFixture(runId, { hostSleepMs = 4000 } = {}) {
     }) + "\n",
   );
   const hostPath = join(sandbox, "host.mjs");
-  // The host factory is the deterministic post-lease failure point: it sleeps
-  // (holding the lease long enough for a concurrent spawn to observe it), then
-  // throws. Empty-phase approaches otherwise reach the final telemetry drain
-  // with a never-created telemetry.jsonl and fail there instead.
-  await writeFile(
-    hostPath,
-    `export default async () => {
+  // The host factory is the deterministic post-lease failure point: it holds
+  // the lease (then throws). Empty-phase approaches otherwise reach the final
+  // telemetry drain with a never-created telemetry.jsonl and fail there.
+  //
+  // T006: `hold` replaces the fixed sleep with a release-file handshake. A
+  // fixed sleep races the second driver's process spawn under concurrent load
+  // (the winner can finish and release before the loser reaches the lock),
+  // which made test (i) flaky. The winner now waits for the test to write the
+  // release file, so the outcome is deterministic regardless of scheduler load.
+  const releasePath = hold ? join(sandbox, "release") : null;
+  const hostBody = hold
+    ? `import { existsSync } from "node:fs";
+export default async () => {
+  const deadline = Date.now() + 120_000;
+  while (!existsSync(${JSON.stringify(releasePath)})) {
+    if (Date.now() > deadline) break;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+  }
+  throw new Error("host-load-exploded");
+};
+`
+    : `export default async () => {
   await new Promise((resolvePromise) => setTimeout(resolvePromise, ${hostSleepMs}));
   throw new Error("host-load-exploded");
 };
-`,
-  );
-  return { sandbox, approachPath, hostPath };
+`;
+  await writeFile(hostPath, hostBody);
+  return { sandbox, approachPath, hostPath, releasePath };
 }
 
 async function waitForLease(runId, { timeoutMs = 20_000 } = {}) {
@@ -95,7 +110,9 @@ async function cleanupEvidence(runIds) {
 
 test("(i) two concurrent fresh driver starts: exactly one claims the lease, the other fails fast", async () => {
   const runId = uniqueRunId("race");
-  const { sandbox, approachPath, hostPath } = await writeFixture(runId);
+  const { sandbox, approachPath, hostPath, releasePath } = await writeFixture(runId, {
+    hold: true,
+  });
   const lockPath = join(evidenceRoot, runId, LEASE);
   try {
     const first = runDriver(["--approach", approachPath, "--host", hostPath]);
@@ -110,6 +127,8 @@ test("(i) two concurrent fresh driver starts: exactly one claims the lease, the 
       "lease message names the lock path",
     );
     assert.doesNotMatch(second.stderr, /host-load-exploded/, "loser never loaded the host");
+    // Release the winner only after the loser has been observed failing fast.
+    await writeFile(releasePath, "release\n");
     const firstResult = await first;
     assert.notEqual(firstResult.code, 0, "winner ends at the host-load failure");
     assert.match(firstResult.stderr, /host-load-exploded/);

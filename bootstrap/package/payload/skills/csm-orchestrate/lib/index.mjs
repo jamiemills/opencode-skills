@@ -26,6 +26,7 @@ import { assertSchema } from "./contracts.mjs";
 import { createLifecycleHookRunner } from "./lifecycle-hooks.mjs";
 import { createProgressTracker } from "./progress.mjs";
 import { preflightSkillRoutes, isolationRouting } from "./skill-executor-preflight.mjs";
+import { resolveVerifiedSandboxRuntime } from "./verified-sandbox-runtime.mjs";
 
 import {
   abortFailure,
@@ -1948,7 +1949,18 @@ export async function orchestrate(options) {
     );
   let result;
   try {
-    result = await runOrchestrationInternal(options);
+    // T003: accept a declarative verified-sandbox runtime config and build the
+    // provider/enforcer/listener plumbing once, so callers no longer hand-pass
+    // sandboxExecutor/egressPolicy/egressLedger/egressForward per request. A
+    // disabled/absent config normalizes to null and preserves fail-closed.
+    result = await runOrchestrationInternal(
+      options
+        ? {
+            ...options,
+            verifiedSandboxRuntime: resolveVerifiedSandboxRuntime(options.verifiedSandboxRuntime),
+          }
+        : options,
+    );
   } catch (error) {
     if (process.env.CSM_DEBUG2) console.error("CSM_DEBUG2 crash:", error.stack);
     // F-002: a crash must still persist an authoritative terminal record
@@ -1980,6 +1992,14 @@ export async function orchestrate(options) {
     try {
       await options?.cursorStore?.saveTerminalReceipt?.(receipt);
     } catch {}
+    // T005: the crash path can follow an interrupted run that left pending
+    // reconciliation/terminal writes in the async transport queue. Drain them
+    // before appending the authoritative terminal event so the terminal marker
+    // is ordered after (never replaces) reconciliation history.
+    try {
+      if (typeof options?.telemetryEmitter?.flush === "function")
+        await options.telemetryEmitter.flush();
+    } catch {}
     try {
       if (typeof options?.telemetryEmitter?.emit === "function")
         options.telemetryEmitter.emit({
@@ -1995,6 +2015,13 @@ export async function orchestrate(options) {
             crash: String(error?.message ?? error).slice(0, 200),
           },
         });
+    } catch {}
+    // T005: await the flush before this crash handler finalizes and returns, so
+    // the terminal (and any prior reconciliation) event is persisted even when
+    // the caller exits or the process dies immediately after.
+    try {
+      if (typeof options?.telemetryEmitter?.flush === "function")
+        await options.telemetryEmitter.flush();
     } catch {}
     return {
       ...receipt,
@@ -2058,3 +2085,7 @@ export async function orchestrate(options) {
 
 export const runOrchestration = orchestrate;
 export { makeAutonomousFunctionalGate } from "./run-helpers.mjs";
+export {
+  createVerifiedSandboxRuntime,
+  resolveVerifiedSandboxRuntime,
+} from "./verified-sandbox-runtime.mjs";

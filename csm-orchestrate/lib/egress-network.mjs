@@ -21,11 +21,26 @@ import { join } from "node:path";
 // 7) then DROP. The NFLOG reader (ulogd, JSON) runs in the same netns from a
 // baked helper image and yields genuine per-drop facts
 // (`{dest_ip, dest_port, protocol}`). Broker/DNS traffic on `eth0` is untouched.
+//
+// T002 least-privilege: NET_ADMIN is granted to the drop-probe helper only; the
+// broker container carries no added capabilities. T007 robustness: `collectDrops`
+// consumes the append-only collector log from a tracked byte offset (never a
+// read+truncate), so an in-flight drop is not lost, and identical 5-tuples seen
+// within `DROP_DEDUPE_WINDOW_MS` are collapsed as NFLOG redeliveries. The
+// collector log intentionally grows for the life of the reader container rather
+// than risk truncating a not-yet-read record; its size is bounded by the worker
+// session lifetime (drops only accrue for blocked egress attempts).
 
 const DROP_RULE_COMMENT = "CSM_EGRESS_DROP_COUNT";
 const DROP_NFLOG_GROUP = 7;
 const DROP_NFLOG_PREFIX = "CSMDROP-";
 const DROP_LOG_PATH = "/run/csm-drops.json";
+// T007: netlink may redeliver the same NFLOG record; collapse identical
+// 5-tuples observed within this window. Kept short so genuinely distinct
+// repeated drops are not silently merged. The window is exclusive: TCP
+// retransmits land ~1s apart, so a drop exactly `DROP_DEDUPE_WINDOW_MS` after
+// its predecessor must be counted rather than collapsed (N6).
+const DROP_DEDUPE_WINDOW_MS = 1_000;
 // Pin the base image by digest so the baked helper is reproducible. The tag is
 // reused when present so the in-test build is paid at most once per host.
 const DROP_PROBE_IMAGE_TAG = "csm-egress-drop-probe:alpine3.20";
@@ -117,15 +132,67 @@ export function parseDropRecords(jsonlOutput) {
     if (typeof destIp !== "string" || destIp.length === 0) continue;
     const destPort = Number.isInteger(row.dest_port) ? row.dest_port : null;
     const protocol = Number.isInteger(row["ip.protocol"]) ? row["ip.protocol"] : null;
+    const srcIp = typeof row.src_ip === "string" && row.src_ip.length > 0 ? row.src_ip : null;
+    const srcPort = Number.isInteger(row.src_port) ? row.src_port : null;
     drops.push({
       dest_ip: destIp,
       dest_port: destPort,
       protocol,
+      src_ip: srcIp,
+      src_port: srcPort,
       prefix: prefix ?? null,
       timestamp: typeof row.timestamp === "string" ? row.timestamp : null,
     });
   }
   return drops;
+}
+
+// T007: byte offset just past the last newline-terminated record. The reader
+// advances its consume offset only by complete records, so a record whose write
+// is split across two reads is re-read (never truncated away) on the next
+// collect.
+export function completeRecordBytes(text) {
+  const newline = String(text ?? "").lastIndexOf("\n");
+  return newline === -1 ? 0 : Buffer.byteLength(text.slice(0, newline + 1), "utf8");
+}
+
+function parseDropTimestamp(value) {
+  if (typeof value !== "string" || value.length === 0) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function dropFiveTuple(drop) {
+  return [drop.src_ip, drop.src_port, drop.dest_ip, drop.dest_port, drop.protocol].join("|");
+}
+
+// T007: collapse NFLOG redeliveries of the same packet. Two drops are the same
+// event when their 5-tuple matches and their ulogd timestamps fall strictly
+// within `windowMs` (an exclusive window, so a TCP retransmit at the ~1s
+// boundary is kept as distinct). Records with an unparseable timestamp are
+// always kept (fail-open on counting: never undercount an ambiguous drop). An
+// optional `seen` Map can be supplied to dedupe across successive collect
+// batches; it holds only timestamped keys and is safe to reuse.
+export function dedupeDrops(drops, { windowMs = DROP_DEDUPE_WINDOW_MS, seen = new Map() } = {}) {
+  const kept = [];
+  for (const drop of drops) {
+    const at = parseDropTimestamp(drop.timestamp);
+    const key = dropFiveTuple(drop);
+    const previous = at === null ? undefined : seen.get(key);
+    if (previous !== undefined && Math.abs(at - previous) < windowMs) continue;
+    if (at !== null) seen.set(key, at);
+    kept.push(drop);
+  }
+  return kept;
+}
+
+function pruneDedupeKeys(seen, windowMs) {
+  let latest = null;
+  for (const at of seen.values()) if (latest === null || at > latest) latest = at;
+  if (latest === null) return;
+  // Mirror the exclusive dedupe window: entries at or beyond `windowMs` can no
+  // longer collapse an incoming record, so they are safe to drop.
+  for (const [key, at] of seen) if (latest - at >= windowMs) seen.delete(key);
 }
 
 export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = run } = {}) {
@@ -158,6 +225,10 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
       await runFn(docker, ["network", "rm", internalNetwork]);
       throw new Error(createdEgress.stderr || "egress network create failed");
     }
+    // T002: the broker only runs a userspace listener and is dual-homed with
+    // `docker network connect`; it needs no Linux capabilities. NET_ADMIN is
+    // reserved for the drop-probe helper (which writes iptables rules in the
+    // worker netns), so the broker runs least-privilege here.
     const broker = await runFn(docker, [
       "run",
       "-d",
@@ -165,8 +236,6 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
       brokerName,
       "--network",
       internalNetwork,
-      "--cap-add",
-      "NET_ADMIN",
       brokerImage,
       "node",
       "-e",
@@ -301,7 +370,12 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
     );
     if (started.code !== 0)
       throw new Error(started.stderr.trim() || "drop-logging reader start failed");
-    dropReaders.set(workerId, { readerName, image });
+    dropReaders.set(workerId, {
+      readerName,
+      image,
+      offset: 0,
+      recent: new Map(),
+    });
     if (!(await readerRunning(readerName))) {
       const logs = await runFn(docker, ["logs", readerName], { timeoutMs: 15_000 });
       dropReaders.delete(workerId);
@@ -313,7 +387,7 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
     return { workerId, readerName, capture: { degraded: false } };
   }
 
-  async function collectDrops({ workerId } = {}) {
+  async function collectDropsOnce({ workerId, windowMs = DROP_DEDUPE_WINDOW_MS } = {}) {
     const reader = dropReaders.get(workerId);
     if (!reader)
       return {
@@ -332,9 +406,15 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
         degraded: true,
         reason: "drop-probe-reader-not-running",
       };
+    // T007: lossless drain. The collector log is append-only and is never
+    // truncated; consume from the last complete-record offset to EOF. Bytes
+    // appended while we read simply remain for the next collect instead of
+    // being discarded by a read/truncate race, and a record split across the
+    // read boundary is re-read whole next time.
+    const offset = reader.offset ?? 0;
     const read = await runFn(
       docker,
-      ["exec", reader.readerName, "sh", "-c", `cat ${DROP_LOG_PATH}; : > ${DROP_LOG_PATH}`],
+      ["exec", reader.readerName, "sh", "-c", `tail -c +${offset + 1} ${DROP_LOG_PATH}`],
       { timeoutMs: 30_000 },
     );
     if (read.code !== 0)
@@ -345,8 +425,27 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
         degraded: true,
         reason: read.stderr.trim() || "drop-log-unreadable",
       };
-    const drops = parseDropRecords(read.stdout);
+    reader.offset = offset + completeRecordBytes(read.stdout);
+    pruneDedupeKeys(reader.recent, windowMs);
+    const drops = dedupeDrops(parseDropRecords(read.stdout), {
+      windowMs,
+      seen: reader.recent,
+    });
     return { workerId, count: drops.length, drops, degraded: false, reason: null };
+  }
+  // Serialize drains: overlapping collectDrops calls must not both advance the
+  // same byte offset (which would double-count or skip a record).
+  let collectTail = Promise.resolve();
+  function collectDrops(options = {}) {
+    const next = collectTail.then(
+      () => collectDropsOnce(options),
+      () => collectDropsOnce(options),
+    );
+    collectTail = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
   async function removeDropLogging({ workerId } = {}) {
@@ -390,4 +489,10 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
   });
 }
 
-export { DROP_PROBE_IMAGE_TAG, DROP_PROBE_BASE_IMAGE, DROP_LOG_PATH, run as runDockerCommand };
+export {
+  DROP_PROBE_IMAGE_TAG,
+  DROP_PROBE_BASE_IMAGE,
+  DROP_LOG_PATH,
+  DROP_DEDUPE_WINDOW_MS,
+  run as runDockerCommand,
+};

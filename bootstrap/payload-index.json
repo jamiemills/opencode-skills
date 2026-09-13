@@ -842,8 +842,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/docker-worker-provider.mjs",
-        "sha256": "c1294ad5f1396dc5f77ee8c8f0ba872a438abc37fa7fb834d6213d570bea8b3d",
-        "bytes": 27336,
+        "sha256": "b77eca36fecd12a79221a21b282714e2ef0a4741cedbc9fa9049f261313dfe18",
+        "bytes": 29352,
         "mode": "0644"
       },
       {
@@ -860,8 +860,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/egress-network.mjs",
-        "sha256": "0e56abbd533170bbd0e42dcd7f3ca2c58cf57fcc70c0e9c846fa736ffe5aef6e",
-        "bytes": 15035,
+        "sha256": "58218fc36494bee2322a2c5af1306ead23f0ef3b96440ea803f7335ee7b85036",
+        "bytes": 19833,
         "mode": "0644"
       },
       {
@@ -872,8 +872,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "e4ff6d1f6c822f12a37a53550f488dbafb8632504a8878d82eeea2442941c6af",
-        "bytes": 76244,
+        "sha256": "aabb70ad0083992ef969cad51511de1e75389cd618e5445f86cf229984517544",
+        "bytes": 77733,
         "mode": "0644"
       },
       {
@@ -950,8 +950,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-adapter.mjs",
-        "sha256": "4e57607a0f0aa9553152313d1943ed658dfa90fa6cd66d985d123c602700445b",
-        "bytes": 14886,
+        "sha256": "404e5f85517d26e5ebf649808bfb26b1d2c4992732a4e43106b6d5def9799e33",
+        "bytes": 10816,
         "mode": "0644"
       },
       {
@@ -988,6 +988,12 @@
         "path": "payload/skills/csm-orchestrate/lib/validators.mjs",
         "sha256": "3c2bcb0fc26efad488c326487b7888625bb0a0362c08a94210d9988dd2b1b769",
         "bytes": 7507,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/lib/verified-sandbox-runtime.mjs",
+        "sha256": "b49a08adc84f3b5cb6b82bb4b27bd0a6de096e7555346b90c22b19e46f0926e1",
+        "bytes": 15399,
         "mode": "0644"
       },
       {

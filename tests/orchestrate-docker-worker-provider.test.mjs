@@ -2,16 +2,76 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  assertNetworkEgressContract,
   createDockerWorkerProvider,
   verifyWorkerAttestation,
+  WORKER_NETWORK_EGRESS_CODES,
 } from "../csm-orchestrate/lib/docker-worker-provider.mjs";
 
 const DOCKER_AVAILABLE = spawnSync("docker", ["info"], { stdio: "ignore" }).status === 0;
+
+// T006 concurrency repair: two concurrent `make test-orchestrate` processes both
+// drive the same Docker daemon and raced on the long-lived exec stream (the
+// heartbeat interval could write to a socket already torn down -> unhandled
+// EPIPE) and on shared resources. Serialize this file's Docker-backed tests
+// across processes with a repository-relative filesystem lock. Assertions and
+// coverage are unchanged; only the cross-process interleaving is removed.
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const DOCKER_TEST_LOCK = join(
+  REPO_ROOT,
+  ".agents",
+  "evidence",
+  "orchestrator",
+  ".docker-provider-test.lock",
+);
+let dockerTestLock = null;
+
+async function acquireDockerTestLock(lockPath, { timeoutMs = 300_000, staleMs = 600_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const handle = await open(lockPath, "wx");
+      await handle.writeFile(`${process.pid}\n`);
+      return handle;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - (await stat(lockPath)).mtimeMs > staleMs) {
+          await rm(lockPath, { force: true });
+          continue;
+        }
+      } catch {
+        /* lock disappeared between open and stat: retry */
+      }
+      if (Date.now() > deadline)
+        throw new Error(`timed out waiting for the Docker test lock ${lockPath}`, {
+          cause: error,
+        });
+      await new Promise((resolvePromise) =>
+        setTimeout(resolvePromise, 50 + Math.floor(Math.random() * 100)),
+      );
+    }
+  }
+}
+
+if (DOCKER_AVAILABLE) {
+  test.before(async () => {
+    await mkdir(dirname(DOCKER_TEST_LOCK), { recursive: true });
+    dockerTestLock = await acquireDockerTestLock(DOCKER_TEST_LOCK);
+  });
+  test.after(async () => {
+    if (!dockerTestLock) return;
+    await dockerTestLock.close();
+    dockerTestLock = null;
+    await rm(DOCKER_TEST_LOCK, { force: true });
+  });
+}
 
 function makeTar(dir) {
   const result = spawnSync("tar", ["-cf", "-", "--owner=0", "--group=0", "-C", dir, "."], {
@@ -250,6 +310,55 @@ function fakeRun(records, { digest = PINNED_DIGEST, imageId = IMAGE_ID } = {}) {
   };
 }
 
+const CHECKED_IN_POLICY_PATH = new URL(
+  "../csm-orchestrate/policies/docker-worker-policy.json",
+  import.meta.url,
+);
+
+test("T004: the network/egress contract is explicit and fails closed with typed codes", () => {
+  const egress = { brokerScript: "serve()" };
+  assert.equal(assertNetworkEgressContract("none", null), "none");
+  assert.equal(assertNetworkEgressContract("broker", egress), "broker");
+  assert.equal(
+    assertNetworkEgressContract(null, egress),
+    null,
+    "an absent policy declaration permits egress",
+  );
+  assert.equal(assertNetworkEgressContract(undefined, null), null);
+
+  assert.throws(
+    () => assertNetworkEgressContract("none", egress),
+    (error) =>
+      error.code === WORKER_NETWORK_EGRESS_CODES.noneForbidsEgress &&
+      /network=none forbids an egress configuration/.test(error.message),
+  );
+  assert.throws(
+    () => assertNetworkEgressContract("broker", null),
+    (error) =>
+      error.code === WORKER_NETWORK_EGRESS_CODES.brokerRequiresEgress &&
+      /network=broker requires an egress configuration/.test(error.message),
+  );
+  assert.throws(
+    () => assertNetworkEgressContract("bridge", egress),
+    (error) => error.code === WORKER_NETWORK_EGRESS_CODES.unsupported,
+  );
+});
+
+test("T004: the checked-in /2 policy declares broker and matches the contract", async () => {
+  const policy = JSON.parse(await readFile(CHECKED_IN_POLICY_PATH, "utf8"));
+  assert.equal(policy.schema, "csm-orchestrate-docker-worker-policy/2");
+  assert.equal(
+    policy.network,
+    "broker",
+    "the build-shaped policy is broker-mediated, matching the egress runtime",
+  );
+  assert.equal(assertNetworkEgressContract(policy.network, { brokerScript: "serve()" }), "broker");
+  assert.throws(
+    () => assertNetworkEgressContract(policy.network, null),
+    (error) => error.code === WORKER_NETWORK_EGRESS_CODES.brokerRequiresEgress,
+  );
+});
+
 test("T005: start validates the policy against /1 or /2 and fails closed first", async () => {
   const records = [];
   const provider = createDockerWorkerProvider({ run: fakeRun(records) });
@@ -313,21 +422,25 @@ test("T005: a mismatched RepoDigest fails the policy pin invariant", async () =>
   await assert.rejects(provider.start({ policy: policyFixture() }), /imagePinned/);
 });
 
-test("T005: the policy network declaration is consumed and cannot lie", async () => {
+test("T004: start fails closed on a network/egress mismatch before any docker call", async () => {
   const records = [];
   const provider = createDockerWorkerProvider({ run: fakeRun(records) });
   await assert.rejects(
     provider.start({ policy: policyFixture({ network: "broker" }) }),
-    /network=broker requires an egress configuration/,
+    (error) =>
+      error.code === WORKER_NETWORK_EGRESS_CODES.brokerRequiresEgress &&
+      /network=broker requires an egress configuration/.test(error.message),
   );
   await assert.rejects(
     provider.start({
       policy: policyFixture({ network: "none" }),
       egress: { brokerScript: "serve()" },
     }),
-    /network=none forbids an egress configuration/,
+    (error) =>
+      error.code === WORKER_NETWORK_EGRESS_CODES.noneForbidsEgress &&
+      /network=none forbids an egress configuration/.test(error.message),
   );
-  assert.equal(records.length, 0);
+  assert.equal(records.length, 0, "a mismatch must not reach docker");
 });
 
 test("T005: an unpinned image is allowed only when no pin is required", async () => {
