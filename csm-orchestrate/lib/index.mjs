@@ -17,12 +17,13 @@ import { HOST_REVIEW } from "./review-token.mjs";
 import {
   autonomyGate,
   classifyResume,
-  classifyConcurrency,
+  selectParallelBatch,
   loadCursor,
   persistTerminalReceipt,
   retryDecision,
 } from "./recovery.mjs";
 import { assertSchema } from "./contracts.mjs";
+import { createLifecycleHookRunner } from "./lifecycle-hooks.mjs";
 import { createProgressTracker } from "./progress.mjs";
 import { preflightSkillRoutes } from "./skill-executor-preflight.mjs";
 
@@ -53,6 +54,35 @@ import { saveCursor } from "./run-cursor.mjs";
 
 const RUN_ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
 
+// RK7: on a true completed-run resume the transient host fixture resolver has no
+// artifacts (its in-memory map was built by the prior process). The durable
+// terminal child attempt already carries the child's normalized evidence and
+// artifact descriptors, so reconcile resolves from that durable source instead.
+// This is scoped strictly to the reconcile resume path; live dispatches still
+// validate against the configured artifact resolver.
+function durableEvidenceResolver(result) {
+  const records = new Map();
+  for (const item of result?.evidence ?? []) {
+    const path = item?.source?.path ?? item?.path;
+    if (path) records.set(path, item);
+  }
+  for (const ref of result?.outputArtifactRefs ?? []) if (ref?.path) records.set(ref.path, ref);
+  return {
+    async resolve(path, expected = {}) {
+      const record = records.get(path);
+      if (!record)
+        return { status: "missing", code: "missing", message: `missing durable artifact: ${path}` };
+      return {
+        status: "resolved",
+        path,
+        owner: expected.expectedOwner ?? record.owner,
+        fileDigest: expected.expectedFileDigest ?? record.digest,
+        value: record,
+      };
+    },
+  };
+}
+
 export function createOrchestrator(defaults = {}) {
   return Object.freeze({
     run: (input) => orchestrate({ ...defaults, ...input }),
@@ -76,6 +106,10 @@ async function runOrchestrationInternal({
   maxAttempts = 2,
   timeoutMs = 30_000,
   maxSteps = Infinity,
+  maxParallelism = 4,
+  dynamicProposal = null,
+  dynamicApproved = false,
+  dynamicRouteKind = "research",
   reviewTimeoutMs = 300_000,
   maxOutputSize = 2 * 1024 * 1024,
   retryBackoffMs = 1000,
@@ -95,6 +129,7 @@ async function runOrchestrationInternal({
   skillProgressRollupDir = null,
   progressPollIntervalMs = 2000,
   onProgress = null,
+  lifecycleHooks = null,
   enforceSkillFirstRouting = false,
   executorInput,
   parentPhaseId = null,
@@ -132,8 +167,26 @@ async function runOrchestrationInternal({
       return false;
     }
   };
+  const hooks = lifecycleHooks ? createLifecycleHookRunner(lifecycleHooks) : null;
+  // T010: cancellation is emitted at most once per run, whichever abort site
+  // observes it first, so operators always get a visible cancellation signal
+  // without duplicate events from repeated abort checks.
+  let cancellationEmitted = false;
+  const emitCancellation = (reason, context = {}) => {
+    if (cancellationEmitted) return;
+    cancellationEmitted = true;
+    emitTelemetry({
+      eventType: "cancellation",
+      phaseId: context.phaseId ?? null,
+      edgeId: context.edgeId ?? null,
+      childRunId: context.childRunId ?? null,
+      payload: { reason },
+    });
+    hooks?.run("cancel", { runId, reason, phaseId: context.phaseId ?? null });
+  };
   let progressTracker = null;
   const telemetryLosses = [];
+  const workerLeases = new Map();
   const emitTerminalReceipt = (...args) => {
     const receipt = terminalReceipt(...args);
     if (progressTracker) {
@@ -157,6 +210,11 @@ async function runOrchestrationInternal({
       phaseId: receipt.phaseId,
       eventType: "terminal",
       payload: { receiptId: receipt.receiptId, status: receipt.outcome.status },
+    });
+    hooks?.run("worker-stop", {
+      runId: receipt.runId,
+      childRunId: receipt.childRunId ?? null,
+      status: receipt.outcome.status,
     });
     const losses = [...telemetryLosses, ...(telemetryEmitter?.getLossRecords?.() ?? [])];
     if (!losses.length) return receipt;
@@ -201,12 +259,76 @@ async function runOrchestrationInternal({
           "skill-first routing is enforced: orchestrate must dispatch to csm skills via an executor adapter. Host invocation is available for incidental tasks and testing only (pass enforceSkillFirstRouting: false to allow).",
       },
     });
-  const graph = await compileApproach(approach, {
+  // T010: reconcile stale per-worker leases left by a prior interrupted run.
+  // Replayed workers are surfaced as visible observational events; a verified
+  // terminal child result is still preferred over re-execution by the resume
+  // classifier, so reconciliation never triggers duplicate side effects.
+  if (typeof cursorStore.reconcileStaleWorkers === "function") {
+    try {
+      const stale = await cursorStore.reconcileStaleWorkers({ at: new Date(now()).toISOString() });
+      for (const worker of stale ?? []) {
+        emitTelemetry({
+          eventType: "reconciliation",
+          payload: {
+            workerId: worker.workerId,
+            reason: "stale-worker-lease",
+            expiresAt: worker.expiresAt ?? null,
+          },
+        });
+        emitTelemetry({
+          eventType: "worker.replayed",
+          workerId: worker.workerId,
+          taskId: worker.taskId ?? null,
+          attempt: worker.attempt ?? 0,
+          payload: { reason: "stale-lease-reconciled" },
+        });
+      }
+    } catch {
+      // Observability is best-effort and must never fail a run.
+    }
+  }
+  let graph = await compileApproach(approach, {
     capabilities,
     signals,
     parentPhaseId,
     phaseIdOverride,
   });
+  // T003: opt-in hybrid dynamic mode. A model-proposed worker set is validated
+  // and compiled into a canonical csm-orchestrate-phase/2 phase appended to the
+  // graph BEFORE preflight, so its nodes run through the same executeNode /
+  // cursor / gate path as every other phase. The plan/execute-plan route is
+  // refused by assertDynamicModeAllowed.
+  if (dynamicProposal) {
+    try {
+      const { compileDynamicPhase } = await import("./dynamic-scheduler.mjs");
+      const dynamicPhase = compileDynamicPhase(dynamicProposal, {
+        capabilities,
+        runId,
+        approved: dynamicApproved === true,
+        routeKind: dynamicRouteKind,
+        graphRevision: graph.graphRevision,
+        ordinal: graph.phases.length,
+      });
+      graph = Object.freeze({ ...graph, phases: Object.freeze([...graph.phases, dynamicPhase]) });
+      emitTelemetry({
+        eventType: "reconciliation",
+        payload: {
+          dynamicProposal: true,
+          phaseId: dynamicPhase.phaseId,
+          nodes: dynamicPhase.routeNodes.length,
+        },
+      });
+    } catch (error) {
+      return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
+        reason: error?.code ?? "dynamic-proposal-rejected",
+        failure: {
+          class: "policy",
+          code: error?.code ?? "dynamic-proposal-rejected",
+          message: String(error?.message ?? error),
+        },
+      });
+    }
+  }
   if (executorAdapter && (!executorRegistry || typeof executorRegistry.resolveExact !== "function"))
     return emitTerminalReceipt(runId, "phase-intake", null, "BLOCKED", [], [], {
       reason: "unsupported-handler",
@@ -298,8 +420,13 @@ async function runOrchestrationInternal({
     });
   }
   let dispatchedSteps = 0;
-  const dispatchBlocked = () =>
-    signal?.aborted ? abortFailure() : dispatchedSteps >= maxSteps ? stepCapFailure() : null;
+  const dispatchBlocked = () => {
+    if (signal?.aborted) {
+      emitCancellation("aborted");
+      return abortFailure();
+    }
+    return dispatchedSteps >= maxSteps ? stepCapFailure() : null;
+  };
   const beginDispatchIntent = async (cursorId, phaseId, childRunId) => {
     if (typeof cursorStore?.createDispatchIntent !== "function") return null;
     let fencingToken = 1;
@@ -633,6 +760,10 @@ async function runOrchestrationInternal({
           store: cursorStore,
           now,
           approval,
+          // RK4: persist the node-suffixed idempotency key so a resumed run
+          // reloads the same durable child attempt (reconcile) instead of
+          // missing it (resume) and regressing terminal progress.
+          idempotencyKey: request.retry.idempotencyKey,
         });
         let result =
           resume.action === "reconcile"
@@ -663,6 +794,93 @@ async function runOrchestrationInternal({
             attempt: request.retry.attempt,
             payload: { skill: request.skill, invocationId: request.invocationId },
           });
+          hooks?.run("worker-start", {
+            runId,
+            phaseId: phase.phaseId,
+            childRunId,
+            skill: request.skill,
+            attempt: request.retry.attempt,
+          });
+          const taskId = `task-${slug(request.edgeId ?? childRunId)}`;
+          const workerId = `worker-${slug(childRunId)}`;
+          emitTelemetry({
+            eventType: "task.created",
+            phaseId: phase.phaseId,
+            edgeId: request.edgeId,
+            childRunId,
+            taskId,
+            workerId,
+            invocationId: request.invocationId,
+            payload: { skill: request.skill },
+          });
+          emitTelemetry({
+            eventType: "worker.started",
+            phaseId: phase.phaseId,
+            edgeId: request.edgeId,
+            childRunId,
+            taskId,
+            workerId,
+            invocationId: request.invocationId,
+            attempt: request.retry.attempt,
+            payload: { skill: request.skill },
+          });
+          hooks?.run("task-create", { runId, taskId, workerId, skill: request.skill });
+          hooks?.run("tool-exec", {
+            runId,
+            taskId,
+            invocationId: request.invocationId,
+            phase: "start",
+          });
+          hooks?.run("checkpoint", { runId, taskId, state: "dispatching" });
+          // T004: per-worker lease — fail fast on a duplicate live claim and
+          // track the lease so it is released regardless of outcome.
+          if (typeof cursorStore.claimWorker === "function") {
+            try {
+              const lease = await cursorStore.claimWorker({
+                workerId,
+                runId,
+                taskId,
+                attempt: request.retry.attempt ?? 0,
+                leaseMs: 60_000,
+              });
+              // Sustained heartbeat so a long dispatch never lets the lease
+              // expire between claim and release.
+              let timer = null;
+              if (typeof cursorStore.heartbeatWorker === "function") {
+                timer = setInterval(() => {
+                  try {
+                    const beat = cursorStore.heartbeatWorker({
+                      workerId,
+                      leaseToken: lease.leaseToken,
+                      leaseMs: 60_000,
+                    });
+                    if (beat && typeof beat.then === "function") beat.catch(() => {});
+                  } catch {
+                    // heartbeat is best-effort
+                  }
+                }, 20_000);
+                if (typeof timer.unref === "function") timer.unref();
+              }
+              workerLeases.set(node.nodeId, {
+                workerId,
+                leaseToken: lease.leaseToken,
+                timer,
+              });
+            } catch (error) {
+              return {
+                node,
+                approval,
+                failure: {
+                  status: "blocked",
+                  failure: {
+                    class: "policy",
+                    code: "worker-lease-held",
+                    message: String(error?.message ?? error),
+                  },
+                },
+              };
+            }
+          }
           let dispatchIntent = null;
           try {
             dispatchIntent = await beginDispatchIntent(cursorId, phase.phaseId, childRunId);
@@ -685,6 +903,16 @@ async function runOrchestrationInternal({
         let attempt = savedCursor?.attempt || 1;
         let invocationChildRunId = childRunId;
         while (result.status === "failed" || result.status === "incomplete") {
+          if (result.failure?.class === "timeout") {
+            emitTelemetry({
+              phaseId: phase.phaseId,
+              edgeId: request.edgeId,
+              childRunId,
+              eventType: "timeout",
+              attempt,
+              payload: { skill: request.skill, code: result.failure?.code ?? null },
+            });
+          }
           const decision = retryDecision({
             failure: result.failure,
             attempt,
@@ -834,12 +1062,20 @@ async function runOrchestrationInternal({
                 result,
                 node,
                 invocationChildRunId,
-                childArtifactResolver,
+                // RK7: a true resume reconciles the durable terminal child's own
+                // stored evidence; a live dispatch still resolves host artifacts.
+                resume?.action === "reconcile"
+                  ? durableEvidenceResolver(result)
+                  : childArtifactResolver,
                 schemaRegistry,
               )
             : { evidence: [], failures: [] };
         if (reconciliation.failures.length)
           failure = { status: "incomplete", failure: reconciliation.failures[0] };
+        // A reconciled node was already recorded terminal/verified by the prior
+        // run. Re-deriving its evidence must never regress that terminal
+        // progress (which would crash): return the failure cleanly instead.
+        if (failure && resume?.action === "reconcile") return { node, approval, failure };
         if (failure)
           await progressTracker.update(progressId, {
             state:
@@ -879,16 +1115,31 @@ async function runOrchestrationInternal({
             state: "validated",
             store: cursorStore,
             now,
+            // RK4: keep the node-suffixed key on the terminal cursor write too,
+            // otherwise it overwrites the dispatching cursor's key and a resume
+            // cannot reload the durable terminal attempt.
+            idempotencyKey: request.retry.idempotencyKey,
           });
-        if (!failure && result.status === "completed")
-          await progressTracker.update(progressId, {
-            state: "active",
-            childRunId: invocationChildRunId,
-            attempt,
-            evidenceRefs: [...evidence, ...reconciledEvidence]
-              .map((item) => item.evidenceId)
-              .filter(Boolean),
-          });
+        if (!failure && result.status === "completed") {
+          // A true completed-run resume reloads the node's progress item as
+          // terminal; re-marking it active would regress terminal progress (and
+          // throw). Keep the terminal state and its already-persisted evidence.
+          const currentItem = progressTracker.snapshot.items.find(
+            (item) => item.itemId === progressId,
+          );
+          const terminal = ["verified", "failed", "blocked", "incomplete"].includes(
+            currentItem?.state,
+          );
+          if (!terminal)
+            await progressTracker.update(progressId, {
+              state: "active",
+              childRunId: invocationChildRunId,
+              attempt,
+              evidenceRefs: [...evidence, ...reconciledEvidence]
+                .map((item) => item.evidenceId)
+                .filter(Boolean),
+            });
+        }
         // roll up child skill-progress AFTER the per-node update: that update
         // replaces evidenceRefs and resets verifiedFraction, so a rollup run
         // earlier would be silently discarded
@@ -952,15 +1203,35 @@ async function runOrchestrationInternal({
           };
           break;
         }
-        const concurrency = classifyConcurrency(ready);
-        const batch =
-          concurrency.mode === "parallel-independent-read-only"
-            ? ready.slice(0, 4)
-            : ready.slice(0, 1);
-        const results = (await Promise.all(batch.map(executeNode))).toSorted(
-          (a, b) => a.node.ordering - b.node.ordering,
-        );
-        if (!phaseFailure && signal?.aborted) phaseFailure = abortFailure();
+        const batch = selectParallelBatch(ready, { maxParallelism, capabilities });
+        let batchResults;
+        try {
+          batchResults = await Promise.all(batch.map(executeNode));
+        } catch (error) {
+          // A rejected node aborts the results loop; release every lease the
+          // failed batch claimed so none is leaked until TTL/reconcile.
+          for (const held of workerLeases.values()) {
+            if (held.timer) clearInterval(held.timer);
+            if (typeof cursorStore.releaseWorker === "function") {
+              try {
+                await cursorStore.releaseWorker({
+                  workerId: held.workerId,
+                  leaseToken: held.leaseToken,
+                  state: "failed",
+                });
+              } catch {
+                // best effort
+              }
+            }
+          }
+          workerLeases.clear();
+          throw error;
+        }
+        const results = batchResults.toSorted((a, b) => a.node.ordering - b.node.ordering);
+        if (!phaseFailure && signal?.aborted) {
+          emitCancellation("aborted", { phaseId: phase.phaseId });
+          phaseFailure = abortFailure();
+        }
         for (const item of results) {
           pending.delete(item.node.nodeId);
           terminalApproval = item.approval;
@@ -968,6 +1239,52 @@ async function runOrchestrationInternal({
           phaseEvidence.push(...(item.evidence ?? []));
           phaseTechnical.push(...(item.technical ?? []));
           phaseFunctional.push(...(item.functional ?? []));
+          const itemTaskId = `task-${slug(item.node.nodeId)}`;
+          const itemChildRunId = item.receipt?.runId ?? null;
+          const itemWorkerId = `worker-${slug(itemChildRunId ?? item.node.nodeId)}`;
+          const itemCompleted = !item.failure && item.result?.status === "completed";
+          emitTelemetry({
+            eventType: itemCompleted ? "worker.completed" : "worker.failed",
+            phaseId: phase.phaseId,
+            childRunId: itemChildRunId,
+            taskId: itemTaskId,
+            workerId: itemWorkerId,
+            payload: { skill: item.node.skill, status: item.result?.status ?? "failed" },
+          });
+          if (itemCompleted) {
+            emitTelemetry({
+              eventType: "task.completed",
+              phaseId: phase.phaseId,
+              childRunId: itemChildRunId,
+              taskId: itemTaskId,
+              workerId: itemWorkerId,
+              payload: { skill: item.node.skill },
+            });
+          }
+          hooks?.run("task-complete", {
+            runId,
+            taskId: itemTaskId,
+            workerId: itemWorkerId,
+            skill: item.node.skill,
+            status: itemCompleted ? "completed" : "failed",
+          });
+          hooks?.run("tool-exec", { runId, taskId: itemTaskId, phase: "complete" });
+          const heldLease = workerLeases.get(item.node.nodeId);
+          if (heldLease) {
+            if (heldLease.timer) clearInterval(heldLease.timer);
+            if (typeof cursorStore.releaseWorker === "function") {
+              try {
+                await cursorStore.releaseWorker({
+                  workerId: heldLease.workerId,
+                  leaseToken: heldLease.leaseToken,
+                  state: itemCompleted ? "completed" : "failed",
+                });
+              } catch {
+                // A release failure must not fail the run; stale leases reconcile.
+              }
+            }
+            workerLeases.delete(item.node.nodeId);
+          }
           if (!item.failure && item.result?.status === "completed") {
             completedNodeIds.add(item.node.nodeId);
             validatedOutputs.set(item.node.nodeId, item.outputRefs);
@@ -1632,8 +1949,23 @@ export async function orchestrate(options) {
       : {}),
   };
   await assertSchema("csm-orchestrate-receipt/2", durable);
-  if (options?.cursorStore?.saveTerminalReceipt)
-    await persistTerminalReceipt(durable, options.cursorStore);
+  if (options?.cursorStore?.saveTerminalReceipt) {
+    // RK8: the run-level receipt id is deterministic. A resumed run finalizing
+    // the same runId must not collide with its own prior terminal record, so
+    // skip the write when that exact receipt is already durable.
+    let alreadyPersisted = false;
+    if (typeof options.cursorStore.loadTerminalRecords === "function") {
+      try {
+        const records = await options.cursorStore.loadTerminalRecords(durable.runId);
+        alreadyPersisted = (records ?? []).some(
+          (record) => (record.receiptId ?? record.receipt_id) === durable.receiptId,
+        );
+      } catch {
+        alreadyPersisted = false;
+      }
+    }
+    if (!alreadyPersisted) await persistTerminalReceipt(durable, options.cursorStore);
+  }
   if (typeof options?.telemetryEmitter?.flush === "function")
     await options.telemetryEmitter.flush().catch(() => {});
   return {

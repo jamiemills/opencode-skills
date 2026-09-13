@@ -477,7 +477,7 @@ test("memory-mode store backup yields a restorable SQLite snapshot", async (t) =
     assert.ok(backup.bytes > 0);
     const stdout = await runVerifyScript(backupPath);
     assert.match(stdout, /^PASS: /m);
-    assert.match(stdout, /schema_version rows: 1/);
+    assert.match(stdout, /schema_version rows: 2/);
     const restored = new DatabaseSync(backupPath, { readOnly: true });
     try {
       assert.equal(

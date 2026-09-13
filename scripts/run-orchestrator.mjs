@@ -32,7 +32,12 @@ import { mkdir, mkdtemp, open, lstat, readFile, rm, writeFile, copyFile } from "
 import { existsSync } from "node:fs";
 import path, { join } from "node:path";
 import { tmpdir } from "node:os";
-import { orchestrate, projectProgress } from "../csm-orchestrate/index.mjs";
+import {
+  createWorkerStateReducer,
+  orchestrate,
+  projectProgress,
+  projectWorkerTable,
+} from "../csm-orchestrate/index.mjs";
 import { emitRunProjections } from "./lib/run-projections.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
@@ -525,6 +530,20 @@ async function realMode() {
     const progressPollMs = Number(argValue("--progress-poll-ms") ?? 2000);
     if (!Number.isFinite(progressPollMs) || progressPollMs <= 0)
       throw new Error("--progress-poll-ms must be a positive number of milliseconds");
+    // T002/T010: optional dynamic-proposal exposure and csm-orchestrate config.
+    const dynamicProposalFlag = argValue("--dynamic-proposal");
+    const dynamicApprovedFlag = process.argv.includes("--dynamic-approved");
+    const dynamicRouteKindFlag = argValue("--dynamic-route-kind") ?? "research";
+    const dynamicProposal = dynamicProposalFlag
+      ? JSON.parse(await readFile(path.resolve(dynamicProposalFlag), "utf8"))
+      : null;
+    const configFlag = argValue("--config");
+    let maxParallelism;
+    if (configFlag) {
+      const { resolveSkillConfig } = await import("../csm-orchestrate/lib/config.mjs");
+      const effectiveConfig = JSON.parse(await readFile(path.resolve(configFlag), "utf8"));
+      maxParallelism = resolveSkillConfig(effectiveConfig).config.maxParallelism;
+    }
     // one dedupe closure for live and final renders: consecutive identical TASK
     // PROGRESS blocks are suppressed everywhere
     const renderProgressOnChange = (() => {
@@ -536,6 +555,34 @@ async function realMode() {
         console.log(text);
       };
     })();
+    // T003: fold worker lifecycle events into an observational worker table.
+    const workerReducer = createWorkerStateReducer();
+    let lastWorkerText = "";
+    let lastWorkerRenderAt = 0;
+    const renderWorkerTableOnChange = async ({ force = false } = {}) => {
+      // The live JSONL is being appended while the run proceeds; reading it on
+      // every progress tick raced the writer and threw concurrent-replacement.
+      // Throttle, and treat a mid-read replacement as a skipped render.
+      if (!force && Date.now() - lastWorkerRenderAt < 2000) return;
+      let events;
+      try {
+        events = await telemetryEmitter.getEvents();
+      } catch {
+        return;
+      }
+      lastWorkerRenderAt = Date.now();
+      workerReducer.applyEvents(events, { now: new Date().toISOString() });
+      const projection = workerReducer.snapshot();
+      if (!projection.workers.length) return;
+      const text = projectWorkerTable(projection).text;
+      if (text === lastWorkerText) return;
+      lastWorkerText = text;
+      console.log(text);
+    };
+    const onProgress = (snapshot) => {
+      renderProgressOnChange(snapshot);
+      renderWorkerTableOnChange().catch(() => {});
+    };
     const cursorStore = createSqliteStore({
       mode: "wal",
       databasePath: join(evidenceDir, "cursor.db"),
@@ -554,6 +601,9 @@ async function realMode() {
       transport: createJsonlTransport(telemetryPath),
       runId,
     });
+    // T003: resume-safe ordering — adopt the persisted sequence high-water mark
+    // before the first emission so a resumed run continues rather than restarting.
+    await telemetryEmitter.rehydrate();
     const { loadSchemaRegistry: loadRealRegistry } =
       await import("../lib/schema-runtime/index.mjs");
     const schemaRegistry = await loadRealRegistry();
@@ -646,8 +696,16 @@ async function realMode() {
       ...(quietProgress
         ? {}
         : {
-            onProgress: renderProgressOnChange,
+            onProgress,
           }),
+      ...(dynamicProposal
+        ? {
+            dynamicProposal,
+            dynamicApproved: dynamicApprovedFlag,
+            dynamicRouteKind: dynamicRouteKindFlag,
+          }
+        : {}),
+      ...(maxParallelism ? { maxParallelism } : {}),
       ...(finalReviewExecutor ? { finalReviewExecutor } : {}),
       artifactResolver: parentResolver,
       reviewArtifactRoot: reviewRoot,
@@ -684,10 +742,17 @@ async function realMode() {
         `${projectProgress(result.progress, { width: 28 }).text}\n`,
       );
     }
-    // drain the async transport so telemetry.jsonl is complete before exit
-    await telemetryEmitter.getEvents();
+    // drain the async transport so telemetry.jsonl is complete before exit.
+    // RK5: a concurrent append can make this read race the crash-path terminal
+    // event; observability is best-effort and must never fail a VERIFIED run.
+    try {
+      await telemetryEmitter.getEvents();
+    } catch {
+      /* telemetry drain is best-effort */
+    }
     if (result.progress && !quietProgress) {
       renderProgressOnChange(result.progress);
+      await renderWorkerTableOnChange({ force: true });
     }
     console.log("status:", result.receipt.outcome.status);
     console.log("reason:", result.reason ?? "none");

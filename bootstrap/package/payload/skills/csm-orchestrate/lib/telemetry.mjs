@@ -1,6 +1,6 @@
 "use strict";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
@@ -24,6 +24,55 @@ export const TELEMETRY_EVENT_TYPES = Object.freeze([
   "terminal",
   "config_resolution",
   "telemetry_loss",
+]);
+// Worker/task lifecycle events are emitted under the additive v2 schema; the
+// v1 event types above are unchanged so existing consumers keep validating
+// against csm-orchestrate-telemetry-event/1.
+export const TELEMETRY_EVENT_SCHEMA_ID_V2 = "csm-orchestrate-telemetry-event/2";
+export const TELEMETRY_WORKER_EVENT_TYPES = Object.freeze([
+  "task.created",
+  "task.ready",
+  "task.blocked",
+  "task.completed",
+  "worker.started",
+  "worker.heartbeat",
+  "worker.progress",
+  "worker.retrying",
+  "worker.completed",
+  "worker.failed",
+  "worker.cancelled",
+  "worker.replayed",
+  "invocation.started",
+  "invocation.completed",
+  "invocation.failed",
+  "tool.started",
+  "tool.completed",
+  "tool.failed",
+  "checkpoint.saved",
+  "egress.decision",
+]);
+// Types that represent idempotent lifecycle transitions: the worker reducer
+// dedupes these on logicalKey so a resume cannot double-count a re-emitted
+// row. High-frequency observational events (heartbeat/progress/retrying) are
+// excluded and are always applied.
+export const IDEMPOTENT_WORKER_EVENT_TYPES = Object.freeze([
+  "task.created",
+  "task.ready",
+  "task.blocked",
+  "task.completed",
+  "worker.started",
+  "worker.completed",
+  "worker.failed",
+  "worker.cancelled",
+  "worker.replayed",
+  "invocation.started",
+  "invocation.completed",
+  "invocation.failed",
+  "tool.started",
+  "tool.completed",
+  "tool.failed",
+  "checkpoint.saved",
+  "egress.decision",
 ]);
 export const REDACTED_VALUE = "[redacted]";
 export const DEFAULT_REDACT_KEYS = Object.freeze([
@@ -50,6 +99,10 @@ const PHASE_ID_PATTERN = /^phase-[a-z0-9][a-z0-9-]{1,127}$/;
 const EDGE_ID_PATTERN = /^edge-[a-z0-9][a-z0-9-]{1,127}$/;
 const EVENT_ID_PATTERN = /^evt-[a-z0-9][a-z0-9-]{1,127}$/;
 const DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
+const TASK_ID_PATTERN = /^task-[a-z0-9][a-z0-9-]{1,127}$/;
+const WORKER_ID_PATTERN = /^worker-[a-z0-9][a-z0-9-]{1,127}$/;
+const INVOCATION_ID_PATTERN = /^invocation-[a-z0-9][a-z0-9-]{1,127}$/;
+const TOOL_ID_PATTERN = /^tool-[a-z0-9][a-z0-9-]{1,127}$/;
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -93,6 +146,33 @@ function redactValue(value, sensitive) {
 export function redactPayload(payload, redactKeys = DEFAULT_REDACT_KEYS) {
   if (!isPlainObject(payload)) throw new TypeError("payload must be an object");
   return redactValue(payload, normalizeRedactKeys(redactKeys));
+}
+
+// Key-name redaction cannot catch a secret embedded in a value under an
+// innocuous key (e.g. a command string). Worker events pass through this
+// value-level scrub as well, which masks secret-shaped substrings while
+// leaving egress target identity (targetHost/targetOrigin) intact.
+const SECRET_VALUE_PATTERNS = Object.freeze([
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+  /\bsk-[A-Za-z0-9_-]{16,}\b/g,
+  /\bAKIA[0-9A-Z]{16}\b/g,
+  /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
+  /\b(?:token|secret|password|passwd|api[-_]?key|apikey|authorization|credential)\b\s*[:=]\s*[^\s,;"']+/gi,
+]);
+
+export function redactSecretValues(value) {
+  if (typeof value === "string") {
+    let out = value;
+    for (const pattern of SECRET_VALUE_PATTERNS) out = out.replace(pattern, REDACTED_VALUE);
+    return out;
+  }
+  if (Array.isArray(value)) return value.map((item) => redactSecretValues(item));
+  if (isPlainObject(value)) {
+    const out = {};
+    for (const [key, child] of Object.entries(value)) out[key] = redactSecretValues(child);
+    return out;
+  }
+  return value;
 }
 
 export function createMemoryTransport() {
@@ -178,6 +258,43 @@ function optionalId(value, pattern, label) {
   return value;
 }
 
+export function sequenceHighWaterMark(events = []) {
+  if (!Array.isArray(events)) throw new TypeError("events must be an array");
+  let highWaterMark = 0;
+  for (const event of events) {
+    const value = event?.sequence;
+    if (Number.isInteger(value) && value > highWaterMark) highWaterMark = value;
+  }
+  return highWaterMark;
+}
+
+function computeLogicalKey({
+  runId,
+  eventType,
+  phaseId,
+  edgeId,
+  childRunId,
+  taskId,
+  workerId,
+  invocationId,
+  attempt,
+  idempotencyKey,
+}) {
+  const material = [
+    runId,
+    eventType,
+    phaseId ?? "",
+    edgeId ?? "",
+    childRunId ?? "",
+    taskId ?? "",
+    workerId ?? "",
+    invocationId ?? "",
+    String(attempt ?? 0),
+    typeof idempotencyKey === "string" ? idempotencyKey : "",
+  ].join("|");
+  return `lk-${createHash("sha256").update(material).digest("hex").slice(0, 32)}`;
+}
+
 function correlate(receipt, event) {
   if (event.runId !== receipt.runId) return false;
   if (event.payload?.receiptId !== undefined) return event.payload.receiptId === receipt.receiptId;
@@ -235,7 +352,9 @@ export function createTelemetryEmitter(options = {}) {
       payload: Object.freeze({
         lostEvent: event,
         code: error?.code ?? "telemetry-write-failed",
-        message: error?.message ?? "telemetry event could not be written",
+        message: redactSecretValues(
+          String(error?.message ?? "telemetry event could not be written"),
+        ).slice(0, 300),
       }),
       effectiveConfigDigest: event.effectiveConfigDigest ?? options.effectiveConfigDigest,
       fencingToken: event.fencingToken ?? null,
@@ -265,7 +384,9 @@ export function createTelemetryEmitter(options = {}) {
         attempt: event.attempt ?? 0,
         sequence: event.sequence ?? null,
         code: error?.code ?? "telemetry-write-failed",
-        message: error?.message ?? "telemetry event could not be written",
+        message: redactSecretValues(
+          String(error?.message ?? "telemetry event could not be written"),
+        ).slice(0, 300),
       }),
     );
     enqueueLossMarker(event, error);
@@ -273,7 +394,8 @@ export function createTelemetryEmitter(options = {}) {
 
   function emit(event) {
     if (!isPlainObject(event)) throw new TypeError("telemetry event must be an object");
-    if (!TELEMETRY_EVENT_TYPES.includes(event.eventType))
+    const isWorkerEvent = TELEMETRY_WORKER_EVENT_TYPES.includes(event.eventType);
+    if (!isWorkerEvent && !TELEMETRY_EVENT_TYPES.includes(event.eventType))
       throw new TypeError(`unsupported telemetry event type ${String(event.eventType)}`);
     const runId = event.runId ?? options.runId;
     if (!RUN_ID_PATTERN.test(String(runId ?? "")))
@@ -284,6 +406,10 @@ export function createTelemetryEmitter(options = {}) {
     const phaseId = optionalId(event.phaseId, PHASE_ID_PATTERN, "phaseId");
     const edgeId = optionalId(event.edgeId, EDGE_ID_PATTERN, "edgeId");
     const childRunId = optionalId(event.childRunId, RUN_ID_PATTERN, "childRunId");
+    const taskId = optionalId(event.taskId, TASK_ID_PATTERN, "taskId");
+    const workerId = optionalId(event.workerId, WORKER_ID_PATTERN, "workerId");
+    const invocationId = optionalId(event.invocationId, INVOCATION_ID_PATTERN, "invocationId");
+    const toolId = optionalId(event.toolId, TOOL_ID_PATTERN, "toolId");
     const attempt = event.attempt ?? 0;
     if (!Number.isInteger(attempt) || attempt < 0)
       throw new TypeError("attempt must be a non-negative integer");
@@ -292,20 +418,40 @@ export function createTelemetryEmitter(options = {}) {
       throw new TypeError("fencingToken must be a positive integer or null");
     const payload = event.payload ?? {};
     if (!isPlainObject(payload)) throw new TypeError("payload must be an object");
+    const logicalKey =
+      isWorkerEvent && IDEMPOTENT_WORKER_EVENT_TYPES.includes(event.eventType)
+        ? computeLogicalKey({
+            runId,
+            eventType: event.eventType,
+            phaseId,
+            edgeId,
+            childRunId,
+            taskId,
+            workerId,
+            invocationId,
+            attempt,
+            idempotencyKey: payload.idempotencyKey,
+          })
+        : null;
     sequence += 1;
     emittedCount += 1;
     const full = Object.freeze({
-      schema: TELEMETRY_EVENT_SCHEMA_ID,
+      schema: isWorkerEvent ? TELEMETRY_EVENT_SCHEMA_ID_V2 : TELEMETRY_EVENT_SCHEMA_ID,
       eventId: `evt-${randomUUID()}`,
       sequence,
       runId,
       phaseId,
       edgeId,
       childRunId,
+      ...(isWorkerEvent ? { taskId, workerId, invocationId, toolId, logicalKey } : {}),
       eventType: event.eventType,
       timestamp: event.timestamp ?? now(),
       attempt,
-      payload: Object.freeze(redactPayload(payload, redactKeys)),
+      payload: Object.freeze(
+        isWorkerEvent
+          ? redactSecretValues(redactPayload(payload, redactKeys))
+          : redactPayload(payload, redactKeys),
+      ),
       effectiveConfigDigest,
       fencingToken,
     });
@@ -418,8 +564,22 @@ export function createTelemetryEmitter(options = {}) {
     if (drained?.then) await drained;
   }
 
+  // Resume-safe ordering: adopt the existing stream's sequence high-water mark
+  // before the first new emission so a resumed process does not restart at 1
+  // and collide with persisted rows. Loss markers count toward the mark.
+  async function rehydrate() {
+    if (emittedCount > 0) throw new TypeError("cannot rehydrate after emitting");
+    const events = transport.list();
+    const resolved = events?.then ? await events : events;
+    const highWaterMark = sequenceHighWaterMark(resolved);
+    sequence = highWaterMark;
+    emittedCount = highWaterMark;
+    return highWaterMark;
+  }
+
   return {
     emit,
+    rehydrate,
     recordTerminalReceipt,
     checkCompleteness,
     detectLoss,
@@ -431,10 +591,14 @@ export function createTelemetryEmitter(options = {}) {
 
 export default {
   TELEMETRY_EVENT_SCHEMA_ID,
+  TELEMETRY_EVENT_SCHEMA_ID_V2,
   TELEMETRY_EVENT_TYPES,
+  TELEMETRY_WORKER_EVENT_TYPES,
+  IDEMPOTENT_WORKER_EVENT_TYPES,
+  sequenceHighWaterMark,
   REDACTED_VALUE,
-  DEFAULT_REDACT_KEYS,
   redactPayload,
+  redactSecretValues,
   createMemoryTransport,
   createJsonlTransport,
   createTelemetryEmitter,

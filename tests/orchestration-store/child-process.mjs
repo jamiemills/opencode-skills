@@ -35,6 +35,27 @@ async function main() {
     }
     return;
   }
+  if (command === "claim-worker") {
+    const workerId = process.argv[4];
+    const store = createSqliteStore({ databasePath: dbPath, mode: "wal" });
+    try {
+      const lease = await store.claimWorker({
+        workerId,
+        runId: "run-worker-race",
+        leaseMs: 60_000,
+      });
+      process.stdout.write(
+        `${JSON.stringify({ ok: true, workerId: lease.workerId, fencingToken: lease.fencingToken })}\n`,
+      );
+    } catch (error) {
+      process.stdout.write(
+        `${JSON.stringify({ ok: false, name: error.name, message: error.message })}\n`,
+      );
+    } finally {
+      store.close();
+    }
+    return;
+  }
   if (command === "crash-write") {
     const store = createSqliteStore({ databasePath: dbPath, mode: "wal" });
     const cursor = {

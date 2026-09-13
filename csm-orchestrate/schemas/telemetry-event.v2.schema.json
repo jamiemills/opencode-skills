@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-telemetry-event/2",
+  "title": "CSM orchestrate correlated telemetry event (v2)",
+  "description": "Additive v2 of the correlated telemetry event: adds task/worker/invocation/tool coordinates and worker/task/tool lifecycle event types. v1 remains frozen.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "eventId",
+    "sequence",
+    "runId",
+    "eventType",
+    "timestamp",
+    "attempt",
+    "payload",
+    "effectiveConfigDigest",
+    "fencingToken"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-telemetry-event/2"
+    },
+    "eventId": {
+      "type": "string",
+      "pattern": "^evt-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "phaseId": {
+      "type": ["string", "null"],
+      "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "edgeId": {
+      "type": ["string", "null"],
+      "pattern": "^edge-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "childRunId": {
+      "type": ["string", "null"],
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "taskId": {
+      "type": ["string", "null"],
+      "pattern": "^task-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "workerId": {
+      "type": ["string", "null"],
+      "pattern": "^worker-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "invocationId": {
+      "type": ["string", "null"],
+      "pattern": "^invocation-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "toolId": {
+      "type": ["string", "null"],
+      "pattern": "^tool-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "eventType": {
+      "enum": [
+        "dispatch",
+        "approval",
+        "cursor",
+        "retry",
+        "timeout",
+        "cancellation",
+        "review",
+        "skill-progress-rollup",
+        "remediation",
+        "reconciliation",
+        "terminal",
+        "config_resolution",
+        "telemetry_loss",
+        "egress.decision",
+        "task.created",
+        "task.ready",
+        "task.blocked",
+        "task.completed",
+        "worker.started",
+        "worker.heartbeat",
+        "worker.progress",
+        "worker.retrying",
+        "worker.completed",
+        "worker.failed",
+        "worker.cancelled",
+        "worker.replayed",
+        "invocation.started",
+        "invocation.completed",
+        "invocation.failed",
+        "tool.started",
+        "tool.completed",
+        "tool.failed",
+        "checkpoint.saved"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "payload": {
+      "type": "object"
+    },
+    "effectiveConfigDigest": {
+      "$ref": "#/$defs/digest"
+    },
+    "fencingToken": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "logicalKey": {
+      "type": ["string", "null"],
+      "pattern": "^lk-[a-f0-9]{32}$",
+      "description": "Deterministic run-scoped identity for idempotent lifecycle events; the worker reducer dedupes on it so a resume cannot double-count re-emitted dispatch/terminal rows. Null/absent for high-frequency observational events (heartbeat/progress)."
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

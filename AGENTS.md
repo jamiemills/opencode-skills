@@ -55,3 +55,23 @@
   belong at the end of their own class section (`## plans/`, `## research/`,
   `## builds/`, `## progress/`, ...), never appended to the physical EOF of
   the file. `scripts/check-suite.mjs` enforces section membership.
+
+## Dynamic worker runtime (child seam)
+
+- `csm-orchestrate` remains the single coordination entry point. The only second
+  sanctioned entry is the child-side worker seam.
+- `scripts/run-worker.mjs` runs exactly one invocation and returns a raw child
+  result; it owns no cursor, receipt, gate, or acceptance authority, and is
+  env-gated by `CSM_AGENT_SESSION_EXEC=1`.
+- Dynamic mode is opt-in, refuses the plan/execute-plan route, and requires a
+  declared decomposition policy plus explicit approval. The scheduler is wired
+  into the orchestrator (a `dynamicProposal` is validated and compiled into a
+  phase/2 phase run through `executeNode`) and exposed by the driver via
+  `--dynamic-proposal`.
+- Isolation tiers: tier-1 hardened worktree (implemented, credential-scrubbed);
+  tier-2 verified sandbox is **partial**: the Docker provider + periodic
+  re-attestation + egress broker/ledger + network enforcer exist and are tested,
+  but they are **not yet wired into the live dispatch path** and the declared
+  `execution.isolation`/`attestation` capability is not yet enforced (see
+  broker-upstream T004/T005/T006). Both tiers fail closed; see
+  `docs/dynamic-worker-runtime.md`.

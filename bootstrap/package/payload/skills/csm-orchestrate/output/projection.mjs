@@ -124,5 +124,68 @@ export function projectProgress(
   return { ...projection, text: `${overallText}\nMilestones\n${row}` };
 }
 
+/**
+ * Render a disposable operator worker table from a canonical
+ * csm-worker-projection/1 document. Pure presentation: it reads the folded
+ * snapshot and never sets or returns cursor, receipt, gate, or evidence
+ * authority fields.
+ */
+export function projectWorkerTable(document) {
+  if (typeof document !== "object" || document === null || Array.isArray(document))
+    throw new TypeError("worker projection requires canonical JSON");
+  if (document.schema !== "csm-worker-projection/1")
+    throw new TypeError("worker projection requires csm-worker-projection/1");
+  if (!Array.isArray(document.workers)) throw new TypeError("worker projection requires workers[]");
+  if (typeof document.aggregate !== "object" || document.aggregate === null)
+    throw new TypeError("worker projection requires aggregate");
+
+  const rows = document.workers.map((worker) => ({
+    workerId: worker.workerId,
+    taskId: worker.taskId ?? null,
+    skill: worker.skill ?? null,
+    state: worker.state,
+    activity: worker.activity ?? null,
+    attempt: worker.attempt ?? 0,
+    heartbeatAgeMs: worker.heartbeatAgeMs ?? null,
+    evidenceCount: (worker.evidenceRefs ?? []).length,
+    gateStatus: worker.gateStatus ?? null,
+  }));
+
+  const header =
+    "WORKER".padEnd(18) +
+    "TASK".padEnd(16) +
+    "SKILL".padEnd(18) +
+    "STATE".padEnd(11) +
+    "ATT".padEnd(5) +
+    "HEARTBEAT".padEnd(11) +
+    "EVID".padEnd(5) +
+    "GATE";
+  const body = rows.length
+    ? rows
+        .map(
+          (row) =>
+            String(row.workerId).padEnd(18) +
+            String(row.taskId ?? "-").padEnd(16) +
+            String(row.skill ?? "-").padEnd(18) +
+            String(row.state).padEnd(11) +
+            String(row.attempt).padEnd(5) +
+            String(row.heartbeatAgeMs === null ? "-" : `${row.heartbeatAgeMs}ms`).padEnd(11) +
+            String(row.evidenceCount).padEnd(5) +
+            String(row.gateStatus ?? "-"),
+        )
+        .join("\n")
+    : "WORKERS  (none)";
+  const summary = `WORKERS  total=${document.aggregate.workers} running=${document.aggregate.running} completed=${document.aggregate.completed} failed=${document.aggregate.failed}`;
+
+  return {
+    schema: "csm-worker-projection-render/1",
+    source: { schema: document.schema, runId: document.runId ?? null },
+    aggregate: { ...document.aggregate },
+    rows,
+    text: `${header}\n${body}\n${summary}`,
+  };
+}
+
 export const renderProgressProjection = projectProgress;
 export const renderProgress = projectProgress;
+export const renderWorkerTable = projectWorkerTable;

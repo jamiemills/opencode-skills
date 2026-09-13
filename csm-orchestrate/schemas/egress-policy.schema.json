@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-egress-policy/1",
+  "title": "CSM orchestrate egress policy",
+  "description": "Host-owned default-deny broker policy. Credentials are held broker-side and injected after the allowlist check; the worker receives only a credential-free proxy endpoint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "defaultAction",
+    "failMode",
+    "entries",
+    "credentialInjections"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-egress-policy/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "defaultAction": {
+      "const": "deny"
+    },
+    "failMode": {
+      "const": "blocked"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scheme", "host", "port"],
+        "properties": {
+          "scheme": {
+            "enum": ["http", "https", "tcp"]
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pathPrefix": {
+            "type": "string"
+          },
+          "maxBytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "credentialInjections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["host", "header", "credentialRef"],
+        "properties": {
+          "host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "header": {
+            "type": "string",
+            "minLength": 1
+          },
+          "credentialRef": {
+            "type": "string",
+            "pattern": "^credref-[a-z0-9][a-z0-9-]{1,127}$"
+          }
+        }
+      }
+    }
+  }
+}

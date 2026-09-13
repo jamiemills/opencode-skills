@@ -306,6 +306,30 @@ export function classifyConcurrency(nodes = []) {
   };
 }
 
+export function selectParallelBatch(nodes = [], { maxParallelism = 4, capabilities = null } = {}) {
+  if (!Array.isArray(nodes) || nodes.length === 0) fail("route nodes are required");
+  if (!Number.isInteger(maxParallelism) || maxParallelism < 1)
+    fail("maxParallelism must be a positive integer");
+  const { mode } = classifyConcurrency(nodes);
+  if (mode !== "parallel-independent-read-only") return nodes.slice(0, 1);
+  const skillBounds = new Map();
+  for (const entry of capabilities?.skills ?? []) {
+    const bound = entry?.bounds?.maxConcurrency;
+    if (Number.isInteger(bound) && bound >= 1) skillBounds.set(entry.skill, bound);
+  }
+  const perSkill = new Map();
+  const batch = [];
+  for (const node of nodes) {
+    if (batch.length >= maxParallelism) break;
+    const bound = skillBounds.get(node.skill) ?? maxParallelism;
+    const used = perSkill.get(node.skill) ?? 0;
+    if (used >= bound) continue;
+    perSkill.set(node.skill, used + 1);
+    batch.push(node);
+  }
+  return batch;
+}
+
 export function replayRoute(nodes = [], { evidence = new Set(), completed = new Set() } = {}) {
   const byId = new Map(nodes.map((node) => [node.nodeId, node]));
   const visiting = new Set();

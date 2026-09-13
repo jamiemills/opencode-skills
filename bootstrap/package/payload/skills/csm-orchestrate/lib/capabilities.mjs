@@ -27,10 +27,10 @@ const fail = (message) => {
 
 export async function validateCapabilities(manifest, { verifySources = true } = {}) {
   const schema = parseJson(
-    await readFile(new URL("../schemas/capabilities.schema.json", import.meta.url), "utf8"),
+    await readFile(new URL("../schemas/capabilities.v2.schema.json", import.meta.url), "utf8"),
   );
   const checked = createSchemaValidator({ schemas: [schema] }).validate(
-    "csm-orchestrate-capabilities/1",
+    "csm-orchestrate-capabilities/2",
     manifest,
   );
   if (!checked.valid)

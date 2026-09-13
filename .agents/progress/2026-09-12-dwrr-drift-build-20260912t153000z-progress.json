@@ -1,0 +1,38 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-drift-build-20260912",
+  "runId": "run-20260912t153000z-dwrr-drift-build",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime drift-remediation plan (23 tasks)",
+  "status": "active",
+  "overallPercent": 80,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Schema/config/docs/test drift",
+      "weightPercent": 30,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Runtime integration",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Sandbox + egress stack",
+      "weightPercent": 20,
+      "status": "active",
+      "verifiedFraction": 0
+    }
+  ],
+  "startedAt": "2026-09-12T16:54:40.193Z",
+  "updatedAt": "2026-09-12T17:25:29.628Z"
+}

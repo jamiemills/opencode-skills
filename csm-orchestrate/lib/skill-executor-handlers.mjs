@@ -176,6 +176,8 @@ export function createExecutorHandlers({
   csmBuildHandoffs = [],
   csmAutoresearchAdapter = null,
   csmBrowseAdapter = null,
+  thinWorkerAdapter = null,
+  thinWorkerSkills = null,
 } = {}) {
   const handlers = new Map();
   const handoffs = [
@@ -294,6 +296,22 @@ export function createExecutorHandlers({
     };
     browseHandler.csmBrowseAdapter = true;
     handlers.set("csm-browse", browseHandler);
+  }
+  // T003: register the thin child-side worker entry as an executor adapter. The
+  // adapter only runs one invocation and returns a raw child result; it owns no
+  // cursor, receipt, gate, or acceptance authority — the parent orchestrator
+  // does. Explicit handoffs registered below still override this default.
+  if (thinWorkerAdapter) {
+    if (typeof thinWorkerAdapter.execute !== "function")
+      throw new TypeError("thin worker adapter is required");
+    const skills = Array.isArray(thinWorkerSkills) ? thinWorkerSkills : csmBuildOwnedSkills();
+    for (const skill of skills) {
+      if (handlers.has(skill)) continue;
+      const thinHandler = async ({ input, signal, context }) =>
+        thinWorkerAdapter.execute({ input, signal, context });
+      thinHandler.thinWorkerAdapter = true;
+      handlers.set(skill, thinHandler);
+    }
   }
   for (const skill of ["csm-autoresearch", "csm-browse"]) {
     if (handlers.has(skill)) continue;
@@ -442,9 +460,17 @@ export function createExecutorDescriptors({
   csmBuildHandoffs = [],
   csmAutoresearchAdapter = null,
   csmBrowseAdapter = null,
+  thinWorkerAdapter = null,
+  thinWorkerSkills = null,
 } = {}) {
   if (csmBrowseAdapter && handlers.get("csm-browse")?.csmBrowseAdapter !== true)
     handlers = createExecutorHandlers({ csmBrowseAdapter });
+  const thinSkills = Array.isArray(thinWorkerSkills) ? thinWorkerSkills : csmBuildOwnedSkills();
+  if (
+    thinWorkerAdapter &&
+    !thinSkills.some((skill) => handlers.get(skill)?.thinWorkerAdapter === true)
+  )
+    handlers = createExecutorHandlers({ thinWorkerAdapter, thinWorkerSkills: thinSkills });
   const direct = ["csm-ddd", "csm-scan", "csm-upload"];
   if (csmAutoresearchAdapter && handlers.has("csm-autoresearch")) direct.push("csm-autoresearch");
   if (handlers.get("csm-browse")?.csmBrowseAdapter === true) direct.push("csm-browse");
@@ -454,7 +480,8 @@ export function createExecutorDescriptors({
   ];
   const handoffFor = (skill) => handoffs.find((item) => item?.skill === skill);
   const owned = handoffs.map((item) => item?.skill).filter((skill) => skill && handlers.has(skill));
-  return [...direct, ...owned]
+  const thin = thinSkills.filter((skill) => handlers.get(skill)?.thinWorkerAdapter === true);
+  return [...new Set([...direct, ...owned, ...thin])]
     .filter((skill) => handlers.has(skill))
     .map((skill) => {
       const capability = canonicalCapabilities.skills.find((item) => item.skill === skill);
@@ -468,25 +495,31 @@ export function createExecutorDescriptors({
             ? digest({ skill, implementation: "autoresearch-adapter/1" })
             : skill === "csm-browse"
               ? digest({ skill, implementation: "browse-adapter/1" })
-              : owned.includes(skill)
-                ? handoffFor(skill).handlerDigest
-                : digest({ skill, implementation: "direct-adapter/1" }),
+              : thin.includes(skill)
+                ? digest({ skill, implementation: "thin-worker-adapter/1" })
+                : owned.includes(skill)
+                  ? handoffFor(skill).handlerDigest
+                  : digest({ skill, implementation: "direct-adapter/1" }),
         inputSchemaDigest:
           skill === "csm-autoresearch"
             ? digest({ skill, schema: "csm-autoresearch-contract/1" })
             : skill === "csm-browse"
               ? digest({ skill, schema: "csm-browse-operation/1" })
-              : owned.includes(skill)
-                ? handoffFor(skill).inputSchemaDigest
-                : digest({ skill, schema: "input/1" }),
+              : thin.includes(skill)
+                ? digest({ skill, schema: "thin-worker-invocation/1" })
+                : owned.includes(skill)
+                  ? handoffFor(skill).inputSchemaDigest
+                  : digest({ skill, schema: "input/1" }),
         outputSchemaDigest:
           skill === "csm-autoresearch"
             ? digest({ schema: RESULT_SCHEMA, native: "csm-autoresearch-report/1" })
             : skill === "csm-browse"
               ? digest({ schema: RESULT_SCHEMA, native: "csm-browse-evidence/1" })
-              : owned.includes(skill)
-                ? handoffFor(skill).outputSchemaDigest
-                : digest({ schema: RESULT_SCHEMA }),
+              : thin.includes(skill)
+                ? digest({ schema: RESULT_SCHEMA })
+                : owned.includes(skill)
+                  ? handoffFor(skill).outputSchemaDigest
+                  : digest({ schema: RESULT_SCHEMA }),
         receiptSchemaDigest: digest({ schema: "csm-orchestrate-child-receipt/1" }),
         evidenceSchemaDigest: digest({ schema: "csm-orchestrate-evidence/2" }),
         effectiveConfigDigest:
@@ -494,9 +527,11 @@ export function createExecutorDescriptors({
             ? digest({ skill, config: "autoresearch-adapter/1" })
             : skill === "csm-browse"
               ? digest({ skill, config: "browse-adapter/1" })
-              : owned.includes(skill)
-                ? handoffFor(skill).effectiveConfigDigest
-                : digest({ skill, config: "default/1" }),
+              : thin.includes(skill)
+                ? digest({ skill, config: "thin-worker-adapter/1" })
+                : owned.includes(skill)
+                  ? handoffFor(skill).effectiveConfigDigest
+                  : digest({ skill, config: "default/1" }),
         permissions: [...capability.permissions],
         effects: [...capability.effects],
         cancellation: "cooperative",

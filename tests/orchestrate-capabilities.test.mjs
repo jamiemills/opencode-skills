@@ -11,14 +11,14 @@ import {
 const manifest = await loadCapabilities();
 const schema = parseJson(
   await readFile(
-    new URL("../csm-orchestrate/schemas/capabilities.schema.json", import.meta.url),
+    new URL("../csm-orchestrate/schemas/capabilities.v2.schema.json", import.meta.url),
     "utf8",
   ),
 );
 const validator = createSchemaValidator({ schemas: [schema] });
 
 test("all 13 capabilities validate and resolve deterministically", () => {
-  assert.equal(validator.validate("csm-orchestrate-capabilities/1", manifest).valid, true);
+  assert.equal(validator.validate("csm-orchestrate-capabilities/2", manifest).valid, true);
   assert.deepEqual(
     manifest.skills.map(({ skill }) => skill),
     [...SUPPORTED_SKILLS],
@@ -33,9 +33,9 @@ test("all 13 capabilities validate and resolve deterministically", () => {
 test("schema rejects missing capability metadata and unknown revisions", () => {
   const missing = structuredClone(manifest);
   delete missing.skills[0].recovery;
-  assert.equal(validator.validate("csm-orchestrate-capabilities/1", missing).valid, false);
+  assert.equal(validator.validate("csm-orchestrate-capabilities/2", missing).valid, false);
   assert.throws(
-    () => validator.validate("csm-orchestrate-capabilities/2", manifest),
+    () => validator.validate("csm-orchestrate-capabilities/3", manifest),
     /schema must be object or boolean/,
   );
 });
@@ -61,4 +61,23 @@ test("producer metadata is checked when present", async () => {
     "csm-review/producer.json";
   invalid.contentDigest = digest(invalid.skills);
   await assert.rejects(validateCapabilities(invalid), /producer identity mismatch/);
+});
+
+test("T016: dynamic worker-policy fields are declared for dynamic-capable skills", () => {
+  const bySkill = new Map(manifest.skills.map((capability) => [capability.skill, capability]));
+  for (const skill of [
+    "csm-build",
+    "csm-review",
+    "csm-deep-research",
+    "csm-make-tests",
+    "csm-autoresearch",
+  ]) {
+    const capability = bySkill.get(skill);
+    assert.ok(capability.execution, `${skill} missing execution`);
+    assert.ok(capability.bounds, `${skill} missing bounds`);
+    assert.ok(Array.isArray(capability.workerRoles), `${skill} missing workerRoles`);
+    assert.ok(capability.milestones, `${skill} missing milestones`);
+    assert.ok(capability.decomposition, `${skill} missing decomposition`);
+  }
+  assert.equal(bySkill.get("csm-autoresearch").decomposition.strategy, "population");
 });

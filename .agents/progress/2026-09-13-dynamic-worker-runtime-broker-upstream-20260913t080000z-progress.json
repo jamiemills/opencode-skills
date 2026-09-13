@@ -1,0 +1,45 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-broker-upstream-build-20260913",
+  "runId": "run-20260913t080000z-dwrr-broker-upstream-build",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime broker-upstream plan (10 tasks) to completion",
+  "status": "active",
+  "overallPercent": 39,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Driver/adapter tests + orphan wiring",
+      "weightPercent": 25,
+      "status": "active",
+      "verifiedFraction": 0.8
+    },
+    {
+      "id": "M3",
+      "title": "Egress + attestation hardening",
+      "weightPercent": 15,
+      "status": "active",
+      "verifiedFraction": 0.6
+    },
+    {
+      "id": "M4",
+      "title": "Runtime enforcement wiring",
+      "weightPercent": 30,
+      "status": "pending"
+    },
+    {
+      "id": "M5",
+      "title": "Decision gate + completion",
+      "weightPercent": 20,
+      "status": "pending"
+    }
+  ],
+  "startedAt": "2026-09-13T08:00:00.000Z",
+  "updatedAt": "2026-09-13T11:18:15.497Z"
+}

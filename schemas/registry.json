@@ -726,6 +726,69 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:9f5165bb805af404f883ac262db65c33f0bb7f492883eb90d2f53db31a3cc3d5"
+    },
+    {
+      "id": "csm-orchestrate-telemetry-event/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/telemetry-event.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:e9272caff0e0595dbe24c3d8201d4438afb1d77d388e90ec950804b3cb7ce375"
+    },
+    {
+      "id": "csm-orchestrate-capabilities/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/capabilities.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:7f922637e9154a25de6b3d3c8042f7aea38d6eaecdab0a9b20caaaf9bacde8d5"
+    },
+    {
+      "id": "csm-worker-projection/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/csm-worker-projection.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:8b2e98d9430e1cbdd6a5302420ee884e47725ccccb8619c89a9420094a347c36"
+    },
+    {
+      "id": "csm-orchestrate-egress-policy/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/egress-policy.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:b2acdec5c997daf97ed700281c5ff3b2b383f8f78fae6c1a39dd3a9614ab38d6"
+    },
+    {
+      "id": "csm-orchestrate-egress-event/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/egress-event.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:00af74985bb8bdadf148493a1127a59f55942f20c1c3fa2d88696d3153798045"
+    },
+    {
+      "id": "csm-orchestrate-docker-worker-policy/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/docker-worker-policy.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:4db23a7c143240b453acc8f03fbf02607b818e3cf775a0650792276af843e030"
+    },
+    {
+      "id": "csm-orchestrate-worker-attestation/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/worker-attestation.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:8949d8acb15cc9e2a073f19d06ce127fc5081670623c2b8d9ef70a521d1755f9"
     }
   ]
 }

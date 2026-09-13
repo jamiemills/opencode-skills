@@ -145,14 +145,69 @@ function normalizeOptions(options = {}) {
   });
 }
 
-function isGitWorktree(dir) {
-  if (!fs.existsSync(dir)) return false;
+// T018: the tier-1 child inherits the host environment; scrub credential-shaped
+// keys so a compromised worker cannot read deployment secrets. Explicit
+// config.env values are merged after the scrub and remain the caller's choice.
+const SENSITIVE_ENV_PATTERNS = Object.freeze([
+  /^GITHUB_TOKEN$/,
+  /^GH_TOKEN$/,
+  /^NPM_TOKEN$/,
+  /^AWS_/,
+  /_TOKEN$/,
+  /_KEY$/,
+  /_PASSWORD$/,
+  /_PASSWD$/,
+  /_SECRET$/,
+  /^SSH_AUTH_SOCK$/,
+  /^HTTPS?_PROXY$/i,
+  /^ALL_PROXY$/i,
+  /^NO_PROXY$/i,
+]);
+
+export function scrubChildEnv(base = process.env) {
+  const env = {};
+  for (const [key, value] of Object.entries(base ?? {})) {
+    if (value === undefined) continue;
+    if (SENSITIVE_ENV_PATTERNS.some((pattern) => pattern.test(key))) continue;
+    env[key] = value;
+  }
+  return env;
+}
+
+export function isGitWorktree(dir) {
+  if (typeof dir !== "string" || dir.length === 0) return false;
+  let dirStat;
   try {
-    if (!fs.statSync(dir).isDirectory()) return false;
+    dirStat = fs.lstatSync(dir);
   } catch {
     return false;
   }
-  return fs.existsSync(path.join(dir, ".git"));
+  if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) return false;
+  const marker = path.join(dir, ".git");
+  let markerStat;
+  try {
+    markerStat = fs.lstatSync(marker);
+  } catch {
+    return false;
+  }
+  if (markerStat.isSymbolicLink()) return false;
+  return markerStat.isFile() || markerStat.isDirectory();
+}
+
+export function killTree(child, signal) {
+  if (!child || typeof child.pid !== "number") return;
+  try {
+    process.kill(-child.pid, signal);
+    return;
+  } catch {
+    // Not a process-group leader (or platform without negative-pid kill):
+    // fall back to killing the direct child.
+  }
+  try {
+    child.kill(signal);
+  } catch {
+    // already gone
+  }
 }
 
 function gitTopLevel(cwd) {
@@ -195,17 +250,17 @@ function runToCompletion(spawnFn, file, args, options, timeoutMs = 60_000) {
       });
     };
     try {
-      child = spawnFn(file, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
+      child = spawnFn(file, args, {
+        ...options,
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
     } catch (error) {
       reject(error);
       return;
     }
     const timer = setTimeout(() => {
-      try {
-        child.kill("SIGKILL");
-      } catch {
-        // already gone
-      }
+      killTree(child, "SIGKILL");
     }, timeoutMs);
     capture(child.stdout, "stdout");
     capture(child.stderr, "stderr");
@@ -221,7 +276,12 @@ function runToCompletion(spawnFn, file, args, options, timeoutMs = 60_000) {
 }
 
 function launch(spawnFn, file, args, cwd, env) {
-  const child = spawnFn(file, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawnFn(file, args, {
+    cwd,
+    env,
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   const output = { stdout: "", stderr: "" };
   child.stdout?.on("data", (chunk) => {
     output.stdout = (output.stdout + String(chunk)).slice(-MAX_CHILD_BYTES);
@@ -250,11 +310,7 @@ async function waitForSessionOutput({ child, outputPath, timeoutMs, pollInterval
   });
   const deadline = Date.now() + timeoutMs;
   const kill = (sig) => {
-    try {
-      child.kill(sig);
-    } catch {
-      // already gone
-    }
+    killTree(child, sig);
   };
   const timer = setTimeout(() => kill("SIGTERM"), timeoutMs);
   if (typeof timer.unref === "function") timer.unref();
@@ -304,7 +360,7 @@ async function ensureWorktree(config, request) {
   }
   if (isGitWorktree(worktree)) return worktree;
   const repoRoot = config.repoRoot ?? gitTopLevel(process.cwd());
-  const env = { ...process.env, ...config.env };
+  const env = { ...scrubChildEnv(process.env), ...config.env };
   const outcome = await runToCompletion(
     config.spawn,
     process.execPath,
@@ -329,6 +385,14 @@ async function copyPlanArtifact(config, request, worktree) {
   await mkdir(plansDir(worktree), { recursive: true });
   if (artifactPath) {
     const source = path.resolve(artifactPath);
+    let sourceStat;
+    try {
+      sourceStat = fs.lstatSync(source);
+    } catch {
+      throw new Error("plan artifact path does not exist");
+    }
+    if (sourceStat.isSymbolicLink() || !sourceStat.isFile())
+      throw new Error("plan artifact must be a regular file, not a symlink or directory");
     const base = path.basename(source);
     const safeBase = base === "." || base === ".." || base === "" ? "plan.json" : base;
     const target = path.join(plansDir(worktree), safeBase);
@@ -458,7 +522,7 @@ async function runAgentSession(config, request, layout) {
     ["run", "--prompt-file", layout.promptPath],
     layout.worktree,
     {
-      ...process.env,
+      ...scrubChildEnv(process.env),
       ...config.env,
       CSM_AGENT_SESSION_ENVELOPE: layout.envelopePath,
       CSM_AGENT_SESSION_EVIDENCE_DIR: layout.evidenceDir,

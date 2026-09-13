@@ -4,7 +4,7 @@ OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
-.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-policy test-bootstrap test-orchestrate test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
+.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -59,6 +59,52 @@ test-bootstrap: ## bootstrap suites (serial; self-pack) + resume-semantics corpu
 
 test-orchestrate: ## csm-orchestrate unit and integration tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-*.test.mjs
+
+test-worker-runtime: ## dynamic worker-runtime suites (telemetry, reducer, scheduler, leases, thin entry)
+	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/telemetry/*.test.mjs tests/orchestration-store/*.test.mjs tests/orchestrate-worker-state.test.mjs tests/orchestrate-lifecycle-hooks.test.mjs tests/orchestrate-batch-width.test.mjs tests/orchestrate-dynamic-scheduler.test.mjs tests/orchestrate-sandbox-egress-schemas.test.mjs tests/worker-projection-render.test.mjs tests/run-worker.test.mjs tests/executor-hardening.test.mjs
+
+test-contracts: ## previously-orphaned artifact/JSON contract, config-adapter, rollout, and host-assurance suites
+	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 \
+	  tests/adapter-replay.test.mjs \
+	  tests/artifact-resolver*.test.mjs \
+	  tests/autoresearch-compatibility.test.mjs \
+	  tests/bdd-*.test.mjs \
+	  tests/browse-upload-json-contract.test.mjs \
+	  tests/build-*.test.mjs \
+	  tests/commit-scope.test.mjs \
+	  tests/compatibility.test.mjs \
+	  tests/config-artifact-adapters/*.test.mjs \
+	  tests/config-baseline/*.test.mjs \
+	  tests/config-envelope.test.mjs \
+	  tests/config-high-risk-adapters/*.test.mjs \
+	  tests/config-readonly-adapters/*.test.mjs \
+	  tests/config-resolver.test.mjs \
+	  tests/config-security.test.mjs \
+	  tests/consumer-edge-adapter.test.mjs \
+	  tests/consumer-edge-inventory.test.mjs \
+	  tests/ddd-*.test.mjs \
+	  tests/durable-json-safety.test.mjs \
+	  tests/environment-preflight.test.mjs \
+	  tests/evidence-status.test.mjs \
+	  tests/evals/orchestration/*.test.mjs \
+	  tests/final-receipt.test.mjs \
+	  tests/grill-json-contract.test.mjs \
+	  tests/host-assurance/*.test.mjs \
+	  tests/json-migration-characterization.test.mjs \
+	  tests/legacy-artifact-compatibility.test.mjs \
+	  tests/make-tests-*.test.mjs \
+	  tests/norms-json-contract.test.mjs \
+	  tests/plan-*.test.mjs \
+	  tests/progress-projection.test.mjs \
+	  tests/progress-rollup.test.mjs \
+	  tests/progress-schema.test.mjs \
+	  tests/projection-discovery-negative.test.mjs \
+	  tests/publication-protocol.test.mjs \
+	  tests/render-*.test.mjs \
+	  tests/research-json-contract.test.mjs \
+	  tests/review-json-contract.test.mjs \
+	  tests/rollout/*.test.mjs \
+	  tests/schema-*.test.mjs
 
 test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, worktree sessions, and gate wiring)
 	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/adapter-gate-wiring.test.mjs
@@ -149,4 +195,4 @@ test-adapter-integrations-required: ## run all approved real adapter gates; unav
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --browser-e2e-required; \
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --generated-sandbox-required
 
-test: test-hooks test-policy test-bootstrap test-orchestrate test-suite-tooling test-deterministic test-pack-concurrency test-gen-capabilities test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-progress-tracker test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)
+test: test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-suite-tooling test-deterministic test-pack-concurrency test-gen-capabilities test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-progress-tracker test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

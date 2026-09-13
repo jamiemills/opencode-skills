@@ -1,0 +1,43 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-gap-remediation-plan-20260913",
+  "runId": "run-20260913t170000z-dwrr-gap-remediation-plan",
+  "skill": "csm-plan",
+  "goal": "Plan remediation of all dynamic-worker-runtime broker-completion gaps (blockers and non-blockers)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Intake + discover",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Evidence + critique",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Draft plan",
+      "weightPercent": 30,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "Save",
+      "weightPercent": 15,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-13T17:00:00.000Z",
+  "updatedAt": "2026-09-13T13:34:12.694Z"
+}

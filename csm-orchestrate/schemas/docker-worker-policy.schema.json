@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-docker-worker-policy/1",
+  "title": "CSM docker worker sandbox policy",
+  "description": "Versioned build-shaped sandbox envelope. Preserves the no-host-mount, read-only-rootfs, cap-drop, no-new-privileges isolation controls while sizing memory/pids/timeout for a long-lived build worker. Resource envelopes are versioned; the evaluator /1 policy stays frozen.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "image",
+    "network",
+    "mounts",
+    "rootFilesystem",
+    "workspace",
+    "limits",
+    "session",
+    "attestation"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-docker-worker-policy/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "image": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9./:-]*@sha256:[a-f0-9]{64}$"
+    },
+    "network": {
+      "enum": ["none", "broker"]
+    },
+    "mounts": {
+      "const": []
+    },
+    "rootFilesystem": {
+      "const": "read-only"
+    },
+    "capabilitiesDrop": {
+      "type": "array",
+      "const": ["ALL"]
+    },
+    "noNewPrivileges": {
+      "const": true
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "path", "sizeBytes"],
+      "properties": {
+        "mode": {
+          "const": "tmpfs"
+        },
+        "path": {
+          "const": "/workspace"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memoryBytes", "pidsLimit", "cpuQuota", "cpuPeriod", "sessionTimeoutMs"],
+      "properties": {
+        "memoryBytes": {
+          "type": "integer",
+          "minimum": 1073741824
+        },
+        "pidsLimit": {
+          "type": "integer",
+          "minimum": 512
+        },
+        "cpuQuota": {
+          "type": "integer",
+          "minimum": 1000
+        },
+        "cpuPeriod": {
+          "type": "integer",
+          "minimum": 1000
+        },
+        "sessionTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "heartbeatMs", "reapingInit"],
+      "properties": {
+        "mode": {
+          "const": "long-lived"
+        },
+        "heartbeatMs": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "reapingInit": {
+          "const": true
+        }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "cadenceMs", "controls"],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "cadenceMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 300000
+        },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

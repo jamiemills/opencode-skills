@@ -10,6 +10,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { autonomyGate } from "../csm-orchestrate/lib/recovery.mjs";
 import {
+  createMemoryTransport,
+  createTelemetryEmitter,
+} from "../csm-orchestrate/lib/telemetry.mjs";
+import {
   createSqliteStore,
   OrchestrationStoreError,
   resolveSqliteDriver,
@@ -295,12 +299,19 @@ test("maxSteps caps global dispatches with an INCOMPLETE receipt", async () => {
 test("abort signal halts the run with a clean INCOMPLETE receipt", async () => {
   const controller = new AbortController();
   const host = hostFixture({ afterInvoke: () => controller.abort() });
+  const transport = createMemoryTransport();
+  const telemetryEmitter = createTelemetryEmitter({
+    runId: "run-autonomy-abort",
+    effectiveConfigDigest: SHA_A,
+    transport,
+  });
   const result = await orchestrate(
     await autonomyOptions(host, {
       runId: "run-autonomy-abort",
       phaseCount: 3,
       signals: { capabilities: ["csm-scan"] },
       signal: controller.signal,
+      telemetryEmitter,
     }),
   );
   assert.equal(result.outcome.status, "INCOMPLETE");
@@ -309,6 +320,50 @@ test("abort signal halts the run with a clean INCOMPLETE receipt", async () => {
   assert.equal(result.schema, "csm-orchestrate-receipt/2");
   assert.match(result.receiptId, /^receipt-run-autonomy-abort-/);
   assert.equal(result.statuses.verification, "incomplete");
+  const events = transport.list();
+  assert.equal(events.filter((event) => event.eventType === "cancellation").length, 1);
+  assert.deepEqual(events.find((event) => event.eventType === "cancellation").payload, {
+    reason: "aborted",
+  });
+});
+
+test("stale worker leases reconcile as visible replayed events without failing the run", async () => {
+  const host = hostFixture();
+  const transport = createMemoryTransport();
+  const telemetryEmitter = createTelemetryEmitter({
+    runId: "run-autonomy-stale",
+    effectiveConfigDigest: SHA_A,
+    transport,
+  });
+  const cursorStore = {
+    ...memoryCursorStore(),
+    async reconcileStaleWorkers() {
+      return [
+        {
+          workerId: "worker-build-1",
+          runId: "run-autonomy-stale",
+          taskId: "task-build-1",
+          attempt: 1,
+          expiresAt: "2026-08-27T11:00:00.000Z",
+        },
+      ];
+    },
+  };
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-stale",
+      signals: { capabilities: ["csm-scan"] },
+      telemetryEmitter,
+      cursorStore,
+    }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED");
+  const events = transport.list();
+  const replayed = events.filter((event) => event.eventType === "worker.replayed");
+  assert.equal(replayed.length, 1);
+  assert.equal(replayed[0].workerId, "worker-build-1");
+  assert.equal(replayed[0].taskId, "task-build-1");
+  assert.ok(events.some((event) => event.eventType === "reconciliation"));
 });
 
 test("autonomyGate preflight blocks runs with missing prerequisites", async () => {
@@ -547,4 +602,180 @@ test("durable store wiring records idempotency and dispatch intents around each 
   const approvalRecord = calls.find(([kind]) => kind === "approval");
   assert.equal(approvalRecord[1], `approval-auto-${childRunId}`);
   assert.equal(approvalRecord[2], cursorId);
+});
+
+test("T002/T005: loop emits v2 worker lifecycle events and fires all seven hooks", async () => {
+  const seen = new Set();
+  const record = (name) => () => seen.add(name);
+  const lifecycleHooks = {
+    "worker-start": [record("worker-start")],
+    "worker-stop": [record("worker-stop")],
+    "task-create": [record("task-create")],
+    "task-complete": [record("task-complete")],
+    "tool-exec": [record("tool-exec")],
+    checkpoint: [record("checkpoint")],
+    cancel: [record("cancel")],
+  };
+  const transport = createMemoryTransport();
+  const telemetryEmitter = createTelemetryEmitter({
+    runId: "run-autonomy-hooks",
+    effectiveConfigDigest: SHA_A,
+    transport,
+  });
+  const host = hostFixture();
+  await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-hooks",
+      signals: { capabilities: ["csm-scan"] },
+      lifecycleHooks,
+      telemetryEmitter,
+    }),
+  );
+  const controller = new AbortController();
+  const abortHost = hostFixture({ afterInvoke: () => controller.abort() });
+  await orchestrate(
+    await autonomyOptions(abortHost, {
+      runId: "run-autonomy-hooks-abort",
+      signals: { capabilities: ["csm-scan"] },
+      signal: controller.signal,
+      lifecycleHooks,
+    }),
+  );
+  for (const name of [
+    "worker-start",
+    "worker-stop",
+    "task-create",
+    "task-complete",
+    "tool-exec",
+    "checkpoint",
+    "cancel",
+  ])
+    assert.ok(seen.has(name), `hook ${name} did not fire`);
+  const types = transport.list().map((event) => event.eventType);
+  for (const type of ["task.created", "worker.started", "worker.completed", "task.completed"])
+    assert.ok(types.includes(type), `telemetry missing ${type}`);
+});
+
+test("T003: an approved dynamicProposal is compiled and executed through executeNode", async () => {
+  const host = hostFixture();
+  const real = await loadCapabilities();
+  const approvals = async ({ phase, node, childRunId }) => {
+    const capability = real.skills.find((entry) => entry.skill === node.skill);
+    return {
+      schema: "csm-orchestrate-approval/2",
+      approvalId: `approval-dynamic-${childRunId}`,
+      binding: {
+        parentRunId: phase.runId,
+        childRunId,
+        phaseId: phase.phaseId,
+        edgeId: `edge-${node.nodeId}`,
+      },
+      scope: [...capability.permissions],
+      approvedDigest: capability.digest,
+      approvedAt: new Date(Date.now() - 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      status: "approved",
+    };
+  };
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-dynamic",
+      signals: { capabilities: ["csm-scan"] },
+      approvals,
+      dynamicProposal: {
+        phaseId: "phase-dynamic",
+        nodes: [{ taskId: "dyn-1", skill: "csm-review" }],
+      },
+      dynamicApproved: true,
+      dynamicRouteKind: "research",
+    }),
+  );
+  assert.notEqual(result.outcome.status, "BLOCKED", JSON.stringify({ reason: result.reason }));
+  assert.ok(host.calls >= 2, `expected the dynamic worker to dispatch (calls=${host.calls})`);
+  assert.ok(
+    result.childReceipts.some((receipt) => receipt.owner === "csm-review"),
+    "the dynamic proposal must dispatch through executeNode",
+  );
+});
+
+test("T003: dynamic mode is refused for the plan route", async () => {
+  const host = hostFixture();
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-dynamic-plan",
+      signals: { capabilities: ["csm-scan"] },
+      dynamicProposal: {
+        phaseId: "phase-dynamic",
+        nodes: [{ taskId: "review-1", skill: "csm-review" }],
+      },
+      dynamicApproved: true,
+      dynamicRouteKind: "plan",
+    }),
+  );
+  assert.equal(result.outcome.status, "BLOCKED");
+  assert.equal(result.reason, "dynamic-refused-plan-route");
+});
+
+test("T003: an unapproved dynamicProposal is refused", async () => {
+  const host = hostFixture();
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-dynamic-unapproved",
+      signals: { capabilities: ["csm-scan"] },
+      dynamicProposal: {
+        phaseId: "phase-dynamic",
+        nodes: [{ taskId: "review-1", skill: "csm-review" }],
+      },
+    }),
+  );
+  assert.equal(result.outcome.status, "BLOCKED");
+  assert.equal(result.reason, "dynamic-approval-required");
+});
+
+test("T004: worker leases are claimed and released around dispatch", async () => {
+  const claims = [];
+  const releases = [];
+  const cursorStore = {
+    ...memoryCursorStore(),
+    async claimWorker({ workerId }) {
+      claims.push(workerId);
+      return { leaseToken: `lease-${workerId}`, fencingToken: 1 };
+    },
+    async heartbeatWorker() {},
+    async releaseWorker({ workerId, state }) {
+      releases.push(`${workerId}:${state}`);
+    },
+  };
+  const host = hostFixture();
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-lease",
+      signals: { capabilities: ["csm-scan"] },
+      cursorStore,
+    }),
+  );
+  assert.equal(result.outcome.status, "VERIFIED");
+  assert.ok(claims.length >= 1, "a worker lease must be claimed");
+  assert.ok(releases.length >= 1, "the worker lease must be released");
+});
+
+test("T003: a duplicate live worker lease blocks the run with worker-lease-held", async () => {
+  const cursorStore = {
+    ...memoryCursorStore(),
+    async claimWorker() {
+      throw new Error("worker lease is held by another live run");
+    },
+    async heartbeatWorker() {},
+    async releaseWorker() {},
+  };
+  const host = hostFixture();
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-lease-held",
+      signals: { capabilities: ["csm-scan"] },
+      cursorStore,
+    }),
+  );
+  assert.equal(result.outcome.status, "BLOCKED");
+  assert.equal(result.reason, "worker-lease-held");
 });

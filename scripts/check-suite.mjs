@@ -1023,6 +1023,113 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
   return { isComplete, hasDeferred, issues, warnings };
 }
 
+// T007: every git-tracked tests/**/*.test.mjs must be reachable from a Makefile
+// target or a CI workflow reference, so a newly added test cannot silently
+// become CI-orphaned. Reachability matches a literal path or a simple
+// segment-scoped `*` glob. Enumeration is driven by git's tracked set, so an
+// in-progress untracked test cannot block the gate (F-053 semantics).
+//
+// KNOWN_UNWIRED_TESTS is a deliberately small, justified allowlist of tracked
+// suites that currently FAIL when executed, so wiring them into a Makefile
+// target would make `make test` red. These are pre-existing failures unrelated
+// to orphan wiring (artifact-resolver/schema drift and progress-tracker
+// contract drift); each is a recorded finding, not silent debt, and must be
+// removed (and wired) as soon as its suite is repaired. The check fails if an
+// allowlisted entry stops being tracked or becomes wired, so it cannot rot.
+const KNOWN_UNWIRED_TESTS = Object.freeze(
+  new Map([
+    [
+      "tests/consumer-replay-matrix.test.mjs",
+      "csm-scan->csm-plan resolver returns 'rejected' (expected 'resolved')",
+    ],
+    [
+      "tests/digest-taxonomy.test.mjs",
+      "resolver returns 'schema-invalid'/'rejected' instead of digest-taxonomy errors",
+    ],
+    ["tests/grill-plan-replay.test.mjs", "plan replay returns 'rejected' (expected 'resolved')"],
+    [
+      "tests/json-only-cutover.test.mjs",
+      "resolver returns 'schema-invalid' instead of 'payload-digest-mismatch'",
+    ],
+    [
+      "tests/lifecycle-contract.test.mjs",
+      "csm-make-tests SKILL.md lacks the run-id tests-ledger path pattern",
+    ],
+    [
+      "tests/progress-tracker-contract.test.mjs",
+      "SKILL.md declares 'csm-skill-progress/1'; test expects 'csm-progress/1'",
+    ],
+    ["tests/standalone-progress.test.mjs", "standalone boundary contract drift"],
+  ]),
+);
+
+// True when a Makefile/CI `reference` (literal path or `*` glob) covers a
+// tracked test path. `*` never crosses a path segment.
+function globTestReferenceMatches(reference, relative) {
+  if (!reference.includes("*")) return reference === relative;
+  const pattern = reference
+    .split("*")
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[^/]*");
+  return new RegExp(`^${pattern}$`).test(relative);
+}
+
+function collectTestReferences(rootDir) {
+  const sources = ["Makefile"];
+  const workflowsDir = path.join(rootDir, ".github", "workflows");
+  try {
+    for (const name of fs.readdirSync(workflowsDir)) {
+      if (/\.ya?ml$/.test(name)) sources.push(path.join(".github", "workflows", name));
+    }
+  } catch {
+    // no workflows directory: the Makefile is the only reference source
+  }
+  const references = [];
+  for (const rel of sources) {
+    const content = readOrNull(path.join(rootDir, rel));
+    if (content === null) continue;
+    for (const match of content.matchAll(/[A-Za-z0-9_./*-]+\.test\.mjs/g))
+      references.push(match[0]);
+  }
+  return references;
+}
+
+function trackedTestFiles(rootDir, tracked) {
+  if (tracked !== null)
+    return [...tracked].filter((file) => /^tests\/.*\.test\.mjs$/.test(file)).toSorted();
+  // No git (planted-defect corpora): walk the tree so every test stays visible.
+  return walkRelFiles(path.join(rootDir, "tests"))
+    .filter((file) => file.endsWith(".test.mjs"))
+    .map((file) => `tests/${file}`)
+    .toSorted();
+}
+
+function checkOrphanTests(rootDir, tracked) {
+  if (readOrNull(path.join(rootDir, "Makefile")) === null) return ["Makefile is not readable"];
+  const references = collectTestReferences(rootDir);
+  const matchesAny = (relative) =>
+    references.some((reference) => globTestReferenceMatches(reference, relative));
+  const files = trackedTestFiles(rootDir, tracked);
+  const trackedSet = new Set(files);
+  const issues = [];
+  for (const relative of files) {
+    if (matchesAny(relative)) continue;
+    if (KNOWN_UNWIRED_TESTS.has(relative)) continue;
+    issues.push(`${relative} is not referenced by a Makefile/CI target`);
+  }
+  for (const [relative, reason] of KNOWN_UNWIRED_TESTS) {
+    if (!trackedSet.has(relative))
+      issues.push(
+        `allowlisted test ${relative} is no longer tracked — remove it from KNOWN_UNWIRED_TESTS (${reason})`,
+      );
+    else if (matchesAny(relative))
+      issues.push(
+        `allowlisted test ${relative} is now wired — remove it from KNOWN_UNWIRED_TESTS (${reason})`,
+      );
+  }
+  return issues;
+}
+
 function main() {
   const skillDirs = discoverSkillDirs();
   const skillManifest = loadSkillManifest(root);
@@ -1815,6 +1922,7 @@ function main() {
   if (matrixDrift !== null) check(false, matrixDrift);
 
   for (const issue of checkDependencyPolicy(root)) check(false, `dependency policy: ${issue}`);
+  for (const issue of checkOrphanTests(root, tracked)) check(false, `orphan tests: ${issue}`);
 
   // Lint gate — repo-wide oxlint against the committed quality bar
   // (.oxlintrc.json). Conditional: skipped with a notice when oxlint is not

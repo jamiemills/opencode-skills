@@ -23,6 +23,13 @@ const SCHEMA_FILES = [
   "cursor.v2.schema.json",
   "skill-executor.v1.schema.json",
   "child-attempt.v1.schema.json",
+  "telemetry-event.v2.schema.json",
+  "capabilities.v2.schema.json",
+  "csm-worker-projection.schema.json",
+  "egress-policy.schema.json",
+  "egress-event.schema.json",
+  "docker-worker-policy.schema.json",
+  "worker-attestation.schema.json",
 ];
 let validatorPromise;
 

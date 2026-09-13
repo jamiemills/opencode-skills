@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-egress-event/1",
+  "title": "CSM orchestrate egress audit event",
+  "description": "Append-only keyed hash-chained record of one mediated egress attempt (allowed or denied). The chain head is HMAC-keyed with a keyId; external anchoring of the head outside the worker trust domain is a deployment requirement. Target identity uses targetHost/targetOrigin (never url/uri); only an opaque credentialRef is recorded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "sequence",
+    "previousHash",
+    "recordHash",
+    "runId",
+    "decision",
+    "targetHost",
+    "targetPort",
+    "timestamp",
+    "anchor"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-egress-event/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "previousHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "recordHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "taskId": {
+      "type": ["string", "null"]
+    },
+    "workerId": {
+      "type": ["string", "null"]
+    },
+    "invocationId": {
+      "type": ["string", "null"]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "decision": {
+      "enum": ["allowed", "denied", "dropped-unmediated"]
+    },
+    "scheme": {
+      "type": ["string", "null"]
+    },
+    "targetHost": {
+      "type": "string",
+      "minLength": 1
+    },
+    "targetOrigin": {
+      "type": ["string", "null"]
+    },
+    "targetPort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "requestMethod": {
+      "type": ["string", "null"]
+    },
+    "requestPath": {
+      "type": ["string", "null"]
+    },
+    "bytesIn": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "bytesOut": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "latencyMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "reasonCode": {
+      "type": ["string", "null"]
+    },
+    "policyDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "credentialRef": {
+      "type": ["string", "null"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "headDigest", "signedAt", "external"],
+      "description": "Keyed head anchored outside the worker trust domain; an unkeyed chain is forgeable and is not accepted as verified.",
+      "properties": {
+        "algorithm": {
+          "enum": ["hmac-sha256", "ed25519"]
+        },
+        "keyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "external": {
+          "const": true
+        }
+      }
+    }
+  }
+}

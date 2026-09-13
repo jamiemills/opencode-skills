@@ -1,0 +1,84 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-dynamic-worker-runtime-completion-build-20260912",
+  "runId": "run-20260912t170000z-dwrr-completion-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "CHECKPOINT",
+    "cycle": 2,
+    "nextTransition": "CHECKPOINT -> SELECT",
+    "activeTasks": [],
+    "blockers": [],
+    "lastCheckpoint": "2026-09-12T17:40:38.720Z: completion cycle 2 - T002/T003/T005/T011/T012/T016 complete; T015 partial; T001/T004/T006-T010/T013/T014 remain",
+    "lastModelRun": "deepseek-flash / dwrr-completion-build"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-dynamic-worker-runtime-completion-20260912",
+      "schema": "csm-plan/1",
+      "runId": "run-20260912t170000z-dwrr-completion",
+      "owner": "csm-plan",
+      "digest": "sha256:7d06259ec4a5517154f9ea371e1b39c61b827bb8de2ed9197aa303fa75c88baa",
+      "path": ".agents/plans/2026-09-12-dynamic-worker-runtime-completion-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-12T17:25:29.522Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "explicit csm-build invocation",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-12T17:25:29.522Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "T002/T005/T011/T012/T015/T016",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-12T17:25:29.522Z",
+      "from": "VERIFY",
+      "to": "CHECKPOINT",
+      "evidence": "test-orchestrate 325/0; gates green; cycle 1",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-12T17:40:38.722Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "T003 driver/reducer wiring",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-12T17:40:38.722Z",
+      "from": "VERIFY",
+      "to": "CHECKPOINT",
+      "evidence": "test-orchestrate green; cycle 2",
+      "nextState": "CHECKPOINT"
+    }
+  ],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-dynamic-worker-runtime-completion-20260912",
+    "sourceDigests": []
+  },
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
+}

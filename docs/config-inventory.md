@@ -880,12 +880,13 @@ tests/config-high-risk-adapters/*.test.mjs tests/orchestrate-*.test.mjs` —
   reported via `getBackendInfo()` (`durable: false` when WAL was requested
   but `node:sqlite` is unavailable — never silently pretending a Map is
   durable).
-- **Schema (migration v1, `STORE_SCHEMA_VERSION = 1`)**: the agreed tables —
+- **Schema (migrations v1-v2, `STORE_SCHEMA_VERSION = 2`)**: the agreed tables —
   `schema_version`, `cursors` (revision CAS), `fencing_tokens` (monotonic
   token per cursor, `UNIQUE(cursor_id)`), `approvals` (one-time
   consumption), `idempotency` (unique key), `dispatch_intents`,
   `events` (append-only history), `terminal_receipts` (monotonic),
-  `reconciliations` (UNKNOWN tracking) — plus two deliberate additions:
+  `reconciliations` (UNKNOWN tracking), and `worker_leases` (MIGRATION_V2;
+  per-worker lease/heartbeat/fencing) — plus two deliberate additions:
   `cursors.document` (full cursor JSON so `loadCursor` round-trips the
   schema-validated `csm-orchestrate-cursor/2` document byte-faithfully) and
   lookup indexes on `events.cursor_id`, `terminal_receipts.run_id`,

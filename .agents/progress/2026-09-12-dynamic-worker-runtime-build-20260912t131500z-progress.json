@@ -1,0 +1,44 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dynamic-worker-runtime-build-20260912",
+  "runId": "run-20260912t131500z-dynamic-worker-runtime-build",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime plan (22 tasks; T001/T002 hard-gate spikes first)",
+  "status": "active",
+  "overallPercent": 73,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Hard-gate spikes T001/T002",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Core implementation batches",
+      "weightPercent": 40,
+      "status": "active",
+      "verifiedFraction": 0.95
+    },
+    {
+      "id": "M4",
+      "title": "Verification + review",
+      "weightPercent": 15,
+      "status": "pending"
+    },
+    {
+      "id": "M5",
+      "title": "Checkpoint + complete",
+      "weightPercent": 10,
+      "status": "pending"
+    }
+  ],
+  "startedAt": "2026-09-12T13:14:45.170Z",
+  "updatedAt": "2026-09-12T16:25:47.970Z"
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-dynamic-worker-runtime-remaining-build-20260912",
+  "runId": "run-20260912t183000z-dwrr-remaining-build",
+  "owner": "csm-build",
+  "status": "in_progress",
+  "control": {
+    "currentState": "CHECKPOINT",
+    "cycle": 1,
+    "nextTransition": "CHECKPOINT -> SELECT",
+    "activeTasks": [],
+    "blockers": [],
+    "lastCheckpoint": "2026-09-12T18:25:08.413Z: remaining cycle 1 - T002/T003/T004/T013 complete; T001 partial; T005-T012 remain",
+    "lastModelRun": "deepseek-flash / dwrr-remaining-build"
+  },
+  "inputs": [
+    {
+      "name": "plan",
+      "artifactId": "art-dynamic-worker-runtime-remaining-20260912",
+      "schema": "csm-plan/1",
+      "runId": "run-20260912t183000z-dwrr-remaining",
+      "owner": "csm-plan",
+      "digest": "sha256:ebc218438aee0258ebb224b39d9943ce593e863ac8d0985adc26dadff17ed3b6",
+      "path": ".agents/plans/2026-09-12-dynamic-worker-runtime-remaining-csm.json",
+      "status": "resolved"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-12T18:25:35.448Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "explicit csm-build invocation",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-12T18:25:35.448Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "T002/T003/T004/T013",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-12T18:25:35.448Z",
+      "from": "VERIFY",
+      "to": "CHECKPOINT",
+      "evidence": "test-orchestrate 325/0 x2; gates green; cycle 1",
+      "nextState": "CHECKPOINT"
+    }
+  ],
+  "artifacts": [],
+  "completion": null,
+  "provenance": {
+    "sourcePlan": "art-dynamic-worker-runtime-remaining-20260912",
+    "sourceDigests": [
+      "sha256:ebc218438aee0258ebb224b39d9943ce593e863ac8d0985adc26dadff17ed3b6"
+    ]
+  },
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
+}

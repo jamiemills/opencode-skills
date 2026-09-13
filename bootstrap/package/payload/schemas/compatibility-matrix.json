@@ -97,6 +97,55 @@
       "consumerRevision": 2,
       "status": "incompatible",
       "adapter": "orchestrate-cursor-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-telemetry-event",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-capabilities",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-worker-projection",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-egress-policy",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-egress-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-docker-worker-policy",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-worker-attestation",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
     }
   ],
   "adapters": [

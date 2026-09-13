@@ -1,7 +1,7 @@
 {
-  "schema": "csm-orchestrate-capabilities/1",
-  "version": 1,
-  "contentDigest": "sha256:098062a5d749933b407ad2faccf61b39e4b279aac5d5a3c546d195f9aad245c4",
+  "schema": "csm-orchestrate-capabilities/2",
+  "version": 2,
+  "contentDigest": "sha256:70e05aa79aef93c37719b0f36177f9ee872b100de4ac53ba6769cdf35ba548ef",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -16,7 +16,7 @@
     {
       "skill": "csm-autoresearch",
       "version": "1",
-      "digest": "sha256:850b802e1cec7f2e6e3cf220cf6b72c207f98d97572859e52d15985c51edd5ae",
+      "digest": "sha256:444bfe46369ccd324c83c2ce62a94b3f93388e51618b4f66c620e7ffb849ca8e",
       "source": {
         "skillPath": "csm-autoresearch/SKILL.md",
         "producerPath": "csm-autoresearch/producer.json"
@@ -67,6 +67,62 @@
       "terminal": {
         "behavior": "stopped, rejected, quarantined, or approval-ready report",
         "statuses": ["STOPPED", "BLOCKED", "APPROVAL_REQUIRED"]
+      },
+      "execution": {
+        "isolation": "verified-sandbox",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "tmpfs",
+        "attestation": "required"
+      },
+      "bounds": {
+        "maxConcurrency": 4,
+        "maxDepth": 2,
+        "maxAgents": 64,
+        "maxItems": 1000
+      },
+      "workerRoles": [
+        {
+          "id": "proposer",
+          "kind": "proposer",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "judge2",
+          "kind": "judge",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "evaluator3",
+          "kind": "evaluator",
+          "schema": "csm-artifact/1"
+        }
+      ],
+      "milestones": [
+        {
+          "id": "M1",
+          "title": "Frame",
+          "weightPercent": 20
+        },
+        {
+          "id": "M2",
+          "title": "Execute",
+          "weightPercent": 50
+        },
+        {
+          "id": "M3",
+          "title": "Verify",
+          "weightPercent": 20
+        },
+        {
+          "id": "M4",
+          "title": "Close",
+          "weightPercent": 10
+        }
+      ],
+      "decomposition": {
+        "strategy": "population",
+        "bound": 1000
       }
     },
     {
@@ -111,6 +167,19 @@
       "terminal": {
         "behavior": "hands off JSON package for explicit build",
         "statuses": ["SAVED", "BLOCKED", "INCOMPLETE"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 1,
+        "maxDepth": 0,
+        "maxAgents": 1,
+        "maxItems": 1
       }
     },
     {
@@ -154,12 +223,25 @@
       "terminal": {
         "behavior": "returns JSON evidence descriptors and referenced files",
         "statuses": ["COMPLETED", "BLOCKED", "INCOMPLETE"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "broker",
+        "credentials": "host-mediated",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 1,
+        "maxDepth": 0,
+        "maxAgents": 1,
+        "maxItems": 1
       }
     },
     {
       "skill": "csm-build",
       "version": "1",
-      "digest": "sha256:3c036f501003973554d93d7786d5ea9d2e9b720e279732cf5a099393fc0530c0",
+      "digest": "sha256:4a719191b518a70b53d6cbce1e31d9aef6add9a6b305bbf9bb0af3d829088344",
       "source": {
         "skillPath": "csm-build/SKILL.md",
         "producerPath": null
@@ -197,7 +279,58 @@
       "terminal": {
         "behavior": "terminal executor returns typed delivery evidence",
         "statuses": ["VERIFIED", "INCOMPLETE", "BLOCKED", "FAILED"]
-      }
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 4,
+        "maxDepth": 1,
+        "maxAgents": 16,
+        "maxItems": 256
+      },
+      "decomposition": {
+        "strategy": "ready-set",
+        "bound": 8
+      },
+      "workerRoles": [
+        {
+          "id": "executor",
+          "kind": "executor",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "reviewer2",
+          "kind": "reviewer",
+          "schema": "csm-artifact/1"
+        }
+      ],
+      "milestones": [
+        {
+          "id": "M1",
+          "title": "Frame",
+          "weightPercent": 20
+        },
+        {
+          "id": "M2",
+          "title": "Execute",
+          "weightPercent": 50
+        },
+        {
+          "id": "M3",
+          "title": "Verify",
+          "weightPercent": 20
+        },
+        {
+          "id": "M4",
+          "title": "Close",
+          "weightPercent": 10
+        }
+      ]
     },
     {
       "skill": "csm-ddd",
@@ -240,12 +373,25 @@
       "terminal": {
         "behavior": "returns immutable report and graph",
         "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 1,
+        "maxDepth": 0,
+        "maxAgents": 1,
+        "maxItems": 1
       }
     },
     {
       "skill": "csm-deep-research",
       "version": "1",
-      "digest": "sha256:d828426f5d71ea899cc5839143db346a2510c8017b98e9572d267bdc80ea39d2",
+      "digest": "sha256:a02df1e497cce2dcd8a8b0d6d320573e86017bbaea6fa3a8b71710d537b02d61",
       "source": {
         "skillPath": "csm-deep-research/SKILL.md",
         "producerPath": null
@@ -283,7 +429,73 @@
       "terminal": {
         "behavior": "returns one cited JSON finding",
         "statuses": ["COMPLETED", "BLOCKED", "INCOMPLETE"]
-      }
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "broker",
+        "credentials": "host-mediated",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 6,
+        "maxDepth": 1,
+        "maxAgents": 24,
+        "maxItems": 64
+      },
+      "decomposition": {
+        "strategy": "angle-panel",
+        "bound": 6
+      },
+      "workerRoles": [
+        {
+          "id": "executor",
+          "kind": "executor",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "reviewer2",
+          "kind": "reviewer",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "challenger3",
+          "kind": "challenger",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "judge4",
+          "kind": "judge",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "verifier5",
+          "kind": "verifier",
+          "schema": "csm-artifact/1"
+        }
+      ],
+      "milestones": [
+        {
+          "id": "M1",
+          "title": "Frame",
+          "weightPercent": 20
+        },
+        {
+          "id": "M2",
+          "title": "Execute",
+          "weightPercent": 50
+        },
+        {
+          "id": "M3",
+          "title": "Verify",
+          "weightPercent": 20
+        },
+        {
+          "id": "M4",
+          "title": "Close",
+          "weightPercent": 10
+        }
+      ]
     },
     {
       "skill": "csm-grill",
@@ -326,12 +538,25 @@
       "terminal": {
         "behavior": "saves verified JSON approach for later plan",
         "statuses": ["SAVED", "BLOCKED", "INCOMPLETE"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "broker",
+        "credentials": "host-mediated",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 4,
+        "maxDepth": 1,
+        "maxAgents": 12,
+        "maxItems": 32
       }
     },
     {
       "skill": "csm-make-tests",
       "version": "1",
-      "digest": "sha256:9a82423c166e517c0a931601e3be45eab5fd04af42b6466e1e3721b16d316195",
+      "digest": "sha256:0890d8f9f33537a8b036e2d3ce05b4f701b5479b468788103e3a8e781a9b7e65",
       "source": {
         "skillPath": "csm-make-tests/SKILL.md",
         "producerPath": "csm-make-tests/producer.json"
@@ -369,7 +594,58 @@
       "terminal": {
         "behavior": "returns executable tests and verified JSON package",
         "statuses": ["COMPLETED", "BLOCKED", "INCOMPLETE"]
-      }
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 4,
+        "maxDepth": 1,
+        "maxAgents": 32,
+        "maxItems": 256
+      },
+      "decomposition": {
+        "strategy": "gap-surface",
+        "bound": 16
+      },
+      "workerRoles": [
+        {
+          "id": "executor",
+          "kind": "executor",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "reviewer2",
+          "kind": "reviewer",
+          "schema": "csm-artifact/1"
+        }
+      ],
+      "milestones": [
+        {
+          "id": "M1",
+          "title": "Frame",
+          "weightPercent": 20
+        },
+        {
+          "id": "M2",
+          "title": "Execute",
+          "weightPercent": 50
+        },
+        {
+          "id": "M3",
+          "title": "Verify",
+          "weightPercent": 20
+        },
+        {
+          "id": "M4",
+          "title": "Close",
+          "weightPercent": 10
+        }
+      ]
     },
     {
       "skill": "csm-plan",
@@ -413,12 +689,25 @@
       "terminal": {
         "behavior": "saves verified JSON plan awaiting explicit build",
         "statuses": ["SAVED", "BLOCKED", "INCOMPLETE"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "broker",
+        "credentials": "host-mediated",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 4,
+        "maxDepth": 1,
+        "maxAgents": 12,
+        "maxItems": 32
       }
     },
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:1465479e79deba683b4801862878048999d34d590dcc8ead7001e289eac7dfa7",
+      "digest": "sha256:cd650e8c2d40b989f7987f8703a3c3f64c97d81523cc63fc2082705ade7a7b7e",
       "source": {
         "skillPath": "csm-review/SKILL.md",
         "producerPath": "csm-review/producer.json"
@@ -456,7 +745,63 @@
       "terminal": {
         "behavior": "returns immutable findings artifact",
         "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
-      }
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 4,
+        "maxDepth": 1,
+        "maxAgents": 48,
+        "maxItems": 24
+      },
+      "decomposition": {
+        "strategy": "dimension-chunk",
+        "bound": 24
+      },
+      "workerRoles": [
+        {
+          "id": "executor",
+          "kind": "executor",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "reviewer2",
+          "kind": "reviewer",
+          "schema": "csm-artifact/1"
+        },
+        {
+          "id": "challenger3",
+          "kind": "challenger",
+          "schema": "csm-artifact/1"
+        }
+      ],
+      "milestones": [
+        {
+          "id": "M1",
+          "title": "Frame",
+          "weightPercent": 20
+        },
+        {
+          "id": "M2",
+          "title": "Execute",
+          "weightPercent": 50
+        },
+        {
+          "id": "M3",
+          "title": "Verify",
+          "weightPercent": 20
+        },
+        {
+          "id": "M4",
+          "title": "Close",
+          "weightPercent": 10
+        }
+      ]
     },
     {
       "skill": "csm-review-python",
@@ -499,6 +844,19 @@
       "terminal": {
         "behavior": "returns one immutable doctrine report",
         "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 1,
+        "maxDepth": 0,
+        "maxAgents": 1,
+        "maxItems": 1
       }
     },
     {
@@ -542,6 +900,19 @@
       "terminal": {
         "behavior": "returns immutable JSON norms artifact",
         "statuses": ["COMPLETED", "BLOCKED", "FAILED"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "disabled",
+        "credentials": "none",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 1,
+        "maxDepth": 0,
+        "maxAgents": 1,
+        "maxItems": 1
       }
     },
     {
@@ -586,6 +957,19 @@
       "terminal": {
         "behavior": "returns JSON publication receipt and URL",
         "statuses": ["PUBLISHED", "BLOCKED", "FAILED"]
+      },
+      "execution": {
+        "isolation": "trusted-in-process",
+        "network": "broker",
+        "credentials": "host-mediated",
+        "workspace": "worktree",
+        "attestation": "none"
+      },
+      "bounds": {
+        "maxConcurrency": 1,
+        "maxDepth": 0,
+        "maxAgents": 1,
+        "maxItems": 1
       }
     }
   ]

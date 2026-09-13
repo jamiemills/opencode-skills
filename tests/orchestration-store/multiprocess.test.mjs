@@ -103,7 +103,7 @@ test("concurrent fresh opens migrate exactly once and stay consistent", async (t
 
     const reopened = createSqliteStore({ databasePath, mode: "wal" });
     try {
-      assert.equal(await reopened.getSchemaVersion(), 1, "migration replay is idempotent");
+      assert.equal(await reopened.getSchemaVersion(), 2, "migration replay is idempotent");
       assert.ok(await reopened.claimCursor("cursor-mig-a", 1));
     } finally {
       reopened.close();
@@ -147,5 +147,23 @@ test("crash recovery: a hard exit without close persists committed WAL state", a
     } finally {
       recovered.close();
     }
+  });
+});
+
+test("worker leases: exactly one OS process wins a live claim", async (t) => {
+  if (!SQLITE_AVAILABLE) return t.skip("node:sqlite unavailable");
+  await withTempDir(async (dir) => {
+    const databasePath = `${dir}/worker-lease.db`;
+    // Seed the schema once so the racing children do not contend on migration.
+    const seed = createSqliteStore({ databasePath, mode: "wal" });
+    seed.close();
+    const children = await Promise.all([
+      runChild(["claim-worker", databasePath, "worker-race-1"]),
+      runChild(["claim-worker", databasePath, "worker-race-1"]),
+    ]);
+    const results = children.map(({ stdout }) => JSON.parse(stdout.trim().split("\n").at(-1)));
+    assert.equal(results.filter((result) => result.ok).length, 1, "exactly one winner");
+    assert.equal(results.filter((result) => !result.ok).length, 1, "exactly one loser");
+    assert.equal(results.find((result) => !result.ok).name, "WorkerLeaseError");
   });
 });

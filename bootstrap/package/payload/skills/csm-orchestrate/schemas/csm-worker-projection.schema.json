@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-worker-projection/1",
+  "title": "CSM worker projection",
+  "description": "Observational worker table derived from the append-only telemetry stream. Never an execution cursor, receipt, or gate authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaRevision", "runId", "generatedAt", "workers", "aggregate"],
+  "properties": {
+    "schema": {
+      "const": "csm-worker-projection/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["workerId", "state"],
+        "properties": {
+          "workerId": {
+            "type": "string",
+            "pattern": "^worker-[a-z0-9][a-z0-9-]{1,127}$"
+          },
+          "taskId": {
+            "type": ["string", "null"]
+          },
+          "skill": {
+            "type": ["string", "null"]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "retrying",
+              "replayed",
+              "completed",
+              "failed",
+              "cancelled",
+              "blocked",
+              "unknown"
+            ]
+          },
+          "activity": {
+            "type": ["string", "null"]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "heartbeatAgeMs": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "model": {
+            "type": ["string", "null"]
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gateStatus": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workers", "running", "completed", "failed"],
+      "properties": {
+        "workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "running": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

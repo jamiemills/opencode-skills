@@ -265,7 +265,7 @@ test("orchestrate runs to VERIFIED over the SQLite WAL cursor store and survives
     try {
       assert.equal(
         await reopened.getSchemaVersion(),
-        1,
+        2,
         "migration replay after reopen is a no-op",
       );
       const persisted = await reopened.listCursorIds(runId);

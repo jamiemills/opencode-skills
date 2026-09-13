@@ -1,0 +1,39 @@
+{
+  "schema": "csm-orchestrate-docker-worker-policy/1",
+  "schemaRevision": 1,
+  "image": "node:22.23.2-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5",
+  "network": "none",
+  "mounts": [],
+  "rootFilesystem": "read-only",
+  "capabilitiesDrop": ["ALL"],
+  "noNewPrivileges": true,
+  "workspace": {
+    "mode": "tmpfs",
+    "path": "/workspace",
+    "sizeBytes": 1610612736
+  },
+  "limits": {
+    "memoryBytes": 2147483648,
+    "pidsLimit": 512,
+    "cpuQuota": 100000,
+    "cpuPeriod": 100000,
+    "sessionTimeoutMs": 3600000
+  },
+  "session": {
+    "mode": "long-lived",
+    "heartbeatMs": 15000,
+    "reapingInit": true
+  },
+  "attestation": {
+    "required": true,
+    "cadenceMs": 60000,
+    "controls": [
+      "mountsEmpty",
+      "rootFilesystemReadOnly",
+      "capDropAll",
+      "noNewPrivileges",
+      "networkIsolated",
+      "credentialsNone"
+    ]
+  }
+}
