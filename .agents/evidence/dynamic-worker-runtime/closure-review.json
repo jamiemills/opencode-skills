@@ -31,7 +31,7 @@
     { "id": "B3", "resolution": "T009 committed + pushed; CI green" }
   ],
   "carriedNonBlockers": [
-    { "id": "N2", "issue": "T003 config carries policy/workerSource/forward/ledger (per-request plumbing removed, config-level remains)" },
+    { "id": "N2", "issue": "RESOLVED 2026-09-13: verified-sandbox runtime now defaults the egress policy (deny-all), HTTP(S) forward transport, and per-run ledger key, so callers supply only {enabled,workerSource} (or a custom executor). tests/orchestrate-verified-sandbox-defaults.test.mjs." },
     { "id": "N5", "issue": "broker container does not relay bytes to the host listener; mediation is host-listener-over-worker-session (fail-closed, NFLOG-captured)" },
     { "id": "T006", "issue": "drop-probe image-tag build not pre-serialized across concurrent processes (not observed)" }
   ],

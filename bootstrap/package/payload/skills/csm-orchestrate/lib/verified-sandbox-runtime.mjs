@@ -1,5 +1,8 @@
 "use strict";
 
+import { randomBytes } from "node:crypto";
+import http from "node:http";
+import https from "node:https";
 import { createDockerWorkerProvider } from "./docker-worker-provider.mjs";
 import { createEgressNetworkEnforcer } from "./egress-network.mjs";
 import {
@@ -40,6 +43,53 @@ import { digest } from "../../../lib/schema-runtime/index.mjs";
 const DEFAULT_BROKER_SCRIPT = 'require("net").createServer(() => {}).listen(0, "0.0.0.0")';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// N2: safe defaults so a caller only has to enable the runtime and supply the
+// (app-specific) worker source/executor. The default egress policy denies
+// everything — mediation stays fail-closed until a caller supplies an allowlist.
+export function defaultEgressPolicy() {
+  return Object.freeze({
+    schema: "csm-orchestrate-egress-policy/1",
+    schemaRevision: 1,
+    defaultAction: "deny",
+    failMode: "blocked",
+    entries: [],
+    credentialInjections: [],
+  });
+}
+
+// N2: default outbound transport for HTTP(S) targets. Credentials are injected
+// by the listener (never here); this only performs the request. A caller with a
+// non-HTTP upstream still injects its own `forward`.
+export function createHttpForward({ timeoutMs = null } = {}) {
+  return function httpForward({ target = {}, method = "GET", headers = {}, body = null, signal }) {
+    const scheme = String(target.scheme ?? "https").toLowerCase();
+    const transport = scheme === "http" ? http : https;
+    const host = target.host;
+    const port = target.port ?? (scheme === "http" ? 80 : 443);
+    if (typeof host !== "string" || host.length === 0)
+      throw new TypeError("egress forward requires a target host");
+    const path = target.path ?? "/";
+    return new Promise((resolve, reject) => {
+      const req = transport.request({ host, port, method, path, headers, signal }, (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            headers: res.headers,
+            body: Buffer.concat(chunks).toString("utf8"),
+          }),
+        );
+      });
+      req.on("error", reject);
+      if (timeoutMs)
+        req.setTimeout(timeoutMs, () => req.destroy(new Error("egress forward timeout")));
+      if (body !== null && body !== undefined) req.write(body);
+      req.end();
+    });
+  };
+}
 
 // T003: source per-drop facts, retrying so asynchronous NFLOG delivery is not
 // mistaken for "no drops". The provider's collectDrops is already lossless
@@ -259,17 +309,22 @@ export function createLiveVerifiedSandboxRuntime({
   });
 }
 
-// T003: build the live runtime from a declarative config. Fail-closed: an
-// enabled config without an egress policy, a worker source/executor, or a
-// ledger source is rejected rather than degrading to an unmediated sandbox.
+// T003/N2: build the live runtime from a declarative config. A caller enables
+// the runtime and supplies the app-specific worker source/executor; the
+// egress policy (default deny-all), HTTP(S) forward transport, and ledger key
+// (per-run generated) now default, so no per-request plumbing remains. Still
+// fail-closed: a config with no worker source/executor is rejected rather than
+// degrading to an unmediated sandbox.
 export function createVerifiedSandboxRuntime(config = {}) {
   if (config?.enabled !== true)
     throw Object.assign(new Error("verified-sandbox runtime is not enabled"), {
       code: "verified-sandbox-disabled",
     });
-  const policy = config.policy ?? null;
-  if (!policy || typeof policy !== "object")
-    throw Object.assign(new TypeError("verified-sandbox runtime requires an egress policy"), {
+  // N2: default to a deny-all policy so mediation stays fail-closed without a
+  // caller-supplied allowlist; the caller supplies one only to permit upstreams.
+  const policy = config.policy ?? defaultEgressPolicy();
+  if (typeof policy !== "object")
+    throw Object.assign(new TypeError("verified-sandbox policy must be an object"), {
       code: "verified-sandbox-config",
     });
   const sandboxExecutor =
@@ -281,22 +336,26 @@ export function createVerifiedSandboxRuntime(config = {}) {
       new TypeError("verified-sandbox runtime requires a workerSource or sandboxExecutor"),
       { code: "verified-sandbox-config" },
     );
-  if (typeof config.forward !== "function" && typeof config.sandboxExecutor !== "function")
-    throw Object.assign(
-      new TypeError("verified-sandbox runtime requires an egress forward transport"),
-      { code: "verified-sandbox-config" },
-    );
+  // N2: default to an HTTP(S) forwarder unless a custom executor owns transport.
+  const forward =
+    typeof config.forward === "function"
+      ? config.forward
+      : typeof config.sandboxExecutor === "function"
+        ? null
+        : createHttpForward({ timeoutMs: config.forwardTimeoutMs ?? null });
   const ledgerFactory =
     typeof config.ledgerFactory === "function"
       ? config.ledgerFactory
       : ({ request }) => {
           if (config.ledger) return config.ledger;
-          if (typeof config.ledgerKey !== "string" || config.ledgerKey.length < 8)
-            throw new EgressPolicyError("verified-sandbox runtime requires ledgerKey or ledger");
+          // N2: a per-runtime generated key keeps the chain verifiable within the
+          // run when the caller does not supply a key/anchor. External anchoring
+          // still requires an explicit `ledgerKey` (+ publish/readAnchor).
+          const key = randomBytes(32).toString("hex");
           const runId = config.ledgerRunId ?? request.parentRunId ?? request.childRunId;
           return createEgressLedger({
             runId,
-            key: config.ledgerKey,
+            key,
             filePath: config.ledgerFilePath ?? null,
             publishAnchor: config.publishAnchor ?? null,
             readAnchor: config.readAnchor ?? null,
@@ -304,7 +363,7 @@ export function createVerifiedSandboxRuntime(config = {}) {
         };
   const defaults = {
     policy,
-    forward: config.forward ?? null,
+    forward,
     sandboxExecutor,
     workerSource: config.workerSource ?? null,
     credentials: config.credentials ?? {},

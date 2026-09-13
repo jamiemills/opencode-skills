@@ -998,8 +998,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/verified-sandbox-runtime.mjs",
-        "sha256": "b49a08adc84f3b5cb6b82bb4b27bd0a6de096e7555346b90c22b19e46f0926e1",
-        "bytes": 15399,
+        "sha256": "201cc06ea7de0d95604de44c2291c3b73dbd30d813e095c673bf3985e674104f",
+        "bytes": 17906,
         "mode": "0644"
       },
       {
