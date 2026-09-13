@@ -93,12 +93,15 @@ test("two OS processes racing one claim: exactly one succeeds", async (t) => {
 test("concurrent fresh opens migrate exactly once and stay consistent", async (t) => {
   if (!SQLITE_AVAILABLE) return t.skip("node:sqlite unavailable");
   await withTempDir(async (dir) => {
-    const databasePath = `${dir}/migration-race.db`;
     // Concurrent fresh opens can transiently hit SQLite lock contention under
-    // load; retry a few times, but never mask a deterministic failure (the last
-    // error is asserted with the child's own message and exit code).
+    // load; retry a few times on a FRESH database each attempt (so a partial
+    // first attempt cannot cause a deterministic cursor-revision mismatch), but
+    // never mask a deterministic failure (the last error is asserted with the
+    // child's own message and exit code).
     let results = null;
+    let databasePath = null;
     for (let attempt = 0; attempt < 3; attempt += 1) {
+      databasePath = `${dir}/migration-race-${attempt}.db`;
       const children = await Promise.all([
         runChild(["claim-fresh", databasePath, "cursor-mig-a", "run-mig", "phase-mig"]),
         runChild(["claim-fresh", databasePath, "cursor-mig-b", "run-mig", "phase-mig"]),
