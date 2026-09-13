@@ -20,8 +20,9 @@ const phaseId = command === "claim-fresh" ? process.argv[6] : undefined;
 
 async function main() {
   if (command === "claim" || command === "claim-fresh") {
-    const store = createSqliteStore({ databasePath: dbPath, mode: "wal" });
+    let store = null;
     try {
+      store = createSqliteStore({ databasePath: dbPath, mode: "wal" });
       const revision = command === "claim" ? Number(expectedRevision) : 0;
       const meta = command === "claim" ? undefined : { runId, phaseId };
       const claim = await store.claimCursor(cursorId, revision, meta);
@@ -31,7 +32,7 @@ async function main() {
         `${JSON.stringify({ ok: false, name: error.name, message: error.message })}\n`,
       );
     } finally {
-      store.close();
+      store?.close();
     }
     return;
   }

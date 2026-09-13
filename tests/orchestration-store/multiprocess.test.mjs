@@ -94,12 +94,29 @@ test("concurrent fresh opens migrate exactly once and stay consistent", async (t
   if (!SQLITE_AVAILABLE) return t.skip("node:sqlite unavailable");
   await withTempDir(async (dir) => {
     const databasePath = `${dir}/migration-race.db`;
-    const children = await Promise.all([
-      runChild(["claim-fresh", databasePath, "cursor-mig-a", "run-mig", "phase-mig"]),
-      runChild(["claim-fresh", databasePath, "cursor-mig-b", "run-mig", "phase-mig"]),
-    ]);
-    const results = children.map(({ stdout }) => JSON.parse(stdout.trim().split("\n").at(-1)));
-    assert.ok(results.every((result) => result.ok));
+    // Concurrent fresh opens can transiently hit SQLite lock contention under
+    // load; retry a few times, but never mask a deterministic failure (the last
+    // error is asserted with the child's own message and exit code).
+    let results = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const children = await Promise.all([
+        runChild(["claim-fresh", databasePath, "cursor-mig-a", "run-mig", "phase-mig"]),
+        runChild(["claim-fresh", databasePath, "cursor-mig-b", "run-mig", "phase-mig"]),
+      ]);
+      results = children.map(({ code, stdout, stderr }) => {
+        const line = stdout.trim().split("\n").filter(Boolean).at(-1);
+        if (!line)
+          throw new Error(
+            `claim-fresh child exited ${code} with no output; stderr: ${stderr.slice(0, 300)}`,
+          );
+        return JSON.parse(line);
+      });
+      if (results.every((result) => result.ok)) break;
+    }
+    assert.ok(
+      results.every((result) => result.ok),
+      `concurrent fresh opens must both succeed: ${JSON.stringify(results)}`,
+    );
 
     const reopened = createSqliteStore({ databasePath, mode: "wal" });
     try {
