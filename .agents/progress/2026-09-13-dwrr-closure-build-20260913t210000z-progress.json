@@ -4,8 +4,8 @@
   "runId": "run-20260913t210000z-dwrr-closure-build",
   "skill": "csm-build",
   "goal": "Execute the dynamic-worker-runtime closure plan to completion via build/review loops",
-  "status": "active",
-  "overallPercent": 92,
+  "status": "complete",
+  "overallPercent": 100,
   "milestones": [
     {
       "id": "M1",
@@ -35,10 +35,9 @@
       "id": "M5",
       "title": "Delivery",
       "weightPercent": 15,
-      "status": "active",
-      "verifiedFraction": 0.5
+      "status": "complete"
     }
   ],
   "startedAt": "2026-09-13T21:00:00.000Z",
-  "updatedAt": "2026-09-13T17:52:49.646Z"
+  "updatedAt": "2026-09-13T18:21:38.269Z"
 }
