@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { dirname } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
 // T001 parity baseline: the repo gates that must stay green before and after
@@ -19,9 +21,25 @@ const REPO = path.resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_BUFFER = 128 * 1024 * 1024;
 
+// Each parity run owns a fresh temp root so the nested suites' scratch state
+// (mkdtemp under TMPDIR/`/tmp` prefixes) and lock files can never collide with
+// a concurrently running suite. The nested make also runs with a scrubbed MAKE*
+// environment so it cannot inherit a parent jobserver/parallel flags and
+// interleave unpredictably under load.
+const ISOLATED_TMP = mkdtempSync(path.join(os.tmpdir(), "csm-parity-"));
+after(() => rmSync(ISOLATED_TMP, { recursive: true, force: true }));
+
 function runMake(target) {
+  const targetTmp = path.join(ISOLATED_TMP, target.replace(/[^a-z0-9-]/gi, "-"));
+  mkdirSync(targetTmp, { recursive: true });
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
+  delete env.MAKEFLAGS;
+  delete env.MFLAGS;
+  delete env.MAKELEVEL;
+  env.TMPDIR = targetTmp;
+  env.TMP = targetTmp;
+  env.TEMP = targetTmp;
   return spawnSync("make", [target], {
     cwd: REPO,
     encoding: "utf8",

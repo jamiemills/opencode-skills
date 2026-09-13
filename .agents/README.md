@@ -237,6 +237,11 @@ the source file. Deletion remains awaiting explicit authorization.
 - `skill-progress-tracker-enforcement-20260904.json` — 2026-09-04 — csm-build checkpoint for skill progress tracker enforcement — status: complete (shipped on fa79f36; CI run 33928035357 fully green)
 - `parallelism-conflict-free-change-set-20260906.json` — 2026-09-06 — csm-build checkpoint for the parallelism conflict-free change set execution (S1-S9, T001-T011) — status: in progress
 - `orchestrate-request-intake-router-20260906.json` — 2026-09-06 — csm-build checkpoint for the orchestrate request intake + router execution (T001-T007) — status: in progress
+- `dynamic-worker-runtime-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime build — status: superseded by `dynamic-worker-runtime-completion-20260912.json`
+- `dynamic-worker-runtime-completion-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime completion build — status: superseded by `dynamic-worker-runtime-drift-20260912.json`
+- `dynamic-worker-runtime-drift-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime drift-remediation build — status: superseded by `dynamic-worker-runtime-final-gaps-20260912.json`
+- `dynamic-worker-runtime-final-gaps-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime final-gaps build — status: superseded by `dynamic-worker-runtime-remaining-20260912.json`
+- `dynamic-worker-runtime-remaining-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime remaining build — status: superseded by the 2026-09-13 broker-completion/gap-remediation plans
 
 ## progress/
 
@@ -256,6 +261,8 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-06-orchestrate-request-intake-router-build-20260906T232118Z-4f3a9b2c1d8e-progress.json` — 2026-09-06 — csm-build progress record for the orchestrate-request-intake-router build — status: active
 - `2026-09-13-dynamic-worker-runtime-broker-upstream-20260913t080000z-progress.json` — 2026-09-13 — csm-build progress record for the dynamic-worker-runtime broker-upstream build — status: active
 - `2026-09-13-dwrr-gap-remediation-plan-20260913t170000z-progress.json` — 2026-09-13 — csm-plan progress record for the dynamic-worker-runtime gap-remediation plan — status: complete
+- `2026-09-12-dynamic-worker-runtime-build-20260912t131500z-progress.json` — 2026-09-12 — csm-build progress record for the dynamic-worker-runtime build — status: reference
+- `2026-09-12-dwrr-drift-build-20260912t153000z-progress.json` — 2026-09-12 — csm-build progress record for the dynamic-worker-runtime drift-remediation build — status: reference
 
 ## ddd/
 

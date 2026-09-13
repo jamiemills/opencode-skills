@@ -152,8 +152,14 @@ for (const backend of backends) {
       const records = await store.loadTerminalRecords("run-terminal");
       assert.equal(records.length, 1);
       assert.equal(records[0].status, "completed");
-      assert.equal(records[0].childRunId, "run-terminal");
+      assert.equal(records[0].runId, "run-terminal");
+      assert.equal(records[0].childRunId, undefined, "terminal receipts are run-keyed only");
       assert.equal(records[0].result.status, records[0].status);
+      assert.deepEqual(
+        await store.loadTerminalRecords("run-terminal-child"),
+        [],
+        "a child run id is not a terminal_receipts key",
+      );
     });
   });
 

@@ -9,8 +9,11 @@ import {
   createTelemetryEmitter,
 } from "../csm-orchestrate/lib/telemetry.mjs";
 import {
+  EGRESS_LIMIT_REASONS,
   createEgressBroker,
+  createEgressBrokerListener,
   createEgressLedger,
+  enforceEgressLimits,
   evaluateEgress,
   validateEgressPolicy,
   verifyEgressChain,
@@ -463,5 +466,196 @@ test("T004: malformed egress limits are rejected fail-closed", () => {
   assert.throws(
     () => validateEgressPolicy({ ...policy, entries: [{ host: "x", port: 443, timeoutMs: -1 }] }),
     /timeoutMs/,
+  );
+});
+
+const listenerPolicy = {
+  ...policy,
+  entries: [{ scheme: "https", host: "api.example", port: 443 }],
+  credentialInjections: [
+    { host: "api.example", header: "Authorization", credentialRef: "credref-api" },
+  ],
+};
+
+test("T001: listener proxies an allowlisted request and injects the credential only on allow", async () => {
+  const forwarded = [];
+  const forward = async (request) => {
+    forwarded.push(request);
+    return { status: 200, headers: { "content-type": "text/plain" }, body: "upstream-ok" };
+  };
+  const ledger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  const listener = createEgressBrokerListener({
+    policy: listenerPolicy,
+    ledger,
+    credentials: { "credref-api": "SUPER-SECRET-TOKEN" },
+    forward,
+  });
+
+  const result = await listener.handle(
+    {
+      target: { scheme: "https", host: "api.example", port: 443, method: "GET", path: "/v1" },
+      headers: { accept: "application/json" },
+      body: "payload",
+    },
+    { taskId: "task-1", workerId: "worker-1" },
+  );
+
+  assert.equal(result.decision, "allowed");
+  assert.equal(result.reasonCode, "allowlist-match");
+  assert.equal(result.upstream.body, "upstream-ok");
+  assert.equal(result.injection, null, "the listener must not echo the injected secret");
+  assert.equal(result.credentialRef, "credref-api");
+  assert.equal(forwarded.length, 1, "an allowed request must be forwarded");
+  assert.equal(forwarded[0].target.host, "api.example");
+  assert.equal(forwarded[0].headers.Authorization, "SUPER-SECRET-TOKEN");
+  assert.equal(forwarded[0].headers.accept, "application/json");
+  assert.equal(forwarded[0].body, "payload");
+  assert.equal(result.record.decision, "allowed");
+  assert.equal(result.record.credentialRef, "credref-api");
+  assert.equal(ledger.length(), 1, "one authoritative record per request");
+  assert.equal(ledger.verify().valid, true);
+  assert.equal(
+    JSON.stringify(result).includes("SUPER-SECRET-TOKEN"),
+    false,
+    "secret must not leak",
+  );
+});
+
+test("T001: listener denies an unlisted target and never forwards it", async () => {
+  let forwarded = 0;
+  const forward = async () => {
+    forwarded += 1;
+    return { status: 200, body: "should-not-happen" };
+  };
+  const ledger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  const listener = createEgressBrokerListener({ policy: listenerPolicy, ledger, forward });
+
+  const result = await listener.handle({ scheme: "https", host: "evil.example", port: 443 });
+  assert.equal(result.decision, "denied");
+  assert.equal(result.reasonCode, "default-deny");
+  assert.equal(result.upstream, null);
+  assert.equal(result.injection, null);
+  assert.equal(forwarded, 0, "a denied target must not be forwarded");
+  assert.equal(result.record.decision, "denied");
+  assert.equal(result.record.reasonCode, "default-deny");
+  assert.equal(ledger.verify().valid, true);
+});
+
+test("T001: listener denies over-limit requests without forwarding or injecting", async () => {
+  const scoped = {
+    ...listenerPolicy,
+    entries: [{ scheme: "https", host: "api.example", port: 443, maxBytes: 100, timeoutMs: 1000 }],
+  };
+  let forwarded = 0;
+  const forward = async () => {
+    forwarded += 1;
+    return { status: 200, body: "should-not-happen" };
+  };
+  const ledger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  const listener = createEgressBrokerListener({
+    policy: scoped,
+    ledger,
+    credentials: { "credref-api": "SUPER-SECRET-TOKEN" },
+    forward,
+  });
+
+  const bytes = await listener.handle({
+    scheme: "https",
+    host: "api.example",
+    port: 443,
+    declaredBytes: 101,
+  });
+  assert.equal(bytes.decision, "denied");
+  assert.equal(bytes.reasonCode, EGRESS_LIMIT_REASONS.maxBytes);
+  assert.equal(bytes.reasonCode, "max-bytes-exceeded");
+  assert.equal(bytes.injection, null);
+  assert.equal(bytes.upstream, null);
+
+  const time = await listener.handle({
+    scheme: "https",
+    host: "api.example",
+    port: 443,
+    declaredTimeoutMs: 5000,
+  });
+  assert.equal(time.decision, "denied");
+  assert.equal(time.reasonCode, EGRESS_LIMIT_REASONS.timeoutMs);
+  assert.equal(time.injection, null);
+  assert.equal(time.upstream, null);
+  assert.equal(forwarded, 0, "an over-limit request must never be forwarded");
+  assert.equal(ledger.verify().valid, true);
+});
+
+test("T001: listener enforces the entry timeout budget with a distinct reason code", async () => {
+  const scoped = {
+    ...listenerPolicy,
+    entries: [{ scheme: "https", host: "api.example", port: 443, timeoutMs: 25 }],
+  };
+  const withinLedger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  const within = createEgressBrokerListener({
+    policy: scoped,
+    ledger: withinLedger,
+    credentials: { "credref-api": "SUPER-SECRET-TOKEN" },
+    forward: async () => ({ status: 200, body: "fast-ok" }),
+  });
+  const fast = await within.handle({ scheme: "https", host: "api.example", port: 443 });
+  assert.equal(fast.decision, "allowed", "a forward inside the budget must be allowed");
+
+  const ledger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  const listener = createEgressBrokerListener({
+    policy: scoped,
+    ledger,
+    credentials: { "credref-api": "SUPER-SECRET-TOKEN" },
+    forward: ({ signal }) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("aborted")));
+      }),
+  });
+  const result = await listener.handle({ scheme: "https", host: "api.example", port: 443 });
+  assert.equal(result.decision, "denied");
+  assert.equal(result.reasonCode, EGRESS_LIMIT_REASONS.timeoutMs);
+  assert.equal(result.reasonCode, "timeout-exceeded");
+  assert.notEqual(result.reasonCode, EGRESS_LIMIT_REASONS.maxBytes);
+  assert.equal(result.upstream, null);
+  assert.equal(result.injection, null, "a timed-out request must not report injected credentials");
+  assert.equal(result.record.decision, "denied");
+  assert.equal(result.record.reasonCode, "timeout-exceeded");
+  assert.equal(ledger.verify().valid, true);
+});
+
+test("T001: the enforcement budget is separated from a caller-declared/elapsed timeout", () => {
+  const allowed = {
+    decision: "allowed",
+    reasonCode: "allowlist-match",
+    limits: { maxBytes: null, timeoutMs: 1000 },
+  };
+  // A declared timeout inside the budget and observed time inside the budget: allow.
+  assert.equal(enforceEgressLimits(allowed, { elapsedMs: 10, timeoutMs: 500 }).decision, "allowed");
+  assert.equal(
+    enforceEgressLimits(allowed, { elapsedMs: 10, timeoutMs: 5000 }).reasonCode,
+    EGRESS_LIMIT_REASONS.timeoutMs,
+  );
+  assert.equal(
+    enforceEgressLimits(allowed, { declaredTimeoutMs: 1500 }).reasonCode,
+    EGRESS_LIMIT_REASONS.timeoutMs,
+  );
+  assert.equal(
+    enforceEgressLimits(allowed, { elapsedMs: 1500 }).reasonCode,
+    EGRESS_LIMIT_REASONS.timeoutMs,
+  );
+  // No entry budget means nothing to enforce, regardless of a caller timeoutMs.
+  assert.equal(
+    enforceEgressLimits(
+      { decision: "allowed", limits: { timeoutMs: null } },
+      { timeoutMs: 9_999_999 },
+    ).decision,
+    "allowed",
+  );
+});
+
+test("T001: the listener fails closed without a forward transport", () => {
+  const ledger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  assert.throws(
+    () => createEgressBrokerListener({ policy: listenerPolicy, ledger }),
+    /forward function/,
   );
 });

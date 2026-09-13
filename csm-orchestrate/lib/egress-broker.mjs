@@ -138,9 +138,14 @@ export function evaluateEgress(policy, target = {}) {
 // T004: enforce the byte/time budget a matched rule declared. The broker is
 // fail-closed: an allowlist match is downgraded to a denial (never forwarded)
 // when the request's declared or observed size exceeds maxBytes, or when its
-// declared/observed allowed time exceeds timeoutMs. Absent measurement cannot
-// be proven over budget, so it is left to the caller/proxy to report counters;
-// a measured overage always denies with a distinct reason code.
+// declared/observed allowed time exceeds the entry's timeoutMs. Absent
+// measurement cannot be proven over budget, so it is left to the caller/proxy to
+// report counters; a measured overage always denies with a distinct reason code.
+//
+// T001 (broker listener): the entry `timeoutMs` is the ENFORCEMENT BUDGET, never
+// a caller measurement. A caller-supplied `timeoutMs`/`declaredTimeoutMs` is the
+// caller's declared budget and an `elapsedMs`/`latencyMs` is observed wall time;
+// both are compared against the entry budget, never conflated with it.
 export const EGRESS_LIMIT_REASONS = Object.freeze({
   maxBytes: "max-bytes-exceeded",
   timeoutMs: "timeout-exceeded",
@@ -165,18 +170,29 @@ function measuredRequestBytes(target, meta) {
   return firstFinite(target.declaredBytes, target.bytes, meta.declaredBytes, meta.bytes);
 }
 
-function measuredRequestMs(target, meta) {
+// Caller-declared timeout budget: intent, not observed time.
+function declaredRequestMs(target, meta) {
+  return firstFinite(
+    target.declaredTimeoutMs,
+    target.requestTimeoutMs,
+    target.allowedMs,
+    target.timeoutMs,
+    meta.declaredTimeoutMs,
+    meta.requestTimeoutMs,
+    meta.allowedMs,
+    meta.timeoutMs,
+  );
+}
+
+// Observed elapsed wall time: measurement, never treated as the budget.
+function observedRequestMs(target, meta) {
   return firstFinite(
     target.elapsedMs,
     target.latencyMs,
-    target.declaredTimeoutMs,
-    target.allowedMs,
-    target.timeoutMs,
+    target.observedElapsedMs,
     meta.elapsedMs,
     meta.latencyMs,
-    meta.declaredTimeoutMs,
-    meta.allowedMs,
-    meta.timeoutMs,
+    meta.observedElapsedMs,
   );
 }
 
@@ -191,8 +207,11 @@ export function enforceEgressLimits(decision, target = {}, meta = {}) {
   }
   const timeoutMs = finiteNonNegative(limits.timeoutMs);
   if (timeoutMs !== null) {
-    const elapsedMs = measuredRequestMs(target, meta);
+    const elapsedMs = observedRequestMs(target, meta);
     if (elapsedMs !== null && elapsedMs > timeoutMs)
+      return { decision: "denied", reasonCode: EGRESS_LIMIT_REASONS.timeoutMs, limits };
+    const declaredMs = declaredRequestMs(target, meta);
+    if (declaredMs !== null && declaredMs > timeoutMs)
       return { decision: "denied", reasonCode: EGRESS_LIMIT_REASONS.timeoutMs, limits };
   }
   return decision;
@@ -407,53 +426,76 @@ export function createEgressBroker({
       },
     });
   }
-  return {
-    async handle(target = {}, meta = {}) {
-      // T004: enforce the matched rule's declared byte/time budgets before the
-      // request can be forwarded or credentialed.
-      let decision = enforceEgressLimits(evaluateEgress(policy, target), target, meta);
-      // Credentials are held broker-side and injected only after a successful
-      // allowlist match; only the opaque ref is ever logged. A configured
-      // injection with no available secret fails closed rather than allowing
-      // an unauthenticated request.
-      let injection = null;
-      let auditCredentialRef = meta.credentialRef ?? null;
-      if (decision.decision === "allowed") {
-        const rule = injectionByHost.get(String(target.host ?? "").toLowerCase());
-        if (rule) {
-          auditCredentialRef = rule.credentialRef;
-          const secret = credentials[rule.credentialRef];
-          if (typeof secret === "string" && secret.length > 0)
-            injection = { header: rule.header, value: secret };
-          else decision = { decision: "denied", reasonCode: "credential-unavailable" };
-        }
+  // Pure decision: policy match + budget enforcement + credential resolution.
+  // No ledger write and no emission, so a transport listener can forward first
+  // and then record the real (allow/timeout) outcome exactly once.
+  function decide(target = {}, meta = {}) {
+    // T004: enforce the matched rule's declared byte/time budgets before the
+    // request can be forwarded or credentialed.
+    let decision = enforceEgressLimits(evaluateEgress(policy, target), target, meta);
+    // Credentials are held broker-side and injected only after a successful
+    // allowlist match; only the opaque ref is ever logged. A configured
+    // injection with no available secret fails closed rather than allowing
+    // an unauthenticated request.
+    let injection = null;
+    let auditCredentialRef = meta.credentialRef ?? null;
+    if (decision.decision === "allowed") {
+      const rule = injectionByHost.get(String(target.host ?? "").toLowerCase());
+      if (rule) {
+        auditCredentialRef = rule.credentialRef;
+        const secret = credentials[rule.credentialRef];
+        if (typeof secret === "string" && secret.length > 0)
+          injection = { header: rule.header, value: secret };
+        else decision = { decision: "denied", reasonCode: "credential-unavailable" };
       }
-      const record = ledger.append({
-        decision: decision.decision,
-        scheme: target.scheme,
-        targetHost: target.host,
-        targetOrigin: target.origin ?? null,
-        targetPort: target.port,
-        requestMethod: target.method,
-        requestPath: target.path,
-        bytesIn: firstFinite(target.bytesIn, meta.bytesIn),
-        bytesOut: firstFinite(target.bytesOut, meta.bytesOut),
-        latencyMs: firstFinite(target.latencyMs, target.elapsedMs, meta.latencyMs, meta.elapsedMs),
-        reasonCode: decision.reasonCode,
-        policyDigest,
-        credentialRef: auditCredentialRef,
-        taskId: meta.taskId ?? null,
-        workerId: meta.workerId ?? null,
-        invocationId: meta.invocationId ?? null,
-        attempt: meta.attempt ?? 0,
-      });
-      emit(decision.decision, target, { ...meta, reasonCode: decision.reasonCode });
-      return { ...decision, record, injection };
+    }
+    return { ...decision, injection, credentialRef: auditCredentialRef };
+  }
+
+  // Single authoritative ledger write + correlated telemetry for a decision.
+  function record(decided, target = {}, meta = {}) {
+    const recordRow = ledger.append({
+      decision: decided.decision,
+      scheme: target.scheme,
+      targetHost: target.host,
+      targetOrigin: target.origin ?? null,
+      targetPort: target.port,
+      requestMethod: target.method,
+      requestPath: target.path,
+      bytesIn: firstFinite(target.bytesIn, meta.bytesIn),
+      bytesOut: firstFinite(target.bytesOut, meta.bytesOut),
+      latencyMs: firstFinite(
+        decided.elapsedMs,
+        target.latencyMs,
+        target.elapsedMs,
+        meta.latencyMs,
+        meta.elapsedMs,
+      ),
+      reasonCode: decided.reasonCode,
+      policyDigest,
+      credentialRef: decided.credentialRef,
+      taskId: meta.taskId ?? null,
+      workerId: meta.workerId ?? null,
+      invocationId: meta.invocationId ?? null,
+      attempt: meta.attempt ?? 0,
+    });
+    emit(decided.decision, target, { ...meta, reasonCode: decided.reasonCode });
+    return recordRow;
+  }
+
+  return {
+    decide,
+    record,
+    async handle(target = {}, meta = {}) {
+      const decided = decide(target, meta);
+      const recordRow = record(decided, target, meta);
+      const { injection, credentialRef: _credentialRef, ...decision } = decided;
+      return { ...decision, record: recordRow, injection };
     },
     // Network-layer drops (kernel-dropped / out-of-band attempts that never
     // reach the app broker) are recorded into the same chain.
     recordDrop({ targetHost, targetPort, reasonCode = "kernel-drop", ...meta } = {}) {
-      const record = ledger.append({
+      const recordRow = ledger.append({
         decision: "dropped-unmediated",
         targetHost,
         targetPort,
@@ -465,8 +507,105 @@ export function createEgressBroker({
         attempt: meta.attempt ?? 0,
       });
       emit("dropped-unmediated", { host: targetHost }, { ...meta, reasonCode });
-      return record;
+      return recordRow;
     },
     verify: () => ledger.verify(),
+  };
+}
+
+// Strip a resolved credential injection from a decision before it is returned to
+// the worker: only the opaque credentialRef may cross the listener boundary.
+function withoutSecret(decided) {
+  const { injection: _injection, ...safe } = decided;
+  return { ...safe, injection: null };
+}
+
+// T001 (broker listener): a policy-bound listener on the wire. The worker talks
+// only to this listener on the internal (worker-facing) network; the listener
+// forwards allowed requests to the upstream reached through the host's egress
+// network, so policy and credential refs stay host-side. The transport is
+// injected (`forward`) so the listener is pure and testable without Docker.
+//
+// The matched rule's `timeoutMs` is the ENFORCEMENT BUDGET: a forward that
+// exceeds it is aborted and denied with the distinct `timeout-exceeded` reason
+// code. Credentials from `decide` are injected into the forwarded request only
+// on allow and are never returned on a denial.
+export function createEgressBrokerListener({
+  broker = null,
+  forward,
+  now = () => Date.now(),
+  ...brokerOptions
+} = {}) {
+  const activeBroker = broker ?? createEgressBroker(brokerOptions);
+  if (typeof activeBroker.decide !== "function" || typeof activeBroker.record !== "function")
+    throw new EgressPolicyError("egress broker listener requires a broker with decide/record");
+  if (typeof forward !== "function")
+    throw new EgressPolicyError("egress broker listener requires a forward function");
+  return {
+    async handle(request = {}, meta = {}) {
+      const target = request.target ?? request;
+      let decided = activeBroker.decide(target, meta);
+      if (decided.decision !== "allowed")
+        return {
+          ...withoutSecret(decided),
+          upstream: null,
+          record: activeBroker.record(decided, target, meta),
+          elapsedMs: null,
+        };
+
+      const budgetMs = finiteNonNegative(decided.limits?.timeoutMs);
+      const controller = new AbortController();
+      let timedOut = false;
+      let timer = null;
+      if (budgetMs !== null) {
+        timer = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, budgetMs);
+      }
+      const headers = { ...request.headers };
+      if (decided.injection) headers[decided.injection.header] = decided.injection.value;
+      const startedAt = now();
+      let upstream = null;
+      try {
+        upstream = await forward({
+          target,
+          method: target.method ?? "GET",
+          headers,
+          body: request.body ?? null,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (!timedOut) {
+          if (timer) clearTimeout(timer);
+          throw error;
+        }
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+      const elapsedMs = Math.max(0, now() - startedAt);
+      if (timedOut) {
+        decided = {
+          decision: "denied",
+          reasonCode: EGRESS_LIMIT_REASONS.timeoutMs,
+          limits: decided.limits,
+          injection: null,
+          credentialRef: decided.credentialRef,
+        };
+        return {
+          ...withoutSecret(decided),
+          upstream: null,
+          record: activeBroker.record(decided, target, meta),
+          elapsedMs,
+        };
+      }
+      decided = { ...decided, elapsedMs };
+      return {
+        ...withoutSecret(decided),
+        upstream,
+        record: activeBroker.record(decided, target, meta),
+        elapsedMs,
+      };
+    },
   };
 }

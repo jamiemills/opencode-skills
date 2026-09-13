@@ -335,16 +335,19 @@ export function createDockerWorkerProvider({
         throw new Error(
           `worker attestation document failed schema: ${JSON.stringify(docResult.errors)}`,
         );
+      let capture = { degraded: false, reason: null };
       if (provisioned) {
-        egressById.set(id, { releaseEgress });
-        // Audit capture must not make the worker unstartable by default: helper
-        // images may lack iptables. Policy that REQUIRES capture opts in via
-        // `egress.requireDropCapture`.
+        // Audit capture must not make the worker unstartable by default: the
+        // drop-probe helper image build or iptables may be unavailable. Policy
+        // that REQUIRES capture opts in via `egress.requireDropCapture` and then
+        // fails closed; otherwise the degradation is recorded and observable.
         try {
           await egressEnforcer.provisionDropLogging({ workerId: id });
         } catch (error) {
           if (egress?.requireDropCapture) throw error;
+          capture = { degraded: true, reason: String(error?.message ?? error) };
         }
+        egressById.set(id, { releaseEgress, capture });
       }
       return {
         id,
@@ -356,6 +359,7 @@ export function createDockerWorkerProvider({
               internalNetwork: provisioned.internalNetwork,
               egressNetwork: provisioned.egressNetwork,
               brokerName: provisioned.brokerName,
+              capture,
             }
           : null,
       };
@@ -472,19 +476,57 @@ export function createDockerWorkerProvider({
 
   async function stop({ id }) {
     if (!id) return;
-    await run(docker, ["rm", "-f", id], { timeoutMs: 30_000 });
     const entry = egressById.get(id);
+    if (entry && typeof egressEnforcer.removeDropLogging === "function") {
+      try {
+        await egressEnforcer.removeDropLogging({ workerId: id });
+      } catch {
+        // The reader shares the worker netns; removing the worker below is the
+        // authoritative teardown, so a failed reader removal must not block it.
+      }
+    }
+    await run(docker, ["rm", "-f", id], { timeoutMs: 30_000 });
     if (entry) {
       egressById.delete(id);
       await entry.releaseEgress();
     }
   }
 
-  // T004: source network-layer drops recorded against the worker's internal
-  // network so the caller can feed them into the broker's `recordDrop`.
-  async function collectDrops({ id }) {
-    if (!id || !egressById.has(id)) return { id, count: 0 };
-    return egressEnforcer.collectDrops({ workerId: id });
+  // T002: source per-drop network-layer facts against the worker's internal
+  // network and, when a broker is supplied, feed each one into
+  // `broker.recordDrop`. `degraded` is true whenever capture was impossible, so
+  // a caller that requires capture can fail closed while a best-effort caller
+  // only observes it.
+  async function collectDrops({ id, broker = null, meta = {} } = {}) {
+    if (!id || !egressById.has(id))
+      return { id, count: 0, drops: [], recorded: [], degraded: false, reason: null };
+    const entry = egressById.get(id);
+    const result = await egressEnforcer.collectDrops({ workerId: id });
+    const drops = Array.isArray(result.drops) ? result.drops : [];
+    const recorded = [];
+    if (broker && typeof broker.recordDrop === "function") {
+      for (const drop of drops) {
+        if (!Number.isInteger(drop.dest_port)) continue;
+        recorded.push(
+          broker.recordDrop({
+            targetHost: drop.dest_ip,
+            targetPort: drop.dest_port,
+            reasonCode: "kernel-drop",
+            workerId: `worker-${id}`,
+            ...meta,
+          }),
+        );
+      }
+    }
+    const degraded = result.degraded === true || entry.capture?.degraded === true;
+    return {
+      id,
+      count: typeof result.count === "number" ? result.count : drops.length,
+      drops,
+      recorded,
+      degraded,
+      reason: result.reason ?? entry.capture?.reason ?? null,
+    };
   }
 
   return Object.freeze({

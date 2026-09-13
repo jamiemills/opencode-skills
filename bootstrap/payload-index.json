@@ -836,8 +836,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/docker-worker-provider.mjs",
-        "sha256": "aebc374dc8f5ea9d5cd198b5c216d6e78cd0c3408985c8550c5728756f119071",
-        "bytes": 20528,
+        "sha256": "bebae2ce654b5e93cee72498094847dc599e1ee215b141fc13984d108bca249a",
+        "bytes": 22288,
         "mode": "0644"
       },
       {
@@ -848,14 +848,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/egress-broker.mjs",
-        "sha256": "8ab6c74a5b54d912088a6293f86a80d46230e323d9d1ef816e6acc461bd10fa9",
-        "bytes": 19231,
+        "sha256": "450d5a3ba80b062aa3b45a3fe6fb1270e272b717744396e404a560aeba638744",
+        "bytes": 24283,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/egress-network.mjs",
-        "sha256": "495e9c09935e094dff325173b6a92f9d92ae1b410bf2a19d7e911d7615f846ca",
-        "bytes": 8131,
+        "sha256": "0e56abbd533170bbd0e42dcd7f3ca2c58cf57fcc70c0e9c846fa736ffe5aef6e",
+        "bytes": 15035,
         "mode": "0644"
       },
       {
@@ -2081,8 +2081,8 @@
       },
       {
         "path": "payload/lib/durable-json/index.mjs",
-        "sha256": "2aa4b3fd54fd3055370b42fb73428880c94f6fdd7fbcfd6de5cef7a8625d2785",
-        "bytes": 9937,
+        "sha256": "3ee9b9aeec420d8afa410c107fc302aa9f69180da66eb306b1d32d0c3bd1c7f7",
+        "bytes": 10760,
         "mode": "0644"
       },
       {

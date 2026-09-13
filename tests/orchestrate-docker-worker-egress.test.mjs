@@ -42,7 +42,13 @@ function fakeRun(calls) {
   };
 }
 
-function fakeEnforcer(log) {
+const SAMPLE_DROPS = [
+  { dest_ip: "203.0.113.7", dest_port: 443, protocol: 6 },
+  { dest_ip: "203.0.113.7", dest_port: 443, protocol: 6 },
+  { dest_ip: "198.51.100.9", dest_port: 53, protocol: 17 },
+];
+
+function fakeEnforcer(log, { drops = SAMPLE_DROPS, degraded = false, provisionError = null } = {}) {
   return {
     async provision(options) {
       log.push(["provision", options]);
@@ -56,11 +62,22 @@ function fakeEnforcer(log) {
     },
     async provisionDropLogging(options) {
       log.push(["provisionDropLogging", options]);
+      if (provisionError) throw provisionError;
       return options;
     },
     async collectDrops(options) {
       log.push(["collectDrops", options]);
-      return { workerId: options.workerId, count: 3 };
+      return {
+        workerId: options.workerId,
+        count: drops.length,
+        drops,
+        degraded,
+        reason: degraded ? "iptables-unavailable" : null,
+      };
+    },
+    async removeDropLogging(options) {
+      log.push(["removeDropLogging", options]);
+      return { workerId: options.workerId, removed: true };
     },
     async teardown(options) {
       log.push(["teardown", options]);
@@ -108,5 +125,80 @@ test("T004: provider starts the worker on the internal network and tears down eg
         options.brokerName === "b1",
     ),
     "stop must tear down both networks and the broker",
+  );
+  assert.ok(
+    log.some(
+      ([name, options]) => name === "removeDropLogging" && options.workerId === "cid-worker",
+    ),
+    "stop must remove the drop reader from the worker netns",
+  );
+});
+
+test("T002: provider feeds per-drop facts into broker.recordDrop", async () => {
+  const calls = [];
+  const log = [];
+  const recorded = [];
+  const broker = {
+    recordDrop(options) {
+      recorded.push(options);
+      return { decision: "dropped-unmediated", ...options };
+    },
+  };
+  const provider = createDockerWorkerProvider({
+    run: fakeRun(calls),
+    egressEnforcer: fakeEnforcer(log),
+  });
+  await provider.start({
+    name: "w2",
+    workerSource: "export {};\n",
+    egress: { brokerScript: "serve()" },
+  });
+
+  const result = await provider.collectDrops({
+    id: "cid-worker",
+    broker,
+    meta: { taskId: "T002" },
+  });
+  assert.equal(result.degraded, false);
+  assert.equal(result.recorded.length, 3);
+  assert.equal(recorded[0].targetHost, "203.0.113.7");
+  assert.equal(recorded[0].targetPort, 443);
+  assert.equal(recorded[0].reasonCode, "kernel-drop");
+  assert.equal(recorded[0].workerId, "worker-cid-worker");
+  assert.equal(recorded[0].taskId, "T002");
+  assert.equal(recorded[2].targetHost, "198.51.100.9");
+});
+
+test("T002: capture degradation is observable and only fails closed when required", async () => {
+  const calls = [];
+  const log = [];
+  const provider = createDockerWorkerProvider({
+    run: fakeRun(calls),
+    egressEnforcer: fakeEnforcer(log, {
+      drops: [],
+      provisionError: new Error("iptables-unavailable"),
+    }),
+  });
+
+  const started = await provider.start({
+    name: "w3",
+    workerSource: "export {};\n",
+    egress: { brokerScript: "serve()", requireDropCapture: false },
+  });
+  assert.equal(started.egress.capture.degraded, true);
+  assert.match(started.egress.capture.reason, /iptables-unavailable/);
+
+  const drops = await provider.collectDrops({ id: "cid-worker" });
+  assert.equal(drops.degraded, true);
+  assert.deepEqual(drops.drops, []);
+
+  await assert.rejects(
+    provider.start({
+      name: "w4",
+      workerSource: "export {};\n",
+      egress: { brokerScript: "serve()", requireDropCapture: true },
+    }),
+    /iptables-unavailable/,
+    "policy that requires capture must fail closed",
   );
 });
