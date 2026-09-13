@@ -59,23 +59,41 @@ const EGRESS_POLICY = Object.freeze({
   credentialInjections: [],
 });
 
-// A mediated-egress worker: it asks the host (over the sustained session) to
-// egress rather than dialing upstream itself, then makes a direct attempt to a
-// TEST-NET address that the network enforcer kernel-drops.
+// A mediated-egress worker: it dials the broker container's relay (handed to it
+// as `input.egressRelay`) and the broker pipes the bytes to the host listener,
+// then makes a direct attempt to a TEST-NET address that the network enforcer
+// kernel-drops.
 const WORKER_SOURCE = `
 import net from "node:net";
 import readline from "node:readline";
 
 const rl = readline.createInterface({ input: process.stdin });
-const pending = new Map();
-let seq = 0;
+let relay = null;
 const send = (message) => process.stdout.write(JSON.stringify(message) + "\\n");
-const egress = (target) =>
-  new Promise((resolve) => {
-    const id = "e" + ++seq;
-    pending.set(id, resolve);
-    send({ type: "egress", id, target });
+
+function egress(target) {
+  return new Promise((resolve) => {
+    if (!relay) {
+      resolve({ decision: "error", reasonCode: "relay-unavailable" });
+      return;
+    }
+    const socket = net.connect(relay.port, relay.host);
+    let buffer = "";
+    socket.setTimeout(8000, () => {
+      socket.destroy();
+      resolve({ decision: "error", reasonCode: "timeout" });
+    });
+    socket.on("connect", () => socket.write(JSON.stringify({ id: "e", target }) + "\\n"));
+    socket.on("data", (chunk) => {
+      buffer += chunk;
+      const newline = buffer.indexOf("\\n");
+      if (newline === -1) return;
+      socket.end();
+      resolve(JSON.parse(buffer.slice(0, newline)));
+    });
+    socket.on("error", (error) => resolve({ decision: "error", reasonCode: error.code ?? "error" }));
   });
+}
 
 function bypass() {
   return new Promise((resolve) => {
@@ -124,13 +142,10 @@ async function run() {
 
 rl.on("line", (line) => {
   const message = JSON.parse(line);
-  if (message.type === "egress.result") {
-    const resolve = pending.get(message.id);
-    pending.delete(message.id);
-    resolve?.(message);
-    return;
+  if (message.type === "work") {
+    relay = message.input?.egressRelay ?? null;
+    void run();
   }
-  if (message.type === "work") void run();
 });
 `;
 
@@ -382,6 +397,7 @@ test(
       policy: EGRESS_POLICY,
       ledgerKey: "t003-live-ledger-key-0123456789",
       credentials: {},
+      egressRelay: true,
       requireDropCapture: true,
       dropCapturePoll: { attempts: 24, delayMs: 250 },
       forward: async ({ target }) => {

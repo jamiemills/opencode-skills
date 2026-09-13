@@ -4,11 +4,17 @@ import { randomBytes } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
 import { createDockerWorkerProvider } from "./docker-worker-provider.mjs";
-import { createEgressNetworkEnforcer } from "./egress-network.mjs";
+import {
+  RELAY_LISTEN_PORT,
+  createEgressNetworkEnforcer,
+  discoverHostGateway,
+  generateRelayBrokerScript,
+} from "./egress-network.mjs";
 import {
   EgressPolicyError,
   createEgressBroker,
   createEgressBrokerListener,
+  createEgressBrokerRelayServer,
   createEgressLedger,
 } from "./egress-broker.mjs";
 import { VERIFIED_SANDBOX } from "./skill-executor-preflight.mjs";
@@ -31,15 +37,20 @@ import { digest } from "../../lib/schema-runtime/index.mjs";
 // and dials directly is kernel-dropped and captured by the NFLOG probe.
 //
 // The broker container provisioned by the enforcer is the worker's only network
-// peer; wiring that container to relay bytes into the host-side listener is a
-// larger redesign tracked as residual risk (see the T003 build report). This
-// runtime is fail-closed: an enabled config missing its egress policy/ledger or
-// a provider/broker that cannot start raises, and the caller's gate turns that
-// into a typed `isolation-unavailable` refusal.
+// peer. When `egressRelay` is enabled the runtime generates a relay broker
+// script: the worker dials the broker's internal address, the broker pipes the
+// bytes to a host-side relay server bound on the default-bridge gateway, and
+// only that server applies policy, injects credentials, and records decisions.
+// The worker (internal-only, blackhole default route) cannot reach the gateway,
+// so an unmediated dial is still kernel-dropped and captured by the NFLOG probe.
+// This runtime is fail-closed: an enabled config missing its egress
+// policy/ledger or a provider/broker that cannot start raises, and the caller's
+// gate turns that into a typed `isolation-unavailable` refusal.
 
-// The broker container's only job here is to be the internal network's peer and
-// to host the drop-probe netns; mediated egress is decided host-side. It serves
-// nothing, so an unmediated worker gets no usable upstream.
+// The broker container's default job is to be the internal network's peer and to
+// host the drop-probe netns; mediated egress is decided host-side. It serves
+// nothing, so an unmediated worker gets no usable upstream. When N5 relay mode
+// is enabled the runtime replaces this with a generated relay script.
 const DEFAULT_BROKER_SCRIPT = 'require("net").createServer(() => {}).listen(0, "0.0.0.0")';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -106,17 +117,21 @@ async function collectDropsWithRetry(provider, options, poll = null) {
   return last;
 }
 
-// T003: the default in-sandbox executor. It owns the mediated worker protocol:
-// the worker emits `{type:"egress", id, target, ...}` messages and the host
-// answers with the listener's decision (never a raw socket); `{type:"done"}`
-// terminates the session. A caller may still inject `sandboxExecutor` to run a
-// different worker contract.
+// T003: the default in-sandbox executor. It owns the mediated worker protocol.
+// With N5 relay mode the worker is handed `input.egressRelay` (the broker's
+// internal address + the relay port) and dials the broker container for every
+// mediated request; the broker relays to the host-side listener. The session
+// still carries the work item and `{type:"done"}`, and the legacy
+// `{type:"egress", ...}` session path remains supported for callers that did
+// not enable the relay. A caller may inject `sandboxExecutor` for another
+// contract.
 export function createDefaultSandboxExecutor() {
   return async function defaultSandboxExecutor({
     request = {},
     worker = null,
     provider = null,
     listener = null,
+    relay = null,
     signal = null,
   } = {}) {
     if (!listener || typeof listener.handle !== "function")
@@ -132,9 +147,15 @@ export function createDefaultSandboxExecutor() {
       attempt: request.retry?.attempt ?? 0,
       taskId: request.taskId ?? null,
     };
+    const relayTarget =
+      relay && worker?.egress?.brokerName
+        ? { host: worker.egress.brokerName, port: RELAY_LISTEN_PORT }
+        : null;
+    const input = { ...request.input };
+    if (relayTarget) input.egressRelay = relayTarget;
     await provider.session({
       id: worker.id,
-      messages: [{ type: "work", input: request.input ?? {} }],
+      messages: [{ type: "work", input }],
       signal,
       ...(request.timeoutMs ? { timeoutMs: request.timeoutMs } : {}),
       onResponse: async (message) => {
@@ -197,10 +218,13 @@ export function createLiveVerifiedSandboxRuntime({
   // The broker listener stays host-side: policy and credential refs never cross
   // the listener boundary. A caller may inject its own composition; otherwise
   // the T001 broker listener is built per invocation from the configured (or
-  // request-supplied) egress policy/ledger/transport.
+  // request-supplied) egress policy/ledger/transport. In N5 relay mode it also
+  // binds a host-side relay server on the default bridge gateway so the broker
+  // container can pipe worker bytes to it; discovery or bind failure is
+  // fail-closed (the invocation raises rather than degrading to unmediated).
   const composeBroker =
     brokerFactory ??
-    (({ request, emit }) => {
+    (async ({ request, emit }) => {
       const policy = request.egressPolicy ?? base.policy ?? null;
       if (!policy) return null;
       const ledger =
@@ -227,7 +251,26 @@ export function createLiveVerifiedSandboxRuntime({
             throw new Error("egress forward transport is required");
           }),
       });
-      return { broker, listener, ledger };
+      const relayEnabled = request.egressRelay ?? base.egressRelay ?? false;
+      if (!relayEnabled) return { broker, listener, ledger };
+      const relayHost =
+        request.relayGateway ?? base.relayGateway ?? (await discoverHostGateway({ docker }));
+      if (typeof relayHost !== "string" || relayHost.length === 0)
+        throw new EgressPolicyError(
+          "verified-sandbox relay transport unavailable: no host gateway to bind",
+        );
+      const relay = await createEgressBrokerRelayServer({
+        listener,
+        host: relayHost,
+        meta: {
+          runId: request.parentRunId ?? null,
+          workerId: null,
+          invocationId: request.invocationId ?? null,
+          attempt: request.retry?.attempt ?? 0,
+          taskId: request.taskId ?? null,
+        },
+      });
+      return { broker, listener, ledger, relay };
     });
   return Object.freeze({
     async invoke({ request = {}, emitEgress = null } = {}, { signal } = {}) {
@@ -241,19 +284,33 @@ export function createLiveVerifiedSandboxRuntime({
       let broker = null;
       let listener = null;
       let ledger = null;
+      let relay = null;
       try {
         if (typeof composeBroker === "function") {
           const composed = await composeBroker({ request, emit: (event) => emitEgress?.(event) });
           broker = composed?.broker ?? null;
           listener = composed?.listener ?? null;
           ledger = composed?.ledger ?? null;
+          relay = composed?.relay ?? null;
         }
+        const baseEgress = request.egress ?? base.egress ?? null;
+        const egressConfig =
+          relay && baseEgress
+            ? {
+                ...baseEgress,
+                brokerScript: generateRelayBrokerScript({
+                  relayHost: relay.host,
+                  relayPort: relay.port,
+                }),
+              }
+            : baseEgress;
         started = await activeProvider.start({
           name: request.workerName ?? base.workerName ?? `csm-sandbox-${request.childRunId}`,
           workerSource,
           policy: request.sandboxPolicy ?? base.sandboxPolicy ?? null,
-          egress: request.egress ?? base.egress ?? null,
+          egress: egressConfig,
         });
+        if (relay && started?.id) relay.meta.workerId = `worker-${started.id}`;
         let result = await sandboxExecutor({
           request,
           worker: started,
@@ -261,6 +318,7 @@ export function createLiveVerifiedSandboxRuntime({
           broker,
           listener,
           ledger,
+          relay,
           emitEgress,
           signal,
         });
@@ -290,6 +348,13 @@ export function createLiveVerifiedSandboxRuntime({
           };
         return result;
       } finally {
+        if (relay && typeof relay.close === "function") {
+          try {
+            await relay.close();
+          } catch {
+            // relay teardown is best-effort; the listener stops with the process
+          }
+        }
         if (started?.id) {
           try {
             await activeProvider.stop({ id: started.id });
@@ -371,6 +436,11 @@ export function createVerifiedSandboxRuntime(config = {}) {
     ledgerFactory,
     sandboxPolicy: config.sandboxPolicy ?? null,
     workerName: config.workerName ?? null,
+    // N5: opt-in broker-container relay. When enabled the runtime binds a
+    // host-side relay server and hands the generated relay script to the
+    // provider; unavailable transport raises rather than degrading.
+    egressRelay: config.egressRelay === true,
+    relayGateway: config.relayGateway ?? null,
     egress: config.egress ?? {
       ...(config.brokerImage ? { brokerImage: config.brokerImage } : {}),
       brokerScript: config.brokerScript ?? DEFAULT_BROKER_SCRIPT,

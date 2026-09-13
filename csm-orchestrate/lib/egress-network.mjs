@@ -1,8 +1,16 @@
 "use strict";
 
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  closeSync,
+  mkdtempSync,
+  openSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -46,6 +54,22 @@ const DROP_DEDUPE_WINDOW_MS = 1_000;
 const DROP_PROBE_IMAGE_TAG = "csm-egress-drop-probe:alpine3.20";
 const DROP_PROBE_BASE_IMAGE =
   "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc";
+
+// T006: cross-process build serialization. Concurrent test processes that build
+// the same tag must not race the Docker builder; a filesystem lock in tmpdir
+// (shared by every process on the host) guards the build, and a double-checked
+// tag inspection means only the first process pays the build.
+const DROP_PROBE_BUILD_LOCK_STALE_MS = 600_000;
+const DROP_PROBE_BUILD_LOCK_TIMEOUT_MS = 240_000;
+const DROP_PROBE_BUILD_LOCK_POLL_MS = 100;
+
+// N5: the worker-facing relay port. The generated broker relay listens here on
+// the internal network and pipes each connection to the host listener; the
+// worker only ever dials the broker container, never the host directly. The
+// sentinel lets provision recognize a relay script without weakening the
+// generic broker contract.
+const RELAY_LISTEN_PORT = 18_443;
+const RELAY_SENTINEL = "CSM_EGRESS_RELAY_V1";
 
 const ULOGD_CONFIG = `[global]
 logfile="/dev/null"
@@ -95,6 +119,125 @@ function run(docker, args, { timeoutMs = 60_000, stdin = null } = {}) {
     if (stdin) child.stdin.end(stdin);
     else child.stdin.end();
   });
+}
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// N5: generate the broker-container relay script. The broker is a dumb byte
+// pipe: it accepts the worker's connection on the internal network and pipes
+// every byte to the host listener. It never parses the mediation protocol and
+// holds no policy or credentials, so those stay host-side. The target host is
+// the host's default-bridge gateway, which the broker reaches through its
+// routed (egress) NIC while the worker (internal-only, blackhole default route)
+// cannot.
+export function generateRelayBrokerScript({
+  relayHost,
+  relayPort,
+  listenPort = RELAY_LISTEN_PORT,
+} = {}) {
+  if (typeof relayHost !== "string" || relayHost.length === 0)
+    throw new TypeError("egress relay requires a relay host");
+  if (!Number.isInteger(relayPort) || relayPort < 1 || relayPort > 65535)
+    throw new TypeError("egress relay requires a valid relay port");
+  if (!Number.isInteger(listenPort) || listenPort < 1 || listenPort > 65535)
+    throw new TypeError("egress relay requires a valid listen port");
+  return [
+    `/* ${RELAY_SENTINEL} */`,
+    'const net=require("net");',
+    `const HOST=${JSON.stringify(relayHost)},PORT=${relayPort},LISTEN=${listenPort};`,
+    "net.createServer((down)=>{",
+    "const up=net.connect(PORT,HOST);",
+    "const closeDown=()=>{try{down.destroy()}catch{}};",
+    "const closeUp=()=>{try{up.destroy()}catch{}};",
+    'up.on("error",closeDown);',
+    'down.on("error",closeUp);',
+    "down.pipe(up).pipe(down);",
+    '}).listen(LISTEN,"0.0.0.0");',
+  ].join("\n");
+}
+
+// N5: the host-side listener must bind an address the broker can reach but the
+// internal-only worker cannot. The default bridge gateway (the same address
+// `host.docker.internal:host-gateway` resolves to) satisfies that: the broker
+// reaches it through its routed NIC, the worker has no route to it. Discovery
+// is fail-closed: a non-IPv4 result yields null and the caller must refuse.
+export async function discoverHostGateway({ docker = "docker", run: runFn = run } = {}) {
+  const inspected = await runFn(docker, [
+    "network",
+    "inspect",
+    "bridge",
+    "--format",
+    "{{(index .IPAM.Config 0).Gateway}}",
+  ]);
+  const candidate = inspected.code === 0 ? inspected.stdout.trim() : "";
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(candidate) ? candidate : null;
+}
+
+// T006: deterministic lock path for an image tag so independent processes agree
+// on the same lock. Exported so the concurrency and stale-lock tests can
+// observe and age the lock directly.
+export function dropProbeBuildLockPath({
+  imageTag = DROP_PROBE_IMAGE_TAG,
+  lockDir = tmpdir(),
+} = {}) {
+  const name = createHash("sha256").update(String(imageTag)).digest("hex").slice(0, 16);
+  return join(lockDir, `csm-drop-probe-${name}.lock`);
+}
+
+// T006: a filesystem lock (`O_EXCL` create) shared across processes on the same
+// host. A stale lock left by a crashed process is reclaimed after `staleMs`;
+// waiting is bounded by `timeoutMs` so a wedged holder fails closed rather than
+// hanging a test suite forever.
+async function acquireBuildLock(lockPath, { timeoutMs, staleMs, pollMs }) {
+  const startedAt = Date.now();
+  for (;;) {
+    let fd = null;
+    try {
+      fd = openSync(lockPath, "wx", 0o600);
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      let stale = false;
+      try {
+        stale = Date.now() - statSync(lockPath).mtimeMs > staleMs;
+      } catch {
+        continue;
+      }
+      if (stale) {
+        try {
+          unlinkSync(lockPath);
+        } catch {
+          // another waiter reaped it first; retry the create
+        }
+        continue;
+      }
+      if (Date.now() - startedAt > timeoutMs)
+        throw new Error(`drop-probe image build lock timed out after ${timeoutMs}ms`, {
+          cause: error,
+        });
+      await delay(pollMs);
+      continue;
+    }
+    try {
+      writeFileSync(fd, `${process.pid}\n`);
+    } catch {
+      // the pid breadcrumb is advisory; the lock itself is the fd
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      try {
+        closeSync(fd);
+      } catch {
+        // already closed
+      }
+      try {
+        unlinkSync(lockPath);
+      } catch {
+        // already reaped
+      }
+    };
+  }
 }
 
 // Parse the packet counter for the `CSM_EGRESS_DROP` logging rule from
@@ -289,28 +432,50 @@ export function createEgressNetworkEnforcer({ docker = "docker", run: runFn = ru
   // Build (or reuse) the baked drop-probe image. Joining a worker netns has no
   // network, so iptables/ulogd must already be present in the image; the base is
   // pinned by digest for reproducibility.
+  //
+  // T006: the build is pre-serialized across processes. Concurrent suites that
+  // target the same tag contend on one filesystem lock; the winner builds once
+  // and every waiter re-inspects the tag under the lock, so the builder is never
+  // raced and no process duplicates the build.
   async function ensureDropProbeImage({
     imageTag = DROP_PROBE_IMAGE_TAG,
     baseImage = DROP_PROBE_BASE_IMAGE,
     timeoutMs = 180_000,
+    lockDir = tmpdir(),
+    lockTimeoutMs = DROP_PROBE_BUILD_LOCK_TIMEOUT_MS,
+    lockStaleMs = DROP_PROBE_BUILD_LOCK_STALE_MS,
+    lockPollMs = DROP_PROBE_BUILD_LOCK_POLL_MS,
   } = {}) {
     const present = await runFn(docker, ["image", "inspect", imageTag], { timeoutMs: 30_000 });
     if (present.code === 0) return { image: imageTag, built: false };
-    const context = mkdtempSync(join(tmpdir(), "csm-drop-probe-"));
+    const lockPath = dropProbeBuildLockPath({ imageTag, lockDir });
+    const release = await acquireBuildLock(lockPath, {
+      timeoutMs: lockTimeoutMs,
+      staleMs: lockStaleMs,
+      pollMs: lockPollMs,
+    });
     try {
-      writeFileSync(
-        join(context, "Dockerfile"),
-        DROP_PROBE_DOCKERFILE.replace(DROP_PROBE_BASE_IMAGE, baseImage),
-      );
-      writeFileSync(join(context, "csm-ulogd.conf"), ULOGD_CONFIG);
-      const built = await runFn(docker, ["build", "-t", imageTag, context], { timeoutMs });
-      if (built.code !== 0)
-        throw new Error(
-          `drop-probe image build failed: ${(built.stderr || built.stdout).trim() || "unknown error"}`,
+      // Double-checked: another process may have built the tag while we waited.
+      const recheck = await runFn(docker, ["image", "inspect", imageTag], { timeoutMs: 30_000 });
+      if (recheck.code === 0) return { image: imageTag, built: false };
+      const context = mkdtempSync(join(tmpdir(), "csm-drop-probe-"));
+      try {
+        writeFileSync(
+          join(context, "Dockerfile"),
+          DROP_PROBE_DOCKERFILE.replace(DROP_PROBE_BASE_IMAGE, baseImage),
         );
-      return { image: imageTag, built: true };
+        writeFileSync(join(context, "csm-ulogd.conf"), ULOGD_CONFIG);
+        const built = await runFn(docker, ["build", "-t", imageTag, context], { timeoutMs });
+        if (built.code !== 0)
+          throw new Error(
+            `drop-probe image build failed: ${(built.stderr || built.stdout).trim() || "unknown error"}`,
+          );
+        return { image: imageTag, built: true };
+      } finally {
+        rmSync(context, { recursive: true, force: true });
+      }
     } finally {
-      rmSync(context, { recursive: true, force: true });
+      release();
     }
   }
 
@@ -494,5 +659,7 @@ export {
   DROP_PROBE_BASE_IMAGE,
   DROP_LOG_PATH,
   DROP_DEDUPE_WINDOW_MS,
+  RELAY_LISTEN_PORT,
+  RELAY_SENTINEL,
   run as runDockerCommand,
 };

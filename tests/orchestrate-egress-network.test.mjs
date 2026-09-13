@@ -1,24 +1,48 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   createEgressBroker,
   createEgressBrokerListener,
+  createEgressBrokerRelayServer,
   createEgressLedger,
 } from "../csm-orchestrate/lib/egress-broker.mjs";
 import {
   completeRecordBytes,
   createEgressNetworkEnforcer,
+  discoverHostGateway,
   DROP_DEDUPE_WINDOW_MS,
   DROP_PROBE_IMAGE_TAG,
+  dropProbeBuildLockPath,
   dedupeDrops,
+  generateRelayBrokerScript,
   parseDropCount,
   parseDropRecords,
+  RELAY_LISTEN_PORT,
 } from "../csm-orchestrate/lib/egress-network.mjs";
 
 const DOCKER_AVAILABLE = spawnSync("docker", ["info"], { stdio: "ignore" }).status === 0;
+
+function inspectContainerIp(name, network) {
+  return spawnSync(
+    "docker",
+    ["inspect", "-f", `{{(index .NetworkSettings.Networks "${network}").IPAddress}}`, name],
+    { encoding: "utf8" },
+  ).stdout.trim();
+}
 
 test(
   "T004: a worker on the internal network reaches the broker but not the internet",
@@ -408,6 +432,94 @@ test("T002: drop capture is observably degraded until it is provisioned", async 
   assert.equal(result.reason, "drop-capture-not-provisioned");
 });
 
+test("T006: ensureDropProbeImage reclaims a stale cross-process build lock", async () => {
+  const lockDir = mkdtempSync(join(tmpdir(), "csm-drop-lock-"));
+  try {
+    const imageTag = "csm-test-stale:tag";
+    const lockPath = dropProbeBuildLockPath({ imageTag, lockDir });
+    writeFileSync(lockPath, "999999\n");
+    utimesSync(lockPath, new Date(0), new Date(0));
+    let builds = 0;
+    const run = async (_docker, args) => {
+      if (args[0] === "image") return { code: builds === 0 ? 1 : 0, stdout: "", stderr: "" };
+      if (args[0] === "build") {
+        builds += 1;
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      return { code: 0, stdout: "", stderr: "" };
+    };
+    const enforcer = createEgressNetworkEnforcer({ run });
+    const result = await enforcer.ensureDropProbeImage({ imageTag, lockDir });
+    assert.equal(result.built, true, "a stale lock must be reclaimed rather than deadlock");
+    assert.equal(builds, 1);
+    assert.equal(existsSync(lockPath), false, "the lock must be released after the build");
+  } finally {
+    rmSync(lockDir, { recursive: true, force: true });
+  }
+});
+
+test("T006: concurrent processes share one drop-probe image build", async () => {
+  const root = mkdtempSync(join(tmpdir(), "csm-drop-stress-"));
+  const lockDir = join(root, "locks");
+  mkdirSync(lockDir, { recursive: true });
+  const marker = join(root, "built.marker");
+  const buildLog = join(root, "builds.log");
+  const moduleUrl = new URL("../csm-orchestrate/lib/egress-network.mjs", import.meta.url).href;
+  const childSource = `
+    import { createEgressNetworkEnforcer } from ${JSON.stringify(moduleUrl)};
+    import { appendFileSync, existsSync, writeFileSync } from "node:fs";
+    const [lockDir, marker, buildLog] = process.argv.slice(1);
+    const run = async (_docker, args) => {
+      if (args[0] === "image") return { code: existsSync(marker) ? 0 : 1, stdout: "", stderr: "" };
+      if (args[0] === "build") {
+        appendFileSync(buildLog, process.pid + "\\n");
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        writeFileSync(marker, "built");
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      return { code: 0, stdout: "", stderr: "" };
+    };
+    const enforcer = createEgressNetworkEnforcer({ run });
+    const result = await enforcer.ensureDropProbeImage({ imageTag: "csm-stress-tag", lockDir });
+    process.stdout.write(JSON.stringify(result));
+  `;
+  const runChild = () =>
+    new Promise((resolve, reject) => {
+      const child = spawn(
+        process.execPath,
+        ["--input-type=module", "-e", childSource, lockDir, marker, buildLog],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.on("error", reject);
+      child.on("close", (code) =>
+        code === 0 ? resolve(JSON.parse(stdout)) : reject(new Error(stderr)),
+      );
+    });
+  try {
+    const results = await Promise.all(Array.from({ length: 4 }, runChild));
+    const builds = existsSync(buildLog)
+      ? readFileSync(buildLog, "utf8").trim().split("\n").filter(Boolean).length
+      : 0;
+    assert.equal(builds, 1, "exactly one process must build the shared tag");
+    assert.equal(
+      results.filter((result) => result.built).length,
+      1,
+      "exactly one process must report a fresh build",
+    );
+    assert.ok(results.every((result) => result.image === "csm-stress-tag"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("T009: attachWorker failure cleans up the egress network and broker", async () => {
   const calls = [];
   const run = async (_docker, args) => {
@@ -553,6 +665,165 @@ test(
           brokerName: provisioned.brokerName,
         });
       spawnSync("docker", ["rmi", "-f", DROP_PROBE_IMAGE_TAG], { stdio: "ignore" });
+    }
+  },
+);
+
+test(
+  "N5/T001: the broker container relays worker mediation to the host listener",
+  { skip: !DOCKER_AVAILABLE, timeout: 240_000 },
+  async () => {
+    const gateway = await discoverHostGateway();
+    assert.ok(gateway, "the relay transport requires a discoverable host gateway");
+    const policy = {
+      defaultAction: "deny",
+      failMode: "blocked",
+      entries: [
+        {
+          host: "api.allowed.test",
+          port: 443,
+          scheme: "https",
+          methods: ["GET"],
+          maxBytes: 65536,
+        },
+      ],
+      credentialInjections: [],
+    };
+    const ledger = createEgressLedger({ runId: "run-n5-relay", key: "n5-relay-key-0123456789" });
+    const broker = createEgressBroker({ policy, ledger, policyDigest: `sha256:${"c".repeat(64)}` });
+    const forwarded = [];
+    const hostListener = createEgressBrokerListener({
+      broker,
+      forward: async ({ target }) => {
+        forwarded.push(target.host);
+        return { status: 200, body: "upstream-ok" };
+      },
+    });
+    const relay = await createEgressBrokerRelayServer({
+      listener: hostListener,
+      host: gateway,
+      meta: { runId: "run-n5-relay", taskId: "N5" },
+    });
+    const enforcer = createEgressNetworkEnforcer();
+    const brokerName = `csm-relay-broker-${process.pid}`;
+    const workerName = `csm-relay-worker-${process.pid}`;
+    let provisioned = null;
+    spawnSync("docker", ["rm", "-f", workerName, brokerName], { stdio: "ignore" });
+    try {
+      provisioned = await enforcer.provision({
+        brokerName,
+        brokerScript: generateRelayBrokerScript({
+          relayHost: gateway,
+          relayPort: relay.port,
+        }),
+      });
+      const worker = spawnSync(
+        "docker",
+        [
+          "run",
+          "-d",
+          "--name",
+          workerName,
+          "--network",
+          provisioned.network,
+          "node:22-bookworm-slim",
+          "sleep",
+          "infinity",
+        ],
+        { encoding: "utf8" },
+      );
+      assert.equal(worker.status, 0, worker.stderr);
+      await enforcer.provisionDropLogging({ workerId: workerName });
+
+      // The worker dials the broker relay on the internal network; it never has
+      // a route to the host listener bound on the bridge gateway.
+      const requestScript = `
+        const net = require("net");
+        const HOST = ${JSON.stringify(brokerName)};
+        const PORT = ${RELAY_LISTEN_PORT};
+        function req(payload) {
+          return new Promise((resolve, reject) => {
+            const socket = net.connect(PORT, HOST);
+            let buffer = "";
+            socket.setTimeout(8000, () => { socket.destroy(); reject(new Error("timeout")); });
+            socket.on("connect", () => socket.write(JSON.stringify(payload) + "\\n"));
+            socket.on("data", (chunk) => {
+              buffer += chunk;
+              const newline = buffer.indexOf("\\n");
+              if (newline === -1) return;
+              socket.end();
+              resolve(JSON.parse(buffer.slice(0, newline)));
+            });
+            socket.on("error", reject);
+          });
+        }
+        (async () => {
+          const allowed = await req({ id: "a", target: { host: "api.allowed.test", port: 443, scheme: "https", method: "GET", path: "/v1" }, headers: {} });
+          const denied = await req({ id: "d", target: { host: "evil.denied.test", port: 443, scheme: "https", method: "GET", path: "/v1" }, headers: {} });
+          process.stdout.write(JSON.stringify({ allowed, denied }));
+        })().catch((error) => process.stdout.write("ERR:" + error.message));
+      `;
+      const mediated = await enforcer.probe({
+        workerId: workerName,
+        timeoutMs: 30_000,
+        script: requestScript,
+      });
+      assert.ok(!mediated.stdout.startsWith("ERR"), mediated.stdout);
+      const decisions = JSON.parse(mediated.stdout);
+      assert.equal(decisions.allowed.decision, "allowed");
+      assert.equal(decisions.allowed.upstream.body, "upstream-ok");
+      assert.equal(decisions.denied.decision, "denied");
+      assert.equal(decisions.denied.reasonCode, "default-deny");
+      assert.equal(decisions.denied.upstream, null);
+      assert.deepEqual(forwarded, ["api.allowed.test"], "only the allowlisted target is forwarded");
+
+      // Transport evidence: the host listener observed the broker's egress
+      // address, never the worker's internal address.
+      const brokerIp = inspectContainerIp(brokerName, provisioned.egressNetwork);
+      const workerIp = inspectContainerIp(workerName, provisioned.internalNetwork);
+      assert.ok(
+        relay.connections.length >= 2,
+        `expected >=2 relayed connections, got ${relay.connections.length}`,
+      );
+      assert.ok(
+        brokerIp.length > 0 && relay.connections.includes(brokerIp),
+        `host listener must see the broker ${brokerIp}, saw ${JSON.stringify(relay.connections)}`,
+      );
+      assert.ok(
+        workerIp.length > 0 && !relay.connections.includes(workerIp),
+        `worker ${workerIp} must not reach the host listener directly`,
+      );
+
+      // A direct, unmediated dial is still kernel-dropped and recorded.
+      const direct = await enforcer.probe({
+        workerId: workerName,
+        timeoutMs: 20_000,
+        script:
+          'const s=require("net").connect(443,"203.0.113.7");s.setTimeout(1500,()=>{s.destroy();process.stdout.write("TIMEOUT")});s.on("connect",()=>{process.stdout.write("CONNECTED");s.destroy()});s.on("error",e=>process.stdout.write("ERR:"+e.code));',
+      });
+      assert.match(direct.stdout, /^(ERR:|TIMEOUT)/);
+      let captured = null;
+      let drop = null;
+      for (let poll = 0; poll < 20 && !drop; poll += 1) {
+        captured = await enforcer.collectDrops({ workerId: workerName });
+        drop = captured.drops.find((row) => row.dest_ip === "203.0.113.7" && row.dest_port === 443);
+        if (!drop) await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      assert.ok(drop, `expected a kernel drop, got ${JSON.stringify(captured?.drops)}`);
+      broker.recordDrop({ targetHost: "203.0.113.7", targetPort: 443, taskId: "N5" });
+
+      assert.equal(ledger.verify().valid, true);
+      const recorded = ledger.records().map((record) => record.decision);
+      assert.deepEqual(recorded, ["allowed", "denied", "dropped-unmediated"]);
+    } finally {
+      spawnSync("docker", ["rm", "-f", workerName], { stdio: "ignore" });
+      if (provisioned)
+        await enforcer.teardown({
+          network: provisioned.internalNetwork,
+          egressNetwork: provisioned.egressNetwork,
+          brokerName: provisioned.brokerName,
+        });
+      await relay.close();
     }
   },
 );

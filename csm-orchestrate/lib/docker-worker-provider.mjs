@@ -36,6 +36,19 @@ export const WORKER_POLICY_SCHEMAS = Object.freeze([
   "csm-orchestrate-docker-worker-policy/2",
 ]);
 
+// T003 (g3-ruling): the host trust boundary of the attestation anchor key. The
+// frozen /1 attestation `anchor.external` marks that the keyed head is external
+// to the *worker* sandbox; it is not evidence that the key is held beyond the
+// OS user. `os-user-bound` (the default) means the provider generates/holds the
+// anchor key in-process; `external` means the caller manages it beyond the OS
+// user (for example a KMS/HSM or remote signer). `trustBoundary()` is the
+// authoritative signal and `reauthorizeAttestation()` fails closed by default
+// against a non-external key.
+export const WORKER_ANCHOR_TRUST_DOMAINS = Object.freeze({
+  osUser: "os-user-bound",
+  external: "external",
+});
+
 // T005: validate a supplied policy against the schema registry, fail closed.
 // Returns null for an absent policy; throws for anything else that does not
 // validate, so a provider can never start a worker under an unrecognized or
@@ -300,8 +313,17 @@ export function createDockerWorkerProvider({
   now = () => new Date().toISOString(),
   anchorKey = randomBytes(32),
   keyId = "host-key-1",
+  anchorTrustDomain = WORKER_ANCHOR_TRUST_DOMAINS.osUser,
   egressEnforcer = null,
 } = {}) {
+  if (
+    anchorTrustDomain !== WORKER_ANCHOR_TRUST_DOMAINS.osUser &&
+    anchorTrustDomain !== WORKER_ANCHOR_TRUST_DOMAINS.external
+  )
+    throw new TypeError(
+      `unsupported anchor trust domain: ${String(anchorTrustDomain)} (expected ${WORKER_ANCHOR_TRUST_DOMAINS.osUser} or ${WORKER_ANCHOR_TRUST_DOMAINS.external})`,
+    );
+  const hostExternal = anchorTrustDomain === WORKER_ANCHOR_TRUST_DOMAINS.external;
   const egressById = new Map();
   const policyById = new Map();
   async function start({
@@ -672,12 +694,44 @@ export function createDockerWorkerProvider({
     };
   }
 
+  // T003: the explicit host trust boundary of this provider's attestation
+  // anchor. `hostExternal` is true only when the caller declared an
+  // out-of-OS-user anchor key/source.
+  function trustBoundary() {
+    return {
+      trustDomain: anchorTrustDomain,
+      hostExternal,
+      keyId,
+      anchorKeySource: hostExternal ? "external" : "in-process",
+    };
+  }
+
+  // T003: final-sink re-authorization for a terminal attestation. Re-verify the
+  // keyed head and, by default (`requireHostExternal: true`), refuse an
+  // OS-user-bounded anchor rather than silently accepting it as externally
+  // anchored. Fail closed on any failed re-verification.
+  function reauthorizeAttestation({ doc, requireHostExternal = true } = {}) {
+    const base = { hostExternal, anchor: trustBoundary() };
+    let verified = false;
+    try {
+      verified = verifyWorkerAttestation({ doc, anchorKey }) === true;
+    } catch {
+      verified = false;
+    }
+    if (!verified) return { ...base, authorized: false, reasonCode: "attestation-invalid" };
+    if (requireHostExternal && !hostExternal)
+      return { ...base, authorized: false, reasonCode: "anchor-not-external-to-host" };
+    return { ...base, authorized: true, reasonCode: "anchored" };
+  }
+
   return Object.freeze({
     start,
     session,
     stop,
     collectDrops,
     attest: attestDockerWorker,
+    trustBoundary,
+    reauthorizeAttestation,
     now,
   });
 }

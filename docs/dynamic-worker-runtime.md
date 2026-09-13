@@ -54,6 +54,52 @@ it (binding `runId`, tolerating a torn tail, rejecting a malformed interior
 line), and fails closed if the persisted head does not match `readAnchor` or if
 `publishAnchor` fails.
 
+### Trust boundary and final-sink re-authorization (T003 / g3-ruling)
+
+The keyed head is **external to the worker sandbox** — the worker never holds
+the key, so it cannot recompute the chain — but it is **not external to the OS
+user**: the anchor key and the anchor sink are host-process functions, so a
+compromised process running as the same OS user can forge the chain. A trust
+anchor _beyond_ the OS-user boundary needs out-of-process key custody (KMS/HSM,
+a remote append-only sink, or equivalent), which this personal-suite has no
+dependency for. Per the original goal's g3-ruling and
+`.agents/docs/g3-ruling.md`, that boundary is **deferred, not silently
+claimed**.
+
+The anchor is a pluggable contract (`createExternalAnchor`, `createFailClosedAnchor`,
+`resolveEgressAnchor`; `publishAnchor`/`readAnchor` remain primitive callbacks)
+with an explicit `trustDomain` of `os-user-bound` (default) or `external`:
+
+- **Fail-closed default.** A ledger with no anchor resolves to a fail-closed
+  anchor: `ledger.trustBoundary()` reports `hostExternal: false`, and
+  `requireAnchor: true` makes `append` throw `egress anchor unavailable` rather
+  than degrade to an unanchored chain. The frozen `/1` record field
+  `anchor.external: true` marks only that the record carries a keyed head; the
+  authoritative host-boundary signal is `trustBoundary()`.
+- **Final-sink re-authorization.** Before a caller accepts a terminal sink
+  (the run's last persisted record, a terminal receipt, or any finalizing
+  sink), `ledger.authorizeFinalSink({ requireHostExternal = true, sink })`
+  re-verifies the whole chain, re-reads the anchor, and reconciles it against
+  the local head. It returns `authorized: false` with a typed reason
+  (`chain-invalid`, `chain-empty`, `anchor-not-external-to-host`,
+  `anchor-unavailable`, `anchor-mismatch`) on any failure. By default it refuses
+  an OS-user-bounded anchor; a personal-suite caller may pass
+  `requireHostExternal: false` to accept the OS-user-bounded anchor explicitly —
+  a recorded deviation, never a silent one.
+- **Worker attestation.** `createDockerWorkerProvider({ anchorTrustDomain })`
+  defaults to `os-user-bound` (the anchor key is generated in-process) and
+  exposes `trustBoundary()`; `provider.reauthorizeAttestation({ doc,
+requireHostExternal = true })` re-verifies the keyed attestation head and
+  fails closed on a non-external anchor. The frozen worker-attestation
+  `anchor.external` field is again only external-to-worker.
+
+**Residual risk:** within the OS-user boundary, the egress chain and worker
+attestation remain forgeable by a same-user host process. This is accepted for
+single-operator, local, personal-suite use and is the deployment gate recorded
+in the g3-ruling; supplying an `external` anchor provider (and setting
+`anchorTrustDomain: "external"`) is the intended remediation when the trust
+model widens.
+
 Network enforcement is wired (`csm-orchestrate/lib/egress-network.mjs`): the
 worker attaches only to the broker-only internal network; the broker is
 dual-homed onto a second (egress) network so only the broker reaches upstream.
@@ -85,6 +131,47 @@ Claude Code identifiers:
 
 Anthropic caps (concurrent agents, agents per run, items per pipeline) are
 version-dependent policy inputs, not constants.
+
+### Version-qualified identifiers
+
+Both sides of the table above are version-qualified: the CSM schemas carry
+their own suffixes (`csm-orchestrate-telemetry-event/2`,
+`csm-worker-projection/1`, `csm-orchestrate-phase/2`, frozen policy `/1` vs
+`/2`), and the Anthropic Claude Code field set is gated on the runtime version.
+Map the qualifiers and the worker lifecycle explicitly so a projection never
+reads a mapping as a constant:
+
+| CSM identifier / lifecycle                                                  | CSM qualifier                        | Anthropic workflow / agent field                                                                           | Version basis                                                       |
+| --------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `runId`                                                                     | `csm-orchestrate-telemetry-event/2`  | workflow run (`workflow.run_id`, `wf_…`); OTel correlates workflow runs                                    | dynamic workflows require v2.1.154+ [R1]; OTel tracing is beta [R4] |
+| `taskId`                                                                    | `csm-orchestrate-phase/2` route node | workflow task / pipeline item (**inference** — no vendor field name documented)                            | [R1][R2]                                                            |
+| `workerId`                                                                  | `csm-orchestrate-telemetry-event/2`  | SDK subagent `agent_id`; OTel correlates parent/child agents                                               | [R3][R4]                                                            |
+| `invocationId`                                                              | `csm-orchestrate-telemetry-event/2`  | Agent SDK agent-loop invocation (**inference**)                                                            | [R5]                                                                |
+| `toolId`                                                                    | `csm-orchestrate-telemetry-event/2`  | `tool_use_id`; OTel correlates tool-use IDs                                                                | [R4]                                                                |
+| worker lifecycle (`worker.started` … `worker.replayed`)                     | `csm-worker-projection/1` states     | workflow phase / agent status shown by the run view; lifecycle callbacks via hooks (OTel/hook correlation) | [R1][R6][R4]                                                        |
+| caps (concurrent agents, agents per run, items per pipeline, nesting depth) | policy input, not a constant         | version- and configuration-dependent limits                                                                | [R2][R3]                                                            |
+
+Basis (retrieved 2026-08-27; vendor docs are current and explicitly version-gated):
+
+- [R1] Claude Code — Dynamic workflows: <https://code.claude.com/docs/en/workflows>
+  (page notes dynamic workflows require Claude Code v2.1.154 or later).
+- [R2] Claude Code — Workflows, behavior and limits:
+  <https://code.claude.com/docs/en/workflows#behavior-and-limits>.
+- [R3] Claude Agent SDK — Subagents:
+  <https://code.claude.com/docs/en/agent-sdk/subagents>.
+- [R4] Claude Code — Monitoring usage (OpenTelemetry; distributed tracing beta):
+  <https://code.claude.com/docs/en/monitoring-usage>.
+- [R5] Claude Agent SDK — Agent loop:
+  <https://code.claude.com/docs/en/agent-sdk/agent-loop>.
+- [R6] Claude Code — Workflows, watch the run:
+  <https://code.claude.com/docs/en/workflows#watch-the-run>.
+
+Rows marked **inference** are not named by the cited vendor documentation. The
+whole correspondence is non-gating, observational only, and must be re-checked
+per Claude Code version. Source lineage: the claim-level evidence for these
+citations is the deep-research finding
+`.agents/research/2026-08-27-claude-code-dynamic-workflows-skills-20260827t120000z-d7e8f9a0b1c2-research.json`
+(claims K4, K8) and its OSS-expansion sibling.
 
 ## Spike evidence (T001/T002)
 

@@ -9,10 +9,14 @@ import {
   createTelemetryEmitter,
 } from "../csm-orchestrate/lib/telemetry.mjs";
 import {
+  EGRESS_ANCHOR_REASONS,
+  EGRESS_ANCHOR_TRUST_DOMAINS,
   EGRESS_LIMIT_REASONS,
   createEgressBroker,
   createEgressBrokerListener,
   createEgressLedger,
+  createExternalAnchor,
+  createFailClosedAnchor,
   enforceEgressLimits,
   evaluateEgress,
   validateEgressPolicy,
@@ -657,5 +661,124 @@ test("T001: the listener fails closed without a forward transport", () => {
   assert.throws(
     () => createEgressBrokerListener({ policy: listenerPolicy, ledger }),
     /forward function/,
+  );
+});
+
+// T003 (g3-ruling): trust anchors beyond the OS-user boundary + final-sink
+// re-authorization. A verifiable out-of-OS-user anchor is not achievable in the
+// personal-suite scope, so the interface stays pluggable, the default fails
+// closed, and the trust boundary is explicit rather than silently overstated.
+test("T003: a fail-closed anchor is unavailable and publishes fail closed", () => {
+  const anchor = createFailClosedAnchor("unit-test");
+  assert.equal(anchor.hostExternal, false);
+  assert.equal(anchor.trustDomain, EGRESS_ANCHOR_TRUST_DOMAINS.osUser);
+  assert.equal(anchor.publishAvailable, false);
+  assert.equal(anchor.readAvailable, false);
+  assert.equal(anchor.read(), null);
+  assert.throws(
+    () => anchor.publish({ headDigest: `sha256:${"0".repeat(64)}` }),
+    (error) => error.code === EGRESS_ANCHOR_REASONS.unavailable,
+  );
+  assert.throws(() => createExternalAnchor({ publish: () => {} }), /publish and read/);
+});
+
+test("T003: a required anchor that is unavailable fails closed on append", () => {
+  const ledger = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    requireAnchor: true,
+  });
+  assert.equal(ledger.trustBoundary().hostExternal, false);
+  assert.equal(ledger.trustBoundary().required, true);
+  assert.throws(
+    () => ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 }),
+    /anchor unavailable/,
+  );
+  assert.equal(ledger.length(), 0);
+  assert.equal(ledger.verify().valid, true);
+});
+
+test("T003: an external anchor makes the boundary explicit and authorizes a terminal sink", () => {
+  const published = [];
+  const ledger = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    trustAnchor: createExternalAnchor({
+      publish: (event) => published.push(event),
+      read: () => published.at(-1)?.headDigest ?? null,
+    }),
+  });
+  const record = ledger.append({
+    decision: "allowed",
+    targetHost: "registry.npmjs.org",
+    targetPort: 443,
+  });
+  assert.equal(published.length, 1);
+  assert.equal(ledger.trustBoundary().hostExternal, true);
+  assert.equal(ledger.trustBoundary().trustDomain, EGRESS_ANCHOR_TRUST_DOMAINS.external);
+
+  const authorized = ledger.authorizeFinalSink({ sink: "terminal-receipt" });
+  assert.equal(authorized.authorized, true);
+  assert.equal(authorized.reasonCode, EGRESS_ANCHOR_REASONS.anchored);
+  assert.equal(authorized.headDigest, record.anchor.headDigest);
+  assert.equal(authorized.sink, "terminal-receipt");
+
+  // A sink whose claimed head diverges from the local chain is refused.
+  published[0] = { headDigest: `sha256:${"f".repeat(64)}` };
+  assert.equal(ledger.authorizeFinalSink().reasonCode, EGRESS_ANCHOR_REASONS.mismatch);
+
+  // An anchor that throws (sink down) is unavailable, not silently accepted.
+  const down = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    trustAnchor: createExternalAnchor({
+      publish: () => {},
+      read: () => {
+        throw new Error("sink down");
+      },
+    }),
+  });
+  down.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const unavailable = down.authorizeFinalSink();
+  assert.equal(unavailable.authorized, false);
+  assert.equal(unavailable.reasonCode, EGRESS_ANCHOR_REASONS.unavailable);
+});
+
+test("T003: final-sink re-authorization fails closed on an OS-user-bounded anchor by default", () => {
+  const sink = [];
+  const ledger = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    publishAnchor: (event) => sink.push(event),
+    readAnchor: () => sink.at(-1)?.headDigest ?? null,
+  });
+  ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+
+  const defaultDecision = ledger.authorizeFinalSink();
+  assert.equal(defaultDecision.authorized, false);
+  assert.equal(defaultDecision.reasonCode, EGRESS_ANCHOR_REASONS.notHostExternal);
+  assert.equal(defaultDecision.anchor.hostExternal, false);
+
+  // The documented personal-suite deviation is explicit, never silent.
+  const accepted = ledger.authorizeFinalSink({ requireHostExternal: false });
+  assert.equal(accepted.authorized, true);
+  assert.equal(accepted.reasonCode, EGRESS_ANCHOR_REASONS.anchored);
+});
+
+test("T003: final-sink re-authorization refuses an empty chain and an unanchored ledger", () => {
+  const external = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    trustAnchor: createExternalAnchor({ publish: () => {}, read: () => null }),
+  });
+  assert.equal(external.authorizeFinalSink().reasonCode, EGRESS_ANCHOR_REASONS.chainEmpty);
+
+  const unanchored = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  unanchored.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  assert.equal(unanchored.trustBoundary().hostExternal, false);
+  assert.equal(unanchored.authorizeFinalSink().reasonCode, EGRESS_ANCHOR_REASONS.notHostExternal);
+  assert.equal(
+    unanchored.authorizeFinalSink({ requireHostExternal: false }).reasonCode,
+    EGRESS_ANCHOR_REASONS.unavailable,
   );
 });

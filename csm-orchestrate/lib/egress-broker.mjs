@@ -2,6 +2,7 @@
 
 import { createHmac } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fsyncSync, openSync, readFileSync } from "node:fs";
+import net from "node:net";
 import { posix } from "node:path";
 import { digest } from "../../lib/schema-runtime/index.mjs";
 
@@ -29,6 +30,27 @@ function durableAppend(filePath, line) {
 
 const ZERO_HASH = `sha256:${"0".repeat(64)}`;
 const DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
+
+// T003 (g3-ruling): the host trust boundary of an anchor. `os-user-bound` means
+// the key and the anchor sink are held by the same OS user that runs the host
+// (the default here); `external` means the key/sink is managed beyond the OS
+// user (for example a KMS/HSM or a remote append-only sink). The frozen /1
+// record field `anchor.external` marks only that the record carries a keyed head
+// that is external to the *worker* sandbox; it is not evidence of an
+// out-of-OS-user anchor. `trustBoundary()` is the authoritative signal.
+export const EGRESS_ANCHOR_TRUST_DOMAINS = Object.freeze({
+  osUser: "os-user-bound",
+  external: "external",
+});
+
+export const EGRESS_ANCHOR_REASONS = Object.freeze({
+  anchored: "anchored",
+  unavailable: "anchor-unavailable",
+  mismatch: "anchor-mismatch",
+  notHostExternal: "anchor-not-external-to-host",
+  chainInvalid: "chain-invalid",
+  chainEmpty: "chain-empty",
+});
 
 export class EgressPolicyError extends Error {
   constructor(message) {
@@ -248,6 +270,91 @@ export function verifyEgressChain(records, key) {
   return { valid: true };
 }
 
+// T003: a pluggable anchor contract: `{ trustDomain, hostExternal, label,
+// publish, read, publishAvailable, readAvailable, reason }`. `publishAnchor` /
+// `readAnchor` remain the primitive callbacks; these helpers wrap them (or an
+// explicit provider) so the trust domain is explicit and never silently
+// overstated.
+export function createExternalAnchor({ publish, read, label = "external-anchor" } = {}) {
+  if (typeof publish !== "function" || typeof read !== "function")
+    throw new EgressPolicyError("external anchor requires publish and read functions");
+  return Object.freeze({
+    trustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+    hostExternal: true,
+    label,
+    reason: null,
+    publish,
+    read,
+    publishAvailable: true,
+    readAvailable: true,
+  });
+}
+
+// The fail-closed default: an anchor that can never publish or read a head, so
+// a consumer that requires an anchor refuses rather than silently degrading to
+// an OS-user-bounded (forgeable by a same-user host writer) chain.
+export function createFailClosedAnchor(reason = "no-external-anchor-configured") {
+  return Object.freeze({
+    trustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+    hostExternal: false,
+    label: "fail-closed",
+    reason,
+    publish() {
+      throw Object.assign(new EgressPolicyError(`egress anchor unavailable: ${reason}`), {
+        code: EGRESS_ANCHOR_REASONS.unavailable,
+      });
+    },
+    read() {
+      return null;
+    },
+    publishAvailable: false,
+    readAvailable: false,
+  });
+}
+
+// Normalize an explicit `trustAnchor` provider or the legacy
+// `publishAnchor`/`readAnchor` pair into the one anchor contract. Legacy
+// callbacks are OS-user-bounded by definition (they are host-process functions).
+export function resolveEgressAnchor({
+  trustAnchor = null,
+  publishAnchor = null,
+  readAnchor = null,
+} = {}) {
+  if (trustAnchor !== null && trustAnchor !== undefined) {
+    if (typeof trustAnchor !== "object" || Array.isArray(trustAnchor))
+      throw new EgressPolicyError("trustAnchor must be an object");
+    if (typeof trustAnchor.publish !== "function" || typeof trustAnchor.read !== "function")
+      throw new EgressPolicyError("trustAnchor must expose publish and read functions");
+    const hostExternal = trustAnchor.hostExternal === true;
+    return Object.freeze({
+      trustDomain: hostExternal
+        ? EGRESS_ANCHOR_TRUST_DOMAINS.external
+        : EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+      hostExternal,
+      label: trustAnchor.label ?? (hostExternal ? "external-anchor" : "os-user-anchor"),
+      reason: trustAnchor.reason ?? null,
+      publish: trustAnchor.publish,
+      read: trustAnchor.read,
+      publishAvailable: trustAnchor.publishAvailable !== false,
+      readAvailable: trustAnchor.readAvailable !== false,
+    });
+  }
+  const publishAvailable = typeof publishAnchor === "function";
+  const readAvailable = typeof readAnchor === "function";
+  if (!publishAvailable && !readAvailable) return createFailClosedAnchor();
+  const failClosed = createFailClosedAnchor();
+  return Object.freeze({
+    trustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+    hostExternal: false,
+    label: "os-user-sink",
+    reason: null,
+    publish: publishAvailable ? publishAnchor : failClosed.publish,
+    read: readAvailable ? readAnchor : () => null,
+    publishAvailable,
+    readAvailable,
+  });
+}
+
 export function createEgressLedger({
   runId,
   key,
@@ -255,6 +362,8 @@ export function createEgressLedger({
   filePath = null,
   publishAnchor = null,
   readAnchor = null,
+  trustAnchor = null,
+  requireAnchor = null,
   now = () => new Date().toISOString(),
 } = {}) {
   if (typeof runId !== "string" || !/^run-[a-z0-9][a-z0-9-]{1,127}$/.test(runId))
@@ -265,6 +374,18 @@ export function createEgressLedger({
     throw new EgressPolicyError("publishAnchor must be a function or null");
   if (readAnchor !== null && typeof readAnchor !== "function")
     throw new EgressPolicyError("readAnchor must be a function or null");
+  if (requireAnchor !== null && requireAnchor !== undefined && typeof requireAnchor !== "boolean")
+    throw new EgressPolicyError("requireAnchor must be a boolean or null");
+  const anchor = resolveEgressAnchor({ trustAnchor, publishAnchor, readAnchor });
+  // T003: an explicitly supplied trust anchor, or a legacy publish callback,
+  // implies anchoring intent and is required (a broken anchor must not silently
+  // degrade). A ledger with no publishing anchor is explicitly OS-user-bounded
+  // via `trustBoundary()` rather than silently claimed anchored; terminal
+  // acceptance still fails closed through `authorizeFinalSink()`.
+  const anchorRequired =
+    requireAnchor === null || requireAnchor === undefined
+      ? (trustAnchor !== null && trustAnchor !== undefined) || anchor.publishAvailable
+      : requireAnchor;
   const records = [];
   // Durability: reload and re-verify an existing on-disk chain before appending.
   if (filePath && existsSync(filePath)) {
@@ -292,8 +413,15 @@ export function createEgressLedger({
     }
     const persisted = verifyEgressChain(loaded, key);
     if (!persisted.valid) throw new EgressPolicyError("existing egress chain failed verification");
-    if (readAnchor) {
-      const expected = readAnchor();
+    if (anchor.readAvailable) {
+      let expected;
+      try {
+        expected = anchor.read();
+      } catch (error) {
+        throw new EgressPolicyError(
+          `external anchor could not be read: ${String(error?.message ?? error)}`,
+        );
+      }
       const head = loaded.at(-1)?.anchor?.headDigest ?? null;
       if (!expected)
         throw new EgressPolicyError("external anchor returned no head to reconcile against");
@@ -305,10 +433,10 @@ export function createEgressLedger({
     records.push(...loaded);
   }
 
-  const anchorMac = (recordHash, sequence, anchor) =>
+  const anchorMac = (recordHash, sequence, fields) =>
     `sha256:${createHmac("sha256", key)
       .update(
-        `${recordHash}|${sequence}|${anchor.algorithm}|${anchor.keyId}|${anchor.signedAt}|${anchor.external}`,
+        `${recordHash}|${sequence}|${fields.algorithm}|${fields.keyId}|${fields.signedAt}|${fields.external}`,
       )
       .digest("hex")}`;
 
@@ -357,6 +485,9 @@ export function createEgressLedger({
       algorithm: "hmac-sha256",
       keyId,
       signedAt: now(),
+      // Frozen /1 record field: marks that the record carries a keyed head that
+      // is external to the *worker* sandbox. It is NOT proof of an
+      // out-of-OS-user anchor; see `trustBoundary()`.
       external: true,
     };
     const record = {
@@ -365,10 +496,14 @@ export function createEgressLedger({
       anchor: { ...anchorMeta, headDigest: anchorMac(recordHash, sequence, anchorMeta) },
     };
     // Fail closed: a record is not accepted unless its keyed head is anchored
-    // (when an anchor is configured) and durably persisted.
-    if (publishAnchor) {
+    // (when an anchor is required) and durably persisted. A required-but-
+    // unavailable anchor throws rather than silently degrading to an
+    // OS-user-bounded chain.
+    if (anchorRequired && !anchor.publishAvailable)
+      throw new EgressPolicyError(`egress anchor unavailable: ${anchor.reason ?? anchor.label}`);
+    if (anchor.publishAvailable) {
       try {
-        publishAnchor({ headDigest: record.anchor.headDigest, sequence: record.sequence });
+        anchor.publish({ headDigest: record.anchor.headDigest, sequence: record.sequence });
       } catch (error) {
         throw new EgressPolicyError(
           `egress anchor publication failed: ${String(error?.message ?? error)}`,
@@ -384,9 +519,68 @@ export function createEgressLedger({
     return verifyEgressChain(records, key);
   }
 
+  function trustBoundary() {
+    return {
+      trustDomain: anchor.trustDomain,
+      hostExternal: anchor.hostExternal === true,
+      publishAvailable: anchor.publishAvailable === true,
+      readAvailable: anchor.readAvailable === true,
+      required: anchorRequired,
+      label: anchor.label,
+      reason: anchor.reason ?? null,
+    };
+  }
+
+  // T003: final-sink re-authorization. Before a caller accepts a terminal sink
+  // (the run's last persisted record, a terminal receipt, or any sink that
+  // finalizes the audit trail), re-read the external anchor and reconcile it
+  // against the freshly re-verified local chain head. Fail closed
+  // (`authorized: false`) on any invalidity: an invalid chain, an empty chain,
+  // an OS-user-bounded anchor when `requireHostExternal` is set (the default),
+  // no anchor sink, an unreadable/unavailable anchor, or a head mismatch. A
+  // personal-suite caller may explicitly pass `requireHostExternal: false` to
+  // accept the OS-user-bounded anchor; that is a recorded deviation, never a
+  // silent one.
+  function authorizeFinalSink({ requireHostExternal = true, sink = null, at = null } = {}) {
+    const base = { sink, at, headDigest: null, anchor: trustBoundary() };
+    const verification = verifyEgressChain(records, key);
+    if (!verification.valid)
+      return {
+        ...base,
+        authorized: false,
+        reasonCode: EGRESS_ANCHOR_REASONS.chainInvalid,
+        detail: verification.why ?? null,
+      };
+    const headDigest = records.at(-1)?.anchor?.headDigest ?? null;
+    if (!headDigest)
+      return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.chainEmpty };
+    if (requireHostExternal && anchor.hostExternal !== true)
+      return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.notHostExternal };
+    if (!anchor.readAvailable)
+      return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.unavailable };
+    let expected;
+    try {
+      expected = anchor.read();
+    } catch {
+      return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.unavailable };
+    }
+    if (expected === null || expected === undefined || expected === "")
+      return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.unavailable };
+    if (expected !== headDigest)
+      return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.mismatch };
+    return {
+      ...base,
+      authorized: true,
+      reasonCode: EGRESS_ANCHOR_REASONS.anchored,
+      headDigest,
+    };
+  }
+
   return {
     append,
     verify,
+    trustBoundary,
+    authorizeFinalSink,
     records: () => records.map((record) => ({ ...record })),
     length: () => records.length,
   };
@@ -608,4 +802,81 @@ export function createEgressBrokerListener({
       };
     },
   };
+}
+
+// N5: the host-side wire listener. The broker container relays raw bytes from
+// the worker to this server; it frames newline-delimited JSON requests and
+// delegates every decision to the policy-bound broker listener. Only
+// decision/reasonCode/upstream cross back to the worker — never the injected
+// credential or the audit record — so policy and credentials stay host-side.
+//
+// `meta` is host-side and live: a caller may mutate the object after start (for
+// example to fill in the workerId once the sandbox exists) and every subsequent
+// request is attributed to the current values. `connections` records each
+// accepted peer address so the caller can prove the bytes arrived from the
+// broker container rather than the worker.
+export function createEgressBrokerRelayServer({
+  listener,
+  host = "0.0.0.0",
+  port = 0,
+  meta = {},
+} = {}) {
+  if (!listener || typeof listener.handle !== "function")
+    throw new EgressPolicyError("egress relay server requires a listener with handle");
+  const connections = [];
+  const server = net.createServer((socket) => {
+    if (typeof socket.remoteAddress === "string") connections.push(socket.remoteAddress);
+    let buffer = "";
+    let chain = Promise.resolve();
+    const respond = async (line) => {
+      if (!line.trim()) return;
+      let request;
+      try {
+        request = JSON.parse(line);
+      } catch {
+        return;
+      }
+      const handled = await listener.handle(
+        {
+          target: request?.target,
+          headers: request?.headers ?? {},
+          body: request?.body ?? null,
+        },
+        meta,
+      );
+      const response = {
+        id: request?.id ?? null,
+        decision: handled.decision,
+        reasonCode: handled.reasonCode ?? null,
+        upstream: handled.upstream ?? null,
+      };
+      if (!socket.destroyed) socket.write(`${JSON.stringify(response)}\n`);
+    };
+    socket.on("data", (chunk) => {
+      buffer += chunk.toString("utf8");
+      let newline;
+      while ((newline = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        chain = chain.then(() => respond(line)).catch(() => undefined);
+      }
+    });
+    socket.on("error", () => undefined);
+  });
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, () => {
+      const address = server.address();
+      resolve({
+        host: address.address,
+        port: address.port,
+        meta,
+        connections,
+        close: () =>
+          new Promise((done) => {
+            server.close(() => done());
+          }),
+      });
+    });
+  });
 }

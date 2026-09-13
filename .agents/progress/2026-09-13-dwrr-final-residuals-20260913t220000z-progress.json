@@ -1,0 +1,44 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-final-residuals-20260913",
+  "runId": "run-20260913t220000z-dwrr-final-residuals-build",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime final-residuals plan (N5, T006 race, trust anchors, Anthropic fields, hygiene)",
+  "status": "active",
+  "overallPercent": 92,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Broker relay + build serialization",
+      "weightPercent": 40,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Trust anchor / g3-ruling",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Docs + hygiene",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "Delivery",
+      "weightPercent": 15,
+      "status": "active",
+      "verifiedFraction": 0.5
+    }
+  ],
+  "startedAt": "2026-09-13T22:00:00.000Z",
+  "updatedAt": "2026-09-13T19:56:39.291Z"
+}

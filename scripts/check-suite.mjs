@@ -23,6 +23,7 @@ import { lintPlanSignals } from "./check-plan-signals.mjs";
 import { checkDependencyPolicy } from "./lib/dependency-policy.mjs";
 import { agentsIndexSectionFor, agentsIndexSubjectsBySection } from "./lib/agents-index.mjs";
 import { validateSkillProgress } from "../lib/progress-tracker.mjs";
+import { detectCheckoutHygiene, formatCheckoutHygiene } from "./check-checkout-hygiene.mjs";
 import {
   FENCE_OPEN_RE,
   splitLines,
@@ -40,10 +41,13 @@ import {
 
 const args = process.argv.slice(2);
 let root = process.cwd();
+let warnUncommitted = false;
 for (let i = 0; i < args.length; i += 1) {
   if (args[i] === "--root") {
     const next = args[i + 1];
     if (next) root = path.resolve(next);
+  } else if (args[i] === "--warn-uncommitted") {
+    warnUncommitted = true;
   }
 }
 
@@ -1960,6 +1964,15 @@ function main() {
     }
   } else {
     console.log("lint gate skipped — oxlint not installed (run: pnpm install)");
+  }
+
+  // Opt-in, non-gating checkout-hygiene report (T005): surfaces uncommitted
+  // paths in the shared checkout so a session does not sweep a sibling
+  // session's artifacts. It only reads `git status`; it never changes the gate
+  // outcome, and the default gate (without --warn-uncommitted) is unchanged.
+  if (warnUncommitted) {
+    const hygiene = detectCheckoutHygiene(root);
+    for (const line of formatCheckoutHygiene(root, hygiene)) console.log(`  ${line}`);
   }
 
   if (failures.length === 0) {

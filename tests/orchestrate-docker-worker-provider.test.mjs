@@ -9,8 +9,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   assertNetworkEgressContract,
+  buildWorkerAttestation,
   createDockerWorkerProvider,
   verifyWorkerAttestation,
+  WORKER_ANCHOR_TRUST_DOMAINS,
   WORKER_NETWORK_EGRESS_CODES,
 } from "../csm-orchestrate/lib/docker-worker-provider.mjs";
 
@@ -456,4 +458,68 @@ test("T005: an unpinned image is allowed only when no pin is required", async ()
   } finally {
     await provider.stop({ id: started.id });
   }
+});
+
+// T003 (g3-ruling): the attestation anchor is external to the worker sandbox but
+// OS-user-bounded by default. The final-sink re-authorization refuses that
+// boundary unless the caller explicitly declares an external anchor key/source.
+function t003Attestation(anchorKey) {
+  return buildWorkerAttestation({
+    workerId: "worker-t003",
+    runId: "run-t003",
+    policyDigest: `sha256:${"a".repeat(64)}`,
+    imageDigest: `sha256:${"b".repeat(64)}`,
+    inspections: [{ at: "2026-09-13T00:00:00.000Z", controlResults: { mountsEmpty: true } }],
+    anchorKey,
+  });
+}
+
+test("T003: the provider declares an OS-user-bounded anchor by default", () => {
+  const provider = createDockerWorkerProvider({
+    run: fakeRun([]),
+    anchorKey: Buffer.from("t003-anchor-key-0123456789abcdef"),
+  });
+  const boundary = provider.trustBoundary();
+  assert.equal(boundary.trustDomain, WORKER_ANCHOR_TRUST_DOMAINS.osUser);
+  assert.equal(boundary.hostExternal, false);
+  assert.equal(boundary.anchorKeySource, "in-process");
+  assert.throws(
+    () => createDockerWorkerProvider({ anchorTrustDomain: "somewhere-else" }),
+    /unsupported anchor trust domain/,
+  );
+});
+
+test("T003: final-sink attestation re-authorization fails closed on an OS-user-bounded anchor", () => {
+  const anchorKey = Buffer.from("t003-anchor-key-0123456789abcdef");
+  const provider = createDockerWorkerProvider({ run: fakeRun([]), anchorKey });
+  const doc = t003Attestation(anchorKey);
+
+  const refused = provider.reauthorizeAttestation({ doc });
+  assert.equal(refused.authorized, false);
+  assert.equal(refused.reasonCode, "anchor-not-external-to-host");
+  assert.equal(refused.hostExternal, false);
+
+  const accepted = provider.reauthorizeAttestation({ doc, requireHostExternal: false });
+  assert.equal(accepted.authorized, true);
+  assert.equal(accepted.reasonCode, "anchored");
+
+  const tampered = structuredClone(doc);
+  tampered.inspections[0].controlResults.mountsEmpty = false;
+  assert.equal(
+    provider.reauthorizeAttestation({ doc: tampered, requireHostExternal: false }).reasonCode,
+    "attestation-invalid",
+  );
+});
+
+test("T003: a declared external anchor authorizes the terminal attestation sink", () => {
+  const anchorKey = Buffer.from("t003-anchor-key-0123456789abcdef");
+  const provider = createDockerWorkerProvider({
+    run: fakeRun([]),
+    anchorKey,
+    anchorTrustDomain: WORKER_ANCHOR_TRUST_DOMAINS.external,
+  });
+  const result = provider.reauthorizeAttestation({ doc: t003Attestation(anchorKey) });
+  assert.equal(result.authorized, true);
+  assert.equal(result.hostExternal, true);
+  assert.equal(result.anchor.trustDomain, WORKER_ANCHOR_TRUST_DOMAINS.external);
 });
