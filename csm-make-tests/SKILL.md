@@ -361,3 +361,10 @@ Both artifacts are the durable contract between runs: MAINTAIN reads the previou
 - Write discipline held: allowlist verified at OUTPUT; temp dir deleted.
 - Both Required Test Package artifacts written in their exact shapes.
 - Report displayed; run terminated at STOP — no handoff executed implicitly.
+
+## Worker Policy
+
+- Execution: `trusted-in-process` isolation, `worktree` workspace, no network, no credentials.
+- Decomposition: `gap-surface` (bound 16); roles: executor, reviewer.
+- Bounds: maxConcurrency 4, maxDepth 1, maxAgents 32, maxItems 256.
+- Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.

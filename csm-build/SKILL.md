@@ -419,3 +419,11 @@ On a quota signal:
 5. Stop cleanly.
 
 Transient signals (a single `HTTP 429` or `rate-limit`) get one short backoff retry before pausing; hard exhaustion pauses immediately. Resume via the RECOVER resume block when quota returns.
+
+## Worker Policy
+
+- Execution: `trusted-in-process` isolation, `worktree` workspace, no network, no credentials.
+- Decomposition: `ready-set` (bound 8); roles: executor, reviewer.
+- Bounds: maxConcurrency 4, maxDepth 1, maxAgents 16, maxItems 256.
+- Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.
+- Dynamic workers, when enabled, run through csm-orchestrate validation only; this skill declares policy, never a scheduler.

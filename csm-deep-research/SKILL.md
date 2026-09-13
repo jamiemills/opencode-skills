@@ -462,3 +462,10 @@ Browsed content is standard evidence: the claim carries the source URL, the retr
 ### Cleanup
 
 Close the session (`browse.mjs close --session "$SID"` — idempotent) before SAVED; idle sessions are also swept automatically after 10 minutes. The VERIFY protected-state baseline remains repo-scoped: browse writes live outside the repository.
+
+## Worker Policy
+
+- Execution: `trusted-in-process` isolation, `worktree` workspace, broker-mediated network, host-mediated credentials.
+- Decomposition: `angle-panel` (bound 6); roles: executor, reviewer, challenger, judge, verifier.
+- Bounds: maxConcurrency 6, maxDepth 1, maxAgents 24, maxItems 64.
+- Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.

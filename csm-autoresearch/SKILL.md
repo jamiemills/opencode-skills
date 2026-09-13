@@ -153,3 +153,10 @@ using these artifacts; that handoff is not an invocation by this skill.
   behavior is blocked while `DEF-EVAL` remains unresolved.
 - Report and ledger are complete, redacted, append-only/atomic as applicable,
   and promotion has an explicit approval or remains approval-pending.
+
+## Worker Policy
+
+- Execution: `verified-sandbox` isolation, `tmpfs` workspace, no network, no credentials, attestation required.
+- Decomposition: `population` (bound 1000); roles: proposer, judge, evaluator.
+- Bounds: maxConcurrency 4, maxDepth 2, maxAgents 64, maxItems 1000.
+- Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.
