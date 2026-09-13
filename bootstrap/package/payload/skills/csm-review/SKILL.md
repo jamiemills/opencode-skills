@@ -390,3 +390,10 @@ Critical/high/medium findings never bypass independent challenge because of suba
 - Review-only boundary held.
 - Subagent ladder defined.
 - Write discipline held: allowlist verified at VERIFY.
+
+## Worker Policy
+
+- Execution: `trusted-in-process` isolation, `worktree` workspace, no network, no credentials.
+- Decomposition: `dimension-chunk` (bound 24); roles: executor, reviewer, challenger.
+- Bounds: maxConcurrency 4, maxDepth 1, maxAgents 48, maxItems 24.
+- Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.

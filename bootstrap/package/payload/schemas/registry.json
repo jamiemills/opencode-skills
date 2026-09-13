@@ -782,6 +782,15 @@
       "schemaContentDigest": "sha256:4db23a7c143240b453acc8f03fbf02607b818e3cf775a0650792276af843e030"
     },
     {
+      "id": "csm-orchestrate-docker-worker-policy/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/docker-worker-policy.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:28d6f863093854747c3afbff542aea334c4520eeb5be8ed2c705284a6547f987"
+    },
+    {
       "id": "csm-orchestrate-worker-attestation/1",
       "revision": 1,
       "schemaPath": "csm-orchestrate/schemas/worker-attestation.schema.json",

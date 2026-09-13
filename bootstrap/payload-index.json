@@ -818,8 +818,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/csm-autoresearch-adapter.mjs",
-        "sha256": "ef742607ef768a80a528ef4e9632e2e5028e63968f8f6cdf3ce26f9b003a56a3",
-        "bytes": 10755,
+        "sha256": "539be9b9c4ee80f601f50e524efbdbe70fc9ca4418718ffb58a8849f5f12dbf4",
+        "bytes": 12280,
         "mode": "0644"
       },
       {
@@ -835,9 +835,15 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/decision-gate.mjs",
+        "sha256": "6fefd4cc4a6752b982de16bce60ba296871eda3441e31fd4991058840ee68881",
+        "bytes": 22074,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/docker-worker-provider.mjs",
-        "sha256": "bebae2ce654b5e93cee72498094847dc599e1ee215b141fc13984d108bca249a",
-        "bytes": 22288,
+        "sha256": "c1294ad5f1396dc5f77ee8c8f0ba872a438abc37fa7fb834d6213d570bea8b3d",
+        "bytes": 27336,
         "mode": "0644"
       },
       {
@@ -866,8 +872,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "5ed3df17f90d40e4b6df8f66a8ed76a58b6b4e7b581c0ba52bd7866df9af47d1",
-        "bytes": 73196,
+        "sha256": "e4ff6d1f6c822f12a37a53550f488dbafb8632504a8878d82eeea2442941c6af",
+        "bytes": 76244,
         "mode": "0644"
       },
       {
@@ -944,20 +950,20 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-adapter.mjs",
-        "sha256": "a1b348018e40ea3480ca2636ef562c5cbd3736ef8a334f9fe9912838172cc956",
-        "bytes": 5663,
+        "sha256": "4e57607a0f0aa9553152313d1943ed658dfa90fa6cd66d985d123c602700445b",
+        "bytes": 14886,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-handlers.mjs",
-        "sha256": "9dc9b1ecd3545a409a4341a06d9923ba887f04c05bbbfff38cc93e03fecac20b",
-        "bytes": 20812,
+        "sha256": "ad446fe594fed958508b7d792a68b28b79ca80cdc1f4248abe8118a346364c8c",
+        "bytes": 21194,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-preflight.mjs",
-        "sha256": "dfb9841b937f624ee9e868e7888bfe99358b84e29210f371276ed9e1496bba2e",
-        "bytes": 2805,
+        "sha256": "48104513f67e842e0508ff276a85271a25ffe15f986272867cb3ab4ac0279dbc",
+        "bytes": 8240,
         "mode": "0644"
       },
       {
@@ -1078,6 +1084,12 @@
         "path": "payload/skills/csm-orchestrate/schemas/docker-worker-policy.schema.json",
         "sha256": "04f3746a4ea37ef3e182937b709d1c2bb7d193059dcfcce80225160d674673c6",
         "bytes": 3148,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/docker-worker-policy.v2.schema.json",
+        "sha256": "26258b704372c73522089d9d411ef1d4e8e5d463ba64cb553d82bf4ca65b2243",
+        "bytes": 3372,
         "mode": "0644"
       },
       {
@@ -2129,8 +2141,8 @@
       },
       {
         "path": "payload/schemas/compatibility-matrix.json",
-        "sha256": "deb1e9ce3cae4e9a8307e21680e19c5e89c2f4f43180c110dc946af1c63ded8b",
-        "bytes": 4080,
+        "sha256": "5e54669c9dc2eeb8daa7f1f597ab0b5bf94c4e0fd8aa9604a9436767bf14a876",
+        "bytes": 4259,
         "mode": "0644"
       },
       {
@@ -2225,8 +2237,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "7e70f7f28a932f03b3c61f13419dcbf4e044492a0ec152a38f1297b435875bfc",
-        "bytes": 28936,
+        "sha256": "219d2493685866e1277f0f93dce257d193aa428fdc04135f2d9e604701567d4f",
+        "bytes": 29294,
         "mode": "0644"
       },
       {

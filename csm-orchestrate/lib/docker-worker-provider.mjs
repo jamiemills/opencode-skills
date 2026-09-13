@@ -27,6 +27,41 @@ export const WORKER_ENVELOPE = Object.freeze({
   sessionTimeoutMs: 3_600_000,
 });
 
+// T005: the registered docker-worker policy revisions a provider accepts. The
+// frozen /1 envelope and the additive /2 envelope (optional `dropCapture`) are
+// both registered; any other schema identity is refused before a container is
+// created.
+export const WORKER_POLICY_SCHEMAS = Object.freeze([
+  "csm-orchestrate-docker-worker-policy/1",
+  "csm-orchestrate-docker-worker-policy/2",
+]);
+
+// T005: validate a supplied policy against the schema registry, fail closed.
+// Returns null for an absent policy; throws for anything else that does not
+// validate, so a provider can never start a worker under an unrecognized or
+// malformed policy (including a policy that does not pin the image by digest).
+export function validateWorkerPolicy(policy, { registry } = {}) {
+  if (policy === null || policy === undefined) return null;
+  if (typeof policy !== "object" || Array.isArray(policy))
+    throw new TypeError("worker policy must be an object");
+  if (!WORKER_POLICY_SCHEMAS.includes(policy.schema))
+    throw new Error(`unsupported worker policy schema: ${String(policy.schema)}`);
+  if (!registry || typeof registry.validate !== "function")
+    throw new TypeError("worker policy validation requires a schema registry");
+  let result;
+  try {
+    result = registry.validate(policy.schema, policy);
+  } catch (error) {
+    throw new Error(
+      `worker policy ${policy.schema} could not be validated: ${String(error?.message ?? error)}`,
+      { cause: error },
+    );
+  }
+  if (!result.valid)
+    throw new Error(`worker policy failed ${policy.schema}: ${JSON.stringify(result.errors)}`);
+  return policy;
+}
+
 function runCommand(docker, args, { timeoutMs = 60_000, stdin = null } = {}) {
   return new Promise((resolve) => {
     const child = spawn(docker, args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -84,6 +119,12 @@ function parseInspect(text) {
   };
 }
 
+// Extract the `sha256:...` portion of a `name@sha256:...` RepoDigest reference.
+function repoDigestValue(digestRef) {
+  const at = String(digestRef).indexOf("@");
+  return at >= 0 ? String(digestRef).slice(at + 1) : null;
+}
+
 export function attestDockerWorker(
   inspect,
   {
@@ -94,17 +135,31 @@ export function attestDockerWorker(
     expectedNetwork = null,
   } = {},
 ) {
+  const repoDigests = (inspect.repoDigests ?? []).map((digestRef) => String(digestRef));
+  // The container's `.Image` is a mutable image ID; pinning must be proven
+  // against the registry RepoDigest(s). Require a full digest so a short suffix
+  // cannot be spoofed by a longer digest that happens to end in it.
+  const matchedRepoDigest =
+    expectedImageDigest !== null
+      ? (repoDigests.find((digestRef) => digestRef.endsWith(`@${expectedImageDigest}`)) ?? null)
+      : null;
+  // T005: bind the signed attestation to the registry RepoDigest (the matched
+  // one when pinning; otherwise the image's first full RepoDigest), never the
+  // container image ID.
+  const boundRepoDigest =
+    matchedRepoDigest ??
+    repoDigests.find((digestRef) =>
+      /^sha256:[a-f0-9]{64}$/.test(repoDigestValue(digestRef) ?? ""),
+    ) ??
+    null;
   return {
-    imageDigest: inspect.image,
-    // The container's `.Image` is an image ID; pinning must be proven against
-    // the registry RepoDigest(s), not the ID. Require a full digest so a short
-    // suffix cannot be spoofed by a longer digest that happens to end in it.
+    imageDigest: boundRepoDigest ? repoDigestValue(boundRepoDigest) : inspect.image,
+    imageId: inspect.image,
+    matchedRepoDigest,
     imagePinned:
       expectedImageDigest !== null &&
       /^sha256:[a-f0-9]{64}$/.test(String(expectedImageDigest)) &&
-      (inspect.repoDigests ?? []).some((digestRef) =>
-        String(digestRef).endsWith(`@${expectedImageDigest}`),
-      ),
+      repoDigests.some((digestRef) => digestRef.endsWith(`@${expectedImageDigest}`)),
     mountsEmpty: inspect.mounts.length === 0,
     rootFilesystemReadOnly: inspect.rootFilesystem === "read-only",
     // With egress the worker is on the broker-only internal network; isolation
@@ -206,6 +261,7 @@ export function createDockerWorkerProvider({
   egressEnforcer = null,
 } = {}) {
   const egressById = new Map();
+  const policyById = new Map();
   async function start({
     name = `csm-worker-${randomUUID()}`,
     workspaceTar = null,
@@ -213,6 +269,10 @@ export function createDockerWorkerProvider({
     policy = null,
     egress = null,
   } = {}) {
+    const registry = await loadSchemaRegistry();
+    // T005: validate the supplied policy before any provisioning or container
+    // creation, and refuse to silently start without the controls it declares.
+    validateWorkerPolicy(policy, { registry });
     const limits = policy?.limits ?? envelope;
     const workspaceSize =
       policy?.workspace?.sizeBytes ?? limits.workspaceSizeBytes ?? envelope.workspaceSizeBytes;
@@ -221,6 +281,23 @@ export function createDockerWorkerProvider({
       typeof imageRef === "string" && imageRef.includes("@")
         ? imageRef.slice(imageRef.indexOf("@") + 1)
         : null;
+    // T005: a policy declares an image-pin invariant, so a policy without a
+    // full-digest image must fail closed rather than silently skip the pin.
+    if (policy !== null && expectedImageDigest === null)
+      throw new Error("worker policy requires a digest-pinned image (name@sha256:<64 hex>)");
+    const pinRequired = policy !== null || expectedImageDigest !== null;
+    // T005: consume the policy's `network` declaration. `none` forbids mediated
+    // egress; `broker` requires it. The declaration can no longer lie about the
+    // mediation the provider actually performs.
+    const policyNetwork = policy?.network ?? null;
+    if (policyNetwork === "none" && egress)
+      throw new Error("worker policy network=none forbids an egress configuration");
+    if (policyNetwork === "broker" && !egress)
+      throw new Error("worker policy network=broker requires an egress configuration");
+    // T005: `dropCapture.required` is the authoritative policy control (optional
+    // by default); the older `egress.requireDropCapture` stays honored.
+    const requireDropCapture =
+      policy?.dropCapture?.required === true || egress?.requireDropCapture === true;
     let id = null;
     let provisioned = null;
     let egressReleased = false;
@@ -305,12 +382,17 @@ export function createDockerWorkerProvider({
       });
       const failed = Object.entries(attestation)
         .filter(
-          ([control, value]) =>
-            value === false && !(control === "imagePinned" && expectedImageDigest === null),
+          ([control, value]) => value === false && !(control === "imagePinned" && !pinRequired),
         )
         .map(([control]) => control);
       if (failed.length)
         throw new Error(`worker sandbox control failed attestation: ${failed.join(", ")}`);
+      // T005: the signed attestation binds the matched registry RepoDigest (not
+      // the container image ID); fall back to a digest of the ID only if the
+      // daemon reported no RepoDigest at all.
+      const boundImageDigest = /^sha256:[a-f0-9]{64}$/.test(String(attestation.imageDigest))
+        ? attestation.imageDigest
+        : `sha256:${createHash("sha256").update(String(attestation.imageId)).digest("hex")}`;
       const attestationDoc = buildWorkerAttestation({
         workerId: `worker-${id}`,
         runId: policy?.runId ?? `run-${id}`,
@@ -319,17 +401,13 @@ export function createDockerWorkerProvider({
           `sha256:${createHash("sha256")
             .update(canonicalize(policy ?? {}))
             .digest("hex")}`,
-        imageDigest: String(inspected.image).startsWith("sha256:")
-          ? inspected.image
-          : (expectedImageDigest ??
-            `sha256:${createHash("sha256").update(String(inspected.image)).digest("hex")}`),
+        imageDigest: boundImageDigest,
         status: "verified",
         inspections: [inspectionFromAttestation(attestation, now())],
         anchorKey,
         keyId,
         now,
       });
-      const registry = await loadSchemaRegistry();
       const docResult = registry.validate("csm-orchestrate-worker-attestation/1", attestationDoc);
       if (!docResult.valid)
         throw new Error(
@@ -338,22 +416,32 @@ export function createDockerWorkerProvider({
       let capture = { degraded: false, reason: null };
       if (provisioned) {
         // Audit capture must not make the worker unstartable by default: the
-        // drop-probe helper image build or iptables may be unavailable. Policy
-        // that REQUIRES capture opts in via `egress.requireDropCapture` and then
-        // fails closed; otherwise the degradation is recorded and observable.
+        // drop-probe helper image build or iptables may be unavailable. A policy
+        // that REQUIRES capture (`dropCapture.required`, or the legacy
+        // `egress.requireDropCapture`) fails closed; otherwise the degradation is
+        // recorded and observable.
         try {
           await egressEnforcer.provisionDropLogging({ workerId: id });
         } catch (error) {
-          if (egress?.requireDropCapture) throw error;
+          if (requireDropCapture) throw error;
           capture = { degraded: true, reason: String(error?.message ?? error) };
         }
         egressById.set(id, { releaseEgress, capture });
       }
+      // T005: remember the policy session declaration so `session()` consumes it.
+      if (policy) policyById.set(id, policy);
       return {
         id,
         name,
         attestation,
         attestationDoc,
+        session: policy
+          ? {
+              mode: policy.session.mode,
+              heartbeatMs: policy.session.heartbeatMs,
+              reapingInit: policy.session.reapingInit,
+            }
+          : null,
         egress: provisioned
           ? {
               internalNetwork: provisioned.internalNetwork,
@@ -385,7 +473,16 @@ export function createDockerWorkerProvider({
     heartbeatMs = null,
     heartbeat = () => ({ type: "heartbeat", at: now() }),
   }) {
-    const sustained = typeof onResponse === "function" || Number.isFinite(heartbeatMs);
+    // T005: consume the policy's `session.heartbeatMs` as the default liveness
+    // cadence for a sustained session. A finite batch without an interactive
+    // hook keeps its one-shot behavior (no implicit heartbeats).
+    const policyHeartbeat = policyById.get(id)?.session?.heartbeatMs;
+    const effectiveHeartbeatMs =
+      heartbeatMs ??
+      (typeof onResponse === "function" && Number.isFinite(policyHeartbeat)
+        ? policyHeartbeat
+        : null);
+    const sustained = typeof onResponse === "function" || Number.isFinite(effectiveHeartbeatMs);
     return new Promise((resolve) => {
       const child = spawn(docker, ["exec", "-i", id, "node", WORKER_ENTRY], {
         stdio: ["pipe", "pipe", "pipe"],
@@ -462,12 +559,12 @@ export function createDockerWorkerProvider({
       for (const message of messages) write(message);
       if (!sustained) {
         child.stdin.end();
-      } else if (Number.isFinite(heartbeatMs) && heartbeatMs > 0) {
+      } else if (Number.isFinite(effectiveHeartbeatMs) && effectiveHeartbeatMs > 0) {
         heartbeatTimer = setInterval(() => {
           if (!child.stdin.writable) return;
           write(heartbeat());
           heartbeats += 1;
-        }, heartbeatMs);
+        }, effectiveHeartbeatMs);
         if (heartbeatTimer.unref) heartbeatTimer.unref();
       }
       if (signal?.aborted) child.kill("SIGKILL");
@@ -486,6 +583,7 @@ export function createDockerWorkerProvider({
       }
     }
     await run(docker, ["rm", "-f", id], { timeoutMs: 30_000 });
+    policyById.delete(id);
     if (entry) {
       egressById.delete(id);
       await entry.releaseEgress();

@@ -73,6 +73,37 @@ function providerFor(providers, mode) {
   return provider;
 }
 
+// T004: mode-aware effective isolation. The generated route executes each
+// candidate in its own host-attested Docker sandbox (self-provided); the
+// trusted-local/registered routes are trusted in-process and must NOT be refused
+// by the static verified-sandbox capability declaration.
+export function autoresearchEffectiveIsolation(mode, provider = null) {
+  if (mode === "generated")
+    return {
+      isolation: "verified-sandbox",
+      required: "verified-sandbox",
+      attestation: "required",
+      selfProvided: true,
+      // The execute path enforces host attestation and fails closed; the gate
+      // only refuses when satisfaction is provably absent.
+      satisfiable: provider?.sandboxAttestation ? true : null,
+      provider: provider?.provider ?? "docker",
+    };
+  if (mode === "trusted-local" || mode === "registered")
+    return {
+      isolation: "trusted-in-process",
+      required: "trusted-in-process",
+      attestation: "none",
+      selfProvided: true,
+      provider: null,
+    };
+  return {
+    isolation: "unknown",
+    required: "unknown",
+    reason: `unsupported autoresearch source mode ${String(mode)}`,
+  };
+}
+
 async function nativeArtifacts(result, native, boundSharedRunId, context, artifactRoot) {
   const { paths } = result;
   const root = await realpath(resolve(artifactRoot));
@@ -265,7 +296,19 @@ function createCsmAutoresearchAdapter({ providers, optimizeRun = optimize, promo
   const rollbackCandidate = async (request) => {
     return (promotion.rollback ?? rollback)(request);
   };
-  return Object.freeze({ execute, promote: promoteCandidate, rollback: rollbackCandidate });
+  const effectiveIsolation = (request = {}) => {
+    const mode = request?.input?.contract?.source?.mode ?? request?.contract?.source?.mode ?? null;
+    const provider = mode
+      ? (providers?.[mode] ?? (providers?.mode === mode ? providers : null))
+      : null;
+    return autoresearchEffectiveIsolation(mode, provider);
+  };
+  return Object.freeze({
+    execute,
+    promote: promoteCandidate,
+    rollback: rollbackCandidate,
+    effectiveIsolation,
+  });
 }
 
 export { createCsmAutoresearchAdapter };

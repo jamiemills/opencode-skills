@@ -25,7 +25,7 @@ import {
 import { assertSchema } from "./contracts.mjs";
 import { createLifecycleHookRunner } from "./lifecycle-hooks.mjs";
 import { createProgressTracker } from "./progress.mjs";
-import { preflightSkillRoutes } from "./skill-executor-preflight.mjs";
+import { preflightSkillRoutes, isolationRouting } from "./skill-executor-preflight.mjs";
 
 import {
   abortFailure,
@@ -124,6 +124,8 @@ async function runOrchestrationInternal({
   executorBindings = {},
   executorAdapter = null,
   finalReviewExecutor = null,
+  verifiedSandboxEnabled = true,
+  verifiedSandboxRuntime = null,
   producerExecutorId = null,
   reviewArtifactRoot = null,
   skillProgressRollupDir = null,
@@ -468,11 +470,76 @@ async function runOrchestrationInternal({
           },
         }
       : result;
-  const invokeAdapter = async (request, cursorId, dispatchIntentId) => {
+  const capabilityEntries = Array.isArray(capabilities)
+    ? capabilities
+    : (capabilities?.skills ?? []);
+  const capabilityForSkill = (skill) =>
+    capabilityEntries.find((capability) => capability.skill === skill) ?? null;
+  const verifiedSandboxInvocable = typeof verifiedSandboxRuntime?.invoke === "function";
+  // T004: resolve the effective isolation for a node from the executor adapter's
+  // per-invocation report (precedence adapter > declared > refuse). When the
+  // adapter does not expose the contract, its own seam gate stays authoritative.
+  const resolveNodeIsolation = async (request, node) => {
+    if (verifiedSandboxEnabled !== true) return { action: "invoke", enabled: false };
+    if (typeof adapter?.effectiveIsolation !== "function") return { action: "invoke" };
+    let report = null;
+    try {
+      report = await adapter.effectiveIsolation(request);
+    } catch (error) {
+      report = { isolation: "unknown", reason: String(error?.message ?? error) };
+    }
+    return isolationRouting({
+      adapter: { effectiveIsolation: () => report },
+      request,
+      capability: capabilityForSkill(node.skill),
+      node,
+      enabled: true,
+      runtimeInvocable: verifiedSandboxInvocable,
+    });
+  };
+  const invokeAdapter = async (request, cursorId, dispatchIntentId, routing = null) => {
     dispatchedSteps += 1;
     const invocationOptions = cursorId ? { cursorId } : {};
     if (signal) invocationOptions.signal = signal;
     if (dispatchIntentId) invocationOptions.dispatchIntentId = dispatchIntentId;
+    if (routing?.action === "sandbox") {
+      try {
+        return await verifiedSandboxRuntime.invoke(
+          {
+            request,
+            effectiveIsolation: routing.gate,
+            emitEgress: (event) =>
+              emitTelemetry({
+                phaseId: request.phaseId,
+                edgeId: request.edgeId,
+                childRunId: request.childRunId,
+                eventType: "egress.decision",
+                attempt: request.retry?.attempt ?? 0,
+                taskId: event.taskId ?? null,
+                workerId: event.workerId ?? null,
+                invocationId: event.invocationId ?? request.invocationId,
+                payload: event.payload ?? {
+                  decision: event.decision ?? null,
+                  targetHost: event.targetHost ?? null,
+                  reasonCode: event.reasonCode ?? null,
+                },
+              }),
+          },
+          invocationOptions,
+        );
+      } catch (error) {
+        return {
+          status: "blocked",
+          failure: {
+            class: "policy",
+            code: "isolation-unavailable",
+            message: `${request.skill}: verified-sandbox runtime failed: ${String(
+              error?.message ?? error,
+            )}`,
+          },
+        };
+      }
+    }
     return adapter.invoke(request, invocationOptions);
   };
   // mid-invocation progress poller: child skill-progress records with a
@@ -769,6 +836,7 @@ async function runOrchestrationInternal({
           resume.action === "reconcile"
             ? terminalRecords.find((record) => record.status === "completed")?.result
             : null;
+        let routeIsolation = { action: "invoke" };
         if (!result && resume.action === "reconcile")
           return {
             node,
@@ -779,6 +847,13 @@ async function runOrchestrationInternal({
             },
           };
         if (!result) {
+          routeIsolation = await resolveNodeIsolation(request, node);
+          if (routeIsolation.action === "blocked")
+            return {
+              node,
+              approval,
+              failure: { status: "blocked", failure: routeIsolation.failure.failure },
+            };
           const blocked = dispatchBlocked();
           if (blocked) return { node, approval, failure: blocked };
           await progressTracker.update(progressId, {
@@ -893,7 +968,9 @@ async function runOrchestrationInternal({
           const stopPoll = startProgressPoll(childRunId, phase, node);
           try {
             result = jsonProjection(
-              capOutputSize(await invokeAdapter(request, cursorId, dispatchIntent?.intentId)),
+              capOutputSize(
+                await invokeAdapter(request, cursorId, dispatchIntent?.intentId, routeIsolation),
+              ),
             );
           } finally {
             stopPoll?.();
@@ -1009,6 +1086,7 @@ async function runOrchestrationInternal({
                   })(),
                   cursorId,
                   retryIntent?.intentId,
+                  routeIsolation,
                 ),
               ),
             );

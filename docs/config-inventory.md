@@ -1304,3 +1304,57 @@ production-readiness review (T010)
   autonomy stays disabled and shadow/replay remains the maximum operating
   mode until every G0–G8 gate has observed deployment evidence (D6).
 - **Acceptance signal**: `make test` — full repository suite green.
+
+## Docker worker sandbox policy (csm-orchestrate dynamic worker runtime)
+
+- **Scope**: the tier-2 verified-sandbox worker policy, added by the
+  dynamic-worker-runtime remediation. Checked-in instance
+  `csm-orchestrate/policies/docker-worker-policy.json` (revision `/2`); the
+  frozen `/1` envelope is unchanged. Consumed by
+  `csm-orchestrate/lib/docker-worker-provider.mjs`; the policy is validated by
+  the provider, not by a suite-config namespace.
+- **Revisions**: `/1` (`csm-orchestrate-docker-worker-policy/1`, frozen) and
+  `/2` (additive, `csm-orchestrate-docker-worker-policy/2`, currently the only
+  revision registered with an optional `dropCapture` block). `validateWorkerPolicy`
+  (`docker-worker-provider.mjs:43`) accepts exactly these two identities and
+  fails closed (unknown schema, revision mismatch, or any structural violation)
+  before a container is created.
+- **Fields the provider consumes** (all schema-validated, so a policy cannot lie
+  about them):
+  - `image` — must be a full `name@sha256:<64 hex>` pin. A `/1` or `/2` policy
+    without a digest image is rejected (schema pattern) and `start()` also
+    refuses an unpinned policy image before provisioning
+    (`docker-worker-provider.mjs:287`).
+  - `network` — `none` forbids a mediated-egress configuration; `broker`
+    requires one (`docker-worker-provider.mjs:292-296`).
+  - `dropCapture.required` — the authoritative capture control, optional and
+    `false` by default on the checked-in instance; when `true` a capture setup
+    failure fails closed (best-effort degradation is recorded otherwise). The
+    older `egress.requireDropCapture` remains honored
+    (`docker-worker-provider.mjs:299-300`).
+  - `session.mode` / `session.heartbeatMs` / `session.reapingInit` —
+    `heartbeatMs` becomes the default liveness cadence for a sustained session
+    (`docker-worker-provider.mjs:479-483`); `reapingInit` matches the provider's
+    unconditional `--init`.
+  - `workspace.sizeBytes`, `limits.*` and `runId`/`policyDigest` are consumed as
+    before.
+- **Classification**: the pin pattern, `network` enum, `mounts: []`,
+  read-only rootfs, `capabilitiesDrop`/`noNewPrivileges`, and revision identity
+  are **immutable invariants** (schema-enforced); `limits`/`workspace` are
+  **host ceilings** (bounded by the schema minimums); `dropCapture.required` and
+  the operator's chosen policy values are **user setting candidates**;
+  `runId`/`policyDigest` are run-scoped **skill-owned behavior**.
+- **Attestation binding**: `attestDockerWorker` binds the signed attestation's
+  `imageDigest` to the matched registry RepoDigest, falling back to the image's
+  first full RepoDigest, never the mutable container image ID
+  (`docker-worker-provider.mjs:142-156`, `:393`).
+- **Tests**: `tests/orchestrate-docker-worker-provider.test.mjs` (policy
+  validation, digest binding, pin invariant, network consumption),
+  `tests/orchestrate-docker-worker-egress.test.mjs` (policy-driven capture),
+  `tests/orchestrate-egress-network.test.mjs` (host-side listener decision:
+  allowlist allow vs default-deny vs max-bytes deny), and
+  `tests/orchestrate-docker-worker-policy-v2-schema.test.mjs`.
+- **Residual risk**: the checked-in policy declares `network: "none"` because no
+  broker transport is checked in; declaring `network: "broker"` requires a
+  caller-supplied `egress` broker script and enforcer, which remains a
+  deployment/integration seam (T004/T006).

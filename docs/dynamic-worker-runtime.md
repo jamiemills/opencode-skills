@@ -18,22 +18,20 @@ terminal receipt, evidence and review gates) stays with csm-orchestrate.
 
 ## Isolation tiers
 
-| Tier   | Isolation         | Workspace | Network         | Credentials                | Attestation        | Status                                                                                                                                                                                                                         |
-| ------ | ----------------- | --------- | --------------- | -------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| tier-1 | hardened worktree | worktree  | disabled        | none                       | none               | implemented                                                                                                                                                                                                                    |
-| tier-2 | verified sandbox  | tmpfs     | broker-mediated | host-mediated (opaque ref) | required, periodic | **partial: Docker provider + re-attestation + proxy-only network + egress audit/durable chain + credential injection/drop capture landed; broker upstream (egress network) + live wiring pending (broker-upstream T004–T006)** |
+| Tier   | Isolation         | Workspace | Network         | Credentials                | Attestation        | Status                                                                                                                                                                                                                                                                        |
+| ------ | ----------------- | --------- | --------------- | -------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tier-1 | hardened worktree | worktree  | disabled        | none                       | none               | implemented                                                                                                                                                                                                                                                                   |
+| tier-2 | verified sandbox  | tmpfs     | broker-mediated | host-mediated (opaque ref) | required, periodic | **implemented: Docker provider + periodic re-attestation + dual-homed broker + host-side policy-bound listener + durable anchored egress chain + credential injection + real NFLOG per-drop capture + sustained session + live isolation wiring (gap-remediation T001–T005)** |
 
 Tier-1 scrubs credential-shaped environment keys and kills the child process
-group on timeout. Tier-2 is **partially implemented** as a build-shaped Docker sandbox (provider + re-attestation landed) that
-stages a repo copy into a tmpfs, runs a batched NDJSON worker session (the
-provider currently closes stdin after one batch; sustained multi-round-trip
-sessions are pending broker-upstream T009),
-re-attests on a cadence, and fails closed on drift. Resource envelopes are
-versioned (`csm-orchestrate-docker-worker-policy/1`, checked-in instance at
-`csm-orchestrate/policies/docker-worker-policy.json`); the evaluator `/1` policy
-stays frozen.
+group on timeout. Tier-2 is a build-shaped Docker sandbox (provider +
+re-attestation) that stages a repo copy into a tmpfs, runs a sustained
+multi-round-trip NDJSON worker session, re-attests on a cadence, and fails
+closed on drift. Resource envelopes are versioned
+(`csm-orchestrate-docker-worker-policy/1` frozen; `/2` adds `dropCapture`;
+checked-in instance at `csm-orchestrate/policies/docker-worker-policy.json`).
 
-## Egress and immutable logging (partial)
+## Egress and immutable logging
 
 The egress **policy/audit core** is implemented in
 `csm-orchestrate/lib/egress-broker.mjs`: a default-deny evaluator over
@@ -48,12 +46,19 @@ it (binding `runId`, tolerating a torn tail, rejecting a malformed interior
 line), and fails closed if the persisted head does not match `readAnchor` or if
 `publishAnchor` fails.
 
-Proxy-only network enforcement has landed (`csm-orchestrate/lib/egress-network.mjs`:
-internal network + isolation probe, Docker-gated). Broker-side credential injection and unmediated-drop recording (`recordDrop`)
-have also landed (opaque refs only; a configured injection with no secret fails
-closed). Still pending (broker-upstream T004): sourcing real network-layer
-drops (iptables `LOG`/`NFLOG` or eBPF) and attaching the broker to a second
-egress network for upstream, plus live wiring (T005).
+Network enforcement is wired (`csm-orchestrate/lib/egress-network.mjs`): the
+worker attaches only to the broker-only internal network; the broker is
+dual-homed onto a second (egress) network so only the broker reaches upstream.
+A host-side policy-bound listener (`createEgressBrokerListener`) evaluates
+policy, enforces limits, injects credentials only on allow, and proxies allowed
+requests. Real network-layer drops are sourced via a baked `NET_ADMIN` helper
+(blackhole `csm0` route + scoped `-o csm0` NFLOG+DROP) yielding per-drop
+`{dest_ip,dest_port}` fed to `recordDrop`; capture degradation is observable and
+fails closed only when the policy requires it. The provider/broker are wired
+into `executeNode` behind a mode-aware effective-isolation gate (enabled by
+default; unknown isolation refused), preserving the trusted-in-process
+`csm-autoresearch` route. See the recorded decision gate at
+`.agents/evidence/dynamic-worker-runtime/decision-gate.json`.
 
 ## Observability and Anthropic id mapping
 

@@ -21,6 +21,7 @@ function fakeRun(calls) {
           {
             Id: "cid-worker",
             Image: IMAGE_DIGEST,
+            RepoDigests: [`node@${IMAGE_DIGEST}`],
             Mounts: [],
             HostConfig: {
               ReadonlyRootfs: true,
@@ -200,5 +201,64 @@ test("T002: capture degradation is observable and only fails closed when require
     }),
     /iptables-unavailable/,
     "policy that requires capture must fail closed",
+  );
+});
+
+// T005: the checked-in policy revision carries `dropCapture.required`; the
+// provider consumes that declaration as the authoritative capture control.
+function policyFixture(overrides = {}) {
+  return {
+    schema: "csm-orchestrate-docker-worker-policy/2",
+    schemaRevision: 2,
+    image: `node@${IMAGE_DIGEST}`,
+    network: "broker",
+    mounts: [],
+    rootFilesystem: "read-only",
+    capabilitiesDrop: ["ALL"],
+    noNewPrivileges: true,
+    dropCapture: { required: false },
+    workspace: { mode: "tmpfs", path: "/workspace", sizeBytes: 1024 },
+    limits: {
+      memoryBytes: 2147483648,
+      pidsLimit: 512,
+      cpuQuota: 100000,
+      cpuPeriod: 100000,
+      sessionTimeoutMs: 3_600_000,
+    },
+    session: { mode: "long-lived", heartbeatMs: 15000, reapingInit: true },
+    attestation: { required: true, cadenceMs: 60000, controls: ["mountsEmpty"] },
+    ...overrides,
+  };
+}
+
+test("T005: policy dropCapture.required is the authoritative capture control", async () => {
+  const calls = [];
+  const log = [];
+  const provider = createDockerWorkerProvider({
+    run: fakeRun(calls),
+    egressEnforcer: fakeEnforcer(log, {
+      drops: [],
+      provisionError: new Error("iptables-unavailable"),
+    }),
+  });
+
+  const degraded = await provider.start({
+    name: "w5",
+    workerSource: "export {};\n",
+    policy: policyFixture({ dropCapture: { required: false } }),
+    egress: { brokerScript: "serve()" },
+  });
+  assert.equal(degraded.egress.capture.degraded, true);
+  assert.match(degraded.egress.capture.reason, /iptables-unavailable/);
+
+  await assert.rejects(
+    provider.start({
+      name: "w6",
+      workerSource: "export {};\n",
+      policy: policyFixture({ dropCapture: { required: true } }),
+      egress: { brokerScript: "serve()" },
+    }),
+    /iptables-unavailable/,
+    "a policy that requires drop capture must fail closed",
   );
 });

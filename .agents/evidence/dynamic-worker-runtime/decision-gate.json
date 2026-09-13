@@ -1,0 +1,150 @@
+{
+  "schema": "csm-orchestrate-decision-gate/1",
+  "schemaRevision": 1,
+  "generatedAt": "2026-09-13T00:00:00.000Z",
+  "mode": "live",
+  "conditions": [
+    {
+      "id": "C1",
+      "title": "declared isolation is satisfied on effective trust (verified-sandbox routed to a real provider, or fail closed)",
+      "status": "pass",
+      "evidence": {
+        "routed": "sandbox",
+        "refused": "blocked",
+        "refusalCode": "isolation-unavailable",
+        "providerStarted": true,
+        "providerControlsHeld": true
+      }
+    },
+    {
+      "id": "C2",
+      "title": "sandbox attestation is schema-valid and keyed/content-bound",
+      "status": "pass",
+      "evidence": {
+        "source": "worker",
+        "schemaValid": true,
+        "schemaErrors": [],
+        "contentBound": true,
+        "tamperRejected": true,
+        "wrongKeyRejected": true
+      }
+    },
+    {
+      "id": "C3",
+      "title": "egress is default-deny (unlisted target denied by evaluateEgress)",
+      "status": "pass",
+      "evidence": {
+        "allowed": {
+          "decision": "allowed",
+          "reasonCode": "allowlist-match",
+          "limits": {
+            "maxBytes": null,
+            "timeoutMs": null
+          }
+        },
+        "unlisted": {
+          "decision": "denied",
+          "reasonCode": "default-deny"
+        },
+        "wrongPort": {
+          "decision": "denied",
+          "reasonCode": "default-deny"
+        }
+      }
+    },
+    {
+      "id": "C4",
+      "title": "every mediated attempt yields a chain-valid immutable record (verifyEgressChain)",
+      "status": "pass",
+      "evidence": {
+        "records": 3,
+        "decisions": [
+          "allowed",
+          "denied",
+          "dropped-unmediated"
+        ],
+        "chainValid": true,
+        "tamperRejected": true,
+        "reorderRejected": true
+      }
+    },
+    {
+      "id": "C5",
+      "title": "credentials never cross as plaintext (only opaque credentialRef)",
+      "status": "pass",
+      "evidence": {
+        "injectedUpstream": true,
+        "allowedDecision": "allowed",
+        "deniedDecision": "denied",
+        "listenerLeakedSecret": false,
+        "ledgerLeakedSecret": false,
+        "recordedRef": "credref-gate-1"
+      }
+    },
+    {
+      "id": "C6",
+      "title": "fail-closed on drift/unavailable (unsatisfiable isolation, capture-required-but-degraded, attach failure)",
+      "status": "pass",
+      "evidence": {
+        "unsatisfiableClosed": true,
+        "captureRequiredDegradedClosed": true,
+        "attachFailureClosed": true,
+        "driftClosed": true,
+        "liveAttachFailureClosed": true
+      }
+    }
+  ],
+  "isolationMatrix": {
+    "status": "pass",
+    "properties": {
+      "mounts": "pass",
+      "readOnlyRootfs": "pass",
+      "capDropAll": "pass",
+      "noNewPrivileges": "pass",
+      "networkIsolation": "pass",
+      "credentialsNone": "pass",
+      "reapingInit": "pass"
+    },
+    "evidence": {
+      "mounts": {
+        "control": "mountsEmpty",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "readOnlyRootfs": {
+        "control": "rootFilesystemReadOnly",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "capDropAll": {
+        "control": "capDropAll",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "noNewPrivileges": {
+        "control": "noNewPrivileges",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "networkIsolation": {
+        "control": "networkIsolated",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "credentialsNone": {
+        "control": "credentialsNone",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "reapingInit": {
+        "control": "reapingInit",
+        "enforced": true,
+        "detectsViolation": true
+      },
+      "liveControlsHeld": true,
+      "liveImageDigest": "sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5"
+    }
+  },
+  "verdict": "pass",
+  "failedConditions": []
+}

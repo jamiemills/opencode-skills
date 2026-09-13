@@ -141,6 +141,13 @@
       "adapter": null
     },
     {
+      "schema": "csm-orchestrate-docker-worker-policy",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-orchestrate-worker-attestation",
       "producerRevision": 1,
       "consumerRevision": 1,

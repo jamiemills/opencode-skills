@@ -4,6 +4,11 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import {
+  createEgressBroker,
+  createEgressBrokerListener,
+  createEgressLedger,
+} from "../csm-orchestrate/lib/egress-broker.mjs";
+import {
   createEgressNetworkEnforcer,
   DROP_PROBE_IMAGE_TAG,
   parseDropCount,
@@ -61,87 +66,94 @@ test(
   },
 );
 
-test(
-  "T001: an allowlisted upstream is reachable only through the dual-homed broker",
-  { skip: !DOCKER_AVAILABLE },
-  async () => {
-    const enforcer = createEgressNetworkEnforcer();
-    const workerName = `csm-up-worker-${process.pid}`;
-    const upstreamName = `csm-up-upstream-${process.pid}`;
-    const brokerName = `csm-up-broker-${process.pid}`;
-    let provisioned = null;
-    for (const name of [workerName, upstreamName, brokerName])
-      spawnSync("docker", ["rm", "-f", name], { stdio: "ignore" });
-    try {
-      provisioned = await enforcer.provision({
-        brokerName,
-        // The broker proxies the internal-facing port to the upstream that
-        // lives on the (worker-invisible) egress network.
-        brokerScript: `const http=require("http");http.createServer((q,s)=>{const p=http.request({host:"${upstreamName}",port:8080,path:q.url,method:q.method},(u)=>{s.writeHead(u.statusCode||200);u.pipe(s);});p.on("error",()=>{s.writeHead(502);s.end("bad-gateway");});q.pipe(p);}).listen(8080,"0.0.0.0")`,
-      });
-      // Upstream joins only the egress network — the worker can never see it.
-      const upstream = spawnSync(
-        "docker",
-        [
-          "run",
-          "-d",
-          "--name",
-          upstreamName,
-          "--network",
-          provisioned.egressNetwork,
-          "node:22-bookworm-slim",
-          "node",
-          "-e",
-          'require("http").createServer((q,s)=>s.end("upstream-ok")).listen(8080,"0.0.0.0")',
-        ],
-        { encoding: "utf8" },
-      );
-      assert.equal(upstream.status, 0, upstream.stderr);
+test("T005: the host-side listener routes allowlist-allow vs default-deny, not a blind proxy", async () => {
+  const policy = {
+    defaultAction: "deny",
+    failMode: "blocked",
+    entries: [
+      { host: "api.example.test", port: 443, scheme: "https", methods: ["GET"], maxBytes: 1024 },
+    ],
+    credentialInjections: [],
+  };
+  const ledger = createEgressLedger({
+    runId: "run-egress-network",
+    key: "test-key-0123456789",
+  });
+  const forwarded = [];
+  const decisions = [];
+  const broker = createEgressBroker({
+    policy,
+    ledger,
+    policyDigest: `sha256:${"a".repeat(64)}`,
+    emitter: { emit: (event) => decisions.push(event) },
+  });
+  // The T001 listener owns the policy decision and only forwards on allow; the
+  // injected transport records what actually crossed the listener boundary.
+  const listener = createEgressBrokerListener({
+    broker,
+    forward: async ({ target, method, headers, body }) => {
+      forwarded.push({ target, method, headers, body });
+      return { status: 200, body: "upstream-ok" };
+    },
+  });
 
-      const worker = spawnSync(
-        "docker",
-        [
-          "run",
-          "-d",
-          "--name",
-          workerName,
-          "--network",
-          provisioned.internalNetwork,
-          "node:22-bookworm-slim",
-          "sleep",
-          "infinity",
-        ],
-        { encoding: "utf8" },
-      );
-      assert.equal(worker.status, 0, worker.stderr);
+  const allowed = await listener.handle(
+    {
+      target: { host: "api.example.test", port: 443, scheme: "https", method: "GET", path: "/v1" },
+      headers: {},
+    },
+    { taskId: "T005" },
+  );
+  assert.equal(allowed.decision, "allowed");
+  assert.equal(allowed.reasonCode, "allowlist-match");
+  assert.equal(allowed.upstream.body, "upstream-ok");
+  assert.equal(forwarded.length, 1, "an allowlisted target must be forwarded exactly once");
+  assert.equal(allowed.record.decision, "allowed");
+  assert.equal(allowed.record.reasonCode, "allowlist-match");
+  assert.equal(allowed.record.taskId, "T005");
 
-      const viaBroker = await enforcer.probe({
-        workerId: workerName,
-        script: `require("http").get("http://${brokerName}:8080/app", (r) => { let d=""; r.on("data",(c)=>d+=c); r.on("end",()=>process.stdout.write(d)); }).on("error",(e)=>process.stdout.write("ERR:"+e.code));`,
-      });
-      assert.match(viaBroker.stdout, /upstream-ok/, "broker must proxy the allowlisted upstream");
+  const denied = await listener.handle(
+    {
+      target: { host: "evil.example.test", port: 443, scheme: "https", method: "GET" },
+      headers: {},
+    },
+    { taskId: "T005" },
+  );
+  assert.equal(denied.decision, "denied");
+  assert.equal(denied.reasonCode, "default-deny");
+  assert.equal(denied.upstream, null, "a denied target must never be forwarded");
+  assert.equal(forwarded.length, 1, "the policy decision, not a blind proxy, gates forwarding");
+  assert.equal(denied.record.decision, "denied");
+  assert.equal(denied.record.reasonCode, "default-deny");
 
-      const directUpstream = await enforcer.probe({
-        workerId: workerName,
-        script: `require("net").connect(8080, "${upstreamName}").on("connect",()=>process.stdout.write("CONNECTED")).on("error",(e)=>process.stdout.write("ERR:"+e.code));`,
-      });
-      assert.match(
-        directUpstream.stdout,
-        /^ERR:/,
-        "the worker must not reach the upstream directly (not on the egress network)",
-      );
-    } finally {
-      for (const name of [workerName, upstreamName, brokerName])
-        spawnSync("docker", ["rm", "-f", name], { stdio: "ignore" });
-      if (provisioned)
-        await enforcer.teardown({
-          network: provisioned.internalNetwork,
-          egressNetwork: provisioned.egressNetwork,
-          brokerName: provisioned.brokerName,
-        });
-    }
-  },
-);
+  const overLimit = await listener.handle(
+    {
+      target: {
+        host: "api.example.test",
+        port: 443,
+        scheme: "https",
+        method: "GET",
+        path: "/v1",
+        bytesOut: 2048,
+      },
+      headers: {},
+    },
+    {},
+  );
+  assert.equal(overLimit.decision, "denied");
+  assert.equal(overLimit.reasonCode, "max-bytes-exceeded");
+  assert.equal(forwarded.length, 1, "an over-limit request must not be forwarded");
+
+  assert.equal(broker.verify().valid, true);
+  assert.deepEqual(
+    ledger.records().map((record) => record.decision),
+    ["allowed", "denied", "denied"],
+  );
+  assert.equal(decisions.length, 3);
+  assert.equal(decisions[0].eventType, "egress.decision");
+  assert.equal(decisions[0].payload.decision, "allowed");
+  assert.equal(decisions[1].payload.reasonCode, "default-deny");
+});
 
 test("T004: provision dual-homes the broker and keeps the worker internal-only", async () => {
   const calls = [];

@@ -14,12 +14,14 @@ const policy = parseJson(
 );
 
 test("T007: the checked-in build-shaped sandbox envelope validates", () => {
-  const result = registry.validate("csm-orchestrate-docker-worker-policy/1", policy);
+  const result = registry.validate("csm-orchestrate-docker-worker-policy/2", policy);
   assert.equal(result.valid, true, JSON.stringify(result.errors));
   assert.equal(policy.mounts.length, 0);
   assert.equal(policy.limits.memoryBytes >= 1073741824, true);
   assert.equal(policy.limits.pidsLimit >= 512, true);
   assert.equal(policy.session.reapingInit, true);
+  // T005: drop capture is optional by default on the checked-in /2 instance.
+  assert.equal(policy.dropCapture.required, false);
 });
 
 test("T007: the frozen 64MiB/32-pid envelope is rejected", () => {

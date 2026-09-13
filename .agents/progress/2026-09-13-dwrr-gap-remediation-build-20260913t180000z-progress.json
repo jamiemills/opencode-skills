@@ -4,8 +4,8 @@
   "runId": "run-20260913t180000z-dwrr-gap-remediation-build",
   "skill": "csm-build",
   "goal": "Execute the dynamic-worker-runtime gap-remediation plan (8 tasks) to completion",
-  "status": "active",
-  "overallPercent": 47,
+  "status": "complete",
+  "overallPercent": 100,
   "milestones": [
     {
       "id": "M1",
@@ -23,22 +23,21 @@
       "id": "M3",
       "title": "Non-blockers + schema owner",
       "weightPercent": 15,
-      "status": "active",
-      "verifiedFraction": 0.5
+      "status": "complete"
     },
     {
       "id": "M4",
       "title": "Isolation wiring + e2e",
       "weightPercent": 30,
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "M5",
       "title": "Decision gate + delivery",
       "weightPercent": 15,
-      "status": "pending"
+      "status": "complete"
     }
   ],
   "startedAt": "2026-09-13T18:00:00.000Z",
-  "updatedAt": "2026-09-13T14:27:23.717Z"
+  "updatedAt": "2026-09-13T15:44:08.361Z"
 }

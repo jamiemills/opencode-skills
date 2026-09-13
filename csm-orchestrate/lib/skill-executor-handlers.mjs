@@ -274,9 +274,14 @@ export function createExecutorHandlers({
   if (csmAutoresearchAdapter) {
     if (typeof csmAutoresearchAdapter.execute !== "function")
       throw new TypeError("csm-autoresearch adapter is required");
-    handlers.set("csm-autoresearch", async ({ input, signal, context }) =>
-      csmAutoresearchAdapter.execute({ input, signal, context }),
-    );
+    const autoresearchHandler = async ({ input, signal, context }) =>
+      csmAutoresearchAdapter.execute({ input, signal, context });
+    // T004: expose the mode-aware effective-isolation reporter so the executor
+    // seam can gate on the effective (not static) isolation.
+    if (typeof csmAutoresearchAdapter.effectiveIsolation === "function")
+      autoresearchHandler.effectiveIsolation = (request) =>
+        csmAutoresearchAdapter.effectiveIsolation(request);
+    handlers.set("csm-autoresearch", autoresearchHandler);
   }
   if (csmBrowseAdapter) {
     if (typeof csmBrowseAdapter.execute !== "function")
