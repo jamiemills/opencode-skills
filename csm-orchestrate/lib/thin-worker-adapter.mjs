@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { scrubChildEnv } from "../../scripts/lib/agent-session-executor.mjs";
+import { scrubChildEnv } from "./env-scrub.mjs";
 
 // T003: bind `scripts/run-worker.mjs` behind the executor-adapter contract. The
 // adapter is child-side only: it writes exactly one invocation to a file, runs

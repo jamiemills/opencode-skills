@@ -865,6 +865,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/env-scrub.mjs",
+        "sha256": "e6d3437714674ed322de83064eca932f307b22949e16713a278043df1dd07d7c",
+        "bytes": 821,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/evidence-gates.mjs",
         "sha256": "afd869fa08b21cae536000263269d0330a6355b506c78131060e1edb9ff8d227",
         "bytes": 15934,
@@ -980,8 +986,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/thin-worker-adapter.mjs",
-        "sha256": "2044d66ab3c4b7d340b5b28bfea526ceb382720f9a5c4338f8f948e1916fe905",
-        "bytes": 5716,
+        "sha256": "4f65c19a7cbccf9feb5a2e81d871704c6bf8b58027c07043f3e52f032911abd3",
+        "bytes": 5687,
         "mode": "0644"
       },
       {
