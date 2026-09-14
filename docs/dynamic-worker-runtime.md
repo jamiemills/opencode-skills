@@ -34,10 +34,21 @@ terminal receipt, evidence and review gates) stays with csm-orchestrate.
 Tier-1 scrubs credential-shaped environment keys and kills the child process
 group on timeout. Tier-2 is a build-shaped Docker sandbox (provider +
 re-attestation) that stages a repo copy into a tmpfs, runs a sustained
-multi-round-trip NDJSON worker session, re-attests on a cadence, and fails
-closed on drift. Resource envelopes are versioned
-(`csm-orchestrate-docker-worker-policy/1` frozen; `/2` adds `dropCapture`;
-checked-in instance at `csm-orchestrate/policies/docker-worker-policy.json`).
+multi-round-trip NDJSON worker session, re-attests on a cadence through the live
+`createReattestationMonitor`, and fails closed on drift. Resource envelopes are
+versioned (`csm-orchestrate-docker-worker-policy/1` frozen; `/2` adds
+`dropCapture`; checked-in instance at
+`csm-orchestrate/policies/docker-worker-policy.json`).
+
+**Live enforcement (T001).** A long-lived live worker is attested once at
+`provider.start`; the verified-sandbox runtime then starts
+`createReattestationMonitor` for every started worker and re-observes the frozen
+controls on the cadence resolved from `policy.attestation.cadenceMs` (falling
+back to `reattestationCadenceMs`, then a 60 s default). The monitor stops on
+teardown, and on drift or an inspect error it kills the worker and the runtime
+surfaces a typed `verified-sandbox-attestation-drift` failure. The monitor is no
+longer library-only: the live dispatch path is now its production caller (the
+decision-gate probe is not the only caller).
 
 ## Egress and immutable logging
 
@@ -78,20 +89,42 @@ with an explicit `trustDomain` of `os-user-bound` (default) or `external`:
   authoritative host-boundary signal is `trustBoundary()`.
 - **Final-sink re-authorization.** Before a caller accepts a terminal sink
   (the run's last persisted record, a terminal receipt, or any finalizing
-  sink), `ledger.authorizeFinalSink({ requireHostExternal = true, sink })`
-  re-verifies the whole chain, re-reads the anchor, and reconciles it against
-  the local head. It returns `authorized: false` with a typed reason
-  (`chain-invalid`, `chain-empty`, `anchor-not-external-to-host`,
-  `anchor-unavailable`, `anchor-mismatch`) on any failure. By default it refuses
-  an OS-user-bounded anchor; a personal-suite caller may pass
-  `requireHostExternal: false` to accept the OS-user-bounded anchor explicitly —
-  a recorded deviation, never a silent one.
+  sink), `ledger.authorizeFinalSink({ requireHostExternal = true,
+acceptedTrustDomain, sink })` re-verifies the whole chain, re-reads the
+  anchor, and reconciles it against the local head. It returns `authorized:
+false` with a typed reason (`chain-invalid`, `chain-empty`,
+  `anchor-not-external-to-host`, `anchor-unavailable`, `anchor-mismatch`) on any
+  failure. `acceptedTrustDomain` is authoritative over `requireHostExternal`:
+  `external` requires a host-external, readable, matching anchor;
+  `os-user-bound` takes the in-process keyed head as the anchor when no sink is
+  configured (the recorded g3-ruling boundary) while still failing closed on a
+  broken or mismatched sink. By default it refuses an OS-user-bounded anchor; a
+  personal-suite caller may pass `requireHostExternal: false` to accept an
+  OS-user-bounded _sink_ explicitly — a recorded deviation, never a silent one.
 - **Worker attestation.** `createDockerWorkerProvider({ anchorTrustDomain })`
   defaults to `os-user-bound` (the anchor key is generated in-process) and
   exposes `trustBoundary()`; `provider.reauthorizeAttestation({ doc,
 requireHostExternal = true })` re-verifies the keyed attestation head and
   fails closed on a non-external anchor. The frozen worker-attestation
   `anchor.external` field is again only external-to-worker.
+
+**Live enforcement (T002).** The live verified-sandbox runtime invokes both
+checks on its terminal path: after every mediated egress decision and
+network-layer drop is recorded and before the runtime returns, it calls
+`ledger.authorizeFinalSink({ acceptedTrustDomain })` for the egress chain and
+`provider.reauthorizeAttestation({ doc, requireHostExternal })` for the worker
+attestation. The accepted domain defaults to the recorded `os-user-bound`
+g3-ruling boundary; declaring `anchorTrustDomain: "external"` or supplying a
+host-external anchor (a `trustAnchor` provider, or a host-external worker
+provider) forces `external` and a host-external authorization. An empty egress
+chain has no sink to finalize and is recorded as `no-egress-decisions`. The
+runtime records the accepted boundary on the result as
+`trust: { domain, hostExternal, authorized, reason, sink, attestation }` so an
+accepted OS-user-bound sink is observable rather than silent, and raises a typed
+`verified-sandbox-trust-anchor` error (`scope`, `reason`, `domain`) when the
+anchor is unavailable or mismatched. This is the live wiring the dwrr-compliance
+finding flagged as missing (`authorizeFinalSink`/`reauthorizeAttestation` had no
+live caller).
 
 **Residual risk:** within the OS-user boundary, the egress chain and worker
 attestation remain forgeable by a same-user host process. This is accepted for
@@ -141,20 +174,23 @@ their own suffixes (`csm-orchestrate-telemetry-event/2`,
 Map the qualifiers and the worker lifecycle explicitly so a projection never
 reads a mapping as a constant:
 
-| CSM identifier / lifecycle                                                  | CSM qualifier                        | Anthropic workflow / agent field                                                                           | Version basis                                                       |
-| --------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `runId`                                                                     | `csm-orchestrate-telemetry-event/2`  | workflow run (`workflow.run_id`, `wf_…`); OTel correlates workflow runs                                    | dynamic workflows require v2.1.154+ [R1]; OTel tracing is beta [R4] |
-| `taskId`                                                                    | `csm-orchestrate-phase/2` route node | workflow task / pipeline item (**inference** — no vendor field name documented)                            | [R1][R2]                                                            |
-| `workerId`                                                                  | `csm-orchestrate-telemetry-event/2`  | SDK subagent `agent_id`; OTel correlates parent/child agents                                               | [R3][R4]                                                            |
-| `invocationId`                                                              | `csm-orchestrate-telemetry-event/2`  | Agent SDK agent-loop invocation (**inference**)                                                            | [R5]                                                                |
-| `toolId`                                                                    | `csm-orchestrate-telemetry-event/2`  | `tool_use_id`; OTel correlates tool-use IDs                                                                | [R4]                                                                |
-| worker lifecycle (`worker.started` … `worker.replayed`)                     | `csm-worker-projection/1` states     | workflow phase / agent status shown by the run view; lifecycle callbacks via hooks (OTel/hook correlation) | [R1][R6][R4]                                                        |
-| caps (concurrent agents, agents per run, items per pipeline, nesting depth) | policy input, not a constant         | version- and configuration-dependent limits                                                                | [R2][R3]                                                            |
+| CSM identifier / lifecycle                                                  | CSM qualifier                        | Anthropic workflow / agent field                                                                           | Version basis                                                                                                     |
+| --------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `runId`                                                                     | `csm-orchestrate-telemetry-event/2`  | workflow run (`workflow.run_id`, `wf_…`); OTel correlates workflow runs                                    | workflow run; availability is plan/API-gated and features carry per-version gates [R1]; OTel tracing is beta [R4] |
+| `taskId`                                                                    | `csm-orchestrate-phase/2` route node | workflow task / pipeline item (**inference** — no vendor field name documented)                            | [R1][R2]                                                                                                          |
+| `workerId`                                                                  | `csm-orchestrate-telemetry-event/2`  | SDK subagent `agent_id`; OTel correlates parent/child agents                                               | [R3][R4]                                                                                                          |
+| `invocationId`                                                              | `csm-orchestrate-telemetry-event/2`  | Agent SDK agent-loop invocation (**inference**)                                                            | [R5]                                                                                                              |
+| `toolId`                                                                    | `csm-orchestrate-telemetry-event/2`  | `tool_use_id`; OTel correlates tool-use IDs                                                                | [R4]                                                                                                              |
+| worker lifecycle (`worker.started` … `worker.replayed`)                     | `csm-worker-projection/1` states     | workflow phase / agent status shown by the run view; lifecycle callbacks via hooks (OTel/hook correlation) | [R1][R6][R4]                                                                                                      |
+| caps (concurrent agents, agents per run, items per pipeline, nesting depth) | policy input, not a constant         | version- and configuration-dependent limits                                                                | [R2][R3]                                                                                                          |
 
-Basis (retrieved 2026-08-27; vendor docs are current and explicitly version-gated):
+Basis (retrieved 2026-09-13; vendor docs are current and explicitly version-gated):
 
 - [R1] Claude Code — Dynamic workflows: <https://code.claude.com/docs/en/workflows>
-  (page notes dynamic workflows require Claude Code v2.1.154 or later).
+  (the current page states dynamic workflows are available on paid plans, the
+  Anthropic API, Amazon Bedrock, Google Cloud's Agent Platform, and Microsoft
+  Foundry, and it version-gates individual features; it states no single
+  minimum-version baseline for dynamic workflows).
 - [R2] Claude Code — Workflows, behavior and limits:
   <https://code.claude.com/docs/en/workflows#behavior-and-limits>.
 - [R3] Claude Agent SDK — Subagents:

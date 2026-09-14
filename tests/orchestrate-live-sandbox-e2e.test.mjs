@@ -28,7 +28,14 @@ import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { loadCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
+import { createDockerWorkerProvider } from "../csm-orchestrate/lib/docker-worker-provider.mjs";
 import {
+  EGRESS_ANCHOR_TRUST_DOMAINS,
+  createEgressLedger,
+  createExternalAnchor,
+} from "../csm-orchestrate/lib/egress-broker.mjs";
+import {
+  createLiveVerifiedSandboxRuntime,
   createVerifiedSandboxRuntime,
   resolveVerifiedSandboxRuntime,
 } from "../csm-orchestrate/lib/verified-sandbox-runtime.mjs";
@@ -58,6 +65,51 @@ const EGRESS_POLICY = Object.freeze({
   ],
   credentialInjections: [],
 });
+
+// T001 (AC6): a schema-valid sandbox policy declaring a 1s re-attestation
+// cadence, so a live session actually re-attests within the test. The image
+// digest matches the node image the Docker worker provider defaults to.
+const SANDBOX_POLICY = Object.freeze({
+  schema: "csm-orchestrate-docker-worker-policy/2",
+  schemaRevision: 2,
+  image:
+    "node:22.23.2-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5",
+  network: "none",
+  mounts: [],
+  rootFilesystem: "read-only",
+  capabilitiesDrop: ["ALL"],
+  noNewPrivileges: true,
+  dropCapture: { required: false },
+  workspace: { mode: "tmpfs", path: "/workspace", sizeBytes: 1610612736 },
+  limits: {
+    memoryBytes: 2147483648,
+    pidsLimit: 512,
+    cpuQuota: 100000,
+    cpuPeriod: 100000,
+    sessionTimeoutMs: 30000,
+  },
+  session: { mode: "long-lived", heartbeatMs: 15000, reapingInit: true },
+  attestation: {
+    required: true,
+    cadenceMs: 1000,
+    controls: [
+      "mountsEmpty",
+      "rootFilesystemReadOnly",
+      "capDropAll",
+      "noNewPrivileges",
+      "networkIsolated",
+      "credentialsNone",
+    ],
+  },
+});
+
+// A worker that stays alive and silent: it holds the session open so the
+// re-attestation monitor has time to tick.
+const IDLE_WORKER_SOURCE = `
+import readline from "node:readline";
+const rl = readline.createInterface({ input: process.stdin });
+rl.on("line", () => {});
+`;
 
 // A mediated-egress worker: it dials the broker container's relay (handed to it
 // as `input.egressRelay`) and the broker pipes the bytes to the host listener,
@@ -445,6 +497,149 @@ test(
   },
 );
 
+test(
+  "T001: a live sandbox session re-attests on cadence and drift kills the worker",
+  { skip: !DOCKER_AVAILABLE },
+  async () => {
+    const realProvider = createDockerWorkerProvider({ docker: "docker" });
+    let inspectCalls = 0;
+    let workerId = null;
+    // A real Docker worker, but the re-attestation inspect is wrapped to
+    // simulate post-start drift: the first cadence tick is healthy and every
+    // later tick reports an unexpected host bind mount.
+    const provider = {
+      ...realProvider,
+      async start(options) {
+        const started = await realProvider.start(options);
+        workerId = started.id;
+        return started;
+      },
+      async inspect({ id }) {
+        inspectCalls += 1;
+        const snapshot = await realProvider.inspect({ id });
+        if (inspectCalls > 1) return { ...snapshot, mounts: [{ type: "bind", bind: "/host:/x" }] };
+        return snapshot;
+      },
+    };
+    const runtime = createLiveVerifiedSandboxRuntime({
+      provider,
+      defaults: {
+        workerSource: IDLE_WORKER_SOURCE,
+        reattestationCadenceMs: 1000,
+        sandboxExecutor: async ({ worker, provider: active, signal }) => {
+          await active.session({
+            id: worker.id,
+            messages: [{ type: "work", input: {} }],
+            signal,
+            onResponse: () => undefined,
+          });
+          return { status: "completed" };
+        },
+      },
+    });
+    try {
+      await assert.rejects(
+        () =>
+          runtime.invoke({
+            request: {
+              parentRunId: PARENT_RUN,
+              childRunId: "run-reattest-child",
+              invocationId: "invocation-reattest",
+            },
+          }),
+        (error) => {
+          assert.equal(error.code, "verified-sandbox-attestation-drift");
+          assert.equal(error.reason, "attestation-drift");
+          assert.ok(error.failed.includes("mountsEmpty"));
+          return true;
+        },
+      );
+      assert.ok(inspectCalls >= 2, "the monitor must re-attest on its cadence");
+      let gone = false;
+      for (let attempt = 0; attempt < 50 && !gone; attempt += 1) {
+        if (spawnSync("docker", ["inspect", workerId]).status !== 0) gone = true;
+        else await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.equal(gone, true, "drift must kill the worker");
+    } finally {
+      if (workerId) spawnSync("docker", ["rm", "-f", workerId], { stdio: "ignore" });
+    }
+  },
+);
+
+test("T001: the live runtime consumes the sandbox policy cadence and drift fails closed", async () => {
+  const policy = {
+    ...SANDBOX_POLICY,
+    attestation: { ...SANDBOX_POLICY.attestation, cadenceMs: 20 },
+  };
+  const healthy = {
+    id: "cid-reattest",
+    image: "sha256:abc",
+    repoDigests: [SANDBOX_POLICY.image],
+    mounts: [],
+    rootFilesystem: "read-only",
+    network: "none",
+    capDrop: ["ALL"],
+    securityOpt: ["no-new-privileges:true"],
+    env: [],
+    pidsLimit: SANDBOX_POLICY.limits.pidsLimit,
+    memory: SANDBOX_POLICY.limits.memoryBytes,
+    init: true,
+  };
+  let inspectCalls = 0;
+  let stopped = 0;
+  let resolveStopped;
+  const stoppedPromise = new Promise((resolve) => {
+    resolveStopped = resolve;
+  });
+  const provider = {
+    async start() {
+      return { id: "cid-reattest", attestation: {}, egress: null };
+    },
+    async stop() {
+      stopped += 1;
+      resolveStopped();
+    },
+    async inspect() {
+      inspectCalls += 1;
+      if (inspectCalls > 1) return { ...healthy, mounts: [{ type: "bind", bind: "/host:/x" }] };
+      return healthy;
+    },
+    async session() {
+      await stoppedPromise;
+      return { responses: [], stderr: "" };
+    },
+  };
+  const runtime = createLiveVerifiedSandboxRuntime({
+    provider,
+    defaults: {
+      workerSource: "export {};\n",
+      sandboxPolicy: policy,
+      sandboxExecutor: async ({ worker, provider: active }) => {
+        await active.session({ id: worker.id });
+        return { status: "completed" };
+      },
+    },
+  });
+  // The monitor interval is unref'd by design; hold the loop open so the
+  // cadence can fire.
+  const keepAlive = setTimeout(() => {}, 5000);
+  await assert
+    .rejects(
+      () =>
+        runtime.invoke({
+          request: { parentRunId: PARENT_RUN, childRunId: "run-policy-cadence" },
+        }),
+      (error) => {
+        assert.equal(error.code, "verified-sandbox-attestation-drift");
+        return true;
+      },
+    )
+    .finally(() => clearTimeout(keepAlive));
+  assert.ok(inspectCalls >= 2, "the policy cadence must drive re-attestation");
+  assert.ok(stopped >= 1, "drift must stop the worker");
+});
+
 test("T003: the in-process adapter accepts the config and routes through it", async () => {
   const { provider, egressEnforcer } = createFakeSandbox();
   const forwarded = [];
@@ -594,4 +789,228 @@ test("T003: orchestrate builds and routes through a config-supplied sandbox runt
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+// T002: live terminal trust-anchor enforcement. After egress decisions/drops are
+// recorded, the live path re-authorizes the egress final sink and the worker
+// attestation under an accepted trust domain. A hermetic provider stands in for
+// the Docker provider so the terminal path is exercised without Docker.
+function createTrustSandbox({ hostExternal = false } = {}) {
+  const reauthorizations = [];
+  const provider = {
+    reauthorizations,
+    trustBoundary: () => ({
+      trustDomain: hostExternal ? "external" : "os-user-bound",
+      hostExternal,
+      keyId: "host-key-1",
+      anchorKeySource: hostExternal ? "external" : "in-process",
+    }),
+    async start(options) {
+      return {
+        id: "cid-trust",
+        name: options.name,
+        attestation: {},
+        attestationDoc: {
+          schema: "csm-orchestrate-worker-attestation/1",
+          schemaRevision: 1,
+          workerId: "worker-cid-trust",
+          runId: PARENT_RUN,
+          policyDigest: digest("p"),
+          imageDigest: `sha256:${"c".repeat(64)}`,
+          status: "verified",
+          inspections: [{ at: "2026-09-13T00:00:00.000Z", controlResults: { mountsEmpty: true } }],
+          anchor: {
+            algorithm: "hmac-sha256",
+            keyId: "host-key-1",
+            headDigest: `sha256:${"d".repeat(64)}`,
+            signedAt: "2026-09-13T00:00:00.000Z",
+            external: true,
+          },
+        },
+        egress: {
+          internalNetwork: "n1",
+          egressNetwork: "e1",
+          brokerName: "b1",
+          capture: { degraded: false },
+        },
+      };
+    },
+    async session({ onResponse }) {
+      await onResponse({
+        type: "egress",
+        id: "e1",
+        target: {
+          host: "api.allowed.test",
+          port: 443,
+          scheme: "https",
+          method: "GET",
+          path: "/v1",
+        },
+      });
+      await onResponse({ type: "done", output: { fake: true } });
+      return { responses: [], stderr: "", roundTrips: 0, heartbeats: 0, sustained: true };
+    },
+    async collectDrops() {
+      return { count: 0, drops: [], recorded: [], degraded: false, reason: null };
+    },
+    reauthorizeAttestation({ doc, requireHostExternal = true, acceptedTrustDomain = null }) {
+      reauthorizations.push({ doc, requireHostExternal, acceptedTrustDomain });
+      if (requireHostExternal && !hostExternal)
+        return { authorized: false, reasonCode: "anchor-not-external-to-host", hostExternal };
+      return { authorized: true, reasonCode: "anchored", hostExternal };
+    },
+    async stop() {},
+  };
+  return { provider, reauthorizations };
+}
+
+const trustRequest = (childRunId, invocationId) => ({
+  parentRunId: PARENT_RUN,
+  childRunId,
+  invocationId,
+});
+
+test("T002: the live path re-authorizes the final sink and attestation under the recorded OS-user-bound domain", async () => {
+  const { provider, reauthorizations } = createTrustSandbox();
+  const runtime = createVerifiedSandboxRuntime({
+    enabled: true,
+    provider,
+    workerSource: "export {};\n",
+    policy: EGRESS_POLICY,
+    forward: async () => ({ status: 200, body: "ok" }),
+    dropCapturePoll: { attempts: 1 },
+  });
+  const result = await runtime.invoke({
+    request: trustRequest("run-trust-default", "inv-trust-default"),
+  });
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.ok(result.trust, JSON.stringify(result));
+  assert.equal(result.trust.domain, EGRESS_ANCHOR_TRUST_DOMAINS.osUser);
+  assert.equal(result.trust.hostExternal, false);
+  assert.equal(result.trust.authorized, true);
+  assert.equal(result.trust.reason, "anchored");
+  assert.equal(result.egress.verify.valid, true);
+  assert.ok(result.egress.records.length > 0, "a non-empty chain must be finalized");
+  assert.ok(result.trust.headDigest, "an accepted sink records the keyed head");
+  assert.equal(reauthorizations.length, 1, "the live path must re-authorize the attestation");
+  assert.equal(reauthorizations[0].requireHostExternal, false);
+  assert.equal(
+    reauthorizations[0].acceptedTrustDomain,
+    EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+    "the live path must pass the recorded trust domain to the attestation anchor",
+  );
+  assert.equal(result.trust.attestation.authorized, true);
+  assert.equal(result.trust.attestation.domain, EGRESS_ANCHOR_TRUST_DOMAINS.osUser);
+});
+
+test("T002: a mismatched terminal anchor fails the live path closed", async () => {
+  const { provider } = createTrustSandbox();
+  const ledger = createEgressLedger({
+    runId: "run-trust-mismatch",
+    key: "t002-mismatch-key-0123456789",
+    publishAnchor: () => {},
+    readAnchor: () => `sha256:${"f".repeat(64)}`,
+  });
+  const runtime = createVerifiedSandboxRuntime({
+    enabled: true,
+    provider,
+    workerSource: "export {};\n",
+    policy: EGRESS_POLICY,
+    ledgerFactory: () => ledger,
+    forward: async () => ({ status: 200, body: "ok" }),
+    dropCapturePoll: { attempts: 1 },
+  });
+  await assert.rejects(
+    () => runtime.invoke({ request: trustRequest("run-trust-mismatch", "inv-trust-mismatch") }),
+    (error) => {
+      assert.equal(error.code, "verified-sandbox-trust-anchor");
+      assert.equal(error.scope, "egress-final-sink");
+      assert.equal(error.reason, "anchor-mismatch");
+      return true;
+    },
+  );
+});
+
+test("T002: an unavailable terminal anchor fails the live path closed", async () => {
+  const { provider } = createTrustSandbox();
+  const ledger = createEgressLedger({
+    runId: "run-trust-unavailable",
+    key: "t002-unavailable-key-0123456",
+    publishAnchor: () => {},
+    readAnchor: () => {
+      throw new Error("sink down");
+    },
+  });
+  const runtime = createVerifiedSandboxRuntime({
+    enabled: true,
+    provider,
+    workerSource: "export {};\n",
+    policy: EGRESS_POLICY,
+    ledgerFactory: () => ledger,
+    forward: async () => ({ status: 200, body: "ok" }),
+    dropCapturePoll: { attempts: 1 },
+  });
+  await assert.rejects(
+    () =>
+      runtime.invoke({ request: trustRequest("run-trust-unavailable", "inv-trust-unavailable") }),
+    (error) => {
+      assert.equal(error.code, "verified-sandbox-trust-anchor");
+      assert.equal(error.reason, "anchor-unavailable");
+      return true;
+    },
+  );
+});
+
+test("T002: a configured external anchor requires host-external authorization on the live path", async () => {
+  const { provider, reauthorizations } = createTrustSandbox({ hostExternal: true });
+  const published = [];
+  const runtime = createVerifiedSandboxRuntime({
+    enabled: true,
+    provider,
+    workerSource: "export {};\n",
+    policy: EGRESS_POLICY,
+    anchorTrustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+    trustAnchor: createExternalAnchor({
+      publish: (event) => published.push(event),
+      read: () => published.at(-1)?.headDigest ?? null,
+    }),
+    forward: async () => ({ status: 200, body: "ok" }),
+    dropCapturePoll: { attempts: 1 },
+  });
+  const result = await runtime.invoke({
+    request: trustRequest("run-trust-external", "inv-trust-external"),
+  });
+  assert.equal(result.trust.domain, EGRESS_ANCHOR_TRUST_DOMAINS.external);
+  assert.equal(result.trust.hostExternal, true);
+  assert.equal(result.trust.authorized, true);
+  assert.equal(result.trust.reason, "anchored");
+  assert.equal(reauthorizations.length, 1);
+  assert.equal(reauthorizations[0].requireHostExternal, true);
+  assert.equal(
+    reauthorizations[0].acceptedTrustDomain,
+    EGRESS_ANCHOR_TRUST_DOMAINS.external,
+    "a host-external anchor must be re-authorized under the external domain",
+  );
+  assert.equal(result.trust.attestation.authorized, true);
+});
+
+test("T002: a declared external domain without a host-external anchor fails closed", async () => {
+  const { provider } = createTrustSandbox({ hostExternal: true });
+  const runtime = createVerifiedSandboxRuntime({
+    enabled: true,
+    provider,
+    workerSource: "export {};\n",
+    policy: EGRESS_POLICY,
+    anchorTrustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+    forward: async () => ({ status: 200, body: "ok" }),
+    dropCapturePoll: { attempts: 1 },
+  });
+  await assert.rejects(
+    () => runtime.invoke({ request: trustRequest("run-trust-noanchor", "inv-trust-noanchor") }),
+    (error) => {
+      assert.equal(error.code, "verified-sandbox-trust-anchor");
+      assert.equal(error.reason, "anchor-not-external-to-host");
+      return true;
+    },
+  );
 });

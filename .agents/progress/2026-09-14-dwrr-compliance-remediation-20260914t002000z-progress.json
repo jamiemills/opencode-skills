@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-compliance-remediation-20260914",
+  "runId": "run-20260914t002000z-dwrr-compliance-remediation",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime compliance-remediation plan (4 tasks)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Re-attestation + isolation gate",
+      "weightPercent": 45,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Trust anchor + docs",
+      "weightPercent": 30,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify + delivery",
+      "weightPercent": 15,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-14T00:20:00.000Z",
+  "updatedAt": "2026-09-13T22:11:59.752Z"
+}

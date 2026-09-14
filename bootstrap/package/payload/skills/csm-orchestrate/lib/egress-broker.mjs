@@ -531,18 +531,39 @@ export function createEgressLedger({
     };
   }
 
-  // T003: final-sink re-authorization. Before a caller accepts a terminal sink
-  // (the run's last persisted record, a terminal receipt, or any sink that
+  // T003/T002: final-sink re-authorization. Before a caller accepts a terminal
+  // sink (the run's last persisted record, a terminal receipt, or any sink that
   // finalizes the audit trail), re-read the external anchor and reconcile it
   // against the freshly re-verified local chain head. Fail closed
   // (`authorized: false`) on any invalidity: an invalid chain, an empty chain,
-  // an OS-user-bounded anchor when `requireHostExternal` is set (the default),
-  // no anchor sink, an unreadable/unavailable anchor, or a head mismatch. A
-  // personal-suite caller may explicitly pass `requireHostExternal: false` to
-  // accept the OS-user-bounded anchor; that is a recorded deviation, never a
-  // silent one.
-  function authorizeFinalSink({ requireHostExternal = true, sink = null, at = null } = {}) {
-    const base = { sink, at, headDigest: null, anchor: trustBoundary() };
+  // an OS-user-bounded anchor when host-external is required, an unreadable/
+  // unavailable anchor, or a head mismatch.
+  //
+  // T002: `acceptedTrustDomain` names the trust domain the caller is willing to
+  // accept and is authoritative over `requireHostExternal` when supplied:
+  // `external` requires a host-external anchor (and a readable, matching sink);
+  // `os-user-bound` accepts the in-process keyed head (the recorded g3-ruling
+  // boundary) when no anchor sink is configured, while still failing closed if a
+  // configured sink is unreadable or its head mismatches. The accepted domain is
+  // explicit and observable, never a silent downgrade.
+  function authorizeFinalSink({
+    requireHostExternal = true,
+    acceptedTrustDomain = null,
+    sink = null,
+    at = null,
+  } = {}) {
+    let requireExternal = requireHostExternal;
+    if (acceptedTrustDomain !== null && acceptedTrustDomain !== undefined) {
+      if (
+        acceptedTrustDomain !== EGRESS_ANCHOR_TRUST_DOMAINS.osUser &&
+        acceptedTrustDomain !== EGRESS_ANCHOR_TRUST_DOMAINS.external
+      )
+        throw new EgressPolicyError(
+          `unsupported accepted trust domain: ${String(acceptedTrustDomain)} (expected ${EGRESS_ANCHOR_TRUST_DOMAINS.osUser} or ${EGRESS_ANCHOR_TRUST_DOMAINS.external})`,
+        );
+      requireExternal = acceptedTrustDomain === EGRESS_ANCHOR_TRUST_DOMAINS.external;
+    }
+    const base = { sink, at, headDigest: null, anchor: trustBoundary(), acceptedTrustDomain };
     const verification = verifyEgressChain(records, key);
     if (!verification.valid)
       return {
@@ -554,10 +575,21 @@ export function createEgressLedger({
     const headDigest = records.at(-1)?.anchor?.headDigest ?? null;
     if (!headDigest)
       return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.chainEmpty };
-    if (requireHostExternal && anchor.hostExternal !== true)
+    if (requireExternal && anchor.hostExternal !== true)
       return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.notHostExternal };
-    if (!anchor.readAvailable)
+    if (!anchor.readAvailable) {
+      // No anchor sink is configured. An explicit `os-user-bound` acceptance
+      // takes the in-process keyed head as the anchor (recorded); a
+      // host-external expectation cannot be satisfied and fails closed.
+      if (acceptedTrustDomain === EGRESS_ANCHOR_TRUST_DOMAINS.osUser)
+        return {
+          ...base,
+          authorized: true,
+          reasonCode: EGRESS_ANCHOR_REASONS.anchored,
+          headDigest,
+        };
       return { ...base, authorized: false, reasonCode: EGRESS_ANCHOR_REASONS.unavailable };
+    }
     let expected;
     try {
       expected = anchor.read();

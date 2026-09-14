@@ -75,9 +75,11 @@
   phase/2 phase run through `executeNode`) and exposed by the driver via
   `--dynamic-proposal`.
 - Isolation tiers: tier-1 hardened worktree (implemented, credential-scrubbed);
-  tier-2 verified sandbox is **partial**: the Docker provider + periodic
-  re-attestation + egress broker/ledger + network enforcer exist and are tested,
-  but they are **not yet wired into the live dispatch path** and the declared
-  `execution.isolation`/`attestation` capability is not yet enforced (see
-  broker-upstream T004/T005/T006). Both tiers fail closed; see
-  `docs/dynamic-worker-runtime.md`.
+  tier-2 verified sandbox is **implemented with a recorded trust caveat**: the
+  Docker provider, periodic re-attestation, egress broker/ledger, and network
+  enforcer are wired into the live dispatch path, the isolation gate refuses
+  unknown/unsatisfiable isolation regardless of adapter shape, and the declared
+  `execution.isolation`/`attestation` requirements are enforced live. Trust
+  anchoring defaults to the recorded OS-user-bound g3-ruling boundary and fails
+  closed; a host-external anchor remains deferred (see `.agents/docs/g3-ruling.md`).
+  Both tiers fail closed; see `docs/dynamic-worker-runtime.md`.

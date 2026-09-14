@@ -842,8 +842,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/docker-worker-provider.mjs",
-        "sha256": "aa643fb074d9186ec944ccf7a13c8451cd1ca3373039b3635e931b24c276333c",
-        "bytes": 31821,
+        "sha256": "a48c879b1bc84fe065652974a362ca5b19abece7c517b45859f66091d0210e36",
+        "bytes": 33313,
         "mode": "0644"
       },
       {
@@ -854,8 +854,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/egress-broker.mjs",
-        "sha256": "47decd46f1752316c12b8fa8e7b365ff6beb6731d37711be09e7110b4d09bc3b",
-        "bytes": 35374,
+        "sha256": "7568efa83c7efec339dd7a9deb0149ea5e3dcd0796f29eee8e90fa837c644f4a",
+        "bytes": 36818,
         "mode": "0644"
       },
       {
@@ -878,8 +878,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/index.mjs",
-        "sha256": "aabb70ad0083992ef969cad51511de1e75389cd618e5445f86cf229984517544",
-        "bytes": 77733,
+        "sha256": "68d06d65c2729024ebbb77f3c00990f1f71a1fa181aa7e2e0f408c0ef08950ae",
+        "bytes": 79888,
         "mode": "0644"
       },
       {
@@ -956,8 +956,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-adapter.mjs",
-        "sha256": "404e5f85517d26e5ebf649808bfb26b1d2c4992732a4e43106b6d5def9799e33",
-        "bytes": 10816,
+        "sha256": "da0576c5a171456c3ad385b39793a042452595c0dcb52a9c1ad5d34b9799d0a4",
+        "bytes": 11259,
         "mode": "0644"
       },
       {
@@ -968,8 +968,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-preflight.mjs",
-        "sha256": "48104513f67e842e0508ff276a85271a25ffe15f986272867cb3ab4ac0279dbc",
-        "bytes": 8240,
+        "sha256": "41eb6b48dadf801806a2f9a956a4033a3d16899e76b0d7fdcd44b5da77cbda92",
+        "bytes": 9980,
         "mode": "0644"
       },
       {
@@ -998,8 +998,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/verified-sandbox-runtime.mjs",
-        "sha256": "26f8ee901a435a94a900212810f0f3fad253efdf7b05a521e3f7efcc7c45991e",
-        "bytes": 21006,
+        "sha256": "2ae28d0c2038b468053466f90682386c87ba9b8bf0ec27609057b3089e65135e",
+        "bytes": 30450,
         "mode": "0644"
       },
       {

@@ -51,6 +51,47 @@ export function declaredIsolation(capability) {
   return typeof value === "string" && value.length ? value : null;
 }
 
+// T003: whether a reported/declared isolation names a tier the gate can rank.
+export function isKnownIsolation(value) {
+  return Object.hasOwn(ISOLATION_RANK, value);
+}
+
+// T003: ordered per-invocation effective-isolation reporters. Each candidate is
+// invoked with the request; the first non-null normalized report wins. A
+// reporter that throws yields an explicit unknown report so the caller fails
+// closed. Returning null means no reporter produced any signal at all.
+export async function collectEffectiveIsolation({ reporters = [], request = {} } = {}) {
+  for (const reporter of reporters) {
+    if (typeof reporter !== "function") continue;
+    let raw;
+    try {
+      raw = await reporter(request);
+    } catch (error) {
+      return { isolation: "unknown", reason: String(error?.message ?? error) };
+    }
+    const report = normalizeIsolationReport(raw);
+    if (report) return report;
+  }
+  return null;
+}
+
+// T003: effective isolation when no adapter/handler reported one. An adapter
+// that runs inside the orchestrator's own process cannot be assumed to exceed
+// the trusted-in-process floor, so a trusted requirement is satisfied while a
+// higher (verified-sandbox) requirement is unknown and must fail closed — the
+// static declaration is never silently copied onto the effective side.
+export function effectiveIsolationFloor({ report = null, capability = null } = {}) {
+  if (report) return report;
+  const declared = declaredIsolation(capability);
+  if (declared === null || declared === TRUSTED_IN_PROCESS)
+    return { isolation: TRUSTED_IN_PROCESS, required: TRUSTED_IN_PROCESS };
+  return {
+    isolation: "unknown",
+    required: declared,
+    reason: "adapter did not report effective isolation",
+  };
+}
+
 export function resolveEffectiveIsolation({
   adapter = null,
   request = {},

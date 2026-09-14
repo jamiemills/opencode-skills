@@ -782,3 +782,59 @@ test("T003: final-sink re-authorization refuses an empty chain and an unanchored
     EGRESS_ANCHOR_REASONS.unavailable,
   );
 });
+
+// T002: the accepted trust domain is an explicit, authoritative parameter so a
+// caller can record the OS-user-bound boundary rather than silently accept it.
+test("T002: an explicitly accepted OS-user-bound domain authorizes the in-process keyed head", () => {
+  const ledger = createEgressLedger({ runId: "run-egress-1", key: "host-secret-key" });
+  const record = ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const accepted = ledger.authorizeFinalSink({
+    acceptedTrustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+  });
+  assert.equal(accepted.authorized, true);
+  assert.equal(accepted.reasonCode, EGRESS_ANCHOR_REASONS.anchored);
+  assert.equal(accepted.headDigest, record.anchor.headDigest);
+  assert.equal(accepted.anchor.hostExternal, false);
+  assert.equal(accepted.acceptedTrustDomain, EGRESS_ANCHOR_TRUST_DOMAINS.osUser);
+
+  // The same ledger cannot satisfy a host-external acceptance.
+  assert.equal(
+    ledger.authorizeFinalSink({ acceptedTrustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external })
+      .reasonCode,
+    EGRESS_ANCHOR_REASONS.notHostExternal,
+  );
+  assert.throws(
+    () => ledger.authorizeFinalSink({ acceptedTrustDomain: "somewhere-else" }),
+    /unsupported accepted trust domain/,
+  );
+});
+
+test("T002: an accepted OS-user-bound domain still fails closed on a broken or mismatched sink", () => {
+  const down = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    publishAnchor: () => {},
+    readAnchor: () => {
+      throw new Error("sink down");
+    },
+  });
+  down.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const unavailable = down.authorizeFinalSink({
+    acceptedTrustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+  });
+  assert.equal(unavailable.authorized, false);
+  assert.equal(unavailable.reasonCode, EGRESS_ANCHOR_REASONS.unavailable);
+
+  const wrong = createEgressLedger({
+    runId: "run-egress-1",
+    key: "host-secret-key",
+    publishAnchor: () => {},
+    readAnchor: () => `sha256:${"f".repeat(64)}`,
+  });
+  wrong.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const mismatched = wrong.authorizeFinalSink({
+    acceptedTrustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+  });
+  assert.equal(mismatched.authorized, false);
+  assert.equal(mismatched.reasonCode, EGRESS_ANCHOR_REASONS.mismatch);
+});

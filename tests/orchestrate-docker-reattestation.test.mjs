@@ -78,6 +78,44 @@ test("T005: the re-attestation monitor fails closed when inspect errors", async 
   assert.equal(drifts[0].reason, "inspect-error");
 });
 
+test("T001: a started monitor re-attests on cadence and kills the worker on drift", async () => {
+  const observations = [healthy, healthy, { ...healthy, rootFilesystem: "writable" }];
+  let index = 0;
+  let killed = 0;
+  const monitor = createReattestationMonitor({
+    inspect: async () => observations[Math.min(index++, observations.length - 1)],
+    stop: async () => {
+      killed += 1;
+    },
+    cadenceMs: 5,
+    expected: { expectedImageDigest: IMAGE_DIGEST },
+  });
+  monitor.start();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  monitor.stop();
+  assert.ok(monitor.snapshots().length >= 2, "the monitor must tick on its cadence");
+  const last = monitor.snapshots().at(-1);
+  assert.equal(last.drift, true);
+  assert.deepEqual(last.failed, ["rootFilesystemReadOnly"]);
+  assert.equal(killed, 1, "drift must kill the worker once");
+});
+
+test("T001: the monitor kills before invoking the drift hook (fail-closed ordering)", async () => {
+  const order = [];
+  const monitor = createReattestationMonitor({
+    inspect: async () => ({ ...healthy, mounts: [{ type: "bind", bind: "/host:/x" }] }),
+    stop: async () => {
+      order.push("kill");
+    },
+    onDrift: () => {
+      order.push("hook");
+    },
+  });
+  const snapshot = await monitor.tick();
+  assert.equal(snapshot.drift, true);
+  assert.deepEqual(order, ["kill", "hook"]);
+});
+
 test("T005: attestDockerWorker requires every frozen control", () => {
   assert.equal(attestDockerWorker({ ...healthy, network: "bridge" }).networkIsolated, false);
   assert.equal(attestDockerWorker({ ...healthy, init: false }).reapingInit, false);

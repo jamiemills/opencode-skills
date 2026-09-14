@@ -25,6 +25,17 @@ structure but no keys or signatures), and final-sink reauthorization (zero code
 matches outside docs/research). `docs/production-readiness-report.md:28,91-93`
 therefore marks G3 **BLOCKED** on real host identity.
 
+> **Update 2026-09-14 (dwrr-compliance remediation T002) — records, does not
+> rewrite, the ruling above.** The final-sink-reauthorization gap is closed:
+> `authorizeFinalSink` (`csm-orchestrate/lib/egress-broker.mjs`) and
+> `reauthorizeAttestation` (`csm-orchestrate/lib/docker-worker-provider.mjs`)
+> exist and are invoked on the live verified-sandbox terminal path under the
+> accepted trust domain, defaulting to the recorded `os-user-bound` boundary and
+> failing closed on an unavailable or mismatched anchor. The remaining gap is a
+> trust anchor beyond the OS user: there is still no out-of-process key custody
+> (KMS/HSM, remote append-only sink, or equivalent). This update changes no part
+> of the Option (b) ruling nor its deferral of G3 to deployment evidence.
+
 ## Options
 
 1. **Accept-with-documented-deviation**: submit the local Docker-attested

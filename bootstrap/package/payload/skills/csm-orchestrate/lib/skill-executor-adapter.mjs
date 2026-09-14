@@ -5,7 +5,11 @@ import { executeSkill } from "./skill-executor-handlers.mjs";
 import { csmBuildOwnedSkills } from "./csm-build-handoff.mjs";
 import { digest } from "../../../lib/schema-runtime/index.mjs";
 import canonicalCapabilities from "../capabilities.json" with { type: "json" };
-import { isolationRouting, ISOLATION_FAILURE_CODE } from "./skill-executor-preflight.mjs";
+import {
+  effectiveIsolationFloor,
+  isolationRouting,
+  ISOLATION_FAILURE_CODE,
+} from "./skill-executor-preflight.mjs";
 import {
   createLiveVerifiedSandboxRuntime,
   resolveVerifiedSandboxRuntime,
@@ -230,8 +234,16 @@ export function createInProcessExecutorAdapter({
           ),
         );
         const report = await effectiveIsolation(boundRequest);
+        // T003: a missing reporter is unknown, not the static declaration. The
+        // in-process floor satisfies trusted-in-process; a higher requirement
+        // fails closed as isolation-unavailable instead of silently inheriting
+        // the declared isolation.
+        const effective = effectiveIsolationFloor({
+          report,
+          capability: capabilityFor(request.skill),
+        });
         const routing = isolationRouting({
-          adapter: { effectiveIsolation: () => report },
+          adapter: { effectiveIsolation: () => effective },
           request: boundRequest,
           capability: capabilityFor(request.skill),
           enabled: isolationGateEnabled,

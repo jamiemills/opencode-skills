@@ -657,6 +657,16 @@ export function createDockerWorkerProvider({
     }
   }
 
+  // T001 (AC6): re-observe a running worker's controls for periodic
+  // re-attestation. Runs the same `docker inspect` + parse path `start` uses for
+  // its initial attestation, so a snapshot compares like-for-like.
+  async function inspect({ id } = {}) {
+    if (!id) throw new TypeError("worker inspect requires a worker id");
+    const result = await run(docker, ["inspect", id]);
+    if (result.code !== 0) throw new Error(result.stderr || "docker inspect failed");
+    return parseInspect(result.stdout);
+  }
+
   // T002: source per-drop network-layer facts against the worker's internal
   // network and, when a broker is supplied, feed each one into
   // `broker.recordDrop`. `degraded` is true whenever capture was impossible, so
@@ -706,12 +716,32 @@ export function createDockerWorkerProvider({
     };
   }
 
-  // T003: final-sink re-authorization for a terminal attestation. Re-verify the
-  // keyed head and, by default (`requireHostExternal: true`), refuse an
+  // T003/T002: final-sink re-authorization for a terminal attestation. Re-verify
+  // the keyed head and, by default (`requireHostExternal: true`), refuse an
   // OS-user-bounded anchor rather than silently accepting it as externally
   // anchored. Fail closed on any failed re-verification.
-  function reauthorizeAttestation({ doc, requireHostExternal = true } = {}) {
-    const base = { hostExternal, anchor: trustBoundary() };
+  //
+  // T002: `acceptedTrustDomain` is an explicit trust-domain parameter that is
+  // authoritative over `requireHostExternal` when supplied: `external` requires
+  // a host-external key/source; `os-user-bound` accepts the in-process key
+  // (the recorded g3-ruling boundary) only when the caller names it.
+  function reauthorizeAttestation({
+    doc,
+    requireHostExternal = true,
+    acceptedTrustDomain = null,
+  } = {}) {
+    let requireExternal = requireHostExternal;
+    if (acceptedTrustDomain !== null && acceptedTrustDomain !== undefined) {
+      if (
+        acceptedTrustDomain !== WORKER_ANCHOR_TRUST_DOMAINS.osUser &&
+        acceptedTrustDomain !== WORKER_ANCHOR_TRUST_DOMAINS.external
+      )
+        throw new TypeError(
+          `unsupported accepted trust domain: ${String(acceptedTrustDomain)} (expected ${WORKER_ANCHOR_TRUST_DOMAINS.osUser} or ${WORKER_ANCHOR_TRUST_DOMAINS.external})`,
+        );
+      requireExternal = acceptedTrustDomain === WORKER_ANCHOR_TRUST_DOMAINS.external;
+    }
+    const base = { hostExternal, acceptedTrustDomain, anchor: trustBoundary() };
     let verified = false;
     try {
       verified = verifyWorkerAttestation({ doc, anchorKey }) === true;
@@ -719,7 +749,7 @@ export function createDockerWorkerProvider({
       verified = false;
     }
     if (!verified) return { ...base, authorized: false, reasonCode: "attestation-invalid" };
-    if (requireHostExternal && !hostExternal)
+    if (requireExternal && !hostExternal)
       return { ...base, authorized: false, reasonCode: "anchor-not-external-to-host" };
     return { ...base, authorized: true, reasonCode: "anchored" };
   }
@@ -728,6 +758,7 @@ export function createDockerWorkerProvider({
     start,
     session,
     stop,
+    inspect,
     collectDrops,
     attest: attestDockerWorker,
     trustBoundary,

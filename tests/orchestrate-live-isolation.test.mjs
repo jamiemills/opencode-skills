@@ -151,6 +151,138 @@ const adapterFor = async ({ skill, report, sandboxRuntime = null, egressEmitter 
   };
 };
 
+const approachFor = (runId, capability) => ({
+  schema: "csm-approach/1",
+  schemaRevision: 1,
+  status: "agreed",
+  runId,
+  ideaSlug: "live-isolation",
+  signals: { capabilities: [capability], inputs: ["repository"] },
+  phases: [
+    {
+      phaseId: "P1",
+      title: "Work",
+      goal: "run the routed node",
+      deliverables: ["result"],
+      scope: ["repository"],
+      outOfScope: ["production"],
+      constraints: [],
+      acceptanceHints: ["done"],
+      context: [],
+      dependencies: [],
+    },
+  ],
+});
+
+// T003: a custom host/fixture adapter may omit `effectiveIsolation`. The declared
+// capability remains the required side; the absent report is the effective side.
+// A verified-sandbox requirement therefore cannot be resolved and must fail
+// closed with the typed `isolation-unavailable` code.
+const verifiedSandboxCapabilities = async () => {
+  const base = await loadCapabilities();
+  const skills = structuredClone(base.skills).map((capability) =>
+    capability.skill === "csm-scan"
+      ? {
+          ...capability,
+          execution: {
+            ...capability.execution,
+            isolation: VERIFIED_SANDBOX,
+            attestation: "required",
+          },
+        }
+      : capability,
+  );
+  return { ...structuredClone(base), skills, contentDigest: digest(skills) };
+};
+
+test("T003: host/fixture adapter omitting effectiveIsolation refuses a verified-sandbox requirement", async () => {
+  const capabilities = await verifiedSandboxCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-isolation-host-unknown-"));
+  try {
+    const skill = "csm-scan";
+    const binding = bindingFor(skill, completedHandler());
+    const executorRegistry = await createSkillExecutorRegistry({ descriptors: [binding] });
+    const runId = "run-live-host-unknown";
+    let adapterInvoked = false;
+    // Custom host/fixture shape: no top-level `effectiveIsolation`, and the
+    // bound handler carries no reporter either.
+    const executorAdapter = {
+      async invoke() {
+        adapterInvoked = true;
+        return { status: "completed", output: { ok: true } };
+      },
+    };
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      executorAdapter,
+      executorRegistry,
+      executorBindings: { [skill]: binding },
+      maxAttempts: 1,
+    });
+    assert.equal(adapterInvoked, false, "an unverifiable isolation node must not be invoked");
+    assert.equal(result.receipt.outcome.status, "BLOCKED");
+    assert.equal(result.reason, "isolation-unavailable");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("T003: host/fixture adapter omitting effectiveIsolation still admits trusted-in-process", async () => {
+  const capabilities = await loadCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-isolation-host-trusted-"));
+  try {
+    const skill = "csm-scan";
+    const binding = bindingFor(skill, completedHandler());
+    const executorRegistry = await createSkillExecutorRegistry({ descriptors: [binding] });
+    const runId = "run-live-host-trusted";
+    let adapterInvoked = false;
+    const executorAdapter = {
+      async invoke(request) {
+        adapterInvoked = true;
+        return {
+          status: "completed",
+          childReceipt: validReceipt({
+            runId: request.childRunId,
+            owner: request.skill,
+            attempt: request.retry?.attempt ?? 1,
+          }),
+          evidence: [],
+          outputArtifactRefs: [],
+        };
+      },
+    };
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      executorAdapter,
+      executorRegistry,
+      executorBindings: { [skill]: binding },
+      maxAttempts: 1,
+    });
+    assert.equal(adapterInvoked, true, "the trusted-in-process node must reach the adapter");
+    assert.notEqual(result.reason, "isolation-unavailable");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("T004: the gate reports a typed isolation-unavailable refusal for an unsatisfied verified-sandbox", () => {
   const capability = {
     skill: "csm-scan",

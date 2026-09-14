@@ -3,7 +3,10 @@
 import { randomBytes } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
-import { createDockerWorkerProvider } from "./docker-worker-provider.mjs";
+import {
+  createDockerWorkerProvider,
+  createReattestationMonitor,
+} from "./docker-worker-provider.mjs";
 import {
   RELAY_LISTEN_PORT,
   createEgressNetworkEnforcer,
@@ -11,6 +14,7 @@ import {
   generateRelayBrokerScript,
 } from "./egress-network.mjs";
 import {
+  EGRESS_ANCHOR_TRUST_DOMAINS,
   EgressPolicyError,
   createEgressBroker,
   createEgressBrokerListener,
@@ -54,6 +58,176 @@ import { digest } from "../../../lib/schema-runtime/index.mjs";
 const DEFAULT_BROKER_SCRIPT = 'require("net").createServer(() => {}).listen(0, "0.0.0.0")';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// T001 (AC6): a long-lived live worker is attested once at start; the runtime
+// must keep re-observing the frozen controls on the cadence the sandbox policy
+// declares. The default keeps a policy-less invocation under periodic
+// attestation rather than silently skipping it.
+export const DEFAULT_REATTESTATION_CADENCE_MS = 60_000;
+
+export function resolveReattestationCadenceMs(policy, fallback = null) {
+  const cadence = policy?.attestation?.cadenceMs;
+  if (Number.isInteger(cadence) && cadence > 0) return cadence;
+  return Number.isInteger(fallback) && fallback > 0 ? fallback : DEFAULT_REATTESTATION_CADENCE_MS;
+}
+
+// T001 (AC6): mirror the expectations `provider.start` attested against so a
+// re-attestation snapshot compares like-for-like. With no policy the network
+// check falls back to `none` and the image pin is not required.
+export function reattestationExpectations(policy, started) {
+  if (!policy) return {};
+  const imageRef = policy.image;
+  const expectedImageDigest =
+    typeof imageRef === "string" && imageRef.includes("@")
+      ? imageRef.slice(imageRef.indexOf("@") + 1)
+      : null;
+  const limits = policy.limits ?? {};
+  return {
+    expectedImageDigest,
+    expectedMemory: limits.memoryBytes ?? null,
+    expectedPids: limits.pidsLimit ?? null,
+    expectedNetwork: started?.egress?.internalNetwork ?? null,
+  };
+}
+
+// T001 (AC6): turn a drift snapshot into the typed, terminal failure the live
+// runtime surfaces after the monitor has already killed the worker.
+export function reattestationFailure(snapshot) {
+  if (!snapshot || snapshot.drift !== true) return null;
+  const reason = snapshot.failed?.includes("inspect-error") ? "inspect-error" : "attestation-drift";
+  return Object.assign(
+    new Error(
+      `verified-sandbox worker re-attestation failed (${reason}): ${(snapshot.failed ?? []).join(", ")}`,
+    ),
+    {
+      code: "verified-sandbox-attestation-drift",
+      reason,
+      failed: snapshot.failed ?? [],
+      at: snapshot.at ?? null,
+    },
+  );
+}
+
+// T002: resolve the trust domain a terminal sink may be accepted under. A
+// declared `external` domain, or any supplied host-external anchor (ledger or
+// worker provider), forces `external` and therefore a host-external
+// re-authorization; otherwise the recorded g3-ruling boundary `os-user-bound`
+// is the accepted domain. The result is explicit and observable, never a silent
+// downgrade.
+export function resolveAcceptedTrustDomain({
+  declared = null,
+  ledgerBoundary = null,
+  providerBoundary = null,
+} = {}) {
+  if (declared !== null && declared !== undefined) {
+    if (
+      declared !== EGRESS_ANCHOR_TRUST_DOMAINS.osUser &&
+      declared !== EGRESS_ANCHOR_TRUST_DOMAINS.external
+    )
+      throw Object.assign(
+        new TypeError(
+          `unsupported anchor trust domain: ${String(declared)} (expected ${EGRESS_ANCHOR_TRUST_DOMAINS.osUser} or ${EGRESS_ANCHOR_TRUST_DOMAINS.external})`,
+        ),
+        { code: "verified-sandbox-trust-domain" },
+      );
+  }
+  if (
+    declared === EGRESS_ANCHOR_TRUST_DOMAINS.external ||
+    ledgerBoundary?.hostExternal === true ||
+    providerBoundary?.hostExternal === true
+  )
+    return EGRESS_ANCHOR_TRUST_DOMAINS.external;
+  return declared ?? EGRESS_ANCHOR_TRUST_DOMAINS.osUser;
+}
+
+// T002: typed terminal failure when the live path cannot re-authorize a sink.
+export function trustAnchorFailure(trust, scope) {
+  const reason =
+    scope === "worker-attestation" ? (trust.attestation?.reason ?? null) : (trust.reason ?? null);
+  return Object.assign(
+    new Error(
+      `verified-sandbox trust anchor re-authorization failed (${scope}): ${String(reason)}`,
+    ),
+    {
+      code: "verified-sandbox-trust-anchor",
+      scope,
+      reason,
+      domain: trust.domain,
+      trust,
+    },
+  );
+}
+
+// T002: the live terminal trust gate. After the worker's egress decisions and
+// drops are recorded and before the runtime returns, re-authorize the egress
+// chain's final sink (`ledger.authorizeFinalSink`) and the worker attestation
+// (`provider.reauthorizeAttestation`) under the accepted trust domain. Fail
+// closed (typed error) on any unavailability or mismatch; an accepted
+// OS-user-bound sink is recorded, not silent.
+export function enforceTerminalTrust({
+  ledger = null,
+  provider = null,
+  started = null,
+  declaredDomain = null,
+  at = null,
+} = {}) {
+  const ledgerBoundary =
+    ledger && typeof ledger.trustBoundary === "function" ? ledger.trustBoundary() : null;
+  const providerBoundary =
+    provider && typeof provider.trustBoundary === "function" ? provider.trustBoundary() : null;
+  const domain = resolveAcceptedTrustDomain({
+    declared: declaredDomain,
+    ledgerBoundary,
+    providerBoundary,
+  });
+  const requireHostExternal = domain === EGRESS_ANCHOR_TRUST_DOMAINS.external;
+  const trust = {
+    domain,
+    hostExternal: ledgerBoundary?.hostExternal === true || providerBoundary?.hostExternal === true,
+    authorized: true,
+    reason: "no-egress-decisions",
+    sink: "egress-chain-terminal",
+    attestation: null,
+  };
+  // Re-authorize the egress chain only when it actually finalized decisions; an
+  // empty chain has no sink to authorize. A configured-but-broken/mismatched
+  // anchor always fails closed.
+  if (
+    ledger &&
+    typeof ledger.authorizeFinalSink === "function" &&
+    typeof ledger.length === "function" &&
+    ledger.length() > 0
+  ) {
+    const finalSink = ledger.authorizeFinalSink({
+      acceptedTrustDomain: domain,
+      requireHostExternal,
+      sink: trust.sink,
+      at,
+    });
+    trust.authorized = finalSink.authorized === true;
+    trust.reason = finalSink.reasonCode ?? null;
+    trust.headDigest = finalSink.headDigest ?? null;
+    trust.anchor = finalSink.anchor ?? ledgerBoundary;
+    if (!finalSink.authorized) throw trustAnchorFailure(trust, "egress-final-sink");
+  }
+  // Re-authorize the worker attestation under the same accepted domain whenever
+  // the provider returns a keyed attestation document.
+  if (started?.attestationDoc && typeof provider?.reauthorizeAttestation === "function") {
+    const reauthorized = provider.reauthorizeAttestation({
+      doc: started.attestationDoc,
+      requireHostExternal,
+      acceptedTrustDomain: domain,
+    });
+    trust.attestation = {
+      authorized: reauthorized.authorized === true,
+      reason: reauthorized.reasonCode ?? null,
+      hostExternal: reauthorized.hostExternal === true,
+      domain,
+    };
+    if (!reauthorized.authorized) throw trustAnchorFailure(trust, "worker-attestation");
+  }
+  return trust;
+}
 
 // N2: safe defaults so a caller only has to enable the runtime and supply the
 // (app-specific) worker source/executor. The default egress policy denies
@@ -206,11 +380,13 @@ export function createLiveVerifiedSandboxRuntime({
   defaults = null,
 } = {}) {
   const base = defaults ?? {};
+  const declaredTrustDomain = base.anchorTrustDomain ?? null;
   const activeProvider =
     provider ??
     createDockerWorkerProvider({
       docker,
       ...(image ? { image } : {}),
+      ...(declaredTrustDomain ? { anchorTrustDomain: declaredTrustDomain } : {}),
       egressEnforcer: egressEnforcer ?? createEgressNetworkEnforcer({ docker }),
     });
   if (typeof activeProvider.start !== "function" || typeof activeProvider.stop !== "function")
@@ -285,6 +461,7 @@ export function createLiveVerifiedSandboxRuntime({
       let listener = null;
       let ledger = null;
       let relay = null;
+      let monitor = null;
       try {
         if (typeof composeBroker === "function") {
           const composed = await composeBroker({ request, emit: (event) => emitEgress?.(event) });
@@ -304,24 +481,49 @@ export function createLiveVerifiedSandboxRuntime({
                 }),
               }
             : baseEgress;
+        const sandboxPolicy = request.sandboxPolicy ?? base.sandboxPolicy ?? null;
         started = await activeProvider.start({
           name: request.workerName ?? base.workerName ?? `csm-sandbox-${request.childRunId}`,
           workerSource,
-          policy: request.sandboxPolicy ?? base.sandboxPolicy ?? null,
+          policy: sandboxPolicy,
           egress: egressConfig,
         });
         if (relay && started?.id) relay.meta.workerId = `worker-${started.id}`;
-        let result = await sandboxExecutor({
-          request,
-          worker: started,
-          provider: activeProvider,
-          broker,
-          listener,
-          ledger,
-          relay,
-          emitEgress,
-          signal,
-        });
+        // T001 (AC6): a long-lived worker is attested once by `start`; keep
+        // re-observing the frozen controls on the policy cadence. The monitor
+        // kills on drift/inspect-error (fail-closed) and is stopped on
+        // teardown. The runtime surfaces the terminal failure after the worker
+        // is already gone, so a drift can never be swallowed.
+        if (started?.id) {
+          monitor = createReattestationMonitor({
+            inspect: () => activeProvider.inspect({ id: started.id }),
+            stop: () => activeProvider.stop({ id: started.id }),
+            cadenceMs: resolveReattestationCadenceMs(
+              sandboxPolicy,
+              base.reattestationCadenceMs ?? null,
+            ),
+            expected: reattestationExpectations(sandboxPolicy, started),
+          });
+          monitor.start();
+        }
+        let result;
+        try {
+          result = await sandboxExecutor({
+            request,
+            worker: started,
+            provider: activeProvider,
+            broker,
+            listener,
+            ledger,
+            relay,
+            emitEgress,
+            signal,
+          });
+        } catch (error) {
+          throw reattestationFailure(monitor?.snapshots?.().at(-1) ?? null) ?? error;
+        }
+        const drift = reattestationFailure(monitor?.snapshots?.().at(-1) ?? null);
+        if (drift) throw drift;
         if (broker && typeof activeProvider.collectDrops === "function")
           await collectDropsWithRetry(
             activeProvider,
@@ -337,6 +539,18 @@ export function createLiveVerifiedSandboxRuntime({
             },
             request.dropCapturePoll ?? base.dropCapturePoll ?? null,
           );
+        // T002: the live terminal trust gate. After every egress decision/drop
+        // is recorded and before the runtime returns, re-authorize the egress
+        // chain's final sink and the worker attestation under the accepted
+        // trust domain. Fail closed (typed error) when unavailable/mismatched;
+        // an accepted OS-user-bound sink is recorded in `result.trust`.
+        const trust = enforceTerminalTrust({
+          ledger,
+          provider: activeProvider,
+          started,
+          declaredDomain: request.anchorTrustDomain ?? base.anchorTrustDomain ?? null,
+          at: request.trustAuthorizedAt ?? null,
+        });
         if (ledger && typeof ledger.records === "function" && result && typeof result === "object")
           result = {
             ...result,
@@ -346,8 +560,10 @@ export function createLiveVerifiedSandboxRuntime({
               verify: typeof ledger.verify === "function" ? ledger.verify() : null,
             },
           };
+        if (result && typeof result === "object") result = { ...result, trust };
         return result;
       } finally {
+        if (monitor) monitor.stop();
         if (relay && typeof relay.close === "function") {
           try {
             await relay.close();
@@ -422,6 +638,9 @@ export function createVerifiedSandboxRuntime(config = {}) {
             runId,
             key,
             filePath: config.ledgerFilePath ?? null,
+            // T002: an explicit `trustAnchor` provider carries its own trust
+            // domain; legacy publish/read callbacks stay OS-user-bounded.
+            trustAnchor: config.trustAnchor ?? null,
             publishAnchor: config.publishAnchor ?? null,
             readAnchor: config.readAnchor ?? null,
           });
@@ -436,6 +655,13 @@ export function createVerifiedSandboxRuntime(config = {}) {
     ledgerFactory,
     sandboxPolicy: config.sandboxPolicy ?? null,
     workerName: config.workerName ?? null,
+    // T002: the trust domain a terminal sink may be accepted under. Defaults to
+    // the recorded g3-ruling boundary `os-user-bound`; declaring `external` (or
+    // supplying a host-external anchor) forces host-external re-authorization.
+    anchorTrustDomain: config.anchorTrustDomain ?? null,
+    // T001 (AC6): cadence used when no sandbox policy declares one. A policy's
+    // `attestation.cadenceMs` always wins.
+    reattestationCadenceMs: config.reattestationCadenceMs ?? null,
     // N5: opt-in broker-container relay. When enabled the runtime binds a
     // host-side relay server and hands the generated relay script to the
     // provider; unavailable transport raises rather than degrading.
