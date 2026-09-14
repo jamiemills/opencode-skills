@@ -48,6 +48,7 @@ import { createAutonomyPolicy } from "../csm-orchestrate/lib/autonomy.mjs";
 import {
   createExecutorHandlers,
   createExecutorDescriptors,
+  resolveThinWorkerAdapter,
 } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
 import { createInProcessExecutorAdapter } from "../csm-orchestrate/lib/skill-executor-adapter.mjs";
 import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
@@ -63,7 +64,7 @@ import {
   createTelemetryEmitter,
   repairTelemetryJsonlTail,
 } from "../csm-orchestrate/lib/telemetry.mjs";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { digest } from "../lib/schema-runtime/index.mjs";
 import { createCsmBuildAgentSessionExecutor } from "./lib/agent-session-executor.mjs";
 
@@ -684,10 +685,42 @@ async function realMode() {
     let executorRegistry = null;
     let executorBindings = {};
     if (!allowHostDispatch) {
-      const handlers = createExecutorHandlers({ csmBuildHandoffs: createAllBuildHandoffs() });
+      // T001: opt-in thin child-side worker seam. --thin-worker-handler names a
+      // child-side handler module; resolveThinWorkerAdapter constructs the
+      // adapter only under the CSM_AGENT_SESSION_EXEC=1 gate (null otherwise), so
+      // gate-off runs keep the default blocked handoffs unchanged — never a
+      // silent bypass. The thin worker skills are removed from the default
+      // blocked handoff set so they dispatch through scripts/run-worker.mjs
+      // instead of being shadowed by the default agent-session-required handoff.
+      const thinHandlerPath = argValue("--thin-worker-handler");
+      const thinSkillsArg = argValue("--thin-worker-skills");
+      const thinWorkerSkillsArg = thinSkillsArg
+        ? thinSkillsArg
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean)
+        : null;
+      const thin = resolveThinWorkerAdapter({
+        handlerPath: thinHandlerPath,
+        workerScript: fileURLToPath(new URL("./run-worker.mjs", import.meta.url)),
+        skills: thinWorkerSkillsArg,
+      });
+      if (thinHandlerPath && !thin)
+        console.error(
+          `--thin-worker-handler ignored: CSM_AGENT_SESSION_EXEC=1 is required to enable the thin child-side worker seam (keeping default blocked handoffs)`,
+        );
+      const thinWorkerSkills = thin?.thinWorkerSkills ?? [];
+      const buildHandoffs = createAllBuildHandoffs().filter(
+        (handoff) => !thinWorkerSkills.includes(handoff.skill),
+      );
+      const handlers = createExecutorHandlers({
+        csmBuildHandoffs: buildHandoffs,
+        ...(thin ? { thinWorkerAdapter: thin.thinWorkerAdapter, thinWorkerSkills } : {}),
+      });
       const descriptors = createExecutorDescriptors({
         handlers,
-        csmBuildHandoffs: createAllBuildHandoffs(),
+        csmBuildHandoffs: buildHandoffs,
+        ...(thin ? { thinWorkerAdapter: thin.thinWorkerAdapter, thinWorkerSkills } : {}),
       });
       const registry = await createSkillExecutorRegistry({ descriptors });
       executorBindings = Object.fromEntries(
@@ -798,10 +831,13 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (["--approach", "--plan", "--request"].includes(args[0])) process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume] [--config <config.json>] [--verified-sandbox <config.json|config.mjs>]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume] [--config <config.json>] [--verified-sandbox <config.json|config.mjs>] [--thin-worker-handler <module.mjs>] [--thin-worker-skills <skill,skill>]",
     );
     console.error(
       "       --host is required for --approach only; --plan/--request route by schema marker (blocked agent-session-required unless CSM_AGENT_SESSION_EXEC=1 + a csm-build route, when an agent session runs under an approvals gate)",
+    );
+    console.error(
+      "       --thin-worker-handler is approach-only and opt-in: with CSM_AGENT_SESSION_EXEC=1 the named child-side handler module dispatches csm-build-owned skills through scripts/run-worker.mjs (default skills: all csm-build-owned; narrow with --thin-worker-skills); without the gate it is ignored and default blocked handoffs stay in place",
     );
     process.exit(1);
   })().catch((error) => {

@@ -1,9 +1,10 @@
 "use strict";
 
 // T006: decision gate + six-condition adversarial isolation matrix. The
-// hermetic run always executes (fake Docker transport, real decision logic) and
-// records the artifact. When Docker is available the same gate re-runs live and
-// records the stronger live artifact at the same path.
+// hermetic run always executes (fake Docker transport, real decision logic);
+// when Docker is available the same gate re-runs live. Both runs persist to
+// throwaway temp paths — the tracked artifact at EVIDENCE_PATH is a
+// deterministic, freshness-explicit baseline that no test may rewrite (T004).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -47,12 +48,12 @@ const EVIDENCE_PATH = join(
 const DOCKER_AVAILABLE = spawnSync("docker", ["info"], { stdio: "ignore" }).status === 0;
 const NOW = () => "2026-09-13T00:00:00.000Z";
 
-// T006 concurrency repair: the live gate starts a fixed-name worker
-// ("csm-gate-worker") and every test in this file persists/reads the same
-// tracked evidence artifact. Two concurrent `make test-orchestrate` processes
-// therefore collided ("container name already in use") and could interleave
-// artifact writes. Serialize the file across processes with a repository-
-// relative filesystem lock. Assertions and coverage are unchanged.
+// T006 concurrency repair: the live gate provisions fixed-name Docker
+// networks/broker ("csm-internal-1"/"csm-egress-1"), so two concurrent
+// `make test-orchestrate` processes could collide. Serialize across processes
+// with a repository-relative filesystem lock. Artifact writes now go to
+// throwaway temp paths, but the Docker serialization is still required.
+// Assertions and coverage are unchanged.
 const DECISION_GATE_LOCK = join(
   REPO_ROOT,
   ".agents",
@@ -551,27 +552,34 @@ async function runPrototypeGate({
 }
 
 test("T006: the hermetic gate passes all six conditions and every isolation-matrix property", async () => {
-  const artifact = await runDecisionGate({
-    probes: createHermeticProbes(),
-    now: NOW,
-    evidencePath: EVIDENCE_PATH,
-  });
-  assertAllPass(artifact);
-  assert.equal(artifact.schema, DECISION_GATE_SCHEMA);
-  assert.equal(artifact.mode, "hermetic");
-  assert.equal(artifact.generatedAt, NOW());
+  const dir = await mkdtemp(join(tmpdir(), "csm-decision-gate-hermetic-"));
+  try {
+    const scratch = join(dir, "decision-gate.json");
+    const artifact = await runDecisionGate({
+      probes: createHermeticProbes(),
+      now: NOW,
+      evidencePath: scratch,
+    });
+    assertAllPass(artifact);
+    assert.equal(artifact.schema, DECISION_GATE_SCHEMA);
+    assert.equal(artifact.mode, "hermetic");
+    assert.equal(artifact.generatedAt, NOW());
+    assert.equal(artifact.freshness.kind, "observed");
 
-  const onDisk = JSON.parse(await readFile(EVIDENCE_PATH, "utf8"));
-  assert.equal(onDisk.schema, DECISION_GATE_SCHEMA);
-  assert.equal(onDisk.verdict, "pass");
-  assert.equal(onDisk.conditions.length, 6);
-  assert.deepEqual(
-    onDisk.conditions.map((condition) => condition.id),
-    DECISION_CONDITIONS.map((condition) => condition.id),
-  );
-  assert.deepEqual(Object.keys(onDisk.isolationMatrix.properties), [
-    ...ISOLATION_MATRIX_PROPERTIES,
-  ]);
+    const onDisk = JSON.parse(await readFile(scratch, "utf8"));
+    assert.equal(onDisk.schema, DECISION_GATE_SCHEMA);
+    assert.equal(onDisk.verdict, "pass");
+    assert.equal(onDisk.conditions.length, 6);
+    assert.deepEqual(
+      onDisk.conditions.map((condition) => condition.id),
+      DECISION_CONDITIONS.map((condition) => condition.id),
+    );
+    assert.deepEqual(Object.keys(onDisk.isolationMatrix.properties), [
+      ...ISOLATION_MATRIX_PROPERTIES,
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("T006: a failing probe yields a fail verdict naming the failing condition", async () => {
@@ -612,18 +620,83 @@ test(
   "T006: the live gate passes all six conditions and the isolation matrix under Docker",
   { skip: !DOCKER_AVAILABLE },
   async () => {
-    const artifact = await runDecisionGate({
-      probes: createLiveProbes(),
-      now: NOW,
-      evidencePath: EVIDENCE_PATH,
-    });
-    assertAllPass(artifact);
-    assert.equal(artifact.mode, "live");
-    const onDisk = JSON.parse(await readFile(EVIDENCE_PATH, "utf8"));
-    assert.equal(onDisk.verdict, "pass");
-    assert.equal(onDisk.mode, "live");
+    const dir = await mkdtemp(join(tmpdir(), "csm-decision-gate-live-"));
+    try {
+      const scratch = join(dir, "decision-gate.json");
+      const artifact = await runDecisionGate({
+        probes: createLiveProbes(),
+        now: NOW,
+        evidencePath: scratch,
+      });
+      assertAllPass(artifact);
+      assert.equal(artifact.mode, "live");
+      assert.equal(artifact.freshness.kind, "observed");
+      const onDisk = JSON.parse(await readFile(scratch, "utf8"));
+      assert.equal(onDisk.verdict, "pass");
+      assert.equal(onDisk.mode, "live");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   },
 );
+
+test("T004: the tracked decision-gate.json is a deterministic, freshness-explicit baseline the suite never rewrites", async () => {
+  const before = await readFile(EVIDENCE_PATH);
+  const onDisk = JSON.parse(before.toString("utf8"));
+
+  // The recorded mode and freshness must be explicit, never runner-inferred.
+  assert.equal(onDisk.schema, DECISION_GATE_SCHEMA);
+  assert.equal(onDisk.schemaRevision, 1);
+  assert.equal(onDisk.verdict, "pass");
+  assert.deepEqual(onDisk.failedConditions, []);
+  assert.ok(
+    onDisk.mode === "hermetic" || onDisk.mode === "live",
+    `mode must be an explicit recording mode, got ${JSON.stringify(onDisk.mode)}`,
+  );
+  assert.equal(typeof onDisk.freshness, "object");
+  assert.equal(onDisk.freshness.kind, "baseline");
+  assert.equal(onDisk.freshness.mode, onDisk.mode);
+  assert.equal(onDisk.freshness.generatedAt, onDisk.generatedAt);
+  assert.ok(
+    Number.isFinite(Date.parse(onDisk.generatedAt)),
+    `generatedAt must be an ISO-8601 timestamp, got ${JSON.stringify(onDisk.generatedAt)}`,
+  );
+
+  // The baseline is byte-reproducible from the deterministic hermetic probes.
+  const expected = await runDecisionGate({
+    probes: createHermeticProbes(),
+    now: NOW,
+    persist: false,
+    freshnessKind: "baseline",
+  });
+  assert.equal(
+    `${JSON.stringify(expected, null, 2)}\n`,
+    before.toString("utf8"),
+    "tracked decision-gate.json is not the deterministic hermetic baseline",
+  );
+
+  // Running the suite (hermetic + live, both to temp paths) never rewrites it.
+  const dir = await mkdtemp(join(tmpdir(), "csm-decision-gate-baseline-"));
+  try {
+    await runDecisionGate({
+      probes: createHermeticProbes(),
+      now: NOW,
+      evidencePath: join(dir, "hermetic.json"),
+    });
+    if (DOCKER_AVAILABLE) {
+      const live = await runDecisionGate({
+        probes: createLiveProbes(),
+        now: NOW,
+        evidencePath: join(dir, "live.json"),
+      });
+      assert.equal(live.mode, "live");
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+  const after = await readFile(EVIDENCE_PATH);
+  assert.ok(after.equals(before), "the suite rewrote the tracked decision-gate baseline");
+});
 
 test("T011: the compat-plan six prototype conditions pass and are recorded (AC10)", async () => {
   const artifact = await runPrototypeGate({ now: NOW, evidencePath: PROTOTYPE_GATE_PATH });

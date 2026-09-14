@@ -10,6 +10,10 @@ import { scrubChildEnv } from "./env-scrub.mjs";
 // adapter is child-side only: it writes exactly one invocation to a file, runs
 // the env-gated thin worker, and returns a raw child result. It owns no cursor,
 // receipt, gate, or acceptance authority — the parent orchestrator does.
+// T001: the shipped opt-in path constructs this adapter through
+// `resolveThinWorkerAdapter` (skill-executor-handlers.mjs), which is gated on
+// CSM_AGENT_SESSION_EXEC=1 and only fires with an operator-supplied handler
+// module; without it the default blocked handoffs stay in place.
 
 function run(spawnFn, file, args, env, timeoutMs, signal) {
   return new Promise((resolve) => {

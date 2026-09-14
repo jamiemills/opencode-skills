@@ -10,6 +10,11 @@
 // exits 0 even when uncommitted paths exist; `--strict` is the sole opt-in
 // that exits non-zero.
 //
+// When it sees uncommitted paths in the shared main checkout it recommends
+// the sanctioned remedy: foreign write work belongs in a dedicated
+// `wt/<slug>` worktree (one goal per worktree), never swept into the shared
+// checkout. See AGENTS.md -> Parallel sessions and docs/worktree-hygiene.md.
+//
 // Usage:
 //   node scripts/check-checkout-hygiene.mjs [--root <repo>] [--strict] [--quiet]
 //
@@ -78,8 +83,15 @@ export function formatCheckoutHygiene(rootDir, report) {
   const total = report.tracked.length + report.untracked.length;
   const kind = report.linkedWorktree ? "linked worktree" : "shared main checkout";
   if (total === 0) return [`checkout hygiene: clean (${kind})`];
+  const scope = report.linkedWorktree
+    ? "they belong to this wt/<slug> worktree's own goal"
+    : "treat any path you did not create as foreign";
+  const remedy = report.linkedWorktree
+    ? "keep write work in this wt/<slug> worktree and stage only owned paths here"
+    : "foreign uncommitted artifacts belong in a dedicated wt/<slug> worktree (AGENTS.md -> Parallel sessions)";
   const lines = [
-    `WARN checkout hygiene: ${total} uncommitted path(s) in the ${kind} — may belong to another session; do not stage, sweep, or delete them (worktree discipline).`,
+    `WARN checkout hygiene: ${total} uncommitted path(s) in the ${kind} — ${scope}; do not stage, sweep, or delete paths you did not create (worktree discipline).`,
+    `checkout hygiene: ${remedy}; see docs/worktree-hygiene.md.`,
   ];
   for (const rel of report.tracked) lines.push(`  tracked change: ${rel}`);
   for (const rel of report.untracked) lines.push(`  untracked: ${rel}`);

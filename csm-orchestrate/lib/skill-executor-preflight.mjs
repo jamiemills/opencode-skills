@@ -1,5 +1,7 @@
 "use strict";
 
+import { digest } from "../../lib/schema-runtime/index.mjs";
+
 const blocked = (code, message) => ({
   status: "blocked",
   failure: { class: "policy", code, message },
@@ -15,11 +17,57 @@ const blocked = (code, message) => ({
 export const VERIFIED_SANDBOX = "verified-sandbox";
 export const TRUSTED_IN_PROCESS = "trusted-in-process";
 export const ISOLATION_FAILURE_CODE = "isolation-unavailable";
+export const HOST_ISOLATION_OPT_OUT_SCOPE = "isolation-opt-out";
 
 const ISOLATION_RANK = Object.freeze({
   [TRUSTED_IN_PROCESS]: 1,
   [VERIFIED_SANDBOX]: 2,
 });
+
+// T003: a verified-sandbox claim is only accepted when the report carries a
+// content-bound, keyed/attestation evidence object the gate can independently
+// check: `digest` must equal the canonical digest of `payload` and `verify()`
+// must confirm the keyed/attestation document (for example a provider
+// attestation verified through `verifyWorkerAttestation`). A bare asserted
+// string, a missing verifier, or a digest/payload mismatch is unbindable and
+// therefore refused (fail closed).
+export function verifyIsolationEvidence(evidence) {
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) return false;
+  if (typeof evidence.digest !== "string" || evidence.digest.length === 0) return false;
+  if (typeof evidence.verify !== "function") return false;
+  if (evidence.payload === undefined) return false;
+  let actual;
+  try {
+    actual = digest(evidence.payload);
+  } catch {
+    return false;
+  }
+  if (actual !== evidence.digest) return false;
+  try {
+    return evidence.verify() === true;
+  } catch {
+    return false;
+  }
+}
+
+// T002: the host-invocation dispatch path runs work in the orchestrator's own
+// process, so it cannot satisfy a verified-sandbox (or higher) requirement. Such
+// a route is refused unless the caller binds an explicit, approved opt-out that
+// names the run and skill and the tier it waives. Shape:
+//   { status: "approved", approvalId, scope: ["verified-sandbox"|"isolation-opt-out"],
+//     binding: { runId, skill } }
+export function approvedHostIsolationOptOut(
+  optOut,
+  { runId = null, skill = null, required = null } = {},
+) {
+  if (!optOut || typeof optOut !== "object" || Array.isArray(optOut)) return false;
+  if (optOut.status !== "approved") return false;
+  if (typeof optOut.approvalId !== "string" || optOut.approvalId.length === 0) return false;
+  const scope = Array.isArray(optOut.scope) ? optOut.scope : [optOut.scope];
+  if (!scope.includes(HOST_ISOLATION_OPT_OUT_SCOPE) && !scope.includes(required)) return false;
+  const binding = optOut.binding;
+  return Boolean(binding) && binding.runId === runId && binding.skill === skill;
+}
 
 function normalizeIsolationReport(report) {
   if (report === null || report === undefined) return null;
@@ -31,7 +79,7 @@ function normalizeIsolationReport(report) {
 // Adapters may declare effective isolation as a per-invocation function
 // (`effectiveIsolation(request)`) or as a static property. A report may be a
 // bare isolation string or an object `{ isolation, required?, attestation?,
-// satisfiable?, selfProvided?, provider?, reason? }`.
+// evidence?, satisfiable?, selfProvided?, provider?, reason? }`.
 export function readEffectiveIsolation(adapter, request) {
   if (!adapter) return null;
   try {
@@ -109,6 +157,7 @@ export function resolveEffectiveIsolation({
     isolation,
     required,
     attestation,
+    evidence: report?.evidence ?? null,
     satisfiable: report?.satisfiable ?? null,
     selfProvided: report?.selfProvided === true,
     provider: report?.provider ?? null,
@@ -148,6 +197,20 @@ export function isolationGate({
         })`,
       ),
     };
+  if (
+    resolved.isolation === VERIFIED_SANDBOX &&
+    resolved.selfProvided === true &&
+    !verifyIsolationEvidence(resolved.evidence)
+  )
+    return {
+      ok: false,
+      enabled: true,
+      ...resolved,
+      failure: blocked(
+        ISOLATION_FAILURE_CODE,
+        `${skill}: verified-sandbox isolation claim is not evidence-bound`,
+      ),
+    };
   if (ISOLATION_RANK[resolved.isolation] < ISOLATION_RANK[resolved.required])
     return {
       ok: false,
@@ -165,7 +228,8 @@ export function isolationGate({
 // a verified-sandbox it does NOT self-provide and a runtime is available;
 // otherwise fail closed. A self-provided verified-sandbox (e.g. the
 // csm-autoresearch generated provider, which runs its own host-attested Docker
-// sandbox) stays on the adapter path.
+// sandbox) stays on the adapter path, but only when the gate can verify its
+// evidence binding (see verifyIsolationEvidence).
 export function isolationRouting({
   adapter = null,
   request = {},

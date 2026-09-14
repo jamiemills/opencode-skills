@@ -73,6 +73,32 @@ function providerFor(providers, mode) {
   return provider;
 }
 
+// T003: a self-provided verified-sandbox claim must be evidence-bound. Bind the
+// provider's host-attested sandbox doc (content digest + verifier) into the
+// effective-isolation report so the isolation gate can verify it instead of
+// trusting a bare asserted string. The execute path still re-verifies the live
+// attestation and fails closed when it is absent or invalid.
+function providerAttestationEvidence(provider) {
+  const attestation = provider?.sandboxAttestation;
+  if (!attestation || typeof attestation !== "object") return null;
+  if (typeof provider.verifySandboxAttestation !== "function") return null;
+  const policy = provider.policy ?? {};
+  const controls = {
+    network: policy.network,
+    mounts: Array.isArray(policy.mounts) ? policy.mounts : [],
+    evaluatorAssets: policy.evaluatorAssets,
+    credentials: policy.credentials,
+    limits: policy.limits ?? {},
+  };
+  return {
+    kind: "provider-attestation",
+    provider: provider.sandboxProvider ?? provider.provider ?? null,
+    digest: digest(attestation),
+    payload: attestation,
+    verify: () => provider.verifySandboxAttestation(attestation, controls) === true,
+  };
+}
+
 // T004: mode-aware effective isolation. The generated route executes each
 // candidate in its own host-attested Docker sandbox (self-provided); the
 // trusted-local/registered routes are trusted in-process and must NOT be refused
@@ -87,7 +113,8 @@ export function autoresearchEffectiveIsolation(mode, provider = null) {
       // The execute path enforces host attestation and fails closed; the gate
       // only refuses when satisfaction is provably absent.
       satisfiable: provider?.sandboxAttestation ? true : null,
-      provider: provider?.provider ?? "docker",
+      provider: provider?.sandboxProvider ?? provider?.provider ?? "docker",
+      evidence: providerAttestationEvidence(provider),
     };
   if (mode === "trusted-local" || mode === "registered")
     return {

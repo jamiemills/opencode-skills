@@ -147,6 +147,18 @@ default; unknown isolation refused), preserving the trusted-in-process
 `csm-autoresearch` route. See the recorded decision gate at
 `.agents/evidence/dynamic-worker-runtime/decision-gate.json`.
 
+**Deterministic, freshness-explicit evidence (T004).** The checked-in
+`decision-gate.json` is a deterministic hermetic baseline, not a live
+observation: it is generated from the hermetic probes with a fixed `generatedAt`
+and carries explicit `mode: "hermetic"` plus
+`freshness: { kind: "baseline", mode, generatedAt }`. A `freshness.kind` of
+`observed` marks a fresh run. `runDecisionGate({ freshnessKind })` records the
+kind, and the test suite writes every hermetic/live run to a throwaway temp path
+and asserts the tracked baseline is byte-identical before and after a run, so
+evidence freshness no longer depends on the runner (Docker vs non-Docker). The
+tracked baseline is regenerated once with the hermetic probes; `mode: "live"`
+artifacts remain available for live runs but are never checked in.
+
 ## Observability and Anthropic id mapping
 
 Worker lifecycle is emitted on `csm-orchestrate-telemetry-event/2` and folded on
@@ -184,7 +196,23 @@ reads a mapping as a constant:
 | worker lifecycle (`worker.started` … `worker.replayed`)                     | `csm-worker-projection/1` states     | workflow phase / agent status shown by the run view; lifecycle callbacks via hooks (OTel/hook correlation) | [R1][R6][R4]                                                                                                      |
 | caps (concurrent agents, agents per run, items per pipeline, nesting depth) | policy input, not a constant         | version- and configuration-dependent limits                                                                | [R2][R3]                                                                                                          |
 
-Basis (retrieved 2026-09-13; vendor docs are current and explicitly version-gated):
+**Re-verification status.** Re-verified read-only on **2026-09-14** against the
+live vendor pages (previous retrieval 2026-09-13). Those pages still
+version-gate individual features and still state no single minimum Claude Code
+version for dynamic workflows, so this section asserts **no** version number:
+the rows above are observational, non-gating, and not a stable contract.
+
+**Re-verify on Claude Code updates.** When Claude Code, the Agent SDK, or the
+monitoring surface changes — or at least when a citation below stops matching the
+live page — re-open [R1]–[R6], confirm each vendor field name is still current,
+update the retrieval date in this status block, and run
+`node scripts/check-anthropic-mapping.mjs`. The check fails if this section loses
+its dated re-verification status, loses its version-gate language, or
+reintroduces a known-unsupported pinned version; it never requires a specific
+version number. Never replace the dated re-verification status with an
+unqualified version number.
+
+Basis (re-verified 2026-09-14; vendor docs are current and explicitly version-gated):
 
 - [R1] Claude Code — Dynamic workflows: <https://code.claude.com/docs/en/workflows>
   (the current page states dynamic workflows are available on paid plans, the
@@ -204,7 +232,8 @@ Basis (retrieved 2026-09-13; vendor docs are current and explicitly version-gate
 
 Rows marked **inference** are not named by the cited vendor documentation. The
 whole correspondence is non-gating, observational only, and must be re-checked
-per Claude Code version. Source lineage: the claim-level evidence for these
+per Claude Code version (procedure and check above). Source lineage: the
+claim-level evidence for these
 citations is the deep-research finding
 `.agents/research/2026-08-27-claude-code-dynamic-workflows-skills-20260827t120000z-d7e8f9a0b1c2-research.json`
 (claims K4, K8) and its OSS-expansion sibling.

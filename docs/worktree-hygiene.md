@@ -14,7 +14,12 @@ deleting "stray" files.
 `scripts/check-checkout-hygiene.mjs` reads `git status --porcelain` and reports
 untracked and tracked-but-uncommitted paths. It only reads: it never stages,
 modifies, deletes, checks out, or stashes anything, and it never resolves the
-paths or changes the gate outcome.
+paths or changes the gate outcome. In the shared main checkout it names the
+sanctioned remedy for foreign artifacts explicitly: move that write work to a
+dedicated `wt/<slug>` worktree (one goal per worktree, `AGENTS.md` → Parallel
+sessions), never sweep it into the shared checkout. Inside a linked `wt/<slug>`
+worktree the listed paths are that worktree's own in-progress goal; stage only
+owned paths there.
 
 ```sh
 # warn only; exits 0 even when the checkout is dirty
@@ -33,8 +38,11 @@ when `--warn-uncommitted` is passed and never fails the default gate.
 
 1. Run the detector and read the listed paths; in the shared main checkout,
    treat any uncommitted path you did not create as foreign.
-2. Never use a bare `git add -A`, `git add .`, `git clean`, `git stash`, or
+2. Foreign uncommitted artifacts belong in a dedicated `wt/<slug>` worktree,
+   not the shared checkout. Move that write work (or start it) in the worktree;
+   never stage, sweep, or delete a foreign path to make the checkout look clean.
+3. Never use a bare `git add -A`, `git add .`, `git clean`, `git stash`, or
    `git checkout --` in the shared checkout.
-3. Stage only owned paths and commit with `git commit --only -- <owned paths>`.
-4. Do parallel write work in a `wt/<slug>` worktree, merge serially, and re-run
+4. Stage only owned paths and commit with `git commit --only -- <owned paths>`.
+5. Do parallel write work in a `wt/<slug>` worktree, merge serially, and re-run
    the gate after merging.

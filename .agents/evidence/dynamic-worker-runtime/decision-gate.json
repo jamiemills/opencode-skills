@@ -2,7 +2,12 @@
   "schema": "csm-orchestrate-decision-gate/1",
   "schemaRevision": 1,
   "generatedAt": "2026-09-13T00:00:00.000Z",
-  "mode": "live",
+  "mode": "hermetic",
+  "freshness": {
+    "kind": "baseline",
+    "mode": "hermetic",
+    "generatedAt": "2026-09-13T00:00:00.000Z"
+  },
   "conditions": [
     {
       "id": "C1",
@@ -21,7 +26,7 @@
       "title": "sandbox attestation is schema-valid and keyed/content-bound",
       "status": "pass",
       "evidence": {
-        "source": "worker",
+        "source": "built",
         "schemaValid": true,
         "schemaErrors": [],
         "contentBound": true,
@@ -89,8 +94,7 @@
         "unsatisfiableClosed": true,
         "captureRequiredDegradedClosed": true,
         "attachFailureClosed": true,
-        "driftClosed": true,
-        "liveAttachFailureClosed": true
+        "driftClosed": true
       }
     }
   ],
@@ -140,9 +144,7 @@
         "control": "reapingInit",
         "enforced": true,
         "detectsViolation": true
-      },
-      "liveControlsHeld": true,
-      "liveImageDigest": "sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5"
+      }
     }
   },
   "verdict": "pass",

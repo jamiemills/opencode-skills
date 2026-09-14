@@ -3,7 +3,10 @@
 // T006: prototype decision gate over worker/egress behavior. It runs SIX
 // decision conditions plus a per-property adversarial isolation matrix, each
 // returning pass/fail with evidence, and (by default) persists one recorded
-// artifact. Probes are injectable, so the same gate runs hermetically (fake
+// artifact. The caller-owned `freshnessKind` distinguishes the deterministic
+// checked-in baseline from a fresh runner-dependent observation, so a baseline
+// is never rewritten non-deterministically by a test run. Probes are injectable,
+// so the same gate runs hermetically (fake
 // Docker transport + real pure decision logic) and optionally live under Docker
 // (real provider + egress network enforcer) with no branch inside the gate.
 //
@@ -587,9 +590,11 @@ export async function runDecisionGate({
   now = () => new Date().toISOString(),
   evidencePath = DEFAULT_EVIDENCE_PATH,
   persist = true,
+  freshnessKind = "observed",
 } = {}) {
   const active = probes ?? createHermeticProbes();
   const generatedAt = now();
+  const mode = active.mode ?? "injected";
   const conditions = [];
   try {
     for (const condition of DECISION_CONDITIONS) {
@@ -639,7 +644,11 @@ export async function runDecisionGate({
       schema: DECISION_GATE_SCHEMA,
       schemaRevision: DECISION_GATE_SCHEMA_REVISION,
       generatedAt,
-      mode: active.mode ?? "injected",
+      mode,
+      // Explicit freshness marker: `kind` is "baseline" only for the
+      // deterministic checked-in artifact, so a recorded baseline can never be
+      // mistaken for a fresh, runner-dependent observation.
+      freshness: { kind: freshnessKind, mode, generatedAt },
       conditions,
       isolationMatrix,
       verdict: failedConditions.length === 0 ? "pass" : "fail",

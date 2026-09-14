@@ -151,6 +151,28 @@ function repoDigestValue(digestRef) {
   return at >= 0 ? String(digestRef).slice(at + 1) : null;
 }
 
+// T005: the attestation object co-locates observational data (image id/digest,
+// workspace digest, digest source) with the boolean sandbox controls. Only these
+// keys are exempt from the failed-control predicate; every other `false` value is
+// still a failed control (fail-closed by default), so recording a `false` data
+// signal — e.g. `repoDigestsObserved: false` on the configured fallback — cannot
+// be misread as a sandbox failure.
+const WORKER_ATTESTATION_DATA_KEYS = Object.freeze([
+  "imageDigest",
+  "imageId",
+  "matchedRepoDigest",
+  "matchedRepoDigestSource",
+  "repoDigestsObserved",
+  "workspaceDigest",
+]);
+
+function failedWorkerControls(attestation, { pinRequired = true } = {}) {
+  return Object.entries(attestation)
+    .filter(([key, value]) => value === false && !WORKER_ATTESTATION_DATA_KEYS.includes(key))
+    .filter(([key]) => !(key === "imagePinned" && !pinRequired))
+    .map(([key]) => key);
+}
+
 export function attestDockerWorker(
   inspect,
   {
@@ -165,27 +187,47 @@ export function attestDockerWorker(
   // The container's `.Image` is a mutable image ID; pinning must be proven
   // against the registry RepoDigest(s). Require a full digest so a short suffix
   // cannot be spoofed by a longer digest that happens to end in it.
+  const fullExpectedDigest =
+    expectedImageDigest !== null && /^sha256:[a-f0-9]{64}$/.test(String(expectedImageDigest));
   const matchedRepoDigest =
     expectedImageDigest !== null
       ? (repoDigests.find((digestRef) => digestRef.endsWith(`@${expectedImageDigest}`)) ?? null)
       : null;
+  // T005: some daemons report no RepoDigests at all for a container created from
+  // a digest-pinned ref, which would spuriously fail (or fail to prove) the pin
+  // invariant. The pin is still enforced because `docker create` was handed the
+  // `name@sha256:<64hex>` reference, so when the daemon observed no RepoDigests
+  // (never a partial/mismatched set) and a full digest was configured, fall back
+  // to that configured digest and record the source. A present-but-mismatched
+  // digest still fails closed (`imagePinned` remains false).
+  const repoDigestsObserved = repoDigests.length > 0;
+  const configuredDigestFallback = fullExpectedDigest && !repoDigestsObserved;
+  const matchedRepoDigestSource = matchedRepoDigest
+    ? "inspect"
+    : configuredDigestFallback
+      ? "configured"
+      : "none";
   // T005: bind the signed attestation to the registry RepoDigest (the matched
-  // one when pinning; otherwise the image's first full RepoDigest), never the
-  // container image ID.
-  const boundRepoDigest =
-    matchedRepoDigest ??
+  // one when pinning; the configured digest when the daemon observed none;
+  // otherwise the image's first full RepoDigest), never the container image ID.
+  const observedRepoDigest =
     repoDigests.find((digestRef) =>
       /^sha256:[a-f0-9]{64}$/.test(repoDigestValue(digestRef) ?? ""),
-    ) ??
-    null;
+    ) ?? null;
+  const imageDigest = matchedRepoDigest
+    ? repoDigestValue(matchedRepoDigest)
+    : configuredDigestFallback
+      ? String(expectedImageDigest)
+      : observedRepoDigest
+        ? repoDigestValue(observedRepoDigest)
+        : inspect.image;
   return {
-    imageDigest: boundRepoDigest ? repoDigestValue(boundRepoDigest) : inspect.image,
+    imageDigest,
     imageId: inspect.image,
     matchedRepoDigest,
-    imagePinned:
-      expectedImageDigest !== null &&
-      /^sha256:[a-f0-9]{64}$/.test(String(expectedImageDigest)) &&
-      repoDigests.some((digestRef) => digestRef.endsWith(`@${expectedImageDigest}`)),
+    matchedRepoDigestSource,
+    repoDigestsObserved,
+    imagePinned: fullExpectedDigest && (matchedRepoDigest !== null || configuredDigestFallback),
     mountsEmpty: inspect.mounts.length === 0,
     rootFilesystemReadOnly: inspect.rootFilesystem === "read-only",
     // With egress the worker is on the broker-only internal network; isolation
@@ -441,11 +483,7 @@ export function createDockerWorkerProvider({
         workspaceDigest,
         expectedNetwork: provisioned ? provisioned.network : null,
       });
-      const failed = Object.entries(attestation)
-        .filter(
-          ([control, value]) => value === false && !(control === "imagePinned" && !pinRequired),
-        )
-        .map(([control]) => control);
+      const failed = failedWorkerControls(attestation, { pinRequired });
       if (failed.length)
         throw new Error(`worker sandbox control failed attestation: ${failed.join(", ")}`);
       // T005: the signed attestation binds the matched registry RepoDigest (not
@@ -792,13 +830,9 @@ export function createReattestationMonitor({
     let snapshot;
     try {
       const attestation = attestDockerWorker(await inspect(), expected);
-      const failed = Object.entries(attestation)
-        .filter(
-          ([control, value]) =>
-            value === false &&
-            !(control === "imagePinned" && expected?.expectedImageDigest == null),
-        )
-        .map(([control]) => control);
+      const failed = failedWorkerControls(attestation, {
+        pinRequired: expected?.expectedImageDigest != null,
+      });
       snapshot = { at: now(), attestation, drift: failed.length > 0, failed };
     } catch (error) {
       snapshot = {

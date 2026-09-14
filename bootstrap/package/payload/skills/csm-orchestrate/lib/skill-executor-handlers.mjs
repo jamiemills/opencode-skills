@@ -7,6 +7,7 @@ import { assertSchema } from "./contracts.mjs";
 import { digest } from "../../../lib/schema-runtime/index.mjs";
 import { skillExecutorContractDigest } from "./skill-executor-registry.mjs";
 import { csmBuildOwnedSkills, createAllBuildHandoffs } from "./csm-build-handoff.mjs";
+import { createThinWorkerAdapter } from "./thin-worker-adapter.mjs";
 import canonicalCapabilities from "../capabilities.json" with { type: "json" };
 
 const RESULT_SCHEMA = "csm-orchestrate-child-result/1";
@@ -457,6 +458,38 @@ export async function normalizeChildResult(result, descriptor, context) {
 
 export function selectExecutorHandler(skill, { handlers = createExecutorHandlers() } = {}) {
   return handlers.get(skill) ?? null;
+}
+
+// T001: shipped opt-in path for the thin child-side worker seam. The parent
+// driver resolves the adapter through here so the CSM_AGENT_SESSION_EXEC gate is
+// the single construction condition: gate off (or no handler module) yields null
+// and the caller's default blocked handoffs stay in place, never a silent
+// bypass. The adapter runs exactly one invocation through scripts/run-worker.mjs
+// and returns a raw child result; it exposes only `invoke`/`execute`, so all
+// cursor, receipt, gate, and acceptance authority remains with the parent
+// orchestrator.
+export function resolveThinWorkerAdapter({
+  handlerPath = null,
+  workerScript,
+  env = process.env,
+  skills = null,
+  spawnFn,
+  timeoutMs,
+} = {}) {
+  if (typeof handlerPath !== "string" || handlerPath.length === 0) return null;
+  if (env?.CSM_AGENT_SESSION_EXEC !== "1") return null;
+  const thinWorkerAdapter = createThinWorkerAdapter({
+    workerScript,
+    handlerPath,
+    ...(spawnFn ? { spawnFn } : {}),
+    ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+  });
+  const thinWorkerSkills =
+    Array.isArray(skills) && skills.length > 0 ? [...skills] : csmBuildOwnedSkills();
+  return Object.freeze({
+    thinWorkerAdapter,
+    thinWorkerSkills: Object.freeze(thinWorkerSkills),
+  });
 }
 
 export function createExecutorDescriptors({

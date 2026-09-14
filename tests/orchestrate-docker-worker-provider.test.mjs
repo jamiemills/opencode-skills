@@ -9,8 +9,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   assertNetworkEgressContract,
+  attestDockerWorker,
   buildWorkerAttestation,
   createDockerWorkerProvider,
+  createReattestationMonitor,
   verifyWorkerAttestation,
   WORKER_ANCHOR_TRUST_DOMAINS,
   WORKER_NETWORK_EGRESS_CODES,
@@ -279,7 +281,8 @@ function policyFixture(overrides = {}) {
   };
 }
 
-function fakeRun(records, { digest = PINNED_DIGEST, imageId = IMAGE_ID } = {}) {
+function fakeRun(records, { digest = PINNED_DIGEST, imageId = IMAGE_ID, repoDigests } = {}) {
+  const digests = repoDigests === undefined ? [`node@${digest}`] : repoDigests;
   return async (_docker, args) => {
     records.push(args.join(" "));
     if (args[0] === "create") return { code: 0, stdout: "cid-t005\n", stderr: "" };
@@ -290,7 +293,7 @@ function fakeRun(records, { digest = PINNED_DIGEST, imageId = IMAGE_ID } = {}) {
           {
             Id: "cid-t005",
             Image: imageId,
-            RepoDigests: [`node@${digest}`],
+            RepoDigests: digests,
             Mounts: [],
             HostConfig: {
               ReadonlyRootfs: true,
@@ -309,6 +312,24 @@ function fakeRun(records, { digest = PINNED_DIGEST, imageId = IMAGE_ID } = {}) {
         stderr: "",
       };
     return { code: 0, stdout: "", stderr: "" };
+  };
+}
+
+// T005: hermetic `docker inspect`-shaped fixture for the RepoDigests quirk.
+function inspectFixture({ repoDigests = [`node@${PINNED_DIGEST}`], imageId = IMAGE_ID } = {}) {
+  return {
+    id: "cid-t005",
+    image: imageId,
+    repoDigests,
+    mounts: [],
+    rootFilesystem: "read-only",
+    network: "none",
+    capDrop: ["ALL"],
+    securityOpt: ["no-new-privileges:true"],
+    env: [],
+    pidsLimit: 512,
+    memory: 2147483648,
+    init: true,
   };
 }
 
@@ -422,6 +443,89 @@ test("T005: a mismatched RepoDigest fails the policy pin invariant", async () =>
     run: fakeRun(records, { digest: `sha256:${"c".repeat(64)}` }),
   });
   await assert.rejects(provider.start({ policy: policyFixture() }), /imagePinned/);
+});
+
+// T005 quirk: a digest-pinned create can yield a container whose inspect reports
+// no RepoDigests at all. The pin is proven from the configured digest with a
+// recorded source, while a present-but-mismatched set still fails closed.
+test("T005 quirk: a matching RepoDigest proves the pin from inspect", async () => {
+  const records = [];
+  const provider = createDockerWorkerProvider({ run: fakeRun(records) });
+  const started = await provider.start({ name: "w-present-match", policy: policyFixture() });
+  try {
+    assert.equal(started.attestation.imagePinned, true);
+    assert.equal(started.attestation.repoDigestsObserved, true);
+    assert.equal(started.attestation.matchedRepoDigestSource, "inspect");
+    assert.equal(started.attestationDoc.imageDigest, PINNED_DIGEST);
+  } finally {
+    await provider.stop({ id: started.id });
+  }
+});
+
+test("T005 quirk: a present but mismatched RepoDigest fails closed (source=none)", async () => {
+  const attestation = attestDockerWorker(
+    inspectFixture({ repoDigests: [`node@sha256:${"c".repeat(64)}`] }),
+    { expectedImageDigest: PINNED_DIGEST },
+  );
+  assert.equal(attestation.imagePinned, false);
+  assert.equal(attestation.repoDigestsObserved, true);
+  assert.equal(attestation.matchedRepoDigestSource, "none");
+});
+
+test("T005 quirk: absent RepoDigests fall back to the configured digest with a recorded signal", async () => {
+  const records = [];
+  const provider = createDockerWorkerProvider({ run: fakeRun(records, { repoDigests: [] }) });
+  const started = await provider.start({ name: "w-absent-configured", policy: policyFixture() });
+  try {
+    assert.equal(started.attestation.imagePinned, true);
+    assert.equal(started.attestation.repoDigestsObserved, false);
+    assert.equal(started.attestation.matchedRepoDigestSource, "configured");
+    assert.equal(started.attestation.matchedRepoDigest, null);
+    assert.equal(started.attestation.imageDigest, PINNED_DIGEST);
+    assert.equal(started.attestationDoc.imageDigest, PINNED_DIGEST);
+  } finally {
+    await provider.stop({ id: started.id });
+  }
+});
+
+test("T005 quirk: absent RepoDigests with no configured digest proves no pin", () => {
+  const attestation = attestDockerWorker(inspectFixture({ repoDigests: [] }));
+  assert.equal(attestation.imagePinned, false);
+  assert.equal(attestation.repoDigestsObserved, false);
+  assert.equal(attestation.matchedRepoDigestSource, "none");
+  assert.equal(attestation.imageDigest, IMAGE_ID);
+});
+
+test("T005 quirk: an unpinned image with no RepoDigests is allowed and binds the image id", async () => {
+  const records = [];
+  const provider = createDockerWorkerProvider({
+    run: fakeRun(records, { repoDigests: [] }),
+    image: "node:22-bookworm-slim",
+  });
+  const started = await provider.start({ workerSource: "export {};\n" });
+  try {
+    assert.equal(started.attestation.imagePinned, false);
+    assert.equal(started.attestation.repoDigestsObserved, false);
+    assert.equal(started.attestation.matchedRepoDigestSource, "none");
+    assert.equal(started.attestationDoc.imageDigest, IMAGE_ID);
+  } finally {
+    await provider.stop({ id: started.id });
+  }
+});
+
+test("T005 quirk: re-attestation does not drift when the daemon omits RepoDigests", async () => {
+  let killed = 0;
+  const monitor = createReattestationMonitor({
+    inspect: async () => inspectFixture({ repoDigests: [] }),
+    stop: async () => {
+      killed += 1;
+    },
+    expected: { expectedImageDigest: PINNED_DIGEST },
+  });
+  const snapshot = await monitor.tick();
+  assert.equal(snapshot.drift, false, JSON.stringify(snapshot.failed));
+  assert.equal(killed, 0);
+  assert.equal(snapshot.attestation.matchedRepoDigestSource, "configured");
 });
 
 test("T004: start fails closed on a network/egress mismatch before any docker call", async () => {

@@ -1,0 +1,99 @@
+{
+  "schema": "csm-orchestrate-perf-baseline/1",
+  "schemaRevision": 1,
+  "generatedAt": "2026-09-14T06:59:24.221Z",
+  "mode": "auto",
+  "host": {
+    "hostname": "agent1",
+    "platform": "linux",
+    "arch": "x64",
+    "cpuModel": "Intel Xeon Processor (Skylake, IBRS, no TSX)",
+    "cpuCount": 4,
+    "totalMemoryBytes": 8127746048,
+    "nodeVersion": "v22.23.2"
+  },
+  "environment": {
+    "docker": {
+      "available": true,
+      "serverVersion": "29.6.1"
+    }
+  },
+  "measurement": {
+    "measured": [
+      "egressDecision",
+      "workerStart"
+    ],
+    "deferred": [],
+    "rationale": "both outcomes measured live on this host"
+  },
+  "definitions": {
+    "workerStart": "docker create -> start -> worker-source staging -> inspect -> keyed attestation (excludes container stop)",
+    "egressDecision": "decideAllow/decideDeny: broker.decide (pure allowlist + budget match). mediateAllow/mediateDeny: decide + record (HMAC-keyed audit chain, plus a durable fsync'd append when durable=true)"
+  },
+  "workerStart": {
+    "status": "measured",
+    "unit": "ms",
+    "iterations": 5,
+    "warmup": 1,
+    "image": "node:22.23.2-bookworm-slim",
+    "imageDigest": "sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5",
+    "definition": "docker create -> start -> worker-source staging -> inspect -> keyed attestation (excludes container stop)",
+    "samples": [
+      1665.8666,
+      1888.7981,
+      1344.2074,
+      888.4219,
+      834.5773
+    ],
+    "stats": {
+      "count": 5,
+      "min": 834.5773,
+      "median": 1344.2074,
+      "mean": 1324.3743,
+      "max": 1888.7981
+    }
+  },
+  "egressDecision": {
+    "unit": "ms",
+    "iterations": 200,
+    "warmup": 20,
+    "durable": true,
+    "policyDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "operations": {
+      "decideAllow": {
+        "count": 200,
+        "min": 0.0059,
+        "median": 0.0065,
+        "mean": 0.0269,
+        "max": 3.0896
+      },
+      "decideDeny": {
+        "count": 200,
+        "min": 0.0041,
+        "median": 0.0042,
+        "mean": 0.0052,
+        "max": 0.0161
+      },
+      "mediateAllow": {
+        "count": 200,
+        "min": 0.7913,
+        "median": 3.6642,
+        "mean": 4.9133,
+        "max": 34.0905
+      },
+      "mediateDeny": {
+        "count": 200,
+        "min": 0.8659,
+        "median": 3.2931,
+        "mean": 4.7702,
+        "max": 24.479
+      }
+    }
+  },
+  "reproduce": "node scripts/with-node22.mjs --exec node scripts/bench-dwrr.mjs --out .agents/evidence/dynamic-worker-runtime/perf-baseline.json",
+  "notes": [
+    "Observational baseline only; carries no acceptance authority.",
+    "workerStart is Docker-gated and records an explicit deferral when unavailable or hermetic.",
+    "egressDecision is hermetic and measured on every invocation."
+  ]
+}

@@ -23,11 +23,18 @@ import {
 import { createExecutorDescriptors } from "../csm-orchestrate/lib/skill-executor-handlers.mjs";
 import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-executor-registry.mjs";
 import {
+  approvedHostIsolationOptOut,
+  HOST_ISOLATION_OPT_OUT_SCOPE,
   isolationGate,
   isolationRouting,
   TRUSTED_IN_PROCESS,
   VERIFIED_SANDBOX,
+  verifyIsolationEvidence,
 } from "../csm-orchestrate/lib/skill-executor-preflight.mjs";
+import {
+  buildWorkerAttestation,
+  verifyWorkerAttestation,
+} from "../csm-orchestrate/lib/docker-worker-provider.mjs";
 import {
   autoresearchEffectiveIsolation,
   createCsmAutoresearchAdapter,
@@ -150,6 +157,82 @@ const adapterFor = async ({ skill, report, sandboxRuntime = null, egressEmitter 
     }),
   };
 };
+
+const SHA_A = `sha256:${"a".repeat(64)}`;
+const SHA_B = `sha256:${"b".repeat(64)}`;
+
+// T002: a valid host-invocation fixture so a host-dispatched node can complete.
+function completedHostFixture() {
+  const artifacts = new Map();
+  return {
+    invoked: false,
+    async invokeSiblingSkill(request) {
+      this.invoked = true;
+      const descriptorBody = {
+        schema: "csm-orchestrate-evidence/2",
+        evidenceId: "ev-iso-1",
+        kind: "technical",
+        status: "current",
+        owner: request.skill,
+        runId: request.childRunId,
+        requirementIds: [request.phaseId.replace(/^phase-/, "req-")],
+        acceptanceSignalId: request.acceptanceSignalIds?.[0],
+        source: {
+          path: `fixture-${request.childRunId}.json`,
+          artifactId: `art-${request.childRunId}`,
+          digest: SHA_A,
+          schema: "csm-orchestrate-evidence/2",
+          sourceRunId: request.childRunId,
+        },
+      };
+      const descriptor = { ...descriptorBody, digest: SHA_B };
+      artifacts.set(descriptorBody.source.path, descriptor);
+      return {
+        status: "completed",
+        technical: [{ id: "technical", status: "pass", evidenceRefs: [descriptor.evidenceId] }],
+        functional: [{ id: "functional", status: "pass", evidenceRefs: [descriptor.evidenceId] }],
+        evidence: [descriptor],
+        childReceipt: {
+          receiptId: "receipt-iso-1",
+          schema: "csm-orchestrate-child-receipt/1",
+          runId: request.childRunId,
+          digest: SHA_B,
+          owner: request.skill,
+          status: "completed",
+        },
+      };
+    },
+    artifactResolver: {
+      async resolve(refPath, expected = {}) {
+        const value = artifacts.get(refPath);
+        if (!value)
+          return { status: "missing", code: "missing", message: `missing artifact: ${refPath}` };
+        return {
+          status: "resolved",
+          path: refPath,
+          owner: expected.expectedOwner,
+          fileDigest: expected.expectedFileDigest,
+          value: { ...value, schema: value.source.schema },
+        };
+      },
+    },
+  };
+}
+
+const optOutApproval = (overrides = {}) => ({
+  status: "approved",
+  approvalId: "approval-x",
+  scope: [HOST_ISOLATION_OPT_OUT_SCOPE],
+  binding: { runId: "run-x", skill: "csm-scan" },
+  ...overrides,
+});
+
+const selfProvidedIsolation = (extra = {}) => ({
+  isolation: VERIFIED_SANDBOX,
+  required: VERIFIED_SANDBOX,
+  selfProvided: true,
+  ...extra,
+});
 
 const approachFor = (runId, capability) => ({
   schema: "csm-approach/1",
@@ -598,4 +681,287 @@ test("T004: executeNode routes a verified-sandbox node through the injected runt
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+// T002: host-dispatch isolation seam. The host-invocation path (no executor
+// adapter) must refuse a route whose declared requirement exceeds the
+// in-process floor unless an explicit approved opt-out is bound; incidental and
+// trusted-in-process host routes still run.
+
+test("T002: host dispatch refuses a verified-sandbox requirement without an approved opt-out", async () => {
+  const capabilities = await verifiedSandboxCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-isolation-host-refuse-"));
+  try {
+    const skill = "csm-scan";
+    const runId = "run-live-host-refuse";
+    const host = completedHostFixture();
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      host,
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      childArtifactResolver: host.artifactResolver,
+      maxAttempts: 1,
+    });
+    assert.equal(
+      host.invoked,
+      false,
+      "the host must not run an unsatisfiable verified-sandbox route",
+    );
+    assert.equal(result.receipt.outcome.status, "BLOCKED");
+    assert.equal(result.reason, "isolation-unavailable");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("T002: host dispatch still runs an incidental/trusted route", async () => {
+  const capabilities = await loadCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-isolation-host-trusted-"));
+  try {
+    const skill = "csm-scan";
+    const runId = "run-live-host-trusted";
+    const host = completedHostFixture();
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      host,
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      childArtifactResolver: host.artifactResolver,
+      maxAttempts: 1,
+    });
+    assert.equal(host.invoked, true, "the trusted-in-process host route must reach the host");
+    assert.notEqual(result.reason, "isolation-unavailable");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("T002: host dispatch admits a verified-sandbox requirement with a bound approved opt-out", async () => {
+  const capabilities = await verifiedSandboxCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-isolation-host-optout-"));
+  try {
+    const skill = "csm-scan";
+    const runId = "run-live-host-optout";
+    const host = completedHostFixture();
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      host,
+      hostIsolationOptOut: {
+        schema: "csm-orchestrate-isolation-opt-out/1",
+        status: "approved",
+        approvalId: "approval-host-optout",
+        scope: [VERIFIED_SANDBOX],
+        binding: { runId, skill },
+      },
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      childArtifactResolver: host.artifactResolver,
+      maxAttempts: 1,
+    });
+    assert.equal(host.invoked, true, "a bound approved opt-out must admit the host route");
+    assert.notEqual(result.reason, "isolation-unavailable");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("T002: approvedHostIsolationOptOut only admits an explicitly bound, approved opt-out", () => {
+  const context = { runId: "run-x", skill: "csm-scan", required: VERIFIED_SANDBOX };
+  assert.equal(approvedHostIsolationOptOut(null, context), false);
+  assert.equal(approvedHostIsolationOptOut({ status: "requested" }, context), false);
+  assert.equal(
+    approvedHostIsolationOptOut(optOutApproval({ approvalId: "" }), context),
+    false,
+    "an opt-out without an approvalId is not approved",
+  );
+  assert.equal(
+    approvedHostIsolationOptOut(
+      optOutApproval({ binding: { runId: "run-other", skill: "csm-scan" } }),
+      context,
+    ),
+    false,
+    "an opt-out bound to another run is not admitted",
+  );
+  assert.equal(
+    approvedHostIsolationOptOut(optOutApproval({ scope: [TRUSTED_IN_PROCESS] }), context),
+    false,
+    "an opt-out that names a weaker tier does not waive verified-sandbox",
+  );
+  assert.equal(approvedHostIsolationOptOut(optOutApproval(), context), true);
+  assert.equal(
+    approvedHostIsolationOptOut(optOutApproval({ scope: [VERIFIED_SANDBOX] }), context),
+    true,
+  );
+});
+
+// T003: effective isolation must be evidence-bound, not a bare asserted string.
+
+test("T003: a self-provided verified-sandbox claim is refused unless evidence-bound", () => {
+  const capability = {
+    skill: "csm-autoresearch",
+    execution: { isolation: VERIFIED_SANDBOX, attestation: "required" },
+  };
+  const payload = { status: "verified", provider: "docker", controls: { networkIsolation: true } };
+  const bound = {
+    kind: "provider-attestation",
+    digest: digest(payload),
+    payload,
+    verify: () => true,
+  };
+
+  const unbound = isolationRouting({
+    adapter: { effectiveIsolation: () => selfProvidedIsolation() },
+    request: { skill: "csm-autoresearch" },
+    capability,
+    runtimeInvocable: true,
+  });
+  assert.equal(unbound.action, "blocked");
+  assert.equal(unbound.failure.failure.code, "isolation-unavailable");
+
+  const bareString = isolationRouting({
+    adapter: { effectiveIsolation: () => VERIFIED_SANDBOX },
+    request: { skill: "csm-autoresearch" },
+    capability,
+    runtimeInvocable: false,
+  });
+  assert.equal(bareString.action, "blocked", "a bare asserted string is not a self-provided claim");
+
+  const admitted = isolationRouting({
+    adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: bound }) },
+    request: { skill: "csm-autoresearch" },
+    capability,
+  });
+  assert.equal(admitted.action, "invoke");
+
+  const tampered = { ...bound, payload: { ...payload, status: "forged" } };
+  assert.equal(verifyIsolationEvidence(tampered), false, "a digest/payload mismatch is unbindable");
+  const failedVerify = { ...bound, verify: () => false };
+  assert.equal(verifyIsolationEvidence(failedVerify), false);
+  const noVerifier = { digest: digest(payload), payload };
+  assert.equal(verifyIsolationEvidence(noVerifier), false);
+
+  const refusedTampered = isolationRouting({
+    adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: tampered }) },
+    request: { skill: "csm-autoresearch" },
+    capability,
+  });
+  assert.equal(refusedTampered.action, "blocked");
+});
+
+test("T003: a worker attestation verified through verifyWorkerAttestation admits the claim", () => {
+  const anchorKey = Buffer.from("host-anchor-key");
+  const doc = buildWorkerAttestation({
+    workerId: "worker-1",
+    runId: "run-worker-1",
+    policyDigest: `sha256:${"c".repeat(64)}`,
+    imageDigest: `sha256:${"d".repeat(64)}`,
+    inspections: [{ at: "2026-09-13T00:00:00Z", controlResults: { mountsEmpty: true } }],
+    anchorKey,
+  });
+  const evidence = {
+    kind: "worker-attestation",
+    digest: digest(doc),
+    payload: doc,
+    verify: () => verifyWorkerAttestation({ doc, anchorKey }),
+  };
+  assert.equal(verifyIsolationEvidence(evidence), true);
+
+  const routing = isolationRouting({
+    adapter: {
+      effectiveIsolation: () => ({
+        isolation: VERIFIED_SANDBOX,
+        required: VERIFIED_SANDBOX,
+        selfProvided: true,
+        evidence,
+      }),
+    },
+    request: { skill: "csm-autoresearch" },
+    capability: { skill: "csm-autoresearch", execution: { isolation: VERIFIED_SANDBOX } },
+  });
+  assert.equal(routing.action, "invoke");
+
+  const wrongKey = {
+    ...evidence,
+    verify: () => verifyWorkerAttestation({ doc, anchorKey: Buffer.from("other-key") }),
+  };
+  assert.equal(verifyIsolationEvidence(wrongKey), false);
+});
+
+test("T003: csm-autoresearch generated report binds its provider attestation", () => {
+  const attestation = {
+    provider: "docker",
+    status: "verified",
+    network: "disabled",
+    mounts: [],
+    evaluatorAssets: "isolated",
+    credentials: "none",
+    limits: { timeoutMs: 1000, maxOutputBytes: 4096, maxWorkspaceBytes: 1024 },
+    policyDigest: `sha256:${"1".repeat(64)}`,
+    imageDigest: `sha256:${"2".repeat(64)}`,
+    sourceHash: `sha256:${"3".repeat(64)}`,
+    controls: { networkIsolation: true },
+  };
+  const provider = {
+    mode: "generated",
+    sandboxProvider: "docker",
+    sandboxAttestation: attestation,
+    policy: {
+      network: "disabled",
+      mounts: [],
+      evaluatorAssets: "isolated",
+      credentials: "none",
+      limits: { timeoutMs: 1000, maxOutputBytes: 4096, maxWorkspaceBytes: 1024 },
+    },
+    verifySandboxAttestation: (value, controls) =>
+      value === attestation && controls.network === "disabled" && controls.credentials === "none",
+  };
+
+  const report = autoresearchEffectiveIsolation("generated", provider);
+  assert.equal(report.isolation, VERIFIED_SANDBOX);
+  assert.equal(report.selfProvided, true);
+  assert.ok(report.evidence, "the generated report must bind the provider attestation");
+  assert.equal(verifyIsolationEvidence(report.evidence), true);
+
+  const capability = { skill: "csm-autoresearch", execution: { isolation: VERIFIED_SANDBOX } };
+  const admitted = isolationRouting({
+    adapter: { effectiveIsolation: () => report },
+    request: { skill: "csm-autoresearch" },
+    capability,
+  });
+  assert.equal(admitted.action, "invoke");
+
+  const rejected = autoresearchEffectiveIsolation("generated", {
+    ...provider,
+    verifySandboxAttestation: () => false,
+  });
+  assert.equal(verifyIsolationEvidence(rejected.evidence), false);
+  const refused = isolationRouting({
+    adapter: { effectiveIsolation: () => rejected },
+    request: { skill: "csm-autoresearch" },
+    capability,
+  });
+  assert.equal(refused.action, "blocked");
+  assert.equal(refused.failure.failure.code, "isolation-unavailable");
 });

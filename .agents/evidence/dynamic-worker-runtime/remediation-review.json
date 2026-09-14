@@ -1,0 +1,35 @@
+{
+  "schema": "csm-orchestrate-remediation-review/1",
+  "plan": ".agents/plans/2026-09-14-dynamic-worker-runtime-final-work-csm.json",
+  "reviewedAt": "2026-09-14T02:00:00.000Z",
+  "reviewer": "independent-adversarial-subagent",
+  "verdict": "deliverable-with-bookkeeping",
+  "gates": {
+    "fmt-check": "pass", "lint": "pass", "check-suite": "OK 1144 checks, drift []",
+    "test-orchestrate": "466 pass / 0 fail / 8 skipped", "test-worker-runtime": "105 pass",
+    "test-contracts": "490 pass", "adapter-required": "11 pass"
+  },
+  "taskVerdicts": {
+    "T001": "confirmed (caveat: no CLI-level driver test)", "T002": "confirmed",
+    "T003": "confirmed (residual: trusts reporter verify -> a filter)", "T004": "confirmed (byte-identical baseline)",
+    "T005": "confirmed", "T007": "confirmed", "T008": "confirmed (orphan check)", "T009": "confirmed"
+  },
+  "complianceRecommendations": {
+    "liveReattestation": "satisfied", "trustAnchorFinalSink": "satisfied",
+    "isolationRefusal": "satisfied", "docsCorrections": "satisfied"
+  },
+  "blockers": [
+    { "id": "B1", "issue": "plan record stale (tasks pending, no journal)", "action": "checkpoint plan" },
+    { "id": "B2", "issue": "T006 artifact missing", "action": "persist this artifact" },
+    { "id": "B3", "issue": "delivery not done", "action": "commit/push/merge/CI" }
+  ],
+  "nonBlockers": [
+    { "id": "N1", "issue": "T003 trusts reporter-supplied verify() (filter, not independent anchor)" },
+    { "id": "N2", "issue": "check-anthropic-mapping.mjs orphan (no test/gate)", "action": "wired this iteration" },
+    { "id": "N3", "issue": "sensitive leftover csm-adapter-env untracked/ungitignored", "action": "gitignore rule" },
+    { "id": "N4", "issue": "T001 driver wiring duplicated in test, not run via run-orchestrator.mjs" },
+    { "id": "N6", "issue": "runDecisionGate() default path could rewrite tracked baseline if called pathless" },
+    { "id": "N7", "issue": "evidence schema markers unregistered" }
+  ],
+  "verdictText": "All code tasks sound and gate-green; the four compliance recommendations hold. Plan record + T006 artifact + delivery were the only blockers."
+}

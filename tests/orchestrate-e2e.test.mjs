@@ -236,6 +236,17 @@ const options = async (host, extra = {}) => {
       schemaRegistry: reviewSchemaRegistry,
     }),
     childArtifactResolver: host.artifactResolver,
+    // T002: the host-invocation path refuses a verified-sandbox requirement
+    // unless an explicit approved opt-out is bound. This fixture routes the
+    // sandbox-requiring csm-autoresearch skill over the incidental host, so it
+    // binds the documented opt-out (scoped to that skill).
+    hostIsolationOptOut: {
+      schema: "csm-orchestrate-isolation-opt-out/1",
+      status: "approved",
+      approvalId: "approval-e2e-host-isolation-opt-out",
+      scope: ["verified-sandbox"],
+      binding: { runId, skill: "csm-autoresearch" },
+    },
     reviewArtifactRoot,
     schemaRegistry: {
       resolve() {},

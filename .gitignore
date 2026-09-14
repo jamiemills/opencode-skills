@@ -4,3 +4,4 @@ node_modules/
 .env
 .agents/evidence/orchestrator/
 bootstrap/.pack-lock
+csm-adapter-env

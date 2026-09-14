@@ -26,12 +26,14 @@ import { assertSchema } from "./contracts.mjs";
 import { createLifecycleHookRunner } from "./lifecycle-hooks.mjs";
 import { createProgressTracker } from "./progress.mjs";
 import {
+  approvedHostIsolationOptOut,
   collectEffectiveIsolation,
   declaredIsolation,
   effectiveIsolationFloor,
   isKnownIsolation,
   preflightSkillRoutes,
   isolationRouting,
+  TRUSTED_IN_PROCESS,
 } from "./skill-executor-preflight.mjs";
 import { resolveVerifiedSandboxRuntime } from "./verified-sandbox-runtime.mjs";
 
@@ -141,6 +143,7 @@ async function runOrchestrationInternal({
   onProgress = null,
   lifecycleHooks = null,
   enforceSkillFirstRouting = false,
+  hostIsolationOptOut = null,
   executorInput,
   parentPhaseId = null,
   phaseIdOverride = null,
@@ -491,37 +494,43 @@ async function runOrchestrationInternal({
   // `effectiveIsolation`; the bound executor/handler is still consulted, and
   // when nothing can report, the trusted-in-process floor is assumed while any
   // higher declared requirement (verified-sandbox) fails closed as unknown.
-  // The host invocation adapter is the explicit incidental/test seam (see the
-  // enforceSkillFirstRouting note above) and keeps its historical pass-through.
+  // T002: the host invocation adapter is the incidental/test seam. An
+  // incidental/trusted route still runs, but a route whose declared requirement
+  // exceeds the in-process floor is refused unless the caller binds an explicit
+  // approved opt-out.
   const resolveNodeIsolation = async (request, node) => {
     if (verifiedSandboxEnabled !== true) return { action: "invoke", enabled: false };
-    if (!executorAdapter) return { action: "invoke" };
     const capability = capabilityForSkill(node.skill);
     const declared = declaredIsolation(capability);
-    const binding = node.executor ?? executorBindings[node.skill];
-    const gateWith = (effective) =>
+    const gateWith = (effective, runtimeInvocable = verifiedSandboxInvocable) =>
       isolationRouting({
         adapter: { effectiveIsolation: () => effective },
         request,
         capability,
         node,
         enabled: true,
-        runtimeInvocable: verifiedSandboxInvocable,
+        runtimeInvocable,
       });
+    if (!executorAdapter) {
+      if (declared === null || declared === TRUSTED_IN_PROCESS) return { action: "invoke" };
+      if (
+        approvedHostIsolationOptOut(hostIsolationOptOut, {
+          runId,
+          skill: node.skill,
+          required: declared,
+        })
+      )
+        return { action: "invoke", enabled: true, optedOut: true };
+      return gateWith(effectiveIsolationFloor({ report: null, capability }), false);
+    }
+    const binding = node.executor ?? executorBindings[node.skill];
     // The adapter's own reporter is authoritative (unknown is refused).
     if (typeof adapter?.effectiveIsolation === "function") {
       const report = await collectEffectiveIsolation({
         reporters: [(req) => adapter.effectiveIsolation(req)],
         request,
       });
-      return isolationRouting({
-        adapter: { effectiveIsolation: () => report },
-        request,
-        capability,
-        node,
-        enabled: true,
-        runtimeInvocable: verifiedSandboxInvocable,
-      });
+      return gateWith(report);
     }
     // An isolation-aware bound executor that cannot resolve a known mode before
     // dispatch (e.g. it derives its mode from the invocation input at invoke

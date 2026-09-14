@@ -56,11 +56,12 @@
   `## builds/`, `## progress/`, ...), never appended to the physical EOF of
   the file. `scripts/check-suite.mjs` enforces section membership.
 - The shared main checkout can also hold other sessions' uncommitted
-  artifacts. Detect them non-destructively with
-  `node scripts/check-checkout-hygiene.mjs` (warn-only; `--strict` is the
-  opt-in that fails) or `node scripts/check-suite.mjs --warn-uncommitted`;
-  never stage, sweep, or delete a path you did not create (see
-  `docs/worktree-hygiene.md`).
+  artifacts. Foreign uncommitted artifacts belong in a dedicated `wt/<slug>`
+  worktree (one goal per worktree), not the shared checkout. Detect them
+  non-destructively with `node scripts/check-checkout-hygiene.mjs` (warn-only;
+  `--strict` is the opt-in that fails) or
+  `node scripts/check-suite.mjs --warn-uncommitted`; never stage, sweep, or
+  delete a path you did not create (see `docs/worktree-hygiene.md`).
 
 ## Dynamic worker runtime (child seam)
 
