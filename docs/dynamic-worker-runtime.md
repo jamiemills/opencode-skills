@@ -126,6 +126,26 @@ anchor is unavailable or mismatched. This is the live wiring the dwrr-compliance
 finding flagged as missing (`authorizeFinalSink`/`reauthorizeAttestation` had no
 live caller).
 
+**Isolation-evidence anchor path (N1 follow-up).** A self-provided
+verified-sandbox claim is admitted only when its evidence object names a
+recognized evidence kind (`worker-attestation` or `provider-attestation`; any
+other kind fails closed) and is bound to a host mechanism. The Docker worker
+provider binds its host-held anchor key into `evidenceVerifier()`, and the
+in-process executor adapter prefers that provider verifier over any
+caller-supplied `isolationVerifier` for `worker-attestation` evidence; the
+csm-autoresearch generated route keeps its own provider-owned
+`provider-attestation` verifier. The live
+`createLiveVerifiedSandboxRuntime` object exposes only
+`invoke`/`effectiveIsolation`, so the adapter reaches the provider verifier
+through a config-supplied `sandboxRuntime` (`{ provider }`); a caller that wires
+the runtime only through `orchestrate({ verifiedSandboxRuntime })` still relies
+on the gate's evidence-carried verifier. Every anchor on this path — the worker
+attestation key, the provider verifier, and the egress ledger key — is
+**OS-user-bound** in-process, not host-external: a same-OS-user host process can
+still forge them, and a host-external anchor remains deferred (see the
+g3-ruling boundary above). This path is deliberately _not_ claimed to be
+host-external anchoring.
+
 **Residual risk:** within the OS-user boundary, the egress chain and worker
 attestation remain forgeable by a same-user host process. This is accepted for
 single-operator, local, personal-suite use and is the deployment gate recorded

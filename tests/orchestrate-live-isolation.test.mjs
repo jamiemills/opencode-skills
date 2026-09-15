@@ -25,15 +25,20 @@ import { createSkillExecutorRegistry } from "../csm-orchestrate/lib/skill-execut
 import {
   approvedHostIsolationOptOut,
   HOST_ISOLATION_OPT_OUT_SCOPE,
+  isRecognizedIsolationEvidenceKind,
   isolationGate,
   isolationRouting,
+  PROVIDER_ATTESTATION_EVIDENCE_KIND,
   TRUSTED_IN_PROCESS,
   VERIFIED_SANDBOX,
   verifyIsolationEvidence,
+  WORKER_ATTESTATION_EVIDENCE_KIND,
 } from "../csm-orchestrate/lib/skill-executor-preflight.mjs";
 import {
   buildWorkerAttestation,
-  verifyWorkerAttestation,
+  createDockerWorkerProvider,
+  createHostIsolationVerifier,
+  createWorkerAttestationVerifier,
 } from "../csm-orchestrate/lib/docker-worker-provider.mjs";
 import {
   autoresearchEffectiveIsolation,
@@ -816,20 +821,26 @@ test("T002: approvedHostIsolationOptOut only admits an explicitly bound, approve
   );
 });
 
-// T003: effective isolation must be evidence-bound, not a bare asserted string.
+// T001 (N1): effective isolation must be host/independently anchored, not a bare
+// asserted string and not a caller-supplied verify() closure.
 
-test("T003: a self-provided verified-sandbox claim is refused unless evidence-bound", () => {
+test("T001: a bare caller verify() cannot admit a self-provided verified-sandbox claim", () => {
   const capability = {
     skill: "csm-autoresearch",
     execution: { isolation: VERIFIED_SANDBOX, attestation: "required" },
   };
   const payload = { status: "verified", provider: "docker", controls: { networkIsolation: true } };
-  const bound = {
+  const bare = {
     kind: "provider-attestation",
     digest: digest(payload),
     payload,
     verify: () => true,
   };
+  assert.equal(
+    verifyIsolationEvidence(bare),
+    false,
+    "a bare caller closure is not a host-held anchor",
+  );
 
   const unbound = isolationRouting({
     adapter: { effectiveIsolation: () => selfProvidedIsolation() },
@@ -848,19 +859,42 @@ test("T003: a self-provided verified-sandbox claim is refused unless evidence-bo
   });
   assert.equal(bareString.action, "blocked", "a bare asserted string is not a self-provided claim");
 
+  const refusedBare = isolationRouting({
+    adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: bare }) },
+    request: { skill: "csm-autoresearch" },
+    capability,
+  });
+  assert.equal(refusedBare.action, "blocked", "a caller verify() must not admit the claim");
+
+  // A provider-owned verifier bound at construction (branded) is admitted, and
+  // its verdict is authoritative: a payload it rejects is refused.
+  const providerOwned = {
+    kind: "provider-attestation",
+    digest: digest(payload),
+    payload,
+    verify: createHostIsolationVerifier((value) => value === payload),
+  };
   const admitted = isolationRouting({
-    adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: bound }) },
+    adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: providerOwned }) },
     request: { skill: "csm-autoresearch" },
     capability,
   });
   assert.equal(admitted.action, "invoke");
 
-  const tampered = { ...bound, payload: { ...payload, status: "forged" } };
+  const tampered = { ...providerOwned, payload: { ...payload, status: "forged" } };
   assert.equal(verifyIsolationEvidence(tampered), false, "a digest/payload mismatch is unbindable");
-  const failedVerify = { ...bound, verify: () => false };
-  assert.equal(verifyIsolationEvidence(failedVerify), false);
-  const noVerifier = { digest: digest(payload), payload };
+  const noVerifier = { kind: "provider-attestation", digest: digest(payload), payload };
   assert.equal(verifyIsolationEvidence(noVerifier), false);
+  const unanchoredKind = {
+    digest: digest(payload),
+    payload,
+    verify: createHostIsolationVerifier(() => true),
+  };
+  assert.equal(
+    verifyIsolationEvidence(unanchoredKind),
+    false,
+    "an unrecognizable (kind-less) evidence form is refused",
+  );
 
   const refusedTampered = isolationRouting({
     adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: tampered }) },
@@ -868,9 +902,14 @@ test("T003: a self-provided verified-sandbox claim is refused unless evidence-bo
     capability,
   });
   assert.equal(refusedTampered.action, "blocked");
+
+  // A gate-bound verifier is authoritative and must itself be host-branded.
+  const boundVerifier = createHostIsolationVerifier((value) => value === payload);
+  assert.equal(verifyIsolationEvidence(noVerifier, { verifier: boundVerifier }), true);
+  assert.equal(verifyIsolationEvidence(noVerifier, { verifier: () => true }), false);
 });
 
-test("T003: a worker attestation verified through verifyWorkerAttestation admits the claim", () => {
+test("T001: a worker attestation is admitted only with the host-held anchor key", () => {
   const anchorKey = Buffer.from("host-anchor-key");
   const doc = buildWorkerAttestation({
     workerId: "worker-1",
@@ -880,15 +919,28 @@ test("T003: a worker attestation verified through verifyWorkerAttestation admits
     inspections: [{ at: "2026-09-13T00:00:00Z", controlResults: { mountsEmpty: true } }],
     anchorKey,
   });
-  const evidence = {
-    kind: "worker-attestation",
-    digest: digest(doc),
-    payload: doc,
-    verify: () => verifyWorkerAttestation({ doc, anchorKey }),
-  };
-  assert.equal(verifyIsolationEvidence(evidence), true);
+  const evidence = { kind: "worker-attestation", digest: digest(doc), payload: doc };
+  // The bare closure is not a host anchor.
+  assert.equal(verifyIsolationEvidence({ ...evidence, verify: () => true }), false);
+  // No key supplied -> unbindable (fail closed).
+  assert.equal(verifyIsolationEvidence(evidence), false);
+  // The real keyed doc with the host anchor key is admitted.
+  assert.equal(verifyIsolationEvidence(evidence, { anchorKey }), true);
+  // A wrong key is refused.
+  assert.equal(verifyIsolationEvidence(evidence, { anchorKey: Buffer.from("other-key") }), false);
 
-  const routing = isolationRouting({
+  // A provider-owned verifier bound to the same key is admitted too.
+  const bound = { ...evidence, verify: createWorkerAttestationVerifier({ anchorKey }) };
+  assert.equal(verifyIsolationEvidence(bound), true);
+  const wrongBound = {
+    ...evidence,
+    verify: createWorkerAttestationVerifier({
+      anchorKey: Buffer.from("other-key"),
+    }),
+  };
+  assert.equal(verifyIsolationEvidence(wrongBound), false);
+
+  const admitted = isolationRouting({
     adapter: {
       effectiveIsolation: () => ({
         isolation: VERIFIED_SANDBOX,
@@ -899,14 +951,63 @@ test("T003: a worker attestation verified through verifyWorkerAttestation admits
     },
     request: { skill: "csm-autoresearch" },
     capability: { skill: "csm-autoresearch", execution: { isolation: VERIFIED_SANDBOX } },
+    anchorKey,
   });
-  assert.equal(routing.action, "invoke");
+  assert.equal(admitted.action, "invoke");
+  const refused = isolationRouting({
+    adapter: {
+      effectiveIsolation: () => ({
+        isolation: VERIFIED_SANDBOX,
+        required: VERIFIED_SANDBOX,
+        selfProvided: true,
+        evidence,
+      }),
+    },
+    request: { skill: "csm-autoresearch" },
+    capability: { skill: "csm-autoresearch", execution: { isolation: VERIFIED_SANDBOX } },
+    anchorKey: Buffer.from("other-key"),
+  });
+  assert.equal(refused.action, "blocked");
+  assert.equal(refused.failure.failure.code, "isolation-unavailable");
+});
 
-  const wrongKey = {
-    ...evidence,
-    verify: () => verifyWorkerAttestation({ doc, anchorKey: Buffer.from("other-key") }),
-  };
-  assert.equal(verifyIsolationEvidence(wrongKey), false);
+test("T001: the docker provider binds its host anchor key into a branded verifier", () => {
+  const anchorKey = Buffer.from("provider-anchor-key");
+  const provider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey,
+  });
+  const verifier = provider.evidenceVerifier();
+  const doc = buildWorkerAttestation({
+    workerId: "worker-9",
+    runId: "run-worker-9",
+    policyDigest: `sha256:${"1".repeat(64)}`,
+    imageDigest: `sha256:${"2".repeat(64)}`,
+    inspections: [{ at: "2026-09-13T00:00:00Z", controlResults: { mountsEmpty: true } }],
+    anchorKey,
+  });
+  assert.equal(
+    verifyIsolationEvidence(
+      { kind: "worker-attestation", digest: digest(doc), payload: doc },
+      {
+        verifier,
+      },
+    ),
+    true,
+  );
+  const wrong = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey: Buffer.from("other-key"),
+  }).evidenceVerifier();
+  assert.equal(
+    verifyIsolationEvidence(
+      { kind: "worker-attestation", digest: digest(doc), payload: doc },
+      {
+        verifier: wrong,
+      },
+    ),
+    false,
+  );
 });
 
 test("T003: csm-autoresearch generated report binds its provider attestation", () => {
@@ -964,4 +1065,160 @@ test("T003: csm-autoresearch generated report binds its provider attestation", (
   });
   assert.equal(refused.action, "blocked");
   assert.equal(refused.failure.failure.code, "isolation-unavailable");
+});
+
+// T005 (N1 follow-up): the evidence `kind` is an allowlist, so a forged or
+// future kind cannot smuggle a self-provided verified-sandbox claim past the
+// gate even with a matching digest and a host-branded verifier.
+test("T005: the isolation gate refuses an unrecognized evidence kind", () => {
+  const payload = { status: "verified", controls: { networkIsolation: true } };
+  const unknownKind = {
+    kind: "worker-attestation-v2",
+    digest: digest(payload),
+    payload,
+    verify: createHostIsolationVerifier(() => true),
+  };
+  assert.equal(isRecognizedIsolationEvidenceKind(unknownKind.kind), false);
+  assert.equal(verifyIsolationEvidence(unknownKind), false);
+  assert.equal(verifyIsolationEvidence(unknownKind, { anchorKey: Buffer.from("k") }), false);
+
+  const routing = isolationRouting({
+    adapter: { effectiveIsolation: () => selfProvidedIsolation({ evidence: unknownKind }) },
+    request: { skill: "csm-autoresearch" },
+    capability: { skill: "csm-autoresearch", execution: { isolation: VERIFIED_SANDBOX } },
+  });
+  assert.equal(routing.action, "blocked");
+  assert.equal(routing.failure.failure.code, "isolation-unavailable");
+
+  // The two kinds actually produced remain recognized and admissible.
+  for (const kind of [WORKER_ATTESTATION_EVIDENCE_KIND, PROVIDER_ATTESTATION_EVIDENCE_KIND]) {
+    assert.equal(isRecognizedIsolationEvidenceKind(kind), true);
+    assert.equal(
+      verifyIsolationEvidence({
+        kind,
+        digest: digest(payload),
+        payload,
+        verify: createHostIsolationVerifier(() => true),
+      }),
+      true,
+    );
+  }
+});
+
+// T005 (N1 follow-up): the in-process adapter prefers the provider's host-held
+// verifier (`provider.evidenceVerifier()`, reached through a config-supplied
+// `sandboxRuntime`) over any caller-supplied `isolationVerifier` brand.
+async function hostAnchoredAdapter({ skill = "csm-scan", provider, report, callerVerifier }) {
+  const binding = bindingFor(skill, completedHandler());
+  const registry = await createSkillExecutorRegistry({ descriptors: [binding] });
+  return createInProcessExecutorAdapter({
+    registry,
+    bindings: { [skill]: binding },
+    capabilities: [{ skill, digest: digest("a"), execution: { isolation: TRUSTED_IN_PROCESS } }],
+    cursorStore: durableStore(),
+    isolationReporters: { [skill]: () => report },
+    sandboxRuntime: {
+      enabled: true,
+      provider,
+      sandboxExecutor: async () => ({ status: "completed" }),
+    },
+    isolationVerifier: callerVerifier,
+  });
+}
+
+test("T005: the executor adapter prefers the provider's host-held verifier over a caller brand", async () => {
+  const anchorKey = Buffer.from("adapter-host-anchor-key");
+  const doc = buildWorkerAttestation({
+    workerId: "worker-adapter",
+    runId: "run-adapter",
+    policyDigest: `sha256:${"c".repeat(64)}`,
+    imageDigest: `sha256:${"d".repeat(64)}`,
+    inspections: [{ at: "2026-09-13T00:00:00Z", controlResults: { mountsEmpty: true } }],
+    anchorKey,
+  });
+  const evidence = {
+    kind: WORKER_ATTESTATION_EVIDENCE_KIND,
+    digest: digest(doc),
+    payload: doc,
+  };
+  const provider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey,
+  });
+  // The caller brand rejects everything, yet the host provider verifier accepts
+  // the keyed document, so admission proves the provider verifier was used.
+  const admitted = await hostAnchoredAdapter({
+    provider,
+    report: selfProvidedIsolation({
+      required: VERIFIED_SANDBOX,
+      attestation: "required",
+      evidence,
+    }),
+    callerVerifier: createHostIsolationVerifier(() => false),
+  });
+  const admittedResult = await admitted.invoke(requestFor("csm-scan", "run-adapter-allow"));
+  assert.equal(admittedResult.status, "completed", JSON.stringify(admittedResult));
+
+  // A caller brand that accepts everything cannot override the host provider
+  // verifier's rejection of a mismatched anchor key.
+  const wrongProvider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey: Buffer.from("other-host-key"),
+  });
+  const refused = await hostAnchoredAdapter({
+    provider: wrongProvider,
+    report: selfProvidedIsolation({
+      required: VERIFIED_SANDBOX,
+      attestation: "required",
+      evidence,
+    }),
+    callerVerifier: createHostIsolationVerifier(() => true),
+  });
+  const refusedResult = await refused.invoke(requestFor("csm-scan", "run-adapter-deny"));
+  assert.equal(refusedResult.status, "blocked");
+  assert.equal(refusedResult.failure.code, "isolation-unavailable");
+});
+
+test("T005: the host verifier does not displace the csm-autoresearch generated route", async () => {
+  const attestation = {
+    provider: "docker",
+    status: "verified",
+    network: "disabled",
+    mounts: [],
+    evaluatorAssets: "isolated",
+    credentials: "none",
+    limits: { timeoutMs: 1000, maxOutputBytes: 4096, maxWorkspaceBytes: 1024 },
+    policyDigest: `sha256:${"1".repeat(64)}`,
+    imageDigest: `sha256:${"2".repeat(64)}`,
+    sourceHash: `sha256:${"3".repeat(64)}`,
+    controls: { networkIsolation: true },
+  };
+  const generatedProvider = {
+    mode: "generated",
+    sandboxProvider: "docker",
+    sandboxAttestation: attestation,
+    policy: {
+      network: "disabled",
+      mounts: [],
+      evaluatorAssets: "isolated",
+      credentials: "none",
+      limits: { timeoutMs: 1000, maxOutputBytes: 4096, maxWorkspaceBytes: 1024 },
+    },
+    verifySandboxAttestation: (value, controls) =>
+      value === attestation && controls.network === "disabled",
+  };
+  const report = autoresearchEffectiveIsolation("generated", generatedProvider);
+  assert.equal(report.evidence.kind, PROVIDER_ATTESTATION_EVIDENCE_KIND);
+
+  const dockerProvider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey: Buffer.from("adapter-host-anchor-key"),
+  });
+  const adapter = await hostAnchoredAdapter({
+    provider: dockerProvider,
+    report,
+    callerVerifier: createHostIsolationVerifier(() => false),
+  });
+  const result = await adapter.invoke(requestFor("csm-scan", "run-autoresearch-generated"));
+  assert.equal(result.status, "completed", JSON.stringify(result));
 });

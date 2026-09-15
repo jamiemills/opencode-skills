@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-nonblocker-cleanup-20260914",
+  "runId": "run-20260914t030000z-dwrr-nonblocker-cleanup",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime non-blocker cleanup plan (N1/N4/N6/N7)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Fix N1/N4/N6/N7",
+      "weightPercent": 55,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Independent review",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Delivery (commit/CI)",
+      "weightPercent": 15,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-14T03:00:00.000Z",
+  "updatedAt": "2026-09-15T20:58:41.204Z"
+}

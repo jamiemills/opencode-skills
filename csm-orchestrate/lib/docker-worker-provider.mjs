@@ -284,6 +284,35 @@ export function buildWorkerAttestation({
   };
 }
 
+// T001 (N1): a provider-owned verifier must be recognizable as host-held. The
+// brand is a module-private WeakSet: a bare caller closure (`() => true`) placed
+// in evidence is not branded and can never satisfy the isolation gate. A real
+// provider binds its own anchor key or host capability into a branded verifier
+// (see `createWorkerAttestationVerifier`) so the gate checks the keyed document
+// rather than trusting the reporter's assertion.
+const HOST_ISOLATION_VERIFIERS = new WeakSet();
+
+export function createHostIsolationVerifier(verify) {
+  if (typeof verify !== "function")
+    throw new TypeError("host isolation verifier requires a verify function");
+  const verifier = (doc) => verify(doc) === true;
+  HOST_ISOLATION_VERIFIERS.add(verifier);
+  return verifier;
+}
+
+export function isHostIsolationVerifier(verifier) {
+  return typeof verifier === "function" && HOST_ISOLATION_VERIFIERS.has(verifier);
+}
+
+// T001 (N1): bind the provider's host-held anchor key into a branded verifier.
+// The key never travels in the evidence document; only the keyed head does, so a
+// reporter cannot swap the key for one it controls.
+export function createWorkerAttestationVerifier({ anchorKey } = {}) {
+  if (anchorKey === undefined || anchorKey === null || anchorKey.length === 0)
+    throw new TypeError("worker attestation verifier requires the anchor key");
+  return createHostIsolationVerifier((doc) => verifyWorkerAttestation({ doc, anchorKey }) === true);
+}
+
 export function verifyWorkerAttestation({ doc, anchorKey } = {}) {
   if (!doc || typeof doc !== "object" || !doc.anchor)
     throw new TypeError("verifyWorkerAttestation requires a worker attestation document");
@@ -792,6 +821,14 @@ export function createDockerWorkerProvider({
     return { ...base, authorized: true, reasonCode: "anchored" };
   }
 
+  // T001 (N1): the provider-owned verifier bound to this provider's host-held
+  // anchor key. A caller (or runtime) passes it to the isolation gate so a
+  // keyed worker-attestation claim is admitted only when it verifies against the
+  // host key, not a reporter-supplied closure.
+  function evidenceVerifier() {
+    return createWorkerAttestationVerifier({ anchorKey });
+  }
+
   return Object.freeze({
     start,
     session,
@@ -801,6 +838,7 @@ export function createDockerWorkerProvider({
     attest: attestDockerWorker,
     trustBoundary,
     reauthorizeAttestation,
+    evidenceVerifier,
     now,
   });
 }

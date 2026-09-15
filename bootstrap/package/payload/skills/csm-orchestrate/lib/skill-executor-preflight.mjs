@@ -1,6 +1,7 @@
 "use strict";
 
 import { digest } from "../../../lib/schema-runtime/index.mjs";
+import { isHostIsolationVerifier, verifyWorkerAttestation } from "./docker-worker-provider.mjs";
 
 const blocked = (code, message) => ({
   status: "blocked",
@@ -24,17 +25,42 @@ const ISOLATION_RANK = Object.freeze({
   [VERIFIED_SANDBOX]: 2,
 });
 
-// T003: a verified-sandbox claim is only accepted when the report carries a
-// content-bound, keyed/attestation evidence object the gate can independently
-// check: `digest` must equal the canonical digest of `payload` and `verify()`
-// must confirm the keyed/attestation document (for example a provider
-// attestation verified through `verifyWorkerAttestation`). A bare asserted
-// string, a missing verifier, or a digest/payload mismatch is unbindable and
-// therefore refused (fail closed).
-export function verifyIsolationEvidence(evidence) {
+// T005 (N1 follow-up): the evidence `kind` is an allowlist, not a non-empty
+// string. A keyed worker attestation and a host/provider attestation are the
+// kinds actually produced; an unknown or future kind must never be able to
+// admit a self-provided verified-sandbox claim, so anything else fails closed.
+export const WORKER_ATTESTATION_EVIDENCE_KIND = "worker-attestation";
+export const PROVIDER_ATTESTATION_EVIDENCE_KIND = "provider-attestation";
+const ISOLATION_EVIDENCE_KINDS = new Set([
+  WORKER_ATTESTATION_EVIDENCE_KIND,
+  PROVIDER_ATTESTATION_EVIDENCE_KIND,
+]);
+
+export function isRecognizedIsolationEvidenceKind(kind) {
+  return typeof kind === "string" && ISOLATION_EVIDENCE_KINDS.has(kind);
+}
+
+// T001 (N1): a verified-sandbox claim is only accepted when the report carries a
+// content-bound, host/independently anchored evidence object the gate can check
+// WITHOUT trusting a caller-supplied closure. Three ways an evidence object is
+// admitted:
+//   1. the gate was handed a host-bound `verifier` (a branded provider-owned
+//      verifier bound at construction) and it accepts the payload;
+//   2. the gate was handed the provider's host-held `anchorKey` and the payload
+//      is a keyed worker-attestation document that recomputes against it
+//      (`verifyWorkerAttestation`);
+//   3. the evidence carries a branded provider-owned verifier (`evidence.verify`
+//      created by `createHostIsolationVerifier`/`createWorkerAttestationVerifier`)
+//      that accepts the payload.
+// In every case the `kind` must be recognized (see
+// `isRecognizedIsolationEvidenceKind`) and `digest` must equal the canonical
+// digest of `payload`. A bare asserted string, a missing/unrecognized kind, a
+// digest/payload mismatch, or an untrusted closure such as `verify: () => true`
+// is unbindable and therefore refused (fail closed).
+export function verifyIsolationEvidence(evidence, { anchorKey = null, verifier = null } = {}) {
   if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) return false;
+  if (!isRecognizedIsolationEvidenceKind(evidence.kind)) return false;
   if (typeof evidence.digest !== "string" || evidence.digest.length === 0) return false;
-  if (typeof evidence.verify !== "function") return false;
   if (evidence.payload === undefined) return false;
   let actual;
   try {
@@ -43,11 +69,33 @@ export function verifyIsolationEvidence(evidence) {
     return false;
   }
   if (actual !== evidence.digest) return false;
-  try {
-    return evidence.verify() === true;
-  } catch {
-    return false;
+  // A host-bound verifier supplied out of band is authoritative: when the caller
+  // names one it must be branded, and a failure is terminal (no silent fallback).
+  if (verifier !== null && verifier !== undefined) {
+    if (!isHostIsolationVerifier(verifier)) return false;
+    try {
+      return verifier(evidence.payload) === true;
+    } catch {
+      return false;
+    }
   }
+  // A host-held anchor key independently checks a keyed worker attestation.
+  if (anchorKey !== null && anchorKey !== undefined) {
+    try {
+      return verifyWorkerAttestation({ doc: evidence.payload, anchorKey }) === true;
+    } catch {
+      return false;
+    }
+  }
+  // Otherwise the evidence must carry a branded provider-owned verifier.
+  if (isHostIsolationVerifier(evidence.verify)) {
+    try {
+      return evidence.verify(evidence.payload) === true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 // T002: the host-invocation dispatch path runs work in the orchestrator's own
@@ -174,6 +222,8 @@ export function isolationGate({
   capability = null,
   node = null,
   enabled = true,
+  anchorKey = null,
+  verifier = null,
 } = {}) {
   const resolved = resolveEffectiveIsolation({ adapter, request, capability });
   if (enabled !== true) return { ok: true, enabled: false, ...resolved };
@@ -200,7 +250,7 @@ export function isolationGate({
   if (
     resolved.isolation === VERIFIED_SANDBOX &&
     resolved.selfProvided === true &&
-    !verifyIsolationEvidence(resolved.evidence)
+    !verifyIsolationEvidence(resolved.evidence, { anchorKey, verifier })
   )
     return {
       ok: false,
@@ -237,8 +287,10 @@ export function isolationRouting({
   node = null,
   enabled = true,
   runtimeInvocable = false,
+  anchorKey = null,
+  verifier = null,
 } = {}) {
-  const gate = isolationGate({ adapter, request, capability, node, enabled });
+  const gate = isolationGate({ adapter, request, capability, node, enabled, anchorKey, verifier });
   if (!gate.ok) return { action: "blocked", gate, failure: gate.failure };
   if (gate.isolation !== VERIFIED_SANDBOX || gate.selfProvided) return { action: "invoke", gate };
   if (runtimeInvocable) return { action: "sandbox", gate };

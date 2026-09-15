@@ -153,6 +153,27 @@
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-decision-gate",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-prototype-gate",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-perf-baseline",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
     }
   ],
   "adapters": [

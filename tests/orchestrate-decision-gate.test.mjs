@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { digest } from "../lib/schema-runtime/index.mjs";
+import { digest, loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import {
   createHermeticProbes,
   createLiveProbes,
@@ -503,9 +503,13 @@ const PROTOTYPE_CONDITIONS = Object.freeze([
   },
 ]);
 
+// N6 (T011 follow-up): like `runDecisionGate`, there is deliberately NO
+// tracked-path default. The recorded baseline at PROTOTYPE_GATE_PATH is durable
+// evidence; a bare `runPrototypeGate()` must never be able to rewrite it.
+// Persistence requires an explicit, caller-supplied path.
 async function runPrototypeGate({
   now = () => new Date().toISOString(),
-  evidencePath = PROTOTYPE_GATE_PATH,
+  evidencePath = null,
   persist = true,
   probeOverrides = {},
 } = {}) {
@@ -698,41 +702,95 @@ test("T004: the tracked decision-gate.json is a deterministic, freshness-explici
   assert.ok(after.equals(before), "the suite rewrote the tracked decision-gate baseline");
 });
 
-test("T011: the compat-plan six prototype conditions pass and are recorded (AC10)", async () => {
-  const artifact = await runPrototypeGate({ now: NOW, evidencePath: PROTOTYPE_GATE_PATH });
-  assert.equal(artifact.schema, PROTOTYPE_GATE_SCHEMA);
-  assert.equal(artifact.schemaRevision, PROTOTYPE_GATE_SCHEMA_REVISION);
-  assert.equal(artifact.generatedAt, NOW());
-  assert.equal(
-    artifact.verdict,
-    "pass",
-    `prototype gate failed: ${artifact.failedConditions.join(", ")} :: ${JSON.stringify(
-      artifact.conditions.filter((condition) => condition.status !== "pass"),
-    )}`,
-  );
-  assert.equal(artifact.conditions.length, 6);
-  assert.deepEqual(
-    artifact.conditions.map((condition) => condition.id),
-    PROTOTYPE_CONDITIONS.map((condition) => condition.id),
-  );
-  for (const condition of artifact.conditions) {
-    assert.equal(
-      condition.status,
-      "pass",
-      `${condition.id} (${condition.title}) failed: ${JSON.stringify(condition.evidence)}`,
-    );
-    assert.ok(
-      condition.evidence && Object.keys(condition.evidence).length > 0,
-      `${condition.id} must carry evidence`,
-    );
-  }
-  assert.deepEqual(artifact.failedConditions, []);
+test("T003 (N6): a pathless runDecisionGate() cannot rewrite the tracked baseline", async () => {
+  const before = await readFile(EVIDENCE_PATH);
 
-  const onDisk = JSON.parse(await readFile(PROTOTYPE_GATE_PATH, "utf8"));
-  assert.equal(onDisk.schema, PROTOTYPE_GATE_SCHEMA);
-  assert.equal(onDisk.verdict, "pass");
-  assert.equal(onDisk.conditions.length, 6);
-  assert.equal(onDisk.artifactPath, undefined, "artifactPath is runtime-only, never persisted");
+  // No evidencePath, no persist opt-out: the hardened default must write nothing.
+  const artifact = await runDecisionGate({ probes: createHermeticProbes(), now: NOW });
+  assertAllPass(artifact);
+  assert.equal(
+    artifact.artifactPath,
+    undefined,
+    "a pathless runDecisionGate() must not report a persisted artifact path",
+  );
+
+  const after = await readFile(EVIDENCE_PATH);
+  assert.ok(
+    after.equals(before),
+    "a pathless runDecisionGate() rewrote the tracked decision-gate baseline",
+  );
+});
+
+test("T011: the compat-plan six prototype conditions pass and are recorded (AC10)", async () => {
+  const before = await readFile(PROTOTYPE_GATE_PATH);
+  const dir = await mkdtemp(join(tmpdir(), "csm-prototype-gate-"));
+  try {
+    const scratch = join(dir, "prototype-gate.json");
+    const artifact = await runPrototypeGate({ now: NOW, evidencePath: scratch });
+    assert.equal(artifact.schema, PROTOTYPE_GATE_SCHEMA);
+    assert.equal(artifact.schemaRevision, PROTOTYPE_GATE_SCHEMA_REVISION);
+    assert.equal(artifact.generatedAt, NOW());
+    assert.equal(
+      artifact.verdict,
+      "pass",
+      `prototype gate failed: ${artifact.failedConditions.join(", ")} :: ${JSON.stringify(
+        artifact.conditions.filter((condition) => condition.status !== "pass"),
+      )}`,
+    );
+    assert.equal(artifact.conditions.length, 6);
+    assert.deepEqual(
+      artifact.conditions.map((condition) => condition.id),
+      PROTOTYPE_CONDITIONS.map((condition) => condition.id),
+    );
+    for (const condition of artifact.conditions) {
+      assert.equal(
+        condition.status,
+        "pass",
+        `${condition.id} (${condition.title}) failed: ${JSON.stringify(condition.evidence)}`,
+      );
+      assert.ok(
+        condition.evidence && Object.keys(condition.evidence).length > 0,
+        `${condition.id} must carry evidence`,
+      );
+    }
+    assert.deepEqual(artifact.failedConditions, []);
+
+    const onDisk = JSON.parse(await readFile(scratch, "utf8"));
+    assert.equal(onDisk.schema, PROTOTYPE_GATE_SCHEMA);
+    assert.equal(onDisk.verdict, "pass");
+    assert.equal(onDisk.conditions.length, 6);
+    assert.equal(onDisk.artifactPath, undefined, "artifactPath is runtime-only, never persisted");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+  const after = await readFile(PROTOTYPE_GATE_PATH);
+  assert.ok(
+    after.equals(before),
+    "the suite rewrote the tracked prototype-gate baseline; record to a throwaway temp path",
+  );
+});
+
+// N6 (T011 follow-up): a pathless runPrototypeGate() must not persist anything,
+// so it can never nondeterministically rewrite the tracked baseline.
+test("T011 (N6): a pathless runPrototypeGate() cannot rewrite the tracked baseline", async () => {
+  const before = await readFile(PROTOTYPE_GATE_PATH);
+  const artifact = await runPrototypeGate({
+    now: NOW,
+    probeOverrides: {
+      authorityRegression: async () => ({ pass: true, evidence: { injected: true } }),
+    },
+  });
+  assert.equal(artifact.verdict, "pass");
+  assert.equal(
+    artifact.artifactPath,
+    undefined,
+    "a pathless runPrototypeGate() must not report a persisted artifact path",
+  );
+  const after = await readFile(PROTOTYPE_GATE_PATH);
+  assert.ok(
+    after.equals(before),
+    "a pathless runPrototypeGate() rewrote the tracked prototype-gate baseline",
+  );
 });
 
 test("T011: a failing prototype probe yields a fail verdict naming the condition", async () => {
@@ -751,4 +809,23 @@ test("T011: a failing prototype probe yields a fail verdict naming the condition
   const failing = artifact.conditions.find((condition) => condition.id === "P3");
   assert.equal(failing.status, "fail");
   assert.equal(failing.evidence.reason, "forced-gap");
+});
+
+test("T004 (N7): the recorded decision-gate and prototype-gate artifacts validate against their registered schemas", async () => {
+  const registry = await loadSchemaRegistry();
+
+  const decisionGate = JSON.parse(await readFile(EVIDENCE_PATH, "utf8"));
+  assert.equal(decisionGate.schema, "csm-orchestrate-decision-gate/1");
+  const decisionResult = registry.validate("csm-orchestrate-decision-gate/1", decisionGate);
+  assert.equal(decisionResult.valid, true, JSON.stringify(decisionResult.errors));
+
+  const prototypeGate = JSON.parse(await readFile(PROTOTYPE_GATE_PATH, "utf8"));
+  assert.equal(prototypeGate.schema, "csm-orchestrate-prototype-gate/1");
+  const prototypeResult = registry.validate("csm-orchestrate-prototype-gate/1", prototypeGate);
+  assert.equal(prototypeResult.valid, true, JSON.stringify(prototypeResult.errors));
+
+  // A fresh in-memory gate artifact is the same registered shape as the baseline.
+  const fresh = await runDecisionGate({ probes: createHermeticProbes(), now: NOW, persist: false });
+  const freshResult = registry.validate("csm-orchestrate-decision-gate/1", fresh);
+  assert.equal(freshResult.valid, true, JSON.stringify(freshResult.errors));
 });

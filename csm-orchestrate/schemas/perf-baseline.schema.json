@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-perf-baseline/1",
+  "title": "CSM orchestrate perf-baseline evidence",
+  "description": "Recorded outcome-measurement baseline for the dynamic worker runtime. Measures sandbox worker-start latency (Docker-gated, recorded as an explicit deferral when unavailable) and mediated-egress decision latency (hermetic). Observational only: no latency, cost, or correctness outcome is inferred from external model behavior.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "generatedAt",
+    "mode",
+    "host",
+    "environment",
+    "measurement",
+    "definitions",
+    "workerStart",
+    "egressDecision",
+    "reproduce",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-perf-baseline/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mode": {
+      "enum": ["auto", "hermetic"]
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostname",
+        "platform",
+        "arch",
+        "cpuModel",
+        "cpuCount",
+        "totalMemoryBytes",
+        "nodeVersion"
+      ],
+      "properties": {
+        "hostname": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "arch": {
+          "type": "string"
+        },
+        "cpuModel": {
+          "type": ["string", "null"]
+        },
+        "cpuCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "totalMemoryBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nodeVersion": {
+          "type": "string",
+          "pattern": "^v\\d+\\.\\d+\\.\\d+"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docker"],
+      "properties": {
+        "docker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["available", "serverVersion"],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "serverVersion": {
+              "type": ["string", "null"]
+            }
+          }
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["measured", "deferred", "rationale"],
+      "properties": {
+        "measured": {
+          "type": "array",
+          "items": {
+            "enum": ["egressDecision", "workerStart"]
+          }
+        },
+        "deferred": {
+          "type": "array",
+          "items": {
+            "enum": ["egressDecision", "workerStart"]
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "definitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workerStart", "egressDecision"],
+      "properties": {
+        "workerStart": {
+          "type": ["string", "null"]
+        },
+        "egressDecision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "workerStart": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/workerStartMeasured"
+        },
+        {
+          "$ref": "#/$defs/workerStartDeferred"
+        }
+      ]
+    },
+    "egressDecision": {
+      "$ref": "#/$defs/egressDecision"
+    },
+    "reproduce": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "stat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "min", "median", "mean", "max"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "median": {
+          "type": "number",
+          "minimum": 0
+        },
+        "mean": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "egressDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "iterations", "warmup", "durable", "policyDigest", "operations"],
+      "properties": {
+        "unit": {
+          "const": "ms"
+        },
+        "iterations": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "warmup": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable": {
+          "type": "boolean"
+        },
+        "policyDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "operations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decideAllow", "decideDeny", "mediateAllow", "mediateDeny"],
+          "properties": {
+            "decideAllow": {
+              "$ref": "#/$defs/stat"
+            },
+            "decideDeny": {
+              "$ref": "#/$defs/stat"
+            },
+            "mediateAllow": {
+              "$ref": "#/$defs/stat"
+            },
+            "mediateDeny": {
+              "$ref": "#/$defs/stat"
+            }
+          }
+        }
+      }
+    },
+    "workerStartMeasured": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "unit",
+        "iterations",
+        "warmup",
+        "image",
+        "imageDigest",
+        "definition",
+        "samples",
+        "stats"
+      ],
+      "properties": {
+        "status": {
+          "const": "measured"
+        },
+        "unit": {
+          "const": "ms"
+        },
+        "iterations": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "warmup": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1
+        },
+        "imageDigest": {
+          "type": ["string", "null"]
+        },
+        "definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "stats": {
+          "$ref": "#/$defs/stat"
+        }
+      }
+    },
+    "workerStartDeferred": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rationale", "reason"],
+      "properties": {
+        "status": {
+          "const": "deferred"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-decision-gate/1",
+  "title": "CSM orchestrate decision-gate evidence",
+  "description": "Recorded evidence from runDecisionGate(): six decision conditions plus a per-property adversarial isolation matrix, each carrying a pass/fail status and evidence, with an explicit freshness marker that distinguishes the deterministic checked-in baseline from a fresh observation. Observational only: a fail verdict names the failing condition and carries no acceptance authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "generatedAt",
+    "mode",
+    "freshness",
+    "conditions",
+    "isolationMatrix",
+    "verdict",
+    "failedConditions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-decision-gate/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mode": {
+      "enum": ["hermetic", "live", "injected"]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mode", "generatedAt"],
+      "properties": {
+        "kind": {
+          "enum": ["observed", "baseline"]
+        },
+        "mode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "status", "evidence"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": ["pass", "fail"]
+          },
+          "evidence": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "isolationMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "properties", "evidence"],
+      "properties": {
+        "status": {
+          "enum": ["pass", "fail"]
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mounts",
+            "readOnlyRootfs",
+            "capDropAll",
+            "noNewPrivileges",
+            "networkIsolation",
+            "credentialsNone",
+            "reapingInit"
+          ],
+          "properties": {
+            "mounts": {
+              "enum": ["pass", "fail"]
+            },
+            "readOnlyRootfs": {
+              "enum": ["pass", "fail"]
+            },
+            "capDropAll": {
+              "enum": ["pass", "fail"]
+            },
+            "noNewPrivileges": {
+              "enum": ["pass", "fail"]
+            },
+            "networkIsolation": {
+              "enum": ["pass", "fail"]
+            },
+            "credentialsNone": {
+              "enum": ["pass", "fail"]
+            },
+            "reapingInit": {
+              "enum": ["pass", "fail"]
+            }
+          }
+        },
+        "evidence": {
+          "type": "object"
+        }
+      }
+    },
+    "verdict": {
+      "enum": ["pass", "fail"]
+    },
+    "failedConditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

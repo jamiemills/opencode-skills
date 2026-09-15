@@ -798,6 +798,33 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:8949d8acb15cc9e2a073f19d06ce127fc5081670623c2b8d9ef70a521d1755f9"
+    },
+    {
+      "id": "csm-orchestrate-decision-gate/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/decision-gate.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:9bd41b247bfe63413c4c1428d3ceaa1c54c9862e5eabb49a8fe69e35fe024680"
+    },
+    {
+      "id": "csm-orchestrate-prototype-gate/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/prototype-gate.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:9d803b7803660b6fb4a73eb2ee706c88f1438199ca4b1fa3b85f36af0fe7dd40"
+    },
+    {
+      "id": "csm-orchestrate-perf-baseline/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/perf-baseline.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:992c20c49cf4c08c38f61493627d94a5e9305ae118bf9d7279a4d0c69c9b830c"
     }
   ]
 }

@@ -9,13 +9,40 @@ import {
   effectiveIsolationFloor,
   isolationRouting,
   ISOLATION_FAILURE_CODE,
+  WORKER_ATTESTATION_EVIDENCE_KIND,
 } from "./skill-executor-preflight.mjs";
+import { isHostIsolationVerifier } from "./docker-worker-provider.mjs";
 import {
   createLiveVerifiedSandboxRuntime,
   resolveVerifiedSandboxRuntime,
 } from "./verified-sandbox-runtime.mjs";
 
 export { createLiveVerifiedSandboxRuntime };
+
+// T005 (N1 follow-up): prefer the provider's host-held verifier over any
+// caller-supplied brand. A real provider (the Docker worker provider) binds its
+// host-held anchor key into `evidenceVerifier()`; the resolved runtime object
+// may or may not expose it, so also consult the raw config supplied as
+// `sandboxRuntime` (`{ provider: { evidenceVerifier } }`, the documented
+// `createInProcessExecutorAdapter({ sandboxRuntime: config })` shape). Best
+// effort: when no host verifier is reachable the caller-supplied
+// `isolationVerifier` remains the explicit fallback.
+function resolveHostIsolationVerifier(runtime, rawConfig) {
+  const sources = [
+    typeof runtime?.evidenceVerifier === "function" ? runtime : null,
+    typeof rawConfig?.evidenceVerifier === "function" ? rawConfig : null,
+    typeof rawConfig?.provider?.evidenceVerifier === "function" ? rawConfig.provider : null,
+  ];
+  for (const source of sources) {
+    try {
+      const verifier = source.evidenceVerifier();
+      if (isHostIsolationVerifier(verifier)) return verifier;
+    } catch {
+      // A provider that cannot produce a usable anchor verifier is skipped.
+    }
+  }
+  return null;
+}
 
 // This adapter is deliberately opt-in. It is an in-process execution boundary,
 // not a host or a fallback to another runtime.
@@ -31,6 +58,8 @@ export function createInProcessExecutorAdapter({
   terminalInvocations = new Map(),
   publicationBindings = {},
   isolationGateEnabled = true,
+  isolationAnchorKey = null,
+  isolationVerifier = null,
   sandboxRuntime = null,
   isolationReporters = null,
   egressEmitter = null,
@@ -242,12 +271,26 @@ export function createInProcessExecutorAdapter({
           report,
           capability: capabilityFor(request.skill),
         });
+        // T005 (N1 follow-up): out-of-band anchoring (the provider's host-held
+        // verifier, or a caller-supplied anchor key/verifier) applies to the
+        // keyed `worker-attestation` kind. A csm-autoresearch
+        // `provider-attestation` keeps its own evidence-carried provider
+        // verifier, so the generated route is not displaced by a
+        // worker-attestation verifier. Within the worker-attestation kind the
+        // provider's host-held verifier wins over any caller-supplied brand.
+        const workerAttestationEvidence =
+          effective?.evidence?.kind === WORKER_ATTESTATION_EVIDENCE_KIND;
+        const hostVerifier = resolveHostIsolationVerifier(activeSandboxRuntime, sandboxRuntime);
+        const gateVerifier = workerAttestationEvidence ? (hostVerifier ?? isolationVerifier) : null;
+        const gateAnchorKey = workerAttestationEvidence ? isolationAnchorKey : null;
         const routing = isolationRouting({
           adapter: { effectiveIsolation: () => effective },
           request: boundRequest,
           capability: capabilityFor(request.skill),
           enabled: isolationGateEnabled,
           runtimeInvocable: typeof activeSandboxRuntime?.invoke === "function",
+          anchorKey: gateAnchorKey,
+          verifier: gateVerifier,
         });
         if (routing.action === "blocked")
           return { status: "blocked", failure: routing.failure.failure };

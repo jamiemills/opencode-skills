@@ -818,8 +818,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/csm-autoresearch-adapter.mjs",
-        "sha256": "1ef9db6959e1a1882a33ebda2c89176af72f588535b5f01b07523bf0b9c1891d",
-        "bytes": 13525,
+        "sha256": "30a4c5467c9b7b75bcbcb18bcc532d0157273bcf9de07b2b4eb1488c29602433",
+        "bytes": 13855,
         "mode": "0644"
       },
       {
@@ -836,14 +836,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/decision-gate.mjs",
-        "sha256": "164d53bb82664adc3b48d58f3c973adbb505888bc8dd12f8c28784e335897cf5",
-        "bytes": 22598,
+        "sha256": "6373f7951b237120ccd65d2099698eb19224384a12c43cd2806ae8297ee5dfae",
+        "bytes": 23236,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/docker-worker-provider.mjs",
-        "sha256": "32de6a9754f862ae09b15bc2301f9f61ed7425db60d06a6d40ee015b6ab64fd2",
-        "bytes": 35063,
+        "sha256": "cbb50f218a4f496243b0f5cc5b95326845ca4807fb9827c3bb93d04c2718d439",
+        "bytes": 36935,
         "mode": "0644"
       },
       {
@@ -956,8 +956,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-adapter.mjs",
-        "sha256": "da0576c5a171456c3ad385b39793a042452595c0dcb52a9c1ad5d34b9799d0a4",
-        "bytes": 11259,
+        "sha256": "7b1d7c2a1dcd538d73504ef2221976cb9f0052faaec993e9f116435aa79ade6d",
+        "bytes": 13585,
         "mode": "0644"
       },
       {
@@ -968,8 +968,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/skill-executor-preflight.mjs",
-        "sha256": "d9180182da0aa18e5c5f607bbec9ced929111a1bfff1d67f35117061c263135e",
-        "bytes": 12733,
+        "sha256": "15454ba9e44f7d7435418680f1f4d040c8841156b10f02a37cc9f570ea0b8dbd",
+        "bytes": 15184,
         "mode": "0644"
       },
       {
@@ -1093,6 +1093,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/decision-gate.schema.json",
+        "sha256": "6a37a559036e9cfad9b7c213f45207818395c5359b40d28c174fa8352e1521fc",
+        "bytes": 3531,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/docker-worker-policy.schema.json",
         "sha256": "04f3746a4ea37ef3e182937b709d1c2bb7d193059dcfcce80225160d674673c6",
         "bytes": 3148,
@@ -1159,6 +1165,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/perf-baseline.schema.json",
+        "sha256": "412e4d6ba057d9ab3daee8250e53fcac40e103232585765fe927785c4b7b2f13",
+        "bytes": 6972,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/phase.schema.json",
         "sha256": "6f887b427cbba28a71cd59166f185ae0297430345bfaceb244f29dd519938271",
         "bytes": 6494,
@@ -1168,6 +1180,12 @@
         "path": "payload/skills/csm-orchestrate/schemas/phase.v2.schema.json",
         "sha256": "5661ef72f3022de95aa80d5488a03c21715a752996e3bbe22e1e83b281e0df70",
         "bytes": 9483,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/prototype-gate.schema.json",
+        "sha256": "c5728dd8394a722798537419c34e29f00fd996b54bea1a7a97de24f542c8f746",
+        "bytes": 2174,
         "mode": "0644"
       },
       {
@@ -2153,8 +2171,8 @@
       },
       {
         "path": "payload/schemas/compatibility-matrix.json",
-        "sha256": "5e54669c9dc2eeb8daa7f1f597ab0b5bf94c4e0fd8aa9604a9436767bf14a876",
-        "bytes": 4259,
+        "sha256": "2be8cc5894bf44e9e78bf339c329d77b100fc6ea458b19177533a4727b26d0eb",
+        "bytes": 4776,
         "mode": "0644"
       },
       {
@@ -2249,8 +2267,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "219d2493685866e1277f0f93dce257d193aa428fdc04135f2d9e604701567d4f",
-        "bytes": 29294,
+        "sha256": "90b7529c556899f9739cd4142ea0e500675e09cb1c75281377c7e9ad43f7be94",
+        "bytes": 30319,
         "mode": "0644"
       },
       {

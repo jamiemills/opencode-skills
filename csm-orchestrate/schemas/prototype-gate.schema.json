@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-prototype-gate/1",
+  "title": "CSM orchestrate prototype-gate evidence",
+  "description": "Recorded evidence from the compat-plan prototype gate: six named decision conditions over the worker runtime (concurrent width, event ordering, replay side effects, redaction, rendered snapshot, authority regression), each carrying a pass/fail status and evidence. Observational only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "generatedAt",
+    "source",
+    "conditions",
+    "verdict",
+    "failedConditions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-prototype-gate/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acceptanceCriterion", "plan", "note"],
+      "properties": {
+        "acceptanceCriterion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plan": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "key", "title", "status", "evidence"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": ["pass", "fail"]
+          },
+          "evidence": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "verdict": {
+      "enum": ["pass", "fail"]
+    },
+    "failedConditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

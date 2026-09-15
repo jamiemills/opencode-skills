@@ -1,6 +1,8 @@
 "use strict";
 
 import { digest } from "../../lib/schema-runtime/index.mjs";
+import { createHostIsolationVerifier } from "./docker-worker-provider.mjs";
+import { PROVIDER_ATTESTATION_EVIDENCE_KIND } from "./skill-executor-preflight.mjs";
 import { createHash } from "node:crypto";
 import { isAbsolute, relative, resolve } from "node:path";
 import { optimize } from "../../csm-autoresearch/lib/optimizer/index.mjs";
@@ -73,11 +75,13 @@ function providerFor(providers, mode) {
   return provider;
 }
 
-// T003: a self-provided verified-sandbox claim must be evidence-bound. Bind the
-// provider's host-attested sandbox doc (content digest + verifier) into the
-// effective-isolation report so the isolation gate can verify it instead of
-// trusting a bare asserted string. The execute path still re-verifies the live
-// attestation and fails closed when it is absent or invalid.
+// T001 (N1): a self-provided verified-sandbox claim must be host-anchored, not
+// justified by a caller-supplied closure. Bind the provider's host-owned
+// attestation verifier (`provider.verifySandboxAttestation`) into a *branded*
+// verifier at report-construction time; the isolation gate only accepts a
+// branded verifier, so `verify: () => true` can never admit the claim. The
+// execute path still re-verifies the live attestation and fails closed when it
+// is absent or invalid.
 function providerAttestationEvidence(provider) {
   const attestation = provider?.sandboxAttestation;
   if (!attestation || typeof attestation !== "object") return null;
@@ -91,11 +95,13 @@ function providerAttestationEvidence(provider) {
     limits: policy.limits ?? {},
   };
   return {
-    kind: "provider-attestation",
+    kind: PROVIDER_ATTESTATION_EVIDENCE_KIND,
     provider: provider.sandboxProvider ?? provider.provider ?? null,
     digest: digest(attestation),
     payload: attestation,
-    verify: () => provider.verifySandboxAttestation(attestation, controls) === true,
+    verify: createHostIsolationVerifier(
+      (payload) => provider.verifySandboxAttestation(payload, controls) === true,
+    ),
   };
 }
 

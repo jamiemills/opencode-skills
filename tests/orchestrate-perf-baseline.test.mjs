@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import {
   buildBaseline,
   measureEgressDecisionLatency,
@@ -15,6 +16,9 @@ import {
 } from "../scripts/bench-dwrr.mjs";
 
 const HARNESS = fileURLToPath(new URL("../scripts/bench-dwrr.mjs", import.meta.url));
+const PERF_BASELINE_PATH = fileURLToPath(
+  new URL("../.agents/evidence/dynamic-worker-runtime/perf-baseline.json", import.meta.url),
+);
 
 function assertStat(stat, count) {
   assert.equal(stat.count, count);
@@ -102,4 +106,22 @@ test("the harness CLI writes a schema-marked baseline artifact", async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("T004 (N7): the recorded perf baseline validates against csm-orchestrate-perf-baseline/1", async () => {
+  const registry = await loadSchemaRegistry();
+  const recorded = JSON.parse(await readFile(PERF_BASELINE_PATH, "utf8"));
+  assert.equal(recorded.schema, PERF_SCHEMA);
+  const recordedResult = registry.validate("csm-orchestrate-perf-baseline/1", recorded);
+  assert.equal(recordedResult.valid, true, JSON.stringify(recordedResult.errors));
+
+  // A fresh hermetic artifact (workerStart explicitly deferred) is the same shape.
+  const fresh = await buildBaseline({
+    mode: "hermetic",
+    iterations: 1,
+    egressIterations: 3,
+    durableEgress: false,
+  });
+  const freshResult = registry.validate("csm-orchestrate-perf-baseline/1", fresh);
+  assert.equal(freshResult.valid, true, JSON.stringify(freshResult.errors));
 });

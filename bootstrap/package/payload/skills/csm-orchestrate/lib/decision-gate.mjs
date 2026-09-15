@@ -2,8 +2,9 @@
 
 // T006: prototype decision gate over worker/egress behavior. It runs SIX
 // decision conditions plus a per-property adversarial isolation matrix, each
-// returning pass/fail with evidence, and (by default) persists one recorded
-// artifact. The caller-owned `freshnessKind` distinguishes the deterministic
+// returning pass/fail with evidence, and persists one artifact only when the
+// caller supplies an explicit path (N6/T003: no tracked-path default). The
+// caller-owned `freshnessKind` distinguishes the deterministic
 // checked-in baseline from a fresh runner-dependent observation, so a baseline
 // is never rewritten non-deterministically by a test run. Probes are injectable,
 // so the same gate runs hermetically (fake
@@ -15,7 +16,6 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { loadSchemaRegistry } from "../../../lib/schema-runtime/index.mjs";
 import {
   createEgressBroker,
@@ -87,9 +87,13 @@ export const DECISION_CONDITIONS = Object.freeze([
   },
 ]);
 
-const DEFAULT_EVIDENCE_PATH = fileURLToPath(
-  new URL("../../.agents/evidence/dynamic-worker-runtime/decision-gate.json", import.meta.url),
-);
+// N6 (T003): there is deliberately NO tracked-path default. The recorded
+// baseline at .agents/evidence/dynamic-worker-runtime/decision-gate.json is a
+// durable, freshness-explicit artifact; a bare `runDecisionGate()` must never
+// be able to rewrite it. Persistence now requires an explicit, caller-supplied
+// path (and `persist !== false`); a pathless call returns the artifact and
+// writes nothing.
+const DEFAULT_EVIDENCE_PATH = null;
 
 const ANCHOR_KEY = Buffer.from("decision-gate-anchor-key-0123456789");
 const GATE_KEY = "0123456789abcdef";
@@ -585,6 +589,10 @@ function summarizeOutcome(outcome) {
   return rest;
 }
 
+// N6 (T003): `evidencePath` defaults to null. A call that supplies no path
+// persists nothing, so `runDecisionGate()` can no longer overwrite the tracked
+// baseline; callers that want an artifact pass an explicit path (the recorded
+// baseline is regenerated only by an explicit path + `freshnessKind:"baseline"`).
 export async function runDecisionGate({
   probes = null,
   now = () => new Date().toISOString(),
