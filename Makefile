@@ -4,7 +4,7 @@ OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
-.PHONY: help install lint fmt fmt-check fmt-staged audit check test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
+.PHONY: help install lint fmt fmt-check fmt-staged audit check check-anthropic-mapping test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -34,8 +34,12 @@ fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
 audit: ## non-mutating dependency audit via pinned OSV-Scanner; any finding or invalid evidence fails
 	node scripts/osv-audit.mjs
 
-check: ## repo conformance gate
+check: ## repo conformance gate (includes an advisory, warn-only upstream id-mapping freshness report)
 	node scripts/check-suite.mjs
+	node scripts/check-anthropic-mapping.mjs
+
+check-anthropic-mapping: ## strict upstream Anthropic id-mapping freshness gate (fails on stale age/version-gate drift)
+	node scripts/check-anthropic-mapping.mjs --strict
 
 analyze: lint check ## analyzers: lint + conformance gate
 

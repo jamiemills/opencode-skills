@@ -7,10 +7,11 @@
 //   (c) the trusted-in-process route is still admitted (no regression), and the
 //       csm-autoresearch generated/trusted-local modes report effective trust.
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { digest, loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
@@ -39,7 +40,15 @@ import {
   createDockerWorkerProvider,
   createHostIsolationVerifier,
   createWorkerAttestationVerifier,
+  isHostIsolationVerifier,
 } from "../csm-orchestrate/lib/docker-worker-provider.mjs";
+import {
+  EGRESS_ANCHOR_REASONS,
+  EGRESS_ANCHOR_TRUST_DOMAINS,
+  createEgressLedger,
+  createExternalAnchor,
+} from "../csm-orchestrate/lib/egress-broker.mjs";
+import { enforceTerminalTrust } from "../csm-orchestrate/lib/verified-sandbox-runtime.mjs";
 import {
   autoresearchEffectiveIsolation,
   createCsmAutoresearchAdapter,
@@ -1221,4 +1230,301 @@ test("T005: the host verifier does not displace the csm-autoresearch generated r
   });
   const result = await adapter.invoke(requestFor("csm-scan", "run-autoresearch-generated"));
   assert.equal(result.status, "completed", JSON.stringify(result));
+});
+
+// T001: the live terminal trust gate is the live wiring for the host-external
+// anchor. The accepted boundary is `os-user-bound` (the recorded scope
+// decision); a host-external requirement is satisfied only by an explicit
+// host-external provider and fails closed when the provider is absent,
+// unavailable, or mismatched. These tests pin that decision so a future change
+// cannot silently weaken the boundary or overstate what was delivered.
+test("T001: the live terminal gate records the OS-user boundary without claiming host-external", () => {
+  const ledger = createEgressLedger({
+    runId: "run-anchor-scope",
+    key: "anchor-scope-key-0123456789",
+  });
+  ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const trust = enforceTerminalTrust({ ledger });
+  assert.equal(trust.domain, EGRESS_ANCHOR_TRUST_DOMAINS.osUser);
+  assert.equal(trust.hostExternal, false);
+  assert.equal(trust.authorized, true);
+  assert.equal(trust.reason, EGRESS_ANCHOR_REASONS.anchored);
+});
+
+test("T001: requiring host-external without a host-external anchor fails closed", () => {
+  const ledger = createEgressLedger({
+    runId: "run-anchor-scope",
+    key: "anchor-scope-key-0123456789",
+  });
+  ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  assert.throws(
+    () => enforceTerminalTrust({ ledger, declaredDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external }),
+    (error) => {
+      assert.equal(error.code, "verified-sandbox-trust-anchor");
+      assert.equal(error.scope, "egress-final-sink");
+      assert.equal(error.reason, EGRESS_ANCHOR_REASONS.notHostExternal);
+      assert.equal(error.domain, EGRESS_ANCHOR_TRUST_DOMAINS.external);
+      return true;
+    },
+  );
+});
+
+test("T001: an explicit host-external anchor satisfies the external requirement", () => {
+  const published = [];
+  const ledger = createEgressLedger({
+    runId: "run-anchor-scope",
+    key: "anchor-scope-key-0123456789",
+    trustAnchor: createExternalAnchor({
+      publish: (event) => published.push(event),
+      read: () => published.at(-1)?.headDigest ?? null,
+    }),
+  });
+  ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const trust = enforceTerminalTrust({
+    ledger,
+    declaredDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+  });
+  assert.equal(trust.domain, EGRESS_ANCHOR_TRUST_DOMAINS.external);
+  assert.equal(trust.hostExternal, true);
+  assert.equal(trust.authorized, true);
+  assert.equal(trust.reason, EGRESS_ANCHOR_REASONS.anchored);
+});
+
+test("T001: a mismatched or unavailable host-external anchor fails closed", () => {
+  const mismatched = createEgressLedger({
+    runId: "run-anchor-scope",
+    key: "anchor-scope-key-0123456789",
+    trustAnchor: createExternalAnchor({
+      publish: () => {},
+      read: () => `sha256:${"f".repeat(64)}`,
+    }),
+  });
+  mismatched.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  assert.throws(
+    () =>
+      enforceTerminalTrust({
+        ledger: mismatched,
+        declaredDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+      }),
+    (error) =>
+      error.code === "verified-sandbox-trust-anchor" &&
+      error.reason === EGRESS_ANCHOR_REASONS.mismatch,
+  );
+
+  const unavailable = createEgressLedger({
+    runId: "run-anchor-scope",
+    key: "anchor-scope-key-0123456789",
+    trustAnchor: createExternalAnchor({
+      publish: () => {},
+      read: () => {
+        throw new Error("sink down");
+      },
+    }),
+  });
+  unavailable.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  assert.throws(
+    () =>
+      enforceTerminalTrust({
+        ledger: unavailable,
+        declaredDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+      }),
+    (error) =>
+      error.code === "verified-sandbox-trust-anchor" &&
+      error.reason === EGRESS_ANCHOR_REASONS.unavailable,
+  );
+});
+
+test("T001: worker attestation under an external requirement fails closed on an OS-user provider", () => {
+  const published = [];
+  const ledger = createEgressLedger({
+    runId: "run-anchor-scope",
+    key: "anchor-scope-key-0123456789",
+    trustAnchor: createExternalAnchor({
+      publish: (event) => published.push(event),
+      read: () => published.at(-1)?.headDigest ?? null,
+    }),
+  });
+  ledger.append({ decision: "allowed", targetHost: "a.example", targetPort: 443 });
+  const provider = {
+    trustBoundary: () => ({
+      trustDomain: EGRESS_ANCHOR_TRUST_DOMAINS.osUser,
+      hostExternal: false,
+      publishAvailable: true,
+      readAvailable: true,
+      required: false,
+      label: "os-user-anchor",
+      reason: null,
+    }),
+    reauthorizeAttestation: ({ acceptedTrustDomain }) => ({
+      authorized: false,
+      reasonCode: EGRESS_ANCHOR_REASONS.notHostExternal,
+      hostExternal: false,
+      acceptedTrustDomain,
+    }),
+  };
+  assert.throws(
+    () =>
+      enforceTerminalTrust({
+        ledger,
+        provider,
+        started: { attestationDoc: { schema: "csm-orchestrate-worker-attestation/1" } },
+        declaredDomain: EGRESS_ANCHOR_TRUST_DOMAINS.external,
+      }),
+    (error) => {
+      assert.equal(error.code, "verified-sandbox-trust-anchor");
+      assert.equal(error.scope, "worker-attestation");
+      assert.equal(error.reason, EGRESS_ANCHOR_REASONS.notHostExternal);
+      return true;
+    },
+  );
+});
+
+// T003: the host-held isolation verifier must be reachable through the
+// constructed live runtime on the default path, not only through a raw provider
+// config. `createLiveVerifiedSandboxRuntime` passes the provider's
+// `evidenceVerifier()`/`trustBoundary()` through, and the executor adapter
+// prefers that runtime verifier over any caller-carried brand.
+
+test("T003: the live runtime exposes the provider's host-held verifier and trust boundary", () => {
+  const anchorKey = Buffer.from("runtime-host-anchor-key");
+  const provider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey,
+  });
+  const runtime = createLiveVerifiedSandboxRuntime({ provider });
+  assert.equal(typeof runtime.evidenceVerifier, "function");
+  assert.equal(typeof runtime.trustBoundary, "function");
+  const verifier = runtime.evidenceVerifier();
+  assert.equal(
+    isHostIsolationVerifier(verifier),
+    true,
+    "the runtime passthrough must be a branded host-held verifier",
+  );
+  assert.equal(runtime.trustBoundary().hostExternal, false);
+
+  const doc = buildWorkerAttestation({
+    workerId: "worker-runtime",
+    runId: "run-runtime",
+    policyDigest: `sha256:${"c".repeat(64)}`,
+    imageDigest: `sha256:${"d".repeat(64)}`,
+    inspections: [{ at: "2026-09-13T00:00:00Z", controlResults: { mountsEmpty: true } }],
+    anchorKey,
+  });
+  assert.equal(
+    verifyIsolationEvidence(
+      { kind: WORKER_ATTESTATION_EVIDENCE_KIND, digest: digest(doc), payload: doc },
+      { verifier },
+    ),
+    true,
+  );
+
+  // A provider with no host-held material exposes null, never a fake brand.
+  const bare = createLiveVerifiedSandboxRuntime({
+    provider: { start: async () => ({}), stop: async () => {} },
+  });
+  assert.equal(bare.evidenceVerifier(), null);
+  assert.equal(bare.trustBoundary(), null);
+});
+
+test("T003: the executor adapter reaches the provider verifier through the live runtime", async () => {
+  const anchorKey = Buffer.from("runtime-adapter-anchor-key");
+  const doc = buildWorkerAttestation({
+    workerId: "worker-runtime-adapter",
+    runId: "run-runtime-adapter",
+    policyDigest: `sha256:${"c".repeat(64)}`,
+    imageDigest: `sha256:${"d".repeat(64)}`,
+    inspections: [{ at: "2026-09-13T00:00:00Z", controlResults: { mountsEmpty: true } }],
+    anchorKey,
+  });
+  const evidence = { kind: WORKER_ATTESTATION_EVIDENCE_KIND, digest: digest(doc), payload: doc };
+  const report = selfProvidedIsolation({ attestation: "required", evidence });
+
+  const build = async (runtime, callerVerifier) => {
+    const binding = bindingFor("csm-scan", completedHandler());
+    const registry = await createSkillExecutorRegistry({ descriptors: [binding] });
+    return createInProcessExecutorAdapter({
+      registry,
+      bindings: { "csm-scan": binding },
+      capabilities: [
+        { skill: "csm-scan", digest: digest("a"), execution: { isolation: TRUSTED_IN_PROCESS } },
+      ],
+      cursorStore: durableStore(),
+      isolationReporters: { "csm-scan": () => report },
+      sandboxRuntime: runtime,
+      isolationVerifier: callerVerifier,
+    });
+  };
+
+  const provider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey,
+  });
+  const runtime = createLiveVerifiedSandboxRuntime({ provider });
+  // The caller brand rejects everything; admission proves the runtime's
+  // provider verifier (not the caller brand) was consulted.
+  const admitted = await (
+    await build(
+      runtime,
+      createHostIsolationVerifier(() => false),
+    )
+  ).invoke(requestFor("csm-scan", "run-runtime-adapter"));
+  assert.equal(admitted.status, "completed", JSON.stringify(admitted));
+
+  // A caller brand that accepts everything cannot override the runtime
+  // provider verifier's rejection of a mismatched anchor key.
+  const wrongProvider = createDockerWorkerProvider({
+    run: async () => ({ code: 0, stdout: "cid", stderr: "" }),
+    anchorKey: Buffer.from("other-runtime-key"),
+  });
+  const wrongRuntime = createLiveVerifiedSandboxRuntime({ provider: wrongProvider });
+  const refused = await (
+    await build(
+      wrongRuntime,
+      createHostIsolationVerifier(() => true),
+    )
+  ).invoke(requestFor("csm-scan", "run-runtime-adapter-deny"));
+  assert.equal(refused.status, "blocked");
+  assert.equal(refused.failure.code, "isolation-unavailable");
+});
+
+// T005: the thin child entry (`scripts/run-worker.mjs`) is deliberately not part
+// of the packaged payload — `scripts/pack-bootstrap.mjs` maps only skill payload
+// files, so a packaged install ships no `scripts/` tree and cannot run the thin
+// entry. Running the thin worker therefore requires the dev checkout (or a
+// caller-supplied worker script). The requirement is recorded in
+// docs/dynamic-worker-runtime.md; this check fails if the documented
+// requirement, the dev entry, or the packaged-payload boundary regresses.
+test("T005: the thin child entry packaging requirement stays documented and unshipped", async () => {
+  const workerEntry = fileURLToPath(new URL("../scripts/run-worker.mjs", import.meta.url));
+  assert.ok(
+    (await stat(workerEntry)).isFile(),
+    "scripts/run-worker.mjs must exist in the dev checkout",
+  );
+
+  const docs = await readFile(
+    fileURLToPath(new URL("../docs/dynamic-worker-runtime.md", import.meta.url)),
+    "utf8",
+  );
+  assert.match(
+    docs,
+    /Thin child entry packaging requirement/,
+    "docs/dynamic-worker-runtime.md must record the thin-entry packaging requirement",
+  );
+  assert.match(
+    docs,
+    /not\s+(?:part of|in)\s+the\s+packaged payload/i,
+    "the docs must state the thin entry is not in the packaged payload",
+  );
+
+  const packagedEntry = fileURLToPath(
+    new URL(
+      "../bootstrap/package/payload/skills/csm-orchestrate/scripts/run-worker.mjs",
+      import.meta.url,
+    ),
+  );
+  await assert.rejects(
+    () => stat(packagedEntry),
+    (error) => error.code === "ENOENT",
+    "the packaged payload must not ship a thin worker entry it cannot resolve",
+  );
 });

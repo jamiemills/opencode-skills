@@ -7,7 +7,7 @@
 // deterministic, freshness-explicit baseline that no test may rewrite (T004).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,8 +18,12 @@ import {
   createLiveProbes,
   DECISION_CONDITIONS,
   DECISION_GATE_SCHEMA,
+  DEFAULT_LIVE_EVIDENCE_DIR,
   ISOLATION_MATRIX_PROPERTIES,
+  LIVE_EVIDENCE_DOCKER_CODE,
+  liveEvidenceFilePath,
   runDecisionGate,
+  runLiveDecisionGate,
 } from "../csm-orchestrate/lib/decision-gate.mjs";
 import {
   classifyConcurrency,
@@ -720,6 +724,95 @@ test("T003 (N6): a pathless runDecisionGate() cannot rewrite the tracked baselin
     "a pathless runDecisionGate() rewrote the tracked decision-gate baseline",
   );
 });
+
+// T004: live evidence is opt-in, generated-path-only by default, and
+// freshness-marked. These tests never write the tracked baseline.
+
+test("T004: liveEvidenceFilePath generates a freshness-marked path that is never the tracked baseline", () => {
+  const dir = join(tmpdir(), "csm-live-evidence-path");
+  const path = liveEvidenceFilePath({ at: NOW(), baseDir: dir });
+  assert.ok(path.startsWith(dir), `path ${path} must stay under the supplied dir`);
+  assert.match(path, /decision-gate-live-2026-09-13T00-00-00-000Z\.json$/);
+  assert.notEqual(path, EVIDENCE_PATH);
+  assert.equal(DEFAULT_LIVE_EVIDENCE_DIR, join(".agents", "evidence", "dynamic-worker-runtime"));
+});
+
+test("T004: the live opt-in records to a generated, freshness-marked path (never the baseline)", async () => {
+  const before = await readFile(EVIDENCE_PATH);
+  const dir = await mkdtemp(join(tmpdir(), "csm-live-evidence-"));
+  try {
+    const artifact = await runLiveDecisionGate({
+      // `mode: "live"` with injectable probe bodies keeps this hermetic while
+      // exercising the real opt-in path/freshness contract.
+      probes: { ...createHermeticProbes(), mode: "live" },
+      now: NOW,
+      liveEvidenceDir: dir,
+    });
+    assertAllPass(artifact);
+    assert.equal(artifact.mode, "live");
+    assert.equal(artifact.freshness.kind, "live");
+    assert.equal(artifact.freshness.mode, "live");
+    assert.equal(artifact.artifactPath, liveEvidenceFilePath({ at: NOW(), baseDir: dir }));
+    assert.notEqual(artifact.artifactPath, EVIDENCE_PATH);
+
+    const onDisk = JSON.parse(await readFile(artifact.artifactPath, "utf8"));
+    assert.equal(onDisk.verdict, "pass");
+    assert.equal(onDisk.mode, "live");
+    assert.equal(onDisk.freshness.kind, "live");
+    assert.equal(onDisk.artifactPath, undefined, "artifactPath is runtime-only, never persisted");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+  const after = await readFile(EVIDENCE_PATH);
+  assert.ok(after.equals(before), "the live opt-in rewrote the tracked decision-gate baseline");
+});
+
+test("T004: the live opt-in fails closed when Docker is unavailable", async () => {
+  const before = await readFile(EVIDENCE_PATH);
+  const dir = await mkdtemp(join(tmpdir(), "csm-live-evidence-nodocker-"));
+  try {
+    await assert.rejects(
+      () => runLiveDecisionGate({ now: NOW, liveEvidenceDir: dir, dockerProbe: () => false }),
+      (error) => {
+        assert.equal(error.code, LIVE_EVIDENCE_DOCKER_CODE);
+        return true;
+      },
+    );
+    assert.deepEqual(
+      await readdir(dir),
+      [],
+      "a fail-closed live run must not persist an evidence artifact",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+  const after = await readFile(EVIDENCE_PATH);
+  assert.ok(after.equals(before), "the fail-closed live run rewrote the tracked baseline");
+});
+
+test(
+  "T004: a real live opt-in run records a live artifact outside the tracked baseline",
+  { skip: !DOCKER_AVAILABLE },
+  async () => {
+    const before = await readFile(EVIDENCE_PATH);
+    const dir = await mkdtemp(join(tmpdir(), "csm-live-evidence-docker-"));
+    try {
+      const artifact = await runLiveDecisionGate({ now: NOW, liveEvidenceDir: dir });
+      assertAllPass(artifact);
+      assert.equal(artifact.mode, "live");
+      assert.equal(artifact.freshness.kind, "live");
+      assert.ok(artifact.artifactPath.startsWith(dir), artifact.artifactPath);
+      assert.notEqual(artifact.artifactPath, EVIDENCE_PATH);
+      const onDisk = JSON.parse(await readFile(artifact.artifactPath, "utf8"));
+      assert.equal(onDisk.verdict, "pass");
+      assert.equal(onDisk.freshness.kind, "live");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+    const after = await readFile(EVIDENCE_PATH);
+    assert.ok(after.equals(before), "the live opt-in rewrote the tracked baseline");
+  },
+);
 
 test("T011: the compat-plan six prototype conditions pass and are recorded (AC10)", async () => {
   const before = await readFile(PROTOTYPE_GATE_PATH);

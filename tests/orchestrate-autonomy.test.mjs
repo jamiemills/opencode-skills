@@ -9,6 +9,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { autonomyGate } from "../csm-orchestrate/lib/recovery.mjs";
+import { childRunIdForNode, retryChildRunIdForNode } from "../csm-orchestrate/lib/run-helpers.mjs";
 import {
   createMemoryTransport,
   createTelemetryEmitter,
@@ -778,4 +779,251 @@ test("T003: a duplicate live worker lease blocks the run with worker-lease-held"
   );
   assert.equal(result.outcome.status, "BLOCKED");
   assert.equal(result.reason, "worker-lease-held");
+});
+
+// T002: bounded writable parallel workers are deferred. This locks the runtime
+// side of the guard: dependency-free writable workers must be dispatched one at
+// a time through the single executeNode/cursor/receipt path, never concurrently,
+// and each must produce exactly one receipt (no duplicate side effects).
+test("T002: dependency-free writable workers dispatch serially with one receipt each", async () => {
+  let active = 0;
+  let maxActive = 0;
+  const dispatches = new Map();
+  const host = hostFixture();
+  const baseInvoke = host.invokeSiblingSkill.bind(host);
+  host.invokeSiblingSkill = async (request) => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    dispatches.set(request.skill, (dispatches.get(request.skill) ?? 0) + 1);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return await baseInvoke(request);
+    } finally {
+      active -= 1;
+    }
+  };
+  const real = await loadCapabilities();
+  const approvals = async ({ phase, node, childRunId }) => {
+    const capability = real.skills.find((entry) => entry.skill === node.skill);
+    return {
+      schema: "csm-orchestrate-approval/2",
+      approvalId: `approval-writable-${childRunId}`,
+      binding: {
+        parentRunId: phase.runId,
+        childRunId,
+        phaseId: phase.phaseId,
+        edgeId: `edge-${node.nodeId}`,
+      },
+      scope: [...capability.permissions],
+      approvedDigest: capability.digest,
+      approvedAt: new Date(Date.now() - 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      status: "approved",
+    };
+  };
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-writable-serial",
+      signals: { capabilities: ["csm-scan"] },
+      approvals,
+      maxParallelism: 8,
+      dynamicProposal: {
+        phaseId: "phase-writable-parallel",
+        nodes: [
+          { taskId: "build-a", skill: "csm-build", effects: ["workspace-write"] },
+          { taskId: "make-tests-b", skill: "csm-make-tests", effects: ["workspace-write"] },
+        ],
+      },
+      dynamicApproved: true,
+      dynamicRouteKind: "research",
+    }),
+  );
+  assert.notEqual(result.outcome.status, "BLOCKED", JSON.stringify({ reason: result.reason }));
+  assert.equal(
+    maxActive,
+    1,
+    "writable workers must never overlap, even when proposed dependency-free with a wide maxParallelism",
+  );
+  assert.equal(
+    dispatches.get("csm-build"),
+    1,
+    "the csm-build writable node dispatches exactly once",
+  );
+  assert.equal(
+    dispatches.get("csm-make-tests"),
+    1,
+    "the csm-make-tests writable node dispatches exactly once",
+  );
+  const writableReceipts = result.childReceipts.filter((receipt) =>
+    ["csm-build", "csm-make-tests"].includes(receipt.owner),
+  );
+  assert.equal(writableReceipts.length, 2, "one terminal receipt per writable node");
+  assert.equal(
+    new Set(writableReceipts.map((receipt) => receipt.runId)).size,
+    2,
+    "each writable node keeps its own child run identity (no shared authority)",
+  );
+});
+
+// T010: per-node child identity. `childRunId` was derived from
+// (runId, phaseId, skill, phaseIndex), so two nodes in one phase with the same
+// skill collided on approvals, cursors, durable child attempts, and terminal
+// receipts even though `validateProposedSet` permits same-skill fan-out up to a
+// capability's maxConcurrency. The identity now carries the graph-unique nodeId
+// and the node-scoped idempotency key stays the consistency anchor.
+test("T010: per-node child identity helpers are unique and node-consistent", () => {
+  const a = childRunIdForNode("run-parent", "phase-x", "edge-a-11111111", 1);
+  const b = childRunIdForNode("run-parent", "phase-x", "edge-b-22222222", 1);
+  assert.notEqual(a, b, "different node ids must not share a child run id");
+  assert.equal(a, "run-run-parent-phase-x-edge-a-11111111-1");
+  assert.equal(b, "run-run-parent-phase-x-edge-b-22222222-1");
+  assert.equal(retryChildRunIdForNode("run-parent", "phase-x", "edge-a-11111111", 1, 2), `${a}-2`);
+  assert.notEqual(retryChildRunIdForNode("run-parent", "phase-x", "edge-a-11111111", 1, 2), b);
+});
+
+const nodeBoundApprovals = async ({ phase, node, childRunId }) => {
+  const capabilities = await loadCapabilities();
+  const capability = capabilities.skills.find((entry) => entry.skill === node.skill);
+  return {
+    schema: "csm-orchestrate-approval/2",
+    approvalId: `approval-node-${node.nodeId}-${childRunId}`,
+    binding: {
+      parentRunId: phase.runId,
+      childRunId,
+      phaseId: phase.phaseId,
+      edgeId: `edge-${node.nodeId}`,
+    },
+    scope: [...capability.permissions],
+    approvedDigest: capability.digest,
+    approvedAt: new Date(Date.now() - 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    status: "approved",
+  };
+};
+
+const sameSkillProposal = {
+  phaseId: "phase-node-identity",
+  nodes: [
+    { taskId: "review-a", skill: "csm-review" },
+    { taskId: "review-b", skill: "csm-review" },
+  ],
+};
+
+test("T010: two same-skill nodes in one phase get distinct child identities", async () => {
+  const host = hostFixture();
+  const result = await orchestrate(
+    await autonomyOptions(host, {
+      runId: "run-autonomy-node-identity",
+      signals: { capabilities: ["csm-scan"] },
+      approvals: nodeBoundApprovals,
+      maxParallelism: 4,
+      dynamicProposal: sameSkillProposal,
+      dynamicApproved: true,
+      dynamicRouteKind: "research",
+    }),
+  );
+  assert.notEqual(result.outcome.status, "BLOCKED", JSON.stringify({ reason: result.reason }));
+  const reviewRequests = host.requests.filter((request) => request.skill === "csm-review");
+  assert.equal(reviewRequests.length, 2, "both same-skill nodes dispatch");
+  const childRunIds = reviewRequests.map((request) => request.childRunId);
+  assert.equal(new Set(childRunIds).size, 2, "childRunId must be unique per node");
+  for (const request of reviewRequests) {
+    const nodeSlug = request.edgeId.replace(/^edge-/, "");
+    assert.ok(
+      request.childRunId.includes(`-${nodeSlug}-`),
+      `childRunId ${request.childRunId} must carry node discriminator ${nodeSlug}`,
+    );
+    assert.equal(request.approval.binding.childRunId, request.childRunId);
+    assert.equal(request.approval.binding.edgeId, request.edgeId);
+  }
+  assert.equal(
+    new Set(reviewRequests.map((request) => request.approval.approvalId)).size,
+    2,
+    "approvals must be bound per node",
+  );
+  const receipts = result.childReceipts.filter((receipt) => receipt.owner === "csm-review");
+  assert.equal(receipts.length, 2, "one terminal receipt per same-skill node");
+  assert.equal(new Set(receipts.map((receipt) => receipt.runId)).size, 2);
+  assert.equal(new Set(receipts.map((receipt) => receipt.receiptId)).size, 2);
+});
+
+const durableCursorStore = () => {
+  const cursors = new Map();
+  const attempts = new Map();
+  const byKey = new Map();
+  return {
+    async saveCursor(cursor) {
+      cursors.set(cursor.cursorId, structuredClone(cursor));
+    },
+    async loadCursor(cursorId) {
+      return cursors.has(cursorId) ? structuredClone(cursors.get(cursorId)) : null;
+    },
+    async beginChildAttempt(record) {
+      if (byKey.has(record.logicalKey)) throw new Error("duplicate child attempt");
+      const stored = { ...record, state: "dispatched" };
+      attempts.set(record.attemptId, stored);
+      byKey.set(record.logicalKey, stored);
+    },
+    async saveChildAttemptResult(attemptId, response, state = "terminal") {
+      const record = attempts.get(attemptId) ?? { attemptId };
+      record.response = structuredClone(response);
+      record.state = state;
+      attempts.set(attemptId, record);
+      if (record.logicalKey) byKey.set(record.logicalKey, record);
+    },
+    async loadChildAttemptByKey(key) {
+      return byKey.get(key) ?? null;
+    },
+    async recordReconciliation() {},
+  };
+};
+
+test("T010: resume reconciles completed same-skill nodes without re-dispatch", async () => {
+  const store = durableCursorStore();
+  const shared = {
+    runId: "run-autonomy-node-resume",
+    signals: { capabilities: ["csm-scan"] },
+    approvals: nodeBoundApprovals,
+    maxParallelism: 4,
+    dynamicProposal: sameSkillProposal,
+    dynamicApproved: true,
+    dynamicRouteKind: "research",
+    cursorStore: store,
+  };
+
+  const firstHost = hostFixture();
+  const first = await orchestrate(await autonomyOptions(firstHost, shared));
+  assert.notEqual(first.outcome.status, "BLOCKED", JSON.stringify({ reason: first.reason }));
+  const firstChildRunIds = firstHost.requests
+    .filter((request) => request.skill === "csm-review")
+    .map((request) => request.childRunId);
+  assert.equal(firstChildRunIds.length, 2);
+  assert.equal(new Set(firstChildRunIds).size, 2);
+
+  const resumedHost = hostFixture();
+  const resumed = await orchestrate(await autonomyOptions(resumedHost, shared));
+  assert.equal(resumedHost.calls, 0, "completed nodes must reconcile, not re-dispatch");
+  const resumedReceipts = resumed.childReceipts.filter((receipt) => receipt.owner === "csm-review");
+  assert.equal(resumedReceipts.length, 2, "each node reconciles its own terminal receipt");
+  assert.deepEqual(
+    resumedReceipts.map((receipt) => receipt.runId).toSorted(),
+    [...firstChildRunIds].toSorted(),
+    "resume reuses every node's distinct child identity",
+  );
+});
+
+test("T010: child identities stay bounded for long names and retries", () => {
+  const long = "x".repeat(300);
+  const ids = new Set();
+  for (let i = 0; i < 200; i += 1) {
+    const id = childRunIdForNode(long, long, `${long}-${i}`, i);
+    assert.ok(id.length <= 96, `child id must be bounded: ${id.length}`);
+    ids.add(id);
+  }
+  assert.equal(ids.size, 200, "bounded long-name ids must remain unique");
+  const base = childRunIdForNode(long, long, `${long}-retry`, 1);
+  const retry = retryChildRunIdForNode(long, long, `${long}-retry`, 1, 2);
+  assert.ok(base.length <= 96, "base id bounded");
+  assert.ok(retry.length <= 100, `retry id must fit the 100-char contract cap: ${retry.length}`);
+  assert.ok(retry.endsWith("-2"), "retry id keeps the attempt suffix");
 });

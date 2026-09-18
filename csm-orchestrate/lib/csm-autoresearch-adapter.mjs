@@ -17,6 +17,16 @@ import { createArtifactDescriptor } from "../../csm-autoresearch/lib/artifacts/i
 const HASH = /^sha256:[a-f0-9]{64}$/;
 const NATIVE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
+// T010 follow-up: the evaluator-request contract caps requestId/runId at 100
+// chars. Node-scoped child identities are longer, so bound them with a digest
+// suffix rather than emitting a contract-invalid id.
+const boundedId = (value, max = 100) => {
+  const text = String(value ?? "");
+  if (text.length <= max) return text;
+  const suffix = createHash("sha256").update(text).digest("hex").slice(0, 12);
+  return `${text.slice(0, max - suffix.length - 1)}-${suffix}`;
+};
+
 const failure = (code, message) => ({ class: "policy", code, message });
 
 function receipt(context, status = "completed") {
@@ -254,8 +264,8 @@ function createCsmAutoresearchAdapter({ providers, optimizeRun = optimize, promo
         throw Object.assign(new Error("candidate evaluation cancelled"), { code: "cancelled" });
       return provider.evaluate({
         format: "csm-autoresearch-evaluator-request/1",
-        requestId: `${context.runId}-${candidate.id}-${details.attempt ?? 0}`,
-        runId: native,
+        requestId: boundedId(`${context.runId}-${candidate.id}-${details.attempt ?? 0}`),
+        runId: boundedId(native),
         candidate,
         limits: { ...contract.policy.execution.limits, network: "disabled" },
         input: input.evaluatorInput ?? input.value ?? {},

@@ -587,6 +587,19 @@ export function createLiveVerifiedSandboxRuntime({
       selfProvided: false,
       satisfiable: null,
     }),
+    // T003: passthrough of the provider's host-held trust material. A caller
+    // that holds only the constructed runtime (for example a caller wiring
+    // `orchestrate({ verifiedSandboxRuntime })`) can now reach the provider's
+    // branded verifier and explicit trust boundary without also reaching into
+    // the raw provider config. Both return null when the provider does not
+    // expose the corresponding function, so the gate falls back to its
+    // evidence-carried verifier instead of trusting a caller-supplied brand.
+    evidenceVerifier: () =>
+      typeof activeProvider.evidenceVerifier === "function"
+        ? activeProvider.evidenceVerifier()
+        : null,
+    trustBoundary: () =>
+      typeof activeProvider.trustBoundary === "function" ? activeProvider.trustBoundary() : null,
   });
 }
 
@@ -706,6 +719,11 @@ function createFailClosedRuntime(reason) {
       satisfiable: false,
       reason: message,
     }),
+    // T003: a runtime that never constructed a provider owns no host-held
+    // trust material; expose the same shape so callers can probe uniformly
+    // and the gate falls through to the evidence-carried verifier.
+    evidenceVerifier: () => null,
+    trustBoundary: () => null,
   });
 }
 

@@ -19,14 +19,18 @@ import {
 
 export { createLiveVerifiedSandboxRuntime };
 
-// T005 (N1 follow-up): prefer the provider's host-held verifier over any
+// T005 (N1 follow-up) / T003: prefer the provider's host-held verifier over any
 // caller-supplied brand. A real provider (the Docker worker provider) binds its
-// host-held anchor key into `evidenceVerifier()`; the resolved runtime object
-// may or may not expose it, so also consult the raw config supplied as
-// `sandboxRuntime` (`{ provider: { evidenceVerifier } }`, the documented
-// `createInProcessExecutorAdapter({ sandboxRuntime: config })` shape). Best
-// effort: when no host verifier is reachable the caller-supplied
-// `isolationVerifier` remains the explicit fallback.
+// host-held anchor key into `evidenceVerifier()`; the live verified-sandbox
+// runtime now passes `evidenceVerifier()`/`trustBoundary()` through from the
+// provider (T003), so a constructed runtime object is the primary source and
+// the default path reaches the host-held verifier without the caller reaching
+// into the raw provider config. The raw config supplied as `sandboxRuntime`
+// (`{ provider: { evidenceVerifier } }`, the documented
+// `createInProcessExecutorAdapter({ sandboxRuntime: config })` shape) stays a
+// fallback for runtimes that predate the passthrough. Best effort: when no host
+// verifier is reachable the caller-supplied `isolationVerifier` remains the
+// explicit fallback.
 function resolveHostIsolationVerifier(runtime, rawConfig) {
   const sources = [
     typeof runtime?.evidenceVerifier === "function" ? runtime : null,

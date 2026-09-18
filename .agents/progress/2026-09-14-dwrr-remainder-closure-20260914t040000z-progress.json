@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-dwrr-remainder-closure-20260914",
+  "runId": "run-20260914t040000z-dwrr-remainder-closure",
+  "skill": "csm-build",
+  "goal": "Execute the dynamic-worker-runtime remainder-closure plan (9 tasks)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Anchor + parallelism + reachability",
+      "weightPercent": 40,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Evidence + packaging + tools",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Final review + delivery",
+      "weightPercent": 25,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-14T04:00:00.000Z",
+  "updatedAt": "2026-09-18T23:45:05.589Z"
+}

@@ -20,12 +20,15 @@
 // Usage:
 //   node scripts/bench-dwrr.mjs [--out <path>] [--iterations N]
 //     [--egress-iterations N] [--warmup N] [--hermetic]
-//     [--require-worker-start] [--print]
+//     [--require-worker-start] [--print] [--trend-out <path>] [--no-trend]
 // Default output: .agents/evidence/dynamic-worker-runtime/perf-baseline.json
+// Default trend:  a sibling perf-trend.json (append; deltas vs the previous
+//                 like-for-like run: same mode + hostname). Use --no-trend to
+//                 skip it or --trend-out to redirect it.
 
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { arch, cpus, hostname, platform, tmpdir, totalmem } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +37,21 @@ import { createEgressBroker, createEgressLedger } from "../csm-orchestrate/lib/e
 
 export const PERF_SCHEMA = "csm-orchestrate-perf-baseline/1";
 export const DEFAULT_OUT = ".agents/evidence/dynamic-worker-runtime/perf-baseline.json";
+// T007: ongoing benchmarking. Successive runs append to a sibling trend artifact
+// so drift is observable over time. It stores only the recorded numbers plus the
+// host/date of each run: observational, no outcome inference, no acceptance
+// authority. Deltas compare like-for-like runs (same mode + hostname) only.
+export const PERF_TREND_SCHEMA = "csm-orchestrate-perf-trend/1";
+export const DEFAULT_TREND_NAME = "perf-trend.json";
+export const TREND_MAX_RUNS = 200;
+export const TREND_METRICS = Object.freeze([
+  "workerStartMedianMs",
+  "workerStartMeanMs",
+  "egressDecideAllowMedianMs",
+  "egressDecideDenyMedianMs",
+  "egressMediateAllowMedianMs",
+  "egressMediateDenyMedianMs",
+]);
 // Kept in sync with the provider default; the provider does not export it.
 const DEFAULT_BENCH_IMAGE = "node:22.23.2-bookworm-slim";
 const ZERO_DIGEST = `sha256:${"0".repeat(64)}`;
@@ -94,6 +112,117 @@ export function summarize(samples) {
     mean: round(total / sorted.length),
     max: round(sorted.at(-1)),
   };
+}
+
+function metricMedian(operation) {
+  return operation && typeof operation.median === "number" ? operation.median : null;
+}
+
+// Flattens a baseline artifact into the small set of numbers the trend tracks.
+// A deferred workerStart records null (never an inferred value); the hermetic
+// egress numbers are always present.
+export function trendNumbers(artifact) {
+  const egress = artifact?.egressDecision?.operations ?? {};
+  const worker = artifact?.workerStart;
+  const workerStats = worker?.status === "measured" ? worker.stats : null;
+  return {
+    workerStartMedianMs: workerStats?.median ?? null,
+    workerStartMeanMs: workerStats?.mean ?? null,
+    egressDecideAllowMedianMs: metricMedian(egress.decideAllow),
+    egressDecideDenyMedianMs: metricMedian(egress.decideDeny),
+    egressMediateAllowMedianMs: metricMedian(egress.mediateAllow),
+    egressMediateDenyMedianMs: metricMedian(egress.mediateDeny),
+  };
+}
+
+export function buildTrendEntry(artifact) {
+  if (!artifact || typeof artifact !== "object")
+    throw new TypeError("trend entry requires a baseline artifact");
+  return {
+    runAt: artifact.generatedAt ?? null,
+    mode: artifact.mode ?? null,
+    host: {
+      hostname: artifact.host?.hostname ?? null,
+      platform: artifact.host?.platform ?? null,
+      arch: artifact.host?.arch ?? null,
+      nodeVersion: artifact.host?.nodeVersion ?? null,
+    },
+    docker: {
+      available: artifact.environment?.docker?.available ?? null,
+      serverVersion: artifact.environment?.docker?.serverVersion ?? null,
+    },
+    numbers: trendNumbers(artifact),
+  };
+}
+
+function normalizeTrend(trend) {
+  if (trend === null || trend === undefined) return { runs: [] };
+  if (typeof trend !== "object" || !Array.isArray(trend.runs))
+    throw new TypeError("trend artifact must be an object with a runs array");
+  if (trend.schema !== undefined && trend.schema !== PERF_TREND_SCHEMA)
+    throw new TypeError(`unexpected trend schema: ${String(trend.schema)}`);
+  return trend;
+}
+
+function priorComparableRun(runs, entry) {
+  for (let index = runs.length - 1; index >= 0; index -= 1) {
+    const run = runs[index];
+    if (run?.mode === entry.mode && run?.host?.hostname === entry.host.hostname) return run;
+  }
+  return null;
+}
+
+export function computeTrendDeltas(previous, entry) {
+  const deltas = { baselineRunAt: previous?.runAt ?? null };
+  for (const metric of TREND_METRICS) {
+    const before = previous?.numbers?.[metric];
+    const after = entry?.numbers?.[metric];
+    deltas[metric] =
+      typeof before === "number" && typeof after === "number" ? round(after - before) : null;
+  }
+  return deltas;
+}
+
+// Pure append: given the existing trend (or null) and a run entry, returns the
+// next trend object. Deterministic for identical inputs, so repeated runs only
+// differ by their measured numbers/date.
+export function appendTrendRun(trend, entry, { maxRuns = TREND_MAX_RUNS } = {}) {
+  if (!entry || typeof entry !== "object") throw new TypeError("trend run entry is required");
+  const runs = normalizeTrend(trend).runs;
+  const previous = priorComparableRun(runs, entry);
+  const nextRun = {
+    sequence: (runs.at(-1)?.sequence ?? 0) + 1,
+    ...entry,
+    deltas: computeTrendDeltas(previous, entry),
+  };
+  const appended = [...runs, nextRun];
+  const retained = Number.isInteger(maxRuns) && maxRuns > 0 ? appended.slice(-maxRuns) : appended;
+  return {
+    schema: PERF_TREND_SCHEMA,
+    schemaRevision: 1,
+    observational: true,
+    unit: "ms",
+    updatedAt: entry.runAt ?? null,
+    maxRuns,
+    runs: retained,
+  };
+}
+
+export async function readTrend(filePath) {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export async function recordTrendRun({ artifact, trendPath, maxRuns = TREND_MAX_RUNS }) {
+  const entry = buildTrendEntry(artifact);
+  const trend = appendTrendRun(await readTrend(trendPath), entry, { maxRuns });
+  await mkdir(dirname(resolve(trendPath)), { recursive: true });
+  await writeFile(resolve(trendPath), `${JSON.stringify(trend, null, 2)}\n`);
+  return trend;
 }
 
 function sampleSync(fn, iterations, warmup) {
@@ -307,6 +436,8 @@ function parseArgs(argv) {
     out: DEFAULT_OUT,
     requireWorkerStart: false,
     print: false,
+    trend: true,
+    trendOut: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -317,6 +448,8 @@ function parseArgs(argv) {
     else if (token === "--hermetic") args.mode = "hermetic";
     else if (token === "--require-worker-start") args.requireWorkerStart = true;
     else if (token === "--print") args.print = true;
+    else if (token === "--trend-out") args.trendOut = argv[++index];
+    else if (token === "--no-trend") args.trend = false;
     else throw new Error(`unknown argument: ${token}`);
   }
   return args;
@@ -337,11 +470,23 @@ async function main() {
   }
   await mkdir(dirname(resolve(args.out)), { recursive: true });
   await writeFile(resolve(args.out), `${JSON.stringify(artifact, null, 2)}\n`);
+  let trendSummary = "";
+  if (args.trend) {
+    // Default trend path is a sibling of the baseline so a custom --out stays
+    // self-contained (tests and temp runs never touch the tracked artifact).
+    const trendPath = args.trendOut ?? join(dirname(resolve(args.out)), DEFAULT_TREND_NAME);
+    const trend = await recordTrendRun({ artifact, trendPath });
+    const latest = trend.runs.at(-1);
+    const delta = latest?.deltas?.egressDecideAllowMedianMs;
+    trendSummary = ` trendRuns=${trend.runs.length} trendDeltaEgressDecideMs=${
+      delta === null || delta === undefined ? "n/a" : delta
+    } trend=${trendPath}`;
+  }
   const started = artifact.workerStart.status === "measured" ? "measured" : "deferred";
   process.stdout.write(
     `perf-baseline: ${artifact.schema} workerStart=${started} ` +
       `egressDecideMedianMs=${artifact.egressDecision.operations.decideAllow.median} ` +
-      `-> ${args.out}\n`,
+      `-> ${args.out}${trendSummary}\n`,
   );
 }
 

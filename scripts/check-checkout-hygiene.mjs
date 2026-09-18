@@ -88,7 +88,7 @@ export function formatCheckoutHygiene(rootDir, report) {
     : "treat any path you did not create as foreign";
   const remedy = report.linkedWorktree
     ? "keep write work in this wt/<slug> worktree and stage only owned paths here"
-    : "foreign uncommitted artifacts belong in a dedicated wt/<slug> worktree (AGENTS.md -> Parallel sessions)";
+    : "record the set read-only, then hand the foreign write work to a dedicated wt/<slug> worktree (AGENTS.md -> Parallel sessions)";
   const lines = [
     `WARN checkout hygiene: ${total} uncommitted path(s) in the ${kind} — ${scope}; do not stage, sweep, or delete paths you did not create (worktree discipline).`,
     `checkout hygiene: ${remedy}; see docs/worktree-hygiene.md.`,

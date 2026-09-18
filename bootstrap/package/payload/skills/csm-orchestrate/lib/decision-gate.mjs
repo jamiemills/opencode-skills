@@ -14,8 +14,9 @@
 // This module owns evidence only, never acceptance authority: a `fail` verdict
 // names the failing condition and the caller decides what to do about it.
 
+import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { loadSchemaRegistry } from "../../../lib/schema-runtime/index.mjs";
 import {
   createEgressBroker,
@@ -41,6 +42,39 @@ import {
 
 export const DECISION_GATE_SCHEMA = "csm-orchestrate-decision-gate/1";
 export const DECISION_GATE_SCHEMA_REVISION = 1;
+
+// T004: explicit live-evidence capture. The tracked baseline stays
+// deterministic; an operator opt-in (`runLiveDecisionGate`) runs the live probes
+// and records a fresh observation to a generated, timestamp-marked path under
+// the same evidence directory as the baseline. The generated filename never
+// collides with the baseline, and an absent Docker daemon fails closed with a
+// typed error rather than recording a misleading artifact.
+export const LIVE_EVIDENCE_FRESHNESS_KIND = "live";
+export const LIVE_EVIDENCE_DOCKER_CODE = "live-evidence-unavailable";
+export const DEFAULT_LIVE_EVIDENCE_DIR = join(".agents", "evidence", "dynamic-worker-runtime");
+
+function freshnessStamp(value) {
+  return String(value)
+    .replace(/[^0-9A-Za-z]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function liveEvidenceFilePath({
+  at = new Date().toISOString(),
+  baseDir = DEFAULT_LIVE_EVIDENCE_DIR,
+  label = null,
+} = {}) {
+  const suffix = label === null ? "" : `-${freshnessStamp(label)}`;
+  return join(baseDir, `decision-gate-live-${freshnessStamp(at)}${suffix}.json`);
+}
+
+export function dockerAvailable({ docker = "docker" } = {}) {
+  try {
+    return spawnSync(docker, ["info"], { stdio: "ignore" }).status === 0;
+  } catch {
+    return false;
+  }
+}
 
 export const ISOLATION_MATRIX_PROPERTIES = Object.freeze([
   "mounts",
@@ -672,4 +706,40 @@ export async function runDecisionGate({
   } finally {
     if (typeof active.cleanup === "function") await active.cleanup();
   }
+}
+
+// T004: the explicit live-evidence opt-in. Unlike `runDecisionGate` (whose
+// default is a deterministic, pathless baseline-safe run), this runs the live
+// probes and always persists to a generated, freshness-marked path unless the
+// caller names one. It fails closed with `LIVE_EVIDENCE_DOCKER_CODE` when the
+// Docker daemon is unreachable, so a CI/non-Docker run cannot record an
+// empty/failed artifact as if it were a live observation. Injected probes skip
+// the Docker preflight (hermetic/test composition), and callers that persist
+// live evidence to a real path can still pass `evidencePath`.
+export async function runLiveDecisionGate({
+  probes = null,
+  docker = "docker",
+  now = () => new Date().toISOString(),
+  evidencePath = null,
+  liveEvidenceDir = DEFAULT_LIVE_EVIDENCE_DIR,
+  persist = true,
+  requireDocker = true,
+  dockerProbe = dockerAvailable,
+} = {}) {
+  if (requireDocker && probes === null && dockerProbe({ docker }) !== true)
+    throw Object.assign(
+      new Error("live decision-gate evidence requires a reachable Docker daemon"),
+      { code: LIVE_EVIDENCE_DOCKER_CODE },
+    );
+  const activeProbes = probes ?? createLiveProbes({ docker });
+  const generatedAt = now();
+  const target =
+    evidencePath ?? liveEvidenceFilePath({ at: generatedAt, baseDir: liveEvidenceDir });
+  return runDecisionGate({
+    probes: activeProbes,
+    now: () => generatedAt,
+    evidencePath: target,
+    persist,
+    freshnessKind: LIVE_EVIDENCE_FRESHNESS_KIND,
+  });
 }

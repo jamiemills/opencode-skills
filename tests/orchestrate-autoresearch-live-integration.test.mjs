@@ -332,7 +332,7 @@ test(
       assert.equal(orchestratedSandboxResult.cleanup.workspaceRemoved, true);
       assert.equal(
         requests[0].childRunId,
-        `run-${runId}-phase-docker-composed-p1-csm-autoresearch-0`,
+        `run-${runId}-phase-docker-composed-p1-node-p1-csm-autoresearch-0`,
       );
       assert.equal(result.receipt.outcome.status, "VERIFIED");
       assert.equal(provider.sandboxAttestation.status, "verified");

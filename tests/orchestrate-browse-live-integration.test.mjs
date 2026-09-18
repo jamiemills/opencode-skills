@@ -171,7 +171,7 @@ test(
         reviewArtifactRoot,
       });
       assert.equal(result.outcome.status, "VERIFIED", JSON.stringify(result));
-      const childRunId = `run-${parentRunId}-phase-live-browse-p1-csm-browse-0`;
+      const childRunId = `run-${parentRunId}-phase-live-browse-p1-node-p1-csm-browse-0`;
       assert.equal(result.childReceipts[0].runId, childRunId);
       assert.equal(result.childReceipts[0].owner, "csm-browse");
       assert.equal(result.outcome.accepted, true);

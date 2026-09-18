@@ -14,12 +14,28 @@
 //
 // It READS one Markdown file only; it never rewrites docs or code.
 //
+// Findings carry a category so age staleness and vendor/version-gate drift are
+// distinguishable:
+//   * "stale-age"   — the dated re-verification is older than the threshold
+//                     (DEFAULT_MAX_AGE_DAYS); re-verify per the procedure.
+//   * "version-gate" — the version-qualified language weakened or a pinned
+//                     version literal was (re)introduced (vendor drift).
+//   * "structure"   — the status/procedure/check-reference contract is broken.
+//
+// Fail/warn policy (deliberate and documented): the DEFAULT invocation is
+// WARN-ONLY — every finding is printed and the process exits 0, so a scheduled
+// invocation cannot break the default gate by surprise when the vendor pages
+// move or the mapping ages. `--strict` exits 1 on any finding and is what the
+// explicit `make check-anthropic-mapping` target and the contract test use; the
+// default `make check` conformance gate runs the guard warn-only (advisory), so
+// vendor drift there is a visible warning, never a surprise failure.
+//
 // Usage:
 //   node scripts/check-anthropic-mapping.mjs [--root <repo>] [--max-age-days <n>]
-//                                            [--no-max-age] [--quiet]
+//                                            [--no-max-age] [--strict] [--quiet]
 //
-// Exit: 0 when the block is structurally current; 1 on any finding; 2 on a
-//       usage/filesystem error.
+// Exit: 0 by default (warn-only, even with findings); 1 only with --strict when
+//       at least one finding is present; 2 on a usage/filesystem error.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -41,6 +57,18 @@ export const MIN_VERSION_GATE_MARKERS = 2;
 // version must never return); no particular version is asserted or required.
 const PINNED_VERSION_LITERAL = /\bv?\d+\.\d+\.\d+\b/g;
 export const DEFAULT_MAX_AGE_DAYS = 120;
+// Finding categories (see header): age staleness vs vendor/version-gate drift
+// vs a broken structural contract. The category is carried so the warn/strict
+// report can name what drifted.
+export const FINDING_CATEGORIES = Object.freeze({
+  staleAge: "stale-age",
+  versionGate: "version-gate",
+  structure: "structure",
+});
+
+function finding(category, message) {
+  return { category, message };
+}
 
 function sectionOf(source) {
   const start = source.indexOf(SECTION_START);
@@ -72,7 +100,12 @@ export function analyzeAnthropicMapping(
       retrievalDate: null,
       ageDays: null,
       gateMarkers: [],
-      findings: [`missing section: ${SECTION_START} (in ${MAPPING_DOC})`],
+      findings: [
+        finding(
+          FINDING_CATEGORIES.structure,
+          `missing section: ${SECTION_START} (in ${MAPPING_DOC})`,
+        ),
+      ],
     };
   }
 
@@ -80,8 +113,11 @@ export function analyzeAnthropicMapping(
   const gateMarkers = VERSION_GATE_MARKERS.filter((marker) => lower.includes(marker));
   if (gateMarkers.length < MIN_VERSION_GATE_MARKERS) {
     findings.push(
-      `version-gate language weakened: found ${gateMarkers.length}/${MIN_VERSION_GATE_MARKERS} of ` +
-        `[${VERSION_GATE_MARKERS.join(", ")}]`,
+      finding(
+        FINDING_CATEGORIES.versionGate,
+        `version-gate language weakened: found ${gateMarkers.length}/${MIN_VERSION_GATE_MARKERS} of ` +
+          `[${VERSION_GATE_MARKERS.join(", ")}]`,
+      ),
     );
   }
 
@@ -89,7 +125,10 @@ export function analyzeAnthropicMapping(
   const statusIndex = section.search(STATUS_MARKER);
   if (statusIndex === -1) {
     findings.push(
-      'no "Re-verification status" block: the section must record that it was re-verified',
+      finding(
+        FINDING_CATEGORIES.structure,
+        'no "Re-verification status" block: the section must record that it was re-verified',
+      ),
     );
   } else {
     const statusText = section.slice(statusIndex);
@@ -98,8 +137,11 @@ export function analyzeAnthropicMapping(
     const match = DATE_LITERAL.exec(statusParagraph);
     if (match === null) {
       findings.push(
-        "dated re-verification status missing: add e.g. " +
-          '"Re-verification status. Re-verified read-only on YYYY-MM-DD ..."',
+        finding(
+          FINDING_CATEGORIES.structure,
+          "dated re-verification status missing: add e.g. " +
+            '"Re-verification status. Re-verified read-only on YYYY-MM-DD ..."',
+        ),
       );
     } else {
       retrievalDate = match[1];
@@ -107,19 +149,27 @@ export function analyzeAnthropicMapping(
   }
 
   if (!REVERIFY_PROCEDURE.test(section)) {
-    findings.push('missing "re-verify on Claude Code updates" procedure');
+    findings.push(
+      finding(FINDING_CATEGORIES.structure, 'missing "re-verify on Claude Code updates" procedure'),
+    );
   }
   if (!CHECK_REFERENCE.test(section)) {
     findings.push(
-      `procedure must reference ${path.basename(MAPPING_DOC)}'s check: scripts/check-anthropic-mapping.mjs`,
+      finding(
+        FINDING_CATEGORIES.structure,
+        `procedure must reference ${path.basename(MAPPING_DOC)}'s check: scripts/check-anthropic-mapping.mjs`,
+      ),
     );
   }
 
   const pinned = [...section.matchAll(PINNED_VERSION_LITERAL)].map((match) => match[0]);
   if (pinned.length > 0) {
     findings.push(
-      `pinned version literal(s) in the version-qualified section: ${[...new Set(pinned)].join(", ")}; ` +
-        "keep the mapping version-qualified, not version-pinned",
+      finding(
+        FINDING_CATEGORIES.versionGate,
+        `pinned version literal(s) in the version-qualified section: ${[...new Set(pinned)].join(", ")}; ` +
+          "keep the mapping version-qualified, not version-pinned",
+      ),
     );
   }
 
@@ -127,10 +177,15 @@ export function analyzeAnthropicMapping(
   if (retrievalDate !== null) {
     ageDays = daysBetween(retrievalDate, now);
     if (ageDays === null) {
-      findings.push(`unparseable retrieval date: ${retrievalDate}`);
+      findings.push(
+        finding(FINDING_CATEGORIES.structure, `unparseable retrieval date: ${retrievalDate}`),
+      );
     } else if (maxAgeDays !== null && ageDays > maxAgeDays) {
       findings.push(
-        `stale mapping: re-verified ${retrievalDate} (${ageDays} days old > ${maxAgeDays}); re-verify per the procedure`,
+        finding(
+          FINDING_CATEGORIES.staleAge,
+          `stale mapping: re-verified ${retrievalDate} (${ageDays} days old > ${maxAgeDays}); re-verify per the procedure`,
+        ),
       );
     }
   }
@@ -146,9 +201,15 @@ export function analyzeAnthropicMapping(
   };
 }
 
-export function formatAnthropicMapping(report) {
+function findingText(item) {
+  return typeof item === "string" ? item : `[${item.category}] ${item.message}`;
+}
+
+export function formatAnthropicMapping(report, { strict = false } = {}) {
   if (!report.available) {
-    return [`check-anthropic-mapping: FAIL — ${report.findings[0]}`];
+    return [
+      `check-anthropic-mapping: ${strict ? "FAIL" : "WARN"} — ${findingText(report.findings[0])}`,
+    ];
   }
   if (report.ok) {
     return [
@@ -157,18 +218,29 @@ export function formatAnthropicMapping(report) {
         `version gates present; no pinned version literals.`,
     ];
   }
-  const lines = [`check-anthropic-mapping: FAIL — ${report.findings.length} finding(s):`];
-  for (const finding of report.findings) lines.push(`  - ${finding}`);
+  const policy = strict
+    ? "strict gate — pass --strict to fail"
+    : "warn-only by default; pass --strict to fail";
+  const lines = [
+    `check-anthropic-mapping: ${strict ? "FAIL" : "WARN"} — ${report.findings.length} finding(s) (${policy}):`,
+  ];
+  for (const item of report.findings) lines.push(`  - ${findingText(item)}`);
   return lines;
 }
 
 function parseArgs(argv) {
-  const args = { root: process.cwd(), maxAgeDays: DEFAULT_MAX_AGE_DAYS, quiet: false };
+  const args = {
+    root: process.cwd(),
+    maxAgeDays: DEFAULT_MAX_AGE_DAYS,
+    strict: false,
+    quiet: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--root") args.root = path.resolve(argv[++i]);
     else if (a === "--max-age-days") args.maxAgeDays = Number.parseInt(argv[++i], 10);
     else if (a === "--no-max-age") args.maxAgeDays = null;
+    else if (a === "--strict") args.strict = true;
     else if (a === "--quiet") args.quiet = true;
     else throw new Error(`unknown argument: ${a}`);
   }
@@ -183,8 +255,10 @@ function main() {
   const docPath = path.join(args.root, MAPPING_DOC);
   const source = fs.readFileSync(docPath, "utf8");
   const report = analyzeAnthropicMapping(source, { maxAgeDays: args.maxAgeDays });
-  if (!args.quiet) for (const line of formatAnthropicMapping(report)) console.log(line);
-  if (!report.ok) process.exit(1);
+  if (!args.quiet) {
+    for (const line of formatAnthropicMapping(report, { strict: args.strict })) console.log(line);
+  }
+  if (args.strict && !report.ok) process.exit(1);
 }
 
 let isMain = false;

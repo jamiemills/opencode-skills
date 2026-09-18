@@ -1,0 +1,42 @@
+{
+  "schema": "csm-orchestrate-final-state-review/1",
+  "plan": ".agents/plans/2026-09-14-dynamic-worker-runtime-remainder-closure-csm.json",
+  "reviewedAt": "2026-09-14T05:30:00.000Z",
+  "reviewer": "independent-adversarial-subagent",
+  "verdict": "deliverable-with-bookkeeping",
+  "gates": {
+    "fmt-check": "pass", "lint": "pass", "check-suite": "OK 1144 checks",
+    "test-orchestrate": "509 pass / 0 fail / 8 skipped", "test-worker-runtime": "111 pass",
+    "test-contracts": "490 pass", "adapter-required": "11 pass + gated 11/89/11"
+  },
+  "taskVerdicts": {
+    "T001": "done (recorded scope decision + fail-closed interface)",
+    "T002": "done (deferral + production guard)",
+    "T003": "done (provider verifier on default path)",
+    "T004": "done (opt-in live evidence; tracked baseline unchanged)",
+    "T005": "done (documented packaging requirement + check)",
+    "T006": "this artifact",
+    "T007": "done (trend artifact)", "T008": "done (strict target)", "T009": "done (hygiene)",
+    "T010": "done (per-node bounded child ids + adapter requestId bound)"
+  },
+  "complianceRecommendations": {
+    "liveReattestation": "satisfied", "trustAnchorFinalSink": "satisfied",
+    "isolationRefusal": "satisfied-shipped-adapters (edge: binding reporter unknown delegated to adapter internal gate)",
+    "docsCorrections": "satisfied"
+  },
+  "blockers": [
+    { "id": "B1", "issue": "plan record stale", "action": "checkpoint plan" },
+    { "id": "B2", "issue": "T006 artifact missing", "action": "persisted" },
+    { "id": "B3", "issue": "nothing committed", "action": "commit/push/CI" },
+    { "id": "B4", "issue": "T010 off-plan", "action": "added to plan" }
+  ],
+  "nonBlockers": [
+    { "id": "N1", "issue": "no bound tests for long/retry ids", "action": "fixed this iteration" },
+    { "id": "N2", "issue": "T002 rationale cites T010 as future work (now landed)" },
+    { "id": "N3", "issue": "T001 'explicit approved' wording vs approval trail" },
+    { "id": "N4", "issue": "generated live/trend artifacts not gitignored", "action": "fixed this iteration" },
+    { "id": "N5", "issue": "binding-reporter unknown delegated to adapter internal gate (untested shape)" },
+    { "id": "N6", "issue": "plan untracked until commit" }
+  ],
+  "verdictText": "All code tasks gate-green and deliverable; remaining work was plan record + T006 artifact + delivery."
+}

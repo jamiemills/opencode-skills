@@ -18,6 +18,31 @@ const slug = (value) =>
       : `${normalized.slice(0, 98)}-${digest(normalized).slice(7, 19)}`;
   })();
 
+// T010: a child identity must be unique per NODE, not per (phase, skill). Two
+// nodes in one phase may share a skill (same-skill read-only fan-out is allowed
+// up to the capability's maxConcurrency), so nodeId is the stable discriminator
+// and `phaseIndex` a deterministic tiebreaker. The retry identity extends the
+// same base. The node-scoped idempotency key (`<phase.idempotency.key>:<nodeId>`)
+// remains the consistency anchor for resume/reconciliation.
+//
+// Child ids must stay bounded: downstream contracts cap request/run ids (e.g.
+// the csm-autoresearch evaluator-request `requestId` at 100 chars), so the
+// readable form is used when it fits and a digest-token form when it does not.
+const CHILD_RUN_ID_MAX = 96;
+const boundedRunToken = (runId) => {
+  const value = slug(runId);
+  return value.length <= 40 ? value : `${value.slice(0, 28)}-${digest(value).slice(7, 19)}`;
+};
+const childRunIdForNode = (runId, phaseId, nodeId, phaseIndex) => {
+  const readable = `run-${boundedRunToken(runId)}-${slug(phaseId)}-${slug(nodeId)}-${phaseIndex}`;
+  if (readable.length <= CHILD_RUN_ID_MAX) return readable;
+  const compact = `run-${boundedRunToken(runId)}-${digest(`${phaseId}|${nodeId}`).slice(7, 27)}-${phaseIndex}`;
+  if (compact.length <= CHILD_RUN_ID_MAX) return compact;
+  return `run-${boundedRunToken(runId).slice(0, 32)}-${digest(`${phaseId}|${nodeId}|${phaseIndex}`).slice(7, 27)}`;
+};
+const retryChildRunIdForNode = (runId, phaseId, nodeId, phaseIndex, attempt) =>
+  `${childRunIdForNode(runId, phaseId, nodeId, phaseIndex)}-${attempt}`;
+
 function jsonProjection(value) {
   if (value === undefined || typeof value === "function" || typeof value === "symbol")
     return undefined;
@@ -217,6 +242,8 @@ function makeAutonomousFunctionalGate(validatorBindings) {
 
 export {
   slug,
+  childRunIdForNode,
+  retryChildRunIdForNode,
   jsonProjection,
   materialDigest,
   unique,

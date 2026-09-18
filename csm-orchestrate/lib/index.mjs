@@ -40,6 +40,7 @@ import { resolveVerifiedSandboxRuntime } from "./verified-sandbox-runtime.mjs";
 import {
   abortFailure,
   childReceipt,
+  childRunIdForNode,
   defaultGate,
   dispatchIntentFailure,
   invocationApproval,
@@ -48,6 +49,7 @@ import {
   normalizeEvidence,
   progressByReceipt,
   raceDeadline,
+  retryChildRunIdForNode,
   slug,
   stepCapFailure,
   terminalReceipt,
@@ -82,12 +84,16 @@ function durableEvidenceResolver(result) {
       const record = records.get(path);
       if (!record)
         return { status: "missing", code: "missing", message: `missing durable artifact: ${path}` };
+      // T010: a live resolver echoes back the artifact schema at the top level
+      // (a resumed durable evidence record may only carry it under `source`).
+      // Add only that required field: the evidence schema forbids extra
+      // properties, so the durable value must otherwise stay shape-identical.
       return {
         status: "resolved",
         path,
         owner: expected.expectedOwner ?? record.owner,
         fileDigest: expected.expectedFileDigest ?? record.digest,
-        value: record,
+        value: record.schema ? record : { ...record, schema: record.source?.schema },
       };
     },
   };
@@ -698,8 +704,7 @@ async function runOrchestrationInternal({
           edgeId: `edge-${slug(node.nodeId)}`,
         });
         const childRunId =
-          savedCursor?.childRunId ??
-          `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}`;
+          savedCursor?.childRunId ?? childRunIdForNode(runId, phase.phaseId, node.nodeId, index);
         let terminalRecords =
           typeof cursorStore.loadTerminalRecords === "function"
             ? await cursorStore.loadTerminalRecords(childRunId)
@@ -1059,7 +1064,13 @@ async function runOrchestrationInternal({
           const retryBlocked = dispatchBlocked();
           if (retryBlocked) return { node, approval, failure: retryBlocked };
           attempt = decision.nextAttempt;
-          const retryChild = `run-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.skill)}-${index}-${attempt}`;
+          const retryChild = retryChildRunIdForNode(
+            runId,
+            phase.phaseId,
+            node.nodeId,
+            index,
+            attempt,
+          );
           const retryApproval =
             typeof approvals === "function"
               ? await approvals({ phase, node, childRunId: retryChild, attempt })
