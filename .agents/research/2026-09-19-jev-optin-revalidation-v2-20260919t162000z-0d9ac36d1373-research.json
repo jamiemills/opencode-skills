@@ -1,0 +1,532 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "title": "Jev-optin approach re-validation v2 vs HEAD 9314599",
+  "runId": "run-20260919t162000z-0d9ac36d1373",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The Jev-optin approach is still architecturally valid against HEAD 9314599, but the earlier re-validation under-specified two things and must be corrected. (1) requestDigest now has TWO assignment sites (index.mjs:872 primary and :1225 retry), not one; and intake does no runtime schema validation, so request/2 = new schema+registry entry PLUS marker/field extension. (2) The never-Jev boundary must grow from five items to a full enumerated enforcement surface (registry immutability, csm-verification-status/1, build completion.commit/rollback, artifact lifecycleStatus+descriptorDigest, digest anti-fabrication, the security/isolation gate set, classifyResume/retryDecision, review terminal immutability), with Jev output pinned to decision-gate-class (observational). Also: pack decision-points.json via an explicit bootstrap mapping, add the .agents/decisions/ index class, respect the <500 SKILL cap (build 476 / deep-research 472 by gate count), and follow the enforcement docs' additive dual-revision rollout order."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Independent re-validation of the agreed jev-optin approach (csm-approach/1, runId run-20260919t094754z-9a55d6438ca7) against the skills the approach will change, at HEAD 9314599. Source mode hybrid (repository + one vendor doc). Four parallel research tracks (orchestrate runtime anchors; schemas/registry/pack/index; in-loop enforcement surfaces; SKILL budgets + add-only review), then an independent challenge and judge.\n\nPipeline: INTAKE -> TRIAGE(DEEP x hybrid) -> RESEARCH(4 tracks) -> SYNTHESIZE -> CHALLENGE -> JUDGE -> REMEDIATE -> VERIFY -> SAVED.\n\nHeadline: architecture stands; integration detail changed. Two defect-class corrections (second requestDigest site; intake has no validator) and one large scope correction (never-Jev boundary). Independent challenge downgraded 4 claims and the judge returned PASS with min dimension 0.75 (clarity)."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1 supported: architecture still valid; every gate deterministic (claim-arch-valid). K2 supported: requestDigest at :872 AND :1225 (claim-requestdigest-two-sites). K3 supported: intake does no schema validation; request/2 needs schema+registry AND marker/field changes (claim-intake-no-validator). K4 supported: capabilities/2 hard-coded; revision-aware loader required (claim-capabilities-hardcoded). K5 supported: pack decision-points.json via explicit mapping (claim-pack-decision-points). K6 supported: add .agents/decisions/ index class + `## decisions/` heading (claim-decisions-index-class). K7 supported: never-Jev boundary must expand to the full enforcement surface; Jev = decision-gate class (claim-never-jev-expanded). K8 supported: SKILL cap <500; build 476 / deep-research 472 by gate count (claim-skill-line-cap). K9 partially-supported: compatibility matrix rows required but negotiation is dormant in production (claim-compat-dormant). K10 supported: seven enforcement record ids are unregistered and must be code-constructed only (claim-unregistered-receipts)."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "A. Orchestrate anchors. requestDigest: index.mjs:872 and :1225; materialDigest strips only status/requestDigest. intake.mjs:6 ENTRY_ENVELOPE, :9 PLAN_MARKERS, :38 case label (not a field check), :85-90 field checks; no validator import. capabilities.mjs:29-35 hard-codes schema path + revision; loadCapabilities :89-93. activation.mode readers: request-router.mjs:37, phase-compiler.mjs:185,205.\n\nB. Registry/pack/index. Registry fields id/revision/schemaPath/aliases/immutable/unknownFieldPolicy/schemaContentDigest; $id must equal entry id; digest over canonicalized schema. Compatibility pair {schema,producerRevision,consumerRevision,status:compatible,adapter:null}; no request row; createCompatibilityRuntime test/bootstrap-only; artifact-resolver:434 guarded by compatibility truthiness. pack-bootstrap:135-153 copies index.mjs/capabilities.json/lib/schemas/output (+ SKILL.md via generic skills mapping); root decision-points.json needs an explicit entry. agents-index:20-31 needs decisions:'decisions/'; check-suite:1598-1641 enforces correct-section bullet and rejects mis-homed bullets.\n\nC. Enforcement surface (never-Jev). Live-authoritative: registry immutable/reject (schema-runtime:202-203); csm-verification-status/1; build completion.commit/rollback (state.v2:48,59); artifact lifecycleStatus/descriptorDigest; digest anti-fabrication (loop-guard:145, loop-evaluator:191, plan.mjs:520-525); isolationGate/verifyIsolationEvidence; verifyWorkerAttestation/assertNetworkEgressContract; evaluateEgress/verifyEgressChain; aggregateGates; reviewAcceptance; autonomyGate; assertDynamicModeAllowed; validateCapabilities; classifyResume/retryDecision; review terminal immutability. Definition-only (must not be fabricated but not on the live path): validateGateReceipt (no callers), verifyAttestation (test-only). csm-orchestrate-decision-gate/1 is the observational, no-authority class.\n\nD. Corpus/off-surface. validate-corpus-v2 revision-aware and corpus-limited to plans/build-state; .agents/decisions out of scope. 6beb11c off-surface; be130fd enforcement-adjacent."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Proceed with the approach after applying the corrected adaptations, and build it in a wt/jev-optin worktree. Concretely: (A1) anchor the byte-identity differential to BOTH requestDigest sites (:872 and :1225); (A2) add request/2 schema+registry entry AND extend intake markers/field checks; (A3) make capabilities.mjs:29-35/:89-93 revision-aware while preserving activation.mode reads; (A4) register request/2 and capabilities/3 with exact field names and canonical digests; (A5) add compatibility rows for request 1->2 and capabilities 2->3 (status compatible, adapter null) noting negotiation is currently dormant; (A6) pack decision-points.json via an explicit bootstrap mapping (or relocate under lib/); (A7) add the .agents/decisions index class + `## decisions/` heading; (A8) expand the never-Jev boundary to the full enumerated surface and pin Jev output to decision-gate class; (A9) never emit the seven unregistered enforcement ids; (A10) keep decision sections within the <500 cap (build 476, deep-research 472); (A11) follow the enforcement docs' additive dual-revision rollout order with serialized payload/capabilities regeneration; (A12) no extra corpus work for .agents/decisions. Confidence high; the answer would change only if a live compatibility runtime or a new enforcement surface is introduced before the build."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1 unverifiable: the OpenRouter typed-error taxonomy (402/401/403/429/5xx/529/404) is carried from the prior finding and was NOT re-retrieved in this repository-only run; verify against https://openrouter.ai/docs/api-reference/errors before relying on exact names. U2 partially-supported: the compatibility matrix is required by policy but has no production consumer, so its addition is correctness-preserving rather than behavior-changing today; confirm no bootstrap/consumer path activates negotiation before depending on it."
+    },
+    "references": {
+      "id": "references",
+      "content": "ref-repo; ref-orch-index; ref-orch-intake; ref-orch-capabilities; ref-registry; ref-compat; ref-pack; ref-agents-index; ref-check-suite; ref-loop-evaluator; ref-loop-closure; ref-recovery; ref-enforcement-model; ref-validate-corpus; ref-decision-gate; ref-openrouter-errors."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Triage: DEEP x hybrid. Tracks: T1 orchestrate runtime anchors; T2 schemas/registry/pack/index; T3 in-loop enforcement surfaces; T4 SKILL budgets + add-only review + docs. Challenge (independent) verdicts: UPHOLD C2,C3(caveat),C4,C5,C6,C10,C12,C14; DOWNGRADE C7(also copies SKILL.md), C8(gate needs >=1 correct bullet, not exactly one; duplicates undetected), C9(validateGateReceipt no callers; verifyAttestation test-only), C11(counts are wc, gate splitLines +1). Judge scores (reasoning-before-verdict): factual accuracy 0.90, citation accuracy 0.83, completeness 0.80, clarity 0.75; overall PASS (min 0.75 >= 0.7). Remediations applied: intake:38 restated as a case label; negotiate() restated as dormant-not-absent; pack list adds SKILL.md; check-suite semantics corrected; def-only gates separated; gate-count lines used; be130fd restated as enforcement-adjacent; requestDigest :1225 given its own justification. Journal: 0 INTAKE, 1 TRIAGE, 2 RESEARCH, 3 SYNTHESIZE, 4 CHALLENGE, 5 JUDGE, 6 REMEDIATE, 7 VERIFY, 8 SAVED."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-arch-valid",
+      "section": "recommendation",
+      "statement": "The Jev-optin approach remains architecturally valid against HEAD 9314599: no acceptance, security, or completion gate is delegated; the adapter is injected like the executor and all gates stay deterministic.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-repo",
+          "locator": "9314599",
+          "quote": "HEAD inspected read-only across the change surface"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-requestdigest-two-sites",
+      "section": "keyFindings",
+      "statement": "requestDigest is assigned in csm-orchestrate/lib/index.mjs at BOTH :872 (primary request) and :1225 (retry request), so the byte-identity differential must cover both sites; materialDigest strips only {status, requestDigest}.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-orch-index",
+          "locator": "index.mjs:872",
+          "quote": "request.requestDigest = materialDigest(request);"
+        },
+        {
+          "referenceId": "ref-orch-index",
+          "locator": "index.mjs:1225",
+          "quote": "retryRequest.requestDigest = materialDigest(retryRequest);"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-intake-no-validator",
+      "section": "keyFindings",
+      "statement": "csm-orchestrate/lib/intake.mjs performs NO runtime JSON-schema validation of the request envelope; request/2 opt-in therefore requires BOTH a new registered schema+registry entry AND extending the marker const (:6) and light field checks (:85-90), mirroring PLAN_MARKERS (:9).",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-orch-intake",
+          "locator": "intake.mjs:6",
+          "quote": "const ENTRY_ENVELOPE = \"csm-orchestrate-request/1\";"
+        },
+        {
+          "referenceId": "ref-orch-intake",
+          "locator": "intake.mjs:85-90",
+          "quote": "case \"request\": nonEmptyStringField(artifact, \"requestId\"); ..."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-capabilities-hardcoded",
+      "section": "keyFindings",
+      "statement": "csm-orchestrate/lib/capabilities.mjs hard-codes the revision string \"csm-orchestrate-capabilities/2\" and the schema path capabilities.v2.schema.json at :29-35, with loader loadCapabilities at :89-93; a capabilities/3 decision block needs a revision-aware loader here.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-orch-capabilities",
+          "locator": "capabilities.mjs:29-35",
+          "quote": "validate(\"csm-orchestrate-capabilities/2\", manifest)"
+        },
+        {
+          "referenceId": "ref-orch-capabilities",
+          "locator": "capabilities.mjs:89-93",
+          "quote": "loadCapabilities()"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-activation-mode-readers",
+      "section": "detailSections",
+      "statement": ".skills[].activation.mode is consumed for routing only at request-router.mjs:37 and phase-compiler.mjs:185 and :205, never inside capabilities.mjs, so a revision-aware loader must preserve those reads.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-repo",
+          "locator": "csm-orchestrate/lib/request-router.mjs:37",
+          "quote": "entry.activation.mode === \"explicit\""
+        },
+        {
+          "referenceId": "ref-repo",
+          "locator": "csm-orchestrate/lib/phase-compiler.mjs:185,205",
+          "quote": "activation.mode === \"explicit\" / === \"conditional\""
+        }
+      ]
+    },
+    {
+      "claimId": "claim-registry-fields",
+      "section": "detailSections",
+      "statement": "Registry entries use id/revision/schemaPath/aliases/immutable/unknownFieldPolicy/schemaContentDigest; schemaContentDigest equals digest() over the canonicalized schema and the schema $id must equal the entry id.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-registry",
+          "locator": "registry.json:748-756",
+          "quote": "\"id\": \"csm-orchestrate-request/1\", \"revision\": 1, \"schemaPath\": ..."
+        },
+        {
+          "referenceId": "ref-repo",
+          "locator": "lib/schema-runtime/index.mjs:263-268",
+          "quote": "schema.$id !== entry.id ... schemaContentDigest !== digest(schema)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-compat-dormant",
+      "section": "detailSections",
+      "statement": "Additive same-kind compatibility entries require {schema, producerRevision, consumerRevision, status:\"compatible\", adapter:null}; there is no csm-orchestrate-request row, and production never supplies a compatibility runtime (createCompatibilityRuntime is test/bootstrap-only), so artifact-resolver's negotiate() call at :434 is dormant.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-compat",
+          "locator": "compatibility-matrix.json:150-156",
+          "quote": "{ schema, producerRevision:1, consumerRevision:2, status:\"compatible\", adapter:null }"
+        },
+        {
+          "referenceId": "ref-repo",
+          "locator": "lib/artifact-resolver/index.mjs:430-434",
+          "quote": "if (compatibility) compatibility.negotiate(...)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-pack-decision-points",
+      "section": "keyFindings",
+      "statement": "scripts/pack-bootstrap.mjs copies only csm-orchestrate/{index.mjs, capabilities.json, lib/**, schemas/**, output/**} (plus SKILL.md via the generic skills mapping); a root csm-orchestrate/decision-points.json is NOT packed and needs an explicit mapping entry or relocation under lib/.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-pack",
+          "locator": "pack-bootstrap.mjs:135-153",
+          "quote": "index.mjs, capabilities.json, srcDir lib, srcDir schemas, srcDir output"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-decisions-index-class",
+      "section": "keyFindings",
+      "statement": "A tracked .agents/decisions/ artifact class requires a `decisions: \"decisions/\"` map in AGENTS_DIR_SECTION and a `## decisions/` README heading; check-suite requires ≥1 bullet under the correct section and rejects bullets under a non-mapped section (duplicate bullets are not detected).",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-agents-index",
+          "locator": "agents-index.mjs:20-31",
+          "quote": "AGENTS_DIR_SECTION = { plans, research, reviews, approaches, docs, ddd, evidence, progress, builds, csm-build-state }"
+        },
+        {
+          "referenceId": "ref-check-suite",
+          "locator": "check-suite.mjs:1598-1641",
+          "quote": "has no bullet line under the ## <want> section"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-never-jev-expanded",
+      "section": "keyFindings",
+      "statement": "The never-Jev boundary must be expanded beyond evaluator contracts/loop guards/receipts/closure/supersession to also cover schema-registry immutability, csm-verification-status/1, csm-build completion.commit/rollback status, artifact lifecycleStatus+descriptorDigest, digest anti-fabrication, the security/isolation gate set (isolationGate, worker attestation, egress, aggregateGates, adversarial review, autonomyGate, dynamic mode, validateCapabilities), classifyResume/retryDecision, and review terminal immutability; Jev output must be csm-orchestrate-decision-gate/1-class (observational, no acceptance authority).",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-decision-gate",
+          "locator": "decision-gate.schema.json:6",
+          "quote": "Observational only: a fail verdict ... carries no acceptance authority"
+        },
+        {
+          "referenceId": "ref-recovery",
+          "locator": "recovery.mjs:172-251,444-516",
+          "quote": "classifyResume actions; RUN_EVALUATOR_CONTRACT; supersession failClosed"
+        },
+        {
+          "referenceId": "ref-loop-closure",
+          "locator": "loop-closure.mjs:96-124",
+          "quote": "closureRequired / canSaveVerified"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-unregistered-receipts",
+      "section": "detailSections",
+      "statement": "These enforcement record ids are NOT registered in schemas/registry.json: csm-evaluator-receipt/1, csm-plan-evaluator-receipt/1, csm-plan-loop-guard/1, csm-review-closure/1, csm-orchestrate-supersession/1, csm-orchestrate-remainder/1, csm-orchestrate-run-evaluation/1; Jev must never emit them (construction-via-code only).",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-registry",
+          "locator": "registry.json",
+          "quote": "no matches for the seven ids"
+        },
+        {
+          "referenceId": "ref-loop-evaluator",
+          "locator": "loop-evaluator.mjs:21,161-202",
+          "quote": "EVALUATOR_RECEIPT_FORMAT; createEvaluatorReceipt; verifyEvaluatorReceipt"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-skill-line-cap",
+      "section": "keyFindings",
+      "statement": "The SKILL.md cap is strictly <500 enforced at scripts/check-suite.mjs:1185; gate (splitLines) counts are csm-build 476, csm-deep-research 472, csm-review 427, csm-plan 405, csm-orchestrate 98, leaving ~23/27 lines of headroom for the two decision-bearing skills.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-check-suite",
+          "locator": "check-suite.mjs:1185",
+          "quote": "check(lines.length < 500, `${skill}/SKILL.md size ...`);"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-corpus-validator",
+      "section": "detailSections",
+      "statement": "scripts/validate-corpus-v2.mjs now validates records under their declared /1 or /2 revision and enumerates only .agents/plans/*.json + .agents/csm-build-state/*.json, so .agents/decisions/** and decision-points.json are out of its corpus.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-validate-corpus",
+          "locator": "validate-corpus-v2.mjs:44-45,131-140",
+          "quote": "git ls-files .agents/plans/*.json .agents/csm-build-state/*.json; wantRevision = isV1 ? 1 : 2"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-off-surface-commits",
+      "section": "detailSections",
+      "statement": "Commit 6beb11c (csm-browse daemon/tests) is off the Jev change surface; be130fd is enforcement-adjacent (validate-corpus-v2.mjs + enforcement-acceptance test) rather than cleanly off-surface.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-repo",
+          "locator": "6beb11c..9314599",
+          "quote": "git show --stat"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-enforcement-docs-order",
+      "section": "recommendation",
+      "statement": "docs/enforcement-model.md and enforcement-compatibility.md mandate additive dual-revision schemas (readers accept both, writers emit one, unknown revisions fail closed), per-run-local state with no skills-dir lock, and a rollout order that lands schemas+readers+corpus first, one loop at a time, with serialized regeneration of bootstrap payload and capabilities.json; the Jev build must follow that order.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-enforcement-model",
+          "locator": "enforcement-model.md:105-182",
+          "quote": "additive /2 dual-revision; rollout order; serialized regeneration"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-openrouter-typed-errors",
+      "section": "unverifiedClaims",
+      "statement": "Fail-open classification uses OpenRouter typed errors (402 payment_required, 401 authentication, 403 permission_denied, 429 rate_limit_exceeded, 5xx/529 provider faults, 404 not_found); carried from the prior finding and NOT re-retrieved in this repository-only run.",
+      "claimType": "condition",
+      "verdict": "unverifiable",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-openrouter-errors",
+          "locator": "api-reference/errors",
+          "quote": "typed error taxonomy"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-repo",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "repository (git checkout)",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-orch-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-orchestrate/lib/index.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-orch-intake",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-orchestrate/lib/intake.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-orch-capabilities",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-orchestrate/lib/capabilities.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-registry",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/schemas/registry.json",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-compat",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/schemas/compatibility-matrix.json",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-pack",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/scripts/pack-bootstrap.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-agents-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/scripts/lib/agents-index.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-check-suite",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/scripts/check-suite.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loop-evaluator",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-plan/lib/loop-evaluator.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loop-closure",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-review/lib/loop-closure.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-recovery",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-orchestrate/lib/recovery.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enforcement-model",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/docs/enforcement-model.md",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-validate-corpus",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/scripts/validate-corpus-v2.mjs",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-decision-gate",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/9314599/csm-orchestrate/schemas/decision-gate.schema.json",
+      "publisher": "repository source",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-openrouter-errors",
+      "url": "https://openrouter.ai/docs/api-reference/errors",
+      "publisher": "OpenRouter documentation",
+      "retrievedAt": "2026-09-19",
+      "sourcePosture": "vendor-documentation"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Resolved git root, run id, target HEAD 9314599; created finding scaffold.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "Classified DEEP x hybrid; defined four in-scope tracks.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "Dispatched four parallel read-only tracks over the Jev change surface.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "Primary-only synthesis of draft claims with file:line evidence.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "Independent challenger re-located every citation; 4 downgrades.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "Independent judge scored rubric; overall PASS.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "Applied all challenge/judge corrections to the draft.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "Schema-validated against csm-research/1; citations resolve at HEAD.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "Wrote the JSON finding under .agents/research/.",
+      "occurredAt": "2026-09-19T16:20:00.000Z",
+      "cycle": 0
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-19T16:20:00.000Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}
