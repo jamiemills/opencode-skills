@@ -3,7 +3,7 @@
   "schemaRevision": 1,
   "task": "T009",
   "plan": "2026-09-14-csm-completion-fixes-csm.json",
-  "generatedAt": "2026-09-19T11:30:07.825Z",
+  "generatedAt": "2026-09-19T14:06:06.005Z",
   "generator": "tests/enforcement-acceptance.test.mjs",
   "node": "v22.23.2",
   "assertionsExpected": 8,
@@ -51,11 +51,11 @@
     },
     {
       "id": "A2-corpus-strict-v2",
-      "title": "the canonical corpus validates under strict /2 with zero failures",
+      "title": "the canonical corpus validates under its declared revisions with zero failures",
       "status": "pass",
       "evidence": {
         "command": "node scripts/validate-corpus-v2.mjs",
-        "records": 82,
+        "records": 83,
         "failures": 0,
         "exitCode": 0
       }
@@ -66,8 +66,8 @@
       "status": "pass",
       "evidence": {
         "concurrency": 4,
-        "concurrentElapsedMs": 1663,
-        "singleElapsedMs": 934,
+        "concurrentElapsedMs": 1832,
+        "singleElapsedMs": 1116,
         "skillsLocks": []
       }
     },
