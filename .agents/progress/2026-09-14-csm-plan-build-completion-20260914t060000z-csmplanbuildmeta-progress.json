@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-csm-plan-build-completion-20260914",
+  "runId": "run-20260914t060000z-csmplanbuildmeta",
+  "skill": "csm-deep-research",
+  "goal": "Identify why csm-plan/csm-build sessions stop with work remaining and fix the instruction-level causes",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Question",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Challenge",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Finding",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-14T06:00:00.000Z",
+  "updatedAt": "2026-09-19T06:38:00.431Z"
+}

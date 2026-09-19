@@ -1,0 +1,564 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-csm-plan-build-completion-20260914",
+  "runId": "run-20260914t060000z-csmplanbuildmeta",
+  "title": "Why csm-plan/csm-build Sessions Stop With Work Remaining",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Stopping is caused by a few instruction/harness defects, not model limits. Ranked: (1) acceptance signals may be disjunctive ('Either ... OR record a deferral') and csm-build's Completion Gate reads task STATUS, so tasks are marked completed with the feature unbuilt; (2) the canonical JSON plans and build-state records are ungated, and the build-state cursor is inconsistent with the SKILL, so the durable record is abandoned; (3) the 'do not stop' rule is prose-only with no deterministic completion gate; (4) the tmux bootstrap can end the invocation before work runs; (5) successor-plan proliferation is enabled by the missing typed supersession field. Fix = make these deterministic (Stop-gate, single positive acceptance signals, supersession field, mandatory gated plan close)."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: why do csm-plan/csm-build sessions stop with work remaining? Four tracks (csm-build SKILL/lib, csm-plan SKILL/schema, artifact corpus, external practice) were synthesized, challenged, and judged (v1 failed the judge on factual/citation accuracy and was remediated).\n\n```text\nQuestion -> Triage (DEEP x hybrid)\n  -> R1 csm-build -> R2 csm-plan -> R3 corpus (60 plans) -> R4 external\n  -> Synthesis -> Challenge -> Judge (fail) -> Remediate -> Verified finding\n```\n\nHeadline: the completion doctrine (checkpoint != complete; runnable acceptance signals; resumable cursor) is sound and in places exceeds external practice, but enforcement is prose-only and the plan schema accepts signals the SKILL forbids. Corpus: 60 plans (30 complete/16 in_progress/9 ready/5 blocked), 429 tasks, 198 pending / 230 open; 21 plans for one goal."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported — acceptance-signal validation gap + status-only Completion Gate let completed tasks carry unbuilt deliverables [ref-plan-skill][ref-plan-schema][ref-plan-finalwork][ref-plan-remainder].\nK2. supported — canonical JSON plans are ungated; the plan-corpus check filters *-csm.md [ref-check-suite].\nK3. partially-supported — build-state cursor pins nextTransition to the first transition, inconsistent with the SKILL; CHECKPOINT->COMPLETE is legal/tested [ref-build-state][ref-build-tests].\nK4. supported — 'do not stop' is prose-only; no deterministic completion gate [ref-build-skill][ref-check-suite].\nK5. partially-supported — tmux bootstrap can end the invocation pre-execution (design intent is a detached runner) [ref-build-skill].\nK6. partially-supported — supersession only lacks a typed schema field; resolvable out-of-band; 21 DWRR plans [ref-plan-schema][ref-readme].\nK7. supported — the durable record is left unclosed (9 complete-with-open-tasks; 9/23 build-state non-terminal) [ref-plan-lib][ref-build-state].\nK8. supported — input-gate contradiction (five required vs DDD/norms optional) and current-context bypassing the Completion Gate [ref-build-state][ref-build-ctx].\nK9. supported — external practice separates the stop decision from the worker (Stop hook / evaluator) and adds run-level ceilings; CSM lacks both [ref-cc-best][ref-cc-hooks][ref-cc-goal]."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1 Acceptance-signal escape: the SKILL mandates one positive signal but the schema permits any non-empty string, so 5 DWRR task rows marked completed took the 'OR record a deferral' branch [ref-plan-skill][ref-plan-schema][ref-plan-finalwork][ref-plan-remainder].\n\nD2 Ungated canonical record: check-suite validates only *-csm.md; 60 JSON plans and 23 build-state files are unchecked; the build-state validator pins nextTransition to the first transition (cursor mismatch, not a rejected transition) [ref-check-suite][ref-build-state][ref-build-tests].\n\nD3 Stop authorities: tmux bootstrap step 4; 'incomplete' output status; REPAIR two-attempt stop; BLOCKED rules; orchestrate maxAttempts default 2 [ref-build-skill][ref-build-out][ref-co-recovery].\n\nD4 Input-gate contradiction: lib requires all five inputs; SKILL labels DDD/norms optional; current-context auto-walks to COMPLETE without the Completion Gate [ref-build-state][ref-build-skill][ref-build-ctx].\n\nD5 Proliferation: no typed supersession field; 21 DWRR plans; supersession tracked in README prose [ref-plan-schema][ref-readme].\n\nD6 Corpus: 60 plans/429 tasks/198 pending/230 open; build-state 9/23 non-terminal (BLOCKED terminal); 9 complete-with-open-tasks; recurring journal text uncommitted (22), deferred (9), superseded (10) [ref-plan-lib][ref-build-state].\n\nD7 External: deterministic Stop hook blocks turn end until a script passes; TaskCompleted blocks completion; /goal uses a separate evaluator; run-level no-progress/budget ceilings. CSM has the doctrine, not the enforcement [ref-cc-best][ref-cc-hooks][ref-cc-goal]."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Recommend: treat this as an instruction/harness defect set and fix it deterministically; the doctrine is sound. Confidence: high on causes; medium on fix efficacy until trialed.\n\nPrioritized fixes:\n1. Require each acceptanceSignal to be one positive runnable command that fails until the deliverable exists; forbid 'Either ... OR defer' (add a lint); make genuine deferrals their own blocked task with the user decision required [K1].\n2. Extend check-suite's plan gate to the canonical *-csm.json plans and the csm-build-state records; fail on pending/in_progress without a recorded blocker [K2][K7].\n3. Add a first-class typed supersession field to the plan schema and require creation to close the predecessor [K6].\n4. Add a deterministic stop gate (Stop-hook analogue) so the COMPLETE vs continue decision is not self-judged; add run-level no-progress/budget ceilings [K9].\n5. Reconcile the build-state cursor: accept/derive the declared next transition and require the record be written via the lib [K3].\n6. Make tmux bootstrap conditional, and never end an invocation with a non-terminal Control unless PAUSED/BLOCKED was written [K5].\n7. Fix the input-gate contradiction and run the Completion Gate inside the current-context path [K8].\n8. Add a commit-ledger field and reconcile obligations at CHECKPOINT [claim-commit-stale][claim-obligations].\n\nWhat would change the answer: a controlled trial showing the fixes do not reduce stops per run. Cost of being wrong: continued re-planning churn (21 plans for one goal) and features closed as 'completed' while unbuilt."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. Whether the fixes empirically reduce premature stops needs a controlled trial. U2. The proportion of the 198 pending tasks genuinely unbuilt vs re-homed into successors is unresolved (no per-task git ownership mapping). U3. Some complete plans carry open tasks by legitimate reconciliation against successors; the corpus cannot always distinguish that from an unclosed record."
+    },
+    "references": {
+      "id": "references",
+      "content": "R1-R17 as enumerated in the References array (workspace sources at commit 0cf2ffe; Anthropic docs retrieved 2026-09-14)."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier DEEP x hybrid. Tracks R1-R4. Synthesized primary-led; independent challenger (downgraded claim-state-validator to a cursor defect, corrected record-unclosed counts to 9/23 non-terminal, recast deferral-signals as a validation gap, softened proliferation, added the ungated-JSON claim) and judge (v1 FAIL factual 0.40 / citation 0.60; remediated to v2). VERIFY primary-personal."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-tmux",
+      "section": "keyFindings",
+      "claimType": "mechanism",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "csm-build's Tmux Session Bootstrap is the mandated first step and step 4 says to end the invocation when a detached session was launched; on a host without an already-active tmux session the normal case hits this and the current invocation ends before execution — although the intent is that the detached session runs the build.",
+      "citations": [
+        {
+          "referenceId": "ref-build-skill",
+          "locator": "Tmux Session Bootstrap step 4",
+          "quote": "If a new detached session was launched, end the invocation — tmux does the build from the start."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-state-cursor",
+      "section": "keyFindings",
+      "claimType": "mechanism",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "statement": "The canonical build-state cursor is inconsistent with the SKILL: the validator pins control.nextTransition to the FIRST transition of the current state, so a record parked at CHECKPOINT must declare 'CHECKPOINT -> SELECT' even though the SKILL tells the agent to choose SELECT/COMPLETE/BLOCKED and record the exact next transition. CHECKPOINT->COMPLETE itself is legal and tested (state.mjs:38; build-json-control.test.mjs), so the defect is a cursor-vocabulary mismatch, not a rejected transition.",
+      "citations": [
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:56-61",
+          "quote": "next transition does not match the lifecycle state"
+        },
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:38",
+          "quote": "[\"CHECKPOINT\", [\"SELECT\", \"COMPLETE\", \"BLOCKED\"]]"
+        },
+        {
+          "referenceId": "ref-build-tests",
+          "locator": ":19-33",
+          "quote": "walks CHECKPOINT -> COMPLETE and asserts validity"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":191,:340-351",
+          "quote": "From CHECKPOINT, transition to SELECT, COMPLETE, or BLOCKED"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-nostop-gate",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The 'do not stop after one task or cycle' rule is prose-only: no gate enforces continuation or task completion, and the plan-corpus gate in check-suite only covers '*-csm.md' projections, so the canonical 'csm-plan/1' JSON corpus (60 files) is not validated by CI.",
+      "citations": [
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":87",
+          "quote": "Do not stop after one task or cycle"
+        },
+        {
+          "referenceId": "ref-check-suite",
+          "locator": ":1487",
+          "quote": "filters plans ending in -csm.md"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-input-gate",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "csm-build's executable input gate requires all five inputs (plan/bdd/tests/ddd/norms) unconditionally, while the SKILL labels only DDD/norms optional (NORMS.md 'entirely optional') and treats plan/bdd/tests as required; and the current-context executor auto-walks INTEGRATE->CHECKPOINT->COMPLETE via completeBuild without evaluating Completion Gate conditions 1-8.",
+      "citations": [
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:305-315",
+          "quote": "build input ... was refused"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":140,:178",
+          "quote": "NORMS.md is entirely optional"
+        },
+        {
+          "referenceId": "ref-build-ctx",
+          "locator": "current-context.mjs:278-296",
+          "quote": "auto-walk then completeBuild"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-deferral-gap",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The strongest single cause is a validation/enforcement gap: csm-plan's SKILL mandates exactly one positive runnable acceptance signal (SKILL.md:358), but the schema only requires a non-empty string (csm-plan.schema.json:109) and no lint rejects disjunctive 'Either ... OR record/document/keep a deferral' signals; csm-build Completion Gate #1 then reads task STATUS, so tasks are marked completed with the feature unbuilt (observed in 5 tasks across the two 2026-09-14 DWRR plans).",
+      "citations": [
+        {
+          "referenceId": "ref-plan-skill",
+          "locator": ":358",
+          "quote": "the one runnable command/test whose pass objectively proves this task done"
+        },
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": ":109",
+          "quote": "acceptanceSignal: { type: string, minLength: 1 }"
+        },
+        {
+          "referenceId": "ref-plan-finalwork",
+          "locator": "tasks[].acceptanceSignal",
+          "quote": "Either ... OR the opt-in decision is explicitly recorded"
+        },
+        {
+          "referenceId": "ref-plan-remainder",
+          "locator": "tasks[].acceptanceSignal",
+          "quote": "OR the scope decision ... is explicitly recorded"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":384",
+          "quote": "Every numbered task is completed or explicitly excluded"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-proliferation",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "Successor-plan proliferation is enabled by the absence of a typed in-artifact supersession field: csm-plan.schema.json is additionalProperties:false with no supersedes/supersededBy property, while csm-build looks for a 'typed supersession pointer' in the descriptor. Supersession is nonetheless resolvable out-of-band via .agents/README.md prose and 'closed as superseded' nextTransition strings; the dynamic-worker-runtime goal spans 21 plans (12 frozen siblings).",
+      "citations": [
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": "additionalProperties:false",
+          "quote": "no supersedes/supersededBy property"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":172",
+          "quote": "Check the selected JSON descriptor for its typed supersession pointer"
+        },
+        {
+          "referenceId": "ref-readme",
+          "locator": "superseded-by index lines"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-record-unclosed",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The corpus shows records left unclosed: 9 plans marked complete still carry open tasks; 3 non-complete plans carry no status:'pending' tasks (though they hold in_progress/blocked tasks, so they are not simply 'done-but-unclosed'); and build-state records are 9/23 non-terminal (BLOCKED is terminal, so 14/23 terminal). Aggregate: 60 plans, 429 tasks, 198 pending, 230 open.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "semanticErrors has no task-completion rule"
+        },
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:28",
+          "quote": "terminal = COMPLETE, BLOCKED"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-commit-stale",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "statement": "Commit policy is a static string ('commits: disabled') with no commit-ledger field in the plan schema; 34/60 plans are 'disabled' (9/14 recent completes) even though the work was committed by successors, so the record cannot distinguish uncommitted work and stalls at CHECKPOINT.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": "control has no commit-ledger field"
+        },
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "control.commits"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-activation",
+      "section": "detailSections",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "csm-plan's planning terminal (SAVED) is not the artifact's terminal: plans are born ready/NOT_STARTED and only a later human message starts them, with no owner/trigger; 9 plans are ready/NOT_STARTED carrying 57 status:'pending' tasks.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-skill",
+          "locator": "Activation Boundary",
+          "quote": "Never auto-start after csm-plan"
+        },
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "createPlanArtifact",
+          "quote": "currentState: NOT_STARTED"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-obligations",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "statement": "Applicability obligations form a mostly unclosed second gate: across 54 applicability records (52 warranted), 51 keep every obligation 'required' and only 1 carries 'satisfied' obligations; neither skill instructs an obligation-status update at CHECKPOINT, and Completion Gate #1 does not consult obligations.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "obligation status vocabulary",
+          "quote": "required|satisfied|missing|not_applicable|unverified"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-stop-forks",
+      "section": "detailSections",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "statement": "Legal low-evidence stop forks exist: 'incomplete' is an accepted executor status with no repair path; REPAIR stops after two attempts; broad BLOCKED rules; and the orchestrate handoff retries at most maxAttempts (default 2, csm-orchestrate/lib/recovery.mjs).",
+      "citations": [
+        {
+          "referenceId": "ref-build-out",
+          "locator": "output.schema.json:52",
+          "quote": "completed\",\"cancelled\",\"incomplete\",\"blocked\",\"failed"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":337",
+          "quote": "After two failed attempts ... stop patching"
+        },
+        {
+          "referenceId": "ref-co-recovery",
+          "locator": "maxAttempts default 2"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-external-gap",
+      "section": "recommendation",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "External practice separates the stop decision from the worker: a deterministic Stop hook runs a check as a script and blocks the turn from ending until it passes (8-block override), and TaskCompleted can prevent a task being marked complete; /goal uses a separate evaluator model that sends the agent back to work. csm-build has none of these — the stop decision is self-judged at CHECKPOINT and enforcement is prose-only; it also has no run-level no-progress/budget ceiling.",
+      "citations": [
+        {
+          "referenceId": "ref-cc-best",
+          "locator": "best practices",
+          "quote": "a Stop hook runs your check as a script and blocks the turn from ending until it passes"
+        },
+        {
+          "referenceId": "ref-cc-hooks",
+          "locator": "Stop / TaskCompleted",
+          "quote": "decision:\"block\" prevents Claude from stopping"
+        },
+        {
+          "referenceId": "ref-cc-goal",
+          "locator": "/goal",
+          "quote": "a small fast model checks whether the condition holds ... starts another turn"
+        },
+        {
+          "referenceId": "ref-loops-blog",
+          "locator": "goal loops",
+          "quote": "deterministic criteria ... are so effective"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-json-ungated",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The canonical csm-plan/1 JSON plans are ungated: check-suite's plan-corpus loop filters files ending '-csm.md', so the authoritative JSON plans (60 files) escape Control/journal/task validation in CI — drift in the durable record is invisible.",
+      "citations": [
+        {
+          "referenceId": "ref-check-suite",
+          "locator": ":1487",
+          "quote": "filters *-csm.md"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-efficacy-unverified",
+      "section": "unverifiedClaims",
+      "claimType": "projected-outcome",
+      "verdict": "unverifiable",
+      "confidence": "medium",
+      "statement": "Whether fixing these instruction-level issues actually makes a csm-build run continue to completion is not yet demonstrated; it requires a controlled trial (apply the fixes, run a plan to COMPLETE, measure stops per run).",
+      "citations": [
+        {
+          "referenceId": "ref-loops-blog",
+          "locator": "goal loops",
+          "quote": "deterministic criteria ... are so effective"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-build-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/SKILL.md",
+      "publisher": "workspace csm-build SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-build-state",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/lib/state.mjs",
+      "publisher": "workspace csm-build lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-build-ctx",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/lib/current-context.mjs",
+      "publisher": "workspace csm-build lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-build-out",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/schemas/output.schema.json",
+      "publisher": "workspace csm-build schema",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-build-tests",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/tests/build-json-control.test.mjs",
+      "publisher": "workspace test",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-plan/SKILL.md",
+      "publisher": "workspace csm-plan SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-plan-lib",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-plan/lib/plan.mjs",
+      "publisher": "workspace csm-plan lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-schema",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-plan/schemas/csm-plan.schema.json",
+      "publisher": "workspace csm-plan schema",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-finalwork",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/.agents/plans/2026-09-14-dynamic-worker-runtime-final-work-csm.json",
+      "publisher": "workspace plan",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-remainder",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/.agents/plans/2026-09-14-dynamic-worker-runtime-remainder-closure-csm.json",
+      "publisher": "workspace plan",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-co-recovery",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-orchestrate/lib/recovery.mjs",
+      "publisher": "workspace csm-orchestrate lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-check-suite",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/scripts/check-suite.mjs",
+      "publisher": "workspace script",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-readme",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/.agents/README.md",
+      "publisher": "workspace index",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-cc-best",
+      "url": "https://code.claude.com/docs/en/best-practices",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-cc-hooks",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-cc-goal",
+      "url": "https://code.claude.com/docs/en/goal",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-loops-blog",
+      "url": "https://claude.com/blog/getting-started-with-loops",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "intake-recorded",
+      "occurredAt": "2026-09-14T06:00:00.000Z",
+      "cycle": 0,
+      "trigger": "explicit csm-deep-research invocation"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "triaged DEEP x hybrid",
+      "occurredAt": "2026-09-14T06:02:00.000Z",
+      "cycle": 0,
+      "trigger": "high-stakes meta question"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "4 parallel tracks returned",
+      "occurredAt": "2026-09-14T06:20:00.000Z",
+      "cycle": 0,
+      "trigger": "R1-R4"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "draft v1 produced",
+      "occurredAt": "2026-09-14T06:30:00.000Z",
+      "cycle": 0,
+      "trigger": "evidence pack complete"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "challenger downgraded state-validator/record-unclosed/proliferation, added ungated-JSON claim",
+      "occurredAt": "2026-09-14T06:40:00.000Z",
+      "cycle": 1,
+      "trigger": "adversarial disproof"
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "judge FAIL factual 0.40 / citation 0.60 / completeness 0.72 / clarity 0.75",
+      "occurredAt": "2026-09-14T06:50:00.000Z",
+      "cycle": 1,
+      "trigger": "rubric scoring"
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "draft v2: cursor defect recast, counts corrected (9/23, 198/230), deferral recast as validation gap, proliferation softened, new ungated-JSON claim, citations fixed",
+      "occurredAt": "2026-09-14T07:00:00.000Z",
+      "cycle": 1,
+      "trigger": "challenger downgrades + judge fail"
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "verified: judge-flagged dimensions addressed; 8 sections; refs have URL+date; protected-state diff limited to corpus + progress + temp",
+      "occurredAt": "2026-09-14T07:10:00.000Z",
+      "cycle": 1,
+      "trigger": "primary-personal gate"
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "saved to corpus",
+      "occurredAt": "2026-09-14T07:12:00.000Z",
+      "cycle": 1,
+      "trigger": "all gates pass"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-14T07:12:00.000Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}
