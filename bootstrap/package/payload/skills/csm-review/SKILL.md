@@ -90,6 +90,15 @@ Every finding and every verification records the rung it ran at. Posture is sele
 - Hands off: findings feed a future explicit csm-plan or csm-grill invocation (human-mediated); a human may separately and explicitly dispatch csm-review-python for Python doctrine analysis, and that analyzer owns its `.agents/doctrine/` report write.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-scan, csm-upload, csm-make-tests, csm-ddd, csm-autoresearch
 
+## Jev Decision Points
+
+Optional Jev input (off unless opted in) applies add-only and owns no gate or verdict.
+
+- `review-assignment` (apply, ADD-ONLY): Jev may only ADD reviewers or dimensions; it can never remove a reviewer, change a verdict, or reduce coverage.
+- `secret-pre-flag` (`secret-preflag`; advisory): Jev may pre-flag likely secret locations for the deterministic secret scan; the scan remains authoritative.
+
+`closure`, `verificationStatus`, `canSaveVerified`, severity, and evidence-class authority stay untouched — Jev can only add review.
+
 ## Human Findings Projection
 
 The human projection entrypoint is `csm-review/lib/human-projection.mjs` and

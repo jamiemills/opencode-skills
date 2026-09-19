@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-capabilities/3",
+  "title": "CSM orchestrate capability manifest (v3)",
+  "description": "Additive v3 adding an OPTIONAL per-skill decision block that declares the host-mediated typed-decision transport (default off: enabled=false, provider openrouter, points the enabled decision points). v1 and v2 remain frozen; the decision block is optional so /2 records remain valid under the v2 schema and /3 records may omit it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "schemaRevision", "contentDigest", "skills", "coordinator"],
+  "properties": {
+    "schema": {
+      "const": "csm-orchestrate-capabilities/3"
+    },
+    "version": {
+      "const": 3
+    },
+    "schemaRevision": {
+      "const": 3
+    },
+    "contentDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/capability"
+      }
+    },
+    "coordinator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skill", "version", "role", "entrypoint", "execution"],
+      "properties": {
+        "skill": {
+          "const": "csm-orchestrate"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "const": "coordinator"
+        },
+        "entrypoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "missingExecutor"],
+          "properties": {
+            "mode": {
+              "const": "explicit-in-process-injection"
+            },
+            "missingExecutor": {
+              "const": "BLOCKED"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "skill": {
+      "type": "string",
+      "pattern": "^csm-[a-z0-9-]+$"
+    },
+    "schemaRef": {
+      "type": "string",
+      "pattern": "^csm-[a-z0-9-]+/[1-9][0-9]*$"
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isolation", "network", "credentials", "workspace", "attestation"],
+      "properties": {
+        "isolation": {
+          "enum": ["trusted-in-process", "snapshot-process", "verified-sandbox"]
+        },
+        "network": {
+          "enum": ["disabled", "broker"]
+        },
+        "credentials": {
+          "enum": ["none", "host-mediated"]
+        },
+        "workspace": {
+          "enum": ["worktree", "tmpfs"]
+        },
+        "attestation": {
+          "enum": ["none", "required"]
+        }
+      }
+    },
+    "decomposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "bound"],
+      "properties": {
+        "strategy": {
+          "enum": [
+            "fixed",
+            "ready-set",
+            "dimension-chunk",
+            "angle-panel",
+            "gap-surface",
+            "population"
+          ]
+        },
+        "bound": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "workerRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "schema"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,63}$"
+        },
+        "kind": {
+          "enum": [
+            "proposer",
+            "executor",
+            "reviewer",
+            "challenger",
+            "judge",
+            "verifier",
+            "evaluator"
+          ]
+        },
+        "schema": {
+          "$ref": "#/$defs/schemaRef"
+        }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxConcurrency", "maxDepth", "maxAgents", "maxItems"],
+      "properties": {
+        "maxConcurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxAgents": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "milestones": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "weightPercent"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^M[1-9][0-9]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weightPercent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skill",
+        "version",
+        "digest",
+        "source",
+        "activation",
+        "inputs",
+        "outputs",
+        "permissions",
+        "effects",
+        "approvalClass",
+        "retryability",
+        "idempotency",
+        "recovery",
+        "parallelism",
+        "reviewLevel",
+        "terminal"
+      ],
+      "properties": {
+        "skill": {
+          "$ref": "#/$defs/skill"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skillPath", "producerPath"],
+          "properties": {
+            "skillPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "producerPath": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "activation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "predicate"],
+          "properties": {
+            "mode": {
+              "enum": ["explicit", "conditional"]
+            },
+            "predicate": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "required"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "enum": ["request", "artifact", "repository", "configuration", "host"]
+              },
+              "schema": {
+                "$ref": "#/$defs/schemaRef"
+              },
+              "required": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "terminal"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "enum": ["artifact", "receipt", "implementation", "evidence", "projection"]
+              },
+              "schema": {
+                "$ref": "#/$defs/schemaRef"
+              },
+              "terminal": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "read",
+              "write",
+              "execute",
+              "network",
+              "credentials",
+              "browser",
+              "publish",
+              "destructive"
+            ]
+          }
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "read-only",
+              "workspace-write",
+              "external-side-effect",
+              "credential-use",
+              "browser-session",
+              "publication",
+              "destructive"
+            ]
+          }
+        },
+        "approvalClass": {
+          "enum": ["none", "human", "host", "human-and-host"]
+        },
+        "retryability": {
+          "enum": ["never", "safe", "bounded"]
+        },
+        "idempotency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "key"],
+          "properties": {
+            "mode": {
+              "enum": ["not-applicable", "natural", "required", "forbidden"]
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "recovery": {
+          "enum": ["resume", "restart", "terminal", "blocked"]
+        },
+        "parallelism": {
+          "enum": ["serial", "independent-read-only"]
+        },
+        "reviewLevel": {
+          "enum": ["none", "standard", "adversarial", "final"]
+        },
+        "terminal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior", "statuses"],
+          "properties": {
+            "behavior": {
+              "type": "string",
+              "minLength": 1
+            },
+            "statuses": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "execution": {
+          "$ref": "#/$defs/execution"
+        },
+        "decomposition": {
+          "$ref": "#/$defs/decomposition"
+        },
+        "workerRoles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/workerRole"
+          }
+        },
+        "bounds": {
+          "$ref": "#/$defs/bounds"
+        },
+        "milestones": {
+          "$ref": "#/$defs/milestones"
+        },
+        "decision": {
+          "$ref": "#/$defs/decision",
+          "description": "Optional host-mediated typed-decision declaration; absent means the layer is off for this skill."
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the host-mediated decision layer is active for this skill; default off."
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Provider id used for this skill's decision points when enabled (host-mediated transport)."
+        },
+        "points": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Decision-point ids enabled for this skill; absent means the declared default point set."
+        }
+      }
+    }
+  }
+}

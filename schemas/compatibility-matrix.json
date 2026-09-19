@@ -216,6 +216,27 @@
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
+    },
+    {
+      "schema": "csm-decision",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-capabilities",
+      "producerRevision": 2,
+      "consumerRevision": 3,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-request",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
     }
   ],
   "adapters": [

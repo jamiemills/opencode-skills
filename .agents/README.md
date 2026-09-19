@@ -115,6 +115,10 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 - `2026-09-19-jev-optin-csm.json` — 2026-09-19 — plan (ready, NOT_STARTED; csm-plan/1): single all-phase plan for the optional, user-initiated Jev typed-decision layer (13 decisions D1-D13; 23 tasks T001-T023 across P1 foundation/shadow, P2 live opt-in + guarded routing, P3 full apply + advisory breadth, P4 hardening/observability); incorporates the 2026-09-19 re-validation adaptations (requestDigest :872, capabilities/3 + revision-aware loader, request/2 + dual-accept intake, registry/compatibility-matrix, decision-points.json packing, .agents/decisions/ index class, extended never-Jev boundary) — status: ready
 
+## decisions/
+
+- `2026-09-19-jev-optin-sample.json` — 2026-09-19 — sample tracked Jev typed-decision record (csm-decision/1, noul answer, advisory routing, not applied) — status: reference
+
 ## docs/
 
 - `2026-08-30-progress-followups-t002-inventory.json` — 2026-08-30 — T002 untracked artifact inventory and retention evidence — status: reference

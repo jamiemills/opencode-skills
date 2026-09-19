@@ -310,3 +310,10 @@ File rules: one file type, one purpose; stable filenames; no mixed concerns; hum
 - Tasks derived from approved scenarios only, each with attached test designs, TDD-ordered actions, and a runnable acceptance signal.
 - Traceability complete: intention → spec → scenarios → tasks → test designs.
 - New mutated plan saved (source plan unchanged except the appended pointer line), specs folder path recorded in it, full validation gate passed, and context minimized for the build phase.
+
+## Jev Advisory Ranking
+
+Jev may provide ADVISORY rankings for this conditional skill; the rankings
+NEVER gate routing, alter a verdict, or touch any acceptance, security, or
+completion gate. The layer is off by default and observational, so absent or
+disabled behavior is unchanged.

@@ -213,6 +213,8 @@ async function runOrchestrationInternal({
   parentPhaseId = null,
   phaseIdOverride = null,
   remainderPolicy = null,
+  // T010: optional injected Jev decision adapter for guarded route selection.
+  decisionAdapter = null,
 } = {}) {
   if (!RUN_ID.test(runId ?? "")) throw new TypeError("canonical parent runId is required");
   if (telemetryEmitter && !effectiveConfigDigest)
@@ -371,6 +373,8 @@ async function runOrchestrationInternal({
     signals,
     parentPhaseId,
     phaseIdOverride,
+    // T010: absent/null adapter leaves the compile options byte-identical.
+    ...(decisionAdapter ? { decisionAdapter } : {}),
   });
   // T003: opt-in hybrid dynamic mode. A model-proposed worker set is validated
   // and compiled into a canonical csm-orchestrate-phase/2 phase appended to the

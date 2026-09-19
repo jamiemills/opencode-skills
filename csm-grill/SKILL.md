@@ -257,3 +257,10 @@ flowchart LR
 - Exactly one approach document saved at the required path and displayed (scale-gated for small/quick runs).
 - Temp dir deleted; nothing else written — no plans, specs, code, or other docs.
 - No plan started, no implementation started, no csm-plan or csm-build invoked.
+
+## Jev Advisory Ranking
+
+Jev may provide ADVISORY rankings for this conditional skill; the rankings
+NEVER gate routing, alter a verdict, or touch any acceptance, security, or
+completion gate. The layer is off by default and observational, so absent or
+disabled behavior is unchanged.

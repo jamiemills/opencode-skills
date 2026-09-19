@@ -25,6 +25,7 @@ const SCHEMA_FILES = [
   "child-attempt.v1.schema.json",
   "telemetry-event.v2.schema.json",
   "capabilities.v2.schema.json",
+  "capabilities.v3.schema.json",
   "csm-worker-projection.schema.json",
   "egress-policy.schema.json",
   "egress-event.schema.json",

@@ -25,6 +25,7 @@ export const AGENTS_DIR_SECTION = Object.freeze({
   docs: "docs/",
   ddd: "ddd/",
   evidence: "evidence/",
+  decisions: "decisions/",
   progress: "progress/",
   builds: "builds/",
   "csm-build-state": "builds/",

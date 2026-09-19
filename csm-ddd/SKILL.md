@@ -229,3 +229,10 @@ skills repository uses the real pipeline with default output paths.
 - Caps, gaps, and unresolved questions are disclosed in the report.
 - No secrets, identities, or absolute paths appear in either artifact.
 - The full skill-owned test suite passes.
+
+## Jev Advisory Ranking
+
+Jev may provide ADVISORY rankings for this conditional skill; the rankings
+NEVER gate routing, alter a verdict, or touch any acceptance, security, or
+completion gate. The layer is off by default and observational, so absent or
+disabled behavior is unchanged.

@@ -14,6 +14,9 @@
 //                                              verified-sandbox runtime config through to
 //                                              orchestrate(); a .mjs must default-export it so
 //                                              function fields can be supplied)
+//            [--use-jev]  (T009: opt in to the provider-pluggable typed-decision layer;
+//                                              dormant — no adapter, no network — without the
+//                                              flag and without a resolved provider + key)
 //
 // Input flags route on the artifact's schema marker (lib/intake.mjs):
 // --fixture  self-test: built-in fixture host + trivial approach; must VERIFIED.
@@ -58,6 +61,12 @@ import {
 } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
 import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
+import {
+  explicitModeSkills,
+  guardRouteDecision,
+  isNoRouteError,
+  resolveRouteDecision,
+} from "../csm-orchestrate/lib/phase-compiler.mjs";
 import { createSqliteStore } from "../lib/orchestration-store/index.mjs";
 import {
   createJsonlTransport,
@@ -121,6 +130,76 @@ async function loadVerifiedSandboxConfig(configPath) {
   if (config === null || typeof config !== "object")
     throw new TypeError("--verified-sandbox module must default-export a config object");
   return config;
+}
+
+// T009: optional Jev typed-decision opt-in. The layer is dormant by default:
+// with no --use-jev flag and no request/2 decision block, no provider registry
+// is consulted and no adapter is constructed. --use-jev forces live mode; a
+// request/2 artifact may also opt in via its {decision:{mode,points}} block. Even
+// when opted in, the adapter is built only when the selected provider resolves
+// (CSM_DECISION_PROVIDER, default openrouter) AND its apiKeyEnv is set — a
+// missing key leaves the run byte-identical to the decision-free path and makes
+// no network call. The key is read from process.env at construction, handed to
+// the transport in a single-key env, and never logged or persisted. T010 owns
+// consuming the returned adapter (guarded routing); this only wires the driver.
+const USE_JEV_FLAG = "--use-jev";
+const DECISION_MODES = Object.freeze(["off", "shadow", "live"]);
+
+// A malformed/absent decision block is ignored (dormant), never fatal — the
+// fail-open contract. The explicit flag takes precedence over the artifact mode.
+function parseDecisionOptIn(artifact, kind) {
+  if (args.includes(USE_JEV_FLAG)) return { mode: "live", points: null };
+  const block = kind === "request" ? artifact?.decision : null;
+  if (block === null || typeof block !== "object" || Array.isArray(block)) return null;
+  if (!DECISION_MODES.includes(block.mode) || block.mode === "off") return null;
+  const points =
+    Array.isArray(block.points) && block.points.length
+      ? block.points.filter((point) => typeof point === "string" && point.length > 0)
+      : null;
+  return { mode: block.mode, points: points && points.length ? points : null };
+}
+
+async function resolveDecisionAdapter(artifact, kind) {
+  const optin = parseDecisionOptIn(artifact, kind);
+  if (!optin) return null;
+  try {
+    const { createProviderRegistry } =
+      await import("../csm-orchestrate/lib/decision-adapter/providers/index.mjs");
+    const registry = await createProviderRegistry();
+    const selection = registry.select();
+    if (selection.unresolved || selection.descriptor === null) {
+      console.error(
+        `--use-jev ignored: decision provider "${selection.id}" is unresolved (deterministic harness retained)`,
+      );
+      return null;
+    }
+    const descriptor = selection.descriptor;
+    const apiKey = process.env[descriptor.apiKeyEnv];
+    if (typeof apiKey !== "string" || apiKey.trim() === "") {
+      console.error(
+        `--use-jev ignored: ${descriptor.apiKeyEnv} is unset (deterministic harness retained)`,
+      );
+      return null;
+    }
+    const [{ createDecisionAdapter }, { createDecisionTransport }] = await Promise.all([
+      import("../csm-orchestrate/lib/decision-adapter/index.mjs"),
+      import("../csm-orchestrate/lib/decision-adapter/transport.mjs"),
+    ]);
+    const transport = createDecisionTransport({
+      provider: descriptor,
+      env: { [descriptor.apiKeyEnv]: apiKey },
+    });
+    return createDecisionAdapter({
+      mode: optin.mode,
+      transport,
+      ...(optin.points ? { points: optin.points } : {}),
+    });
+  } catch (error) {
+    console.error(
+      `--use-jev disabled: ${error?.message ?? error} (deterministic harness retained)`,
+    );
+    return null;
+  }
 }
 
 const RUN_LOCK = ".run-lock";
@@ -412,6 +491,55 @@ const bypassDenialMessage = ({ runId, skill, phaseId, edgeId, childRunId }) =>
   `${skill} has workspace-write effects and is never auto-approved — approve it via an external ` +
   `--approvals module, or set ${AGENT_SESSION_APPROVED}=1 (documented test hook only).`;
 
+// T010: guarded routing seam for the plan/request bypass. The deterministic
+// classifier stays authoritative; an injected Jev decision may only replace an
+// empty route set or confirm an existing route, explicit-mode skills are never
+// Jev-selectable, and any disagreement (or an absent/off/shadow adapter) leaves
+// the classification byte-identical.
+async function classifyRequestGuarded(request, decisionAdapter) {
+  let classification = null;
+  let failure = null;
+  try {
+    classification = classifyRequest(request);
+  } catch (error) {
+    if (!isNoRouteError(error)) throw error;
+    failure = error;
+  }
+  if (!decisionAdapter) {
+    if (failure) throw failure;
+    return classification;
+  }
+  const loaded = await loadCapabilities();
+  const capabilities = Array.isArray(loaded) ? loaded : (loaded?.skills ?? []);
+  const deterministicRoutes = classification?.routes ?? [];
+  const decision = await resolveRouteDecision(decisionAdapter, {
+    seam: "request-router",
+    pointId: "route-classification",
+    request,
+    deterministicRoutes,
+    candidates: capabilities
+      .filter((capability) => capability?.activation?.mode !== "explicit")
+      .map((capability) => capability.skill),
+  });
+  const guard = guardRouteDecision(deterministicRoutes, decision, {
+    explicitSkills: explicitModeSkills(capabilities),
+    selectableSkills: new Set(capabilities.map((capability) => capability.skill)),
+  });
+  if (!classification) {
+    if (!guard.applied) throw failure;
+    return {
+      goalSlug:
+        typeof request?.goalSlug === "string" && request.goalSlug.trim() !== ""
+          ? request.goalSlug
+          : "request",
+      kind: null,
+      routes: [...guard.routes],
+      signals: { capabilities: [...guard.routes], inputs: [] },
+    };
+  }
+  return classification;
+}
+
 // T004/T006 realMode bypass for plan/request intakes (approach keeps the
 // orchestrate() flow above; --host is approach-only). The driver classifies the
 // request and, unless the env gate CSM_AGENT_SESSION_EXEC=1 is on AND the route
@@ -434,11 +562,21 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
     kind === "plan"
       ? { kind: "execute-plan", artifactRef: "plan" } // plan envelope -> csm-build
       : artifact;
-  const classification = classifyRequest(request);
+  // T009/T010: build the dormant decision adapter (null without opt-in); only
+  // when one is injected does classification go through the guard. The
+  // deterministic path stays byte-identical when no adapter is present.
+  const decisionAdapter = await resolveDecisionAdapter(artifact, kind);
+  const guardedClassification =
+    decisionAdapter === null
+      ? classifyRequest(request)
+      : await classifyRequestGuarded(request, decisionAdapter);
   // (b) keep the blocked behavior for route skills other than csm-build and for
   // the env-off case (pre-executor parity).
-  if (process.env[AGENT_SESSION_EXEC] !== "1" || !classification.routes.includes("csm-build")) {
-    const blocked = classification.routes
+  if (
+    process.env[AGENT_SESSION_EXEC] !== "1" ||
+    !guardedClassification.routes.includes("csm-build")
+  ) {
+    const blocked = guardedClassification.routes
       .map((skill) => agentSessionRequiredMessage(skill))
       .join("\n");
     throw new Error(blocked);
@@ -476,6 +614,7 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
     skill: "csm-build",
     retry: { attempt: 0 },
     input: { artifactPath, plan: artifact },
+    ...(decisionAdapter ? { decisionAdapter } : {}),
   });
   await writeFile(join(evidenceDir, "bypass-result.json"), `${JSON.stringify(result, null, 2)}\n`);
   console.log("status:", result.status);
@@ -736,6 +875,12 @@ async function realMode() {
       });
       executorRegistry = registry;
     }
+    // T009: optional Jev decision adapter, dormant unless --use-jev (or a
+    // request/2 decision block on the bypass path) opted in AND a provider/key
+    // resolved. Passed through orchestrate()'s options so T010 can consume the
+    // injected `decisionAdapter`; orchestrate currently ignores unknown options,
+    // so an absent adapter leaves the call byte-identical.
+    const decisionAdapter = await resolveDecisionAdapter(approach, kind);
     const result = await orchestrate({
       approach,
       runId,
@@ -779,6 +924,7 @@ async function realMode() {
             executorBindings,
           }
         : {}),
+      ...(decisionAdapter ? { decisionAdapter } : {}),
     });
     await copyFile(approachPath, join(evidenceDir, "approach.json"));
     await writeFile(
@@ -831,13 +977,16 @@ if (isMain) {
     if (args[0] === "--fixture") process.exit(await fixtureMode());
     if (["--approach", "--plan", "--request"].includes(args[0])) process.exit(await realMode());
     console.error(
-      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume] [--config <config.json>] [--verified-sandbox <config.json|config.mjs>] [--thin-worker-handler <module.mjs>] [--thin-worker-skills <skill,skill>]",
+      "usage: run-orchestrator.mjs --fixture | --approach <approach.json> [--host <host.mjs>] [--run-id <runId>] | --plan <plan.json> | --request <request.json> [--approvals <module.mjs>] [--final-review <reviewer.mjs>] [--timeout-ms <ms>] [--progress-poll-ms <ms>] [--allow-host-dispatch] [--quiet-progress] [--resume] [--config <config.json>] [--verified-sandbox <config.json|config.mjs>] [--thin-worker-handler <module.mjs>] [--thin-worker-skills <skill,skill>] [--use-jev]",
     );
     console.error(
       "       --host is required for --approach only; --plan/--request route by schema marker (blocked agent-session-required unless CSM_AGENT_SESSION_EXEC=1 + a csm-build route, when an agent session runs under an approvals gate)",
     );
     console.error(
       "       --thin-worker-handler is approach-only and opt-in: with CSM_AGENT_SESSION_EXEC=1 the named child-side handler module dispatches csm-build-owned skills through scripts/run-worker.mjs (default skills: all csm-build-owned; narrow with --thin-worker-skills); without the gate it is ignored and default blocked handoffs stay in place",
+    );
+    console.error(
+      "       --use-jev is opt-in and dormant by default: it builds the provider-pluggable decision adapter (CSM_DECISION_PROVIDER, default openrouter) only when the selected provider resolves and its apiKeyEnv is set; a missing flag, unresolved provider, or unset key leaves the deterministic harness unchanged (no adapter, no network), and the key is never logged",
     );
     process.exit(1);
   })().catch((error) => {

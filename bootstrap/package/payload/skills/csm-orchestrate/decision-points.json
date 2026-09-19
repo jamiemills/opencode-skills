@@ -1,0 +1,114 @@
+{
+  "schema": "csm-orchestrate-decision-points/1",
+  "schemaRevision": 1,
+  "points": [
+    {
+      "id": "route-classification",
+      "seam": "request-router",
+      "type": "choice",
+      "criteria": ["route", "deterministic-match", "explicit-mode"],
+      "fallback": "deterministic-route",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "spike-candidacy",
+      "seam": "csm-build",
+      "type": "choice",
+      "criteria": ["spike-value", "risk", "reversibility"],
+      "fallback": "harness-spike-selection",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "ready-set-ordering",
+      "seam": "csm-build",
+      "type": "score",
+      "criteria": ["dependency-ready", "critical-path", "batch-width"],
+      "fallback": "deterministic-ready-set",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "deep-research-dispatch",
+      "seam": "csm-plan",
+      "type": "choice",
+      "criteria": ["evidence-gap", "external-need", "budget"],
+      "fallback": "deterministic-dispatch",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "review-assignment",
+      "seam": "csm-review",
+      "type": "choice",
+      "criteria": ["add-only", "coverage-gap", "reviewer-fit"],
+      "fallback": "deterministic-reviewer-set",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "secret-preflag",
+      "seam": "csm-review",
+      "type": "noul",
+      "criteria": ["secret-likelihood", "redaction", "false-positive-cost"],
+      "fallback": "no-preflag",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "conditional-skill-ranking",
+      "seam": "skill-selection",
+      "type": "score",
+      "criteria": ["repo-signal", "task-signal", "explicit-mode-exclusion"],
+      "fallback": "deterministic-skill-order",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply"
+    },
+    {
+      "id": "critique-severity",
+      "seam": "csm-plan",
+      "type": "score",
+      "criteria": ["severity", "evidence-strength"],
+      "fallback": "deterministic-severity",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "task-risk",
+      "seam": "csm-plan",
+      "type": "score",
+      "criteria": ["risk", "blast-radius", "reversibility"],
+      "fallback": "deterministic-risk",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "evidence-class-bucketing",
+      "seam": "csm-review",
+      "type": "choice",
+      "criteria": ["evidence-class", "source-kind"],
+      "fallback": "deterministic-evidence-class",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "semantic-dedup",
+      "seam": "csm-review",
+      "type": "score",
+      "criteria": ["similarity", "finding-identity"],
+      "fallback": "deterministic-dedup",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "severity-bucketing",
+      "seam": "csm-review",
+      "type": "choice",
+      "criteria": ["severity", "finding-class"],
+      "fallback": "deterministic-severity-bucket",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    }
+  ]
+}

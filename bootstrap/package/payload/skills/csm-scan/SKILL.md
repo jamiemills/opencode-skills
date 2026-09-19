@@ -226,3 +226,10 @@ node test/scripts/coverage-gate.mjs                                # ≥88% line
 ```
 
 `test/scripts/tiers.mjs` is the frozen, complete tier manifest; every `run-tier` invocation validates that partition before running. Record pass count + wall time at every gate run.
+
+## Jev Advisory Ranking
+
+Jev may provide ADVISORY rankings for this conditional skill; the rankings
+NEVER gate routing, alter a verdict, or touch any acceptance, security, or
+completion gate. The layer is off by default and observational, so absent or
+disabled behavior is unchanged.

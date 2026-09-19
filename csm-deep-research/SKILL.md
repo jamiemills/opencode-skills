@@ -469,3 +469,10 @@ Close the session (`browse.mjs close --session "$SID"` — idempotent) before SA
 - Decomposition: `angle-panel` (bound 6); roles: executor, reviewer, challenger, judge, verifier.
 - Bounds: maxConcurrency 6, maxDepth 1, maxAgents 24, maxItems 64.
 - Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.
+
+## Jev Advisory Ranking
+
+Jev may provide ADVISORY rankings for this conditional skill; the rankings
+NEVER gate routing, alter a verdict, or touch any acceptance, security, or
+completion gate. The layer is off by default and observational, so absent or
+disabled behavior is unchanged.

@@ -4,6 +4,9 @@ import { readFile } from "node:fs/promises";
 
 const RUN_ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
 const ENTRY_ENVELOPE = "csm-orchestrate-request/1";
+// Dual-revision reader: the request marker resolves for both the frozen /1 id
+// and the additive /2 id, which adds an optional decision block.
+const REQUEST_MARKERS = Object.freeze([ENTRY_ENVELOPE, "csm-orchestrate-request/2"]);
 // Dual-revision reader: the plan marker resolves for both the frozen /1 id and
 // the additive /2 id.
 const PLAN_MARKERS = Object.freeze(["csm-plan/1", "csm-plan/2"]);
@@ -35,10 +38,9 @@ function kindForMarker(marker) {
   switch (marker) {
     case "csm-approach/1":
       return "approach";
-    case ENTRY_ENVELOPE:
-      return "request";
     default:
-      return PLAN_MARKERS.includes(marker) ? "plan" : undefined;
+      if (PLAN_MARKERS.includes(marker)) return "plan";
+      return REQUEST_MARKERS.includes(marker) ? "request" : undefined;
   }
 }
 

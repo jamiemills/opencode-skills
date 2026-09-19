@@ -473,3 +473,12 @@ Transient signals (a single `HTTP 429` or `rate-limit`) get one short backoff re
 - Bounds: maxConcurrency 4, maxDepth 1, maxAgents 16, maxItems 256.
 - Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.
 - Dynamic workers, when enabled, run through csm-orchestrate validation only; this skill declares policy, never a scheduler.
+
+## Typed Decisions (Jev)
+
+Optional, off-by-default decision points this skill consumes; absent or disabled, behavior is unchanged and every hint is advisory input that never owns acceptance.
+
+- `spike-candidacy` (advisory/apply, reversible, non-safety): Jev may suggest whether a task warrants an R&D spike; the SELECT spike rules still govern.
+- `ready-set-ordering` (advisory/apply, reversible, non-safety): Jev may rank the ready set; dependency readiness, batch sizing, and dispatch order stay deterministic.
+
+Never-Jev boundary: Jev must never write task status, evaluator receipts, loop-guard output, closure/`verificationStatus`, or the completion gate; it may only add advisory/apply hints that the deterministic loop guard ignores.

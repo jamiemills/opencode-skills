@@ -269,6 +269,16 @@ Enforcement is deterministic and in-loop; it never depends on model obedience. T
 4. **Supersession is the successor path.** When a successor plan is created, close the predecessor through the typed `/2` supersession pointer with `supersedePlanArtifact` (`closePredecessorOnSuccessor`): the predecessor becomes `superseded` with `control.currentState: STOP` and `nextTransition: none; closed as superseded`, and its pending tasks are preserved as the superseded record. Supersession is the one terminal path allowed to retain pending tasks because the successor artifact is the authority; completion closure is not.
 5. **Single positive acceptance signals.** `lintAcceptanceSignal` refuses disjunctive `Either ... OR ...` signals and any `OR record/document a deferral/waive/skip` escape hatch. Run `node csm-plan/lib/loop-evaluator.mjs lint --record <plan-path>` in DRAFT, CRITIQUE, and VERIFY. A genuine deferral is a `blocked` task carrying the user decision it waits on; it never closes the plan and never counts as acceptance.
 
+## Optional Jev Decision Points
+
+Jev (the optional host-mediated typed-decision layer) is off by default and observational; absent or disabled, behavior is unchanged. Its csm-plan output is advisory-only — Jev never owns acceptance, security, or completion:
+
+- `deep-research-dispatch` (apply, reversible): Jev may suggest when to dispatch csm-deep-research.
+- `critique-severity` (advisory): Jev may suggest a severity for a critique finding.
+- `task-risk` (advisory): Jev may suggest a risk tier for a task.
+
+Never-Jev boundary: BL2 (the csm-build dispatch/acceptance-signal point) must not feed or alter the deterministic acceptance-signal lint in `csm-plan/lib/loop-evaluator.mjs`. Applicability authority and the acceptance-signal lint stay deterministic.
+
 ## Required Plan Document
 
 Use this structure:

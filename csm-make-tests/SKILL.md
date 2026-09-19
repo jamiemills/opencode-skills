@@ -368,3 +368,10 @@ Both artifacts are the durable contract between runs: MAINTAIN reads the previou
 - Decomposition: `gap-surface` (bound 16); roles: executor, reviewer.
 - Bounds: maxConcurrency 4, maxDepth 1, maxAgents 32, maxItems 256.
 - Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.
+
+## Jev Advisory Ranking
+
+Jev may provide ADVISORY rankings for this conditional skill; the rankings
+NEVER gate routing, alter a verdict, or touch any acceptance, security, or
+completion gate. The layer is off by default and observational, so absent or
+disabled behavior is unchanged.

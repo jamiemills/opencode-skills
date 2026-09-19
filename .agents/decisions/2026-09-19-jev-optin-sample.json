@@ -1,0 +1,28 @@
+{
+  "schema": "csm-decision/1",
+  "schemaRevision": 1,
+  "decisionId": "decision-jev-optin-sample-001",
+  "pointId": "decision-point.classification",
+  "runId": "run-jev-optin-sample-20260919",
+  "stateDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "criteria": [
+    "reversibility",
+    "baseline-agreement"
+  ],
+  "answer": {
+    "type": "noul",
+    "noul": true
+  },
+  "confidence": 0.5,
+  "baselineAgreement": true,
+  "routingBand": "advisory",
+  "applied": false,
+  "provider": {
+    "id": "openrouter",
+    "model": "typesafe/jev-1.13"
+  },
+  "provenance": {
+    "transport": "sample",
+    "generatedAt": "2026-09-19T15:00:00Z"
+  }
+}

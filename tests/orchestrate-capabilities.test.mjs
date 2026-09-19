@@ -11,14 +11,14 @@ import {
 const manifest = await loadCapabilities();
 const schema = parseJson(
   await readFile(
-    new URL("../csm-orchestrate/schemas/capabilities.v2.schema.json", import.meta.url),
+    new URL("../csm-orchestrate/schemas/capabilities.v3.schema.json", import.meta.url),
     "utf8",
   ),
 );
 const validator = createSchemaValidator({ schemas: [schema] });
 
 test("all 13 capabilities validate and resolve deterministically", () => {
-  assert.equal(validator.validate("csm-orchestrate-capabilities/2", manifest).valid, true);
+  assert.equal(validator.validate("csm-orchestrate-capabilities/3", manifest).valid, true);
   assert.deepEqual(
     manifest.skills.map(({ skill }) => skill),
     [...SUPPORTED_SKILLS],
@@ -33,9 +33,9 @@ test("all 13 capabilities validate and resolve deterministically", () => {
 test("schema rejects missing capability metadata and unknown revisions", () => {
   const missing = structuredClone(manifest);
   delete missing.skills[0].recovery;
-  assert.equal(validator.validate("csm-orchestrate-capabilities/2", missing).valid, false);
+  assert.equal(validator.validate("csm-orchestrate-capabilities/3", missing).valid, false);
   assert.throws(
-    () => validator.validate("csm-orchestrate-capabilities/3", manifest),
+    () => validator.validate("csm-orchestrate-capabilities/4", manifest),
     /schema must be object or boolean/,
   );
 });

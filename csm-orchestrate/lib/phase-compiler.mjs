@@ -25,6 +25,97 @@ const schemaRevision = (schema) =>
     10,
   ) || null;
 
+// T010: guarded routing. The optional decision hook is consulted only for the
+// route-classification point. A decision applies ONLY when the deterministic
+// router found no route, or when its choice agrees with the deterministic
+// route; a disagreement is advice-only. Explicit-mode skills are never
+// Jev-selectable, and an absent/off/shadow decision leaves selection unchanged.
+export const ROUTE_DECISION_POINT = "route-classification";
+
+export function isNoRouteError(error) {
+  return error instanceof TypeError && /no route selected/.test(String(error?.message ?? ""));
+}
+
+// The provider response is keyed by the route-classification criteria
+// (route/deterministic-match/explicit-mode): the choice may arrive as
+// answer.route, answer.choice, or a bare string. Extraction is pure; the
+// routingBand hold-gate happens in guardRouteDecision.
+export function decisionRouteChoice(decision) {
+  if (typeof decision === "string") return decision.trim() || null;
+  if (decision === null || typeof decision !== "object") return null;
+  const answer = decision.answer;
+  if (typeof answer === "string" && answer.trim()) return answer.trim();
+  if (answer !== null && typeof answer === "object") {
+    const nested = answer.route ?? answer.choice;
+    if (typeof nested === "string" && nested.trim()) return nested.trim();
+  }
+  const direct = decision.route ?? decision.choice;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  return null;
+}
+
+export function explicitModeSkills(capabilities = []) {
+  return new Set(
+    capabilities
+      .filter((capability) => capability?.activation?.mode === "explicit")
+      .map((capability) => capability.skill),
+  );
+}
+
+// The single apply gate shared by both routing seams. Returns the routes to use
+// plus an auditable reason; `applied` is true only for a no-route apply or an
+// agreement with an existing deterministic route.
+export function guardRouteDecision(
+  deterministic = [],
+  decision = null,
+  { explicitSkills = new Set(), selectableSkills = null } = {},
+) {
+  const routes = Array.isArray(deterministic)
+    ? [...new Set(deterministic.filter((route) => typeof route === "string"))]
+    : [];
+  const candidate = decisionRouteChoice(decision);
+  // `applied` is the consumer's flag, not the adapter's: only an explicit
+  // routingBand "hold" suppresses an otherwise-guard-approved choice.
+  const held = decision !== null && typeof decision === "object" && decision.routingBand === "hold";
+  if (candidate === null)
+    return { applied: false, routes, candidate: null, agreement: false, reason: "no-choice" };
+  if (explicitSkills.has(candidate))
+    return { applied: false, routes, candidate, agreement: false, reason: "explicit-mode" };
+  if (selectableSkills !== null && !selectableSkills.has(candidate))
+    return { applied: false, routes, candidate, agreement: false, reason: "not-selectable" };
+  if (held)
+    return {
+      applied: false,
+      routes,
+      candidate,
+      agreement: routes.includes(candidate),
+      reason: "held",
+    };
+  if (routes.length === 0)
+    return { applied: true, routes: [candidate], candidate, agreement: false, reason: "no-route" };
+  if (routes.includes(candidate))
+    return { applied: true, routes, candidate, agreement: true, reason: "agreement" };
+  return { applied: false, routes, candidate, agreement: false, reason: "disagreement" };
+}
+
+// Resolve an injected decision adapter/hook to one decision record. The stub's
+// off/shadow modes apply nothing, so they resolve to null (byte-identical to an
+// absent adapter); a plain decision object passes through unchanged.
+export async function resolveRouteDecision(decision = null, state = null) {
+  if (decision === null || decision === undefined) return null;
+  try {
+    if (typeof decision === "function") return await decision(state);
+    if (typeof decision !== "object") return null;
+    if (decision.applying === false || decision.shadowing === true) return null;
+    if (typeof decision.decide === "function")
+      return await decision.decide(ROUTE_DECISION_POINT, state);
+    return decision;
+  } catch {
+    // Fail open: a broken hook/adapter reverts to the deterministic route.
+    return null;
+  }
+}
+
 function fail(message) {
   throw new TypeError(`invalid approach phase graph: ${message}`);
 }
@@ -166,7 +257,16 @@ function phraseInText(words, text) {
  * activation arm. Returns `{ evaluable: false }` when no predicate is present
  * or it cannot be parsed, so routing falls back to heuristic matching.
  */
-export function evaluateActivationPredicate(capability, phase, signals) {
+export function evaluateActivationPredicate(capability, phase, signals, routeDecision = null) {
+  // T010: a guarded Jev decision may activate its chosen non-explicit capability
+  // even when the predicate would not; the caller only passes a decision the
+  // guard has already approved (no-route apply), so this cannot widen routing.
+  if (
+    routeDecision !== null &&
+    capability?.activation?.mode !== "explicit" &&
+    decisionRouteChoice(routeDecision) === capability?.skill
+  )
+    return { evaluable: true, activated: true };
   const words = parsePredicate(capability?.activation?.predicate);
   if (!words) return { evaluable: false, activated: false };
   const requested = signals?.capabilities ?? signals?.routes ?? [];
@@ -179,12 +279,16 @@ export function evaluateActivationPredicate(capability, phase, signals) {
   return { evaluable: true, activated: false };
 }
 
-function capabilityMatches(capability, phase, signals) {
+function capabilityMatches(capability, phase, signals, routeDecision = null) {
   const requested = signals?.capabilities ?? signals?.routes ?? [];
   const explicit = requested.includes(capability.skill) || signals?.[capability.skill] === true;
   if (capability.activation.mode === "explicit") return explicit;
   if (explicit) return true;
-  const predicate = evaluateActivationPredicate(capability, phase, signals);
+  // T010: only a guard-approved decision reaches here; explicit-mode skills were
+  // already excluded above, so Jev can never select them.
+  if (routeDecision !== null && decisionRouteChoice(routeDecision) === capability.skill)
+    return true;
+  const predicate = evaluateActivationPredicate(capability, phase, signals, routeDecision);
   if (predicate.evaluable) return predicate.activated;
   const text = textFor(phase);
   const hints = {
@@ -213,9 +317,24 @@ function requiredInputsAvailable(capability, phase, signals) {
   }
 }
 
-function routeNodes(phase, capabilities, signals, completedEffects) {
+function routeNodes(phase, capabilities, signals, completedEffects, routeDecision = null) {
+  // T010: compute the deterministic set first, then let the guard decide whether
+  // an injected decision may apply. It only supplies a candidate when it either
+  // filled an empty route set or agreed with the deterministic one, so the
+  // appliedDecision passed to capabilityMatches can never add an unwanted route.
+  const deterministicSkills = capabilities
+    .filter((capability) => capabilityMatches(capability, phase, signals))
+    .map((capability) => capability.skill);
+  const guard =
+    routeDecision === null
+      ? null
+      : guardRouteDecision(deterministicSkills, routeDecision, {
+          explicitSkills: explicitModeSkills(capabilities),
+          selectableSkills: new Set(capabilities.map((capability) => capability.skill)),
+        });
+  const appliedDecision = guard?.applied && !guard.agreement ? routeDecision : null;
   const selected = capabilities.filter((capability) =>
-    capabilityMatches(capability, phase, signals),
+    capabilityMatches(capability, phase, signals, appliedDecision),
   );
   if (selected.length === 0) fail(`no conditional route selected for ${phase.phaseId}`);
   const nodes = selected.map((capability, index) => {
@@ -345,7 +464,7 @@ function routeNodes(phase, capabilities, signals, completedEffects) {
 
 export function selectRoutes(
   phase,
-  { capabilities, signals = {}, completedEffects = new Set() } = {},
+  { capabilities, signals = {}, completedEffects = new Set(), routeDecision = null } = {},
 ) {
   if (!phase || !Array.isArray(capabilities)) fail("capability contracts are required");
   if (
@@ -363,7 +482,7 @@ export function selectRoutes(
       !capability.idempotency
     )
       fail(`missing capability contract: ${capability.skill ?? "unknown"}`);
-  return routeNodes(phase, capabilities, signals, completedEffects);
+  return routeNodes(phase, capabilities, signals, completedEffects, routeDecision);
 }
 
 export async function compileApproach(
@@ -375,6 +494,8 @@ export async function compileApproach(
     completedEffects = new Set(),
     parentPhaseId = null,
     phaseIdOverride = null,
+    routeDecision = null,
+    decisionAdapter = null,
   } = {},
 ) {
   assertApproach(approach);
@@ -390,6 +511,22 @@ export async function compileApproach(
   )
     fail("complete supported capability manifest is required");
   const trusted = capabilities ? await validateCapabilities(manifest) : manifest;
+  // T010: resolve the injected adapter/hook once per graph; a plain routeDecision
+  // wins, off/shadow adapters resolve to null, and an absent adapter stays null.
+  const resolvedRouteDecision =
+    routeDecision !== null && routeDecision !== undefined
+      ? routeDecision
+      : decisionAdapter
+        ? await resolveRouteDecision(decisionAdapter, {
+            seam: "route-selection",
+            pointId: ROUTE_DECISION_POINT,
+            runId: approach.runId,
+            ideaSlug: approach.ideaSlug,
+            candidates: trusted.skills
+              .filter((capability) => capability.activation?.mode !== "explicit")
+              .map((capability) => capability.skill),
+          })
+        : null;
   const byId = new Map(approach.phases.map((phase) => [phase.phaseId, phase]));
   const ordered = [];
   const visiting = new Set();
@@ -409,6 +546,7 @@ export async function compileApproach(
       capabilities: trusted.skills,
       signals: { ...signals, ideaSlug: approach.ideaSlug },
       completedEffects,
+      routeDecision: resolvedRouteDecision,
     });
     const requirements = [`req-${slug(approach.ideaSlug)}-${slug(phase.phaseId)}`];
     const effects = unique(nodes.flatMap((node) => node.sideEffects));

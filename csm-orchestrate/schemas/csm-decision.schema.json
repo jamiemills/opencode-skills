@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-decision/1",
+  "title": "CSM typed decision record",
+  "description": "Host-mediated typed-decision exchange (Jev/TypeSafe-class) recorded as observational evidence: criteria/choice space, answer (choice/score/noul), confidence, usage, provenance, routing band, and applied flag. Advisory/apply on reversible non-safety points only; carries no acceptance authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "decisionId",
+    "pointId",
+    "runId",
+    "stateDigest",
+    "criteria",
+    "answer",
+    "confidence",
+    "baselineAgreement",
+    "routingBand",
+    "applied",
+    "provider",
+    "provenance"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-decision/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "decisionId": {
+      "type": "string",
+      "pattern": "^decision-[a-z0-9][a-z0-9-]{1,63}$"
+    },
+    "pointId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$"
+    },
+    "stateDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "criteria": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "answer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": ["choice", "score", "noul"]
+        },
+        "choice": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scores": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "noul": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "choice"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["choice"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "score"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["scores"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "noul"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["noul"]
+          }
+        }
+      ]
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "baselineAgreement": {
+      "type": "boolean"
+    },
+    "routingBand": {
+      "enum": ["apply", "advisory", "hold"]
+    },
+    "applied": {
+      "type": "boolean"
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "model"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "latencyMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport", "generatedAt"],
+      "properties": {
+        "transport": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

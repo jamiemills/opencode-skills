@@ -25,14 +25,29 @@ const fail = (message) => {
   throw new TypeError(`invalid capability manifest: ${message}`);
 };
 
+// Additive dual-revision support: select the schema by the manifest's declared
+// `schema` id. /2 stays frozen, /3 adds the optional per-skill decision block,
+// and any other revision fails closed instead of silently validating against
+// the wrong contract.
+const SUPPORTED_SCHEMA_REVISIONS = Object.freeze({
+  2: "capabilities.v2.schema.json",
+  3: "capabilities.v3.schema.json",
+});
+
+const SCHEMA_ID_RE = /^csm-orchestrate-capabilities\/([1-9][0-9]*)$/;
+
+const schemaRevisionFor = (manifest) => {
+  const declared = manifest?.schema;
+  const match = typeof declared === "string" ? SCHEMA_ID_RE.exec(declared) : null;
+  const file = match ? SUPPORTED_SCHEMA_REVISIONS[Number(match[1])] : undefined;
+  if (!file) fail(`unsupported schema revision ${JSON.stringify(declared)}`);
+  return { id: declared, file };
+};
+
 export async function validateCapabilities(manifest, { verifySources = true } = {}) {
-  const schema = parseJson(
-    await readFile(new URL("../schemas/capabilities.v2.schema.json", import.meta.url), "utf8"),
-  );
-  const checked = createSchemaValidator({ schemas: [schema] }).validate(
-    "csm-orchestrate-capabilities/2",
-    manifest,
-  );
+  const { id, file } = schemaRevisionFor(manifest);
+  const schema = parseJson(await readFile(new URL(`../schemas/${file}`, import.meta.url), "utf8"));
+  const checked = createSchemaValidator({ schemas: [schema] }).validate(id, manifest);
   if (!checked.valid)
     fail(checked.errors.map((error) => error.instancePath || error.message).join("; "));
   if (

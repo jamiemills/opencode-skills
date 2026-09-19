@@ -140,6 +140,10 @@ const mapping = {
       dest: join("payload", "skills", "csm-orchestrate", "capabilities.json"),
     },
     {
+      src: join("csm-orchestrate", "decision-points.json"),
+      dest: join("payload", "skills", "csm-orchestrate", "decision-points.json"),
+    },
+    {
       srcDir: join("csm-orchestrate", "lib"),
       destDir: join("payload", "skills", "csm-orchestrate", "lib"),
     },
