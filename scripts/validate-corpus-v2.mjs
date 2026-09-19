@@ -3,12 +3,15 @@
 //
 // Scope (and why): the /2 schemas are the strict structural revision contract
 // (additionalProperties:false, typed supersession, terminal `superseded`,
-// dual-revision ids). This validator enforces:
-//   1. every enumerated record is a /2 record (id + schemaRevision),
-//   2. its payload validates against the strict /2 JSON schema,
-//   3. supersession is present iff terminal `superseded` and well-formed,
-//   4. every pre-migration (HEAD) pending/in_progress task identity survives,
-//   5. every pre-migration build-state activeTask survives.
+// dual-revision ids). `/1` stays frozen and valid: readers are dual-revision, so
+// a newly authored /1 record (e.g. a fresh plan) must not fail the corpus. This
+// validator enforces, per each record's *declared* revision:
+//   1. its schema id is a csm-plan/* or csm-build-state/* id with a matching
+//      schemaRevision (1 for /1, 2 for /2),
+//   2. its payload validates against that revision's JSON schema,
+//   3. (/2 only) supersession is present iff terminal `superseded` and well-formed,
+//   4. (/2 only) every pre-migration (HEAD) pending/in_progress task identity survives,
+//   5. (/2 only) every pre-migration build-state activeTask survives.
 // It deliberately does NOT re-apply the authoring-time semantic critique
 // (applicability completeness, single-hop journal grammar) to historical
 // records: those are new-plan authoring rules, and rewriting legacy journals to
@@ -125,12 +128,16 @@ async function main() {
     const record = parseJson(readFileSync(resolve(ROOT, file), "utf8"));
     records.set(file, record);
     const schema = record.schema;
-    if (schema !== PLAN_V2 && schema !== BUILD_V2) {
-      errors.push(`unexpected revision ${JSON.stringify(schema)} (want ${PLAN_V2} or ${BUILD_V2})`);
+    const isV1 = schema === "csm-plan/1" || schema === "csm-build-state/1";
+    if (!PLAN_SCHEMA_RE.test(schema ?? "") && !BUILD_SCHEMA_RE.test(schema ?? "")) {
+      errors.push(
+        `unexpected revision ${JSON.stringify(schema)} (want a csm-plan/* or csm-build-state/* schema id)`,
+      );
     } else {
-      if (record.schemaRevision !== 2)
+      const wantRevision = isV1 ? 1 : 2;
+      if (record.schemaRevision !== wantRevision)
         errors.push(
-          `schemaRevision must be 2 for ${schema} (got ${JSON.stringify(record.schemaRevision)})`,
+          `schemaRevision must be ${wantRevision} for ${schema} (got ${JSON.stringify(record.schemaRevision)})`,
         );
       const structural = registry.validate(schema, record);
       if (!structural.valid)
@@ -141,7 +148,7 @@ async function main() {
             }`,
           );
       errors.push(...supersessionErrors(record, schema));
-      if (record.status === "superseded") {
+      if (!isV1 && record.status === "superseded") {
         supersededCount += 1;
         const terminal =
           schema === PLAN_V2
@@ -152,7 +159,7 @@ async function main() {
         if (record.control?.nextTransition !== terminal.next)
           errors.push(`superseded record must not be resumable (${terminal.next})`);
       }
-      errors.push(...migrationErrors(file, record, baselineOf(file)));
+      if (!isV1) errors.push(...migrationErrors(file, record, baselineOf(file)));
     }
     if (errors.length) failures.push({ file, errors });
   }

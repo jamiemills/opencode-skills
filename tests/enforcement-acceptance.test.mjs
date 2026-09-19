@@ -372,11 +372,11 @@ acceptanceTest(
   },
 );
 
-// ── A2: canonical corpus validates under strict /2 ───────────────────────────
+// ── A2: canonical corpus validates under its declared revisions ──────────────
 
 acceptanceTest(
   "A2-corpus-strict-v2",
-  "the canonical corpus validates under strict /2 with zero failures",
+  "the canonical corpus validates under its declared revisions with zero failures",
   () => {
     const cli = spawnSync(process.execPath, ["scripts/validate-corpus-v2.mjs", "--quiet"], {
       cwd: ROOT,
