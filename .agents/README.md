@@ -197,6 +197,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-12-evals-skill-development-20260912t215843z-4b50ae4baacb-research.json` — 2026-09-12 — DEEP hybrid finding: evals as the development/improvement instrument for the CSM skills — existing deterministic eval substrate (30-scenario corpus, splits, Wilson CIs, hard gates, unit-tested adjudication), pervasive but unaggregated per-run judges, and the gaps (no skill harness/labeled goldens/score/version regression); staged W1 deterministic graders + goldens, W2 calibrated judges, W3 version regression — status: reference
 - `2026-09-13-dwrr-compliance-20260913t230000z-dwrrcompliance-research.json` — 2026-09-13 — DEEP hybrid compliance assessment of the dynamic-worker runtime against the 2026-09-12 original research (S1-S8) and the post-grill approach/plan (D1-D10, AC1-AC10): COMPLIANT WITH CAVEATS — S1-S8, D1-D10, the six prototype decision conditions, and 9/10 ACs met; AC6 periodic re-attestation implemented but not wired live and the external trust anchor deferred (OS-user-bound); AGENTS.md stale-understated, docs overstate 'periodic' and cite an unsupported v2.1.154 — status: reference
 - `2026-09-14-csm-plan-build-completion-20260914t060000z-csmplanbuildmeta-research.json` — 2026-09-14 — DEEP hybrid meta-analysis: why csm-plan/csm-build sessions stop with work remaining — ranked causes: disjunctive acceptance signals + status-only Completion Gate; canonical JSON plans and build-state records ungated; prose-only 'do not stop'; tmux bootstrap can end the invocation; missing typed supersession field; gaps vs external Stop-hook/evaluator patterns; prioritized deterministic fixes — status: reference
+- `2026-09-14-csm-skills-completion-meta-20260914t080000z-csmskillsmeta-research.json` — 2026-09-14 — DEEP hybrid extension of the above to ALL 14 csm skills (imports all 14 prior claims verbatim): tmux end-invocation bootstrap in 8 skills; self-judged terminal completion; canonical JSON records ungated (only legacy Markdown + progress); csm-orchestrate terminates on first node failure; legal SAVED/INCOMPLETE forks; predecessor records orphaned; mitigations to generalize (bdd-tdd typed supersession, autoresearch evaluator, orchestrate independent review) — status: reference
 
 ## Retention
 
@@ -280,6 +281,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-14-dwrr-nonblocker-cleanup-20260914t030000z-progress.json` — 2026-09-14 — csm-build progress record for the dwrr non-blocker cleanup (N1/N4/N6/N7) — status: complete
 - `2026-09-14-dwrr-remainder-closure-20260914t040000z-progress.json` — 2026-09-14 — csm-build progress record for the dwrr remainder-closure build — status: complete
 - `2026-09-14-csm-plan-build-completion-20260914t060000z-csmplanbuildmeta-progress.json` — 2026-09-14 — csm-deep-research progress record for the csm-plan/csm-build completion meta-analysis — status: complete
+- `2026-09-14-csm-skills-completion-meta-20260914t080000z-csmskillsmeta-progress.json` — 2026-09-14 — csm-deep-research progress record for the csm-suite completion meta-analysis (extension) — status: complete
 
 ## ddd/
 

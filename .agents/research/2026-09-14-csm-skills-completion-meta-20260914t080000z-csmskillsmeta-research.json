@@ -1,0 +1,971 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-csm-skills-completion-meta-20260914",
+  "runId": "run-20260914t080000z-csmskillsmeta",
+  "title": "csm Skill Suite Completion-Defect Analysis (extends the csm-plan/csm-build finding)",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Extension of the 2026-09-14 csm-plan/csm-build finding to the whole csm suite. The same defect classes recur, skill-specifically: (1) the identical step-4 'end the invocation' bootstrap is in SEVEN more skills (8 total); (2) every non-orchestrate skill self-judges its terminal decision; (3) the canonical JSON records (plan/review/approach/research/build-state/builds/tests/norms/doctrine/upload/browse) are ungated — check-suite validates only legacy Markdown and csm-skill-progress; (4) csm-orchestrate stops the whole run on the first node failure with no continuation or supersession; (5) legal SAVED/INCOMPLETE terminators and iteration caps; (6) corpus shows predecessor records orphaned after successors complete. All 14 prior claims are carried verbatim; mitigations already exist in csm-bdd-tdd (typed supersession), csm-autoresearch (separate evaluator), csm-orchestrate (independent final review) and should be generalized."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "This finding EXTENDS the prior csm-plan/csm-build analysis to all 14 csm skills without dropping any prior claim (all are carried verbatim in `claims` and `references`). Four tracks: per-skill SKILL.md comparison (R1), executable enforcement map (R2), coordinator + self (R3), corpus evidence (R4).\n\n```text\nPrior finding (csm-plan/build) -> R1 all SKILL.md -> R2 enforcement map\n  -> R3 csm-orchestrate + csm-deep-research -> R4 corpus\n  -> Synthesis (prior claims imported) -> Challenge -> Judge -> Verified finding\n```\n\nHeadline: the defect classes are suite-wide, not csm-plan/csm-build-specific. The strongest new result is enforcement: check-suite gates only legacy Markdown and progress; the canonical JSON records are unvalidated, and csm-orchestrate does not enforce completion of the skills it routes to."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported — the tmux step-4 'end the invocation' bootstrap is in 7 more skills (8 total) [ref-csm-review][ref-csm-deep-research].\nK2. supported — terminal completion is primary-owned except csm-orchestrate (independent final review) and csm-autoresearch (separate evaluator); deep-research/review add independent intermediate evaluation [ref-adversarial-review][ref-csm-autoresearch].\nK3. supported — canonical JSON records are ungated; only legacy Markdown + progress are validated [ref-check-suite].\nK4. supported — csm-orchestrate terminates the run on the first node failure with no continuation/supersession [ref-csm-orchestrate][ref-co-recovery].\nK5. supported — csm-grill terminates only on user agreement (prose, no gate) [ref-csm-grill].\nK6. supported — corpus: predecessor progress/build-state/plan records are orphaned after successors complete [ref-prior-finding].\nK7. supported — 5 record classes are unmapped/ungated; guard tests are orphaned [ref-agents-index][ref-check-suite].\nK8. supported — mitigations already exist (bdd-tdd typed supersession; autoresearch separate evaluator; orchestrate independent review) and should be generalized [ref-csm-bdd-tdd][ref-csm-orchestrate].\nK9. (prior, carried) acceptance-signal validation gap + status-only Completion Gate let completed tasks carry unbuilt deliverables [ref-prior-finding].\nK10. (prior, carried) the build-state cursor pins nextTransition to the first transition; the durable record is left unclosed [ref-prior-finding]."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1 Per-skill applicability matrix (P1 weak exit criteria; P2 record ungated; P3/'do-not-stop' prose; P4 tmux end-invocation; P5 missing supersession; P6 stop forks; P7 self-judged):\n- csm-grill: P1 M, P2 M, P3 H, P5 M, P7 H.\n- csm-review: P1 M, P2 L, P4 H, P5 M, P6 H, P7 H.\n- csm-review-python: P1 M, P4 H, P5 M, P6 M, P7 H.\n- csm-scan: P1 M, P4 H, P5 M, P6 M, P7 H.\n- csm-ddd: P1 M, P5 M, P6 M, P7 H.\n- csm-bdd-tdd: P4 H, P6 M, P7 H (P5 mitigated: typed supersession pointer).\n- csm-make-tests: P1 M, P4 H, P5 M, P6 H, P7 H.\n- csm-autoresearch: P6 M only (P7 mitigated: separate evaluator).\n- csm-orchestrate: P6 M, P7 L (independent final review); no tmux.\n- csm-deep-research: P1 M, P2 H, P4 H, P5 M, P6 H, P7 M.\n[R1, all SKILL.md refs]\n\nD2 Enforcement map: check-suite (make check) is the only corpus gate; it validates plans/reviews/approaches/research as `*-*.md`, plus progress JSON. The JSON canonical equivalents and build-state/builds are unscanned; `.agents/tests|norms|doctrine|upload|browse` are unmapped so they fail index mapping if tracked [ref-check-suite][ref-agents-index].\n\nD3 Coordinator: per-node cursor lifecycle; a single node failure sets phaseFailure and returns a terminal receipt, abandoning pending nodes and later phases; maxAttempts default 2; resume reconciles but never retries a terminal child [ref-csm-orchestrate][ref-co-recovery].\n\nD4 Corpus: 29 progress records (csm-build 17, csm-plan 6, csm-deep-research 5, csm-review 1) — only 4/14 skills emit a progress tracker; 23 build-state (COMPLETE 5, BLOCKED 9, CHECKPOINT 5, RECOVER 3, SELECT 1 → 9/23 non-terminal, 18/23 non-COMPLETE); 60 JSON plans (30 complete/17 in_progress/9 ready/4 blocked); 3/4 machine reviews INCOMPLETE [R4].\n\nD5 Mitigations to generalize: csm-bdd-tdd typed supersession pointer; csm-autoresearch separate evaluator; csm-orchestrate mandatory independent final review with provenance gating [ref-csm-bdd-tdd][ref-csm-autoresearch][ref-csm-orchestrate][ref-adversarial-review].\n\nD6 No completion check: corpus validation checks presence, not evidence, of task completion [ref-check-suite].\n\nPRIOR FINDING (carried verbatim, not restated): all prior detail sections, claims claim-tmux..claim-efficacy-unverified, remain authoritative in the prior document and are imported here."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Recommend: generalize the prior fixes suite-wide and add the missing cross-skill enforcement. Confidence: high on the enforcement gaps; medium on efficacy until trialed. All prior recommendation items remain valid (imported).\n\nCross-skill fixes (in priority order):\n1. Make check-suite validate the CANONICAL JSON records (plans/reviews/approaches/research) and csm-build-state/builds/tests/norms/doctrine/upload/browse, not just legacy Markdown; add the missing index sections [K3][K7].\n2. Make tmux bootstrap conditional in all 8 skills, and never end an invocation with a non-terminal control/record unless a PAUSED/BLOCKED checkpoint is written [K1].\n3. Separate the stop decision from the worker in every long-running skill (a deterministic Stop-gate + independent evaluator), generalizing csm-orchestrate's independent final review and csm-autoresearch's separate evaluator [K2][K8].\n4. Make csm-orchestrate continue (or explicitly surface a resumable supersession) on a node failure instead of terminating the run with pending nodes/phases [K4].\n5. Add a terminal `superseded`/`abandoned` state and require a closure flip when a run is displaced by a successor; generalize csm-bdd-tdd's enforced typed supersession pointer (and csm-review's unused field) to plans/progress/build-state [K6][K8].\n6. Give csm-grill a deterministic confirmation gate (or an evaluator) rather than relying on user sentiment [K5].\n7. Wire the orphaned guard tests (csm-review / csm-review-python producer-validation) into CI [K7].\n8. Verify task/step completion against evidence, not presence [D6].\n\nWhat would change the answer: a controlled trial showing the fixes do not reduce stops per run. Cost of being wrong: suite-wide churn where records are orphaned and features are closed as complete while unbuilt."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. Whether the suite-wide fixes empirically reduce premature stops needs a controlled trial. U2. For skills with no machine artifact (grill/make-tests/autoresearch/bdd/ddd/scan/upload), unfinished work cannot be proven from artifacts; the missing-artifact gap is the finding, not a count. U3. Review INCOMPLETE denotes coverage caveats, not necessarily abandoned remediation. U4. Prior finding's unresolved items (see prior doc) remain unresolved here."
+    },
+    "references": {
+      "id": "references",
+      "content": "R1-R29 (prior finding references imported verbatim + new cross-skill references)."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "DEEP x hybrid; extends the 2026-09-14 finding (run-20260914t060000z-csmplanbuildmeta, digest sha256:ac7c4b7541ad712c5ba36fe0f866091d523bd289be755e0bf8f374779ae8610a) with ALL prior claims imported verbatim (nothing dropped). Tracks R1-R4 (per-skill SKILL.md, enforcement map, coordinator/self, corpus). Independent challenger and judge; VERIFY primary-personal."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-tmux",
+      "section": "keyFindings",
+      "claimType": "mechanism",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "csm-build's Tmux Session Bootstrap is the mandated first step and step 4 says to end the invocation when a detached session was launched; on a host without an already-active tmux session the normal case hits this and the current invocation ends before execution — although the intent is that the detached session runs the build.",
+      "citations": [
+        {
+          "referenceId": "ref-build-skill",
+          "locator": "Tmux Session Bootstrap step 4",
+          "quote": "If a new detached session was launched, end the invocation — tmux does the build from the start."
+        }
+      ]
+    },
+    {
+      "claimId": "claim-state-cursor",
+      "section": "keyFindings",
+      "claimType": "mechanism",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "statement": "The canonical build-state cursor is inconsistent with the SKILL: the validator pins control.nextTransition to the FIRST transition of the current state, so a record parked at CHECKPOINT must declare 'CHECKPOINT -> SELECT' even though the SKILL tells the agent to choose SELECT/COMPLETE/BLOCKED and record the exact next transition. CHECKPOINT->COMPLETE itself is legal and tested (state.mjs:38; build-json-control.test.mjs), so the defect is a cursor-vocabulary mismatch, not a rejected transition.",
+      "citations": [
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:56-61",
+          "quote": "next transition does not match the lifecycle state"
+        },
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:38",
+          "quote": "[\"CHECKPOINT\", [\"SELECT\", \"COMPLETE\", \"BLOCKED\"]]"
+        },
+        {
+          "referenceId": "ref-build-tests",
+          "locator": ":19-33",
+          "quote": "walks CHECKPOINT -> COMPLETE and asserts validity"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":191,:340-351",
+          "quote": "From CHECKPOINT, transition to SELECT, COMPLETE, or BLOCKED"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-nostop-gate",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The 'do not stop after one task or cycle' rule is prose-only: no gate enforces continuation or task completion, and the plan-corpus gate in check-suite only covers '*-csm.md' projections, so the canonical 'csm-plan/1' JSON corpus (60 files) is not validated by CI.",
+      "citations": [
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":87",
+          "quote": "Do not stop after one task or cycle"
+        },
+        {
+          "referenceId": "ref-check-suite",
+          "locator": ":1487",
+          "quote": "filters plans ending in -csm.md"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-input-gate",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "csm-build's executable input gate requires all five inputs (plan/bdd/tests/ddd/norms) unconditionally, while the SKILL labels only DDD/norms optional (NORMS.md 'entirely optional') and treats plan/bdd/tests as required; and the current-context executor auto-walks INTEGRATE->CHECKPOINT->COMPLETE via completeBuild without evaluating Completion Gate conditions 1-8.",
+      "citations": [
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:305-315",
+          "quote": "build input ... was refused"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":140,:178",
+          "quote": "NORMS.md is entirely optional"
+        },
+        {
+          "referenceId": "ref-build-ctx",
+          "locator": "current-context.mjs:278-296",
+          "quote": "auto-walk then completeBuild"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-deferral-gap",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The strongest single cause is a validation/enforcement gap: csm-plan's SKILL mandates exactly one positive runnable acceptance signal (SKILL.md:358), but the schema only requires a non-empty string (csm-plan.schema.json:109) and no lint rejects disjunctive 'Either ... OR record/document/keep a deferral' signals; csm-build Completion Gate #1 then reads task STATUS, so tasks are marked completed with the feature unbuilt (observed in 5 tasks across the two 2026-09-14 DWRR plans).",
+      "citations": [
+        {
+          "referenceId": "ref-plan-skill",
+          "locator": ":358",
+          "quote": "the one runnable command/test whose pass objectively proves this task done"
+        },
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": ":109",
+          "quote": "acceptanceSignal: { type: string, minLength: 1 }"
+        },
+        {
+          "referenceId": "ref-plan-finalwork",
+          "locator": "tasks[].acceptanceSignal",
+          "quote": "Either ... OR the opt-in decision is explicitly recorded"
+        },
+        {
+          "referenceId": "ref-plan-remainder",
+          "locator": "tasks[].acceptanceSignal",
+          "quote": "OR the scope decision ... is explicitly recorded"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":384",
+          "quote": "Every numbered task is completed or explicitly excluded"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-proliferation",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "Successor-plan proliferation is enabled by the absence of a typed in-artifact supersession field: csm-plan.schema.json is additionalProperties:false with no supersedes/supersededBy property, while csm-build looks for a 'typed supersession pointer' in the descriptor. Supersession is nonetheless resolvable out-of-band via .agents/README.md prose and 'closed as superseded' nextTransition strings; the dynamic-worker-runtime goal spans 21 plans (12 frozen siblings).",
+      "citations": [
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": "additionalProperties:false",
+          "quote": "no supersedes/supersededBy property"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":172",
+          "quote": "Check the selected JSON descriptor for its typed supersession pointer"
+        },
+        {
+          "referenceId": "ref-readme",
+          "locator": "superseded-by index lines"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-record-unclosed",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The corpus shows records left unclosed: 9 plans marked complete still carry open tasks; 3 non-complete plans carry no status:'pending' tasks (though they hold in_progress/blocked tasks, so they are not simply 'done-but-unclosed'); and build-state records are 9/23 non-terminal (BLOCKED is terminal, so 14/23 terminal). Aggregate: 60 plans, 429 tasks, 198 pending, 230 open.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "semanticErrors has no task-completion rule"
+        },
+        {
+          "referenceId": "ref-build-state",
+          "locator": "state.mjs:28",
+          "quote": "terminal = COMPLETE, BLOCKED"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-commit-stale",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "statement": "Commit policy is a static string ('commits: disabled') with no commit-ledger field in the plan schema; 34/60 plans are 'disabled' (9/14 recent completes) even though the work was committed by successors, so the record cannot distinguish uncommitted work and stalls at CHECKPOINT.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": "control has no commit-ledger field"
+        },
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "control.commits"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-activation",
+      "section": "detailSections",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "csm-plan's planning terminal (SAVED) is not the artifact's terminal: plans are born ready/NOT_STARTED and only a later human message starts them, with no owner/trigger; 9 plans are ready/NOT_STARTED carrying 57 status:'pending' tasks.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-skill",
+          "locator": "Activation Boundary",
+          "quote": "Never auto-start after csm-plan"
+        },
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "createPlanArtifact",
+          "quote": "currentState: NOT_STARTED"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-obligations",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "statement": "Applicability obligations form a mostly unclosed second gate: across 54 applicability records (52 warranted), 51 keep every obligation 'required' and only 1 carries 'satisfied' obligations; neither skill instructs an obligation-status update at CHECKPOINT, and Completion Gate #1 does not consult obligations.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-lib",
+          "locator": "obligation status vocabulary",
+          "quote": "required|satisfied|missing|not_applicable|unverified"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-stop-forks",
+      "section": "detailSections",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "statement": "Legal low-evidence stop forks exist: 'incomplete' is an accepted executor status with no repair path; REPAIR stops after two attempts; broad BLOCKED rules; and the orchestrate handoff retries at most maxAttempts (default 2, csm-orchestrate/lib/recovery.mjs).",
+      "citations": [
+        {
+          "referenceId": "ref-build-out",
+          "locator": "output.schema.json:52",
+          "quote": "completed\",\"cancelled\",\"incomplete\",\"blocked\",\"failed"
+        },
+        {
+          "referenceId": "ref-build-skill",
+          "locator": ":337",
+          "quote": "After two failed attempts ... stop patching"
+        },
+        {
+          "referenceId": "ref-co-recovery",
+          "locator": "maxAttempts default 2"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-external-gap",
+      "section": "recommendation",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "External practice separates the stop decision from the worker: a deterministic Stop hook runs a check as a script and blocks the turn from ending until it passes (8-block override), and TaskCompleted can prevent a task being marked complete; /goal uses a separate evaluator model that sends the agent back to work. csm-build has none of these — the stop decision is self-judged at CHECKPOINT and enforcement is prose-only; it also has no run-level no-progress/budget ceiling.",
+      "citations": [
+        {
+          "referenceId": "ref-cc-best",
+          "locator": "best practices",
+          "quote": "a Stop hook runs your check as a script and blocks the turn from ending until it passes"
+        },
+        {
+          "referenceId": "ref-cc-hooks",
+          "locator": "Stop / TaskCompleted",
+          "quote": "decision:\"block\" prevents Claude from stopping"
+        },
+        {
+          "referenceId": "ref-cc-goal",
+          "locator": "/goal",
+          "quote": "a small fast model checks whether the condition holds ... starts another turn"
+        },
+        {
+          "referenceId": "ref-loops-blog",
+          "locator": "goal loops",
+          "quote": "deterministic criteria ... are so effective"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-json-ungated",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The canonical csm-plan/1 JSON plans are ungated: check-suite's plan-corpus loop filters files ending '-csm.md', so the authoritative JSON plans (60 files) escape Control/journal/task validation in CI — drift in the durable record is invisible.",
+      "citations": [
+        {
+          "referenceId": "ref-check-suite",
+          "locator": ":1487",
+          "quote": "filters *-csm.md"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-efficacy-unverified",
+      "section": "unverifiedClaims",
+      "claimType": "projected-outcome",
+      "verdict": "unverifiable",
+      "confidence": "medium",
+      "statement": "Whether fixing these instruction-level issues actually makes a csm-build run continue to completion is not yet demonstrated; it requires a controlled trial (apply the fixes, run a plan to COMPLETE, measure stops per run).",
+      "citations": [
+        {
+          "referenceId": "ref-loops-blog",
+          "locator": "goal loops",
+          "quote": "deterministic criteria ... are so effective"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-p4-ubiquity",
+      "section": "keyFindings",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The identical step-4 sentence \"end the invocation — tmux does the X from the start\" appears in SEVEN more skills besides csm-build — csm-plan, csm-review, csm-review-python, csm-scan, csm-bdd-tdd, csm-make-tests, and csm-deep-research (8 SKILL.md files total) — so any of them can end before work runs when no tmux session is active; only the step-4 sentence is template-identical (step 3 varies).",
+      "citations": [
+        {
+          "referenceId": "ref-csm-review",
+          "locator": "Tmux Bootstrap step 4",
+          "quote": "end the invocation — tmux does the review from the start"
+        },
+        {
+          "referenceId": "ref-csm-review-python",
+          "locator": "step 4",
+          "quote": "end the invocation — tmux does the analysis from the start"
+        },
+        {
+          "referenceId": "ref-csm-scan",
+          "locator": "step 4",
+          "quote": "end the invocation — tmux does the scan from the start"
+        },
+        {
+          "referenceId": "ref-csm-bdd-tdd",
+          "locator": "step 4",
+          "quote": "end the invocation — tmux does the mutation from the start"
+        },
+        {
+          "referenceId": "ref-csm-make-tests",
+          "locator": "step 4",
+          "quote": "end the invocation — tmux does the generation from the start"
+        },
+        {
+          "referenceId": "ref-csm-deep-research",
+          "locator": "step 4",
+          "quote": "end the invocation — tmux does the research from the start"
+        },
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "csm-plan/SKILL.md:42"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-p7-selfjudged",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "statement": "The terminal completion decision is primary-owned in every skill except csm-orchestrate and csm-autoresearch, which mitigate it structurally (mandatory independent final review / separate evaluator owning candidate status). Independent INTERMEDIATE evaluation also exists in csm-deep-research (independent challenger + judge) and csm-review (independent challengers) but does not own the terminal decision.",
+      "citations": [
+        {
+          "referenceId": "ref-csm-review",
+          "locator": "primary-personal, never delegated",
+          "quote": "The primary-personal gate, never delegated"
+        },
+        {
+          "referenceId": "ref-csm-make-tests",
+          "locator": "primary owns VERIFY",
+          "quote": "never delegates those decisions"
+        },
+        {
+          "referenceId": "ref-csm-grill",
+          "locator": "CONFIRM",
+          "quote": "loop until explicit agreement"
+        },
+        {
+          "referenceId": "ref-adversarial-review",
+          "locator": "reviewAcceptance",
+          "quote": "independent: true"
+        },
+        {
+          "referenceId": "ref-csm-autoresearch",
+          "locator": "separate evaluator",
+          "quote": "A separate evaluator owns ... status"
+        },
+        {
+          "referenceId": "ref-csm-deep-research",
+          "locator": ":36,:91,:241-243",
+          "quote": "independent challenger and judge"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-p2-json-ungated",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "check-suite's corpus gate validates only legacy Markdown (*-csm.md, *-review.md, *-approach.md, *-research.md); the canonical JSON records — plan/review/approach/research and csm-build-state/builds — are never parsed, so the authoritative artifacts are ungated and drift is invisible to CI. The only JSON record class content-gated is csm-skill-progress/1.",
+      "citations": [
+        {
+          "referenceId": "ref-check-suite",
+          "locator": ":1487",
+          "quote": "filter((f) => f.endsWith(\"-csm.md\"))"
+        },
+        {
+          "referenceId": "ref-check-suite",
+          "locator": ":1652/:1702/:1741",
+          "quote": "review/approach/research md filters"
+        },
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "claim-json-ungated"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-p2-unmapped-classes",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "Five record classes have no .agents index section and no content gate — .agents/tests, .agents/norms, .agents/doctrine, .agents/upload, .agents/browse — so csm-make-tests / csm-scan / csm-review-python / csm-upload / csm-browse records are unvalidated (and some are blocked from landing by the unmapped-section hard fail).",
+      "citations": [
+        {
+          "referenceId": "ref-agents-index",
+          "locator": ":20-31",
+          "quote": "agentsIndexSectionFor returns null for these classes"
+        },
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "claim-json-ungated"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-orphan-guard-tests",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "Guard tests that would validate csm-review and csm-review-python records exist and pass but are referenced by no Makefile/CI target and are invisible to the orphan check (which scans only tests/**), so the records remain effectively unguarded.",
+      "citations": [
+        {
+          "referenceId": "ref-check-suite",
+          "locator": "trackedTestFiles",
+          "quote": "only tests/** scanned"
+        },
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "claim-json-ungated"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-orchestrate-first-failure",
+      "section": "keyFindings",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "The single coordination entry point csm-orchestrate stops the phase and whole run on the FIRST node failure, leaving later nodes and phases unrun; it performs only a bounded retry (maxAttempts default 2) with no continuation past an exhausted node and no typed supersession of the abandoned work — so it does not enforce completion of the skills it routes to.",
+      "citations": [
+        {
+          "referenceId": "ref-csm-orchestrate",
+          "locator": "phase scheduler",
+          "quote": "while (pending.size && !phaseFailure)"
+        },
+        {
+          "referenceId": "ref-co-recovery",
+          "locator": "maxAttempts",
+          "quote": "default 2; RETRYABLE_FAILURES transport|timeout|incomplete"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-p6-termination-forks",
+      "section": "detailSections",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "statement": "Multiple skills reach a legal terminal without full delivery: csm-review proceeds to SAVED after three distinct VERIFY failures; csm-deep-research proceeds to SAVED after its VERIFY budget; csm-make-tests terminates generation at a fixed iteration cap and records skips; INCOMPLETE/BLOCKED are legal terminals for review/review-python/scan/make-tests.",
+      "citations": [
+        {
+          "referenceId": "ref-csm-review",
+          "locator": ":137",
+          "quote": "after three distinct failures ... proceeds to SAVED"
+        },
+        {
+          "referenceId": "ref-csm-deep-research",
+          "locator": ":184",
+          "quote": "proceeds to SAVED"
+        },
+        {
+          "referenceId": "ref-csm-make-tests",
+          "locator": ":136-138",
+          "quote": "fixed iteration cap ... documented skip"
+        },
+        {
+          "referenceId": "ref-csm-scan",
+          "locator": ":156",
+          "quote": "unverified remains uncovered"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-grill-user-judged",
+      "section": "keyFindings",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "csm-grill's loop terminates only on user sentiment — 'keep cycling until the user explicitly agrees' — pure prose with no deterministic gate and no independent evaluator; its artifact is schema-referenced but ungated.",
+      "citations": [
+        {
+          "referenceId": "ref-csm-grill",
+          "locator": ":43,:158,:160",
+          "quote": "keep cycling until the user explicitly agrees; loop until explicit agreement; Exit: user explicitly agrees"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-corpus-orphaning",
+      "section": "keyFindings",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "Corpus evidence: predecessor progress records are orphaned rather than closed — active trackers (broker-upstream 39%, dwrr-final-residuals 92%, dynamic-worker-runtime-build 73%, dwrr-drift-build 80%) stay active after successor runs complete; commit 284f277 declares a plan COMPLETE while the orchestrate-request-intake-router tracker is still 92% active. Five 2026-09-12 DWRR build-state records remain in_progress (18/23 build-state records are non-COMPLETE; 9/23 are non-terminal, since BLOCKED is terminal).",
+      "citations": [
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "corpus"
+        },
+        {
+          "referenceId": "ref-check-suite",
+          "locator": "check-suite plan-corpus filters"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-corpus-reviews-incomplete",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "statement": "3 of 4 machine review reports are INCOMPLETE and the review schema has no remediation-closure field, so closure can only be confirmed indirectly via commits; two audits have no visible close-out.",
+      "citations": [
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "corpus"
+        },
+        {
+          "referenceId": "ref-csm-review",
+          "locator": "verificationStatus"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-no-artifact-skills",
+      "section": "detailSections",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "Only 4 of 14 skills emit an .agents/progress tracker (csm-build 17, csm-plan 6, csm-deep-research 5, csm-review 1); every skill produces some durable JSON artifact, so per-run abandonment is not machine-visible for the other 10 skills — the missing progress record is the gap, not the absence of any artifact.",
+      "citations": [
+        {
+          "referenceId": "ref-prior-finding",
+          "locator": "corpus"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-mitigations",
+      "section": "detailSections",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "Three structural mitigations already exist and should be generalized: csm-bdd-tdd carries the only ENFORCED typed supersession pointer (the plan-descriptor pointer csm-build follows); csm-autoresearch gives status to a separate evaluator; csm-orchestrate mandates an independent final review (provenance host-backed/in-process-independent). csm-review additionally DECLARES a typed supersedesArtifactId that is unused.",
+      "citations": [
+        {
+          "referenceId": "ref-csm-bdd-tdd",
+          "locator": ":101,:233-238",
+          "quote": "typed supersession pointer"
+        },
+        {
+          "referenceId": "ref-csm-autoresearch",
+          "locator": ":28-29",
+          "quote": "separate evaluator owns ... status"
+        },
+        {
+          "referenceId": "ref-csm-orchestrate",
+          "locator": ":58-60",
+          "quote": "mandatory final review"
+        },
+        {
+          "referenceId": "ref-adversarial-review",
+          "locator": ":325-326",
+          "quote": "host-backed/in-process-independent"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-no-completion-check",
+      "section": "detailSections",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "statement": "No corpus path verifies task/step completion against evidence: plan validation checks only the presence of a Task ID and a non-empty Acceptance signal, and journal rows only that Next state is in the machine enum.",
+      "citations": [
+        {
+          "referenceId": "ref-check-suite",
+          "locator": "validatePlanTaskCompleteness",
+          "quote": "only Task ID + Acceptance signal presence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-review-supersession-field",
+      "section": "detailSections",
+      "claimType": "mechanism",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "statement": "csm-review's canonical findings schema declares an optional typed supersedesArtifactId field (csm-review/schemas/csm-review-findings.schema.json:245) that is neither exercised by tests nor referenced by SKILL.md — an unused supersession field, so typed supersession is not universally absent across the suite.",
+      "citations": [
+        {
+          "referenceId": "ref-csm-review",
+          "locator": "schemas/csm-review-findings.schema.json:245",
+          "quote": "supersedesArtifactId"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-build-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/SKILL.md",
+      "publisher": "workspace csm-build SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-build-state",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/lib/state.mjs",
+      "publisher": "workspace csm-build lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-build-ctx",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/lib/current-context.mjs",
+      "publisher": "workspace csm-build lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-build-out",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-build/schemas/output.schema.json",
+      "publisher": "workspace csm-build schema",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-build-tests",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/tests/build-json-control.test.mjs",
+      "publisher": "workspace test",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-plan/SKILL.md",
+      "publisher": "workspace csm-plan SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-plan-lib",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-plan/lib/plan.mjs",
+      "publisher": "workspace csm-plan lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-schema",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-plan/schemas/csm-plan.schema.json",
+      "publisher": "workspace csm-plan schema",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-finalwork",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/.agents/plans/2026-09-14-dynamic-worker-runtime-final-work-csm.json",
+      "publisher": "workspace plan",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-remainder",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/.agents/plans/2026-09-14-dynamic-worker-runtime-remainder-closure-csm.json",
+      "publisher": "workspace plan",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-co-recovery",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/csm-orchestrate/lib/recovery.mjs",
+      "publisher": "workspace csm-orchestrate lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-check-suite",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/scripts/check-suite.mjs",
+      "publisher": "workspace script",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-readme",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/0cf2ffe/.agents/README.md",
+      "publisher": "workspace index",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-cc-best",
+      "url": "https://code.claude.com/docs/en/best-practices",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-cc-hooks",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-cc-goal",
+      "url": "https://code.claude.com/docs/en/goal",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-loops-blog",
+      "url": "https://claude.com/blog/getting-started-with-loops",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-csm-grill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-grill/SKILL.md",
+      "publisher": "workspace csm-grill SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-review",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-review/SKILL.md",
+      "publisher": "workspace csm-review SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-review-python",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-review-python/SKILL.md",
+      "publisher": "workspace csm-review-python SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-scan",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-scan/SKILL.md",
+      "publisher": "workspace csm-scan SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-bdd-tdd",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-bdd-tdd/SKILL.md",
+      "publisher": "workspace csm-bdd-tdd SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-make-tests",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-make-tests/SKILL.md",
+      "publisher": "workspace csm-make-tests SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-autoresearch",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-autoresearch/SKILL.md",
+      "publisher": "workspace csm-autoresearch SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-orchestrate",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-orchestrate/SKILL.md",
+      "publisher": "workspace csm-orchestrate SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-csm-deep-research",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-deep-research/SKILL.md",
+      "publisher": "workspace csm-deep-research SKILL.md",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    },
+    {
+      "referenceId": "ref-agents-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/scripts/lib/agents-index.mjs",
+      "publisher": "workspace index helper",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-adversarial-review",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/csm-orchestrate/lib/adversarial-final-review.mjs",
+      "publisher": "workspace csm-orchestrate lib",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-prior-finding",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/26f0692/.agents/research/2026-09-14-csm-plan-build-completion-20260914t060000z-csmplanbuildmeta-research.json",
+      "publisher": "workspace prior finding",
+      "retrievedAt": "2026-09-14",
+      "sourcePosture": "methodological-authority"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "intake-recorded; prior finding imported",
+      "occurredAt": "2026-09-14T08:00:00.000Z",
+      "cycle": 0,
+      "trigger": "explicit extension request"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "triaged DEEP x hybrid",
+      "occurredAt": "2026-09-14T08:02:00.000Z",
+      "cycle": 0,
+      "trigger": "suite-wide meta question"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "4 parallel tracks returned",
+      "occurredAt": "2026-09-14T08:20:00.000Z",
+      "cycle": 0,
+      "trigger": "R1-R4"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "draft produced; all prior claims imported",
+      "occurredAt": "2026-09-14T08:30:00.000Z",
+      "cycle": 0,
+      "trigger": "evidence pack complete"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "challenger: corrected p4 count to 8, downgraded p7/corpus-orphaning, retracted no-artifact strong form, qualified mitigations, fixed grill locator; confirmed 14 prior claims present (0 diffs)",
+      "occurredAt": "2026-09-14T08:40:00.000Z",
+      "cycle": 1,
+      "trigger": "adversarial disproof"
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "judge FAIL factual 0.50 / citation 0.60 / completeness 0.70 / clarity 0.78",
+      "occurredAt": "2026-09-14T08:50:00.000Z",
+      "cycle": 1,
+      "trigger": "rubric scoring"
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "draft v2: applied challenger+judge corrections (counts, verdicts, locators, D4 arithmetic, added review-supersession claim)",
+      "occurredAt": "2026-09-14T09:00:00.000Z",
+      "cycle": 1,
+      "trigger": "challenger downgrades + judge fail"
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "verified: challenger+judge corrections applied; 8 sections; refs have URL+date; 14 prior claims carried; protected-state diff limited to corpus + progress + temp",
+      "occurredAt": "2026-09-14T09:10:00.000Z",
+      "cycle": 1,
+      "trigger": "primary-personal gate"
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "saved to corpus",
+      "occurredAt": "2026-09-14T09:12:00.000Z",
+      "cycle": 1,
+      "trigger": "all gates pass"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-14T09:12:00.000Z",
+    "sourceDigests": [
+      "sha256:ac7c4b7541ad712c5ba36fe0f866091d523bd289be755e0bf8f374779ae8610a"
+    ]
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}
