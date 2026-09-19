@@ -17,8 +17,6 @@ import {
 import { validateCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 
-
-
 const REQUEST_V1 = {
   schema: "csm-orchestrate-request/1",
   schemaRevision: 1,
