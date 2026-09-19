@@ -1,0 +1,38 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-csm-browse-daemon-flake-20260919",
+  "runId": "run-20260919t120500z-csmbrowsedaemonflakebuild",
+  "skill": "csm-build",
+  "goal": "Fix the flaky/hanging csm-browse daemon unit test",
+  "status": "active",
+  "overallPercent": 5,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover + validate",
+      "weightPercent": 10,
+      "status": "active",
+      "verifiedFraction": 0.5
+    },
+    {
+      "id": "M2",
+      "title": "Diagnose + fix daemon/harness",
+      "weightPercent": 50,
+      "status": "pending"
+    },
+    {
+      "id": "M3",
+      "title": "Determinism stress",
+      "weightPercent": 25,
+      "status": "pending"
+    },
+    {
+      "id": "M4",
+      "title": "Delivery",
+      "weightPercent": 15,
+      "status": "pending"
+    }
+  ],
+  "startedAt": "2026-09-19T12:05:00.000Z",
+  "updatedAt": "2026-09-19T13:05:09.494Z"
+}
