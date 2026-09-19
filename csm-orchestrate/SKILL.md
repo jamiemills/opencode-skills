@@ -95,3 +95,21 @@ cursor store, and deterministic technical/functional evidence callbacks. Run
 `node --test tests/orchestrate-e2e.test.mjs` for the synthetic contract suite.
 Do not interpret this skill's fixture host as production dispatch or infer
 productivity improvements from these tests.
+
+## Optional Jev Decision Points
+
+Jev is the optional, host-mediated typed-decision layer, off by default and
+observational: absent or disabled, behavior is byte-identical. Opt in via
+`--use-jev` or the `csm-orchestrate-request/2` `decision` block.
+
+- Transport is provider-pluggable: `CSM_DECISION_PROVIDER` selects a descriptor
+  (default `openrouter`; `vercel` ships; a third route is a new
+  `lib/decision-adapter/providers/<id>.mjs` descriptor only).
+- Every provider, network, timeout, or cap failure fail-opens to the
+  deterministic harness and never sets `PAUSED`;
+  `CSM_DECISION_KILL=1` / `CSM_DECISION_MODE=off` force it off.
+
+Jev output is the observational `csm-orchestrate-decision-gate/1` class with no
+acceptance authority: it never writes evaluator receipts, loop guards,
+closure/`verificationStatus`, cursor/supersession, or any gate. See
+`docs/typed-decisions.md` and `docs/typed-decisions-runbook.md`.

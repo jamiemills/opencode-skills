@@ -32,6 +32,24 @@ export const DEFAULT_DECISION_MAX_STATE_BYTES = 262_144;
 export const DEFAULT_DECISION_MAX_COST = 1;
 export const DEFAULT_MAX_CALLS_PER_POINT = 32;
 
+// T020: the published, operator-facing defaults. One frozen surface so the
+// documented cap values and the values `createDecisionAdapter` actually applies
+// cannot drift apart. Every field is the same named constant the adapter uses.
+//   - deadlineMs: per-call wall-clock ceiling for one provider call (this sits
+//     above the transport's own timeout; a non-cooperative transport still
+//     cannot hang a run).
+//   - maxStateBytes: serialized-state ceiling; an oversized state fails open
+//     without a provider call.
+//   - maxCost: USD ceiling per call; `null` disables the cost check. Only
+//     enforced when a provider actually reports `usage.cost`.
+//   - maxCallsPerPoint: per-point transport-call ceiling for one run.
+export const DECISION_ADAPTER_DEFAULTS = Object.freeze({
+  deadlineMs: DEFAULT_DECISION_DEADLINE_MS,
+  maxStateBytes: DEFAULT_DECISION_MAX_STATE_BYTES,
+  maxCost: DEFAULT_DECISION_MAX_COST,
+  maxCallsPerPoint: DEFAULT_MAX_CALLS_PER_POINT,
+});
+
 // The shared failure taxonomy the adapter recognizes. An out-of-vocabulary
 // class is still fail-open (treated as "unmapped"); this list bounds the
 // vocabulary, it does not gate the revert.
@@ -261,6 +279,14 @@ export function createDecisionAdapter({
     transport !== null && typeof transport === "object" && typeof transport.send === "function";
   const providerId =
     transportResolved && typeof transport.providerId === "string" ? transport.providerId : null;
+  // F1: the descriptor's real model, carried through from the transport so advice
+  // (and the artifact writer) never fabricates an "unspecified" model.
+  const providerModel =
+    transportResolved &&
+    typeof transport.providerModel === "string" &&
+    transport.providerModel.length > 0
+      ? transport.providerModel
+      : null;
 
   // Run-scoped state: one adapter instance is one run.
   let consecutiveFailures = 0;
@@ -270,6 +296,7 @@ export function createDecisionAdapter({
   let applied = 0;
   let cacheHits = 0;
   const failures = [];
+  const decisions = [];
   const callsByPoint = new Map();
   const pendingCalls = new Map();
 
@@ -295,14 +322,43 @@ export function createDecisionAdapter({
     return (callsByPoint.get(pointId) ?? 0) >= boundMaxCalls;
   }
 
-  function adviceOf(decision) {
+  // T020: provider identity, normalized usage, and the measured call latency are
+  // attached to every piece of advice so a downstream artifact record can carry
+  // telemetry without re-deriving it. A provider that reports no usage still
+  // yields `{}` here; a missing cost is never invented.
+  function adviceOf(decision, latencyMs = null) {
     const source = decision !== null && typeof decision === "object" ? decision : {};
     return Object.freeze({
       answer: source.answer ?? null,
       confidence: Number.isFinite(source.confidence) ? source.confidence : null,
       usage: source.usage !== null && typeof source.usage === "object" ? source.usage : {},
       providerId,
+      providerModel,
+      latencyMs: Number.isFinite(latencyMs) && latencyMs >= 0 ? latencyMs : null,
     });
+  }
+
+  // F2: retain an observational copy of every consulted decision so the driver
+  // can persist one redacted run artifact. The copy is frozen and is never a
+  // channel back into the run: records only report what the adapter already did.
+  function remember(pointId, digest, advice, detail) {
+    decisions.push(
+      Object.freeze({
+        pointId,
+        stateDigest: digest,
+        answer: advice.answer,
+        confidence: advice.confidence,
+        usage: advice.usage,
+        provider: Object.freeze({ id: advice.providerId, model: advice.providerModel }),
+        latencyMs: advice.latencyMs,
+        applied: detail.applied === true,
+        routingBand: detail.routingBand,
+        ...(detail.baselineAgreement === undefined
+          ? {}
+          : { baselineAgreement: detail.baselineAgreement }),
+      }),
+    );
+    return detail;
   }
 
   // Single-flight + in-run cache. The tracked promise is stored synchronously so
@@ -319,6 +375,7 @@ export function createDecisionAdapter({
     callsByPoint.set(pointId, (callsByPoint.get(pointId) ?? 0) + 1);
     consulted += 1;
 
+    const startedAt = Date.now();
     const settle = async () => {
       let result;
       try {
@@ -342,7 +399,7 @@ export function createDecisionAdapter({
       const cost = result?.decision?.usage?.cost;
       if (boundMaxCost !== null && Number.isFinite(cost) && cost > boundMaxCost)
         return { status: "failure", failure: { class: "unmapped", retryable: false } };
-      return { status: "ok", result };
+      return { status: "ok", result, latencyMs: Math.max(0, Date.now() - startedAt) };
     };
 
     const tracked = settle().then((outcome) => {
@@ -379,14 +436,21 @@ export function createDecisionAdapter({
     const outcome = await startConsult(key, pointId, state, point);
     if (outcome.status !== "ok") return baseline;
 
-    const advice = adviceOf(outcome.result.decision);
+    const advice = adviceOf(outcome.result.decision, outcome.latencyMs);
     const canApply =
       apply && mayApply(point) && advice.answer !== null && advice.answer !== undefined;
-    if (!canApply)
+    if (!canApply) {
+      remember(pointId, digest, advice, { applied: false, routingBand: baseline.routingBand });
       return Object.freeze({ ...baseline, consulted: true, advice, failure: null, applied: false });
+    }
 
     const baselineAnswer = baselineAnswerOf(state);
-    if (baselineAnswer !== undefined && !answersAgree(advice.answer, baselineAnswer))
+    if (baselineAnswer !== undefined && !answersAgree(advice.answer, baselineAnswer)) {
+      remember(pointId, digest, advice, {
+        applied: false,
+        routingBand: baseline.routingBand,
+        baselineAgreement: false,
+      });
       return Object.freeze({
         ...baseline,
         consulted: true,
@@ -395,8 +459,14 @@ export function createDecisionAdapter({
         applied: false,
         baselineAgreement: false,
       });
+    }
 
     applied += 1;
+    remember(pointId, digest, advice, {
+      applied: true,
+      routingBand: "apply",
+      ...(baselineAnswer === undefined ? {} : { baselineAgreement: true }),
+    });
     return Object.freeze({
       ...baseline,
       answer: advice.answer,
@@ -448,6 +518,7 @@ export function createDecisionAdapter({
       succeeded,
       applied,
       cacheHits,
+      records: decisions.length,
       deadlineMs: boundDeadlineMs,
       maxStateBytes: boundMaxStateBytes,
       maxCost: boundMaxCost,
@@ -467,6 +538,7 @@ export function createDecisionAdapter({
     decide,
     shadow,
     stats,
+    records: () => Object.freeze([...decisions]),
   });
 }
 
@@ -476,4 +548,5 @@ export default {
   noAdapterDecision,
   isDecisionMode,
   isDecisionFailureClass,
+  DECISION_ADAPTER_DEFAULTS,
 };

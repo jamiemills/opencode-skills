@@ -131,6 +131,12 @@ export function createDecisionTransport({
 
   return Object.freeze({
     providerId: provider?.id ?? null,
+    // F1: surface the descriptor's real model so the live advice/artifact never
+    // fabricates an "unspecified" model. Null when the descriptor declares none.
+    providerModel:
+      typeof provider?.defaultModel === "string" && provider.defaultModel.length > 0
+        ? provider.defaultModel
+        : null,
     timeoutMs,
     maxBodyBytes,
     send,

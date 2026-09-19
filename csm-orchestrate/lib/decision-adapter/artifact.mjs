@@ -36,6 +36,77 @@ const DEFAULT_CRITERIA = Object.freeze(["deterministic-baseline"]);
 const DEFAULT_PROVIDER = Object.freeze({ id: "unspecified", model: "unspecified" });
 const DEFAULT_TRANSPORT = "decision-adapter";
 
+// T020: the telemetry every `csm-decision/1` record carries. `provider`
+// identifies who answered (id + model), `usage` is the provider-normalized spend,
+// and `latencyMs` is the measured round-trip. Published so callers/tests assert
+// the same surface the writer emits.
+export const DECISION_TELEMETRY_FIELDS = Object.freeze(["provider", "usage", "latencyMs"]);
+
+// Normalizes any provider's usage report into the `csm-decision/1` usage shape
+// (inputTokens/outputTokens/cost). Accepts camelCase plus the common snake_case
+// aliases, and omits `cost` entirely when the provider does not report it -- a
+// missing cost is never manufactured as zero. Unknown keys are dropped so the
+// record stays schema-valid.
+export function normalizeDecisionUsage(usage) {
+  const normalized = {};
+  if (usage === null || typeof usage !== "object" || Array.isArray(usage)) return normalized;
+  const inputTokens = usage.inputTokens ?? usage.input_tokens ?? usage.prompt_tokens;
+  const outputTokens = usage.outputTokens ?? usage.output_tokens ?? usage.completion_tokens;
+  const cost = usage.cost ?? usage.total_cost;
+  if (Number.isFinite(inputTokens)) normalized.inputTokens = Math.max(0, Math.trunc(inputTokens));
+  if (Number.isFinite(outputTokens))
+    normalized.outputTokens = Math.max(0, Math.trunc(outputTokens));
+  if (Number.isFinite(cost)) normalized.cost = Math.max(0, cost);
+  return normalized;
+}
+
+function normalizeProvider(provider) {
+  if (provider === null || typeof provider !== "object" || Array.isArray(provider)) return null;
+  if (typeof provider.id !== "string" || provider.id.length === 0) return null;
+  return {
+    id: provider.id,
+    model:
+      typeof provider.model === "string" && provider.model.length > 0
+        ? provider.model
+        : DEFAULT_PROVIDER.model,
+  };
+}
+
+// Resolves the provider from the explicit argument, the decision's own
+// `provider`, or the adapter's live `advice` (`providerId` + real
+// `providerModel`). Falls back to the schema-required `unspecified` provider
+// rather than throwing; only the live-path model is taken from advice so the
+// "unspecified" placeholder is never substituted for a known model (F1).
+function resolveProvider(provider, decision) {
+  const explicit = normalizeProvider(provider);
+  if (explicit !== null) return explicit;
+  const direct = normalizeProvider(decision?.provider);
+  if (direct !== null) return direct;
+  const advice = decision?.advice;
+  if (
+    advice !== null &&
+    typeof advice === "object" &&
+    typeof advice.providerId === "string" &&
+    advice.providerId.length > 0
+  )
+    return {
+      id: advice.providerId,
+      model:
+        typeof advice.providerModel === "string" && advice.providerModel.length > 0
+          ? advice.providerModel
+          : DEFAULT_PROVIDER.model,
+    };
+  return DEFAULT_PROVIDER;
+}
+
+// F6: returns the measured latency, or null when there is no finite
+// measurement. A missing latency is omitted from the record, never fabricated
+// as 0.
+function resolveLatencyMs(latencyMs, decision) {
+  const candidate = latencyMs ?? decision?.latencyMs ?? decision?.advice?.latencyMs;
+  return Number.isFinite(candidate) && candidate >= 0 ? candidate : null;
+}
+
 // Any object key that names credential material. These are redacted by key, so
 // a value under `authorization`/`*_KEY`/`*_TOKEN`/`*_SECRET`/`apiKey` never
 // reaches disk even when it is not recognized as a token.
@@ -164,7 +235,9 @@ export function buildAuditRecord({
   const resolvedStateDigest = stateDigest ?? decision.stateDigest ?? null;
   if (!STATE_DIGEST_PATTERN.test(resolvedStateDigest ?? ""))
     throw new TypeError(`invalid stateDigest: ${String(resolvedStateDigest)}`);
-  const resolvedProvider = provider ?? decision.provider ?? DEFAULT_PROVIDER;
+  const resolvedProvider = resolveProvider(provider, decision);
+  const resolvedUsage = normalizeDecisionUsage(usage ?? decision.usage ?? decision.advice?.usage);
+  const resolvedLatencyMs = resolveLatencyMs(latencyMs, decision);
   const resolvedCriteria =
     criteria ?? (Array.isArray(decision.criteria) ? decision.criteria : DEFAULT_CRITERIA);
   const baselineAnswer = baseline === null ? null : (baseline.answer ?? baseline);
@@ -192,8 +265,8 @@ export function buildAuditRecord({
     routingBand: decision.routingBand ?? "advisory",
     applied: decision.applied === true,
     provider: { id: resolvedProvider.id, model: resolvedProvider.model },
-    usage: usage ?? decision.usage ?? {},
-    latencyMs: latencyMs ?? decision.latencyMs ?? 0,
+    usage: resolvedUsage,
+    ...(resolvedLatencyMs === null ? {} : { latencyMs: resolvedLatencyMs }),
     provenance: {
       transport: decision.transport ?? DEFAULT_TRANSPORT,
       generatedAt: generatedAt ?? decision.generatedAt ?? new Date().toISOString(),
@@ -336,10 +409,57 @@ export async function writeDecisionArtifact({
   });
 }
 
+// F2: the live wiring seam. After a run's decision path completes, the driver
+// hands the active adapter here to persist ONE redacted `.agents/decisions/
+// <runId>.json`. Writing is observational and strictly fail-open: it writes
+// NOTHING when there is no adapter, the adapter is off / has no transport, there
+// is no real runId, or no decision was applied, and it never throws into a run.
+// `outputDir`/`indexer`/`index` pass straight through to `writeDecisionArtifact`
+// so tests can target a temp dir and prove an artifact is emitted without
+// touching the repo.
+export async function persistAdapterDecisions({
+  adapter = null,
+  runId = null,
+  env = {},
+  outputDir = DECISION_ARTIFACT_DIR,
+  cwd = process.cwd(),
+  indexer = indexDecisionArtifactInReadme,
+  index = null,
+  now = new Date(),
+} = {}) {
+  if (adapter === null || typeof adapter !== "object") return null;
+  if (typeof adapter.records !== "function") return null;
+  if (adapter.mode === "off" || adapter.transportResolved === false) return null;
+  if (!RUN_ID_PATTERN.test(runId ?? "")) return null;
+  let records;
+  try {
+    records = adapter.records();
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(records) || !records.some((record) => record?.applied === true)) return null;
+  try {
+    return await writeDecisionArtifact({
+      runId,
+      records,
+      env,
+      outputDir,
+      cwd,
+      indexer,
+      index,
+      now,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default {
   DECISION_ARTIFACT_SCHEMA,
   DECISION_ARTIFACT_SCHEMA_REVISION,
   DECISION_ARTIFACT_DIR,
+  DECISION_TELEMETRY_FIELDS,
+  normalizeDecisionUsage,
   CREDENTIAL_KEY_RE,
   isCredentialKey,
   redactDecisionArtifact,
@@ -349,4 +469,5 @@ export default {
   validateDecisionRecord,
   indexDecisionArtifactInReadme,
   writeDecisionArtifact,
+  persistAdapterDecisions,
 };

@@ -60,6 +60,7 @@ import {
   createCsmBuildHandoff,
 } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
 import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
+import { persistAdapterDecisions } from "../csm-orchestrate/lib/decision-adapter/artifact.mjs";
 import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
 import {
   explicitModeSkills,
@@ -159,7 +160,7 @@ function parseDecisionOptIn(artifact, kind) {
   return { mode: block.mode, points: points && points.length ? points : null };
 }
 
-async function resolveDecisionAdapter(artifact, kind) {
+async function resolveDecisionAdapter(artifact, kind, runId = null) {
   const optin = parseDecisionOptIn(artifact, kind);
   if (!optin) return null;
   try {
@@ -192,6 +193,9 @@ async function resolveDecisionAdapter(artifact, kind) {
     return createDecisionAdapter({
       mode: optin.mode,
       transport,
+      // F4: a real runId makes the adapter retain successful results across
+      // calls (cross-call memoization); without one it still single-flights.
+      runId,
       ...(optin.points ? { points: optin.points } : {}),
     });
   } catch (error) {
@@ -565,7 +569,7 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
   // T009/T010: build the dormant decision adapter (null without opt-in); only
   // when one is injected does classification go through the guard. The
   // deterministic path stays byte-identical when no adapter is present.
-  const decisionAdapter = await resolveDecisionAdapter(artifact, kind);
+  const decisionAdapter = await resolveDecisionAdapter(artifact, kind, runId);
   const guardedClassification =
     decisionAdapter === null
       ? classifyRequest(request)
@@ -616,6 +620,9 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
     input: { artifactPath, plan: artifact },
     ...(decisionAdapter ? { decisionAdapter } : {}),
   });
+  // F2: persist the run's applied decisions. Fail-open: an absent/off adapter,
+  // no real runId, or no applied record writes nothing.
+  if (decisionAdapter) await persistAdapterDecisions({ adapter: decisionAdapter, runId });
   await writeFile(join(evidenceDir, "bypass-result.json"), `${JSON.stringify(result, null, 2)}\n`);
   console.log("status:", result.status);
   console.log("evidence:", evidenceDir);
@@ -880,7 +887,7 @@ async function realMode() {
     // resolved. Passed through orchestrate()'s options so T010 can consume the
     // injected `decisionAdapter`; orchestrate currently ignores unknown options,
     // so an absent adapter leaves the call byte-identical.
-    const decisionAdapter = await resolveDecisionAdapter(approach, kind);
+    const decisionAdapter = await resolveDecisionAdapter(approach, kind, runId);
     const result = await orchestrate({
       approach,
       runId,
@@ -926,6 +933,10 @@ async function realMode() {
         : {}),
       ...(decisionAdapter ? { decisionAdapter } : {}),
     });
+    // F2: persist the run's applied decisions to one redacted
+    // `.agents/decisions/<runId>.json`. Fail-open: an absent/off adapter, no real
+    // runId, or no applied record writes nothing and never fails the run.
+    if (decisionAdapter) await persistAdapterDecisions({ adapter: decisionAdapter, runId });
     await copyFile(approachPath, join(evidenceDir, "approach.json"));
     await writeFile(
       join(evidenceDir, "receipt.json"),
