@@ -549,7 +549,16 @@ async function runOrchestrationInternal({
           : null;
     if (bindingReporter) {
       const report = await collectEffectiveIsolation({ reporters: [bindingReporter], request });
-      if (!report || !isKnownIsolation(report.isolation)) return { action: "invoke" };
+      if (!report || !isKnownIsolation(report.isolation)) {
+        // Unknown report: the executor may resolve its mode at invoke time
+        // (csm-autoresearch derives generated vs trusted from the invocation
+        // input), so the seam delegates and the EXECUTOR's own gate is
+        // authoritative for its route. The shipped in-process adapter re-gates
+        // internally and fails closed (isolation-unavailable); a custom adapter
+        // that omits a reporter and does not re-gate is its own responsibility.
+        // A known report is enforced here instead.
+        return { action: "invoke" };
+      }
       return gateWith(report);
     }
     // No reporter at all: an incidental node has nothing to enforce, a

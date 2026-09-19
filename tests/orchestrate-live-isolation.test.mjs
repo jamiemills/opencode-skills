@@ -1528,3 +1528,102 @@ test("T005: the thin child entry packaging requirement stays documented and unsh
     "the packaged payload must not ship a thin worker entry it cannot resolve",
   );
 });
+
+// N5: a binding/handler-level reporter may return `unknown` before dispatch
+// because the executor resolves its mode at invoke time (csm-autoresearch
+// derives generated vs trusted from the invocation input). The seam therefore
+// delegates to the executor, whose OWN gate is authoritative for its route: the
+// shipped in-process adapter re-gates and fails closed on unknown (proven by
+// the "T004: unknown effective isolation is refused at the executor seam" test).
+// A custom adapter that omits a reporter and does not re-gate is its own
+// responsibility; the plan claims "unknown refused regardless of adapter shape"
+// for the shipped seam + adapter pair, not for arbitrary custom adapters.
+test("N5: a binding reporter that reports unknown delegates to the executor (verified-sandbox)", async () => {
+  const capabilities = await verifiedSandboxCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-binding-unknown-"));
+  try {
+    const skill = "csm-scan";
+    const handler = Object.assign(completedHandler(), {
+      effectiveIsolation: () => ({ isolation: "unknown" }),
+    });
+    const binding = bindingFor(skill, handler);
+    const executorRegistry = await createSkillExecutorRegistry({ descriptors: [binding] });
+    const runId = "run-live-binding-unknown";
+    let adapterInvoked = false;
+    const executorAdapter = {
+      async invoke() {
+        adapterInvoked = true;
+        return { status: "completed", output: { ok: true } };
+      },
+    };
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      executorAdapter,
+      executorRegistry,
+      executorBindings: { [skill]: binding },
+      maxAttempts: 1,
+    });
+    assert.equal(
+      adapterInvoked,
+      true,
+      "an invoke-time-resolving reporter delegates to the executor's own gate",
+    );
+    assert.ok(result, "the run returned a receipt after delegation");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("N5: a binding reporter that reports unknown still delegates a trusted-in-process route", async () => {
+  const capabilities = await loadCapabilities();
+  const registry = await loadSchemaRegistry();
+  const root = await mkdtemp(join(tmpdir(), "csm-live-binding-trusted-"));
+  try {
+    const skill = "csm-scan";
+    const handler = Object.assign(completedHandler(), {
+      effectiveIsolation: () => ({ isolation: "unknown" }),
+    });
+    const binding = bindingFor(skill, handler);
+    const executorRegistry = await createSkillExecutorRegistry({ descriptors: [binding] });
+    const runId = "run-live-binding-trusted";
+    let adapterInvoked = false;
+    const executorAdapter = {
+      async invoke() {
+        adapterInvoked = true;
+        return { status: "completed", output: { ok: true } };
+      },
+    };
+    const result = await orchestrate({
+      approach: approachFor(runId, skill),
+      runId,
+      capabilities,
+      signals: { capabilities: [skill] },
+      approvals: createAutonomyPolicy(capabilities, { now: NOW }),
+      now: NOW,
+      cursorStore: durableStore(),
+      schemaRegistry: registry,
+      artifactResolver: createArtifactResolver({ root, schemaRegistry: registry }),
+      executorAdapter,
+      executorRegistry,
+      executorBindings: { [skill]: binding },
+      maxAttempts: 1,
+    });
+    assert.equal(adapterInvoked, true, "a trusted-in-process route still delegates");
+    assert.notEqual(
+      result.reason,
+      "isolation-unavailable",
+      "delegation must not be blocked for isolation on a trusted-in-process route",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

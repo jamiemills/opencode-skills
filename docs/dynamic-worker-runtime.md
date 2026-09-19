@@ -175,14 +175,14 @@ model widens.
 
 ### Host-external anchor scope decision (T001, 2026-09-17)
 
-**Decision (explicit, approved):** a trust anchor beyond the OS-user boundary is
-**not implemented** and is **out of personal-suite scope**. The accepted boundary
-is the recorded `os-user-bound` g3-ruling boundary. This is a recorded scope
-decision under plan
+**Decision (recorded scope decision):** a trust anchor beyond the OS-user
+boundary is **not implemented** and is **out of personal-suite scope**. The
+accepted boundary is the recorded `os-user-bound` g3-ruling boundary. Basis:
+plan assumption A2 in
 `.agents/plans/2026-09-14-dynamic-worker-runtime-remainder-closure-csm.json`
-(assumption A2, which authorizes T001 to resolve as a recorded scope decision)
-and `.agents/docs/g3-ruling.md` — never a silent downgrade, and never a claim
-stronger than delivered.
+(authorizing T001 to resolve as a recorded scope decision) plus the recorded
+`g3-ruling` decision — no separate sign-off artifact exists beyond those. It is
+never a silent downgrade, and never a claim stronger than delivered.
 
 **What is provided.** The host-external anchor _interface_ is live:
 `createExternalAnchor({ publish, read })` plus `trustAnchor` / `anchorTrustDomain`
@@ -375,12 +375,13 @@ unless a future plan implements bounded, approved writable concurrency. This
 records the T011/T019 decision.
 
 **Writable parallel workers deferred (T002).** Per-worker worktrees plus
-serialized merges were spiked, but the wiring is **deferred**: it needs a
-per-node child-identity fix (a separate task) so each node's worktree/merge is
-attributable, and a run-scoped integration authority that owns the serialized
-merge and regeneration. Until both land, the read-only-only `classifyConcurrency`
-policy above stays in force and writable nodes serialize; the deferral is
-recorded here rather than left as silent debt.
+serialized merges were spiked, but the wiring is **deferred**. The per-node
+child-identity prerequisite **has since landed** (T010: `childRunIdForNode`
+gives each node a distinct, bounded identity), so what remains is a run-scoped
+integration authority that owns the serialized merge and regeneration. Until
+that lands, the read-only-only `classifyConcurrency` policy above stays in force
+and writable nodes serialize; the deferral is recorded here rather than left as
+silent debt.
 
 ## Spike commands (T001/T002)
 
