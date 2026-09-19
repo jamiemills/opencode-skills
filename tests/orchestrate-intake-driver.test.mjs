@@ -70,7 +70,10 @@ test("(i) --plan intakes a csm-plan/1 envelope and exits blocked agent-session-r
   try {
     const planPath = join(sandbox, "plan.json");
     const envelope = JSON.parse(await readFile(PARALLELISM_PLAN_URL, "utf8"));
-    assert.equal(envelope.schema, "csm-plan/1");
+    assert.ok(
+      ["csm-plan/1", "csm-plan/2"].includes(envelope.schema),
+      `expected an accepted plan schema, got ${envelope.schema}`,
+    );
     await writeFile(planPath, `${JSON.stringify(envelope, null, 2)}\n`);
     const { code, stderr } = await runDriver(["--plan", planPath]);
     assert.notEqual(code, 0, "plan route must exit non-zero pre-executor");

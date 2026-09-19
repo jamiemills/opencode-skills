@@ -1,7 +1,7 @@
 {
   "schema": "csm-orchestrate-capabilities/2",
   "version": 2,
-  "contentDigest": "sha256:70e05aa79aef93c37719b0f36177f9ee872b100de4ac53ba6769cdf35ba548ef",
+  "contentDigest": "sha256:756e7058f482f2dc9c0685de126046e6aed8ccd795da94669fcc558164a23a51",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -128,7 +128,7 @@
     {
       "skill": "csm-bdd-tdd",
       "version": "1",
-      "digest": "sha256:8b27699952d10932277492050f8ed9fc2bfc4eaac079a2939b81335d43ccb051",
+      "digest": "sha256:5d2c7cdeb822afd27c6099d94bb4ac6294943e7d35241c374d970e28bb0ce5a5",
       "source": {
         "skillPath": "csm-bdd-tdd/SKILL.md",
         "producerPath": null
@@ -141,7 +141,7 @@
         {
           "name": "plan",
           "kind": "artifact",
-          "schema": "csm-plan/1",
+          "schema": "csm-plan/2",
           "required": true
         }
       ],
@@ -241,7 +241,7 @@
     {
       "skill": "csm-build",
       "version": "1",
-      "digest": "sha256:4a719191b518a70b53d6cbce1e31d9aef6add9a6b305bbf9bb0af3d829088344",
+      "digest": "sha256:c4cfe37db3ecd4520fc8294a04c275332d283ed57bb18fff07d9a9b1c5da0be9",
       "source": {
         "skillPath": "csm-build/SKILL.md",
         "producerPath": null
@@ -254,7 +254,7 @@
         {
           "name": "plan",
           "kind": "artifact",
-          "schema": "csm-plan/1",
+          "schema": "csm-plan/2",
           "required": true
         }
       ],
@@ -391,7 +391,7 @@
     {
       "skill": "csm-deep-research",
       "version": "1",
-      "digest": "sha256:a02df1e497cce2dcd8a8b0d6d320573e86017bbaea6fa3a8b71710d537b02d61",
+      "digest": "sha256:1b20e2bdc9df42ab58bef00049d27a77ee8a4c6e91d05d6e5ee56368e8bb0a9b",
       "source": {
         "skillPath": "csm-deep-research/SKILL.md",
         "producerPath": null
@@ -556,7 +556,7 @@
     {
       "skill": "csm-make-tests",
       "version": "1",
-      "digest": "sha256:0890d8f9f33537a8b036e2d3ce05b4f701b5479b468788103e3a8e781a9b7e65",
+      "digest": "sha256:8325ec46b90516856703198309078580f5ee03df5bd89130090c55641d1f95bb",
       "source": {
         "skillPath": "csm-make-tests/SKILL.md",
         "producerPath": "csm-make-tests/producer.json"
@@ -650,7 +650,7 @@
     {
       "skill": "csm-plan",
       "version": "1",
-      "digest": "sha256:e33bfef807e6c1f4496e6ec2a55b4a70a4475e05210c2109429915f5aa1e587c",
+      "digest": "sha256:d239571dfc430bd33740862350756d1969f442db830add5750d5286aa3663939",
       "source": {
         "skillPath": "csm-plan/SKILL.md",
         "producerPath": null
@@ -671,7 +671,7 @@
         {
           "name": "plan",
           "kind": "artifact",
-          "schema": "csm-plan/1",
+          "schema": "csm-plan/2",
           "terminal": true
         }
       ],
@@ -707,7 +707,7 @@
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:cd650e8c2d40b989f7987f8703a3c3f64c97d81523cc63fc2082705ade7a7b7e",
+      "digest": "sha256:170e9aa619dcab06df86f078357fa4dac4eef6bd9e4230aedcb8a8a6884123f9",
       "source": {
         "skillPath": "csm-review/SKILL.md",
         "producerPath": "csm-review/producer.json"
@@ -806,7 +806,7 @@
     {
       "skill": "csm-review-python",
       "version": "1",
-      "digest": "sha256:98af6dffe1057538f4f3937a7ff9265109cb62613ebf820aad1645a441f1aaf9",
+      "digest": "sha256:33f1fcbdbcdd9bec270f38287102eb1e7fa7752d69e99cab64856a85c8467ac9",
       "source": {
         "skillPath": "csm-review-python/SKILL.md",
         "producerPath": "csm-review-python/producer.json"
@@ -862,7 +862,7 @@
     {
       "skill": "csm-scan",
       "version": "1",
-      "digest": "sha256:fa4efc42af37b0e348c14fd955f38537d7c3734c4e482c787c03d5c674d1e98a",
+      "digest": "sha256:afab48d4c23699ee458a3753fbfca00b62b1a818830c03b83d52e739bc9b92a0",
       "source": {
         "skillPath": "csm-scan/SKILL.md",
         "producerPath": null

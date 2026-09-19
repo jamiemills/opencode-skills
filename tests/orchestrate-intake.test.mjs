@@ -48,7 +48,10 @@ test("a csm-approach/1 artifact intakes as kind approach", async () => {
 
 test("a real-shape csm-plan/1 envelope intakes as kind plan", async () => {
   const envelope = await parallelismEnvelope();
-  assert.equal(envelope.schema, "csm-plan/1");
+  assert.ok(
+    ["csm-plan/1", "csm-plan/2"].includes(envelope.schema),
+    `expected an accepted plan schema, got ${envelope.schema}`,
+  );
   const fixture = {
     schema: envelope.schema,
     schemaRevision: envelope.schemaRevision,

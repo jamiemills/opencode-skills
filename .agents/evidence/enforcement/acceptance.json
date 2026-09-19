@@ -1,0 +1,97 @@
+{
+  "schema": "csm-enforcement-acceptance/1",
+  "schemaRevision": 1,
+  "task": "T009",
+  "plan": "2026-09-14-csm-completion-fixes-csm.json",
+  "generatedAt": "2026-09-19T11:30:07.825Z",
+  "generator": "tests/enforcement-acceptance.test.mjs",
+  "node": "v22.23.2",
+  "assertionsExpected": 8,
+  "assertionsRecorded": 8,
+  "assertions": [
+    {
+      "id": "A1-csm-build",
+      "title": "csm-build refuses COMPLETE until the guard passes and a complete evaluator receipt exists",
+      "status": "pass",
+      "evidence": {
+        "refusedGuard": "loop-guard",
+        "refusedReceipt": "evaluator-verdict-required",
+        "guardExit": 2
+      }
+    },
+    {
+      "id": "A1-csm-plan",
+      "title": "csm-plan refuses closure without a passing receipt and its guard exits non-zero",
+      "status": "pass",
+      "evidence": {
+        "refusedReceipt": "missing-evaluator-receipt",
+        "refusedWork": "pending-work",
+        "guardExit": 2
+      }
+    },
+    {
+      "id": "A1-csm-review",
+      "title": "csm-review refuses VERIFIED with an unresolved finding and its guard exits non-zero",
+      "status": "pass",
+      "evidence": {
+        "refusedVerified": "unresolved-findings",
+        "guardExit": 2
+      }
+    },
+    {
+      "id": "A1-csm-orchestrate",
+      "title": "csm-orchestrate's run evaluator never returns complete with pending work and fails closed",
+      "status": "pass",
+      "evidence": {
+        "blockedVerdict": "blocked",
+        "remainderVerdict": "remainder",
+        "runOutcome": "FAILED",
+        "runAccepted": false
+      }
+    },
+    {
+      "id": "A2-corpus-strict-v2",
+      "title": "the canonical corpus validates under strict /2 with zero failures",
+      "status": "pass",
+      "evidence": {
+        "command": "node scripts/validate-corpus-v2.mjs",
+        "records": 82,
+        "failures": 0,
+        "exitCode": 0
+      }
+    },
+    {
+      "id": "A3-parallel-safety",
+      "title": "N concurrent enforcement invocations overlap with no skills-directory lock",
+      "status": "pass",
+      "evidence": {
+        "concurrency": 4,
+        "concurrentElapsedMs": 1663,
+        "singleElapsedMs": 934,
+        "skillsLocks": []
+      }
+    },
+    {
+      "id": "A4-mid-run-v1-plan",
+      "title": "a mid-run /1 plan passes through the updated readers/guards without failing",
+      "status": "pass",
+      "evidence": {
+        "schema": "csm-plan/1",
+        "midRunDone": false,
+        "resolved": "resolved"
+      }
+    },
+    {
+      "id": "A4-mid-run-v1-build",
+      "title": "a mid-run /1 build-state is processed by the guard and can still complete without a /2 receipt",
+      "status": "pass",
+      "evidence": {
+        "schema": "csm-build-state/1",
+        "midRunGuardExit": 2,
+        "completedState": "COMPLETE"
+      }
+    }
+  ],
+  "overallVerdict": "pass",
+  "failedAssertions": []
+}

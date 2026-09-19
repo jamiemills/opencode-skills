@@ -17,8 +17,11 @@ import { HOST_REVIEW } from "./review-token.mjs";
 import {
   autonomyGate,
   classifyResume,
+  createParentCursor,
+  evaluateRunRemainder,
   selectParallelBatch,
   loadCursor,
+  persistCursor,
   persistTerminalReceipt,
   retryDecision,
 } from "./recovery.mjs";
@@ -99,6 +102,62 @@ function durableEvidenceResolver(result) {
   };
 }
 
+// T008 (P6): compile the single evaluator-directed bounded remainder phase from
+// the nodes the failed phase never reached. The remainder is a fresh immutable
+// phase (new identity, dependencies re-rooted) so the original failed path stays
+// closed and resumable; it carries no further remediation budget of its own.
+function buildRemainderPhase({ phase, pendingNodes, runId, graphRevision, ordinal }) {
+  const unfinished = [...pendingNodes];
+  if (!unfinished.length) return null;
+  const routeNodes = Object.freeze(
+    unfinished.map((node) =>
+      Object.freeze({
+        ...node,
+        dependencies: Object.freeze([]),
+      }),
+    ),
+  );
+  const phaseId = `phase-${slug(runId)}-remainder-${ordinal}`;
+  const readOnly = routeNodes.every((node) =>
+    (node.sideEffects ?? []).every((effect) => effect === "read-only"),
+  );
+  return Object.freeze({
+    ...phase,
+    schema: "csm-orchestrate-phase/2",
+    phaseId,
+    parentPhaseId: phase.phaseId,
+    graphRevision,
+    insertion: Object.freeze({
+      mode: "insert",
+      ordinal,
+      insertedAfter: phase.phaseId,
+    }),
+    order: ordinal,
+    immutable: true,
+    route: routeNodes[0].skill,
+    routeNodes,
+    handoffEdges: Object.freeze([]),
+    dependencies: Object.freeze([]),
+    requirementIds: Object.freeze([
+      ...new Set(routeNodes.flatMap((node) => node.requirementIds ?? [])),
+    ]),
+    acceptanceSignals: Object.freeze([...phase.acceptanceSignals]),
+    acceptanceSignalIds: Object.freeze([...phase.acceptanceSignalIds]),
+    approvalScope: Object.freeze([
+      ...new Set(routeNodes.flatMap((node) => node.approvalScope ?? [])),
+    ]),
+    evidence: Object.freeze(routeNodes.flatMap((node) => node.evidence ?? [])),
+    sideEffects: Object.freeze([...new Set(routeNodes.flatMap((node) => node.sideEffects ?? []))]),
+    idempotency: Object.freeze({
+      key: digest({ runId, phaseId, remainderOf: phase.phaseId }),
+      mode: readOnly ? "read-only" : "required",
+    }),
+    checkpoint: Object.freeze({ phaseId, state: "planned", next: "validate-inputs" }),
+    remediationBudget: 0,
+    status: "planned",
+  });
+}
+
 export function createOrchestrator(defaults = {}) {
   return Object.freeze({
     run: (input) => orchestrate({ ...defaults, ...input }),
@@ -153,6 +212,7 @@ async function runOrchestrationInternal({
   executorInput,
   parentPhaseId = null,
   phaseIdOverride = null,
+  remainderPolicy = null,
 } = {}) {
   if (!RUN_ID.test(runId ?? "")) throw new TypeError("canonical parent runId is required");
   if (telemetryEmitter && !effectiveConfigDigest)
@@ -667,6 +727,11 @@ async function runOrchestrationInternal({
   const executedPhaseIds = new Set();
   const reviewIds = [];
   const remediationLineage = [];
+  // T008 (P6): the per-run remainder budget is run-local (never a global lock)
+  // so concurrent runs cannot starve each other, and the single-entry authority
+  // is preserved.
+  const boundedRemainderPolicy = remainderPolicy ?? { maxRemainders: 0 };
+  let remainderPhaseCount = 0;
   const receiptExtensions = () => ({
     schema: "csm-orchestrate-receipt-extension/2",
     graphRevision: activeGraph.graphRevision,
@@ -703,6 +768,7 @@ async function runOrchestrationInternal({
       let phaseTechnical = [];
       let phaseFunctional = [];
       let phaseFailure = null;
+      let phaseFailureNode = null;
       const executeNode = async (node) => {
         const progressId = progressTracker.itemId(phase.phaseId, node.nodeId);
         const cursorId = `cursor-${slug(runId)}-${slug(phase.phaseId)}-${slug(node.nodeId)}`;
@@ -1342,6 +1408,7 @@ async function runOrchestrationInternal({
         const blocked = dispatchBlocked();
         if (blocked) {
           phaseFailure = blocked;
+          phaseFailureNode = null;
           break;
         }
         const ready = [...pending.values()]
@@ -1354,6 +1421,7 @@ async function runOrchestrationInternal({
             status: "blocked",
             failure: { class: "policy", code: "route-dependency-incomplete" },
           };
+          phaseFailureNode = null;
           break;
         }
         const batch = selectParallelBatch(ready, { maxParallelism, capabilities });
@@ -1384,6 +1452,7 @@ async function runOrchestrationInternal({
         if (!phaseFailure && signal?.aborted) {
           emitCancellation("aborted", { phaseId: phase.phaseId });
           phaseFailure = abortFailure();
+          phaseFailureNode = null;
         }
         for (const item of results) {
           pending.delete(item.node.nodeId);
@@ -1443,6 +1512,7 @@ async function runOrchestrationInternal({
             validatedOutputs.set(item.node.nodeId, item.outputRefs);
           } else if (!phaseFailure) {
             phaseFailure = item.failure ?? item.result;
+            phaseFailureNode = item.node;
           }
         }
       }
@@ -1582,7 +1652,96 @@ async function runOrchestrationInternal({
       phaseResults.push({ phase, requirements, gate, review });
       if (review?.reviewId) reviewIds.push(review.reviewId);
       executedPhaseIds.add(phase.phaseId);
-      if (phaseFailure)
+      if (phaseFailure) {
+        // T008 (P6): the node/run evaluator runs at the phase-failure boundary.
+        // A hard node failure always fails closed and records the abandoned work
+        // as a typed resumable supersession; the only continuation it can direct
+        // is one bounded remainder phase within the run's declared policy.
+        const pendingNodeIds = [...pending.values()].map((node) => node.nodeId);
+        const pendingPhaseIds = activeGraph.phases
+          .slice(phaseIndex)
+          .map((candidate) => candidate.phaseId)
+          .filter((candidateId) => !executedPhaseIds.has(candidateId));
+        const evaluation = evaluateRunRemainder({
+          runId,
+          phaseId: phase.phaseId,
+          failedNodeId: phaseFailureNode?.nodeId ?? null,
+          failure: phaseFailure,
+          pendingNodes: pendingNodeIds,
+          pendingPhases: pendingPhaseIds,
+          remaindersUsed: remainderPhaseCount,
+          remainderPolicy: boundedRemainderPolicy,
+        });
+        const supersessionCursorId = `cursor-supersession-${digest({
+          runId,
+          phaseId: phase.phaseId,
+          failedNode: evaluation.supersession.failedNodeId ?? null,
+        }).slice(7, 39)}`;
+        try {
+          await persistCursor(
+            createParentCursor({
+              cursorId: supersessionCursorId,
+              runId,
+              phaseId: phase.phaseId,
+              ...(evaluation.supersession.failedNodeId
+                ? { edgeId: `edge-${slug(evaluation.supersession.failedNodeId)}` }
+                : {}),
+              routeNodeId: evaluation.supersession.failedNodeId ?? null,
+              routeState: "blocked",
+              checkpointState: "saved",
+              attempt: 0,
+              idempotencyKey: `${phase.idempotency.key}:resumable-supersession`,
+              terminalIntent: { resumableSupersession: evaluation.supersession },
+              updatedAt: new Date(now()).toISOString(),
+            }),
+            cursorStore,
+          );
+        } catch (error) {
+          emitTelemetry({
+            phaseId: phase.phaseId,
+            eventType: "telemetry_loss",
+            payload: {
+              code: "supersession-persist-failed",
+              message: String(error?.message ?? error).slice(0, 200),
+            },
+          });
+        }
+        emitTelemetry({
+          phaseId: phase.phaseId,
+          edgeId: evaluation.supersession.failedNodeId
+            ? `edge-${slug(evaluation.supersession.failedNodeId)}`
+            : null,
+          eventType: "reconciliation",
+          payload: {
+            status: "resumable-supersession",
+            verdict: evaluation.verdict,
+            resumableSupersession: evaluation.supersession,
+          },
+        });
+        if (evaluation.verdict === "remainder") {
+          const remainderPhase = buildRemainderPhase({
+            phase,
+            pendingNodes: [...pending.values()],
+            runId,
+            graphRevision: activeGraph.graphRevision,
+            ordinal: index + 1,
+          });
+          if (remainderPhase) {
+            const insertAt = index + 1;
+            activeGraph = {
+              ...activeGraph,
+              phases: [
+                ...activeGraph.phases.slice(0, insertAt),
+                remainderPhase,
+                ...activeGraph.phases.slice(insertAt),
+              ],
+            };
+            phaseIndex = insertAt;
+            remainderPhaseCount += 1;
+            await progressTracker.addPhase(remainderPhase);
+            continue;
+          }
+        }
         return emitTerminalReceipt(
           runId,
           phase.phaseId,
@@ -1598,9 +1757,11 @@ async function runOrchestrationInternal({
             gate,
             review,
             reason: phaseFailure.failure?.code ?? "child-failure",
+            supersession: evaluation.supersession,
             extensions: receiptExtensions(),
           },
         );
+      }
       if (gate.status !== "VERIFIED" || review.status !== "ACCEPTED")
         return emitTerminalReceipt(
           runId,

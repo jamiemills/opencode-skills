@@ -4,10 +4,29 @@ import { createHash } from "node:crypto";
 import { createSchemaValidator, canonicalize, digest } from "../../lib/schema-runtime/index.mjs";
 import { atomicWrite, readDurableJson } from "../../lib/durable-json/index.mjs";
 import schema from "../schemas/csm-plan.schema.json" with { type: "json" };
+import schemaV2 from "../schemas/csm-plan.v2.schema.json" with { type: "json" };
 
 export const PLAN_SCHEMA = "csm-plan/1";
+export const PLAN_SCHEMA_V2 = "csm-plan/2";
+// Dual-revision reader contract: /1 stays byte-frozen and /2 is additive, so
+// every consumer accepts both emitted ids (the registry knows both revisions).
+export const PLAN_SCHEMAS = Object.freeze([PLAN_SCHEMA, PLAN_SCHEMA_V2]);
 export const PLAN_PATH_PATTERN = ".agents/plans/<date>-<goal-slug>-csm.json";
-const validator = createSchemaValidator({ schemas: [schema] });
+const validator = createSchemaValidator({ schemas: [schema, schemaV2] });
+
+// Evaluator contract (P2a doc constant; enforced in-loop by P3/P4). The
+// per-cycle evaluator reads only durable state + the goal/acceptance contract,
+// emits exactly one binding continue|complete|blocked verdict with evidence,
+// and its verdict is journaled as a receipt before the cursor advances.
+export const EVALUATOR_CONTRACT = Object.freeze({
+  format: "csm-evaluator-contract/1",
+  inputs: Object.freeze(["control", "goal", "acceptance"]),
+  outputs: Object.freeze(["continue", "complete", "blocked"]),
+  evidence: "required with every verdict",
+  binding:
+    "the verdict binds the loop cursor; a non-passing verdict cannot advance to a terminal state",
+  receipt: "journaled",
+});
 const STATES = new Set([
   "INTAKE",
   "DISCOVER",
@@ -34,6 +53,11 @@ const STATES = new Set([
 
 const identity = (value, prefix) =>
   `${prefix}-${createHash("sha256").update(canonicalize(value)).digest("hex").slice(0, 32)}`;
+
+// A terminal plan is immutable whether it closed successfully or was closed as
+// superseded by a successor plan.
+const TERMINAL_PLAN_STATUSES = new Set(["complete", "superseded"]);
+const isTerminalPlanStatus = (status) => TERMINAL_PLAN_STATUSES.has(status);
 
 const APPLICABILITY_SIGNALS = new Map([
   ["boundary_change", ["boundary", "observable_behavior", "seam"]],
@@ -299,6 +323,15 @@ function semanticErrors(value) {
     errors.push("complete plans must have a COMPLETE cursor");
   if (value?.status === "paused" && value.control?.nextTransition !== "PAUSED -> RECOVER")
     errors.push("paused plans must transition through PAUSED -> RECOVER");
+  if (value?.status === "superseded") {
+    if (!value?.supersession) errors.push("superseded plans require a typed supersession pointer");
+    if (value?.control?.currentState !== "STOP")
+      errors.push("superseded plans must close on a STOP cursor");
+    if (value?.control?.nextTransition !== "none; closed as superseded")
+      errors.push("superseded plans must not be resumable or replaced");
+  } else if (value?.supersession) {
+    errors.push("a supersession pointer is only valid on a superseded plan");
+  }
   const finalJournalState = value?.journal?.at(-1)?.nextState;
   if (
     value?.journal?.length &&
@@ -338,7 +371,8 @@ function semanticErrors(value) {
 }
 
 export function validatePlanArtifact(value) {
-  const result = validator.validate(PLAN_SCHEMA, value);
+  const schemaId = value?.schema === PLAN_SCHEMA_V2 ? PLAN_SCHEMA_V2 : PLAN_SCHEMA;
+  const result = validator.validate(schemaId, value);
   const errors = result.errors.map((error) => `${error.instancePath || "/"} ${error.message}`);
   errors.push(...semanticErrors(value));
   return { valid: errors.length === 0, errors };
@@ -350,6 +384,9 @@ export function createPlanArtifact(input, { producerVersion = "csm-plan/1" } = {
   const producedAt = input.provenance?.producedAt ?? new Date().toISOString();
   const runId = input.runId ?? identity({ planId: input.planId, producedAt }, "run");
   const status = input.status ?? input.control?.status ?? "ready";
+  const schemaId =
+    input.schema === PLAN_SCHEMA_V2 || input.schemaRevision === 2 ? PLAN_SCHEMA_V2 : PLAN_SCHEMA;
+  const schemaRevision = schemaId === PLAN_SCHEMA_V2 ? 2 : 1;
   const control = {
     currentState: "NOT_STARTED",
     cycle: 0,
@@ -367,8 +404,8 @@ export function createPlanArtifact(input, { producerVersion = "csm-plan/1" } = {
     status,
   };
   const payload = {
-    schema: PLAN_SCHEMA,
-    schemaRevision: 1,
+    schema: schemaId,
+    schemaRevision,
     artifactId: input.artifactId ?? identity({ runId, planId: input.planId }, "art"),
     runId,
     planId: input.planId,
@@ -398,6 +435,7 @@ export function createPlanArtifact(input, { producerVersion = "csm-plan/1" } = {
     },
     projection: { profile: "csm-plan-human/1", legacyMarkdownStatus: "history-only" },
   };
+  if (input.supersession !== undefined) payload.supersession = structuredClone(input.supersession);
   payload.digest = digest(payload);
   const result = validatePlanArtifact(payload);
   if (!result.valid) throw new TypeError(`invalid plan artifact: ${result.errors.join(", ")}`);
@@ -445,7 +483,7 @@ export async function writePlanArtifact(path, value) {
   try {
     try {
       const existing = await readDurableJson(absolute);
-      if (existing.status === "complete")
+      if (isTerminalPlanStatus(existing.status))
         throw Object.assign(new Error("terminal plan cannot be replaced"), {
           code: "terminal-replacement",
         });
@@ -516,7 +554,7 @@ export async function readPlanArtifact(path) {
 export function appendPlanJournal(value, event) {
   const result = validatePlanArtifact(value);
   if (!result.valid) throw new TypeError(`invalid plan artifact: ${result.errors.join(", ")}`);
-  if (value.status === "complete")
+  if (isTerminalPlanStatus(value.status))
     throw Object.assign(new Error("terminal plan is immutable"), { code: "terminal-immutable" });
   if (
     !event ||
@@ -566,7 +604,7 @@ export function resumePlanArtifact(
 ) {
   const result = validatePlanArtifact(value);
   if (!result.valid) throw new TypeError(`invalid plan artifact: ${result.errors.join(", ")}`);
-  if (value.status === "complete")
+  if (isTerminalPlanStatus(value.status))
     throw Object.assign(new Error("terminal plan is immutable"), { code: "terminal-immutable" });
   if (value.status !== "paused" || value.control.currentState !== "PAUSED")
     throw Object.assign(new Error("only a paused plan can resume"), { code: "not-paused" });

@@ -4,6 +4,9 @@ import { readFile } from "node:fs/promises";
 
 const RUN_ID = /^run-[a-z0-9][a-z0-9-]{1,127}$/;
 const ENTRY_ENVELOPE = "csm-orchestrate-request/1";
+// Dual-revision reader: the plan marker resolves for both the frozen /1 id and
+// the additive /2 id.
+const PLAN_MARKERS = Object.freeze(["csm-plan/1", "csm-plan/2"]);
 
 function routerHint(detail) {
   return new TypeError(
@@ -32,12 +35,10 @@ function kindForMarker(marker) {
   switch (marker) {
     case "csm-approach/1":
       return "approach";
-    case "csm-plan/1":
-      return "plan";
     case ENTRY_ENVELOPE:
       return "request";
     default:
-      return undefined;
+      return PLAN_MARKERS.includes(marker) ? "plan" : undefined;
   }
 }
 

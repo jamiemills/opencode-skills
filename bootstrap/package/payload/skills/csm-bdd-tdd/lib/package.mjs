@@ -3,7 +3,17 @@ import { dirname, resolve } from "node:path";
 import { createSchemaValidator, digest, parseJson } from "../../../lib/schema-runtime/index.mjs";
 import schema from "../schemas/package.schema.json" with { type: "json" };
 
-const validator = createSchemaValidator({ schemas: [schema] });
+// Dual-revision reader (T002/P2a): the BDD package points at a canonical plan,
+// and that plan may be the frozen /1 revision or the additive /2 revision. The
+// package schema is immutable, so relax only its embedded source-plan revision
+// constraint in memory (additive superset) rather than editing the file.
+export const PLAN_SOURCE_SCHEMAS = Object.freeze(["csm-plan/1", "csm-plan/2"]);
+export const isSupportedPlanSchema = (schemaId) => PLAN_SOURCE_SCHEMAS.includes(schemaId);
+
+const packageSchema = structuredClone(schema);
+delete packageSchema.$defs.sourcePlan.properties.schema.const;
+packageSchema.$defs.sourcePlan.properties.schema.enum = [...PLAN_SOURCE_SCHEMAS];
+const validator = createSchemaValidator({ schemas: [packageSchema] });
 const terminal = new Set(["SAVED", "STOP"]);
 const THEN_KEY = String.fromCharCode(116, 104, 101, 110);
 
@@ -51,6 +61,8 @@ export function validateBddPackage(value) {
   }
   if (value.journal.some((event, index) => event.runId !== value.runId || event.sequence !== index))
     errors.push("/journal must have contiguous sequence and package runId");
+  if (!isSupportedPlanSchema(value.sourcePlan?.schema))
+    errors.push("/sourcePlan/schema is not a supported csm-plan revision");
   if (terminal.has(value.control.state) && value.control.nextTransition !== "none (terminal)")
     errors.push("/control terminal state requires none (terminal)");
   if (value.status === "paused" && value.control.state !== "PAUSED")
@@ -140,6 +152,8 @@ export function createBddPackage(overrides = {}) {
     projection: { allowed: ["gherkin", "markdown"], sourceOnly: true },
     ...overrides,
   };
+  if (!isSupportedPlanSchema(value.sourcePlan?.schema))
+    throw new TypeError(`unsupported source plan schema: ${value.sourcePlan?.schema}`);
   value.journal = value.journal.map((event) => ({ ...event, runId: value.runId }));
   value.digest = packageDigest(value);
   return value;

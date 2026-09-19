@@ -10,8 +10,9 @@ description: Implement CSM plans; use ONLY on explicit start/execute/continue/re
 Durable build control is `csm-build-state/1` JSON. `RECOVER`, `VALIDATE`, `SELECT`,
 `DISPATCH`, `INTEGRATE`, `VERIFY`, `REVIEW`, `REPAIR`, and `CHECKPOINT` are recorded
 as append-only transitions; `COMPLETE` and `BLOCKED` are terminal and immutable.
-Build dispatch is refused until the plan, BDD package, test package, and required
-DDD/norms inputs are validated JSON with matching source lineage. Commit and
+Build dispatch is refused until the plan, BDD package, and test package are
+validated JSON with matching source lineage; registered DDD and norms inputs are
+optional and validated only when the plan cites them. Commit and
 rollback evidence are descriptors, not execution authorization. This skill never
 executes implementation tasks during the planning migration. Markdown and HTML
 remain human-only projections and are rejected as machine inputs; legacy Markdown
@@ -58,8 +59,8 @@ Run first — before `Activation Boundary` work, locating the plan, or any execu
 
 1. Derive a tmux-safe `<goal-slug>` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is `csm-build-<goal-slug>`.
 2. If already in tmux (`TMUX` env set, or `tmux display-message -p '#session_name'` succeeds), rename the current session to `csm-build-<goal-slug>` with `tmux rename-session -t "$(tmux display-message -p '#S')" "csm-build-<goal-slug>"`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: `tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"`; verify the launched invocation received the exact request before ending this invocation.
-4. Print the active session name and attach command: `tmux attach-session -t csm-build-<goal-slug>`. If a new detached session was launched, end the invocation — tmux does the build from the start.
+3. If this invocation is already inside an agent session — `CSM_AGENT_SESSION_EXEC=1` or any other `CSM_AGENT_SESSION_*` marker is set, i.e. it is not an interactive human CLI, do not start a detached session and do not end the invocation: skip this step and step 4 and continue the execution workflow in-process (the step 2 rename may still apply). Otherwise, if not in tmux, and the user did not forbid tmux or choose another multiplexer, write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: `tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"`; verify the launched invocation received the exact request before ending this invocation.
+4. Print the active session name and attach command: `tmux attach-session -t csm-build-<goal-slug>`. Only if a new detached session was launched and no agent-session marker is set (an interactive human CLI) end the invocation — tmux does the build from the start; when this invocation is already inside an agent session — `CSM_AGENT_SESSION_EXEC=1` or any other `CSM_AGENT_SESSION_*` marker is set, i.e. it is not an interactive human CLI, never end the invocation and continue the execution workflow in-process instead.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the execution workflow without renaming or starting tmux.
 
 ## Activation Boundary
@@ -85,6 +86,7 @@ Run first — before `Activation Boundary` work, locating the plan, or any execu
 - Update the plan after every state transition and completed dispatch group. It must always contain enough evidence and an exact next transition for a fresh agent to resume.
 - Record `Last model/run:` in Control at each checkpoint so a resumed or model-switched run can re-verify prior evidence instead of trusting status labels.
 - Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`. The only sanctioned exception is the `PAUSED` stop under Pause On Quota.
+- Completion is evaluated, not asserted. Every cycle ends with a fresh independent evaluator verdict (journaled as a binding receipt) and the deterministic `csm-build/lib/loop-guard.mjs` in-loop command; the loop transitions to `COMPLETE` only when the guard exits `0` and a `complete` verdict receipt is journaled. A verdict is advisory input to the state machine, never a second acceptance authority, and enforcement never depends on model obedience.
 - Never vary the shared static prefix across parallel dispatches in a batch — prefix stability is a cache and cost property.
 
 ### Subagent Resilience
@@ -370,12 +372,56 @@ Keep the working tree and plan recoverable. Do not use chat history as the only 
 
 If and only if the user explicitly authorizes a commit in the current invocation, commit the verified batch together with the updated plan before choosing the next transition. Verify the owned pathset before and after using `git commit --only -- <owned paths>`; never use a bare commit, include unrelated staged paths, or clear unrelated staged work. Never push unless explicitly requested. Without authorization, record the verified work as intentionally uncommitted and report that no commit was created, rather than implying a commit exists.
 
-Then immediately choose:
+Then run the mandatory per-cycle evaluator and deterministic completion guard
+below, then immediately choose:
 
-- `SELECT` when verified pending work remains;
-- `COMPLETE` when all work and final acceptance checks pass;
-- `BLOCKED` only under the blocker rules below;
+- `SELECT` when verified pending work remains, or when the evaluator returns `continue`;
+- `COMPLETE` only when the deterministic loop guard exits `0` and a binding `complete` evaluator verdict receipt is journaled;
+- `BLOCKED` only under the blocker rules below (or when the evaluator returns `blocked` with no safe repair);
 - `PAUSED` on quota exhaustion (see Pause On Quota).
+
+## Per-Cycle Evaluator and Deterministic Completion Guard
+
+Completion is evaluated, never asserted. Both layers run **inside the loop** at
+the CHECKPOINT boundary — never in CI, a Makefile, a workflow, or the packaging
+gate — and no cycle may transition to `COMPLETE` until both pass. All state is
+per-run-local: no global lock, no shared lock file, and no second acceptance
+authority.
+
+1. **Independent evaluator (binding verdict).** Dispatch a fresh subagent that
+   did not implement, integrate, or review this cycle's work, with the
+   `EVALUATOR_CONTRACT` shape: inputs are the durable `Control` block plus the
+   plan's goal and acceptance criteria; output is exactly one verdict —
+   `continue`, `complete`, or `blocked` — with evidence. The evaluator is
+   read-only: it never edits files, never decides scope, and never overrides the
+   plan. Treat its verdict as binding input to the state machine, not as
+   acceptance: where an orchestrator, user, or plan criterion owns final
+   acceptance, that authority is unchanged.
+2. **Journal the binding receipt.** Turn the verdict into a receipt with
+   `createEvaluatorReceipt(...)` and journal it into the build state's
+   `artifacts[]` with `recordEvaluatorReceipt(state, receipt)` before the cursor
+   advances (both from `lib/state.mjs`, re-exported from `lib/loop-guard.mjs`).
+   The receipt is content-bound — its digest is revalidated by
+   `validateBuildState` — and a `/2` build cannot reach `COMPLETE` without a
+   journaled `complete` verdict (`completeBuild` refuses otherwise).
+3. **Deterministic loop guard (obedience-independent veto).** Run the guard over
+   the durable records every cycle, before choosing the next transition:
+
+   ```sh
+   node csm-build/lib/loop-guard.mjs --record <build-state.json> --plan <plan.json>
+   ```
+
+   Exit `0` means no outstanding work remains; exit `2` means work remains —
+   an open task, a non-empty `Control.activeTasks`, or a non-terminal lifecycle
+   — and the loop must continue or recover. The guard is status-only and fails
+   closed: unreadable or malformed records are treated as not-done. `completeBuild`
+   runs the same guard, so the veto does not depend on the model obeying a verdict.
+
+When the evaluator returns `continue` and the guard exits `2`, continue the cycle
+via `SELECT`. When the evaluator returns `blocked`, or the guard exits non-zero
+with no safe bounded repair, checkpoint and follow the Blocker Rules. Only when
+the guard exits `0` **and** a `complete` verdict receipt is journaled may the cycle
+transition to `COMPLETE`.
 
 ## Completion Gate
 

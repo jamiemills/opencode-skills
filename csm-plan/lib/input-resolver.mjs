@@ -8,7 +8,7 @@ import { validatePlanArtifact } from "./plan.mjs";
 import { resolveConsumerInput } from "../../lib/consumer-adapters/index.mjs";
 
 const INPUTS = Object.freeze({
-  plan: { schema: "csm-plan/1", owner: "csm-plan" },
+  plan: { schema: "csm-plan/1", schemas: ["csm-plan/1", "csm-plan/2"], owner: "csm-plan" },
   approach: { schema: "csm-approach/1", owner: "csm-grill" },
   research: { schema: "csm-research/1", owner: "csm-deep-research" },
   review: { schema: "csm-review-findings/1", owner: "csm-review" },
@@ -16,6 +16,8 @@ const INPUTS = Object.freeze({
   norms: { schema: "csm-norms/1", owner: "csm-scan" },
   ddd: { schema: "csm-ddd-graph/1", owner: "csm-ddd" },
 });
+
+const acceptedSchemas = (expected) => expected.schemas ?? [expected.schema];
 
 function rejected(code, message, details = {}) {
   return Object.freeze({ status: "rejected", code, message, ...details });
@@ -114,21 +116,22 @@ export async function resolvePlanInput(
   if (!value || typeof value !== "object" || Array.isArray(value))
     return rejected("invalid-json", "plan machine input must be an object", { path: loaded.path });
   const actualSchema = value.schema;
-  if (actualSchema !== expected.schema)
-    return rejected("unknown-or-mismatched-schema", `expected ${expected.schema}`, {
+  const accepted = acceptedSchemas(expected);
+  if (!accepted.includes(actualSchema))
+    return rejected("unknown-or-mismatched-schema", `expected ${accepted.join(" or ")}`, {
       path: loaded.path,
     });
   const schemas = await registry();
-  const validation = schemas.validate(expected.schema, value);
+  const validation = schemas.validate(actualSchema, value);
   if (!validation.valid)
-    return rejected("schema-invalid", `input does not validate as ${expected.schema}`, {
+    return rejected("schema-invalid", `input does not validate as ${actualSchema}`, {
       path: loaded.path,
       errors: validation.errors,
     });
   if (kind === "plan") {
     const planValidation = validatePlanArtifact(value);
     if (!planValidation.valid)
-      return rejected("schema-invalid", "input does not validate as csm-plan/1", {
+      return rejected("schema-invalid", `input does not validate as ${accepted.join(" or ")}`, {
         path: loaded.path,
         errors: planValidation.errors,
       });
@@ -148,7 +151,7 @@ export async function resolvePlanInput(
   return Object.freeze({
     status: "resolved",
     kind,
-    schema: expected.schema,
+    schema: actualSchema,
     path: loaded.path ?? null,
     value,
   });

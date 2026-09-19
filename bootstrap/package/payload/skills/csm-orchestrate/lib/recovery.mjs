@@ -434,3 +434,158 @@ export function createTraceEvent({
     data: redactTraceValue(data),
   });
 }
+
+// T008 (P6): node/run-boundary evaluator. The evaluator reads only the run's
+// control state, the graph goal, and the acceptance/pending contract, then
+// emits exactly one binding verdict. It never re-opens a hard failure into
+// success on its own: a hard node failure always fails closed and records a
+// typed resumable supersession pointer; the only continuation it can direct is
+// a single bounded remainder phase, and only when policy grants that budget.
+export const RUN_EVALUATOR_CONTRACT = Object.freeze({
+  format: "csm-evaluator-contract/1",
+  inputs: Object.freeze(["control", "goal", "acceptance", "failure"]),
+  outputs: Object.freeze(["continue", "complete", "blocked", "remainder"]),
+  evidence: "required with every verdict",
+  binding:
+    "the verdict binds the run cursor; a hard node failure cannot be superseded into VERIFIED and any remainder is bounded to one phase",
+  receipt: "journaled",
+});
+
+export const DEFAULT_REMAINDER_POLICY = Object.freeze({
+  maxRemainders: 1,
+  eligibleFailureClasses: Object.freeze([
+    "policy",
+    "technical",
+    "functional",
+    "infrastructure",
+    "evaluator",
+    "missing",
+    "stale",
+    "contradicted",
+  ]),
+});
+
+const SUPERSESSION_SCHEMA = "csm-orchestrate-supersession/1";
+const REMAINDER_SCHEMA = "csm-orchestrate-remainder/1";
+
+export function buildResumableSupersession({
+  runId,
+  phaseId,
+  failedNodeId = null,
+  failure = null,
+  pendingNodes = [],
+  pendingPhases = [],
+  reason,
+  remainderSpent = false,
+  supersededBy = null,
+  supersededAt = new Date().toISOString(),
+} = {}) {
+  if (!RUN_ID.test(runId ?? "") || !PHASE_ID.test(phaseId ?? ""))
+    fail("supersession requires canonical runId and phaseId");
+  if (!Array.isArray(pendingNodes) || !Array.isArray(pendingPhases))
+    fail("supersession pending work must be arrays");
+  const pendingNodeIds = [...new Set(pendingNodes.filter(Boolean))];
+  const pendingPhaseIds = [...new Set(pendingPhases.filter(Boolean))];
+  return Object.freeze({
+    schema: SUPERSESSION_SCHEMA,
+    supersessionId: `supersession-${digest({
+      runId,
+      phaseId,
+      ...(failedNodeId ? { failedNodeId } : {}),
+      pendingNodeIds,
+      pendingPhaseIds,
+    }).slice(7, 39)}`,
+    runId,
+    phaseId,
+    ...(failedNodeId ? { failedNodeId } : {}),
+    resumable: true,
+    failClosed: true,
+    remainderSpent: remainderSpent === true,
+    reason: String(reason ?? "hard-node-failure"),
+    ...(failure ? { failure } : {}),
+    pendingNodes: Object.freeze(pendingNodeIds),
+    pendingPhases: Object.freeze(pendingPhaseIds),
+    supersededBy: supersededBy ?? {
+      schema: "csm-orchestrate-receipt/2",
+      runId,
+      phaseId,
+      entry: "resume",
+    },
+    supersededAt,
+  });
+}
+
+export function evaluateRunRemainder({
+  runId,
+  phaseId,
+  failedNodeId = null,
+  failure = null,
+  pendingNodes = [],
+  pendingPhases = [],
+  remaindersUsed = 0,
+  remainderPolicy = {},
+} = {}) {
+  if (!RUN_ID.test(runId ?? "") || !PHASE_ID.test(phaseId ?? ""))
+    fail("run evaluator requires canonical runId and phaseId");
+  if (!Number.isInteger(remaindersUsed) || remaindersUsed < 0)
+    fail("remaindersUsed must be a non-negative integer");
+  const maxRemainders = Number.isInteger(remainderPolicy?.maxRemainders)
+    ? remainderPolicy.maxRemainders
+    : 0;
+  if (maxRemainders < 0) fail("maxRemainders must be non-negative");
+  const configuredClasses = remainderPolicy?.eligibleFailureClasses;
+  const eligibleClasses = new Set(
+    Array.isArray(configuredClasses) && configuredClasses.length
+      ? configuredClasses
+      : DEFAULT_REMAINDER_POLICY.eligibleFailureClasses,
+  );
+  const pendingNodeIds = [...new Set(pendingNodes.filter(Boolean))];
+  const pendingPhaseIds = [...new Set(pendingPhases.filter(Boolean))];
+  const failureClass = failure?.failure?.class ?? failure?.class ?? "infrastructure";
+  const hasPending = pendingNodeIds.length > 0 || pendingPhaseIds.length > 0;
+  const withinBudget = remaindersUsed < maxRemainders;
+  const eligible = hasPending && withinBudget && eligibleClasses.has(failureClass);
+  const supersession = buildResumableSupersession({
+    runId,
+    phaseId,
+    failedNodeId,
+    failure,
+    pendingNodes: pendingNodeIds,
+    pendingPhases: pendingPhaseIds,
+    reason: failure?.failure?.code ?? "hard-node-failure",
+    remainderSpent: remaindersUsed >= maxRemainders && remaindersUsed > 0,
+  });
+  if (eligible)
+    return Object.freeze({
+      schema: "csm-orchestrate-run-evaluation/1",
+      runId,
+      phaseId,
+      verdict: "remainder",
+      failClosed: true,
+      failureClass,
+      supersession,
+      remainder: Object.freeze({
+        schema: REMAINDER_SCHEMA,
+        bounded: true,
+        budget: maxRemainders - remaindersUsed,
+        maxRemainders,
+        remaindersUsed,
+        phaseId,
+        failedNodeId,
+        failureClass,
+        pendingNodes: Object.freeze(pendingNodeIds),
+        pendingPhases: Object.freeze(pendingPhaseIds),
+      }),
+    });
+  return Object.freeze({
+    schema: "csm-orchestrate-run-evaluation/1",
+    runId,
+    phaseId,
+    verdict: "blocked",
+    failClosed: true,
+    failureClass,
+    reason: hasPending ? "remainder-not-directed" : "no-pending-work",
+    supersession,
+    remainder: null,
+  });
+}

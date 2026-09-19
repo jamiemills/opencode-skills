@@ -8,13 +8,15 @@ function tmuxBootstrap(p) {
   const launch = p.argvSafe
     ? `write the original request to a mode-600 temporary prompt file, then launch it without shell interpolation: \`tmux new-session -d -s "$session" -- <agent-cli> run --prompt-file "$prompt_file"\`; verify the launched invocation received the exact request before ending this invocation`
     : `launch this same agent invocation in a new detached session named \`${p.skill}-<goal-slug>\` (use a suffix such as \`-2\` or \`-3\` if that name is already taken): \`tmux new-session -d -s ${p.skill}-<goal-slug> 'opencode run "<original ${p.request} request>"'\` (adapt to the agent CLI)`;
+  const agentSession =
+    "this invocation is already inside an agent session — `CSM_AGENT_SESSION_EXEC=1` or any other `CSM_AGENT_SESSION_*` marker is set, i.e. it is not an interactive human CLI";
   return `
 ${p.prelude}
 
 1. Derive a tmux-safe \`<goal-slug>\` from the invocation's goal and prompt: lowercase, hyphen-separated, concise, and stable for this run. The session name is \`${p.skill}-<goal-slug>\`.
 2. If already in tmux (\`TMUX\` env set, or \`tmux display-message -p '#session_name'\` succeeds), rename the current session to \`${p.skill}-<goal-slug>\` with \`tmux rename-session -t "$(tmux display-message -p '#S')" "${p.skill}-<goal-slug>"\`, unless the user explicitly forbade renaming or chose another multiplexer. If renaming fails, note it and continue in the existing session.
-3. If not in tmux, and the user did not forbid tmux or choose another multiplexer, ${launch}.
-4. Print the active session name and attach command: \`tmux attach-session -t ${p.skill}-<goal-slug>\`. If a new detached session was launched, end the invocation — tmux does the ${p.activity} from the start.
+3. If ${agentSession}, do not start a detached session and do not end the invocation: skip this step and step 4 and continue the ${p.workflow} workflow in-process (the step 2 rename may still apply). Otherwise, if not in tmux, and the user did not forbid tmux or choose another multiplexer, ${launch}.
+4. Print the active session name and attach command: \`tmux attach-session -t ${p.skill}-<goal-slug>\`. Only if a new detached session was launched and no agent-session marker is set (an interactive human CLI) end the invocation — tmux does the ${p.activity} from the start; when ${agentSession}, never end the invocation and continue the ${p.workflow} workflow in-process instead.
 5. When tmux is unavailable, forbidden, or a different multiplexer was chosen, note that and continue into the ${p.workflow} workflow without renaming or starting tmux.
 `;
 }

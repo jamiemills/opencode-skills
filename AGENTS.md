@@ -63,6 +63,14 @@
   `node scripts/check-suite.mjs --warn-uncommitted`; never stage, sweep, or
   delete a path you did not create (see `docs/worktree-hygiene.md`).
 
+## In-loop completion enforcement
+
+- csm-plan, csm-build, csm-review, and csm-orchestrate each enforce completion
+  inside their own loop: a per-cycle independent evaluator verdict journaled as
+  a binding receipt, plus a deterministic loop guard that fails closed while any
+  work remains. `/2` schemas are additive and `/1` stays frozen; readers accept
+  both. See `docs/enforcement-model.md`.
+
 ## Dynamic worker runtime (child seam)
 
 - `csm-orchestrate` remains the single coordination entry point. The only second

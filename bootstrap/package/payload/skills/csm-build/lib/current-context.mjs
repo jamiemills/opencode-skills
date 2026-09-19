@@ -12,6 +12,7 @@ import {
   resolveBuildInputs,
   transitionBuildState,
 } from "./state.mjs";
+import { evaluateLoopGuard } from "./loop-guard.mjs";
 
 const OUTPUT_SCHEMA = "csm-build-output/1";
 const failure = (code, message, errorClass = "policy") => ({ class: errorClass, code, message });
@@ -280,6 +281,24 @@ export function createCsmBuildCurrentContextCaller({
           timestamp: now(),
           evidence: `current-context ${target.toLowerCase()} complete`,
         });
+      const pendingTasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+      const guard = evaluateLoopGuard(state, { tasks: pendingTasks });
+      if (guard.exitCode !== 0)
+        return outputBase(
+          request,
+          resolved,
+          state,
+          "blocked",
+          raw.output ?? null,
+          effects,
+          artifacts,
+          raw.evidence ?? [],
+          delivery,
+          failure(
+            "incomplete-work",
+            `current-context cannot reach COMPLETE while work remains (${guard.remaining.join(", ")})`,
+          ),
+        );
       const evidence = raw.evidence ?? [];
       const completionEvidence = evidence.length
         ? evidence
@@ -293,7 +312,11 @@ export function createCsmBuildCurrentContextCaller({
               sourceArtifactIds: validatedNativeArtifacts.map((item) => item.artifactId),
             }),
           ];
-      state = completeBuild(state, { evidence: completionEvidence, verifiedAt: now() });
+      state = completeBuild(state, {
+        evidence: completionEvidence,
+        verifiedAt: now(),
+        tasks: pendingTasks,
+      });
       return outputBase(
         request,
         resolved,

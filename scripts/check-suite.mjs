@@ -52,6 +52,11 @@ for (let i = 0; i < args.length; i += 1) {
 }
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+// T002/P2a: csm-plan's /2 revision is additive over the frozen /1, so the plan
+// format-marker corpus gate accepts both revisions (FORMAT_VERSIONS records the
+// base cap for every other producer).
+const PLAN_FORMAT_VERSIONS = Object.freeze([1, 2]);
+export const planFormatVersionAccepted = (version) => PLAN_FORMAT_VERSIONS.includes(version);
 const NEVER_CLAUSE_RE =
   /\bnever\b[^.]{0,120}\b(only|beyond|elsewhere|writes?|runs?|invok\w*|starts?|plans?|planning|implement\w*|fix\w*|patch\w*|review\w*|execut\w*|push\w*|targets?)\b/i;
 const NORMS_PHRASE_RE = new RegExp(
@@ -1502,10 +1507,7 @@ function main() {
     }
     const marker = formatMarkerOf(content);
     check(
-      marker !== null &&
-        marker.kind === "csm-plan" &&
-        marker.version >= 1 &&
-        marker.version <= (FORMAT_VERSIONS["csm-plan"] ?? 0),
+      marker !== null && marker.kind === "csm-plan" && planFormatVersionAccepted(marker.version),
       `plan corpus .agents/plans/${f} missing/unknown format marker (want frontmatter "format: csm-plan/<n>")`,
     );
     const lines = splitLines(content);

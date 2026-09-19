@@ -50,6 +50,48 @@
       "adapter": null
     },
     {
+      "schema": "csm-plan",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-plan",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-build-state",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-build-state",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-review-findings",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-review-findings",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-orchestrate-invocation",
       "producerRevision": 1,
       "consumerRevision": 2,

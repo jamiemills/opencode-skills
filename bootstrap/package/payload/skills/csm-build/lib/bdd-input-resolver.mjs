@@ -91,7 +91,7 @@ export async function resolveBddInput(
     value,
     sourcePlan: {
       status: "resolved",
-      schema: "csm-plan/1",
+      schema: planValue.schema ?? "csm-plan/1",
       path: typeof source === "string" ? source : null,
       value: planValue,
     },

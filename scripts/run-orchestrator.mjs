@@ -18,7 +18,7 @@
 // Input flags route on the artifact's schema marker (lib/intake.mjs):
 // --fixture  self-test: built-in fixture host + trivial approach; must VERIFIED.
 // --approach approach file (csm-approach/1) for a real run.
-// --plan     csm-plan/1 envelope: classified kind execute-plan -> csm-build route.
+// --plan     csm-plan/1 or csm-plan/2 envelope: classified kind execute-plan -> csm-build route.
 // --request  csm-orchestrate-request/1 envelope: classified via lib/request-router.mjs.
 //            Plan/request routes exit with the blocked agent-session-required result
 //            unless the env gate CSM_AGENT_SESSION_EXEC=1 is set AND the classified

@@ -1,10 +1,13 @@
 "use strict";
 
 import reviewSchema from "../schemas/csm-review-findings.schema.json" with { type: "json" };
+import reviewSchemaV2 from "../schemas/csm-review-findings.v2.schema.json" with { type: "json" };
 import doctrineSchema from "../../csm-review-python/schemas/csm-doctrine-findings.schema.json" with { type: "json" };
 import { createSchemaValidator } from "../../../lib/schema-runtime/index.mjs";
+import { TERMINAL_DISPOSITIONS, closureRequired, unresolvedFindings } from "./loop-closure.mjs";
 
-const schemas = [reviewSchema, doctrineSchema];
+const schemas = [reviewSchema, reviewSchemaV2, doctrineSchema];
+const TERMINAL_DISPOSITION_SET = new Set(TERMINAL_DISPOSITIONS);
 const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 const confidenceRank = { low: 0, medium: 1, high: 2, verified: 3 };
 const evidenceRank = { E4: 0, E3: 1, E2: 2, E1: 3 };
@@ -32,6 +35,17 @@ function validateSemanticRules(payload) {
         "VERIFIED payloads cannot have unresolved checks",
       ),
     );
+
+  if (payload.verificationStatus.status === "VERIFIED") {
+    const unresolved = unresolvedFindings(payload);
+    if (unresolved.length > 0)
+      errors.push(
+        semanticError(
+          "/verificationStatus/status",
+          `VERIFIED payloads cannot contain unresolved findings: ${unresolved.join(", ")}`,
+        ),
+      );
+  }
 
   for (let index = 0; index < payload.findings.length; index += 1) {
     const finding = payload.findings[index];
@@ -61,6 +75,39 @@ function validateSemanticRules(payload) {
       );
     if (finding.evidenceClass === "E3" && typeof finding.anchorRef !== "string")
       errors.push(semanticError(`${path}/anchorRef`, "E3 findings require a static anchor"));
+
+    const closure = finding.closure;
+    if (closure && typeof closure === "object") {
+      if (TERMINAL_DISPOSITION_SET.has(closure.disposition) && closure.status !== "closed")
+        errors.push(
+          semanticError(
+            `${path}/closure/status`,
+            `disposition ${closure.disposition} must be closed`,
+          ),
+        );
+      if (
+        (closure.disposition === "deferred" || closure.disposition === "unresolved") &&
+        closure.status !== "open"
+      )
+        errors.push(
+          semanticError(
+            `${path}/closure/status`,
+            `disposition ${closure.disposition} must be open`,
+          ),
+        );
+      if (!String(closure.action ?? "").trim())
+        errors.push(semanticError(`${path}/closure/action`, "closure requires a closing action"));
+      if (!String(closure.evidence ?? "").trim())
+        errors.push(semanticError(`${path}/closure/evidence`, "closure requires cited evidence"));
+    }
+    if (closureRequired(payload) && !closure)
+      errors.push(
+        semanticError(
+          `${path}/closure`,
+          "csm-review-findings/2 findings require a remediation-closure/disposition link",
+        ),
+      );
+
     if (["critical", "high"].includes(finding.severity) && finding.challenges.length === 0)
       errors.push(
         semanticError(`${path}/challenges`, "critical/high findings require a challenge gate"),

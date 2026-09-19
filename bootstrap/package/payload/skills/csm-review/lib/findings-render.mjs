@@ -9,6 +9,7 @@ import {
   REDACTION_POLICY,
   SOURCE_REF,
 } from "./human-profile.mjs";
+import { REVIEW_FINDINGS_SCHEMAS } from "./loop-closure.mjs";
 
 const MARKER = REDACTION_POLICY.marker;
 
@@ -17,7 +18,10 @@ function fail(message) {
 }
 
 function validateLineage(payload) {
-  assertFindingsPayload(payload, "csm-review-findings/1");
+  const schemaId = REVIEW_FINDINGS_SCHEMAS.includes(payload?.schema)
+    ? payload.schema
+    : "csm-review-findings/1";
+  assertFindingsPayload(payload, schemaId);
   const { artifact, ownership } = payload;
   if (!artifact.artifactId.startsWith("art-review-"))
     fail("artifact ID does not identify a csm-review artifact");
@@ -80,6 +84,10 @@ function findingRow(finding) {
     challengeRationale: finding.challenges.length ? MARKER : "none",
     dissentPresence: dissentText(finding.dissents),
     dissentRationale: finding.dissents.length ? MARKER : "none",
+    closureDisposition: finding.closure?.disposition ?? "none",
+    closureStatus: finding.closure?.status ?? "none",
+    closureAction: finding.closure ? MARKER : "none",
+    closureEvidence: finding.closure ? MARKER : "none",
     status: finding.status,
     statusNote: finding.statusNote,
     corroborators: finding.corroborators.join("; ") || "none",

@@ -394,6 +394,15 @@
       "schemaContentDigest": "sha256:935c9de8cc14c910950b50edf570233af8ad44576e6babba21e6eedf5e8e7c5e"
     },
     {
+      "id": "csm-review-findings/2",
+      "revision": 2,
+      "schemaPath": "csm-review/schemas/csm-review-findings.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:15e8d9cfdbf5ed09ec2a3d597229c72ee3402f683cf94d80767717d81c47c9cf"
+    },
+    {
       "id": "csm-doctrine-findings/1",
       "revision": 1,
       "schemaPath": "csm-review-python/schemas/csm-doctrine-findings.schema.json",
@@ -412,6 +421,15 @@
       "schemaContentDigest": "sha256:bf06c4b0495e481242caa15040427fe21e47e3b7cae0f51b4107470dc07b1cf0"
     },
     {
+      "id": "csm-plan/2",
+      "revision": 2,
+      "schemaPath": "csm-plan/schemas/csm-plan.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:aac4745b119aa74b4aee1fbdc26aff4e92aa8ae01a39f4c6f1366a378ee5d13e"
+    },
+    {
       "id": "csm-bdd-tdd-package/1",
       "revision": 1,
       "schemaPath": "csm-bdd-tdd/schemas/package.schema.json",
@@ -428,6 +446,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:7485eae53f5d053362c45f15e5d0ab5b333eac641c3e585fd497263c94d27bb3"
+    },
+    {
+      "id": "csm-build-state/2",
+      "revision": 2,
+      "schemaPath": "csm-build/schemas/state.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:d3c531f35d0c811f5f71e5bb17f0a706b06ab0635937a395d41557d055e806fc"
     },
     {
       "id": "csm-build-output/1",

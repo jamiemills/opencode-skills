@@ -62,6 +62,21 @@ approach, an explicitly injected executor, capability metadata, and edge-bound a
   state is not treated as recovery evidence. Retries use the route's declared
   idempotency and recovery policy.
 
+## Node/Run Completion Evaluation
+
+- At every node/run boundary the orchestrator evaluates the run against its
+  declared control, goal, and acceptance state. A hard node failure always
+  fails closed: the run never silently continues and never becomes `VERIFIED`.
+- On a hard node failure the abandoned work is recorded as a typed
+  `csm-orchestrate-supersession/1` pointer with `resumable` and `failClosed`
+  set true and the pending nodes and phases listed, in the durable cursor
+  store, in telemetry, and on the run result, so a fresh session resumes from
+  an explicit pointer rather than chat history.
+- The evaluator may direct at most one bounded remainder phase within the
+  per-run `remainderPolicy` budget (`maxRemainders`, default 0). The remainder
+  is bounded and run-local (no global lock), and carries no further remainder
+  budget; once spent, any later failure is terminal.
+
 ## Standalone Runtime Boundary
 
 Standalone skills have no shared progress host/context callback in this
