@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-csm-completion-fixes-grill-20260914",
+  "runId": "run-20260914t100000z-csmcompletiongrill",
+  "skill": "csm-grill",
+  "goal": "Turn the csm completion-defect research fixes into an agreed phased approach",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Intake + scout",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Grill decisions",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Deep dive",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Synthesize + confirm",
+      "weightPercent": 25,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-14T10:00:00.000Z",
+  "updatedAt": "2026-09-19T08:52:55.999Z"
+}

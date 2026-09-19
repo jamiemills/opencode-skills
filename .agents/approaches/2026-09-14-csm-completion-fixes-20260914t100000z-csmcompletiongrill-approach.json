@@ -1,0 +1,345 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "artifactId": "art-csm-completion-fixes-approach-20260914",
+  "runId": "run-20260914t100000z-csmcompletiongrill",
+  "ideaSlug": "csm-completion-fixes",
+  "status": "agreed",
+  "ideaStatement": "Add in-loop completion enforcement to the csm skills that provably stop with work remaining (csm-build, csm-plan, csm-review, csm-orchestrate): each covered skill's own loop dispatches a fresh, independent, binding per-cycle evaluator that owns the continue/stop decision and journals a verdict receipt, backed by new csm-plan/2 and csm-build-state/2 revisions (typed supersession + terminal superseded), a strict migration of the existing corpus, and bundled in-loop fixes (conditional tmux bootstrap, strict acceptance signals, build input-gate alignment, review remediation-closure). Enforcement stays inside the loops — never in the Makefile or CI. The seven phases are delivered by ONE csm-plan invocation covering all phases (decision D10), not one plan per phase.",
+  "decisions": [
+    {
+      "decisionId": "D1",
+      "question": "How is 'continue until complete' enforced given there is no opencode Stop hook and Makefile/CI are outside the loops?",
+      "answer": "Enforcement lives INSIDE each covered skill's own loop (an independent per-cycle evaluator), never in the Makefile or CI; external gates are not the enforcement point.",
+      "rationale": "The user's correction: checks/enforcement must be in the loops; Makefile/CI are outside them and cannot prevent a premature stop.",
+      "traceability": [
+        "user answer Q1; scout U1"
+      ]
+    },
+    {
+      "decisionId": "D2",
+      "question": "Which skills does the program cover?",
+      "answer": "Only the skills with hard corpus evidence of the defect: csm-build, csm-plan, csm-review, csm-orchestrate.",
+      "rationale": "Evidence-based scoping: build (6 stale trackers), plan (16 unclosed plans, 10 disjunctive signals), review (3/4 INCOMPLETE, no closure field), orchestrate (first-failure termination). Others unproven.",
+      "traceability": [
+        "user answer Q2; finding #2 corpus"
+      ]
+    },
+    {
+      "decisionId": "D3",
+      "question": "How is the in-loop guard made non-optional?",
+      "answer": "An independent evaluator owns the continue/stop decision each cycle (generalizing csm-orchestrate's independent final review), rather than prose or an uncalled function.",
+      "rationale": "An independent decision-maker removes the self-judged-stop defect (P7); draft-and-decide separation mirrors /goal and deep-research's challenger/judge.",
+      "traceability": [
+        "user answer Q4"
+      ]
+    },
+    {
+      "decisionId": "D4",
+      "question": "What does the evaluator decide on, and how binding is it?",
+      "answer": "It reads the skill's durable control (plan tasks/journal, build-state, review findings, orchestrate cursor/receipt) plus the goal and acceptance criteria, and returns continue | complete | blocked with evidence; the verdict is BINDING and journaled as a receipt.",
+      "rationale": "A binding, evidence-based verdict with a receipt makes 'cannot end with work remaining' checkable inside the loop.",
+      "traceability": [
+        "user answer Q5"
+      ]
+    },
+    {
+      "decisionId": "D5",
+      "question": "How to add a typed supersession link and a terminal superseded/abandoned state given immutable schemas?",
+      "answer": "New csm-plan/2 and csm-build-state/2 revisions (typed supersession + terminal superseded); /1 stays frozen; dual-revision validators and consumers.",
+      "rationale": "Registry immutability forbids in-place edits; the /1+/2 precedent already exists.",
+      "traceability": [
+        "user answer Q6; scout HBR-2"
+      ]
+    },
+    {
+      "decisionId": "D6",
+      "question": "What is csm-orchestrate's behavior on a node failure?",
+      "answer": "Keep fail-closed; the evaluator directs at most one bounded remainder phase; emit a typed resumable supersession pointer for the abandoned nodes/phases.",
+      "rationale": "Preserves the fail-closed assurance entry (AGENTS.md) while removing the silent orphan of pending work.",
+      "traceability": [
+        "user answer Q7; scout C2"
+      ]
+    },
+    {
+      "decisionId": "D7",
+      "question": "How are the existing invalid records (27/60 plans, 12/23 build-state) treated?",
+      "answer": "Strict enforcement on everything: the corpus is migrated to the /2 shape as a prerequisite phase, then no invalid record is accepted.",
+      "rationale": "The user chose strict enforcement; that requires a migration phase before enforcement goes live.",
+      "traceability": [
+        "user answer Q8; scout A1"
+      ]
+    },
+    {
+      "decisionId": "D8",
+      "question": "Which ancillary in-loop fixes are bundled?",
+      "answer": "Conditional tmux bootstrap (single-source boilerplate); strict acceptance-signal enforcement in csm-plan; align csm-build's input gate with its SKILL; csm-review remediation-closure linkage.",
+      "rationale": "Each closes a specific finding inside the owning skill's loop; all are in-skill, not CI.",
+      "traceability": [
+        "user answer Q9"
+      ]
+    },
+    {
+      "decisionId": "D9",
+      "question": "What is the evaluator, mechanically, in this opencode runtime?",
+      "answer": "A fresh independent subagent dispatched per cycle (like deep-research's challenger/judge and orchestrate's independent final review), given the durable-control evidence and returning a journaled verdict.",
+      "rationale": "There is no /goal or Stop hook in opencode; the repo already uses independent evaluator subagents for exactly this role.",
+      "traceability": [
+        "design decision; scout U1/HBR; deep-research + orchestrate precedent"
+      ]
+    },
+    {
+      "decisionId": "D10",
+      "question": "How are the seven phases consumed by planning — one plan per phase or one plan covering all?",
+      "answer": "ONE csm-plan invocation covering ALL SEVEN phases (a single plan), not one plan per phase.",
+      "rationale": "User instruction; avoids the successor/proliferation failure this program is fixing and mirrors the dynamic-worker-runtime precedent of one plan covering all phases.",
+      "traceability": [
+        "user answer CONFIRM",
+        "finding #2 claim-proliferation"
+      ]
+    }
+  ],
+  "researchSynthesis": "SCOUT established: the tmux phrase is single-source (scripts/lib/boilerplate.mjs + sync-skill-boilerplate.mjs), so P1 is one edit + regen, not 8 hand edits; the canonical JSON records are ungated and 27/60 plans + 12/23 build-state records already fail strict validation, so strict enforcement (D7) requires a migration phase (P2); csm-plan/1 and csm-build-state/1 are digest-pinned/immutable, so supersession + a terminal superseded state need /2 revisions (D5); and there is NO in-repo opencode Stop hook — only pre-commit/check-suite/CI — so the user placed enforcement inside the skill loops via an independent per-cycle evaluator (D1/D3), generalizing the repo's existing evaluator-subagent patterns (csm-deep-research challenger/judge; csm-orchestrate independent final review; csm-autoresearch separate evaluator). Two findings ground the scope: finding #1 (csm-plan/csm-build) and finding #2 (suite-wide), the latter importing the former's 14 claims. Every decision is traced to a user answer and/or a cited file:line.",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Conditional tmux bootstrap",
+      "goal": "Stop any skill from ending the invocation before work runs when it is already inside an agent session.",
+      "deliverables": [
+        "One edit to the single-source tmux boilerplate; regenerated SKILL.md + payload copies; drift check green."
+      ],
+      "scope": [
+        "scripts/lib/boilerplate.mjs",
+        "scripts/sync-skill-boilerplate.mjs",
+        "the 8 SKILL.md sites + bootstrap payload copies"
+      ],
+      "outOfScope": [
+        "Any change to non-tmux sections; any Makefile/CI change"
+      ],
+      "constraints": [
+        "Single-source edit only; regenerate payload in the same commit; keep the section present (check-suite MANIFEST.tmux stays true)"
+      ],
+      "acceptanceHints": [
+        "After regeneration, the bootstrap detaches/ends only for an interactive human CLI, never when already in an agent session (CSM_AGENT_SESSION_* present); check-suite stays green"
+      ],
+      "dependencies": [],
+      "context": [
+        "scripts/lib/boilerplate.mjs:7-20",
+        "scripts/lib/contracts.mjs:11-186",
+        "finding #2 claim-p4-ubiquity"
+      ]
+    },
+    {
+      "phaseId": "P2",
+      "title": "Evaluator contract, /2 schemas, corpus migration",
+      "goal": "Define the in-loop evaluator contract and give the durable records a valid /2 shape so strict enforcement is possible.",
+      "deliverables": [
+        "csm-plan/2 and csm-build-state/2 registered schemas (typed supersession + terminal superseded); evaluator contract spec (inputs/outputs/receipt); migrated valid corpus (60 plans + 23 build-state records); dual-revision validators/consumers."
+      ],
+      "scope": [
+        "csm-plan/schemas, csm-plan/lib/plan.mjs",
+        "csm-build/schemas, csm-build/lib/state.mjs",
+        "schemas/registry.json + compatibility-matrix",
+        ".agents/plans + .agents/csm-build-state migrations"
+      ],
+      "outOfScope": [
+        "Behavior changes in the skill loops (later phases)",
+        "Makefile/CI gates"
+      ],
+      "constraints": [
+        "Registry immutability: new /2 ids only, /1 frozen",
+        "Same-commit payload regen",
+        "Migration must not silently drop pending tasks (map them to the /2 shape)"
+      ],
+      "acceptanceHints": [
+        "Both /2 schemas validate; the migrated corpus validates under /2 with 0 failures; /1 records still read"
+      ],
+      "dependencies": [
+        "P1"
+      ],
+      "context": [
+        "finding #1 claim-state-cursor/claim-record-unclosed",
+        "finding #2 claim-mitigations",
+        "csm-plan/schemas/csm-plan.schema.json",
+        "csm-build/lib/state.mjs:56-61",
+        "scout HBR-2"
+      ]
+    },
+    {
+      "phaseId": "P3",
+      "title": "csm-build in-loop evaluator + input-gate alignment",
+      "goal": "Make the csm-build loop unable to reach COMPLETE while tasks remain, via a binding per-cycle evaluator; align its input gate with its SKILL.",
+      "deliverables": [
+        "Per-cycle evaluator dispatch + journaled receipt in the csm-build loop (cannot COMPLETE without a passing verdict); input gate treats ddd/norms as optional, matching the SKILL."
+      ],
+      "scope": [
+        "csm-build/SKILL.md",
+        "csm-build/lib/*.mjs (state/current-context)"
+      ],
+      "outOfScope": [
+        "csm-plan / csm-review / csm-orchestrate loops",
+        "Makefile/CI"
+      ],
+      "constraints": [
+        "Evaluator is a fresh independent subagent",
+        "Receipt required before terminal transition",
+        "No new acceptance authority"
+      ],
+      "acceptanceHints": [
+        "A run with pending tasks cannot reach COMPLETE without a passing evaluator receipt; input-gate tests pass for a plan without ddd/norms"
+      ],
+      "dependencies": [
+        "P2"
+      ],
+      "context": [
+        "csm-build/SKILL.md:380-393",
+        "csm-build/lib/state.mjs:305-315",
+        "finding #1 K9",
+        "finding #2 claim-input-gate"
+      ]
+    },
+    {
+      "phaseId": "P4",
+      "title": "csm-plan in-loop evaluator + strict acceptance signals + supersession",
+      "goal": "Make csm-plan refuse to close a plan with pending tasks, reject disjunctive acceptance signals, and close a predecessor when it spawns a successor.",
+      "deliverables": [
+        "Per-cycle evaluator in the csm-plan loop; acceptance-signal validation rejecting 'Either ... OR defer' (genuine deferrals become blocked tasks); supersession-on-creation that closes the predecessor."
+      ],
+      "scope": [
+        "csm-plan/SKILL.md",
+        "csm-plan/lib/plan.mjs",
+        "csm-plan/schemas (through the P2 /2 revision)"
+      ],
+      "outOfScope": [
+        "Other skills' plan consumption behavior beyond supersession",
+        "Makefile/CI"
+      ],
+      "constraints": [
+        "Enforce inside the plan loop, not via external checks",
+        "Deferrals must carry a user decision",
+        "No proliferation without closing the predecessor"
+      ],
+      "acceptanceHints": [
+        "A disjunctive signal is refused; a successor plan closes its predecessor; evaluator blocks COMPLETE while tasks are pending"
+      ],
+      "dependencies": [
+        "P2"
+      ],
+      "context": [
+        "csm-plan/SKILL.md:358",
+        "csm-plan/schemas/csm-plan.schema.json:109",
+        "finding #1 claim-deferral-gap",
+        "finding #2 claim-proliferation"
+      ]
+    },
+    {
+      "phaseId": "P5",
+      "title": "csm-review in-loop evaluator + remediation-closure linkage",
+      "goal": "Make csm-review unable to save as VERIFIED with unresolved work, and link each finding to a closing action.",
+      "deliverables": [
+        "Per-cycle evaluator in the csm-review loop; a remediation-closure/disposition link from findings to closing evidence."
+      ],
+      "scope": [
+        "csm-review/SKILL.md",
+        "csm-review/schemas/csm-review-findings.schema.json",
+        "csm-review/lib"
+      ],
+      "outOfScope": [
+        "csm-review-python (only via the csm-review handoff)",
+        "Makefile/CI"
+      ],
+      "constraints": [
+        "Evaluator independent of the findings author",
+        "Closure must cite evidence",
+        "Do not claim VERIFIED with open findings"
+      ],
+      "acceptanceHints": [
+        "A review with unresolved findings cannot be saved VERIFIED; every finding carries a closure or an explicit disposition"
+      ],
+      "dependencies": [
+        "P2"
+      ],
+      "context": [
+        "csm-review/SKILL.md:137,217",
+        "csm-review/schemas/csm-review-findings.schema.json:68,98,245",
+        "finding #2 claim-corpus-reviews-incomplete"
+      ]
+    },
+    {
+      "phaseId": "P6",
+      "title": "csm-orchestrate evaluator + bounded remainder + resumable supersession",
+      "goal": "Keep orchestrate fail-closed on a node failure while removing the silent orphan of pending work.",
+      "deliverables": [
+        "Node/run-boundary evaluator; at most one bounded remainder phase; a typed resumable supersession pointer for abandoned nodes/phases."
+      ],
+      "scope": [
+        "csm-orchestrate/SKILL.md",
+        "csm-orchestrate/lib/index.mjs",
+        "csm-orchestrate/lib/recovery.mjs"
+      ],
+      "outOfScope": [
+        "Changing the fail-closed assurance stance",
+        "Makefile/CI"
+      ],
+      "constraints": [
+        "Fail-closed preserved (AGENTS.md)",
+        "Bounded remainder only",
+        "Typed supersession in the receipt/cursor"
+      ],
+      "acceptanceHints": [
+        "A node failure stops the run closed AND records pending nodes + a resumable supersession pointer; at most one bounded remainder phase runs"
+      ],
+      "dependencies": [
+        "P2"
+      ],
+      "context": [
+        "csm-orchestrate/lib/index.mjs:1341,1445,1585-1603",
+        "csm-orchestrate/lib/recovery.mjs:12,220-251",
+        "AGENTS.md",
+        "finding #2 claim-orchestrate-first-failure"
+      ]
+    },
+    {
+      "phaseId": "P7",
+      "title": "Integration acceptance: no covered loop can end with work remaining",
+      "goal": "Prove end-to-end that the four covered skills cannot terminate with work remaining under strict enforcement.",
+      "deliverables": [
+        "An acceptance suite + recorded evidence: each skill's loop refuses COMPLETE/SAVED with pending work absent a passing evaluator receipt; strict validation of all canonical records at 0 failures."
+      ],
+      "scope": [
+        "tests/integration for the four skills",
+        ".agents/evidence acceptance artifact"
+      ],
+      "outOfScope": [
+        "New features beyond the four skills",
+        "Makefile/CI as the enforcement point"
+      ],
+      "constraints": [
+        "Evidence-based acceptance, not prose",
+        "Failure of any covered loop is a release blocker"
+      ],
+      "acceptanceHints": [
+        "All four loops demonstrably refuse premature termination; the full canonical corpus validates under strict /2 rules"
+      ],
+      "dependencies": [
+        "P3",
+        "P4",
+        "P5",
+        "P6"
+      ],
+      "context": [
+        "both findings; all decisions D1-D9"
+      ]
+    }
+  ],
+  "projection": {
+    "profile": "csm-grill-human/1",
+    "legacyMarkdownStatus": "history-only"
+  },
+  "provenance": {
+    "producer": "csm-grill",
+    "producerVersion": "csm-grill/1",
+    "producedAt": "2026-09-14T10:20:00.000Z",
+    "sourceDigests": []
+  }
+}

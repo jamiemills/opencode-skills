@@ -1,0 +1,43 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-csm-completion-fixes-plan-20260914",
+  "runId": "run-20260914t110000z-csmcompletionfixesplan",
+  "skill": "csm-plan",
+  "goal": "Plan in-loop completion enforcement across csm-build/csm-plan/csm-review/csm-orchestrate (non-disruptive, parallel-friendly)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Intake + discover",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Draft",
+      "weightPercent": 30,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Critique + verify",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "Save",
+      "weightPercent": 10,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-14T11:00:00.000Z",
+  "updatedAt": "2026-09-19T09:01:22.958Z"
+}
