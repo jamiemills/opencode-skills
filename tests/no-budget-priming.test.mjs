@@ -36,7 +36,7 @@ test("csm-bdd-tdd renames the budget heading to content scoping", async () => {
 
 test("no source skill or boilerplate names context-length-exceeded", async () => {
   const dirs = await readdir(ROOT, { withFileTypes: true });
-  const skills = dirs.filter((d) => d.isDirectory() && /^csm-/.test(d.name)).map((d) => d.name);
+  const skills = dirs    .filter((d) => d.isDirectory() && d.name.startsWith("csm-")).map((d) => d.name);
   assert.ok(skills.length >= 14, "expected the 14 csm source skills");
   for (const skill of skills) {
     const content = await read(`${skill}/SKILL.md`);
