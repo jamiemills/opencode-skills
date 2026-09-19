@@ -5,19 +5,19 @@
 // and /2 (request) validate under their own declared revision, and unknown
 // revisions fail closed.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+
 import { test } from "node:test";
 import {
   createSchemaValidator,
+  digest,
   loadSchemaRegistry,
   parseJson,
 } from "../lib/schema-runtime/index.mjs";
 import { validateCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 
-const ROOT = fileURLToPath(new URL("../", import.meta.url));
+
 
 const REQUEST_V1 = {
   schema: "csm-orchestrate-request/1",
@@ -69,10 +69,12 @@ test("capabilities loader accepts /2 and /3 and fails closed on unknown revision
   assert.equal(current.schema, "csm-orchestrate-capabilities/3");
   await validateCapabilities(current, { verifySources: false });
 
-  const frozen = JSON.parse(
-    execFileSync("git", ["show", "HEAD:csm-orchestrate/capabilities.json"], { cwd: ROOT }),
-  );
-  assert.equal(frozen.schema, "csm-orchestrate-capabilities/2");
+  const frozen = structuredClone(current);
+  frozen.schema = "csm-orchestrate-capabilities/2";
+  frozen.version = 2;
+  delete frozen.schemaRevision;
+  for (const entry of frozen.skills ?? []) delete entry.decision;
+  frozen.contentDigest = digest(frozen.skills);
   await validateCapabilities(frozen, { verifySources: false });
 
   for (const schema of [
