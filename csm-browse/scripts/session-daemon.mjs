@@ -32,12 +32,16 @@ if (!sid) {
 const sDir = sessionDir(sid);
 
 const withTimeout = (promise, ms, label) => {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      globalThis.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms),
-    ),
-  ]);
+  let timer = null;
+  const bound = new Promise((_, reject) => {
+    timer = globalThis.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    // Never let a timeout bound itself keep the daemon alive: the daemon must
+    // only stay alive while it is genuinely connected.
+    if (timer.unref) timer.unref();
+  });
+  return Promise.race([promise, bound]).finally(() => {
+    if (timer) globalThis.clearTimeout(timer);
+  });
 };
 
 const pidFile = join(sDir, "daemon.pid");
@@ -241,13 +245,120 @@ if (!state || !state.wsUrl) {
 // Redact BEFORE interpolation: redactTelemetry cannot parse a URL embedded in
 // prose, so the wsUrl value itself must be scrubbed first.
 console.log(`Connecting to ${redactUrl(state.wsUrl)}...`);
-let client;
+let client = null;
 let tabSessionId;
 let collectorsHandle = null;
+let touchReady = null;
+let shuttingDown = false;
+
+// chrome-remote-interface exposes the underlying WebSocket as `_ws`; guard
+// the private access so a future CRI shape that hides it simply disables the
+// fallback (the primary 'disconnect' event still applies). WebSocket.CLOSED=3.
+function cdpSocketClosed(c) {
+  const ws = c && c["_ws"]; // eslint-disable-line no-underscore-dangle
+  return !!ws && typeof ws.readyState === "number" && ws.readyState === 3;
+}
+
+// Idempotent, bounded shutdown. `reason` is logged so operators can tell a
+// CDP disconnect from a signal from the liveness fallback. Once entered it
+// owns the exit: the main flow's catch must not race it to exit(1).
+const cleanup = async (reason) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  if (touchReady) globalThis.clearInterval(touchReady);
+
+  // F-067-12: the force-exit timer is armed AFTER the recorder finalize, not
+  // before — a timer started at cleanup entry could truncate an in-flight
+  // finalize/result write mid-secureWrite. It is unref'd so it can never be
+  // the handle that keeps the daemon alive; the explicit process.exit below
+  // is what guarantees the bound.
+  let forceExitTimer = null;
+
+  try {
+    const recorder = await import("../lib/recorder.mjs");
+    if (recorder.stopRecorder) {
+      console.log("Finalizing recorder...");
+      await withTimeout(
+        recorder.stopRecorder(client, tabSessionId, sDir),
+        12000,
+        "Recorder finalize",
+      );
+    }
+  } catch (e) {
+    if (e.code !== "ERR_MODULE_NOT_FOUND" && e.message !== "not recording") {
+      console.error(`Recorder finalize error: ${e.message}`);
+    }
+  }
+
+  // F-015: surface telemetry-write accounting before shutdown so a
+  // "capture gap" diagnosis can distinguish a dead daemon from silent
+  // write failures during the session.
+  if (collectorsHandle?.stats) {
+    const stats = collectorsHandle.stats();
+    if (stats.droppedWrites > 0 || stats.droppedRotations > 0) {
+      console.log(
+        `Collectors dropped: writes=${stats.droppedWrites} rotations=${stats.droppedRotations}`,
+      );
+    }
+  }
+
+  if (client) {
+    try {
+      await withTimeout(client.close(), 2000, "CDP close");
+    } catch {}
+  }
+
+  // Only the marker-removal steps remain (fast); a wedged rm must not hold
+  // the pid+ready markers forever, so backstop them with a hard bound.
+  forceExitTimer = globalThis.setTimeout(() => {
+    console.error(`Cleanup timed out, force exiting (${reason})`);
+    try {
+      process.exit(0);
+    } catch {}
+  }, 3000);
+  if (forceExitTimer.unref) forceExitTimer.unref();
+
+  try {
+    await removeOwnPidFile();
+  } catch {}
+  try {
+    await rm(readyMarker);
+  } catch {}
+
+  if (forceExitTimer) globalThis.clearTimeout(forceExitTimer);
+  console.log(`Daemon exiting: ${reason}`);
+  process.exit(0);
+};
+
+const onSignal = (sig) => {
+  console.log(`Received ${sig}`);
+  cleanup(`signal ${sig}`);
+};
 
 try {
   client = await connectDaemon(state.wsUrl);
   console.log("CDP connected");
+
+  // Attach immediately — BEFORE the ready marker is written and before any
+  // further await — so a disconnect during the startup window cannot be
+  // missed. CRI emits 'disconnect' exactly once from the underlying ws
+  // 'close'; a handler registered later loses the event and leaves a zombie
+  // polling a dead client (the source of the intermittent non-exit).
+  client.on("disconnect", () => {
+    console.log("CDP connection lost — shutting down");
+    cleanup("CDP disconnect");
+  });
+  // CRI never surfaces ws errors as a client 'error' event (they reject the
+  // connect promise), but keep a handler so any future emit cannot throw an
+  // unhandled 'error' and so an error path still shuts down deterministically.
+  client.on("error", (err) => {
+    console.error(`CDP client error: ${err && err.message ? err.message : err}`);
+    cleanup("CDP error");
+  });
+
+  process.on("SIGTERM", onSignal);
+  process.on("SIGINT", onSignal);
 
   tabSessionId = await ensureSingleTab(client);
   console.log(`Tab attached, sessionId: ${tabSessionId}`);
@@ -277,108 +388,34 @@ try {
 
   // Keep the ready marker's mtime fresh while this daemon's event loop is
   // alive, so launchDaemon can distinguish a live daemon from a stale-but-
-  // alive zombie (whose loop has stopped touching the marker).
-  const touchReady = globalThis.setInterval(() => {
+  // alive zombie (whose loop has stopped touching the marker). The same
+  // unref'd tick backstops a missed close event: if the underlying CDP socket
+  // is already CLOSED, shut down instead of polling forever.
+  touchReady = globalThis.setInterval(() => {
     utimes(readyMarker, new Date(), new Date()).catch(() => {});
+    if (!shuttingDown && cdpSocketClosed(client)) {
+      console.log("CDP socket closed — shutting down");
+      cleanup("CDP socket closed (liveness check)");
+    }
   }, 2000);
   if (touchReady.unref) touchReady.unref();
 
-  let shuttingDown = false;
-
-  const cleanup = async () => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-
-    // F-067-12: the force-exit timer is armed AFTER the recorder finalize,
-    // not before — a timer started at cleanup entry could truncate an
-    // in-flight finalize/result write mid-secureWrite.
-    let forceExitTimer = null;
-
-    try {
-      const recorder = await import("../lib/recorder.mjs");
-      if (recorder.stopRecorder) {
-        console.log("Finalizing recorder...");
-        await withTimeout(
-          recorder.stopRecorder(client, tabSessionId, sDir),
-          12000,
-          "Recorder finalize",
-        );
-      }
-    } catch (e) {
-      if (e.code !== "ERR_MODULE_NOT_FOUND" && e.message !== "not recording") {
-        console.error(`Recorder finalize error: ${e.message}`);
-      }
-    }
-
-    // F-015: surface telemetry-write accounting before shutdown so a
-    // "capture gap" diagnosis can distinguish a dead daemon from silent
-    // write failures during the session.
-    if (collectorsHandle?.stats) {
-      const stats = collectorsHandle.stats();
-      if (stats.droppedWrites > 0 || stats.droppedRotations > 0) {
-        console.log(
-          `Collectors dropped: writes=${stats.droppedWrites} rotations=${stats.droppedRotations}`,
-        );
-      }
-    }
-
-    if (client) {
-      try {
-        await withTimeout(client.close(), 2000, "CDP close");
-      } catch {}
-    }
-
-    // Only the marker-removal steps remain (fast); a wedged rm must not hold
-    // the pid+ready markers forever, so backstop them with a hard bound.
-    forceExitTimer = globalThis.setTimeout(() => {
-      console.error("Cleanup timed out, force exiting");
-      try {
-        process.exit(0);
-      } catch {}
-    }, 3000);
-    if (forceExitTimer.unref) forceExitTimer.unref();
-
+  await startQueueLoop(client, tabSessionId, sDir);
+} catch (err) {
+  if (!shuttingDown) {
+    console.error(`Daemon error: ${err.message}`);
     try {
       await removeOwnPidFile();
     } catch {}
     try {
       await rm(readyMarker);
     } catch {}
-
-    if (forceExitTimer) globalThis.clearTimeout(forceExitTimer);
-    console.log("Daemon exiting");
-    process.exit(0);
-  };
-
-  process.on("SIGTERM", cleanup);
-  process.on("SIGINT", cleanup);
-
-  // CDP disconnect/error = chromium is gone. Without this the daemon would
-  // poll forever as a zombie, holding pid+ready markers and blocking every
-  // relaunch. cleanup removes both markers so the next launchDaemon can
-  // start a fresh daemon cleanly.
-  client.on("disconnect", () => {
-    console.log("CDP connection lost — shutting down");
-    cleanup();
-  });
-  client.on("error", (err) => {
-    console.error(`CDP client error: ${err && err.message ? err.message : err}`);
-    cleanup();
-  });
-
-  await startQueueLoop(client, tabSessionId, sDir);
-} catch (err) {
-  console.error(`Daemon error: ${err.message}`);
-  try {
-    await removeOwnPidFile();
-  } catch {}
-  try {
-    await rm(readyMarker);
-  } catch {}
-  if (client) {
-    try {
-      await withTimeout(client.close(), 2000, "CDP close").catch(() => {});
-    } catch {}
+    if (client) {
+      try {
+        await withTimeout(client.close(), 2000, "CDP close").catch(() => {});
+      } catch {}
+    }
+    process.exit(1);
   }
-  process.exit(1);
+  // shuttingDown: cleanup() owns the exit path — do not race it with exit(1).
 }
