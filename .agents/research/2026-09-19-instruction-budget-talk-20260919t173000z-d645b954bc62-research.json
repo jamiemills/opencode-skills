@@ -1,0 +1,484 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "title": "Why the model talks about budgets, context exhaustion, and prompt length - and how to stop it",
+  "runId": "run-20260919t173000z-d645b954bc62",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The model talks about budgets/context/length because (1) this repo's own instructions prime the vocabulary and hand it a 'context-length = stop' rule, and (2) models genuinely exhibit 'context anxiety'/limit-awareness and RLHF verbosity, while (3) the harness gives no real token meter (and compaction state is unverified, not confirmed off). Fix it positively, not with bans: replace the AGENTS.md 'when context approaches limits' trigger with a durable-state rule + one positive compaction paragraph, delete the literal 16k budget, drop context-length-exceeded from the model-facing quota set, enable real auto-compaction, keep all hard limits in code, and show token counts to the UI (not the model)."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "STANDARD x hybrid research into why an agent narrates budgets, context exhaustion, and instruction length, and how to stop it.\n\nPipeline: INTAKE -> TRIAGE(STANDARD x hybrid) -> RESEARCH(3 tracks: local corpus census; model behaviour; harness controls) -> SYNTHESIZE -> CHALLENGE -> JUDGE -> REMEDIATE -> VERIFY -> SAVED.\n\nHeadline: the behaviour is over-determined - instruction priming (local), genuine context anxiety and RLHF verbosity (model), and a missing meter plus prose-only limits (harness). The correction is instruction + harness, and should be positive-framed."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1 supported: the repo's own corpus primes limit talk (AGENTS.md:19; boilerplate 'context-length-exceeded'; csm-review '~16k tokens'; csm-bdd-tdd 'Context Budget Rules'; the 14x Progress Tracker) (claim-local-priming). K2 supported(medium): 'context anxiety' is documented in Claude Sonnet 4.5 / Devin (claim-context-anxiety). K3 supported: too-small or self-decremented budgets cause premature stops/refusals (claim-budget-exposure-hurts). K4 supported: no real token meter is fed to the model; the harness has one but does not surface it (claim-no-meter). K5 supported: long-context degradation is real (claim-context-rot). K6 supported: RLHF verbosity + unfaithful CoT explain learned constraint-narration (claim-rlhf-narration)."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "A. Local priming (file:line): AGENTS.md:19 'When context approaches limits, compact recall-first'; csm-build/SKILL.md:457 quota signal set includes context-length-exceeded (its own set); the shared boilerplate line (scripts/lib/boilerplate.mjs:110) carries a context-length-exceeded stop signal into 5 skills; csm-review/SKILL.md:174 'per-chunk context budget ~ 16k tokens'; csm-bdd-tdd/SKILL.md:285 'Context Budget Rules'; Progress Tracker preamble duplicated across 14 skills (~5-9k tokens; it frames weighted milestone completion, not a token budget). Note: csm-build's 'Pause On Quota' is prose-only, not code-enforced.\n\nB. Model behaviour: lost-in-the-middle; Chroma context-rot; Anthropic 'attention budget'/'context anxiety'; Cognition Sonnet-4.5 self-reported token estimate error; sycophancy/over-refusal/verbosity; CoT unfaithfulness; anchoring (inference zone).\n\nC. Harness: real numbers already available (scripts/cache-health.mjs tokens_input/tokens_cache_read/cost) but not fed to the model; the model is asked to self-estimate; compaction config is a retired docs-only recommendation (runtime state unknown; opencode auto defaults true); enforced-limit precedent exists in csm-autoresearch BudgetError (harness estimates bytes/4). Anthropic task-budgets: advisory countdown, never too small, never client-decremented."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Do both, positively. Instruction-side (5 small edits): (1) replace AGENTS.md:19's trigger with an unconditional durable-state rule; (2) add one positive compaction-policy paragraph (Anthropic-style: 'context will be compacted; write state to files; do not stop early for context reasons'); (3) delete the approximate '≈ 16k tokens' in csm-review/SKILL.md:174; (4) rename csm-bdd-tdd 'Context Budget Rules' -> 'Subagent Context Scoping'; (5) remove context-length-exceeded from the model-facing stop signals in both scripts/lib/boilerplate.mjs (5 skills) and csm-build's own quota set. Harness-side: verify/tune compaction (opencode auto already defaults true; set prune/reserved as desired); keep all hard limits in code; if a budget is shown at all make it one generous server-tracked advisory countdown; show real numbers to the UI only; prefer positive brevity phrasing ('be concise; act rather than narrate') over token-minimization instructions. Do NOT add bans on mentioning tokens; positive framing is the documented stronger form. Confidence high; would change only if a controlled study showed budget-word priming does not occur."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1 unverifiable: no controlled study found that budget/limit wording in a system prompt causes spontaneous budget talk; inferred from anchoring + the belief-budget result (claim-inference-budget-priming). U2 unverifiable: the in-session observation that the assistant said context was 'tight' without a meter is a single anecdote, not a measurement (claim-self-observation). U3 partially-supported: the repo's compaction state could not be verified at runtime; the cited doc is retired/docs-only and opencode auto defaults true (claim-compaction-off)."
+    },
+    "references": {
+      "id": "references",
+      "content": "R1 ref-agents; R2 ref-csm-build-skill; R3 ref-csm-review-skill; R4 ref-csm-bdd-skill; R5 ref-boilerplate; R6 ref-cachehealth; R7 ref-token-efficiency-doc; R8 ref-anthropic-harness; R9 ref-anthropic-context-eng; R10 ref-anthropic-task-budgets; R11 ref-anthropic-compaction; R12 ref-anthropic-prompting; R13 ref-cognition; R14 ref-chroma; R15 ref-lostmiddle; R16 ref-sycophancy; R17 ref-cot-unfaithful; R18 ref-anchoring; R19 ref-opencode-config."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier STANDARD x hybrid. Tracks: A local corpus census (explore); B model context-talk (web); C harness controls (hybrid). Synthesis primary-only. CHALLENGE and JUDGE dispatched independently (recorded in the journal). Key local correction: the '16k tokens' figure is csm-review, not csm-deep-research; there is no 500/499-line cap in the corpus. Journal: 0 INTAKE, 1 TRIAGE, 2 RESEARCH, 3 SYNTHESIZE, 4 CHALLENGE, 5 JUDGE, 6 REMEDIATE, 7 VERIFY, 8 SAVED. Remediation (challenge+judge): corrected the compaction claim (retired docs-only, not 'disabled'), removed the unverified 'minimize output tokens' premise and the 'enable compaction' overclaim, scoped the boilerplate signal to 5 skills, separated the proven meter sub-claim, normalized '≈ 16k', and cited the two previously dangling references."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-local-priming",
+      "section": "keyFindings",
+      "statement": "This repository's instruction corpus primes budget/limit talk: AGENTS.md tells the model 'when context approaches limits, compact'; the Subagent-Resilience boilerplate renders 'context-length-exceeded' into 5 skills (csm-grill/plan/review/bdd-tdd/deep-research) and csm-build carries its own stop-signal set; csm-review hands the model 'per-chunk context budget ≈ 16k tokens'; csm-bdd-tdd has a 'Context Budget Rules' section; and the Progress Tracker preamble in 14 skills frames weighted milestone completion (not a token budget).",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-agents",
+          "locator": "AGENTS.md:19",
+          "quote": "When context approaches limits, compact recall-first"
+        },
+        {
+          "referenceId": "ref-boilerplate",
+          "locator": "scripts/lib/boilerplate.mjs:110",
+          "quote": "context-length-exceeded (rendered into 5 skills)"
+        },
+        {
+          "referenceId": "ref-csm-build-skill",
+          "locator": "csm-build/SKILL.md:100,457",
+          "quote": "context-length-exceeded"
+        },
+        {
+          "referenceId": "ref-csm-review-skill",
+          "locator": "csm-review/SKILL.md:174",
+          "quote": "per-chunk context budget ≈ 16k tokens"
+        },
+        {
+          "referenceId": "ref-csm-bdd-skill",
+          "locator": "csm-bdd-tdd/SKILL.md:285",
+          "quote": "## Context Budget Rules"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-context-anxiety",
+      "section": "keyFindings",
+      "statement": "'Context anxiety' is a documented model behaviour: Claude Sonnet 4.5 would wrap up work prematurely as it believed it approached its context limit (Anthropic), and Cognition reports it is aware of its own context window, consistently underestimates tokens remaining, and takes shortcuts when near the limit.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-harness",
+          "locator": "harness-design-long-running-apps",
+          "quote": "exhibited context anxiety strongly enough that compaction alone wasn't sufficient"
+        },
+        {
+          "referenceId": "ref-cognition",
+          "locator": "devin-sonnet-4-5",
+          "quote": "aware of its own context window ... underestimates how many tokens it has left"
+        },
+        {
+          "referenceId": "ref-anthropic-context-eng",
+          "locator": "effective-context-engineering-for-ai-agents",
+          "quote": "finite attention budget"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-budget-exposure-hurts",
+      "section": "keyFindings",
+      "statement": "Exposing a budget to the model hurts when too small or model-decremented: Anthropic's task-budgets guidance says a too-small budget can cause refusal-like behaviour, aggressive scoping-down, or early partial stops, and client-side decrementing makes the countdown drop too fast so the model wraps up earlier.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-task-budgets",
+          "locator": "task-budgets",
+          "quote": "can cause refusal-like behavior ... stop early with a partial result"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-no-meter",
+      "section": "keyFindings",
+      "statement": "scripts/cache-health.mjs can read real per-session token/cost figures (tokens_input, tokens_cache_read, tokens_cache_write, cost) as a standalone read-only monitor, but there is no cited evidence that any such figure is surfaced to the model during a run.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-cachehealth",
+          "locator": "scripts/cache-health.mjs:186",
+          "quote": "tokens_input, tokens_cache_read, tokens_cache_write, cost"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-context-rot",
+      "section": "detailSections",
+      "statement": "Long-context performance degrades non-uniformly as input grows (lost-in-the-middle; Chroma 'context rot' across 18 models), independent of any budget wording — so some limit-awareness is grounded in real degradation.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-lostmiddle",
+          "locator": "2307.03172",
+          "quote": "lost in the middle"
+        },
+        {
+          "referenceId": "ref-chroma",
+          "locator": "context-rot",
+          "quote": "performance degrades non-uniformly as input length grows"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-rlhf-narration",
+      "section": "detailSections",
+      "statement": "Instruction/RLHF training produces verbosity, sycophancy, over-refusal, and meta-commentary, and reasoning-model chains of thought are often unfaithful to the constraints actually driving answers — so spontaneous constraint-talk is partly learned narration, not reliable introspection.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-sycophancy",
+          "locator": "2310.13548",
+          "quote": "sycophancy is a general behavior of state-of-the-art ... assistants"
+        },
+        {
+          "referenceId": "ref-cot-unfaithful",
+          "locator": "2505.05410",
+          "quote": "chains of thought often do not faithfully verbalize the constraints"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-compaction-off",
+      "section": "detailSections",
+      "statement": "The compaction configuration is a retired, docs-only recommendation from a removed token-efficiency feature (the referenced toggle file no longer exists), and opencode's compaction.auto defaults to true; therefore the runtime state is unknown rather than 'documented-disabled', and the harness-level fix is to verify/tune compaction, not 'enable' it.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-token-efficiency-doc",
+          "locator": "cache-token-efficiency-2026-08-20.md:1,53-57",
+          "quote": "Retired reference ... DOCS ONLY (not applied)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-fix-instruction",
+      "section": "recommendation",
+      "statement": "Instruction-side fix (smallest, highest-leverage): replace AGENTS.md:19's 'when context approaches limits' trigger with an unconditional durable-state rule plus one positive compaction-policy paragraph; delete the approximate 16k budget in csm-review ('≈ 16k tokens'); rename csm-bdd-tdd 'Context Budget Rules' to content scoping; and remove 'context-length-exceeded' from the model-facing stop signals in BOTH places it appears - the shared boilerplate (scripts/lib/boilerplate.mjs, 5 skills) and csm-build's own quota set - keeping 429/rate-limit/credits/billing.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-agents",
+          "locator": "AGENTS.md",
+          "quote": "Compaction and history"
+        },
+        {
+          "referenceId": "ref-boilerplate",
+          "locator": "scripts/lib/boilerplate.mjs",
+          "quote": "context-length-exceeded"
+        },
+        {
+          "referenceId": "ref-boilerplate",
+          "locator": "scripts/lib/boilerplate.mjs:110",
+          "quote": "context-length-exceeded"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-fix-harness",
+      "section": "recommendation",
+      "statement": "Harness-side fix: keep every enforced limit in code (never prose); verify/tune compaction (opencode compaction.auto already defaults true; set prune/reserved as desired) rather than assuming it is off; if any budget is shown to the model, make it a single generous, server-tracked, advisory countdown (never client-decremented); and surface real token numbers to the human/UI only, not the model.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-compaction",
+          "locator": "compaction",
+          "quote": "automatically summarizing older context when approaching the context window limit"
+        },
+        {
+          "referenceId": "ref-opencode-config",
+          "locator": "config (compaction)",
+          "quote": "auto - Automatically compact the session when context is full (default: true)"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-positive-over-negative",
+      "section": "recommendation",
+      "statement": "Prefer positive behaviour + rationale over bare prohibitions: Anthropic's guidance is to tell the model what to do instead of what not to do, and its own anti-anxiety fix is a positive policy paragraph ('context will be compacted ... do not stop early'), not a ban on mentioning tokens.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-anthropic-prompting",
+          "locator": "prompting-best-practices",
+          "quote": "Tell Claude what to do instead of what not to do"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-inference-budget-priming",
+      "section": "unverifiedClaims",
+      "statement": "A controlled study showing that budget/limit words in a system prompt cause spontaneous budget talk was NOT found; the mechanism is inferred from documented anchoring effects plus the practitioner belief-budget result. Treat 'budget phrasing causes obsession' as plausible-but-unverified.",
+      "claimType": "causal",
+      "verdict": "unverifiable",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-anchoring",
+          "locator": "2505.15392",
+          "quote": "LLMs exhibit the anchoring effect"
+        },
+        {
+          "referenceId": "ref-cognition",
+          "locator": "devin-sonnet-4-5",
+          "quote": "what the model believes about its budget changes behavior"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-self-observation",
+      "section": "unverifiedClaims",
+      "statement": "In this very session the assistant asserted context was 'tight' and repeatedly referenced budgets/length without any measured token meter — an in-session instance of the behaviour, consistent with limit-awareness plus the primed vocabulary; it is a single observational instance, not a controlled measurement.",
+      "claimType": "observed-outcome",
+      "verdict": "unverifiable",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-agents",
+          "locator": "AGENTS.md",
+          "quote": "When context approaches limits, compact recall-first"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-agents",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/AGENTS.md",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-csm-build-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/csm-build/SKILL.md",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-csm-review-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/csm-review/SKILL.md",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-csm-bdd-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/csm-bdd-tdd/SKILL.md",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-boilerplate",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/scripts/lib/boilerplate.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-cachehealth",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/scripts/cache-health.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-token-efficiency-doc",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/b40daab/.agents/docs/cache-token-efficiency-2026-08-20.md",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-anthropic-harness",
+      "url": "https://www.anthropic.com/engineering/harness-design-long-running-apps",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-anthropic-context-eng",
+      "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-anthropic-task-budgets",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/task-budgets",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-anthropic-compaction",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-anthropic-prompting",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "publisher": "Anthropic",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-cognition",
+      "url": "https://cognition.ai/blog/devin-sonnet-4-5-lessons-and-challenges",
+      "publisher": "Cognition (Devin)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-chroma",
+      "url": "https://research.trychroma.com/context-rot",
+      "publisher": "Chroma Research",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-lostmiddle",
+      "url": "https://arxiv.org/abs/2307.03172",
+      "publisher": "arXiv (TACL 2023)",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-sycophancy",
+      "url": "https://arxiv.org/abs/2310.13548",
+      "publisher": "arXiv",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-cot-unfaithful",
+      "url": "https://arxiv.org/abs/2505.05410",
+      "publisher": "arXiv",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-anchoring",
+      "url": "https://arxiv.org/abs/2505.15392",
+      "publisher": "arXiv",
+      "retrievedAt": "2026-09-19"
+    },
+    {
+      "referenceId": "ref-opencode-config",
+      "url": "https://opencode.ai/docs/config",
+      "publisher": "opencode docs",
+      "retrievedAt": "2026-09-19"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Resolved git root, run id, baseline.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "STANDARD x hybrid; 3 tracks.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "3 parallel read-only tracks.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "Draft claims with citations.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "Independent challenger.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "Independent judge.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "Apply corrections.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "Schema-validate; re-check citations.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "Write finding.",
+      "occurredAt": "2026-09-19T17:30:00.000Z",
+      "cycle": 0
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-19T17:30:00.000Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

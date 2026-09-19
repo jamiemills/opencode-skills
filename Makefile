@@ -63,7 +63,8 @@ test-bootstrap: ## bootstrap suites (serial; self-pack) + resume-semantics corpu
 
 test-orchestrate: ## csm-orchestrate unit and integration tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/orchestrate-*.test.mjs \
-	  tests/conditional-skill-rankings.test.mjs
+	  tests/conditional-skill-rankings.test.mjs \
+	  tests/no-budget-priming.test.mjs
 
 test-worker-runtime: ## dynamic worker-runtime suites (telemetry, reducer, scheduler, leases, thin entry)
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/telemetry/*.test.mjs tests/orchestration-store/*.test.mjs tests/orchestrate-worker-state.test.mjs tests/orchestrate-lifecycle-hooks.test.mjs tests/orchestrate-batch-width.test.mjs tests/orchestrate-dynamic-scheduler.test.mjs tests/orchestrate-sandbox-egress-schemas.test.mjs tests/worker-projection-render.test.mjs tests/run-worker.test.mjs tests/executor-hardening.test.mjs

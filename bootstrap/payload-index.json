@@ -30,8 +30,8 @@
       },
       {
         "path": "payload/skills/csm-bdd-tdd/SKILL.md",
-        "sha256": "3799e222af5acbb02c209102c354c68b9854e5cdecf466893e155934048e283c",
-        "bytes": 25556,
+        "sha256": "eebf6765fd8e9c075cd59a795be5c41df831f8d80a966bea536b564910c15e73",
+        "bytes": 25711,
         "mode": "0644"
       },
       {
@@ -42,8 +42,8 @@
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "22e88010aff4cdaade9aafa10d0b32d7f7e7815e92f2992eb4504e31400afebd",
-        "bytes": 42302,
+        "sha256": "1c8ada2fd1e695bc86af9b53c894203e595457bc26a4b96848f698d57647da30",
+        "bytes": 42564,
         "mode": "0644"
       },
       {
@@ -54,14 +54,14 @@
       },
       {
         "path": "payload/skills/csm-deep-research/SKILL.md",
-        "sha256": "e059a70b27015ebdb0b20440505c50f36b81bf59fd98083dc03f08b5a9c284fd",
-        "bytes": 63614,
+        "sha256": "d0dbbe326cf2cdd0f3c8b52c1ca4a047e13bf4352afa54c4b1295390aece24c8",
+        "bytes": 63752,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-grill/SKILL.md",
-        "sha256": "86c283a17473b72211628c02c7cbe3458832d44c8353caf9b9f153e6151ec3c8",
-        "bytes": 17858,
+        "sha256": "e5717ab8a1fb359d14df3ae2f490253d7924e4ec8bf01a2c0bde09d21a1a15fb",
+        "bytes": 17996,
         "mode": "0644"
       },
       {
@@ -78,8 +78,8 @@
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "728a7b936ea0044b9f56ffcabb65a7f416bf457efbbad625d0448f1932e08a05",
-        "bytes": 42792,
+        "sha256": "3a7ada873980bc019936d296a9e08fa20568ac4cbbfcb38c291514cfd63e9d2a",
+        "bytes": 43031,
         "mode": "0644"
       },
       {
@@ -90,8 +90,8 @@
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "a32576d9516f6933ba94230741776ee7015e257217be4b44c33982670bf0bda0",
-        "bytes": 49771,
+        "sha256": "58c03a8c47ffe8ea4bea0d192993e3a9b38b09dbc8881e3ac8b0dc92331f1a23",
+        "bytes": 49868,
         "mode": "0644"
       },
       {
@@ -770,7 +770,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "86c924081e0b1e873d963184396061fee2ac503af39e976402129548383813bb",
+        "sha256": "c66788e10182f34015def25f0cf43b431a63fc4dd1cc98945aec0c5c7b3ecfbb",
         "bytes": 26280,
         "mode": "0644"
       },

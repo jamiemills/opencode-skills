@@ -107,7 +107,7 @@ ${p.intro}
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. ${p.step4}
-5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
+5. On quota-type failures (429, rate-limit, out-of-credits, billing) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop. Context exhaustion is harness-managed (automatic compaction); if it still occurs it is a non-quota fatal surfaced to the primary, never the retry ladder.
 `;
   return p.guard ? `${body}\n${p.guard}\n` : body;
 }

@@ -93,7 +93,7 @@ Fallback ladder when a pipeline subagent (SPEC, SCENARIOS, VALIDATE, TEST_DESIGN
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion of the spec/validation work, with a recorded independence caveat when the primary agent fills in for an independent agent.
-5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
+5. On quota-type failures (429, rate-limit, out-of-credits, billing) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop. Context exhaustion is harness-managed (automatic compaction); if it still occurs it is a non-quota fatal surfaced to the primary, never the retry ladder.
 
 ## Interface
 
@@ -282,11 +282,11 @@ Display: the mutated plan path, specs folder path, scenario and task counts, val
 
 File rules: one file type, one purpose; stable filenames; no mixed concerns; human-readable first, machine-parseable second; diff-friendly; no implementation code anywhere in this phase.
 
-## Context Budget Rules
+## Subagent Context Scoping
 
 - Pass each subagent only the current artifact plus directly dependent artifacts.
 - Do not attach historical discussion unless it changes the result; do not pass the whole repository when one file is enough; summarize long inputs into bullet facts; prefer structured data over prose.
-- Budgets: Spec Agent ← source plan goal/criteria + glossary; Scenario Agent ← spec + glossary; Validation Agent ← feature files + harness; Test Design Agent ← one scenario + spec + template; Planning (primary) ← approved features + test designs + validation report + source plan.
+- Artifact assignments: Spec Agent ← source plan goal/criteria + glossary; Scenario Agent ← spec + glossary; Validation Agent ← feature files + harness; Test Design Agent ← one scenario + spec + template; Planning (primary) ← approved features + test designs + validation report + source plan.
 
 ## Anti-Patterns
 

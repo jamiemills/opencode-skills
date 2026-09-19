@@ -16,10 +16,13 @@
 
 ## Compaction and history
 
-- When context approaches limits, compact recall-first: keep durable rules,
-  instructions, and evidence in files and re-read them rather than relying on
-  a long in-context transcript.
+- As it approaches its limit, context is compacted automatically; write durable
+  rules, instructions, and evidence to files and re-read them rather than
+  relying on the in-context transcript.
+- Do the work rather than narrating constraints: do not stop a task early for
+  context reasons.
 - Append-only history: never rewrite earlier turns in a session.
+- See `docs/context-management.md` for harness context-management guidance.
 
 ## Patch Context Safety
 

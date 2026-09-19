@@ -171,7 +171,7 @@ Exit: repo pinned, scale set, resume handled, report scaffold written.
 Entry: INTAKE exit; or VERIFY -> SCOPE (coverage plan wrong).
 
 1. Enumerate the review surfaces: tree, manifests, CI, docs.
-2. Partition large repos into chunks: one chunk per top-level module, merged when under ~40 files, capped at 24 chunks; per-chunk context budget ≈ 16k tokens; chunks over the cap are recorded in Anti-Coverage with a risk note.
+2. Partition large repos into chunks: one chunk per top-level module, merged when under ~40 files, capped at 24 chunks; chunks over the cap are recorded in Anti-Coverage with a risk note.
 3. Assign the 18 dimensions to finder agents with non-overlapping primary ownership.
 4. Record the coverage plan AND the anti-coverage draft (vendored/generated code, binaries, docs-only dirs, time-boxed-out areas — each with a risk note).
 
@@ -393,7 +393,7 @@ Fallback ladder — journal every incident, never silently:
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion (evidence gathering) / primary-led challenge (low/info findings only, recorded independence caveat).
-5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
+5. On quota-type failures (429, rate-limit, out-of-credits, billing) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop. Context exhaustion is harness-managed (automatic compaction); if it still occurs it is a non-quota fatal surfaced to the primary, never the retry ladder.
 
 Critical/high/medium findings never bypass independent challenge because of subagent failure — keep retrying, or cap the finding's confidence at medium with a "challenge unavailable" caveat recorded in the finding record and surfaced in residual unknowns.
 

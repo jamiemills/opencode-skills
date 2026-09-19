@@ -421,7 +421,7 @@ Fallback ladder for `RESEARCHER`, `CHALLENGER`, and `JUDGE` dispatches — journ
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion of research and synthesis with a recorded independence caveat.
-5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
+5. On quota-type failures (429, rate-limit, out-of-credits, billing) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop. Context exhaustion is harness-managed (automatic compaction); if it still occurs it is a non-quota fatal surfaced to the primary, never the retry ladder.
 
 RESEARCHER and CHALLENGER dispatches must never silently degrade to primary-only research for a STANDARD/DEEP query — when the ladder lands on step 4, record the independence caveat and surface it in the report's residual unknowns.
 

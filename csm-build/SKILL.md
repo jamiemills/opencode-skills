@@ -97,7 +97,7 @@ Fallback ladder for dispatched subagent failures — journal every incident, nev
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion (evidence gathering) / primary-led integration (low-risk only, with a recorded independence caveat).
-5. On quota-type failures (HTTP 429, rate-limit, quota-exceeded, out-of-credits, billing, context-length-exceeded) do NOT run the retry ladder — surface to the primary agent for the pause protocol (Pause On Quota).
+5. On quota-type failures (HTTP 429, rate-limit, quota-exceeded, out-of-credits, billing) do NOT run the retry ladder — surface to the primary agent for the pause protocol (Pause On Quota). Context exhaustion is harness-managed (automatic compaction); if it still occurs it is a non-quota fatal surfaced to the primary, never the retry ladder.
 
 ## Conditional Applicability Consumption
 
@@ -454,7 +454,9 @@ Before stopping, save a checkpoint with the blocker, evidence, attempted resolut
 
 Quota exhaustion is the single sanctioned exception to "Do not stop after one task or cycle". When model-API quota is hit, pause cleanly instead of forcing work through.
 
-Quota signal set: `HTTP 429`, `rate-limit`, `quota-exceeded`, `out-of-credits`, `billing`, `context-length-exceeded`.
+Quota signal set: `HTTP 429`, `rate-limit`, `quota-exceeded`, `out-of-credits`, `billing`.
+
+Context exhaustion is not a quota signal: it is harness-managed by automatic compaction and, if it still occurs, is a non-quota fatal surfaced to the primary.
 
 On a quota signal:
 

@@ -64,7 +64,7 @@ Run first — before `INTAKE`, any planning tool use, or any other section. Not 
 - Temporary writes are explicitly allowed for safe planning R&D. Use an isolated OS temporary directory such as a newly created directory under `/tmp`; verify the resolved path is outside the repository and is not linked to a real system or data location before writing.
 - Temporary R&D may create throwaway prototypes, synthetic fixtures, generated artifacts, local test databases, or copied code fragments needed to answer planning questions. Treat all such output as disposable evidence, never as implementation deliverables, and never move or copy it into the project working tree.
 - Keep R&D non-destructive and non-impactful. The write allowlist contains exactly the isolated temporary sandbox, the `.draft` sidecar, and the saved plan path. Do not install dependencies into the project or system, write anywhere else, invoke mutating APIs, contact production services, use live credentials, or alter persistent systems or real data.
-- Quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) never invoke the Subagent Resilience retry ladder.
+- Quota-type failures (429, rate-limit, out-of-credits, billing) never invoke the Subagent Resilience retry ladder; context exhaustion is harness-managed (automatic compaction) and is a non-quota fatal, never a retry-ladder trigger.
 - Never claim an experiment was run unless its command or tool, inputs, and result are recorded.
 - Every task acceptance signal must be a single positive, runnable assertion. Disjunctive alternatives — `Either ... OR ...`, or an `OR record/document a deferral/waive/skip` escape hatch — are refused by the in-loop lint; unresolved work becomes a `blocked` task with a recorded user decision instead. A plan cannot be closed or terminalized while tasks remain unless a passing `csm-plan-evaluator-receipt/1` is journaled and the deterministic loop guard reports no outstanding work.
 
@@ -76,7 +76,7 @@ Fallback ladder for `RESEARCH`, `CRITIQUE`, and `REMEDIATE` dispatches — journ
 2. Re-dispatch with narrowed scope.
 3. Fresh agent.
 4. Primary completion (evidence gathering) / primary-led critique or review (low-risk only, with a recorded independence caveat).
-5. On quota-type failures (429, rate-limit, out-of-credits, context-length-exceeded) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop.
+5. On quota-type failures (429, rate-limit, out-of-credits, billing) do NOT run the retry ladder — one short backoff retry for transient signals only; hard exhaustion surfaces to the primary agent for pause/stop. Context exhaustion is harness-managed (automatic compaction); if it still occurs it is a non-quota fatal surfaced to the primary, never the retry ladder.
 
 Critical or high-uncertainty findings never bypass independent critique because of subagent failure — keep retrying, or cap the finding's confidence and record a "critique unavailable" caveat in the progress journal.
 

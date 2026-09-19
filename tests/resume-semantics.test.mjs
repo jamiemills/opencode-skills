@@ -201,14 +201,7 @@ test('csm-build "## Pause On Quota" documents the full quota-signal set and the 
     enumLine !== undefined,
     'Pause On Quota must have a "Quota signal set:" enumeration line',
   );
-  for (const signal of [
-    "HTTP 429",
-    "rate-limit",
-    "quota-exceeded",
-    "out-of-credits",
-    "billing",
-    "context-length-exceeded",
-  ]) {
+  for (const signal of ["HTTP 429", "rate-limit", "quota-exceeded", "out-of-credits", "billing"]) {
     assert.ok(enumLine.includes(signal), `Quota signal set must enumerate "${signal}"`);
   }
   assert.ok(
