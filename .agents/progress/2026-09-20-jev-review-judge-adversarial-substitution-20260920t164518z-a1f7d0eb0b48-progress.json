@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48",
+  "runId": "run-20260920t164518z-a1f7d0eb0b48",
+  "skill": "csm-deep-research",
+  "goal": "Determine where the repo's skills can optionally use Jev (TypeSafe) to replace or reduce LLM usage in adversarial-review, challenger, judge, and evaluator roles, hooked to the existing --use-jev opt-in and preserving provider-pluggable access.",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Question",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Challenge",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Finding",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-20T16:45:18Z",
+  "updatedAt": "2026-09-20T16:51:22.177Z"
+}

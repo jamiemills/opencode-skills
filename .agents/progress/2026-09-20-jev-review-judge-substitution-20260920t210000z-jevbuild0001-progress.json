@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-jev-review-judge-substitution-20260920t210000z-jevbuild0001",
+  "runId": "run-20260920t210000z-jevbuild0001",
+  "skill": "csm-build",
+  "goal": "Fix the Jev typed-question integration and wire advisory Jev into every review/judge/adversarial skill on the existing opt-in.",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Recover",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Select",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Execute",
+      "weightPercent": 45,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-20T19:00:00Z",
+  "updatedAt": "2026-09-20T21:40:00Z"
+}

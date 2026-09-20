@@ -225,6 +225,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 - `2026-09-19-instruction-budget-talk-20260919t173000z-d645b954bc62-research.json` — 2026-09-19 — STANDARD hybrid research into why the agent narrates budgets/context exhaustion/prompt length and how to stop it (3 tracks: local corpus census, model context-anxiety behaviour, harness controls; independent challenge + judge PASS): over-determined — the repo's own instructions prime limit vocabulary and name `context-length-exceeded` as a stop signal, models genuinely exhibit context anxiety/RLHF verbosity, and no real token meter is fed to the model; fix instruction + harness positively (replace AGENTS.md:19 trigger, delete `≈16k`, drop context-length-exceeded from model-facing signals, keep hard limits in code, verify compaction, show numbers to UI not model) — status: reference
 - `2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json` — 2026-09-20 — where Jev can optionally replace LLM judge/challenger/adversarial-review judgment; fixes the broken typed-question integration — status: reference
+- `2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json` — 2026-09-20 — raw live Jev probe responses (typed challenger/judge/adversarial-gate calls plus the shipped-shape HTTP 400) — status: reference
 
 ## Retention
 
@@ -315,6 +316,9 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-14-csm-completion-fixes-grill-20260914t100000z-csmcompletiongrill-progress.json` — 2026-09-14 — csm-grill progress record for the csm completion-fixes approach — status: complete
 - `2026-09-14-csm-completion-fixes-plan-20260914t110000z-csmcompletionfixesplan-progress.json` — 2026-09-14 — csm-plan progress record for the csm completion-fixes plan — status: complete
 - `2026-09-19-csm-browse-daemon-flake-20260919t120500z-csmbrowsedaemonflakebuild-progress.json` — 2026-09-19 — csm-build progress record for the csm-browse daemon flake fix — status: active
+- `2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-progress.json` — 2026-09-20 — csm-deep-research progress record for the Jev review/judge substitution research — status: complete
+- `2026-09-20-jev-review-judge-substitution-20260920t180000z-jevplan0001-progress.json` — 2026-09-20 — csm-plan progress record for the Jev review/judge substitution plan — status: complete
+- `2026-09-20-jev-review-judge-substitution-20260920t210000z-jevbuild0001-progress.json` — 2026-09-20 — csm-build progress record for the Jev review/judge substitution build — status: complete
 
 ## ddd/
 

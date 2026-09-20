@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-jev-review-judge-substitution-20260920t180000z-jevplan0001",
+  "runId": "run-20260920t180000z-jevplan0001",
+  "skill": "csm-plan",
+  "goal": "Plan the implementation of optional Jev substitution for LLM judge/challenger/adversarial-review roles across the skills, hooked to the existing opt-in and preserving provider-pluggable suppliers.",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Frame",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Draft+Critique",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify+Save",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-20T17:20:00Z",
+  "updatedAt": "2026-09-20T17:00:34.887Z"
+}

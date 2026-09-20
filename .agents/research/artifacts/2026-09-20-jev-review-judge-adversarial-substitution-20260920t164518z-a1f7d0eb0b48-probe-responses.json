@@ -1,0 +1,82 @@
+{
+  "schema": "csm-jev-review-judge-probe/1",
+  "runId": "run-20260920t164518z-a1f7d0eb0b48",
+  "retrievedAt": "2026-09-20",
+  "endpoint": "https://openrouter.ai/api/alpha/decisions",
+  "model": "typesafe/jev-1.13",
+  "resolvedModel": "typesafe/jev-1.13-20260917",
+  "method": "POST; Authorization from OPENROUTER_ROUTER_KEY read host-side at call time (never written here). Output tokens are billed at zero; cost is input-token dominated.",
+  "note": "Three bounded live calls (~$0.000084 total) exercising the exact verdict/score shapes the skills' challenger, judge, and adversarial-review roles need. State is a JSON string built from synthetic, credential-free examples. Raw typed answers (choice/score/noul with probabilities and confidence) are preserved verbatim; no key, token, or personal data is included.",
+  "calls": [
+    {
+      "name": "csm-review challenger + severity + evidence-class",
+      "role": "csm-review CHALLENGE challenger verdict; severity-bucketing; evidence-class-bucketing",
+      "request": {
+        "state": "JSON: {claim: 'Finding F1 severity=high: db.fetch(ids[i]) runs for i <= ids.length ...', evidence: 'for (let i = 0; i <= ids.length; i++) ...', anchor: 'getUsers loop bound', proposedSeverity: 'high', proposedConfidence: 'verified', finderRationaleWithheld: true}",
+        "questions": {
+          "challenger_verdict": { "type": "choice", "criteria": ["agree", "downgrade", "retract", "new_finding"] },
+          "severity": { "type": "choice", "criteria": ["critical", "high", "medium", "low", "info"] },
+          "evidence_class": { "type": "choice", "criteria": ["E1", "E2", "E3", "E4"] }
+        }
+      },
+      "response": {
+        "challenger_verdict": { "type": "choice", "choice": "agree", "confidence": 0.31, "probabilities": { "agree": 0.49, "downgrade": 0.42, "retract": 0.09, "new_finding": 0 } },
+        "severity": { "type": "choice", "choice": "high", "confidence": 0.85, "probabilities": { "high": 0.88, "medium": 0.1, "low": 0.01, "critical": 0.01, "info": 0 } },
+        "evidence_class": { "type": "choice", "choice": "E3", "confidence": 0.91, "probabilities": { "E3": 0.93, "E1": 0.05, "E4": 0.02, "E2": 0 } }
+      },
+      "usage": { "input_tokens": 704, "output_tokens": 153, "cost": 0.000029568 },
+      "interpretation": "Jev returns the exact closed-set challenger verdict vocabulary with a calibrated-looking distribution, plus severity and evidence-class bands. Note the low challenger confidence (0.31) on a near-split (agree 0.49 vs downgrade 0.42): confidence is a usable review trigger, not a correctness guarantee."
+    },
+    {
+      "name": "csm-deep-research challenger + 4-dimension judge rubric",
+      "role": "csm-deep-research CHALLENGE challenger; JUDGE rubric (factual accuracy, citation accuracy, completeness, clarity)",
+      "request": {
+        "state": "JSON: {claim: 'K1. supported - Jev is a non-generative typed-decision model ...', citations: '...docs.typesafe.ai/primitives retrieved 2026-09-20', draftSection: '...', requiredSections: [8 headings]}",
+        "questions": {
+          "challenger_verdict": { "type": "choice", "criteria": ["uphold", "downgrade", "retract", "suggest_new_claim"] },
+          "judge_factual_accuracy": { "type": "score", "criteria": ["Unsupported/contradicted", "Mostly unsupported", "Mixed", "Mostly supported", "Fully supported"] },
+          "judge_citation_accuracy": { "type": "score", "criteria": ["Wrong citations", "Loose mapping", "Mixed", "Mostly correct", "Every citation supports its claim"] },
+          "judge_completeness": { "type": "score", "criteria": ["Mostly missing", "Several missing", "Mixed", "One missing", "All present and substantive"] },
+          "judge_clarity": { "type": "score", "criteria": ["Illegible", "Hard to follow", "Mixed", "Mostly clear", "Fully clear"] }
+        }
+      },
+      "response": {
+        "challenger_verdict": { "type": "choice", "choice": "downgrade", "confidence": 0.17, "probabilities": { "downgrade": 0.38, "retract": 0.31, "uphold": 0.3, "suggest_new_claim": 0.01 } },
+        "judge_factual_accuracy": { "type": "score", "score": 1.3, "confidence": 0, "legend": { "0": "Unsupported/contradicted", "1": "Mostly unsupported", "2": "Mixed", "3": "Mostly supported", "4": "Fully supported" }, "probabilities": { "0": 0.44, "1": 0.18, "2": 0.13, "3": 0.13, "4": 0.12 } },
+        "judge_citation_accuracy": { "type": "score", "score": 1.3, "confidence": 0, "probabilities": { "0": 0.34, "1": 0.33, "2": 0.14, "3": 0.07, "4": 0.12 } },
+        "judge_completeness": { "type": "score", "score": 0.33, "confidence": 0.73, "probabilities": { "0": 0.86, "1": 0.06, "2": 0.03, "3": 0.02, "4": 0.03 } },
+        "judge_clarity": { "type": "score", "score": 2.6, "confidence": 0.37, "probabilities": { "0": 0.01, "1": 0.16, "2": 0.23, "3": 0.42, "4": 0.18 } }
+      },
+      "usage": { "input_tokens": 741, "output_tokens": 122, "cost": 0.000031122 },
+      "interpretation": "The four-dimension judge rubric maps directly onto four Jev Score questions in one batched call, and the challenger verdict is a fifth. Normalising score/(len(criteria)-1) yields the 0-1 rubric the skill already uses; here completeness 0.08 (fail) and factual/citation 0.325 (fail), clarity 0.65 (fail). Confidence 0 on the two split dimensions is the documented distribution-derived value, not an error."
+    },
+    {
+      "name": "csm-orchestrate adversarial final review gates",
+      "role": "csm-orchestrate adversarial-review gates (requirement coverage, evidence entailment, artifact identity, false completion)",
+      "request": {
+        "state": "JSON: {requirements, claims, evidence, artifacts, phaseResults, omissions}",
+        "questions": {
+          "requirement_coverage": { "type": "noul" },
+          "evidence_entailment": { "type": "noul" },
+          "artifact_identity": { "type": "noul" },
+          "false_completion": { "type": "noul" }
+        }
+      },
+      "response": {
+        "requirement_coverage": { "type": "noul", "noul": 0.45 },
+        "evidence_entailment": { "type": "noul", "noul": 0.18 },
+        "artifact_identity": { "type": "noul", "noul": 0.29 },
+        "false_completion": { "type": "noul", "noul": 0.32 }
+      },
+      "usage": { "input_tokens": 542, "output_tokens": 80, "cost": 0.000022764 },
+      "interpretation": "The adversarial-review gates map onto Noul questions in one call. These remain advisory: a low Noul is a review trigger that can force an LLM/human review, never an acceptance decision, because the orchestrator's gate schema and never-Jev boundary keep authority deterministic."
+    }
+  ],
+  "transport_mismatch_probe": {
+    "description": "The SHIPPED decision-adapter request shape (questions as an array of point-id strings) was sent to the live OpenRouter Jev endpoint.",
+    "request": { "model": "typesafe/jev-1.13", "state": { "a": 1 }, "questions": ["review-assignment"] },
+    "response_status": 400,
+    "response_error": "Invalid input: expected record, received array (path: [\"questions\"])",
+    "consequence": "The live provider rejects the shipped shape, so every decision-adapter consultation fail-opens to the deterministic baseline. The shipped offline tests assert the array shape against a mock, so they pass while the live call cannot. The rich record shape (used in the three calls above) is accepted and returns answers keyed by question id."
+  }
+}
