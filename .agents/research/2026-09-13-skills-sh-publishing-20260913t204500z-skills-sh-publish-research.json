@@ -1,0 +1,266 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "runId": "run-20260913t204500z-skills-sh-publish",
+  "title": "Publishing the CSM skills library to skills.sh",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "skills.sh is not a registry you upload to. It indexes PUBLIC GitHub repositories full of `SKILL.md` files that users install with `npx skills add <owner>/<repo>`; listing appears automatically from anonymous install telemetry, with no submission, approval, build, or npm publish. The library already has a public MIT repo (github.com/jamiemills/opencode-skills) and valid `name`+`description` frontmatter, but it will NOT install cleanly as-is: skills live in `csm-<name>/` folders instead of a `skills/` container, and all 14 skills call a shared `lib/progress-tracker.mjs` that is never shipped with the skill. Do three things: (1) move skills under `skills/<name>/`, (2) make each skill self-contained (bundle the shared lib and remove hardcoded `$HOME/.config/opencode/skills` paths), (3) push and run `npx skills add jamiemills/opencode-skills` once with telemetry to trigger indexing. Accounts: GitHub only (required, repo is already public); Vercel optional (only for Packs or the OIDC API)."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "The finding answers four questions: what changes are needed, what packaging/deploy means, which accounts are required, and the exact steps.\n\n```text\nPublic GitHub repo of SKILL.md files\n   -> user runs: npx skills add owner/repo\n   -> anonymous install telemetry\n   -> skills.sh auto-indexes + security audit\n   -> leaderboard / repo page / install badge\n```\n\nThe strongest evidence is the official mechanism: skills.sh's About page states it \"index[es] every public skill that ships through the open skills CLI,\" the FAQ states skills \"appear on the leaderboard automatically through anonymous telemetry when users run npx skills add,\" and the Customize page offers repo-page grouping \"with no approval or allowlist required.\" The CLI README documents the exact discovery rules and required frontmatter. The local audit found a concrete blocker: no root `SKILL.md` and no top-level `skills/` directory exist, so the CLI cannot use its standard discovery path, and every skill references a repo-root-only `lib/progress-tracker.mjs` that the installer would not copy into the skill.\n\nHeadline caveats: (1) the repo is already public and already named `jamiemills/opencode-skills`, but its skills.sh page currently 404s, i.e. it has never been installed with telemetry; (2) the \"must be public\" rule is GitHub-specific \u2014 non-GitHub sources are not visibility-checked; (3) skills that ship Docker/browser/network/credential code (csm-browse, csm-upload, csm-deep-research, csm-orchestrate) should expect audit warnings, but warnings do not delist \u2014 only failing every partner audit excludes a skill."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported \u2014 Publishing is pull-based, not push-based: skills.sh indexes public GitHub repos whose skills are installed via the open `skills` CLI, and listing appears automatically from anonymous install telemetry. There is no submission form or approval step [R1][R3][R7].\n\nK2. partially-supported \u2014 For GitHub sources, indexing/ranking/audit require GitHub-confirmed public visibility; private repos still install via the CLI but are not indexed or audited. Non-GitHub sources (well-known, GitLab, arbitrary git URLs) are not visibility-checked and can be indexed [R9][R6].\n\nK3. supported \u2014 A valid `SKILL.md` requires YAML frontmatter `name` and `description`; `name` must match the parent directory name and be 1-64 lowercase `a-z`/`0-9`/hyphen characters with no leading, trailing, or consecutive hyphens [R9][R10]. This library already satisfies both fields.\n\nK4. supported \u2014 Skill discovery uses a fixed container set (`skills/`, `skills/.curated/`, `skills/.experimental/`, `skills/.system/`, `.agents/skills/`, many agent dirs, and the repo root if it directly contains `SKILL.md`) walked up to three levels, plus `.claude-plugin/marketplace.json`/`plugin.json` manifests, falling back to a full recursive search when containers yield nothing (or when `--full-depth` is set). The CLI dedupes by skill `name` [R9][R13].\n\nK5. partially-supported \u2014 This repo has no root `SKILL.md` and no top-level `skills/`, so its 14 skills live in `csm-<name>/SKILL.md` while a second set of 14 sits under `bootstrap/package/payload/skills/`. A `skills add` as-is therefore cannot use the standard container path and triggers recursive discovery; because names dedupe, it reports 14 skills from non-standard locations \u2014 not 28 duplicates [R9][R12][R14].\n\nK6. supported \u2014 A blocking self-containment defect: all 14 skills instruct the agent to run `node lib/progress-tracker.mjs`, but that file exists only at the repo root (and generated at `bootstrap/package/payload/lib/`), never inside a skill directory. A directory-scoped install would ship a dangling reference [R12][R14].\n\nK7. supported \u2014 Portability: csm-browse, csm-upload, and csm-deep-research hardcode `$HOME/.config/opencode/skills/...` paths, which break for installs into other agents' directories (`.agents/skills/`, `~/.claude/skills/`, project scope). The spec wants references relative to the skill root [R10][R14].\n\nK8. partially-supported \u2014 Skills with executable code, Docker, network, or credential handling risk audit warnings from partners (Gen Agent Trust Hub, Socket, Snyk, Runlayer, ZeroLeaks). Failing every partner audit is a documented cause of exclusion; a warn or partial fail does not delist [R7][R6][R8].\n\nK9. supported \u2014 No account is required merely to be listed. A GitHub account hosts the repo (required, and this repo is already public); a Vercel account is needed only to create/manage Packs and to call the public API via Vercel OIDC [R5][R6][R3].\n\nK10. supported \u2014 Optional, display-only polish: commit `skills.sh.json` at the repo root to group the repo page (no approval, picked up only after a telemetry-enabled install), and add the badge `[![skills.sh](https://skills.sh/b/jamiemills/opencode-skills)](https://skills.sh/jamiemills/opencode-skills)` [R4][R1][R11].\n\nK11. supported \u2014 Size limits to design against: the pack builder omits binary files and any single file >2 MB; direct-URL installs cap at 10 MiB download / 25 MiB extracted / 1000 files (env-overridable); well-known archives cap at 50 MiB unpacked / 1000 files (hard constants) [R5][R9][R15].\n\nK12. supported \u2014 The repository `jamiemills/opencode-skills` is already public, MIT-licensed, default branch `main`, last pushed 2026-09-07; its skills.sh page returns 404, so it has never been indexed. No new hosting account or repo is required [R11][R12].\n\nK13. supported \u2014 There is no npm/registry build-and-upload step for this ecosystem. The only \"build\" required is a one-time restructuring of this repo so each skill directory is self-contained and discoverable [R1][R9][R12]."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1. What publishing to skills.sh actually is.\nSummary: a public GitHub repo plus at least one telemetry-enabled install, not a registry upload.\n\nThe directory is operated by Vercel and is open source; the same `skills` CLI powers it. Its About page says it indexes \"every public skill that ships through the open skills CLI\" and ranks by anonymous install telemetry; the FAQ says skills \"appear on the leaderboard automatically ... when users run npx skills add <owner/repo>.\" The Customize page confirms a repo page is \"available to every public GitHub repository listed on skills.sh, with no approval or allowlist required.\" Consequence: there is nothing to submit and nothing to publish \u2014 you make the repo public, make it discoverable/installable, and drive (or wait for) an install.\n\n```text\nIs the repo GitHub-public? --no--> installable privately only (not indexed/audited)\n        |yes\nHas anyone ever run `npx skills add owner/repo` with telemetry? --no--> no skills.sh page yet\n        |yes\n-> indexed, ranked, and queued for partner security audits\n```\n\nD2. Changes needed in THIS repo before it will install cleanly.\nSummary: layout, self-containment, path portability, and payload/duplicate hygiene.\n\n(a) Layout. The CLI's standard discovery containers do not include bare top-level `csm-<name>/` folders. The conventional and most robust layout is a single `skills/<name>/SKILL.md` container, matching vercel-labs/agent-skills and anthropics/skills. Move the 14 canonical skills to `skills/csm-<name>/`. Keeping `name` equal to the directory name satisfies the spec's hard rule.\n\n(b) Self-containment. The installer copies a skill directory; it does not copy a repo-root `lib/`. All 14 skills call `node lib/progress-tracker.mjs`, which only exists at repo root and at the generated `bootstrap/package/payload/lib/`. Each shipped skill needs its own copy (e.g. `skills/csm-<name>/lib/progress-tracker.mjs`), or its instructions must reference a path that will exist after install.\n\n(c) Path portability. Replace `$HOME/.config/opencode/skills/...` with skill-relative paths in csm-browse, csm-upload, and csm-deep-research. OpenCode global installs happen to land at that path, but `.agents/skills/`, `~/.claude/skills/`, and project-scope installs do not.\n\n(d) Duplicate / generated tree. `bootstrap/package/payload/**` is a GENERATED distributable produced by `scripts/pack-bootstrap.mjs` and validated by `scripts/check-suite.mjs` \u2014 do not hand-delete it. Once a real `skills/` container exists, the CLI uses standard discovery and never reaches the recursive fallback, so the payload copies are not surfaced. If you prefer a clean public surface, exclude the generated tree and internal `.agents/` artifacts (e.g. `csm-review/.agents`, `csm-scan/.agents`) from the published branch rather than deleting their sources.\n\n(e) Hygiene. `.env` is gitignored and untracked \u2014 keep it that way; the tracked tree is ~22 MB / 1588 files and the largest tracked file is ~276 KB, well inside the 2 MB pack limit and the 1000-file/25 MiB install caps. LICENSE is present and MIT.\n\nD3. Accounts and access.\nSummary: GitHub required and already satisfied; Vercel optional.\n\n- GitHub: hosts the repo. Public visibility is what enables indexing and auditing. `jamiemills/opencode-skills` is already public. No further account action.\n- Vercel: only needed to (i) create/manage Packs (unlisted one-command install bundles) and (ii) call the skills.sh public API via Vercel OIDC. Neither is required for directory listing.\n- No skills.sh account exists/needed; no npm account; no DNS/well-known hosting unless you deliberately leave GitHub.\n\nD4. Packaging, deploy, and optional polish.\nSummary: nothing to compile or upload; the \"deploy\" is a git push plus an install.\n\n1. Optionally add `skills.sh.json` at the repo root to group the page (display-only; no approval; requires a telemetry-enabled install to be picked up). Example shape: `{\"$schema\":\"https://skills.sh/schemas/skills.sh.schema.json\",\"notGrouped\":\"bottom\",\"groupings\":[{\"title\":\"Core\",\"skills\":[\"csm-grill\",\"csm-plan\",\"csm-build\"]}]}`.\n2. Optionally add the install-count badge to README.\n3. Push to the public repo's default branch.\n4. Verify installability with `npx skills add jamiemills/opencode-skills --list` (should list 14 skills), then install once with telemetry enabled to seed indexing and trigger audits.\n5. Optional: create a Vercel Pack at https://skills.sh/packs/create for a single-command bundle install; optional: enable Vercel OIDC for API access.\n\nD5. Security-audit expectation.\nSummary: expect warnings, not exclusion.\n\nAudits run automatically after a skill's first install and are performed by Gen Agent Trust Hub, Socket, Snyk, Runlayer, and ZeroLeaks. Results are `pass`/`warn`/`fail` per partner. A skill is excluded from the directory only if it fails every partner audit. This library ships executable `.mjs` scripts, a Docker-driven headful browser (csm-browse), an egress broker/network enforcer (csm-orchestrate), and credential-adjacent flows \u2014 legitimate, but likely to draw `warn` from at least one automated scanner. Warnings do not delist."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Restructure, then push and let telemetry list it. Concretely: (1) move all 14 skills to `skills/csm-<name>/` with `name` equal to the directory; (2) make each skill self-contained by bundling the shared `lib/progress-tracker.mjs` and rewriting hardcoded `$HOME/.config/opencode/skills` paths to skill-relative ones; (3) keep the generated `bootstrap/package/payload/**` and internal `.agents/` artifacts out of the published surface without breaking their generators; (4) confirm the repo is public (it already is) and that `.env`/secrets stay untracked; (5) optionally commit `skills.sh.json` and the badge; (6) push; (7) run `npx skills add jamiemills/opencode-skills --list` to verify 14 clean discoveries, then one telemetry-enabled install to seed listing and audits.\n\nConfidence: high on the mechanism and accounts; high on the local defects (no `skills/` container; shared `lib/progress-tracker.mjs` never shipped; three skills with hardcoded host paths). What would change the answer: if you intentionally publish only a subset (e.g. the CSM suite as one bundle), or if you choose to publish via a Vercel Pack or a non-GitHub `/.well-known/agent-skills/index.json` source instead of a plain public repo. Cost of being wrong is low: listing is passive, reversible, and requires no account or payment."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. Exact automated-audit triggers. No retrieved source enumerates which code patterns cause `warn`/`fail` for executables, Docker, network egress, or credential handling. Verification: install once and read `GET /api/v1/skills/audit/{source}/{skill}` (requires Vercel OIDC) or the skill page's Security section.\n\nU2. Whether indexing requires at least one third-party install, or whether an install by the author alone (with telemetry on) is sufficient to create the repo page. The FAQ says \"once your skill is installed by users\"; author installs are not explicitly addressed. Verification: run one telemetry-enabled install and poll `https://skills.sh/jamiemills/opencode-skills`.\n\nU3. Whether the CLI's recursive fallback (triggered here) yields exactly the same 14 skills as the standard path and whether the generated payload tree is ever surfaced. The challenger verified name-based dedupe in CLI source (`src/skills.ts`), but this was not exercised against this repo. Verification: `npx skills add jamiemills/opencode-skills --list` before and after adding `skills/`.\n\nU4. Whether a `name` that does not match its parent directory causes a hard install rejection or is merely a spec violation. The spec says \"must match,\" but vercel-labs ships `skills/composition-patterns/` declaring `name: vercel-composition-patterns`. Verification: point the CLI at a mismatched fixture.\n\nU5. Repository total-size limits for GitHub-source installs. No limit is documented; the documented caps apply to pack builds, direct-URL archives, and well-known archives. Verification: not needed for this ~7 MB repo."
+    },
+    "references": {
+      "id": "references",
+      "content": "[R1] skills.sh Documentation \u2014 Overview. https://skills.sh/docs (retrieved 2026-09-13).\n[R2] skills.sh Documentation \u2014 CLI Reference. https://skills.sh/docs/cli (retrieved 2026-09-13).\n[R3] skills.sh Documentation \u2014 FAQ. https://skills.sh/docs/faq (retrieved 2026-09-13).\n[R4] skills.sh Documentation \u2014 Customize repo pages. https://skills.sh/docs/customize (retrieved 2026-09-13).\n[R5] skills.sh Documentation \u2014 Packs. https://skills.sh/docs/packs (retrieved 2026-09-13).\n[R6] skills.sh Documentation \u2014 API Reference. https://skills.sh/docs/api (retrieved 2026-09-13).\n[R7] skills.sh \u2014 About. https://skills.sh/about (retrieved 2026-09-13).\n[R8] skills.sh \u2014 Security audits index. https://skills.sh/audits (retrieved 2026-09-13).\n[R9] vercel-labs/skills README (CLI source of truth). https://raw.githubusercontent.com/vercel-labs/skills/main/README.md (retrieved 2026-09-13).\n[R10] Agent Skills Specification. https://agentskills.io/specification (retrieved 2026-09-13).\n[R11] Published repo page (currently 404 \u2014 not yet indexed). https://skills.sh/jamiemills/opencode-skills (retrieved 2026-09-13).\n[R12] Hosting repository. https://github.com/jamiemills/opencode-skills (retrieved 2026-09-13).\n[R13] skills CLI discovery/dedupe source. https://raw.githubusercontent.com/vercel-labs/skills/main/src/skills.ts (retrieved 2026-09-13).\n[R14] Repository metadata (visibility public, MIT, default branch main). https://api.github.com/repos/jamiemills/opencode-skills (retrieved 2026-09-13).\n[R15] skills CLI well-known provider source (archive caps). https://raw.githubusercontent.com/vercel-labs/skills/main/src/providers/wellknown.ts (retrieved 2026-09-13)."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier and source mode: STANDARD x hybrid. Tracks: T1 skills.sh listing/accounts/audit mechanics (web); T2 real multi-skill repo layout conventions (web); T3 local repo readiness audit (repository). Retrieval method: primary webfetch of skills.sh docs/about/api/faq/packs/customize/audits, vercel-labs/skills README + CLI source, agentskills.io spec, GitHub API for the repo; two independent researcher subagents; local filesystem/git inspection.\n\nChallenger verdicts (verbatim summary): C1 UPHOLD (citation moved off-target: the \"no approval\" quote belongs to the customize page, not listing); C2 UPHOLD but public-requirement is GitHub-specific; C3 DOWNGRADE (add plugin-manifest discovery and `--full-depth`; not a closed fixed set); C4 DOWNGRADE (recursive fallback triggers, but CLI dedupes by name \u2014 14 skills, not 28); C5 DOWNGRADE (\"must match\" parent dir, not \"should\"); C6 UPHOLD; C7 UPHOLD and csm-deep-research is a third hardcoded-path skill; C8 DOWNGRADE (\"only if\" is unsupported; failing every partner is a documented cause, not proven exclusive); C9 UPHOLD (well-known caps are hard constants, not env-overridable); C10 UPHOLD. New claims adopted: plugin-manifest escape hatch; listing requires an install, not mere existence; non-GitHub sources can be indexed.\n\nJudge scores (reasoning-before-verdict): factual accuracy 0.84; citation accuracy 0.78 (dedupe and well-known caps cite CLI source, not README/docs); completeness 0.72 (draft omitted the shared-lib blocker and mislabeled the generated payload as deletable duplicates); clarity 0.85. Overall PASS. Remediation applied: added K6 self-containment, reframed payload as generated (not deletable), scoped portability correctly, corrected the citation targets, corrected \"claim page\" to display-only `skills.sh.json`, and recorded the repo-already-public/404-not-yet-indexed facts.\n\nIndependence caveat: QUICK-style primary-led synthesis was NOT used; researcher, challenger, and judge were independent agents. Primary performed VERIFY. Verification scale: STANDARD (re-checked challenger/judge-flagged claims and conclusion claims against sources).\n\nControl journal:\n[2026-09-13T20:20:00Z] INTAKE -> TRIAGE :: cycle 0 :: trigger: new research request, no prior run artifact\n[2026-09-13T20:22:00Z] TRIAGE -> RESEARCH :: cycle 0 :: trigger: tier STANDARD x hybrid, 3 tracks declared\n[2026-09-13T20:50:00Z] RESEARCH complete :: cycle 0\n[2026-09-13T20:55:00Z] RESEARCH -> SYNTHESIZE :: cycle 0\n[2026-09-13T21:00:00Z] SYNTHESIZE complete :: cycle 0\n[2026-09-13T21:05:00Z] SYNTHESIZE -> CHALLENGE :: cycle 0\n[2026-09-13T21:25:00Z] CHALLENGE -> REMEDIATE :: cycle 0 :: trigger: downgrade verdicts on C3/C4/C5/C8 and new claims\n[2026-09-13T21:30:00Z] REMEDIATE -> SYNTHESIZE :: cycle 0 :: trigger: corrected claims folded into draft\n[2026-09-13T21:40:00Z] SYNTHESIZE -> JUDGE :: cycle 0\n[2026-09-13T21:55:00Z] JUDGE complete :: cycle 0 :: PASS all dimensions\n[2026-09-13T22:00:00Z] JUDGE -> REMEDIATE :: cycle 0 :: trigger: completeness 0.72, shared-lib blocker + payload mischaracterization\n[2026-09-13T22:05:00Z] REMEDIATE -> VERIFY :: cycle 0\n[2026-09-13T22:08:00Z] VERIFY complete :: cycle 0 :: citations dated, no secrets, write allowlist intact\n[2026-09-13T22:10:00Z] VERIFY -> SAVED :: cycle 0"
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-listing-auto",
+      "section": "keyFindings",
+      "statement": "Publishing to skills.sh is pull-based: it indexes public GitHub repositories whose skills are installed through the open skills CLI, and listing appears automatically from anonymous install telemetry with no submission form or approval step.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-skills-sh-faq", "locator": "How do I get my skill listed on the leaderboard?", "quote": "Skills appear on the leaderboard automatically through anonymous telemetry when users run npx skills add <owner/repo>." },
+        { "referenceId": "ref-skills-sh-about", "locator": "What we do", "quote": "We index every public skill that ships through the open skills CLI and rank them by anonymous install telemetry." },
+        { "referenceId": "ref-skills-sh-customize", "locator": "Customize repo pages", "quote": "available to every public GitHub repository listed on skills.sh, with no approval or allowlist required." }
+      ]
+    },
+    {
+      "claimId": "claim-public-github",
+      "section": "keyFindings",
+      "statement": "For GitHub sources, indexing, ranking, and auditing require GitHub-confirmed public visibility; private repos still install via the CLI but are not indexed or audited. The public requirement is GitHub-specific because non-GitHub sources are not visibility-checked.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Telemetry", "quote": "GitHub repository and skill identifiers are sent only for repositories that GitHub positively confirms are public." },
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Telemetry", "quote": "Security-audit requests remain limited to confirmed-public GitHub repositories." },
+        { "referenceId": "ref-skills-sh-api", "locator": "Skill object / sourceType", "quote": "\"well-known\" for /.well-known/ discovery sources." }
+      ]
+    },
+    {
+      "claimId": "claim-frontmatter",
+      "section": "keyFindings",
+      "statement": "A valid SKILL.md requires YAML frontmatter with name and description; name must match the parent directory name and be 1-64 lowercase a-z/0-9/hyphen characters with no leading, trailing, or consecutive hyphens. This library already provides both required fields.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Creating Skills / Required Fields", "quote": "- `name`: Unique identifier (lowercase, hyphens allowed)\n- `description`: Brief explanation of what the skill does" },
+        { "referenceId": "ref-agentskills-spec", "locator": "Frontmatter fields", "quote": "Must match the parent directory name" }
+      ]
+    },
+    {
+      "claimId": "claim-discovery-rules",
+      "section": "detailSections",
+      "statement": "The CLI discovers skills via a fixed set of container directories walked up to three levels (including skills/, skills/.curated/, and .agents/skills/) plus plugin manifests, falling back to a recursive search when containers yield nothing or when --full-depth is set; it dedupes discovered skills by name.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Skill Discovery", "quote": "If no skills are found in standard locations, a recursive search is performed." },
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Plugin Manifest Discovery", "quote": "If .claude-plugin/marketplace.json or .claude-plugin/plugin.json exists, skills declared in those files are also discovered" },
+        { "referenceId": "ref-cli-source-skills", "locator": "recursive discovery + seenNames dedupe", "quote": "seenNames" }
+      ]
+    },
+    {
+      "claimId": "claim-repo-layout",
+      "section": "detailSections",
+      "statement": "The repository has no root SKILL.md and no top-level skills/ directory, so its 14 skills in csm-<name>/ folders plus 14 generated copies under bootstrap/package/payload/skills/ are reached only through the recursive fallback; name-based dedupe means the CLI reports 14 skills, not 28.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Skill Discovery", "quote": "Root directory (if it contains SKILL.md)\n- skills/" },
+        { "referenceId": "ref-gh-repo", "locator": "repository tree", "quote": "top-level directories are csm-*/ with no root SKILL.md and no skills/ container" },
+        { "referenceId": "ref-cli-source-skills", "locator": "recursive discovery dedupe", "quote": "seenNames" }
+      ]
+    },
+    {
+      "claimId": "claim-shared-lib",
+      "section": "keyFindings",
+      "statement": "All 14 canonical skills invoke node lib/progress-tracker.mjs, but that file exists only at the repository root (and in the generated bootstrap payload), never inside a skill directory, so a directory-scoped install ships a dangling reference.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "lib/progress-tracker.mjs and csm-*/SKILL.md", "quote": "grep -rl 'lib/progress-tracker.mjs' csm-*/SKILL.md returns all 14 skills; the file is present only at ./lib/ and bootstrap/package/payload/lib/" }
+      ]
+    },
+    {
+      "claimId": "claim-hardcoded-paths",
+      "section": "keyFindings",
+      "statement": "csm-browse, csm-upload, and csm-deep-research hardcode $HOME/.config/opencode/skills paths, which breaks for installs into other agents' skill directories; the Agent Skills spec recommends relative references from the skill root.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "csm-browse/SKILL.md, csm-upload/SKILL.md, csm-deep-research/SKILL.md", "quote": "node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs ... SKILL=$HOME/.config/opencode/skills/csm-browse" },
+        { "referenceId": "ref-agentskills-spec", "locator": "file references", "quote": "use relative paths from the skill root" }
+      ]
+    },
+    {
+      "claimId": "claim-audit-exclusion",
+      "section": "detailSections",
+      "statement": "Partner security audits run automatically after first install; a skill is excluded from the directory if it fails every partner audit, while warnings or partial fails do not delist. Executable/Docker/network/credential-bearing skills may draw warnings.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-skills-sh-about", "locator": "How skills are reviewed", "quote": "Skills that fail every partner audit are excluded from the directory entirely." },
+        { "referenceId": "ref-skills-sh-api", "locator": "Audit entry fields", "quote": "Normalized verdict: \"pass\" (safe), \"warn\" (review recommended), \"fail\" (likely dangerous)." }
+      ]
+    },
+    {
+      "claimId": "claim-accounts",
+      "section": "recommendation",
+      "statement": "No account is required merely to be listed. GitHub hosts the repo (required; this repo is already public) and Vercel is optional, needed only for Packs and the OIDC-authenticated public API.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-skills-sh-packs", "locator": "Create a pack", "quote": "Sign in with Vercel to own and manage packs." },
+        { "referenceId": "ref-skills-sh-faq", "locator": "What are packs?", "quote": "Installing a pack does not require a sign-in, only the pack URL." },
+        { "referenceId": "ref-skills-sh-faq", "locator": "How do I create my own skill?", "quote": "Skills are hosted in GitHub repositories." }
+      ]
+    },
+    {
+      "claimId": "claim-size-limits",
+      "section": "detailSections",
+      "statement": "Pack builds omit binary files and files over 2 MB; direct-URL installs cap at 10 MiB download / 25 MiB extracted / 1000 files (env-overridable); well-known archives cap at 50 MiB unpacked / 1000 files (hard constants).",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-skills-sh-packs", "locator": "File requirements", "quote": "omits binary files or individual files larger than 2 MB." },
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Direct download URLs", "quote": "Downloads are limited to 10 MiB, extracted content to 25 MiB, and archives to 1000 files by default." },
+        { "referenceId": "ref-cli-source-wellknown", "locator": "archive constants", "quote": "MAX_ARCHIVE_UNPACKED_BYTES = 50 * 1024 * 1024" }
+      ]
+    },
+    {
+      "claimId": "claim-skills-json",
+      "section": "recommendation",
+      "statement": "A skills.sh.json file at the repository root customizes the repo page grouping with no approval and is display-only; it is picked up only after the repository is installed with CLI telemetry enabled, not by visiting the page.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-skills-sh-customize", "locator": "What this is for / When changes appear", "quote": "This file only changes the display on skills.sh. It does not change how the skills CLI installs skills" },
+        { "referenceId": "ref-skills-sh-customize", "locator": "When changes appear", "quote": "Visiting the repo page does not trigger a GitHub check." }
+      ]
+    },
+    {
+      "claimId": "claim-repo-public-not-listed",
+      "section": "keyFindings",
+      "statement": "The repository jamiemills/opencode-skills already exists, is public, MIT-licensed, and defaults to main, but https://skills.sh/jamiemills/opencode-skills returns 404, meaning it has not yet been indexed.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-api-repo", "locator": "private / visibility / license / default_branch", "quote": "\"private\": false ... \"visibility\": \"public\" ... \"spdx_id\": \"MIT\" ... \"default_branch\": \"main\"" },
+        { "referenceId": "ref-skills-sh-listing-404", "locator": "HTTP status", "quote": "404 GET https://skills.sh/jamiemills/opencode-skills" }
+      ]
+    },
+    {
+      "claimId": "claim-no-native-build",
+      "section": "recommendation",
+      "statement": "There is no npm or registry build-and-upload step in this ecosystem; the only build required is a one-time repository restructuring so each skill directory is self-contained and discoverable.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-skills-sh-docs", "locator": "Getting started", "quote": "npx skills add vercel-labs/agent-skills" },
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Install a Skill", "quote": "npx skills add vercel-labs/agent-skills" }
+      ]
+    },
+    {
+      "claimId": "claim-rec-restructure",
+      "section": "recommendation",
+      "statement": "Recommended path: move the 14 skills into skills/<name>/, bundle the shared progress-tracker library and make paths relative, keep the generated payload and internal artifacts off the published surface, push the already-public repo, then run one telemetry-enabled install to seed listing, audits, and optional page customization.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-vercel-skills-readme", "locator": "Skill Discovery", "quote": "- skills/" },
+        { "referenceId": "ref-skills-sh-customize", "locator": "File location", "quote": "Commit the file at the root of your GitHub repository on its default branch" },
+        { "referenceId": "ref-gh-repo", "locator": "current layout", "quote": "no root SKILL.md and no skills/ container; 14 csm-<name>/ directories" }
+      ]
+    }
+  ],
+  "references": [
+    { "referenceId": "ref-skills-sh-docs", "url": "https://skills.sh/docs", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-cli", "url": "https://skills.sh/docs/cli", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-faq", "url": "https://skills.sh/docs/faq", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-customize", "url": "https://skills.sh/docs/customize", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-packs", "url": "https://skills.sh/docs/packs", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-api", "url": "https://skills.sh/docs/api", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-about", "url": "https://skills.sh/about", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-audits", "url": "https://skills.sh/audits", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-vercel-skills-readme", "url": "https://raw.githubusercontent.com/vercel-labs/skills/main/README.md", "publisher": "vercel-labs/skills (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-agentskills-spec", "url": "https://agentskills.io/specification", "publisher": "Agent Skills Specification", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-skills-sh-listing-404", "url": "https://skills.sh/jamiemills/opencode-skills", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-gh-repo", "url": "https://github.com/jamiemills/opencode-skills", "publisher": "GitHub", "retrievedAt": "2026-09-13", "sourcePosture": "customer-evidence" },
+    { "referenceId": "ref-cli-source-skills", "url": "https://raw.githubusercontent.com/vercel-labs/skills/main/src/skills.ts", "publisher": "vercel-labs/skills (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-gh-api-repo", "url": "https://api.github.com/repos/jamiemills/opencode-skills", "publisher": "GitHub API", "retrievedAt": "2026-09-13", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-cli-source-wellknown", "url": "https://raw.githubusercontent.com/vercel-labs/skills/main/src/providers/wellknown.ts", "publisher": "vercel-labs/skills (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" }
+  ],
+  "journal": [
+    { "sequence": 0, "state": "INTAKE", "event": "run started; no prior run artifact for this slug", "occurredAt": "2026-09-13T20:20:00Z", "cycle": 0, "trigger": "new research request" },
+    { "sequence": 1, "state": "TRIAGE", "event": "classified STANDARD x hybrid; 3 tracks declared", "occurredAt": "2026-09-13T20:22:00Z", "cycle": 0, "trigger": "question scope and stakes" },
+    { "sequence": 2, "state": "RESEARCH", "event": "primary retrievals + 2 independent researcher subagents + local audit complete", "occurredAt": "2026-09-13T20:50:00Z", "cycle": 0, "trigger": "tracks dispatched" },
+    { "sequence": 3, "state": "SYNTHESIZE", "event": "draft finding assembled with inline citations", "occurredAt": "2026-09-13T21:00:00Z", "cycle": 0, "trigger": "evidence pack complete" },
+    { "sequence": 4, "state": "CHALLENGE", "event": "independent challenger returned 4 downgrades and 4 new claims", "occurredAt": "2026-09-13T21:25:00Z", "cycle": 0, "trigger": "adversarial mandate" },
+    { "sequence": 5, "state": "REMEDIATE", "event": "claims corrected per downgrade verdicts", "occurredAt": "2026-09-13T21:30:00Z", "cycle": 0, "trigger": "downgrade verdicts" },
+    { "sequence": 6, "state": "JUDGE", "event": "independent judge scored accuracy 0.84 / citation 0.78 / completeness 0.72 / clarity 0.85; PASS", "occurredAt": "2026-09-13T21:55:00Z", "cycle": 0, "trigger": "rubric review" },
+    { "sequence": 7, "state": "REMEDIATE", "event": "added shared-lib blocker; reframed generated payload; fixed citation targets", "occurredAt": "2026-09-13T22:00:00Z", "cycle": 0, "trigger": "completeness gap" },
+    { "sequence": 8, "state": "VERIFY", "event": "citations dated and mapped; no secrets; write allowlist intact", "occurredAt": "2026-09-13T22:08:00Z", "cycle": 0, "trigger": "primary-personal gate" },
+    { "sequence": 9, "state": "SAVED", "event": "finding written to .agents/research; run terminal", "occurredAt": "2026-09-13T22:10:00Z", "cycle": 0, "trigger": "VERIFY passed" }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-13T22:10:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

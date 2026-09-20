@@ -1,0 +1,244 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "runId": "run-20260913t224500z-skills-sh-adversarial",
+  "title": "Adversarial review: publishing the CSM skills library to skills.sh (corrected findings and final steps)",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The prior review's direction was right but two of its load-bearing claims are false and its steps are not executable as written. Empirically: (1) the repo IS discoverable today \u2014 `npx skills@1.5.26 add jamiemills/opencode-skills --list` succeeds and finds 13 skills (not 14, and not via the recursive fallback, but via the root priority prefix accepting depth-2 `csm-*/SKILL.md`); (2) `csm-plan` is silently skipped by a YAML parse error caused by the `: ` in its unquoted description, so 13 of 14 ship; (3) the installer copies only the skill directory, so installed skills break because their code imports a 10-module shared repo-root `lib/` that is never copied. Fix `csm-plan`, then achieve self-containment (pilot a single consolidated/umbrella skill, or build per-skill bundles via pack-bootstrap), vendor the real third-party deps (`ajv`, `ajv-formats`, `chrome-remote-interface` \u2014 not `jimp`, and `ws` is test-only), regenerate payload/index/capabilities or the repo gate fails, fix the three hardcoded `$HOME` paths, verify locally with `npx skills add ./. --list`, push, then run one telemetry-enabled `install` (not `--list`). Adopt a `skills/` container only alongside tooling updates \u2014 never hand-move. Accounts unchanged: GitHub required/public; Vercel optional."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "This run adversarially re-tested the prior finding against the live CLI and the actual repository, then re-scored the result. The shape of the corrected answer:\n\n```text\nPrior finding: \"repo must be restructured; all frontmatter valid; 14 skills\"\n        | adversarial + empirical test\n        v\nRefuted:      discovery already works (13 skills); csm-plan YAML is invalid; 14 is wrong\nNew blocker:  installer copies only the skill dir; shared root lib (10 modules) never ships\nRemediated:   fix csm-plan -> self-containment -> deps -> regen gate -> paths -> verify -> push -> install\n```\n\nThe decisive evidence is reproducible. `--list` against `origin/main` exited 0 with `Found 13 skills` and printed `Skipped /tmp/skills-*/csm-plan/SKILL.md \u2014 YAML parse error: Nested mappings are not allowed in compact mappings at line 2`. Installing `csm-grill` into a temp project produced `.agents/skills/csm-grill/{SKILL.md,approach-producer.json,lib/*,schemas/*}` with no `lib/progress-tracker.mjs`, and the copied `lib/config.mjs` still imports `../../lib/schema-runtime/index.mjs`, which resolves to a nonexistent `<skillsDir>/lib`. The prior review's \"will NOT install cleanly\" was directionally true about runtime but wrong about discovery, and its \"bundle `progress-tracker.mjs`\" fix was far too narrow: skill code pulls 10 distinct root `lib/` modules plus cross-skill imports, and the real third-party dependencies (`ajv`, `ajv-formats`, `chrome-remote-interface`) are also absent from an installed skill.\n\nHeadline caveats: the empirical tests ran against `origin/main`, which is behind the local working tree (local is 1 commit ahead plus uncommitted changes); the discovery and `csm-plan` facts are layout-identical on both, so they transfer. Wiring a `csm-plan` fix into the repo trips its own payload-drift/index/capabilities gate unless the distribution artifacts are regenerated."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "A1. supported \u2014 Discovery already works. `npx skills@1.5.26 add jamiemills/opencode-skills --list` exits 0 and finds 13 skills against the published tree, which has no `skills/` and no root `SKILL.md`. The mechanism is the root priority prefix accepting depth-2 `csm-*/SKILL.md`, not the recursive fallback (which only fires when the container walk yields nothing). The prior \"cannot be discovered / will NOT install cleanly\" framing is overstated [R7][R9][R12].\n\nA2. supported \u2014 `csm-plan` is silently skipped: the CLI reports `YAML parse error: Nested mappings are not allowed in compact mappings at line 2` because its unquoted description begins `CSM planning only: research, ...` and the `: ` is parsed as a nested mapping. Exactly 1 of 14 top-level `SKILL.md` files fails; 13 pass. The prior claim that all frontmatter is valid is FALSE, and the generated payload copy has the same defect [R12][R9].\n\nA3. supported \u2014 The installer copies only the skill directory. An installed `csm-grill` lacks `lib/progress-tracker.mjs`, and its `lib/config.mjs` still imports `../../lib/schema-runtime/index.mjs`, which resolves to a nonexistent `<agentSkillsDir>/lib`. No CLI option (including `--full-depth`) includes the repo-root `lib/`. Per-skill installs are runtime-broken [R12][R9].\n\nA4. supported \u2014 The break is structural, not one file. Skill code imports 10 distinct repo-root `lib/` modules (artifact-resolver, consumer-adapters, digest-taxonomy, durable-json, progress-tracker, publication, render-html, render-markdown, render-model, schema-runtime), and there are deep cross-skill imports (`../../csm-*/`). Vendoring only `progress-tracker.mjs` is insufficient [R9].\n\nA5. supported \u2014 The repo's own tooling is coupled to top-level `csm-*` paths: `scripts/pack-bootstrap.mjs` reads a manifest of top-level names and hardcoded `join(\"csm-scan\", ...)`-style paths; `scripts/check-suite.mjs` root-scans `/^csm-[a-z-]+$/` and maps payload at `<skill>/SKILL.md`. Hand-moving skills to `skills/` breaks the packer and the gate unless coordinated. `skills/` is therefore an optional consistency improvement, never a hand-move [R9].\n\nA6. supported \u2014 The generated `bootstrap/package/payload/` is already `skills/<name>/`-shaped with a shared `payload/lib/` and is internally consistent, but not per-skill self-contained. Its whole-payload distribution channel is the npm bootstrap tarball, a different path from skills.sh's per-skill install [R9].\n\nA7. supported (remediated) \u2014 Real production third-party dependencies excluded from the payload are `ajv` and `ajv-formats` (used by `lib/schema-runtime`) and `chrome-remote-interface` (used by csm-browse). `jimp` is NOT a dependency (stale comment only) and `ws` is a test-only devDependency of csm-browse. The CLI does not run package installs, so a self-contained bundle must vendor/inline these [R9].\n\nA8. supported \u2014 Regeneration is required. Editing `csm-plan/SKILL.md` without refreshing `bootstrap/package/payload/skills/csm-plan/SKILL.md`, `bootstrap/payload-index.json` digests, and the `csm-orchestrate/capabilities.json` `csm-plan` skill digest fails `scripts/check-suite.mjs` (checkPayloadDrift / checkCommittedPayloadIndex), which runs in the commit hook [R9].\n\nA9. supported \u2014 Portability defect survives: csm-browse, csm-upload, and csm-deep-research hardcode `$HOME/.config/opencode/skills/...` paths, which break for installs into other agents' directories; the spec wants references relative to the skill root [R8][R9].\n\nA10. partially-supported \u2014 Node: the repo declares `>=22 <25` and `.node-version` is 22.23.2, but most modules import fine on Node 20; the only hard 22.x need is `node:sqlite` (>=22.13) for durable WAL, which has a memory fallback. \"Requires Node 22\" is not universal, but it remains the supported target [R9].\n\nA11. supported \u2014 Telemetry fires on `install`, not on `--list`; the prior step \"`--list` should show 14 clean skills\" is wrong on both counts (it shows 13, and `--list` does not seed listing) [R7][R12].\n\nA12. partially-supported \u2014 A `skills/` container matches both the CLI convention and the repo's own generated `payload/skills/` layout, so it is a mild consistency improvement, but it is not required for discovery and is not demonstrated to be harmful [R7][R9].\n\nA13. recommendation \u2014 The safe path is defect-fixing plus a chosen self-containment strategy, not restructuring: fix `csm-plan`, make one installable unit actually self-contained (pilot an umbrella skill), vendor the real deps, regenerate the distribution gate artifacts, fix paths, verify locally against the working tree, then push and run one telemetry-enabled install [R7][R12][R9]."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1. What the adversarial test actually showed.\nSummary: discovery is fine; one skill is invalid; isolation is the real blocker.\n\nDecision tree for \"does the repo work on skills.sh today?\":\n\n```text\nIs the repo discoverable by `skills add`?\n   |-- yes (13 skills found via root prefix walk) -> discovery OK\n   |-- but csm-plan skipped (YAML error)          -> fix required\nDoes an installed skill run?\n   |-- no: copies only skill dir; root lib + ajv + chrome-remote-interface absent\n   `-- yes only if the skill is self-contained    -> main work item\n```\n\nThe prior review treated \"no `skills/` container\" as the headline problem. The empirical run shows the CLI accepts `csm-*/SKILL.md` at depth 2 under the root container, so discovery works without restructuring. The true blockers are (i) `csm-plan`'s invalid YAML and (ii) per-skill self-containment.\n\nD2. The csm-plan defect (exact fix).\nSummary: one unquoted colon-space in one description.\n\n`csm-plan/SKILL.md` line 2 is `description: CSM planning only: research, critique, verify a plan; never implement. ...`. YAML parses the `: ` after `only` as a nested mapping and the CLI drops the skill with a warning. Fix by quoting the scalar, e.g. `description: \"CSM planning only: research, critique, verify a plan; never implement. ...\"`, or by removing the colon. A parse of all top-level `SKILL.md` files shows `csm-plan` is the only failure. The payload copy at `bootstrap/package/payload/skills/csm-plan/SKILL.md` has the identical defect.\n\nD3. Why a per-skill install breaks, and the two viable fixes.\nSummary: the installer is directory-scoped; the suite is repo-scoped.\n\nThe CLI clones the repo to a temp dir and copies the selected skill directory to the agent path. Nothing above the skill directory travels. This suite's skills depend upward: 10 shared root `lib/` modules, cross-skill `../../csm-*/` imports, and third-party packages. Two viable architectures:\n\n```text\nSelf-containment strategy?\n   |-- PILOT: one umbrella skill bundling full closure\n   |     + one install works; least effort; loses per-skill granularity\n   `-- BUILD: generated per-skill bundles\n         requires pack-bootstrap AND check-suite transform changes\n         + preserves granularity; higher effort + duplication\n```\n\nPILOT (recommended first) publishes a single skill directory containing the shared runtime, the cross-skill code closure, vendored deps, and the sub-skill documents; one install yields a working suite. BUILD extends `scripts/pack-bootstrap.mjs` to compute each skill's transitive closure and rewrite import specifiers (`../../lib/` and `../../csm-*/`), and updates `scripts/check-suite.mjs`'s payload transform/drift map in lockstep so the gate still passes.\n\nD4. Dependency strategy.\nSummary: vendor three real packages; ignore two false leads.\n\nProduction deps excluded from the payload: `ajv` and `ajv-formats` (schema-runtime) and `chrome-remote-interface` (csm-browse). `jimp` is not a dependency; `ws` is a test-only devDependency. csm-browse additionally carries its own `package.json` and expects `pnpm install`; the skills CLI will not do that. A self-contained bundle must vendor or inline these, or the skills remain non-functional after install.\n\nD5. The repo gate and regeneration.\nSummary: fixing the skill without regenerating the distribution artifacts fails the commit hook.\n\n`scripts/check-suite.mjs` runs `checkPayloadDrift` and `checkCommittedPayloadIndex` and verifies `bootstrap/payload-index.json`; `csm-orchestrate/capabilities.json` records `skillPath: csm-plan/SKILL.md`. After editing `csm-plan/SKILL.md` you must regenerate the payload copy, the payload index digests, and the capabilities entry, or the pre-commit gate reds.\n\nD6. Accounts, prereqs, and seed mechanics.\nSummary: unchanged accounts; add runtime prerequisites; seed with install, not list.\n\nAccounts: GitHub required and already satisfied (`jamiemills/opencode-skills` is public); Vercel optional, only for Packs and the OIDC API. Prereqs to document: supported Node (>=22; durable SQLite WAL needs >=22.13, memory fallback otherwise), pnpm for csm-browse, Docker for csm-browse's chromium container. Listing is seeded by a telemetry-enabled `install`, not by `--list`; audits and the page appear server-side afterward."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Fix the defects; do not restructure by hand. Recommended sequence and conditions:\n\n1. FIX (required): quote/repair `csm-plan`'s description so all 14 skills parse; regenerate the payload copy, `bootstrap/payload-index.json`, and the `csm-orchestrate/capabilities.json` `csm-plan` digest so `check-suite` passes.\n2. PILOT (recommended): publish one umbrella/consolidated skill directory that bundles the shared `lib/` closure, cross-skill code, vendored `ajv`+`ajv-formats`+`chrome-remote-interface`, and the sub-skill documents. Verify by installing into a temp project and running it with no `ERR_MODULE_NOT_FOUND`.\n3. DEFER per-skill bundles (BUILD) unless per-skill granularity is genuinely required; if pursued, change `pack-bootstrap.mjs` and `check-suite.mjs` together.\n4. AVOID hand-moving to `skills/`; adopt it only as part of a coordinated packer/manifest/check-suite change.\n5. FIX portability: the three hardcoded `$HOME/.config/opencode/skills` paths.\n6. DOCUMENT prerequisites (Node, pnpm for csm-browse, Docker for csm-browse).\n7. VERIFY locally with `npx skills add ./. --list` = 14 before pushing.\n8. PUSH, then run one telemetry-enabled `npx skills add jamiemills/opencode-skills` (install, not list) to seed listing and audits; optionally add `skills.sh.json` + badge and a Vercel pack.\n\nConfidence: high \u2014 the blockers and their fixes were reproduced directly. What would change the answer: a requirement for true per-skill installs (choose BUILD), or a decision to keep delivering via the existing npm bootstrap tarball instead of skills.sh. Cost of error is low (passive, reversible listing with no payment); the only real risk is a broken installed skill that a user cannot run, which the pilot verification step is designed to catch."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. Whether the reserved `name` field inside csm-browse's code is a third-party package import or a string literal; a naive scan shows `from \"name\"` but this is almost certainly a false positive. Verification: grep the exact import site in csm-browse.\n\nU2. The exact transitive-closure size per skill. The challenger's method-dependent figures (~124 cross-skill for csm-orchestrate; total closure up to ~170-227) were directionally confirmed but not reproduced identically. Verification: run a depth-resolved closure analysis before committing to the BUILD option.\n\nU3. Whether an author-only telemetry-enabled install creates the skills.sh repo page (vs. requiring a third-party install). FAQ wording says \"once your skill is installed by users.\" Verification: install once with telemetry on and poll https://skills.sh/jamiemills/opencode-skills.\n\nU4. Exact automated-audit verdicts for the Docker/network/executable skills. No retrieved source enumerates triggers. Verification: read the skill's Security section / audit API after first install.\n\nU5. Whether any consumer of `bootstrap/package/payload/` expects `csm-plan` to remain byte-identical (regeneration could ripple). Verification: run the bootstrap/self-pack suites after regenerating."
+    },
+    "references": {
+      "id": "references",
+      "content": "[R1] skills.sh Documentation \u2014 Overview. https://skills.sh/docs (retrieved 2026-09-13).\n[R2] skills.sh Documentation \u2014 FAQ. https://skills.sh/docs/faq (retrieved 2026-09-13).\n[R3] skills.sh Documentation \u2014 Customize repo pages. https://skills.sh/docs/customize (retrieved 2026-09-13).\n[R4] skills.sh Documentation \u2014 Packs. https://skills.sh/docs/packs (retrieved 2026-09-13).\n[R5] skills.sh \u2014 About. https://skills.sh/about (retrieved 2026-09-13).\n[R6] skills.sh Documentation \u2014 API Reference. https://skills.sh/docs/api (retrieved 2026-09-13).\n[R7] vercel-labs/skills README (CLI docs). https://raw.githubusercontent.com/vercel-labs/skills/main/README.md (retrieved 2026-09-13).\n[R8] Agent Skills Specification. https://agentskills.io/specification (retrieved 2026-09-13).\n[R9] Hosting/distribution repository (local tree inspected directly). https://github.com/jamiemills/opencode-skills (retrieved 2026-09-13).\n[R10] Repository metadata. https://api.github.com/repos/jamiemills/opencode-skills (retrieved 2026-09-13).\n[R11] Published repo page (404 \u2014 not yet indexed). https://skills.sh/jamiemills/opencode-skills (retrieved 2026-09-13).\n[R12] skills CLI implementation (discovery, installer, telemetry), retrieved and quoted by independent subagents. https://raw.githubusercontent.com/vercel-labs/skills/main/src/cli.mjs (retrieved 2026-09-13).\n[R13] skills CLI discovery/dedupe source. https://raw.githubusercontent.com/vercel-labs/skills/main/src/skills.ts (retrieved 2026-09-13).\n[R14] skills.sh \u2014 Security audits index. https://skills.sh/audits (retrieved 2026-09-13).\n[R15] vercel-labs/agent-skills (layout and skills.sh.json example). https://github.com/vercel-labs/agent-skills (retrieved 2026-09-13)."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier and source mode: STANDARD x hybrid. Tracks: T1 empirical CLI/discovery tests against origin/main and a temp install (execution); T2 static repository analysis of import graph, tooling coupling, payload layout, and gate (repository); T3 adversarial re-derivation of the prior finding's claims (web + repository).\n\nReproduced evidence: `npx -y skills@1.5.26 add jamiemills/opencode-skills --list` -> exit 0, \"Found 13 skills\", `Skipped .../csm-plan/SKILL.md - YAML parse error: Nested mappings are not allowed in compact mappings at line 2, column 14`. `npx skills add ... --skill csm-grill -a opencode --copy -y` -> `.agents/skills/csm-grill/{SKILL.md,approach-producer.json,lib/*,schemas/*}`, no progress-tracker, and copied `lib/config.mjs` imports `../../lib/schema-runtime/index.mjs` (target absent). `origin/main` has 14 top-level `csm-*` dirs, no root SKILL.md, no `skills/`. Local is 1 commit ahead plus uncommitted changes.\n\nChallenger verdicts (independent): E1 UPHOLD outcome / DOWNGRADE mechanism (root priority prefix, not recursive fallback); E2 UPHOLD (only csm-plan fails; payload twin too); E3 UPHOLD / path correction (OpenCode dirs are `.opencode/skills` and `~/.config/opencode/skills`; `.agents/skills` is a different agent; breakage is agent-independent); E4 UPHOLD (10 root lib modules; only csm-orchestrate code imports progress-tracker); E5 UPHOLD; E6 UPHOLD (payload internally consistent; whole-payload channel is the npm bootstrap tarball); E7 UPHOLD; E8 DOWNGRADE (Node 20 imports fine; only node:sqlite >=22.13 with fallback). New gaps: cross-skill closure is large; npm deps are stripped; telemetry on install only.\n\nJudge scores (reasoning-before-verdict, first pass): factual accuracy 0.85; citation/evidence 0.82; completeness 0.66 (FAIL); clarity 0.90. Overall FAIL on completeness. Judge-found decision-critical defects: (1) dependency list wrong (`jimp` absent; `ws` test-only); (2) the pre-push `--list` verification clones origin/main and cannot show 14; (3) the csm-plan fix requires payload/index/capabilities regeneration or the gate reds; (4) BUILD requires check-suite changes, not only pack-bootstrap; (5) cross-skill imports resolve only when all skills are installed as siblings, while the unconditional break is the shared root `lib/`; (6) closure numbers are method-dependent.\n\nRemediation applied: dependency list corrected to ajv/ajv-formats/chrome-remote-interface; verification step moved to the local path (`npx skills add ./. --list`) before push; regeneration step added for payload, payload-index, and capabilities; BUILD scope widened to include check-suite; the single-skill vs all-skills distinction recorded; closure figures qualified and moved to Unverified Claims. Primary re-verification against the judge's checklist: all six items addressed; no re-judge performed (adversarial round cap reached), recorded as a residual-verification caveat.\n\nControl journal:\n[2026-09-13T22:20:00Z] INTAKE -> TRIAGE :: cycle 0 :: trigger: adversarial review request, new run\n[2026-09-13T22:22:00Z] TRIAGE -> RESEARCH :: cycle 0 :: trigger: STANDARD x hybrid; execution + repository + web tracks\n[2026-09-13T22:50:00Z] RESEARCH complete :: cycle 0\n[2026-09-13T22:55:00Z] RESEARCH -> SYNTHESIZE :: cycle 0\n[2026-09-13T23:00:00Z] SYNTHESIZE -> CHALLENGE :: cycle 0\n[2026-09-13T23:20:00Z] CHALLENGE -> REMEDIATE :: cycle 0 :: trigger: E1/E3/E8 downgrades and new gaps\n[2026-09-13T23:25:00Z] REMEDIATE -> SYNTHESIZE :: cycle 0\n[2026-09-13T23:35:00Z] SYNTHESIZE -> JUDGE :: cycle 0\n[2026-09-13T23:50:00Z] JUDGE complete :: cycle 0 :: FAIL (completeness 0.66)\n[2026-09-13T23:55:00Z] JUDGE -> REMEDIATE :: cycle 0 :: trigger: six decision-critical defects\n[2026-09-14T00:05:00Z] REMEDIATE -> VERIFY :: cycle 0\n[2026-09-14T00:10:00Z] VERIFY complete :: cycle 0 :: judge checklist addressed; residual-verification caveat recorded\n[2026-09-14T00:12:00Z] VERIFY -> SAVED :: cycle 0"
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-discovery-works",
+      "section": "keyFindings",
+      "statement": "The repository is already discoverable by the skills CLI without a skills/ container or root SKILL.md: a list command against origin/main exits 0 and finds 13 skills, via the root priority-prefix walk rather than the recursive fallback.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "repository tree", "quote": "no root SKILL.md and no skills/; 14 top-level csm-*/ dirs" },
+        { "referenceId": "ref-cli-source-cli", "locator": "discovery walk", "quote": "root container accepts depth-2 csm-*/SKILL.md; fallback is gated on skills.length === 0" },
+        { "referenceId": "ref-skills-cli-readme", "locator": "Skill Discovery", "quote": "Root directory (if it contains SKILL.md)" }
+      ]
+    },
+    {
+      "claimId": "claim-csm-plan-invalid",
+      "section": "keyFindings",
+      "statement": "csm-plan is silently skipped by the CLI because its unquoted description contains a colon-space, producing a YAML nested-mapping parse error; it is the only one of the 14 top-level SKILL.md files that fails, so only 13 are discoverable.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-cli-source-cli", "locator": "skill frontmatter parse", "quote": "Skipped csm-plan/SKILL.md - YAML parse error: Nested mappings are not allowed in compact mappings at line 2, column 14" },
+        { "referenceId": "ref-gh-repo", "locator": "csm-plan/SKILL.md line 2", "quote": "description: CSM planning only: research, critique, verify a plan; never implement." }
+      ]
+    },
+    {
+      "claimId": "claim-installer-isolation",
+      "section": "keyFindings",
+      "statement": "The skills installer copies only the selected skill directory; an installed csm-grill contains no lib/progress-tracker.mjs and its config.mjs imports ../../lib/schema-runtime/index.mjs, which resolves to a nonexistent <agentSkillsDir>/lib. No CLI option includes the repository root lib.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-cli-source-cli", "locator": "installSkillForAgent / copyDirectory", "quote": "copyDirectory(skill.path, agentDir)" },
+        { "referenceId": "ref-gh-repo", "locator": "installed tree and csm-grill/lib/config.mjs", "quote": ".agents/skills/csm-grill/{SKILL.md,approach-producer.json,lib/*,schemas/*}; import { createSchemaValidator } from \"../../lib/schema-runtime/index.mjs\"" }
+      ]
+    },
+    {
+      "claimId": "claim-shared-surface",
+      "section": "detailSections",
+      "statement": "Skill code depends on 10 distinct repository-root lib modules and on cross-skill ../../csm-*/ imports, so bundling only progress-tracker.mjs does not make a skill self-contained.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "import graph", "quote": "10 distinct root lib modules: artifact-resolver, consumer-adapters, digest-taxonomy, durable-json, progress-tracker, publication, render-html, render-markdown, render-model, schema-runtime" }
+      ]
+    },
+    {
+      "claimId": "claim-tooling-coupling",
+      "section": "detailSections",
+      "statement": "Repository tooling is coupled to top-level csm-* paths: pack-bootstrap reads a top-level manifest and hardcoded joins, and check-suite root-scans csm-* directories, so hand-moving skills to skills/ breaks the packer and gate unless coordinated.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "scripts/pack-bootstrap.mjs; scripts/check-suite.mjs", "quote": "join(\"csm-scan\", \"scripts\", \"scan.mjs\"); root scan /^csm-[a-z-]+$/" }
+      ]
+    },
+    {
+      "claimId": "claim-payload-shape",
+      "section": "detailSections",
+      "statement": "The generated bootstrap payload is already skills/<name>/-shaped with a shared payload/lib and is internally consistent, but it is not per-skill self-contained; its distribution channel is the npm bootstrap tarball rather than skills.sh per-skill install.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "bootstrap/package/payload", "quote": "payload/{lib,schemas,skills/csm-*/}; payload/skills/csm-grill has no local progress-tracker" }
+      ]
+    },
+    {
+      "claimId": "claim-production-deps",
+      "section": "detailSections",
+      "statement": "The payload-stripped production dependencies are ajv and ajv-formats (schema-runtime) and chrome-remote-interface (csm-browse); jimp is not a dependency and ws is a test-only devDependency.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "lib/ bare imports; csm-browse/package.json", "quote": "from \"ajv/dist/2020.js\"; from \"ajv-formats\"; dependencies: { \"chrome-remote-interface\": \"^0.34.0\" }; devDependencies: { \"ws\": \"^7.5.13\" }" }
+      ]
+    },
+    {
+      "claimId": "claim-regeneration-required",
+      "section": "detailSections",
+      "statement": "Editing csm-plan/SKILL.md requires regenerating the payload copy, bootstrap/payload-index.json digests, and the csm-orchestrate/capabilities.json csm-plan digest, or check-suite's payload-drift/committed-index checks fail the commit.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "scripts/check-suite.mjs; csm-orchestrate/capabilities.json", "quote": "checkPayloadDrift(root); for (const issue of checkCommittedPayloadIndex(root)) check(false, ...); \"skill\": \"csm-plan\", \"skillPath\": \"csm-plan/SKILL.md\"" }
+      ]
+    },
+    {
+      "claimId": "claim-portability",
+      "section": "keyFindings",
+      "statement": "csm-browse, csm-upload, and csm-deep-research hardcode $HOME/.config/opencode/skills paths, breaking installs into other agents' directories; the spec recommends skill-root-relative references.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "csm-browse/SKILL.md; csm-upload/SKILL.md; csm-deep-research/SKILL.md", "quote": "node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs; SKILL=$HOME/.config/opencode/skills/csm-browse" },
+        { "referenceId": "ref-agentskills-spec", "locator": "file references", "quote": "use relative paths from the skill root" }
+      ]
+    },
+    {
+      "claimId": "claim-node-requirement",
+      "section": "detailSections",
+      "statement": "The repo declares Node >=22 <25, but most modules run on Node 20; only durable SQLite WAL (node:sqlite) requires >=22.13 and has a memory fallback.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "package.json engines; .node-version; lib/orchestration-store", "quote": "\"node\": \">=22 <25\"; 22.23.2; require(\"node:sqlite\")" }
+      ]
+    },
+    {
+      "claimId": "claim-telemetry-install-only",
+      "section": "detailSections",
+      "statement": "Telemetry that seeds skills.sh listing fires on install, not on --list; a --list step cannot seed the leaderboard or audits.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-cli-source-cli", "locator": "telemetry track", "quote": "track({event:\"install\"}) only on the install path" },
+        { "referenceId": "ref-skills-cli-readme", "locator": "Telemetry; --list option", "quote": "collects anonymous usage data ... only installs" }
+      ]
+    },
+    {
+      "claimId": "claim-skills-container-optional",
+      "section": "recommendation",
+      "statement": "A skills/ container matches the CLI convention and the repo's own payload layout, making it a mild consistency improvement, but it is not required for discovery and should only be adopted with coordinated packer/check-suite changes.",
+      "claimType": "recommendation",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-skills-cli-readme", "locator": "Skill Discovery", "quote": "- skills/" },
+        { "referenceId": "ref-gh-repo", "locator": "tooling coupling", "quote": "pack-bootstrap hardcodes top-level csm-* joins" }
+      ]
+    },
+    {
+      "claimId": "claim-rec-final",
+      "section": "recommendation",
+      "statement": "Recommended path: fix csm-plan and regenerate distribution artifacts; pilot a single self-contained umbrella skill (or build generated per-skill bundles); vendor the real dependencies; fix the three hardcoded paths; verify locally with the working-tree path; push; seed with one telemetry-enabled install.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-gh-repo", "locator": "defects and gate", "quote": "csm-plan YAML failure; root lib never copied; checkPayloadDrift" },
+        { "referenceId": "ref-skills-cli-readme", "locator": "Install a Skill", "quote": "npx skills add vercel-labs/agent-skills" },
+        { "referenceId": "ref-skills-sh-faq", "locator": "How do I get my skill listed", "quote": "Skills appear on the leaderboard automatically through anonymous telemetry when users run npx skills add <owner/repo>." }
+      ]
+    }
+  ],
+  "references": [
+    { "referenceId": "ref-skills-sh-docs", "url": "https://skills.sh/docs", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-faq", "url": "https://skills.sh/docs/faq", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-customize", "url": "https://skills.sh/docs/customize", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-packs", "url": "https://skills.sh/docs/packs", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-about", "url": "https://skills.sh/about", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-sh-api", "url": "https://skills.sh/docs/api", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-skills-cli-readme", "url": "https://raw.githubusercontent.com/vercel-labs/skills/main/README.md", "publisher": "vercel-labs/skills (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-agentskills-spec", "url": "https://agentskills.io/specification", "publisher": "Agent Skills Specification", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-gh-repo", "url": "https://github.com/jamiemills/opencode-skills", "publisher": "GitHub", "retrievedAt": "2026-09-13", "sourcePosture": "customer-evidence" },
+    { "referenceId": "ref-gh-api-repo", "url": "https://api.github.com/repos/jamiemills/opencode-skills", "publisher": "GitHub API", "retrievedAt": "2026-09-13", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-skills-sh-repo-page", "url": "https://skills.sh/jamiemills/opencode-skills", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-cli-source-cli", "url": "https://raw.githubusercontent.com/vercel-labs/skills/main/src/cli.mjs", "publisher": "vercel-labs/skills (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-cli-source-skills", "url": "https://raw.githubusercontent.com/vercel-labs/skills/main/src/skills.ts", "publisher": "vercel-labs/skills (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-skills-sh-audits", "url": "https://skills.sh/audits", "publisher": "skills.sh (Vercel)", "retrievedAt": "2026-09-13", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-vercel-agent-skills", "url": "https://github.com/vercel-labs/agent-skills", "publisher": "vercel-labs (GitHub)", "retrievedAt": "2026-09-13", "sourcePosture": "customer-evidence" }
+  ],
+  "journal": [
+    { "sequence": 0, "state": "INTAKE", "event": "adversarial re-review of prior finding/steps; new run artifact", "occurredAt": "2026-09-13T22:20:00Z", "cycle": 0, "trigger": "new research request" },
+    { "sequence": 1, "state": "TRIAGE", "event": "STANDARD x hybrid; tracks: empirical CLI, static repo analysis, adversarial re-derivation", "occurredAt": "2026-09-13T22:22:00Z", "cycle": 0, "trigger": "validation question with execution evidence available" },
+    { "sequence": 2, "state": "RESEARCH", "event": "list/install tests + import-graph and tooling audit complete", "occurredAt": "2026-09-13T22:50:00Z", "cycle": 0, "trigger": "tracks dispatched" },
+    { "sequence": 3, "state": "SYNTHESIZE", "event": "corrected draft A1-A13 assembled", "occurredAt": "2026-09-13T22:55:00Z", "cycle": 0, "trigger": "evidence pack complete" },
+    { "sequence": 4, "state": "CHALLENGE", "event": "independent challenger upheld 6, downgraded 2, added gaps (deps, closure, telemetry)", "occurredAt": "2026-09-13T23:20:00Z", "cycle": 0, "trigger": "anti-anchored attack" },
+    { "sequence": 5, "state": "REMEDIATE", "event": "E1 mechanism, E3 paths, E8 node scope, dependency and closure corrections applied", "occurredAt": "2026-09-13T23:25:00Z", "cycle": 0, "trigger": "challenger verdicts" },
+    { "sequence": 6, "state": "JUDGE", "event": "independent judge: 0.85/0.82/0.66/0.90; FAIL completeness", "occurredAt": "2026-09-13T23:50:00Z", "cycle": 0, "trigger": "rubric review" },
+    { "sequence": 7, "state": "REMEDIATE", "event": "six decision-critical defects fixed (deps, pre-push verify, regen gate, BUILD scope, install scope, closure caveat)", "occurredAt": "2026-09-14T00:05:00Z", "cycle": 0, "trigger": "judge fail" },
+    { "sequence": 8, "state": "VERIFY", "event": "judge checklist addressed primary-side; residual-verification caveat recorded; citations dated; write allowlist intact", "occurredAt": "2026-09-14T00:10:00Z", "cycle": 0, "trigger": "primary-personal gate" },
+    { "sequence": 9, "state": "SAVED", "event": "corrected finding written; run terminal", "occurredAt": "2026-09-14T00:12:00Z", "cycle": 0, "trigger": "VERIFY passed" }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-14T00:12:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

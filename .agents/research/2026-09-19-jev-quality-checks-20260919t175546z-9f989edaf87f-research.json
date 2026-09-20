@@ -1,0 +1,299 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "title": "Using Jev (TypeSafe) for Code-Quality, AI-Skill-Quality, and AI-Prompt-Quality Checks",
+  "runId": "run-20260919t175546z-9f989edaf87f",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Jev is a closed-set typed-decision classifier (Choice / Score / Noul), not a code analyser and not a generator. To use it for quality checks you define atomic, closed-set decisions over a FILTERED state (one diff hunk, one SKILL.md excerpt, one prompt), send them together in one call, combine the scores with weights your code owns, and treat the result as ADVISORY: the repo's own Jev approach chose no confidence gate, and this finding likewise uses confidence at most as a review trigger, never an approval gate. Best-fit first pilots: (a) code - hunk triage, defect-kind and severity pre-flagging; (b) skills - description-to-body alignment and activation breadth; (c) prompts - missing output format, ambiguity, and injection/jailbreak risk. A live probe verified the transport and produced both a correct defect call and a prompt-injection false positive. Deterministic tools (linters, tests, schema/index gates) and human review keep all authority. Unknown and unvalidated: per-domain accuracy - no human-labelled corpus exists for any of the three uses."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: how can Jev (TypeSafe, model typesafe/jev-1.13, reachable through OpenRouter with the repo's existing OPENROUTER_ROUTER_KEY) be used for code-quality checks, AI-skill quality, and AI-prompt quality checks?\n\n```text\nWhat is Jev?  -> closed-set classifier (Choice/Score/Noul), not a generator\nHow to use it?-> filter state -> atomic closed-set questions -> one batched call\n              -> combine in code -> advisory only (confidence = at most a review trigger)\nThree domains -> code hunks | skill/instruction files | prompts\nAuthority     -> deterministic tools + human review; Jev never owns a gate\n```\n\nHeadline: Jev is a good fit for the JUDGMENT SLICE of quality checking - deciding which closed category or band a small, self-contained artifact falls into - and a poor fit for anything requiring generation, counting, arithmetic, dataflow, whole-repo reasoning, or trust in untrusted text. All three requested uses reduce to the same pattern: a catalog of atomic decision points, each with a filtered state, a closed criteria set, a fallback, and an advisory-only verdict. This finding supplies those catalogs (D2-D4), the state/batching mechanics (D5), the safety doctrine (D6), an integration recipe (D7), and live evidence (D8). The dominant caveat is unchanged from the repo's prior Jev work: no threshold is validated, because no human-labelled corpus for code, skill, or prompt quality labels exists yet - so nothing may auto-accept. An independent challenge (4 downgrades) and judge (FAIL on factual/citation accuracy) followed synthesis; both were remediated and the verdicts are recorded in the Process Appendix."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported - Jev is a non-generative typed-decision model. The documented API is POST /v1/systemone with three top-level fields (state, model, questions); Choice takes criteria as an option-to-description map (descriptions may be null), Score takes an ordered array of 2-10 levels, Noul is a yes/no probability with an optional true/false description; all three can be mixed in one call and each question is evaluated in isolation against the same state, so batching barely changes latency. [R1][R2][R5][R6][R7][R8]\n\nK2. supported - Jev does not write replies, produce code, or generate explanations; forcing generation by chaining choices is documented as poor and slow. It therefore CANNOT author review comments, fixes, or rewritten prompts - it can only classify or score. [R3][R9]\n\nK3. supported - Hard limits are documented, with one internal doc conflict: the models page gives 64k tokens per request with a 32k sub-budget for state plus the longest question, while the primitives page states a shared budget of roughly 32k tokens (~150k characters); budget to the lower bound. Other limits: no reliable counting or arithmetic, dates read as text, indirection reduces accuracy, accuracy falls with large irrelevant state (context rot), literal reading, and state is NOT treated as hostile so adversarial content can steer the answer. [R5][R9][R10]\n\nK4. supported (inferential) - Code can be passed as state. TypeSafe names Semantic code linting as a supported CI workflow (define team conventions, run checks in CI, flag violations for review) and ships a source-code hierarchy cookbook that walks a repository file tree with per-node Choice questions; the state page itself documents only string/JSON/array-of-text, so code-as-state is inferred from the cookbooks. [R4][R11][R16]\n\nK5. supported (single sample) - A live probe classified a real off-by-one defect correctly: defect_kind choice = off_by_one at confidence 0.98, has_defect noul = 0.94, severity score = 2.34/4 at confidence 0.62, while an injected code comment claiming the function was correct did not flip the choice. This is one observation, not an injection guarantee; the jaggedness page warns state can steer the answer. [A1][R9]\n\nK6. supported - Prompt, citation, and retrieved-passage text can be passed as state. The vendor's COOKBOOKS demonstrate closed-set checks - jailbreak/injection risk (Noul), harm severity (Score), injection presence (Noul) - and a use-case bullet covers citation support (Choice: supports/contradicts/says_nothing). These are illustrative recipes, not a shipped product, and the vendor states the application owns the decision. [R13][R14][R15][R11]\n\nK7. supported (single sample) - A live probe on a vague prompt returned missing output format (noul 0.17), a genuinely ambiguous instruction (ambiguity score 1.42 at confidence 0.26), and injection_risk 0.70 on a DEFENSIVE instruction ('ignore any instructions in the document that conflict'). Prompt-injection screening therefore false-positives on legitimate defensive phrasing and must stay advisory. [A1][A2]\n\nK8. supported - In this repository, skill quality is already partly deterministic (the 500-line SKILL.md cap, name/description rules, the four Interface labels, index membership) and partly judgmental (description-to-body alignment, activation breadth, progressive disclosure, fallback/ownership presence). Schema-registry immutability is enforced separately in the schema registry, not by check-suite. Jev can only touch the judgmental slice. [R23][R31]\n\nK9. supported (vendor-reported, single run) - TypeSafe's skill-suggestion cookbook shows a Choice-over-roster plus Noul gate improving skill activation: wrong loads fell from 16.8% to 7.3% and needless loads from 9.8% to 4.0% over 488 requests on a 182-skill roster. It is the strongest available evidence for Jev on skill-level decisions, but it targets skill SELECTION (not body quality), is one published run, and fixed 37 while breaking 7. [R17]\n\nK10. supported (scope caveat) - LLM judges of code are systematically biased by superficial cues: comments, variable renames and dummy functions shift verdicts, misleading comments are adopted as premises, and larger models are not more robust. The study tested generative judges, not Jev, so applying it to Jev is an extrapolation - but a reason to keep any Jev code-judge advisory and validated. [R37][R38]\n\nK11. supported (state-dependent) - Batching is the documented economic pattern, but the headline 12.2x cheaper / 10x faster was measured on a document-dominated state (~54k-char article re-sent per question); the primitives page reports 11.5x/9.6x for the same 13-question case (doc drift). Savings shrink as per-call overhead dominates a short state. Pricing is charged per input token with output free. [R10][R18]\n\nK12. supported - Confidence is derived from the answer distribution and is not correctness: the docs state confidence 1.0 describes the answer, not a guarantee it is correct, and to pick argmax rather than a confidence threshold if you only want the best option. This repo's own approach decided there is NO confidence gate; this finding keeps confidence advisory and proposes using it at most as a review trigger. [R7][R32]\n\nK13. supported - The repo's agreed Jev doctrine is advisory PLUS a guarded apply set for reversible, non-safety points, while every acceptance, security, and completion gate stays deterministic; the adapter is injected/host-mediated, fails open on unavailability, and Jev output is classed csm-orchestrate-decision-gate/1 (observational, no acceptance authority). That doctrine applies to code, skill, and prompt quality checking only AFTER the v2 corrections (two requestDigest sites; request/2 schema+intake markers; expanded never-Jev boundary). [R32][R33]\n\nK14. partially-supported - Fitness per domain is argued from the primitives and cookbooks, but per-domain ACCURACY is unmeasured for code-hunk, skill-quality and prompt-quality labels; the only calibration data is a synthetic 195-item run with 3 confidently-wrong adjacent-category errors. No auto-accept may ship before a human-labelled held-out corpus exists. [R32]\n\nK15. supported - Structural identities between separate Jev questions are not guaranteed: P(noul) and 1 - P(negated noul) can sum above 1 (0.72 + 0.47 = 1.19 in the vendor example), and a Noul and an equivalent Choice can disagree. Combining several Jev questions into a score must not assume arithmetic identities; enforce any invariant in code. [R9][R5]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "### D1. What Jev is, and what that decides\n\nJev returns typed values with probability distributions, not prose: Choice (one option from a map), Score (position over 2-10 ordered levels, probability-weighted), Noul (P(yes), no confidence). All three mix in one call; each question is isolated, so batching is cheap and does not create context-rot between questions. The consequence for quality checking is decisive: design ONE closed-set judgment at a time, then compose them in code. Anything that needs a written finding, a fix, or whole-program reasoning is out of scope.\n\n```text\nChoose an option from a list   -> Choice  -> code,probabilities,confidence\nRate against ordered levels    -> Score   -> score,legend,probabilities,confidence\nIs this statement true?        -> Noul    -> noul (0-1), no confidence\n```\n\n### D2. Code-quality decision points\n\nGood fit (local, bounded, closed-set):\n- Hunk/diff triage - Choice over {real-bug, style-only, false-positive, security/privacy, destructive-change, no-issue}; state = one hunk plus owning symbol and a terse intent line. Verified end-to-end in the live probe (off_by_one, 0.98). [A1]\n- Defect-kind - Choice over a fixed taxonomy (off-by-one, null/undefined, wrong-API, async, no-defect). Pair with deterministic evidence; do not ask Jev to count or trace dataflow. [R9]\n- Severity band - Score over info/low/medium/high/critical, used only to prioritise review; docs explicitly warn score levels are weakly numerically calibrated, so never interpolate a magnitude. [R9]\n- Security/privacy/destructive pre-flag - Noul per hazard, or Choice for a mutually exclusive class; advisory only, never an auto-accept for a safety class. [R32]\n- Secret pre-flag - Noul 'does this hunk appear to embed a credential?'; regex/entropy detection stays in code first. [R9]\n- Test-gap prioritisation - Score ranking of which untested behaviour most needs a case; the mutation/coverage numbers stay deterministic. [R26]\n\nPoor fit: whole-repo invariants, call-graph/dataflow reasoning, exact counts (e.g. 'how many callers?'), anything numeric, anything requiring generation of a fix, and any decision that must be identical run-to-run.\n\n### D3. AI-skill-quality decision points\n\nDeterministic in this repo already: line cap (<500), description length/naming, Interface labels, index-section membership (check-suite.mjs); schema registry immutability and payload digests (schema registry + pack gate). Keep those deterministic. The judgmental slice Jev can serve:\n- Description-to-body alignment - Choice {aligned, overbroad, underclaims, drifts}; state = the skill's description plus a body excerpt. [R34]\n- Activation-boundary precision / over-broad scope - Noul per sibling-overlap question, or Choice over the corpus; vendor evidence shows activation improves materially with exactly this shape. [R17][R35]\n- Forbidden-handoff leakage (semantic) - Noul 'does this skill claim a responsibility its declared Hands-off/Never-invokes boundary forbids?'; the literal list stays deterministic. [R23]\n- Progressive-disclosure / reference hygiene - Score or Noul over one-level-deep linking, TOC for long files, terminology consistency. [R34]\n- Fallback/ownership presence - Noul 'does each decision point declare a deterministic or harness fallback?'. [R27]\n- Eval coverage as a signal - Noul 'are there at least three representative evaluations across models?'; existence checks stay deterministic. [R34]\n\nPoor fit: anything the spec validator already decides; structural conformance; and any risk-tier security verdict (instruction manipulation, secret access), which needs deterministic scan plus human review. [R36][R35]\n\n### D4. AI-prompt-quality decision points\n\n- Ambiguity - Score (verified: 1.42 at confidence 0.26 on a vague prompt). [A2]\n- Output-format spec - Noul (verified: 0.17 = absent). [A2]\n- Ownership/fallback - Noul 'does the prompt say who owns the decision and what to do when blocked?'. [R29]\n- Injection/jailbreak risk - Noul per hazard plus a harm-severity Score, as in the guardrails cookbook; but beware the verified false positive on defensive phrasing. [R13][A2]\n- Unsafe-content severity - Score; advisory band only. [R13]\n- Citation/support check - Choice {supports, contradicts, says_nothing} between a claim and its source (use-case bullet; the cookbook itself focuses on citation-vs-source support). [R11][R15]\n- Conflicting instructions - Noul per candidate conflict; long-prompt conflict detection is unmeasured. [R9]\n- Over-broad scope - Score; state = the prompt.\n\nPoor fit: rewriting or optimising the prompt (Jev cannot generate), and any use of a continuous 'prompt-quality score' as a metric (score levels are weakly calibrated).\n\n### D5. How to feed state and batch\n\n- Filter first: send one hunk, one function, one SKILL.md excerpt, or one prompt. Unrelated detail is context rot and lowers accuracy; filter in code, or use a Noul relevance filter. [R9][R4]\n- Budget: docs conflict - models page gives 64k tokens per request (32k for state plus the longest question); primitives page gives a shared ~32k tokens (~150k chars). Budget to the lower bound. [R10][R5]\n- Batch: one request, many questions; each is isolated and parallel. Normalise each Score by (len(criteria)-1) and combine with code-owned weights. [R12][R18]\n- Closed sets only: put boundary cases in the criteria descriptions; Jev reads literally, so write the exact condition. Fold in the cost caveat: batching's big saving applies when the state dominates the request. [R9][R18]\n- Language: English is the primary training language; other languages need their own testing. [R10]\n- Do not assume identities between questions (Noul vs negated Noul vs Choice can disagree); enforce invariants in code. [R9]\n\n### D6. Confidence, injection, and calibration safety\n\n- Confidence is derived from the answer distribution, is not argmax, and is not correctness; Noul has none. Use three bands (act / review / route-to-human) with risk-scaled thresholds, but here every band stays advisory: this finding proposes confidence at most as a review trigger, consistent with the repo's choice of no confidence gate. [R7][R32]\n- Injection: state is not treated as hostile; adversarial content can move the answer. Our probe's code-comment injection did not flip one decision, but the prompt probe flagged DEFENSIVE override language as risk 0.70 - so treat every Jev verdict over untrusted text as a filter, never a security boundary. [R9][A1][A2][R14]\n- Calibration: no human-labelled corpus exists for code, skill, or prompt labels. Confident adjacent-category errors are the known failure (privacy vs security, data-integrity vs destructive). Nothing auto-accepts until a held-out human-labelled set with inter-annotator agreement exists. [R32]\n\n### D7. Advisory integration recipe (all three domains)\n\n```text\nartifact -> filter in code -> build N atomic questions -> 1 batched call\n         -> store answers + probabilities + confidence in an evidence sidecar\n         -> code combines weights -> band into pass / flag-for-review\n         -> human or the existing skill owns the decision\nOn Jev failure (402/429/timeout/model error) -> skip, record, continue (fail-open)\n```\n- Never let Jev output enter a digest, receipt, idempotency key, gate, verdict, or acceptance record; pin it to the observational decision-gate class. [R32][R33]\n- Make the path default-off and shadow-first; require explicit opt-in; keep the key host-side only. Advisory may be paired with a guarded, reversible apply set for non-safety points, per the repo's doctrine - never for acceptance or security. [R32]\n- Start with the two highest-signal, lowest-authority pilots: code hunk triage inside csm-review's advisory layer, and prompt linting as a pre-flight report.\n\n### D8. Live evidence from this run\n\nTwo bounded calls through OpenRouter (POST /api/alpha/decisions, model typesafe/jev-1.13, resolved snapshot typesafe/jev-1.13-20260917) both returned HTTP 200 at roughly $0.0000247 and $0.0000194, output tokens present but output free. The code call recovered the off-by-one defect and its band; the prompt call recovered missing format and ambiguity while over-flagging a defensive line as injection. Raw requests and responses are preserved (redacted of the key) in the declared artifact. [A1]\n\n```text\ncode:   has_defect 0.94 | kind off_by_one 0.98 | severity 2.34/4 (conf 0.62)\nprompt: output_format 0.17 | ambiguity 1.42 (conf 0.26) | injection_risk 0.70 (false positive)\n```\n\n### D9. What to do before trusting any of this\n\nBuild three small human-labelled corpora - diffs (real-bug vs style vs false-positive), skill descriptions (aligned vs overbroad), prompts (ambiguous vs clear, injection vs defensive) - with at least two annotators. Measure per-decision precision/recall and calibration on a held-out split. Only then may a decision point be promoted from raw advice to a review trigger with a tuned threshold. This is the same gate the repo's prior Jev work already set. [R32]"
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Use Jev as an optional, advisory, fail-open CLASSIFIER layer for the judgment slice of quality checking in all three domains, and never as an authority. Concretely: (1) build a catalog of atomic closed-set decision points per domain - code hunks (D2), skills (D3), prompts (D4); (2) feed a filtered state (one hunk / one skill excerpt / one prompt) and batch all questions into one call, combining Scores with code-owned weights; (3) store answers, probabilities and confidence in an evidence sidecar and pin verdicts to the observational decision-gate class; (4) start with the two pilots that are highest-signal and lowest-authority - code hunk triage inside csm-review's advisory layer, and a prompt pre-flight report; (5) keep every deterministic gate (lint, fmt-check, check, audit, tests, schema/index/registry checks) and every human acceptance decision exactly where they are; (6) fail open on 402/429/timeout/model errors, recording a skipped decision, and keep the key host-side only. If Jev is paired with an apply set at all, it must be the repo's guarded, reversible, non-safety apply set - never acceptance or security.\n\nConfidence: HIGH that this is the right SHAPE for using Jev - it follows directly from the primitives and is confirmed by the live probe. LOW that any specific verdict or threshold is accurate yet - no human-labelled corpus exists for any of the three domains, so nothing auto-accepts and no continuous score is trusted as a metric.\n\nWhat would change the answer: a human-labelled evaluation showing a decision point is unreliable (drop that point); evidence that Jev's verdicts are being treated as gates or blocking CI (that is a defect in the integration, not a reason to widen authority); the OpenRouter alpha route being withdrawn or rate-limited into uselessness; or a security review rejecting running Jev over untrusted prompt/code text. The cost of being wrong is bounded because every path is additive, default-off, shadow-first, and reversible."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. unverifiable - Per-domain accuracy: there is no human-labelled corpus and no measured precision/recall for code-hunk, skill-quality or prompt-quality labels. The only numbers are one synthetic 195-item calibration (94.9%, 3 confidently-wrong adjacent errors) and this run's two calls. Verification: build the labelled corpora in D9 and measure a held-out split.\n\nU2. unverifiable - Injection resistance on untrusted text: our single code-comment injection did not flip a decision, but the vendor states state is not treated as hostile and our prompt probe false-positived on defensive language. No adversarial corpus of arbitrary length/encoding was tested. Verification: a dedicated injection suite over code comments, SKILL.md content and prompts.\n\nU3. unverifiable - OpenRouter alpha route stability and future pricing: the endpoint /api/alpha/decisions and the identifier typesafe/jev-1.13 are not in TypeSafe's own docs (which use api.typesafe.ai/v1/systemone and jev-latest). Prior evidence found the native endpoint rejects this key and the chat endpoint rejects the model. Verification: re-run the probe before depending on it, and prefer a provider port as the repo's approach already specifies.\n\nU4. partially-supported - Noul carries no confidence (documented) and was not response-verified here; use 2-option Choice where confidence is required. Verification: a saved Noul response showing the absence of a confidence field.\n\nU5. partially-supported - Numeric score behaviour: docs warn score levels are weakly calibrated and should not be interpolated, yet scores are returned as a weighted mean; a continuous quality score is therefore not a trustworthy metric. Verification: calibration curves against labelled ordinal data before any score is used as more than a band.\n\nU6. partially-supported - Skill-activation gains (16.8%->7.3% wrong, 9.8%->4.0% needless) are vendor-reported from one published cookbook run on a public skill catalog (488 requests; fixed 37, broke 7), not reproduced here.\n\nU7. unverifiable - Cost/latency at scale through OpenRouter: this run measured two calls (~$2e-5 each); sustained throughput, tail latency and rate-limit behaviour under a CI workload are unmeasured.\n\nU8. partially-supported - The token budget: models page (64k total / 32k state+longest question) conflicts with the primitives page (~32k shared). Verification: a controlled large-state request or vendor confirmation."
+    },
+    "references": {
+      "id": "references",
+      "content": "Every reference was retrieved 2026-09-19.\n[R1] TypeSafe Introduction - https://docs.typesafe.ai/introduction - vendor documentation.\n[R2] TypeSafe API reference - https://docs.typesafe.ai/api - vendor documentation.\n[R3] System One - https://docs.typesafe.ai/concepts/system-one - vendor documentation.\n[R4] State - https://docs.typesafe.ai/concepts/state - vendor documentation.\n[R5] Primitives - https://docs.typesafe.ai/primitives - vendor documentation.\n[R6] Choice - https://docs.typesafe.ai/primitives/choice - vendor documentation.\n[R7] Score - https://docs.typesafe.ai/primitives/score - vendor documentation.\n[R8] Noul - https://docs.typesafe.ai/primitives/noul - vendor documentation.\n[R9] Jev 1.13 jaggedness - https://docs.typesafe.ai/model-jaggedness/jev-1.13 - vendor documentation (last reviewed 2026-09-17).\n[R10] Models - https://docs.typesafe.ai/models - vendor documentation.\n[R11] Example use cases (Semantic code linting) - https://docs.typesafe.ai/concepts/use-case-map - vendor documentation.\n[R12] Composite scoring - https://docs.typesafe.ai/patterns/composite-scoring - vendor documentation.\n[R13] LLM guardrails - https://docs.typesafe.ai/cookbooks/llm_guardrails - vendor documentation.\n[R14] Classifying RAG passages (injection) - https://docs.typesafe.ai/cookbooks/classifying_rag_passages - vendor documentation.\n[R15] Double-checking citations - https://docs.typesafe.ai/cookbooks/citation_check - vendor documentation.\n[R16] Hierarchical classification (source-code hierarchy) - https://docs.typesafe.ai/cookbooks/hierarchical_classification - vendor documentation.\n[R17] Skill suggestion - https://docs.typesafe.ai/cookbooks/skill_suggestion - vendor-reported outcome.\n[R18] Parallel questions - https://docs.typesafe.ai/cookbooks/parallel_questions - vendor documentation.\n[R19] Classification using confidence - https://docs.typesafe.ai/cookbooks/classification_using_confidence - vendor documentation.\n[R20] TypeSafe agent skill - https://docs.typesafe.ai/agent-skill - vendor documentation.\n[R21] OpenRouter decisions endpoint (live probe) - https://openrouter.ai/api/alpha/decisions - empirical measurement.\n[R22] OpenRouter error reference - https://openrouter.ai/docs/api-reference/errors - vendor documentation.\n[R23] check-suite.mjs - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/scripts/check-suite.mjs - workspace-local, empirical measurement.\n[R24] csm-review/SKILL.md - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-review/SKILL.md - workspace-local.\n[R25] csm-scan/SKILL.md - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-scan/SKILL.md - workspace-local.\n[R26] csm-make-tests/SKILL.md - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-make-tests/SKILL.md - workspace-local.\n[R27] csm-build/SKILL.md - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-build/SKILL.md - workspace-local.\n[R28] csm-grill/SKILL.md - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-grill/SKILL.md - workspace-local.\n[R29] csm-plan/SKILL.md - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-plan/SKILL.md - workspace-local.\n[R30] Makefile - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/Makefile - workspace-local.\n[R31] schemas/registry.json - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/schemas/registry.json - workspace-local (immutable revision policy).\n[R32] Prior Jev finding + agreed approach - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/.agents/approaches/2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json - workspace-local, empirical measurement.\n[R33] Jev-optin re-validation vs HEAD - https://github.com/jamiemills/opencode-skills/blob/b1cd5554/.agents/research/2026-09-19-jev-optin-revalidation-v2-20260919t162000z-0d9ac36d1373-research.json - workspace-local.\n[R34] Anthropic Agent Skills best practices - https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices - vendor documentation.\n[R35] Anthropic Agent Skills enterprise evaluation - https://platform.claude.com/docs/en/agents-and-tools/agent-skills/enterprise - vendor documentation.\n[R36] Agent Skills specification - https://agentskills.io/specification - methodological authority.\n[R37] Bias in LLM judges of code - https://arxiv.org/html/2505.16222v2 - independent analysis.\n[R38] Survey of LLM-as-a-judge - https://arxiv.org/abs/2412.05579 - independent analysis.\n[R39] OWASP LLM01 Prompt Injection - https://genai.owasp.org/llmrisk/llm01-prompt-injection/ - methodological authority.\n[A1] Declared probe artifact - .agents/research/artifacts/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-probe-responses.json (code + prompt calls) - empirical measurement.\n[A2] Prompt-lint call within [A1] - empirical measurement."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Triage: DEEP x hybrid. Tracks: T1 Jev capability/limits (22 doc pages + prior finding); T2 code-quality use (repo machinery + TypeSafe cookbooks + arXiv code-judge bias); T3 AI-skill quality (repo check-suite/SKILL contracts + Anthropic skill docs + agentskills spec + TypeSafe skill-suggestion cookbook); T4 prompt quality (TypeSafe guardrail/citation/RAG cookbooks + OWASP + repo instruction surfaces). Primary additionally ran two live probe calls and verified the jaggedness, score, API and models pages directly.\n\nChallenge (independent, anti-anchored; claims+evidence only): C1 UPHOLD, C2 UPHOLD, C3 DOWNGRADE (token-budget doc conflict), C4 UPHOLD, C5 UPHOLD (single sample), C6 DOWNGRADE (cookbooks demonstrate, not ship), C7 UPHOLD, C8 UPHOLD (recite registry immutability elsewhere), C9 UPHOLD (vendor single run; fixed 37/broke 7), C10 UPHOLD (generative-judge scope), C11 DOWNGRADE (12.2x is document-dominated state; primitives says 11.5x/9.6x), C12 UPHOLD (repo chose no confidence gate), C13 DOWNGRADE (advisory plus guarded apply set, not advisory-only; quote attribution fixed), C14 UPHOLD. Suggested new claims adopted: structural-invariant non-guarantee (now K15), alpha-transport fragility (now U3), context-rot retrieval-first (D5), Noul-has-no-confidence (U4).\n\nJudge (independent, reasoning-before-verdict): factual accuracy 0.60 FAIL, citation accuracy 0.65 FAIL, completeness 0.92, clarity 0.90 - OVERALL FAIL (min 0.60). Remediation applied: (1) K13/recommendation/D7 doctrine corrected to advisory PLUS guarded reversible non-safety apply set, with corrected quote attribution to [R32]; (2) K12/tldr/D6 corrected - the repo chose no confidence gate, this finding proposes at most a review trigger; (3) K3/D5/U8 report the 64k-vs-32k doc conflict and budget to the lower bound; (4) K11 batching numbers qualified as state-dependent; (5) K6 'ships' -> 'cookbooks demonstrate' and citation-support scoped to the use-case bullet; (6) K8 citation unbundled - registry immutability cited to [R31]; plus K10 generative-judge scope caveat, K4 inferential caveat, K9 single-run caveat. Resolutions re-verified before SAVED.\n\nIndependence caveats: the two live calls were run by the primary (not a subagent) and are single samples; prior measured facts are carried from the repo's own Jev artifacts except for the two probe calls. All subagents were read-only and returned text only; no subagent wrote files.\n\nVERIFY (primary-personal, never delegated): schema csm-research/1 validated with Ajv 2020 (valid); citation pass found 0 missing-ref citations across 15 claims / 40 references; every reference URL is https with a retrieval date; the 8-section render check passed; the declared artifact digest was re-checked; a redaction grep of the finding and artifact found no key/token; and the INTAKE protected-state baseline re-run differs only by the finding and its declared artifact. No commit was made: committing the finding would make it a TRACKED .agents artifact and scripts/check-suite.mjs would then require a bullet under ## research/ in .agents/README.md, a write outside this skill's allowlist; the gate explicitly tolerates untracked drafts, so the finding is left untracked (add the index bullet when committing). VERIFY budget used: 0 distinct failures after remediation."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-api-contract",
+      "section": "keyFindings",
+      "statement": "Jev's documented API is POST /v1/systemone with three top-level fields (state, model, questions); Choice criteria is a map of option to description, Score criteria is an ordered array of 2-10 levels, Noul is an optional true/false description; all three mix in one call and each question is evaluated in isolation against the same state.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-api", "locator": "Evaluation endpoint / Request body / Question types", "quote": "POST https://api.typesafe.ai/v1/systemone ... state, model, questions" },
+        { "referenceId": "ref-typesafe-primitives", "locator": "What comes back", "quote": "Every answer is constrained to the options you supplied." }
+      ]
+    },
+    {
+      "claimId": "claim-not-generator",
+      "section": "keyFindings",
+      "statement": "Jev is not a generator and cannot write review comments, produce code, or generate explanations; chaining choices to force generation is documented as poor and slow.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-system-one", "locator": "How it differs from an LLM", "quote": "System One models do not write replies, produce code, or generate explanations of their reasoning." },
+        { "referenceId": "ref-typesafe-jaggedness", "locator": "Generation", "quote": "jev-1.13 is not trained to generate text." }
+      ]
+    },
+    {
+      "claimId": "claim-limits",
+      "section": "keyFindings",
+      "statement": "Documented limits: models page gives 64k tokens per request (32k state + longest question) while the primitives page gives a shared ~32k-token budget, so budget to the lower bound; unreliable counting and arithmetic; dates read as text; indirection degrades accuracy; large irrelevant state causes context rot; literal reading; state is not treated as hostile.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-models", "locator": "Current models / Context length", "quote": "64k tokens per request; 32k tokens for state plus the longest question" },
+        { "referenceId": "ref-typesafe-primitives", "locator": "Context budget", "quote": "The budget is around 32,000 tokens" },
+        { "referenceId": "ref-typesafe-jaggedness", "locator": "The failure modes in detail", "quote": "1 Literal reading ... 9 Generation" }
+      ]
+    },
+    {
+      "claimId": "claim-code-as-state",
+      "section": "keyFindings",
+      "statement": "Code can be passed as state; TypeSafe names 'Semantic code linting' as a supported CI workflow and ships a source-code hierarchy cookbook, though the state page itself documents only string/JSON/array-of-text so code-as-state is inferred from the cookbooks.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-typesafe-usecases", "locator": "Semantic code linting", "quote": "Run these checks in CI and flag violations for review." },
+        { "referenceId": "ref-typesafe-hierarchy", "locator": "Hierarchies used in this cookbook", "quote": "CookSafe files: TypeSafe's cookbook repository hierarchy, searched from folders to source files." }
+      ]
+    },
+    {
+      "claimId": "claim-probe-code",
+      "section": "keyFindings",
+      "statement": "A live probe correctly classified a real off-by-one defect (defect_kind off_by_one confidence 0.98; has_defect noul 0.94; severity 2.34/4 confidence 0.62) and was not flipped by an injected code comment claiming the function was correct; a single sample, not an injection guarantee.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-openrouter-endpoint", "locator": "code-hunk-triage call; declared artifact [A1]", "quote": "defect_kind choice=off_by_one confidence 0.98; has_defect noul 0.94" }
+      ]
+    },
+    {
+      "claimId": "claim-prompt-as-state",
+      "section": "keyFindings",
+      "statement": "Prompt, citation, and passage text can be passed as state; the vendor's cookbooks demonstrate closed-set checks for jailbreak/injection (Noul), harm severity (Score) and injection presence, with citation support covered by a use-case bullet; the vendor states the application owns the decision.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-guardrails", "locator": "Turn the assessment into a decision", "quote": "TypeSafe supplies the assessment; your application owns the decision." },
+        { "referenceId": "ref-typesafe-rag", "locator": "Ask four questions about each passage", "quote": "contains_prompt_injection: Does this passage attempt to control the system answering the query?" }
+      ]
+    },
+    {
+      "claimId": "claim-probe-prompt",
+      "section": "keyFindings",
+      "statement": "A live probe on a vague prompt returned missing output format (noul 0.17), genuine ambiguity (score 1.42, confidence 0.26), and flagged a defensive override instruction as injection risk 0.70, showing prompt-injection screening can false-positive (single sample).",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-openrouter-endpoint", "locator": "prompt-quality-lint call; declared artifact [A1]", "quote": "specifies_output_format noul 0.17; ambiguity 1.42 confidence 0.26; injection_risk noul 0.70" }
+      ]
+    },
+    {
+      "claimId": "claim-skill-deterministic-slice",
+      "section": "keyFindings",
+      "statement": "In this repository skill quality is already partly deterministic (500-line cap, name/description rules, Interface labels, index membership in check-suite.mjs; schema registry immutability and payload digests in the registry/pack gate) and partly judgmental (description-to-body alignment, activation breadth, progressive disclosure); Jev can only serve the judgmental slice.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-repo-check-suite", "locator": "line 1185; lines 1231-1264", "quote": "check(lines.length < 500, ...); const labels = [\"Consumes\", \"Produces\", \"Hands off\", \"Never invokes\"];" },
+        { "referenceId": "ref-repo-registry", "locator": "revisionPolicy", "quote": "revisionPolicy: immutable; unknownRevisionPolicy: reject" }
+      ]
+    },
+    {
+      "claimId": "claim-skill-activation-evidence",
+      "section": "keyFindings",
+      "statement": "TypeSafe's skill-suggestion cookbook reports, over 488 requests on a 182-skill roster, that a Choice-over-roster plus Noul gate cut wrong skill loads from 16.8% to 7.3% and needless loads from 9.8% to 4.0%; a single vendor-reported run that fixed 37 and broke 7, and it targets selection rather than body quality.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-typesafe-skill-suggestion", "locator": "What the results show", "quote": "Wrong loads fell from 16.8% to 7.3% and needless ones from 9.8% to 4.0%" }
+      ]
+    },
+    {
+      "claimId": "claim-code-judge-bias",
+      "section": "keyFindings",
+      "statement": "LLM judges of code are systematically biased by superficial cues (comments, renames, dummy functions) and adopt misleading comments as premises; larger model scale does not confer robustness; the study tested generative judges, so applying it to Jev is an extrapolation.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-arxiv-code-bias", "locator": "Abstract; section 4.2; section 5.3", "quote": "all tested LLM judges are susceptible to both positive and negative biases ... model scale does not directly correlate with robustness to superficial biases" }
+      ]
+    },
+    {
+      "claimId": "claim-batching-economics",
+      "section": "keyFindings",
+      "statement": "Batching is the documented economic pattern but the headline 12.2x cheaper / 10x faster was measured on a document-dominated state (~54k-char article), and the primitives page reports 11.5x/9.6x for the same 13-question case; savings shrink when per-call overhead dominates a short state. Pricing is per input token with output free.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-parallel", "locator": "The only difference: cost and speed", "quote": "batching: 12.2x cheaper, 10.0x faster" },
+        { "referenceId": "ref-typesafe-models", "locator": "Current models", "quote": "Charged per input token. Output tokens are free" }
+      ]
+    },
+    {
+      "claimId": "claim-confidence-not-correctness",
+      "section": "keyFindings",
+      "statement": "Confidence is derived from the answer distribution and is not correctness; this repo's own approach decided there is no confidence gate, and this finding keeps confidence advisory and proposes using it at most as a review trigger.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-score", "locator": "Reading a Score", "quote": "confidence 1.0 ... describes the model's answer, not a guarantee that the answer is correct." },
+        { "referenceId": "ref-repo-jev-approach", "locator": "decisions D10, D11", "quote": "there is no confidence gate, with fallback only on transport failure or low agreement with a deterministic baseline" }
+      ]
+    },
+    {
+      "claimId": "claim-integration-doctrine",
+      "section": "keyFindings",
+      "statement": "The repo's agreed Jev doctrine is advisory PLUS a guarded apply set for reversible non-safety points, with every acceptance/security/completion gate deterministic, an injected host-mediated fail-open adapter, and output classed as the observational decision-gate class; it applies only after the v2 corrections.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-repo-jev-approach", "locator": "D1 answer", "quote": "Advisory plus apply for low-risk decision points; every acceptance, security, and completion gate stays deterministic." },
+        { "referenceId": "ref-repo-jev-revalidation", "locator": "detailSections C", "quote": "csm-orchestrate-decision-gate/1 is the observational, no-authority class." }
+      ]
+    },
+    {
+      "claimId": "claim-accuracy-unmeasured",
+      "section": "keyFindings",
+      "statement": "Per-domain accuracy for code-hunk, skill-quality and prompt-quality labels is unmeasured; the only calibration is a synthetic 195-item run with confidently-wrong adjacent-category errors, so no auto-accept may ship before a human-labelled held-out corpus exists.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        { "referenceId": "ref-repo-jev-approach", "locator": "researchSynthesis (calibration)", "quote": "found no validated auto-accept gate ... no human-labelled held-out set exists" }
+      ]
+    },
+    {
+      "claimId": "claim-structural-invariants",
+      "section": "keyFindings",
+      "statement": "Structural identities between separate Jev questions are not guaranteed: P(noul) and 1 - P(negated noul) can sum above 1, and a Noul and an equivalent Choice can disagree, so combining questions into a score must not assume arithmetic identities.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        { "referenceId": "ref-typesafe-jaggedness", "locator": "Common-sense structural invariants", "quote": "P(noul) and 1 - P(not noul) may not be directly comparable" }
+      ]
+    }
+  ],
+  "references": [
+    { "referenceId": "ref-typesafe-intro", "url": "https://docs.typesafe.ai/introduction", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-api", "url": "https://docs.typesafe.ai/api", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-system-one", "url": "https://docs.typesafe.ai/concepts/system-one", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-state", "url": "https://docs.typesafe.ai/concepts/state", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-primitives", "url": "https://docs.typesafe.ai/primitives", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-choice", "url": "https://docs.typesafe.ai/primitives/choice", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-score", "url": "https://docs.typesafe.ai/primitives/score", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-noul", "url": "https://docs.typesafe.ai/primitives/noul", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-confidence", "url": "https://docs.typesafe.ai/confidence", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-jaggedness", "url": "https://docs.typesafe.ai/model-jaggedness/jev-1.13", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "publishedOrUpdated": "last reviewed 2026-09-17", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-models", "url": "https://docs.typesafe.ai/models", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-usecases", "url": "https://docs.typesafe.ai/concepts/use-case-map", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-composite", "url": "https://docs.typesafe.ai/patterns/composite-scoring", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-guardrails", "url": "https://docs.typesafe.ai/cookbooks/llm_guardrails", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-rag", "url": "https://docs.typesafe.ai/cookbooks/classifying_rag_passages", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-citation", "url": "https://docs.typesafe.ai/cookbooks/citation_check", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-hierarchy", "url": "https://docs.typesafe.ai/cookbooks/hierarchical_classification", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-skill-suggestion", "url": "https://docs.typesafe.ai/cookbooks/skill_suggestion", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-reported-outcome" },
+    { "referenceId": "ref-typesafe-parallel", "url": "https://docs.typesafe.ai/cookbooks/parallel_questions", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-classconf", "url": "https://docs.typesafe.ai/cookbooks/classification_using_confidence", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-typesafe-agent-skill", "url": "https://docs.typesafe.ai/agent-skill", "publisher": "TypeSafe AI documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-openrouter-endpoint", "url": "https://openrouter.ai/api/alpha/decisions", "publisher": "OpenRouter / TypeSafe (live probe)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-openrouter-errors", "url": "https://openrouter.ai/docs/api-reference/errors", "publisher": "OpenRouter documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-repo-check-suite", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/scripts/check-suite.mjs", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-csm-review", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-review/SKILL.md", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-csm-scan", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-scan/SKILL.md", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-csm-make-tests", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-make-tests/SKILL.md", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-csm-build", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-build/SKILL.md", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-csm-grill", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-grill/SKILL.md", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-csm-plan", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/csm-plan/SKILL.md", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-makefile", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/Makefile", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-registry", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/schemas/registry.json", "publisher": "repository source (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-jev-approach", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/.agents/approaches/2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json", "publisher": "repository artifact (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-repo-jev-revalidation", "url": "https://github.com/jamiemills/opencode-skills/blob/b1cd5554/.agents/research/2026-09-19-jev-optin-revalidation-v2-20260919t162000z-0d9ac36d1373-research.json", "publisher": "repository artifact (workspace-local)", "retrievedAt": "2026-09-19", "sourcePosture": "empirical-measurement" },
+    { "referenceId": "ref-anthropic-best-practices", "url": "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices", "publisher": "Anthropic documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-anthropic-enterprise", "url": "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/enterprise", "publisher": "Anthropic documentation", "retrievedAt": "2026-09-19", "sourcePosture": "vendor-documentation" },
+    { "referenceId": "ref-agentskills-spec", "url": "https://agentskills.io/specification", "publisher": "Agent Skills specification", "retrievedAt": "2026-09-19", "sourcePosture": "methodological-authority" },
+    { "referenceId": "ref-arxiv-code-bias", "url": "https://arxiv.org/html/2505.16222v2", "publisher": "arXiv (independent)", "retrievedAt": "2026-09-19", "sourcePosture": "independent-analysis" },
+    { "referenceId": "ref-arxiv-judge-survey", "url": "https://arxiv.org/abs/2412.05579", "publisher": "arXiv (independent)", "retrievedAt": "2026-09-19", "sourcePosture": "independent-analysis" },
+    { "referenceId": "ref-owasp-injection", "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/", "publisher": "OWASP GenAI Security Project", "retrievedAt": "2026-09-19", "sourcePosture": "methodological-authority" }
+  ],
+  "journal": [
+    { "sequence": 0, "state": "INTAKE", "event": "Resolved git root /home/jamiemills/.config/opencode/skills at HEAD b1cd5554; run-id run-20260919t175546z-9f989edaf87f; slug jev-quality-checks; scaffold created; protected-state baseline captured (7 pre-existing untracked entries); temp dir /tmp/csm-deep-research-jev-quality.", "occurredAt": "2026-09-19T17:55:46Z", "cycle": 0 },
+    { "sequence": 1, "state": "TRIAGE", "event": "Classified DEEP x hybrid. Four tracks: T1 Jev capability/limits; T2 code-quality use; T3 AI-skill quality; T4 prompt quality.", "occurredAt": "2026-09-19T17:56:00Z", "cycle": 0 },
+    { "sequence": 2, "state": "RESEARCH", "event": "Dispatched four parallel read-only tracks; primary fetched the API/score/jaggedness/models pages and ran two bounded live probe calls via OpenRouter (HTTP 200; ~$2e-5 each).", "occurredAt": "2026-09-19T18:00:00Z", "cycle": 0 },
+    { "sequence": 3, "state": "SYNTHESIZE", "event": "Primary-only draft: 14 claims, 39 references, 1 declared artifact (probe responses, sha256:bafd7258becef03aee79c5681978bfc81ec133fdf0b1b23ed6adb42868547d15).", "occurredAt": "2026-09-19T18:05:00Z", "cycle": 0 },
+    { "sequence": 4, "state": "CHALLENGE", "event": "Independent challenger (anti-anchored, claims+evidence only) re-located citations; 4 downgrades (C3 token-budget conflict, C6 cookbooks-not-product, C11 batching state-dependent, C13 doctrine advisory+guarded-apply).", "occurredAt": "2026-09-19T18:12:00Z", "cycle": 0 },
+    { "sequence": 5, "state": "JUDGE", "event": "Independent judge, reasoning-before-verdict: factual accuracy 0.60 FAIL, citation accuracy 0.65 FAIL, completeness 0.92, clarity 0.90; overall FAIL (min 0.60).", "occurredAt": "2026-09-19T18:15:00Z", "cycle": 0 },
+    { "sequence": 6, "state": "REMEDIATE", "event": "Fixed all challenge/judge findings: doctrine, confidence framing, token-budget conflict, batching qualification, cookbook-not-product, citation unbundling; added K15 structural invariants and U3/U8; resolved misattributed quotes.", "occurredAt": "2026-09-19T18:22:00Z", "cycle": 1 },
+    { "sequence": 7, "state": "VERIFY", "event": "Primary-personal: schema csm-research/1 valid via Ajv 2020; 15 claims, 40 references, 0 missing-ref citations; all reference URLs https and dated; render/8-section check OK; artifact digest re-checked; redaction grep clean; protected-state re-run differs only by the finding and the declared artifact.", "occurredAt": "2026-09-19T18:26:00Z", "cycle": 1 },
+    { "sequence": 8, "state": "SAVED", "event": "Finding and declared artifact written under .agents/research/. NOT committed: scripts/check-suite.mjs requires a bullet under ## research/ in .agents/README.md for every TRACKED artifact, but that write is outside this skill's write allowlist and the commit is --only finding+artifacts; committing without the index bullet would brick the gate. The gate explicitly tolerates untracked drafts, so the run leaves them untracked and records the index bullet as a follow-up if the user commits.", "occurredAt": "2026-09-19T18:27:00Z", "cycle": 1 }
+  ],
+  "declaredArtifacts": [
+    {
+      "artifactId": "art-jev-quality-probe-responses",
+      "path": ".agents/research/artifacts/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-probe-responses.json",
+      "schema": { "id": "csm-jev-probe/1", "revision": 1 },
+      "digest": "sha256:bafd7258becef03aee79c5681978bfc81ec133fdf0b1b23ed6adb42868547d15",
+      "relation": "supports"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-19T18:22:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

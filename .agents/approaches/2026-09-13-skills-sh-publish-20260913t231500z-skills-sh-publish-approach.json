@@ -1,0 +1,186 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "runId": "run-20260913t231500z-skills-sh-publish",
+  "ideaSlug": "skills-sh-publish",
+  "status": "agreed",
+  "ideaStatement": "Publish the CSM skills suite to skills.sh as 14 separate, directly-callable, self-contained skills in a new dedicated public repository (jamiemills/csm-skills), generated from a corrected jamiemills/opencode-skills by an in-repo build tool (scripts/pack-skills-sh.mjs) that esbuild-bundles each skill; skills.sh indexes the repo after a telemetry-enabled install, and a Vercel Pack is added for convenience.",
+  "decisions": [
+    {
+      "decisionId": "D1",
+      "question": "Should v1 aim for a discoverable listing only, or a listing whose skills install and run?",
+      "answer": "Install and run, scoped to one self-contained unit for the first cut, expanded to all 14 by later decisions.",
+      "rationale": "A listing of skills that error with ERR_MODULE_NOT_FOUND is low value and audit-visible.",
+      "traceability": ["grill Q1", ".agents/research/2026-09-13-skills-sh-publish-adversarial-20260913t224500z-skills-sh-adversarial-research.json"]
+    },
+    {
+      "decisionId": "D2",
+      "question": "Where should the self-contained unit live and be published from?",
+      "answer": "A dedicated generated publish repo containing the skills, produced by a build script from the dev repo.",
+      "rationale": "Keeps the gated dev repo (mid-regeneration and dirty) stable and avoids coupling publish mechanics into check-suite.",
+      "traceability": ["grill Q2"]
+    },
+    {
+      "decisionId": "D3",
+      "question": "What is the scope of the published suite?",
+      "answer": "All 14 skills bundled and routable; Docker is a documented runtime prerequisite for csm-browse.",
+      "rationale": "csm-orchestrate imports sibling adapters including csm-browse and csm-autoresearch, so excluding skills makes routing incomplete.",
+      "traceability": ["grill Q3", "AGENTS.md:5-9"]
+    },
+    {
+      "decisionId": "D4",
+      "question": "Which skills are in Phase 1 of the build?",
+      "answer": "All 14 in a single phase.",
+      "rationale": "User chose completeness over a phased rollout.",
+      "traceability": ["grill Q4"]
+    },
+    {
+      "decisionId": "D5",
+      "question": "How is each skill made self-contained?",
+      "answer": "esbuild bundles each skill's code and dependencies into dist/*.mjs.",
+      "rationale": "Smallest, most reliable self-contained skill; avoids the 1000-file/25 MiB caps and node_modules commits.",
+      "traceability": ["grill Q5", "deep-dive finding A1"]
+    },
+    {
+      "decisionId": "D6",
+      "question": "Which repository receives the generated skills?",
+      "answer": "A new dedicated public repo, jamiemills/csm-skills.",
+      "rationale": "skills.sh indexes a repo default branch; a single-purpose repo is clean and non-destructive to the dev repo.",
+      "traceability": ["grill Q6", "skills.sh/docs/customize"]
+    },
+    {
+      "decisionId": "D7",
+      "question": "Where do the known source defects get fixed?",
+      "answer": "At source by the owner, before the plan runs; the publish build assumes a corrected source.",
+      "rationale": "The dev repo is dirty/mid-regeneration and touching it triggers payload/index/capabilities regeneration and the gate.",
+      "traceability": ["grill Q7", "PUBLISHING-DEFECTS.md"]
+    },
+    {
+      "decisionId": "D8",
+      "question": "Where does the publish generator live?",
+      "answer": "In the dev repo as scripts/pack-skills-sh.mjs.",
+      "rationale": "Colocated with pack-bootstrap.mjs and testable with the existing suites.",
+      "traceability": ["grill Q8"]
+    },
+    {
+      "decisionId": "D9",
+      "question": "How is the publish repo synced?",
+      "answer": "The generator writes, commits, and pushes to the publish repo via git/gh (auth required).",
+      "rationale": "User chose automation over a manual push step.",
+      "traceability": ["grill Q9", "deep-dive finding A5"]
+    },
+    {
+      "decisionId": "D10",
+      "question": "What listing polish ships in the publish repo?",
+      "answer": "Full: README, skills.sh.json groupings, install badge, LICENSE, and per-skill version metadata + CHANGELOG.",
+      "rationale": "Cheap discoverability and clarity; version metadata is documentation only.",
+      "traceability": ["grill Q10", "agentskills.io/specification"]
+    },
+    {
+      "decisionId": "D11",
+      "question": "How is the skills.sh listing seeded?",
+      "answer": "One telemetry-enabled install plus creation of a Vercel Pack.",
+      "rationale": "A deliberate install is the only reliable trigger for indexing and partner audits; the Pack is a convenience channel.",
+      "traceability": ["grill Q11", "skills.sh/docs/faq", "skills.sh/docs/packs"]
+    },
+    {
+      "decisionId": "D12",
+      "question": "How are first-party modules and import.meta.url runtime reads handled?",
+      "answer": "Bundle all first-party code and dependencies into dist/*.mjs, and refactor runtime resource reads off import.meta.url (static with { type: 'json' } imports, or matched-depth resources).",
+      "rationale": "Bundling relocates import.meta.url and silently breaks relative schema/config reads; refactoring removes the class of failure.",
+      "traceability": ["grill Q12", "deep-dive finding A1/A8"]
+    },
+    {
+      "decisionId": "D13",
+      "question": "What audit posture do the published skills take?",
+      "answer": "Keep the instruction wording unchanged, ship readable (unminified) dist, add SECURITY.md, and keep all 14 capabilities including Docker; soften wording only if a real audit flags it.",
+      "rationale": "Preserves behavioral guardrails; skills.sh excludes only when every partner audit fails, so a warn badge is acceptable and reversible.",
+      "traceability": ["grill Q13", "skills.sh/about", "skills.sh/audits"]
+    }
+  ],
+  "researchSynthesis": "skills.sh is a directory, not a registry: it indexes public GitHub repos whose skills are installed through the open skills CLI, and listing follows anonymous install telemetry (no submission or approval). Empirical tests showed discovery already works on the current tree (13 skills; csm-plan is silently dropped by a YAML parse error caused by an unquoted colon-space in its description). The skills installer copies only the selected skill directory, so shared repo-root lib modules (10 of them), cross-skill imports, and npm dependencies (ajv, ajv-formats, chrome-remote-interface) are absent after a per-skill install; this is why self-contained bundles are required. esbuild can bundle the code, but first-party code locates schemas via import.meta.url, which bundling relocates, so those reads must be refactored. The GitHub clone install path preserves file modes, subdirectories, and package.json and has no documented file cap, whereas the pack/well-known path is text-only with a 2 MB per-file limit and does not preserve modes; the clone path is therefore primary and the pack secondary. Partner scanners flag code obfuscation (favouring unminified output) and override-style directive language; skills.sh excludes a skill only when every partner audit fails. No account is needed to be listed; a GitHub account hosts the repo and a Vercel account/team is needed only for packs and the OIDC API.",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Source remediation and bundle-readiness",
+      "goal": "Make the dev repo jamiemills/opencode-skills bundle-ready and gate-green before any publish generation.",
+      "deliverables": [
+        "csm-plan/SKILL.md description quoted so all 14 skills parse",
+        "Relative paths replacing $HOME/.config/opencode/skills references in csm-browse, csm-upload, csm-deep-research SKILL.md files",
+        "Correct runtime dependency declarations for ajv, ajv-formats, and chrome-remote-interface",
+        "Runtime resource reads refactored off import.meta.url (static JSON imports or matched-depth resources)",
+        "Regenerated bootstrap/package/payload, bootstrap/payload-index.json, and csm-orchestrate/capabilities.json"
+      ],
+      "scope": ["Source edits in the 14 skills and shared lib", "Distribution artifact regeneration", "Repo gate green"],
+      "outOfScope": ["The publish generator", "The publish repository"],
+      "constraints": ["Must not break the live OpenCode install", "No secrets in the tree", "Preserve skill behavior and activation boundaries"],
+      "acceptanceHints": ["make check is green", "npx skills add ./. --list reports 14 skills", "No $HOME/.config/opencode/skills references remain in csm-*/SKILL.md", "No skill code reads resources by file position at runtime"],
+      "dependencies": [],
+      "context": ["PUBLISHING-DEFECTS.md", ".agents/research/2026-09-13-skills-sh-publish-adversarial-20260913t224500z-skills-sh-adversarial-research.json", "lib/schema-runtime", "csm-orchestrate/lib/capabilities.mjs", "scripts/pack-bootstrap.mjs", "scripts/gen-capabilities.mjs"]
+    },
+    {
+      "phaseId": "P2",
+      "title": "Publish generator",
+      "goal": "Build scripts/pack-skills-sh.mjs to emit 14 self-contained, esbuild-bundled skills into a publish tree.",
+      "deliverables": [
+        "Per-skill transitive closure computation",
+        "esbuild configuration (bundle, platform node, format esm, target node22, createRequire banner, unminified, .mjs output)",
+        "Per-skill dist/ bundles plus rewritten SKILL.md (skill-relative paths, metadata.version and metadata.source)",
+        "Exclusion of .env, .git, node_modules, .agents, tests, and docs from the publish tree",
+        "Deterministic output directory and commit/push of the publish repo"
+      ],
+      "scope": ["Generator implementation", "Bundling", "Publish tree assembly", "Commit and push to the publish repo"],
+      "outOfScope": ["Source remediation (P1)", "Listing content and Vercel Pack (P3/P4)"],
+      "constraints": ["Each skill must run when installed alone", "Vendor ajv, ajv-formats, chrome-remote-interface; do not vendor jimp or ws", "No minification", "No secrets"],
+      "acceptanceHints": ["Installing one skill into a temp project then running it yields no ERR_MODULE_NOT_FOUND", "npx skills add <publish tree> --list reports 14", "Per-file sizes measured against the 2 MB pack cap with a mitigation recorded", "Generator output is byte-stable across runs"],
+      "dependencies": ["P1"],
+      "context": ["scripts/pack-bootstrap.mjs", "esbuild API docs", "deep-dive findings on import.meta.url, dynamic imports, and CJS-in-ESM"]
+    },
+    {
+      "phaseId": "P3",
+      "title": "Publish repo content and push",
+      "goal": "Create and populate the public repository jamiemills/csm-skills and push the generated tree.",
+      "deliverables": [
+        "README.md with install command and prerequisites (Node >=22, Docker for csm-browse)",
+        "SECURITY.md documenting code execution, Docker, and network use",
+        "LICENSE (MIT)",
+        "skills.sh.json groupings and README install badge",
+        "Per-skill CHANGELOG.md and version metadata",
+        "Public repo created and pushed"
+      ],
+      "scope": ["Repo creation", "Listing content", "Push"],
+      "outOfScope": ["Post-push verification, seeding, and Pack (P4)", "Dev repo changes"],
+      "constraints": ["Do not use GitHub's Node .gitignore (it excludes dist/)", "No file larger than 2 MB", "Keep instruction wording unchanged (audit posture B)"],
+      "acceptanceHints": ["Repository is public with the generated skills/csm-*/SKILL.md x14 on the default branch", "No secrets or ignored artifacts present", "badge and skills.sh.json render"],
+      "dependencies": ["P2"],
+      "context": ["skills.sh/docs/customize", "gh repo create docs", "skills.sh/docs"]
+    },
+    {
+      "phaseId": "P4",
+      "title": "Verify, seed listing, and create the Vercel Pack",
+      "goal": "Prove every skill installs and runs, seed skills.sh indexing and audits, and publish a convenience Pack.",
+      "deliverables": [
+        "Per-skill smoke-install and run results from the GitHub clone path",
+        "One telemetry-enabled npx skills add jamiemills/csm-skills",
+        "Polled skills.sh repo page and captured audit results",
+        "Vercel Pack created with its install URL"
+      ],
+      "scope": ["Verification of the published repo", "Listing seed", "Pack creation"],
+      "outOfScope": ["Re-architecting the suite or the generator"],
+      "constraints": ["GitHub clone is the primary channel; Pack is secondary (text-only, 2 MB/file limit)", "Expect and accept audit warnings; do not delist unless every partner fails"],
+      "acceptanceHints": ["All 14 skills install and run from the published repo", "skills.sh/jamiemills/csm-skills lists 14 skills", "Audit results are recorded", "Pack install URL works"],
+      "dependencies": ["P3"],
+      "context": ["skills.sh/docs/packs", "skills.sh/docs/api", "skills.sh/audits", "grill Q11"]
+    }
+  ],
+  "projection": {
+    "profile": "csm-grill-human/1",
+    "legacyMarkdownStatus": "history-only"
+  },
+  "provenance": {
+    "producer": "csm-grill",
+    "producerVersion": "csm-grill/1",
+    "producedAt": "2026-09-13T23:15:00Z",
+    "sourceDigests": []
+  }
+}
