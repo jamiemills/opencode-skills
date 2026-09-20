@@ -214,26 +214,41 @@
       "type": "inference"
     }
   ],
-  "completionReview": null,
+  "completionReview": {
+    "status": "complete",
+    "summary": "Fixed the Jev typed-question integration (questions record / answers envelope), added env-or-.env key resolution, registered the advisory review/judge points, added the consult seam and never-Jev boundary guard, and wired advisory-first consumption into every skill with a review/judge/adversarial role including csm-build REVIEW. All gates stay deterministic; Vercel remains descriptor-pluggable but is not live-verified.",
+    "gates": {
+      "check-suite": "OK 1168 checks",
+      "make check": "OK",
+      "fmt-check": "OK",
+      "offline-decision-tests": "140/140",
+      "skill-wiring-tests": "9/9",
+      "test-hooks": "OK",
+      "test-suite-tooling": "OK",
+      "test-orchestrate": "OK",
+      "test-enforcement": "OK",
+      "test-contracts": "OK",
+      "test-browse-unit": "3 port-allocation tests blocked by live host port 9225 (environmental; unchanged from the prior plan)"
+    },
+    "commit": {
+      "status": "committed",
+      "sha": "7eabcdf",
+      "files": 62
+    }
+  },
   "control": {
     "activeTasks": [],
-    "blockers": [
-      "Commit authorization required: the new payload modules are untracked, so test-hooks/test-suite-tooling (tracked-corpus copies) fail. Authorize a commit to make make test fully green, or accept the untracked checkpoint."
-    ],
+    "blockers": [],
     "commits": "disabled",
-    "currentState": "BLOCKED",
-    "cycle": 1,
-    "lastCheckpoint": "2026-09-20: T001-T018 complete, T019 payload regenerated; blocked on commit authorization.",
+    "currentState": "COMPLETE",
+    "cycle": 2,
+    "lastCheckpoint": "2026-09-20: COMPLETE at 7eabcdf; all 19 tasks done.",
     "lastModelRun": "deepseek-flash / csm-plan-jev-review-judge-substitution",
-    "nextTransition": "BLOCKED -> RECOVER",
+    "nextTransition": "none (terminal)",
     "resume": {
-      "instruction": "re-read control, latest journal, recovery notes, discovered requirements, and the working-tree diff",
-      "criticalPath": [
-        "T019"
-      ],
-      "openDecision": "authorize commit of the verified change set (tracks the new payload modules)"
+      "instruction": "terminal plan; no resumption"
     },
-    "status": "blocked"
+    "status": "complete"
   },
   "critiqueResolution": [
     {
@@ -758,6 +773,93 @@
         "evidence": "T001-T018 verified; T019 payload regenerated; the tracked-corpus gate (test-hooks/test-suite-tooling) cannot pass until the new files are tracked, which needs commit authorization.",
         "emittedAt": "2026-09-20T21:05:00Z"
       }
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "BLOCKED -> RECOVER",
+      "tasks": [],
+      "evidence": "User authorized the commit; resumed the blocked checkpoint.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 18,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": [],
+      "evidence": "Re-validated the working tree; only the owned change set was staged.",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 19,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": [],
+      "evidence": "Selected T019 (regenerate payload and run the full gate).",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 20,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": [],
+      "evidence": "Committed the owned pathset as 7eabcdf (62 files) after the pre-commit fmt/lint/check gates passed.",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 21,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "DISPATCH -> INTEGRATE",
+      "tasks": [],
+      "evidence": "Regenerated payload fresh; re-staged and committed.",
+      "nextState": "INTEGRATE"
+    },
+    {
+      "sequence": 22,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": [],
+      "evidence": "make check OK; check-suite OK (1168 checks); fmt-check OK; test-hooks and test-suite-tooling now OK; all decision suites green.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 23,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [],
+      "evidence": "Independent evaluator returned complete: T001-T019 verified, no advisory payload reaches a gate, adversarial-final-review.mjs unchanged.",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 24,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "REVIEW -> CHECKPOINT",
+      "tasks": [],
+      "evidence": "Recorded completion review; the only red suite is the environmental csm-browse port-9225 conflict (live host listener), unrelated to this change set.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 25,
+      "timestamp": "2026-09-20T21:40:00Z",
+      "cycle": 2,
+      "transition": "CHECKPOINT -> COMPLETE",
+      "tasks": [],
+      "evidence": "Plan complete; deterministic loop guard reports no outstanding work.",
+      "nextState": "COMPLETE",
+      "evaluatorReceipt": {
+        "format": "csm-plan-evaluator-receipt/1",
+        "verdict": "complete",
+        "evidence": "All 19 tasks completed; acceptance signals green except the environmental csm-browse port-9225 conflict; boundary and gate integrity verified.",
+        "emittedAt": "2026-09-20T21:40:00Z"
+      }
     }
   ],
   "planId": "jev-review-judge-substitution",
@@ -850,7 +952,7 @@
   "runId": "run-20260920t180000z-jevplan0001",
   "schema": "csm-plan/1",
   "schemaRevision": 1,
-  "status": "blocked",
+  "status": "complete",
   "tasks": [
     {
       "acceptanceEvidence": "Test proves buildQuestions emits a record (not an array) and parseAnswers extracts per-question choice/score/noul with probabilities and confidence from a raw `answers` envelope fixture; record the fixture source and retrieval date.",
@@ -1241,7 +1343,7 @@
       "repairAttempts": 0,
       "risk": "standard",
       "spikeCandidate": "Confirm the fmt -> gen-capabilities -> pack-bootstrap ordering avoids digest drift.",
-      "status": "in_progress",
+      "status": "completed",
       "taskId": "T019",
       "title": "Regenerate packaged payload and run the full gate",
       "validation": "git status --short shows only regenerated payload files for the changed sources; node scripts/check-checkout-hygiene.mjs"
