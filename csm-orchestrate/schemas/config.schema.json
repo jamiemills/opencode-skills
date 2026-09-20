@@ -19,6 +19,11 @@
       "maximum": 4,
       "default": 4,
       "description": "Maximum number of concurrently dispatched independent read-only route nodes; never changes approvals, capabilities, or write routing."
+    },
+    "traceLogPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional shared trace-log path: absolute, or relative to the main repository root. When absent, the host default trace-log location is used; no built-in default is defined here."
     }
   }
 }

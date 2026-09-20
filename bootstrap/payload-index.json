@@ -1136,8 +1136,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/schemas/config.schema.json",
-        "sha256": "9365e477bf138471f97ef65cec49c5046199f7521c51c8b9a59236d88dc2beaa",
-        "bytes": 1116,
+        "sha256": "92027330553c34108b582a2a2f6d5b2ebdb2a2e2614f28e66655af6027778c66",
+        "bytes": 1392,
         "mode": "0644"
       },
       {
@@ -2375,7 +2375,7 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "453e1a9d73611a853aa8ddb3aeacbe50989b6c6b2b11a5f4c4a5fa17cbee8058",
+        "sha256": "40befbe59a8b036c27197b67c0fb8e738b41cd8ff53dc141a7f3355af9941fef",
         "bytes": 32294,
         "mode": "0644"
       },

@@ -28,11 +28,16 @@
 
 - Record actions and decision justifications as durable, append-only trace
   entries via `scripts/lib/trace-log.mjs`. There is ONE shared trace log per
-  repo at `<git-common-dir>/csm/logs/trace.jsonl` (all runs/agents/worktrees
-  append to it; it survives worktree removal). Each entry carries `ts`,
-  `runId`, `actor`, `action`, `target`, `justification`, `outcome`; appends are
-  single bounded writes (local-POSIX atomic) and long records are truncated with
-  a marker, never dropped.
+  repo, defaulting to `<main-repo-root>/.agents/logs/trace.jsonl` (all
+  runs/agents/worktrees append to it; anchored to the main worktree root, so it
+  survives worktree removal). Configure it with the `csm-skills-config/1` key
+  `skills["csm-orchestrate"].traceLogPath` — a host-wide user default in
+  `$XDG_CONFIG_HOME/csm/skills.json`, overridden per repo by
+  `<repo>/.csm-skills.json`, and further by an absolute `CSM_TRACE_LOG`
+  (`env > project > user > default`). Each entry carries `ts`, `runId`, `actor`,
+  `action`, `target`, `justification`, `outcome`; appends are single bounded
+  writes (local-POSIX atomic) and long records are truncated with a marker,
+  never dropped.
 - All durable timestamps are ISO-8601 UTC ending in `Z` (`scripts/lib/utc.mjs`).
 - At the end of a session, run `node scripts/wt-session.mjs cleanup --dry-run`
   then `cleanup --apply` to remove managed worktrees and allowlisted temp dirs.

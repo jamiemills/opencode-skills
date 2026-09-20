@@ -11,11 +11,42 @@ Two operational guarantees for long-running, interruptible agent work:
 ## Traces
 
 `scripts/lib/trace-log.mjs` appends one JSON line per action or decision to a
-**single shared per-repo log** at `<git-common-dir>/csm/logs/trace.jsonl`
-(absolute, resolved by `scripts/lib/repo-state.mjs`). Every run, agent, and
-worktree appends to that one file, and because it lives under the git common dir
-it **survives worktree removal** — a trace written from/after a worktree still
-lands in the same log. Each entry carries:
+**single shared per-repo log**. The location is resolved by
+`scripts/lib/trace-config.mjs` (config) and `scripts/lib/repo-state.mjs`
+(path + worktree anchoring), in this precedence order:
+
+1. **`CSM_TRACE_LOG`** environment variable — honoured only when it is a
+   non-empty **absolute** path.
+2. **Project** (per-repo) layer: `<main-repo-root>/.csm-skills.json`.
+3. **User** (host) layer: `$XDG_CONFIG_HOME/csm/skills.json`
+   (default `~/.config/csm/skills.json`).
+4. **Default:** `<main-repo-root>/.agents/logs/trace.jsonl`.
+
+The configured value is read from the CSM `csm-skills-config/1` envelope key
+`skills["csm-orchestrate"].traceLogPath` (a non-empty string); a relative
+configured path is resolved against the main worktree root, an absolute path is
+used as-is. The precedence is `env > project > user > default`: the project
+layer deliberately **overrides** the user layer, because the user layer is a
+host-wide default and the project layer is a per-repo override. A missing,
+malformed, non-CSM, or duplicate-keyed config file never throws — it fails safe
+(never writes traces to an unexpected location).
+
+> **Operator warning — clone-controlled trace redirection.** The PROJECT layer
+> file `<repo>/.csm-skills.json` travels with the repository, so a clone (or a
+> dependency you vendored) can contain it. An **absolute** `traceLogPath` there
+> redirects the append-only trace writer to any path the running user can write,
+> where it can overwrite or pollute unrelated files. Treat the project layer as
+> untrusted input: set an absolute `traceLogPath` only from the **user** layer
+> (`$XDG_CONFIG_HOME/csm/skills.json`, default `~/.config/csm/skills.json`) or
+> the **`CSM_TRACE_LOG`** environment variable, both of which the operator
+> controls. A relative project value is harmless (it stays under the repo root).
+
+The default path sits at the **repo root**, deliberately **not** inside `.git`
+(state/registry data stays under the common dir; see below). `repo-state.mjs`
+anchors it to the **main** worktree root, so every run, agent, and linked
+worktree resolves the _same_ file, and it **survives worktree removal** — a
+trace written from/after a worktree still lands in that one log. Each entry
+carries:
 
 | Field           | Meaning                                  |
 | --------------- | ---------------------------------------- |
@@ -36,8 +67,24 @@ record is serialized to one line and written with exactly one `write()` on an
 effort elsewhere). A record whose line would be too large is **truncated with a
 `…[truncated:<n>]` marker, never dropped**. The tracked exemplar
 `.agents/logs/2026-09-19-action-traces-cleanup-sample.jsonl` is indexed under the
-`## logs/` class in `.agents/README.md`; runtime traces live under the git common
-dir (untracked, not cloned).
+`## logs/` class in `.agents/README.md`; runtime traces live at the repo-root
+`.agents/logs/` (kept out of version control by `.gitignore`, not cloned).
+
+> **Legacy location — no loss, never auto-deleted.** Before this default moved
+> to the repo root, traces were written to
+> `<git-common-dir>/csm/logs/trace.jsonl`. That legacy file is no longer written
+> (a fresh append never touches it) and is **never deleted or modified**. To fold
+> any legacy records into the current log — both are JSONL, so plain
+> concatenation is valid — run this once from any worktree of the repo:
+>
+> ```bash
+> legacy="$(git rev-parse --path-format=absolute --git-common-dir)/csm/logs/trace.jsonl"
+> dest="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')/.agents/logs/trace.jsonl"
+> mkdir -p "$(dirname "$dest")" && cat "$legacy" >> "$dest"
+> ```
+>
+> Nothing is auto-migrated, so no trace is lost. Run the concatenation only once
+> (a second run would duplicate the legacy lines).
 
 **Retention:** the shared log is a single append-only file and grows without
 bound. There is no automatic rotation; operators should archive/rotate it past a
@@ -87,6 +134,8 @@ registry entries whose path no longer exists.
 
 ## Enforcement
 
-- `tests/trace-log.test.mjs` — trace/decision format, UTC, redaction, append-only.
+- `tests/trace-log.test.mjs` — trace/decision format, UTC, redaction, append-only,
+  worktree persistence, and the legacy location staying unwritten.
+- `tests/trace-config.test.mjs` — configured/default path resolution and precedence.
 - `tests/wt-session-cleanup.test.mjs` — dry-run, eligible removal, refusal safety.
 - `tests/utc-timestamps.test.mjs` — UTC timestamps across logs and journals.

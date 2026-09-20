@@ -254,7 +254,16 @@ test("a cleanup refusal writes a trace entry", async () => {
   const root = makeRepo();
   const managedRoot = makeManagedRoot();
   const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "wt-cleanup-outside-"));
+  // Isolate the config layers the trace writer resolves so the host's real
+  // config can never redirect the refusal trace away from the default log.
+  const configHome = fs.mkdtempSync(path.join(os.tmpdir(), "wt-cleanup-config-"));
+  const originalXdg = process.env.XDG_CONFIG_HOME;
+  const originalHome = process.env.HOME;
+  const originalOverride = process.env.CSM_TRACE_LOG;
   try {
+    process.env.XDG_CONFIG_HOME = configHome;
+    process.env.HOME = configHome;
+    delete process.env.CSM_TRACE_LOG;
     register({ kind: "worktree", path: outsideDir, branch: "wt/foreign" }, root);
     cleanup(root, { apply: true, managedRoot });
     await flushTraces();
@@ -264,8 +273,15 @@ test("a cleanup refusal writes a trace entry", async () => {
     assert.ok(text.length >= 1, "a refusal trace line was written to the shared log");
     assert.match(text, /"action":"cleanup-refuse"/, "refusal trace line present");
   } finally {
+    if (originalXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdg;
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    if (originalOverride === undefined) delete process.env.CSM_TRACE_LOG;
+    else process.env.CSM_TRACE_LOG = originalOverride;
     fs.rmSync(managedRoot, { recursive: true, force: true });
     fs.rmSync(outsideDir, { recursive: true, force: true });
+    fs.rmSync(configHome, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

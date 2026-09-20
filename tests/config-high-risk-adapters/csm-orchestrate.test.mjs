@@ -49,6 +49,48 @@ test("csm-orchestrate: valid namespace applies bounded execution preferences", a
   }
 });
 
+test("csm-orchestrate: optional traceLogPath is accepted and surfaced", async () => {
+  const ctx = await fixture();
+  try {
+    await writeJson(`${ctx.project}/.csm-skills.json`, {
+      schema: "csm-skills-config/1",
+      skills: { [SKILL_NAME]: { traceLogPath: "/tmp/shared/trace.jsonl" } },
+    });
+    const resolved = await resolveConfig({ projectRoot: ctx.project, env: layerEnv(ctx) });
+    const { config, schema, source } = resolveSkillConfig(resolved.effective);
+    assert.equal(config.traceLogPath, "/tmp/shared/trace.jsonl");
+    assert.equal(config.defaultTimeoutMs, DEFAULT_CONFIG.defaultTimeoutMs);
+    assert.equal(config.maxParallelism, DEFAULT_CONFIG.maxParallelism);
+    assert.equal(schema, CONFIG_SCHEMA_ID);
+    assert.equal(source, "configured");
+    assert.equal(Object.isFrozen(config), true);
+    const viaEnvelope = resolveSkillConfig(
+      envelope({ [SKILL_NAME]: { traceLogPath: "relative/trace.jsonl" } }),
+    );
+    assert.equal(viaEnvelope.config.traceLogPath, "relative/trace.jsonl");
+  } finally {
+    await rm(ctx.root, { recursive: true, force: true });
+  }
+});
+
+test("csm-orchestrate: absence of traceLogPath is valid and adds no default", () => {
+  const { config, source } = resolveSkillConfig(envelope({ [SKILL_NAME]: {} }));
+  assert.deepEqual(config, DEFAULT_CONFIG);
+  assert.equal(Object.hasOwn(config, "traceLogPath"), false);
+  assert.equal(Object.hasOwn(DEFAULT_CONFIG, "traceLogPath"), false);
+  assert.equal(source, "defaults");
+});
+
+test("csm-orchestrate: non-string or empty traceLogPath is rejected", () => {
+  for (const traceLogPath of ["", 42, null, true, {}, []]) {
+    assert.throws(
+      () => resolveSkillConfig(envelope({ [SKILL_NAME]: { traceLogPath } })),
+      (error) => error.code === "skill-config",
+      JSON.stringify(traceLogPath),
+    );
+  }
+});
+
 test("csm-orchestrate: unknown namespace key is rejected", async () => {
   const ctx = await fixture();
   try {

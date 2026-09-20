@@ -716,7 +716,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:331bd084fc82b1fac1354411989eb50b7cdfa20a2ec80fd39cc07f73e17c1098"
+      "schemaContentDigest": "sha256:1b366d8bc42bf23e330bd7f59e77ff88a49ed710aa60189c8c95bfdd9b35f748"
     },
     {
       "id": "csm-orchestrate-attestation/1",

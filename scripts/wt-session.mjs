@@ -57,6 +57,17 @@ try {
   repoLogPath = null;
 }
 
+// The configured trace-log override is ALSO best-effort: trace-config.mjs may
+// be absent alongside the modules above. When present it resolves the same
+// path the default writer uses, so every worktree appends to the configured or
+// main-root default log.
+let resolveTraceLogPath = null;
+try {
+  ({ resolveTraceLogPath } = await import("./lib/trace-config.mjs"));
+} catch {
+  resolveTraceLogPath = null;
+}
+
 // F1.2: the run id becomes part of a trace file name, so a hostile or malformed
 // CSM_RUN_ID must never escape the logs dir (path traversal). Accept only a
 // canonical id ([A-Za-z0-9._-]+, no ".."); otherwise fall back to a generated id.
@@ -73,16 +84,23 @@ function appendSessionTrace(root, action, target, justification, outcome) {
   let promise;
   try {
     const ts = new Date().toISOString();
-    promise = Promise.resolve(
-      appendTrace(
+    promise = (async () => {
+      let configured = null;
+      if (resolveTraceLogPath !== null) {
+        try {
+          configured = await resolveTraceLogPath({ root, env: process.env });
+        } catch {
+          configured = null;
+        }
+      }
+      const file = repoLogPath
+        ? repoLogPath(root, { configured })
+        : path.join(root, ".agents", "logs", `${ts.slice(0, 10)}-${RUN_ID}-trace.jsonl`);
+      return appendTrace(
         { ts, runId: RUN_ID, actor: "wt-session", action, target, justification, outcome },
-        {
-          file: repoLogPath
-            ? repoLogPath(root)
-            : path.join(root, ".agents", "logs", `${ts.slice(0, 10)}-${RUN_ID}-trace.jsonl`),
-        },
-      ),
-    );
+        { file },
+      );
+    })();
   } catch {
     // tracing must never break worktree/cleanup operations
     return null;

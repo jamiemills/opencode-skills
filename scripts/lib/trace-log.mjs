@@ -7,10 +7,13 @@
 // field is redacted for credential-shaped values before it is written, so a
 // secret can never reach disk. Records are durable evidence, not telemetry.
 //
-// The default target is the ONE shared per-repo log resolved from the git
-// common dir (repo-state.repoLogPath(process.cwd())), so every run, agent, and
-// linked worktree appends to `<git-common-dir>/csm/logs/trace.jsonl`, which
-// survives worktree closure. An explicit `file` overrides the default.
+// The default target is the ONE shared per-repo log resolved from the MAIN
+// worktree root and the configured override
+// (repo-state.repoLogPath(cwd, { configured: trace-config.resolveTraceLogPath(...) })),
+// so every run, agent, and linked worktree appends to the configured path or,
+// when unconfigured, `<mainRoot>/.agents/logs/trace.jsonl` (deliberately NOT
+// inside `.git`), which survives worktree closure. An explicit `file` overrides
+// the default.
 //
 // Each record is serialized to a single line and written with exactly ONE
 // write() to an O_APPEND descriptor (never read-modify-write). Cross-process
@@ -22,6 +25,7 @@
 import { closeSync, mkdirSync, openSync, writeSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { repoLogPath } from "./repo-state.mjs";
+import { resolveTraceLogPath } from "./trace-config.mjs";
 import { isUtc, utcNow } from "./utc.mjs";
 
 const REQUIRED_FIELDS = ["runId", "actor", "action", "target", "justification", "outcome"];
@@ -150,7 +154,12 @@ async function writeTrace(entry, { file, now, kind } = {}) {
       throw new TypeError(`trace entry is missing required field: ${field}`);
   }
   const record = redact({ ...entry, ts, kind });
-  const target = resolve(file ?? repoLogPath(process.cwd()));
+  const target = resolve(
+    file ??
+      repoLogPath(process.cwd(), {
+        configured: await resolveTraceLogPath({ root: process.cwd(), env: process.env }),
+      }),
+  );
   writeLine(target, fitLine(record));
   return { file: target, entry: record };
 }

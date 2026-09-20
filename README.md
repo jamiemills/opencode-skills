@@ -415,7 +415,7 @@ See each skill's reference for output locations, caps, diagnostics, and focused 
 <details>
 <summary>Configure skills and integrate the orchestrator</summary>
 
-The shared [configuration loader](lib/config/index.mjs) provides versioned, per-skill namespaces. The project file is `.csm-skills.json`; the user file is `$XDG_CONFIG_HOME/csm/skills.json` (default `~/.config/csm/skills.json`). Use the [suite schema](schemas/csm-skills-config.schema.json) and the selected skill's `schemas/config.schema.json` for supported settings. Configuration does not grant execution or publication authority.
+The shared [configuration loader](lib/config/index.mjs) provides versioned, per-skill namespaces. The project file is `.csm-skills.json`; the user file is `$XDG_CONFIG_HOME/csm/skills.json` (default `~/.config/csm/skills.json`). Use the [suite schema](schemas/csm-skills-config.schema.json) and the selected skill's `schemas/config.schema.json` for supported settings. For example, the shared trace-log location is `skills["csm-orchestrate"].traceLogPath`, which defaults to `<main-repo-root>/.agents/logs/trace.jsonl` and can be overridden per repo (project file wins over user), or by an absolute `CSM_TRACE_LOG`. Configuration does not grant execution or publication authority.
 
 The runner accepts three input types:
 

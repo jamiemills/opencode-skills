@@ -2,14 +2,22 @@
 
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { repoLogPath } from "../scripts/lib/repo-state.mjs";
+import { repoCommonDir, repoLogPath } from "../scripts/lib/repo-state.mjs";
 import { appendTrace, recordDecision } from "../scripts/lib/trace-log.mjs";
 import { isUtc, utcNow } from "../scripts/lib/utc.mjs";
 
@@ -38,6 +46,36 @@ function baseEntry(overrides = {}) {
 
 async function readLines(file) {
   return (await readFile(file, "utf8")).split("\n").filter((line) => line.length > 0);
+}
+
+// Isolate the layers the default writer resolves (user config via
+// XDG_CONFIG_HOME/HOME, project override via CSM_TRACE_LOG) inside a throwaway
+// temp dir so the host's real ~/.config/csm/skills.json can never choose the
+// default path in a test. Returns the temp dir plus a restore() to call in
+// finally.
+function isolateTraceConfigEnv(extra = {}) {
+  const original = {
+    XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
+    HOME: process.env.HOME,
+    CSM_TRACE_LOG: process.env.CSM_TRACE_LOG,
+  };
+  const xdg = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-config-")));
+  process.env.XDG_CONFIG_HOME = xdg;
+  process.env.HOME = xdg;
+  delete process.env.CSM_TRACE_LOG;
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  return {
+    xdg,
+    restore() {
+      for (const [key, value] of Object.entries(original)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    },
+  };
 }
 
 // A writer that waits on a start barrier (a sentinel file) before appending
@@ -95,15 +133,20 @@ test("utcNow returns a UTC ISO-8601 timestamp and isUtc accepts only Z strings",
   assert.ok(!isUtc(undefined));
 });
 
-test("appendTrace defaults to the shared repo log (repoLogPath of cwd)", async () => {
+test("appendTrace defaults to the shared repo log at <mainRoot>/.agents/logs/trace.jsonl", async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-repo-")));
   const originalCwd = process.cwd();
+  const env = isolateTraceConfigEnv();
   try {
     execFileSync("git", ["init", "--quiet"], { cwd: root, stdio: "ignore" });
     process.chdir(root);
-    const expected = join(root, ".git", "csm", "logs", "trace.jsonl");
+    const expected = join(root, ".agents", "logs", "trace.jsonl");
     assert.ok(isAbsolute(repoLogPath(root)));
     assert.equal(repoLogPath(root), expected);
+    assert.ok(
+      !expected.startsWith(join(root, ".git") + sep),
+      "the default log must NOT live under .git",
+    );
     const { file } = await appendTrace(baseEntry());
     assert.equal(file, expected);
     const lines = await readLines(expected);
@@ -111,7 +154,110 @@ test("appendTrace defaults to the shared repo log (repoLogPath of cwd)", async (
     assert.ok(JSON.parse(lines[0]).ts.endsWith("Z"));
   } finally {
     process.chdir(originalCwd);
+    env.restore();
     rmSync(root, { recursive: true, force: true });
+    rmSync(env.xdg, { recursive: true, force: true });
+  }
+});
+
+test("an absolute CSM_TRACE_LOG redirects the default write to the configured path", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-repo-")));
+  const customDir = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-custom-")));
+  const configured = join(customDir, "configured-trace.jsonl");
+  const originalCwd = process.cwd();
+  const env = isolateTraceConfigEnv({ CSM_TRACE_LOG: configured });
+  try {
+    execFileSync("git", ["init", "--quiet"], { cwd: root, stdio: "ignore" });
+    process.chdir(root);
+    const { file } = await appendTrace(baseEntry());
+    assert.equal(file, configured, "the configured path is honoured");
+    assert.ok(existsSync(configured), "the record was written to the configured path");
+    assert.ok(
+      !existsSync(join(root, ".agents", "logs", "trace.jsonl")),
+      "the default path was not written",
+    );
+  } finally {
+    process.chdir(originalCwd);
+    env.restore();
+    rmSync(root, { recursive: true, force: true });
+    rmSync(customDir, { recursive: true, force: true });
+    rmSync(env.xdg, { recursive: true, force: true });
+  }
+});
+
+test("a fresh default append never writes the legacy <git-common-dir>/csm/logs/trace.jsonl", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-legacy-")));
+  const originalCwd = process.cwd();
+  const env = isolateTraceConfigEnv();
+  try {
+    execFileSync("git", ["init", "--quiet"], { cwd: root, stdio: "ignore" });
+    const legacy = join(repoCommonDir(root), "csm", "logs", "trace.jsonl");
+    process.chdir(root);
+
+    await appendTrace(baseEntry({ action: "legacy-absent" }));
+    assert.ok(!existsSync(legacy), "a fresh append must not create the legacy common-dir log");
+
+    const sentinel = '{"legacy":true}\n';
+    mkdirSync(dirname(legacy), { recursive: true });
+    writeFileSync(legacy, sentinel, "utf8");
+    await appendTrace(baseEntry({ action: "legacy-unchanged" }));
+    assert.equal(
+      await readFile(legacy, "utf8"),
+      sentinel,
+      "an existing legacy log must be left byte-for-byte unchanged",
+    );
+    assert.equal((await readLines(join(root, ".agents", "logs", "trace.jsonl"))).length, 2);
+  } finally {
+    process.chdir(originalCwd);
+    env.restore();
+    rmSync(root, { recursive: true, force: true });
+    rmSync(env.xdg, { recursive: true, force: true });
+  }
+});
+
+test("a trace appended from a linked worktree lands in the main root and survives worktree removal", async () => {
+  const mainRoot = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-main-")));
+  const wtParent = realpathSync(mkdtempSync(join(tmpdir(), "csm-trace-wt-")));
+  const worktree = join(wtParent, "linked");
+  const originalCwd = process.cwd();
+  const env = isolateTraceConfigEnv();
+  try {
+    execFileSync("git", ["init", "--quiet"], { cwd: mainRoot, stdio: "ignore" });
+    writeFileSync(join(mainRoot, "seed.txt"), "seed\n", "utf8");
+    execFileSync("git", ["add", "seed.txt"], { cwd: mainRoot, stdio: "ignore" });
+    execFileSync(
+      "git",
+      ["-c", "user.email=trace@test", "-c", "user.name=trace", "commit", "-qm", "seed"],
+      { cwd: mainRoot, stdio: "ignore" },
+    );
+    execFileSync("git", ["worktree", "add", "-q", "-b", "wt/trace-test", worktree], {
+      cwd: mainRoot,
+      stdio: "ignore",
+    });
+
+    const expected = join(mainRoot, ".agents", "logs", "trace.jsonl");
+    process.chdir(worktree);
+    assert.equal(repoLogPath(worktree), expected, "a linked worktree resolves the main-root log");
+    const { file } = await appendTrace(baseEntry({ actor: "worktree-link" }));
+    assert.equal(file, expected, "the append landed in the main root's log");
+    assert.ok(
+      !existsSync(join(repoCommonDir(worktree), "csm", "logs", "trace.jsonl")),
+      "the legacy common-dir log must not be written",
+    );
+
+    process.chdir(originalCwd);
+    execFileSync("git", ["worktree", "remove", worktree], { cwd: mainRoot, stdio: "ignore" });
+    assert.ok(!existsSync(worktree), "the linked worktree must be gone");
+
+    const lines = await readLines(expected);
+    assert.equal(lines.length, 1);
+    assert.equal(JSON.parse(lines[0]).actor, "worktree-link");
+  } finally {
+    process.chdir(originalCwd);
+    env.restore();
+    rmSync(mainRoot, { recursive: true, force: true });
+    rmSync(wtParent, { recursive: true, force: true });
+    rmSync(env.xdg, { recursive: true, force: true });
   }
 });
 

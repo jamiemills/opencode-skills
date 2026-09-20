@@ -20,8 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { createHash, randomBytes } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { repoStateDir } from "./repo-state.mjs";
+import { repoMainRoot, repoStateDir } from "./repo-state.mjs";
 
 const STATE_DIR = path.join(".agents", "state");
 const REGISTRY_BASENAME = "temp-registry.json";
@@ -132,26 +131,12 @@ function normalize(entry) {
   return normalized;
 }
 
-// The main worktree is the first `worktree ` record in `git worktree list
-// --porcelain`; a legacy registry only ever lived in the main checkout.
-function mainWorktreeRoot(root) {
-  try {
-    const out = execFileSync("git", ["-C", defaultRoot(root), "worktree", "list", "--porcelain"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    for (const line of out.split("\n")) {
-      if (line.startsWith("worktree ")) return line.slice("worktree ".length);
-    }
-  } catch {
-    // not a git repo (or git missing): fall back to the given root
-  }
-  return defaultRoot(root);
-}
-
+// The legacy registry only ever lived in the main checkout; `repoMainRoot`
+// resolves that shared main-worktree root (bare-repo and non-git fallbacks
+// included) without a second porcelain parser.
 function readLegacyEntries(root) {
   const candidates = [];
-  const main = mainWorktreeRoot(root);
+  const main = repoMainRoot(root);
   candidates.push(path.join(main, STATE_DIR, REGISTRY_BASENAME));
   candidates.push(registryPath(root));
   const seen = new Set();

@@ -641,6 +641,16 @@ Implemented by `schemas/csm-skills-config.schema.json` (registered as immutable
   one explicit per-run `configPath`. Path constants: `PROJECT_CONFIG_FILE_NAME`,
   `USER_CONFIG_DIR_NAME`, `USER_CONFIG_FILE_NAME` plus `projectConfigPath()` /
   `userConfigPath()` helpers.
+- **Shared trace-log location (`csm-orchestrate`)** — `scripts/lib/trace-config.mjs`
+  resolves `skills["csm-orchestrate"].traceLogPath` in the order `CSM_TRACE_LOG`
+  (absolute env override) > project `<main-repo-root>/.csm-skills.json` > user
+  `$XDG_CONFIG_HOME/csm/skills.json` > default
+  `<main-repo-root>/.agents/logs/trace.jsonl`. Unlike the generic merge
+  (`defaults < project < user < run`), the project layer deliberately overrides
+  the user layer here (the user layer is a host-wide default; the project layer
+  a per-repo override). A relative value resolves against the main worktree root;
+  a present-but-invalid layer fails safe to `null` rather than silently falling
+  through to a less specific layer.
 - **Merge semantics**: objects merge recursively, arrays replace wholesale, `null`
   is an explicit surviving value, omitted keys inherit, unknown top-level keys and
   unknown skill namespaces are rejected with the offending key and JSON path.
@@ -799,12 +809,12 @@ yet; callers may adopt them.
   `csm-build-config/1`, and `csm-orchestrate-config/1` are immutable
   `unknownFieldPolicy: "reject"` entries in `schemas/registry.json`.
 
-| Skill              | Schema id                   | Settings (defaults)                                                                    | Boundary                                                                                                                                                    |
-| ------------------ | --------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `csm-browse`       | `csm-browse-config/1`       | `viewport` ("default"), `screenshotQuality` ("standard"), `cleanupAgeHours` 1-720 (24) | Bounded capture preferences only; ports, CDP endpoints, tokens, credentials, container settings, origins, cookies, and browser hardening are never granted. |
-| `csm-autoresearch` | `csm-autoresearch-config/1` | `logVerbosity` ("standard"), `archiveLimit` 1-1000 (100)                               | Presentation and retention only; live mode, sandbox policy, evaluator selection, evolution regions, and budgets are never granted.                          |
-| `csm-build`        | `csm-build-config/1`        | `verbosity` ("normal"), `reportStyle` ("standard")                                     | Presentation only; dispatch decisions, write scope, commit/push authorization, and lifecycle transitions are never granted.                                 |
-| `csm-orchestrate`  | `csm-orchestrate-config/1`  | `defaultTimeoutMs` 1000-300000 (30000), `maxParallelism` 1-4 (4)                       | Bounded execution preferences only; host selection, capabilities, approvals, gates, trust roots, and autonomy are never granted.                            |
+| Skill              | Schema id                   | Settings (defaults)                                                                                                                                               | Boundary                                                                                                                                                                                                                                                                                                           |
+| ------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `csm-browse`       | `csm-browse-config/1`       | `viewport` ("default"), `screenshotQuality` ("standard"), `cleanupAgeHours` 1-720 (24)                                                                            | Bounded capture preferences only; ports, CDP endpoints, tokens, credentials, container settings, origins, cookies, and browser hardening are never granted.                                                                                                                                                        |
+| `csm-autoresearch` | `csm-autoresearch-config/1` | `logVerbosity` ("standard"), `archiveLimit` 1-1000 (100)                                                                                                          | Presentation and retention only; live mode, sandbox policy, evaluator selection, evolution regions, and budgets are never granted.                                                                                                                                                                                 |
+| `csm-build`        | `csm-build-config/1`        | `verbosity` ("normal"), `reportStyle` ("standard")                                                                                                                | Presentation only; dispatch decisions, write scope, commit/push authorization, and lifecycle transitions are never granted.                                                                                                                                                                                        |
+| `csm-orchestrate`  | `csm-orchestrate-config/1`  | `defaultTimeoutMs` 1000-300000 (30000), `maxParallelism` 1-4 (4), optional `traceLogPath` (non-empty string; default `<main-repo-root>/.agents/logs/trace.jsonl`) | Bounded execution preferences only; host selection, capabilities, approvals, gates, trust roots, and autonomy are never granted. `traceLogPath` only relocates the append-only trace log (absolute, or relative to the main worktree root); it grants no authority and is the one durable-write path setting here. |
 
 - **Executable activation predicates** — `csm-orchestrate/lib/phase-compiler.mjs`
   now exports `evaluateActivationPredicate(capability, phase, signals)`. When a
