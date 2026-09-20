@@ -202,3 +202,13 @@ Reference the bundled `artifact/python-idiomatic-reviewer-rules.json` as a read-
 - The report has human-readable first sections and a final agent-actionable fix guide with checkboxes.
 - Exactly one allowlisted target file was written; no source/config/dependency/lock/git path changed; scratch and caches stayed outside the target.
 - The target diff was verified and temporary state was cleaned; the analyzer stops without fixing, planning, implementing, reviewing, or invoking another skill.
+
+## Optional Jev Advisory
+
+When Jev is opted in (`--use-jev` / request-2 decision block), the JUDGE state
+may consult the `python-review-judge-severity` and `python-review-dedup`
+advisory points first through the `csm-orchestrate` consult seam. The primary
+JUDGE remains the authority and is the fallback on any Jev failure; these hints
+never author a finding, alter the severity scale, change the deterministic rule
+corpus, or touch any acceptance or completion surface, and absent or disabled
+behavior is unchanged.

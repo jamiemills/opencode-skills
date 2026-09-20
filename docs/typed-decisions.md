@@ -181,3 +181,34 @@ by the deterministic skills/recovery, and none is registered in
   `tests/offline/decision-*.test.mjs`,
   `tests/orchestrate-foundation-dualrev.test.mjs`
 - Operator runbook: `docs/typed-decisions-runbook.md`
+
+## 8. Typed protocol, key resolution, and advisory review/judge points
+
+The live Jev API takes a `questions` **record** keyed by question id and returns
+an `answers` **record** keyed by the same ids (`{ model, answers, usage, id,
+provider }`); the prior array-shaped request was rejected with HTTP 400. The
+provider descriptors build that record and parse that envelope through
+`csm-orchestrate/lib/decision-adapter/question-protocol.mjs`, so provider fixes
+stay descriptor-only and a new supplier remains a new `providers/<id>.mjs` file.
+
+Provider keys are resolved by `.../key-resolution.mjs`: the descriptor's own
+`apiKeyEnv` from `process.env`, falling back to the repository `.env` file.
+Only the descriptor's name is ever looked up (no cross-provider reads), the key
+is never placed on argv, logged, or written to an artifact, and a missing key is
+a fail-open `missing` result. The driver and the consult seam both use it.
+
+The adapter exposes `decideBatch(pointIds, state)`: one batched typed-question
+call for several points, each answer mapped back to its point. It is
+advisory-only (never applies), fail-open, and honours per-point call caps.
+
+The review/judge/adversarial-role advisory points (all `safety`/`authority` +
+`advisory`) are consumed through the host-mediated consult seam
+(`.../consult.mjs`), which redacts state before send and writes nothing into the
+repository. Wired skills: `csm-review`, `csm-review-python`, `csm-deep-research`,
+`csm-plan`, `csm-build` (REVIEW), `csm-autoresearch`, `csm-bdd-tdd`, and the
+bounded `csm-orchestrate` injected reviewer (`orchestrate-reviewer-finding`).
+
+The deterministic boundary guard (`.../boundary-guard.mjs`) fails closed if an
+advisory/decision payload appears in a protected input (digest, receipt, gate,
+closure, acceptance). The `csm-orchestrate` `reviewAcceptance` gate is
+byte-identical with or without advisory context and is never influenced by Jev.

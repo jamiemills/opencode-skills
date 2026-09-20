@@ -184,12 +184,149 @@ export async function runDecisionCalibration({
   });
 }
 
+// T017 (jev-review-judge-substitution): the review/judge advisory-agreement
+// fixtures. These exercise the batched decideBatch path for the advisory review
+// points. This is AGREEMENT measurement over a small labelled fixture, NOT an
+// accuracy calibration and NOT a threshold; no point is promoted.
+export const REVIEW_CALIBRATION_FIXTURES = Object.freeze(
+  [
+    {
+      id: "rev-challenger-agree",
+      pointId: "review-challenger-verdict",
+      state: { finding: "loop bound", evidence: "i<=len" },
+      baselineAnswer: "agree",
+      candidate: "agree",
+      expected: "agreed",
+    },
+    {
+      id: "rev-challenger-disagree",
+      pointId: "review-challenger-verdict",
+      state: { finding: "style nit", evidence: "naming" },
+      baselineAnswer: "agree",
+      candidate: "retract",
+      expected: "disagreed",
+    },
+    {
+      id: "rev-judge-clarity-disagree",
+      pointId: "deep-research-judge-clarity",
+      state: { draft: "telegraphic" },
+      baselineAnswer: 0.75,
+      candidate: 0.5,
+      expected: "disagreed",
+    },
+    {
+      id: "rev-judge-completeness-agree",
+      pointId: "deep-research-judge-completeness",
+      state: { draft: "all sections" },
+      baselineAnswer: 1,
+      candidate: 1,
+      expected: "agreed",
+    },
+    {
+      id: "rev-python-severity-agree",
+      pointId: "python-review-judge-severity",
+      state: { finding: "mutable default" },
+      baselineAnswer: "W",
+      candidate: "W",
+      expected: "agreed",
+    },
+    {
+      id: "rev-build-needs-repair",
+      pointId: "build-review-verdict",
+      state: { track: "correctness" },
+      baselineAnswer: "pass",
+      candidate: "needs_repair",
+      expected: "disagreed",
+    },
+    {
+      id: "rev-reviewer-unavailable",
+      pointId: "orchestrate-reviewer-finding",
+      state: { claim: "done" },
+      baselineAnswer: "uphold",
+      candidate: null,
+      expected: "unavailable",
+    },
+  ].map((fixture) => Object.freeze({ ...fixture })),
+);
+
+function reviewTransport(fixtures) {
+  const byId = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
+  const calls = [];
+  return {
+    providerId: "fake-review-calibration",
+    calls,
+    send: (input) => {
+      calls.push(input);
+      const fixture = byId.get(input?.state?.scenario);
+      if (!fixture) return Promise.resolve({ ok: false, failure: { class: "unmapped" } });
+      if (fixture.failure)
+        return Promise.resolve({ ok: false, failure: { class: fixture.failure, retryable: true } });
+      return Promise.resolve({
+        ok: true,
+        decision: {
+          answers: {
+            [fixture.pointId]: {
+              type: typeof fixture.candidate === "number" ? "score" : "choice",
+              answer: fixture.candidate,
+              confidence: 0.8,
+            },
+          },
+          usage: {},
+        },
+      });
+    },
+  };
+}
+
+export async function runReviewCalibration({
+  fixtures = REVIEW_CALIBRATION_FIXTURES,
+  seed = CALIBRATION_SEED,
+} = {}) {
+  const transport = reviewTransport(fixtures);
+  const adapter = createDecisionAdapter({
+    mode: "live",
+    transport,
+    env: {},
+    runId: `review-calibration-${seed}`,
+    circuitThreshold: fixtures.length + 1,
+  });
+  const records = [];
+  for (const fixture of fixtures) {
+    const state = { ...fixture.state, scenario: fixture.id };
+    const advice = await adapter.decideBatch([fixture.pointId], state);
+    const candidateAnswer = advice?.[fixture.pointId]?.answer ?? null;
+    records.push(
+      Object.freeze({
+        id: fixture.id,
+        pointId: fixture.pointId,
+        expected: fixture.expected,
+        observed: classifyAgreement(candidateAnswer, fixture.baselineAnswer),
+        candidateAnswer,
+        advisory: true,
+        applied: false,
+      }),
+    );
+  }
+  return Object.freeze({
+    schema: CALIBRATION_SCHEMA,
+    seed,
+    mode: "advisory-agreement",
+    promoted: false,
+    threshold: null,
+    records: Object.freeze(records),
+    summary: summarizeCalibration(records),
+  });
+}
+
 export default {
   CALIBRATION_SCHEMA,
   CALIBRATION_SEED,
   CALIBRATION_FIXTURES,
+  REVIEW_CALIBRATION_FIXTURES,
   classifyAgreement,
   summarizeCalibration,
   createFakeTransport,
+  reviewTransport,
   runDecisionCalibration,
+  runReviewCalibration,
 };

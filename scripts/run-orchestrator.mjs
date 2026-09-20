@@ -175,17 +175,24 @@ async function resolveDecisionAdapter(artifact, kind, runId = null) {
       return null;
     }
     const descriptor = selection.descriptor;
-    const apiKey = process.env[descriptor.apiKeyEnv];
-    if (typeof apiKey !== "string" || apiKey.trim() === "") {
+    const [{ createDecisionAdapter }, { createDecisionTransport }, { resolveApiKey }] =
+      await Promise.all([
+        import("../csm-orchestrate/lib/decision-adapter/index.mjs"),
+        import("../csm-orchestrate/lib/decision-adapter/transport.mjs"),
+        import("../csm-orchestrate/lib/decision-adapter/key-resolution.mjs"),
+      ]);
+    const resolvedKey = await resolveApiKey({
+      apiKeyEnv: descriptor.apiKeyEnv,
+      env: process.env,
+      repoRoot: process.cwd(),
+    });
+    if (resolvedKey.key === null) {
       console.error(
-        `--use-jev ignored: ${descriptor.apiKeyEnv} is unset (deterministic harness retained)`,
+        `--use-jev ignored: ${descriptor.apiKeyEnv} is unset in the environment and .env (deterministic harness retained)`,
       );
       return null;
     }
-    const [{ createDecisionAdapter }, { createDecisionTransport }] = await Promise.all([
-      import("../csm-orchestrate/lib/decision-adapter/index.mjs"),
-      import("../csm-orchestrate/lib/decision-adapter/transport.mjs"),
-    ]);
+    const apiKey = resolvedKey.key;
     const transport = createDecisionTransport({
       provider: descriptor,
       env: { [descriptor.apiKeyEnv]: apiKey },

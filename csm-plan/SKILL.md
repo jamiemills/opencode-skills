@@ -279,6 +279,11 @@ Jev (the optional host-mediated typed-decision layer) is off by default and obse
 
 Never-Jev boundary: BL2 (the csm-build dispatch/acceptance-signal point) must not feed or alter the deterministic acceptance-signal lint in `csm-plan/lib/loop-evaluator.mjs`. Applicability authority and the acceptance-signal lint stay deterministic.
 
+When opted in, `critique-severity` and `task-risk` may be consulted first as
+advisory hints through the consult seam; the CRITIQUE subagent and primary
+dispatch remain the authority and are the fallback. No hint reaches the
+acceptance-signal lint or the applicability record.
+
 ## Required Plan Document
 
 Use this structure:

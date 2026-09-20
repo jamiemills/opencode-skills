@@ -14,6 +14,7 @@
 
 import { createHash } from "node:crypto";
 import { getDecisionPoint } from "./points.mjs";
+import { buildQuestions } from "./question-protocol.mjs";
 
 export const DECISION_ADAPTER_MODES = Object.freeze(["off", "shadow", "live"]);
 export const DECISION_BASELINE_SOURCE = "deterministic-baseline";
@@ -140,10 +141,16 @@ function mayApply(point) {
 }
 
 function transportInput(pointId, state, point) {
+  let questions;
+  try {
+    questions = buildQuestions([point], { idOf: () => pointId });
+  } catch {
+    questions = {};
+  }
   return {
     pointId,
     state,
-    questions: [pointId],
+    questions,
     point: Object.freeze({
       id: point.id,
       seam: point.seam,
@@ -504,6 +511,79 @@ export function createDecisionAdapter({
     return consult(pointId, state, baseline, point, false);
   }
 
+  // T006: one batched typed-question call for a set of advisory points. Returns
+  // a frozen map of pointId -> advisory advice (or null). It never applies a
+  // decision, never touches a gate, and fail-opens to all-null on any transport
+  // error. Per-point call caps and the shared failure counter are honoured.
+  async function decideBatch(pointIds = [], state = null) {
+    const output = {};
+    const selected = [];
+    const ids = Array.isArray(pointIds) ? pointIds : [];
+    for (const pointId of ids) {
+      output[pointId] = null;
+      const point = prepared(pointId);
+      if (point === null) continue;
+      if (callCapReached(pointId)) continue;
+      selected.push(point);
+    }
+    if (selected.length === 0) return Object.freeze(output);
+    let questions;
+    try {
+      questions = buildQuestions(selected, { idOf: (point) => point.id });
+    } catch {
+      return Object.freeze(output);
+    }
+    for (const point of selected) {
+      callsByPoint.set(point.id, (callsByPoint.get(point.id) ?? 0) + 1);
+      consulted += 1;
+    }
+    const startedAt = Date.now();
+    let outcome;
+    try {
+      outcome = await withDeadline(
+        transport.send({
+          pointId: null,
+          state,
+          questions,
+          points: selected.map((point) => point.id),
+        }),
+        boundDeadlineMs,
+      );
+    } catch (error) {
+      outcome = { status: "failure", failure: classifyThrown(error) };
+    }
+    if (outcome === DEADLINE)
+      outcome = { status: "failure", failure: { class: "timeout", retryable: true } };
+    if (outcome === null || typeof outcome !== "object" || outcome.ok !== true) {
+      for (const point of selected)
+        recordFailure(point.id, outcome?.failure ?? { class: "unmapped", retryable: true });
+      return Object.freeze(output);
+    }
+    consecutiveFailures = 0;
+    succeeded += 1;
+    const latencyMs = Math.max(0, Date.now() - startedAt);
+    const decision = outcome.decision ?? {};
+    const answers = decision.answers ?? {};
+    const usage = decision.usage ?? {};
+    for (const point of selected) {
+      const answer = answers[point.id];
+      if (answer === null || answer === undefined) continue;
+      const advice = Object.freeze({
+        answer: answer.answer ?? null,
+        confidence: Number.isFinite(answer.confidence) ? answer.confidence : null,
+        probabilities: answer.probabilities ?? null,
+        legend: answer.legend ?? null,
+        usage,
+        providerId,
+        providerModel,
+        latencyMs,
+      });
+      output[point.id] = advice;
+      remember(point.id, stateDigestOf(state), advice, { applied: false, routingBand: "advisory" });
+    }
+    return Object.freeze(output);
+  }
+
   function stats() {
     return Object.freeze({
       mode: effectiveMode,
@@ -537,6 +617,7 @@ export function createDecisionAdapter({
     points: pointAllowlist,
     decide,
     shadow,
+    decideBatch,
     stats,
     records: () => Object.freeze([...decisions]),
   });

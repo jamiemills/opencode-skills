@@ -1,0 +1,711 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48",
+  "runId": "run-20260920t164518z-a1f7d0eb0b48",
+  "title": "Optional Jev Substitution for LLM Judge, Challenger, and Adversarial-Review Roles",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The repository already has ONE optional Jev opt-in (`--use-jev` or a `csm-orchestrate-request/2` decision block) and a descriptor-only supplier seam (OpenRouter default, Vercel); when Jev is requested, the challenger/judge/severity/evidence-class/adversarial-review JUDGMENT steps can be routed through that same layer as advisory decision points, maximally displacing separate LLM judge dispatches.\n\nJev returns the exact closed-set verdict vocabularies these roles need (the probe returns csm-review's agree/downgrade/retract/new_finding and csm-deep-research's four-dimension rubric in one batched call), but it cannot author findings, fixes, or rationale, and every acceptance, security, completion, receipt, and loop-guard surface stays harness-owned.\n\nBlocking prerequisite: the shipped provider request/response contract is misaligned with the live API (array vs record; top-level answer vs `answers` envelope), so every live consultation currently fail-opens; repairing the descriptors is the enabling first step, and it must live in the descriptors so new suppliers remain descriptor-only."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: how can the repo aggressively use Jev (TypeSafe) to replace or reduce the LLM usage in adversarial-review, challenger, judge, and evaluator roles across the skills, hooked to the existing Jev opt-in and preserving provider-pluggable access?\n```text\nuser says 'use Jev' -> existing single opt-in (--use-jev | request/2 decision block)\n   -> CSM_DECISION_PROVIDER selects a descriptor (openrouter | vercel | <new>)\n   -> descriptor builds a typed record of questions, one batched call\n   -> Jev returns choice/score/noul + probabilities + confidence\n   -> review/judge decision points consume the verdicts as ADVISORY\n   -> deterministic guard + receipt + acceptance stay harness-owned\n   -> LLM/human only for rationale, fixes, and on transport failure\n```\nHeadline evidence: (a) the opt-in and supplier seam already exist and are already documented as provider-pluggable [ref-typed-decisions][ref-typed-runbook]; (b) a live probe returned the exact verdict/score shapes the challenger, judge, severity, evidence-class, and adversarial-review roles need [ref-probe-artifact]; (c) the repo's own enforcement model already separates an evaluator's dispatch from the deterministic guard that carries enforcement weight, so replacing the dispatch does not weaken the gate [ref-enforcement-model]; and (d) the shipped provider contract does not match the live API and fail-opens on every call today [ref-adapter-index][ref-openrouter-test].\nHeadline caveats: Jev cannot generate narrative or fixes [ref-typesafe-primitives]; the never-Jev boundary excludes every acceptance/security/completion surface [ref-typed-decisions]; and per-role accuracy is unmeasured, so the path is advisory and default-off, never a gate [ref-prior-jev-quality]."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported - Single existing opt-in plus a descriptor-only supplier seam; add review/judge uses as decision points, not a new option. [ref-typed-decisions][ref-typed-runbook][ref-run-orchestrator]\n\nK2. supported - The shipped provider contract mismatches the live API (array vs record; top-level answer vs `answers` envelope); the live probe returns HTTP 400 for the shipped shape, and the offline tests assert the array shape against a mock, so every live consultation fail-opens. [ref-adapter-index][ref-openrouter-test][ref-probe-artifact]\n\nK3. supported (live probe) - Jev returns the exact csm-review challenger vocabulary agree/downgrade/retract/new_finding with probabilities and confidence. [ref-probe-artifact][ref-csm-review-skill]\n\nK4. supported (live probe) - Jev returns the csm-deep-research four-dimension judge rubric as four Score questions in one call, normalizable to 0-1/<0.7. [ref-probe-artifact][ref-csm-deep-research-skill]\n\nK5. supported (live probe) - Jev returns severity bands, evidence class E1-E4, and the csm-orchestrate adversarial-review gates as typed questions. [ref-probe-artifact][ref-adversarial-final-review]\n\nK6. supported - Jev cannot generate; it cannot author findings, fixes, review comments, or rationale, so it replaces the judgment step, not the author or remediator. [ref-typesafe-primitives][ref-prior-jev-quality]\n\nK7. supported - The never-Jev boundary keeps acceptance/security/completion/receipts/loop-guards/cursor/severity-authority/redaction/commit/gates deterministic; jev-in-review is advisory or guarded-apply only. [ref-typed-decisions]\n\nK8. supported - The repo already separates the evaluator DISPATCH (LLM) from the deterministic guard that carries enforcement weight, so replacing a judge dispatch with a Jev call need not weaken enforcement if the guard and receipt construction stay harness-owned. [ref-enforcement-model][ref-enforcement-spike]\n\nK9. supported (prescriptive) - Under the existing global opt-in that runs the apply set plus all advisory points, register the review/judge roles as safety/authority advisory points; only non-safety points may apply, so no new option is needed. [ref-jev-approach][ref-points-mjs]\n\nK10. supported - Putting the typed-protocol repair in the descriptors preserves provider-pluggable access; a new supplier stays a new descriptor only, and the two suppliers use different endpoints and model ids. [ref-provider-registry][ref-provider-openrouter][ref-provider-vercel]\n\nK11. supported - Highest-signal lowest-authority substitutions: csm-review challenger verdict + severity + evidence-class + semantic-dedup; csm-deep-research challenger verdict + judge rubric; csm-orchestrate adversarial-review gates; csm-plan critique severity; csm-autoresearch advisory judge; csm-review-python JUDGE severity/dedup. [ref-decision-points-json][ref-autoresearch-llm][ref-csm-review-python-skill]\n\nK12. partially-supported - The shipped adapter has fail-open and baseline-disagreement discard but no confidence-gated dispatch; a confidence-gated LLM fallback is proposed new code that must be reconciled with the documented no-confidence-gate doctrine or replaced by transport-failure plus baseline-disagreement gating. [ref-adapter-index][ref-jev-approach]\n\nK13. partially-supported - Per-role accuracy is unmeasured and the probe is single-sample; nothing may auto-accept and no Jev score may become a gate until calibrated. [ref-prior-jev-quality]\n\nK14. supported - Confidence is distribution-derived and not correctness; Noul carries no confidence; structural identities between questions are not guaranteed, so combination is code-owned. [ref-typesafe-primitives][ref-prior-jev-quality][ref-probe-artifact]\n\nK15. supported - csm-review-python and csm-autoresearch have no Jev section and no adapter wiring; csm-review-python has no independent challenger/evaluator and no in-loop enforcement. [ref-csm-review-python-skill][ref-capabilities]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "## D1. The existing opt-in and supplier seam (what we hook into)\n\nThe layer is optional, user-initiated, and off by default; with it absent the run is byte-identical to the decision-free path [ref-typed-decisions]. Code-level opt-in is the `--use-jev` flag (forced `live`) or a `csm-orchestrate-request/2` `decision:{mode,points}` block; there is no new-option surface to add. The provider is selected by `CSM_DECISION_PROVIDER` (default `openrouter`) and discovered by filename, so adding a supplier is a new `providers/<id>.mjs` descriptor file only [ref-provider-registry][ref-run-orchestrator].\n\n```text\n\nopt-in (existing)  --use-jev | request/2 {decision:{mode,points}}\n\nprovider env       CSM_DECISION_PROVIDER=openrouter|<id>\n\ndescriptor         providers/<id>.mjs (buildRequest/parseResponse/classifyError)\n\nshipped routes     openrouter /api/alpha/decisions  typesafe/jev-1.13\n\n                   vercel     /v1/evaluate           typesafe-ai/jev\n\n```\n\n## D2. The blocking defect: shipped contract vs live API\n\nThe adapter passes `questions: [pointId]` into the transport and the descriptors forward it unchanged; `parseResponse` reads only a top-level `answer|choice|score|noul` [ref-adapter-index][ref-provider-openrouter][ref-provider-vercel]. The live endpoint instead requires a `questions` RECORD and returns an `answers` record keyed by question id, each entry `{type, choice|score|noul, probabilities, confidence, legend}`; a live call with the shipped array shape returned HTTP 400 `expected record, received array` [ref-probe-artifact][ref-openrouter-decisions]. The offline tests pin the array shape against a mock, so they pass while the live path always fail-opens as `unmapped` [ref-openrouter-test].\n\n```text\n\nadapter transportInput -> questions:[\"pointId\"]  (array)  -> live 400 -> fail-open\n\nrequired shape         -> questions:{ q:{type,criteria,instructions}, ... } -> 200\n\nresponse               -> { answers:{ q:{choice|score|noul, probabilities, confidence} } }\n\n```\n\n## D3. Per-role substitution catalog (live-probe backed)\n\n```text\n\nrole                                   jev question shape        probe result\n\ncsm-review CHALLENGE verdict            choice(4)                 agree 0.49, conf 0.31\n\ncsm-review severity                     choice(5)                 high 0.88, conf 0.85\n\ncsm-review evidence class               choice(E1-E4)             E3 0.93, conf 0.91\n\ncsm-review semantic dedup               score(similarity)         (registered point)\n\ncsm-review secret pre-flag              noul                      (registered point)\n\ncsm-deep-research CHALLENGE verdict     choice(4)                 downgrade conf 0.17\n\ncsm-deep-research JUDGE rubric          4x score(0-4)             completeness 0.33 conf 0.73\n\ncsm-orchestrate adversarial gates       4x noul                   coverage .45/entail .18\n\ncsm-plan critique severity              score/choice              (registered, advisory)\n\ncsm-autoresearch advisory judge         score/pairwise            (local advisory judge)\n\ncsm-review-python JUDGE severity        choice(C/R/W/E/F/Nit)     (no jev wiring yet)\n\n```\n\nThe judge rubric maps one-to-one: four Score questions in one batched call, normalized by `score/(len(criteria)-1)` to the skill's 0-1 dimensions with the existing `<0.7` fail line [ref-csm-deep-research-skill]. The adversarial gates map one-to-one to Noul questions [ref-adversarial-final-review]. The csm-review challenger verdict maps one-to-one to the schema enum [ref-csm-review-findings-schema].\n\n## D4. Advisory-only by construction, and why that is enough\n\nJev output is pinned to the observational `csm-orchestrate-decision-gate/1` class and may never own acceptance, security, completion, receipts, loop guards, cursor, severity authority, or redaction [ref-typed-decisions]. Only non-safety points may apply at all [ref-points-mjs]. Crucially, the repo's enforcement model already treats an evaluator's verdict as an input to a deterministic guard rather than as the authority itself, and states the deterministic guard carries the enforcement weight [ref-enforcement-model][ref-enforcement-spike]. So a Jev challenger/judge verdict that routes to REMEDIATE or triggers review is consistent with the boundary, because the downstream guard, receipt construction, and acceptance remain harness-owned and code-constructed [ref-csm-review-loop-closure][ref-csm-build-loop-guard][ref-csm-plan-loop-evaluator].\n\n```text\n\nopt-in -> descriptor -> batched typed questions -> jev verdicts (advisory)\n\n  -> skill consumes verdicts for routing/pre-flagging\n\n  -> deterministic guard + receipt + acceptance (harness-owned)\n\n  -> LLM/human on transport failure, baseline disagreement, or for narrative/fix\n\n```\n\n## D5. Supplier preservation: descriptor-only repair\n\nThe repair belongs in each descriptor's `buildRequest`/`parseResponse` (build a typed `questions` record from the point's criteria/instructions; read the `answers` envelope), never in the adapter. A shared helper may exist, but the extension point stays the descriptor so a third supplier is one new file [ref-provider-registry][ref-provider-vercel]. The two shipped suppliers already differ in endpoint and model id, so no single-supplier assumption may enter the adapter [ref-typed-runbook].\n\n## D6. What Jev must not be asked to do\n\nJev cannot author findings, review comments, fixes, remediations, or rationale, and cannot do whole-repo, call-graph, dataflow, counting, or arithmetic reasoning [ref-typesafe-primitives][ref-prior-jev-quality]. It therefore replaces the judgment step only; the LLM (or human) retains the finding author, the critic's written rationale, and remediation. The verifier role in csm-deep-research is primary-personal and never delegated, so it cannot be replaced [ref-csm-deep-research-skill].\n\n## D7. Scope of the change (which skills)\n\nDirect jev substitution candidates: csm-review (challenger verdict, severity, evidence-class, semantic-dedup, secret pre-flag), csm-deep-research (challenger verdict, judge rubric), csm-orchestrate (adversarial-review gates), csm-plan (critique severity), csm-autoresearch (advisory judge), csm-review-python (JUDGE severity/dedup). Skills with no judge/challenger role (csm-scan, csm-ddd, csm-make-tests, csm-upload) only carry the conditional-skill advisory ranking, which already exists. csm-grill has no implemented judge role [ref-capabilities]."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "When Jev is requested, hook the review/judge roles into the EXISTING opt-in and make Jev the first-pass adjudicator for the judgment slice, with the LLM retained for narrative and as the fail-open fallback. No new flag or option is introduced.\n\nConcretely: (1) repair each provider descriptor's `buildRequest`/`parseResponse` to the live typed-question protocol (questions as a record, read the `answers` envelope, preserve probabilities/legend/confidence), so the existing opt-in actually reaches the provider; keep the repair descriptor-only so OpenRouter, Vercel, and any new supplier remain pluggable. (2) Register the challenger/judge/severity/evidence-class/adversarial-gate roles as safety/authority ADVISORY decision points in `csm-orchestrate/decision-points.json`, so the existing global opt-in wires them with no new surface. (3) On opt-in, produce the first-pass challenger/judge verdicts from one batched Jev call; keep the LLM (or primary) only for rationale, remediation, and as the fallback on transport failure or baseline disagreement. (4) Keep every gate, receipt, loop guard, cursor, severity authority, and acceptance record deterministic and harness-owned. (5) Start with csm-review (challenger verdict + severity + evidence-class) and csm-deep-research (challenger verdict + judge rubric) as the highest-signal, lowest-authority pilots.\n\nConfidence: HIGH on the shape - it follows from shipped architecture (single opt-in, provider seam, dispatch-vs-guard split) and is confirmed by the live probe. LOW on per-role accuracy - no human-labelled corpus exists, so every Jev verdict stays advisory and default-off.\n\nWhat would change the answer: a human-labelled evaluation showing a role is unreliable (drop that point); discovery that a judge's verdict is itself the acceptance gate in some path (keep that path LLM/deterministic); the OpenRouter alpha route being withdrawn or rate-limited into uselessness; or Vercel's live request shape proving different from OpenRouter's (repair per descriptor). The cost of being wrong is bounded because the path is additive, default-off, and fail-open."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. unverifiable - Per-role accuracy: there is no human-labelled corpus for challenger/judge/adversarial verdicts and no measured precision/recall; the probe is one call per role. Verification: build a held-out human-labelled set and measure per-role precision/recall before promoting any point from advice to a tuned trigger.\n\nU2. unverifiable - The Vercel live request/response shape: only the OpenRouter route was probed; Vercel shares the body shape in code but was not live-tested because its key is unavailable. Verification: run one bounded call against `ai-gateway.vercel.sh/v1/evaluate` with `typesafe-ai/jev` and confirm the record/envelope shape.\n\nU3. partially-supported - A confidence-gated LLM fallback is proposed but untested and conflicts with the repo's documented no-confidence-gate doctrine. Verification: decide whether fallback is gated by transport failure and baseline disagreement only, or whether a confidence threshold is adopted with calibration.\n\nU4. unverifiable - Injection steering of judge verdicts: state is not treated as hostile and can steer the answer, and the prior prompt probe false-positived on defensive phrasing. Verification: a dedicated injection suite over finding text, evidence snippets, and draft documents.\n\nU5. unverifiable - Whether Jev's Noul gates are reliable enough to pre-screen adversarial acceptance: the probe's low Noul values are plausible but single-sample and uncalibrated. Verification: labelled gate outcomes with inter-annotator agreement.\n\nU6. unverifiable - OpenRouter alpha route stability and sustained cost/latency under a review workload. Verification: re-run the probe before depending on it, and measure throughput, tail latency, and rate-limit behaviour."
+    },
+    "references": {
+      "id": "references",
+      "content": "[ref-typed-decisions] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/typed-decisions.md (retrieved 2026-09-20)\n[ref-typed-runbook] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/typed-decisions-runbook.md (retrieved 2026-09-20)\n[ref-decision-points-json] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/decision-points.json (retrieved 2026-09-20)\n[ref-points-mjs] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/points.mjs (retrieved 2026-09-20)\n[ref-adapter-index] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/index.mjs (retrieved 2026-09-20)\n[ref-provider-openrouter] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs (retrieved 2026-09-20)\n[ref-provider-vercel] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/providers/vercel.mjs (retrieved 2026-09-20)\n[ref-provider-registry] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/providers/index.mjs (retrieved 2026-09-20)\n[ref-transport] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/transport.mjs (retrieved 2026-09-20)\n[ref-run-orchestrator] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/scripts/run-orchestrator.mjs (retrieved 2026-09-20)\n[ref-openrouter-test] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/tests/offline/decision-provider-openrouter.test.mjs (retrieved 2026-09-20)\n[ref-csm-review-skill] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review/SKILL.md (retrieved 2026-09-20)\n[ref-csm-review-findings-schema] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review/schemas/csm-review-findings.v2.schema.json (retrieved 2026-09-20)\n[ref-csm-review-loop-closure] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review/lib/loop-closure.mjs (retrieved 2026-09-20)\n[ref-csm-deep-research-skill] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-deep-research/SKILL.md (retrieved 2026-09-20)\n[ref-adversarial-final-review] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/adversarial-final-review.mjs (retrieved 2026-09-20)\n[ref-csm-orchestrate-skill] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/SKILL.md (retrieved 2026-09-20)\n[ref-csm-plan-skill] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-plan/SKILL.md (retrieved 2026-09-20)\n[ref-csm-build-skill] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-build/SKILL.md (retrieved 2026-09-20)\n[ref-csm-plan-loop-evaluator] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-plan/lib/loop-evaluator.mjs (retrieved 2026-09-20)\n[ref-csm-build-loop-guard] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-build/lib/loop-guard.mjs (retrieved 2026-09-20)\n[ref-enforcement-model] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/enforcement-model.md (retrieved 2026-09-20)\n[ref-enforcement-spike] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/enforcement-evaluator-spike.md (retrieved 2026-09-20)\n[ref-autoresearch-llm] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-autoresearch/lib/llm/index.mjs (retrieved 2026-09-20)\n[ref-csm-review-python-skill] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review-python/SKILL.md (retrieved 2026-09-20)\n[ref-capabilities] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/capabilities.json (retrieved 2026-09-20)\n[ref-prior-jev-quality] Workspace repo (jamiemills/opencode-skills) - local finding .agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)\n[ref-jev-approach] Workspace repo (jamiemills/opencode-skills) - https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/.agents/approaches/2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json (retrieved 2026-09-20)\n[ref-typesafe-primitives] TypeSafe AI documentation - https://docs.typesafe.ai/primitives (retrieved 2026-09-20)\n[ref-typesafe-api] TypeSafe AI documentation - https://docs.typesafe.ai/api (retrieved 2026-09-20)\n[ref-openrouter-decisions] OpenRouter (alpha decisions endpoint) - https://openrouter.ai/api/alpha/decisions (retrieved 2026-09-20)\n[ref-probe-artifact] Workspace repo (jamiemills/opencode-skills) - local declared artifact .agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)"
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Triage: DEEP x hybrid. Tracks: T1 existing Jev opt-in/provider seam (adapter, descriptors, registry, runbook, approach); T2 adversarial-review/critic roles per skill (four parallel read-only skill inventories); T3 enforcement model and never-Jev boundary; T4 live Jev capability probes for the challenger/judge/adversarial-gate shapes.\n\nLive evidence: the primary ran three bounded batched calls to the OpenRouter Jev endpoint (typesafe/jev-1.13, resolved snapshot typesafe/jev-1.13-20260917), returning HTTP 200 at ~$2.7e-5 each, plus a transport-mismatch probe returning HTTP 400 for the shipped array shape. Raw requests/responses are preserved (redacted of the key) in the declared artifact [ref-probe-artifact].\n\nChallenger (independent subagent, anti-anchored, claims+evidence only; C1-C15): C1-C11 uphold; C12 DOWNGRADE - the confidence-gated-dispatch claim was unsupported and conflicted with the no-confidence-gate doctrine; remediated to transport-failure/baseline-disagreement gating as proposed code; C13-C15 uphold. Citation corrections applied: csm-review schema path; the non-safety-apply rule at points.mjs:67-68; csm-review-python's severity scale differs from the probed spine; the challenger verdict and orchestrate gates are prospective, not yet registered; the artifact now states the `answers` envelope explicitly.\n\nJudge (independent subagent, reasoning-before-verdict, 0-1): factual accuracy 0.95 (pass), citation accuracy 0.90 (pass), completeness 0.80 (pass, lowest), clarity 0.85 (pass) - OVERALL PASS. The completeness deduction was that the judge saw a condensed rendering without the Executive Summary/Process Appendix headings; the saved finding renders all eight H2 sections verbatim, resolving it.\n\nIndependence caveats: the live probe calls were run by the primary, not a subagent, and are single samples; all subagents were read-only and returned text only. The four skill inventories were read-only subagents. The prior Jev-quality finding is carried as context, not re-verified in full.\n\nVERIFY (primary-personal, never delegated): schema csm-research/1 validated with Ajv 2020; every claim citation resolves to a declared reference; the 8-section render check passed; the declared artifact digest was recomputed and matched; a redaction check of the finding and artifact found no key/token; the INTAKE protected-state baseline re-run differs only by the finding, the declared artifact, and the mandated progress record. No commit was made: committing the finding would make it a TRACKED .agents artifact and scripts/check-suite.mjs would then require a bullet under `## research/` in `.agents/README.md`, a write outside this skill's allowlist, so the finding is left untracked (add the index bullet when committing).\n\nControl journal: see the machine-readable journal array."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-k1-single-optin",
+      "section": "keyFindings",
+      "statement": "The repository already ships one optional, provider-pluggable, default-off typed-decision layer with a single code-level opt-in (the --use-jev flag or a csm-orchestrate-request/2 decision block) and a descriptor-only supplier seam (OpenRouter default, Vercel), so new review/judge uses should be added as decision points to that layer rather than as a new option.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-typed-decisions"
+        },
+        {
+          "referenceId": "ref-typed-runbook"
+        },
+        {
+          "referenceId": "ref-run-orchestrator"
+        },
+        {
+          "referenceId": "ref-provider-registry"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k2-transport-mismatch",
+      "section": "keyFindings",
+      "statement": "The shipped provider request/response contract does not match the live Jev API: the adapter sets questions to [pointId] and both descriptors send it unchanged, while the live endpoint requires questions to be a record and returns an answers envelope keyed by question id; the live endpoint returns HTTP 400 'expected record, received array' for the shipped shape, and the offline tests assert the array shape against a mock, so tests pass while every live consultation fail-opens.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-adapter-index"
+        },
+        {
+          "referenceId": "ref-provider-openrouter"
+        },
+        {
+          "referenceId": "ref-provider-vercel"
+        },
+        {
+          "referenceId": "ref-openrouter-test"
+        },
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-openrouter-decisions"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k3-challenger-verdict",
+      "section": "keyFindings",
+      "statement": "Jev can return the exact closed-set csm-review challenger verdict vocabulary (agree/downgrade/retract/new_finding) with probabilities and confidence in one call.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-csm-review-skill"
+        },
+        {
+          "referenceId": "ref-csm-review-findings-schema"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k4-judge-rubric",
+      "section": "keyFindings",
+      "statement": "Jev can return the csm-deep-research four-dimension judge rubric (factual accuracy, citation accuracy, completeness, clarity) as four Score questions in one batched call, whose scores normalize to the skill's 0-1 / <0.7 rubric.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-csm-deep-research-skill"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k5-severity-evidence-gates",
+      "section": "keyFindings",
+      "statement": "Jev can return severity bands (csm-review critical..info), evidence class (E1..E4), and the csm-orchestrate adversarial-review gates (requirement coverage, evidence entailment, artifact identity, false completion) as typed Choice/Noul questions.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-csm-review-skill"
+        },
+        {
+          "referenceId": "ref-adversarial-final-review"
+        },
+        {
+          "referenceId": "ref-decision-points-json"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k6-non-generative",
+      "section": "keyFindings",
+      "statement": "Jev cannot generate: it cannot author findings, fixes, review comments, rationale, remediations, or rewritten text, and cannot do whole-repo, dataflow, or counting reasoning; it can replace the judgment step but not the finding author or remediator, so a harness or human must still author the rationale and any fix.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-typesafe-primitives"
+        },
+        {
+          "referenceId": "ref-typesafe-api"
+        },
+        {
+          "referenceId": "ref-prior-jev-quality",
+          "locator": ".agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k7-never-jev",
+      "section": "keyFindings",
+      "statement": "The never-Jev boundary keeps acceptance, security, completion, evaluator receipts, loop guards, cursor/supersession, severity and evidence-class authority, redaction, commit/push, and the isolation/egress/adversarial gates deterministic, so jev-in-review can only be advisory or a guarded reversible non-safety apply.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-typed-decisions"
+        },
+        {
+          "referenceId": "ref-csm-orchestrate-skill"
+        },
+        {
+          "referenceId": "ref-csm-build-skill"
+        },
+        {
+          "referenceId": "ref-csm-review-skill"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k8-dispatch-vs-guard",
+      "section": "keyFindings",
+      "statement": "Because the enforcement model already separates an evaluator's dispatch (LLM) from the deterministic guard that carries the enforcement weight, replacing a judge or evaluator dispatch with a Jev call need not weaken enforcement, provided the deterministic guard and the receipt construction remain harness-owned.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-enforcement-model"
+        },
+        {
+          "referenceId": "ref-enforcement-spike"
+        },
+        {
+          "referenceId": "ref-csm-review-loop-closure"
+        },
+        {
+          "referenceId": "ref-csm-build-loop-guard"
+        },
+        {
+          "referenceId": "ref-csm-plan-loop-evaluator"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k9-register-advisory-points",
+      "section": "keyFindings",
+      "statement": "Under the existing global opt-in, which runs the apply set plus all advisory points, the review/judge roles should be registered as safety/authority advisory decision points; only non-safety points may apply, so the change wires into the current option without a new flag.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-jev-approach"
+        },
+        {
+          "referenceId": "ref-points-mjs"
+        },
+        {
+          "referenceId": "ref-adapter-index"
+        },
+        {
+          "referenceId": "ref-decision-points-json"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k10-provider-pluggable",
+      "section": "keyFindings",
+      "statement": "Putting the typed-protocol repair in the provider descriptors' buildRequest/parseResponse rather than the adapter preserves provider-pluggable access, so a new supplier remains a new descriptor only; the two shipped suppliers use different endpoints and model ids (typesafe/jev-1.13 at /api/alpha/decisions vs typesafe-ai/jev at /v1/evaluate).",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-provider-registry"
+        },
+        {
+          "referenceId": "ref-provider-openrouter"
+        },
+        {
+          "referenceId": "ref-provider-vercel"
+        },
+        {
+          "referenceId": "ref-typed-runbook"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k11-substitution-catalog",
+      "section": "keyFindings",
+      "statement": "The highest-signal, lowest-authority substitutions are: csm-review challenger verdict plus severity, evidence-class and semantic-dedup; csm-deep-research challenger verdict plus judge rubric; csm-orchestrate adversarial-review gates; csm-plan critique severity; csm-autoresearch advisory judge; and csm-review-python JUDGE severity/dedup; caveat: the csm-review challenger verdict and the orchestrate gates are not yet registered points, and csm-review-python's scale is C/R/W/E/F/Nit.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-decision-points-json"
+        },
+        {
+          "referenceId": "ref-autoresearch-llm"
+        },
+        {
+          "referenceId": "ref-csm-review-python-skill"
+        },
+        {
+          "referenceId": "ref-adversarial-final-review"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k12-fallback-reconciled",
+      "section": "keyFindings",
+      "statement": "The shipped adapter has fail-open and baseline-disagreement discard but no confidence-gated dispatch and no LLM-dispatch path; routing the LLM only on low Jev confidence is proposed new code and must be reconciled with the repo's documented no-confidence-gate doctrine, or replaced by transport-failure plus baseline-disagreement gating.",
+      "claimType": "recommendation",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-adapter-index"
+        },
+        {
+          "referenceId": "ref-jev-approach"
+        },
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k13-unmeasured-accuracy",
+      "section": "keyFindings",
+      "statement": "Per-role accuracy is unmeasured because there is no human-labelled corpus for challenger/judge/adversarial verdicts and the live probe is single-sample, so nothing may auto-accept and no Jev score may become a gate until calibrated against a held-out human-labelled set.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-prior-jev-quality",
+          "locator": ".agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json",
+          "quote": "workspace-local run evidence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k14-confidence-not-correctness",
+      "section": "keyFindings",
+      "statement": "Confidence is distribution-derived and is not correctness; Noul carries no confidence; and structural identities between separate questions are not guaranteed, so any combination of answers must be enforced in code.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-typesafe-primitives"
+        },
+        {
+          "referenceId": "ref-prior-jev-quality",
+          "locator": ".agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-probe-artifact",
+          "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+          "quote": "workspace-local run evidence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k15-unsurfaced-skills",
+      "section": "keyFindings",
+      "statement": "csm-review-python and csm-autoresearch carry no Jev section and no decision-adapter wiring, and csm-review-python has no independent challenger/evaluator and no in-loop enforcement, so extending them requires the same seam.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-csm-review-python-skill"
+        },
+        {
+          "referenceId": "ref-autoresearch-llm"
+        },
+        {
+          "referenceId": "ref-capabilities"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-typed-decisions",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/typed-decisions.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "branch HEAD 2053253"
+    },
+    {
+      "referenceId": "ref-typed-runbook",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/typed-decisions-runbook.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "branch HEAD 2053253"
+    },
+    {
+      "referenceId": "ref-decision-points-json",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/decision-points.json",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-points-mjs",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/points.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-adapter-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/index.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-provider-openrouter",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-provider-vercel",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/providers/vercel.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-provider-registry",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/providers/index.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-transport",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/decision-adapter/transport.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-run-orchestrator",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/scripts/run-orchestrator.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-openrouter-test",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/tests/offline/decision-provider-openrouter.test.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-review-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review/SKILL.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-review-findings-schema",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review/schemas/csm-review-findings.v2.schema.json",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-review-loop-closure",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review/lib/loop-closure.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-deep-research-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-deep-research/SKILL.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-adversarial-final-review",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/lib/adversarial-final-review.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-orchestrate-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/SKILL.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-plan-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-plan/SKILL.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-build-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-build/SKILL.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-plan-loop-evaluator",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-plan/lib/loop-evaluator.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-build-loop-guard",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-build/lib/loop-guard.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enforcement-model",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/enforcement-model.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enforcement-spike",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/docs/enforcement-evaluator-spike.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-autoresearch-llm",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-autoresearch/lib/llm/index.mjs",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-csm-review-python-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-review-python/SKILL.md",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-capabilities",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/csm-orchestrate/capabilities.json",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-prior-jev-quality",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo (jamiemills/opencode-skills) - local finding .agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "prior csm-deep-research finding"
+    },
+    {
+      "referenceId": "ref-jev-approach",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253bade69ee2062a5d0e9aabbcf0fd259808/.agents/approaches/2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json",
+      "publisher": "Workspace repo (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-typesafe-primitives",
+      "url": "https://docs.typesafe.ai/primitives",
+      "publisher": "TypeSafe AI documentation",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "vendor-documentation",
+      "publishedOrUpdated": "Jev 1.13"
+    },
+    {
+      "referenceId": "ref-typesafe-api",
+      "url": "https://docs.typesafe.ai/api",
+      "publisher": "TypeSafe AI documentation",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-openrouter-decisions",
+      "url": "https://openrouter.ai/api/alpha/decisions",
+      "publisher": "OpenRouter (alpha decisions endpoint)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-probe-artifact",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo (jamiemills/opencode-skills) - local declared artifact .agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "run started; run-id, slug, write surface, and protected-state baseline recorded",
+      "occurredAt": "2026-09-20T16:45:18Z",
+      "cycle": 1,
+      "trigger": "state transition"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "classified DEEP x hybrid; four tracks defined (opt-in/seam, per-skill roles, enforcement boundary, live probes)",
+      "occurredAt": "2026-09-20T16:46:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "four read-only skill inventories returned; adapter/descriptor/runbook/approach read; three live batched probes plus one mismatch probe run",
+      "occurredAt": "2026-09-20T16:52:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "nine-part draft synthesized; 15 claims drafted with provisional verdicts; probe artifact declared",
+      "occurredAt": "2026-09-20T16:58:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "independent anti-anchored challenger returned C1-C15: 14 uphold, 1 downgrade (C12)",
+      "occurredAt": "2026-09-20T17:02:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "independent judge scored factual 0.95, citation 0.90, completeness 0.80, clarity 0.85 - PASS",
+      "occurredAt": "2026-09-20T17:05:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "C12 downgrade applied (confidence-gated fallback restated as proposed code); citation corrections applied",
+      "occurredAt": "2026-09-20T17:06:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "schema validated; citation/redaction/render/protected-state checks passed; artifact digest matched",
+      "occurredAt": "2026-09-20T17:07:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "finding written; temp dir deleted; not committed (untracked draft to respect the write allowlist)",
+      "occurredAt": "2026-09-20T17:08:00Z",
+      "cycle": 1,
+      "trigger": "verify passed"
+    }
+  ],
+  "declaredArtifacts": [
+    {
+      "artifactId": "art-jev-review-judge-probe-20260920t164518z-a1f7d0eb0b48",
+      "path": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+      "schema": {
+        "id": "csm-jev-review-judge-probe/1",
+        "revision": 1
+      },
+      "digest": "sha256:17e18c9a35e697b035fd0a0c78f53b3e0f306611b5303796d52d6e37744c4550",
+      "relation": "supports"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-20T17:06:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

@@ -15,6 +15,11 @@ export const DECISION_SEAMS = Object.freeze([
   "csm-build",
   "csm-plan",
   "csm-review",
+  "csm-review-python",
+  "csm-deep-research",
+  "csm-autoresearch",
+  "csm-bdd-tdd",
+  "csm-orchestrate-review",
   "skill-selection",
 ]);
 
@@ -22,7 +27,10 @@ export const DECISION_TYPES = Object.freeze(["choice", "score", "noul"]);
 export const SAFETY_CLASSES = Object.freeze(["non-safety", "safety", "authority"]);
 export const APPLY_VS_ADVISORY = Object.freeze(["apply", "advisory"]);
 
-export const DECISION_POINT_FIELDS = Object.freeze([
+// T005: the required fields stay frozen; `question` is an optional per-point
+// typed-question spec (instructions, criteria, legend) consumed by
+// question-protocol.mjs to build the live Jev request.
+export const DECISION_POINT_REQUIRED_FIELDS = Object.freeze([
   "id",
   "seam",
   "type",
@@ -31,6 +39,8 @@ export const DECISION_POINT_FIELDS = Object.freeze([
   "safetyClass",
   "applyVsAdvisory",
 ]);
+
+export const DECISION_POINT_FIELDS = Object.freeze([...DECISION_POINT_REQUIRED_FIELDS, "question"]);
 
 const ID_PATTERN = /^[a-z][a-z0-9-]{1,63}$/;
 
@@ -41,7 +51,7 @@ function isPlainObject(value) {
 export function validateDecisionPoint(point) {
   if (!isPlainObject(point)) return { valid: false, errors: ["point must be an object"] };
   const errors = [];
-  for (const field of DECISION_POINT_FIELDS)
+  for (const field of DECISION_POINT_REQUIRED_FIELDS)
     if (!Object.hasOwn(point, field)) errors.push(`missing ${field}`);
   for (const key of Object.keys(point))
     if (!DECISION_POINT_FIELDS.includes(key)) errors.push(`unknown field ${key}`);
@@ -191,6 +201,235 @@ export const decisionPoints = Object.freeze(
       fallback: "deterministic-severity-bucket",
       safetyClass: "safety",
       applyVsAdvisory: "advisory",
+    },
+    // T005: the review/judge/adversarial-role advisory points. Every one is
+    // safety/authority + advisory: Jev may pre-flag and prioritize, but the
+    // role, the deterministic gates, and the closure/acceptance records stay
+    // harness-owned. Each carries a typed `question` for the live API.
+    {
+      id: "review-challenger-verdict",
+      seam: "csm-review",
+      type: "choice",
+      criteria: ["agree", "downgrade", "retract", "new_finding"],
+      fallback: "deterministic-challenger-verdict",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Act as an independent adversarial challenger. Assuming the finding is false until the quoted evidence proves it true, does the evidence support the finding and its proposed severity/confidence?",
+        criteria: {
+          agree: "Evidence fully supports the finding and its proposed severity/confidence",
+          downgrade: "The finding is real but its severity or confidence is overstated",
+          retract: "The evidence does not support the finding",
+          new_finding: "The evidence reveals a different, additional real finding",
+        },
+      },
+    },
+    {
+      id: "deep-research-challenger-verdict",
+      seam: "csm-deep-research",
+      type: "choice",
+      criteria: ["uphold", "downgrade", "retract", "suggest_new_claim"],
+      fallback: "deterministic-challenger-verdict",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "As an anti-anchored challenger, does the cited claim hold against the quoted evidence? Assume the claim is false until the evidence proves it true.",
+        criteria: {
+          uphold: "Evidence supports the claim as written",
+          downgrade: "The claim overstates the evidence",
+          retract: "The evidence does not support the claim",
+          suggest_new_claim: "A missing claim should be added",
+        },
+      },
+    },
+    {
+      id: "deep-research-judge-factual-accuracy",
+      seam: "csm-deep-research",
+      type: "score",
+      criteria: [
+        "unsupported",
+        "mostly-unsupported",
+        "mixed",
+        "mostly-supported",
+        "fully-supported",
+      ],
+      fallback: "no-advisory",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions: "Judge the factual accuracy of the draft against its cited references.",
+        criteria: [
+          "Unsupported/contradicted",
+          "Mostly unsupported",
+          "Mixed",
+          "Mostly supported",
+          "Fully supported",
+        ],
+      },
+    },
+    {
+      id: "deep-research-judge-citation-accuracy",
+      seam: "csm-deep-research",
+      type: "score",
+      criteria: ["wrong", "loose", "mixed", "mostly-correct", "supported"],
+      fallback: "no-advisory",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions: "Does each citation actually support the claim it is attached to?",
+        criteria: [
+          "Wrong citations",
+          "Loose mapping",
+          "Mixed",
+          "Mostly correct",
+          "Every citation supports its claim",
+        ],
+      },
+    },
+    {
+      id: "deep-research-judge-completeness",
+      seam: "csm-deep-research",
+      type: "score",
+      criteria: ["mostly-missing", "several-missing", "mixed", "one-missing", "complete"],
+      fallback: "no-advisory",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions: "Are all required sections present and non-empty?",
+        criteria: [
+          "Mostly missing",
+          "Several missing",
+          "Mixed",
+          "One missing",
+          "All present and substantive",
+        ],
+      },
+    },
+    {
+      id: "deep-research-judge-clarity",
+      seam: "csm-deep-research",
+      type: "score",
+      criteria: ["illegible", "hard-to-follow", "mixed", "mostly-clear", "clear"],
+      fallback: "no-advisory",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions: "Is the finding legible to a reader without the research notes?",
+        criteria: ["Illegible", "Hard to follow", "Mixed", "Mostly clear", "Fully clear"],
+      },
+    },
+    {
+      id: "python-review-judge-severity",
+      seam: "csm-review-python",
+      type: "choice",
+      criteria: ["C", "R", "W", "E", "F", "Nit"],
+      fallback: "deterministic-severity",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "For an idiomatic-Python review finding, choose the urgency band. C = convention, R = refactor, W = warning, E = error/probable bug, F = fatal, Nit = trivial.",
+        criteria: {
+          C: "Convention deviation with no runtime effect",
+          R: "Refactor opportunity",
+          W: "Warning; not a definite bug",
+          E: "Error or probable bug",
+          F: "Fatal defect or data-loss risk",
+          Nit: "Trivial style nit",
+        },
+      },
+    },
+    {
+      id: "python-review-dedup",
+      seam: "csm-review-python",
+      type: "score",
+      criteria: ["distinct", "weak", "moderate", "strong", "duplicate"],
+      fallback: "deterministic-dedup",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions: "How similar is this candidate finding to the other candidate?",
+        criteria: [
+          "Distinct",
+          "Weakly related",
+          "Moderately related",
+          "Strongly related",
+          "Duplicate",
+        ],
+      },
+    },
+    {
+      id: "build-review-verdict",
+      seam: "csm-build",
+      type: "choice",
+      criteria: ["pass", "needs_repair", "fail", "uncertain"],
+      fallback: "deterministic-review-verdict",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "As an independent reviewer of this integrated change, does the evidence support passing this review track?",
+        criteria: {
+          pass: "No material issue in this track",
+          needs_repair: "A bounded repair is required",
+          fail: "The change does not satisfy this track",
+          uncertain: "Evidence is insufficient to decide",
+        },
+      },
+    },
+    {
+      id: "autoresearch-judge-ranking",
+      seam: "csm-autoresearch",
+      type: "score",
+      criteria: ["worst", "poor", "average", "good", "best"],
+      fallback: "deterministic-judge-ranking",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Rank this blinded candidate against the others for the stated optimization target.",
+        criteria: ["Worst", "Poor", "Average", "Good", "Best"],
+      },
+    },
+    {
+      id: "bdd-tdd-validation-verdict",
+      seam: "csm-bdd-tdd",
+      type: "choice",
+      criteria: ["valid", "needs_repair", "invalid"],
+      fallback: "deterministic-validation-verdict",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Does this scenario fail for the right reason and go green only when the correct behavior is implemented?",
+        criteria: {
+          valid: "Fails for the right reason; strictness holds",
+          needs_repair: "Bounded repair required",
+          invalid: "Passes before implementation or fails for the wrong reason",
+        },
+      },
+    },
+    {
+      id: "orchestrate-reviewer-finding",
+      seam: "csm-orchestrate-review",
+      type: "choice",
+      criteria: ["uphold", "downgrade", "retract", "missing-evidence", "suggest-new-requirement"],
+      fallback: "deterministic-reviewer-finding",
+      safetyClass: "authority",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "As the independent final reviewer, classify this claim against the requirement, evidence, and artifact identity you were given. Advisory context only; the deterministic acceptance gate is not affected.",
+        criteria: {
+          uphold: "Requirement supported by evidence",
+          downgrade: "Partially supported; scope is overstated",
+          retract: "Not supported by the evidence",
+          "missing-evidence": "No evidence supplied for a stated requirement",
+          "suggest-new-requirement": "A missing requirement should be added",
+        },
+      },
     },
   ].map(definePoint),
 );

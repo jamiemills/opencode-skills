@@ -1,0 +1,1277 @@
+{
+  "acceptanceCriteria": [
+    {
+      "criterion": "Both shipped descriptors emit a typed `questions` record and parse the `answers` envelope, proven against raw-envelope fixtures.",
+      "evidence": "T001,T002,T003.",
+      "id": "AC1"
+    },
+    {
+      "criterion": "Key resolver reads env var or repo .env, isolates providers, never exposes a key on argv or in artifacts.",
+      "evidence": "T004,T007.",
+      "id": "AC2"
+    },
+    {
+      "criterion": "New advisory points validate and decision-points.json stays in lockstep; no apply point is safety/authority.",
+      "evidence": "T005.",
+      "id": "AC3"
+    },
+    {
+      "criterion": "Consult seam returns advisory verdicts under the existing opt-in, fails open, no network without opt-in.",
+      "evidence": "T006,T007.",
+      "id": "AC4"
+    },
+    {
+      "criterion": "Every listed skill consumes advisory verdicts for its review/judge/adversarial roles, including csm-build REVIEW, with gates deterministic.",
+      "evidence": "T009-T016.",
+      "id": "AC5"
+    },
+    {
+      "criterion": "Boundary guard rejects advisory payloads in protected inputs; the orchestrate gate output is byte-identical with/without advice.",
+      "evidence": "T008,T016.",
+      "id": "AC6"
+    },
+    {
+      "criterion": "make test and make check are green and regenerated payload digests match.",
+      "evidence": "T017,T018,T019.",
+      "id": "AC7"
+    }
+  ],
+  "applicability": {
+    "bypass": {
+      "rationale": null,
+      "requested": false
+    },
+    "dddArtifacts": [],
+    "decision": "warranted",
+    "evidence": [
+      {
+        "locator": "csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs",
+        "observation": "Provider public contract changes to the live typed-question protocol.",
+        "source": "repository"
+      },
+      {
+        "locator": "csm-orchestrate/decision-points.json",
+        "observation": "New registry points and seams are a public contract.",
+        "source": "repository"
+      },
+      {
+        "locator": "scripts/run-orchestrator.mjs",
+        "observation": "External egress to the Jev provider is host-mediated.",
+        "source": "repository"
+      },
+      {
+        "locator": "brief",
+        "observation": "Review/judge/adversarial authority surfaces trigger the security_or_authority signal.",
+        "source": "plan"
+      }
+    ],
+    "format": "csm-applicability/1",
+    "matchedSignals": [
+      "boundary_change",
+      "public_contract",
+      "external_side_effect",
+      "security_or_authority"
+    ],
+    "mode": "risk-first",
+    "obligations": [
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "ownership",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "seam",
+        "status": "required"
+      },
+      {
+        "id": "parity",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
+    ],
+    "taskApplicability": {
+      "lightweight": [],
+      "warranted": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T009",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T018",
+        "T019"
+      ]
+    },
+    "unresolvedRisks": [
+      "Vercel is deferred: descriptor conforms to the protocol and remains pluggable, but its live envelope is not verified.",
+      "Per-role accuracy remains unmeasured; the harness reports agreement only and promotes no threshold.",
+      "The csm-orchestrate deterministic gate stays out of scope; only the injected reviewer's context may see advisory findings."
+    ]
+  },
+  "artifactId": "art-5081415778ed52ef98b59deb290a53a9",
+  "assumptionsAndDecisions": [
+    {
+      "evidence": "user request",
+      "id": "A1",
+      "statement": "Hook to the existing opt-in; add no new Jev flag; Jev is used for a role only when specifically invoked.",
+      "status": "accepted",
+      "type": "user-dictated"
+    },
+    {
+      "evidence": "user request (revision)",
+      "id": "A2",
+      "statement": "Every skill that performs review, judge, or adversarial-review judgment gets optional advisory Jev wiring, including csm-build REVIEW.",
+      "status": "accepted",
+      "type": "user-dictated"
+    },
+    {
+      "evidence": "user request (revision)",
+      "id": "A3",
+      "statement": "Preserve descriptor-only provider extension; Vercel stays supported but is not live-verified now.",
+      "status": "accepted",
+      "type": "user-dictated"
+    },
+    {
+      "evidence": "user request (revision)",
+      "id": "A4",
+      "statement": "Skills load the provider key from the descriptor env var or the repo .env via the new resolver, host-side only.",
+      "status": "accepted",
+      "type": "user-dictated"
+    },
+    {
+      "evidence": "points.mjs:67-68,138-140",
+      "id": "A5",
+      "statement": "New roles are safety/authority ADVISORY; only non-safety points may apply.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "csm-deep-research/SKILL.md:251,255",
+      "id": "A6",
+      "statement": "Model the deep-research judge rubric as four separate Score points.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "adversarial-final-review.mjs:161-243; docs/typed-decisions.md:144; critique F1",
+      "id": "A7",
+      "statement": "The deterministic csm-orchestrate reviewAcceptance gate stays unchanged; only the injected independent reviewer's context may see advisory findings.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "index.mjs:138-139",
+      "id": "A8",
+      "statement": "Fallback for advisory points is transport-failure only.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "tests/offline/decision-calibration-harness.mjs",
+      "id": "A9",
+      "statement": "Extend the existing calibration harness and report advisory agreement, not accuracy.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "subagent role inventories",
+      "id": "A10",
+      "statement": "Skills without a review/judge/adversarial role (csm-scan, csm-ddd, csm-make-tests, csm-upload, csm-grill, csm-browse) are out of scope for wiring; they keep the existing advisory-ranking note only.",
+      "status": "accepted",
+      "type": "inference"
+    }
+  ],
+  "completionReview": null,
+  "control": {
+    "activeTasks": [],
+    "blockers": [
+      "Commit authorization required: the new payload modules are untracked, so test-hooks/test-suite-tooling (tracked-corpus copies) fail. Authorize a commit to make make test fully green, or accept the untracked checkpoint."
+    ],
+    "commits": "disabled",
+    "currentState": "BLOCKED",
+    "cycle": 1,
+    "lastCheckpoint": "2026-09-20: T001-T018 complete, T019 payload regenerated; blocked on commit authorization.",
+    "lastModelRun": "deepseek-flash / csm-plan-jev-review-judge-substitution",
+    "nextTransition": "BLOCKED -> RECOVER",
+    "resume": {
+      "instruction": "re-read control, latest journal, recovery notes, discovered requirements, and the working-tree diff",
+      "criticalPath": [
+        "T019"
+      ],
+      "openDecision": "authorize commit of the verified change set (tracks the new payload modules)"
+    },
+    "status": "blocked"
+  },
+  "critiqueResolution": [
+    {
+      "evidence": "adversarial-final-review.mjs:161-243; docs/typed-decisions.md:144.",
+      "finding": "F1 (blocker): wiring the deterministic orchestrate adversarial gate",
+      "resolution": "Resolved — the gate stays unchanged; only the injected reviewer's context may see advisory findings (T016, A7).",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "points.mjs:13-19.",
+      "finding": "F2 (blocker): DECISION_SEAMS is frozen",
+      "resolution": "Resolved — T005 extends DECISION_SEAMS and validates every new point.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "run-orchestrator.mjs:146-207.",
+      "finding": "F3 (blocker): no opt-in channel for direct skill invocations",
+      "resolution": "Resolved — T004/T007 add key loading and expose the consult seam to direct invocations that set the existing opt-in env; the seam still makes no network call without opt-in.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "index.mjs:425-481.",
+      "finding": "F4 (high): single-point adapter vs batched record",
+      "resolution": "Resolved — T006 adds a multi-point batched path and reconciles caps/cache.",
+      "severity": "high"
+    },
+    {
+      "evidence": "csm-deep-research/SKILL.md:251,255.",
+      "finding": "F5 (high): judge rubric cannot be one point",
+      "resolution": "Resolved — A6 registers four separate judge Score points.",
+      "severity": "high"
+    },
+    {
+      "evidence": "decision-calibration-harness.mjs.",
+      "finding": "F6 (high): calibration overclaim",
+      "resolution": "Resolved — A9/T017 report advisory agreement only.",
+      "severity": "high"
+    },
+    {
+      "evidence": "Makefile:37-39.",
+      "finding": "F7 (high): make check does not run tests",
+      "resolution": "Resolved — T019 signal is `make test && make check`.",
+      "severity": "high"
+    },
+    {
+      "evidence": "orchestrate-decision-adapter.test.mjs:128-179.",
+      "finding": "F8 (high): boundary guard enforceability overstated",
+      "resolution": "Resolved — T008 adds a harness-called guard plus a prose lint and states the residual risk.",
+      "severity": "high"
+    },
+    {
+      "evidence": "plan task definitions.",
+      "finding": "F9 (high): signals can pass without behaviour",
+      "resolution": "Resolved — each wiring task's signal asserts the concrete seam plus a prose-contract check.",
+      "severity": "high"
+    },
+    {
+      "evidence": "pack-bootstrap.mjs.",
+      "finding": "F10/F15 (medium): payload regen ordering",
+      "resolution": "Resolved — T019 sequences fmt -> gen-capabilities -> pack-bootstrap -> make test && make check; DR3.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "gen-capabilities.mjs:15.",
+      "finding": "F11 (medium): capabilities hand-edit",
+      "resolution": "Resolved — T005 routes capability changes through gen-capabilities.mjs; DR2.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "cli.mjs:45; decision-redaction.test.mjs.",
+      "finding": "F12 (medium): consult seam under-specified",
+      "resolution": "Resolved — T007 names the module, uses T004's resolver, redacts before send, keeps the sidecar untracked, forbids argv keys.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "check-suite.mjs:1185.",
+      "finding": "F13 (medium): SKILL cap",
+      "resolution": "Resolved — every wiring task adds the <500 check; DR4.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "index.mjs:138-139.",
+      "finding": "F14 (medium): baseline disagreement undefined for advisory points",
+      "resolution": "Resolved — A8 gates fallback on transport failure only.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "critique F16.",
+      "finding": "F16 (medium): pin raw envelope",
+      "resolution": "Resolved — T001/T002 pin raw-envelope fixtures; DR5.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "executionGraph.",
+      "finding": "F17 (low): dependency over-constraint",
+      "resolution": "Resolved — T006 depends on T001/T005 and runs parallel with T002/T003; T008 starts after T006/T007.",
+      "severity": "low"
+    },
+    {
+      "evidence": "user revision request.",
+      "finding": "R1 (revision): scope all review/judge skills + csm-build + key loading",
+      "resolution": "Resolved — A2/A4 add T009-T016 wiring for every listed skill and T004 for key resolution; Vercel deferred but supported (A3/T003).",
+      "severity": "high"
+    }
+  ],
+  "currentStateEvidence": {
+    "repository": [
+      {
+        "locator": "csm-orchestrate/lib/decision-adapter/index.mjs:142-157",
+        "observation": "transportInput sets questions:[pointId] (array); parse path expects a top-level answer."
+      },
+      {
+        "locator": "csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs:37-78",
+        "observation": "Descriptor forwards questions as-is and parses top-level answer/choice/score/noul."
+      },
+      {
+        "locator": "csm-orchestrate/lib/decision-adapter/providers/vercel.mjs:46-85",
+        "observation": "Same array-shaped request; endpoint /v1/evaluate, model typesafe-ai/jev."
+      },
+      {
+        "locator": "tests/offline/decision-provider-openrouter.test.mjs:30-50,143-166",
+        "observation": "Tests assert the array shape against a mock, so they pass while the live call returns HTTP 400."
+      },
+      {
+        "locator": "csm-orchestrate/lib/decision-adapter/points.mjs:13-19,41-70",
+        "observation": "DECISION_SEAMS is frozen to five values; only non-safety points may apply."
+      },
+      {
+        "locator": "scripts/run-orchestrator.mjs:146-207,178-192",
+        "observation": "--use-jev/request-2 opt-in builds the adapter; the key is read from process.env only (no .env fallback)."
+      },
+      {
+        "locator": "csm-orchestrate/lib/adversarial-final-review.mjs:161-243",
+        "observation": "reviewAcceptance is deterministic with no LLM judgment dispatch; the injected reviewer is the LLM-capable path."
+      },
+      {
+        "locator": "csm-build/SKILL.md:311-331,383-424",
+        "observation": "REVIEW is risk-scaled LLM review subagents; the per-cycle evaluator/loop guard are deterministic."
+      },
+      {
+        "locator": "csm-deep-research/SKILL.md:249-257",
+        "observation": "Judge rubric is four independent 0-1 dimensions (four Jev Score questions)."
+      },
+      {
+        "locator": "scripts/check-suite.mjs:1185",
+        "observation": "SKILL.md <500-line cap; csm-build 486, csm-deep-research 478."
+      }
+    ],
+    "research": [
+      {
+        "locator": ".agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json",
+        "observation": "DEEP x hybrid finding: descriptor contract mismatch (K2), advisory registration (K9), dispatch-vs-guard (K8), non-generative (K6), never-Jev boundary (K7), unmeasured accuracy (K13)."
+      },
+      {
+        "locator": ".agents/research/artifacts/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json",
+        "observation": "Three live batched calls returned typed choice/score/noul answers; the shipped array shape returned HTTP 400."
+      }
+    ]
+  },
+  "design": {
+    "approach": "Fix the broken typed-question integration and key loading first, then register advisory review/judge points, add a redacted host-mediated consult seam, and wire advisory-first consumption in every skill with a review/judge/adversarial role, guarded by a deterministic boundary guard.",
+    "dataFlow": [
+      "user opts in (existing --use-jev or request/2 decision block) -> driver builds adapter under existing env gate; key resolved via env var or repo .env",
+      "skill role -> consult seam builds one `questions` record for its advisory points -> transport -> provider descriptor",
+      "provider returns `answers` envelope -> seam maps per-question answers to points -> redacted evidence sidecar (untracked)",
+      "skill consumes advisory verdicts for routing/pre-flagging -> LLM/primary fallback on transport failure",
+      "deterministic guard + receipt + acceptance remain harness-owned and untouched; csm-orchestrate gate byte-identical"
+    ],
+    "exclusions": [
+      "no new opt-in flag",
+      "no new transport",
+      "no live Vercel verification",
+      "no deterministic-gate substitution",
+      "no threshold promotion"
+    ],
+    "neverJev": [
+      "acceptance signals and acceptance records",
+      "task/control status and lifecycle transitions",
+      "closure / verificationStatus / canSaveVerified",
+      "evaluator receipts and loop-guard exits",
+      "cursor / supersession",
+      "severity and evidence-class authority",
+      "redaction",
+      "commit/push",
+      "the csm-orchestrate reviewAcceptance deterministic gate and final-review status",
+      "the csm-plan acceptance-signal lint (BL2) and applicability authority",
+      "the csm-autoresearch deterministic hard gates and csm-bdd-tdd primary VERIFY gate"
+    ],
+    "outOfScopeSkills": [
+      "csm-scan",
+      "csm-ddd",
+      "csm-make-tests",
+      "csm-upload",
+      "csm-grill",
+      "csm-browse"
+    ],
+    "providerSeam": {
+      "defaultProvider": "openrouter",
+      "extensionRule": "A new supplier remains a new providers/<id>.mjs descriptor only; protocol repair lives in buildRequest/parseResponse, never in the adapter.",
+      "keyResolution": "descriptor.apiKeyEnv from process.env, else repo-root .env; host-side only; never argv; redacted.",
+      "modelIds": {
+        "openrouter": "typesafe/jev-1.13",
+        "vercel": "typesafe-ai/jev"
+      }
+    },
+    "wiredSkills": [
+      "csm-review",
+      "csm-review-python",
+      "csm-deep-research",
+      "csm-plan",
+      "csm-build",
+      "csm-autoresearch",
+      "csm-bdd-tdd",
+      "csm-orchestrate (injected reviewer only, bounded)"
+    ]
+  },
+  "digest": "sha256:bb8b8cd1d9c24bf7d0ab6636f9db93b1177b0e863a25b66694ad4f264b753d4d",
+  "discoveredRequirements": [
+    {
+      "evidence": "points.mjs:13-19; critique F2.",
+      "id": "DR1",
+      "requirement": "DECISION_SEAMS is frozen; new seams must be added deliberately and validated."
+    },
+    {
+      "evidence": "gen-capabilities.mjs:15; critique F11.",
+      "id": "DR2",
+      "requirement": "Capabilities must be regenerated via gen-capabilities.mjs, never hand-edited."
+    },
+    {
+      "evidence": "pack-bootstrap.mjs; critique F10,F15.",
+      "id": "DR3",
+      "requirement": "Payload must be re-packed after fmt and source changes before check-suite."
+    },
+    {
+      "evidence": "scripts/check-suite.mjs:1185.",
+      "id": "DR4",
+      "requirement": "SKILL.md files must stay under 500 lines."
+    },
+    {
+      "evidence": "critique F16.",
+      "id": "DR5",
+      "requirement": "Descriptor tests must pin the raw `answers` envelope, not the artifact's normalized rendering."
+    },
+    {
+      "evidence": ".gitignore; docs/typed-decisions-runbook.md:80-90.",
+      "id": "DR6",
+      "requirement": "The repo .env file is gitignored; the key resolver must never persist or log its values."
+    }
+  ],
+  "executionGraph": {
+    "criticalPath": [
+      "T001 -> T006 -> T007 -> T011 -> T018 -> T019"
+    ],
+    "groups": [
+      {
+        "id": "G1",
+        "note": "Disjoint files; no dependencies.",
+        "tasks": [
+          "T001",
+          "T004",
+          "T005"
+        ]
+      },
+      {
+        "id": "G2",
+        "note": "Both depend only on T001; disjoint descriptors.",
+        "tasks": [
+          "T002",
+          "T003"
+        ]
+      },
+      {
+        "id": "G3",
+        "note": "Depends on T001/T005.",
+        "tasks": [
+          "T006"
+        ]
+      },
+      {
+        "id": "G4",
+        "note": "T007 depends on T004/T006; T008 depends on T006/T007.",
+        "tasks": [
+          "T007",
+          "T008"
+        ]
+      },
+      {
+        "id": "G5",
+        "note": "Depend on T007; each owns a different skill's files.",
+        "tasks": [
+          "T009",
+          "T010",
+          "T011",
+          "T012",
+          "T013",
+          "T014",
+          "T015",
+          "T016"
+        ]
+      },
+      {
+        "id": "G6",
+        "note": "Depend on the wiring tasks.",
+        "tasks": [
+          "T017",
+          "T018"
+        ]
+      },
+      {
+        "id": "G7",
+        "note": "Depends on T017/T018.",
+        "tasks": [
+          "T019"
+        ]
+      }
+    ]
+  },
+  "goal": {
+    "acceptanceCriteria": [
+      "AC1: Both shipped descriptors emit a typed `questions` record and parse the `answers` envelope, proven against raw-envelope fixtures.",
+      "AC2: The key resolver reads the descriptor env var or the repo .env, isolates providers, and never exposes a key on argv or in artifacts.",
+      "AC3: The new advisory points validate; no apply-classified point is safety/authority; decision-points.json stays in lockstep.",
+      "AC4: With the existing opt-in active the consult seam returns advisory verdicts and fails open on transport failure; without opt-in there is no adapter and no network.",
+      "AC5: Every listed skill consumes advisory verdicts for its review/judge/adversarial roles, including csm-build REVIEW, while all gates stay deterministic.",
+      "AC6: The boundary guard rejects advisory payloads in digest/receipt/gate/acceptance inputs; the orchestrate deterministic gate output is byte-identical with and without advice.",
+      "AC7: make test and make check are green and regenerated payload digests match."
+    ],
+    "constraints": [
+      "Hook to the EXISTING opt-in (--use-jev / request-2 decision block); do not add a new Jev option or flag.",
+      "Preserve provider-pluggable suppliers: descriptor-only extension (OpenRouter default; Vercel supported but not live-verified now).",
+      "No gate authority: acceptance, security, completion, receipts, loop guards, closure, severity/evidence-class authority, and the csm-orchestrate deterministic reviewAcceptance gate stay deterministic and outside Jev.",
+      "Keys are resolved host-side only, never on argv and never in artifacts."
+    ],
+    "deliverables": [
+      "Descriptor-level repair so shipped descriptors match the live typed-question API (questions record, answers envelope).",
+      "A provider key resolver that reads the descriptor's env var or falls back to the repo .env.",
+      "Safety/authority advisory decision points for every review/judge/adversarial role (including four separate judge-rubric Score points).",
+      "A host-mediated consult seam with the key loader, redaction, and fail-open, active only under the existing opt-in.",
+      "Advisory-first wiring in csm-review, csm-review-python, csm-deep-research, csm-plan, csm-build, csm-autoresearch, csm-bdd-tdd, and the bounded csm-orchestrate injected reviewer.",
+      "A deterministic never-Jev boundary guard, an advisory-agreement harness, docs, and regenerated payload."
+    ],
+    "exclusions": [
+      "No implementation or execution in this planning run.",
+      "No live Vercel verification now (descriptor stays protocol-conformant and pluggable).",
+      "No wiring of Jev into the deterministic csm-orchestrate reviewAcceptance gate.",
+      "No new provider transport; the existing injected transport is reused.",
+      "No claim of measured per-role accuracy; no threshold promotion."
+    ],
+    "summary": "Fix the broken Jev provider integration first, then make every skill that performs review, judge, or adversarial-review judgment use the existing optional Jev layer as an advisory first pass for those roles (LLM retained for rationale/remediation and as fail-open fallback). Hook to the EXISTING opt-in only, keep provider-pluggable suppliers (Vercel deferred but supported), and let skills load the provider key from an env var or the repo .env when needed."
+  },
+  "inputs": [
+    {
+      "artifactId": "art-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48",
+      "digest": "sha256:f50497eb4375f08be6b6e692e3ab4ee74cd3b38185521706e7244a2ea95cbeb7",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json",
+      "schema": "csm-research/1"
+    }
+  ],
+  "journal": [
+    {
+      "cycle": 1,
+      "evidence": "Initial plan created for the Jev review/judge substitution finding; size large, applicability warranted.",
+      "nextState": "DISCOVER",
+      "sequence": 0,
+      "tasks": [],
+      "timestamp": "2026-09-20T17:20:00Z",
+      "transition": "INTAKE -> DISCOVER"
+    },
+    {
+      "cycle": 1,
+      "evidence": "Read adapter, descriptors, points registry, enforcement model, never-Jev boundary, run-orchestrator opt-in, adversarial-final-review, skill judge/challenger roles, and check-suite constraints.",
+      "nextState": "RESEARCH",
+      "sequence": 1,
+      "tasks": [],
+      "timestamp": "2026-09-20T17:28:00Z",
+      "transition": "DISCOVER -> RESEARCH"
+    },
+    {
+      "cycle": 1,
+      "evidence": "First draft: 13 tasks focused on csm-review, csm-deep-research, csm-plan.",
+      "nextState": "DRAFT",
+      "sequence": 2,
+      "tasks": [],
+      "timestamp": "2026-09-20T17:38:00Z",
+      "transition": "RESEARCH -> DRAFT"
+    },
+    {
+      "cycle": 1,
+      "evidence": "Independent critique returned 17 findings including three blockers (deterministic adversarial gate, frozen seams, missing direct-skill opt-in).",
+      "nextState": "CRITIQUE",
+      "sequence": 3,
+      "tasks": [],
+      "timestamp": "2026-09-20T17:46:00Z",
+      "transition": "DRAFT -> CRITIQUE"
+    },
+    {
+      "cycle": 1,
+      "evidence": "Remediated all findings and then expanded scope on the user's revision: fix the broken integration first, wire EVERY skill with a review/judge/adversarial role (including csm-build REVIEW), add key loading via env var or repo .env, defer live Vercel verification while keeping it pluggable, and bound the orchestrate advisory to the injected reviewer only.",
+      "nextState": "REMEDIATE",
+      "sequence": 4,
+      "tasks": [],
+      "timestamp": "2026-09-20T18:40:00Z",
+      "transition": "CRITIQUE -> REMEDIATE"
+    },
+    {
+      "cycle": 1,
+      "evidence": "Primary-personal verification: 19 tasks pending; every acceptance signal single positive runnable; dependencies acyclic and parallel groups disjoint; AC1-AC7 map to tasks; loop-evaluator lint reports no signal errors; guard reports outstanding work (correct for a ready plan).",
+      "nextState": "VERIFY",
+      "sequence": 5,
+      "tasks": [],
+      "timestamp": "2026-09-20T18:44:00Z",
+      "transition": "REMEDIATE -> VERIFY"
+    },
+    {
+      "cycle": 1,
+      "evidence": "Revised plan validated against csm-plan/1 and saved with status ready; no commit (not authorized).",
+      "nextState": "SAVED",
+      "sequence": 6,
+      "tasks": [],
+      "timestamp": "2026-09-20T18:45:00Z",
+      "transition": "VERIFY -> SAVED"
+    },
+    {
+      "cycle": 1,
+      "evaluatorReceipt": {
+        "emittedAt": "2026-09-20T18:44:30Z",
+        "evidence": "Plan is ready with 19 pending tasks; the deterministic loop guard correctly reports outstanding work.",
+        "format": "csm-plan-evaluator-receipt/1",
+        "verdict": "continue"
+      },
+      "evidence": "Planning complete; execution cursor left at NOT_STARTED for a future explicit csm-build invocation. Implementation was not started.",
+      "nextState": "NOT_STARTED",
+      "sequence": 7,
+      "tasks": [],
+      "timestamp": "2026-09-20T18:45:30Z",
+      "transition": "SAVED -> NOT_STARTED"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": [],
+      "evidence": "Reconstructed the corpus at HEAD 2053253; baseline decision tests 33 pass; only the new artifacts are untracked.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": [],
+      "evidence": "Validated the adapter, descriptors, points registry, opt-in driver, and never-Jev boundary against the repo; narrow decision suites green.",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": [],
+      "evidence": "Ready set G1: T001, T004, T005.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": [],
+      "evidence": "Implemented T001-T006 (typed protocol, descriptors, key resolution, advisory points, batched consults) with tests.",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "DISPATCH -> INTEGRATE",
+      "tasks": [],
+      "evidence": "Integrated T007 (consult seam) and T008 (boundary guard), then T009-T016 skill wirings.",
+      "nextState": "INTEGRATE"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": [],
+      "evidence": "T017 advisory-agreement harness; 140 decision/wiring tests pass; make check (check-suite 1168) OK; fmt-check OK.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [],
+      "evidence": "Primary review of diffs and tests; no out-of-scope edits; gates untouched.",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "REVIEW -> CHECKPOINT",
+      "tasks": [],
+      "evidence": "T001-T018 complete; T019 payload regenerated (fmt -> gen-capabilities -> pack-bootstrap); direct check-suite and fmt-check green.",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> BLOCKED",
+      "tasks": [],
+      "evidence": "Blocked on commit authorization: test-hooks and test-suite-tooling copy only git-tracked files, so the four new payload modules read as missing until the change set is tracked (committed). No commit was authorized, so make test cannot go green.",
+      "nextState": "BLOCKED",
+      "evaluatorReceipt": {
+        "format": "csm-plan-evaluator-receipt/1",
+        "verdict": "blocked",
+        "evidence": "T001-T018 verified; T019 payload regenerated; the tracked-corpus gate (test-hooks/test-suite-tooling) cannot pass until the new files are tracked, which needs commit authorization.",
+        "emittedAt": "2026-09-20T21:05:00Z"
+      }
+    }
+  ],
+  "planId": "jev-review-judge-substitution",
+  "projection": {
+    "legacyMarkdownStatus": "history-only",
+    "profile": "csm-plan-human/1"
+  },
+  "provenance": {
+    "producedAt": "2026-09-20T17:06:24.584Z",
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "sourceDigests": [
+      "sha256:f50497eb4375f08be6b6e692e3ab4ee74cd3b38185521706e7244a2ea95cbeb7"
+    ]
+  },
+  "rdRecord": [
+    {
+      "id": "R1",
+      "implication": "Descriptor-level protocol repair is the first task (T001-T003).",
+      "isolation": "single read-only request; key host-side; nothing written",
+      "method": "bounded read-only POST with the shipped array shape",
+      "observation": "HTTP 400 'expected record, received array'",
+      "question": "Does the live Jev API accept the shipped request shape?"
+    },
+    {
+      "id": "R2",
+      "implication": "Advisory substitution is feasible for the LLM-dispatched roles (T005).",
+      "isolation": "single read-only requests; ~$0.000084 total; fixtures redacted of keys",
+      "method": "three bounded batched calls (choice/score/noul)",
+      "observation": "Returned the exact verdict vocabularies with probabilities and confidence",
+      "question": "Can Jev return the challenger/judge/adversarial verdict shapes?"
+    },
+    {
+      "id": "R3",
+      "implication": "Add the key resolver (T004).",
+      "isolation": "read-only inspection",
+      "method": "read run-orchestrator.mjs and the transport",
+      "observation": "The key is read from process.env only",
+      "question": "Is there a .env fallback for the provider key today?"
+    },
+    {
+      "id": "R4",
+      "implication": "Exclude the gate; bound advisory to the injected reviewer context only (T016, A7).",
+      "isolation": "read-only inspection",
+      "method": "read adversarial-final-review.mjs and the never-Jev boundary",
+      "observation": "reviewAcceptance is deterministic; the injected reviewer is the LLM path",
+      "question": "Is the orchestrate adversarial gate an LLM judgment step?"
+    }
+  ],
+  "risksAndRecovery": {
+    "risks": [
+      {
+        "id": "R1",
+        "mitigation": "Pin raw-envelope fixtures and re-probe before release; fail-open keeps the run safe.",
+        "risk": "The live API shape drifts after the protocol repair.",
+        "rollback": "Revert the descriptor to the deterministic baseline."
+      },
+      {
+        "id": "R2",
+        "mitigation": "validateDecisionPoint plus the no-apply-safety test.",
+        "risk": "A new advisory point accidentally gains apply/authority.",
+        "rollback": "Revert points.mjs and decision-points.json together."
+      },
+      {
+        "id": "R3",
+        "mitigation": "Deterministic boundary guard plus check-suite prose lint; gate byte-identity test.",
+        "risk": "Advisory data leaks into a protected input, including the orchestrate gate.",
+        "rollback": "Fail closed; revert the wiring."
+      },
+      {
+        "id": "R4",
+        "mitigation": "Provider isolation, descriptor-named lookup, no argv/logging, redaction tests.",
+        "risk": "A .env fallback reads a wrong or foreign key.",
+        "rollback": "Disable the .env fallback and require the env var."
+      },
+      {
+        "id": "R5",
+        "mitigation": "Advisory-only, default-off, no threshold; agreement harness reports agreement only.",
+        "risk": "Per-role accuracy is unmeasured; broad wiring could mislead.",
+        "rollback": "Remove the wiring; deterministic gates unaffected."
+      },
+      {
+        "id": "R6",
+        "mitigation": "Explicit anti-scope and boundary guard test for T013.",
+        "risk": "csm-build completion or the per-cycle evaluator is accidentally coupled to advisory output.",
+        "rollback": "Revert T013."
+      }
+    ]
+  },
+  "runId": "run-20260920t180000z-jevplan0001",
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "status": "blocked",
+  "tasks": [
+    {
+      "acceptanceEvidence": "Test proves buildQuestions emits a record (not an array) and parseAnswers extracts per-question choice/score/noul with probabilities and confidence from a raw `answers` envelope fixture; record the fixture source and retrieval date.",
+      "acceptanceSignal": "node --test tests/offline/decision-question-protocol.test.mjs",
+      "actions": "Add buildQuestions(points, state) emitting the live `questions` RECORD (per-question type/instructions/criteria/legend) and parseAnswers(envelope) reading the `answers` record keyed by question id; pin raw-envelope fixtures captured from a bounded live probe.",
+      "dependsOn": [],
+      "notInScope": "adapter index, transport, provider descriptors, decision-point registry, key resolution",
+      "ordinal": 1,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/question-protocol.mjs, tests/offline/decision-question-protocol.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "If interrupted, re-read question-protocol.mjs; a missing parseAnswers branch is detectable by the failing test.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Capture the raw live HTTP body for a multi-question record and pin the exact `answers` envelope shape; one bounded read-only POST via the existing transport with a redacted log.",
+      "status": "completed",
+      "taskId": "T001",
+      "title": "Provider-neutral typed-question protocol module",
+      "validation": "node --test tests/offline/decision-provider-openrouter.test.mjs && node --test tests/offline/decision-question-protocol.test.mjs, then node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the request body `questions` is a record and the normalized decision carries per-question answers; no key appears in any failure.",
+      "acceptanceSignal": "node --test tests/offline/decision-provider-openrouter.test.mjs",
+      "actions": "Replace the array-shaped body with buildQuestions(...) and read the `answers` envelope via parseAnswers(...); keep the key env-only, redaction, and fail-open taxonomy unchanged.",
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "Vercel descriptor, adapter index, decision-point registry, key resolution helper",
+      "ordinal": 2,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs, tests/offline/decision-provider-openrouter.test.mjs",
+      "parallelGroup": "G2",
+      "recoveryNote": "If the live shape drifts, re-pin the fixture via the bounded probe and update parseAnswers.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the descriptor still fail-opens on every classified error after the protocol change; isolation is the existing mock transport.",
+      "status": "completed",
+      "taskId": "T002",
+      "title": "OpenRouter descriptor uses the typed-question protocol",
+      "validation": "node --test tests/offline/decision-question-protocol.test.mjs && node --test tests/offline/decision-provider-openrouter.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the Vercel request is record-shaped and the parser reads `answers`; the deferred live-verification gap is recorded.",
+      "acceptanceSignal": "node --test tests/offline/decision-provider-vercel.test.mjs",
+      "actions": "Apply the same protocol change as OpenRouter while preserving the distinct endpoint (/v1/evaluate) and model id (typesafe-ai/jev); keep the no-cost normalization; record that a live Vercel call is deferred but the descriptor remains fully pluggable.",
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "live Vercel calls, endpoint/model changes, OpenRouter descriptor, key resolution helper",
+      "ordinal": 3,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/providers/vercel.mjs, tests/offline/decision-provider-vercel.test.mjs",
+      "parallelGroup": "G2",
+      "recoveryNote": "Re-pin the Vercel fixtures if the gateway envelope later proves different.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Vercel is not live-verified for now; pin the shared protocol contract against the record/envelope fixtures and keep descriptor-only extension intact.",
+      "status": "completed",
+      "taskId": "T003",
+      "title": "Vercel descriptor conforms to the protocol (supported, not live-verified)",
+      "validation": "node --test tests/offline/decision-provider-vercel.test.mjs && node --test tests/offline/decision-provider-discovery.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts env precedence, .env fallback, provider isolation, empty/missing handling, and that no key value appears in returned diagnostics or artifacts.",
+      "acceptanceSignal": "node --test tests/offline/decision-key-resolution.test.mjs",
+      "actions": "Add a resolver that returns the descriptor's apiKeyEnv value from process.env, falling back to the repo-root .env file when the env var is unset; parse only KEY=VALUE lines; never place a key on argv; never log or persist it; run redaction before any downstream use; expose it to the driver and the consult seam so skills load the key when needed.",
+      "dependsOn": [],
+      "notInScope": "argv keys, logging keys, writing keys to artifacts, new provider transports, key rotation policy",
+      "ordinal": 4,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/key-resolution.mjs (new), tests/offline/decision-key-resolution.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "If .env parsing sees a malformed line, skip it and record; never throw across the fail-open boundary.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the .env fallback reads only the descriptor's apiKeyEnv name and never crosses providers; prove with a synthetic .env fixture in the sandbox.",
+      "status": "completed",
+      "taskId": "T004",
+      "title": "Provider API-key resolution via env var or repo .env",
+      "validation": "node --test tests/offline/decision-key-resolution.test.mjs && node --test tests/offline/decision-redaction.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts every new point validates, no apply-classified point is safety/authority, and the compiled JSON is byte-identical to points.mjs.",
+      "acceptanceSignal": "node --test tests/orchestrate-decision-adapter.test.mjs",
+      "actions": "Extend DECISION_SEAMS deliberately; add safety/authority advisory points: review-challenger-verdict, review-severity, review-evidence-class, python-review-judge-severity, deep-research-challenger-verdict, four deep-research-judge-* Score points, plan-critique-severity, plan-task-risk, build-review-verdict, autoresearch-judge-ranking, bdd-tdd-validation-verdict, and orchestrate-reviewer-finding; every new point safetyClass safety/authority with applyVsAdvisory advisory; keep decision-points.json in lockstep; route capability changes through gen-capabilities.mjs.",
+      "dependsOn": [],
+      "notInScope": "adapter index, transport, descriptors, skill SKILL.md files, hand-editing capabilities.json",
+      "ordinal": 5,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/points.mjs, csm-orchestrate/decision-points.json, tests/orchestrate-decision-adapter.test.mjs, capabilities template path",
+      "parallelGroup": "G1",
+      "recoveryNote": "Re-run the lockstep assertion; a drift means decision-points.json was not regenerated.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Decide whether new seams (csm-deep-research, csm-build, csm-bdd-tdd, csm-autoresearch, csm-review-python, csm-orchestrate-review) are added to DECISION_SEAMS or existing seams reused; prove with the validator.",
+      "status": "completed",
+      "taskId": "T005",
+      "title": "Register review/judge advisory decision points and extend seams",
+      "validation": "node -e \"const{serializeDecisionPoints}=await import('./csm-orchestrate/lib/decision-adapter/points.mjs');console.log(serializeDecisionPoints().points.length)\" then node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts one transport call serves N points, each answer maps to its point, caps are per-point, and an advisory point with no baseline never applies.",
+      "acceptanceSignal": "node --test tests/offline/decision-typed-questions.test.mjs",
+      "actions": "Add a multi-point path building one `questions` record for a set of advisory points, mapping each returned answer back to its point, keeping per-point caps, cache keys, and fail-open; advisory points have no deterministic baseline, so fallback is transport-failure only.",
+      "dependsOn": [
+        "T001",
+        "T005"
+      ],
+      "notInScope": "transport, descriptors, provider registry, key resolution",
+      "ordinal": 6,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/index.mjs, tests/offline/decision-typed-questions.test.mjs",
+      "parallelGroup": "G3",
+      "recoveryNote": "If caps regress, re-read the accounting test first.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Reconcile per-point call caps and single-flight cache with one multi-question request; prove per-point accounting stays correct.",
+      "status": "completed",
+      "taskId": "T006",
+      "title": "Adapter supports batched typed questions for a set of points",
+      "validation": "node --test tests/offline/decision-typed-questions.test.mjs && node --test tests/orchestrate-decision-adapter.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts no opt-in means no adapter/network, the key loader is used, redaction runs before send, the sidecar is untracked, and no key reaches argv or output.",
+      "acceptanceSignal": "node --test tests/offline/decision-skill-consult.test.mjs",
+      "actions": "Add a named consult seam that, only under the existing opt-in, returns seam-scoped advisory verdicts to the calling skill; resolve the key via T004; redact before send via the existing redactor; write any evidence sidecar only under an untracked/temp path; never accept a key on argv; fail open on transport failure; expose the same seam to orchestrated runs and to direct skill invocations that set the existing opt-in env.",
+      "dependsOn": [
+        "T004",
+        "T006"
+      ],
+      "notInScope": "direct per-skill network calls, argv or artifact keys, tracked evidence sidecars, new opt-in flags",
+      "ordinal": 7,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/consult.mjs (new), tests/offline/decision-skill-consult.test.mjs, tests/offline/decision-redaction.test.mjs",
+      "parallelGroup": "G4",
+      "recoveryNote": "If opt-in wiring is ambiguous, re-read run-orchestrator resolveDecisionAdapter and the T004 resolver.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the seam resolves the key through T004 and only when the existing opt-in is active; prove no adapter and no network otherwise.",
+      "status": "completed",
+      "taskId": "T007",
+      "title": "Host-mediated skill consult seam with key loader, redaction, and fail-open",
+      "validation": "node --test tests/offline/decision-skill-consult.test.mjs && node --test tests/offline/decision-redaction.test.mjs && node --test tests/offline/decision-key-resolution.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the guard rejects a planted advice key in each protected input and a clean input passes; residual agent-behaviour risk recorded.",
+      "acceptanceSignal": "node --test tests/offline/decision-boundary-guard.test.mjs",
+      "actions": "Add a harness-called guard refusing any advisory/decision payload in digest, receipt, gate, or acceptance inputs, plus a check-suite prose lint for the named advisory-only SKILL sections; do not claim the prose path is fully enforced.",
+      "dependsOn": [
+        "T006",
+        "T007"
+      ],
+      "notInScope": "agent prose behaviour that cannot be machine-checked, receipt schema changes, the orchestrate adversarial gate",
+      "ordinal": 8,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/boundary-guard.mjs (new), tests/offline/decision-boundary-guard.test.mjs, scripts/check-suite.mjs (prose lint)",
+      "parallelGroup": "G4",
+      "recoveryNote": "If the guard is bypassed, treat as a critical incident and fail closed.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Prove the guard rejects advice/decision keys in material-digest inputs, receipts, gates, closure, and the orchestrate reviewAcceptance inputs; for agent-consumed prose add a check-suite lint and state the residual risk.",
+      "status": "completed",
+      "taskId": "T008",
+      "title": "Deterministic never-Jev boundary guard and prose lint",
+      "validation": "node --test tests/offline/decision-boundary-guard.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts advisory verdicts are add-only and never enter closure or the evaluator receipt; record the agent-behaviour remainder.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-review.test.mjs",
+      "actions": "SKILL section: with the existing opt-in, obtain challenger verdict, severity, evidence-class, and semantic-dedup advisories first and fall back to the LLM on transport failure; Jev remains add-only and never changes closure or authority; keep under the 500-line cap.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "the VERIFY gate, closure/verificationStatus/canSaveVerified, severity authority, add-only reviewer rule",
+      "ordinal": 9,
+      "ownedScope": "csm-review/SKILL.md, tests/offline/decision-csm-review.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If closure is touched, revert to advisory-only consumption.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the add-only rule keeps Jev from removing reviewers or reducing coverage before any call.",
+      "status": "completed",
+      "taskId": "T009",
+      "title": "Wire csm-review challenger, severity, evidence-class, semantic-dedup to advisory Jev",
+      "validation": "node --test tests/offline/decision-csm-review.test.mjs && node --test tests/offline/decision-boundary-guard.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the severity mapping is advisory and the deterministic rule corpus is untouched; record the agent-behaviour remainder.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-review-python.test.mjs",
+      "actions": "SKILL section: with the existing opt-in, obtain the JUDGE severity band and dedup similarity advisories first and fall back on transport failure; Jev never authors findings and never changes the deterministic rule corpus; keep under the 500-line cap.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "finding authorship, the report renderer, the deterministic rule corpus",
+      "ordinal": 10,
+      "ownedScope": "csm-review-python/SKILL.md, tests/offline/decision-csm-review-python.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If the scale mapping is wrong, re-pin the criteria and re-run.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm csm-review-python's urgency scale (C/R/W/E/F/Nit) maps to a Jev Choice criteria set; its JUDGE is primary-led with no evaluator.",
+      "status": "completed",
+      "taskId": "T010",
+      "title": "Wire csm-review-python JUDGE severity and dedup to advisory Jev",
+      "validation": "node --test tests/offline/decision-csm-review-python.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the consult helper returns advisory verdicts, fails open, never gates VERIFY, and the SKILL prose-contract section exists.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-deep-research.test.mjs",
+      "actions": "SKILL section: with the existing opt-in, obtain the challenger verdict and the four judge dimensions first, fall back to the LLM/primary dispatch on transport failure, and keep the independence and reasoning-before-verdict rules; keep under the 500-line cap.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "the primary-personal VERIFY gate, SAVED write discipline, the independence contract",
+      "ordinal": 11,
+      "ownedScope": "csm-deep-research/SKILL.md, tests/offline/decision-csm-deep-research.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If the SKILL cap is exceeded, trim the section rather than dropping the fallback rule.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the challenger view can be serialized without the synthesizer's rationale (anti-anchoring) before any call.",
+      "status": "completed",
+      "taskId": "T011",
+      "title": "Wire csm-deep-research challenger and 4-dimension judge to advisory Jev",
+      "validation": "node --test tests/offline/decision-csm-deep-research.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts advisory values never reach lintAcceptanceSignal and the BL2 boundary holds.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-plan.test.mjs",
+      "actions": "SKILL section: with opt-in, obtain critique-severity and task-risk advisories first and fall back on transport failure; the acceptance-signal lint and applicability authority are untouched; keep under the 500-line cap.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "the acceptance-signal lint (BL2), applicability authority, the deterministic loop guard",
+      "ordinal": 12,
+      "ownedScope": "csm-plan/SKILL.md, tests/offline/decision-csm-plan.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If lint input changes, revert the wiring.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm BL2 forbids feeding the acceptance-signal lint; prove no advisory value reaches lintAcceptanceSignal.",
+      "status": "completed",
+      "taskId": "T012",
+      "title": "Wire csm-plan critique severity and task risk to advisory Jev",
+      "validation": "node --test tests/offline/decision-csm-plan.test.mjs && node --test tests/offline/decision-boundary-guard.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts REVIEW advisories are advisory, never touch the evaluator receipt/loop guard/completion, and the SKILL section exists.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-build.test.mjs",
+      "actions": "SKILL section: with the existing opt-in, obtain per-track REVIEW verdicts (correctness, regressions, security, test quality, maintainability, plan drift) as advisory Jev verdicts first and fall back to the LLM review subagents on transport failure; never let Jev write evaluator receipts, loop-guard output, completion, or acceptance; keep under the 500-line cap.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "the per-cycle evaluator receipt, the deterministic loop guard, completion/commit status, acceptance checks",
+      "ordinal": 13,
+      "ownedScope": "csm-build/SKILL.md, tests/offline/decision-csm-build.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If completion coupling appears, revert to advisory-only consumption.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm csm-build REVIEW is an LLM dispatch (risk-scaled) and not the deterministic loop guard, so advisory substitution is sound; the user explicitly requested csm-build adversarial reviews use Jev aggressively.",
+      "status": "completed",
+      "taskId": "T013",
+      "title": "Wire csm-build REVIEW and its adversarial review to advisory Jev",
+      "validation": "node --test tests/offline/decision-csm-build.test.mjs && node --test tests/offline/decision-boundary-guard.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts hard failures still outrank the Jev advisory and the blinded contract holds.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-autoresearch.test.mjs",
+      "actions": "Extend the advisory judge to consult the Jev seam for blinded ordinal/pairwise ranking when opted in, falling back to the existing judge; deterministic hard gates continue to outrank any judge.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "the deterministic hard gates, the optimizer keep/reject decisions, the evaluator-owned metrics",
+      "ordinal": 14,
+      "ownedScope": "csm-autoresearch/SKILL.md, csm-autoresearch/lib/llm/index.mjs, tests/offline/decision-csm-autoresearch.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If a hard gate is bypassed, revert the wiring immediately.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the existing judge is already blinded/advisory and that Jev can feed it without overriding hard failures.",
+      "status": "completed",
+      "taskId": "T014",
+      "title": "Wire csm-autoresearch advisory judge to Jev",
+      "validation": "node --test tests/offline/decision-csm-autoresearch.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts advisories never replace the primary gate or hard rejects.",
+      "acceptanceSignal": "node --test tests/offline/decision-csm-bdd-tdd.test.mjs",
+      "actions": "SKILL section: with the existing opt-in, obtain advisory verdicts for scenario 'fails for the right reason' and strictness/mutation expectations first and fall back on transport failure; the primary VERIFY gate and hard rejects stay deterministic; keep under the 500-line cap.",
+      "dependsOn": [
+        "T007"
+      ],
+      "notInScope": "the primary VERIFY gate, mutation execution, scenario execution",
+      "ordinal": 15,
+      "ownedScope": "csm-bdd-tdd/SKILL.md, tests/offline/decision-csm-bdd-tdd.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If the gate is touched, revert to advisory-only consumption.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the strictness check can be expressed as closed-set advisories without replacing the primary gate.",
+      "status": "completed",
+      "taskId": "T015",
+      "title": "Wire csm-bdd-tdd validation/strictness check to advisory Jev",
+      "validation": "node --test tests/offline/decision-csm-bdd-tdd.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts gate output is byte-identical with and without Jev advice, and advice never appears in reviewAcceptance inputs.",
+      "acceptanceSignal": "node --test tests/offline/decision-orchestrate-reviewer.test.mjs",
+      "actions": "When a host supplies an independent reviewer and the existing opt-in is active, expose Jev review-finding advisories to that reviewer's context only; the deterministic reviewAcceptance path, its schema, and the no-callback fallback are unchanged; add a guard test that planted advice never affects the gate output.",
+      "dependsOn": [
+        "T007",
+        "T008"
+      ],
+      "notInScope": "reviewAcceptance, coordinateFinalReview, final-review status, the adversarial gate schema, the deterministic fallback",
+      "ordinal": 16,
+      "ownedScope": "csm-orchestrate/lib/adversarial-final-review.mjs (reviewer-context only), csm-orchestrate/SKILL.md, tests/offline/decision-orchestrate-reviewer.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "If advice leaks into the gate, revert the wiring and treat as a critical incident.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Prove Jev advice reaches only the injected reviewer's context and can never enter reviewAcceptance/coordinateFinalReview; the deterministic gate and its fallback stay byte-identical.",
+      "status": "completed",
+      "taskId": "T016",
+      "title": "Bounded advisory for the csm-orchestrate injected independent reviewer",
+      "validation": "node --test tests/offline/decision-orchestrate-reviewer.test.mjs && node tests/orchestrate-decision-adapter.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the harness runs over the fixture and reports agreement with no threshold applied; an explicit open spike records the missing human-labelled corpus.",
+      "acceptanceSignal": "node --test tests/offline/decision-calibration-review.test.mjs",
+      "actions": "Extend the existing calibration harness with a small committed labelled fixture covering challenger-verdict, severity, evidence-class, the four judge dimensions, python-review severity, build-review verdict, autoresearch ranking, bdd-tdd verdict, and reviewer finding; report agreement only; state this is not accuracy calibration and no threshold is promoted.",
+      "dependsOn": [
+        "T009",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "notInScope": "claiming measured accuracy or promoting any threshold",
+      "ordinal": 17,
+      "ownedScope": "tests/offline/decision-calibration-harness.mjs, tests/offline/decision-calibration-review.test.mjs, tests/fixtures/decision-review/",
+      "parallelGroup": "G6",
+      "recoveryNote": "If a threshold is accidentally introduced, remove it and re-run.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the existing harness is the right extension point and that no threshold is introduced; fixtures are hand-labelled and small.",
+      "status": "completed",
+      "taskId": "T017",
+      "title": "Extend the advisory-agreement harness for all wired points",
+      "validation": "node --test tests/offline/decision-calibration-review.test.mjs && node --test tests/offline/decision-calibration.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "check-suite passes with the new index bullets and no tracked artifact missing a bullet; docs name the exclusion and the key-loading behaviour.",
+      "acceptanceSignal": "node scripts/check-suite.mjs",
+      "actions": "Document the descriptor-level protocol repair, the new advisory points, the consult seam, the key resolution (env var or repo .env, host-side only), the provider-pluggable extension rule, and the bounded orchestrate-reviewer exception; amend the research finding's caveat; add the plan and research index bullets at their section anchors.",
+      "dependsOn": [
+        "T008",
+        "T009",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "notInScope": "changing the provider seam, adding a new opt-in flag, live Vercel verification",
+      "ordinal": 18,
+      "ownedScope": "docs/typed-decisions.md, docs/typed-decisions-runbook.md, csm-orchestrate/SKILL.md, csm-build/SKILL.md, .agents/README.md research/plans sections",
+      "parallelGroup": "G6",
+      "recoveryNote": "Re-run section-anchored insert tooling if a bullet lands at EOF.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the never-Jev boundary list; record why the orchestrate deterministic gate is excluded while its injected reviewer may consume advisory context.",
+      "status": "completed",
+      "taskId": "T018",
+      "title": "Docs, runbook, per-skill sections, key-loading docs, and index bullets",
+      "validation": "node scripts/check-suite.mjs && node scripts/check-checkout-hygiene.mjs"
+    },
+    {
+      "acceptanceEvidence": "make test and make check exit 0; the payload index digest matches the regenerated payload.",
+      "acceptanceSignal": "make test && make check",
+      "actions": "Run make fmt, regenerate capabilities, pack the bootstrap payload, then run the full test and check suite.",
+      "dependsOn": [
+        "T017",
+        "T018"
+      ],
+      "notInScope": "hand-editing generated payload files",
+      "ordinal": 19,
+      "ownedScope": "bootstrap/package/payload/**, bootstrap/payload-index.json, csm-orchestrate/capabilities.json",
+      "parallelGroup": "G7",
+      "recoveryNote": "If check-suite reports payload drift, re-run pack-bootstrap before the gate.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the fmt -> gen-capabilities -> pack-bootstrap ordering avoids digest drift.",
+      "status": "in_progress",
+      "taskId": "T019",
+      "title": "Regenerate packaged payload and run the full gate",
+      "validation": "git status --short shows only regenerated payload files for the changed sources; node scripts/check-checkout-hygiene.mjs"
+    }
+  ],
+  "verificationStrategy": {
+    "batchGates": [
+      "make test",
+      "make check"
+    ],
+    "environmentSensitive": [
+      "live provider probes require a host key (env var or .env) and never run in the default suite"
+    ],
+    "fastGates": [
+      "node --test tests/offline/decision-*.test.mjs",
+      "node --test tests/orchestrate-decision-adapter.test.mjs"
+    ],
+    "order": [
+      "per-task node --test",
+      "adjacent decision tests",
+      "node scripts/check-suite.mjs",
+      "make test && make check"
+    ],
+    "requiredIndependentReview": [
+      "T005",
+      "T006",
+      "T007",
+      "T008",
+      "T013",
+      "T016"
+    ]
+  }
+}

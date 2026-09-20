@@ -109,6 +109,120 @@
       "fallback": "deterministic-severity-bucket",
       "safetyClass": "safety",
       "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "review-challenger-verdict",
+      "seam": "csm-review",
+      "type": "choice",
+      "criteria": ["agree", "downgrade", "retract", "new_finding"],
+      "fallback": "deterministic-challenger-verdict",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "deep-research-challenger-verdict",
+      "seam": "csm-deep-research",
+      "type": "choice",
+      "criteria": ["uphold", "downgrade", "retract", "suggest_new_claim"],
+      "fallback": "deterministic-challenger-verdict",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "deep-research-judge-factual-accuracy",
+      "seam": "csm-deep-research",
+      "type": "score",
+      "criteria": [
+        "unsupported",
+        "mostly-unsupported",
+        "mixed",
+        "mostly-supported",
+        "fully-supported"
+      ],
+      "fallback": "no-advisory",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "deep-research-judge-citation-accuracy",
+      "seam": "csm-deep-research",
+      "type": "score",
+      "criteria": ["wrong", "loose", "mixed", "mostly-correct", "supported"],
+      "fallback": "no-advisory",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "deep-research-judge-completeness",
+      "seam": "csm-deep-research",
+      "type": "score",
+      "criteria": ["mostly-missing", "several-missing", "mixed", "one-missing", "complete"],
+      "fallback": "no-advisory",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "deep-research-judge-clarity",
+      "seam": "csm-deep-research",
+      "type": "score",
+      "criteria": ["illegible", "hard-to-follow", "mixed", "mostly-clear", "clear"],
+      "fallback": "no-advisory",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "python-review-judge-severity",
+      "seam": "csm-review-python",
+      "type": "choice",
+      "criteria": ["C", "R", "W", "E", "F", "Nit"],
+      "fallback": "deterministic-severity",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "python-review-dedup",
+      "seam": "csm-review-python",
+      "type": "score",
+      "criteria": ["distinct", "weak", "moderate", "strong", "duplicate"],
+      "fallback": "deterministic-dedup",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "build-review-verdict",
+      "seam": "csm-build",
+      "type": "choice",
+      "criteria": ["pass", "needs_repair", "fail", "uncertain"],
+      "fallback": "deterministic-review-verdict",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "autoresearch-judge-ranking",
+      "seam": "csm-autoresearch",
+      "type": "score",
+      "criteria": ["worst", "poor", "average", "good", "best"],
+      "fallback": "deterministic-judge-ranking",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "bdd-tdd-validation-verdict",
+      "seam": "csm-bdd-tdd",
+      "type": "choice",
+      "criteria": ["valid", "needs_repair", "invalid"],
+      "fallback": "deterministic-validation-verdict",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "orchestrate-reviewer-finding",
+      "seam": "csm-orchestrate-review",
+      "type": "choice",
+      "criteria": ["uphold", "downgrade", "retract", "missing-evidence", "suggest-new-requirement"],
+      "fallback": "deterministic-reviewer-finding",
+      "safetyClass": "authority",
+      "applyVsAdvisory": "advisory"
     }
   ]
 }

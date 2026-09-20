@@ -484,3 +484,8 @@ Optional, off-by-default decision points this skill consumes; absent or disabled
 - `ready-set-ordering` (advisory/apply, reversible, non-safety): Jev may rank the ready set; dependency readiness, batch sizing, and dispatch order stay deterministic.
 
 Never-Jev boundary: Jev must never write task status, evaluator receipts, loop-guard output, closure/`verificationStatus`, or the completion gate; it may only add advisory/apply hints that the deterministic loop guard ignores.
+
+When opted in, the `build-review-verdict` advisory point may be consulted first
+for each REVIEW track; the review subagents and the primary remain the authority
+and are the fallback, and the evaluator receipt, loop guard, completion, and
+acceptance checks are never influenced.

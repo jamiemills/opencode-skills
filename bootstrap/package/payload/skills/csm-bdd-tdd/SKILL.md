@@ -317,3 +317,11 @@ Jev may provide ADVISORY rankings for this conditional skill; the rankings
 NEVER gate routing, alter a verdict, or touch any acceptance, security, or
 completion gate. The layer is off by default and observational, so absent or
 disabled behavior is unchanged.
+
+## Optional Jev Advisory
+
+When Jev is opted in (`--use-jev` / request-2 decision block), the VALIDATE
+strictness check may consult the `bdd-tdd-validation-verdict` advisory point
+through the `csm-orchestrate` consult seam. The primary VERIFY gate, hard
+rejects, and scenario/mutation execution remain deterministic authorities and
+the fallback; absent or disabled behavior is unchanged.

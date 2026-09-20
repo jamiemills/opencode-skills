@@ -1,11 +1,17 @@
 "use strict";
 
-// T024: the Vercel AI Gateway decision provider descriptor. Like openrouter.mjs
-// it is descriptor-only and owns no transport: the transport calls buildRequest
-// once, then parseResponse or classifyError. The API key is read exclusively
-// from the injected env (provider.apiKeyEnv) and is never logged or embedded in
-// a failure. Every classified failure is fail-open -- the caller reverts to the
-// deterministic harness.
+// T024/T003: the Vercel AI Gateway decision provider descriptor. Like
+// openrouter.mjs it is descriptor-only and owns no transport: the transport
+// calls buildRequest once, then parseResponse or classifyError. The API key is
+// read exclusively from the injected env (provider.apiKeyEnv) and is never
+// logged or embedded in a failure. Every classified failure is fail-open -- the
+// caller reverts to the deterministic harness.
+//
+// T003: Vercel consumes the same typed `questions` RECORD and `answers`
+// envelope protocol as OpenRouter (supported, not live-verified for now);
+// adding or changing a supplier stays a descriptor-only change.
+
+import { firstAnswer, parseAnswers } from "../question-protocol.mjs";
 //
 // Differences from the OpenRouter descriptor:
 //   * The model id differs: this provider uses `typesafe-ai/jev`, whereas the
@@ -60,28 +66,27 @@ function buildRequest(input = {}) {
     body: {
       model,
       state: input.state ?? null,
-      questions: input.questions ?? [],
+      questions:
+        input.questions !== null &&
+        typeof input.questions === "object" &&
+        !Array.isArray(input.questions)
+          ? input.questions
+          : {},
     },
   };
 }
 
-// Vercel reports token counts but not cost, so there is intentionally no
-// `cost` field here (unlike the OpenRouter descriptor).
-function normalizeUsage(usage) {
-  const normalized = {};
-  if (usage === null || typeof usage !== "object") return normalized;
-  const inputTokens = usage.inputTokens ?? usage.input_tokens ?? usage.prompt_tokens;
-  const outputTokens = usage.outputTokens ?? usage.output_tokens ?? usage.completion_tokens;
-  if (Number.isFinite(inputTokens)) normalized.inputTokens = inputTokens;
-  if (Number.isFinite(outputTokens)) normalized.outputTokens = outputTokens;
-  return normalized;
-}
-
+// Vercel reports token counts but not cost; the shared protocol normalizer drops
+// a missing cost rather than inventing one.
 function parseResponse(json) {
   const source = json !== null && typeof json === "object" ? json : {};
-  const answer = source.answer ?? source.choice ?? source.score ?? source.noul ?? null;
-  const confidence = Number.isFinite(source.confidence) ? source.confidence : null;
-  return { answer, confidence, usage: normalizeUsage(source.usage) };
+  const parsed = parseAnswers(source);
+  const first = firstAnswer(parsed.answers);
+  const answer =
+    first.answer ?? source.answer ?? source.choice ?? source.score ?? source.noul ?? null;
+  const confidence =
+    first.confidence ?? (Number.isFinite(source.confidence) ? source.confidence : null);
+  return { answer, confidence, answers: parsed.answers, usage: parsed.usage, model: parsed.model };
 }
 
 function classifyError(status, body) {

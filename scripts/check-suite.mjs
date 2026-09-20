@@ -1184,6 +1184,24 @@ function main() {
 
     check(lines.length < 500, `${skill}/SKILL.md size ${lines.length} lines (>= 500)`);
 
+    // Jev advisory prose lint: every skill wired for review/judge/adversarial
+    // substitution must declare its Jev advice advisory and never-gating.
+    const WIRED_JEV_SKILLS = [
+      "csm-review",
+      "csm-review-python",
+      "csm-deep-research",
+      "csm-plan",
+      "csm-build",
+      "csm-autoresearch",
+      "csm-bdd-tdd",
+      "csm-orchestrate",
+    ];
+    if (WIRED_JEV_SKILLS.includes(skill)) {
+      check(/Jev/i.test(content), `${skill}/SKILL.md lacks a Jev advisory declaration`);
+      check(/advisory/i.test(content), `${skill}/SKILL.md lacks an "advisory" declaration`);
+      check(/never/i.test(content), `${skill}/SKILL.md lacks a never-Jev boundary statement`);
+    }
+
     const fm = parseFrontmatter(content);
     check(fm !== null, `${skill}/SKILL.md frontmatter does not parse`);
     if (fm === null) continue;

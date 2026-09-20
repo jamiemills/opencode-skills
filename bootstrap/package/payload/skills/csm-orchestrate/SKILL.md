@@ -113,3 +113,10 @@ Jev output is the observational `csm-orchestrate-decision-gate/1` class with no
 acceptance authority: it never writes evaluator receipts, loop guards,
 closure/`verificationStatus`, cursor/supersession, or any gate. See
 `docs/typed-decisions.md` and `docs/typed-decisions-runbook.md`.
+
+- `orchestrate-reviewer-finding` (authority, advisory): when a host supplies an
+  independent final reviewer and Jev is opted in, the reviewer's context may
+  receive advisory `uphold | downgrade | retract | missing-evidence |
+suggest-new-requirement` hints. The deterministic `reviewAcceptance` gate, its
+  schema, and the no-callback fallback are byte-identical with or without this
+  advice; advice never enters a gate input (enforced by the boundary guard).

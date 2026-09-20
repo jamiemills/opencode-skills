@@ -99,6 +99,12 @@ Optional Jev input (off unless opted in) applies add-only and owns no gate or ve
 
 `closure`, `verificationStatus`, `canSaveVerified`, severity, and evidence-class authority stay untouched — Jev can only add review.
 
+When opted in, the `review-challenger-verdict`, `severity-bucketing`,
+`evidence-class-bucketing`, and `semantic-dedup` advisory points may be consulted
+first through the consult seam. The independent challenger and the primary
+adjudicator remain the authority and are the fallback on any Jev failure; these
+hints never change a verdict, closure, or a gate.
+
 ## Human Findings Projection
 
 The human projection entrypoint is `csm-review/lib/human-projection.mjs` and

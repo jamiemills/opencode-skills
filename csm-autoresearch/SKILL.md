@@ -160,3 +160,11 @@ using these artifacts; that handoff is not an invocation by this skill.
 - Decomposition: `population` (bound 1000); roles: proposer, judge, evaluator.
 - Bounds: maxConcurrency 4, maxDepth 2, maxAgents 64, maxItems 1000.
 - Milestones: Frame 20 · Execute 50 · Verify 20 · Close 10.
+
+## Optional Jev Advisory
+
+When Jev is opted in, the advisory judge may consult the
+`autoresearch-judge-ranking` point through the `csm-orchestrate` consult seam.
+The deterministic hard gates and the evaluator-owned metrics outrank the judge,
+the existing blinded judge is the fallback, and absent or disabled behavior is
+unchanged.

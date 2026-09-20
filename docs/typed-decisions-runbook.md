@@ -129,3 +129,18 @@ the **deterministic harness model**; the adapter never throws and never sets
 fail-opens. Only non-safety `apply` points can change behavior; `shadow` applies
 nothing. Artifacts are written only for applied decisions, at
 `.agents/decisions/<runId>.json`.
+
+## 8. Key resolution and the skill consult seam
+
+The provider key is resolved from the descriptor's `apiKeyEnv` in the process
+environment, falling back to the repository-root `.env` file (e.g.
+`OPENROUTER_ROUTER_KEY`). The resolver only reads the selected descriptor's own
+variable, never logs or returns the key in diagnostics, and treats a missing key
+as a fail-open `missing` result. Rotate by changing the env var or `.env` value
+and re-running; never pass a key on the command line.
+
+Skills consume advisory review/judge verdicts through the host-mediated consult
+seam, gated on the existing `CSM_DECISION_CLI=1` env gate (the driver path is
+gated by `--use-jev` / the request-2 `decision` block). Without opt-in there is
+no adapter and no network. The seam redacts state before send and returns
+advisory verdicts only — it never applies and never touches a gate.

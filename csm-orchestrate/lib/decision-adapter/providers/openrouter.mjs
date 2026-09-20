@@ -1,11 +1,17 @@
 "use strict";
 
-// T008: the OpenRouter decision provider descriptor. It is descriptor-only and
-// owns no transport: the T008 transport calls buildRequest once, then
+// T008/T002: the OpenRouter decision provider descriptor. It is descriptor-only
+// and owns no transport: the transport calls buildRequest once, then
 // parseResponse or classifyError. The API key is read exclusively from the
 // injected env (provider.apiKeyEnv) and is never logged or embedded in a
 // failure. Every classified failure is fail-open -- the caller reverts to the
 // deterministic harness.
+//
+// T002: the request carries the live typed `questions` RECORD (built by
+// question-protocol.mjs) and the response is the live `answers` envelope; the
+// prior array-shaped request was rejected by the live API with HTTP 400.
+
+import { firstAnswer, parseAnswers } from "../question-protocol.mjs";
 
 export const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
 export const OPENROUTER_API_KEY_ENV = "OPENROUTER_ROUTER_KEY";
@@ -53,28 +59,25 @@ function buildRequest(input = {}) {
     body: {
       model,
       state: input.state ?? null,
-      questions: input.questions ?? [],
+      questions:
+        input.questions !== null &&
+        typeof input.questions === "object" &&
+        !Array.isArray(input.questions)
+          ? input.questions
+          : {},
     },
   };
 }
 
-function normalizeUsage(usage) {
-  const normalized = {};
-  if (usage === null || typeof usage !== "object") return normalized;
-  const inputTokens = usage.inputTokens ?? usage.input_tokens ?? usage.prompt_tokens;
-  const outputTokens = usage.outputTokens ?? usage.output_tokens ?? usage.completion_tokens;
-  const cost = usage.cost ?? usage.total_cost;
-  if (Number.isFinite(inputTokens)) normalized.inputTokens = inputTokens;
-  if (Number.isFinite(outputTokens)) normalized.outputTokens = outputTokens;
-  if (Number.isFinite(cost)) normalized.cost = cost;
-  return normalized;
-}
-
 function parseResponse(json) {
   const source = json !== null && typeof json === "object" ? json : {};
-  const answer = source.answer ?? source.choice ?? source.score ?? source.noul ?? null;
-  const confidence = Number.isFinite(source.confidence) ? source.confidence : null;
-  return { answer, confidence, usage: normalizeUsage(source.usage) };
+  const parsed = parseAnswers(source);
+  const first = firstAnswer(parsed.answers);
+  const answer =
+    first.answer ?? source.answer ?? source.choice ?? source.score ?? source.noul ?? null;
+  const confidence =
+    first.confidence ?? (Number.isFinite(source.confidence) ? source.confidence : null);
+  return { answer, confidence, answers: parsed.answers, usage: parsed.usage, model: parsed.model };
 }
 
 function classifyError(status, body) {

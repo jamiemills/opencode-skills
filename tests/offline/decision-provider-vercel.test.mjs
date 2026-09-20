@@ -31,13 +31,17 @@ function recordingFetch(responseOrError, calls) {
   };
 }
 
-test("buildRequest posts the Vercel AI Gateway evaluate endpoint with the env key and model", () => {
+const QUESTIONS = {
+  q1: { type: "choice", instructions: "pick", criteria: { a: "A", b: "B" } },
+  q2: { type: "noul", instructions: "yes or no", criteria: { true: "yes", false: "no" } },
+};
+
+test("buildRequest posts the Vercel AI Gateway evaluate endpoint with a questions RECORD", () => {
   const state = { request: "route this", candidates: ["csm-scan", "csm-ddd"] };
-  const questions = ["q1", "q2"];
   const request = vercel.buildRequest({
     env: { [VERCEL_API_KEY_ENV]: KEY },
     state,
-    questions,
+    questions: QUESTIONS,
   });
 
   assert.equal(request.url, VERCEL_ENDPOINT);
@@ -45,13 +49,19 @@ test("buildRequest posts the Vercel AI Gateway evaluate endpoint with the env ke
   assert.equal(request.method, "POST");
   assert.equal(request.headers["content-type"], "application/json");
   assert.equal(request.headers.authorization, `Bearer ${KEY}`);
-  assert.deepEqual(request.body, {
-    model: VERCEL_DEFAULT_MODEL,
-    state,
-    questions,
-  });
+  assert.deepEqual(request.body, { model: VERCEL_DEFAULT_MODEL, state, questions: QUESTIONS });
   assert.equal(request.body.model, "typesafe-ai/jev");
+  assert.ok(!Array.isArray(request.body.questions), "live API requires a record, not an array");
   assert.notEqual(vercel.defaultModel, "typesafe/jev-1.13");
+});
+
+test("buildRequest degrades an array-shaped questions value to an empty record", () => {
+  const request = vercel.buildRequest({
+    env: { [VERCEL_API_KEY_ENV]: KEY },
+    state: {},
+    questions: ["q1"],
+  });
+  assert.deepEqual(request.body.questions, {});
 });
 
 test("buildRequest honours an explicit model override and defaults state/questions", () => {
@@ -61,7 +71,7 @@ test("buildRequest honours an explicit model override and defaults state/questio
   });
   assert.equal(request.body.model, "typesafe-ai/jev-preview");
   assert.equal(request.body.state, null);
-  assert.deepEqual(request.body.questions, []);
+  assert.deepEqual(request.body.questions, {});
 });
 
 test("a missing key is a fail-open transport failure, never a throw", async () => {
@@ -71,7 +81,7 @@ test("a missing key is a fail-open transport failure, never a throw", async () =
     env: {},
     fetchImpl: recordingFetch(jsonResponse({}), calls),
   });
-  const result = await transport.send({ state: {}, questions: [] });
+  const result = await transport.send({ state: {}, questions: {} });
   assert.equal(result.ok, false);
   assert.equal(result.failure.class, "authentication");
   assert.equal(result.failure.retryable, false);
@@ -79,44 +89,36 @@ test("a missing key is a fail-open transport failure, never a throw", async () =
   assert.ok(!JSON.stringify(result).includes(VERCEL_API_KEY_ENV));
 });
 
-test("parseResponse normalizes an answer, confidence, and token usage without cost", () => {
-  assert.deepEqual(
-    vercel.parseResponse({
-      choice: "csm-scan",
-      confidence: 0.75,
-      usage: { prompt_tokens: 12, completion_tokens: 4, total_tokens: 16, cost: 0.0002 },
-    }),
-    {
-      answer: "csm-scan",
-      confidence: 0.75,
-      usage: { inputTokens: 12, outputTokens: 4 },
-    },
-  );
+test("parseResponse reads the answers envelope without inventing a cost", () => {
+  const parsed = vercel.parseResponse({
+    model: "typesafe-ai/jev",
+    answers: { q: { type: "choice", choice: "csm-scan", confidence: 0.75 } },
+    usage: { prompt_tokens: 12, completion_tokens: 4, total_tokens: 16, cost: 0.0002 },
+  });
+  assert.equal(parsed.answer, "csm-scan");
+  assert.equal(parsed.confidence, 0.75);
+  assert.equal(parsed.model, "typesafe-ai/jev");
+  assert.deepEqual(parsed.usage, { inputTokens: 12, outputTokens: 4, cost: 0.0002 });
   assert.equal(
     Object.hasOwn(vercel.parseResponse({ usage: { input_tokens: 1 } }).usage, "cost"),
     false,
-    "Vercel reports tokens but not cost; cost is omitted",
+    "a cost that the provider did not report is omitted",
   );
 });
 
 test("parseResponse reads score and noul answers plus camelCase usage", () => {
-  assert.deepEqual(vercel.parseResponse({ score: 0.42 }), {
-    answer: 0.42,
-    confidence: null,
-    usage: {},
+  const score = vercel.parseResponse({ answers: { q: { type: "score", score: 0.42 } } });
+  assert.equal(score.answer, 0.42);
+  const noul = vercel.parseResponse({
+    answers: { q: { type: "noul", noul: 0.9 } },
+    usage: { inputTokens: 1, outputTokens: 2 },
   });
-  assert.deepEqual(
-    vercel.parseResponse({ noul: true, usage: { inputTokens: 1, outputTokens: 2 } }),
-    {
-      answer: true,
-      confidence: null,
-      usage: { inputTokens: 1, outputTokens: 2 },
-    },
-  );
+  assert.equal(noul.answer, 0.9);
+  assert.deepEqual(noul.usage, { inputTokens: 1, outputTokens: 2 });
 });
 
 test("parseResponse tolerates missing and malformed envelopes", () => {
-  const empty = { answer: null, confidence: null, usage: {} };
+  const empty = { answer: null, confidence: null, answers: {}, usage: {}, model: null };
   assert.deepEqual(vercel.parseResponse(null), empty);
   assert.deepEqual(vercel.parseResponse(undefined), empty);
   assert.deepEqual(vercel.parseResponse("not json"), empty);
@@ -167,23 +169,24 @@ test("transport sends one authenticated request and normalizes the response", as
     provider: vercel,
     env: { [VERCEL_API_KEY_ENV]: KEY },
     fetchImpl: recordingFetch(
-      jsonResponse({ choice: "csm-ddd", confidence: 0.6, usage: { prompt_tokens: 5 } }),
+      jsonResponse({
+        answers: { q: { type: "choice", choice: "csm-ddd", confidence: 0.6 } },
+        usage: { prompt_tokens: 5 },
+      }),
       calls,
     ),
   });
-  const result = await transport.send({ state: { a: 1 }, questions: ["q"] });
+  const result = await transport.send({ state: { a: 1 }, questions: { q: QUESTIONS.q1 } });
 
   assert.equal(result.ok, true);
-  assert.deepEqual(result.decision, {
-    answer: "csm-ddd",
-    confidence: 0.6,
-    usage: { inputTokens: 5 },
-  });
+  assert.equal(result.decision.answer, "csm-ddd");
+  assert.equal(result.decision.confidence, 0.6);
+  assert.deepEqual(result.decision.usage, { inputTokens: 5 });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, VERCEL_ENDPOINT);
   assert.equal(calls[0].init.method, "POST");
   assert.equal(calls[0].init.headers.authorization, `Bearer ${KEY}`);
-  assert.deepEqual(JSON.parse(calls[0].init.body).questions, ["q"]);
+  assert.deepEqual(JSON.parse(calls[0].init.body).questions, { q: QUESTIONS.q1 });
 });
 
 test("transport fails open on a classified HTTP error", async () => {
@@ -199,7 +202,7 @@ test("transport fails open on a classified HTTP error", async () => {
       calls,
     ),
   });
-  const result = await transport.send({ state: {}, questions: [] });
+  const result = await transport.send({ state: {}, questions: {} });
   assert.equal(result.ok, false);
   assert.deepEqual(result.failure, { class: "rate_limit_exceeded", retryable: true });
 });

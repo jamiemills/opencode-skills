@@ -476,3 +476,14 @@ Jev may provide ADVISORY rankings for this conditional skill; the rankings
 NEVER gate routing, alter a verdict, or touch any acceptance, security, or
 completion gate. The layer is off by default and observational, so absent or
 disabled behavior is unchanged.
+
+## Optional Jev Advisory
+
+When Jev is opted in (`--use-jev` / request-2 decision block), the CHALLENGE
+challenger verdict and the JUDGE rubric (factual accuracy, citation accuracy,
+completeness, clarity) may be obtained first as advisory hints through the
+`csm-orchestrate` consult seam. The independent challenger and judge dispatches
+remain the authority and are the fallback on any Jev failure; the
+primary-personal VERIFY gate is never delegated and never treats Jev output as
+evidence. These hints never gate, alter a verdict, or touch any acceptance,
+security, or completion surface, and absent or disabled behavior is unchanged.
