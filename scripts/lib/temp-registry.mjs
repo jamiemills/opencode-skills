@@ -1,18 +1,32 @@
-// Durable registry of temporary resources (worktrees + temp dirs) created by
-// the session helpers. Written atomically (tmp + rename) under the repository's
-// `.agents/state/` so an interrupted session's resources remain discoverable
-// and safely removable later. This module never deletes anything.
+// Durable, lock-free registry of temporary resources (worktrees + temp dirs)
+// created by the session helpers.
 //
-// Entry shape: { kind: "worktree" | "tempdir", path (absolute), branch?, runId,
-// ts (UTC ISO, ends with Z) }. Entries are deduplicated by absolute path —
-// re-registering a path updates its record in place.
+// F3.3: the old single-file read-modify-write lost concurrent entries. Entries
+// now live as one JSON file per normalized path under the shared repo state dir
+// (`<git-common-dir>/csm/state/registry.d/`), so two processes registering two
+// different paths never touch the same file and no lock is needed. Each write
+// is same-directory tmp + rename (atomic on local POSIX; EXDEV is impossible),
+// so a concurrent reader never observes a torn entry.
+//
+// File name: `<sha256hex(normalized real path)>.json` (full digest, never
+// truncated). Entry shape: { kind: "worktree" | "tempdir", path (absolute),
+// branch?, runId, ts (UTC ISO, ends with Z) }. Entries are deduplicated by
+// resolved path — re-registering a path overwrites its single file in place.
+//
+// This module never deletes anything on its own; `unregister` is the only
+// remover and it only unlinks a registry entry file.
 
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { createHash, randomBytes } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { repoStateDir } from "./repo-state.mjs";
 
 const STATE_DIR = path.join(".agents", "state");
 const REGISTRY_BASENAME = "temp-registry.json";
+const REGISTRY_DIRNAME = "registry.d";
+const SENTINEL_BASENAME = ".migrated";
 const KINDS = new Set(["worktree", "tempdir"]);
 
 function utcNow() {
@@ -27,45 +41,66 @@ function defaultRoot(root) {
   return root ? path.resolve(root) : process.cwd();
 }
 
+// The legacy single-file registry path. Kept as the migration source (and for
+// backwards compatibility); the live registry is the per-entry directory below.
 export function registryPath(root = process.cwd()) {
   return path.join(defaultRoot(root), STATE_DIR, REGISTRY_BASENAME);
+}
+
+// The per-entry registry directory under the shared repo state dir. `repoStateDir`
+// resolves the git *common* dir, so every linked worktree of a repository reads
+// and writes the same registry.
+export function registryDir(root = process.cwd()) {
+  return path.join(repoStateDir(defaultRoot(root)), REGISTRY_DIRNAME);
+}
+
+// A stable id for a target path: the full SHA-256 of its normalized *real*
+// path. Symlinked spellings of one directory collapse to one entry. A path that
+// does not exist yet (a ghost registration) falls back to its absolute form.
+function normalizePath(target) {
+  const abs = path.resolve(target);
+  try {
+    return fs.realpathSync(abs);
+  } catch {
+    return abs;
+  }
+}
+
+export function entryId(target) {
+  return createHash("sha256").update(normalizePath(target)).digest("hex");
+}
+
+function randomToken() {
+  return randomBytes(6).toString("hex");
+}
+
+function isValidEntry(entry) {
+  return (
+    entry &&
+    typeof entry === "object" &&
+    !Array.isArray(entry) &&
+    KINDS.has(entry.kind) &&
+    typeof entry.path === "string" &&
+    entry.path.length > 0
+  );
 }
 
 // Load the registry as an array, tolerating a missing or corrupt file (an
 // unreadable registry is treated as empty, never as a reason to fail).
 export function load(root = process.cwd()) {
-  let raw;
-  try {
-    raw = fs.readFileSync(registryPath(root), "utf8");
-  } catch {
-    return [];
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed)) return [];
-  return parsed.filter(
-    (entry) =>
-      entry &&
-      typeof entry === "object" &&
-      KINDS.has(entry.kind) &&
-      typeof entry.path === "string" &&
-      entry.path.length > 0,
-  );
+  return list(root);
 }
 
-// Atomic write: serialize to a sibling temp file, then rename over the target
-// so a crash mid-write can never leave a truncated registry.
-function save(root, entries) {
-  const file = registryPath(root);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+// Atomic same-directory write: serialize to a unique sibling temp file, then
+// rename over the target so a crash mid-write can never leave a truncated
+// entry. Temp files (and the `.migrated` sentinel) are never valid entries.
+function writeEntry(dir, entry) {
+  const id = entryId(entry.path);
+  const target = path.join(dir, `${id}.json`);
+  const tmp = path.join(dir, `${id}.${process.pid}.${randomToken()}.tmp`);
   try {
-    fs.writeFileSync(tmp, `${JSON.stringify(entries, null, 2)}\n`, "utf8");
-    fs.renameSync(tmp, file);
+    fs.writeFileSync(tmp, `${JSON.stringify(entry, null, 2)}\n`, "utf8");
+    fs.renameSync(tmp, target);
   } catch (err) {
     try {
       fs.rmSync(tmp, { force: true });
@@ -97,30 +132,143 @@ function normalize(entry) {
   return normalized;
 }
 
-// Register (or update, deduplicated by absolute path) a resource. Returns the
+// The main worktree is the first `worktree ` record in `git worktree list
+// --porcelain`; a legacy registry only ever lived in the main checkout.
+function mainWorktreeRoot(root) {
+  try {
+    const out = execFileSync("git", ["-C", defaultRoot(root), "worktree", "list", "--porcelain"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    for (const line of out.split("\n")) {
+      if (line.startsWith("worktree ")) return line.slice("worktree ".length);
+    }
+  } catch {
+    // not a git repo (or git missing): fall back to the given root
+  }
+  return defaultRoot(root);
+}
+
+function readLegacyEntries(root) {
+  const candidates = [];
+  const main = mainWorktreeRoot(root);
+  candidates.push(path.join(main, STATE_DIR, REGISTRY_BASENAME));
+  candidates.push(registryPath(root));
+  const seen = new Set();
+  const entries = [];
+  for (const file of candidates) {
+    const resolved = path.resolve(file);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    let raw;
+    try {
+      raw = fs.readFileSync(resolved, "utf8");
+    } catch {
+      continue;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(parsed)) continue;
+    for (const entry of parsed) {
+      if (isValidEntry(entry)) entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+// One-time migration of the legacy single-file registry, guarded by an
+// atomically-created `registry.d/.migrated` sentinel (tmp + rename). Entries
+// are copied before the sentinel lands, so a crash mid-migration simply re-runs
+// (the copy is idempotent). Once the sentinel exists the legacy file is never
+// read again — an entry unregistered after migration can never be resurrected.
+// The legacy file itself is left in place (never deleted), so no deletion trace
+// is owed.
+function migrateOnce(root) {
+  const dir = registryDir(root);
+  fs.mkdirSync(dir, { recursive: true });
+  const sentinel = path.join(dir, SENTINEL_BASENAME);
+  if (fs.existsSync(sentinel)) return;
+  for (const entry of readLegacyEntries(root)) {
+    try {
+      writeEntry(dir, normalize(entry));
+    } catch {
+      // A malformed legacy entry is quarantined (skipped), never fatal.
+    }
+  }
+  const tmp = path.join(dir, `${SENTINEL_BASENAME}.${process.pid}.${randomToken()}.tmp`);
+  try {
+    fs.writeFileSync(tmp, `${JSON.stringify({ ts: utcNow() })}\n`, "utf8");
+    fs.renameSync(tmp, sentinel);
+  } catch {
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      // best effort cleanup of the temp file
+    }
+  }
+}
+
+// Register (or update, deduplicated by resolved path) a resource. Returns the
 // normalized entry as stored.
 export function register(entry, root = process.cwd()) {
   const normalized = normalize(entry);
-  const entries = load(root);
-  const idx = entries.findIndex((e) => path.resolve(e.path) === normalized.path);
-  if (idx >= 0) entries[idx] = normalized;
-  else entries.push(normalized);
-  save(root, entries);
+  migrateOnce(root);
+  writeEntry(registryDir(root), normalized);
   return normalized;
 }
 
 // Remove a path from the registry. Idempotent: a path that is not registered is
-// a no-op and returns false. Returns true when an entry was removed.
+// a no-op and returns false. Returns true when an entry file was removed.
 export function unregister(target, root = process.cwd()) {
   if (typeof target !== "string" || target.length === 0) return false;
-  const abs = path.resolve(target);
-  const entries = load(root);
-  const next = entries.filter((e) => path.resolve(e.path) !== abs);
-  if (next.length === entries.length) return false;
-  save(root, next);
-  return true;
+  migrateOnce(root);
+  const file = path.join(registryDir(root), `${entryId(target)}.json`);
+  try {
+    fs.unlinkSync(file);
+    return true;
+  } catch (err) {
+    if (err.code === "ENOENT") return false;
+    throw err;
+  }
 }
 
+// List the live entries. Only `*.json` files are considered (`*.tmp` writes and
+// the `.migrated` sentinel are ignored). A malformed file, or one whose
+// embedded `path` does not hash to the file's own id, is quarantined — skipped,
+// never thrown.
 export function list(root = process.cwd()) {
-  return load(root).map((entry) => ({ ...entry }));
+  migrateOnce(root);
+  const dir = registryDir(root);
+  let names;
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const entries = [];
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue;
+    const id = name.slice(0, -".json".length);
+    let raw;
+    try {
+      raw = fs.readFileSync(path.join(dir, name), "utf8");
+    } catch {
+      continue;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (!isValidEntry(parsed)) continue;
+    if (entryId(parsed.path) !== id) continue;
+    entries.push({ ...parsed });
+  }
+  entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return entries;
 }

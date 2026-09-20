@@ -21,9 +21,11 @@ import {
 import {
   list as listRegistry,
   register,
+  registryDir,
   registryPath,
   unregister,
 } from "../scripts/lib/temp-registry.mjs";
+import { repoLogPath } from "../scripts/lib/repo-state.mjs";
 
 function git(root, args) {
   return execFileSync("git", ["-C", root, ...args], {
@@ -73,7 +75,8 @@ test("registry register/unregister/list deduplicate by absolute path and are ide
     assert.equal(unregister("/tmp/csm-a", root), true);
     assert.equal(unregister("/tmp/csm-a", root), false, "unregister is idempotent");
     assert.deepEqual(listRegistry(root), []);
-    assert.ok(fs.existsSync(registryPath(root)), "state file written atomically");
+    assert.ok(fs.existsSync(registryDir(root)), "per-entry registry directory written");
+    assert.ok(!fs.existsSync(registryPath(root)), "legacy single-file registry is no longer used");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -256,12 +259,9 @@ test("a cleanup refusal writes a trace entry", async () => {
     cleanup(root, { apply: true, managedRoot });
     await flushTraces();
 
-    const logsDir = path.join(root, ".agents", "logs");
-    const files = fs.existsSync(logsDir)
-      ? fs.readdirSync(logsDir).filter((f) => f.endsWith("trace.jsonl"))
-      : [];
-    assert.ok(files.length >= 1, "a refusal trace file was written");
-    const text = files.map((f) => fs.readFileSync(path.join(logsDir, f), "utf8")).join("");
+    const logFile = repoLogPath(root);
+    const text = fs.existsSync(logFile) ? fs.readFileSync(logFile, "utf8") : "";
+    assert.ok(text.length >= 1, "a refusal trace line was written to the shared log");
     assert.match(text, /"action":"cleanup-refuse"/, "refusal trace line present");
   } finally {
     fs.rmSync(managedRoot, { recursive: true, force: true });

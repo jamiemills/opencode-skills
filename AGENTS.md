@@ -27,8 +27,12 @@
 ## Action Traces, UTC Timestamps, and Cleanup
 
 - Record actions and decision justifications as durable, append-only trace
-  entries under `.agents/logs/` via `scripts/lib/trace-log.mjs`; every entry
-  carries `ts`, `runId`, `actor`, `action`, `target`, `justification`, `outcome`.
+  entries via `scripts/lib/trace-log.mjs`. There is ONE shared trace log per
+  repo at `<git-common-dir>/csm/logs/trace.jsonl` (all runs/agents/worktrees
+  append to it; it survives worktree removal). Each entry carries `ts`,
+  `runId`, `actor`, `action`, `target`, `justification`, `outcome`; appends are
+  single bounded writes (local-POSIX atomic) and long records are truncated with
+  a marker, never dropped.
 - All durable timestamps are ISO-8601 UTC ending in `Z` (`scripts/lib/utc.mjs`).
 - At the end of a session, run `node scripts/wt-session.mjs cleanup --dry-run`
   then `cleanup --apply` to remove managed worktrees and allowlisted temp dirs.

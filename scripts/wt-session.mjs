@@ -48,10 +48,13 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 // by T001 and may be absent in an isolated worktree, so load it dynamically and
 // never let tracing break a worktree/cleanup operation.
 let appendTrace = null;
+let repoLogPath = null;
 try {
   ({ appendTrace } = await import("./lib/trace-log.mjs"));
+  ({ repoLogPath } = await import("./lib/repo-state.mjs"));
 } catch {
   appendTrace = null;
+  repoLogPath = null;
 }
 
 // F1.2: the run id becomes part of a trace file name, so a hostile or malformed
@@ -73,7 +76,11 @@ function appendSessionTrace(root, action, target, justification, outcome) {
     promise = Promise.resolve(
       appendTrace(
         { ts, runId: RUN_ID, actor: "wt-session", action, target, justification, outcome },
-        { file: path.join(root, ".agents", "logs", `${ts.slice(0, 10)}-${RUN_ID}-trace.jsonl`) },
+        {
+          file: repoLogPath
+            ? repoLogPath(root)
+            : path.join(root, ".agents", "logs", `${ts.slice(0, 10)}-${RUN_ID}-trace.jsonl`),
+        },
       ),
     );
   } catch {
