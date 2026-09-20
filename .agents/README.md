@@ -121,7 +121,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-19-shared-trace-log-csm.json` — 2026-09-19 — plan (complete; csm-plan/1): made traces go to ONE shared per-repo log that is concurrency-safe, worktree-independent (survives worktree closure), and loss-less, and make the temp/worktree registry lock-free with no lost entries — 7 tasks: a git-common-dir path resolver (absolute), single-write bounded loss-less appends, a per-entry registry with one-time atomic migration, wt-session wired to both, concurrency/durability tests, docs + retention policy, Makefile/regen — status: complete
 
 - `2026-09-19-trace-location-config-csm.json` — 2026-09-19 — plan (complete; csm-plan/1): made the shared trace-log location config-driven — default `<main-repo-root>/.agents/logs/trace.jsonl` (not `.git`), host/user default with per-repo/project override via the CSM `csm-skills-config/1` envelope (`skills.csm-orchestrate.traceLogPath`) — 7 tasks: add the config key + registry digest, a trace-config resolver over the hardened config loader, a shared `repoMainRoot` + new default, wire trace-log/wt-session, no-loss + worktree-removal persistence tests, docs/gitignore/Makefile/regen, final verification; Jev advised the per-skill namespace — status: complete
-- `2026-09-20-jev-review-judge-substitution-csm.json` — 2026-09-20 — fix the Jev typed-question integration first, then wire advisory Jev into every review/judge/adversarial skill (incl. csm-build REVIEW) on the existing opt-in — status: ready
+- `2026-09-20-jev-review-judge-substitution-csm.json` — 2026-09-20 — fix the Jev typed-question integration first, then wire advisory Jev into every review/judge/adversarial skill (incl. csm-build REVIEW) on the existing opt-in — status: complete
+- `2026-09-13-skills-sh-publish-csm.json` — 2026-09-13 — plan to publish the skills to skills.sh — status: reference
 
 ## decisions/
 
@@ -226,6 +227,10 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-19-instruction-budget-talk-20260919t173000z-d645b954bc62-research.json` — 2026-09-19 — STANDARD hybrid research into why the agent narrates budgets/context exhaustion/prompt length and how to stop it (3 tracks: local corpus census, model context-anxiety behaviour, harness controls; independent challenge + judge PASS): over-determined — the repo's own instructions prime limit vocabulary and name `context-length-exceeded` as a stop signal, models genuinely exhibit context anxiety/RLHF verbosity, and no real token meter is fed to the model; fix instruction + harness positively (replace AGENTS.md:19 trigger, delete `≈16k`, drop context-length-exceeded from model-facing signals, keep hard limits in code, verify compaction, show numbers to UI not model) — status: reference
 - `2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json` — 2026-09-20 — where Jev can optionally replace LLM judge/challenger/adversarial-review judgment; fixes the broken typed-question integration — status: reference
 - `2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-probe-responses.json` — 2026-09-20 — raw live Jev probe responses (typed challenger/judge/adversarial-gate calls plus the shipped-shape HTTP 400) — status: reference
+- `2026-09-13-skills-sh-publishing-20260913t204500z-skills-sh-publish-research.json` — 2026-09-13 — skills.sh publishing research — status: reference
+- `2026-09-13-skills-sh-publish-adversarial-20260913t224500z-skills-sh-adversarial-research.json` — 2026-09-13 — adversarial review of the skills.sh publishing research — status: reference
+- `2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json` — 2026-09-19 — using Jev (TypeSafe) for code/skill/prompt quality checks — status: reference
+- `2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-probe-responses.json` — 2026-09-19 — raw live Jev probe responses for the quality-checks research — status: reference
 
 ## Retention
 
@@ -254,6 +259,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-14-csm-completion-fixes-20260914t100000z-csmcompletiongrill-approach.json` — 2026-09-14 — agreed grill approach for in-loop completion enforcement across csm-build/csm-plan/csm-review/csm-orchestrate (10 decisions D1-D10; 7 phases P1-P7: conditional tmux bootstrap, evaluator contract + /2 schemas + corpus migration, the four per-skill loop evaluators, integration acceptance); enforcement lives in the skill loops not CI; ONE csm-plan to plan all seven phases — status: agreed
 - `2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json` — 2026-09-19 — agreed grill approach for an optional, user-initiated Jev (TypeSafe) typed-decision layer (13 decisions D1-D13; 4 phases P1-P4: foundation/shadow, live opt-in + guarded routing, full apply set + advisory breadth, hardening/observability); off by default, advisory + apply low-risk, fail-open to the harness model — status: agreed
 - `2026-09-19-action-traces-cleanup-20260919t200000z-2d54b3767507-approach.json` — 2026-09-19 — approach (agreed; csm-approach/1): durable UTC-stamped action/decision traces plus safe interruption-proof cleanup of managed worktrees and allowlisted temp dirs (D1-D5: trace fields, UTC Z, managed-root/allowlist-only deletion, durable registry, dry-run default + refusal tracing) — status: agreed
+- `2026-09-13-skills-sh-publish-20260913t231500z-skills-sh-publish-approach.json` — 2026-09-13 — approach for publishing the skills to skills.sh — status: reference
 
 ## builds/
 
@@ -319,6 +325,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-progress.json` — 2026-09-20 — csm-deep-research progress record for the Jev review/judge substitution research — status: complete
 - `2026-09-20-jev-review-judge-substitution-20260920t180000z-jevplan0001-progress.json` — 2026-09-20 — csm-plan progress record for the Jev review/judge substitution plan — status: complete
 - `2026-09-20-jev-review-judge-substitution-20260920t210000z-jevbuild0001-progress.json` — 2026-09-20 — csm-build progress record for the Jev review/judge substitution build — status: complete
+- `2026-09-12-evals-skill-development-20260912t215843z-4b50ae4baacb-progress.json` — 2026-09-12 — csm-deep-research progress record for the evals skill-development research — status: complete
 
 ## ddd/
 
