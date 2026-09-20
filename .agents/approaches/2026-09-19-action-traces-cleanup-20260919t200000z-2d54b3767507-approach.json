@@ -1,0 +1,181 @@
+{
+  "schema": "csm-approach/1",
+  "schemaRevision": 1,
+  "artifactId": "art-01109e97f132a45408e3a3213ae737f4",
+  "runId": "run-20260919t200000z-2d54b3767507",
+  "ideaSlug": "action-traces-cleanup",
+  "status": "agreed",
+  "ideaStatement": "Add durable, UTC-stamped traces of actions and decision justifications to logs/records, and safe, interruption-proof cleanup of temp files and managed worktrees that never performs destructive actions outside verified temp/managed paths.",
+  "decisions": [
+    {
+      "decisionId": "D1",
+      "question": "What must traces capture?",
+      "answer": "Structured, append-only JSONL trace entries recording the actor, action, target, justification, and outcome of steps and decisions, written to durable logs under .agents/logs/ for future review.",
+      "rationale": "The brief asks for better traces of actions and justifications for decisions.",
+      "traceability": [
+        "user brief (1)"
+      ]
+    },
+    {
+      "decisionId": "D2",
+      "question": "What timestamp format and zone?",
+      "answer": "All timestamps are ISO-8601 UTC ending in Z, in every log and record.",
+      "rationale": "Cross-session/machine reviewability; deterministic ordering.",
+      "traceability": [
+        "user brief (2)"
+      ]
+    },
+    {
+      "decisionId": "D3",
+      "question": "What may cleanup delete, and what is forbidden?",
+      "answer": "Cleanup may remove ONLY managed worktrees (branch wt/<slug> under the managed worktree root) and allowlisted temp dirs (/tmp/csm-*, /tmp/opencode/csm-*). It must never touch the main checkout, unmanaged/detached worktrees, or any non-temp path; it refuses any path that does not match the managed root and logs the refusal.",
+      "rationale": "Safety-first: no destructive action outside temp/managed paths.",
+      "traceability": [
+        "user brief (3)"
+      ]
+    },
+    {
+      "decisionId": "D4",
+      "question": "How is cleanup made robust to interruption?",
+      "answer": "A durable registry (.agents/state/temp-registry.json) records every created worktree and temp dir with runId+UTC ts; create writes it and cleanup reads it, so an interrupted session's resources are still discoverable and removable later. Cleanup is idempotent and supports --dry-run.",
+      "rationale": "Interruption safety via durable state, not transcript.",
+      "traceability": [
+        "user brief (3)"
+      ]
+    },
+    {
+      "decisionId": "D5",
+      "question": "How is safety enforced, not just documented?",
+      "answer": "Cleanup verifies each target resolves under the managed root and matches the registry and branch pattern; it defaults to dry-run, requires an explicit --apply, and emits a trace entry for every action and refusal. Unverifiable targets are skipped, never guessed.",
+      "rationale": "Fail-closed safety for destructive operations.",
+      "traceability": [
+        "user brief (3)",
+        "AGENTS.md safety"
+      ]
+    }
+  ],
+  "researchSynthesis": "Grounded in the repo's existing durable-record discipline (csm-skill-progress/1, plan/build journals, .agents artifact index) and its worktree hygiene rules (AGENTS.md, docs/worktree-hygiene.md). The design reuses the artifact-index class pattern (as for .agents/decisions/) for .agents/logs/, adds a shared trace-log library, and makes cleanup registry-driven and fail-closed.",
+  "phases": [
+    {
+      "phaseId": "P1",
+      "title": "Structured UTC trace logging",
+      "goal": "Provide a shared, UTC-stamped, append-only trace/decision log and wire it into the scripts that create/clean resources.",
+      "deliverables": [
+        "scripts/lib/trace-log.mjs (appendTrace/recordDecision, UTC-enforced)",
+        "scripts/lib/utc.mjs (utcNow/isUtc)",
+        ".agents/logs/ index class + README heading + sample",
+        "trace wiring in scripts/wt-session.mjs",
+        "tests/trace-log.test.mjs"
+      ],
+      "scope": [
+        "trace library",
+        "logs index class",
+        "wt-session wiring"
+      ],
+      "outOfScope": [
+        "retrofitting every skill runtime",
+        "external telemetry"
+      ],
+      "constraints": [
+        "append-only JSONL",
+        "ts must end in Z",
+        "never log secrets"
+      ],
+      "acceptanceHints": [
+        "node --test tests/trace-log.test.mjs passes",
+        "a trace entry has ts/actor/action/target/justification/outcome",
+        "check-suite green"
+      ],
+      "dependencies": [],
+      "context": [
+        "AGENTS.md",
+        "scripts/wt-session.mjs",
+        "scripts/lib/agents-index.mjs"
+      ]
+    },
+    {
+      "phaseId": "P2",
+      "title": "Safe, interruption-proof cleanup",
+      "goal": "Add a cleanup command that removes only managed worktrees and allowlisted temp dirs, safely and idempotently, using a durable registry.",
+      "deliverables": [
+        "scripts/lib/temp-registry.mjs (durable registry)",
+        "wt-session.mjs create/merge/nuke register/unregister; cleanup --dry-run/--apply",
+        "safety guards (managed-root check, branch pattern, registry match, never main/foreign)",
+        "tests/wt-session-cleanup.test.mjs"
+      ],
+      "scope": [
+        "cleanup command",
+        "registry",
+        "safety guards",
+        "tests"
+      ],
+      "outOfScope": [
+        "deleting foreign/detached worktrees",
+        "host-level temp outside the allowlist"
+      ],
+      "constraints": [
+        "dry-run default",
+        "refuse unverifiable targets",
+        "trace every action/refusal"
+      ],
+      "acceptanceHints": [
+        "cleanup --dry-run never deletes",
+        "cleanup removes an eligible managed worktree and a /tmp/csm-* dir in a fixture",
+        "an ineligible foreign path is refused and logged"
+      ],
+      "dependencies": [
+        "P1"
+      ],
+      "context": [
+        "scripts/wt-session.mjs",
+        "AGENTS.md worktree hygiene",
+        "docs/worktree-hygiene.md"
+      ]
+    },
+    {
+      "phaseId": "P3",
+      "title": "UTC enforcement, docs, and gates",
+      "goal": "Enforce UTC timestamps repo-wide, document the traces/cleanup contract, and keep gates green.",
+      "deliverables": [
+        "tests/utc-timestamps.test.mjs",
+        "docs/action-traces-and-cleanup.md + AGENTS.md section",
+        "Makefile wiring + regenerated capabilities/payload"
+      ],
+      "scope": [
+        "UTC test",
+        "docs",
+        "gates"
+      ],
+      "outOfScope": [
+        "changing runtime behaviour"
+      ],
+      "constraints": [
+        "readers stay backward-compatible",
+        "SKILL.md <500 lines"
+      ],
+      "acceptanceHints": [
+        "node --test tests/utc-timestamps.test.mjs passes",
+        "check-suite green",
+        "make check + test-orchestrate green"
+      ],
+      "dependencies": [
+        "P1",
+        "P2"
+      ],
+      "context": [
+        "AGENTS.md",
+        "scripts/lib/progress-tracker.mjs"
+      ]
+    }
+  ],
+  "projection": {
+    "profile": "csm-grill-human/1",
+    "legacyMarkdownStatus": "history-only"
+  },
+  "provenance": {
+    "producer": "csm-grill",
+    "producerVersion": "csm-grill/1",
+    "producedAt": "2026-09-19T20:00:00Z",
+    "sourceDigests": []
+  }
+}
