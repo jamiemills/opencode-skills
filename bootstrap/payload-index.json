@@ -1081,6 +1081,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/lib/trace-hooks.mjs",
+        "sha256": "0dae558365c252b4bca472bfffdd8c871f6b5c617dad1f6a171e8c140ee2cd73",
+        "bytes": 2498,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/lib/validators.mjs",
         "sha256": "3c2bcb0fc26efad488c326487b7888625bb0a0362c08a94210d9988dd2b1b769",
         "bytes": 7507,

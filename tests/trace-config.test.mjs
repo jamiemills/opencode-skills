@@ -48,6 +48,24 @@ async function withFixture(body) {
   }
 }
 
+test("an escaping relative project traceLogPath fails safe to null (no fall-through)", async () => {
+  await withFixture(async (ctx) => {
+    await writeJson(
+      projectFile(ctx),
+      envelope({ traceLogPath: "../../../../tmp/evil/trace.jsonl" }),
+    );
+    await writeJson(userFile(ctx), envelope({ traceLogPath: "/user/trace.jsonl" }));
+    assert.equal(await resolveTraceLogPath({ root: ctx.repo, env: ctx.env }), null);
+  });
+});
+
+test("an escaping relative user traceLogPath fails safe to null", async () => {
+  await withFixture(async (ctx) => {
+    await writeJson(userFile(ctx), envelope({ traceLogPath: "../evil/trace.jsonl" }));
+    assert.equal(await resolveTraceLogPath({ root: ctx.repo, env: ctx.env }), null);
+  });
+});
+
 test("absolute CSM_TRACE_LOG override wins over both config layers", async () => {
   await withFixture(async (ctx) => {
     await writeJson(projectFile(ctx), envelope({ traceLogPath: "/proj/trace.jsonl" }));

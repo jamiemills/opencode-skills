@@ -28,8 +28,11 @@ configured path is resolved against the main worktree root, an absolute path is
 used as-is. The precedence is `env > project > user > default`: the project
 layer deliberately **overrides** the user layer, because the user layer is a
 host-wide default and the project layer is a per-repo override. A missing,
-malformed, non-CSM, or duplicate-keyed config file never throws — it fails safe
-(never writes traces to an unexpected location).
+malformed, non-CSM, or duplicate-keyed config file never throws: a
+present-but-invalid layer, or a relative value that would escape the repo root,
+resolves to the safe in-repo default `<main-repo-root>/.agents/logs/trace.jsonl`
+(it never falls through to a less specific layer, and never writes outside the
+repo). An absent layer also resolves to that default.
 
 > **Operator warning — clone-controlled trace redirection.** The PROJECT layer
 > file `<repo>/.csm-skills.json` travels with the repository, so a clone (or a
@@ -39,7 +42,9 @@ malformed, non-CSM, or duplicate-keyed config file never throws — it fails saf
 > untrusted input: set an absolute `traceLogPath` only from the **user** layer
 > (`$XDG_CONFIG_HOME/csm/skills.json`, default `~/.config/csm/skills.json`) or
 > the **`CSM_TRACE_LOG`** environment variable, both of which the operator
-> controls. A relative project value is harmless (it stays under the repo root).
+> controls. A relative project value is contained under the repo root; a relative
+> value that would escape (a `..` traversal) is refused and falls back to the
+> in-repo default.
 
 The default path sits at the **repo root**, deliberately **not** inside `.git`
 (state/registry data stays under the common dir; see below). `repo-state.mjs`
@@ -72,10 +77,12 @@ effort elsewhere). A record whose line would be too large is **truncated with a
 
 > **Legacy location — no loss, never auto-deleted.** Before this default moved
 > to the repo root, traces were written to
-> `<git-common-dir>/csm/logs/trace.jsonl`. That legacy file is no longer written
-> (a fresh append never touches it) and is **never deleted or modified**. To fold
-> any legacy records into the current log — both are JSONL, so plain
-> concatenation is valid — run this once from any worktree of the repo:
+> `<git-common-dir>/csm/logs/trace.jsonl`, and an earlier design wrote per-run
+> files `<main-repo-root>/.agents/logs/<date>-<runId>-trace.jsonl`. Neither is
+> written now (a fresh append never touches them) and neither is **ever deleted
+> or modified**. To fold any legacy records into the current log — both are
+> JSONL, so plain concatenation is valid — run this once from any worktree of
+> the repo:
 >
 > ```bash
 > legacy="$(git rev-parse --path-format=absolute --git-common-dir)/csm/logs/trace.jsonl"

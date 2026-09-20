@@ -68,9 +68,9 @@ try {
   resolveTraceLogPath = null;
 }
 
-// F1.2: the run id becomes part of a trace file name, so a hostile or malformed
-// CSM_RUN_ID must never escape the logs dir (path traversal). Accept only a
-// canonical id ([A-Za-z0-9._-]+, no ".."); otherwise fall back to a generated id.
+// F1.2: the run id is recorded in the shared trace log, so a hostile or
+// malformed CSM_RUN_ID must still be a safe value. Accept only a canonical id
+// ([A-Za-z0-9._-]+, no ".."); otherwise fall back to a generated id.
 function safeRunId(raw) {
   if (typeof raw === "string" && /^[A-Za-z0-9._-]+$/.test(raw) && !raw.includes("..")) return raw;
   return `run-${Date.now().toString(36)}-${process.pid.toString(36)}`;
@@ -93,9 +93,10 @@ function appendSessionTrace(root, action, target, justification, outcome) {
           configured = null;
         }
       }
-      const file = repoLogPath
-        ? repoLogPath(root, { configured })
-        : path.join(root, ".agents", "logs", `${ts.slice(0, 10)}-${RUN_ID}-trace.jsonl`);
+      // appendTrace being non-null guarantees its paired repoLogPath import
+      // succeeded (both load in the one try above), so the old per-run fallback
+      // filename was unreachable dead code.
+      const file = repoLogPath(root, { configured });
       return appendTrace(
         { ts, runId: RUN_ID, actor: "wt-session", action, target, justification, outcome },
         { file },

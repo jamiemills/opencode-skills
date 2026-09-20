@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 const GIT_COMMON_DIR_ARGS = ["rev-parse", "--path-format=absolute", "--git-common-dir"];
 const GIT_IS_BARE_ARGS = ["rev-parse", "--is-bare-repository"];
@@ -85,16 +85,31 @@ export function repoMainRoot(root = process.cwd()) {
   return fallbackCommonDir(root);
 }
 
-// The shared trace log. An explicit configured path wins: absolute paths are
-// honoured as-is, relative paths resolve against the main worktree root. With
-// no (or empty) configuration the default is `<mainRoot>/.agents/logs/trace.jsonl`
+// True when a RELATIVE configured log path resolves to a location under
+// `mainRoot`. `join` normalises `..`, so a clone-controlled project value like
+// `../../evil.jsonl` would otherwise append outside the repo; resolve +
+// containment is the one rule that keeps a relative configured path inside it.
+export function relativeLogPathStaysUnderRoot(mainRoot, configured) {
+  const resolved = resolve(mainRoot, configured);
+  return resolved === mainRoot || resolved.startsWith(`${mainRoot}${sep}`);
+}
+
+// The shared trace log. An ABSOLUTE configured path wins and is honoured as-is
+// (the operator/agent explicitly chose a location). A RELATIVE configured path
+// is contained under the main worktree root; a value that would escape the repo
+// (a `..` traversal) is refused and falls back to the in-repo default. With no
+// (or empty) configuration the default is `<mainRoot>/.agents/logs/trace.jsonl`
 // — at the repo root, deliberately NOT inside `.git` (the state registry stays
 // under the common dir; see repoStateDir).
 export function repoLogPath(root = process.cwd(), { configured } = {}) {
+  const main = repoMainRoot(root);
+  const fallback = join(main, ".agents", "logs", "trace.jsonl");
   if (typeof configured === "string" && configured.length > 0) {
-    return isAbsolute(configured) ? configured : join(repoMainRoot(root), configured);
+    if (isAbsolute(configured)) return configured;
+    if (relativeLogPathStaysUnderRoot(main, configured)) return resolve(main, configured);
+    return fallback;
   }
-  return join(repoMainRoot(root), ".agents", "logs", "trace.jsonl");
+  return fallback;
 }
 
 export function repoStateDir(root = process.cwd()) {

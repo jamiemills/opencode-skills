@@ -39,7 +39,7 @@ import {
   readConfigLayer,
   userConfigPath,
 } from "../../lib/config/index.mjs";
-import { repoMainRoot } from "./repo-state.mjs";
+import { relativeLogPathStaysUnderRoot, repoMainRoot } from "./repo-state.mjs";
 
 const SKILL_NAME = "csm-orchestrate";
 const CONFIG_KEY = "traceLogPath";
@@ -78,17 +78,26 @@ async function readLayerValue(kind, filePath) {
   return { state: "absent" };
 }
 
+// A configured layer value is contained when it is absolute, or relative and
+// resolves under the main worktree root; an escaping relative value is treated
+// as invalid (null) so it can neither write outside the repo nor fall through
+// to a less specific layer.
+function containedConfiguredValue(root, value) {
+  if (isAbsolute(value)) return value;
+  return relativeLogPathStaysUnderRoot(repoMainRoot(root), value) ? value : null;
+}
+
 export async function resolveTraceLogPath({ root = process.cwd(), env = process.env } = {}) {
   const override = env?.CSM_TRACE_LOG;
   if (typeof override === "string" && override.length > 0 && isAbsolute(override)) return override;
 
   const project = await readLayerValue("project", projectConfigPath(repoMainRoot(root)));
   if (project.state === "invalid") return null;
-  if (project.state === "value") return project.value;
+  if (project.state === "value") return containedConfiguredValue(root, project.value);
 
   const user = await readLayerValue("user", userConfigPath(env));
   if (user.state === "invalid") return null;
-  if (user.state === "value") return user.value;
+  if (user.state === "value") return containedConfiguredValue(root, user.value);
 
   return null;
 }

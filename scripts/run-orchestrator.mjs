@@ -61,6 +61,8 @@ import {
 } from "../csm-orchestrate/lib/csm-build-handoff.mjs";
 import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 import { persistAdapterDecisions } from "../csm-orchestrate/lib/decision-adapter/artifact.mjs";
+import { createTraceLifecycleHooks } from "../csm-orchestrate/lib/trace-hooks.mjs";
+import { appendTrace, recordDecision } from "./lib/trace-log.mjs";
 import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
 import {
   explicitModeSkills,
@@ -895,10 +897,18 @@ async function realMode() {
     // injected `decisionAdapter`; orchestrate currently ignores unknown options,
     // so an absent adapter leaves the call byte-identical.
     const decisionAdapter = await resolveDecisionAdapter(approach, kind, runId);
+    // Built-in advisory tracing for the run's lifecycle hooks: every hook emits
+    // one action trace to the shared log (best-effort, never fails the run).
+    const traceHooks = createTraceLifecycleHooks({
+      actor: "csm-orchestrate",
+      write: (recordKind, entry) =>
+        recordKind === "decision" ? recordDecision(entry, {}) : appendTrace(entry, {}),
+    });
     const result = await orchestrate({
       approach,
       runId,
       host,
+      lifecycleHooks: traceHooks.definitions,
       capabilities,
       signals: approach.signals ?? { capabilities: [], inputs: [] },
       approvals: approvalsModule ? approvalsModule.default : createAutonomyPolicy(capabilities),
@@ -974,6 +984,12 @@ async function realMode() {
       await telemetryEmitter.getEvents();
     } catch {
       /* telemetry drain is best-effort */
+    }
+    // drain pending lifecycle trace writes before exit (best-effort).
+    try {
+      await traceHooks.flush();
+    } catch {
+      /* trace drain is best-effort */
     }
     if (result.progress && !quietProgress) {
       renderProgressOnChange(result.progress);

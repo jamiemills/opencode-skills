@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import test from "node:test";
 import {
+  relativeLogPathStaysUnderRoot,
   repoCommonDir,
   repoLogPath,
   repoMainRoot,
@@ -165,6 +166,23 @@ test("a configured path pointing at an existing directory is returned as-is", ()
     assert.equal(repoLogPath(root, { configured: dir }), dir, "no directory special-casing");
   } finally {
     cleanup(dir, root);
+  }
+});
+
+test("a relative configured path that escapes the main root falls back to the in-repo default", () => {
+  const root = makeRepo();
+  try {
+    const escape = join("..", "..", "..", "tmp", "evil", "trace.jsonl");
+    const fallback = join(root, ".agents", "logs", "trace.jsonl");
+    assert.equal(repoLogPath(root, { configured: escape }), fallback);
+    assert.equal(relativeLogPathStaysUnderRoot(root, escape), false);
+    assert.equal(
+      repoLogPath(root, { configured: join("sub", "..", "trace.jsonl") }),
+      join(root, "trace.jsonl"),
+      "an internal .. that stays under the root is allowed",
+    );
+  } finally {
+    cleanup(root);
   }
 });
 

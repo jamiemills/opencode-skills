@@ -38,6 +38,12 @@
   `action`, `target`, `justification`, `outcome`; appends are single bounded
   writes (local-POSIX atomic) and long records are truncated with a marker,
   never dropped.
+- Recording is automatic where code runs: the orchestrator emits a trace for
+  every lifecycle hook, and `scripts/wt-session.mjs` traces worktree and cleanup
+  events. For an explicit/instruction-led record, run the exact command
+  `node scripts/trace.mjs action --actor <a> --action <name> --target <t>
+--justification <j> --outcome <o>` (or `make trace ARGS="..."`) — this is the
+  command to use when a skill step must leave a trace.
 - All durable timestamps are ISO-8601 UTC ending in `Z` (`scripts/lib/utc.mjs`).
 - At the end of a session, run `node scripts/wt-session.mjs cleanup --dry-run`
   then `cleanup --apply` to remove managed worktrees and allowlisted temp dirs.
