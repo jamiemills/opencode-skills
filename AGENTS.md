@@ -24,6 +24,19 @@
 - Append-only history: never rewrite earlier turns in a session.
 - See `docs/context-management.md` for harness context-management guidance.
 
+## Action Traces, UTC Timestamps, and Cleanup
+
+- Record actions and decision justifications as durable, append-only trace
+  entries under `.agents/logs/` via `scripts/lib/trace-log.mjs`; every entry
+  carries `ts`, `runId`, `actor`, `action`, `target`, `justification`, `outcome`.
+- All durable timestamps are ISO-8601 UTC ending in `Z` (`scripts/lib/utc.mjs`).
+- At the end of a session, run `node scripts/wt-session.mjs cleanup --dry-run`
+  then `cleanup --apply` to remove managed worktrees and allowlisted temp dirs.
+  Cleanup is fail-closed: it never deletes anything outside the managed
+  worktree root or the `/tmp/csm-*` / `/tmp/opencode/csm-*` allowlist, refuses
+  the main checkout and foreign/detached worktrees, is dry-run by default, and
+  traces every removal and refusal. See `docs/action-traces-and-cleanup.md`.
+
 ## Patch Context Safety
 
 - Re-read the full current target file immediately before patching; never use truncated output as patch context.

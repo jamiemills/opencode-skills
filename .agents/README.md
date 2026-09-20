@@ -116,11 +116,15 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-19-jev-optin-csm.json` — 2026-09-19 — plan (ready, NOT_STARTED; csm-plan/1): single all-phase plan for the optional, user-initiated Jev typed-decision layer (13 decisions D1-D13; 23 tasks T001-T023 across P1 foundation/shadow, P2 live opt-in + guarded routing, P3 full apply + advisory breadth, P4 hardening/observability); incorporates the 2026-09-19 re-validation adaptations (requestDigest :872, capabilities/3 + revision-aware loader, request/2 + dual-accept intake, registry/compatibility-matrix, decision-points.json packing, .agents/decisions/ index class, extended never-Jev boundary) — status: ready
 
 - `2026-09-19-instruction-budget-talk-csm.json` — 2026-09-19 — plan ()(complete; csm-plan/1): removed the instruction/harness triggers that make CSM agents editorialise about budgets/context exhaustion/prompt length, without weakening real limits — 8 tasks: de-trigger AGENTS.md "Compaction and history", remove csm-review's "≈16k tokens", rename csm-bdd-tdd "Context Budget Rules", reclassify context-length-exceeded as harness-managed (boilerplate + csm-build + csm-plan + resume-semantics), add docs/context-management.md harness guidance, a no-budget-priming regression test, regeneration, and final verification; grounded in the 2026-09-19 instruction-budget-talk research — status: ready
-- `2026-09-19-action-traces-cleanup-csm.json` — 2026-09-19 — plan (ready, NOT_STARTED; csm-plan/1): 8 tasks to add UTC-stamped action/decision traces, a .agents/logs index class, a durable temp/worktree registry, a fail-closed cleanup command (dry-run default), a UTC enforcement test, docs, Makefile wiring, and regen — status: ready
+- `2026-09-19-action-traces-cleanup-csm.json` — 2026-09-19 — plan (complete; csm-plan/1): 8 tasks added UTC-stamped action/decision traces, a .agents/logs index class, a durable temp/worktree registry, a fail-closed cleanup command (dry-run default), a UTC enforcement test, docs, Makefile wiring, and regen — status: complete
 
 ## decisions/
 
 - `2026-09-19-jev-optin-sample.json` — 2026-09-19 — sample tracked Jev typed-decision record (csm-decision/1, noul answer, advisory routing, not applied) — status: reference
+
+## logs/
+
+- `2026-09-19-action-traces-cleanup-sample.jsonl` — 2026-09-19 — sample UTC-stamped action trace demonstrating the trace index class — status: reference
 
 ## docs/
 

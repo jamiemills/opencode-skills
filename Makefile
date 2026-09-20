@@ -122,7 +122,7 @@ test-enforcement: ## in-loop completion-enforcement suites (evaluators, guards, 
 	  tests/csm-orchestrate-remainder.test.mjs
 
 test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, worktree sessions, and gate wiring)
-	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/adapter-gate-wiring.test.mjs
+	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/utc-timestamps.test.mjs tests/adapter-gate-wiring.test.mjs
 
 test-package-index: ## package and payload-index validation tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/package-audit.test.mjs

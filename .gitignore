@@ -7,3 +7,10 @@ bootstrap/.pack-lock
 csm-adapter-env
 decision-gate-live-*.json
 perf-trend.json
+
+# Runtime state and traces are process-local, not tracked artifacts. The
+# registry and per-run trace files must never dirty the main checkout; the
+# sample trace stays tracked as the logs/ index exemplar.
+.agents/state/
+.agents/logs/*
+!.agents/logs/2026-09-19-action-traces-cleanup-sample.jsonl

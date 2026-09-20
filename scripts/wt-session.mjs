@@ -15,6 +15,13 @@
 //   node scripts/wt-session.mjs merge <goal-slug> [--push] [--root <repo>]
 //   node scripts/wt-session.mjs nuke <goal-slug> [--force] [--root <repo>]
 //   node scripts/wt-session.mjs prune [--force] [--root <repo>]
+//   node scripts/wt-session.mjs cleanup [--apply] [--root <repo>]
+//
+// `cleanup` is registry-driven and DRY-RUN by default: with no `--apply` it
+// deletes nothing and prints what it would remove. It removes only a registered
+// managed worktree under the managed root (branch ^wt/, clean, merged into
+// main) and a registered temp dir under /tmp/csm-* or /tmp/opencode/csm-*;
+// everything else is refused and skipped. See scripts/lib/temp-registry.mjs.
 //
 // `prune` reaps worktree registrations the helper does not manage: detached
 // HEAD checkouts (e.g. safety holders left by history rewrites), foreign
@@ -29,8 +36,61 @@ import path from "node:path";
 import process from "node:process";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import {
+  list as listRegistry,
+  register as registerTemp,
+  unregister as unregisterTemp,
+} from "./lib/temp-registry.mjs";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+// Trace logging is best-effort and optional: scripts/lib/trace-log.mjs is owned
+// by T001 and may be absent in an isolated worktree, so load it dynamically and
+// never let tracing break a worktree/cleanup operation.
+let appendTrace = null;
+try {
+  ({ appendTrace } = await import("./lib/trace-log.mjs"));
+} catch {
+  appendTrace = null;
+}
+
+// F1.2: the run id becomes part of a trace file name, so a hostile or malformed
+// CSM_RUN_ID must never escape the logs dir (path traversal). Accept only a
+// canonical id ([A-Za-z0-9._-]+, no ".."); otherwise fall back to a generated id.
+function safeRunId(raw) {
+  if (typeof raw === "string" && /^[A-Za-z0-9._-]+$/.test(raw) && !raw.includes("..")) return raw;
+  return `run-${Date.now().toString(36)}-${process.pid.toString(36)}`;
+}
+
+const RUN_ID = safeRunId(process.env.CSM_RUN_ID || "wt-session");
+const pendingTraces = new Set();
+
+function appendSessionTrace(root, action, target, justification, outcome) {
+  if (appendTrace === null) return null;
+  let promise;
+  try {
+    const ts = new Date().toISOString();
+    promise = Promise.resolve(
+      appendTrace(
+        { ts, runId: RUN_ID, actor: "wt-session", action, target, justification, outcome },
+        { file: path.join(root, ".agents", "logs", `${ts.slice(0, 10)}-${RUN_ID}-trace.jsonl`) },
+      ),
+    );
+  } catch {
+    // tracing must never break worktree/cleanup operations
+    return null;
+  }
+  const guarded = promise.catch(() => {});
+  pendingTraces.add(guarded);
+  guarded.finally(() => pendingTraces.delete(guarded));
+  return guarded;
+}
+
+// Let fire-and-forget trace writes drain before the process exits so a trace
+// is not lost (and its rejection is always handled).
+export async function flushTraces() {
+  await Promise.allSettled(pendingTraces);
+}
 
 function git(repoRoot, args) {
   return execFileSync("git", ["-C", repoRoot, ...args], {
@@ -57,6 +117,7 @@ function parseArgs(argv) {
     push: false,
     force: false,
     setup: true,
+    apply: false,
   };
   const rest = [];
   for (let i = 0; i < argv.length; i += 1) {
@@ -65,6 +126,8 @@ function parseArgs(argv) {
     else if (a === "--root") args.root = argv[++i];
     else if (a === "--push") args.push = true;
     else if (a === "--force") args.force = true;
+    else if (a === "--apply") args.apply = true;
+    else if (a === "--dry-run") args.apply = false;
     else if (a === "--no-setup") args.setup = false;
     else rest.push(a);
   }
@@ -78,9 +141,14 @@ function resolveRoot(rootArg) {
   return git(process.cwd(), ["rev-parse", "--show-toplevel"]);
 }
 
+// The managed worktree root: cleanup only ever considers worktree registry
+// entries that resolve strictly under this directory. `--dir` overrides it when
+// creating, but the default is the single constant cleanup trusts.
+export const MANAGED_WORKTREE_ROOT = path.join(os.homedir(), "csm-wt");
+
 export function worktreeBase(root, dirArg) {
   if (dirArg) return path.resolve(dirArg);
-  return path.join(os.homedir(), "csm-wt");
+  return MANAGED_WORKTREE_ROOT;
 }
 
 export function createWorktree(root, slug, base) {
@@ -299,7 +367,7 @@ export function mergeWorktree(root, slug, { push = false } = {}) {
     if (!hasRemote) throw new Error("no origin remote — cannot push");
     git(root, ["push", "origin", "main"]);
   }
-  return { branch, pushed: push && hasRemote };
+  return { dir: wt, branch, pushed: push && hasRemote };
 }
 
 export function removeWorktree(root, slug, { force = false } = {}) {
@@ -432,14 +500,189 @@ export function pruneWorktrees(root, { force = false } = {}) {
   return { removed, skipped };
 }
 
-function main() {
+// --- T004: safe, registry-driven cleanup -----------------------------------
+// Cleanup is DRY-RUN by default and removes only two classes of resource:
+//   1. a registry "worktree" entry whose absolute path resolves strictly under
+//      MANAGED_WORKTREE_ROOT, whose branch matches ^wt/, that git still lists
+//      as that exact non-detached worktree, that is clean, and whose branch is
+//      an ancestor of main;
+//   2. a registry "tempdir" entry whose path resolves under the allowlist
+//      (/tmp/csm-… or /tmp/opencode/csm-…) and that is not the current process
+//      directory (or an ancestor of it).
+// Everything else is REFUSED, never guessed. Removal uses no --force, tolerates
+// paths that already vanished, is idempotent, and traces each removal/refusal.
+
+const TEMP_DIR_ALLOWLIST = ["/tmp/csm-", "/tmp/opencode/csm-"];
+
+// Strict directory containment: equal paths and path-prefix collisions
+// (/root/a vs /root/ab) are NOT "under".
+export function isDirUnder(target, parent) {
+  const t = path.resolve(target);
+  const p = path.resolve(parent);
+  return t !== p && t.startsWith(p + path.sep);
+}
+
+export function isAllowlistedTempDir(target) {
+  const t = path.resolve(target);
+  return TEMP_DIR_ALLOWLIST.some((prefix) => t.startsWith(prefix) && t.length > prefix.length);
+}
+
+function worktreeRecords(root) {
+  const lines = git(root, ["worktree", "list", "--porcelain"]).split("\n");
+  const records = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].startsWith("worktree ")) {
+      records.push({ dir: lines[i].slice("worktree ".length), branch: null, detached: false });
+    } else if (lines[i].startsWith("branch ")) {
+      records[records.length - 1].branch = lines[i].slice("branch ".length);
+    } else if (lines[i].startsWith("detached")) {
+      records[records.length - 1].detached = true;
+    }
+  }
+  return records;
+}
+
+export function cleanup(root, { apply = false, managedRoot = MANAGED_WORKTREE_ROOT } = {}) {
+  const mainRoot = path.resolve(root);
+  const mRoot = path.resolve(managedRoot);
+  const ownDir = process.cwd();
+  const removed = [];
+  const refused = [];
+  const tolerated = [];
+
+  const refuse = (entry, target, reason) => {
+    refused.push({ kind: entry.kind, path: target, reason });
+    appendSessionTrace(
+      root,
+      "cleanup-refuse",
+      target,
+      `${entry.kind} refused: ${reason}`,
+      "refused",
+    );
+  };
+  const clear = (entry, target, outcome) => {
+    // F2.1: a dry-run must not mutate the registry or write a removal trace.
+    // Report the stale/missing entry and change nothing on disk.
+    if (apply) {
+      unregisterTemp(target, root);
+      appendSessionTrace(root, "cleanup-remove", target, `${entry.kind} already gone`, outcome);
+    }
+    tolerated.push({ kind: entry.kind, path: target, outcome, planned: !apply });
+  };
+
+  const entries = listRegistry(root);
+  for (const entry of entries) {
+    const target = path.resolve(entry.path);
+
+    if (entry.kind === "worktree") {
+      if (target === mainRoot) {
+        refuse(entry, target, "main checkout");
+        continue;
+      }
+      if (!isDirUnder(target, mRoot)) {
+        refuse(entry, target, `outside managed worktree root ${mRoot}`);
+        continue;
+      }
+      if (typeof entry.branch !== "string" || !entry.branch.startsWith("wt/")) {
+        refuse(entry, target, "branch does not match ^wt/");
+        continue;
+      }
+      if (!fs.existsSync(target)) {
+        clear(entry, target, "already-missing");
+        continue;
+      }
+      const record = worktreeRecords(root).find((r) => path.resolve(r.dir) === target);
+      if (!record) {
+        refuse(entry, target, "not a registered git worktree (foreign/detached)");
+        continue;
+      }
+      if (record.detached || record.branch !== `refs/heads/${entry.branch}`) {
+        refuse(entry, target, "git worktree branch is detached or foreign");
+        continue;
+      }
+      if (!gitOk(root, ["-C", target, "status", "--porcelain"])) {
+        refuse(entry, target, "worktree status unavailable");
+        continue;
+      }
+      if (git(root, ["-C", target, "status", "--porcelain"]) !== "") {
+        refuse(entry, target, "worktree is dirty");
+        continue;
+      }
+      if (!gitOk(root, ["merge-base", "--is-ancestor", entry.branch, "main"])) {
+        refuse(entry, target, `branch ${entry.branch} is not merged into main`);
+        continue;
+      }
+      if (!apply) {
+        removed.push({ kind: "worktree", path: target, branch: entry.branch, planned: true });
+        continue;
+      }
+      try {
+        git(root, ["worktree", "remove", target]);
+      } catch (err) {
+        refuse(entry, target, `git worktree remove failed: ${String(err.message).split("\n")[0]}`);
+        continue;
+      }
+      unregisterTemp(target, root);
+      removed.push({ kind: "worktree", path: target, branch: entry.branch });
+      appendSessionTrace(
+        root,
+        "cleanup-remove",
+        target,
+        "clean, merged managed worktree",
+        "removed",
+      );
+      continue;
+    }
+
+    // kind === "tempdir"
+    if (!isAllowlistedTempDir(target)) {
+      refuse(entry, target, "not under temp allowlist (/tmp/csm-* or /tmp/opencode/csm-*)");
+      continue;
+    }
+    if (target === ownDir || isDirUnder(ownDir, target)) {
+      refuse(entry, target, "current process directory");
+      continue;
+    }
+    if (!fs.existsSync(target)) {
+      clear(entry, target, "already-missing");
+      continue;
+    }
+    if (!apply) {
+      removed.push({ kind: "tempdir", path: target, planned: true });
+      continue;
+    }
+    try {
+      fs.rmSync(target, { recursive: true, force: true });
+    } catch (err) {
+      refuse(entry, target, `fs.rm failed: ${String(err.message).split("\n")[0]}`);
+      continue;
+    }
+    unregisterTemp(target, root);
+    removed.push({ kind: "tempdir", path: target });
+    appendSessionTrace(root, "cleanup-remove", target, "allowlisted temp dir", "removed");
+  }
+
+  return { apply, removed, refused, tolerated };
+}
+
+async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const root = resolveRoot(args.root);
   try {
+    // F6.3: resolveRoot runs git, so it must sit inside the try/catch — a
+    // non-git cwd must not produce an unhandled rejection and skip the flush.
+    const root = resolveRoot(args.root);
     if (args.action === "create") {
       if (!args.slug || !SLUG_RE.test(args.slug))
         throw new Error("usage: wt-session create <goal-slug> (lowercase, hyphens)");
       const { dir, branch } = createWorktree(root, args.slug, worktreeBase(root, args.dir));
+      registerTemp({ kind: "worktree", path: dir, branch, runId: RUN_ID }, root);
+      appendSessionTrace(
+        root,
+        "create-worktree",
+        dir,
+        `create worktree for ${args.slug}`,
+        "created",
+      );
       const setup = args.setup ? setupWorktree(dir) : { skipped: true };
       console.log(`created worktree: ${dir}`);
       console.log(`branch: ${branch}`);
@@ -452,7 +695,17 @@ function main() {
       console.log(listWorktrees(root));
     } else if (args.action === "merge") {
       if (!args.slug) throw new Error("usage: wt-session merge <goal-slug> [--push]");
-      const { branch, pushed } = mergeWorktree(root, args.slug, { push: args.push });
+      const { dir, branch, pushed } = mergeWorktree(root, args.slug, { push: args.push });
+      // F3.1: merging must NOT unregister the worktree — it still exists on
+      // disk. Keeping the registry entry lets `cleanup` reap the merged-but-
+      // present worktree and preserves interruption safety.
+      appendSessionTrace(
+        root,
+        "merge-worktree",
+        dir || branch,
+        `merge ${branch} into main`,
+        "merged",
+      );
       console.log(`merged ${branch} into main (ff-only)`);
       if (pushed) console.log("pushed origin main");
       console.log(`cleanup: node scripts/wt-session.mjs nuke ${args.slug}`);
@@ -470,22 +723,49 @@ function main() {
     } else if (args.action === "nuke") {
       if (!args.slug) throw new Error("usage: wt-session nuke <goal-slug> [--force]");
       const { dir, branch, pruned } = removeWorktree(root, args.slug, { force: args.force });
+      unregisterTemp(dir || path.join(worktreeBase(root, args.dir), args.slug), root);
+      appendSessionTrace(
+        root,
+        "nuke-worktree",
+        dir || path.join(worktreeBase(root, args.dir), args.slug),
+        `nuke worktree ${branch}`,
+        pruned ? "pruned" : "removed",
+      );
       console.log(pruned ? `pruned stale worktree registration ${dir}` : `removed worktree ${dir}`);
       console.log(`deleted branch ${branch}`);
+    } else if (args.action === "cleanup") {
+      const result = cleanup(root, { apply: args.apply });
+      for (const r of result.removed)
+        console.log(`${args.apply ? "removed" : "would remove"} ${r.kind} ${r.path}`);
+      for (const r of result.tolerated)
+        console.log(
+          `${args.apply ? "tolerated" : "would tolerate"} missing ${r.kind} ${r.path}` +
+            (args.apply ? " (registry entry cleared)" : " (registry entry left intact)"),
+        );
+      for (const r of result.refused) console.log(`refused ${r.kind} ${r.path}: ${r.reason}`);
+      if (
+        result.removed.length === 0 &&
+        result.refused.length === 0 &&
+        result.tolerated.length === 0
+      )
+        console.log("nothing to clean");
+      if (!args.apply && result.removed.length > 0)
+        console.log("dry run: re-run with --apply to remove");
     } else {
       throw new Error(
-        `usage: wt-session <create|list|merge|nuke|prune> [args] (see header for details)`,
+        `usage: wt-session <create|list|merge|nuke|prune|cleanup> [args] (see header for details)`,
       );
     }
   } catch (err) {
     process.stderr.write(`wt-session: ${err.message}\n`);
     process.exitCode = 1;
   }
+  await flushTraces();
 }
 
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
 ) {
-  main();
+  await main();
 }
