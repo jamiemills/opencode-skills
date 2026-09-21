@@ -124,6 +124,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-20-jev-review-judge-substitution-csm.json` — 2026-09-20 — fix the Jev typed-question integration first, then wire advisory Jev into every review/judge/adversarial skill (incl. csm-build REVIEW) on the existing opt-in — status: complete
 - `2026-09-13-skills-sh-publish-csm.json` — 2026-09-13 — plan to publish the skills to skills.sh — status: reference
 
+- `2026-09-20-session-lifecycle-enforcement-csm.json` — 2026-09-20 — plan (ready, NOT_STARTED; csm-plan/1): implement the CSM session-retrospective fixes in-loop — 11 tasks: a precommit+regen gate (T001/T002), plan-lineage validation scoped to active goals (T003), csm-plan closure fields (T004), progress validation (T005), loop-CLI trace emission adopting the existing trace-log-fix plan (T006), flaky allowlist policy (T007), session-end cleanup with a read-only leftover check (T008), no-mock-only rule (T009), clean-main merge/owned-path commits (T010), final verification (T011) — status: ready
+
 ## decisions/
 
 - `2026-09-19-jev-optin-sample.json` — 2026-09-19 — sample tracked Jev typed-decision record (csm-decision/1, noul answer, advisory routing, not applied) — status: reference
