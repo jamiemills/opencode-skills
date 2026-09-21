@@ -232,6 +232,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json` — 2026-09-19 — using Jev (TypeSafe) for code/skill/prompt quality checks — status: reference
 - `2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-probe-responses.json` — 2026-09-19 — raw live Jev probe responses for the quality-checks research — status: reference
 
+- `2026-09-20-csm-session-retro-20260920t220000z-32f5897cca20-research.json` — 2026-09-20 — DEEP hybrid retrospective over ~10 days of csm-plan/csm-build/csm-deep-research sessions (4 tracks + independent challenge + judge, PASS): repeating issues — commit-then-fix CI churn (9/33 runs failed, ~10-11 fixups), regen coupling (pack/payload, orphan-test, registry digest, capabilities, fmt/lint), weak plan lineage (21 plans/1 goal, 113 orphaned tasks, 22/31 plans fail readPlanArtifact on digest-mismatch), write-only repair/obligation fields (repairAttempts 0/330; 254 required vs 8 satisfied), near-empty traces (9 lines, 0 decisions, no auto-hook), batch progress records (8/37 unfinished, 8 impossible timestamps, boilerplate milestones), flaky tests (7 allowlisted suites), leftover merged worktrees/branches, and a "mock passes, live path broken" class — with a prioritized fix list (in-loop precommit gate, plan-lineage gate, mandatory repair/obligation/trace emission, regen entrypoint, session-end cleanup) — status: reference
+
 ## Retention
 
 Completed plans are retained as process evidence; prune after 6 months or when

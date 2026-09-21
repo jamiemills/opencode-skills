@@ -1,0 +1,460 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "title": "CSM session retrospective (last ~10 days): repeating issues, gaps, inefficiencies, and fixes",
+  "runId": "run-20260920t220000z-32f5897cca20",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Across the last ~10 days of csm-plan/csm-build/csm-deep-research sessions, the same issues repeat: (1) gates run only in CI, so features land with 1-3 lint/format/orphan-test/regen fixup commits (9/33 CI runs failed); (2) regeneration order (fmt->gen-capabilities->pack-bootstrap) is a recurring trap; (3) plan lineage is weak - 21 plans/1 goal, 113 orphaned tasks, 22/31 plans fail readPlanArtifact on digest-mismatch; (4) repair work and applicability obligations are never closed in the durable fields; (5) traces are near-empty (9 lines across the log files, 0 decisions) because nothing auto-emits them; (6) progress records are batch snapshots with impossible timestamps and boilerplate milestones; (7) flaky tests and leftover merged worktrees/branches persist; (8) a recurring 'mock passes, live path broken' class. Fix by shifting the gate into the loop, a single regen entrypoint, plan-lineage validation, mandatory repair/obligation/trace emission, and cleanup-at-session-end."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "DEEP x hybrid retrospective over ~10 days of CSM sessions, using the durable corpus (48 commits, ~31 plans, ~21 in-window research findings, 37 progress records, 9 trace lines) plus 33 CI runs.\n\nPipeline: INTAKE -> TRIAGE(DEEP x hybrid) -> RESEARCH(4 tracks: plans/build-state; research findings; progress/traces; git/CI/process) -> SYNTHESIZE -> CHALLENGE -> JUDGE -> REMEDIATE -> VERIFY -> SAVED.\n\nHeadline: the CSM artifacts are rich but the enforcement of their own contracts is thin - gates live at the repo edge, plan digests drift, repair/obligation fields are write-only, and telemetry (traces) is declared but not emitted. The fixes are mostly mechanical and can be enforced by extending check-suite/loop guards."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1 the same lint/format/orphan/regen fixups recur (claim-regen-coupling, claim-commit-then-fix). K2 plan lineage is weak: 21 plans/1 goal, 113 orphaned tasks, 22/31 readPlanArtifact digest-mismatch (claim-plan-lineage). K3 repair + applicability obligations are never closed in fields (claim-repair-unrecorded, claim-obligations-open). K4 traces are near-empty and nothing auto-emits them (claim-trace-empty). K5 progress records are batch snapshots with impossible timestamps/boilerplate (claim-progress-weak). K6 'mock passes, live path broken' is a recurring defect class (claim-lived-mock-gap)."
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "A. CI/fixups: 9/33 runs failed; fixups b937e70/b955ac3 (lint+format of the context fix), 1e7110b/37569ee/36b237f (orphan/HEAD-brittle/format of jev), 9ae502e (payload import graph), e63048b/48f84a4 (store flake), be130fd (corpus), fd679ae (index), e862f79 (index). ci.yml runs the whole gate only at CI; branches-ignore wt/**.\nB. Regen coupling: discoveredRequirements pack/payload 9, orphan 5, registry digest 4, capabilities 4, fmt/lint 4; 18 commits bundle payload+source.\nC. Lineage: dynamic-worker-runtime 21 plans (12 superseded, 7 unlinked terminal completes, original terminal); broker-upstream 7 open tasks orphaned; 'complete the prototype decision gate...' pending in 12 plans; 12/31 superseded plans label control.currentState STOP (a vocabulary label; control.status matches status 31/31); 23/23 build-state artifacts[] empty, 14/23 contradict plan status.\nD. Repair/obligations: repairAttempts 0/330; critiqueResolution empty 10/31; obligations 254 required/8 satisfied; dddArtifacts 31/31 empty; 39 spike candidates unused; rdRecord 1 row in 24/31.\nE. Traces: 9 lines (wt-session 4, csm-build 3 incl sample, csm-review 2 worker-start); 0 decisions; 0/4 runIds match progress; two log files for the same actor.\nF. Progress: 8/37 unfinished (5%-92%); 6 identical deep-research milestone signatures; verifiedFraction 19/161; 8 records updatedAt<startedAt; 120h backfill gaps.\nG. Flaky/allowlist: migration race (f4949f7->e63048b->48f84a4), daemon hang (e07d84a run 35440413429 -> 6beb11c), port-9225 deferred, 7 allowlisted suites in check-suite KNOWN_UNWIRED_TESTS.\nH. Worktrees: 6 merged worktrees still registered in csm-wt/; 6 merged branches persist; cleanup removed 2 worktrees but kept their branches.\nI. Live/mock: jev claim-k2-transport-mismatch; trace claim-k2-no-auto-hook; canonical JSON corpus ungated."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Devise the fixes as enforceable gates, not prose. (1) Shift the gate into the loop: extend the existing lefthook pre-commit (which already runs staged check-suite/oxlint/oxfmt) with a composite `make precommit` that adds the missing regenerators and tests (`make fmt && node scripts/gen-capabilities.mjs && node scripts/pack-bootstrap.mjs && node scripts/check-suite.mjs && make test-suite-tooling`), and require csm-build CHECKPOINT and csm-plan SAVE to run it before committing - this removes the commit-then-fix cycle [ref-fowler-ci]. (2) Single regen entrypoint `scripts/regen.mjs` (fmt -> gen-capabilities -> pack-bootstrap) that every writer calls; check-suite already detects drift. (3) Plan-lineage gate: extend check-suite/loop guard to fail unless every terminal goal has exactly one terminal plan, no terminal plan retains blockers/open tasks, and every plan passes readPlanArtifact (fix the digest authoring so it is content-minus-digest). (4) Close the write-only fields at COMPLETE: set applicability obligations to satisfied/not_applicable, increment repairAttempts on each REPAIR, write critiqueResolution rows, require a reason when dddArtifacts is empty, and clear or promote spikeCandidate. (5) Emit traces automatically: land the uncommitted trace-hook plan (trace-hooks.mjs + loop-guard/CLI emit + AGENTS.md exact command) and add a state-transition trace + decision-kind record; register the trace in the config as already done. (6) Validate progress records: fail on updatedAt<startedAt, on un-finalized records at CHECKPOINT, and require verifiedFraction when a milestone is claimed complete; derive milestones from the plan execution graph to kill boilerplate. (7) Flaky policy: each allowlisted suite gets an owner + expiry and a fresh-state retry; fix or delete the 7 KNOWN_UNWIRED_TESTS. (8) Cleanup at session end: wt-session create auto-sweeps and AGENTS.md requires `cleanup --dry-run` then `--apply`; reap merged branches on nuke; add a check that no merged worktree/branch remains. (9) Foreign concurrency: keep worktree isolation, make merge require a clean main (or auto-reconcile), and scope commits to owned paths instead of --no-verify. (10) No-mock-only rule: adapters/durable writers must have at least one live or contract-fixture test exercising the real wire shape (kills the mock-passes-live-broken class). Confidence high; would change only if the fixes are shown to break live consumers. Prioritize in this order: (1) precommit/regen gate, (5) trace emission, (3) plan-lineage gate, (4) close write-only fields, (2) regen entrypoint, then (6)-(10)."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1 unverifiable: whether any of the 4 pushed-but-unvalidated commits (7f33050, c6f532a, 8af2abb, 4fa6fa2) would have failed CI - they received no run. U2 partially-supported: whether the 120h updatedAt-startedAt gaps are late backfill vs genuine long sessions is inferred from timestamps only. U3 unverifiable: the true --no-verify count (git does not record bypasses; only 1 is self-labelled)."
+    },
+    "references": {
+      "id": "references",
+      "content": "ref-ci; ref-checksuite; ref-hook; ref-planmjs; ref-loopguard; ref-tracelog; ref-tracejsonl; ref-progress; ref-plans; ref-research; ref-agents; ref-google-flaky; ref-fowler-ci."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier DEEP x hybrid. Tracks: A plans/build-state (explore); B research findings (explore); C progress/traces (explore); D git/CI/process (explore). Synthesis primary-only. CHALLENGE and JUDGE dispatched independently. Journal: 0 INTAKE, 1 TRIAGE, 2 RESEARCH, 3 SYNTHESIZE, 4 CHALLENGE, 5 JUDGE, 6 REMEDIATE, 7 VERIFY, 8 SAVED. Remediation (challenge+judge): corrected the fixup count (~10-11) and removed a non-resolving SHA; pack/payload regen 9 entries/6 plans; control.currentState is a vocabulary label (control.status matches 31/31); REVIEW->REPAIR is 5 edges/3 plans; spike candidates ~45/37; trace count made consistent (9 across files, 6 in trace.jsonl); cleanup 6 worktrees + ~6 orphan branches; fixed mis-cited locators (repairAttempts -> csm-plan schema; verifiedFraction -> progress-tracker) and softened the CI quote; cited ref-fowler-ci."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-commit-then-fix",
+      "section": "keyFindings",
+      "statement": "Sessions repeatedly shipped a commit and then answered the resulting CI failure with 1-3 follow-up fixup commits: 9 of 33 in-window CI runs failed and ~10-11 fixups are identifiable (lint, format, orphan-test wiring, HEAD-brittle test, corpus/index, payload import graph).",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-ci",
+          "locator": "Repository gates: fmt-check, lint, check, test suites",
+          "quote": "the full test/regen gate runs at CI; the pre-commit hook only covers staged lint/format/check-suite"
+        },
+        {
+          "referenceId": "ref-plans",
+          "locator": "commit chain e72a0fa->b937e70->b955ac3 and 3e33d1b->1e7110b->37569ee->36b237f",
+          "quote": "sole-purpose lint/format/orphan fixups"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-regen-coupling",
+      "section": "keyFindings",
+      "statement": "The most repeated discovered requirements are regeneration/ordering couplings: pack-bootstrap/payload regen (9 entries across 6 plans), orphan-test Makefile wiring (5/5), registry schemaContentDigest (4/4), capabilities regen (4/3), and fmt/lint ordering (4/4); ~18 in-window commits bundled regenerated payload with source.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "payload drift + orphan-test gates",
+          "quote": "payload drift / orphan tests"
+        },
+        {
+          "referenceId": "ref-plans",
+          "locator": "discoveredRequirements across plans",
+          "quote": "pack-bootstrap; orphan gate; schemaContentDigest"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-plan-lineage",
+      "section": "keyFindings",
+      "statement": "Plan/lineage integrity is weak: one goal (dynamic-worker-runtime) spawned 21 plans; 113 tasks remain non-completed inside superseded plans (the prototype decision-gate task is pending in 12 plans); supersession covers only 12 of 21; 22 of 31 plans fail readPlanArtifact with digest-mismatch while validatePlanArtifact passes; 15/31 have empty sourceDigests; 12/31 superseded plans label control.currentState as STOP (a vocabulary, not a control.status contradiction, which matches 31/31) and 2 ready plans use NOT_STARTED.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-planmjs",
+          "locator": "readPlanArtifact digest check",
+          "quote": "plan digest does not match content"
+        },
+        {
+          "referenceId": "ref-plans",
+          "locator": "dynamic-worker-runtime 21 plans / supersession 12",
+          "quote": "orphaned pending tasks"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-repair-unrecorded",
+      "section": "keyFindings",
+      "statement": "Repair work is not recorded in the durable fields: repairAttempts is 0 across all 330 tasks despite 5 REVIEW->REPAIR journal edges across 3 plans (4 plans have any REPAIR edge) and explicit 'REPAIRED F1..F7' entries; critiqueResolution is empty in 10/31 plans and rdRecord is a single catch-all row in 24/31.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-plan-schema",
+          "locator": "tasks[].repairAttempts",
+          "quote": "repairAttempts field"
+        },
+        {
+          "referenceId": "ref-plans",
+          "locator": "jev-optin journal REVIEW->REPAIR vs repairAttempts 0",
+          "quote": "repair not journaled in fields"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-obligations-open",
+      "section": "detailSections",
+      "statement": "Applicability obligations are write-only: 254 obligations are 'required' vs 8 'satisfied'; every terminal complete plan still lists its obligations as required; dddArtifacts is empty in 31/31; 28/31 plans are warranted with empty lightweight slices; ~45 real spike candidates sit in plans where 37 have no SPIKE task.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-plans",
+          "locator": "applicability obligations required vs satisfied",
+          "quote": "254 required / 8 satisfied"
+        },
+        {
+          "referenceId": "ref-planmjs",
+          "locator": "applicability validation",
+          "quote": "obligations must be present"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-trace-empty",
+      "section": "keyFindings",
+      "statement": "The trace feature is effectively unused: only 9 trace lines exist across all .agents/logs/*.jsonl (6 in trace.jsonl; 8 session-written), of which 0 are decisions; 0 of 4 trace runIds match any of 37 progress runIds; csm-plan, csm-deep-research and csm-grill emit zero traces; the only production writer is wt-session (plus a csm-build test seam); no automatic hook records ordinary agent actions (at production time).",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-tracejsonl",
+          "locator": ".agents/logs/*.jsonl (trace.jsonl + wt-session + sample)",
+          "quote": "9 lines total; 0 kind:decision"
+        },
+        {
+          "referenceId": "ref-tracelog",
+          "locator": "recordDecision/appendTrace callers",
+          "quote": "recordDecision has zero production callers"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-progress-weak",
+      "section": "keyFindings",
+      "statement": "Progress tracking is often a batch snapshot, not live tracking: 8 of 37 records are un-finalized (7 active, 1 blocked); 6/8 deep-research records share an identical boilerplate milestone signature; verifiedFraction appears on only 19/161 milestones; 8 records have updatedAt earlier than startedAt (impossible); multi-day updatedAt-startedAt gaps (up to ~120h) show late backfill.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-progress",
+          "locator": "progress records",
+          "quote": "active at 5%/39%/73%...; updatedAt<startedAt"
+        },
+        {
+          "referenceId": "ref-progress-tracker",
+          "locator": "milestone/verifiedFraction handling",
+          "quote": "verifiedFraction"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-flaky",
+      "section": "detailSections",
+      "statement": "Flaky/hanging tests recur: a concurrent first-open migration race failed twice before a fresh-DB retry fixed it; a daemon exit hang failed CI with no failed-step log and was root-caused (ready-marker/disconnect race); a host port (9225) contention is left to CI; and check-suite allowlists 7 known-unwired failing suites.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "KNOWN_UNWIRED_TESTS",
+          "quote": "7 allowlisted failing suites"
+        },
+        {
+          "referenceId": "ref-google-flaky",
+          "locator": "flaky tests",
+          "quote": "quarantine with owner and expiry"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-cleanup-gap",
+      "section": "detailSections",
+      "statement": "Cleanup is incomplete: 6 registered worktrees whose branches are already merged into main remain, plus ~6 orphaned merged branches (12 merged local branches total); two worktrees removed by cleanup still have their branches; cleanup/registry is not run automatically at session end.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-tracejsonl",
+          "locator": "cleanup-remove entries",
+          "quote": "worktrees removed but branches retained"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-lived-mock-gap",
+      "section": "keyFindings",
+      "statement": "A recurring defect class is 'tests pass against a mock while the live/durable path is inert or wrong': the Jev transport mismatch returned HTTP 400 live yet offline tests passed against the array mock; the trace hook was declared but never emitted; the canonical JSON plan/build corpus was ungated while legacy Markdown was checked.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-research",
+          "locator": "jev-review-judge claim-k2-transport-mismatch; trace-single-log claim-k2-no-auto-hook",
+          "quote": "tests pass while live fail-opens"
+        },
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "corpus gate checked only -csm.md",
+          "quote": "canonical JSON ungated"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-foreign-concurrency",
+      "section": "detailSections",
+      "statement": "Concurrent sessions interfere through the shared checkout: a dirty main blocked an ff-only merge and required a stash/restore/regen reconcile; --no-verify is a standing user policy triggered by the unstaged-guard; 4 pushed commits received no CI run and ci.yml ignores wt/** branches.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-ci",
+          "locator": "branches-ignore wt/**",
+          "quote": "worktree branches skipped"
+        },
+        {
+          "referenceId": "ref-hook",
+          "locator": "unstaged-guard",
+          "quote": "blocks on concurrent tracked edits"
+        },
+        {
+          "referenceId": "ref-agents",
+          "locator": "one goal per worktree",
+          "quote": "parallel-session hygiene"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-no-verify",
+      "section": "detailSections",
+      "statement": "The pre-commit gate is routinely bypassed (--no-verify standing policy) because the unstaged-guard trips on concurrent/foreign tracked edits; 1 explicit in-window commit, count is a lower bound since git does not record bypasses.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-hook",
+          "locator": "unstaged-guard",
+          "quote": "blocks unrelated tracked changes"
+        },
+        {
+          "referenceId": "ref-plans",
+          "locator": "standing --no-verify instruction",
+          "quote": "hook-race cases"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-ci",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/.github/workflows/ci.yml",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-checksuite",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/scripts/check-suite.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-hook",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/scripts/hooks/pre-commit",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-planmjs",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/csm-plan/lib/plan.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-loopguard",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/csm-build/lib/loop-guard.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-tracelog",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/scripts/lib/trace-log.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-tracejsonl",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/.agents/logs/trace.jsonl",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-progress",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/.agents/progress",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-plans",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/.agents/plans",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-research",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/.agents/research",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-agents",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/AGENTS.md",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-google-flaky",
+      "url": "https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html",
+      "publisher": "testing.googleblog.com",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-fowler-ci",
+      "url": "https://martinfowler.com/articles/continuousIntegration.html",
+      "publisher": "martinfowler.com",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-progress-tracker",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/lib/progress-tracker.mjs",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    },
+    {
+      "referenceId": "ref-plan-schema",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/2053253/csm-plan/schemas/csm-plan.schema.json",
+      "publisher": "repository (git)",
+      "retrievedAt": "2026-09-20"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Resolved git root, run id, baseline.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "DEEP x hybrid; 4 tracks.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "4 parallel read-only tracks over the corpus.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "Draft claims with citations.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "Independent challenger.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "Independent judge.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "Apply corrections.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "Schema-validate; re-check citations.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "Write finding.",
+      "occurredAt": "2026-09-20T22:00:00.000Z",
+      "cycle": 0
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-20T22:00:00.000Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}
