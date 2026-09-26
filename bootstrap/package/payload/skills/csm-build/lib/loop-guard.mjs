@@ -247,6 +247,54 @@ const argValue = (argv, name) => {
   return index >= 0 ? argv[index + 1] : undefined;
 };
 
+// T006: best-effort in-loop tracing. The shared trace log lives under scripts/,
+// which is not part of the packed skill payload, so the specifier is assembled
+// at runtime and imported under a guard. A missing writer or a failed write is
+// swallowed: tracing is advisory and must never change the guard verdict or the
+// process exit code.
+const TRACE_LOG_SPECIFIER = ["..", "..", "scripts", "lib", "trace-log.mjs"].join("/");
+let traceWriterPromise;
+
+function loadTraceWriter() {
+  if (traceWriterPromise === undefined)
+    traceWriterPromise = import(TRACE_LOG_SPECIFIER).catch(() => null);
+  return traceWriterPromise;
+}
+
+function traceRunId(record) {
+  if (typeof record?.runId === "string" && record.runId.length > 0) return record.runId;
+  if (typeof process.env.CSM_RUN_ID === "string" && process.env.CSM_RUN_ID.length > 0)
+    return process.env.CSM_RUN_ID;
+  return `run-csm-build-${Date.now().toString(36)}-${process.pid.toString(36)}`;
+}
+
+async function emitTrace(kind, entry) {
+  try {
+    const writer = await loadTraceWriter();
+    if (!writer) return;
+    const write = kind === "decision" ? writer.recordDecision : writer.appendTrace;
+    if (typeof write === "function") await write(entry);
+  } catch {
+    // tracing is best-effort; never affect the guard verdict or exit code
+  }
+}
+
+async function traceGuardEvaluation(record, target, result) {
+  const justification =
+    result.remaining.length > 0
+      ? `outstanding work: ${result.remaining.join(", ")}`
+      : "no outstanding work";
+  const base = {
+    runId: traceRunId(record),
+    actor: "csm-build",
+    target,
+    justification,
+    outcome: result.status,
+  };
+  await emitTrace("action", { ...base, action: "loop-guard" });
+  await emitTrace("decision", { ...base, action: "loop-guard-decision" });
+}
+
 async function readRecord(path, label) {
   const raw = await readFile(path, "utf8");
   const value = JSON.parse(raw);
@@ -278,9 +326,18 @@ export async function runLoopGuardCli(argv = process.argv.slice(2)) {
   } catch (error) {
     // Fail closed: an unreadable or malformed record is not-done.
     console.error(`loop-guard: unreadable record (${error.message})`);
+    await emitTrace("action", {
+      runId: traceRunId(null),
+      actor: "csm-build",
+      action: "loop-guard",
+      target: recordPath ?? "record",
+      justification: `unreadable record: ${error.message}`,
+      outcome: "blocked",
+    });
     return 2;
   }
   const result = evaluateLoopGuard(record, { tasks });
+  await traceGuardEvaluation(record, recordPath ?? "record", result);
   if (result.exitCode !== 0) {
     console.error(`loop-guard: work remains (${result.remaining.join(", ")})`);
     return 2;

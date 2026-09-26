@@ -15,11 +15,13 @@ import {
   EVALUATOR_CONTRACT,
   PLAN_SCHEMA_V2,
   appendPlanJournal,
+  requiredApplicabilityObligations,
   validatePlanArtifact,
 } from "./plan.mjs";
 
 export const EVALUATOR_RECEIPT_FORMAT = "csm-plan-evaluator-receipt/1";
 export const LOOP_GUARD_FORMAT = "csm-plan-loop-guard/1";
+export const APPLICABILITY_CLOSURE_FORMAT = "csm-applicability-closure/1";
 export { EVALUATOR_CONTRACT };
 
 // Terminal task and lifecycle statuses across record shapes (csm-plan/* and
@@ -41,7 +43,14 @@ const DEFERRAL_ALTERNATIVE =
   /\bor\s+(?:record|document|note|log|defer|deferral|postpone|waive|skip|omit)\b/i;
 const DEFERRAL_WORD = /\b(?:defer|defers|deferred|deferral|deferrals|postpone[ds]?|waive[ds]?)\b/i;
 
+// Applicability closure statuses. `satisfied`/`not_applicable` close an
+// obligation; `required`/`missing`/`unverified` are open work that either the
+// available closure evidence resolves or the closure refuses.
+const CLOSED_OBLIGATION_STATUSES = new Set(["satisfied", "not_applicable"]);
+const UNVERIFIED_OBLIGATION_STATUS = "unverified";
+
 const normalize = (value) => String(value ?? "").toLowerCase();
+const isNonEmptyString = (value) => typeof value === "string" && value.trim() !== "";
 
 // A record with no recognizable work shape (no tasks array, no activeTasks set,
 // no lifecycle status) is not evidence of completion. The guard fails closed on
@@ -217,10 +226,179 @@ function withFreshDigest(value) {
   return next;
 }
 
+// Close the applicability record and the per-task spike candidates before a plan
+// is terminalized. The durable record, not the model, owns closure:
+//   * every obligation ends `satisfied` or `not_applicable`; `unverified` is a
+//     disclosed non-closure and is never auto-resolved on a required obligation;
+//   * `required`/`missing` obligations resolve from DDD artifact coverage
+//     (`satisfied`) or a recorded reason (`not_applicable`), otherwise the close
+//     fails closed with `unresolved-obligation`;
+//   * a warranted/mixed plan with no `dddArtifacts` must record a reason, or the
+//     close fails closed with `missing-ddd-reason`;
+//   * every non-`none` `spikeCandidate` is cleared; when an applicability record
+//     exists it is also preserved in that record's closure, otherwise it is
+//     cleared without preservation, so the write-only field cannot survive a
+//     completed plan.
+function closeApplicability(value, { dddReason, timestamp }) {
+  const applicability = value?.applicability;
+  const tasks = Array.isArray(value?.tasks) ? value.tasks : [];
+  const spikes = tasks
+    .map((task, index) => ({ task, index }))
+    .filter(({ task }) => isNonEmptyString(task?.spikeCandidate) && task.spikeCandidate !== "none");
+  if ((!applicability || typeof applicability !== "object") && spikes.length === 0) return value;
+
+  const next = structuredClone(value);
+  const spikeCandidates = spikes.map(({ task }) => ({
+    taskId: task.taskId,
+    candidate: task.spikeCandidate,
+  }));
+  for (const { index } of spikes) next.tasks[index].spikeCandidate = "none";
+
+  if (applicability && typeof applicability === "object") {
+    const record = next.applicability;
+    const required = new Set(requiredApplicabilityObligations(record));
+    const dddEmpty = !Array.isArray(record.dddArtifacts) || record.dddArtifacts.length === 0;
+    const dddRequired = ["warranted", "mixed"].includes(record.decision);
+    const reason = isNonEmptyString(dddReason)
+      ? dddReason.trim()
+      : isNonEmptyString(record.closure?.reason)
+        ? record.closure.reason.trim()
+        : null;
+    if (dddRequired && dddEmpty && !reason)
+      throw Object.assign(
+        new Error(
+          "a completed plan with warranted applicability and no dddArtifacts must record a closure reason",
+        ),
+        { code: "missing-ddd-reason", decision: record.decision },
+      );
+
+    const unresolved = [];
+    record.obligations = (record.obligations ?? []).map((obligation) => {
+      if (CLOSED_OBLIGATION_STATUSES.has(obligation.status)) return obligation;
+      const requiredObligation = required.has(obligation.id);
+      if (obligation.status === UNVERIFIED_OBLIGATION_STATUS) {
+        if (requiredObligation) {
+          unresolved.push(obligation.id);
+          return obligation;
+        }
+        return { ...obligation, status: "not_applicable" };
+      }
+      // required / missing: resolve from closure evidence, never fabricate a
+      // satisfied status without DDD coverage or a recorded reason.
+      if (!dddEmpty) return { ...obligation, status: "satisfied" };
+      if (reason) return { ...obligation, status: "not_applicable" };
+      if (requiredObligation) {
+        unresolved.push(obligation.id);
+        return obligation;
+      }
+      return { ...obligation, status: "not_applicable" };
+    });
+    if (unresolved.length)
+      throw Object.assign(
+        new Error(
+          `cannot close a plan with unresolved applicability obligations: ${[...new Set(unresolved)].join(", ")}`,
+        ),
+        { code: "unresolved-obligation", obligations: [...new Set(unresolved)] },
+      );
+
+    if (!record.closure || typeof record.closure !== "object" || Array.isArray(record.closure)) {
+      record.closure = {
+        format: APPLICABILITY_CLOSURE_FORMAT,
+        closedAt: timestamp,
+        reason: reason ?? null,
+        spikeCandidates,
+      };
+    } else {
+      record.closure.reason = record.closure.reason ?? reason ?? null;
+      record.closure.closedAt = record.closure.closedAt ?? timestamp;
+      record.closure.spikeCandidates = [
+        ...(record.closure.spikeCandidates ?? []),
+        ...spikeCandidates,
+      ];
+    }
+  }
+
+  const result = validatePlanArtifact(next);
+  if (!result.valid)
+    throw Object.assign(new TypeError("invalid closed plan artifact"), {
+      code: "schema-invalid",
+      errors: result.errors,
+    });
+  return next;
+}
+
+// Record a REPAIR cycle against a task: increment its `repairAttempts` and
+// append a `critiqueResolution` row (finding/severity/resolution/evidence). This
+// is the helper the csm-plan loop calls when it transitions through REPAIR, so
+// neither field stays write-only.
+export function recordRepair(
+  value,
+  {
+    taskId,
+    finding,
+    severity = "unspecified",
+    resolution,
+    evidence,
+    recordedAt = new Date().toISOString(),
+  } = {},
+) {
+  const check = validatePlanArtifact(value);
+  if (!check.valid)
+    throw Object.assign(new TypeError("invalid plan artifact"), {
+      code: "schema-invalid",
+      errors: check.errors,
+    });
+  if (value.status === "complete" || value.status === "superseded")
+    throw Object.assign(new Error("terminal plan is immutable"), { code: "terminal-immutable" });
+  const tasks = Array.isArray(value.tasks) ? value.tasks : [];
+  const index = tasks.findIndex((task) => task.taskId === taskId);
+  if (!isNonEmptyString(taskId) || index < 0)
+    throw Object.assign(new Error(`no task ${taskId ?? "(none)"} to record a repair against`), {
+      code: "unknown-task",
+      taskId: taskId ?? null,
+    });
+  for (const [field, fieldValue] of [
+    ["finding", finding],
+    ["resolution", resolution],
+    ["severity", severity],
+  ])
+    if (!isNonEmptyString(fieldValue))
+      throw Object.assign(new TypeError(`repair ${field} must be a non-empty string`), {
+        code: "invalid-repair",
+        field,
+      });
+
+  const next = structuredClone(value);
+  const attempt = (next.tasks[index].repairAttempts ?? 0) + 1;
+  next.tasks[index].repairAttempts = attempt;
+  next.critiqueResolution = Array.isArray(next.critiqueResolution) ? next.critiqueResolution : [];
+  next.critiqueResolution.push({
+    taskId,
+    finding: finding.trim(),
+    severity: severity.trim(),
+    resolution: resolution.trim(),
+    evidence: isNonEmptyString(evidence)
+      ? evidence.trim()
+      : `repair attempt ${attempt} recorded for ${taskId}`,
+    recordedAt,
+  });
+
+  const result = validatePlanArtifact(next);
+  if (!result.valid)
+    throw Object.assign(new TypeError("invalid repaired plan artifact"), {
+      code: "schema-invalid",
+      errors: result.errors,
+    });
+  return withFreshDigest(next);
+}
+
 // Terminalize a plan as complete. A plan with pending/in-progress/blocked tasks,
 // a non-empty activeTasks set, a disjunctive acceptance signal, or no passing
 // receipt is refused — the guard, not the model, owns the decision.
-export function closePlan(value, { receipt, timestamp = new Date().toISOString(), evidence } = {}) {
+export function closePlan(
+  value,
+  { receipt, timestamp = new Date().toISOString(), evidence, dddReason } = {},
+) {
   const check = validatePlanArtifact(value);
   if (!check.valid)
     throw Object.assign(new TypeError("invalid plan artifact"), {
@@ -267,10 +445,14 @@ export function closePlan(value, { receipt, timestamp = new Date().toISOString()
       activeTasks: work.activeTasks,
     });
 
-  const next = appendPlanJournal(value, {
+  // Enforce repair/applicability closure before the plan becomes terminal. This
+  // fails closed (throws) rather than terminalizing a plan with open fields.
+  const closed = closeApplicability(value, { dddReason, timestamp });
+
+  const next = appendPlanJournal(closed, {
     timestamp,
-    cycle: value.control.cycle,
-    transition: `${value.control.currentState} -> COMPLETE`,
+    cycle: closed.control.cycle,
+    transition: `${closed.control.currentState} -> COMPLETE`,
     tasks: [],
     evidence: evidence ?? `completion evaluator verdict complete; ${work.evidence}`,
     nextState: "COMPLETE",
@@ -358,6 +540,44 @@ export function supersedePlanArtifact(
 
 export const closePredecessorOnSuccessor = supersedePlanArtifact;
 
+// T006: best-effort in-loop tracing. The shared trace log lives under scripts/,
+// which is not part of the packed skill payload, so the specifier is assembled
+// at runtime and imported under a guard. A missing writer or a failed write is
+// swallowed: tracing is advisory and must never change the guard verdict or the
+// process exit code.
+const TRACE_LOG_SPECIFIER = ["..", "..", "scripts", "lib", "trace-log.mjs"].join("/");
+let traceWriterPromise;
+
+function loadTraceWriter() {
+  if (traceWriterPromise === undefined)
+    traceWriterPromise = import(TRACE_LOG_SPECIFIER).catch(() => null);
+  return traceWriterPromise;
+}
+
+function traceRunId(record) {
+  if (typeof record?.runId === "string" && record.runId.length > 0) return record.runId;
+  if (typeof process.env.CSM_RUN_ID === "string" && process.env.CSM_RUN_ID.length > 0)
+    return process.env.CSM_RUN_ID;
+  return `run-csm-plan-${Date.now().toString(36)}-${process.pid.toString(36)}`;
+}
+
+async function emitTrace(kind, entry) {
+  try {
+    const writer = await loadTraceWriter();
+    if (!writer) return;
+    const write = kind === "decision" ? writer.recordDecision : writer.appendTrace;
+    if (typeof write === "function") await write(entry);
+  } catch {
+    // tracing is best-effort; never affect the guard verdict or exit code
+  }
+}
+
+async function traceVerdict({ record, target, action, outcome, justification }) {
+  const base = { runId: traceRunId(record), actor: "csm-plan", target, justification, outcome };
+  await emitTrace("action", { ...base, action });
+  await emitTrace("decision", { ...base, action: `${action}-decision` });
+}
+
 function isMain() {
   return process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
 }
@@ -378,6 +598,13 @@ async function main(argv) {
     const record = await readRecord(recordPath);
     if (command === "guard") {
       const guard = loopGuard(record);
+      await traceVerdict({
+        record,
+        target: recordPath,
+        action: "loop-guard",
+        outcome: guard.done ? "complete" : "continue",
+        justification: guard.evidence,
+      });
       if (!guard.done) {
         console.error(guard.evidence);
         process.exit(2);
@@ -387,6 +614,15 @@ async function main(argv) {
     }
     if (command === "lint") {
       const signalErrors = lintPlanAcceptanceSignals(record);
+      await traceVerdict({
+        record,
+        target: recordPath,
+        action: "acceptance-lint",
+        outcome: signalErrors.length ? "blocked" : "ok",
+        justification: signalErrors.length
+          ? signalErrors.map((error) => `${error.taskId ?? "?"}:${error.code}`).join(", ")
+          : "acceptance signals are single positive assertions",
+      });
       if (signalErrors.length) {
         for (const error of signalErrors)
           console.error(
@@ -397,7 +633,15 @@ async function main(argv) {
       console.log("acceptance signals: OK");
       return;
     }
-    console.log(JSON.stringify(createEvaluatorReceipt(record), null, 2));
+    const receipt = createEvaluatorReceipt(record);
+    await traceVerdict({
+      record,
+      target: recordPath,
+      action: "evaluator-verdict",
+      outcome: receipt.verdict,
+      justification: receipt.evidence,
+    });
+    console.log(JSON.stringify(receipt, null, 2));
     return;
   }
   throw new Error(`unknown command: ${command ?? "(none)"} (expected guard|evaluate|lint)`);

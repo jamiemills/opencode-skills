@@ -102,6 +102,18 @@ adds **no new acceptance authority**: the evaluator and guard constrain each
 skill's own loop and save gate, per run, and never approve or accept external
 work.
 
+### No-mock-only rule (manual, not machine-enforced)
+
+csm-review carries a prose checklist rule for live/durable paths: any adapter,
+transport, provider, or durable writer MUST have at least one **live or
+contract-fixture** test exercising the real wire/disk shape (serialized bytes,
+request/response payloads, or on-disk format); a **mock-only** test for such a
+path is a defect finding. This rule is deliberately **MANUAL**: its evidence is
+the reviewer's cited test file at the pinned SHA, not a schema check, guard
+exit, or CI predicate. Nothing in this model — evaluator receipts, the
+deterministic loop guard, or `check-suite` — verifies it, so it never blocks a
+save and its residual risk is disclosed in the review's Methodology.
+
 ## 3. Additive `/2` dual-revision compatibility
 
 The enforcement revisions are **new immutable schema ids**, never edits to the
@@ -160,6 +172,17 @@ global serialization — but distinct runs proceed independently. `tests/
 enforcement-parallel-safety.test.mjs` proves the per-run-local model and
 concurrent non-serialization; `tests/plan-build-v1-compat.test.mjs` pins the
 frozen `/1` contract.
+
+### In-loop precommit gate
+
+A commit is the point where in-loop work becomes shared, so csm-build at
+`CHECKPOINT` and csm-plan at `SAVE` must run `make precommit` before any
+authorized commit. `precommit` mirrors the fast CI gates in order — `make fmt`,
+`node scripts/regen.mjs`, `node scripts/check-suite.mjs`,
+`pnpm exec oxlint --deny-warnings`, then the core worktree/trace/state unit
+suites — so a cycle that lands green locally lands green in CI. The full
+`make test` stays CI-only; `precommit` is the bounded, fast subset the loop can
+afford every cycle.
 
 ## 5. Rollout
 

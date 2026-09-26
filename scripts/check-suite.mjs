@@ -24,6 +24,7 @@ import { checkDependencyPolicy } from "./lib/dependency-policy.mjs";
 import { agentsIndexSectionFor, agentsIndexSubjectsBySection } from "./lib/agents-index.mjs";
 import { validateSkillProgress } from "../lib/progress-tracker.mjs";
 import { detectCheckoutHygiene, formatCheckoutHygiene } from "./check-checkout-hygiene.mjs";
+import { validatePlanLineage } from "./validate-plan-lineage.mjs";
 import {
   FENCE_OPEN_RE,
   splitLines,
@@ -945,7 +946,10 @@ function validateSkillProgressRecords(repoRoot) {
     const full = path.join(progressDir, f);
     try {
       const record = JSON.parse(fs.readFileSync(full, "utf-8"));
-      const verdict = validateSkillProgress(record);
+      // Explicit legacy/read path: the frozen historical corpus may need its
+      // impossible `updatedAt<startedAt` normalized, so this scan is
+      // deliberately non-strict (new writes/finalization are strict).
+      const verdict = validateSkillProgress(record, { strict: false });
       if (!verdict.ok) issues.push(`.agents/progress/${f}: ${verdict.reason}`);
     } catch (error) {
       issues.push(`.agents/progress/${f}: ${error.message}`);
@@ -1038,39 +1042,138 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
 // segment-scoped `*` glob. Enumeration is driven by git's tracked set, so an
 // in-progress untracked test cannot block the gate (F-053 semantics).
 //
-// KNOWN_UNWIRED_TESTS is a deliberately small, justified allowlist of tracked
-// suites that currently FAIL when executed, so wiring them into a Makefile
-// target would make `make test` red. These are pre-existing failures unrelated
-// to orphan wiring (artifact-resolver/schema drift and progress-tracker
-// contract drift); each is a recorded finding, not silent debt, and must be
-// removed (and wired) as soon as its suite is repaired. The check fails if an
-// allowlisted entry stops being tracked or becomes wired, so it cannot rot.
-const KNOWN_UNWIRED_TESTS = Object.freeze(
-  new Map([
-    [
-      "tests/consumer-replay-matrix.test.mjs",
-      "csm-scan->csm-plan resolver returns 'rejected' (expected 'resolved')",
-    ],
-    [
-      "tests/digest-taxonomy.test.mjs",
-      "resolver returns 'schema-invalid'/'rejected' instead of digest-taxonomy errors",
-    ],
-    ["tests/grill-plan-replay.test.mjs", "plan replay returns 'rejected' (expected 'resolved')"],
-    [
-      "tests/json-only-cutover.test.mjs",
-      "resolver returns 'schema-invalid' instead of 'payload-digest-mismatch'",
-    ],
-    [
-      "tests/lifecycle-contract.test.mjs",
-      "csm-make-tests SKILL.md lacks the run-id tests-ledger path pattern",
-    ],
-    [
-      "tests/progress-tracker-contract.test.mjs",
-      "SKILL.md declares 'csm-skill-progress/1'; test expects 'csm-progress/1'",
-    ],
-    ["tests/standalone-progress.test.mjs", "standalone boundary contract drift"],
-  ]),
-);
+// T007: governed allowlist of tracked suites that currently FAIL when executed,
+// so wiring them into a Makefile target would make `make test` red. Every entry
+// is typed ({ path, owner, reason, expires }) and fails closed when it is
+// missing metadata, carries a non-ISO or past `expires`, is mis-homed (not a
+// tests/**/*.test.mjs path), is no longer tracked, or has become wired. The
+// policy is a pure function of (entries, { today, isTracked, isWired }) so the
+// expiry decision is deterministic and unit-testable without the live repo.
+//
+// SESSION-END NOTE: the seven entries below are pre-existing, out-of-scope suite
+// failures (artifact-resolver/schema drift and progress-tracker contract drift).
+// Repairing them is outside T007's owned scope (scripts/check-suite.mjs +
+// tests/allowlist-policy.test.mjs), so each stays owned by `core` with a
+// 30-day expiry (2026-10-21). Each must be repaired and wired — or deleted —
+// before its expiry, otherwise `node scripts/check-suite.mjs` fails closed.
+const ALLOWLIST_ENTRY_FIELDS = Object.freeze(["path", "owner", "reason", "expires"]);
+const ALLOWLIST_ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ALLOWLIST_TEST_PATH_RE = /^tests\/.*\.test\.mjs$/;
+const KNOWN_UNWIRED_TESTS = Object.freeze([
+  {
+    path: "tests/consumer-replay-matrix.test.mjs",
+    owner: "core",
+    reason: "csm-scan->csm-plan resolver returns 'rejected' (expected 'resolved')",
+    expires: "2026-10-21",
+  },
+  {
+    path: "tests/digest-taxonomy.test.mjs",
+    owner: "core",
+    reason: "resolver returns 'schema-invalid'/'rejected' instead of digest-taxonomy errors",
+    expires: "2026-10-21",
+  },
+  {
+    path: "tests/grill-plan-replay.test.mjs",
+    owner: "core",
+    reason: "plan replay returns 'rejected' (expected 'resolved')",
+    expires: "2026-10-21",
+  },
+  {
+    path: "tests/json-only-cutover.test.mjs",
+    owner: "core",
+    reason: "resolver returns 'schema-invalid' instead of 'payload-digest-mismatch'",
+    expires: "2026-10-21",
+  },
+  {
+    path: "tests/lifecycle-contract.test.mjs",
+    owner: "core",
+    reason: "csm-make-tests SKILL.md lacks the run-id tests-ledger path pattern",
+    expires: "2026-10-21",
+  },
+  {
+    path: "tests/progress-tracker-contract.test.mjs",
+    owner: "core",
+    reason: "SKILL.md declares 'csm-skill-progress/1'; test expects 'csm-progress/1'",
+    expires: "2026-10-21",
+  },
+  {
+    path: "tests/standalone-progress.test.mjs",
+    owner: "core",
+    reason: "standalone boundary contract drift",
+    expires: "2026-10-21",
+  },
+]);
+
+// Gate-time "today": `CSM_ALLOWLIST_TODAY` (ISO date) pins it for reproducible
+// runs; otherwise the current UTC calendar date is used. The pure policy below
+// takes `today` as an argument, so its expiry decision never depends on the
+// clock except through this single injection point.
+function allowlistToday() {
+  const override = process.env.CSM_ALLOWLIST_TODAY;
+  if (typeof override === "string" && ALLOWLIST_ISO_DATE_RE.test(override)) return override;
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Pure, deterministic allowlist policy. Returns [] when every entry is complete,
+// unexpired, correctly homed, still tracked, and not yet wired; otherwise one
+// human-readable issue per violation. `today` is an ISO-8601 calendar date
+// (YYYY-MM-DD): an entry is valid through its `expires` date and expires the
+// following day. `isTracked`/`isWired` are optional caller predicates so the
+// policy can be exercised hermetically against fixture entries.
+export function validateAllowlistPolicy(entries, options = {}) {
+  if (!Array.isArray(entries)) return ["allowlist policy: entries is not an array"];
+  const { today, isTracked, isWired } = options;
+  if (typeof today !== "string" || !ALLOWLIST_ISO_DATE_RE.test(today)) {
+    return [
+      `allowlist policy: today must be an ISO date (YYYY-MM-DD), got ${JSON.stringify(today)}`,
+    ];
+  }
+  const issues = [];
+  const seen = new Set();
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      issues.push(
+        `allowlist entry ${JSON.stringify(entry)}: must be an object with { ${ALLOWLIST_ENTRY_FIELDS.join(", ")} }`,
+      );
+      continue;
+    }
+    const label =
+      typeof entry.path === "string" && entry.path !== "" ? entry.path : JSON.stringify(entry);
+    let complete = true;
+    for (const field of ALLOWLIST_ENTRY_FIELDS) {
+      if (typeof entry[field] !== "string" || entry[field].trim() === "") {
+        issues.push(`allowlist entry ${label}: missing required metadata "${field}"`);
+        complete = false;
+      }
+    }
+    if (typeof entry.path === "string" && entry.path !== "") {
+      if (seen.has(entry.path)) issues.push(`allowlist entry ${entry.path}: duplicate path`);
+      seen.add(entry.path);
+    }
+    if (!complete) continue;
+    if (!ALLOWLIST_TEST_PATH_RE.test(entry.path)) {
+      issues.push(
+        `allowlist entry ${entry.path}: mis-homed (want a tracked tests/**/*.test.mjs path)`,
+      );
+    }
+    if (!ALLOWLIST_ISO_DATE_RE.test(entry.expires) || Number.isNaN(Date.parse(entry.expires))) {
+      issues.push(
+        `allowlist entry ${entry.path}: expires "${entry.expires}" is not an ISO date (YYYY-MM-DD)`,
+      );
+    } else if (entry.expires < today) {
+      issues.push(
+        `allowlist entry ${entry.path}: expired ${entry.expires} (today ${today}) — repair and wire it, or delete it, before the expiry`,
+      );
+    }
+    if (typeof isTracked === "function" && !isTracked(entry.path)) {
+      issues.push(`allowlist entry ${entry.path}: is no longer tracked — remove it`);
+    }
+    if (typeof isWired === "function" && isWired(entry.path)) {
+      issues.push(`allowlist entry ${entry.path}: is now wired — remove it`);
+    }
+  }
+  return issues;
+}
 
 // True when a Makefile/CI `reference` (literal path or `*` glob) covers a
 // tracked test path. `*` never crosses a path segment.
@@ -1120,22 +1223,20 @@ function checkOrphanTests(rootDir, tracked) {
     references.some((reference) => globTestReferenceMatches(reference, relative));
   const files = trackedTestFiles(rootDir, tracked);
   const trackedSet = new Set(files);
+  const allowlisted = new Set(KNOWN_UNWIRED_TESTS.map((entry) => entry.path));
   const issues = [];
   for (const relative of files) {
     if (matchesAny(relative)) continue;
-    if (KNOWN_UNWIRED_TESTS.has(relative)) continue;
+    if (allowlisted.has(relative)) continue;
     issues.push(`${relative} is not referenced by a Makefile/CI target`);
   }
-  for (const [relative, reason] of KNOWN_UNWIRED_TESTS) {
-    if (!trackedSet.has(relative))
-      issues.push(
-        `allowlisted test ${relative} is no longer tracked — remove it from KNOWN_UNWIRED_TESTS (${reason})`,
-      );
-    else if (matchesAny(relative))
-      issues.push(
-        `allowlisted test ${relative} is now wired — remove it from KNOWN_UNWIRED_TESTS (${reason})`,
-      );
-  }
+  issues.push(
+    ...validateAllowlistPolicy(KNOWN_UNWIRED_TESTS, {
+      today: allowlistToday(),
+      isTracked: (relative) => trackedSet.has(relative),
+      isWired: matchesAny,
+    }),
+  );
   return issues;
 }
 
@@ -1605,6 +1706,24 @@ function main() {
     }
   }
 
+  // T003 plan-lineage gate: active/new JSON plans (producedAt >= the lineage
+  // cutoff) must form a sound lineage — one terminal tip per goal, no terminal
+  // plan retaining blockers or non-terminal tasks, and superseded plans
+  // forwarding open task identities. Legacy plans are grandfathered untested,
+  // exactly like the `-csm.md` corpus; the existing corpus gate above stays
+  // intact.
+  {
+    const lineage = validatePlanLineage({ root, tracked });
+    if (lineage.findings.length === 0) {
+      check(
+        true,
+        `plan lineage: ${lineage.checked} active plan(s) OK (${lineage.grandfathered} grandfathered)`,
+      );
+    } else {
+      for (const finding of lineage.findings) check(false, `plan lineage: ${finding}`);
+    }
+  }
+
   // .agents artifact-index rule (review F1-07, journal-lessons F7/J7, S5-index
   // section membership): every tracked artifact under .agents/ except the index
   // itself must have ONE bullet line under the section that maps to its
@@ -2027,4 +2146,5 @@ export {
   README_PATH_RE,
   checkCommittedPayloadIndex,
   loadSkillManifest,
+  ALLOWLIST_ENTRY_FIELDS,
 };

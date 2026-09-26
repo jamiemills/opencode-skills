@@ -4,7 +4,7 @@ OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
-.PHONY: help install lint fmt fmt-check fmt-staged audit trace check check-anthropic-mapping test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
+.PHONY: help install lint fmt fmt-check fmt-staged regen precommit audit trace check check-anthropic-mapping test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -30,6 +30,16 @@ fmt-staged: ## format + re-stage + verify staged files (pre-commit hook parity)
 	  git add $$files && \
 	  pnpm exec oxfmt $(OXFMT_ARGS) --check $$files; \
 	fi
+
+regen: ## regenerate generated mirrors and capability payloads (scripts/regen.mjs)
+	node scripts/regen.mjs
+
+precommit: ## fast local mirror of CI gates: fmt, regen, conformance, lint, core unit suites
+	make fmt
+	node scripts/regen.mjs
+	node scripts/check-suite.mjs
+	pnpm exec oxlint --deny-warnings
+	node --test --test-concurrency=1 tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/utc-timestamps.test.mjs tests/repo-state.test.mjs tests/temp-registry.test.mjs tests/regen.test.mjs tests/plan-lineage.test.mjs tests/plan-closure-fields.test.mjs tests/allowlist-policy.test.mjs tests/loop-trace-emission.test.mjs
 
 audit: ## non-mutating dependency audit via pinned OSV-Scanner; any finding or invalid evidence fails
 	node scripts/osv-audit.mjs
@@ -125,7 +135,7 @@ test-enforcement: ## in-loop completion-enforcement suites (evaluators, guards, 
 	  tests/csm-orchestrate-remainder.test.mjs
 
 test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, worktree sessions, and gate wiring)
-	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/trace-config.test.mjs tests/trace-cli.test.mjs tests/verify-traces.test.mjs tests/utc-timestamps.test.mjs tests/repo-state.test.mjs tests/temp-registry.test.mjs tests/adapter-gate-wiring.test.mjs
+	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/trace-config.test.mjs tests/trace-cli.test.mjs tests/verify-traces.test.mjs tests/utc-timestamps.test.mjs tests/repo-state.test.mjs tests/temp-registry.test.mjs tests/adapter-gate-wiring.test.mjs tests/regen.test.mjs tests/plan-lineage.test.mjs tests/plan-closure-fields.test.mjs tests/allowlist-policy.test.mjs tests/loop-trace-emission.test.mjs
 
 test-package-index: ## package and payload-index validation tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/package-audit.test.mjs

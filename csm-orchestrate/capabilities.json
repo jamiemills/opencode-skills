@@ -2,7 +2,7 @@
   "schema": "csm-orchestrate-capabilities/3",
   "version": 3,
   "schemaRevision": 3,
-  "contentDigest": "sha256:a5538e0e964422a9bbef7a3e870a211612dd62551c813c6a4e4b88ef67983efb",
+  "contentDigest": "sha256:3fae69f6bcd0ed47b9e376a4b09078bdae7119ba327bf04809f88e4abcaa016f",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -251,7 +251,7 @@
     {
       "skill": "csm-build",
       "version": "1",
-      "digest": "sha256:3960a8cf0071f86db89eae19ed71d6f26e58e13df061e24d11e4316975b1f0b8",
+      "digest": "sha256:bd607abaf7e49e2f9dec339735d157894dffce0fd4f4a5589f1ad00167ad035f",
       "source": {
         "skillPath": "csm-build/SKILL.md",
         "producerPath": null
@@ -675,7 +675,7 @@
     {
       "skill": "csm-plan",
       "version": "1",
-      "digest": "sha256:ef5ba45b5a86776a2757d257dd6edcee4e65fb141badec87ab2229142458bbd6",
+      "digest": "sha256:46194f2301808064d07532554bceb9017bcc7bf4bbe89b28685d83401d44acac",
       "source": {
         "skillPath": "csm-plan/SKILL.md",
         "producerPath": null
@@ -735,7 +735,7 @@
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:4ccea9e3f0f302ec3b55c8eda06be796bc5ee3d913d1d510dbf68366cdba32c1",
+      "digest": "sha256:7c12c3c236e8456a68d87ec5e07f4c4317d604023750cd06369ac78bb16eb145",
       "source": {
         "skillPath": "csm-review/SKILL.md",
         "producerPath": "csm-review/producer.json"

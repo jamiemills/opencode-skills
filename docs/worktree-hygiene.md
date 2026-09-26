@@ -48,9 +48,52 @@ when `--warn-uncommitted` is passed and never fails the default gate.
    never stage, sweep, or delete a foreign path to make the checkout look clean.
 3. Never use a bare `git add -A`, `git add .`, `git clean`, `git stash`, or
    `git checkout --` in the shared checkout.
-4. Stage only owned paths and commit with `git commit --only -- <owned paths>`.
+4. Stage only owned paths and commit with `git commit --only -- <owned paths>`
+   (never a bare `git add -A`/`git add .`). Keeping the commit to exactly the
+   paths you own is what keeps foreign uncommitted work out of it, so the
+   standing `--no-verify` bypass is no longer needed — do not reach for
+   `--no-verify` to force a dirty-main commit or merge through.
 5. Do parallel write work in a `wt/<slug>` worktree, merge serially, and re-run
    the gate after merging.
+
+## Clean-main merge precondition
+
+`scripts/wt-session.mjs merge <slug>` is fail-closed against the dirty-main /
+`--no-verify` concurrency failure mode. Before the `git merge --ff-only` it
+computes the paths the merge would update in the main checkout and intersects
+them with the main working tree's dirty paths (tracked index+worktree and
+untracked). When they collide it **refuses** by default. The precondition is
+path-scoped: only the colliding dirty paths refuse; unrelated dirty/untracked
+paths do not block the merge.
+
+```sh
+node scripts/wt-session.mjs merge <goal-slug> [--push] [--reconcile]
+```
+
+- Default (no flag): refuse and tell the operator to commit/stash the foreign
+  paths — the branch/worktree and main are left untouched (the guard runs
+  before the rebase).
+- `--reconcile`: opt in to the non-destructive stash pattern. Tracked foreign
+  edits to the colliding paths are stashed to a named
+  `wt-session reconcile <slug> <timestamp>` stash, the merge runs, and the
+  stash is re-applied afterwards; if the re-apply conflicts, the named stash is
+  **preserved** (never dropped) and only its paths are reset to the merged
+  state, so no foreign work is lost. Untracked collisions always refuse —
+  untracked files are never auto-stashed.
+- Unrelated dirty paths (untracked drafts, other in-progress artifacts that the
+  merge would not touch) do not block the merge; the check-only post-merge
+  verification still skips loudly on a dirty tree.
+
+## Owned-path commits and CI validation
+
+- Commit only the paths you own: `git commit --only -- <paths>`. This is the
+  discipline that makes the `--no-verify` bypass unnecessary; a commit that
+  contains only owned paths passes the pre-commit gate on its own merits.
+- `.github/workflows/ci.yml` sets `branches-ignore: wt/**` on `push`, so a
+  pushed `wt/<slug>` branch is intentionally **not** CI-validated; only
+  `pull_request` runs for it. The authoritative CI run is the **merged commit
+  on `main`**. Merge worktree branches serially, then re-run the gate and
+  confirm `main` is CI-green before treating the work as landed.
 
 ## Recorded observation: foreign set in the shared checkout
 

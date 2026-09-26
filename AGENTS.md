@@ -59,6 +59,21 @@
   the main checkout and foreign/detached worktrees, is dry-run by default, and
   traces every removal and refusal. See `docs/action-traces-and-cleanup.md`.
 
+## Session end checklist
+
+- End every session by reaping managed resources and verifying none remain:
+  1. `node scripts/wt-session.mjs cleanup --dry-run` — review what would be
+     removed (deletes nothing).
+  2. `node scripts/wt-session.mjs cleanup --apply` — remove eligible managed
+     worktrees and allowlisted temp dirs; fail-closed, dry-run by default, and
+     never `--force` on an unverified path.
+  3. `node scripts/wt-session.mjs leftover` — READ-ONLY report of any managed
+     `wt/<slug>` worktree or fully merged `wt/*` branch still remaining; it
+     deletes nothing and is warn-only, so add `--strict` to make a non-empty
+     report exit non-zero. Reap reported items with `nuke`/`cleanup --apply`.
+     `node scripts/check-checkout-hygiene.mjs` includes the same leftover report
+     (warn-only; `--strict` opts into a non-zero exit).
+
 ## Patch Context Safety
 
 - Re-read the full current target file immediately before patching; never use truncated output as patch context.
@@ -100,6 +115,19 @@
   `--strict` is the opt-in that fails) or
   `node scripts/check-suite.mjs --warn-uncommitted`; never stage, sweep, or
   delete a path you did not create (see `docs/worktree-hygiene.md`).
+- Commit OWNED paths only: `git commit --only -- <paths>` (never a bare
+  `git add -A`/`git add .`). Staging exactly your paths keeps foreign
+  uncommitted work out of the commit, so the standing `--no-verify` bypass is no
+  longer needed; do not use `--no-verify` to push a dirty-main merge through.
+- `wt-session merge` refuses a merge whose paths collide with uncommitted main
+  edits (fail-closed). The explicit `--reconcile` opt-in stashes tracked foreign
+  edits to a named `wt-session reconcile <slug> <ts>` stash, merges, and
+  re-applies them (a conflicting re-apply preserves the named stash); untracked
+  collisions always refuse. Resolve by committing/stashing in the main checkout.
+- CI's `ci.yml` ignores `wt/**` branches on push (`branches-ignore`), so a
+  worktree branch is never CI-validated on its own. The **merged commit on
+  `main`** is what CI validates: after merging serially, re-run the gate and
+  confirm `main` is CI-green before treating the work as landed.
 
 ## In-loop completion enforcement
 

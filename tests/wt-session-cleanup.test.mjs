@@ -8,15 +8,20 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   cleanup,
   createWorktree,
+  detectLeftovers,
   flushTraces,
+  formatLeftovers,
   isAllowlistedTempDir,
   isDirUnder,
   mergeWorktree,
+  removeWorktree,
+  sweepStaleResources,
 } from "../scripts/wt-session.mjs";
 import {
   list as listRegistry,
@@ -27,11 +32,39 @@ import {
 } from "../scripts/lib/temp-registry.mjs";
 import { repoLogPath } from "../scripts/lib/repo-state.mjs";
 
+const WT_SESSION = fileURLToPath(new URL("../scripts/wt-session.mjs", import.meta.url));
+const CHECK_HYGIENE = fileURLToPath(
+  new URL("../scripts/check-checkout-hygiene.mjs", import.meta.url),
+);
+
+function runNode(script, args) {
+  return spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
+}
+
 function git(root, args) {
   return execFileSync("git", ["-C", root, ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
+}
+
+function branchExists(root, branch) {
+  try {
+    git(root, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Read-only repo fingerprint used to prove a check/path mutated nothing.
+function readRepoState(root) {
+  return {
+    head: git(root, ["rev-parse", "HEAD"]),
+    status: git(root, ["status", "--porcelain"]),
+    worktrees: git(root, ["worktree", "list", "--porcelain"]),
+    refs: git(root, ["for-each-ref", "--format=%(refname)"]),
+  };
 }
 
 function makeRepo() {
@@ -318,4 +351,232 @@ test("path/allowlist helpers are segment-safe", () => {
   assert.equal(isAllowlistedTempDir("/tmp/opencode/csm-y"), true);
   assert.equal(isAllowlistedTempDir("/tmp/not-allowed"), false);
   assert.equal(isAllowlistedTempDir("/tmp/csm-"), false, "bare allowlist prefix is not a dir");
+});
+
+// --- T008: create auto-sweep ------------------------------------------------
+
+test("create auto-sweep removes eligible leftovers and preserves every refusal", async () => {
+  const root = makeRepo();
+  const managedRoot = makeManagedRoot();
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "wt-sweep-outside-"));
+  try {
+    // Eligible: clean, merged managed worktree.
+    const merged = makeMergedWorktree(root, managedRoot, "sweepok");
+    register({ kind: "worktree", path: merged.dir, branch: merged.branch }, root);
+
+    // Refused: unmerged managed worktree.
+    const unmerged = createWorktree(root, "sweepunmerged", managedRoot);
+    fs.writeFileSync(path.join(unmerged.dir, "u.txt"), "u");
+    git(unmerged.dir, ["add", "."]);
+    git(unmerged.dir, ["commit", "-m", "u"]);
+    register({ kind: "worktree", path: unmerged.dir, branch: unmerged.branch }, root);
+
+    // Refused: registry entry outside the managed root.
+    register({ kind: "worktree", path: outsideDir, branch: "wt/outside" }, root);
+
+    const result = await sweepStaleResources(root, { managedRoot });
+    await flushTraces();
+    assert.equal(result.removed.length, 1, "only the merged leftover is swept");
+    assert.equal(result.removed[0].path, merged.dir);
+    assert.ok(!fs.existsSync(merged.dir), "merged leftover swept");
+    assert.ok(fs.existsSync(unmerged.dir), "unmerged worktree preserved");
+    assert.ok(fs.existsSync(outsideDir), "outside-root path preserved");
+    assert.ok(
+      result.refused.some((r) => /not merged into main/.test(r.reason)),
+      "unmerged worktree refused",
+    );
+    assert.ok(
+      result.refused.some((r) => /outside managed worktree root/.test(r.reason)),
+      "outside-root entry refused",
+    );
+  } finally {
+    fs.rmSync(managedRoot, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// --- T008: nuke branch reaping ---------------------------------------------
+
+test("nuke deletes a fully merged branch and refuses an unmerged one", () => {
+  const root = makeRepo();
+  const managedRoot = makeManagedRoot();
+  try {
+    const merged = makeMergedWorktree(root, managedRoot, "nukemerge");
+    const result = removeWorktree(root, "nukemerge");
+    assert.equal(result.branchDeleted, true, "merged branch deleted");
+    assert.ok(!fs.existsSync(merged.dir), "merged worktree removed");
+    assert.equal(branchExists(root, merged.branch), false, "merged branch ref gone");
+
+    // Unmerged branch: refused, both worktree and branch survive.
+    const unmerged = createWorktree(root, "nukeunmerged", managedRoot);
+    fs.writeFileSync(path.join(unmerged.dir, "feature.txt"), "work");
+    git(unmerged.dir, ["add", "."]);
+    git(unmerged.dir, ["commit", "-m", "unmerged"]);
+    assert.throws(() => removeWorktree(root, "nukeunmerged"), /not merged into main/);
+    assert.ok(fs.existsSync(unmerged.dir), "unmerged worktree preserved");
+    assert.equal(branchExists(root, unmerged.branch), true, "unmerged branch preserved");
+    // The explicit --force path is unchanged and still reaps it.
+    const forced = removeWorktree(root, "nukeunmerged", { force: true });
+    assert.equal(forced.branchDeleted, true, "force path still deletes the branch");
+  } finally {
+    fs.rmSync(managedRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// --- T008: read-only leftover check ----------------------------------------
+
+test("leftover check is read-only and reports managed worktrees and merged branches", () => {
+  const root = makeRepo();
+  const managedRoot = makeManagedRoot();
+  try {
+    const wt = makeMergedWorktree(root, managedRoot, "leftoverwt");
+    // A fully merged branch with no worktree: a leftover worth reporting.
+    git(root, ["branch", "wt/orphan-merged"]);
+    // An unmerged branch must never be reported as a leftover.
+    git(root, ["checkout", "-b", "wt/orphan-unmerged"]);
+    fs.writeFileSync(path.join(root, "unmerged.txt"), "x");
+    git(root, ["add", "unmerged.txt"]);
+    git(root, ["commit", "-m", "unmerged orphan"]);
+    git(root, ["checkout", "main"]);
+
+    const before = readRepoState(root);
+    const report = detectLeftovers(root, { managedRoot });
+    assert.equal(report.worktrees.length, 1, "one managed worktree reported");
+    assert.equal(report.worktrees[0].path, wt.dir);
+    assert.equal(report.worktrees[0].branch, wt.branch);
+    assert.deepEqual(
+      report.branches.map((b) => b.branch),
+      ["wt/orphan-merged"],
+      "only the merged orphan branch is reported",
+    );
+    assert.deepEqual(readRepoState(root), before, "detectLeftovers mutated nothing");
+    assert.ok(fs.existsSync(wt.dir), "worktree still present after detection");
+
+    const beforeCli = readRepoState(root);
+    const run = runNode(WT_SESSION, ["leftover", "--root", root, "--managed-root", managedRoot]);
+    assert.equal(run.status, 0, "warn-only default exits 0");
+    assert.match(run.stdout, /leftover worktree:/);
+    assert.match(run.stdout, /leftover merged branch: wt\/orphan-merged/);
+    assert.deepEqual(readRepoState(root), beforeCli, "leftover CLI mutated nothing");
+    assert.ok(fs.existsSync(wt.dir), "CLI left the worktree in place");
+
+    assert.ok(Array.isArray(formatLeftovers(report)), "formatLeftovers is a pure projection");
+  } finally {
+    fs.rmSync(managedRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("leftover --strict exits non-zero only when leftovers remain", () => {
+  const root = makeRepo();
+  const managedRoot = makeManagedRoot();
+  try {
+    const clean = runNode(WT_SESSION, [
+      "leftover",
+      "--root",
+      root,
+      "--managed-root",
+      managedRoot,
+      "--strict",
+    ]);
+    assert.equal(clean.status, 0, "no leftovers: --strict exits 0");
+
+    const wt = makeMergedWorktree(root, managedRoot, "strictleftover");
+    const strict = runNode(WT_SESSION, [
+      "leftover",
+      "--root",
+      root,
+      "--managed-root",
+      managedRoot,
+      "--strict",
+    ]);
+    assert.notEqual(strict.status, 0, "--strict exits non-zero on a leftover");
+    assert.ok(fs.existsSync(wt.dir), "strict run deleted nothing");
+
+    const warn = runNode(WT_SESSION, ["leftover", "--root", root, "--managed-root", managedRoot]);
+    assert.equal(warn.status, 0, "default run stays warn-only");
+    assert.ok(fs.existsSync(wt.dir), "warn run deleted nothing");
+  } finally {
+    fs.rmSync(managedRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check-checkout-hygiene reports leftovers warn-only and --strict opts in", () => {
+  const root = makeRepo();
+  const managedRoot = makeManagedRoot();
+  try {
+    makeMergedWorktree(root, managedRoot, "hygieneleftover");
+    const warn = runNode(CHECK_HYGIENE, ["--root", root, "--managed-root", managedRoot]);
+    assert.equal(warn.status, 0, "hygiene stays warn-only by default");
+    assert.match(warn.stdout, /leftover check/);
+    const strict = runNode(CHECK_HYGIENE, [
+      "--root",
+      root,
+      "--managed-root",
+      managedRoot,
+      "--strict",
+    ]);
+    assert.notEqual(strict.status, 0, "--strict opts into a non-zero exit");
+  } finally {
+    fs.rmSync(managedRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// --- T008: guard regression -------------------------------------------------
+
+test("regression guards still refuse main, dirty, unmerged, non-wt, and outside-root targets", async () => {
+  const root = makeRepo();
+  const managedRoot = makeManagedRoot();
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "wt-guard-outside-"));
+  try {
+    // Main checkout refusal.
+    register({ kind: "worktree", path: root, branch: "wt/main" }, root);
+    assert.throws(() => removeWorktree(root, "main"), /main checkout/);
+
+    // Unmerged managed worktree.
+    const unmerged = createWorktree(root, "guard-unmerged", managedRoot);
+    fs.writeFileSync(path.join(unmerged.dir, "f.txt"), "f");
+    git(unmerged.dir, ["add", "."]);
+    git(unmerged.dir, ["commit", "-m", "f"]);
+    register({ kind: "worktree", path: unmerged.dir, branch: unmerged.branch }, root);
+    assert.throws(() => removeWorktree(root, "guard-unmerged"), /not merged into main/);
+
+    // Dirty managed worktree.
+    const dirty = makeMergedWorktree(root, managedRoot, "guard-dirty");
+    fs.writeFileSync(path.join(dirty.dir, "dirty.txt"), "x");
+    register({ kind: "worktree", path: dirty.dir, branch: dirty.branch }, root);
+    assert.throws(() => removeWorktree(root, "guard-dirty"), /uncommitted changes/);
+
+    // Non-wt branch under the managed root.
+    const sideDir = path.join(managedRoot, "guard-side");
+    git(root, ["branch", "guard-side-branch"]);
+    git(root, ["worktree", "add", sideDir, "guard-side-branch"]);
+    register({ kind: "worktree", path: sideDir, branch: "guard-side-branch" }, root);
+
+    // Registry entry outside the managed root.
+    register({ kind: "worktree", path: outsideDir, branch: "wt/outside" }, root);
+
+    const result = cleanup(root, { apply: true, managedRoot });
+    await flushTraces();
+    assert.equal(result.removed.length, 0, "no guarded target removed");
+    assert.ok(fs.existsSync(root), "main checkout intact");
+    assert.ok(fs.existsSync(unmerged.dir), "unmerged preserved");
+    assert.ok(fs.existsSync(dirty.dir), "dirty preserved");
+    assert.ok(fs.existsSync(sideDir), "non-wt preserved");
+    assert.ok(fs.existsSync(outsideDir), "outside-root preserved");
+    const reasons = result.refused.map((r) => r.reason).join("\n");
+    assert.match(reasons, /main checkout/);
+    assert.match(reasons, /not merged into main/);
+    assert.match(reasons, /dirty/);
+    assert.match(reasons, /branch does not match \^wt\//);
+    assert.match(reasons, /outside managed worktree root/);
+  } finally {
+    fs.rmSync(managedRoot, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

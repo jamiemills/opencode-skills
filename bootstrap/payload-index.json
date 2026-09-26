@@ -42,8 +42,8 @@
       },
       {
         "path": "payload/skills/csm-build/SKILL.md",
-        "sha256": "3960a8cf0071f86db89eae19ed71d6f26e58e13df061e24d11e4316975b1f0b8",
-        "bytes": 42843,
+        "sha256": "bd607abaf7e49e2f9dec339735d157894dffce0fd4f4a5589f1ad00167ad035f",
+        "bytes": 43511,
         "mode": "0644"
       },
       {
@@ -78,8 +78,8 @@
       },
       {
         "path": "payload/skills/csm-plan/SKILL.md",
-        "sha256": "ef5ba45b5a86776a2757d257dd6edcee4e65fb141badec87ab2229142458bbd6",
-        "bytes": 43310,
+        "sha256": "46194f2301808064d07532554bceb9017bcc7bf4bbe89b28685d83401d44acac",
+        "bytes": 43665,
         "mode": "0644"
       },
       {
@@ -90,8 +90,8 @@
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "4ccea9e3f0f302ec3b55c8eda06be796bc5ee3d913d1d510dbf68366cdba32c1",
-        "bytes": 50226,
+        "sha256": "7c12c3c236e8456a68d87ec5e07f4c4317d604023750cd06369ac78bb16eb145",
+        "bytes": 50896,
         "mode": "0644"
       },
       {
@@ -488,8 +488,8 @@
       },
       {
         "path": "payload/skills/csm-build/lib/loop-guard.mjs",
-        "sha256": "065cfc5e3a6ca284d97dea0479dfdb9dccd2a53001408069631034c61bd0b6fd",
-        "bytes": 11276,
+        "sha256": "30a0d1d38ab11bcb840067bcd639ab8fab14a8435c8ee0867f288802aaf44ca1",
+        "bytes": 13387,
         "mode": "0644"
       },
       {
@@ -770,7 +770,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "db30c80230f7ee042ef58d50d11ba96bfef3e4480d3c504fb8aac01de885b6f5",
+        "sha256": "149901380ef9c626c87fb32be16f8c587f49787e103566b8bd6a5b1a1c4df2ea",
         "bytes": 26280,
         "mode": "0644"
       },
@@ -1388,14 +1388,14 @@
       },
       {
         "path": "payload/skills/csm-plan/lib/loop-evaluator.mjs",
-        "sha256": "2bee9d00cb3b63dc53219df4c01f2a4d6ac126bd616f2f9efff3a4ae3e24f471",
-        "bytes": 14937,
+        "sha256": "088b348d0685a1dc88c03a58e5c693dc4fec959320391115cc3830ab93b30c70",
+        "bytes": 24795,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-plan/lib/plan.mjs",
-        "sha256": "ec0252538dc0b1ad10c03abb3cdcb9df658d3054ee45a7ddf4a91a3156dbe045",
-        "bytes": 28113,
+        "sha256": "b13f3ca0b4e710e590cb54ead2cc21eb5ea8e4b681f526a517aac0e671a5a51f",
+        "bytes": 30513,
         "mode": "0644"
       },
       {
@@ -1496,8 +1496,8 @@
       },
       {
         "path": "payload/skills/csm-review/lib/loop-closure.mjs",
-        "sha256": "2e9f2b45fd1b4a05b3b8026650bba7393bbfdb95f471ce53f50a003b7deb51ce",
-        "bytes": 10994,
+        "sha256": "12bb5a9869ee23406961744dea61d66ee39c576a8b7df94c3fd288ddd9dcb023",
+        "bytes": 12900,
         "mode": "0644"
       },
       {
@@ -2267,8 +2267,8 @@
       },
       {
         "path": "payload/lib/progress-tracker.mjs",
-        "sha256": "98f24c551f9ee43014725c98cdb63790e13e882abd62d7d6e62b697b4c8d8a75",
-        "bytes": 9765,
+        "sha256": "fd7ade1c206b362322fb768079629b677d4c015129c5c8e709e848b95facb80d",
+        "bytes": 18901,
         "mode": "0644"
       },
       {

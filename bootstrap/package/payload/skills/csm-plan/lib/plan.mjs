@@ -85,6 +85,58 @@ const APPLICABILITY_MODES = new Set(["risk-first", "explicit-opt-in", "lightweig
 const EVIDENCE_SOURCES = new Set(["brief", "plan", "repository", "ddd"]);
 const APPLICABILITY_DECISIONS = new Set(["lightweight", "warranted", "mixed"]);
 
+// Required obligations are derived only from the matched signals; this is the
+// single source of truth shared by validation and the closure rules so the two
+// cannot drift. Exported additively for the csm-plan closure loop.
+export function requiredApplicabilityObligations(applicability) {
+  const signals = applicability?.matchedSignals ?? [];
+  return [...new Set(signals.flatMap((signal) => APPLICABILITY_SIGNALS.get(signal) ?? []))];
+}
+
+// A completed plan must not retain `required`/`missing` obligations: the
+// applicability closure record is the durable receipt that every obligation was
+// resolved (satisfied or not_applicable) or that a recorded reason justified
+// closing them without DDD artifacts.
+const APPLICABILITY_CLOSURE_KEYS = new Set(["format", "closedAt", "reason", "spikeCandidates"]);
+
+function applicabilityClosureErrors(record) {
+  const closure = record.closure;
+  if (closure === undefined) return [];
+  const errors = [];
+  if (!closure || typeof closure !== "object" || Array.isArray(closure))
+    return ["/applicability/closure must be a csm-applicability-closure/1 object"];
+  for (const key of Object.keys(closure))
+    if (!APPLICABILITY_CLOSURE_KEYS.has(key))
+      errors.push(`/applicability/closure unknown key ${key}`);
+  if (closure.format !== "csm-applicability-closure/1")
+    errors.push("/applicability/closure format is invalid");
+  if (typeof closure.closedAt !== "string" || !closure.closedAt.trim())
+    errors.push("/applicability/closure closedAt must be a non-empty timestamp");
+  if (closure.reason !== null && (typeof closure.reason !== "string" || !closure.reason.trim()))
+    errors.push("/applicability/closure reason must be null or a non-empty string");
+  if (
+    closure.spikeCandidates !== undefined &&
+    (!Array.isArray(closure.spikeCandidates) ||
+      closure.spikeCandidates.some(
+        (entry) =>
+          !entry ||
+          typeof entry !== "object" ||
+          Array.isArray(entry) ||
+          typeof entry.taskId !== "string" ||
+          typeof entry.candidate !== "string" ||
+          !entry.candidate.trim(),
+      ))
+  )
+    errors.push("/applicability/closure spikeCandidates has an invalid shape");
+  if (
+    closure.reason === null &&
+    record.dddArtifacts?.length === 0 &&
+    record.decision !== "lightweight"
+  )
+    errors.push("/applicability/closure requires a reason when dddArtifacts is empty");
+  return errors;
+}
+
 function applicabilityErrors(value) {
   if (value?.applicability === null || value?.applicability === undefined) return [];
   const record = value.applicability;
@@ -101,6 +153,7 @@ function applicabilityErrors(value) {
     "unresolvedRisks",
     "bypass",
     "reclassificationHistory",
+    "closure",
   ]);
   if (!record || typeof record !== "object" || Array.isArray(record))
     return ["/applicability must be a csm-applicability/1 object"];
@@ -244,11 +297,8 @@ function applicabilityErrors(value) {
       ))
   )
     errors.push("/applicability reclassificationHistory has an invalid shape");
-  const required = [
-    ...new Set(
-      (record.matchedSignals ?? []).flatMap((signal) => APPLICABILITY_SIGNALS.get(signal) ?? []),
-    ),
-  ];
+  errors.push(...applicabilityClosureErrors(record));
+  const required = requiredApplicabilityObligations(record);
   if (["warranted", "mixed"].includes(record.decision)) {
     if (!record.obligations?.length) errors.push("warranted applicability requires obligations");
     for (const id of required)

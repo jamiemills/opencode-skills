@@ -24,7 +24,8 @@ Progress tracking is ON by default for every invocation. Create and maintain a
 versioned `csm-skill-progress/1` JSON record via `lib/progress-tracker.mjs` (update it only through `node lib/progress-tracker.mjs update <record> M<id>=<status>[:<fraction>]`, which derives `overallPercent` and normalizes statuses — never hand-edit the JSON); it supplements this skill's lifecycle,
 artifacts, permissions, receipts, and evidence and never replaces them.
 Declare 3–6 milestones before work begins, each with a positive weight; weights
-must total exactly 100%.
+must total exactly 100%. Prefer `milestonesFromExecutionGraph(plan)` over a
+boilerplate signature; declare explicitly only when the graph yields fewer than three.
 
 Render one overall horizontal bar and one horizontal milestone row as work advances:
 
@@ -360,6 +361,12 @@ transition. If a required obligation became missing or unverified, route to
 `REPAIR` or `BLOCKED` and do not checkpoint it as complete. Legacy and
 lightweight checkpoints retain the existing fields and flow.
 
+Finalize the progress record before a terminal transition: `lib/progress-tracker.mjs`
+is a pure library with no lifecycle concept, so this CHECKPOINT block is the
+enforcement site. Before `COMPLETE`, run `node lib/progress-tracker.mjs finalize <record>`
+(or `validateSessionFinalization`) and proceed only on `{ ok: true }` — terminal
+status, 100%, every milestone complete. `SELECT`/`REPAIR`/`BLOCKED`/`PAUSED` need no finalization.
+
 Then learn from the cycle before moving on. Scan the cycle's failures and review findings for systemic patterns rather than one-offs, and propagate what was learned forward:
 
 - add newly discovered requirements (lint rules, style constraints, environment quirks, interface gotchas) to the prompts and acceptance criteria of all remaining tasks;
@@ -370,7 +377,7 @@ Then learn from the cycle before moving on. Scan the cycle's failures and review
 
 Keep the working tree and plan recoverable. Do not use chat history as the only record of progress.
 
-If and only if the user explicitly authorizes a commit in the current invocation, commit the verified batch together with the updated plan before choosing the next transition. Verify the owned pathset before and after using `git commit --only -- <owned paths>`; never use a bare commit, include unrelated staged paths, or clear unrelated staged work. Never push unless explicitly requested. Without authorization, record the verified work as intentionally uncommitted and report that no commit was created, rather than implying a commit exists.
+If and only if the user explicitly authorizes a commit in the current invocation, commit the verified batch together with the updated plan before choosing the next transition. Verify the owned pathset before and after using `git commit --only -- <owned paths>`; never use a bare commit, include unrelated staged paths, or clear unrelated staged work. Run `make precommit` and proceed only on exit 0 before `git commit --only -- <owned paths>`. Never push unless explicitly requested. Without authorization, record the verified work as intentionally uncommitted and report that no commit was created, rather than implying a commit exists.
 
 Then run the mandatory per-cycle evaluator and deterministic completion guard
 below, then immediately choose:

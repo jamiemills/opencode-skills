@@ -10,12 +10,26 @@
 // Usage:
 //   node scripts/wt-session.mjs create <goal-slug> [--dir <base>] [--root <repo>]
 //       Creates the worktree and installs locked root/skill tooling by default.
-//       Use --no-setup for a Git-only worktree.
+//       Use --no-setup for a Git-only worktree. Before creating, it auto-sweeps
+//       stale managed resources with the same fail-closed policy as `cleanup`
+//       (never --force; refusals are reported, never guessed).
 //   node scripts/wt-session.mjs list [--root <repo>]
-//   node scripts/wt-session.mjs merge <goal-slug> [--push] [--root <repo>]
+//   node scripts/wt-session.mjs merge <goal-slug> [--push] [--reconcile] [--root <repo>]
+//       Merges only when the main checkout has no uncommitted changes to the
+//       paths the ff-only merge would update (fail-closed by default). The
+//       explicit --reconcile opt-in instead stashes tracked foreign edits to a
+//       named stash, merges, and restores them after the check-only post-merge
+//       verification; untracked collisions always refuse (never auto-stashed).
 //   node scripts/wt-session.mjs nuke <goal-slug> [--force] [--root <repo>]
 //   node scripts/wt-session.mjs prune [--force] [--root <repo>]
 //   node scripts/wt-session.mjs cleanup [--apply] [--root <repo>]
+//   node scripts/wt-session.mjs leftover [--strict] [--root <repo>]
+//
+// `leftover` is READ-ONLY: it REPORTS (never deletes) managed wt/<slug>
+// worktrees still registered under the managed root and local wt/* branches
+// that are fully merged into main and checked out nowhere. It is warn-only by
+// default (exit 0); `--strict` is the sole opt-in that exits non-zero. The
+// managed root can be overridden for tests with `--managed-root <dir>`.
 //
 // `cleanup` is registry-driven and DRY-RUN by default: with no `--apply` it
 // deletes nothing and prints what it would remove. It removes only a registered
@@ -125,6 +139,16 @@ function git(repoRoot, args) {
   }).trim();
 }
 
+// Untrimmed git output. `git status --porcelain` uses a fixed two-column XY
+// code whose leading space is significant (" M" staged clean vs "M " staged),
+// so trimming (as git() does) shifts every column and corrupts path parsing.
+function gitRaw(repoRoot, args) {
+  return execFileSync("git", ["-C", repoRoot, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 function gitOk(repoRoot, args) {
   try {
     git(repoRoot, args);
@@ -140,20 +164,26 @@ function parseArgs(argv) {
     slug: null,
     dir: null,
     root: null,
+    managedRoot: null,
     push: false,
     force: false,
     setup: true,
     apply: false,
+    strict: false,
+    reconcile: false,
   };
   const rest = [];
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--dir") args.dir = argv[++i];
     else if (a === "--root") args.root = argv[++i];
+    else if (a === "--managed-root") args.managedRoot = argv[++i];
     else if (a === "--push") args.push = true;
     else if (a === "--force") args.force = true;
     else if (a === "--apply") args.apply = true;
     else if (a === "--dry-run") args.apply = false;
+    else if (a === "--strict") args.strict = true;
+    else if (a === "--reconcile") args.reconcile = true;
     else if (a === "--no-setup") args.setup = false;
     else rest.push(a);
   }
@@ -321,7 +351,99 @@ function verifyMergedMain(root) {
   return { verified: true };
 }
 
-export function mergeWorktree(root, slug, { push = false } = {}) {
+// --- T010: clean-main merge precondition -----------------------------------
+// The dirty-main / --no-verify failure mode: a worktree merge ran into a main
+// checkout still holding another session's uncommitted edits, and the foreign
+// changes rode into the merge/commit behind a `--no-verify` bypass. Before the
+// ff-only merge we collect (1) the paths that merge would update in main and
+// (2) every path dirty in the main working tree — tracked index+worktree AND
+// untracked, so a new file the merge would overwrite is caught too. When the
+// two sets intersect the DEFAULT is fail-closed refusal (commit/stash first);
+// `--reconcile` is the explicit opt-in to the non-destructive stash pattern for
+// tracked foreign edits only (untracked collisions always refuse). The S6 guard
+// still runs before this, and the post-merge verification is unchanged.
+function parsePorcelainPaths(porcelain, { onlyUntracked = false } = {}) {
+  const paths = new Set();
+  for (const line of porcelain.split("\n")) {
+    if (line.trim() === "") continue;
+    const code = line.slice(0, 2);
+    if (onlyUntracked !== (code === "??")) continue;
+    let p = line.slice(3);
+    const arrow = p.indexOf(" -> ");
+    if (arrow !== -1) p = p.slice(arrow + 4);
+    if (p.startsWith('"') && p.endsWith('"')) {
+      try {
+        p = JSON.parse(p);
+      } catch {
+        p = p.slice(1, -1);
+      }
+    }
+    paths.add(p);
+  }
+  return paths;
+}
+
+function mainUpdatePaths(root, branch) {
+  return new Set(
+    git(root, ["diff", "--name-only", "--no-renames", "main", branch])
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean),
+  );
+}
+
+// Refuse, or (with `reconcile`) stash the tracked foreign edits, when the main
+// checkout has uncommitted changes to paths the merge would update. Returns the
+// named stash message when a reconcile stash was created, else null.
+function guardDirtyMain(root, slug, branch, { reconcile = false } = {}) {
+  const updatePaths = mainUpdatePaths(root, branch);
+  if (updatePaths.size === 0) return null;
+  const porcelain = gitRaw(root, ["status", "--porcelain"]);
+  const trackedDirty = parsePorcelainPaths(porcelain);
+  const untrackedDirty = parsePorcelainPaths(porcelain, { onlyUntracked: true });
+  const conflicts = [...trackedDirty, ...untrackedDirty].filter((p) => updatePaths.has(p));
+  if (conflicts.length === 0) return null;
+  const untracked = conflicts.filter((p) => untrackedDirty.has(p));
+  const trackedConflicts = conflicts.filter((p) => !untrackedDirty.has(p));
+  if (!reconcile)
+    throw new Error(
+      `main checkout is dirty for paths this merge would update (${conflicts.join(", ")}) — ` +
+        `commit or stash them, then retry; or re-run with --reconcile to stash tracked foreign edits to a named stash and restore them after the merge`,
+    );
+  if (untracked.length > 0)
+    throw new Error(
+      `--reconcile refusing: untracked path(s) in main would be overwritten (${untracked.join(", ")}) — move them aside first (untracked files are never auto-stashed)`,
+    );
+  const stashMsg = `wt-session reconcile ${slug} ${new Date().toISOString()}`;
+  git(root, ["stash", "push", "-m", stashMsg, "--", ...trackedConflicts]);
+  console.error(
+    `reconcile: stashed foreign tracked edits to "${stashMsg}" (${trackedConflicts.join(", ")}); re-applied after the merge (a conflicting re-apply preserves the named stash)`,
+  );
+  return { stashMsg, paths: trackedConflicts };
+}
+
+// Best-effort, non-destructive restore of a reconcile stash after the merge.
+// A clean pop drops the stash; a conflicting pop leaves the named stash intact
+// (git keeps it) and we reset ONLY the conflicting paths back to the merged
+// state so the tree is clean and the operator can `git stash pop` manually.
+function restoreReconcileStash(root, reconcileStash) {
+  if (!reconcileStash) return;
+  try {
+    git(root, ["stash", "pop"]);
+    console.log(`reconcile: restored foreign edits from "${reconcileStash.stashMsg}"`);
+  } catch {
+    try {
+      git(root, ["checkout", "-f", "HEAD", "--", ...reconcileStash.paths]);
+    } catch {
+      /* best effort — the named stash is preserved either way */
+    }
+    console.error(
+      `reconcile: could not re-apply foreign edits from "${reconcileStash.stashMsg}" (conflict) — the named stash is preserved; resolve with: git stash pop`,
+    );
+  }
+}
+
+export function mergeWorktree(root, slug, { push = false, reconcile = false } = {}) {
   const branch = `wt/${slug}`;
   if (!gitOk(root, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])) {
     throw new Error(`branch ${branch} does not exist — nothing to merge`);
@@ -366,34 +488,80 @@ export function mergeWorktree(root, slug, { push = false } = {}) {
     throw new Error(
       `merge guard (S6): both main and ${branch} changed ${S6_GUARD_PATHS_HELP} since ${mb} — refusing to merge (serialize-by-abort). Resolve in the worktree, then retry: git rebase ${base}, regenerate pack + capabilities + README matrix (node scripts/pack-bootstrap.mjs), commit`,
     );
+  // T010 clean-main precondition — BEFORE the rebase (zero mutation on refusal):
+  // refuse a merge whose updated paths collide with uncommitted main edits, or
+  // stash those tracked edits behind the explicit --reconcile opt-in.
+  let reconcileStash = guardDirtyMain(root, slug, branch, { reconcile });
   try {
-    git(wt, ["rebase", base]);
-  } catch (err) {
     try {
-      git(wt, ["rebase", "--abort"]);
-      console.error("rebase failed and was aborted — worktree restored to its pre-rebase state");
-    } catch {
-      console.error(
-        "rebase failed; automatic abort failed — run: git -C <worktree> rebase --abort",
-      );
+      git(wt, ["rebase", base]);
+    } catch (err) {
+      try {
+        git(wt, ["rebase", "--abort"]);
+        console.error("rebase failed and was aborted — worktree restored to its pre-rebase state");
+      } catch {
+        console.error(
+          "rebase failed; automatic abort failed — run: git -C <worktree> rebase --abort",
+        );
+      }
+      throw err;
     }
+    const preMergeMain = git(root, ["rev-parse", "refs/heads/main"]);
+    git(root, ["merge", "--ff-only", branch]);
+    const postMergeMain = git(root, ["rev-parse", "refs/heads/main"]);
+    // S6 post-merge step: skill-source/generated merges get a CHECK-ONLY
+    // verification in the main checkout (never a repairing pack write — R7).
+    if (
+      postMergeMain !== preMergeMain &&
+      gitDiffDirty(root, preMergeMain, postMergeMain, S6_GUARD_PATHS)
+    )
+      verifyMergedMain(root);
+  } catch (err) {
+    // Never strand a reconcile stash on a failed rebase/merge: put the foreign
+    // edits back before propagating the error.
+    restoreReconcileStash(root, reconcileStash);
+    reconcileStash = null;
     throw err;
   }
-  const preMergeMain = git(root, ["rev-parse", "refs/heads/main"]);
-  git(root, ["merge", "--ff-only", branch]);
-  const postMergeMain = git(root, ["rev-parse", "refs/heads/main"]);
-  // S6 post-merge step: skill-source/generated merges get a CHECK-ONLY
-  // verification in the main checkout (never a repairing pack write — R7).
-  if (
-    postMergeMain !== preMergeMain &&
-    gitDiffDirty(root, preMergeMain, postMergeMain, S6_GUARD_PATHS)
-  )
-    verifyMergedMain(root);
+  // T010: restore any stashed foreign tracked edits AFTER the check-only
+  // verification (so it still ran against a clean tree), never losing them.
+  restoreReconcileStash(root, reconcileStash);
   if (push) {
     if (!hasRemote) throw new Error("no origin remote — cannot push");
     git(root, ["push", "origin", "main"]);
   }
   return { dir: wt, branch, pushed: push && hasRemote };
+}
+
+// --- T008: safe branch reaping ---------------------------------------------
+// A branch is "fully merged" when every commit it points at is reachable from
+// main (`git merge-base --is-ancestor`). This is stricter than `git branch
+// --merged` (which wrongly treats any ancestor as merged) and is the exact
+// safety property nuke needs before deleting the branch.
+function isBranchMergedIntoMain(root, branch) {
+  return gitOk(root, ["merge-base", "--is-ancestor", `refs/heads/${branch}`, "main"]);
+}
+
+// True when any registered worktree currently has `branch` checked out. A nuke
+// must never delete a branch that is live in another worktree.
+function isBranchCheckedOut(root, branch) {
+  const ref = `refs/heads/${branch}`;
+  return worktreeRecords(root).some((r) => !r.detached && r.branch === ref);
+}
+
+// Delete a branch without ever forcing an unverified path: `git branch -d`
+// (safe delete) unless the caller explicitly forced. Failures are reported and
+// never fatal so a partial nuke stays recoverable (rerun nuke).
+function deleteBranch(root, branch, { force = false } = {}) {
+  try {
+    git(root, ["branch", force ? "-D" : "-d", branch]);
+    return true;
+  } catch (err) {
+    console.error(
+      `warning: branch ${branch} kept (${String(err.message).split("\n")[0]}) — rerun nuke`,
+    );
+    return false;
+  }
 }
 
 export function removeWorktree(root, slug, { force = false } = {}) {
@@ -416,14 +584,14 @@ export function removeWorktree(root, slug, { force = false } = {}) {
     if (gitOk(root, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])) {
       // Same unmerged-protection as the worktree path: a branch holding
       // commits absent from main must not die via the recovery path.
-      const tip = git(root, ["rev-parse", `refs/heads/${branch}`]);
-      const merged = tip === git(root, ["rev-parse", "refs/heads/main"]);
-      if (!merged && !force)
+      if (!isBranchMergedIntoMain(root, branch) && !force)
         throw new Error(
           `branch ${branch} is not merged into main — merge it first or pass --force`,
         );
-      git(root, ["branch", "-D", branch]);
-      return { dir: null, branch };
+      if (isBranchCheckedOut(root, branch))
+        throw new Error(`branch ${branch} is checked out in another worktree — refusing to delete`);
+      const branchDeleted = deleteBranch(root, branch, { force });
+      return { dir: null, branch, branchDeleted };
     }
     throw new Error(`no worktree for ${slug} found`);
   }
@@ -434,35 +602,38 @@ export function removeWorktree(root, slug, { force = false } = {}) {
     status = git(root, ["-C", entry.dir, "status", "--porcelain"]);
   } else {
     // Registration exists but the directory is gone (pruned manually):
-    // clean up the stale registration so `worktree remove` can proceed.
+    // clean up the stale registration so `worktree remove` can proceed, then
+    // reap a merged, unchecked-out branch if one survives.
     git(root, ["worktree", "prune"]);
-    return { dir: entry.dir, branch, pruned: true };
+    let branchDeleted = false;
+    if (
+      isBranchMergedIntoMain(root, branch) &&
+      !isBranchCheckedOut(root, branch) &&
+      gitOk(root, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])
+    )
+      branchDeleted = deleteBranch(root, branch, { force });
+    return { dir: entry.dir, branch, pruned: true, branchDeleted };
   }
   if (status !== "" && !force)
     throw new Error(`worktree ${entry.dir} has uncommitted changes — commit/stash or pass --force`);
-  // Merged means tip-equal to main: the helper always merges ff-only, so after
-  // a merge the branch tip IS main's tip. A branch created from main with no
-  // new commits is also tip-equal — trivially merged, nothing to lose — so the
-  // guard only protects branches that actually contain commits not in main
-  // (--merged alone would wrongly consider ancestors merged, so compare tips).
-  const branchTip = gitOk(root, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`])
-    ? git(root, ["rev-parse", `refs/heads/${branch}`])
-    : null;
-  const merged = branchTip !== null && branchTip === git(root, ["rev-parse", "refs/heads/main"]);
-  if (!merged && !force)
+  // Fully merged (ancestor-of-main) guard. The helper always merges ff-only, so
+  // a merged branch is an ancestor of main; a branch with commits main lacks is
+  // refused unless --force.
+  if (!isBranchMergedIntoMain(root, branch) && !force)
     throw new Error(`branch ${branch} is not merged into main — merge it first or pass --force`);
   git(root, ["worktree", "remove", ...(force ? ["--force"] : []), entry.dir]);
-  // Branch second (git refuses to delete a checked-out branch). If this step
-  // fails, the state is recoverable: rerunning nuke takes the branch-only
-  // cleanup path above instead of dying on 'no worktree found'.
+  // Branch second (git refuses to delete a checked-out branch). Never delete a
+  // branch live in another worktree; if deletion fails the state is recoverable
+  // (rerunning nuke takes the branch-only path above).
+  let branchDeleted = false;
   if (gitOk(root, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])) {
-    try {
-      git(root, ["branch", "-D", branch]);
-    } catch (err) {
-      console.error(`warning: branch ${branch} kept (${err.message.split("\n")[0]}) — rerun nuke`);
+    if (isBranchCheckedOut(root, branch)) {
+      console.error(`warning: branch ${branch} is checked out in another worktree — kept`);
+    } else {
+      branchDeleted = deleteBranch(root, branch, { force });
     }
   }
-  return { dir: entry.dir, branch };
+  return { dir: entry.dir, branch, branchDeleted };
 }
 
 // F8-12: reap foreign/stale worktree registrations. The Aug-20 history purge
@@ -691,15 +862,101 @@ export function cleanup(root, { apply = false, managedRoot = MANAGED_WORKTREE_RO
   return { apply, removed, refused, tolerated };
 }
 
+// T008: `create` auto-sweeps stale managed resources before allocating a new
+// worktree. This is EXACTLY `cleanup --apply` (never --force): the same
+// fail-closed policy, registry-driven, so every existing refusal is preserved.
+export function sweepStaleResources(root, { managedRoot = MANAGED_WORKTREE_ROOT } = {}) {
+  return cleanup(root, { apply: true, managedRoot });
+}
+
+// T008: READ-ONLY leftover check. Reports, and never deletes:
+//   - managed wt/<slug> worktrees still registered strictly under managedRoot,
+//     excluding the active session's own worktree (the one containing the cwd);
+//   - local wt/* branches fully merged into main and checked out nowhere.
+// It runs only git read commands and fs existence probes; the caller decides
+// whether a non-empty report is fatal (warn-only by default).
+export function detectLeftovers(root, { managedRoot = MANAGED_WORKTREE_ROOT } = {}) {
+  const mRoot = path.resolve(managedRoot);
+  const mainRoot = path.resolve(root);
+  const cwd = path.resolve(process.cwd());
+  const containsCwd = (dir) => {
+    const resolved = path.resolve(dir);
+    return cwd === resolved || cwd.startsWith(resolved + path.sep);
+  };
+  const worktrees = [];
+  const checkedOut = new Set();
+  for (const record of worktreeRecords(root)) {
+    if (!record.detached && typeof record.branch === "string") {
+      checkedOut.add(
+        record.branch.startsWith("refs/heads/")
+          ? record.branch.slice("refs/heads/".length)
+          : record.branch,
+      );
+    }
+    if (record.detached) continue;
+    if (typeof record.branch !== "string" || !record.branch.startsWith("refs/heads/wt/")) continue;
+    if (!isDirUnder(record.dir, mRoot)) continue;
+    if (containsCwd(record.dir)) continue;
+    worktrees.push({
+      path: path.resolve(record.dir),
+      branch: record.branch.slice("refs/heads/".length),
+    });
+  }
+  const branches = [];
+  let refs = [];
+  try {
+    refs = git(root, ["for-each-ref", "--format=%(refname:short)", "refs/heads/wt"])
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    refs = [];
+  }
+  for (const branch of refs) {
+    if (checkedOut.has(branch)) continue;
+    if (!isBranchMergedIntoMain(root, branch)) continue;
+    branches.push({ branch, merged: true });
+  }
+  return { root: mainRoot, managedRoot: mRoot, worktrees, branches };
+}
+
+// Human-readable, read-only leftover report (never a mutation).
+export function formatLeftovers(report) {
+  const { worktrees = [], branches = [] } = report;
+  if (worktrees.length === 0 && branches.length === 0)
+    return ["leftover check: none (no managed worktrees or merged wt/ branches remain)"];
+  const lines = [
+    `WARN leftover check: ${worktrees.length} managed worktree(s) and ${branches.length} merged branch(es) remain`,
+  ];
+  for (const w of worktrees)
+    lines.push(`  leftover worktree: ${w.path} (${w.branch}) (may be active)`);
+  for (const b of branches) lines.push(`  leftover merged branch: ${b.branch}`);
+  lines.push(
+    "leftover check: read-only — nothing was deleted; reap with `wt-session nuke`/`cleanup --apply`",
+  );
+  return lines;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   try {
     // F6.3: resolveRoot runs git, so it must sit inside the try/catch — a
     // non-git cwd must not produce an unhandled rejection and skip the flush.
     const root = resolveRoot(args.root);
+    const managedRoot = args.managedRoot ? path.resolve(args.managedRoot) : MANAGED_WORKTREE_ROOT;
     if (args.action === "create") {
       if (!args.slug || !SLUG_RE.test(args.slug))
         throw new Error("usage: wt-session create <goal-slug> (lowercase, hyphens)");
+      // Auto-sweep stale managed resources before allocating the new worktree.
+      // Sweep failures are advisory: never block creating the goal worktree.
+      try {
+        const swept = sweepStaleResources(root, { managedRoot });
+        for (const r of swept.removed) console.log(`swept stale ${r.kind} ${r.path}`);
+        for (const r of swept.refused)
+          console.log(`sweep skipped ${r.kind} ${r.path}: ${r.reason}`);
+      } catch (err) {
+        console.error(`warning: stale-resource sweep failed (${err.message}) — continuing`);
+      }
       const { dir, branch } = createWorktree(root, args.slug, worktreeBase(root, args.dir));
       registerTemp({ kind: "worktree", path: dir, branch, runId: RUN_ID }, root);
       appendSessionTrace(
@@ -720,8 +977,11 @@ async function main() {
     } else if (args.action === "list") {
       console.log(listWorktrees(root));
     } else if (args.action === "merge") {
-      if (!args.slug) throw new Error("usage: wt-session merge <goal-slug> [--push]");
-      const { dir, branch, pushed } = mergeWorktree(root, args.slug, { push: args.push });
+      if (!args.slug) throw new Error("usage: wt-session merge <goal-slug> [--push] [--reconcile]");
+      const { dir, branch, pushed } = mergeWorktree(root, args.slug, {
+        push: args.push,
+        reconcile: args.reconcile,
+      });
       // F3.1: merging must NOT unregister the worktree — it still exists on
       // disk. Keeping the registry entry lets `cleanup` reap the merged-but-
       // present worktree and preserves interruption safety.
@@ -748,7 +1008,9 @@ async function main() {
         console.log("nothing to prune");
     } else if (args.action === "nuke") {
       if (!args.slug) throw new Error("usage: wt-session nuke <goal-slug> [--force]");
-      const { dir, branch, pruned } = removeWorktree(root, args.slug, { force: args.force });
+      const { dir, branch, pruned, branchDeleted } = removeWorktree(root, args.slug, {
+        force: args.force,
+      });
       unregisterTemp(dir || path.join(worktreeBase(root, args.dir), args.slug), root);
       appendSessionTrace(
         root,
@@ -758,9 +1020,9 @@ async function main() {
         pruned ? "pruned" : "removed",
       );
       console.log(pruned ? `pruned stale worktree registration ${dir}` : `removed worktree ${dir}`);
-      console.log(`deleted branch ${branch}`);
+      console.log(branchDeleted ? `deleted branch ${branch}` : `branch ${branch} kept`);
     } else if (args.action === "cleanup") {
-      const result = cleanup(root, { apply: args.apply });
+      const result = cleanup(root, { apply: args.apply, managedRoot });
       for (const r of result.removed)
         console.log(`${args.apply ? "removed" : "would remove"} ${r.kind} ${r.path}`);
       for (const r of result.tolerated)
@@ -777,9 +1039,13 @@ async function main() {
         console.log("nothing to clean");
       if (!args.apply && result.removed.length > 0)
         console.log("dry run: re-run with --apply to remove");
+    } else if (args.action === "leftover") {
+      const report = detectLeftovers(root, { managedRoot });
+      for (const line of formatLeftovers(report)) console.log(line);
+      if (args.strict && report.worktrees.length + report.branches.length > 0) process.exitCode = 1;
     } else {
       throw new Error(
-        `usage: wt-session <create|list|merge|nuke|prune|cleanup> [args] (see header for details)`,
+        `usage: wt-session <create|list|merge|nuke|prune|cleanup|leftover> [args] (see header for details)`,
       );
     }
   } catch (err) {

@@ -15,17 +15,26 @@
 // `wt/<slug>` worktree (one goal per worktree), never swept into the shared
 // checkout. See AGENTS.md -> Parallel sessions and docs/worktree-hygiene.md.
 //
+// It additionally reports (READ-ONLY) managed `wt/<slug>` worktrees and fully
+// merged `wt/*` branches left over after a session; that report is also
+// warn-only and `--strict` is the sole opt-in that makes it non-zero. The
+// leftover probe is delegated to scripts/wt-session.mjs's read-only
+// detectLeftovers/formatLeftovers and never deletes anything.
+//
 // Usage:
 //   node scripts/check-checkout-hygiene.mjs [--root <repo>] [--strict] [--quiet]
+//       [--managed-root <dir>]
 //
 // Exit: 0 by default (warn only); 1 only with --strict when at least one
-//       uncommitted path is present; 2 on usage or git failure.
+//       uncommitted path (or leftover resource) is present; 2 on usage or git
+//       failure.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { detectLeftovers, formatLeftovers } from "./wt-session.mjs";
 
 function gitText(rootDir, args) {
   const r = spawnSync("git", args, { cwd: rootDir, encoding: "utf8" });
@@ -102,10 +111,11 @@ export function formatCheckoutHygiene(rootDir, report) {
 }
 
 function parseArgs(argv) {
-  const args = { root: process.cwd(), strict: false, quiet: false };
+  const args = { root: process.cwd(), strict: false, quiet: false, managedRoot: null };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--root") args.root = path.resolve(argv[++i]);
+    else if (a === "--managed-root") args.managedRoot = path.resolve(argv[++i]);
     else if (a === "--strict") args.strict = true;
     else if (a === "--quiet") args.quiet = true;
     else throw new Error(`unknown argument: ${a}`);
@@ -117,7 +127,23 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const report = detectCheckoutHygiene(args.root);
   if (!args.quiet) for (const line of formatCheckoutHygiene(args.root, report)) console.log(line);
-  if (args.strict && report.available && report.tracked.length + report.untracked.length > 0) {
+  // Read-only leftover report (T008): warns by default, opt-in --strict. Never
+  // fatal on a probe failure — hygiene advice must not break the caller.
+  let leftoverCount = 0;
+  try {
+    const leftover = detectLeftovers(
+      args.root,
+      args.managedRoot ? { managedRoot: args.managedRoot } : {},
+    );
+    leftoverCount = leftover.worktrees.length + leftover.branches.length;
+    if (!args.quiet) for (const line of formatLeftovers(leftover)) console.log(line);
+  } catch (error) {
+    if (!args.quiet) console.log(`leftover check: skipped (${error.message})`);
+  }
+  if (
+    args.strict &&
+    ((report.available && report.tracked.length + report.untracked.length > 0) || leftoverCount > 0)
+  ) {
     process.exit(1);
   }
 }

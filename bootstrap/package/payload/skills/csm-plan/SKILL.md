@@ -227,6 +227,7 @@ After `CHECKPOINT`, that future session transitions to `SELECT` for another cycl
 2. Partition independent findings and investigate them concurrently with the same evidence and safety requirements as `RESEARCH`.
 3. Reconcile the remediation output and update the draft. Record how every critique finding was resolved, disproved, deferred, or converted into an explicit blocker.
 4. Return to `CRITIQUE` or `RESEARCH` if remediation materially changes the design or exposes new uncertainty.
+5. When a remediation resolves a critique finding against a task, persist it with `recordRepair(plan, { taskId, finding, severity, resolution, evidence })` (`lib/loop-evaluator.mjs`) so `repairAttempts` and `critiqueResolution` are written, never left write-only.
 
 ### 7. VERIFY
 
@@ -255,7 +256,7 @@ Save the final plan under `.agents/plans/<date>-<goal-slug>-csm.json` at the rep
 
 Saving a plan is not a terminal closure. At SAVED every implementation task remains `pending` and the plan status is `ready`, so the loop guard correctly reports work remaining for the future execution loop — do not mark the plan `complete` here. csm-plan terminalizes a plan only through `closePlan` (which requires a passing evaluator receipt and no outstanding tasks) or `supersedePlanArtifact` when a successor is created.
 
-Commit only when the user explicitly authorizes it in the current invocation; otherwise do not invoke Git commit. When authorized, verify the owned pathset is exactly the new plan file and use `git commit --only -- <plan path>` with no bare `git commit`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
+Commit only when the user explicitly authorizes it in the current invocation; otherwise do not invoke Git commit. When authorized, verify the owned pathset is exactly the new plan file and use `git commit --only -- <plan path>` with no bare `git commit`; verify the resulting commit contains no unrelated staged path and leave unrelated staged work untouched. Run `make precommit` and proceed only on exit 0 before `git commit --only -- <plan path>`. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
 
 In the final response, scale the display to the ask: small/quick runs finish with a summary, the saved path, and evidence highlights; large runs display the complete final plan, not only a summary or path. Also report the saved path, the commit hash or the reason the commit was skipped, the plan's `ready` or `blocked` status, and any user decisions still required. Explicitly state that implementation was not started. Then stop; do not invoke another skill or execute the first transition.
 

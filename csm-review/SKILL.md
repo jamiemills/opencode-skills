@@ -311,6 +311,10 @@ This enforcement adds no acceptance authority: the evaluator and guard constrain
 
 Dimension rows group for finder assignment: quality (1–4), security (5–7, 9, 11), concurrency (8), resilience (10), tests (12–14), supply chain (15–16), operations (17–18).
 
+### No-Mock-Only Rule (dimensions 12–14)
+
+Any adapter, transport, provider, or durable writer MUST have at least one live or contract-fixture test that exercises the real wire/disk shape — the actual serialized bytes, request/response payloads, or on-disk format that path produces, not a substituted double. A mock-only test for such a path is a **defect finding** under test quality/test-type adequacy (dimensions 13–14): it asserts the mock's assumptions, so the real integration can break while the suite stays green. Record the test file at the pinned SHA and show that the live/durable path is reached only through a mock or stub as the finding's citation.
+
 ## Finding Record
 
 The authoritative producer payload is `csm-review/schemas/csm-review-findings.schema.json` (`csm-review-findings/1`, byte-frozen history) and the additive `csm-review/schemas/csm-review-findings.v2.schema.json` (`csm-review-findings/2`, the current revision); the descriptor is `csm-review/producer.json`. Emit JSON before any projection. Stable IDs, severity, confidence, evidence class, locations, challenges, dissents, status, closure, verification status, redaction result, and `sortKey` are data fields, not Markdown conventions. A terminal artifact is immutable and a path collision is rejected unless the run owner matches and the artifact is non-terminal.
