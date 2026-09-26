@@ -22,6 +22,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import "./helpers/trace-isolation.mjs";
+
 const exec = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const driverPath = join(repoRoot, "scripts", "run-orchestrator.mjs");

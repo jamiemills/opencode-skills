@@ -146,3 +146,23 @@ registry entries whose path no longer exists.
 - `tests/trace-config.test.mjs` — configured/default path resolution and precedence.
 - `tests/wt-session-cleanup.test.mjs` — dry-run, eligible removal, refusal safety.
 - `tests/utc-timestamps.test.mjs` — UTC timestamps across logs and journals.
+
+## Enforcement and verification
+
+Trace emission is gated at orchestrator completion (an audit-emission gate; it
+never mutates the run receipt or adds acceptance authority):
+
+- **Policy** — `node scripts/trace.mjs ...` writes one record; the gate decides
+  whether a missing record is a failure. Values: `off` (never), `auto` (fail only
+  when the run scheduled tracing but produced none; default), `required` (fail on
+  any untraced run). Precedence: `--require-trace` / `--no-require-trace` >
+  `CSM_TRACE_ENFORCE` > default `auto`. A repo-controlled config file can never
+  force enforcement off — only the host flag/env can.
+- **Verifier** — `node scripts/verify-traces.mjs --run-id <id> [--file <path>]`
+  resolves the same log path the writer used, scans it, and exits `0` (ok), `2`
+  (not-ok), or `1` (usage/read error). The gate's own `trace-verification-failed`
+  audit is excluded from matching, so recording a failure cannot satisfy the
+  invariant.
+- **Jev (optional)** — when the decision adapter is opted in, the advisory
+  `trace-emission-verdict` point may annotate the deterministic result (persisted
+  as a `trace-emission-advisory` decision trace). It never changes the exit code.

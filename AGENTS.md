@@ -44,6 +44,13 @@
   `node scripts/trace.mjs action --actor <a> --action <name> --target <t>
 --justification <j> --outcome <o>` (or `make trace ARGS="..."`) — this is the
   command to use when a skill step must leave a trace.
+- Trace emission is enforced at orchestrator completion: with policy `required`
+  (or `auto` when the run scheduled tracing) a run that produced no trace exits
+  non-zero. Check a run with `node scripts/verify-traces.mjs --run-id <id>`.
+  Policy precedence is `--require-trace`/`--no-require-trace` > `CSM_TRACE_ENFORCE`
+  (`off|auto|required`) > default `auto`; a repo config file cannot force it off.
+  When Jev is opted in it may add an advisory trace-emission verdict, which never
+  affects the outcome.
 - All durable timestamps are ISO-8601 UTC ending in `Z` (`scripts/lib/utc.mjs`).
 - At the end of a session, run `node scripts/wt-session.mjs cleanup --dry-run`
   then `cleanup --apply` to remove managed worktrees and allowlisted temp dirs.

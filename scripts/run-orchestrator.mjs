@@ -63,6 +63,9 @@ import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 import { persistAdapterDecisions } from "../csm-orchestrate/lib/decision-adapter/artifact.mjs";
 import { createTraceLifecycleHooks } from "../csm-orchestrate/lib/trace-hooks.mjs";
 import { appendTrace, recordDecision } from "./lib/trace-log.mjs";
+import { resolveTracePolicy, evaluateTraceGate } from "./lib/trace-enforcement.mjs";
+import { resolveVerificationPath, verifyTraces } from "./verify-traces.mjs";
+import { createConsultSeam } from "../csm-orchestrate/lib/decision-adapter/consult.mjs";
 import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
 import {
   explicitModeSkills,
@@ -85,6 +88,39 @@ const args = process.argv.slice(2);
 function argValue(flag) {
   const index = args.indexOf(flag);
   return index === -1 ? undefined : args[index + 1];
+}
+
+// T003: explicit host-side trace-enforcement flag. A repo-controlled config
+// file can never force enforcement off; only this flag / CSM_TRACE_ENFORCE can.
+function tracePolicyFlag() {
+  if (args.includes("--require-trace")) return "required";
+  if (args.includes("--no-require-trace")) return "off";
+  return null;
+}
+
+// T003: audit-emission gate. It never mutates the run receipt and never gates on
+// Jev; it reports whether the run's trace is missing under the resolved policy.
+export async function enforceTraceGate({ traceFile, runId, scheduled, actor = "csm-orchestrate" }) {
+  const policy = resolveTracePolicy({ flag: tracePolicyFlag(), env: process.env });
+  const matched = verifyTraces({ file: traceFile, runId }).matched;
+  const gate = evaluateTraceGate({ policy, scheduled, matched });
+  if (gate.ok) return gate;
+  try {
+    await recordDecision(
+      {
+        runId,
+        actor,
+        action: "trace-verification-failed",
+        target: traceFile,
+        justification: `policy ${policy}`,
+        outcome: gate.reason,
+      },
+      { file: traceFile },
+    );
+  } catch {
+    console.error(`trace-verification-failed: ${gate.reason} (${traceFile})`);
+  }
+  return gate;
 }
 
 // Intake binds the input flag to the artifact's schema marker so a --approach
@@ -633,8 +669,31 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
   // no real runId, or no applied record writes nothing.
   if (decisionAdapter) await persistAdapterDecisions({ adapter: decisionAdapter, runId });
   await writeFile(join(evidenceDir, "bypass-result.json"), `${JSON.stringify(result, null, 2)}\n`);
+  // T003: the bypass path schedules one deterministic run trace and is gated on
+  // it, so a run that fails to emit still fails closed.
+  const traceFile = await resolveVerificationPath({ root: process.cwd(), env: process.env });
+  try {
+    await appendTrace(
+      {
+        runId,
+        actor: "csm-build",
+        action: "bypass-run",
+        target: kind,
+        justification: "deterministic bypass handoff",
+        outcome: String(result.status),
+      },
+      { file: traceFile },
+    );
+  } catch {
+    /* best-effort */
+  }
+  const traceGate = await enforceTraceGate({ traceFile, runId, scheduled: 1, actor: "csm-build" });
   console.log("status:", result.status);
   console.log("evidence:", evidenceDir);
+  if (!traceGate.ok) {
+    console.error(`trace enforcement failed: ${traceGate.reason}`);
+    return 1;
+  }
   return result.status === "completed" ? 0 : 1;
 }
 
@@ -899,10 +958,16 @@ async function realMode() {
     const decisionAdapter = await resolveDecisionAdapter(approach, kind, runId);
     // Built-in advisory tracing for the run's lifecycle hooks: every hook emits
     // one action trace to the shared log (best-effort, never fails the run).
+    // T003: resolve the shared trace path once and share it between the hook
+    // writer and the completion verifier so an override never mismatches.
+    const traceFile = await resolveVerificationPath({ root: process.cwd(), env: process.env });
     const traceHooks = createTraceLifecycleHooks({
       actor: "csm-orchestrate",
+      runId,
       write: (recordKind, entry) =>
-        recordKind === "decision" ? recordDecision(entry, {}) : appendTrace(entry, {}),
+        recordKind === "decision"
+          ? recordDecision(entry, { file: traceFile })
+          : appendTrace(entry, { file: traceFile }),
     });
     const result = await orchestrate({
       approach,
@@ -990,6 +1055,46 @@ async function realMode() {
       await traceHooks.flush();
     } catch {
       /* trace drain is best-effort */
+    }
+    // T003: fail closed when the run scheduled tracing but produced none. This
+    // is an audit-emission gate: it never mutates result.receipt.
+    const traceGate = await enforceTraceGate({
+      traceFile,
+      runId,
+      scheduled: traceHooks.emitted(),
+    });
+    // T006: optional Jev advisory verifier, AFTER the deterministic gate so it
+    // can never change the outcome. Advisory only, off unless opted in.
+    if (decisionAdapter) {
+      try {
+        const seam = createConsultSeam({ adapter: decisionAdapter });
+        const advice = await seam.consultPoints(["trace-emission-verdict"], {
+          runId,
+          traceLogPath: traceFile,
+          scheduled: traceHooks.emitted(),
+          matched: verifyTraces({ file: traceFile, runId }).matched,
+          gate: traceGate.reason,
+        });
+        const verdict = advice["trace-emission-verdict"];
+        if (verdict)
+          await recordDecision(
+            {
+              runId,
+              actor: "csm-orchestrate",
+              action: "trace-emission-advisory",
+              target: traceFile,
+              justification: "jev advisory trace-emission verdict",
+              outcome: String(verdict.answer ?? "n/a"),
+            },
+            { file: traceFile },
+          );
+      } catch {
+        /* advisory best-effort */
+      }
+    }
+    if (!traceGate.ok) {
+      console.error(`trace enforcement failed: ${traceGate.reason}`);
+      return 1;
     }
     if (result.progress && !quietProgress) {
       renderProgressOnChange(result.progress);

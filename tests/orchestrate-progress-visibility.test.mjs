@@ -20,6 +20,8 @@ import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { validateSkillProgress } from "../lib/progress-tracker.mjs";
 import { recordSkillProgress } from "../scripts/lib/skill-progress-recorder.mjs";
 
+import "./helpers/trace-isolation.mjs";
+
 const exec = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const SHA_A = "sha256:" + "a".repeat(64);

@@ -19,6 +19,7 @@ import {
   validatePlanArtifact,
 } from "../csm-plan/lib/plan.mjs";
 import { resolvePlanInput } from "../csm-plan/lib/input-resolver.mjs";
+import "./helpers/trace-isolation.mjs";
 import {
   BUILD_SCHEMA,
   BUILD_SCHEMA_V2,

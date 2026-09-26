@@ -27,15 +27,21 @@ function targetOf(context) {
 
 // Returns { definitions, flush }. `definitions` is the {hookName: [handler]}
 // map to pass as orchestrate({ lifecycleHooks }); `flush` drains pending writes.
-export function createTraceLifecycleHooks({ actor = DEFAULT_ACTOR, write = null } = {}) {
+export function createTraceLifecycleHooks({
+  actor = DEFAULT_ACTOR,
+  write = null,
+  runId = null,
+} = {}) {
   const pending = new Set();
   const invoke = typeof write === "function" ? write : noopWriter;
+  let emitted = 0;
 
   function emit(hookName, context) {
     let promise;
     try {
+      const fallbackRunId = typeof runId === "string" && runId.length > 0 ? runId : "unknown-run";
       const entry = {
-        runId: typeof context?.runId === "string" && context.runId ? context.runId : "unknown-run",
+        runId: typeof context?.runId === "string" && context.runId ? context.runId : fallbackRunId,
         actor: typeof context?.skill === "string" && context.skill ? context.skill : actor,
         action: hookName,
         target: targetOf(context ?? {}),
@@ -49,6 +55,7 @@ export function createTraceLifecycleHooks({ actor = DEFAULT_ACTOR, write = null 
     } catch {
       return;
     }
+    if (invoke !== noopWriter) emitted += 1;
     pending.add(promise);
     promise.finally(() => pending.delete(promise));
   }
@@ -60,7 +67,9 @@ export function createTraceLifecycleHooks({ actor = DEFAULT_ACTOR, write = null 
     await Promise.allSettled(pending);
   }
 
-  return Object.freeze({ definitions: Object.freeze(definitions), flush });
+  // emitted() = how many hook traces this run scheduled (a run that scheduled
+  // none is "not scheduled" for the auto enforcement policy).
+  return Object.freeze({ definitions: Object.freeze(definitions), flush, emitted: () => emitted });
 }
 
 export default { createTraceLifecycleHooks };

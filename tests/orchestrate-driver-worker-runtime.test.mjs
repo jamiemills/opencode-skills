@@ -14,6 +14,8 @@ import { fileURLToPath } from "node:url";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { createTelemetryEmitter } from "../csm-orchestrate/lib/telemetry.mjs";
 
+import "./helpers/trace-isolation.mjs";
+
 const exec = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 

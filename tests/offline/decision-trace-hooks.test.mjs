@@ -55,6 +55,21 @@ test("a throwing writer never fails the run and flush still drains", async () =>
   assert.equal(runner.invocations().length, 1);
 });
 
+test("runId option is the fallback and emitted() counts scheduled writes", async () => {
+  const written = [];
+  const { definitions, flush, emitted } = createTraceLifecycleHooks({
+    runId: "run-abc",
+    write: async (kind, entry) => {
+      written.push(entry);
+    },
+  });
+  const runner = createLifecycleHookRunner(definitions);
+  runner.run("task-create", { taskId: "T1" });
+  await flush();
+  assert.equal(written[0].runId, "run-abc", "configured runId is the fallback");
+  assert.equal(emitted(), 1);
+});
+
 test("with no injected writer the hook is a no-op and never throws", async () => {
   const { definitions, flush } = createTraceLifecycleHooks();
   const runner = createLifecycleHookRunner(definitions);

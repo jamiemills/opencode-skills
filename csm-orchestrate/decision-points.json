@@ -223,6 +223,15 @@
       "fallback": "deterministic-reviewer-finding",
       "safetyClass": "authority",
       "applyVsAdvisory": "advisory"
+    },
+    {
+      "id": "trace-emission-verdict",
+      "seam": "csm-orchestrate-review",
+      "type": "noul",
+      "criteria": ["trace-present", "runid-match", "shipped-with-audit"],
+      "fallback": "deterministic-trace-verdict",
+      "safetyClass": "authority",
+      "applyVsAdvisory": "advisory"
     }
   ]
 }

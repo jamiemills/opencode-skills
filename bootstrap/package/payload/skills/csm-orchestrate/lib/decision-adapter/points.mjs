@@ -431,6 +431,23 @@ export const decisionPoints = Object.freeze(
         },
       },
     },
+    {
+      id: "trace-emission-verdict",
+      seam: "csm-orchestrate-review",
+      type: "noul",
+      criteria: ["trace-present", "runid-match", "shipped-with-audit"],
+      fallback: "deterministic-trace-verdict",
+      safetyClass: "authority",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Given the run id and the trace-log verification summary (path and counts only), does the evidence indicate the run emitted its action traces? Advisory only; the deterministic verifier remains authoritative.",
+        criteria: {
+          true: "The evidence indicates the run's traces were emitted",
+          false: "The evidence indicates the run's traces are missing",
+        },
+      },
+    },
   ].map(definePoint),
 );
 

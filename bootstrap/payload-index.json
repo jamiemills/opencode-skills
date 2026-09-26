@@ -776,8 +776,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/decision-points.json",
-        "sha256": "437d54f18296635c6eff7c45f46801859af44633fadb8dfd367c0a45c3990ec3",
-        "bytes": 7038,
+        "sha256": "9a82f1677ca58f7de86bc6681dd385f08815f78f8552b3736e7c9a9375505046",
+        "bytes": 7344,
         "mode": "0644"
       },
       {
@@ -890,8 +890,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/decision-adapter/points.mjs",
-        "sha256": "65da40ee7a0ee4dadb06081dc4b36232401d1364b3a53be3400f1fe70e55098b",
-        "bytes": 16801,
+        "sha256": "079f61814f0310a76a9d9b6517c17f5e4a891fb7a72bf9a5a0240f985d982227",
+        "bytes": 17538,
         "mode": "0644"
       },
       {
@@ -1082,8 +1082,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/trace-hooks.mjs",
-        "sha256": "0dae558365c252b4bca472bfffdd8c871f6b5c617dad1f6a171e8c140ee2cd73",
-        "bytes": 2498,
+        "sha256": "df8271cf570321793f20c08fe6c19479ec1ffd74059848bac73258f27c26c35f",
+        "bytes": 2848,
         "mode": "0644"
       },
       {

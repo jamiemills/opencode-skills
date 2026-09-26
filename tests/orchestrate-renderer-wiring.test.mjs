@@ -16,6 +16,8 @@ import { fileURLToPath } from "node:url";
 import { loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 import { emitRunProjections } from "../scripts/lib/run-projections.mjs";
 
+import "./helpers/trace-isolation.mjs";
+
 const exec = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const SHA_A = "sha256:" + "a".repeat(64);

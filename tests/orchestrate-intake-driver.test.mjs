@@ -17,6 +17,8 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
+import "./helpers/trace-isolation.mjs";
+
 const exec = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const driverPath = join(repoRoot, "scripts", "run-orchestrator.mjs");
