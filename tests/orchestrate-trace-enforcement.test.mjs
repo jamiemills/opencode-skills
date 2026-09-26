@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { enforceTraceGate } from "../scripts/run-orchestrator.mjs";
@@ -78,6 +78,24 @@ test("required policy passes once a real trace exists", async () => {
   }
 });
 
+test("with Jev active the policy is strict even when the run scheduled nothing", async () => {
+  const { dir, file } = fixture();
+  try {
+    await withEnv("auto", async () => {
+      const gate = await enforceTraceGate({
+        traceFile: file,
+        runId: "run-x",
+        scheduled: 0,
+        jevActive: true,
+      });
+      assert.equal(gate.ok, false);
+      assert.equal(gate.reason, "no-trace-for-run");
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("auto policy passes a run that scheduled nothing", async () => {
   const { dir, file } = fixture();
   try {
@@ -86,6 +104,36 @@ test("auto policy passes a run that scheduled nothing", async () => {
       assert.equal(gate.ok, true);
       assert.equal(gate.enforce, false);
     });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("E2E (subprocess): a broken trace path fails closed under required", () => {
+  const { dir } = fixture();
+  try {
+    const blocker = join(dir, "blocker");
+    writeFileSync(blocker, "regular file\n");
+    const badPath = join(blocker, "trace.jsonl"); // parent is a file -> mkdir fails
+    const script = join(dir, "run-gate.mjs");
+    const driverUrl = pathToFileURL(join(ROOT, "scripts", "run-orchestrator.mjs")).href;
+    writeFileSync(
+      script,
+      [
+        `import { enforceTraceGate } from ${JSON.stringify(driverUrl)};`,
+        `const gate = await enforceTraceGate({ traceFile: ${JSON.stringify(badPath)}, runId: "run-e2e", scheduled: 1 });`,
+        "process.stdout.write(JSON.stringify(gate));",
+        "process.exit(gate.ok ? 0 : 1);",
+        "",
+      ].join("\n"),
+    );
+    const result = spawnSync(process.execPath, [script], {
+      cwd: ROOT,
+      env: { ...process.env, CSM_TRACE_ENFORCE: "required", CSM_TRACE_LOG: badPath },
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout, /no-trace-for-run|log-absent/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

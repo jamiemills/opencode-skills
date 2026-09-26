@@ -126,6 +126,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 
 - `2026-09-20-session-lifecycle-enforcement-csm.json` — 2026-09-20 — plan (complete; csm-plan/1): implemented the CSM session-retrospective fixes in-loop — 11 tasks: a precommit+regen gate (T001/T002), plan-lineage validation scoped to active goals (T003), csm-plan closure fields (T004), progress validation (T005), loop-CLI trace emission adopting the existing trace-log-fix plan (T006), flaky allowlist policy (T007), session-end cleanup with a read-only leftover check (T008), no-mock-only rule (T009), clean-main merge/owned-path commits (T010), final verification (T011) — status: complete
 - `2026-09-20-trace-log-fix-csm.json` — 2026-09-20 — plan (ready; csm-plan/1): fix the partially-implemented single shared trace log — automatic recording hooks, path containment, trace CLI, and hygiene — status: reference
+- `2026-09-26-enforce-trace-emission-csm.json` — 2026-09-26 — plan (complete; csm-plan/1): enforce that action/decision traces are actually emitted (off|auto|required gate on both driver paths; strict when Jev is active) with a resolver-backed verifier and an optional Jev advisory verifier — status: complete
 - `2026-09-26-enforce-trace-emission-csm.json` — 2026-09-26 — plan (ready; csm-plan/1): enforce and verify that action/decision traces are actually emitted, with an optional Jev verifier — status: reference
 
 ## decisions/
@@ -324,6 +325,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-12-dwrr-drift-build-20260912t153000z-progress.json` — 2026-09-12 — csm-build progress record for the dynamic-worker-runtime drift-remediation build — status: reference
 - `2026-09-13-dwrr-gap-remediation-build-20260913t180000z-progress.json` — 2026-09-13 — csm-build progress record for the dynamic-worker-runtime gap-remediation build — status: active
 - `2026-09-13-dwrr-closure-build-20260913t210000z-progress.json` — 2026-09-13 — csm-build progress record for the dynamic-worker-runtime closure build — status: active
+- `2026-09-26-enforce-trace-emission-20260926t092053z-8bcfa8f7bcdf-progress.json` — 2026-09-26 — csm-plan progress record for the trace-emission enforcement plan — status: complete
 - `2026-09-13-dwrr-final-residuals-20260913t220000z-progress.json` — 2026-09-13 — csm-build progress record for the dynamic-worker-runtime final-residuals build — status: complete
 - `2026-09-13-dwrr-compliance-20260913t230000z-dwrrcompliance-progress.json` — 2026-09-13 — csm-deep-research progress record for the dwrr-compliance assessment — status: complete
 - `2026-09-14-dwrr-compliance-remediation-20260914t002000z-progress.json` — 2026-09-14 — csm-build progress record for the dwrr compliance-remediation build — status: complete

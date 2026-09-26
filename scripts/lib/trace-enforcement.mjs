@@ -18,7 +18,11 @@
 export const TRACE_ENFORCEMENT_POLICIES = Object.freeze(["off", "auto", "required"]);
 export const DEFAULT_TRACE_ENFORCEMENT = "auto";
 
-export function resolveTracePolicy({ flag = null, env = process.env } = {}) {
+export function resolveTracePolicy({ flag = null, env = process.env, jevActive = false } = {}) {
+  // When Jev is opted in the layer is being trusted for advisory judgements, so
+  // trace emission becomes strict (`required`) regardless of the softer default.
+  // Only an explicit host-side `off` flag can still opt out.
+  if (jevActive) return flag === "off" ? "off" : "required";
   if (flag === "required" || flag === "off") return flag;
   const raw = env?.CSM_TRACE_ENFORCE;
   if (typeof raw === "string") {

@@ -23,6 +23,19 @@ test("policy precedence: flag > env > default auto", () => {
   assert.equal(resolveTracePolicy({ flag: null, env: {} }), DEFAULT_TRACE_ENFORCEMENT);
 });
 
+test("Jev active forces the strict required policy", () => {
+  assert.equal(
+    resolveTracePolicy({ jevActive: true, env: { CSM_TRACE_ENFORCE: "off" } }),
+    "required",
+  );
+  assert.equal(resolveTracePolicy({ jevActive: true, env: {} }), "required");
+  assert.equal(
+    resolveTracePolicy({ jevActive: true, flag: "off" }),
+    "off",
+    "explicit host off still wins",
+  );
+});
+
 test("off never enforces", () => {
   const gate = evaluateTraceGate({ policy: "off", scheduled: 5, matched: 0 });
   assert.equal(gate.enforce, false);

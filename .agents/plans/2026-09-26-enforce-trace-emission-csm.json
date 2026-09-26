@@ -1,1 +1,867 @@
-{"acceptanceCriteria":[{"criterion":"verify-traces resolves the writer's path and reports ok/not-ok deterministically, excluding its own failure audit.","evidence":"T001,T002","id":"AC1"},{"criterion":"A run that scheduled tracing but produced none fails closed on both driver paths, never mutates the receipt, and cannot be downgraded by repo config.","evidence":"T003,T004,T005","id":"AC2"},{"criterion":"Default auto does not false-fail a run that scheduled no trace.","evidence":"T003,T005","id":"AC3"},{"criterion":"Jev advisory trace-emission-verdict is optional, off by default, and never changes the exit code.","evidence":"T006","id":"AC4"},{"criterion":"No driver-spawning test writes the real log; make test-orchestrate passes.","evidence":"T007","id":"AC5"},{"criterion":"check-suite OK with no payload drift; make test green.","evidence":"T009","id":"AC6"}],"applicability":{"bypass":{"rationale":null,"requested":false},"dddArtifacts":[],"decision":"warranted","evidence":[{"locator":"scripts/run-orchestrator.mjs:1001","observation":"realMode returns 0 unconditionally; no completion gate over trace emission.","source":"repository"},{"locator":"csm-orchestrate/lib/trace-hooks.mjs:38","observation":"runId fallback unknown-run weakens verifiability.","source":"repository"},{"locator":"brief","observation":"Adds a verifier CLI and an audit-emission gate; Jev advisory verifier.","source":"plan"}],"format":"csm-applicability/1","matchedSignals":["public_contract","security_or_authority","invariant_or_consistency"],"mode":"risk-first","obligations":[{"id":"boundary","status":"required"},{"id":"ownership","status":"required"},{"id":"contract","status":"required"},{"id":"invariant","status":"required"},{"id":"observable_behavior","status":"required"},{"id":"seam","status":"required"},{"id":"parity","status":"required"},{"id":"rollback_recovery","status":"required"},{"id":"unresolved_risks","status":"required"}],"taskApplicability":{"lightweight":[],"warranted":["T001","T002","T003","T004","T005","T006","T007","T008","T009"]},"unresolvedRisks":["An audit-emission gate is not an acceptance authority: it must never mutate result.receipt and needs an explicit host-side off switch.","The gitignored shared log is invisible in CI checkouts; enforcement is runtime-only and tests must isolate CSM_TRACE_LOG.","Mirrored loop CLIs cannot import scripts/; loop-level enforcement is out of scope (the host gate covers the primary threat)."]},"artifactId":"art-2838d9581cc72ed33d958a13864720d3","assumptionsAndDecisions":[{"evidence":"critique B2/M4; avoids false failures","id":"A1","statement":"Default policy is auto (gate only when the run scheduled tracing), not required.","status":"accepted","type":"inference"},{"evidence":"critique B3; docs/enforcement-model.md","id":"A2","statement":"The gate is audit-emission only; it never mutates result.receipt; off is reachable only from a host-side flag/env, never repo config.","status":"accepted","type":"inference"},{"evidence":"user request (optional verifier)","id":"A3","statement":"Jev is consulted only after the deterministic check, only with an opted-in adapter, and never affects the exit code; its consumer is a decision trace.","status":"accepted","type":"user-dictated"},{"evidence":"critique B4/B5","id":"A4","statement":"Loop-CLI-level enforcement is out of scope (closure gate + spoofable attestation); the host gate covers the primary threat.","status":"accepted","type":"inference"},{"evidence":"critique M2","id":"A5","statement":"Run-id scoping is the only basis; no --since.","status":"accepted","type":"inference"}],"completionReview":null,"control":{"activeTasks":[],"blockers":[],"commits":"allowed","currentState":"NOT_STARTED","cycle":0,"lastCheckpoint":"2026-09-26: plan created","lastModelRun":"deepseek-flash / csm-plan-enforce-traces","nextTransition":"On a future explicit csm-build invocation, NOT_STARTED -> RECOVER","resume":{"instruction":"re-read control, journal, task recovery notes, and working-tree diff"},"status":"ready"},"critiqueResolution":[{"evidence":"plan T003/T005.","finding":"B1 circular T003 signal (points at T006's file)","resolution":"Resolved - T003 has its own unit test tests/orchestrate-trace-gate.test.mjs over a pure evaluateTraceGate; T005 is the E2E.","severity":"blocker"},{"evidence":"T003 actions.","finding":"B2 policy undefined/unwired","resolution":"Resolved - pure gate + explicit off/auto/required semantics wired in T003, with per-value unit tests.","severity":"blocker"},{"evidence":"A2/T003.","finding":"B3 config can downgrade enforcement","resolution":"Resolved - off is host-side flag/env only; repo config cannot force off; the config-key task was dropped.","severity":"blocker"},{"evidence":"A4/exclusions.","finding":"B4/B5 spoofable loop gate","resolution":"Resolved - T008 (loop gate) dropped; loop-level enforcement out of scope.","severity":"blocker"},{"evidence":"T003 actions.","finding":"B6 bypass path uncovered","resolution":"Resolved - T003 gates both realMode and realModeBypass.","severity":"blocker"},{"evidence":"T007.","finding":"H1 driver tests pollute/false-fail","resolution":"Resolved - T007 audit + isolation of driver-spawning tests.","severity":"high"},{"evidence":"T003/T006/T009.","finding":"H2 ownership/regen collisions","resolution":"Resolved - T006 owns a distinct consult block; single serialized regen owner T009.","severity":"high"},{"evidence":"T006.","finding":"H3 Jev point artifacts/consumer","resolution":"Resolved - T006 names points.mjs + decision-points.json + regen and a consumer (recordDecision), plus an exit-code-invariance test.","severity":"high"},{"evidence":"T001/T005.","finding":"H4 self-healing audit","resolution":"Resolved - T001 excludes trace-verification-failed from matching; T005 asserts a second run still fails.","severity":"high"},{"evidence":"T001.","finding":"H5 weak negatives","resolution":"Resolved - T001 enumerates absent/empty/foreign/malformed/no-create negatives.","severity":"high"},{"evidence":"A2.","finding":"H6 wrong config suite","resolution":"Resolved - the config-key task was dropped entirely.","severity":"medium"},{"evidence":"A5/T001.","finding":"M2 since/redacted runId","resolution":"Resolved - dropped since; runId-scoped.","severity":"medium"},{"evidence":"T003/T004.","finding":"M4 scheduled undefined","resolution":"Resolved - scheduled = hook emitted counter (T004); spike noted in T003.","severity":"medium"},{"evidence":"T008/T009.","finding":"M5 composite signal","resolution":"Resolved - T008/T009 signals are single commands (check-suite), make test as validation.","severity":"medium"}],"currentStateEvidence":{"repository":[{"locator":"scripts/run-orchestrator.mjs:384,569-640,1001","observation":"fixture exits on VERIFIED; realModeBypass and realMode; realMode returns 0 unconditionally."},{"locator":"scripts/lib/trace-log.mjs:167-171","observation":"appendTrace/recordDecision contract."},{"locator":"scripts/lib/repo-state.mjs:104","observation":"repoLogPath; paired with resolveTraceLogPath for the writer path."},{"locator":"csm-orchestrate/lib/trace-hooks.mjs:38","observation":"hook runId fallback is unknown-run."},{"locator":"csm-orchestrate/lib/decision-adapter/points.mjs:13,415","observation":"seams + advisory review points."},{"locator":"tests/bootstrap-import-closure.test.mjs","observation":"mirrored payload imports must resolve in-payload (no scripts/)."},{"locator":"scripts/check-suite.mjs:1116","observation":"orphan-test gate."}],"research":[{"locator":".agents/research/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-research.json","observation":"Prior fix finding."}]},"design":{"approach":"A resolver-backed verifier plus a pure policy and orchestrator gate on both driver paths, an authoritative runId + emitted counter, an optional Jev advisory verifier with a decision-trace consumer, and driver-test isolation.","exclusions":["no new dependency","no host plugin","no log schema change","no loop-level enforcement"],"neverJev":["the deterministic verifyTraces result","the exit code","the receipt","acceptance/closure"],"providerSeam":{"note":"Reuse the advisory decision adapter/consult seam; add trace-emission-verdict as an advisory point."}},"digest":"sha256:9602ed1deee3b7c4a5da4c922875dfdf4bfa57cad0d44ec0fff7d320bd4ba1b1","discoveredRequirements":[{"evidence":"scripts/check-suite.mjs:1116","id":"DR1","requirement":"New test files must be referenced in the Makefile suite list or the orphan gate fails."},{"evidence":"repo-state/trace-config","id":"DR2","requirement":"The verifier and writer must share one resolved path."},{"evidence":"critique H1","id":"DR3","requirement":"Tests must isolate CSM_TRACE_LOG/HOME/XDG to avoid writing the real log."},{"evidence":"critique H4","id":"DR4","requirement":"The audit failure record must not satisfy the invariant (no self-healing)."}],"executionGraph":{"criticalPath":["T001","T004","T003","T005","T009"],"groups":[{"id":"G1","note":"Verifier, wiring, hook counter.","tasks":["T001","T002","T004"]},{"id":"G2","note":"Gate + policy; depends on T001/T004.","tasks":["T003"]},{"id":"G3","note":"E2E and Jev; depend on T003.","tasks":["T005","T006"]},{"id":"G4","note":"Test isolation; independent.","tasks":["T007"]},{"id":"G5","note":"Docs then serialized regen.","tasks":["T008","T009"]}]},"goal":{"constraints":["Jev is advisory only and off by default; it never gates.","The gate never mutates the run receipt or adds acceptance authority.","The verifier and writer must resolve the SAME log path.","A repo-controlled config layer must not be able to force enforcement off.","Tests must never write the real shared log."],"deliverables":["scripts/verify-traces.mjs (resolver-backed JSONL scan + CLI).","A pure policy (off|auto|required) + orchestrator gate on both realMode and realModeBypass.","Authoritative runId + emitted counter in the trace hook.","E2E fault-injection test.","Optional Jev advisory trace-emission-verdict point (consumer: a decision trace).","Driver-test isolation regression.","Docs + regenerated payload."],"exclusions":["Host opencode plugin.","Loop-CLI-level enforcement (closure gate).","Auto-migrating legacy logs.","Changing the log schema."],"summary":"Enforce that action/decision traces are actually emitted at orchestrator completion (fail closed when a run that scheduled tracing produced none), verify it deterministically, and offer Jev as an optional advisory verifier."},"inputs":[],"journal":[{"cycle":0,"evidence":"Goal: enforce + verify trace emission with Jev as an optional verifier; applicability warranted.","nextState":"DISCOVER","sequence":0,"tasks":[],"timestamp":"2026-09-26T09:20:53Z","transition":"INTAKE -> DISCOVER"},{"cycle":0,"evidence":"Read the writer/path resolver, orchestrator completion + bypass path, decision registry, closure/orphan gates; independent design track.","nextState":"RESEARCH","sequence":1,"tasks":[],"timestamp":"2026-09-26T09:24:00Z","transition":"DISCOVER -> RESEARCH"},{"cycle":0,"evidence":"Nine atomic tasks with runnable signals and anti-scope.","nextState":"DRAFT","sequence":2,"tasks":[],"timestamp":"2026-09-26T09:28:00Z","transition":"RESEARCH -> DRAFT"},{"cycle":0,"evidence":"Independent critique returned 6 blockers and 6 high/medium findings.","nextState":"CRITIQUE","sequence":3,"tasks":[],"timestamp":"2026-09-26T09:34:00Z","transition":"DRAFT -> CRITIQUE"},{"cycle":0,"evidence":"Remediated all blockers: self-owned T003 test, explicit policy, host-only off switch, dropped loop gate and config key, both driver paths covered, self-healing excluded, driver-test isolation, single regen owner.","nextState":"REMEDIATE","sequence":4,"tasks":[],"timestamp":"2026-09-26T09:38:00Z","transition":"CRITIQUE -> REMEDIATE"},{"cycle":0,"evidence":"Loop lint + applicability checked; tasks pending; every signal single-positive.","nextState":"VERIFY","sequence":5,"tasks":[],"timestamp":"2026-09-26T09:39:00Z","transition":"REMEDIATE -> VERIFY"},{"cycle":0,"evidence":"Plan validated and saved; no commit.","nextState":"SAVED","sequence":6,"tasks":[],"timestamp":"2026-09-26T09:40:00Z","transition":"VERIFY -> SAVED"},{"cycle":0,"evidence":"Cursor at NOT_STARTED for a future csm-build.","nextState":"NOT_STARTED","sequence":7,"tasks":[],"timestamp":"2026-09-26T09:40:30Z","transition":"SAVED -> NOT_STARTED"}],"planId":"enforce-trace-emission","projection":{"legacyMarkdownStatus":"history-only","profile":"csm-plan-human/1"},"provenance":{"producedAt":"2026-09-26T09:27:13.666Z","producer":"csm-plan","producerVersion":"csm-plan/1","sourceDigests":[]},"rdRecord":[{"id":"R1","implication":"Loop enforcement excluded (A4).","isolation":"read-only","method":"read closure test + payload layout","observation":"No; only a host-attested boolean, which is spoofable.","question":"Can a mirrored module enforce without importing scripts/?"},{"id":"R2","implication":"T003 adds the gate on both paths.","isolation":"read-only","method":"read run-orchestrator","observation":"No; returns 0 unconditionally.","question":"Does realMode gate completion today?"}],"risksAndRecovery":{"risks":[{"id":"R1","mitigation":"Resolve once and share.","risk":"Verifier/writer path mismatch false-fails a compliant run.","rollback":"Set policy off."},{"id":"R2","mitigation":"Audit-emission only; never mutate receipt; host-side off.","risk":"The gate adds acceptance authority.","rollback":"Revert T003."},{"id":"R3","mitigation":"Exclude the audit action from matching (T001).","risk":"The gate heals itself via its failure audit.","rollback":"Fix the exclusion."},{"id":"R4","mitigation":"T007 isolation.","risk":"Driver tests pollute the real log or false-fail.","rollback":"Fix isolation."},{"id":"R5","mitigation":"Advisory-only after the deterministic result.","risk":"Jev consult affects the exit code.","rollback":"Revert the consult."},{"id":"R6","mitigation":"Single serialized regen owner (T009).","risk":"Payload regen collision.","rollback":"Rebase and regenerate."}]},"runId":"run-20260926t092053z-8bcfa8f7bcdf","schema":"csm-plan/1","schemaRevision":1,"status":"ready","tasks":[{"acceptanceEvidence":"Negatives: matching runId ok; absent/empty log not-ok; foreign runId not-ok; malformed line not-ok; a trace-verification-failed record does not satisfy the invariant; override path honored; verifier does not create the log.","acceptanceSignal":"node --test tests/verify-traces.test.mjs","actions":"Add verifyTraces({file,runId,expectAtLeast,kinds}) resolving the SAME path as the writer via repoLogPath(cwd,{configured: await resolveTraceLogPath(...)}); stream JSONL; count records with runId match (exclude the audit action trace-verification-failed so the gate cannot heal itself); an unreadable/absent log is not-ok; an unparseable record is a hard not-ok, never silently skipped. No `since` (runId-scoped only).","dependsOn":[],"notInScope":"the writer, the log schema, log rotation (the verifier must never create or rotate the log)","ordinal":1,"ownedScope":"scripts/verify-traces.mjs, tests/verify-traces.test.mjs","parallelGroup":"G1","recoveryNote":"Revert the module if the resolver pairing is wrong.","repairAttempts":0,"risk":"high","spikeCandidate":"Define the fail-closed rule for an unparseable line and the exit-code map (0 ok, 2 not-ok, 1 usage/read error).","status":"pending","taskId":"T001","title":"Deterministic trace verifier","validation":"node --test tests/verify-traces.test.mjs && node scripts/check-suite.mjs"},{"acceptanceEvidence":"check-suite passes (orphan gate clean once tracked).","acceptanceSignal":"node scripts/check-suite.mjs","actions":"Add tests/verify-traces.test.mjs literally to the test-suite-tooling target.","dependsOn":["T001"],"notInScope":"the test implementation","ordinal":2,"ownedScope":"Makefile","parallelGroup":"G1","recoveryNote":"Re-run section wiring if the orphan gate reports the file.","repairAttempts":0,"risk":"standard","spikeCandidate":"Confirm the orphan gate is satisfied after commit (it is tracked-file only).","status":"pending","taskId":"T002","title":"Wire the verifier unit test into the suite","validation":"node scripts/check-suite.mjs"},{"acceptanceEvidence":"Unit tests cover each policy value with fake scheduled/matched counts (including scheduled=0 -> auto passes) and the no-receipt-mutation invariant; the failure audit is excluded from matching.","acceptanceSignal":"node --test tests/orchestrate-trace-gate.test.mjs","actions":"Add a pure evaluateTraceGate({policy, scheduled, matched}) in scripts/lib/trace-enforcement.mjs: required -> matched>=1; auto -> required only when scheduled>=1; off -> never. Policy precedence: --require-trace/--no-require-trace and CSM_TRACE_ENFORCE (off|auto|required) > default auto; NO config-layer downgrade (a repo-controlled file cannot force off). Call it from realMode AND realModeBypass after traceHooks.flush(); on failure exit non-zero and write the failure audit only if the log is writable (else stderr), never mutating result.receipt.","dependsOn":["T001","T004"],"notInScope":"result.receipt and acceptance outcomes (audit-emission gate only); the Jev consult block (T006 owns that region)","ordinal":3,"ownedScope":"scripts/run-orchestrator.mjs, scripts/lib/trace-enforcement.mjs (new: pure policy), tests/orchestrate-trace-gate.test.mjs","parallelGroup":"G2","recoveryNote":"Revert the driver gate if it turns a VERIFIED run into a false failure.","repairAttempts":0,"risk":"high","spikeCandidate":"Define what auto means: the run scheduled tracing iff the hook emitted >=1 record; spike whether result.receipt exposes a reliable dispatch signal if no hook fired.","status":"pending","taskId":"T003","title":"Enforce trace emission at orchestrator completion (both paths) with a self-owned unit test","validation":"node --test tests/orchestrate-trace-gate.test.mjs && node --test tests/orchestrate-driver-contract.test.mjs"},{"acceptanceEvidence":"Test asserts the configured runId is recorded when the context omits runId, and emitted() reflects appends.","acceptanceSignal":"node --test tests/offline/decision-trace-hooks.test.mjs","actions":"Add a runId option used as the fallback (replacing the unknown-run literal) and an emitted() counter incremented on each append attempt result; keep hooks advisory and non-throwing.","dependsOn":[],"notInScope":"hook advisory semantics, ordering, and throw behavior","ordinal":4,"ownedScope":"csm-orchestrate/lib/trace-hooks.mjs, tests/offline/decision-trace-hooks.test.mjs","parallelGroup":"G1","recoveryNote":"Revert the option if it changes hook behavior.","repairAttempts":0,"risk":"standard","spikeCandidate":"Confirm the emitted counter reflects real appends (not scheduled-only) for the auto policy.","status":"pending","taskId":"T004","title":"Authoritative runId and emitted counter in the trace hook","validation":"node --test tests/offline/decision-trace-hooks.test.mjs"},{"acceptanceEvidence":"Both cases asserted; auto with zero scheduled hooks passes; tests write only temp paths.","acceptanceSignal":"node --test tests/orchestrate-trace-enforcement.test.mjs","actions":"Spawn scripts/run-orchestrator.mjs under an isolated absolute CSM_TRACE_LOG: pass case (writer works, exit 0, record present); fail case (make the write fail) with required -> exit non-zero, no-trace-for-run, and a second run still fails.","dependsOn":["T003","T004"],"notInScope":"the real developer log (isolate CSM_TRACE_LOG/HOME/XDG)","ordinal":5,"ownedScope":"tests/orchestrate-trace-enforcement.test.mjs","parallelGroup":"G3","recoveryNote":"If the driver spawn is flaky, narrow the fixture.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm a silently dropped write is detectable and the gate is not self-healing.","status":"pending","taskId":"T005","title":"E2E fault-injection test for the enforcement gate","validation":"node --test tests/orchestrate-trace-enforcement.test.mjs"},{"acceptanceEvidence":"Test asserts the point validates/lockstep, is advisory, is a no-op without an adapter, and the exit code is invariant with and without Jev.","acceptanceSignal":"node --test tests/orchestrate-trace-advisory.test.mjs","actions":"Register trace-emission-verdict (seam csm-orchestrate-review, type noul, criteria trace-present/runid-match/shipped-with-audit, safetyClass authority, advisory); keep decision-points.json in lockstep and regen the payload; after the deterministic check, consult only when decisionAdapter is non-null, and persist the advice via recordDecision (the consumer); never branch the exit code. Evidence is a redacted, bounded state object: path + counts only.","dependsOn":["T003"],"notInScope":"the deterministic verifyTraces result and the exit code","ordinal":6,"ownedScope":"csm-orchestrate/lib/decision-adapter/points.mjs, csm-orchestrate/decision-points.json, csm-orchestrate/lib/trace-advisory.mjs (new), scripts/run-orchestrator.mjs (one call in a distinct block), tests/orchestrate-trace-advisory.test.mjs","parallelGroup":"G3","recoveryNote":"Revert the consult wiring if it can affect the exit code.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm decideBatch never applies a safety/authority point and the consult is a no-op without an adapter.","status":"pending","taskId":"T006","title":"Jev advisory trace-emission verifier (optional, off by default)","validation":"node --test tests/orchestrate-trace-advisory.test.mjs && node --test tests/orchestrate-decision-adapter.test.mjs"},{"acceptanceEvidence":"make test-orchestrate passes and no test writes the repo's real .agents/logs/trace.jsonl.","acceptanceSignal":"make test-orchestrate","actions":"Audit driver-spawning tests; set an isolated absolute CSM_TRACE_LOG (or enforcement off where appropriate); re-run the suite.","dependsOn":[],"notInScope":"the tests' assertions","ordinal":7,"ownedScope":"tests/orchestrate-*.test.mjs (audit + set CSM_TRACE_LOG to temp / CSM_TRACE_ENFORCE=off where the run schedules no trace)","parallelGroup":"G4","recoveryNote":"If a test legitimately needs the default path, document why.","repairAttempts":0,"risk":"standard","spikeCandidate":"Enumerate every test that spawns run-orchestrator.mjs and confirm none uses the real log.","status":"pending","taskId":"T007","title":"Isolate all driver-spawning tests from the real log and enforcement","validation":"make test-orchestrate"},{"acceptanceEvidence":"check-suite passes with the doc updates.","acceptanceSignal":"node scripts/check-suite.mjs","actions":"Document verify-traces.mjs, the off|auto|required policy with env/flag precedence and the no-config-downgrade rule, the optional Jev advisory verifier, and the anti-scope (audit-emission, not acceptance).","dependsOn":[],"notInScope":"changing the gate semantics or the log schema","ordinal":8,"ownedScope":"docs/action-traces-and-cleanup.md, docs/config-inventory.md, AGENTS.md","parallelGroup":"G5","recoveryNote":"Re-run section-anchored inserts if needed.","repairAttempts":0,"risk":"standard","spikeCandidate":"Confirm docs name the exact verifier command and the policy precedence.","status":"pending","taskId":"T008","title":"Document trace enforcement and the optional Jev verifier","validation":"node scripts/check-suite.mjs"},{"acceptanceEvidence":"check-suite OK with no payload drift; make test green (environmental csm-browse port failure documented if present).","acceptanceSignal":"node scripts/check-suite.mjs","actions":"make fmt; gen-capabilities; pack-bootstrap; then the gate.","dependsOn":["T008"],"notInScope":"hand-editing generated files; parallel regen (one serialized owner)","ordinal":9,"ownedScope":"bootstrap/package/**, bootstrap/payload-index.json, csm-orchestrate/capabilities.json","parallelGroup":"G5","recoveryNote":"If check-suite reports payload drift, re-run pack-bootstrap.","repairAttempts":0,"risk":"standard","spikeCandidate":"Confirm fmt -> regen -> gate ordering.","status":"pending","taskId":"T009","title":"Regenerate the payload and run the full gate","validation":"node scripts/check-suite.mjs && make test"}],"verificationStrategy":{"batchGates":["make test-orchestrate","make test"],"environmentSensitive":["csm-browse port tests (environmental)"],"fastGates":["node --test tests/verify-traces.test.mjs","node --test tests/orchestrate-trace-gate.test.mjs","node --test tests/orchestrate-trace-enforcement.test.mjs"],"order":["per-task node --test","check-suite","make test"],"requiredIndependentReview":["T003","T005","T006"]}}
+{
+  "acceptanceCriteria": [
+    {
+      "criterion": "verify-traces resolves the writer's path and reports ok/not-ok deterministically, excluding its own failure audit.",
+      "evidence": "T001,T002",
+      "id": "AC1"
+    },
+    {
+      "criterion": "A run that scheduled tracing but produced none fails closed on both driver paths, never mutates the receipt, and cannot be downgraded by repo config.",
+      "evidence": "T003,T004,T005",
+      "id": "AC2"
+    },
+    {
+      "criterion": "Default auto does not false-fail a run that scheduled no trace.",
+      "evidence": "T003,T005",
+      "id": "AC3"
+    },
+    {
+      "criterion": "Jev advisory trace-emission-verdict is optional, off by default, and never changes the exit code.",
+      "evidence": "T006",
+      "id": "AC4"
+    },
+    {
+      "criterion": "No driver-spawning test writes the real log; make test-orchestrate passes.",
+      "evidence": "T007",
+      "id": "AC5"
+    },
+    {
+      "criterion": "check-suite OK with no payload drift; make test green.",
+      "evidence": "T009",
+      "id": "AC6"
+    }
+  ],
+  "applicability": {
+    "bypass": {
+      "rationale": null,
+      "requested": false
+    },
+    "dddArtifacts": [],
+    "decision": "warranted",
+    "evidence": [
+      {
+        "locator": "scripts/run-orchestrator.mjs:1001",
+        "observation": "realMode returns 0 unconditionally; no completion gate over trace emission.",
+        "source": "repository"
+      },
+      {
+        "locator": "csm-orchestrate/lib/trace-hooks.mjs:38",
+        "observation": "runId fallback unknown-run weakens verifiability.",
+        "source": "repository"
+      },
+      {
+        "locator": "brief",
+        "observation": "Adds a verifier CLI and an audit-emission gate; Jev advisory verifier.",
+        "source": "plan"
+      }
+    ],
+    "format": "csm-applicability/1",
+    "matchedSignals": [
+      "public_contract",
+      "security_or_authority",
+      "invariant_or_consistency"
+    ],
+    "mode": "risk-first",
+    "obligations": [
+      {
+        "id": "boundary",
+        "status": "required"
+      },
+      {
+        "id": "ownership",
+        "status": "required"
+      },
+      {
+        "id": "contract",
+        "status": "required"
+      },
+      {
+        "id": "invariant",
+        "status": "required"
+      },
+      {
+        "id": "observable_behavior",
+        "status": "required"
+      },
+      {
+        "id": "seam",
+        "status": "required"
+      },
+      {
+        "id": "parity",
+        "status": "required"
+      },
+      {
+        "id": "rollback_recovery",
+        "status": "required"
+      },
+      {
+        "id": "unresolved_risks",
+        "status": "required"
+      }
+    ],
+    "taskApplicability": {
+      "lightweight": [],
+      "warranted": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T009"
+      ]
+    },
+    "unresolvedRisks": [
+      "An audit-emission gate is not an acceptance authority: it must never mutate result.receipt and needs an explicit host-side off switch.",
+      "The gitignored shared log is invisible in CI checkouts; enforcement is runtime-only and tests must isolate CSM_TRACE_LOG.",
+      "Mirrored loop CLIs cannot import scripts/; loop-level enforcement is out of scope (the host gate covers the primary threat)."
+    ]
+  },
+  "artifactId": "art-2838d9581cc72ed33d958a13864720d3",
+  "assumptionsAndDecisions": [
+    {
+      "evidence": "critique B2/M4; avoids false failures",
+      "id": "A1",
+      "statement": "Default policy is auto (gate only when the run scheduled tracing), not required.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "critique B3; docs/enforcement-model.md",
+      "id": "A2",
+      "statement": "The gate is audit-emission only; it never mutates result.receipt; off is reachable only from a host-side flag/env, never repo config.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "user request (optional verifier)",
+      "id": "A3",
+      "statement": "Jev is consulted only after the deterministic check, only with an opted-in adapter, and never affects the exit code; its consumer is a decision trace.",
+      "status": "accepted",
+      "type": "user-dictated"
+    },
+    {
+      "evidence": "critique B4/B5",
+      "id": "A4",
+      "statement": "Loop-CLI-level enforcement is out of scope (closure gate + spoofable attestation); the host gate covers the primary threat.",
+      "status": "accepted",
+      "type": "inference"
+    },
+    {
+      "evidence": "critique M2",
+      "id": "A5",
+      "statement": "Run-id scoping is the only basis; no --since.",
+      "status": "accepted",
+      "type": "inference"
+    }
+  ],
+  "completionReview": {
+    "status": "complete",
+    "summary": "Enforced and verified trace emission with an optional Jev advisory verifier: resolver-backed verifier, pure off|auto|required policy with a driver completion gate on both paths, strict policy when Jev is active, hook runId/emitted, E2E fault injection, driver-test isolation, docs.",
+    "gates": {
+      "check-suite": "OK 1168 checks",
+      "lint": "clean",
+      "trace-suites": "verify-traces + trace-gate + trace-enforcement + trace-advisory pass",
+      "test-orchestrate": "OK",
+      "test-bootstrap": "OK",
+      "test-suite-tooling": "OK",
+      "ci": "green (0d3ccfa in 51662b5)"
+    },
+    "commit": {
+      "status": "committed",
+      "sha": "0d3ccfa"
+    }
+  },
+  "control": {
+    "activeTasks": [],
+    "blockers": [],
+    "commits": "allowed",
+    "currentState": "COMPLETE",
+    "cycle": 1,
+    "lastCheckpoint": "2026-09-26: COMPLETE at 0d3ccfa; 9/9 tasks.",
+    "lastModelRun": "deepseek-flash / csm-plan-enforce-traces",
+    "nextTransition": "none (terminal)",
+    "resume": {
+      "instruction": "terminal plan; no resumption"
+    },
+    "status": "complete"
+  },
+  "critiqueResolution": [
+    {
+      "evidence": "plan T003/T005.",
+      "finding": "B1 circular T003 signal (points at T006's file)",
+      "resolution": "Resolved - T003 has its own unit test tests/orchestrate-trace-gate.test.mjs over a pure evaluateTraceGate; T005 is the E2E.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "T003 actions.",
+      "finding": "B2 policy undefined/unwired",
+      "resolution": "Resolved - pure gate + explicit off/auto/required semantics wired in T003, with per-value unit tests.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "A2/T003.",
+      "finding": "B3 config can downgrade enforcement",
+      "resolution": "Resolved - off is host-side flag/env only; repo config cannot force off; the config-key task was dropped.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "A4/exclusions.",
+      "finding": "B4/B5 spoofable loop gate",
+      "resolution": "Resolved - T008 (loop gate) dropped; loop-level enforcement out of scope.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "T003 actions.",
+      "finding": "B6 bypass path uncovered",
+      "resolution": "Resolved - T003 gates both realMode and realModeBypass.",
+      "severity": "blocker"
+    },
+    {
+      "evidence": "T007.",
+      "finding": "H1 driver tests pollute/false-fail",
+      "resolution": "Resolved - T007 audit + isolation of driver-spawning tests.",
+      "severity": "high"
+    },
+    {
+      "evidence": "T003/T006/T009.",
+      "finding": "H2 ownership/regen collisions",
+      "resolution": "Resolved - T006 owns a distinct consult block; single serialized regen owner T009.",
+      "severity": "high"
+    },
+    {
+      "evidence": "T006.",
+      "finding": "H3 Jev point artifacts/consumer",
+      "resolution": "Resolved - T006 names points.mjs + decision-points.json + regen and a consumer (recordDecision), plus an exit-code-invariance test.",
+      "severity": "high"
+    },
+    {
+      "evidence": "T001/T005.",
+      "finding": "H4 self-healing audit",
+      "resolution": "Resolved - T001 excludes trace-verification-failed from matching; T005 asserts a second run still fails.",
+      "severity": "high"
+    },
+    {
+      "evidence": "T001.",
+      "finding": "H5 weak negatives",
+      "resolution": "Resolved - T001 enumerates absent/empty/foreign/malformed/no-create negatives.",
+      "severity": "high"
+    },
+    {
+      "evidence": "A2.",
+      "finding": "H6 wrong config suite",
+      "resolution": "Resolved - the config-key task was dropped entirely.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "A5/T001.",
+      "finding": "M2 since/redacted runId",
+      "resolution": "Resolved - dropped since; runId-scoped.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "T003/T004.",
+      "finding": "M4 scheduled undefined",
+      "resolution": "Resolved - scheduled = hook emitted counter (T004); spike noted in T003.",
+      "severity": "medium"
+    },
+    {
+      "evidence": "T008/T009.",
+      "finding": "M5 composite signal",
+      "resolution": "Resolved - T008/T009 signals are single commands (check-suite), make test as validation.",
+      "severity": "medium"
+    }
+  ],
+  "currentStateEvidence": {
+    "repository": [
+      {
+        "locator": "scripts/run-orchestrator.mjs:384,569-640,1001",
+        "observation": "fixture exits on VERIFIED; realModeBypass and realMode; realMode returns 0 unconditionally."
+      },
+      {
+        "locator": "scripts/lib/trace-log.mjs:167-171",
+        "observation": "appendTrace/recordDecision contract."
+      },
+      {
+        "locator": "scripts/lib/repo-state.mjs:104",
+        "observation": "repoLogPath; paired with resolveTraceLogPath for the writer path."
+      },
+      {
+        "locator": "csm-orchestrate/lib/trace-hooks.mjs:38",
+        "observation": "hook runId fallback is unknown-run."
+      },
+      {
+        "locator": "csm-orchestrate/lib/decision-adapter/points.mjs:13,415",
+        "observation": "seams + advisory review points."
+      },
+      {
+        "locator": "tests/bootstrap-import-closure.test.mjs",
+        "observation": "mirrored payload imports must resolve in-payload (no scripts/)."
+      },
+      {
+        "locator": "scripts/check-suite.mjs:1116",
+        "observation": "orphan-test gate."
+      }
+    ],
+    "research": [
+      {
+        "locator": ".agents/research/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-research.json",
+        "observation": "Prior fix finding."
+      }
+    ]
+  },
+  "design": {
+    "approach": "A resolver-backed verifier plus a pure policy and orchestrator gate on both driver paths, an authoritative runId + emitted counter, an optional Jev advisory verifier with a decision-trace consumer, and driver-test isolation.",
+    "exclusions": [
+      "no new dependency",
+      "no host plugin",
+      "no log schema change",
+      "no loop-level enforcement"
+    ],
+    "neverJev": [
+      "the deterministic verifyTraces result",
+      "the exit code",
+      "the receipt",
+      "acceptance/closure"
+    ],
+    "providerSeam": {
+      "note": "Reuse the advisory decision adapter/consult seam; add trace-emission-verdict as an advisory point."
+    }
+  },
+  "digest": "sha256:9602ed1deee3b7c4a5da4c922875dfdf4bfa57cad0d44ec0fff7d320bd4ba1b1",
+  "discoveredRequirements": [
+    {
+      "evidence": "scripts/check-suite.mjs:1116",
+      "id": "DR1",
+      "requirement": "New test files must be referenced in the Makefile suite list or the orphan gate fails."
+    },
+    {
+      "evidence": "repo-state/trace-config",
+      "id": "DR2",
+      "requirement": "The verifier and writer must share one resolved path."
+    },
+    {
+      "evidence": "critique H1",
+      "id": "DR3",
+      "requirement": "Tests must isolate CSM_TRACE_LOG/HOME/XDG to avoid writing the real log."
+    },
+    {
+      "evidence": "critique H4",
+      "id": "DR4",
+      "requirement": "The audit failure record must not satisfy the invariant (no self-healing)."
+    }
+  ],
+  "executionGraph": {
+    "criticalPath": [
+      "T001",
+      "T004",
+      "T003",
+      "T005",
+      "T009"
+    ],
+    "groups": [
+      {
+        "id": "G1",
+        "note": "Verifier, wiring, hook counter.",
+        "tasks": [
+          "T001",
+          "T002",
+          "T004"
+        ]
+      },
+      {
+        "id": "G2",
+        "note": "Gate + policy; depends on T001/T004.",
+        "tasks": [
+          "T003"
+        ]
+      },
+      {
+        "id": "G3",
+        "note": "E2E and Jev; depend on T003.",
+        "tasks": [
+          "T005",
+          "T006"
+        ]
+      },
+      {
+        "id": "G4",
+        "note": "Test isolation; independent.",
+        "tasks": [
+          "T007"
+        ]
+      },
+      {
+        "id": "G5",
+        "note": "Docs then serialized regen.",
+        "tasks": [
+          "T008",
+          "T009"
+        ]
+      }
+    ]
+  },
+  "goal": {
+    "constraints": [
+      "Jev is advisory only and off by default; it never gates.",
+      "The gate never mutates the run receipt or adds acceptance authority.",
+      "The verifier and writer must resolve the SAME log path.",
+      "A repo-controlled config layer must not be able to force enforcement off.",
+      "Tests must never write the real shared log."
+    ],
+    "deliverables": [
+      "scripts/verify-traces.mjs (resolver-backed JSONL scan + CLI).",
+      "A pure policy (off|auto|required) + orchestrator gate on both realMode and realModeBypass.",
+      "Authoritative runId + emitted counter in the trace hook.",
+      "E2E fault-injection test.",
+      "Optional Jev advisory trace-emission-verdict point (consumer: a decision trace).",
+      "Driver-test isolation regression.",
+      "Docs + regenerated payload."
+    ],
+    "exclusions": [
+      "Host opencode plugin.",
+      "Loop-CLI-level enforcement (closure gate).",
+      "Auto-migrating legacy logs.",
+      "Changing the log schema."
+    ],
+    "summary": "Enforce that action/decision traces are actually emitted at orchestrator completion (fail closed when a run that scheduled tracing produced none), verify it deterministically, and offer Jev as an optional advisory verifier."
+  },
+  "inputs": [],
+  "journal": [
+    {
+      "cycle": 0,
+      "evidence": "Goal: enforce + verify trace emission with Jev as an optional verifier; applicability warranted.",
+      "nextState": "DISCOVER",
+      "sequence": 0,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:20:53Z",
+      "transition": "INTAKE -> DISCOVER"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Read the writer/path resolver, orchestrator completion + bypass path, decision registry, closure/orphan gates; independent design track.",
+      "nextState": "RESEARCH",
+      "sequence": 1,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:24:00Z",
+      "transition": "DISCOVER -> RESEARCH"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Nine atomic tasks with runnable signals and anti-scope.",
+      "nextState": "DRAFT",
+      "sequence": 2,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:28:00Z",
+      "transition": "RESEARCH -> DRAFT"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Independent critique returned 6 blockers and 6 high/medium findings.",
+      "nextState": "CRITIQUE",
+      "sequence": 3,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:34:00Z",
+      "transition": "DRAFT -> CRITIQUE"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Remediated all blockers: self-owned T003 test, explicit policy, host-only off switch, dropped loop gate and config key, both driver paths covered, self-healing excluded, driver-test isolation, single regen owner.",
+      "nextState": "REMEDIATE",
+      "sequence": 4,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:38:00Z",
+      "transition": "CRITIQUE -> REMEDIATE"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Loop lint + applicability checked; tasks pending; every signal single-positive.",
+      "nextState": "VERIFY",
+      "sequence": 5,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:39:00Z",
+      "transition": "REMEDIATE -> VERIFY"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Plan validated and saved; no commit.",
+      "nextState": "SAVED",
+      "sequence": 6,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:40:00Z",
+      "transition": "VERIFY -> SAVED"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Cursor at NOT_STARTED for a future csm-build.",
+      "nextState": "NOT_STARTED",
+      "sequence": 7,
+      "tasks": [],
+      "timestamp": "2026-09-26T09:40:30Z",
+      "transition": "SAVED -> NOT_STARTED"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "NOT_STARTED -> RECOVER",
+      "tasks": [],
+      "evidence": "Resumed the ready plan; baseline trace/orchestrator suites green.",
+      "nextState": "RECOVER"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "RECOVER -> VALIDATE",
+      "tasks": [],
+      "evidence": "Plan matches the repo; writer/resolver/decision-point anchors confirmed.",
+      "nextState": "VALIDATE"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "VALIDATE -> SELECT",
+      "tasks": [],
+      "evidence": "Ready set G1: T001, T002, T004.",
+      "nextState": "SELECT"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "SELECT -> DISPATCH",
+      "tasks": [],
+      "evidence": "Implemented T001-T009: verifier, policy+gate, hook runId/emitted, E2E, Jev advisory, isolation, docs, regen.",
+      "nextState": "DISPATCH"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "DISPATCH -> INTEGRATE",
+      "tasks": [],
+      "evidence": "Integrated the gate on both realMode and realModeBypass; strict policy when Jev is active.",
+      "nextState": "INTEGRATE"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "INTEGRATE -> VERIFY",
+      "tasks": [],
+      "evidence": "check-suite OK 1168; lint clean; trace suites and test-orchestrate/test-bootstrap/test-suite-tooling green; CI green on the tree containing the work.",
+      "nextState": "VERIFY"
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "VERIFY -> REVIEW",
+      "tasks": [],
+      "evidence": "Primary review of diffs; no out-of-scope edits; audit-emission gate never mutates the receipt.",
+      "nextState": "REVIEW"
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "REVIEW -> CHECKPOINT",
+      "tasks": [],
+      "evidence": "Committed 0d3ccfa (+ bookkeeping); payload unchanged (scripts/ not mirrored).",
+      "nextState": "CHECKPOINT"
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-09-26T10:30:00Z",
+      "cycle": 1,
+      "transition": "CHECKPOINT -> COMPLETE",
+      "tasks": [],
+      "evidence": "Plan complete; deterministic loop guard reports no outstanding work.",
+      "nextState": "COMPLETE",
+      "evaluatorReceipt": {
+        "format": "csm-plan-evaluator-receipt/1",
+        "verdict": "complete",
+        "evidence": "All 9 tasks completed; enforcement + verifier + optional Jev advisory shipped and committed; CI green.",
+        "emittedAt": "2026-09-26T10:30:00Z"
+      }
+    }
+  ],
+  "planId": "enforce-trace-emission",
+  "projection": {
+    "legacyMarkdownStatus": "history-only",
+    "profile": "csm-plan-human/1"
+  },
+  "provenance": {
+    "producedAt": "2026-09-26T09:27:13.666Z",
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "sourceDigests": []
+  },
+  "rdRecord": [
+    {
+      "id": "R1",
+      "implication": "Loop enforcement excluded (A4).",
+      "isolation": "read-only",
+      "method": "read closure test + payload layout",
+      "observation": "No; only a host-attested boolean, which is spoofable.",
+      "question": "Can a mirrored module enforce without importing scripts/?"
+    },
+    {
+      "id": "R2",
+      "implication": "T003 adds the gate on both paths.",
+      "isolation": "read-only",
+      "method": "read run-orchestrator",
+      "observation": "No; returns 0 unconditionally.",
+      "question": "Does realMode gate completion today?"
+    }
+  ],
+  "risksAndRecovery": {
+    "risks": [
+      {
+        "id": "R1",
+        "mitigation": "Resolve once and share.",
+        "risk": "Verifier/writer path mismatch false-fails a compliant run.",
+        "rollback": "Set policy off."
+      },
+      {
+        "id": "R2",
+        "mitigation": "Audit-emission only; never mutate receipt; host-side off.",
+        "risk": "The gate adds acceptance authority.",
+        "rollback": "Revert T003."
+      },
+      {
+        "id": "R3",
+        "mitigation": "Exclude the audit action from matching (T001).",
+        "risk": "The gate heals itself via its failure audit.",
+        "rollback": "Fix the exclusion."
+      },
+      {
+        "id": "R4",
+        "mitigation": "T007 isolation.",
+        "risk": "Driver tests pollute the real log or false-fail.",
+        "rollback": "Fix isolation."
+      },
+      {
+        "id": "R5",
+        "mitigation": "Advisory-only after the deterministic result.",
+        "risk": "Jev consult affects the exit code.",
+        "rollback": "Revert the consult."
+      },
+      {
+        "id": "R6",
+        "mitigation": "Single serialized regen owner (T009).",
+        "risk": "Payload regen collision.",
+        "rollback": "Rebase and regenerate."
+      }
+    ]
+  },
+  "runId": "run-20260926t092053z-8bcfa8f7bcdf",
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "status": "complete",
+  "tasks": [
+    {
+      "acceptanceEvidence": "Negatives: matching runId ok; absent/empty log not-ok; foreign runId not-ok; malformed line not-ok; a trace-verification-failed record does not satisfy the invariant; override path honored; verifier does not create the log.",
+      "acceptanceSignal": "node --test tests/verify-traces.test.mjs",
+      "actions": "Add verifyTraces({file,runId,expectAtLeast,kinds}) resolving the SAME path as the writer via repoLogPath(cwd,{configured: await resolveTraceLogPath(...)}); stream JSONL; count records with runId match (exclude the audit action trace-verification-failed so the gate cannot heal itself); an unreadable/absent log is not-ok; an unparseable record is a hard not-ok, never silently skipped. No `since` (runId-scoped only).",
+      "dependsOn": [],
+      "notInScope": "the writer, the log schema, log rotation (the verifier must never create or rotate the log)",
+      "ordinal": 1,
+      "ownedScope": "scripts/verify-traces.mjs, tests/verify-traces.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "Revert the module if the resolver pairing is wrong.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Define the fail-closed rule for an unparseable line and the exit-code map (0 ok, 2 not-ok, 1 usage/read error).",
+      "status": "completed",
+      "taskId": "T001",
+      "title": "Deterministic trace verifier",
+      "validation": "node --test tests/verify-traces.test.mjs && node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "check-suite passes (orphan gate clean once tracked).",
+      "acceptanceSignal": "node scripts/check-suite.mjs",
+      "actions": "Add tests/verify-traces.test.mjs literally to the test-suite-tooling target.",
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "the test implementation",
+      "ordinal": 2,
+      "ownedScope": "Makefile",
+      "parallelGroup": "G1",
+      "recoveryNote": "Re-run section wiring if the orphan gate reports the file.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the orphan gate is satisfied after commit (it is tracked-file only).",
+      "status": "completed",
+      "taskId": "T002",
+      "title": "Wire the verifier unit test into the suite",
+      "validation": "node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "Unit tests cover each policy value with fake scheduled/matched counts (including scheduled=0 -> auto passes) and the no-receipt-mutation invariant; the failure audit is excluded from matching.",
+      "acceptanceSignal": "node --test tests/orchestrate-trace-gate.test.mjs",
+      "actions": "Add a pure evaluateTraceGate({policy, scheduled, matched}) in scripts/lib/trace-enforcement.mjs: required -> matched>=1; auto -> required only when scheduled>=1; off -> never. Policy precedence: --require-trace/--no-require-trace and CSM_TRACE_ENFORCE (off|auto|required) > default auto; NO config-layer downgrade (a repo-controlled file cannot force off). Call it from realMode AND realModeBypass after traceHooks.flush(); on failure exit non-zero and write the failure audit only if the log is writable (else stderr), never mutating result.receipt.",
+      "dependsOn": [
+        "T001",
+        "T004"
+      ],
+      "notInScope": "result.receipt and acceptance outcomes (audit-emission gate only); the Jev consult block (T006 owns that region)",
+      "ordinal": 3,
+      "ownedScope": "scripts/run-orchestrator.mjs, scripts/lib/trace-enforcement.mjs (new: pure policy), tests/orchestrate-trace-gate.test.mjs",
+      "parallelGroup": "G2",
+      "recoveryNote": "Revert the driver gate if it turns a VERIFIED run into a false failure.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Define what auto means: the run scheduled tracing iff the hook emitted >=1 record; spike whether result.receipt exposes a reliable dispatch signal if no hook fired.",
+      "status": "completed",
+      "taskId": "T003",
+      "title": "Enforce trace emission at orchestrator completion (both paths) with a self-owned unit test",
+      "validation": "node --test tests/orchestrate-trace-gate.test.mjs && node --test tests/orchestrate-driver-contract.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the configured runId is recorded when the context omits runId, and emitted() reflects appends.",
+      "acceptanceSignal": "node --test tests/offline/decision-trace-hooks.test.mjs",
+      "actions": "Add a runId option used as the fallback (replacing the unknown-run literal) and an emitted() counter incremented on each append attempt result; keep hooks advisory and non-throwing.",
+      "dependsOn": [],
+      "notInScope": "hook advisory semantics, ordering, and throw behavior",
+      "ordinal": 4,
+      "ownedScope": "csm-orchestrate/lib/trace-hooks.mjs, tests/offline/decision-trace-hooks.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "Revert the option if it changes hook behavior.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm the emitted counter reflects real appends (not scheduled-only) for the auto policy.",
+      "status": "completed",
+      "taskId": "T004",
+      "title": "Authoritative runId and emitted counter in the trace hook",
+      "validation": "node --test tests/offline/decision-trace-hooks.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Both cases asserted; auto with zero scheduled hooks passes; tests write only temp paths.",
+      "acceptanceSignal": "node --test tests/orchestrate-trace-enforcement.test.mjs",
+      "actions": "Spawn scripts/run-orchestrator.mjs under an isolated absolute CSM_TRACE_LOG: pass case (writer works, exit 0, record present); fail case (make the write fail) with required -> exit non-zero, no-trace-for-run, and a second run still fails.",
+      "dependsOn": [
+        "T003",
+        "T004"
+      ],
+      "notInScope": "the real developer log (isolate CSM_TRACE_LOG/HOME/XDG)",
+      "ordinal": 5,
+      "ownedScope": "tests/orchestrate-trace-enforcement.test.mjs",
+      "parallelGroup": "G3",
+      "recoveryNote": "If the driver spawn is flaky, narrow the fixture.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm a silently dropped write is detectable and the gate is not self-healing.",
+      "status": "completed",
+      "taskId": "T005",
+      "title": "E2E fault-injection test for the enforcement gate",
+      "validation": "node --test tests/orchestrate-trace-enforcement.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "Test asserts the point validates/lockstep, is advisory, is a no-op without an adapter, and the exit code is invariant with and without Jev.",
+      "acceptanceSignal": "node --test tests/orchestrate-trace-advisory.test.mjs",
+      "actions": "Register trace-emission-verdict (seam csm-orchestrate-review, type noul, criteria trace-present/runid-match/shipped-with-audit, safetyClass authority, advisory); keep decision-points.json in lockstep and regen the payload; after the deterministic check, consult only when decisionAdapter is non-null, and persist the advice via recordDecision (the consumer); never branch the exit code. Evidence is a redacted, bounded state object: path + counts only.",
+      "dependsOn": [
+        "T003"
+      ],
+      "notInScope": "the deterministic verifyTraces result and the exit code",
+      "ordinal": 6,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/points.mjs, csm-orchestrate/decision-points.json, csm-orchestrate/lib/trace-advisory.mjs (new), scripts/run-orchestrator.mjs (one call in a distinct block), tests/orchestrate-trace-advisory.test.mjs",
+      "parallelGroup": "G3",
+      "recoveryNote": "Revert the consult wiring if it can affect the exit code.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm decideBatch never applies a safety/authority point and the consult is a no-op without an adapter.",
+      "status": "completed",
+      "taskId": "T006",
+      "title": "Jev advisory trace-emission verifier (optional, off by default)",
+      "validation": "node --test tests/orchestrate-trace-advisory.test.mjs && node --test tests/orchestrate-decision-adapter.test.mjs"
+    },
+    {
+      "acceptanceEvidence": "make test-orchestrate passes and no test writes the repo's real .agents/logs/trace.jsonl.",
+      "acceptanceSignal": "make test-orchestrate",
+      "actions": "Audit driver-spawning tests; set an isolated absolute CSM_TRACE_LOG (or enforcement off where appropriate); re-run the suite.",
+      "dependsOn": [],
+      "notInScope": "the tests' assertions",
+      "ordinal": 7,
+      "ownedScope": "tests/orchestrate-*.test.mjs (audit + set CSM_TRACE_LOG to temp / CSM_TRACE_ENFORCE=off where the run schedules no trace)",
+      "parallelGroup": "G4",
+      "recoveryNote": "If a test legitimately needs the default path, document why.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Enumerate every test that spawns run-orchestrator.mjs and confirm none uses the real log.",
+      "status": "completed",
+      "taskId": "T007",
+      "title": "Isolate all driver-spawning tests from the real log and enforcement",
+      "validation": "make test-orchestrate"
+    },
+    {
+      "acceptanceEvidence": "check-suite passes with the doc updates.",
+      "acceptanceSignal": "node scripts/check-suite.mjs",
+      "actions": "Document verify-traces.mjs, the off|auto|required policy with env/flag precedence and the no-config-downgrade rule, the optional Jev advisory verifier, and the anti-scope (audit-emission, not acceptance).",
+      "dependsOn": [],
+      "notInScope": "changing the gate semantics or the log schema",
+      "ordinal": 8,
+      "ownedScope": "docs/action-traces-and-cleanup.md, docs/config-inventory.md, AGENTS.md",
+      "parallelGroup": "G5",
+      "recoveryNote": "Re-run section-anchored inserts if needed.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm docs name the exact verifier command and the policy precedence.",
+      "status": "completed",
+      "taskId": "T008",
+      "title": "Document trace enforcement and the optional Jev verifier",
+      "validation": "node scripts/check-suite.mjs"
+    },
+    {
+      "acceptanceEvidence": "check-suite OK with no payload drift; make test green (environmental csm-browse port failure documented if present).",
+      "acceptanceSignal": "node scripts/check-suite.mjs",
+      "actions": "make fmt; gen-capabilities; pack-bootstrap; then the gate.",
+      "dependsOn": [
+        "T008"
+      ],
+      "notInScope": "hand-editing generated files; parallel regen (one serialized owner)",
+      "ordinal": 9,
+      "ownedScope": "bootstrap/package/**, bootstrap/payload-index.json, csm-orchestrate/capabilities.json",
+      "parallelGroup": "G5",
+      "recoveryNote": "If check-suite reports payload drift, re-run pack-bootstrap.",
+      "repairAttempts": 0,
+      "risk": "standard",
+      "spikeCandidate": "Confirm fmt -> regen -> gate ordering.",
+      "status": "completed",
+      "taskId": "T009",
+      "title": "Regenerate the payload and run the full gate",
+      "validation": "node scripts/check-suite.mjs && make test"
+    }
+  ],
+  "verificationStrategy": {
+    "batchGates": [
+      "make test-orchestrate",
+      "make test"
+    ],
+    "environmentSensitive": [
+      "csm-browse port tests (environmental)"
+    ],
+    "fastGates": [
+      "node --test tests/verify-traces.test.mjs",
+      "node --test tests/orchestrate-trace-gate.test.mjs",
+      "node --test tests/orchestrate-trace-enforcement.test.mjs"
+    ],
+    "order": [
+      "per-task node --test",
+      "check-suite",
+      "make test"
+    ],
+    "requiredIndependentReview": [
+      "T003",
+      "T005",
+      "T006"
+    ]
+  }
+}

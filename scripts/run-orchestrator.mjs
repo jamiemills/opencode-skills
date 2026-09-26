@@ -100,8 +100,14 @@ function tracePolicyFlag() {
 
 // T003: audit-emission gate. It never mutates the run receipt and never gates on
 // Jev; it reports whether the run's trace is missing under the resolved policy.
-export async function enforceTraceGate({ traceFile, runId, scheduled, actor = "csm-orchestrate" }) {
-  const policy = resolveTracePolicy({ flag: tracePolicyFlag(), env: process.env });
+export async function enforceTraceGate({
+  traceFile,
+  runId,
+  scheduled,
+  actor = "csm-orchestrate",
+  jevActive = false,
+}) {
+  const policy = resolveTracePolicy({ flag: tracePolicyFlag(), env: process.env, jevActive });
   const matched = verifyTraces({ file: traceFile, runId }).matched;
   const gate = evaluateTraceGate({ policy, scheduled, matched });
   if (gate.ok) return gate;
@@ -687,7 +693,42 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
   } catch {
     /* best-effort */
   }
-  const traceGate = await enforceTraceGate({ traceFile, runId, scheduled: 1, actor: "csm-build" });
+  const traceGate = await enforceTraceGate({
+    traceFile,
+    runId,
+    scheduled: 1,
+    actor: "csm-build",
+    jevActive: decisionAdapter !== null,
+  });
+  // T006: optional Jev advisory verifier on the bypass path too, AFTER the
+  // deterministic gate so it can never change the outcome. Advisory only.
+  if (decisionAdapter) {
+    try {
+      const seam = createConsultSeam({ adapter: decisionAdapter });
+      const advice = await seam.consultPoints(["trace-emission-verdict"], {
+        runId,
+        traceLogPath: traceFile,
+        scheduled: 1,
+        matched: verifyTraces({ file: traceFile, runId }).matched,
+        gate: traceGate.reason,
+      });
+      const verdict = advice["trace-emission-verdict"];
+      if (verdict)
+        await recordDecision(
+          {
+            runId,
+            actor: "csm-build",
+            action: "trace-emission-advisory",
+            target: traceFile,
+            justification: "jev advisory trace-emission verdict",
+            outcome: String(verdict.answer ?? "n/a"),
+          },
+          { file: traceFile },
+        );
+    } catch {
+      /* advisory best-effort */
+    }
+  }
   console.log("status:", result.status);
   console.log("evidence:", evidenceDir);
   if (!traceGate.ok) {
@@ -1062,6 +1103,7 @@ async function realMode() {
       traceFile,
       runId,
       scheduled: traceHooks.emitted(),
+      jevActive: decisionAdapter !== null,
     });
     // T006: optional Jev advisory verifier, AFTER the deterministic gate so it
     // can never change the outcome. Advisory only, off unless opted in.
