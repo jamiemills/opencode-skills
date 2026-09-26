@@ -130,6 +130,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-26-enforcement-closure-csm.json` — 2026-09-26 — plan (complete; csm-plan/1): closed the truly-needed remaining work — 9 tasks: author+register schemas for the 7 enforcement record ids (T001), gate the canonical JSON corpus via make test-corpus (T002), resolve the 7 KNOWN_UNWIRED_TESTS and keep the orphan gate green (T003), close the stale trace-log-fix plan via closePlan (T004), decide/record Jev per-role accuracy (T005), verify telemetry resume rehydration (T006), make live proofs required or record the residual (T007), verify orchestrate first-node-failure (T008), regen + final verification (T009) — status: complete
 - `2026-09-26-enforce-trace-emission-csm.json` — 2026-09-26 — plan (ready; csm-plan/1): enforce and verify that action/decision traces are actually emitted, with an optional Jev verifier — status: reference
 - `2026-09-26-system-remediation-jev-embedding-csm.json` — 2026-09-26 — 36-task plan combining the validated audit and Jev deep-embedding findings; T001-T004 built+reviewed — status: in progress
+- `2026-09-26-system-remediation-completion-driver-csm.json` — 2026-09-26 — driver plan: complete the system-remediation plan via csm-build loops with adversarial review and a distinct-reviewer completion verdict + CI-green gate — status: ready
 
 ## decisions/
 
