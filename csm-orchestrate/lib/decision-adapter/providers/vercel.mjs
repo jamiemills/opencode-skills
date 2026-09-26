@@ -11,7 +11,7 @@
 // envelope protocol as OpenRouter (supported, not live-verified for now);
 // adding or changing a supplier stays a descriptor-only change.
 
-import { firstAnswer, parseAnswers } from "../question-protocol.mjs";
+import { firstAnswer, parseAnswers, nonEmptyState } from "../question-protocol.mjs";
 //
 // Differences from the OpenRouter descriptor:
 //   * The model id differs: this provider uses `typesafe-ai/jev`, whereas the
@@ -65,7 +65,7 @@ function buildRequest(input = {}) {
     },
     body: {
       model,
-      state: input.state ?? null,
+      state: nonEmptyState(input.state),
       questions:
         input.questions !== null &&
         typeof input.questions === "object" &&

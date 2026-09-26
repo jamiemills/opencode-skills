@@ -62,7 +62,12 @@ test("buildRequest degrades an array-shaped questions value to an empty record",
 
 test("buildQuestions produces the record shape openrouter forwards unchanged", () => {
   const questions = buildQuestions([
-    { id: "review-challenger-verdict", type: "choice", criteria: ["agree", "retract"] },
+    {
+      id: "review-challenger-verdict",
+      type: "choice",
+      criteria: ["agree", "retract"],
+      question: { instructions: "challenge" },
+    },
   ]);
   const request = openrouter.buildRequest({
     env: { [OPENROUTER_API_KEY_ENV]: KEY },
@@ -78,7 +83,8 @@ test("buildRequest honours an explicit model override and defaults state/questio
     model: "typesafe/jev-1.13-preview",
   });
   assert.equal(request.body.model, "typesafe/jev-1.13-preview");
-  assert.equal(request.body.state, null);
+  assert.equal(typeof request.body.state, "string");
+  assert.ok(request.body.state.length > 0, "a missing state must be replaced, not sent as null");
   assert.deepEqual(request.body.questions, {});
 });
 

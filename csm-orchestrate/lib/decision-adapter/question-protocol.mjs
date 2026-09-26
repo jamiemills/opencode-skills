@@ -14,6 +14,15 @@
 // probability distribution, confidence, and score legend.
 
 export const QUESTION_TYPES = Object.freeze(["choice", "score", "noul"]);
+
+// The live API rejects a null/absent `state` (HTTP 400). A missing state is
+// replaced with a non-empty placeholder; objects and arrays are preserved.
+export const DEFAULT_STATE_PLACEHOLDER = "(no decision state supplied)";
+export function nonEmptyState(state) {
+  if (state === null || state === undefined) return DEFAULT_STATE_PLACEHOLDER;
+  if (typeof state === "string" && state.length === 0) return DEFAULT_STATE_PLACEHOLDER;
+  return state;
+}
 export const QUESTION_SPEC_SCHEMA = "csm-decision-question/1";
 
 function isPlainObject(value) {
@@ -32,8 +41,12 @@ export function questionForPoint(point, { id = point?.id } = {}) {
     throw new TypeError(`unsupported question type: ${String(type)}`);
   if (!nonEmptyString(id)) throw new TypeError("question id must be a non-empty string");
   const override = isPlainObject(point.question) ? point.question : {};
-  const spec = { type };
-  if (nonEmptyString(override.instructions)) spec.instructions = override.instructions;
+  // The live API requires a per-question `instructions` string. Reject a point
+  // that lacks one when questions are built; the adapter's call sites remain
+  // fail-open by design, so this is a build-time guard, not a runtime gate.
+  if (!nonEmptyString(override.instructions))
+    throw new TypeError(`decision point ${id} requires question.instructions`);
+  const spec = { type, instructions: override.instructions };
 
   if (type === "choice") {
     const criteria = override.criteria ?? point.criteria;

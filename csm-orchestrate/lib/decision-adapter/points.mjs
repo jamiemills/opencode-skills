@@ -76,6 +76,14 @@ export function validateDecisionPoint(point) {
     errors.push(`applyVsAdvisory must be one of ${APPLY_VS_ADVISORY.join(", ")}`);
   if (point.applyVsAdvisory === "apply" && point.safetyClass !== "non-safety")
     errors.push("only non-safety points may apply");
+  // The live API requires a per-question `instructions` string, so every point
+  // must carry one; construction fails closed otherwise.
+  if (
+    !isPlainObject(point.question) ||
+    typeof point.question.instructions !== "string" ||
+    point.question.instructions.trim() === ""
+  )
+    errors.push("question.instructions must be a non-empty string");
   return { valid: errors.length === 0, errors };
 }
 
@@ -90,6 +98,41 @@ function definePoint(definition) {
       `invalid decision point ${definition.id ?? "<unknown>"}: ${errors.join("; ")}`,
     );
   return point;
+}
+
+// Per-question instructions for points that carry criteria but no explicit
+// `question` block. The live API requires `instructions` on every question, so
+// these defaults make the shipped taxonomy callable without changing semantics.
+const DEFAULT_QUESTION_INSTRUCTIONS = Object.freeze({
+  "route-classification":
+    "Classify the request into exactly one route. Treat the deterministic match as the reference; only fill a route the deterministic router could not resolve.",
+  "spike-candidacy":
+    "Decide whether this task warrants an isolated R&D spike before implementation.",
+  "ready-set-ordering":
+    "Rank the ready task set for dispatch order. Dependency readiness and batch sizing remain deterministic.",
+  "deep-research-dispatch":
+    "Decide whether this research track requires an external deep-research dispatch.",
+  "review-assignment":
+    "Choose additional reviewers or dimensions to add. Never remove or override the deterministic reviewer set.",
+  "secret-preflag":
+    "Estimate whether the given text likely contains a secret that should be redacted. The deterministic secret scan remains authoritative.",
+  "conditional-skill-ranking":
+    "Rank the candidate skills for this repository and task signal. Explicit-mode exclusions remain deterministic.",
+  "critique-severity": "Rate the severity and evidence strength of this critique finding.",
+  "task-risk": "Rate the risk, blast radius, and reversibility of this task.",
+  "evidence-class-bucketing":
+    "Classify the evidence class (E1-E4) and source kind of this finding.",
+  "semantic-dedup":
+    "Rate how similar this candidate finding is to the other candidate. Never merge or delete a finding.",
+  "severity-bucketing": "Assign the severity bucket for this finding class.",
+});
+
+function withDefaultQuestion(point) {
+  if (isPlainObject(point.question)) return point;
+  const instructions = DEFAULT_QUESTION_INSTRUCTIONS[point.id];
+  if (typeof instructions !== "string")
+    throw new TypeError(`no default question.instructions for decision point ${point.id}`);
+  return { ...point, question: { instructions } };
 }
 
 export const decisionPoints = Object.freeze(
@@ -448,7 +491,9 @@ export const decisionPoints = Object.freeze(
         },
       },
     },
-  ].map(definePoint),
+  ]
+    .map(withDefaultQuestion)
+    .map(definePoint),
 );
 
 {

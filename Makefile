@@ -4,7 +4,7 @@ OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
-.PHONY: help install lint fmt fmt-check fmt-staged regen precommit audit trace check check-anthropic-mapping test-corpus test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
+.PHONY: help install lint fmt fmt-check fmt-staged regen precommit audit trace check check-anthropic-mapping test-corpus test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context test-decision-live-parity analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -199,6 +199,9 @@ test-osv-audit: ## OSV dependency audit verifier contract tests
 
 test-progress-tracker: ## skill progress tracker contract tests
 	node --test --test-concurrency=1 tests/progress-tracker.test.mjs
+
+test-decision-live-parity: ## opt-in live Jev provider parity probe (requires CSM_DECISION_LIVE_PARITY=1 and OPENROUTER_ROUTER_KEY)
+	CSM_DECISION_LIVE_PARITY=1 node --test tests/offline/decision-live-parity.test.mjs
 
 test-e2e: ## csm-browse e2e (skip by default; set CSM_BROWSE_E2E_REQUIRE=1 to require chromium-vnc)
 	cd csm-browse && node tests/e2e.mjs

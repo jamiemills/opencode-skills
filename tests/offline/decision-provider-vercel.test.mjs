@@ -70,7 +70,8 @@ test("buildRequest honours an explicit model override and defaults state/questio
     model: "typesafe-ai/jev-preview",
   });
   assert.equal(request.body.model, "typesafe-ai/jev-preview");
-  assert.equal(request.body.state, null);
+  assert.equal(typeof request.body.state, "string");
+  assert.ok(request.body.state.length > 0, "a missing state must be replaced, not sent as null");
   assert.deepEqual(request.body.questions, {});
 });
 

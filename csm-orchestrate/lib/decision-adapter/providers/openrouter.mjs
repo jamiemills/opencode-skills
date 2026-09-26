@@ -11,7 +11,7 @@
 // question-protocol.mjs) and the response is the live `answers` envelope; the
 // prior array-shaped request was rejected by the live API with HTTP 400.
 
-import { firstAnswer, parseAnswers } from "../question-protocol.mjs";
+import { firstAnswer, parseAnswers, nonEmptyState } from "../question-protocol.mjs";
 
 export const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
 export const OPENROUTER_API_KEY_ENV = "OPENROUTER_ROUTER_KEY";
@@ -58,7 +58,7 @@ function buildRequest(input = {}) {
     },
     body: {
       model,
-      state: input.state ?? null,
+      state: nonEmptyState(input.state),
       questions:
         input.questions !== null &&
         typeof input.questions === "object" &&

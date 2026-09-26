@@ -40,9 +40,24 @@ const RAW_ENVELOPE = {
 
 test("buildQuestions emits a RECORD keyed by question id (never an array)", () => {
   const record = buildQuestions([
-    { id: "review-challenger-verdict", type: "choice", criteria: ["agree", "retract"] },
-    { id: "deep-research-judge-clarity", type: "score", criteria: ["a", "b", "c"] },
-    { id: "secret-preflag", type: "noul", criteria: ["x", "y"] },
+    {
+      id: "review-challenger-verdict",
+      type: "choice",
+      criteria: ["agree", "retract"],
+      question: { instructions: "challenge" },
+    },
+    {
+      id: "deep-research-judge-clarity",
+      type: "score",
+      criteria: ["a", "b", "c"],
+      question: { instructions: "clarity" },
+    },
+    {
+      id: "secret-preflag",
+      type: "noul",
+      criteria: ["x", "y"],
+      question: { instructions: "secret" },
+    },
   ]);
   assert.ok(!Array.isArray(record));
   assert.deepEqual(Object.keys(record), [
@@ -75,14 +90,29 @@ test("questionForPoint rejects unsupported types and underspecified scores", () 
     /unsupported/,
   );
   assert.throws(
-    () => questionForPoint({ id: "x", type: "score", criteria: ["only-one"] }),
+    () =>
+      questionForPoint({
+        id: "x",
+        type: "score",
+        criteria: ["only-one"],
+        question: { instructions: "score" },
+      }),
     /score/,
   );
-  assert.throws(() => questionForPoint({ id: "x", type: "choice", criteria: ["one"] }), /choice/);
+  assert.throws(
+    () =>
+      questionForPoint({
+        id: "x",
+        type: "choice",
+        criteria: ["one"],
+        question: { instructions: "c" },
+      }),
+    /choice/,
+  );
 });
 
 test("buildQuestions refuses duplicate ids and empty input", () => {
-  const point = { id: "dup", type: "noul", criteria: ["a", "b"] };
+  const point = { id: "dup", type: "noul", criteria: ["a", "b"], question: { instructions: "d" } };
   assert.throws(() => buildQuestions([point, point]), /duplicate/);
   assert.throws(() => buildQuestions([]), /at least one/);
 });
